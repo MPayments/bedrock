@@ -1,31 +1,24 @@
 {
-  "name": "api",
+  "name": "@repo/organizations",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./client": "./src/client.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "build": "tsc",
-    "dev": "bun run --hot src/index.ts",
-    "start": "bun run src/index.ts",
+    "dev": "tsc --watch",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@repo/kernel": "*",
     "@repo/db": "*",
-    "@repo/ledger": "*",
-    "@repo/organizations": "*",
-    "@repo/customers": "*",
-    "@hono/swagger-ui": "^0.5.1",
     "@hono/zod-openapi": "^0.19.6",
-    "hono": "^4.8.10"
+    "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {
     "@repo/typescript-config": "*",
-    "@types/node": "^24",
     "typescript": "^5.8.3"
   }
 }

@@ -27,6 +27,8 @@ out/
 build
 dist
 
+# Data
+data/
 
 # Debug
 npm-debug.log*
