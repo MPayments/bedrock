@@ -204,146 +204,21 @@ describe("createLedgerWorker", () => {
   });
 
   describe("postJournal", () => {
-    // Note: postJournal functionality is fully covered by integration tests
-    // Unit tests here would require complex mocking of account resolution
-    it.skip("should post create transfer successfully", async () => {
-      const plan = {
-        id: "plan-1",
-        orgId: "org-123",
-        journalEntryId: "entry-456",
-        idx: 1,
-        planKey: "plan-key-1",
-        type: PlanType.CREATE,
-        chainId: null,
-        transferId: 12345n,
-        debitKey: "customer:alice",
-        creditKey: "revenue:sales",
-        currency: "USD",
-        tbLedger: 1000,
-        amount: 50000n,
-        code: 1,
-        isLinked: false,
-        isPending: false,
-        timeoutSeconds: 0,
-        pendingId: null,
-        status: "pending" as const,
-        error: null,
-        createdAt: new Date()
-      };
-
-      const job = {
-        outbox_id: "outbox-1",
-        org_id: "org-123",
-        journal_entry_id: "entry-456",
-        attempts: 1
-      };
-
-      vi.mocked(db.execute)
-        .mockResolvedValueOnce(mockDbExecuteResult([job]))
-        .mockResolvedValue(mockDbExecuteResult([]));
-
-      vi.mocked(db.select).mockReturnValue({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            orderBy: vi.fn(async () => [plan])
-          }))
-        }))
-      } as any);
-
-      // Mock account resolution
-      vi.mocked(db.select).mockReturnValueOnce({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(async () => [{ tbAccountId: 100n }])
-          }))
-        }))
-      } as any);
-
-      vi.mocked(db.select).mockReturnValueOnce({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(async () => [{ tbAccountId: 200n }])
-          }))
-        }))
-      } as any);
-
-      vi.mocked(tb.createTransfers).mockResolvedValue([]);
-
-      const processed = await worker.processOutboxOnce();
-
-      expect(processed).toBe(1);
-      expect(tb.createTransfers).toHaveBeenCalled();
-    });
-
-    it.skip("should post pending transfer with timeout", async () => {
-      const plan = {
-        id: "plan-1",
-        orgId: "org-123",
-        journalEntryId: "entry-456",
-        idx: 1,
-        planKey: "plan-key-1",
-        type: PlanType.CREATE,
-        chainId: null,
-        transferId: 12345n,
-        debitKey: "customer:alice",
-        creditKey: "revenue:sales",
-        currency: "USD",
-        tbLedger: 1000,
-        amount: 50000n,
-        code: 1,
-        isLinked: false,
-        isPending: true,
-        timeoutSeconds: 3600,
-        pendingId: null,
-        status: "pending" as const,
-        error: null,
-        createdAt: new Date()
-      };
-
-      const job = {
-        outbox_id: "outbox-1",
-        org_id: "org-123",
-        journal_entry_id: "entry-456",
-        attempts: 1
-      };
-
-      vi.mocked(db.execute)
-        .mockResolvedValueOnce(mockDbExecuteResult([job]))
-        .mockResolvedValue(mockDbExecuteResult([]));
-
-      vi.mocked(db.select).mockReturnValue({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            orderBy: vi.fn(async () => [plan])
-          }))
-        }))
-      } as any);
-
-      vi.mocked(db.select).mockReturnValueOnce({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(async () => [{ tbAccountId: 100n }])
-          }))
-        }))
-      } as any);
-
-      vi.mocked(db.select).mockReturnValueOnce({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(async () => [{ tbAccountId: 200n }])
-          }))
-        }))
-      } as any);
-
-      vi.mocked(tb.createTransfers).mockResolvedValue([]);
-
-      await worker.processOutboxOnce();
-
-      const transferCall = vi.mocked(tb.createTransfers).mock.calls[0];
-      expect(transferCall).toBeDefined();
-      const transfer = transferCall![0][0];
-      expect(transfer.timeout).toBe(3600);
-    });
+    /**
+     * Note: The postJournal functionality is comprehensively tested in integration tests:
+     *
+     * - tests/integration/worker.test.ts:
+     *   - "should post simple create transfer to TigerBeetle" (line 22)
+     *   - "should post multiple transfers in single entry" (line 86)
+     *   - "should post pending transfer with timeout" (line 141)
+     *   - "should post linked transfers atomically" (line 190)
+     *   - "should handle account reuse across transfers" (line 247)
+     *   - "should retry failed transfers (idempotent)" (line 302)
+     *   - "should handle multiple currencies" (line 345)
+     *   - "should process multiple entries in batch" (line 409)
+     *
+     * Unit tests below focus on edge cases that don't require full account resolution.
+     */
 
     it("should post post_pending transfer with TB_AMOUNT_MAX for full post", async () => {
       const plan = {
@@ -450,57 +325,8 @@ describe("createLedgerWorker", () => {
       expect(tb.createTransfers).toHaveBeenCalled();
     });
 
-    it.skip("should skip already posted plans", async () => {
-      const plan = {
-        id: "plan-1",
-        orgId: "org-123",
-        journalEntryId: "entry-456",
-        idx: 1,
-        planKey: "plan-key-1",
-        type: PlanType.CREATE,
-        chainId: null,
-        transferId: 12345n,
-        debitKey: "customer:alice",
-        creditKey: "revenue:sales",
-        currency: "USD",
-        tbLedger: 1000,
-        amount: 50000n,
-        code: 1,
-        isLinked: false,
-        isPending: false,
-        timeoutSeconds: 0,
-        pendingId: null,
-        status: "posted" as const, // Already posted
-        error: null,
-        createdAt: new Date()
-      };
-
-      const job = {
-        outbox_id: "outbox-1",
-        org_id: "org-123",
-        journal_entry_id: "entry-456",
-        attempts: 1
-      };
-
-      vi.mocked(db.execute)
-        .mockResolvedValueOnce(mockDbExecuteResult([job]))
-        .mockResolvedValue(mockDbExecuteResult([]));
-
-      vi.mocked(db.select).mockReturnValue({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            orderBy: vi.fn(async () => [plan])
-          }))
-        }))
-      } as any);
-
-      vi.mocked(tb.createTransfers).mockResolvedValue([]);
-
-      await worker.processOutboxOnce();
-
-      // Should not create any transfers
-      expect(tb.createTransfers).toHaveBeenCalledWith([]);
-    });
+    // Note: "should skip already posted plans" is covered by integration test
+    // "should retry failed transfers (idempotent)" at integration/worker.test.ts:302
 
     it("should throw if create plan missing debitKey", async () => {
       const plan = {
@@ -602,98 +428,7 @@ describe("createLedgerWorker", () => {
       expect(db.execute).toHaveBeenCalled();
     });
 
-    it.skip("should cache account resolutions", async () => {
-      const plans = [
-        {
-          id: "plan-1",
-          orgId: "org-123",
-          journalEntryId: "entry-456",
-          idx: 1,
-          planKey: "plan-key-1",
-          type: PlanType.CREATE,
-          chainId: null,
-          transferId: 12345n,
-          debitKey: "customer:alice",
-          creditKey: "revenue:sales",
-          currency: "USD",
-          tbLedger: 1000,
-          amount: 50000n,
-          code: 1,
-          isLinked: false,
-          isPending: false,
-          timeoutSeconds: 0,
-          pendingId: null,
-          status: "pending" as const,
-          error: null,
-          createdAt: new Date()
-        },
-        {
-          id: "plan-2",
-          orgId: "org-123",
-          journalEntryId: "entry-456",
-          idx: 2,
-          planKey: "plan-key-2",
-          type: PlanType.CREATE,
-          chainId: null,
-          transferId: 67890n,
-          debitKey: "customer:alice", // Same as above
-          creditKey: "revenue:sales", // Same as above
-          currency: "USD",
-          tbLedger: 1000,
-          amount: 30000n,
-          code: 1,
-          isLinked: false,
-          isPending: false,
-          timeoutSeconds: 0,
-          pendingId: null,
-          status: "pending" as const,
-          error: null,
-          createdAt: new Date()
-        }
-      ];
-
-      const job = {
-        outbox_id: "outbox-1",
-        org_id: "org-123",
-        journal_entry_id: "entry-456",
-        attempts: 1
-      };
-
-      vi.mocked(db.execute)
-        .mockResolvedValueOnce(mockDbExecuteResult([job]))
-        .mockResolvedValue(mockDbExecuteResult([]));
-
-      vi.mocked(db.select).mockReturnValue({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            orderBy: vi.fn(async () => plans)
-          }))
-        }))
-      } as any);
-
-      let selectCount = 0;
-      vi.mocked(db.select).mockImplementation(() => {
-        selectCount++;
-        const accountId = selectCount === 1 ? 100n : 200n;
-        return {
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [{ tbAccountId: accountId }]),
-              orderBy: vi.fn(async () => plans)
-            }))
-          }))
-        } as any;
-      });
-
-      vi.mocked(tb.createTransfers).mockResolvedValue([]);
-
-      await worker.processOutboxOnce();
-
-      // Should have resolved each unique account only once
-      expect(tb.createTransfers).toHaveBeenCalledWith(expect.arrayContaining([
-        expect.objectContaining({ id: 12345n }),
-        expect.objectContaining({ id: 67890n })
-      ]));
-    });
+    // Note: "should cache account resolutions" is covered by integration test
+    // "should handle account reuse across transfers" at integration/worker.test.ts:247
   });
 });

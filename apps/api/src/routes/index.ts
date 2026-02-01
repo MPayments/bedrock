@@ -1,2 +1,2 @@
-export { organizationsRoutes } from "./organizations.js";
-export { customersRoutes } from "./customers.js";
+export { organizationsRoutes } from "./organizations";
+export { customersRoutes } from "./customers";

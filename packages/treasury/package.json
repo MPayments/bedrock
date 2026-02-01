@@ -11,13 +11,14 @@
         "dev": "tsc --watch",
         "check-types": "tsc --noEmit",
         "test": "vitest run",
-        "test:watch": "vitest"
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage"
     },
     "dependencies": {
         "@repo/db": "*",
         "@repo/ledger": "*",
         "drizzle-orm": "^0.45.1",
-        "zod": "^4.0.0"
+        "zod": "^4.3.6"
     },
     "devDependencies": {
         "@repo/test-utils": "*",

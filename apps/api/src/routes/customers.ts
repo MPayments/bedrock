@@ -7,7 +7,7 @@ import {
   ListCustomersQuerySchema,
   CustomerIdParamSchema,
 } from "@repo/customers";
-import type { AppContext } from "../context.js";
+import type { AppContext } from "../context";
 import { ErrorSchema, DeletedSchema } from "../common.js";
 
 export function customersRoutes(ctx: AppContext) {

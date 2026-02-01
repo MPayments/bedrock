@@ -238,8 +238,40 @@ describe("createLedgerEngine", () => {
   });
 
   describe("linked flag computation", () => {
-    it.skip("should link consecutive transfers in same chain", async () => {
-      const mockTx = createMockTx();
+    // Note: Full linked transfer behavior is tested in integration/engine.test.ts
+    // and integration/worker.test.ts. These unit tests verify the flag computation logic.
+
+    it("should link all but last transfer in same chain", async () => {
+      let capturedPlans: any[] = [];
+
+      const mockTx = {
+        insert: vi.fn(() => ({
+          values: vi.fn((vals: any) => {
+            const insertedValues = Array.isArray(vals) ? vals : [vals];
+            // Capture TB transfer plans (they have chainId field)
+            if (insertedValues[0]?.chainId !== undefined) {
+              capturedPlans = insertedValues;
+            }
+            return {
+              onConflictDoNothing: vi.fn(() => ({
+                returning: vi.fn(async () => {
+                  if (insertedValues[0]?.idempotencyKey !== undefined) {
+                    return [{ id: "test-entry-id" }];
+                  }
+                  if (insertedValues[0]?.lineNo !== undefined) {
+                    return insertedValues.map((v: any, i: number) => ({ lineNo: v.lineNo || i + 1 }));
+                  }
+                  return insertedValues.map((_: any, i: number) => ({ id: `id-${i}` }));
+                })
+              }))
+            };
+          })
+        })),
+        select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => ({ limit: vi.fn(async () => []) })) })) })),
+        update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) })),
+        execute: vi.fn(async () => ({ rows: [] }))
+      } as any;
+
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(mockTx));
 
       const input = {
@@ -253,30 +285,42 @@ describe("createLedgerEngine", () => {
 
       await engine.createEntry(input);
 
-      const planInsertCall = vi.mocked(mockTx.insert).mock.calls.find(
-        (call: any) => call[0]?.table === "tb_transfer_plans"
-      );
-      expect(planInsertCall).toBeDefined();
-    });
-
-    it("should not link last transfer in chain", async () => {
-      const mockTx = createMockTx();
-      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(mockTx));
-
-      const input = {
-        ...createTestEntry(),
-        transfers: [
-          { ...createTestTransferPlan(), planKey: "p1", chain: "chain-a" },
-          { ...createTestTransferPlan(), planKey: "p2", chain: "chain-a" }
-        ]
-      };
-
-      await engine.createEntry(input);
-      // Last transfer should have isLinked: false
+      expect(capturedPlans).toHaveLength(3);
+      expect(capturedPlans[0].isLinked).toBe(true);  // First in chain - linked
+      expect(capturedPlans[1].isLinked).toBe(true);  // Middle in chain - linked
+      expect(capturedPlans[2].isLinked).toBe(false); // Last in chain - NOT linked
     });
 
     it("should not link transfers without chains", async () => {
-      const mockTx = createMockTx();
+      let capturedPlans: any[] = [];
+
+      const mockTx = {
+        insert: vi.fn(() => ({
+          values: vi.fn((vals: any) => {
+            const insertedValues = Array.isArray(vals) ? vals : [vals];
+            if (insertedValues[0]?.chainId !== undefined) {
+              capturedPlans = insertedValues;
+            }
+            return {
+              onConflictDoNothing: vi.fn(() => ({
+                returning: vi.fn(async () => {
+                  if (insertedValues[0]?.idempotencyKey !== undefined) {
+                    return [{ id: "test-entry-id" }];
+                  }
+                  if (insertedValues[0]?.lineNo !== undefined) {
+                    return insertedValues.map((v: any, i: number) => ({ lineNo: v.lineNo || i + 1 }));
+                  }
+                  return insertedValues.map((_: any, i: number) => ({ id: `id-${i}` }));
+                })
+              }))
+            };
+          })
+        })),
+        select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => ({ limit: vi.fn(async () => []) })) })) })),
+        update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) })),
+        execute: vi.fn(async () => ({ rows: [] }))
+      } as any;
+
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(mockTx));
 
       const input = {
@@ -288,7 +332,61 @@ describe("createLedgerEngine", () => {
       };
 
       await engine.createEntry(input);
-      // No transfers should be linked
+
+      expect(capturedPlans).toHaveLength(2);
+      expect(capturedPlans[0].isLinked).toBe(false); // No chain - not linked
+      expect(capturedPlans[1].isLinked).toBe(false); // No chain - not linked
+    });
+
+    it("should handle multiple separate chains", async () => {
+      let capturedPlans: any[] = [];
+
+      const mockTx = {
+        insert: vi.fn(() => ({
+          values: vi.fn((vals: any) => {
+            const insertedValues = Array.isArray(vals) ? vals : [vals];
+            if (insertedValues[0]?.chainId !== undefined) {
+              capturedPlans = insertedValues;
+            }
+            return {
+              onConflictDoNothing: vi.fn(() => ({
+                returning: vi.fn(async () => {
+                  if (insertedValues[0]?.idempotencyKey !== undefined) {
+                    return [{ id: "test-entry-id" }];
+                  }
+                  if (insertedValues[0]?.lineNo !== undefined) {
+                    return insertedValues.map((v: any, i: number) => ({ lineNo: v.lineNo || i + 1 }));
+                  }
+                  return insertedValues.map((_: any, i: number) => ({ id: `id-${i}` }));
+                })
+              }))
+            };
+          })
+        })),
+        select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => ({ limit: vi.fn(async () => []) })) })) })),
+        update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) })),
+        execute: vi.fn(async () => ({ rows: [] }))
+      } as any;
+
+      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(mockTx));
+
+      const input = {
+        ...createTestEntry(),
+        transfers: [
+          { ...createTestTransferPlan(), planKey: "a1", chain: "chain-a" },
+          { ...createTestTransferPlan(), planKey: "a2", chain: "chain-a" },
+          { ...createTestTransferPlan(), planKey: "b1", chain: "chain-b" },
+          { ...createTestTransferPlan(), planKey: "b2", chain: "chain-b" }
+        ]
+      };
+
+      await engine.createEntry(input);
+
+      expect(capturedPlans).toHaveLength(4);
+      expect(capturedPlans[0].isLinked).toBe(true);  // chain-a first - linked
+      expect(capturedPlans[1].isLinked).toBe(false); // chain-a last - NOT linked
+      expect(capturedPlans[2].isLinked).toBe(true);  // chain-b first - linked
+      expect(capturedPlans[3].isLinked).toBe(false); // chain-b last - NOT linked
     });
   });
 

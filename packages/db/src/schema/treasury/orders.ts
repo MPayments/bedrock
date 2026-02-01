@@ -2,8 +2,8 @@ import { sql } from "drizzle-orm";
 import {
     pgTable, text, timestamp, uuid, bigint, index, uniqueIndex
 } from "drizzle-orm/pg-core";
-import { organizations } from "./organizations.js";
-import { customers } from "./customers.js";
+import { organizations } from "./organizations";
+import { customers } from "./customers";
 import { bankAccounts } from "./bank-accounts";
 import { uint128 } from "../ledger/ledger";
 
