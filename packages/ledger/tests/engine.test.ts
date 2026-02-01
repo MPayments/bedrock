@@ -433,7 +433,7 @@ describe("createLedgerEngine", () => {
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(mockTx));
 
       const result = await engine.createEntry(input);
-      expect(result).toBe(existingId);
+      expect(result.entryId).toBe(existingId);
     });
 
     it("should throw on idempotency conflict with different fingerprint", async () => {
@@ -495,7 +495,47 @@ describe("createLedgerEngine", () => {
       };
 
       const result = await engine.createEntry(input);
-      expect(result).toBe(newEntryId);
+      expect(result.entryId).toBe(newEntryId);
+    });
+
+    it("should return transfer IDs in result", async () => {
+      const newEntryId = "new-entry-with-transfers";
+
+      const mockTx = {
+        insert: vi.fn(() => ({
+          values: vi.fn(() => ({
+            onConflictDoNothing: vi.fn(() => ({
+              returning: vi.fn(async () => [{ id: newEntryId }])
+            }))
+          }))
+        })),
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [])
+            }))
+          }))
+        }))
+      };
+
+      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(mockTx));
+
+      const input = {
+        ...createTestEntry(),
+        transfers: [
+          createTestTransferPlan(),
+          createTestTransferPlan()
+        ]
+      };
+
+      const result = await engine.createEntry(input);
+      
+      expect(result.entryId).toBe(newEntryId);
+      expect(result.transferIds).toBeInstanceOf(Map);
+      expect(result.transferIds.size).toBe(2);
+      expect(result.transferIds.get(1)).toBeDefined();
+      expect(result.transferIds.get(2)).toBeDefined();
+      expect(typeof result.transferIds.get(1)).toBe("bigint");
     });
   });
 

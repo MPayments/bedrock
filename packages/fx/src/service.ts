@@ -1,13 +1,8 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { schema } from "@repo/db/schema";
 import { type Database } from "@repo/db";
+import { type Logger, noopLogger, normalizeCurrency } from "@repo/kernel";
 import { QuoteExpiredError, RateNotFoundError } from "./errors";
-
-function normCur(c: string) {
-    const x = c.trim().toUpperCase();
-    if (!/^[A-Z0-9_]{2,16}$/.test(x)) throw new Error(`Invalid currency: ${c}`);
-    return x;
-}
 
 function mulDivFloor(a: bigint, num: bigint, den: bigint): bigint {
     if (den <= 0n) throw new Error("rateDen must be > 0");
@@ -16,8 +11,9 @@ function mulDivFloor(a: bigint, num: bigint, den: bigint): bigint {
 
 const BPS_SCALE = 10000n;
 
-export function createFxService(deps: { db: Database }) {
+export function createFxService(deps: { db: Database; logger?: Logger }) {
     const { db } = deps;
+    const log = deps.logger?.child({ svc: "fx" }) ?? noopLogger;
 
     async function upsertPolicy(input: {
         idempotencyKey: string;
@@ -47,8 +43,8 @@ export function createFxService(deps: { db: Database }) {
         asOf: Date;
         source?: string;
     }) {
-        const base = normCur(input.base);
-        const quote = normCur(input.quote);
+        const base = normalizeCurrency(input.base);
+        const quote = normalizeCurrency(input.quote);
         await db.insert(schema.fxRates).values({
             base,
             quote,
@@ -57,11 +53,12 @@ export function createFxService(deps: { db: Database }) {
             asOf: input.asOf,
             source: input.source ?? "manual"
         });
+        log.info("setManualRate", { base, quote, rateNum: input.rateNum.toString(), rateDen: input.rateDen.toString() });
     }
 
     async function getLatestRate(base: string, quote: string, asOf: Date) {
-        base = normCur(base);
-        quote = normCur(quote);
+        base = normalizeCurrency(base);
+        quote = normalizeCurrency(quote);
 
         const rows = await db
             .select()
@@ -80,9 +77,9 @@ export function createFxService(deps: { db: Database }) {
      * - иначе через USD: base->USD и USD->quote (можно поменять anchor на любую)
      */
     async function getCrossRate(base: string, quote: string, asOf: Date, anchor = "USD") {
-        base = normCur(base);
-        quote = normCur(quote);
-        anchor = normCur(anchor);
+        base = normalizeCurrency(base);
+        quote = normalizeCurrency(quote);
+        anchor = normalizeCurrency(anchor);
 
         if (base === quote) return {
             base,
@@ -159,8 +156,8 @@ export function createFxService(deps: { db: Database }) {
         asOf: Date;
         anchor?: string;
     }) {
-        const from = normCur(input.fromCurrency);
-        const to = normCur(input.toCurrency);
+        const from = normalizeCurrency(input.fromCurrency);
+        const to = normalizeCurrency(input.toCurrency);
         if (input.fromAmountMinor <= 0n) throw new Error("fromAmountMinor must be > 0");
 
         // idempotent: if exists, return
@@ -206,6 +203,13 @@ export function createFxService(deps: { db: Database }) {
             })
             .returning();
 
+        log.info("quote created", {
+            quoteId: inserted[0]!.id,
+            from,
+            to,
+            fromAmount: input.fromAmountMinor.toString(),
+            toAmount: customerTo.toString()
+        });
         return inserted[0]!;
     }
 
@@ -226,16 +230,20 @@ export function createFxService(deps: { db: Database }) {
             .where(and(eq(schema.fxQuotes.id, input.quoteId), eq(schema.fxQuotes.status, "active")))
             .returning();
 
+        if (updated.length) {
+            log.info("quote used", { quoteId: input.quoteId, usedByRef: input.usedByRef });
+        }
         return updated[0] ?? q;
     }
 
     async function expireOldQuotes(now: Date) {
-        await db.execute(sql`
+        const result = await db.execute(sql`
       UPDATE ${schema.fxQuotes}
       SET status = 'expired'
       WHERE status = 'active'
         AND expires_at <= ${now}
     `);
+        log.debug("expireOldQuotes", { expiredCount: result.rowCount ?? 0 });
     }
 
     return {

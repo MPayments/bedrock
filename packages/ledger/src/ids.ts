@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
 
+// Re-export sha256Hex from kernel for backward compatibility
+export { sha256Hex } from "@repo/kernel";
+
 export const TB_ID_MAX = (1n << 128n) - 1n;
 export const TB_ID_MAX_ALLOWED = TB_ID_MAX - 1n;
 
@@ -30,8 +33,4 @@ export function tbAccountIdFor(orgId: string, key: string, tbLedger: number): bi
 
 export function tbTransferIdForPlan(orgId: string, journalEntryId: string, idx: number, planKey: string): bigint {
   return u128FromHash(`plan:${orgId}:${journalEntryId}:${idx}:${planKey}`);
-}
-
-export function sha256Hex(input: string): string {
-  return createHash("sha256").update(input).digest("hex");
 }

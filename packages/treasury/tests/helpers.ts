@@ -76,9 +76,18 @@ export function createMockOrder(overrides: Partial<MockOrder> = {}): MockOrder {
 }
 
 export function createMockLedger() {
+    // Mock the new CreateEntryResult format with entryId and transferIds
+    const mockTransferIds = new Map<number, bigint>();
+    mockTransferIds.set(1, 12345678901234567890n);
+    
+    const mockResult = {
+        entryId: "test-entry-id",
+        transferIds: mockTransferIds,
+    };
+    
     return {
-        createEntryTx: vi.fn(async () => "test-entry-id"),
-        createEntry: vi.fn(async () => "test-entry-id"),
+        createEntryTx: vi.fn(async () => mockResult),
+        createEntry: vi.fn(async () => mockResult),
     } as any;
 }
 

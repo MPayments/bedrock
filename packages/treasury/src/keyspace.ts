@@ -1,5 +1,7 @@
 import { defineKeyspace } from "@repo/ledger";
 
+export type TreasuryKeyspace = typeof treasuryKeyspace;
+
 export const treasuryKeyspace = defineKeyspace("treasury", {
     customerWallet: (customerId: string, currency: string) => `CustomerWallet:${customerId}:${currency}`,
 

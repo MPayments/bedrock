@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stableStringify, makePlanKey } from "../src/canon";
+import { stableStringify, makePlanKey } from "@repo/kernel";
 
 describe("stableStringify", () => {
   it("should stringify primitives", () => {

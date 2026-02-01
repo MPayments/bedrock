@@ -1,11 +1,11 @@
 import { and, eq } from "drizzle-orm";
 import { IdempotencyConflictError } from "./errors";
 import { tbLedgerForCurrency, tbTransferIdForPlan, sha256Hex } from "./ids";
-import { stableStringify } from "./canon";
-import { PlanType, type CreateEntryInput, type TransferPlanLine } from "./types";
+import { PlanType, type CreateEntryInput, type TransferPlanLine, type CreateEntryResult } from "./types";
 import { schema } from "@repo/db/schema";
 import { type Database } from "@repo/db";
 import { validateCreateEntryInput, validateChainBlocks } from "./validation";
+import { stableStringify } from "@repo/kernel";
 
 function computeLinkedFlags(transfers: TransferPlanLine[]): boolean[] {
     const linked = new Array(transfers.length).fill(false);
@@ -58,10 +58,12 @@ function computePlanFingerprint(transfers: TransferPlanLine[]): string {
     return sha256Hex(stableStringify(transfers.map(normalizeForFingerprint)));
 }
 
+export type LedgerEngine = ReturnType<typeof createLedgerEngine>;
+
 export function createLedgerEngine(deps: { db: Database }) {
     const { db } = deps;
 
-    async function createEntryTx(tx: any, input: CreateEntryInput): Promise<string> {
+    async function createEntryTx(tx: any, input: CreateEntryInput): Promise<CreateEntryResult> {
         const validated = validateCreateEntryInput(input);
 
         validateChainBlocks(validated.transfers);
@@ -144,10 +146,16 @@ export function createLedgerEngine(deps: { db: Database }) {
             await tx.insert(schema.journalLines).values(derived).onConflictDoNothing();
         }
 
+        // Build transfer IDs map for return value
+        const transferIds = new Map<number, bigint>();
+
         const planRows = transfers.map((t: TransferPlanLine, i: number) => {
             const idx = i + 1;
             const tbLedger = tbLedgerForCurrency(t.currency);
             const transferId = tbTransferIdForPlan(validated.orgId, entryId, idx, t.planKey);
+
+            // Store transfer ID in map for return
+            transferIds.set(idx, transferId);
 
             if (t.type === PlanType.CREATE) {
                 return {
@@ -224,10 +232,10 @@ export function createLedgerEngine(deps: { db: Database }) {
             .values({ orgId: validated.orgId, kind: "post_journal", refId: entryId, status: "pending" })
             .onConflictDoNothing();
 
-        return entryId;
+        return { entryId, transferIds };
     }
 
-    async function createEntry(input: CreateEntryInput): Promise<string> {
+    async function createEntry(input: CreateEntryInput): Promise<CreateEntryResult> {
         return db.transaction(async (tx: any) => createEntryTx(tx, input));
     }
 

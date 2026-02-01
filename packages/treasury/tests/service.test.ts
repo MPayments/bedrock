@@ -638,13 +638,13 @@ describe("createTreasuryService", () => {
 
     describe("keyspace", () => {
         it("should expose keyspace", () => {
-            expect(service.ks).toBeDefined();
-            expect(service.ks.keys.customerWallet).toBeDefined();
-            expect(service.ks.keys.bank).toBeDefined();
+            expect(service.keys).toBeDefined();
+            expect(service.keys.customerWallet).toBeDefined();
+            expect(service.keys.bank).toBeDefined();
         });
 
         it("should generate correct account keys", () => {
-            const K = service.ks.keys;
+            const K = service.keys;
             expect(K.customerWallet("cust-1", "USD")).toContain("CustomerWallet");
             expect(K.bank("org-1", "bank-1", "USD")).toContain("Bank");
             expect(K.payoutObligation("order-1", "EUR")).toContain("PayoutObligation");

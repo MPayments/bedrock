@@ -55,3 +55,17 @@ function wrapPinoLogger(pinoLogger: pino.Logger): Logger {
     },
   };
 }
+
+/**
+ * Silent logger for use as default when no logger is provided.
+ * Useful for tests and cases where logging is not needed.
+ */
+export const noopLogger: Logger = {
+  info() {},
+  warn() {},
+  error() {},
+  debug() {},
+  child() {
+    return noopLogger;
+  },
+};

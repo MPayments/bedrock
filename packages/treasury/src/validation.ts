@@ -1,14 +1,15 @@
 import { z } from "zod";
+import { normalizeCurrency, isValidCurrency } from "@repo/kernel";
 
 // Shared schemas
 const uuidSchema = z.string().uuid();
 
 const currencySchema = z
     .string()
-    .transform((val) => val.trim().toUpperCase())
-    .refine((val) => /^[A-Z0-9_]{2,16}$/.test(val), {
+    .refine((val) => isValidCurrency(val), {
         message: "Currency must be 2-16 uppercase alphanumeric characters or underscores",
-    });
+    })
+    .transform((val) => normalizeCurrency(val));
 
 const positiveAmountSchema = z.bigint().positive({ message: "Amount must be positive" });
 const nonNegativeAmountSchema = z.bigint().min(0n, { message: "Amount must be non-negative" });
