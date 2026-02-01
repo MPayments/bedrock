@@ -1,25 +1,41 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { resolveTbAccountId } from "../src/resolve";
 import { AccountMappingConflictError } from "../src/errors";
-import { createMockDb, createMockTbClient } from "./helpers";
+import { createStubDb, createMockTbClient, type StubDatabase } from "./helpers";
 import { tbAccountIdFor } from "../src/ids";
 
-function mockDbInsert(tbAccountId: bigint) {
+/**
+ * Create insert chain mock for successful insert
+ */
+function mockDbInsertSuccess(tbAccountId: bigint) {
   return {
     values: vi.fn(() => ({
-      onConflictDoUpdate: vi.fn(() => ({
-        returning: vi.fn(async () => [{ tbAccountId }])
-      }))
-    }))
+      onConflictDoNothing: vi.fn(() => ({
+        returning: vi.fn(async () => [{ tbAccountId }]),
+      })),
+    })),
+  } as any;
+}
+
+/**
+ * Create insert chain mock for conflict (empty returning)
+ */
+function mockDbInsertConflict() {
+  return {
+    values: vi.fn(() => ({
+      onConflictDoNothing: vi.fn(() => ({
+        returning: vi.fn(async () => []),
+      })),
+    })),
   } as any;
 }
 
 describe("resolveTbAccountId", () => {
-  let db: ReturnType<typeof createMockDb>;
+  let db: StubDatabase;
   let tb: ReturnType<typeof createMockTbClient>;
 
   beforeEach(() => {
-    db = createMockDb();
+    db = createStubDb();
     tb = createMockTbClient();
   });
 
@@ -71,31 +87,24 @@ describe("resolveTbAccountId", () => {
     const tbLedger = 1000;
     const expectedId = tbAccountIdFor(orgId, key, tbLedger);
 
-    // First select: not found
-    // Second select: found after insert
-    let selectCalls = 0;
-    vi.mocked(db.select).mockImplementation(() => {
-      selectCalls++;
-      return {
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(async () => {
-              if (selectCalls === 1) return [];
-              return [{ tbAccountId: expectedId }];
-            })
-          }))
+    // First select: not found (triggers insert flow)
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () => [])
         }))
-      } as any;
-    });
+      }))
+    } as any);
 
     vi.mocked(tb.createAccounts).mockResolvedValue([]);
-    vi.mocked(db.insert).mockReturnValue(mockDbInsert(expectedId));
+    // DB insert succeeds (returns inserted row)
+    vi.mocked(db.insert).mockReturnValue(mockDbInsertSuccess(expectedId));
 
     const result = await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
 
     expect(result).toBe(expectedId);
-    expect(tb.createAccounts).toHaveBeenCalled();
     expect(db.insert).toHaveBeenCalled();
+    expect(tb.createAccounts).toHaveBeenCalled();
   });
 
   it("should pass correct account to TigerBeetle", async () => {
@@ -105,23 +114,17 @@ describe("resolveTbAccountId", () => {
     const tbLedger = 2000;
     const expectedId = tbAccountIdFor(orgId, key, tbLedger);
 
-    let selectCalls = 0;
-    vi.mocked(db.select).mockImplementation(() => {
-      selectCalls++;
-      return {
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(async () => {
-              if (selectCalls === 1) return [];
-              return [{ tbAccountId: expectedId }];
-            })
-          }))
+    // First select: not found
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () => [])
         }))
-      } as any;
-    });
+      }))
+    } as any);
 
     vi.mocked(tb.createAccounts).mockResolvedValue([]);
-    vi.mocked(db.insert).mockReturnValue(mockDbInsert(expectedId));
+    vi.mocked(db.insert).mockReturnValue(mockDbInsertSuccess(expectedId));
 
     await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
 
@@ -140,25 +143,19 @@ describe("resolveTbAccountId", () => {
     const tbLedger = 3000;
     const expectedId = tbAccountIdFor(orgId, key, tbLedger);
 
-    let selectCalls = 0;
-    vi.mocked(db.select).mockImplementation(() => {
-      selectCalls++;
-      return {
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(async () => {
-              if (selectCalls === 1) return [];
-              return [{ tbAccountId: expectedId }];
-            })
-          }))
+    // First select: not found
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () => [])
         }))
-      } as any;
-    });
+      }))
+    } as any);
 
     vi.mocked(tb.createAccounts).mockResolvedValue([]);
 
     const mockValues = vi.fn(() => ({
-      onConflictDoUpdate: vi.fn(() => ({
+      onConflictDoNothing: vi.fn(() => ({
         returning: vi.fn(async () => [{ tbAccountId: expectedId }])
       }))
     }));
@@ -182,7 +179,8 @@ describe("resolveTbAccountId", () => {
     const tbLedger = 1000;
     const expectedId = tbAccountIdFor(orgId, key, tbLedger);
 
-    // Simulate race: another process inserts between our insert and re-select
+    // Simulate race: another process wins the insert
+    // First select: not found, then after conflict: found via re-fetch
     let selectCalls = 0;
     vi.mocked(db.select).mockImplementation(() => {
       selectCalls++;
@@ -191,28 +189,30 @@ describe("resolveTbAccountId", () => {
           where: vi.fn(() => ({
             limit: vi.fn(async () => {
               if (selectCalls === 1) return []; // Initial: not found
-              return [{ tbAccountId: expectedId }]; // Re-select: found
+              return [{ tbAccountId: expectedId }]; // Re-fetch after conflict: found
             })
           }))
         }))
       } as any;
     });
 
-    vi.mocked(tb.createAccounts).mockResolvedValue([]);
-    vi.mocked(db.insert).mockReturnValue(mockDbInsert(expectedId));
+    // Insert returns empty (conflict - another process won)
+    vi.mocked(db.insert).mockReturnValue(mockDbInsertConflict());
 
     const result = await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
 
     expect(result).toBe(expectedId);
+    // TigerBeetle should NOT be called when we lose the race
+    expect(tb.createAccounts).not.toHaveBeenCalled();
   });
 
-  it("should throw if account not found after insert", async () => {
+  it("should throw if account not found after insert conflict", async () => {
     const orgId = "org-123";
     const key = "customer:dave";
     const currency = "USD";
     const tbLedger = 1000;
 
-    // Always return empty
+    // Always return empty (even on re-fetch after conflict)
     vi.mocked(db.select).mockReturnValue({
       from: vi.fn(() => ({
         where: vi.fn(() => ({
@@ -221,27 +221,22 @@ describe("resolveTbAccountId", () => {
       }))
     } as any);
 
-    vi.mocked(tb.createAccounts).mockResolvedValue([]);
-    vi.mocked(db.insert).mockReturnValue({
-      values: vi.fn(() => ({
-        onConflictDoUpdate: vi.fn(() => ({
-          returning: vi.fn(async () => []) // Empty return - account not found
-        }))
-      }))
-    } as any);
+    // Insert returns empty (conflict)
+    vi.mocked(db.insert).mockReturnValue(mockDbInsertConflict());
 
     await expect(
       resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger })
-    ).rejects.toThrow("Failed to persist TB account mapping");
+    ).rejects.toThrow("Account mapping conflict but row not found");
   });
 
-  it("should throw if re-selected account has wrong ID", async () => {
+  it("should throw if re-fetched account has wrong ID after conflict", async () => {
     const orgId = "org-123";
     const key = "customer:eve";
     const currency = "USD";
     const tbLedger = 1000;
     const wrongId = 77777n;
 
+    // First select: not found, then re-fetch returns wrong ID
     let selectCalls = 0;
     vi.mocked(db.select).mockImplementation(() => {
       selectCalls++;
@@ -250,21 +245,15 @@ describe("resolveTbAccountId", () => {
           where: vi.fn(() => ({
             limit: vi.fn(async () => {
               if (selectCalls === 1) return [];
-              return [{ tbAccountId: wrongId }]; // Wrong ID after insert
+              return [{ tbAccountId: wrongId }]; // Wrong ID on re-fetch
             })
           }))
         }))
       } as any;
     });
 
-    vi.mocked(tb.createAccounts).mockResolvedValue([]);
-    vi.mocked(db.insert).mockReturnValue({
-      values: vi.fn(() => ({
-        onConflictDoUpdate: vi.fn(() => ({
-          returning: vi.fn(async () => [{ tbAccountId: wrongId }]) // Wrong ID returned
-        }))
-      }))
-    } as any);
+    // Insert returns empty (conflict)
+    vi.mocked(db.insert).mockReturnValue(mockDbInsertConflict());
 
     await expect(
       resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger })
@@ -278,25 +267,19 @@ describe("resolveTbAccountId", () => {
     const tbLedger = 1000;
 
     for (const key of keys) {
-      let selectCalls = 0;
       const expectedId = tbAccountIdFor(orgId, key, tbLedger);
 
-      vi.mocked(db.select).mockImplementation(() => {
-        selectCalls++;
-        return {
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => {
-                if (selectCalls === 1) return [];
-                return [{ tbAccountId: expectedId }];
-              })
-            }))
+      // First select: not found
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => [])
           }))
-        } as any;
-      });
+        }))
+      } as any);
 
       vi.mocked(tb.createAccounts).mockResolvedValue([]);
-      vi.mocked(db.insert).mockReturnValue(mockDbInsert(expectedId));
+      vi.mocked(db.insert).mockReturnValue(mockDbInsertSuccess(expectedId));
 
       await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
 
@@ -317,23 +300,17 @@ describe("resolveTbAccountId", () => {
       const tbLedger = 1000 + currencies.indexOf(currency);
       const expectedId = tbAccountIdFor(orgId, key, tbLedger);
 
-      let selectCalls = 0;
-      vi.mocked(db.select).mockImplementation(() => {
-        selectCalls++;
-        return {
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => {
-                if (selectCalls === 1) return [];
-                return [{ tbAccountId: expectedId }];
-              })
-            }))
+      // First select: not found
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => [])
           }))
-        } as any;
-      });
+        }))
+      } as any);
 
       vi.mocked(tb.createAccounts).mockResolvedValue([]);
-      vi.mocked(db.insert).mockReturnValue(mockDbInsert(expectedId));
+      vi.mocked(db.insert).mockReturnValue(mockDbInsertSuccess(expectedId));
 
       const result = await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
       expect(result).toBe(expectedId);
@@ -347,30 +324,24 @@ describe("resolveTbAccountId", () => {
     const tbLedger = 1000;
     const expectedId = tbAccountIdFor(orgId, key, tbLedger);
 
-    let selectCalls = 0;
-    vi.mocked(db.select).mockImplementation(() => {
-      selectCalls++;
-      return {
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(async () => {
-              if (selectCalls === 1) return [];
-              return [{ tbAccountId: expectedId }];
-            })
-          }))
+    // First select: not found
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () => [])
         }))
-      } as any;
-    });
+      }))
+    } as any);
 
     // Import CreateAccountError to use correct error code
     const { CreateAccountError } = await import("tigerbeetle-node");
 
-    // TB account already exists (handled by tbCreateAccountsOrThrow)
+    // TB account already exists (handled by tbCreateAccountsOrThrow - exists is treated as success)
     vi.mocked(tb.createAccounts).mockResolvedValue([
       { index: 0, result: CreateAccountError.exists }
     ] as any);
 
-    vi.mocked(db.insert).mockReturnValue(mockDbInsert(expectedId));
+    vi.mocked(db.insert).mockReturnValue(mockDbInsertSuccess(expectedId));
 
     const result = await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
     expect(result).toBe(expectedId);

@@ -1,6 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { schema } from "@repo/db/schema";
-import { QuoteExpiredError, RateNotFoundError } from "./errors.js";
+import { type Database } from "@repo/db";
+import { QuoteExpiredError, RateNotFoundError } from "./errors";
 
 function normCur(c: string) {
     const x = c.trim().toUpperCase();
@@ -13,7 +14,9 @@ function mulDivFloor(a: bigint, num: bigint, den: bigint): bigint {
     return (a * num) / den;
 }
 
-export function createFxService(deps: { db: any }) {
+const BPS_SCALE = 10000n;
+
+export function createFxService(deps: { db: Database }) {
     const { db } = deps;
 
     async function upsertPolicy(input: {
@@ -81,18 +84,33 @@ export function createFxService(deps: { db: any }) {
         quote = normCur(quote);
         anchor = normCur(anchor);
 
-        if (base === quote) return { base, quote, rateNum: 1n, rateDen: 1n };
+        if (base === quote) return {
+            base,
+            quote,
+            rateNum: 1n,
+            rateDen: 1n,
+        };
 
         // direct
         try {
             const r = await getLatestRate(base, quote, asOf);
-            return { base, quote, rateNum: r.rateNum, rateDen: r.rateDen };
+            return { 
+                base,
+                quote,
+                rateNum: r.rateNum,
+                rateDen: r.rateDen,
+            };
         } catch { }
 
         // inverse direct
         try {
             const r = await getLatestRate(quote, base, asOf);
-            return { base, quote, rateNum: r.rateDen, rateDen: r.rateNum };
+            return { 
+                base,
+                quote,
+                rateNum: r.rateDen,
+                rateDen: r.rateNum,
+            };
         } catch { }
 
         if (base === anchor || quote === anchor) {
@@ -101,16 +119,27 @@ export function createFxService(deps: { db: any }) {
 
         const a = await getLatestRate(base, anchor, asOf).catch(async () => {
             const inv = await getLatestRate(anchor, base, asOf);
-            return { rateNum: inv.rateDen, rateDen: inv.rateNum };
+            return { 
+                rateNum: inv.rateDen, 
+                rateDen: inv.rateNum,
+            };
         });
 
         const b = await getLatestRate(anchor, quote, asOf).catch(async () => {
             const inv = await getLatestRate(quote, anchor, asOf);
-            return { rateNum: inv.rateDen, rateDen: inv.rateNum };
+            return { 
+                rateNum: inv.rateDen, 
+                rateDen: inv.rateNum,
+            };
         });
 
         // (base->anchor) * (anchor->quote)
-        return { base, quote, rateNum: a.rateNum * b.rateNum, rateDen: a.rateDen * b.rateDen };
+        return { 
+            base, 
+            quote, 
+            rateNum: a.rateNum * b.rateNum, 
+            rateDen: a.rateDen * b.rateDen,
+        };
     }
 
     /**
@@ -151,11 +180,11 @@ export function createFxService(deps: { db: any }) {
         const feeBps = BigInt(policy.feeBps);
 
         // customerTo = midTo * (1 - marginBps/10000)
-        const customerTo = (midTo * (10000n - marginBps)) / 10000n;
+        const customerTo = (midTo * (BPS_SCALE - marginBps)) / BPS_SCALE;
 
         // spread approximated in FROM currency as fromAmount * marginBps/10000 (MVP)
-        const spreadFrom = (input.fromAmountMinor * marginBps) / 10000n;
-        const feeFrom = (input.fromAmountMinor * feeBps) / 10000n;
+        const spreadFrom = (input.fromAmountMinor * marginBps) / BPS_SCALE;
+        const feeFrom = (input.fromAmountMinor * feeBps) / BPS_SCALE;
 
         const expiresAt = new Date(input.asOf.getTime() + policy.ttlSeconds * 1000);
 

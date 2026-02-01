@@ -44,7 +44,10 @@ export const createTransferPlanSchema = baseTransferPlanSchema.extend({
     creditKey: accountKeySchema,
     amount: positiveAmountSchema,
     pending: pendingConfigSchema,
-});
+}).refine(
+    (data) => data.debitKey !== data.creditKey,
+    { message: "debitKey and creditKey must be different (cannot transfer to self)" }
+);
 
 export const postPendingTransferPlanSchema = baseTransferPlanSchema.extend({
     type: z.literal(PlanType.POST_PENDING),

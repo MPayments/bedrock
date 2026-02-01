@@ -2,15 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createLedgerWorker } from "../src/worker";
 import { PostingError } from "../src/errors";
 import { PlanType } from "../src/types";
-import { createMockDb, createMockTbClient, mockDbExecuteResult } from "./helpers";
+import { createStubDb, createMockTbClient, mockDbExecuteResult, type StubDatabase } from "./helpers";
 
 describe("createLedgerWorker", () => {
-  let db: ReturnType<typeof createMockDb>;
+  let db: StubDatabase;
   let tb: ReturnType<typeof createMockTbClient>;
   let worker: ReturnType<typeof createLedgerWorker>;
 
   beforeEach(() => {
-    db = createMockDb();
+    db = createStubDb();
     tb = createMockTbClient();
     worker = createLedgerWorker({ db, tb });
   });
@@ -101,9 +101,10 @@ describe("createLedgerWorker", () => {
 
       await worker.processOutboxOnce();
 
-      // Should have called execute multiple times for updates
+      // Should have called execute for claim and transaction for updates
       expect(db.execute).toHaveBeenCalled();
-      expect(vi.mocked(db.execute).mock.calls.length).toBeGreaterThan(1);
+      // Updates are now wrapped in transactions
+      expect(db.transaction).toHaveBeenCalled();
     });
 
     it("should retry on transient failure", async () => {

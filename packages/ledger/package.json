@@ -25,11 +25,12 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@repo/test-utils": "*",
     "@repo/typescript-config": "*",
     "@types/pg": "^8.16.0",
-    "@vitest/coverage-v8": "^4.0.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "pg": "^8.17.2",
     "typescript": "^5.8.3",
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.18"
   }
 }

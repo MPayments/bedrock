@@ -223,17 +223,25 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
             await tbCreateTransfersOrThrow(tb, transfers);
         }
 
-        await db.execute(sql`
-      UPDATE ${schema.tbTransferPlans}
-      SET status = 'posted', error = NULL
-      WHERE journal_entry_id = ${journalEntryId} AND org_id = ${orgId}
-    `);
+        // Wrap both updates in a transaction to ensure atomicity
+        // If TigerBeetle transfers succeeded but DB update fails, the next retry
+        // will skip already-posted plans and update the status correctly
+        await db.transaction(async (tx: any) => {
+            await tx.execute(sql`
+          UPDATE ${schema.tbTransferPlans}
+          SET status = 'posted', error = NULL
+          WHERE journal_entry_id = ${journalEntryId} 
+            AND org_id = ${orgId}
+            AND status <> 'posted'
+        `);
 
-        await db.execute(sql`
-      UPDATE ${schema.journalEntries}
-      SET status = 'posted', posted_at = now(), error = NULL, last_outbox_error_at = NULL
-      WHERE id = ${journalEntryId}
-    `);
+            await tx.execute(sql`
+          UPDATE ${schema.journalEntries}
+          SET status = 'posted', posted_at = now(), error = NULL, last_outbox_error_at = NULL
+          WHERE id = ${journalEntryId}
+            AND status <> 'posted'
+        `);
+        });
     }
 
     return {

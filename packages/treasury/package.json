@@ -9,15 +9,20 @@
     "scripts": {
         "build": "tsc",
         "dev": "tsc --watch",
-        "check-types": "tsc --noEmit"
+        "check-types": "tsc --noEmit",
+        "test": "vitest run",
+        "test:watch": "vitest"
     },
     "dependencies": {
         "@repo/db": "*",
         "@repo/ledger": "*",
-        "drizzle-orm": "^0.45.1"
+        "drizzle-orm": "^0.45.1",
+        "zod": "^4.0.0"
     },
     "devDependencies": {
+        "@repo/test-utils": "*",
         "@repo/typescript-config": "*",
-        "typescript": "^5.8.3"
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18"
     }
 }

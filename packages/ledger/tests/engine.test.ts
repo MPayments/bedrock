@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createLedgerEngine } from "../src/engine";
 import { IdempotencyConflictError } from "../src/errors";
 import { PlanType } from "../src/types";
-import { createMockDb, createTestEntry, createTestTransferPlan } from "./helpers";
+import { createSmartStubDb, createTestEntry, createTestTransferPlan, type StubDatabase } from "./helpers";
 
 describe("createLedgerEngine", () => {
-  let db: ReturnType<typeof createMockDb>;
+  let db: StubDatabase;
   let engine: ReturnType<typeof createLedgerEngine>;
 
   beforeEach(() => {
-    db = createMockDb();
+    db = createSmartStubDb();
     engine = createLedgerEngine({ db });
   });
 

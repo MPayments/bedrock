@@ -3,8 +3,20 @@ import { schema } from "@repo/db/schema";
 import type { createLedgerEngine, Keyspace } from "@repo/ledger";
 import { makePlanKey, PlanType, tbTransferIdForPlan } from "@repo/ledger";
 import { Database } from "@repo/db";
-import { InvalidStateError } from "./errors.js";
+import { InvalidStateError, NotFoundError, ValidationError, AmountMismatchError, CurrencyMismatchError } from "./errors.js";
 import { treasuryKeyspace } from "./keyspace.js";
+import {
+    validateFundingSettledInput,
+    validateExecuteFxInput,
+    validateInitiatePayoutInput,
+    validateSettlePayoutInput,
+    validateVoidPayoutInput,
+    type FundingSettledInput,
+    type ExecuteFxInput,
+    type InitiatePayoutInput,
+    type SettlePayoutInput,
+    type VoidPayoutInput,
+} from "./validation.js";
 
 type LedgerEngine = ReturnType<typeof createLedgerEngine>;
 
@@ -18,19 +30,34 @@ export function createTreasuryService(deps: {
     const ks = deps.ks ?? treasuryKeyspace;
     const K = ks.keys;
 
-    async function fundingSettled(input: {
-        orderId: string;
-        branchOrgId: string;
-        branchBankStableKey: string;
-        customerId: string;
+    async function fundingSettled(rawInput: FundingSettledInput) {
+        const input = validateFundingSettledInput(rawInput);
 
-        currency: string;
-        amountMinor: bigint;
-
-        railRef: string;
-        occurredAt: Date;
-    }) {
         return db.transaction(async (tx: any) => {
+            // Fetch order first to validate inputs match
+            const [order] = await tx
+                .select()
+                .from(schema.paymentOrders)
+                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId)))
+                .limit(1);
+
+            if (!order) throw new NotFoundError("Order", input.orderId);
+
+            // Validate currency matches order's payInCurrency
+            if (input.currency !== order.payInCurrency) {
+                throw new CurrencyMismatchError("payInCurrency", order.payInCurrency, input.currency);
+            }
+
+            // Validate amount matches order's expected pay-in amount
+            if (input.amountMinor !== order.payInExpectedMinor) {
+                throw new AmountMismatchError("payInExpectedMinor", order.payInExpectedMinor, input.amountMinor);
+            }
+
+            // Validate customerId matches
+            if (input.customerId !== order.customerId) {
+                throw new ValidationError(`customerId mismatch: expected ${order.customerId}, got ${input.customerId}`);
+            }
+
             const pk = makePlanKey("funding_settled", {
                 railRef: input.railRef,
                 orderId: input.orderId,
@@ -80,19 +107,21 @@ export function createTreasuryService(deps: {
             if (moved.length) return entryId;
 
             // already advanced -> idempotent no-op
-            const existing = await tx
-                .select({ status: schema.paymentOrders.status, ledgerEntryId: schema.paymentOrders.ledgerEntryId })
-                .from(schema.paymentOrders)
-                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId)))
-                .limit(1);
+            // Re-check current status (order was already fetched above but status may have changed)
+            const st = order.status;
+            const led = order.ledgerEntryId;
 
-            if (!existing.length) throw new Error("Order not found");
+            // Use exact status matching instead of string includes for safety
+            const advancedStatuses = [
+                "funding_settled", "funding_settled_pending_posting",
+                "fx_executed", "fx_executed_pending_posting",
+                "payout_initiated", "payout_initiated_pending_posting",
+                "closed", "closed_pending_posting",
+                "failed", "failed_pending_posting"
+            ];
 
-            const st = existing[0]!.status;
-            const led = existing[0]!.ledgerEntryId;
-
-            if (st.includes("funding_settled") || st.includes("fx_executed") || st.includes("payout_initiated") || st.includes("closed") || st.includes("failed")) {
-                if (!led) throw new Error("Order in advanced state but ledgerEntryId missing");
+            if (advancedStatuses.includes(st)) {
+                if (!led) throw new InvalidStateError(`Order in advanced state ${st} but ledgerEntryId missing`);
                 return led;
             }
 
@@ -100,22 +129,9 @@ export function createTreasuryService(deps: {
         });
     }
 
-    async function executeFx(input: {
-        orderId: string;
-        branchOrgId: string;
-        customerId: string;
+    async function executeFx(rawInput: ExecuteFxInput) {
+        const input = validateExecuteFxInput(rawInput);
 
-        payInCurrency: string;
-        principalMinor: bigint;
-        feeMinor: bigint;
-        spreadMinor: bigint;
-
-        payOutCurrency: string;
-        payOutAmountMinor: bigint;
-
-        occurredAt: Date;
-        quoteRef: string;
-    }) {
         return db.transaction(async (tx: any) => {
             const [o] = await tx
                 .select()
@@ -123,7 +139,24 @@ export function createTreasuryService(deps: {
                 .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId)))
                 .limit(1);
 
-            if (!o) throw new Error("Order not found");
+            if (!o) throw new NotFoundError("Order", input.orderId);
+
+            // Validate currencies match order
+            if (input.payInCurrency !== o.payInCurrency) {
+                throw new CurrencyMismatchError("payInCurrency", o.payInCurrency, input.payInCurrency);
+            }
+            if (input.payOutCurrency !== o.payOutCurrency) {
+                throw new CurrencyMismatchError("payOutCurrency", o.payOutCurrency, input.payOutCurrency);
+            }
+
+            // Validate amounts match order
+            if (input.principalMinor !== o.payInExpectedMinor) {
+                throw new AmountMismatchError("principalMinor (payInExpectedMinor)", o.payInExpectedMinor, input.principalMinor);
+            }
+            if (input.payOutAmountMinor !== o.payOutAmountMinor) {
+                throw new AmountMismatchError("payOutAmountMinor", o.payOutAmountMinor, input.payOutAmountMinor);
+            }
+
             if (o.status !== "funding_settled") {
                 throw new InvalidStateError(`Order must be funding_settled (posted), got ${o.status}`);
             }
@@ -132,7 +165,7 @@ export function createTreasuryService(deps: {
             const transfers: any[] = [];
 
             transfers.push({
-                type: "create",
+                type: PlanType.CREATE,
                 chain,
                 planKey: makePlanKey("fx_principal", {
                     quoteRef: input.quoteRef,
@@ -150,7 +183,7 @@ export function createTreasuryService(deps: {
 
             if (input.feeMinor > 0n) {
                 transfers.push({
-                    type: "create",
+                    type: PlanType.CREATE,
                     chain,
                     planKey: makePlanKey("fx_fee", {
                         quoteRef: input.quoteRef,
@@ -169,7 +202,7 @@ export function createTreasuryService(deps: {
 
             if (input.spreadMinor > 0n) {
                 transfers.push({
-                    type: "create",
+                    type: PlanType.CREATE,
                     chain,
                     planKey: makePlanKey("fx_spread", {
                         quoteRef: input.quoteRef,
@@ -187,7 +220,7 @@ export function createTreasuryService(deps: {
             }
 
             transfers.push({
-                type: "create",
+                type: PlanType.CREATE,
                 chain,
                 planKey: makePlanKey("fx_to_ic_payin", {
                     quoteRef: input.quoteRef,
@@ -205,7 +238,7 @@ export function createTreasuryService(deps: {
             });
 
             transfers.push({
-                type: "create",
+                type: PlanType.CREATE,
                 chain,
                 planKey: makePlanKey("fx_obligation", {
                     quoteRef: input.quoteRef,
@@ -237,27 +270,34 @@ export function createTreasuryService(deps: {
                 .returning({ id: schema.paymentOrders.id });
 
             if (!moved.length) {
-                // someone raced and moved state; keep idempotent behaviour
-                return entryId;
+                // Race condition: order status changed between SELECT and UPDATE
+                // Check if this is an idempotent retry (order already has this entryId)
+                const current = await tx
+                    .select({ status: schema.paymentOrders.status, ledgerEntryId: schema.paymentOrders.ledgerEntryId })
+                    .from(schema.paymentOrders)
+                    .where(eq(schema.paymentOrders.id, input.orderId))
+                    .limit(1);
+
+                if (current.length && current[0]!.ledgerEntryId === entryId) {
+                    // Idempotent retry - order already has this entry
+                    return entryId;
+                }
+
+                // Order moved to different state by another process
+                throw new InvalidStateError(
+                    `Failed to update order status: concurrent modification detected. ` +
+                    `Current status: ${current[0]?.status ?? 'unknown'}`
+                );
             }
 
             return entryId;
         });
     }
 
-    async function initiatePayout(input: {
-        orderId: string;
+    async function initiatePayout(rawInput: InitiatePayoutInput) {
+        const input = validateInitiatePayoutInput(rawInput);
+        const timeoutSeconds = input.timeoutSeconds ?? 86400;
 
-        payoutOrgId: string;
-        payoutBankStableKey: string;
-
-        payOutCurrency: string;
-        amountMinor: bigint;
-
-        railRef: string;
-        timeoutSeconds?: number;
-        occurredAt: Date;
-    }) {
         return db.transaction(async (tx: any) => {
             const [o] = await tx
                 .select()
@@ -265,7 +305,18 @@ export function createTreasuryService(deps: {
                 .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId)))
                 .limit(1);
 
-            if (!o) throw new Error("Order not found");
+            if (!o) throw new NotFoundError("Order", input.orderId);
+
+            // Validate currency matches order
+            if (input.payOutCurrency !== o.payOutCurrency) {
+                throw new CurrencyMismatchError("payOutCurrency", o.payOutCurrency, input.payOutCurrency);
+            }
+
+            // Validate amount matches order's payout amount
+            if (input.amountMinor !== o.payOutAmountMinor) {
+                throw new AmountMismatchError("payOutAmountMinor", o.payOutAmountMinor, input.amountMinor);
+            }
+
             if (o.status !== "fx_executed") throw new InvalidStateError(`Order must be fx_executed (posted), got ${o.status}`);
 
             const planKey = makePlanKey("payout_init", {
@@ -291,7 +342,7 @@ export function createTreasuryService(deps: {
                         currency: input.payOutCurrency,
                         amount: input.amountMinor,
                         code: 3001,
-                        pending: { timeoutSeconds: input.timeoutSeconds ?? 86400 },
+                        pending: { timeoutSeconds },
                         memo: "Payout initiated (pending)"
                     }
                 ]
@@ -316,12 +367,9 @@ export function createTreasuryService(deps: {
         });
     }
 
-    async function settlePayout(input: {
-        orderId: string;
-        payOutCurrency: string;
-        railRef: string;
-        occurredAt: Date;
-    }) {
+    async function settlePayout(rawInput: SettlePayoutInput) {
+        const input = validateSettlePayoutInput(rawInput);
+
         return db.transaction(async (tx: any) => {
             const [o] = await tx
                 .select()
@@ -329,9 +377,15 @@ export function createTreasuryService(deps: {
                 .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId)))
                 .limit(1);
 
-            if (!o) throw new Error("Order not found");
+            if (!o) throw new NotFoundError("Order", input.orderId);
+
+            // Validate currency matches order
+            if (input.payOutCurrency !== o.payOutCurrency) {
+                throw new CurrencyMismatchError("payOutCurrency", o.payOutCurrency, input.payOutCurrency);
+            }
+
             if (o.status !== "payout_initiated") throw new InvalidStateError(`Order must be payout_initiated (posted), got ${o.status}`);
-            if (!o.payoutPendingTransferId) throw new Error("Missing payoutPendingTransferId");
+            if (!o.payoutPendingTransferId) throw new InvalidStateError("Missing payoutPendingTransferId - order state is inconsistent");
 
             const pk = makePlanKey("payout_settle", {
                 railRef: input.railRef,
@@ -367,12 +421,9 @@ export function createTreasuryService(deps: {
         });
     }
 
-    async function voidPayout(input: {
-        orderId: string;
-        payOutCurrency: string;
-        railRef: string;
-        occurredAt: Date;
-    }) {
+    async function voidPayout(rawInput: VoidPayoutInput) {
+        const input = validateVoidPayoutInput(rawInput);
+
         return db.transaction(async (tx: any) => {
             const [o] = await tx
                 .select()
@@ -380,9 +431,15 @@ export function createTreasuryService(deps: {
                 .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId)))
                 .limit(1);
 
-            if (!o) throw new Error("Order not found");
+            if (!o) throw new NotFoundError("Order", input.orderId);
+
+            // Validate currency matches order
+            if (input.payOutCurrency !== o.payOutCurrency) {
+                throw new CurrencyMismatchError("payOutCurrency", o.payOutCurrency, input.payOutCurrency);
+            }
+
             if (o.status !== "payout_initiated") throw new InvalidStateError(`Order must be payout_initiated (posted), got ${o.status}`);
-            if (!o.payoutPendingTransferId) throw new Error("Missing payoutPendingTransferId");
+            if (!o.payoutPendingTransferId) throw new InvalidStateError("Missing payoutPendingTransferId - order state is inconsistent");
 
             const pk = makePlanKey("payout_void", {
                 railRef: input.railRef,
