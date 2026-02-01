@@ -1,113 +1,112 @@
 import { vi } from "vitest";
-import type { Logger } from "@repo/kernel";
-import type { TbAdapter } from "../src/adapter";
-import type { AccountStore, AccountMapping } from "../src/pg-store";
-import type { AccountRef } from "../src/contract";
-import { accountRefKey } from "../src/contract";
+import type { Database } from "@repo/db";
+import type { TbClient } from "../src/tb";
 
-/**
- * Creates a mock Logger for testing.
- */
-export function createMockLogger(): Logger {
-  const mockLogger: Logger = {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => mockLogger),
-  };
-  return mockLogger;
-}
-
-/**
- * Creates a mock TbAdapter for testing.
- */
-export function createMockTbAdapter(overrides?: Partial<TbAdapter>): TbAdapter {
-  let idCounter = 1n;
-
+export function createMockDb(): Database {
   return {
-    id: vi.fn(() => idCounter++),
-    createAccounts: vi.fn().mockResolvedValue(undefined),
-    createTransfers: vi.fn().mockResolvedValue(undefined),
-    lookupAccounts: vi.fn().mockResolvedValue([]),
-    destroy: vi.fn(),
-    ...overrides,
-  };
+    transaction: vi.fn(async (fn: any) => fn(createMockTx())),
+    execute: vi.fn(async () => ({ rows: [] })),
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(() => Promise.resolve([])),
+          orderBy: vi.fn(() => Promise.resolve([]))
+        }))
+      }))
+    })),
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({
+        onConflictDoNothing: vi.fn(() => ({
+          returning: vi.fn(() => Promise.resolve([]))
+        }))
+      }))
+    })),
+    update: vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn(() => Promise.resolve())
+      }))
+    }))
+  } as any;
 }
 
-/**
- * Creates a mock AccountStore backed by an in-memory Map.
- */
-export function createMockAccountStore(
-  initialMappings?: Map<string, AccountMapping>
-): AccountStore & { _store: Map<string, AccountMapping> } {
-  const store = initialMappings ?? new Map<string, AccountMapping>();
-
+export function createMockTx() {
   return {
-    _store: store,
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(() => Promise.resolve([]))
+        }))
+      }))
+    })),
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({
+        onConflictDoNothing: vi.fn(() => ({
+          returning: vi.fn(() => Promise.resolve([{ id: "test-entry-id" }]))
+        }))
+      }))
+    })),
+    update: vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn(() => Promise.resolve())
+      }))
+    }))
+  } as any;
+}
 
-    get: vi.fn(async (ref: AccountRef) => {
-      const key = accountRefKey(ref);
-      return store.get(key) ?? null;
-    }),
+export function createMockTbClient(): TbClient {
+  return {
+    createAccounts: vi.fn(async () => []),
+    createTransfers: vi.fn(async () => []),
+    lookupAccounts: vi.fn(async () => []),
+    lookupTransfers: vi.fn(async () => []),
+    destroy: vi.fn()
+  } as any;
+}
 
-    getMany: vi.fn(async (refs: AccountRef[]) => {
-      const result = new Map<string, AccountMapping>();
-      for (const ref of refs) {
-        const key = accountRefKey(ref);
-        const mapping = store.get(key);
-        if (mapping) {
-          result.set(key, mapping);
-        }
-      }
-      return result;
-    }),
-
-    upsert: vi.fn(async (ref: AccountRef, mapping: AccountMapping) => {
-      const key = accountRefKey(ref);
-      const existing = store.get(key);
-      if (existing) {
-        return { created: false, mapping: existing };
-      }
-      store.set(key, mapping);
-      return { created: true, mapping };
-    }),
-
-    list: vi.fn(async () => []),
+export function createTestEntry() {
+  return {
+    orgId: "org-123",
+    source: { type: "payment", id: "pay-456" },
+    idempotencyKey: "idem-789",
+    postingDate: new Date("2024-01-15T10:00:00Z"),
+    transfers: []
   };
 }
 
-/**
- * Helper to create test AccountRef instances.
- */
-export const testRefs = {
-  customer: (customerId: string, currency = "USD"): AccountRef => ({
-    kind: "customer",
-    customerId,
-    currency,
-  }),
+export function createTestTransferPlan(overrides = {}) {
+  return {
+    type: "create" as const,
+    planKey: "test-plan-1",
+    debitKey: "customer:123",
+    creditKey: "revenue:sales",
+    currency: "USD",
+    amount: 10000n,
+    code: 1,
+    ...overrides
+  };
+}
 
-  internal: (name: string, currency = "USD"): AccountRef => ({
-    kind: "internal",
-    name,
-    currency,
-  }),
+export function mockDbExecuteResult(rows: any[]) {
+  return { rows };
+}
 
-  globalLedger: (code: string, currency = "USD"): AccountRef => ({
-    kind: "global_ledger",
-    code,
-    currency,
-  }),
-};
+export function mockDbSelectResult(data: any[]) {
+  return {
+    from: vi.fn(() => ({
+      where: vi.fn(() => ({
+        limit: vi.fn(async () => data),
+        orderBy: vi.fn(async () => data)
+      }))
+    }))
+  };
+}
 
-/**
- * Helper to add account mappings to mock store.
- */
-export function addMapping(
-  store: ReturnType<typeof createMockAccountStore>,
-  ref: AccountRef,
-  mapping: AccountMapping
-) {
-  const key = accountRefKey(ref);
-  store._store.set(key, mapping);
+export function mockDbInsertSuccess(returning: any[] = [{ id: "test-id" }]) {
+  return {
+    values: vi.fn(() => ({
+      onConflictDoNothing: vi.fn(() => ({
+        returning: vi.fn(async () => returning)
+      }))
+    }))
+  };
 }

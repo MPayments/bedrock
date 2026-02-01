@@ -1,0 +1,236 @@
+import { sql } from "drizzle-orm";
+import { type Database } from "@repo/db";
+import {
+    schema
+} from "@repo/db/schema";
+import type { TbClient } from "./tb";
+import { makeTbTransfer, tbCreateTransfersOrThrow, TransferFlags, TB_AMOUNT_MAX } from "./tb";
+import { resolveTbAccountId } from "./resolve";
+import { PostingError } from "./errors";
+import { PlanType } from "./types";
+
+export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
+    const { db, tb } = deps;
+
+    async function processOutboxOnce(opts?: {
+        batchSize?: number;
+        maxAttempts?: number;
+        leaseSeconds?: number
+    }) {
+        const batchSize = opts?.batchSize ?? 25;
+        const maxAttempts = opts?.maxAttempts ?? 25;
+        const leaseSeconds = opts?.leaseSeconds ?? 600;
+
+        const claimed = await db.execute(sql`
+      WITH c AS (
+        SELECT id
+        FROM ${schema.outbox}
+        WHERE kind = 'post_journal'
+          AND attempts < ${maxAttempts}
+          AND (
+            (status = 'pending' AND available_at <= now())
+            OR
+            (status = 'processing' AND locked_at IS NOT NULL AND locked_at <= now() - (${leaseSeconds} || ' seconds')::interval)
+          )
+        ORDER BY created_at
+        FOR UPDATE SKIP LOCKED
+        LIMIT ${batchSize}
+      )
+      UPDATE ${schema.outbox} o
+        SET status = 'processing',
+            locked_at = now(),
+            attempts = attempts + 1,
+            error = NULL
+      FROM c
+      WHERE o.id = c.id
+      RETURNING o.id as outbox_id, o.org_id, o.ref_id as journal_entry_id, o.attempts as attempts
+    `);
+
+        const jobs = (claimed.rows ?? []) as Array<{
+            outbox_id: string;
+            org_id: string;
+            journal_entry_id: string;
+            attempts: number;
+        }>;
+
+        for (const job of jobs) {
+            try {
+                await postJournal(job.org_id, job.journal_entry_id);
+
+                await db.execute(sql`
+          UPDATE ${schema.outbox}
+          SET status = 'done', locked_at = NULL, error = NULL
+          WHERE id = ${job.outbox_id}
+        `);
+
+                await db.execute(sql`
+          UPDATE ${schema.journalEntries}
+          SET outbox_attempts = ${job.attempts},
+              last_outbox_error_at = NULL,
+              error = NULL
+          WHERE id = ${job.journal_entry_id} AND status = 'pending'
+        `);
+            } catch (e: any) {
+                const msg = String(e?.message ?? e);
+
+                if (job.attempts >= maxAttempts) {
+                    await db.execute(sql`
+            UPDATE ${schema.outbox}
+            SET status = 'failed', locked_at = NULL, error = ${msg}
+            WHERE id = ${job.outbox_id}
+          `);
+
+                    await db.execute(sql`
+            UPDATE ${schema.tbTransferPlans}
+            SET status = 'failed', error = ${msg}
+            WHERE journal_entry_id = ${job.journal_entry_id}
+              AND org_id = ${job.org_id}
+              AND status <> 'posted'
+          `);
+
+                    await db.execute(sql`
+            UPDATE ${schema.journalEntries}
+            SET status = 'failed',
+                error = ${msg},
+                outbox_attempts = ${job.attempts},
+                last_outbox_error_at = now()
+            WHERE id = ${job.journal_entry_id}
+          `);
+                } else {
+                    await db.execute(sql`
+            UPDATE ${schema.outbox}
+            SET status = 'pending',
+                locked_at = NULL,
+                error = ${msg},
+                available_at = now() + (LEAST(1800, POWER(2, attempts)) || ' seconds')::interval
+            WHERE id = ${job.outbox_id}
+          `);
+
+                    await db.execute(sql`
+            UPDATE ${schema.journalEntries}
+            SET error = ${msg},
+                outbox_attempts = ${job.attempts},
+                last_outbox_error_at = now()
+            WHERE id = ${job.journal_entry_id} AND status = 'pending'
+          `);
+                }
+            }
+        }
+
+        return jobs.length;
+    }
+
+    async function postJournal(orgId: string, journalEntryId: string) {
+        const plans = await db
+            .select()
+            .from(schema.tbTransferPlans)
+            .where(sql`${schema.tbTransferPlans.journalEntryId} = ${journalEntryId} AND ${schema.tbTransferPlans.orgId} = ${orgId}`)
+            .orderBy(schema.tbTransferPlans.idx);
+
+        const accountCache = new Map<string, bigint>();
+        const resolveKey = async (key: string, currency: string, tbLedger: number) => {
+            const k = `${key}|${tbLedger}`;
+            if (accountCache.has(k)) return accountCache.get(k)!;
+            const id = await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
+            accountCache.set(k, id);
+            return id;
+        };
+
+        const transfers = [];
+        for (const pl of plans) {
+            if (pl.status === "posted") continue;
+
+            if (pl.type === PlanType.CREATE) {
+                if (!pl.debitKey || !pl.creditKey) throw new PostingError("create plan requires debitKey/creditKey");
+
+                let flags = 0;
+                if (pl.isLinked) flags |= TransferFlags.linked;
+                if (pl.isPending) flags |= TransferFlags.pending;
+
+                const debitId = await resolveKey(pl.debitKey, pl.currency, pl.tbLedger);
+                const creditId = await resolveKey(pl.creditKey, pl.currency, pl.tbLedger);
+
+                transfers.push(
+                    makeTbTransfer({
+                        id: pl.transferId,
+                        debitAccountId: debitId,
+                        creditAccountId: creditId,
+                        amount: pl.amount,
+                        tbLedger: pl.tbLedger,
+                        code: pl.code,
+                        flags,
+                        pendingId: 0n,
+                        timeoutSeconds: pl.isPending ? pl.timeoutSeconds : 0
+                    })
+                );
+                continue;
+            }
+
+            if (!pl.pendingId) throw new PostingError(`${pl.type} plan requires pendingId`);
+
+            let flags = 0;
+            if (pl.isLinked) flags |= TransferFlags.linked;
+
+            if (pl.type === PlanType.POST_PENDING) {
+                flags |= TransferFlags.post_pending_transfer;
+
+                // TB >= 0.16: post-full uses AMOUNT_MAX
+                const amountForTb = pl.amount === 0n ? TB_AMOUNT_MAX : pl.amount;
+
+                transfers.push(
+                    makeTbTransfer({
+                        id: pl.transferId,
+                        debitAccountId: 0n,
+                        creditAccountId: 0n,
+                        amount: amountForTb,
+                        tbLedger: 0,
+                        code: pl.code ?? 0,
+                        flags,
+                        pendingId: pl.pendingId
+                    })
+                );
+                continue;
+            }
+
+            // void_pending: no partial void
+            flags |= TransferFlags.void_pending_transfer;
+
+            if (pl.amount !== 0n) {
+                throw new PostingError("void_pending must use amount=0 (no partial void supported)");
+            }
+
+            transfers.push(
+                makeTbTransfer({
+                    id: pl.transferId,
+                    debitAccountId: 0n,
+                    creditAccountId: 0n,
+                    amount: 0n,
+                    tbLedger: 0,
+                    code: pl.code ?? 0,
+                    flags,
+                    pendingId: pl.pendingId
+                })
+            );
+        }
+
+        if (transfers.length) {
+            await tbCreateTransfersOrThrow(tb, transfers);
+        }
+
+        await db.execute(sql`
+      UPDATE ${schema.tbTransferPlans}
+      SET status = 'posted', error = NULL
+      WHERE journal_entry_id = ${journalEntryId} AND org_id = ${orgId}
+    `);
+
+        await db.execute(sql`
+      UPDATE ${schema.journalEntries}
+      SET status = 'posted', posted_at = now(), error = NULL, last_outbox_error_at = NULL
+      WHERE id = ${journalEntryId}
+    `);
+    }
+
+    return {
+        processOutboxOnce
+    };
+}
