@@ -23,6 +23,26 @@ describe("createTreasuryService", () => {
     let ledger: ReturnType<typeof createMockLedger>;
     let service: ReturnType<typeof createTreasuryService>;
 
+    function selectReturning(rows: any[]) {
+        return {
+            from: vi.fn(() => ({
+                where: vi.fn(() => ({
+                    limit: vi.fn(async () => rows),
+                })),
+            })),
+        };
+    }
+
+    function updateReturning(rows: any[]) {
+        return {
+            set: vi.fn(() => ({
+                where: vi.fn(() => ({
+                    returning: vi.fn(async () => rows),
+                })),
+            })),
+        };
+    }
+
     beforeEach(() => {
         db = createStubDb();
         ledger = createMockLedger();
@@ -199,6 +219,37 @@ describe("createTreasuryService", () => {
             // Should return existing entry ID (idempotent)
             expect(result).toBe("existing-entry-id");
         });
+
+        it("should throw InvalidStateError when CAS fails and order is in non-advanceable state", async () => {
+            // Order is in "quote" initially, CAS update fails, and re-fetch shows still "quote"
+            // This should throw because "quote" is not in advancedStatuses
+            const order = createMockOrder({
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                status: "quote",
+            });
+
+            const current = createMockOrder({
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                status: "quote", // Still in quote - neither advanced nor advanceable
+                ledgerEntryId: null,
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi
+                        .fn()
+                        .mockImplementationOnce(() => selectReturning([order]))
+                        .mockImplementationOnce(() => selectReturning([current])),
+                    update: vi.fn(() => updateReturning([])), // CAS failure
+                };
+                return fn(tx);
+            });
+
+            await expect(service.fundingSettled(validInput))
+                .rejects.toThrow(InvalidStateError);
+        });
     });
 
     describe("executeFx", () => {
@@ -287,6 +338,144 @@ describe("createTreasuryService", () => {
                             }))
                         }))
                     }))
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput))
+                .rejects.toThrow(InvalidStateError);
+        });
+
+        it("should throw CurrencyMismatchError when payInCurrency doesn't match", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "EUR", // Different from input USD
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([order])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput))
+                .rejects.toThrow(CurrencyMismatchError);
+        });
+
+        it("should throw CurrencyMismatchError when payOutCurrency doesn't match", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "GBP", // Different from input EUR
+                payOutAmountMinor: 85000n,
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([order])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput))
+                .rejects.toThrow(CurrencyMismatchError);
+        });
+
+        it("should throw AmountMismatchError when principalMinor doesn't match", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 50000n, // Different from input 100000n
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([order])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput))
+                .rejects.toThrow(AmountMismatchError);
+        });
+
+        it("should throw AmountMismatchError when payOutAmountMinor doesn't match", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 42000n, // Different from input 85000n
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([order])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput))
+                .rejects.toThrow(AmountMismatchError);
+        });
+
+        it("should be idempotent when CAS fails but order already has our entry", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+
+            const current = {
+                status: "fx_executed_pending_posting",
+                ledgerEntryId: "test-entry-id", // matches what ledger returns
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi
+                        .fn()
+                        .mockImplementationOnce(() => selectReturning([order]))
+                        .mockImplementationOnce(() => selectReturning([current])),
+                    update: vi.fn(() => updateReturning([])), // CAS failure
+                };
+                return fn(tx);
+            });
+
+            const result = await service.executeFx(validInput);
+            expect(result).toBe("test-entry-id");
+        });
+
+        it("should throw InvalidStateError when CAS fails and order has different entry", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+
+            const current = {
+                status: "fx_executed",
+                ledgerEntryId: "different-entry-id",
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi
+                        .fn()
+                        .mockImplementationOnce(() => selectReturning([order]))
+                        .mockImplementationOnce(() => selectReturning([current])),
+                    update: vi.fn(() => updateReturning([])), // CAS failure
                 };
                 return fn(tx);
             });
@@ -420,6 +609,65 @@ describe("createTreasuryService", () => {
             expect(ledger.createEntryTx).toHaveBeenCalled();
         });
 
+        it("should be idempotent if CAS update fails but order already advanced to our entry", async () => {
+            const order = createMockOrder({
+                status: "fx_executed",
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+
+            const current = createMockOrder({
+                status: "payout_initiated_pending_posting",
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+                ledgerEntryId: "test-entry-id",
+                payoutPendingTransferId: 12345678901234567890n,
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi
+                        .fn()
+                        .mockImplementationOnce(() => selectReturning([order]))
+                        .mockImplementationOnce(() => selectReturning([current])),
+                    update: vi.fn(() => updateReturning([])), // CAS failure
+                };
+                return fn(tx);
+            });
+
+            const result = await service.initiatePayout(validInput);
+            expect(result).toEqual({ entryId: "test-entry-id", pendingTransferId: 12345678901234567890n });
+        });
+
+        it("should throw InvalidStateError if CAS update fails and order did not advance to our entry", async () => {
+            const order = createMockOrder({
+                status: "fx_executed",
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+
+            const current = createMockOrder({
+                status: "payout_initiated_pending_posting",
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+                ledgerEntryId: "different-entry-id",
+                payoutPendingTransferId: 12345678901234567890n,
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi
+                        .fn()
+                        .mockImplementationOnce(() => selectReturning([order]))
+                        .mockImplementationOnce(() => selectReturning([current])),
+                    update: vi.fn(() => updateReturning([])), // CAS failure
+                };
+                return fn(tx);
+            });
+
+            await expect(service.initiatePayout(validInput)).rejects.toThrow(InvalidStateError);
+        });
+
         it("should throw InvalidStateError when order is not fx_executed", async () => {
             const order = createMockOrder({
                 status: "funding_settled", // Wrong state
@@ -436,6 +684,72 @@ describe("createTreasuryService", () => {
                             }))
                         }))
                     }))
+                };
+                return fn(tx);
+            });
+
+            await expect(service.initiatePayout(validInput))
+                .rejects.toThrow(InvalidStateError);
+        });
+
+        it("should throw CurrencyMismatchError when payOutCurrency doesn't match", async () => {
+            const order = createMockOrder({
+                status: "fx_executed",
+                payOutCurrency: "GBP", // Different from input EUR
+                payOutAmountMinor: 85000n,
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([order])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.initiatePayout(validInput))
+                .rejects.toThrow(CurrencyMismatchError);
+        });
+
+        it("should throw AmountMismatchError when amountMinor doesn't match", async () => {
+            const order = createMockOrder({
+                status: "fx_executed",
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 42000n, // Different from input 85000n
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([order])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.initiatePayout(validInput))
+                .rejects.toThrow(AmountMismatchError);
+        });
+
+        it("should throw InvalidStateError when idempotent retry but payoutPendingTransferId missing", async () => {
+            const order = createMockOrder({
+                status: "fx_executed",
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+
+            const current = createMockOrder({
+                status: "payout_initiated_pending_posting",
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+                ledgerEntryId: "test-entry-id",
+                payoutPendingTransferId: null, // Missing!
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi
+                        .fn()
+                        .mockImplementationOnce(() => selectReturning([order]))
+                        .mockImplementationOnce(() => selectReturning([current])),
+                    update: vi.fn(() => updateReturning([])), // CAS failure
                 };
                 return fn(tx);
             });
@@ -521,6 +835,63 @@ describe("createTreasuryService", () => {
             expect(ledger.createEntryTx).toHaveBeenCalled();
         });
 
+        it("should be idempotent if CAS update fails but order already advanced to our entry", async () => {
+            const order = createMockOrder({
+                status: "payout_initiated",
+                payOutCurrency: "EUR",
+                payoutPendingTransferId: 12345n,
+            });
+
+            const current = createMockOrder({
+                status: "closed_pending_posting",
+                payOutCurrency: "EUR",
+                payoutPendingTransferId: 12345n,
+                ledgerEntryId: "test-entry-id",
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi
+                        .fn()
+                        .mockImplementationOnce(() => selectReturning([order]))
+                        .mockImplementationOnce(() => selectReturning([current])),
+                    update: vi.fn(() => updateReturning([])), // CAS failure
+                };
+                return fn(tx);
+            });
+
+            const result = await service.settlePayout(validInput);
+            expect(result).toBe("test-entry-id");
+        });
+
+        it("should throw InvalidStateError if CAS update fails and order did not advance to our entry", async () => {
+            const order = createMockOrder({
+                status: "payout_initiated",
+                payOutCurrency: "EUR",
+                payoutPendingTransferId: 12345n,
+            });
+
+            const current = createMockOrder({
+                status: "closed_pending_posting",
+                payOutCurrency: "EUR",
+                payoutPendingTransferId: 12345n,
+                ledgerEntryId: "different-entry-id",
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi
+                        .fn()
+                        .mockImplementationOnce(() => selectReturning([order]))
+                        .mockImplementationOnce(() => selectReturning([current])),
+                    update: vi.fn(() => updateReturning([])), // CAS failure
+                };
+                return fn(tx);
+            });
+
+            await expect(service.settlePayout(validInput)).rejects.toThrow(InvalidStateError);
+        });
+
         it("should throw InvalidStateError when order is not payout_initiated", async () => {
             const order = createMockOrder({
                 status: "fx_executed", // Wrong state
@@ -543,6 +914,24 @@ describe("createTreasuryService", () => {
 
             await expect(service.settlePayout(validInput))
                 .rejects.toThrow(InvalidStateError);
+        });
+
+        it("should throw CurrencyMismatchError when payOutCurrency doesn't match", async () => {
+            const order = createMockOrder({
+                status: "payout_initiated",
+                payOutCurrency: "GBP", // Different from input EUR
+                payoutPendingTransferId: 12345n,
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([order])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.settlePayout(validInput))
+                .rejects.toThrow(CurrencyMismatchError);
         });
 
         it("should throw InvalidStateError when payoutPendingTransferId is missing", async () => {
@@ -611,6 +1000,63 @@ describe("createTreasuryService", () => {
             expect(ledger.createEntryTx).toHaveBeenCalled();
         });
 
+        it("should be idempotent if CAS update fails but order already advanced to our entry", async () => {
+            const order = createMockOrder({
+                status: "payout_initiated",
+                payOutCurrency: "EUR",
+                payoutPendingTransferId: 12345n,
+            });
+
+            const current = createMockOrder({
+                status: "failed_pending_posting",
+                payOutCurrency: "EUR",
+                payoutPendingTransferId: 12345n,
+                ledgerEntryId: "test-entry-id",
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi
+                        .fn()
+                        .mockImplementationOnce(() => selectReturning([order]))
+                        .mockImplementationOnce(() => selectReturning([current])),
+                    update: vi.fn(() => updateReturning([])), // CAS failure
+                };
+                return fn(tx);
+            });
+
+            const result = await service.voidPayout(validInput);
+            expect(result).toBe("test-entry-id");
+        });
+
+        it("should throw InvalidStateError if CAS update fails and order did not advance to our entry", async () => {
+            const order = createMockOrder({
+                status: "payout_initiated",
+                payOutCurrency: "EUR",
+                payoutPendingTransferId: 12345n,
+            });
+
+            const current = createMockOrder({
+                status: "failed_pending_posting",
+                payOutCurrency: "EUR",
+                payoutPendingTransferId: 12345n,
+                ledgerEntryId: "different-entry-id",
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi
+                        .fn()
+                        .mockImplementationOnce(() => selectReturning([order]))
+                        .mockImplementationOnce(() => selectReturning([current])),
+                    update: vi.fn(() => updateReturning([])), // CAS failure
+                };
+                return fn(tx);
+            });
+
+            await expect(service.voidPayout(validInput)).rejects.toThrow(InvalidStateError);
+        });
+
         it("should throw InvalidStateError when order is not payout_initiated", async () => {
             const order = createMockOrder({
                 status: "closed", // Wrong state
@@ -633,6 +1079,24 @@ describe("createTreasuryService", () => {
 
             await expect(service.voidPayout(validInput))
                 .rejects.toThrow(InvalidStateError);
+        });
+
+        it("should throw CurrencyMismatchError when payOutCurrency doesn't match", async () => {
+            const order = createMockOrder({
+                status: "payout_initiated",
+                payOutCurrency: "GBP", // Different from input EUR
+                payoutPendingTransferId: 12345n,
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([order])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.voidPayout(validInput))
+                .rejects.toThrow(CurrencyMismatchError);
         });
     });
 

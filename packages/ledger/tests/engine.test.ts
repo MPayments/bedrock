@@ -111,7 +111,7 @@ describe("createLedgerEngine", () => {
         ...createTestEntry(),
         transfers: [
           {
-            type: PlanType.POST_PENDING,
+            type: PlanType.POST_PENDING as const,
             planKey: "post-1",
             currency: "USD",
             pendingId: 123n,
@@ -603,7 +603,7 @@ describe("createLedgerEngine", () => {
         ...createTestEntry(),
         transfers: [
           {
-            type: PlanType.POST_PENDING,
+            type: PlanType.POST_PENDING as const,
             planKey: "post-1",
             currency: "USD",
             pendingId: 123n,
@@ -616,6 +616,97 @@ describe("createLedgerEngine", () => {
 
       // Should have 3 inserts: journal_entries, tb_transfer_plans, outbox (no journal_lines)
       expect(mockTx.insert).toHaveBeenCalledTimes(3);
+    });
+
+    it("should not create journal lines for void_pending transfers", async () => {
+      const mockTx = {
+        insert: vi.fn(() => ({
+          values: vi.fn(() => ({
+            onConflictDoNothing: vi.fn(() => ({
+              returning: vi.fn(async () => [{ id: "entry-1" }])
+            }))
+          }))
+        })),
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [])
+            }))
+          }))
+        }))
+      };
+
+      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(mockTx));
+
+      const input = {
+        ...createTestEntry(),
+        transfers: [
+          {
+            type: PlanType.VOID_PENDING as const,
+            planKey: "void-1",
+            currency: "USD",
+            pendingId: 999n
+          }
+        ]
+      };
+
+      await engine.createEntry(input);
+
+      // Should have 3 inserts: journal_entries, tb_transfer_plans, outbox (no journal_lines)
+      expect(mockTx.insert).toHaveBeenCalledTimes(3);
+    });
+
+    it("should produce correct plan row structure for void_pending transfer", async () => {
+      let capturedPlanRows: any[] = [];
+
+      const mockTx = {
+        insert: vi.fn((schema: any) => ({
+          values: vi.fn((vals: any) => {
+            // Capture the plan rows when inserting tb_transfer_plans
+            if (Array.isArray(vals) && vals[0]?.planKey !== undefined) {
+              capturedPlanRows = vals;
+            }
+            return {
+              onConflictDoNothing: vi.fn(() => ({
+                returning: vi.fn(async () => [{ id: "entry-1" }])
+              }))
+            };
+          })
+        })),
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [])
+            }))
+          }))
+        }))
+      };
+
+      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(mockTx));
+
+      const input = {
+        ...createTestEntry(),
+        transfers: [
+          {
+            type: PlanType.VOID_PENDING as const,
+            planKey: "void-pending-1",
+            currency: "USD",
+            pendingId: 999n,
+            code: 42
+          }
+        ]
+      };
+
+      await engine.createEntry(input);
+
+      expect(capturedPlanRows).toHaveLength(1);
+      expect(capturedPlanRows[0].type).toBe(PlanType.VOID_PENDING);
+      expect(capturedPlanRows[0].pendingId).toBe(999n);
+      expect(capturedPlanRows[0].amount).toBe(0n);
+      expect(capturedPlanRows[0].debitKey).toBeNull();
+      expect(capturedPlanRows[0].creditKey).toBeNull();
+      expect(capturedPlanRows[0].code).toBe(42);
+      expect(capturedPlanRows[0].isPending).toBe(false);
     });
 
     it("should create debit and credit lines for each create transfer", async () => {

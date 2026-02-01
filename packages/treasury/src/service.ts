@@ -36,6 +36,23 @@ export function createTreasuryService(deps: {
     const log = deps.logger?.child({ svc: "treasury" }) ?? noopLogger;
     const { keys } = treasuryKeyspace;
 
+    async function fetchOrderState(tx: any, orderId: string) {
+        const [row] = await tx
+            .select({
+                id: schema.paymentOrders.id,
+                status: schema.paymentOrders.status,
+                ledgerEntryId: schema.paymentOrders.ledgerEntryId,
+                payoutPendingTransferId: schema.paymentOrders.payoutPendingTransferId,
+                treasuryOrgId: schema.paymentOrders.treasuryOrgId,
+            })
+            .from(schema.paymentOrders)
+            .where(and(eq(schema.paymentOrders.id, orderId), eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId)))
+            .limit(1);
+
+        if (!row) throw new NotFoundError("Order", orderId);
+        return row;
+    }
+
     async function fundingSettled(rawInput: FundingSettledInput) {
         const input = validateFundingSettledInput(rawInput);
         log.debug("fundingSettled start", { orderId: input.orderId, railRef: input.railRef });
@@ -117,9 +134,10 @@ export function createTreasuryService(deps: {
             }
 
             // already advanced -> idempotent no-op
-            // Re-check current status (order was already fetched above but status may have changed)
-            const st = order.status;
-            const led = order.ledgerEntryId;
+            // Re-check current status (order was fetched above but may have changed)
+            const current = await fetchOrderState(tx, input.orderId);
+            const st = current.status;
+            const led = current.ledgerEntryId;
 
             // Use exact status matching instead of string includes for safety
             const advancedStatuses = [
@@ -379,8 +397,27 @@ export function createTreasuryService(deps: {
                 .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.status, "fx_executed")))
                 .returning({ id: schema.paymentOrders.id });
 
-            log.info("initiatePayout ok", { orderId: input.orderId, entryId, pendingTransferId });
-            return { entryId, pendingTransferId };
+            if (moved.length) {
+                log.info("initiatePayout ok", { orderId: input.orderId, entryId, pendingTransferId });
+                return { entryId, pendingTransferId };
+            }
+
+            const current = await fetchOrderState(tx, input.orderId);
+            const st = current.status;
+
+            // If order is already advanced and points at our entry, treat as idempotent retry.
+            if (current.ledgerEntryId === entryId) {
+                if (!current.payoutPendingTransferId) {
+                    throw new InvalidStateError(`Order in state ${st} but payoutPendingTransferId missing`);
+                }
+                log.debug("initiatePayout idempotent", { orderId: input.orderId, status: st });
+                return { entryId, pendingTransferId: current.payoutPendingTransferId };
+            }
+
+            // Otherwise this indicates a concurrent modification or mismatched operation.
+            throw new InvalidStateError(
+                `Failed to update order status: concurrent modification detected. Current status: ${st}`
+            );
         });
     }
 
@@ -434,8 +471,22 @@ export function createTreasuryService(deps: {
                 .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.status, "payout_initiated")))
                 .returning({ id: schema.paymentOrders.id });
 
-            log.info("settlePayout ok", { orderId: input.orderId, entryId });
-            return entryId;
+            if (moved.length) {
+                log.info("settlePayout ok", { orderId: input.orderId, entryId });
+                return entryId;
+            }
+
+            const current = await fetchOrderState(tx, input.orderId);
+            const st = current.status;
+
+            if (current.ledgerEntryId === entryId && (st === "closed_pending_posting" || st === "closed")) {
+                log.debug("settlePayout idempotent", { orderId: input.orderId, status: st });
+                return entryId;
+            }
+
+            throw new InvalidStateError(
+                `Failed to update order status: concurrent modification detected. Current status: ${st}`
+            );
         });
     }
 
@@ -488,8 +539,22 @@ export function createTreasuryService(deps: {
                 .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.status, "payout_initiated")))
                 .returning({ id: schema.paymentOrders.id });
 
-            log.info("voidPayout ok", { orderId: input.orderId, entryId });
-            return entryId;
+            if (moved.length) {
+                log.info("voidPayout ok", { orderId: input.orderId, entryId });
+                return entryId;
+            }
+
+            const current = await fetchOrderState(tx, input.orderId);
+            const st = current.status;
+
+            if (current.ledgerEntryId === entryId && (st === "failed_pending_posting" || st === "failed")) {
+                log.debug("voidPayout idempotent", { orderId: input.orderId, status: st });
+                return entryId;
+            }
+
+            throw new InvalidStateError(
+                `Failed to update order status: concurrent modification detected. Current status: ${st}`
+            );
         });
     }
 

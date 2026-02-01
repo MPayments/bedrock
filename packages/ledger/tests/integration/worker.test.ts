@@ -43,7 +43,7 @@ describe("Worker Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       // Process outbox
       const processed = await worker.processOutboxOnce();
@@ -112,7 +112,7 @@ describe("Worker Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       // Process outbox
       const processed = await worker.processOutboxOnce();
@@ -162,7 +162,7 @@ describe("Worker Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       // Process outbox
       await worker.processOutboxOnce();
@@ -218,7 +218,7 @@ describe("Worker Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       // Process outbox
       await worker.processOutboxOnce();
@@ -320,7 +320,7 @@ describe("Worker Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       // Process outbox first time
       await worker.processOutboxOnce();

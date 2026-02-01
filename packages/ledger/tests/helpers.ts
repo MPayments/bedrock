@@ -18,6 +18,7 @@ import {
     type StubTransaction,
 } from "@repo/test-utils";
 import type { TbClient } from "../src/tb";
+import { PlanType, type CreatePlan } from "../src/types";
 
 // Re-export shared utilities for convenience
 export {
@@ -69,9 +70,9 @@ export function createTestEntry(overrides = {}) {
 /**
  * Create a test transfer plan
  */
-export function createTestTransferPlan(overrides = {}) {
+export function createTestTransferPlan(overrides: Partial<CreatePlan> = {}): CreatePlan {
     return {
-        type: "create" as const,
+        type: PlanType.CREATE,
         planKey: "test-plan-1",
         debitKey: "customer:123",
         creditKey: "revenue:sales",

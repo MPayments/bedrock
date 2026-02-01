@@ -76,8 +76,8 @@ export const fxQuotes = pgTable(
         baseAmountMinor: bigint("base_amount_minor", { mode: "bigint" }).notNull(),
         quoteAmountMinor: bigint("quote_amount_minor", { mode: "bigint" }).notNull(),
 
-        feeBaseMinor: bigint("fee_base_minor", { mode: "bigint" }).notNull().default(0n),
-        spreadBaseMinor: bigint("spread_base_minor", { mode: "bigint" }).notNull().default(0n),
+        feeBaseMinor: bigint("fee_base_minor", { mode: "bigint" }).notNull().default(sql`0`),
+        spreadBaseMinor: bigint("spread_base_minor", { mode: "bigint" }).notNull().default(sql`0`),
 
         rateNumerator: bigint("rate_num", { mode: "bigint" }).notNull(),
         rateDenominator: bigint("rate_den", { mode: "bigint" }).notNull(),

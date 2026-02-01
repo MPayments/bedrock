@@ -37,7 +37,7 @@ describe("Engine Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       // Verify journal entry
       const entry = await getJournalEntry(entryId);
@@ -104,7 +104,7 @@ describe("Engine Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       // Verify journal lines (2 per transfer)
       const lines = await getJournalLines(entryId);
@@ -137,16 +137,16 @@ describe("Engine Integration Tests", () => {
       };
 
       // First call
-      const entryId1 = await engine.createEntry(input);
+      const result1 = await engine.createEntry(input);
 
       // Second call with same idempotency key
-      const entryId2 = await engine.createEntry(input);
+      const result2 = await engine.createEntry(input);
 
       // Should return same entry ID
-      expect(entryId1).toBe(entryId2);
+      expect(result1.entryId).toBe(result2.entryId);
 
       // Should not create duplicate lines
-      const lines = await getJournalLines(entryId1);
+      const lines = await getJournalLines(result1.entryId);
       expect(lines).toHaveLength(2);
     });
 
@@ -213,7 +213,7 @@ describe("Engine Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       const plans = await getTbTransferPlans(entryId);
       expect(plans).toHaveLength(1);
@@ -251,7 +251,7 @@ describe("Engine Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       const plans = await getTbTransferPlans(entryId);
       expect(plans).toHaveLength(2);
@@ -281,7 +281,7 @@ describe("Engine Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       // Should not create journal lines for post_pending
       const lines = await getJournalLines(entryId);
@@ -314,7 +314,7 @@ describe("Engine Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       // Should not create journal lines for void_pending
       const lines = await getJournalLines(entryId);
@@ -348,7 +348,7 @@ describe("Engine Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       // Verify outbox entry was created
       const outboxEntries = await db.select().from(schema.outbox);
@@ -392,7 +392,7 @@ describe("Engine Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       // Should create journal lines only for CREATE transfers
       const lines = await getJournalLines(entryId);
@@ -425,7 +425,7 @@ describe("Engine Integration Tests", () => {
         ]
       };
 
-      const entryId = await engine.createEntry(input);
+      const { entryId } = await engine.createEntry(input);
 
       const lines = await getJournalLines(entryId);
       expect(lines).toHaveLength(2);

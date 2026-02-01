@@ -17,8 +17,8 @@ export const fxQuotes = pgTable(
         fromAmountMinor: bigint("from_amount_minor", { mode: "bigint" }).notNull(),
         toAmountMinor: bigint("to_amount_minor", { mode: "bigint" }).notNull(),
 
-        feeFromMinor: bigint("fee_from_minor", { mode: "bigint" }).notNull().default(0n),
-        spreadFromMinor: bigint("spread_from_minor", { mode: "bigint" }).notNull().default(0n),
+        feeFromMinor: bigint("fee_from_minor", { mode: "bigint" }).notNull().default(sql`0`),
+        spreadFromMinor: bigint("spread_from_minor", { mode: "bigint" }).notNull().default(sql`0`),
 
         rateNum: bigint("rate_num", { mode: "bigint" }).notNull(),
         rateDen: bigint("rate_den", { mode: "bigint" }).notNull(),
