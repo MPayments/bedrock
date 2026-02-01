@@ -17,8 +17,6 @@
     "@repo/kernel": "*",
     "@repo/db": "*",
     "@repo/ledger": "*",
-    "@repo/organizations": "*",
-    "@repo/customers": "*",
     "@hono/swagger-ui": "^0.5.1",
     "@hono/zod-openapi": "^0.19.6",
     "hono": "^4.8.10"

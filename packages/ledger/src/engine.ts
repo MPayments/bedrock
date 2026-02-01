@@ -5,37 +5,8 @@ import { stableStringify } from "./canon";
 import { PlanType, type CreateEntryInput, type TransferPlanLine } from "./types";
 import { schema } from "@repo/db/schema";
 import { type Database } from "@repo/db";
+import { validateCreateEntryInput, validateChainBlocks } from "./validation";
 
-function normalizeCurrency(currency: string): string {
-    const c = currency.trim().toUpperCase();
-    if (!/^[A-Z0-9_]{2,16}$/.test(c)) {
-        throw new Error(`Invalid currency format: "${currency}"`);
-    }
-    return c;
-}
-
-function validateChainBlocks(transfers: TransferPlanLine[]) {
-    const pos = new Map<string, number[]>();
-    for (let i = 0; i < transfers.length; i++) {
-        const ch = transfers[i]!.chain;
-        if (!ch) continue;
-        const arr = pos.get(ch) ?? [];
-        arr.push(i);
-        pos.set(ch, arr);
-    }
-    for (const [ch, arr] of pos) {
-        for (let i = 1; i < arr.length; i++) {
-            if (arr[i]! !== arr[i - 1]! + 1) {
-                throw new Error(
-                    `Non-contiguous chain block detected for chain="${ch}". ` +
-                    `Chain entries must be adjacent in transfers[] to be safe with TB linked semantics.`
-                );
-            }
-        }
-    }
-}
-
-// Safe: TB linked flag means “linked to NEXT transfer in batch”
 function computeLinkedFlags(transfers: TransferPlanLine[]): boolean[] {
     const linked = new Array(transfers.length).fill(false);
     for (let i = 0; i < transfers.length - 1; i++) {
@@ -44,37 +15,6 @@ function computeLinkedFlags(transfers: TransferPlanLine[]): boolean[] {
         if (a && b && a === b) linked[i] = true;
     }
     return linked;
-}
-
-function normalizeAndValidateTransfers(input: TransferPlanLine[]): TransferPlanLine[] {
-    if (!Array.isArray(input) || input.length === 0) throw new Error("transfers must be a non-empty array");
-
-    const out = input.map((t) => {
-        if (!t.planKey || t.planKey.length > 512) throw new Error(`Invalid planKey (missing/too long)`);
-
-        const currency = normalizeCurrency(t.currency);
-
-        if (t.type === PlanType.CREATE) {
-            if (!t.debitKey || !t.creditKey) throw new Error("create transfer requires debitKey and creditKey");
-            if (t.amount <= 0n) throw new Error("create transfer amount must be > 0");
-            if (t.pending && t.pending.timeoutSeconds <= 0) throw new Error("pending timeoutSeconds must be > 0");
-            return { ...t, currency };
-        }
-
-        if (t.type === PlanType.POST_PENDING) {
-            const amount = t.amount ?? 0n;
-            if (amount < 0n) throw new Error("post_pending amount must be >= 0");
-            if (!t.pendingId || t.pendingId <= 0n) throw new Error("post_pending pendingId must be set");
-            return { ...t, currency, amount };
-        }
-
-        // void_pending
-        if (!t.pendingId || t.pendingId <= 0n) throw new Error("void_pending pendingId must be set");
-        return { ...t, currency };
-    });
-
-    validateChainBlocks(out);
-    return out;
 }
 
 function normalizeForFingerprint(t: TransferPlanLine) {
@@ -122,19 +62,23 @@ export function createLedgerEngine(deps: { db: Database }) {
     const { db } = deps;
 
     async function createEntryTx(tx: any, input: CreateEntryInput): Promise<string> {
-        const transfers = normalizeAndValidateTransfers(input.transfers);
+        const validated = validateCreateEntryInput(input);
+
+        validateChainBlocks(validated.transfers);
+
+        const transfers = validated.transfers;
         const planFingerprint = computePlanFingerprint(transfers);
         const linkedFlags = computeLinkedFlags(transfers);
 
         const inserted = await tx
             .insert(schema.journalEntries)
             .values({
-                orgId: input.orgId,
-                sourceType: input.source.type,
-                sourceId: input.source.id,
-                idempotencyKey: input.idempotencyKey,
+                orgId: validated.orgId,
+                sourceType: validated.source.type,
+                sourceId: validated.source.id,
+                idempotencyKey: validated.idempotencyKey,
                 planFingerprint,
-                postingDate: input.postingDate,
+                postingDate: validated.postingDate,
                 status: "pending"
             })
             .onConflictDoNothing()
@@ -148,7 +92,7 @@ export function createLedgerEngine(deps: { db: Database }) {
             const existing = await tx
                 .select({ id: schema.journalEntries.id, planFingerprint: schema.journalEntries.planFingerprint })
                 .from(schema.journalEntries)
-                .where(and(eq(schema.journalEntries.orgId, input.orgId), eq(schema.journalEntries.idempotencyKey, input.idempotencyKey)))
+                .where(and(eq(schema.journalEntries.orgId, validated.orgId), eq(schema.journalEntries.idempotencyKey, validated.idempotencyKey)))
                 .limit(1);
 
             if (!existing.length) throw new Error("Idempotency conflict but entry not found");
@@ -156,12 +100,11 @@ export function createLedgerEngine(deps: { db: Database }) {
 
             if (existing[0]!.planFingerprint !== planFingerprint) {
                 throw new IdempotencyConflictError(
-                    `Entry already exists with different plan fingerprint for idempotencyKey=${input.idempotencyKey}`
+                    `Entry already exists with different plan fingerprint for idempotencyKey=${validated.idempotencyKey}`
                 );
             }
         }
 
-        // journal lines derived from transfers (create only)
         const derived: Array<{
             orgId: string;
             entryId: string;
@@ -177,20 +120,20 @@ export function createLedgerEngine(deps: { db: Database }) {
         for (const t of transfers) {
             if (t.type !== PlanType.CREATE) continue;
             derived.push({
-                orgId: input.orgId,
+                orgId: validated.orgId,
                 entryId,
                 lineNo: lineNo++,
-                accountKey: t.debitKey,
+                accountKey: t.debitKey!,
                 side: "debit",
                 currency: t.currency,
                 amountMinor: t.amount,
                 memo: t.memo ?? null
             });
             derived.push({
-                orgId: input.orgId,
+                orgId: validated.orgId,
                 entryId,
                 lineNo: lineNo++,
-                accountKey: t.creditKey,
+                accountKey: t.creditKey!,
                 side: "credit",
                 currency: t.currency,
                 amountMinor: t.amount,
@@ -201,14 +144,14 @@ export function createLedgerEngine(deps: { db: Database }) {
             await tx.insert(schema.journalLines).values(derived).onConflictDoNothing();
         }
 
-        const planRows = transfers.map((t, i) => {
+        const planRows = transfers.map((t: TransferPlanLine, i: number) => {
             const idx = i + 1;
             const tbLedger = tbLedgerForCurrency(t.currency);
-            const transferId = tbTransferIdForPlan(input.orgId, entryId, idx, t.planKey);
+            const transferId = tbTransferIdForPlan(validated.orgId, entryId, idx, t.planKey);
 
             if (t.type === PlanType.CREATE) {
                 return {
-                    orgId: input.orgId,
+                    orgId: validated.orgId,
                     journalEntryId: entryId,
                     idx,
                     planKey: t.planKey,
@@ -231,7 +174,7 @@ export function createLedgerEngine(deps: { db: Database }) {
 
             if (t.type === PlanType.POST_PENDING) {
                 return {
-                    orgId: input.orgId,
+                    orgId: validated.orgId,
                     journalEntryId: entryId,
                     idx,
                     planKey: t.planKey,
@@ -253,7 +196,7 @@ export function createLedgerEngine(deps: { db: Database }) {
             }
 
             return {
-                orgId: input.orgId,
+                orgId: validated.orgId,
                 journalEntryId: entryId,
                 idx,
                 planKey: t.planKey,
@@ -276,10 +219,9 @@ export function createLedgerEngine(deps: { db: Database }) {
 
         await tx.insert(schema.tbTransferPlans).values(planRows).onConflictDoNothing();
 
-        // Outbox marker — makes “journal exists + will be posted” true atomically.
         await tx
             .insert(schema.outbox)
-            .values({ orgId: input.orgId, kind: "post_journal", refId: entryId, status: "pending" })
+            .values({ orgId: validated.orgId, kind: "post_journal", refId: entryId, status: "pending" })
             .onConflictDoNothing();
 
         return entryId;

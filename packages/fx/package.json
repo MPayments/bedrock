@@ -1,0 +1,18 @@
+{
+    "name": "@repo/fx",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "dependencies": {
+        "@repo/db": "*",
+        "@repo/ledger": "*",
+        "drizzle-orm": "^0.45.1"
+    },
+    "devDependencies": {
+        "@repo/typescript-config": "*",
+        "typescript": "^5.8.3"
+    }
+}

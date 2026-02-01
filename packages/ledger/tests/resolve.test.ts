@@ -4,6 +4,16 @@ import { AccountMappingConflictError } from "../src/errors";
 import { createMockDb, createMockTbClient } from "./helpers";
 import { tbAccountIdFor } from "../src/ids";
 
+function mockDbInsert(tbAccountId: bigint) {
+  return {
+    values: vi.fn(() => ({
+      onConflictDoUpdate: vi.fn(() => ({
+        returning: vi.fn(async () => [{ tbAccountId }])
+      }))
+    }))
+  } as any;
+}
+
 describe("resolveTbAccountId", () => {
   let db: ReturnType<typeof createMockDb>;
   let tb: ReturnType<typeof createMockTbClient>;
@@ -79,11 +89,7 @@ describe("resolveTbAccountId", () => {
     });
 
     vi.mocked(tb.createAccounts).mockResolvedValue([]);
-    vi.mocked(db.insert).mockReturnValue({
-      values: vi.fn(() => ({
-        onConflictDoNothing: vi.fn(async () => {})
-      }))
-    } as any);
+    vi.mocked(db.insert).mockReturnValue(mockDbInsert(expectedId));
 
     const result = await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
 
@@ -115,11 +121,7 @@ describe("resolveTbAccountId", () => {
     });
 
     vi.mocked(tb.createAccounts).mockResolvedValue([]);
-    vi.mocked(db.insert).mockReturnValue({
-      values: vi.fn(() => ({
-        onConflictDoNothing: vi.fn(async () => {})
-      }))
-    } as any);
+    vi.mocked(db.insert).mockReturnValue(mockDbInsert(expectedId));
 
     await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
 
@@ -156,7 +158,9 @@ describe("resolveTbAccountId", () => {
     vi.mocked(tb.createAccounts).mockResolvedValue([]);
 
     const mockValues = vi.fn(() => ({
-      onConflictDoNothing: vi.fn(async () => {})
+      onConflictDoUpdate: vi.fn(() => ({
+        returning: vi.fn(async () => [{ tbAccountId: expectedId }])
+      }))
     }));
     vi.mocked(db.insert).mockReturnValue({ values: mockValues } as any);
 
@@ -195,11 +199,7 @@ describe("resolveTbAccountId", () => {
     });
 
     vi.mocked(tb.createAccounts).mockResolvedValue([]);
-    vi.mocked(db.insert).mockReturnValue({
-      values: vi.fn(() => ({
-        onConflictDoNothing: vi.fn(async () => {}) // Conflict occurred
-      }))
-    } as any);
+    vi.mocked(db.insert).mockReturnValue(mockDbInsert(expectedId));
 
     const result = await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
 
@@ -224,7 +224,9 @@ describe("resolveTbAccountId", () => {
     vi.mocked(tb.createAccounts).mockResolvedValue([]);
     vi.mocked(db.insert).mockReturnValue({
       values: vi.fn(() => ({
-        onConflictDoNothing: vi.fn(async () => {})
+        onConflictDoUpdate: vi.fn(() => ({
+          returning: vi.fn(async () => []) // Empty return - account not found
+        }))
       }))
     } as any);
 
@@ -258,7 +260,9 @@ describe("resolveTbAccountId", () => {
     vi.mocked(tb.createAccounts).mockResolvedValue([]);
     vi.mocked(db.insert).mockReturnValue({
       values: vi.fn(() => ({
-        onConflictDoNothing: vi.fn(async () => {})
+        onConflictDoUpdate: vi.fn(() => ({
+          returning: vi.fn(async () => [{ tbAccountId: wrongId }]) // Wrong ID returned
+        }))
       }))
     } as any);
 
@@ -292,11 +296,7 @@ describe("resolveTbAccountId", () => {
       });
 
       vi.mocked(tb.createAccounts).mockResolvedValue([]);
-      vi.mocked(db.insert).mockReturnValue({
-        values: vi.fn(() => ({
-          onConflictDoNothing: vi.fn(async () => {})
-        }))
-      } as any);
+      vi.mocked(db.insert).mockReturnValue(mockDbInsert(expectedId));
 
       await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
 
@@ -333,11 +333,7 @@ describe("resolveTbAccountId", () => {
       });
 
       vi.mocked(tb.createAccounts).mockResolvedValue([]);
-      vi.mocked(db.insert).mockReturnValue({
-        values: vi.fn(() => ({
-          onConflictDoNothing: vi.fn(async () => {})
-        }))
-      } as any);
+      vi.mocked(db.insert).mockReturnValue(mockDbInsert(expectedId));
 
       const result = await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
       expect(result).toBe(expectedId);
@@ -374,11 +370,7 @@ describe("resolveTbAccountId", () => {
       { index: 0, result: CreateAccountError.exists }
     ] as any);
 
-    vi.mocked(db.insert).mockReturnValue({
-      values: vi.fn(() => ({
-        onConflictDoNothing: vi.fn(async () => {})
-      }))
-    } as any);
+    vi.mocked(db.insert).mockReturnValue(mockDbInsert(expectedId));
 
     const result = await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
     expect(result).toBe(expectedId);

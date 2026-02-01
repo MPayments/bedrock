@@ -1,0 +1,23 @@
+{
+    "name": "@repo/treasury",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsc --watch",
+        "check-types": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@repo/db": "*",
+        "@repo/ledger": "*",
+        "drizzle-orm": "^0.45.1"
+    },
+    "devDependencies": {
+        "@repo/typescript-config": "*",
+        "typescript": "^5.8.3"
+    }
+}

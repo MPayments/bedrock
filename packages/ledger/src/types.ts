@@ -32,11 +32,6 @@ export type PostPendingPlan = {
     currency: string;
     pendingId: bigint;
 
-    /**
-     * Domain sentinel:
-     * - 0n means "post full pending amount"
-     * Worker translates 0n => TB_AMOUNT_MAX for TB >= 0.16.
-     */
     amount?: bigint;
 
     code?: number;
@@ -51,7 +46,6 @@ export type VoidPendingPlan = {
     currency: string;
     pendingId: bigint;
 
-    // No amount: TB doesn't support partial void.
     code?: number;
 
     chain?: string;

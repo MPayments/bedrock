@@ -48,7 +48,7 @@ export async function resolveTbAccountId(p: ResolveTbAccountIdParams): Promise<b
 
     await tbCreateAccountsOrThrow(p.tb, [makeTbAccount(expected, p.tbLedger, code)]);
 
-    await p.db
+    const inserted = await p.db
         .insert(schema.ledgerAccounts)
         .values({
             orgId: p.orgId,
@@ -57,17 +57,17 @@ export async function resolveTbAccountId(p: ResolveTbAccountIdParams): Promise<b
             tbLedger: p.tbLedger,
             tbAccountId: expected
         })
-        .onConflictDoNothing();
+        .onConflictDoUpdate({
+            target: [schema.ledgerAccounts.orgId, schema.ledgerAccounts.tbLedger, schema.ledgerAccounts.key],
+            set: { currency: p.currency }
+        })
+        .returning({ tbAccountId: schema.ledgerAccounts.tbAccountId });
 
-    const again = await p.db
-        .select({ tbAccountId: schema.ledgerAccounts.tbAccountId })
-        .from(schema.ledgerAccounts)
-        .where(and(eq(schema.ledgerAccounts.orgId, p.orgId), eq(schema.ledgerAccounts.tbLedger, p.tbLedger), eq(schema.ledgerAccounts.key, p.key)))
-        .limit(1);
+    if (!inserted.length) {
+        throw new Error("Failed to persist TB account mapping - no rows returned");
+    }
 
-    if (!again.length) throw new Error("Failed to persist TB account mapping");
-
-    const actual = again[0]!.tbAccountId;
+    const actual = inserted[0]!.tbAccountId;
     if (actual !== expected) {
         throw new AccountMappingConflictError(
             `Ledger account mapping conflict after insert (db!=deterministic) for key=${p.key}`,

@@ -7,12 +7,11 @@ import {
     type Account,
     type Transfer
 } from "tigerbeetle-node";
-import { TigerBeetleBatchError } from "./errors.js";
+import { TigerBeetleBatchError } from "./errors";
 
 export type TbClient = ReturnType<typeof createClient>;
 export { TransferFlags, AccountFlags, CreateAccountError, CreateTransferError };
 
-// TB ≥ 0.16: AMOUNT_MAX posts the full pending amount for post_pending_transfer.
 export const TB_AMOUNT_MAX = (1n << 128n) - 1n;
 
 export function createTbClient(clusterId: bigint, address: string) {

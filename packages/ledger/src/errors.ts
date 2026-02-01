@@ -34,3 +34,52 @@ export class TigerBeetleBatchError extends LedgerError {
         super(msg);
     }
 }
+
+export function isRetryableError(error: unknown): boolean {
+    if (!error) return false;
+
+    const err = error as any;
+    const message = err?.message?.toLowerCase() || "";
+    const code = err?.code?.toUpperCase() || "";
+    const name = err?.name || "";
+
+    const retryableCodes = [
+        "ECONNREFUSED",
+        "ETIMEDOUT",
+        "ECONNRESET",
+        "EHOSTUNREACH",
+        "ENETUNREACH",
+        "EAI_AGAIN",
+        "ENOTFOUND"
+    ];
+
+    if (retryableCodes.includes(code)) {
+        return true;
+    }
+
+    if (
+        message.includes("connection") &&
+        (message.includes("refused") || message.includes("timeout") || message.includes("lost"))
+    ) {
+        return true;
+    }
+
+    if (err instanceof IdempotencyConflictError ||
+        err instanceof AccountMappingConflictError ||
+        err instanceof TigerBeetleBatchError ||
+        err instanceof LedgerError) {
+        return false;
+    }
+
+    if (
+        name.includes("Validation") ||
+        message.includes("invalid") ||
+        message.includes("must be") ||
+        message.includes("required") ||
+        message.includes("conflict")
+    ) {
+        return false;
+    }
+
+    return true;
+}

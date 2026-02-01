@@ -18,6 +18,9 @@ export function createMockDb(): Database {
       values: vi.fn(() => ({
         onConflictDoNothing: vi.fn(() => ({
           returning: vi.fn(() => Promise.resolve([]))
+        })),
+        onConflictDoUpdate: vi.fn(() => ({
+          returning: vi.fn(() => Promise.resolve([]))
         }))
       }))
     })),
@@ -39,17 +42,44 @@ export function createMockTx() {
       }))
     })),
     insert: vi.fn(() => ({
-      values: vi.fn(() => ({
-        onConflictDoNothing: vi.fn(() => ({
-          returning: vi.fn(() => Promise.resolve([{ id: "test-entry-id" }]))
-        }))
-      }))
+      values: vi.fn((vals: any) => {
+        const insertedValues = Array.isArray(vals) ? vals : [vals];
+
+        return {
+          onConflictDoNothing: vi.fn(() => ({
+            returning: vi.fn(() => {
+              // For journal entries, return single entry
+              if (insertedValues[0]?.idempotencyKey !== undefined) {
+                return Promise.resolve([{ id: "test-entry-id" }]);
+              }
+              // For journal lines, return all lines with lineNo
+              if (insertedValues[0]?.lineNo !== undefined) {
+                return Promise.resolve(insertedValues.map((v, i) => ({ lineNo: v.lineNo || i + 1 })));
+              }
+              // For TB transfer plans
+              if (insertedValues[0]?.planKey !== undefined) {
+                return Promise.resolve(insertedValues.map((v, i) => ({ id: `plan-${i}` })));
+              }
+              // For outbox
+              if (insertedValues[0]?.kind !== undefined) {
+                return Promise.resolve([{ id: "outbox-id" }]);
+              }
+              // Default: return all entries
+              return Promise.resolve(insertedValues.map((v, i) => ({ id: `id-${i}` })));
+            })
+          })),
+          onConflictDoUpdate: vi.fn(() => ({
+            returning: vi.fn(() => Promise.resolve([{ tbAccountId: 12345n }]))
+          }))
+        };
+      })
     })),
     update: vi.fn(() => ({
       set: vi.fn(() => ({
         where: vi.fn(() => Promise.resolve())
       }))
-    }))
+    })),
+    execute: vi.fn(() => Promise.resolve())
   } as any;
 }
 
@@ -65,7 +95,7 @@ export function createMockTbClient(): TbClient {
 
 export function createTestEntry() {
   return {
-    orgId: "org-123",
+    orgId: "550e8400-e29b-41d4-a716-446655440000", // Valid UUID
     source: { type: "payment", id: "pay-456" },
     idempotencyKey: "idem-789",
     postingDate: new Date("2024-01-15T10:00:00Z"),

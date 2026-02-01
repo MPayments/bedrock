@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
 
-// TB forbids 0 and 2^128-1 for ids. Use max_allowed = 2^128-2.
-export const TB_ID_MAX = (1n << 128n) - 1n;      // 2^128 - 1
-export const TB_ID_MAX_ALLOWED = TB_ID_MAX - 1n; // 2^128 - 2
+export const TB_ID_MAX = (1n << 128n) - 1n;
+export const TB_ID_MAX_ALLOWED = TB_ID_MAX - 1n;
 
 export function normalizeTbId(x: bigint): bigint {
   if (x <= 0n) return 1n;

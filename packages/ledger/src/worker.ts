@@ -6,7 +6,7 @@ import {
 import type { TbClient } from "./tb";
 import { makeTbTransfer, tbCreateTransfersOrThrow, TransferFlags, TB_AMOUNT_MAX } from "./tb";
 import { resolveTbAccountId } from "./resolve";
-import { PostingError } from "./errors";
+import { PostingError, isRetryableError } from "./errors";
 import { PlanType } from "./types";
 
 export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
@@ -57,63 +57,75 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
             try {
                 await postJournal(job.org_id, job.journal_entry_id);
 
-                await db.execute(sql`
-          UPDATE ${schema.outbox}
-          SET status = 'done', locked_at = NULL, error = NULL
-          WHERE id = ${job.outbox_id}
-        `);
-
-                await db.execute(sql`
-          UPDATE ${schema.journalEntries}
-          SET outbox_attempts = ${job.attempts},
-              last_outbox_error_at = NULL,
-              error = NULL
-          WHERE id = ${job.journal_entry_id} AND status = 'pending'
-        `);
-            } catch (e: any) {
-                const msg = String(e?.message ?? e);
-
-                if (job.attempts >= maxAttempts) {
-                    await db.execute(sql`
+                // Wrap success updates in transaction to ensure atomicity
+                await db.transaction(async (tx: any) => {
+                    await tx.execute(sql`
             UPDATE ${schema.outbox}
-            SET status = 'failed', locked_at = NULL, error = ${msg}
+            SET status = 'done', locked_at = NULL, error = NULL
             WHERE id = ${job.outbox_id}
           `);
 
-                    await db.execute(sql`
-            UPDATE ${schema.tbTransferPlans}
-            SET status = 'failed', error = ${msg}
-            WHERE journal_entry_id = ${job.journal_entry_id}
-              AND org_id = ${job.org_id}
-              AND status <> 'posted'
-          `);
-
-                    await db.execute(sql`
+                    await tx.execute(sql`
             UPDATE ${schema.journalEntries}
-            SET status = 'failed',
-                error = ${msg},
-                outbox_attempts = ${job.attempts},
-                last_outbox_error_at = now()
-            WHERE id = ${job.journal_entry_id}
-          `);
-                } else {
-                    await db.execute(sql`
-            UPDATE ${schema.outbox}
-            SET status = 'pending',
-                locked_at = NULL,
-                error = ${msg},
-                available_at = now() + (LEAST(1800, POWER(2, attempts)) || ' seconds')::interval
-            WHERE id = ${job.outbox_id}
-          `);
-
-                    await db.execute(sql`
-            UPDATE ${schema.journalEntries}
-            SET error = ${msg},
-                outbox_attempts = ${job.attempts},
-                last_outbox_error_at = now()
+            SET outbox_attempts = ${job.attempts},
+                last_outbox_error_at = NULL,
+                error = NULL
             WHERE id = ${job.journal_entry_id} AND status = 'pending'
           `);
-                }
+                });
+            } catch (e: any) {
+                const msg = String(e?.message ?? e);
+                const retryable = isRetryableError(e);
+
+                // Wrap error handling updates in transaction to ensure atomicity
+                await db.transaction(async (tx: any) => {
+                    // Fail immediately for permanent errors, or when max attempts reached
+                    if (!retryable || job.attempts >= maxAttempts) {
+                        const errorMsg = !retryable
+                            ? `[PERMANENT ERROR] ${msg}`
+                            : `[MAX RETRIES EXCEEDED] ${msg}`;
+
+                        await tx.execute(sql`
+              UPDATE ${schema.outbox}
+              SET status = 'failed', locked_at = NULL, error = ${errorMsg}
+              WHERE id = ${job.outbox_id}
+            `);
+
+                        await tx.execute(sql`
+              UPDATE ${schema.tbTransferPlans}
+              SET status = 'failed', error = ${errorMsg}
+              WHERE journal_entry_id = ${job.journal_entry_id}
+                AND org_id = ${job.org_id}
+                AND status <> 'posted'
+            `);
+
+                        await tx.execute(sql`
+              UPDATE ${schema.journalEntries}
+              SET status = 'failed',
+                  error = ${errorMsg},
+                  outbox_attempts = ${job.attempts},
+                  last_outbox_error_at = now()
+              WHERE id = ${job.journal_entry_id}
+            `);
+                    } else {
+                        await tx.execute(sql`
+              UPDATE ${schema.outbox}
+              SET status = 'pending',
+                  locked_at = NULL,
+                  error = ${msg},
+                  available_at = now() + (LEAST(1800, POWER(2, attempts)) || ' seconds')::interval
+              WHERE id = ${job.outbox_id}
+            `);
+
+                        await tx.execute(sql`
+              UPDATE ${schema.journalEntries}
+              SET error = ${msg},
+                  outbox_attempts = ${job.attempts},
+                  last_outbox_error_at = now()
+              WHERE id = ${job.journal_entry_id} AND status = 'pending'
+            `);
+                    }
+                });
             }
         }
 
@@ -174,7 +186,6 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
             if (pl.type === PlanType.POST_PENDING) {
                 flags |= TransferFlags.post_pending_transfer;
 
-                // TB >= 0.16: post-full uses AMOUNT_MAX
                 const amountForTb = pl.amount === 0n ? TB_AMOUNT_MAX : pl.amount;
 
                 transfers.push(
@@ -192,12 +203,7 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
                 continue;
             }
 
-            // void_pending: no partial void
             flags |= TransferFlags.void_pending_transfer;
-
-            if (pl.amount !== 0n) {
-                throw new PostingError("void_pending must use amount=0 (no partial void supported)");
-            }
 
             transfers.push(
                 makeTbTransfer({

@@ -1,12 +1,26 @@
-import { journalEntries, journalLines } from "./journal";
-import { ledgerAccounts } from "./ledger";
-import { outbox } from "./outbox";
-import { tbTransferPlans } from "./tb-plan";
+import { journalEntries, journalLines } from "./ledger/journal";
+import { ledgerAccounts } from "./ledger/ledger";
+import { outbox } from "./ledger/outbox";
+import { tbTransferPlans } from "./ledger/tb-plan";
+import { bankAccounts } from "./treasury/bank-accounts";
+import { customers } from "./treasury/customers";
+import { paymentOrders } from "./treasury/orders";
+import { organizations } from "./treasury/organizations";
+import { fxRates } from "./fx/rates";
+import { fxPolicies } from "./fx/policies";
+import { fxQuotes } from "./fx/quotes";
 
 export const schema = {
   journalEntries,
   journalLines,
   ledgerAccounts,
   outbox,
-  tbTransferPlans
+  tbTransferPlans,
+  organizations,
+  customers,
+  bankAccounts,
+  paymentOrders,
+  fxRates,
+  fxPolicies,
+  fxQuotes,
 };

@@ -42,7 +42,7 @@ export const tbTransferPlans = pgTable(
         currency: text("currency").notNull(),
         tbLedger: bigint("tb_ledger", { mode: "number" }).notNull(),
 
-        amount: bigint("amount", { mode: "bigint" }).notNull().default(0n),
+        amount: bigint("amount", { mode: "bigint" }).notNull().default(sql`0`),
         code: integer("code").notNull().default(1),
 
         isLinked: boolean("is_linked").notNull().default(false),
