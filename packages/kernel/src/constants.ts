@@ -5,6 +5,7 @@
  * - 1xxx: Funding operations
  * - 2xxx: FX execution operations
  * - 3xxx: Payout operations
+ * - 4xxx: Internal transfer operations
  */
 
 export const TransferCodes = {
@@ -28,6 +29,9 @@ export const TransferCodes = {
 
     /** Payout initiated from treasury pool (pending until settled) */
     PAYOUT_INITIATED: 3001,
+
+    /** Internal transfer */
+    INTERNAL_TRANSFER: 4001,
 } as const;
 
 export type TransferCode = (typeof TransferCodes)[keyof typeof TransferCodes];

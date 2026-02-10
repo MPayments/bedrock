@@ -10,10 +10,10 @@ const FINALIZE: Record<string, string> = {
   failed_pending_posting: "failed"
 };
 
-export function createTreasuryPostingWorker(deps: { db: Database; treasuryOrgId?: string }) {
+export function createTreasuryWorker(deps: { db: Database; treasuryOrgId?: string }) {
   const { db, treasuryOrgId } = deps;
 
-  async function processPendingPostingOnce(opts?: { batchSize?: number }) {
+  async function processOnce(opts?: { batchSize?: number }) {
     const batchSize = opts?.batchSize ?? 50;
 
     // Process each order in its own transaction with FOR UPDATE SKIP LOCKED
@@ -91,5 +91,6 @@ export function createTreasuryPostingWorker(deps: { db: Database; treasuryOrgId?
     return processed;
   }
 
-  return { processPendingPostingOnce };
+  return { processOnce };
 }
+

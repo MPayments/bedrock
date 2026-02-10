@@ -22,6 +22,7 @@ type ResolveTbAccountIdParams = {
 
 export async function resolveTbAccountId(p: ResolveTbAccountIdParams): Promise<bigint> {
     const expected = tbAccountIdFor(p.orgId, p.key, p.tbLedger);
+    const code = accountCodeFromKey(p.key);
 
     // Check if account already exists in DB
     const existing = await p.db
@@ -42,6 +43,10 @@ export async function resolveTbAccountId(p: ResolveTbAccountIdParams): Promise<b
                 actual
             );
         }
+
+        // Self-heal on retries: if previous attempt inserted mapping but failed before
+        // creating TB account, this idempotent create will bring TB in sync.
+        await tbCreateAccountsOrThrow(p.tb, [makeTbAccount(actual, p.tbLedger, code)]);
         return actual;
     }
 
@@ -49,8 +54,6 @@ export async function resolveTbAccountId(p: ResolveTbAccountIdParams): Promise<b
     // 1. Insert into DB first (establishes ownership via unique constraint)
     // 2. Then create in TigerBeetle (idempotent operation)
     // This ensures DB is always the source of truth and races are handled by DB constraints
-
-    const code = accountCodeFromKey(p.key);
 
     // Try to insert into DB first - this acts as a lock
     // If another process races, one will succeed and one will hit conflict

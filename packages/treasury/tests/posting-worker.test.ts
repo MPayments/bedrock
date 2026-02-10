@@ -1,21 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createTreasuryPostingWorker } from "../src/posting-worker";
+import { createTreasuryWorker } from "../src/worker";
 import { createStubDb, mockDbExecuteResult, type StubDatabase } from "./helpers";
 
-describe("createTreasuryPostingWorker", () => {
+describe("createTreasuryWorker", () => {
     let db: StubDatabase;
-    let worker: ReturnType<typeof createTreasuryPostingWorker>;
+    let worker: ReturnType<typeof createTreasuryWorker>;
 
     beforeEach(() => {
         db = createStubDb();
-        worker = createTreasuryPostingWorker({ db, treasuryOrgId: "treasury-org-id" });
+        worker = createTreasuryWorker({ db, treasuryOrgId: "treasury-org-id" });
     });
 
-    describe("processPendingPostingOnce", () => {
+    describe("processOnce", () => {
         it("should return 0 when no pending items", async () => {
             vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-            const result = await worker.processPendingPostingOnce();
+            const result = await worker.processOnce();
 
             expect(result).toBe(0);
         });
@@ -44,7 +44,7 @@ describe("createTreasuryPostingWorker", () => {
                 return fn(tx);
             });
 
-            const result = await worker.processPendingPostingOnce();
+            const result = await worker.processOnce();
 
             expect(result).toBe(1);
             expect(db.transaction).toHaveBeenCalled();
@@ -79,7 +79,7 @@ describe("createTreasuryPostingWorker", () => {
                 return fn(tx);
             });
 
-            await worker.processPendingPostingOnce();
+            await worker.processOnce();
 
             expect(db.transaction).toHaveBeenCalled();
         });
@@ -107,7 +107,7 @@ describe("createTreasuryPostingWorker", () => {
                 return fn(tx);
             });
 
-            const result = await worker.processPendingPostingOnce();
+            const result = await worker.processOnce();
 
             expect(result).toBe(1);
         });
@@ -135,7 +135,7 @@ describe("createTreasuryPostingWorker", () => {
                 return fn(tx);
             });
 
-            const result = await worker.processPendingPostingOnce();
+            const result = await worker.processOnce();
 
             expect(result).toBe(1);
         });
@@ -163,7 +163,7 @@ describe("createTreasuryPostingWorker", () => {
                 return fn(tx);
             });
 
-            const result = await worker.processPendingPostingOnce();
+            const result = await worker.processOnce();
 
             expect(result).toBe(1);
         });
@@ -188,7 +188,7 @@ describe("createTreasuryPostingWorker", () => {
                 return fn(tx);
             });
 
-            const result = await worker.processPendingPostingOnce();
+            const result = await worker.processOnce();
 
             expect(result).toBe(0);
         });
@@ -205,7 +205,7 @@ describe("createTreasuryPostingWorker", () => {
 
             vi.mocked(db.execute).mockResolvedValueOnce(mockDbExecuteResult(items));
 
-            const result = await worker.processPendingPostingOnce();
+            const result = await worker.processOnce();
 
             expect(result).toBe(0);
         });
@@ -242,7 +242,7 @@ describe("createTreasuryPostingWorker", () => {
                 return fn(tx);
             });
 
-            const result = await worker.processPendingPostingOnce();
+            const result = await worker.processOnce();
 
             expect(result).toBe(2);
             expect(db.transaction).toHaveBeenCalledTimes(2);
@@ -251,7 +251,7 @@ describe("createTreasuryPostingWorker", () => {
         it("should respect batchSize option", async () => {
             vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-            await worker.processPendingPostingOnce({ batchSize: 10 });
+            await worker.processOnce({ batchSize: 10 });
 
             expect(db.execute).toHaveBeenCalled();
         });
@@ -279,7 +279,7 @@ describe("createTreasuryPostingWorker", () => {
                 return fn(tx);
             });
 
-            const result = await worker.processPendingPostingOnce();
+            const result = await worker.processOnce();
 
             // Should not increment processed count for pending journal
             expect(result).toBe(0);
@@ -288,11 +288,11 @@ describe("createTreasuryPostingWorker", () => {
 
     describe("without treasuryOrgId filter", () => {
         it("should process all orders when no treasuryOrgId provided", async () => {
-            const workerNoFilter = createTreasuryPostingWorker({ db });
+            const workerNoFilter = createTreasuryWorker({ db });
 
             vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-            await workerNoFilter.processPendingPostingOnce();
+            await workerNoFilter.processOnce();
 
             expect(db.execute).toHaveBeenCalled();
         });

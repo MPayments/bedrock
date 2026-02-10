@@ -3,6 +3,7 @@ import { fxPolicies } from "./policies";
 import { sql } from "drizzle-orm";
 
 export type FxQuoteStatus = "active" | "used" | "expired" | "cancelled";
+export type FxQuote = typeof fxQuotes.$inferSelect;
 
 export const fxQuotes = pgTable(
     "fx_quotes",

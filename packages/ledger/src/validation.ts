@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { PlanType } from "./types";
 
-const uuidSchema = z.string().uuid();
+const uuidSchema = z.uuid({
+    version: "v4",
+});
 
 export const orgIdSchema = uuidSchema;
 export const idempotencyKeySchema = z.string().min(1).max(255);

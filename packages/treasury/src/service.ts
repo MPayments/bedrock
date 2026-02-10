@@ -12,7 +12,7 @@ import {
     CurrencyMismatchError
 } from "./errors";
 import { treasuryKeyspace } from "./keyspace";
-import { TransferCodes } from "./codes";
+import { TransferCodes } from "@repo/kernel/constants";
 import {
     validateFundingSettledInput,
     validateExecuteFxInput,
@@ -80,6 +80,9 @@ export function createTreasuryService(deps: {
             // Validate customerId matches
             if (input.customerId !== order.customerId) {
                 throw new ValidationError(`customerId mismatch: expected ${order.customerId}, got ${input.customerId}`);
+            }
+            if (input.branchOrgId !== order.payInOrgId) {
+                throw new ValidationError(`branchOrgId mismatch: expected ${order.payInOrgId}, got ${input.branchOrgId}`);
             }
 
             const pk = makePlanKey("funding_settled", {
@@ -150,6 +153,11 @@ export function createTreasuryService(deps: {
 
             if (advancedStatuses.includes(st)) {
                 if (!led) throw new InvalidStateError(`Order in advanced state ${st} but ledgerEntryId missing`);
+                if (led !== entryId) {
+                    throw new InvalidStateError(
+                        `Order advanced with different ledgerEntryId (expected ${entryId}, found ${led})`
+                    );
+                }
                 log.debug("fundingSettled idempotent", { orderId: input.orderId, status: st });
                 return led;
             }
@@ -185,6 +193,14 @@ export function createTreasuryService(deps: {
             }
             if (input.payOutAmountMinor !== order.payOutAmountMinor) {
                 throw new AmountMismatchError("payOutAmountMinor", order.payOutAmountMinor, input.payOutAmountMinor);
+            }
+            if (input.customerId !== order.customerId) {
+                throw new ValidationError(`customerId mismatch: expected ${order.customerId}, got ${input.customerId}`);
+            }
+            if (input.branchOrgId !== order.payInOrgId && input.branchOrgId !== order.payOutOrgId) {
+                throw new ValidationError(
+                    `branchOrgId mismatch: expected one of [${order.payInOrgId}, ${order.payOutOrgId}], got ${input.branchOrgId}`
+                );
             }
 
             if (order.status !== "funding_settled") {
@@ -348,6 +364,9 @@ export function createTreasuryService(deps: {
             // Validate amount matches order's payout amount
             if (input.amountMinor !== order.payOutAmountMinor) {
                 throw new AmountMismatchError("payOutAmountMinor", order.payOutAmountMinor, input.amountMinor);
+            }
+            if (input.payoutOrgId !== order.payOutOrgId) {
+                throw new ValidationError(`payoutOrgId mismatch: expected ${order.payOutOrgId}, got ${input.payoutOrgId}`);
             }
 
             if (order.status !== "fx_executed") throw new InvalidStateError(`Order must be fx_executed (posted), got ${order.status}`);

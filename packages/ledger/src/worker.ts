@@ -12,7 +12,7 @@ import { PlanType } from "./types";
 export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
     const { db, tb } = deps;
 
-    async function processOutboxOnce(opts?: {
+    async function processOnce(opts?: {
         batchSize?: number;
         maxAttempts?: number;
         leaseSeconds?: number
@@ -245,6 +245,6 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
     }
 
     return {
-        processOutboxOnce
+        processOnce,
     };
 }

@@ -1,5 +1,5 @@
 {
-    "name": "@repo/fx",
+    "name": "@repo/transfers",
     "version": "0.0.0",
     "private": true,
     "type": "module",
@@ -9,17 +9,22 @@
     "scripts": {
         "build": "tsc",
         "dev": "tsc --watch",
-        "check-types": "tsc --noEmit"
+        "check-types": "tsc --noEmit",
+        "test": "vitest run",
+        "test:watch": "vitest"
     },
     "dependencies": {
-        "@repo/db": "*",
         "@repo/kernel": "*",
+        "@repo/db": "*",
         "@repo/ledger": "*",
         "drizzle-orm": "^0.45.1",
-        "zod": "^4"
+        "zod": "^4.3.6"
     },
     "devDependencies": {
         "@repo/typescript-config": "*",
-        "typescript": "^5.8.3"
+        "@repo/test-utils": "*",
+        "@types/node": "^24",
+        "typescript": "^5.8.3",
+        "vitest": "^3.0.5"
     }
 }

@@ -9,6 +9,7 @@ import { organizations } from "./treasury/organizations";
 import { fxRates } from "./fx/rates";
 import { fxPolicies } from "./fx/policies";
 import { fxQuotes } from "./fx/quotes";
+import { internalTransfers } from "./transfers/transfers";
 
 export const schema = {
   journalEntries,
@@ -23,4 +24,9 @@ export const schema = {
   fxRates,
   fxPolicies,
   fxQuotes,
+  internalTransfers,
 };
+
+export { TransferStatus } from "./transfers/transfers";
+export { type JournalStatus } from "./ledger/journal";
+export { type FxQuote, type FxQuoteStatus } from "./fx/quotes";

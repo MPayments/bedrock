@@ -18,7 +18,7 @@ describe("Worker Integration Tests", () => {
   const engine = createLedgerEngine({ db });
   const worker = createLedgerWorker({ db, tb });
 
-  describe("processOutboxOnce - full posting flow", () => {
+  describe("processOnce - full posting flow", () => {
     it("should post simple create transfer to TigerBeetle", async () => {
       const orgId = randomOrgId();
       const currency = "USD";
@@ -46,7 +46,7 @@ describe("Worker Integration Tests", () => {
       const { entryId } = await engine.createEntry(input);
 
       // Process outbox
-      const processed = await worker.processOutboxOnce();
+      const processed = await worker.processOnce();
       expect(processed).toBe(1);
 
       // Verify entry status
@@ -115,7 +115,7 @@ describe("Worker Integration Tests", () => {
       const { entryId } = await engine.createEntry(input);
 
       // Process outbox
-      const processed = await worker.processOutboxOnce();
+      const processed = await worker.processOnce();
       expect(processed).toBe(1);
 
       // Verify entry status
@@ -165,7 +165,7 @@ describe("Worker Integration Tests", () => {
       const { entryId } = await engine.createEntry(input);
 
       // Process outbox
-      await worker.processOutboxOnce();
+      await worker.processOnce();
 
       // Verify entry posted
       const entry = await getJournalEntry(entryId);
@@ -221,7 +221,7 @@ describe("Worker Integration Tests", () => {
       const { entryId } = await engine.createEntry(input);
 
       // Process outbox
-      await worker.processOutboxOnce();
+      await worker.processOnce();
 
       // Verify both transfers posted
       const plans = await getTbTransferPlans(entryId);
@@ -268,7 +268,7 @@ describe("Worker Integration Tests", () => {
       };
 
       await engine.createEntry(input1);
-      await worker.processOutboxOnce();
+      await worker.processOnce();
 
       // Second transfer (reuse same account)
       const input2 = {
@@ -289,7 +289,7 @@ describe("Worker Integration Tests", () => {
       };
 
       await engine.createEntry(input2);
-      await worker.processOutboxOnce();
+      await worker.processOnce();
 
       // Verify cumulative balance
       const tbLedger = tbLedgerForCurrency(currency);
@@ -323,14 +323,14 @@ describe("Worker Integration Tests", () => {
       const { entryId } = await engine.createEntry(input);
 
       // Process outbox first time
-      await worker.processOutboxOnce();
+      await worker.processOnce();
 
       // Get current state
       const entry1 = await getJournalEntry(entryId);
       expect(entry1!.status).toBe("posted");
 
       // Process again (should be idempotent - no error)
-      const processed2 = await worker.processOutboxOnce();
+      const processed2 = await worker.processOnce();
       expect(processed2).toBe(0); // No more pending jobs
 
       // Verify no duplicate transfer
@@ -385,7 +385,7 @@ describe("Worker Integration Tests", () => {
       await engine.createEntry(input2);
 
       // Process both
-      await worker.processOutboxOnce({ batchSize: 10 });
+      await worker.processOnce({ batchSize: 10 });
 
       // Verify separate ledgers in TigerBeetle
       const usdLedger = tbLedgerForCurrency("USD");
@@ -432,7 +432,7 @@ describe("Worker Integration Tests", () => {
       }
 
       // Process all at once
-      const processed = await worker.processOutboxOnce({ batchSize: 10 });
+      const processed = await worker.processOnce({ batchSize: 10 });
       expect(processed).toBe(5);
 
       // Verify all posted

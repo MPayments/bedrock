@@ -1,5 +1,5 @@
 export { createTreasuryService } from "./service";
 export { treasuryKeyspace } from "./keyspace";
-export { createTreasuryPostingWorker } from "./posting-worker";
+export { createTreasuryWorker } from "./worker";
 export * from "./errors";
 export * from "./validation";

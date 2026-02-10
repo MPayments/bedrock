@@ -64,28 +64,8 @@ export const paymentOrders = pgTable(
     ])
 );
 
-export const fxQuotes = pgTable(
-    "fx_quotes",
-    {
-        id: uuid("id").primaryKey().defaultRandom(),
-        orderId: uuid("order_id").notNull().references(() => paymentOrders.id, { onDelete: "cascade" }),
-
-        baseCurrency: text("base_currency").notNull(),
-        quoteCurrency: text("quote_currency").notNull(),
-
-        baseAmountMinor: bigint("base_amount_minor", { mode: "bigint" }).notNull(),
-        quoteAmountMinor: bigint("quote_amount_minor", { mode: "bigint" }).notNull(),
-
-        feeBaseMinor: bigint("fee_base_minor", { mode: "bigint" }).notNull().default(sql`0`),
-        spreadBaseMinor: bigint("spread_base_minor", { mode: "bigint" }).notNull().default(sql`0`),
-
-        rateNumerator: bigint("rate_num", { mode: "bigint" }).notNull(),
-        rateDenominator: bigint("rate_den", { mode: "bigint" }).notNull(),
-
-        expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-        createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`)
-    }
-);
+// Keep this re-export for backwards compatibility. Canonical definition lives in ../fx/quotes.
+export { fxQuotes } from "../fx/quotes";
 
 export type SettlementKind = "funding" | "payout";
 export type SettlementStatus = "pending" | "settled" | "failed";

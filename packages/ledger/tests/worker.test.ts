@@ -15,11 +15,11 @@ describe("createLedgerWorker", () => {
     worker = createLedgerWorker({ db, tb });
   });
 
-  describe("processOutboxOnce", () => {
+  describe("processOnce", () => {
     it("should return 0 when no jobs available", async () => {
       vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-      const processed = await worker.processOutboxOnce();
+      const processed = await worker.processOnce();
 
       expect(processed).toBe(0);
     });
@@ -47,7 +47,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(tb.createTransfers).mockResolvedValue([]);
 
-      const processed = await worker.processOutboxOnce();
+      const processed = await worker.processOnce();
 
       expect(processed).toBe(1);
     });
@@ -72,7 +72,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(tb.createTransfers).mockResolvedValue([]);
 
-      const processed = await worker.processOutboxOnce();
+      const processed = await worker.processOnce();
 
       expect(processed).toBe(2);
     });
@@ -99,7 +99,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(tb.createTransfers).mockResolvedValue([]);
 
-      await worker.processOutboxOnce();
+      await worker.processOnce();
 
       // Should have called execute for claim and transaction for updates
       expect(db.execute).toHaveBeenCalled();
@@ -129,7 +129,7 @@ describe("createLedgerWorker", () => {
         }))
       } as any);
 
-      await worker.processOutboxOnce();
+      await worker.processOnce();
 
       // Should have updated outbox to retry
       expect(db.execute).toHaveBeenCalled();
@@ -157,7 +157,7 @@ describe("createLedgerWorker", () => {
         }))
       } as any);
 
-      await worker.processOutboxOnce({ maxAttempts: 25 });
+      await worker.processOnce({ maxAttempts: 25 });
 
       // Should have marked as failed
       expect(db.execute).toHaveBeenCalled();
@@ -168,7 +168,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-      await worker.processOutboxOnce({ batchSize });
+      await worker.processOnce({ batchSize });
 
       // Verify LIMIT was set correctly in query
       expect(db.execute).toHaveBeenCalled();
@@ -179,7 +179,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-      await worker.processOutboxOnce({ maxAttempts });
+      await worker.processOnce({ maxAttempts });
 
       expect(db.execute).toHaveBeenCalled();
     });
@@ -189,7 +189,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-      await worker.processOutboxOnce({ leaseSeconds });
+      await worker.processOnce({ leaseSeconds });
 
       expect(db.execute).toHaveBeenCalled();
     });
@@ -197,7 +197,7 @@ describe("createLedgerWorker", () => {
     it("should handle processing jobs with expired leases", async () => {
       vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-      await worker.processOutboxOnce({ leaseSeconds: 600 });
+      await worker.processOnce({ leaseSeconds: 600 });
 
       expect(db.execute).toHaveBeenCalled();
     });
@@ -266,7 +266,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(tb.createTransfers).mockResolvedValue([]);
 
-      await worker.processOutboxOnce();
+      await worker.processOnce();
 
       const transferCall = vi.mocked(tb.createTransfers).mock.calls[0];
       expect(transferCall).toBeDefined();
@@ -320,7 +320,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(tb.createTransfers).mockResolvedValue([]);
 
-      await worker.processOutboxOnce();
+      await worker.processOnce();
 
       expect(tb.createTransfers).toHaveBeenCalled();
     });
@@ -372,7 +372,7 @@ describe("createLedgerWorker", () => {
         }))
       } as any);
 
-      await worker.processOutboxOnce();
+      await worker.processOnce();
 
       // Should have marked job for retry
       expect(db.execute).toHaveBeenCalled();
@@ -422,7 +422,7 @@ describe("createLedgerWorker", () => {
         }))
       } as any);
 
-      await worker.processOutboxOnce();
+      await worker.processOnce();
 
       // Should have caught error and retried
       expect(db.execute).toHaveBeenCalled();

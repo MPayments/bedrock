@@ -50,6 +50,8 @@ export interface MockOrder {
     id: string;
     treasuryOrgId: string;
     customerId: string;
+    payInOrgId: string;
+    payOutOrgId: string;
     status: string;
     payInCurrency: string;
     payInExpectedMinor: bigint;
@@ -64,6 +66,8 @@ export function createMockOrder(overrides: Partial<MockOrder> = {}): MockOrder {
         id: ORDER_ID,
         treasuryOrgId: TREASURY_ORG_ID,
         customerId: CUSTOMER_ID,
+        payInOrgId: BRANCH_ORG_ID,
+        payOutOrgId: BRANCH_ORG_ID,
         status: "quote",
         payInCurrency: "USD",
         payInExpectedMinor: 100000n,

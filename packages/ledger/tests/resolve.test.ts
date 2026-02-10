@@ -57,7 +57,12 @@ describe("resolveTbAccountId", () => {
     const result = await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
 
     expect(result).toBe(expectedId);
-    expect(tb.createAccounts).not.toHaveBeenCalled();
+    expect(tb.createAccounts).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: expectedId,
+        ledger: tbLedger,
+      }),
+    ]);
   });
 
   it("should throw if existing account has wrong ID", async () => {
@@ -345,5 +350,30 @@ describe("resolveTbAccountId", () => {
 
     const result = await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
     expect(result).toBe(expectedId);
+  });
+
+  it("should fail when existing DB mapping cannot be created in TigerBeetle", async () => {
+    const orgId = "org-123";
+    const key = "customer:broken";
+    const currency = "USD";
+    const tbLedger = 1000;
+    const expectedId = tbAccountIdFor(orgId, key, tbLedger);
+
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () => [{ tbAccountId: expectedId }])
+        }))
+      }))
+    } as any);
+
+    const { CreateAccountError } = await import("tigerbeetle-node");
+    vi.mocked(tb.createAccounts).mockResolvedValue([
+      { index: 0, result: CreateAccountError.linked_event_failed }
+    ] as any);
+
+    await expect(
+      resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger })
+    ).rejects.toThrow("TigerBeetle createAccounts failed");
   });
 });
