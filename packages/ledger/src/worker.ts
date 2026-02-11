@@ -8,16 +8,49 @@ import { makeTbTransfer, tbCreateTransfersOrThrow, TransferFlags, TB_AMOUNT_MAX 
 import { resolveTbAccountId } from "./resolve";
 import { PostingError, isRetryableError } from "./errors";
 import { PlanType } from "./types";
+import { LRUCache } from "lru-cache";
 
-export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
+const DEFAULT_ACCOUNT_CACHE_MAX = 10_000;
+
+export function createLedgerWorker(deps: { db: Database; tb: TbClient; accountCacheMaxSize?: number }) {
     const { db, tb } = deps;
+    const workerAccountCache = new LRUCache<string, bigint>({
+        max: Math.max(1, Math.floor(deps.accountCacheMaxSize ?? DEFAULT_ACCOUNT_CACHE_MAX))
+    });
+    const workerAccountInflight = new Map<string, Promise<bigint>>();
+
+    function accountCacheKey(orgId: string, key: string, tbLedger: number) {
+        return `${orgId}|${tbLedger}|${key}`;
+    }
+
+    async function resolveAccount(orgId: string, key: string, currency: string, tbLedger: number): Promise<bigint> {
+        const cacheKey = accountCacheKey(orgId, key, tbLedger);
+        const cached = workerAccountCache.get(cacheKey);
+        if (cached !== undefined) return cached;
+
+        const inflight = workerAccountInflight.get(cacheKey);
+        if (inflight) return inflight;
+
+        const promise = (async () => {
+            const id = await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
+            workerAccountCache.set(cacheKey, id);
+            return id;
+        })();
+
+        workerAccountInflight.set(cacheKey, promise);
+        try {
+            return await promise;
+        } finally {
+            workerAccountInflight.delete(cacheKey);
+        }
+    }
 
     async function processOnce(opts?: {
         batchSize?: number;
         maxAttempts?: number;
-        leaseSeconds?: number
+        leaseSeconds?: number;
     }) {
-        const batchSize = opts?.batchSize ?? 25;
+        const batchSize = opts?.batchSize ?? 50;
         const maxAttempts = opts?.maxAttempts ?? 25;
         const leaseSeconds = opts?.leaseSeconds ?? 600;
 
@@ -139,15 +172,6 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
             .where(sql`${schema.tbTransferPlans.journalEntryId} = ${journalEntryId} AND ${schema.tbTransferPlans.orgId} = ${orgId}`)
             .orderBy(schema.tbTransferPlans.idx);
 
-        const accountCache = new Map<string, bigint>();
-        const resolveKey = async (key: string, currency: string, tbLedger: number) => {
-            const k = `${key}|${tbLedger}`;
-            if (accountCache.has(k)) return accountCache.get(k)!;
-            const id = await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
-            accountCache.set(k, id);
-            return id;
-        };
-
         const transfers = [];
         for (const pl of plans) {
             if (pl.status === "posted") continue;
@@ -159,8 +183,8 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
                 if (pl.isLinked) flags |= TransferFlags.linked;
                 if (pl.isPending) flags |= TransferFlags.pending;
 
-                const debitId = await resolveKey(pl.debitKey, pl.currency, pl.tbLedger);
-                const creditId = await resolveKey(pl.creditKey, pl.currency, pl.tbLedger);
+                const debitId = await resolveAccount(orgId, pl.debitKey, pl.currency, pl.tbLedger);
+                const creditId = await resolveAccount(orgId, pl.creditKey, pl.currency, pl.tbLedger);
 
                 transfers.push(
                     makeTbTransfer({
