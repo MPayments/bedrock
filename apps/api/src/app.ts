@@ -1,17 +1,16 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { swaggerUI } from "@hono/swagger-ui";
 import { AppError } from "@bedrock/kernel";
-import { createAppContext, type Env } from "./context.js";
-import { organizationsRoutes, customersRoutes } from "./routes/index.js";
+import { createAppContext, type Env } from "./context"
+import { organizationsRoutes, customersRoutes } from "./routes/index";
 
 // Load environment (in production, use proper env loading)
 const env: Env = {
   DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/postgres",
   TB_ADDRESS: process.env.TB_ADDRESS ?? "127.0.0.1:3000",
-  TB_CLUSTER_ID: process.env.TB_CLUSTER_ID,
+  TB_CLUSTER_ID: process.env.TB_CLUSTER_ID ?? "0",
 };
 
-// Create application context (composition root)
 const ctx = createAppContext(env);
 
 // Create OpenAPIHono app with default error handler

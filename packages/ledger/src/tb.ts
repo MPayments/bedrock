@@ -73,7 +73,7 @@ function enumName(e: any, code: number): string {
     return (e as any)[code] ?? `unknown(${code})`;
 }
 
-export async function tbCreateAccountsOrThrow(tb: TbClient, accounts: any[]) {
+export async function tbCreateAccountsOrThrow(tb: TbClient, accounts: Account[]) {
     const errs = await tb.createAccounts(accounts);
     if (!errs || errs.length === 0) return;
 
@@ -90,7 +90,7 @@ export async function tbCreateAccountsOrThrow(tb: TbClient, accounts: any[]) {
     }
 }
 
-export async function tbCreateTransfersOrThrow(tb: TbClient, transfers: any[]) {
+export async function tbCreateTransfersOrThrow(tb: TbClient, transfers: Transfer[]) {
     const errs = await tb.createTransfers(transfers);
     if (!errs || errs.length === 0) return;
 
