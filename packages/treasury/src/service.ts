@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import { type Logger, makePlanKey, noopLogger } from "@repo/kernel";
 import { schema } from "@repo/db/schema";
 import { type Database } from "@repo/db";
@@ -25,6 +25,16 @@ import {
     type SettlePayoutInput,
     type VoidPayoutInput,
 } from "./validation";
+import {
+    AdvancedOrderStatuses,
+    ExecuteFxAllowedFrom,
+    FundingSettledAllowedFrom,
+    InitiatePayoutAllowedFrom,
+    ResolvePendingPayoutAllowedFrom,
+    TreasuryOrderStatus,
+    isOrderStatusIn,
+    isSameEntryInAllowedState,
+} from "./state-machine";
 
 export function createTreasuryService(deps: {
     db: Database;
@@ -51,6 +61,118 @@ export function createTreasuryService(deps: {
 
         if (!row) throw new NotFoundError("Order", orderId);
         return row;
+    }
+
+    function quoteUsageRef(orderId: string): string {
+        return `order:${orderId}:fx`;
+    }
+
+    function isUuidLike(value: string): boolean {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    }
+
+    async function consumeFxQuoteForExecution(tx: any, input: ExecuteFxInput) {
+        let quote: any | undefined;
+        if (isUuidLike(input.quoteRef)) {
+            const [byId] = await tx
+                .select()
+                .from(schema.fxQuotes)
+                .where(eq(schema.fxQuotes.id, input.quoteRef))
+                .limit(1);
+            const [byIdempotency] = await tx
+                .select()
+                .from(schema.fxQuotes)
+                .where(eq(schema.fxQuotes.idempotencyKey, input.quoteRef))
+                .limit(1);
+
+            if (byId && byIdempotency && byId.id !== byIdempotency.id) {
+                throw new ValidationError(`quoteRef ${input.quoteRef} is ambiguous between quote ID and idempotency key`);
+            }
+            quote = byId ?? byIdempotency;
+        } else {
+            const [byIdempotency] = await tx
+                .select()
+                .from(schema.fxQuotes)
+                .where(eq(schema.fxQuotes.idempotencyKey, input.quoteRef))
+                .limit(1);
+            quote = byIdempotency;
+        }
+
+        if (!quote) {
+            throw new NotFoundError("FX quote", input.quoteRef);
+        }
+
+        if (quote.fromCurrency !== input.payInCurrency) {
+            throw new CurrencyMismatchError("quote.fromCurrency", quote.fromCurrency, input.payInCurrency);
+        }
+        if (quote.toCurrency !== input.payOutCurrency) {
+            throw new CurrencyMismatchError("quote.toCurrency", quote.toCurrency, input.payOutCurrency);
+        }
+        if (quote.fromAmountMinor !== input.principalMinor) {
+            throw new AmountMismatchError("quote.fromAmountMinor", quote.fromAmountMinor, input.principalMinor);
+        }
+        if (quote.toAmountMinor !== input.payOutAmountMinor) {
+            throw new AmountMismatchError("quote.toAmountMinor", quote.toAmountMinor, input.payOutAmountMinor);
+        }
+        if (quote.feeFromMinor !== input.feeMinor) {
+            throw new AmountMismatchError("quote.feeFromMinor", quote.feeFromMinor, input.feeMinor);
+        }
+        if (quote.spreadFromMinor !== input.spreadMinor) {
+            throw new AmountMismatchError("quote.spreadFromMinor", quote.spreadFromMinor, input.spreadMinor);
+        }
+
+        const usageRef = quoteUsageRef(input.orderId);
+
+        if (quote.status === "used") {
+            if (quote.usedByRef === usageRef) {
+                return quote;
+            }
+            throw new InvalidStateError(`Quote ${quote.id} is already used by ${quote.usedByRef ?? "unknown reference"}`);
+        }
+
+        if (quote.status !== "active") {
+            throw new InvalidStateError(`Quote ${quote.id} is not active (status=${quote.status})`);
+        }
+
+        const consumedAt = new Date();
+        if (quote.expiresAt.getTime() < consumedAt.getTime()) {
+            throw new InvalidStateError(`Quote ${quote.id} expired at ${quote.expiresAt.toISOString()}`);
+        }
+
+        const updated = await tx
+            .update(schema.fxQuotes)
+            .set({
+                status: "used",
+                usedByRef: usageRef,
+                usedAt: consumedAt,
+            })
+            .where(
+                and(
+                    eq(schema.fxQuotes.id, quote.id),
+                    eq(schema.fxQuotes.status, "active"),
+                    sql`${schema.fxQuotes.expiresAt} >= ${consumedAt}`
+                )
+            )
+            .returning({ id: schema.fxQuotes.id, status: schema.fxQuotes.status, usedByRef: schema.fxQuotes.usedByRef });
+
+        if (updated.length) {
+            return quote;
+        }
+
+        // Concurrent consumer/update: re-check and allow idempotent same-order reuse.
+        const [latest] = await tx
+            .select({ id: schema.fxQuotes.id, status: schema.fxQuotes.status, usedByRef: schema.fxQuotes.usedByRef })
+            .from(schema.fxQuotes)
+            .where(eq(schema.fxQuotes.id, quote.id))
+            .limit(1);
+
+        if (latest?.status === "used" && latest.usedByRef === usageRef) {
+            return quote;
+        }
+
+        throw new InvalidStateError(
+            `Quote ${quote.id} could not be consumed atomically (status=${latest?.status ?? "unknown"})`
+        );
     }
 
     async function fundingSettled(rawInput: FundingSettledInput) {
@@ -118,7 +240,7 @@ export function createTreasuryService(deps: {
             const moved = await tx
                 .update(schema.paymentOrders)
                 .set({
-                    status: "funding_settled_pending_posting",
+                    status: TreasuryOrderStatus.FUNDING_SETTLED_PENDING_POSTING,
                     ledgerEntryId: entryId,
                     updatedAt: sql`now()`
                 })
@@ -126,7 +248,10 @@ export function createTreasuryService(deps: {
                     and(
                         eq(schema.paymentOrders.id, input.orderId),
                         eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId),
-                        inArray(schema.paymentOrders.status, ["quote", "funding_pending"])
+                        or(
+                            eq(schema.paymentOrders.status, FundingSettledAllowedFrom[0]),
+                            eq(schema.paymentOrders.status, FundingSettledAllowedFrom[1])
+                        )
                     )
                 )
                 .returning({ id: schema.paymentOrders.id });
@@ -139,19 +264,10 @@ export function createTreasuryService(deps: {
             // already advanced -> idempotent no-op
             // Re-check current status (order was fetched above but may have changed)
             const current = await fetchOrderState(tx, input.orderId);
-            const st = current.status;
+            const st = current.status as string;
             const led = current.ledgerEntryId;
 
-            // Use exact status matching instead of string includes for safety
-            const advancedStatuses = [
-                "funding_settled", "funding_settled_pending_posting",
-                "fx_executed", "fx_executed_pending_posting",
-                "payout_initiated", "payout_initiated_pending_posting",
-                "closed", "closed_pending_posting",
-                "failed", "failed_pending_posting"
-            ];
-
-            if (advancedStatuses.includes(st)) {
+            if (isOrderStatusIn(st, AdvancedOrderStatuses)) {
                 if (!led) throw new InvalidStateError(`Order in advanced state ${st} but ledgerEntryId missing`);
                 if (led !== entryId) {
                     throw new InvalidStateError(
@@ -203,9 +319,11 @@ export function createTreasuryService(deps: {
                 );
             }
 
-            if (order.status !== "funding_settled") {
-                throw new InvalidStateError(`Order must be funding_settled (posted), got ${order.status}`);
+            if (!isOrderStatusIn(order.status, ExecuteFxAllowedFrom)) {
+                throw new InvalidStateError(`Order must be ${TreasuryOrderStatus.FUNDING_SETTLED} (posted), got ${order.status}`);
             }
+
+            await consumeFxQuoteForExecution(tx, input);
 
             const chain = `fx:${input.quoteRef}`;
             const transfers: any[] = [];
@@ -311,8 +429,8 @@ export function createTreasuryService(deps: {
 
             const moved = await tx
                 .update(schema.paymentOrders)
-                .set({ status: "fx_executed_pending_posting", ledgerEntryId: entryId, updatedAt: sql`now()` })
-                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.status, "funding_settled")))
+                .set({ status: TreasuryOrderStatus.FX_EXECUTED_PENDING_POSTING, ledgerEntryId: entryId, updatedAt: sql`now()` })
+                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.status, TreasuryOrderStatus.FUNDING_SETTLED)))
                 .returning({ id: schema.paymentOrders.id });
 
             if (!moved.length) {
@@ -324,7 +442,12 @@ export function createTreasuryService(deps: {
                     .where(eq(schema.paymentOrders.id, input.orderId))
                     .limit(1);
 
-                if (current.length && current[0]!.ledgerEntryId === entryId) {
+                if (current.length && isSameEntryInAllowedState(
+                    current[0]!.status as string,
+                    current[0]!.ledgerEntryId,
+                    entryId,
+                    [TreasuryOrderStatus.FX_EXECUTED_PENDING_POSTING, TreasuryOrderStatus.FX_EXECUTED]
+                )) {
                     // Idempotent retry - order already has this entry
                     log.debug("executeFx idempotent", { orderId: input.orderId });
                     return entryId;
@@ -369,7 +492,9 @@ export function createTreasuryService(deps: {
                 throw new ValidationError(`payoutOrgId mismatch: expected ${order.payOutOrgId}, got ${input.payoutOrgId}`);
             }
 
-            if (order.status !== "fx_executed") throw new InvalidStateError(`Order must be fx_executed (posted), got ${order.status}`);
+            if (!isOrderStatusIn(order.status, InitiatePayoutAllowedFrom)) {
+                throw new InvalidStateError(`Order must be ${TreasuryOrderStatus.FX_EXECUTED} (posted), got ${order.status}`);
+            }
 
             const planKey = makePlanKey("payout_init", {
                 railRef: input.railRef,
@@ -408,12 +533,12 @@ export function createTreasuryService(deps: {
             const moved = await tx
                 .update(schema.paymentOrders)
                 .set({
-                    status: "payout_initiated_pending_posting",
+                    status: TreasuryOrderStatus.PAYOUT_INITIATED_PENDING_POSTING,
                     ledgerEntryId: entryId,
                     payoutPendingTransferId: pendingTransferId,
                     updatedAt: sql`now()`
                 })
-                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.status, "fx_executed")))
+                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.status, TreasuryOrderStatus.FX_EXECUTED)))
                 .returning({ id: schema.paymentOrders.id });
 
             if (moved.length) {
@@ -425,7 +550,12 @@ export function createTreasuryService(deps: {
             const st = current.status;
 
             // If order is already advanced and points at our entry, treat as idempotent retry.
-            if (current.ledgerEntryId === entryId) {
+            if (isSameEntryInAllowedState(
+                st as string,
+                current.ledgerEntryId,
+                entryId,
+                [TreasuryOrderStatus.PAYOUT_INITIATED_PENDING_POSTING, TreasuryOrderStatus.PAYOUT_INITIATED]
+            )) {
                 if (!current.payoutPendingTransferId) {
                     throw new InvalidStateError(`Order in state ${st} but payoutPendingTransferId missing`);
                 }
@@ -458,7 +588,9 @@ export function createTreasuryService(deps: {
                 throw new CurrencyMismatchError("payOutCurrency", o.payOutCurrency, input.payOutCurrency);
             }
 
-            if (o.status !== "payout_initiated") throw new InvalidStateError(`Order must be payout_initiated (posted), got ${o.status}`);
+            if (!isOrderStatusIn(o.status, ResolvePendingPayoutAllowedFrom)) {
+                throw new InvalidStateError(`Order must be ${TreasuryOrderStatus.PAYOUT_INITIATED} (posted), got ${o.status}`);
+            }
             if (!o.payoutPendingTransferId) throw new InvalidStateError("Missing payoutPendingTransferId - order state is inconsistent");
 
             const pk = makePlanKey("payout_settle", {
@@ -486,8 +618,8 @@ export function createTreasuryService(deps: {
 
             const moved = await tx
                 .update(schema.paymentOrders)
-                .set({ status: "closed_pending_posting", ledgerEntryId: entryId, updatedAt: sql`now()` })
-                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.status, "payout_initiated")))
+                .set({ status: TreasuryOrderStatus.CLOSED_PENDING_POSTING, ledgerEntryId: entryId, updatedAt: sql`now()` })
+                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.status, TreasuryOrderStatus.PAYOUT_INITIATED)))
                 .returning({ id: schema.paymentOrders.id });
 
             if (moved.length) {
@@ -498,7 +630,12 @@ export function createTreasuryService(deps: {
             const current = await fetchOrderState(tx, input.orderId);
             const st = current.status;
 
-            if (current.ledgerEntryId === entryId && (st === "closed_pending_posting" || st === "closed")) {
+            if (isSameEntryInAllowedState(
+                st as string,
+                current.ledgerEntryId,
+                entryId,
+                [TreasuryOrderStatus.CLOSED_PENDING_POSTING, TreasuryOrderStatus.CLOSED]
+            )) {
                 log.debug("settlePayout idempotent", { orderId: input.orderId, status: st });
                 return entryId;
             }
@@ -527,7 +664,9 @@ export function createTreasuryService(deps: {
                 throw new CurrencyMismatchError("payOutCurrency", o.payOutCurrency, input.payOutCurrency);
             }
 
-            if (o.status !== "payout_initiated") throw new InvalidStateError(`Order must be payout_initiated (posted), got ${o.status}`);
+            if (!isOrderStatusIn(o.status, ResolvePendingPayoutAllowedFrom)) {
+                throw new InvalidStateError(`Order must be ${TreasuryOrderStatus.PAYOUT_INITIATED} (posted), got ${o.status}`);
+            }
             if (!o.payoutPendingTransferId) throw new InvalidStateError("Missing payoutPendingTransferId - order state is inconsistent");
 
             const pk = makePlanKey("payout_void", {
@@ -554,8 +693,8 @@ export function createTreasuryService(deps: {
 
             const moved = await tx
                 .update(schema.paymentOrders)
-                .set({ status: "failed_pending_posting", ledgerEntryId: entryId, updatedAt: sql`now()` })
-                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.status, "payout_initiated")))
+                .set({ status: TreasuryOrderStatus.FAILED_PENDING_POSTING, ledgerEntryId: entryId, updatedAt: sql`now()` })
+                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.status, TreasuryOrderStatus.PAYOUT_INITIATED)))
                 .returning({ id: schema.paymentOrders.id });
 
             if (moved.length) {
@@ -566,7 +705,12 @@ export function createTreasuryService(deps: {
             const current = await fetchOrderState(tx, input.orderId);
             const st = current.status;
 
-            if (current.ledgerEntryId === entryId && (st === "failed_pending_posting" || st === "failed")) {
+            if (isSameEntryInAllowedState(
+                st as string,
+                current.ledgerEntryId,
+                entryId,
+                [TreasuryOrderStatus.FAILED_PENDING_POSTING, TreasuryOrderStatus.FAILED]
+            )) {
                 log.debug("voidPayout idempotent", { orderId: input.orderId, status: st });
                 return entryId;
             }

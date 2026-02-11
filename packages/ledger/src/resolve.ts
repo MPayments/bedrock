@@ -2,13 +2,38 @@ import { and, eq } from "drizzle-orm";
 import { schema } from "@repo/db/schema";
 import { type Database } from "@repo/db";
 import { tbAccountIdFor } from "./ids";
-import { makeTbAccount, tbCreateAccountsOrThrow, type TbClient } from "./tb";
+import { AccountFlags, makeTbAccount, tbCreateAccountsOrThrow, type TbClient } from "./tb";
 import { AccountMappingConflictError } from "./errors";
 
 function accountCodeFromKey(key: string): number {
     let x = 0;
     for (let i = 0; i < key.length; i++) x = (x + key.charCodeAt(i) * (i + 1)) & 0xffff;
     return x || 1;
+}
+
+function tbAccountFlagsForKey(key: string): number {
+    const normalized = key.toLowerCase();
+
+    // Credit-normal accounts (liabilities/revenue): debits cannot exceed credits.
+    if (
+        normalized.includes(":customerwallet:") ||
+        normalized.includes(":payoutobligation:") ||
+        normalized.includes(":orderpayin:") ||
+        normalized.includes(":revenue:")
+    ) {
+        return AccountFlags.debits_must_not_exceed_credits;
+    }
+
+    // Debit-normal accounts (assets/cash): credits cannot exceed debits.
+    if (
+        normalized.includes(":bank:") ||
+        normalized.includes(":treasurypool:")
+    ) {
+        return AccountFlags.credits_must_not_exceed_debits;
+    }
+
+    // Unknown account roles remain unconstrained until explicit policy is configured.
+    return 0;
 }
 
 type ResolveTbAccountIdParams = {
@@ -23,6 +48,7 @@ type ResolveTbAccountIdParams = {
 export async function resolveTbAccountId(p: ResolveTbAccountIdParams): Promise<bigint> {
     const expected = tbAccountIdFor(p.orgId, p.key, p.tbLedger);
     const code = accountCodeFromKey(p.key);
+    const flags = tbAccountFlagsForKey(p.key);
 
     // Check if account already exists in DB
     const existing = await p.db
@@ -46,7 +72,7 @@ export async function resolveTbAccountId(p: ResolveTbAccountIdParams): Promise<b
 
         // Self-heal on retries: if previous attempt inserted mapping but failed before
         // creating TB account, this idempotent create will bring TB in sync.
-        await tbCreateAccountsOrThrow(p.tb, [makeTbAccount(actual, p.tbLedger, code)]);
+        await tbCreateAccountsOrThrow(p.tb, [makeTbAccount(actual, p.tbLedger, code, flags)]);
         return actual;
     }
 
@@ -74,7 +100,7 @@ export async function resolveTbAccountId(p: ResolveTbAccountIdParams): Promise<b
         // TigerBeetle's createAccounts is idempotent for same ID, so even if this
         // fails and we retry later, or if another process somehow also calls this,
         // it will succeed or return "exists" which we treat as success
-        await tbCreateAccountsOrThrow(p.tb, [makeTbAccount(expected, p.tbLedger, code)]);
+        await tbCreateAccountsOrThrow(p.tb, [makeTbAccount(expected, p.tbLedger, code, flags)]);
         return expected;
     }
 

@@ -1,14 +1,7 @@
 import { sql } from "drizzle-orm";
 import { schema } from "@repo/db/schema";
 import { Database } from "@repo/db";
-
-const FINALIZE: Record<string, string> = {
-  funding_settled_pending_posting: "funding_settled",
-  fx_executed_pending_posting: "fx_executed",
-  payout_initiated_pending_posting: "payout_initiated",
-  closed_pending_posting: "closed",
-  failed_pending_posting: "failed"
-};
+import { OrderFinalizeFromPendingPosting } from "./state-machine";
 
 export function createTreasuryWorker(deps: { db: Database; treasuryOrgId?: string }) {
   const { db, treasuryOrgId } = deps;
@@ -39,7 +32,7 @@ export function createTreasuryWorker(deps: { db: Database; treasuryOrgId?: strin
     let processed = 0;
 
     for (const it of items) {
-      const target = FINALIZE[it.order_status];
+      const target = OrderFinalizeFromPendingPosting[it.order_status];
       if (!target) continue;
 
       // Use a transaction with FOR UPDATE SKIP LOCKED to prevent race conditions
@@ -93,4 +86,3 @@ export function createTreasuryWorker(deps: { db: Database; treasuryOrgId?: strin
 
   return { processOnce };
 }
-

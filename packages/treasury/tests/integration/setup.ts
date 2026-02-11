@@ -36,6 +36,7 @@ beforeAll(async () => {
             TRUNCATE TABLE 
                 settlements,
                 fx_quotes,
+                fx_policies,
                 payment_orders,
                 outbox,
                 tb_transfer_plans,
@@ -74,6 +75,7 @@ afterEach(async () => {
         try {
             await pool.query("DELETE FROM settlements");
             await pool.query("DELETE FROM fx_quotes");
+            await pool.query("DELETE FROM fx_policies");
             await pool.query("DELETE FROM payment_orders");
             await pool.query("DELETE FROM outbox");
             await pool.query("DELETE FROM tb_transfer_plans");

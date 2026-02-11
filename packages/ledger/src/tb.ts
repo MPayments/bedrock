@@ -18,12 +18,12 @@ export function createTbClient(clusterId: bigint, address: string) {
     return createClient({ cluster_id: clusterId, replica_addresses: [address] });
 }
 
-export function makeTbAccount(id: bigint, tbLedger: number, code: number): Account {
+export function makeTbAccount(id: bigint, tbLedger: number, code: number, flags = 0): Account {
     return {
         id,
         ledger: tbLedger,
         code,
-        flags: 0,
+        flags,
 
         debits_pending: 0n,
         debits_posted: 0n,

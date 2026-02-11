@@ -5,7 +5,9 @@ import { tbTransferPlans } from "./ledger/tb-plan";
 import { bankAccounts } from "./treasury/bank-accounts";
 import { customers } from "./treasury/customers";
 import { paymentOrders } from "./treasury/orders";
+import { settlements } from "./treasury/orders";
 import { organizations } from "./treasury/organizations";
+import { reconciliationExceptions } from "./treasury/reconciliation";
 import { fxRates } from "./fx/rates";
 import { fxPolicies } from "./fx/policies";
 import { fxQuotes } from "./fx/quotes";
@@ -21,6 +23,8 @@ export const schema = {
   customers,
   bankAccounts,
   paymentOrders,
+  settlements,
+  reconciliationExceptions,
   fxRates,
   fxPolicies,
   fxQuotes,

@@ -5,6 +5,7 @@ import { InvalidStateError, NotFoundError, CurrencyMismatchError, AmountMismatch
 import {
     db,
     createTestScenario,
+    createTestFxQuote,
     getPaymentOrder,
     getJournalEntry,
     getJournalLines,
@@ -173,6 +174,35 @@ describe("Treasury Service Integration Tests", () => {
     });
 
     describe("executeFx", () => {
+        async function createQuoteForOrder(
+            scenario: Awaited<ReturnType<typeof createTestScenario>>,
+            quoteRef: string,
+            overrides: Partial<{
+                feeFromMinor: bigint;
+                spreadFromMinor: bigint;
+                status: "active" | "used" | "expired" | "cancelled";
+                usedByRef: string | null;
+                expiresAt: Date;
+            }> = {}
+        ) {
+            await createTestFxQuote(
+                {
+                    fromCurrency: scenario.order.payInCurrency,
+                    toCurrency: scenario.order.payOutCurrency,
+                    fromAmountMinor: scenario.order.payInExpectedMinor,
+                    toAmountMinor: scenario.order.payOutAmountMinor,
+                    idempotencyKey: quoteRef,
+                },
+                {
+                    feeFromMinor: overrides.feeFromMinor ?? 500n,
+                    spreadFromMinor: overrides.spreadFromMinor ?? 200n,
+                    status: overrides.status,
+                    usedByRef: overrides.usedByRef,
+                    expiresAt: overrides.expiresAt,
+                }
+            );
+        }
+
         it("should execute FX and create multiple transfers", async () => {
             const scenario = await createTestScenario({ orderStatus: "funding_settled" });
             const service = createTreasuryService({
@@ -182,6 +212,7 @@ describe("Treasury Service Integration Tests", () => {
             });
 
             const quoteRef = randomQuoteRef();
+            await createQuoteForOrder(scenario, quoteRef);
             const entryId = await service.executeFx({
                 orderId: scenario.order.id,
                 branchOrgId: scenario.branchOrg.id,
@@ -223,6 +254,8 @@ describe("Treasury Service Integration Tests", () => {
                 treasuryOrgId: scenario.treasuryOrg.id
             });
 
+            const quoteRef = randomQuoteRef();
+            await createQuoteForOrder(scenario, quoteRef, { feeFromMinor: 0n, spreadFromMinor: 0n });
             const entryId = await service.executeFx({
                 orderId: scenario.order.id,
                 branchOrgId: scenario.branchOrg.id,
@@ -234,12 +267,73 @@ describe("Treasury Service Integration Tests", () => {
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
                 occurredAt: new Date(),
-                quoteRef: randomQuoteRef()
+                quoteRef
             });
 
             const plans = await getTbTransferPlans(entryId);
             // Without fee and spread, should have: principal, intercompany commit, payout obligation
             expect(plans).toHaveLength(3);
+        });
+
+        it("should reject expired quote", async () => {
+            const scenario = await createTestScenario({ orderStatus: "funding_settled" });
+            const service = createTreasuryService({
+                db,
+                ledger,
+                treasuryOrgId: scenario.treasuryOrg.id
+            });
+
+            const quoteRef = randomQuoteRef();
+            await createQuoteForOrder(scenario, quoteRef, {
+                expiresAt: new Date(Date.now() - 5_000)
+            });
+
+            await expect(
+                service.executeFx({
+                    orderId: scenario.order.id,
+                    branchOrgId: scenario.branchOrg.id,
+                    customerId: scenario.customer.id,
+                    payInCurrency: "USD",
+                    principalMinor: 100000n,
+                    feeMinor: 500n,
+                    spreadMinor: 200n,
+                    payOutCurrency: "EUR",
+                    payOutAmountMinor: 85000n,
+                    occurredAt: new Date(),
+                    quoteRef
+                })
+            ).rejects.toThrow(InvalidStateError);
+        });
+
+        it("should reject quote already used by another order", async () => {
+            const scenario = await createTestScenario({ orderStatus: "funding_settled" });
+            const service = createTreasuryService({
+                db,
+                ledger,
+                treasuryOrgId: scenario.treasuryOrg.id
+            });
+
+            const quoteRef = randomQuoteRef();
+            await createQuoteForOrder(scenario, quoteRef, {
+                status: "used",
+                usedByRef: "order:other-order:fx"
+            });
+
+            await expect(
+                service.executeFx({
+                    orderId: scenario.order.id,
+                    branchOrgId: scenario.branchOrg.id,
+                    customerId: scenario.customer.id,
+                    payInCurrency: "USD",
+                    principalMinor: 100000n,
+                    feeMinor: 500n,
+                    spreadMinor: 200n,
+                    payOutCurrency: "EUR",
+                    payOutAmountMinor: 85000n,
+                    occurredAt: new Date(),
+                    quoteRef
+                })
+            ).rejects.toThrow(InvalidStateError);
         });
 
         it("should throw InvalidStateError if order is not funding_settled", async () => {
@@ -504,6 +598,20 @@ describe("Treasury Service Integration Tests", () => {
             await updateOrderStatus(scenario.order.id, "funding_settled");
 
             // 2. Execute FX
+            const quoteRef = randomQuoteRef();
+            await createTestFxQuote(
+                {
+                    fromCurrency: scenario.order.payInCurrency,
+                    toCurrency: scenario.order.payOutCurrency,
+                    fromAmountMinor: scenario.order.payInExpectedMinor,
+                    toAmountMinor: scenario.order.payOutAmountMinor,
+                    idempotencyKey: quoteRef,
+                },
+                {
+                    feeFromMinor: 500n,
+                    spreadFromMinor: 200n,
+                }
+            );
             const fxEntryId = await service.executeFx({
                 orderId: scenario.order.id,
                 branchOrgId: scenario.branchOrg.id,
@@ -515,7 +623,7 @@ describe("Treasury Service Integration Tests", () => {
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
                 occurredAt: new Date(),
-                quoteRef: randomQuoteRef()
+                quoteRef
             });
 
             order = await getPaymentOrder(scenario.order.id);
@@ -586,6 +694,20 @@ describe("Treasury Service Integration Tests", () => {
             });
             await updateOrderStatus(scenario.order.id, "funding_settled");
 
+            const quoteRef = randomQuoteRef();
+            await createTestFxQuote(
+                {
+                    fromCurrency: scenario.order.payInCurrency,
+                    toCurrency: scenario.order.payOutCurrency,
+                    fromAmountMinor: scenario.order.payInExpectedMinor,
+                    toAmountMinor: scenario.order.payOutAmountMinor,
+                    idempotencyKey: quoteRef,
+                },
+                {
+                    feeFromMinor: 0n,
+                    spreadFromMinor: 0n,
+                }
+            );
             await service.executeFx({
                 orderId: scenario.order.id,
                 branchOrgId: scenario.branchOrg.id,
@@ -597,7 +719,7 @@ describe("Treasury Service Integration Tests", () => {
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
                 occurredAt: new Date(),
-                quoteRef: randomQuoteRef()
+                quoteRef
             });
             await updateOrderStatus(scenario.order.id, "fx_executed");
 

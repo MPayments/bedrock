@@ -325,6 +325,40 @@ describe("createTreasuryService", () => {
             quoteRef: "quote-ref-123",
         };
 
+        function createFxQuote(overrides: Record<string, any> = {}) {
+            return {
+                id: "550e8400-e29b-41d4-a716-446655440010",
+                idempotencyKey: validInput.quoteRef,
+                fromCurrency: validInput.payInCurrency,
+                toCurrency: validInput.payOutCurrency,
+                fromAmountMinor: validInput.principalMinor,
+                toAmountMinor: validInput.payOutAmountMinor,
+                feeFromMinor: validInput.feeMinor,
+                spreadFromMinor: validInput.spreadMinor,
+                status: "active",
+                usedByRef: null,
+                usedAt: null,
+                expiresAt: new Date(validInput.occurredAt.getTime() + 60_000),
+                ...overrides,
+            };
+        }
+
+        function selectSequence(rowsByCall: any[][]) {
+            const select = vi.fn();
+            for (const rows of rowsByCall) {
+                select.mockImplementationOnce(() => selectReturning(rows));
+            }
+            return select;
+        }
+
+        function updateSequence(rowsByCall: any[][]) {
+            const update = vi.fn();
+            for (const rows of rowsByCall) {
+                update.mockReturnValueOnce(updateReturning(rows));
+            }
+            return update;
+        }
+
         it("should execute FX successfully", async () => {
             const order = createMockOrder({
                 status: "funding_settled",
@@ -333,23 +367,15 @@ describe("createTreasuryService", () => {
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
             });
+            const quote = createFxQuote();
 
             vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
                 const tx = {
-                    select: vi.fn(() => ({
-                        from: vi.fn(() => ({
-                            where: vi.fn(() => ({
-                                limit: vi.fn(async () => [order])
-                            }))
-                        }))
-                    })),
-                    update: vi.fn(() => ({
-                        set: vi.fn(() => ({
-                            where: vi.fn(() => ({
-                                returning: vi.fn(async () => [{ id: ORDER_ID }])
-                            }))
-                        }))
-                    }))
+                    select: selectSequence([[order], [quote]]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                        [{ id: ORDER_ID }],
+                    ]),
                 };
                 return fn(tx);
             });
@@ -380,7 +406,7 @@ describe("createTreasuryService", () => {
 
         it("should throw InvalidStateError when order is not funding_settled", async () => {
             const order = createMockOrder({
-                status: "quote", // Wrong state
+                status: "quote",
                 payInCurrency: "USD",
                 payInExpectedMinor: 100000n,
                 payOutCurrency: "EUR",
@@ -407,7 +433,7 @@ describe("createTreasuryService", () => {
         it("should throw CurrencyMismatchError when payInCurrency doesn't match", async () => {
             const order = createMockOrder({
                 status: "funding_settled",
-                payInCurrency: "EUR", // Different from input USD
+                payInCurrency: "EUR",
                 payInExpectedMinor: 100000n,
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
@@ -429,7 +455,7 @@ describe("createTreasuryService", () => {
                 status: "funding_settled",
                 payInCurrency: "USD",
                 payInExpectedMinor: 100000n,
-                payOutCurrency: "GBP", // Different from input EUR
+                payOutCurrency: "GBP",
                 payOutAmountMinor: 85000n,
             });
 
@@ -448,7 +474,7 @@ describe("createTreasuryService", () => {
             const order = createMockOrder({
                 status: "funding_settled",
                 payInCurrency: "USD",
-                payInExpectedMinor: 50000n, // Different from input 100000n
+                payInExpectedMinor: 50000n,
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
             });
@@ -470,7 +496,7 @@ describe("createTreasuryService", () => {
                 payInCurrency: "USD",
                 payInExpectedMinor: 100000n,
                 payOutCurrency: "EUR",
-                payOutAmountMinor: 42000n, // Different from input 85000n
+                payOutAmountMinor: 42000n,
             });
 
             vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
@@ -527,6 +553,80 @@ describe("createTreasuryService", () => {
                 .rejects.toThrow(ValidationError);
         });
 
+        it("should reject expired FX quote", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote({
+                expiresAt: new Date(Date.now() - 5_000),
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote]]),
+                    update: vi.fn(),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput)).rejects.toThrow(InvalidStateError);
+            expect(ledger.createEntryTx).not.toHaveBeenCalled();
+        });
+
+        it("should reject quote already used by another order", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote({
+                status: "used",
+                usedByRef: "order:other-order:fx",
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote]]),
+                    update: vi.fn(),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput)).rejects.toThrow(InvalidStateError);
+            expect(ledger.createEntryTx).not.toHaveBeenCalled();
+        });
+
+        it("should allow idempotent retries when quote is already used by same order", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote({
+                status: "used",
+                usedByRef: `order:${ORDER_ID}:fx`,
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote]]),
+                    update: updateSequence([[{ id: ORDER_ID }]]),
+                };
+                return fn(tx);
+            });
+
+            const result = await service.executeFx(validInput);
+            expect(result).toBe("test-entry-id");
+        });
+
         it("should be idempotent when CAS fails but order already has our entry", async () => {
             const order = createMockOrder({
                 status: "funding_settled",
@@ -535,19 +635,20 @@ describe("createTreasuryService", () => {
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
             });
+            const quote = createFxQuote();
 
             const current = {
                 status: "fx_executed_pending_posting",
-                ledgerEntryId: "test-entry-id", // matches what ledger returns
+                ledgerEntryId: "test-entry-id",
             };
 
             vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
                 const tx = {
-                    select: vi
-                        .fn()
-                        .mockImplementationOnce(() => selectReturning([order]))
-                        .mockImplementationOnce(() => selectReturning([current])),
-                    update: vi.fn(() => updateReturning([])), // CAS failure
+                    select: selectSequence([[order], [quote], [current]]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                        [],
+                    ]),
                 };
                 return fn(tx);
             });
@@ -564,6 +665,7 @@ describe("createTreasuryService", () => {
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
             });
+            const quote = createFxQuote();
 
             const current = {
                 status: "fx_executed",
@@ -572,11 +674,11 @@ describe("createTreasuryService", () => {
 
             vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
                 const tx = {
-                    select: vi
-                        .fn()
-                        .mockImplementationOnce(() => selectReturning([order]))
-                        .mockImplementationOnce(() => selectReturning([current])),
-                    update: vi.fn(() => updateReturning([])), // CAS failure
+                    select: selectSequence([[order], [quote], [current]]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                        [],
+                    ]),
                 };
                 return fn(tx);
             });
@@ -593,23 +695,15 @@ describe("createTreasuryService", () => {
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
             });
+            const quote = createFxQuote();
 
             vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
                 const tx = {
-                    select: vi.fn(() => ({
-                        from: vi.fn(() => ({
-                            where: vi.fn(() => ({
-                                limit: vi.fn(async () => [order])
-                            }))
-                        }))
-                    })),
-                    update: vi.fn(() => ({
-                        set: vi.fn(() => ({
-                            where: vi.fn(() => ({
-                                returning: vi.fn(async () => [{ id: ORDER_ID }])
-                            }))
-                        }))
-                    }))
+                    select: selectSequence([[order], [quote]]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                        [{ id: ORDER_ID }],
+                    ]),
                 };
                 return fn(tx);
             });
@@ -619,7 +713,6 @@ describe("createTreasuryService", () => {
             const createEntryCall = vi.mocked(ledger.createEntryTx).mock.calls[0];
             const transfers = createEntryCall![1].transfers;
 
-            // Should have fee transfer
             const feeTransfer = transfers.find((t: any) => t.memo === "Fee revenue");
             expect(feeTransfer).toBeDefined();
             expect(feeTransfer.amount).toBe(500n);
@@ -633,23 +726,17 @@ describe("createTreasuryService", () => {
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
             });
+            const quote = createFxQuote({
+                feeFromMinor: 0n,
+            });
 
             vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
                 const tx = {
-                    select: vi.fn(() => ({
-                        from: vi.fn(() => ({
-                            where: vi.fn(() => ({
-                                limit: vi.fn(async () => [order])
-                            }))
-                        }))
-                    })),
-                    update: vi.fn(() => ({
-                        set: vi.fn(() => ({
-                            where: vi.fn(() => ({
-                                returning: vi.fn(async () => [{ id: ORDER_ID }])
-                            }))
-                        }))
-                    }))
+                    select: selectSequence([[order], [quote]]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                        [{ id: ORDER_ID }],
+                    ]),
                 };
                 return fn(tx);
             });
@@ -659,7 +746,6 @@ describe("createTreasuryService", () => {
             const createEntryCall = vi.mocked(ledger.createEntryTx).mock.calls[0];
             const transfers = createEntryCall![1].transfers;
 
-            // Should NOT have fee transfer
             const feeTransfer = transfers.find((t: any) => t.memo === "Fee revenue");
             expect(feeTransfer).toBeUndefined();
         });

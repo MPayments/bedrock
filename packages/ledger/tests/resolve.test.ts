@@ -141,6 +141,56 @@ describe("resolveTbAccountId", () => {
     ]);
   });
 
+  it("should set credit-normal flags for customer wallet accounts", async () => {
+    const orgId = "org-123";
+    const key = "treasury:CustomerWallet:customer-1:USD";
+    const currency = "USD";
+    const tbLedger = 1000;
+    const expectedId = tbAccountIdFor(orgId, key, tbLedger);
+
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () => [])
+        }))
+      }))
+    } as any);
+
+    vi.mocked(tb.createAccounts).mockResolvedValue([]);
+    vi.mocked(db.insert).mockReturnValue(mockDbInsertSuccess(expectedId));
+
+    await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
+
+    const created = vi.mocked(tb.createAccounts).mock.calls[0]![0]![0];
+    const { AccountFlags } = await import("tigerbeetle-node");
+    expect(created.flags).toBe(AccountFlags.debits_must_not_exceed_credits);
+  });
+
+  it("should set debit-normal flags for bank accounts", async () => {
+    const orgId = "org-123";
+    const key = "treasury:Bank:org-1:bank-1:USD";
+    const currency = "USD";
+    const tbLedger = 1000;
+    const expectedId = tbAccountIdFor(orgId, key, tbLedger);
+
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () => [])
+        }))
+      }))
+    } as any);
+
+    vi.mocked(tb.createAccounts).mockResolvedValue([]);
+    vi.mocked(db.insert).mockReturnValue(mockDbInsertSuccess(expectedId));
+
+    await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
+
+    const created = vi.mocked(tb.createAccounts).mock.calls[0]![0]![0];
+    const { AccountFlags } = await import("tigerbeetle-node");
+    expect(created.flags).toBe(AccountFlags.credits_must_not_exceed_debits);
+  });
+
   it("should insert correct values into database", async () => {
     const orgId = "org-123";
     const key = "expense:payroll";

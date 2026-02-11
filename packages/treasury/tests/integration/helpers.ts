@@ -142,6 +142,82 @@ export async function createTestPaymentOrder(
     return order;
 }
 
+export interface TestFxPolicy {
+    id: string;
+    name: string;
+    marginBps: number;
+    feeBps: number;
+    ttlSeconds: number;
+    isActive: boolean;
+}
+
+export async function createTestFxPolicy(
+    overrides: Partial<TestFxPolicy> = {}
+): Promise<TestFxPolicy> {
+    const policy = {
+        id: overrides.id ?? randomUUID(),
+        name: overrides.name ?? `test-policy-${Date.now()}`,
+        marginBps: overrides.marginBps ?? 20,
+        feeBps: overrides.feeBps ?? 10,
+        ttlSeconds: overrides.ttlSeconds ?? 600,
+        isActive: overrides.isActive ?? true,
+    };
+
+    await db.insert(schema.fxPolicies).values(policy);
+    return policy;
+}
+
+export interface TestFxQuote {
+    id: string;
+    policyId: string;
+    fromCurrency: string;
+    toCurrency: string;
+    fromAmountMinor: bigint;
+    toAmountMinor: bigint;
+    feeFromMinor: bigint;
+    spreadFromMinor: bigint;
+    rateNum: bigint;
+    rateDen: bigint;
+    status: "active" | "used" | "expired" | "cancelled";
+    usedByRef: string | null;
+    usedAt: Date | null;
+    expiresAt: Date;
+    idempotencyKey: string;
+}
+
+export async function createTestFxQuote(
+    params: {
+        fromCurrency: string;
+        toCurrency: string;
+        fromAmountMinor: bigint;
+        toAmountMinor: bigint;
+        idempotencyKey: string;
+    },
+    overrides: Partial<TestFxQuote> = {}
+): Promise<TestFxQuote> {
+    const policyId = overrides.policyId ?? (await createTestFxPolicy()).id;
+    const quote = {
+        id: overrides.id ?? randomUUID(),
+        policyId,
+        fromCurrency: params.fromCurrency,
+        toCurrency: params.toCurrency,
+        fromAmountMinor: params.fromAmountMinor,
+        toAmountMinor: params.toAmountMinor,
+        feeFromMinor: overrides.feeFromMinor ?? 0n,
+        spreadFromMinor: overrides.spreadFromMinor ?? 0n,
+        rateNum: overrides.rateNum ?? 85n,
+        rateDen: overrides.rateDen ?? 100n,
+        status: overrides.status ?? "active",
+        usedByRef: overrides.usedByRef ?? null,
+        usedAt: overrides.usedAt ?? null,
+        expiresAt: overrides.expiresAt ?? new Date(Date.now() + 5 * 60 * 1000),
+        idempotencyKey: params.idempotencyKey,
+    } as const;
+
+    await db.insert(schema.fxQuotes).values(quote);
+    return quote;
+}
+
 /**
  * Create a complete test scenario with all required entities
  */

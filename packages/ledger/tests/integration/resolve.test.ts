@@ -76,6 +76,50 @@ describe("Resolve Integration Tests", () => {
       expect(accountId1).toBe(accountId2);
     });
 
+    it("should apply credit-normal account flags to customer wallet keys", async () => {
+      const orgId = randomOrgId();
+      const key = "treasury:CustomerWallet:customer-1:USD";
+      const currency = "USD";
+      const tbLedger = tbLedgerForCurrency(currency);
+
+      const accountId = await resolveTbAccountId({
+        db,
+        tb,
+        orgId,
+        key,
+        currency,
+        tbLedger
+      });
+
+      const tbAccount = await getTbAccount(accountId);
+      expect(tbAccount).toBeDefined();
+
+      const { AccountFlags } = await import("tigerbeetle-node");
+      expect(tbAccount!.flags).toBe(AccountFlags.debits_must_not_exceed_credits);
+    });
+
+    it("should apply debit-normal account flags to bank keys", async () => {
+      const orgId = randomOrgId();
+      const key = "treasury:Bank:org-1:bank-1:USD";
+      const currency = "USD";
+      const tbLedger = tbLedgerForCurrency(currency);
+
+      const accountId = await resolveTbAccountId({
+        db,
+        tb,
+        orgId,
+        key,
+        currency,
+        tbLedger
+      });
+
+      const tbAccount = await getTbAccount(accountId);
+      expect(tbAccount).toBeDefined();
+
+      const { AccountFlags } = await import("tigerbeetle-node");
+      expect(tbAccount!.flags).toBe(AccountFlags.credits_must_not_exceed_debits);
+    });
+
     it("should generate deterministic account IDs", async () => {
       const orgId = randomOrgId();
       const key = "customer:charlie";

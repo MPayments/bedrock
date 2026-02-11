@@ -284,6 +284,42 @@ describe("createTreasuryWorker", () => {
             // Should not increment processed count for pending journal
             expect(result).toBe(0);
         });
+
+        it("should return only finalized count when fetched set includes pending journals", async () => {
+            const items = [
+                {
+                    order_id: "order-1",
+                    order_status: "funding_settled_pending_posting",
+                    ledger_entry_id: "entry-1",
+                    journal_status: "posted",
+                },
+                {
+                    order_id: "order-2",
+                    order_status: "fx_executed_pending_posting",
+                    ledger_entry_id: "entry-2",
+                    journal_status: "pending",
+                },
+            ];
+
+            vi.mocked(db.execute).mockResolvedValueOnce(mockDbExecuteResult(items));
+
+            let txCount = 0;
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                txCount++;
+                const current = txCount === 1
+                    ? { id: "order-1", status: "funding_settled_pending_posting", journal_status: "posted" }
+                    : { id: "order-2", status: "fx_executed_pending_posting", journal_status: "pending" };
+                const tx = {
+                    execute: vi.fn()
+                        .mockResolvedValueOnce(mockDbExecuteResult([current]))
+                        .mockResolvedValue(mockDbExecuteResult([]))
+                };
+                return fn(tx);
+            });
+
+            const result = await worker.processOnce();
+            expect(result).toBe(1);
+        });
     });
 
     describe("without treasuryOrgId filter", () => {

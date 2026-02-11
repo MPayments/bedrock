@@ -15,6 +15,13 @@
       "when": 1769976734670,
       "tag": "0001_productive_war_machine",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770804417764,
+      "tag": "0002_flowery_crystal",
+      "breakpoints": true
     }
   ]
 }
