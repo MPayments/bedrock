@@ -1,8 +1,8 @@
 /**
- * @repo/test-utils - Shared testing utilities for the ledger monorepo
+ * @bedrock/test-utils - Shared testing utilities for the ledger monorepo
  *
  * @example
- * import { createMockDb, createStubDb, TEST_UUIDS } from "@repo/test-utils";
+ * import { createMockDb, createStubDb, TEST_UUIDS } from "@bedrock/test-utils";
  *
  * // Type-safe mock for verifying calls
  * const db = createMockDb();

@@ -8,8 +8,8 @@
 
 import { vi, type Mock } from "vitest";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { schema } from "@repo/db/schema";
-import type { Database } from "@repo/db";
+import { schema } from "@bedrock/db/schema";
+import type { Database } from "@bedrock/db";
 
 // Type for the mock database from drizzle.mock()
 export type MockDatabase = ReturnType<typeof drizzle.mock<typeof schema>>;

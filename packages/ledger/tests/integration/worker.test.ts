@@ -443,5 +443,5 @@ describe("Worker Integration Tests", () => {
 });
 
 // Import schema and eq for queries
-import { schema } from "@repo/db/schema";
+import { schema } from "@bedrock/db/schema";
 import { eq } from "drizzle-orm";

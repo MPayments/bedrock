@@ -4,7 +4,7 @@ Last updated: 2026-02-10
 
 This document describes implementation specifics as they exist today in code.
 
-## `@repo/kernel`
+## `@bedrock/kernel`
 
 Key files:
 
@@ -28,7 +28,7 @@ Details:
   - `PAYOUT_INITIATED=3001`
   - `INTERNAL_TRANSFER=4001`
 
-## `@repo/db`
+## `@bedrock/db`
 
 ### Client and schema export
 
@@ -75,7 +75,7 @@ Details:
 - `internal_transfers` implements maker/checker workflow and ledger link.
 - Unique `(org_id, idempotency_key)` for draft creation idempotency.
 
-## `@repo/ledger`
+## `@bedrock/ledger`
 
 ### Engine: journal intent creation
 
@@ -141,7 +141,7 @@ Details:
 - Posts to TigerBeetle.
 - Marks plans and journal posted.
 
-## `@repo/treasury`
+## `@bedrock/treasury`
 
 ### Keyspace
 
@@ -191,7 +191,7 @@ Details:
   - pending status -> `failed` when journal is `failed`
 - Returns count of actually finalized rows.
 
-## `@repo/fx`
+## `@bedrock/fx`
 
 ### Service
 
@@ -223,7 +223,7 @@ Details:
   - `NotFoundError`
   - `ValidationError`
 
-## `@repo/transfers`
+## `@bedrock/transfers`
 
 ### Keyspace
 
@@ -259,7 +259,7 @@ Details:
 - Logs `found` and `processed`.
 - Returns `processed` count (actual finalized items).
 
-## `@repo/test-utils`
+## `@bedrock/test-utils`
 
 Shared test helpers:
 
@@ -268,7 +268,7 @@ Shared test helpers:
 - Chain-friendly mocks for `select/insert/update/execute`.
 - Utility functions for wiring transaction behavior in tests.
 
-## `@repo/ui`
+## `@bedrock/ui`
 
 Current UI package is a simple shared component set:
 
@@ -280,7 +280,7 @@ It is scaffold-level and not part of the financial domain runtime.
 
 ## Config Packages
 
-### `@repo/eslint-config`
+### `@bedrock/eslint-config`
 
 Exports shared lint presets:
 
@@ -288,7 +288,7 @@ Exports shared lint presets:
 - `./next-js`
 - `./react-internal`
 
-### `@repo/typescript-config`
+### `@bedrock/typescript-config`
 
 Holds reusable TS config package metadata for monorepo package inheritance.
 

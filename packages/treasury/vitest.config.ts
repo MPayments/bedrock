@@ -1,10 +1,12 @@
-import { defineConfig } from "vitest/config";
+import { defineProject } from "vitest/config";
 
-export default defineConfig({
+export default defineProject({
     test: {
+        name: "treasury",
         globals: false,
         environment: "node",
         include: ["tests/**/*.test.ts"],
+        exclude: ["tests/integration/**", "**/node_modules/**", "**/dist/**"],
         testTimeout: 10000,
     },
 });

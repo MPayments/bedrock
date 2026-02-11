@@ -1,5 +1,5 @@
 import { db, tb } from "./setup";
-import { schema } from "@repo/db/schema";
+import { schema } from "@bedrock/db/schema";
 import { eq, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
 

@@ -1,4 +1,4 @@
-import { defineKeyspace } from "@repo/ledger";
+import { defineKeyspace } from "@bedrock/ledger";
 
 export type TreasuryKeyspace = typeof treasuryKeyspace;
 

@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
-import { schema, type FxQuote } from "@repo/db/schema";
-import { type Database } from "@repo/db";
-import { type Logger, normalizeCurrency } from "@repo/kernel";
+import { schema, type FxQuote } from "@bedrock/db/schema";
+import { type Database } from "@bedrock/db";
+import { type Logger, normalizeCurrency } from "@bedrock/kernel";
 import { QuoteExpiredError, RateNotFoundError, NotFoundError, PolicyNotFoundError } from "./errors";
 import {
     validateUpsertPolicyInput,

@@ -69,4 +69,34 @@ describe("createTransfersWorker", () => {
         expect(processed).toBe(2);
         expect(db.update).toHaveBeenCalledTimes(2);
     });
+
+    it("logs and continues when processing throws", async () => {
+        const logger = {
+            debug: vi.fn(),
+            info: vi.fn(),
+            error: vi.fn(),
+        } as any;
+        worker = createTransfersWorker({ db, logger });
+
+        vi.mocked(db.execute).mockResolvedValue({
+            rows: [
+                {
+                    transfer_id: "t1",
+                    org_id: "o1",
+                    status: "approved_pending_posting",
+                    ledger_entry_id: "e1",
+                    journal_status: "posted",
+                },
+            ],
+        } as any);
+
+        vi.mocked(db.update).mockImplementation(() => {
+            throw new Error("boom");
+        });
+
+        const processed = await worker.processOnce();
+
+        expect(processed).toBe(0);
+        expect(logger.error).toHaveBeenCalled();
+    });
 });

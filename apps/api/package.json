@@ -14,15 +14,15 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@repo/kernel": "*",
-    "@repo/db": "*",
-    "@repo/ledger": "*",
+    "@bedrock/kernel": "*",
+    "@bedrock/db": "*",
+    "@bedrock/ledger": "*",
     "@hono/swagger-ui": "^0.5.1",
     "@hono/zod-openapi": "^0.19.6",
     "hono": "^4.8.10"
   },
   "devDependencies": {
-    "@repo/typescript-config": "*",
+    "@bedrock/typescript-config": "*",
     "@types/node": "^24",
     "typescript": "^5.8.3"
   }

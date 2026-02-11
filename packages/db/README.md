@@ -1,4 +1,4 @@
-# @repo/db
+# @bedrock/db
 
 Drizzle-based database package for the financial core.
 

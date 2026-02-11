@@ -4,7 +4,8 @@ import {
   PostingError,
   IdempotencyConflictError,
   AccountMappingConflictError,
-  TigerBeetleBatchError
+  TigerBeetleBatchError,
+  isRetryableError
 } from "../src/errors";
 
 describe("LedgerError", () => {
@@ -262,5 +263,19 @@ describe("Error hierarchy", () => {
 
     expect(idemError).toBeInstanceOf(IdempotencyConflictError);
     expect(idemError).not.toBeInstanceOf(PostingError);
+  });
+});
+
+describe("isRetryableError", () => {
+  it("treats common connection error codes as retryable", () => {
+    expect(isRetryableError({ code: "ECONNRESET" })).toBe(true);
+  });
+
+  it("treats connection-related messages as retryable", () => {
+    expect(isRetryableError(new Error("Connection refused"))).toBe(true);
+  });
+
+  it("treats validation-like messages as non-retryable", () => {
+    expect(isRetryableError(new Error("invalid payload"))).toBe(false);
   });
 });

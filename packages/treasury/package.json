@@ -1,5 +1,5 @@
 {
-    "name": "@repo/treasury",
+    "name": "@bedrock/treasury",
     "version": "0.0.0",
     "private": true,
     "type": "module",
@@ -7,31 +7,23 @@
         ".": "./src/index.ts"
     },
     "scripts": {
-        "build": "tsc",
-        "dev": "tsc --watch",
-        "check-types": "tsc --noEmit",
-        "test": "vitest run --exclude 'tests/integration/**'",
-        "test:watch": "vitest --exclude 'tests/integration/**'",
-        "test:coverage": "vitest run --coverage --exclude 'tests/integration/**'",
-        "test:integration": "vitest run --config vitest.integration.config.ts",
-        "test:integration:watch": "vitest --config vitest.integration.config.ts",
-        "test:all": "npm run test && npm run test:integration"
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "check-types": "tsc --noEmit"
     },
     "dependencies": {
-        "@repo/db": "*",
-        "@repo/kernel": "*",
-        "@repo/ledger": "*",
+        "@bedrock/db": "*",
+        "@bedrock/kernel": "*",
+        "@bedrock/ledger": "*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.3.6"
     },
     "devDependencies": {
-        "@repo/test-utils": "*",
-        "@repo/typescript-config": "*",
-        "@types/pg": "^8.16.0",
-        "@vitest/coverage-v8": "^4.0.18",
-        "pg": "^8.18.0",
-        "tigerbeetle-node": "^0.16.11",
-        "typescript": "^5.8.3",
-        "vitest": "^4.0.18"
+    "@bedrock/test-utils": "*",
+    "@bedrock/typescript-config": "*",
+    "@types/pg": "^8.16.0",
+    "pg": "^8.18.0",
+    "tigerbeetle-node": "^0.16.11",
+    "typescript": "^5.8.3"
     }
 }

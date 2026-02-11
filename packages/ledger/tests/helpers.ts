@@ -1,7 +1,7 @@
 /**
  * Ledger package test helpers
  *
- * Uses shared utilities from @repo/test-utils and provides
+ * Uses shared utilities from @bedrock/test-utils and provides
  * domain-specific factories for ledger entities.
  */
 
@@ -16,7 +16,7 @@ import {
     TEST_DATES,
     type StubDatabase,
     type StubTransaction,
-} from "@repo/test-utils";
+} from "@bedrock/test-utils";
 import type { TbClient } from "../src/tb";
 import { PlanType, type CreatePlan } from "../src/types";
 
@@ -34,7 +34,7 @@ export {
     TEST_DATES,
     type StubDatabase,
     type StubTransaction,
-} from "@repo/test-utils";
+} from "@bedrock/test-utils";
 
 // ============================================================================
 // Ledger-specific Factories

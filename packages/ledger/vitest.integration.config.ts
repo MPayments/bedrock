@@ -1,10 +1,12 @@
-import { defineConfig } from "vitest/config";
+import { defineProject } from "vitest/config";
 
-export default defineConfig({
+export default defineProject({
   test: {
+    name: "ledger:integration",
     globals: true,
     environment: "node",
     include: ["tests/integration/**/*.test.ts"],
+    exclude: ["**/node_modules/**", "**/dist/**"],
     testTimeout: 30000,
     hookTimeout: 30000,
     setupFiles: ["./tests/integration/setup.ts"],

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { eq } from "drizzle-orm";
-import { schema } from "@repo/db/schema";
-import { createLedgerEngine } from "@repo/ledger";
+import { schema } from "@bedrock/db/schema";
+import { createLedgerEngine } from "@bedrock/ledger";
 import { createTreasuryService } from "../../src/service";
 import { createTreasuryWorker } from "../../src/worker";
 import {

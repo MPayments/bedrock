@@ -1,4 +1,4 @@
-# @repo/kernel
+# @bedrock/kernel
 
 Shared cross-package primitives for the monorepo.
 
@@ -21,7 +21,7 @@ Shared cross-package primitives for the monorepo.
 - Crypto:
   - `sha256Hex`
 - Constants:
-  - `TransferCodes` (`@repo/kernel/constants`)
+  - `TransferCodes` (`@bedrock/kernel/constants`)
 
 ## Why this package exists
 

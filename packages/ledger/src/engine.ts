@@ -2,10 +2,10 @@ import { and, eq } from "drizzle-orm";
 import { IdempotencyConflictError } from "./errors";
 import { tbLedgerForCurrency, tbTransferIdForPlan, sha256Hex } from "./ids";
 import { PlanType, type CreateEntryInput, type TransferPlanLine, type CreateEntryResult } from "./types";
-import { schema } from "@repo/db/schema";
-import { type Database } from "@repo/db";
+import { schema } from "@bedrock/db/schema";
+import { type Database } from "@bedrock/db";
 import { validateCreateEntryInput, validateChainBlocks } from "./validation";
-import { stableStringify } from "@repo/kernel";
+import { stableStringify } from "@bedrock/kernel";
 
 function computeLinkedFlags(transfers: TransferPlanLine[]): boolean[] {
     const linked = new Array(transfers.length).fill(false);

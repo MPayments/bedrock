@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createLedgerEngine } from "@repo/ledger";
+import { createLedgerEngine } from "@bedrock/ledger";
 import { createTreasuryService } from "../../src/service";
 import { InvalidStateError, NotFoundError, CurrencyMismatchError, AmountMismatchError } from "../../src/errors";
 import {

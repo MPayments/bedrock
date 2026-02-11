@@ -119,4 +119,42 @@ describe("createTreasuryReconciliationWorker", () => {
         expect(db.update).toHaveBeenCalledTimes(2);
         expect(where).toHaveBeenCalledTimes(2);
     });
+
+    it("keeps open issues that are still detected", async () => {
+        vi.mocked(db.execute)
+            .mockResolvedValueOnce(mockDbExecuteResult([
+                {
+                    order_id: "order-stuck",
+                    order_status: "funding_settled_pending_posting",
+                    updated_at: new Date("2025-01-01T00:00:00.000Z"),
+                    journal_entry_id: "journal-stuck",
+                },
+            ]))
+            .mockResolvedValueOnce(mockDbExecuteResult([]))
+            .mockResolvedValueOnce(mockDbExecuteResult([]))
+            .mockResolvedValueOnce(mockDbExecuteResult([]))
+            .mockResolvedValueOnce(mockDbExecuteResult([]));
+
+        const onConflictDoUpdate = vi.fn(async () => undefined);
+        const values = vi.fn(() => ({ onConflictDoUpdate }));
+        vi.mocked(db.insert).mockReturnValue({ values } as any);
+
+        vi.mocked(db.select).mockReturnValue(selectReturning([
+            {
+                id: "issue-1",
+                entityType: "payment_order",
+                entityId: "order-stuck",
+                issueCode: "ORDER_STUCK_PENDING_POSTING",
+            },
+        ]) as any);
+
+        const result = await worker.processOnce();
+
+        expect(result).toEqual({
+            detected: 1,
+            resolved: 0,
+            openAfterRun: 1,
+        });
+        expect(db.update).not.toHaveBeenCalled();
+    });
 });

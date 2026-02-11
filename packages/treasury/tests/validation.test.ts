@@ -5,11 +5,7 @@ import {
     validateInitiatePayoutInput,
     validateSettlePayoutInput,
     validateVoidPayoutInput,
-    fundingSettledInputSchema,
-    executeFxInputSchema,
-    initiatePayoutInputSchema,
-    settlePayoutInputSchema,
-    voidPayoutInputSchema,
+    validateInput,
 } from "../src/validation";
 import { ValidationError } from "../src/errors";
 
@@ -203,6 +199,19 @@ describe("voidPayoutInputSchema", () => {
     it("should reject empty railRef", () => {
         expect(() => validateVoidPayoutInput({ ...validInput, railRef: "" }))
             .toThrow(ValidationError);
+    });
+});
+
+describe("validateInput", () => {
+    it("throws when a schema reports no issue details", () => {
+        const fakeSchema = {
+            safeParse: () => ({
+                success: false,
+                error: { issues: [], message: "boom" },
+            }),
+        } as any;
+
+        expect(() => validateInput(fakeSchema, {}, "test")).toThrow(ValidationError);
     });
 });
 

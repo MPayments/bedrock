@@ -4,6 +4,7 @@ import {
     validateApproveInput,
     validateRejectInput,
     validateMarkFailedInput,
+    validateInput,
 } from "../src/validation";
 import { ValidationError } from "../src/errors";
 
@@ -208,5 +209,16 @@ describe("Validation", () => {
                 })
             ).toThrow(ValidationError);
         });
+    });
+
+    it("handles schemas that report no issue details", () => {
+        const fakeSchema = {
+            safeParse: () => ({
+                success: false,
+                error: { issues: [], message: "boom" },
+            }),
+        } as any;
+
+        expect(() => validateInput(fakeSchema, {}, "test")).toThrow(ValidationError);
     });
 });

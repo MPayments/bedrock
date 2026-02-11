@@ -1,7 +1,7 @@
 /**
  * Treasury package test helpers
  *
- * Uses shared utilities from @repo/test-utils and provides
+ * Uses shared utilities from @bedrock/test-utils and provides
  * domain-specific factories for treasury entities.
  */
 
@@ -15,7 +15,7 @@ import {
     TEST_UUIDS,
     type StubDatabase,
     type StubTransaction,
-} from "@repo/test-utils";
+} from "@bedrock/test-utils";
 
 // Re-export shared utilities for convenience
 export {
@@ -31,7 +31,7 @@ export {
     TEST_DATES,
     type StubDatabase,
     type StubTransaction,
-} from "@repo/test-utils";
+} from "@bedrock/test-utils";
 
 // ============================================================================
 // Treasury-specific Constants

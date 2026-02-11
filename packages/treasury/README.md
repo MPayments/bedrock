@@ -1,4 +1,4 @@
-# @repo/treasury
+# @bedrock/treasury
 
 Treasury payment-order orchestration and finalization workers.
 
@@ -6,7 +6,7 @@ Treasury payment-order orchestration and finalization workers.
 
 - Payment order state machine transitions
 - Order-level business validation for funding/FX/payout stages
-- Ledger entry generation for each stage via `@repo/ledger`
+- Ledger entry generation for each stage via `@bedrock/ledger`
 - Worker-driven finalization from `*_pending_posting` states
 
 ## Service operations
@@ -54,7 +54,4 @@ Each operation:
 - `npm run build`
 - `npm run dev`
 - `npm run check-types`
-- `npm run test`
-- `npm run test:integration`
-- `npm run test:all`
-
+- Tests run from repo root: `npm run test`, `npm run test:integration`, `npm run test:all`

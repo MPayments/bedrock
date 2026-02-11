@@ -1,4 +1,4 @@
-# @repo/fx
+# @bedrock/fx
 
 FX policy, rate, and quote service package.
 

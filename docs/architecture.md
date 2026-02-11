@@ -33,13 +33,13 @@ The architecture is package-first: domain behavior lives in `packages/*`; apps a
 
 ```mermaid
 graph TD
-    K["@repo/kernel"]
-    DB["@repo/db"]
-    L["@repo/ledger"]
-    T["@repo/treasury"]
-    FX["@repo/fx"]
-    TR["@repo/transfers"]
-    TU["@repo/test-utils"]
+    K["@bedrock/kernel"]
+    DB["@bedrock/db"]
+    L["@bedrock/ledger"]
+    T["@bedrock/treasury"]
+    FX["@bedrock/fx"]
+    TR["@bedrock/transfers"]
+    TU["@bedrock/test-utils"]
     API["apps/api"]
 
     L --> K
@@ -77,7 +77,7 @@ This pattern decouples business APIs from external posting side effects while ke
 
 ### 1) Ledger intent creation
 
-`@repo/ledger` `createEntryTx`:
+`@bedrock/ledger` `createEntryTx`:
 
 - Validates `CreateEntryInput` and transfer plan shapes
 - Enforces contiguous chain blocks for linked TB semantics
@@ -90,7 +90,7 @@ This pattern decouples business APIs from external posting side effects while ke
 
 ### 2) TigerBeetle posting
 
-`@repo/ledger` worker:
+`@bedrock/ledger` worker:
 
 - Claims outbox jobs via SQL leasing and retries
 - Builds TB transfers from `tb_transfer_plans`
@@ -102,7 +102,7 @@ This pattern decouples business APIs from external posting side effects while ke
 
 ### 3) Domain state finalization
 
-`@repo/treasury` and `@repo/transfers` workers:
+`@bedrock/treasury` and `@bedrock/transfers` workers:
 
 - Poll domain rows in `*_pending_posting` states
 - Read linked journal status

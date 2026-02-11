@@ -1,4 +1,4 @@
-import { defineKeyspace } from "@repo/ledger";
+import { defineKeyspace } from "@bedrock/ledger";
 
 export const transfersKeyspace = defineKeyspace("tr", {
     customerWallet: (customerId: string, currency: string) => `CustomerWallet:${customerId}:${currency}`,

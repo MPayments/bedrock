@@ -1,8 +1,8 @@
 import { and, eq, or, sql } from "drizzle-orm";
-import { type Logger, makePlanKey, noopLogger } from "@repo/kernel";
-import { schema } from "@repo/db/schema";
-import { type Database } from "@repo/db";
-import { type LedgerEngine, PlanType } from "@repo/ledger";
+import { type Logger, makePlanKey, noopLogger } from "@bedrock/kernel";
+import { schema } from "@bedrock/db/schema";
+import { type Database } from "@bedrock/db";
+import { type LedgerEngine, PlanType } from "@bedrock/ledger";
 
 import {
     InvalidStateError,
@@ -12,7 +12,7 @@ import {
     CurrencyMismatchError
 } from "./errors";
 import { treasuryKeyspace } from "./keyspace";
-import { TransferCodes } from "@repo/kernel/constants";
+import { TransferCodes } from "@bedrock/kernel/constants";
 import {
     validateFundingSettledInput,
     validateExecuteFxInput,

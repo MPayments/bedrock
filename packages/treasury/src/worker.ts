@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
-import { schema } from "@repo/db/schema";
-import { Database } from "@repo/db";
+import { schema } from "@bedrock/db/schema";
+import { Database } from "@bedrock/db";
 import { OrderFinalizeFromPendingPosting } from "./state-machine";
 
 export function createTreasuryWorker(deps: { db: Database; treasuryOrgId?: string }) {

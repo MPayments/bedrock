@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { normalizeCurrency, isValidCurrency } from "@repo/kernel";
+import { normalizeCurrency, isValidCurrency } from "@bedrock/kernel";
 
 // Shared schemas
 const uuidSchema = z.uuid({

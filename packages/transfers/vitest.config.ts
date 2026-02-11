@@ -1,10 +1,11 @@
-import { defineConfig } from "vitest/config";
+import { defineProject } from "vitest/config";
 
-export default defineConfig({
+export default defineProject({
     test: {
+        name: "transfers",
         globals: true,
         environment: "node",
         include: ["tests/**/*.test.ts"],
-        exclude: ["tests/integration/**/*.test.ts"],
+        exclude: ["tests/integration/**/*.test.ts", "**/node_modules/**", "**/dist/**"],
     },
 });

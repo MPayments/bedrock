@@ -1,7 +1,7 @@
 /**
  * Transfers package test helpers
  *
- * Uses shared utilities from @repo/test-utils and provides
+ * Uses shared utilities from @bedrock/test-utils and provides
  * domain-specific factories for transfer entities.
  */
 
@@ -15,8 +15,8 @@ import {
     TEST_UUIDS,
     type StubDatabase,
     type StubTransaction,
-} from "@repo/test-utils";
-import { TransferStatus } from "@repo/db/schema";
+} from "@bedrock/test-utils";
+import { TransferStatus } from "@bedrock/db/schema";
 
 // Re-export shared utilities for convenience
 export {
@@ -28,7 +28,7 @@ export {
     TEST_UUIDS,
     type StubDatabase,
     type StubTransaction,
-} from "@repo/test-utils";
+} from "@bedrock/test-utils";
 
 // ============================================================================
 // Transfers-specific Constants

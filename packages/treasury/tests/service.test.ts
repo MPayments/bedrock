@@ -386,6 +386,126 @@ describe("createTreasuryService", () => {
             expect(ledger.createEntryTx).toHaveBeenCalled();
         });
 
+        it("should reject ambiguous UUID quoteRef between id and idempotency key", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const uuidQuoteRef = "550e8400-e29b-41d4-a716-446655440099";
+            const byId = createFxQuote({ id: uuidQuoteRef, idempotencyKey: "idem-1" });
+            const byIdempotency = createFxQuote({ id: "quote-other", idempotencyKey: uuidQuoteRef });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [byId], [byIdempotency]]),
+                    update: vi.fn(),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx({ ...validInput, quoteRef: uuidQuoteRef }))
+                .rejects.toThrow(ValidationError);
+        });
+
+        it("should throw NotFoundError when quote is missing", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], []]),
+                    update: vi.fn(),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput))
+                .rejects.toThrow(NotFoundError);
+        });
+
+        it.each([
+            {
+                label: "fromCurrency mismatch",
+                overrides: { fromCurrency: "GBP" },
+                error: CurrencyMismatchError,
+            },
+            {
+                label: "toCurrency mismatch",
+                overrides: { toCurrency: "USD" },
+                error: CurrencyMismatchError,
+            },
+            {
+                label: "fromAmountMinor mismatch",
+                overrides: { fromAmountMinor: 999n },
+                error: AmountMismatchError,
+            },
+            {
+                label: "toAmountMinor mismatch",
+                overrides: { toAmountMinor: 999n },
+                error: AmountMismatchError,
+            },
+            {
+                label: "feeFromMinor mismatch",
+                overrides: { feeFromMinor: 1n },
+                error: AmountMismatchError,
+            },
+            {
+                label: "spreadFromMinor mismatch",
+                overrides: { spreadFromMinor: 1n },
+                error: AmountMismatchError,
+            },
+        ])("should reject quote with $label", async ({ overrides, error }) => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote(overrides);
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote]]),
+                    update: vi.fn(),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput))
+                .rejects.toThrow(error);
+        });
+
+        it("should reject quotes that are not active", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote({ status: "cancelled" });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote]]),
+                    update: vi.fn(),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput))
+                .rejects.toThrow(InvalidStateError);
+        });
+
         it("should throw NotFoundError when order not found", async () => {
             vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
                 const tx = {
@@ -625,6 +745,57 @@ describe("createTreasuryService", () => {
 
             const result = await service.executeFx(validInput);
             expect(result).toBe("test-entry-id");
+        });
+
+        it("should allow idempotent retry when quote update races but latest matches", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote();
+            const latest = { id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote], [latest]]),
+                    update: updateSequence([
+                        [], // quote update fails due to race
+                        [{ id: ORDER_ID }],
+                    ]),
+                };
+                return fn(tx);
+            });
+
+            const result = await service.executeFx(validInput);
+            expect(result).toBe("test-entry-id");
+        });
+
+        it("should throw when quote update races and latest does not match", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote();
+            const latest = { id: quote.id, status: "used", usedByRef: "order:other-order:fx" };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote], [latest]]),
+                    update: updateSequence([
+                        [], // quote update fails due to race
+                    ]),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput))
+                .rejects.toThrow(InvalidStateError);
         });
 
         it("should be idempotent when CAS fails but order already has our entry", async () => {

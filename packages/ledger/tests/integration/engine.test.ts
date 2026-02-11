@@ -438,4 +438,4 @@ describe("Engine Integration Tests", () => {
 });
 
 // Import schema for outbox queries
-import { schema } from "@repo/db/schema";
+import { schema } from "@bedrock/db/schema";

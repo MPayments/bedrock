@@ -1,4 +1,4 @@
-# @repo/ui
+# @bedrock/ui
 
 Shared React UI primitives package.
 

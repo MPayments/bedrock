@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { schema } from "@repo/db/schema";
-import { type Database } from "@repo/db";
+import { schema } from "@bedrock/db/schema";
+import { type Database } from "@bedrock/db";
 import { tbAccountIdFor } from "./ids";
 import { AccountFlags, makeTbAccount, tbCreateAccountsOrThrow, type TbClient } from "./tb";
 import { AccountMappingConflictError } from "./errors";

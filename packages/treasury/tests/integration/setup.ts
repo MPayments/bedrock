@@ -1,7 +1,7 @@
 import { beforeAll, afterAll, afterEach } from "vitest";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { schema } from "@repo/db/schema";
+import { schema } from "@bedrock/db/schema";
 import { createClient } from "tigerbeetle-node";
 
 // Test database and TigerBeetle connection

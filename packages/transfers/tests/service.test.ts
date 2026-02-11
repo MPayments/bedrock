@@ -19,7 +19,7 @@ import {
     CHECKER_USER_ID,
     type StubDatabase,
 } from "./helpers";
-import { TransferStatus } from "@repo/db/schema";
+import { TransferStatus } from "@bedrock/db/schema";
 
 describe("createTransfersService", () => {
     let db: StubDatabase;
@@ -87,6 +87,26 @@ describe("createTransfersService", () => {
             const result = await service.createDraft(validInput);
 
             expect(result).toBe(TRANSFER_ID);
+        });
+
+        it("should throw when idempotent conflict exists but record is missing", async () => {
+            vi.mocked(db.insert).mockReturnValue({
+                values: vi.fn(() => ({
+                    onConflictDoNothing: vi.fn(() => ({
+                        returning: vi.fn(async () => []),
+                    })),
+                })),
+            } as any);
+
+            vi.mocked(db.select).mockReturnValue({
+                from: vi.fn(() => ({
+                    where: vi.fn(() => ({
+                        limit: vi.fn(async () => []),
+                    })),
+                })),
+            } as any);
+
+            await expect(service.createDraft(validInput)).rejects.toThrow(InvalidStateError);
         });
 
         it("should throw ValidationError for negative amount", async () => {
@@ -260,6 +280,45 @@ describe("createTransfersService", () => {
                 transferId: TRANSFER_ID,
                 ledgerEntryId: "test-entry-id",
             });
+        });
+
+        it("should throw when CAS fails and transfer is not in an advanced status", async () => {
+            const transfer = createMockTransfer({
+                status: TransferStatus.DRAFT,
+            });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn()
+                        .mockReturnValueOnce({
+                            from: vi.fn(() => ({
+                                where: vi.fn(() => ({
+                                    limit: vi.fn(async () => [transfer]),
+                                })),
+                            })),
+                        })
+                        .mockReturnValueOnce({
+                            from: vi.fn(() => ({
+                                where: vi.fn(() => ({
+                                    limit: vi.fn(async () => [{
+                                        status: TransferStatus.DRAFT,
+                                        ledgerEntryId: "test-entry-id",
+                                    }]),
+                                })),
+                            })),
+                        }),
+                    update: vi.fn(() => ({
+                        set: vi.fn(() => ({
+                            where: vi.fn(() => ({
+                                returning: vi.fn(async () => []),
+                            })),
+                        })),
+                    })),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.approve(validInput)).rejects.toThrow(InvalidStateError);
         });
     });
 

@@ -1,4 +1,4 @@
-# @repo/transfers
+# @bedrock/transfers
 
 Internal transfer maker/checker domain service plus posting finalization worker.
 
@@ -45,5 +45,4 @@ Internal transfer maker/checker domain service plus posting finalization worker.
 - `npm run build`
 - `npm run dev`
 - `npm run check-types`
-- `npm run test`
-
+- Tests run from repo root: `npm run test`

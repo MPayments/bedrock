@@ -1,5 +1,5 @@
 {
-    "name": "@repo/fx",
+    "name": "@bedrock/fx",
     "version": "0.0.0",
     "private": true,
     "type": "module",
@@ -12,14 +12,14 @@
         "check-types": "tsc --noEmit"
     },
     "dependencies": {
-        "@repo/db": "*",
-        "@repo/kernel": "*",
-        "@repo/ledger": "*",
+        "@bedrock/db": "*",
+        "@bedrock/kernel": "*",
+        "@bedrock/ledger": "*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4"
     },
     "devDependencies": {
-        "@repo/typescript-config": "*",
+        "@bedrock/typescript-config": "*",
         "typescript": "^5.8.3"
     }
 }

@@ -1,11 +1,11 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { AppError } from "@repo/kernel";
+import { AppError } from "@bedrock/kernel";
 import {
   OrganizationSchema,
   CreateOrganizationInputSchema,
   UpdateOrganizationInputSchema,
   OrganizationIdParamSchema,
-} from "@repo/organizations";
+} from "@bedrock/organizations";
 import type { AppContext } from "../context.js";
 import { ErrorSchema, DeletedSchema } from "../common.js";
 

@@ -400,5 +400,5 @@ describe("Resolve Integration Tests", () => {
 });
 
 // Import schema and sql for queries
-import { schema } from "@repo/db/schema";
+import { schema } from "@bedrock/db/schema";
 import { sql } from "drizzle-orm";

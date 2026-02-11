@@ -1,4 +1,4 @@
-# @repo/ledger
+# @bedrock/ledger
 
 Ledger intent and posting engine built around Postgres + TigerBeetle.
 
@@ -51,7 +51,4 @@ Ledger intent and posting engine built around Postgres + TigerBeetle.
 - `npm run build`
 - `npm run dev`
 - `npm run check-types`
-- `npm run test`
-- `npm run test:integration`
-- `npm run test:all`
-
+- Tests run from repo root: `npm run test`, `npm run test:integration`, `npm run test:all`

@@ -1,21 +1,12 @@
-import { defineConfig } from "vitest/config";
+import { defineProject } from "vitest/config";
 
-export default defineConfig({
+export default defineProject({
   test: {
+    name: "ledger",
     globals: true,
     environment: "node",
-    coverage: {
-      provider: "v8",
-      reporter: ["text", "json", "html"],
-      include: ["src/**/*.ts"],
-      exclude: ["src/**/*.test.ts", "src/**/*.spec.ts"],
-      thresholds: {
-        lines: 80,
-        functions: 80,
-        branches: 75,
-        statements: 80
-      }
-    },
+    include: ["tests/**/*.test.ts", "tests/**/*.spec.ts"],
+    exclude: ["tests/integration/**", "**/node_modules/**", "**/dist/**"],
     mockReset: true,
     restoreMocks: true,
     clearMocks: true

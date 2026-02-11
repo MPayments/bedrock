@@ -1,18 +1,25 @@
 {
-  "name": "ledger",
+  "name": "bedrock",
   "private": true,
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
-    "test": "turbo run test",
+    "test": "vitest run --project ledger --project treasury --project transfers",
+    "test:watch": "vitest --project ledger --project treasury --project transfers",
+    "test:coverage": "vitest run --coverage --project ledger --project treasury --project transfers",
+    "test:integration": "vitest run --project ledger:integration --project treasury:integration",
+    "test:integration:watch": "vitest --project ledger:integration --project treasury:integration",
+    "test:all": "npm run test && npm run test:integration",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.18",
     "prettier": "^3.6.2",
     "turbo": "^2.8.3",
-    "typescript": "5.8.3"
+    "typescript": "5.8.3",
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": "22.x"

@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
-import { type Database } from "@repo/db";
+import { type Database } from "@bedrock/db";
 import {
     schema
-} from "@repo/db/schema";
+} from "@bedrock/db/schema";
 import type { TbClient } from "./tb";
 import { makeTbTransfer, tbCreateTransfersOrThrow, TransferFlags, TB_AMOUNT_MAX } from "./tb";
 import { resolveTbAccountId } from "./resolve";

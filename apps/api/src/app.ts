@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { swaggerUI } from "@hono/swagger-ui";
-import { AppError } from "@repo/kernel";
+import { AppError } from "@bedrock/kernel";
 import { createAppContext, type Env } from "./context.js";
 import { organizationsRoutes, customersRoutes } from "./routes/index.js";
 
