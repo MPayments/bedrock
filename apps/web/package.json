@@ -11,14 +11,16 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@bedrock/ui": "*",
+    "@bedrock/ui": "workspace:*",
     "next": "^16.0.10",
+    "next-themes": "^0.4.6",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
   },
   "devDependencies": {
     "@bedrock/eslint-config": "*",
     "@bedrock/typescript-config": "*",
+    "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
