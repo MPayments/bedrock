@@ -117,11 +117,11 @@ const data = {
       url: "#",
       icon: Bell,
     },
-    {
-      title: "Активность",
-      url: "#",
-      icon: Activity,
-    },
+    // {
+    //   title: "Активность",
+    //   url: "#",
+    //   icon: Activity,
+    // },
   ],
 };
 

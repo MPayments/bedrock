@@ -11,6 +11,13 @@ import {
   CollapsibleTrigger,
 } from "@bedrock/ui/components/collapsible";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@bedrock/ui/components/dropdown-menu";
+import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
@@ -19,6 +26,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@bedrock/ui/components/sidebar";
 
 type NavItem = {
@@ -38,6 +46,7 @@ function NavCollapsibleItem({
   item: NavItem;
   pathname: string;
 }) {
+  const { state, isMobile } = useSidebar();
   const isActive = item.items!.some((sub) => pathname === sub.url);
   const [open, setOpen] = useState(isActive);
 
@@ -48,6 +57,40 @@ function NavCollapsibleItem({
     }
   }, [isActive]);
 
+  // Collapsed sidebar (icon mode): show a dropdown menu for sub-items
+  if (state === "collapsed" && !isMobile) {
+    return (
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<SidebarMenuButton tooltip={item.title} />}
+          >
+            {item.icon && <item.icon />}
+            <span>{item.title}</span>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side="right"
+            align="start"
+            sideOffset={4}
+            className="w-42"
+          >
+            <DropdownMenuGroup>
+              {item.items?.map((subItem) => (
+                <DropdownMenuItem
+                  key={subItem.title}
+                  render={<Link href={subItem.url} />}
+                >
+                  <span>{subItem.title}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    );
+  }
+
+  // Expanded sidebar: show a collapsible section
   return (
     <Collapsible
       open={open}
@@ -55,9 +98,7 @@ function NavCollapsibleItem({
       className="group/collapsible"
     >
       <SidebarMenuItem>
-        <CollapsibleTrigger
-          render={<SidebarMenuButton tooltip={item.title} />}
-        >
+        <CollapsibleTrigger render={<SidebarMenuButton tooltip={item.title} />}>
           {item.icon && <item.icon />}
           <span>{item.title}</span>
           <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -81,11 +122,7 @@ function NavCollapsibleItem({
   );
 }
 
-export function NavMain({
-  items,
-}: {
-  items: NavItem[];
-}) {
+export function NavMain({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
 
   return (
