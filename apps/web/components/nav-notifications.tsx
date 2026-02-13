@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { X } from "lucide-react";
+import { Stone, X } from "lucide-react";
 
 import { SidebarMenuButton } from "@bedrock/ui/components/sidebar";
 import {
@@ -19,8 +19,9 @@ import { Separator } from "@bedrock/ui/components/separator";
 
 type Notification = {
   id: number;
+  type: "user" | "system";
   title: string;
-  avatar: string;
+  avatar?: string;
   initials: string;
   description: string;
   time: string;
@@ -29,6 +30,7 @@ type Notification = {
 const initialNotifications: Notification[] = [
   {
     id: 1,
+    type: "user",
     title: "Иван Петров",
     avatar: "/avatars/ivan.jpg",
     initials: "ИП",
@@ -37,6 +39,7 @@ const initialNotifications: Notification[] = [
   },
   {
     id: 2,
+    type: "user",
     title: "Мария Сидорова",
     avatar: "/avatars/maria.jpg",
     initials: "МС",
@@ -45,6 +48,7 @@ const initialNotifications: Notification[] = [
   },
   {
     id: 3,
+    type: "user",
     title: "Алексей Козлов",
     avatar: "/avatars/alexey.jpg",
     initials: "АК",
@@ -53,8 +57,8 @@ const initialNotifications: Notification[] = [
   },
   {
     id: 4,
+    type: "system",
     title: "Система",
-    avatar: "",
     initials: "С",
     description: "Резервное копирование завершено успешно",
     time: "3 ч назад",
@@ -93,7 +97,7 @@ export function NavNotifications({
           <span className="text-sm font-medium">Уведомления</span>
           {notifications.length > 0 && (
             <Badge variant="default" className="h-5 min-w-5 px-1.5 text-[11px]">
-              {notifications.length}
+              {notifications.length} Новых
             </Badge>
           )}
         </div>
@@ -107,15 +111,21 @@ export function NavNotifications({
             {notifications.map((notification, index) => (
               <Fragment key={notification.id}>
                 <div className="hover:bg-accent focus-visible:bg-accent group/notification relative flex cursor-default items-start gap-2.5 px-3 py-2.5 text-sm outline-none transition-colors">
-                  <Avatar className="mt-0.5 size-8 shrink-0 rounded-full">
-                    <AvatarImage
-                      src={notification.avatar}
-                      alt={notification.title}
-                    />
-                    <AvatarFallback className="rounded-full text-xs">
-                      {notification.initials}
-                    </AvatarFallback>
-                  </Avatar>
+                  {notification.type === "system" ? (
+                    <div className="mt-0.5 size-8 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                      <Stone className="size-4" />
+                    </div>
+                  ) : (
+                    <Avatar className="mt-0.5 size-8 shrink-0 rounded-full">
+                      <AvatarImage
+                        src={notification.avatar}
+                        alt={notification.title}
+                      />
+                      <AvatarFallback className="rounded-full text-xs">
+                        {notification.initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-medium leading-snug">
