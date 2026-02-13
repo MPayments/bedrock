@@ -1,8 +1,11 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
+  Activity,
   ArrowRightLeft,
+  Bell,
   CreditCard,
   Currency,
   Home,
@@ -24,6 +27,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@bedrock/ui/components/sidebar";
+import { NavSecondary } from "./nav-secondary";
 
 // This is sample data.
 const data = {
@@ -37,63 +41,62 @@ const data = {
       title: "Дашборд",
       url: "/",
       icon: Home,
-      isActive: true,
     },
     {
       title: "Казначейство",
-      url: "#",
+      url: "/treasury",
       icon: Landmark,
       items: [
         {
           title: "Клиенты",
-          url: "#",
+          url: "/treasury/customers",
         },
         {
           title: "Организации",
-          url: "#",
+          url: "/treasury/organizations",
         },
         {
           title: "Счета",
-          url: "#",
+          url: "/treasury/accounts",
         },
       ],
     },
     {
       title: "FX",
-      url: "#",
+      url: "/fx",
       icon: Currency,
       items: [
         {
           title: "Курсы",
-          url: "#",
+          url: "/fx/rates",
         },
         {
           title: "Котировки",
-          url: "#",
+          url: "/fx/quotes",
         },
         {
           title: "Политики",
-          url: "#",
+          url: "/fx/policies",
         },
       ],
     },
     {
       title: "Переводы",
-      url: "#",
+      url: "/transfers",
       icon: ArrowRightLeft,
     },
     {
       title: "Платежи",
-      url: "#",
+      url: "/payments",
       icon: CreditCard,
       items: [
         {
           title: "Ордера",
-          url: "#",
+          url: "/payments/orders",
         },
         {
           title: "Расчетные операции",
-          url: "#",
+          url: "/payments/settlements",
         },
       ],
     },
@@ -108,6 +111,18 @@ const data = {
       icon: Settings2,
     },
   ],
+  navSecondary: [
+    {
+      title: "Уведомления",
+      url: "#",
+      icon: Bell,
+    },
+    {
+      title: "Активность",
+      url: "#",
+      icon: Activity,
+    },
+  ],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -118,7 +133,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
-              render={<a href="/" />}
+              render={<Link href="/" />}
               className="font-semibold"
               tooltip="Bedrock"
             >
@@ -134,6 +149,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
+        <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />
