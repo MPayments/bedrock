@@ -18,6 +18,19 @@ function feeComponent(overrides: Record<string, unknown> = {}) {
     };
 }
 
+function adjustmentComponent(overrides: Record<string, unknown> = {}) {
+    return {
+        id: "adjustment-1",
+        kind: "manual_adjustment",
+        effect: "increase_charge",
+        currency: "USD",
+        amountMinor: 10n,
+        source: "manual",
+        settlementMode: "in_ledger",
+        ...overrides,
+    };
+}
+
 describe("createFeesService", () => {
     it("validates and calculates bps amounts with floor rounding", () => {
         const service = createFeesService({ db: {} as any });
@@ -459,6 +472,111 @@ describe("createFeesService", () => {
             planKey: "custom:3:c3",
             amount: 0n,
         });
+    });
+
+    it("builds fee transfer plans with deterministic default plan keys", () => {
+        const service = createFeesService({ db: {} as any });
+
+        const [plan] = service.buildFeeTransferPlans({
+            components: [
+                feeComponent({
+                    id: "deterministic",
+                    transferCode: 55,
+                    debitAccountKey: "Account:fees:debit",
+                    creditAccountKey: "Account:fees:credit",
+                    memo: undefined,
+                }),
+            ] as any,
+            resolvePosting: () => ({}),
+        });
+
+        expect(plan).toBeDefined();
+        expect(plan!.planKey).toContain("fee_component");
+        expect(plan!.code).toBe(55);
+        expect(plan!.memo).toBeNull();
+    });
+
+    it("aggregates, merges, partitions and builds adjustment transfer plans", () => {
+        const service = createFeesService({ db: {} as any });
+
+        const aggregated = service.aggregateAdjustmentComponents([
+            adjustmentComponent({ id: "a1", amountMinor: 5n, memo: "same" }),
+            adjustmentComponent({ id: "a2", amountMinor: 7n, memo: "same" }),
+            adjustmentComponent({
+                id: "a3",
+                settlementMode: "separate_payment_order",
+                amountMinor: 3n,
+            }),
+        ] as any);
+
+        expect(aggregated).toHaveLength(2);
+        expect(aggregated.find((x) => x.settlementMode === "in_ledger")!.amountMinor).toBe(12n);
+        expect(aggregated.find((x) => x.settlementMode === "separate_payment_order")!.amountMinor).toBe(3n);
+
+        const mergedRaw = service.mergeAdjustmentComponents({
+            computed: [adjustmentComponent({ id: "m1", amountMinor: 4n }) as any],
+            manual: [adjustmentComponent({ id: "m2", amountMinor: 6n }) as any],
+            aggregate: false,
+        });
+        expect(mergedRaw).toHaveLength(2);
+
+        const mergedAggregated = service.mergeAdjustmentComponents({
+            computed: [adjustmentComponent({ id: "m1", amountMinor: 4n, memo: "same" }) as any],
+            manual: [adjustmentComponent({ id: "m2", amountMinor: 6n, memo: "same" }) as any],
+        });
+        expect(mergedAggregated).toHaveLength(1);
+        expect(mergedAggregated[0]!.amountMinor).toBe(10n);
+
+        const partitioned = service.partitionAdjustmentComponents([
+            adjustmentComponent({ id: "p1", settlementMode: undefined }),
+            adjustmentComponent({ id: "p2", settlementMode: "separate_payment_order" }),
+        ] as any);
+        expect(partitioned.inLedger).toHaveLength(1);
+        expect(partitioned.inLedger[0]!.settlementMode).toBe("in_ledger");
+        expect(partitioned.separatePaymentOrder).toHaveLength(1);
+
+        const plans = service.buildAdjustmentTransferPlans({
+            components: [
+                adjustmentComponent({
+                    id: "adj-1",
+                    effect: "decrease_charge",
+                    transferCode: 66,
+                    debitAccountKey: "Account:adjustment:debit",
+                    creditAccountKey: "Account:adjustment:credit",
+                    memo: "manual adjustment",
+                }),
+                adjustmentComponent({
+                    id: "adj-skip",
+                    settlementMode: "separate_payment_order",
+                    amountMinor: 9n,
+                }),
+            ] as any,
+            resolvePosting: () => ({}),
+        });
+
+        expect(plans).toHaveLength(1);
+        expect(plans[0]!.planKey).toContain("adjustment_component");
+        expect(plans[0]).toMatchObject({
+            debitKey: "Account:adjustment:debit",
+            creditKey: "Account:adjustment:credit",
+            code: 66,
+            memo: "manual adjustment",
+        });
+    });
+
+    it("throws when adjustment transfer-plan account keys are missing", () => {
+        const service = createFeesService({ db: {} as any });
+
+        expect(() => service.buildAdjustmentTransferPlans({
+            components: [
+                adjustmentComponent({
+                    id: "missing-adjustment-keys",
+                    debitAccountKey: undefined,
+                    creditAccountKey: undefined,
+                }),
+            ] as any,
+            resolvePosting: () => ({}),
+        })).toThrow(FeeValidationError);
     });
 
     it("throws when transfer-plan account keys are still missing after resolvePosting", () => {

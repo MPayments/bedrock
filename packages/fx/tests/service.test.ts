@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { schema } from "@bedrock/db/schema";
+import { ValidationError } from "@bedrock/kernel/errors";
 import { createFxService } from "../src/service";
-import { ValidationError } from "../src/errors";
 
 const POLICY_ID = "550e8400-e29b-41d4-a716-446655440001";
 const QUOTE_ID = "550e8400-e29b-41d4-a716-446655440010";

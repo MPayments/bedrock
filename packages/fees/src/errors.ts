@@ -1,10 +1,6 @@
-export class FeesError extends Error {
-    name = "FeesError";
+import { ServiceError } from "@bedrock/kernel/errors";
 
-    constructor(message: string, readonly cause?: unknown) {
-        super(message);
-    }
-}
+export class FeesError extends ServiceError { }
 
 export class FeeValidationError extends FeesError {
     name = "FeeValidationError";

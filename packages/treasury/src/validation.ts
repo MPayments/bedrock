@@ -98,9 +98,14 @@ export const executeFxInputSchema = z.object({
     quoteRef: z.string().min(1, "quoteRef is required").max(255),
 });
 
-export type ExecuteFxInput = z.infer<typeof executeFxInputSchema>;
-export type ExecuteFxFeeInput = z.infer<typeof feeComponentInputSchema>;
-export type ExecuteFxAdjustmentInput = z.infer<typeof adjustmentInputSchema>;
+// Public request type: allows omitted defaults and pre-transform fee/adjustment fields.
+export type ExecuteFxInput = z.input<typeof executeFxInputSchema>;
+// Internal validated shape after defaults/transforms are applied.
+export type ExecuteFxValidatedInput = z.output<typeof executeFxInputSchema>;
+export type ExecuteFxFeeInput = z.input<typeof feeComponentInputSchema>;
+export type ExecuteFxFeeComponent = z.output<typeof feeComponentInputSchema>;
+export type ExecuteFxAdjustmentInput = z.input<typeof adjustmentInputSchema>;
+export type ExecuteFxAdjustmentComponent = z.output<typeof adjustmentInputSchema>;
 
 export const initiatePayoutInputSchema = z.object({
     orderId: uuidSchema,
@@ -185,7 +190,7 @@ export function validateFundingSettledInput(input: unknown): FundingSettledInput
     return validateInput(fundingSettledInputSchema, input, "fundingSettled");
 }
 
-export function validateExecuteFxInput(input: unknown): ExecuteFxInput {
+export function validateExecuteFxInput(input: unknown): ExecuteFxValidatedInput {
     return validateInput(executeFxInputSchema, input, "executeFx");
 }
 

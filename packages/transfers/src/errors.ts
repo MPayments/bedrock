@@ -1,25 +1,13 @@
-export class TransfersError extends Error {
-    name = "TransfersError";
-}
+import {
+    ServiceError,
+    InvalidStateError as BaseInvalidStateError,
+} from "@bedrock/kernel/errors";
 
-export class ValidationError extends TransfersError {
-    name = "ValidationError";
-}
+export { ValidationError, NotFoundError, PermissionError } from "@bedrock/kernel/errors";
 
-export class NotFoundError extends TransfersError {
-    name = "NotFoundError";
+export class TransfersError extends ServiceError { }
 
-    constructor(
-        public readonly entityType: string,
-        public readonly entityId: string
-    ) {
-        super(`${entityType} not found: ${entityId}`);
-    }
-}
-
-export class InvalidStateError extends TransfersError {
-    name = "InvalidStateError";
-
+export class InvalidStateError extends BaseInvalidStateError {
     constructor(
         message: string,
         public readonly currentStatus?: string,
@@ -28,8 +16,3 @@ export class InvalidStateError extends TransfersError {
         super(message);
     }
 }
-
-export class PermissionError extends TransfersError {
-    name = "PermissionError";
-}
-  

@@ -274,6 +274,110 @@ describe("createLedgerWorker", () => {
       expect(transfer.amount).toBe((1n << 128n) - 1n); // TB_AMOUNT_MAX
     });
 
+    it("should post post_pending transfer with explicit amount", async () => {
+      const plan = {
+        id: "plan-1",
+        orgId: "org-123",
+        journalEntryId: "entry-456",
+        idx: 1,
+        planKey: "plan-key-1",
+        type: PlanType.POST_PENDING,
+        chainId: null,
+        transferId: 12345n,
+        debitKey: null,
+        creditKey: null,
+        currency: "USD",
+        tbLedger: 1000,
+        amount: 321n,
+        code: 0,
+        isLinked: false,
+        isPending: false,
+        timeoutSeconds: 0,
+        pendingId: 99999n,
+        status: "pending" as const,
+        error: null,
+        createdAt: new Date()
+      };
+
+      const job = {
+        outbox_id: "outbox-1",
+        org_id: "org-123",
+        journal_entry_id: "entry-456",
+        attempts: 1
+      };
+
+      vi.mocked(db.execute)
+        .mockResolvedValueOnce(mockDbExecuteResult([job]))
+        .mockResolvedValue(mockDbExecuteResult([]));
+
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            orderBy: vi.fn(async () => [plan])
+          }))
+        }))
+      } as any);
+
+      vi.mocked(tb.createTransfers).mockResolvedValue([]);
+
+      await worker.processOnce();
+
+      const transferCall = vi.mocked(tb.createTransfers).mock.calls[0];
+      expect(transferCall).toBeDefined();
+      const transfer = transferCall![0][0];
+      expect(transfer.amount).toBe(321n);
+    });
+
+    it("should fail posting when pending transfer plan misses pendingId", async () => {
+      const plan = {
+        id: "plan-1",
+        orgId: "org-123",
+        journalEntryId: "entry-456",
+        idx: 1,
+        planKey: "plan-key-1",
+        type: PlanType.POST_PENDING,
+        chainId: null,
+        transferId: 12345n,
+        debitKey: null,
+        creditKey: null,
+        currency: "USD",
+        tbLedger: 1000,
+        amount: 10n,
+        code: 0,
+        isLinked: false,
+        isPending: false,
+        timeoutSeconds: 0,
+        pendingId: null,
+        status: "pending" as const,
+        error: null,
+        createdAt: new Date()
+      };
+
+      const job = {
+        outbox_id: "outbox-1",
+        org_id: "org-123",
+        journal_entry_id: "entry-456",
+        attempts: 1
+      };
+
+      vi.mocked(db.execute)
+        .mockResolvedValueOnce(mockDbExecuteResult([job]))
+        .mockResolvedValue(mockDbExecuteResult([]));
+
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            orderBy: vi.fn(async () => [plan])
+          }))
+        }))
+      } as any);
+
+      await worker.processOnce();
+
+      expect(tb.createTransfers).not.toHaveBeenCalled();
+      expect(db.transaction).toHaveBeenCalled();
+    });
+
     it("should post void_pending transfer", async () => {
       const plan = {
         id: "plan-1",

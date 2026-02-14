@@ -1,8 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { createLedgerEngine } from "@bedrock/ledger";
 import { createFeesService } from "@bedrock/fees";
+import {
+    InvalidStateError,
+    NotFoundError,
+    CurrencyMismatchError,
+    AmountMismatchError,
+} from "@bedrock/kernel/errors";
 import { createTreasuryService } from "../../src/service";
-import { InvalidStateError, NotFoundError, CurrencyMismatchError, AmountMismatchError } from "../../src/errors";
 import {
     db,
     createTestScenario,
@@ -265,8 +270,8 @@ describe("Treasury Service Integration Tests", () => {
             });
 
             const plans = await getTbTransferPlans(entryId);
-            // Without fee and spread, should have: principal, intercompany commit, payout obligation
-            expect(plans).toHaveLength(3);
+            // Without fee/adjustments, single-leg FX posts: principal + leg out + leg in + payout obligation
+            expect(plans).toHaveLength(4);
         });
 
         it("should reject expired quote", async () => {

@@ -7,7 +7,7 @@ import {
     validateVoidPayoutInput,
     validateInput,
 } from "../src/validation";
-import { ValidationError } from "../src/errors";
+import { ValidationError } from "@bedrock/kernel/errors";
 
 const validUuid = "550e8400-e29b-41d4-a716-446655440000";
 

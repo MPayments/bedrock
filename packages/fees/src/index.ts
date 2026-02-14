@@ -57,6 +57,5 @@ export {
 export {
     createFeesService,
 } from "./service";
-export type { CreateFeesServiceDeps } from "./service";
 
 export { FeesError, FeeValidationError } from "./errors";

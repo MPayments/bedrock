@@ -113,7 +113,7 @@ export const getQuoteDetailsInputSchema = z.object({
 
 export type GetQuoteDetailsInput = z.infer<typeof getQuoteDetailsInputSchema>;
 
-import { ValidationError } from "./errors.js";
+import { ValidationError } from "@bedrock/kernel/errors";
 
 export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown, context?: string): T {
     const result = schema.safeParse(input);

@@ -1,21 +1,8 @@
-export class FxError extends Error {
-    name = "FxError";
-}
+import { ServiceError } from "@bedrock/kernel/errors";
 
-export class ValidationError extends FxError {
-    name = "ValidationError";
-}
+export { ValidationError, NotFoundError } from "@bedrock/kernel/errors";
 
-export class NotFoundError extends FxError {
-    name = "NotFoundError";
-
-    constructor(
-        public readonly entityType: string,
-        public readonly entityId: string
-    ) {
-        super(`${entityType} not found: ${entityId}`);
-    }
-}
+export class FxError extends ServiceError { }
 
 export class RateNotFoundError extends FxError {
     name = "RateNotFoundError";

@@ -1,40 +1,16 @@
-export class PaymentsError extends Error {
-  name = "PaymentsError";
-}
+import { ServiceError } from "@bedrock/kernel/errors";
 
-export class InvalidStateError extends PaymentsError {
-  name = "InvalidStateError";
-}
+export {
+  InvalidStateError,
+  NotFoundError,
+  ValidationError,
+  AmountMismatchError,
+  CurrencyMismatchError,
+} from "@bedrock/kernel/errors";
 
-export class NotFoundError extends PaymentsError {
-  name = "NotFoundError";
-  constructor(public readonly entityType: string, public readonly entityId: string) {
-    super(`${entityType} not found: ${entityId}`);
-  }
-}
-
-export class ValidationError extends PaymentsError {
-  name = "ValidationError";
-}
-
-export class AmountMismatchError extends ValidationError {
-  name = "AmountMismatchError";
-  constructor(
-    public readonly field: string,
-    public readonly expected: bigint,
-    public readonly actual: bigint
-  ) {
-    super(`${field} mismatch: expected ${expected}, got ${actual}`);
-  }
-}
-
-export class CurrencyMismatchError extends ValidationError {
-  name = "CurrencyMismatchError";
-  constructor(
-    public readonly field: string,
-    public readonly expected: string,
-    public readonly actual: string
-  ) {
-    super(`${field} currency mismatch: expected ${expected}, got ${actual}`);
+export class PaymentsError extends ServiceError {
+  constructor(message = "") {
+    super(message);
+    this.name = "PaymentsError";
   }
 }
