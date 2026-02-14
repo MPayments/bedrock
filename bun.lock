@@ -94,6 +94,8 @@
       },
       "devDependencies": {
         "@bedrock/typescript-config": "*",
+        "@types/pg": "^8.16.0",
+        "pg": "^8.17.2",
         "typescript": "^5.8.3",
       },
     },

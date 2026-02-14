@@ -29,6 +29,12 @@ export const TransferCodes = {
     /** Payout obligation created in destination currency */
     FX_PAYOUT_OBLIGATION: 2005,
 
+    /** Outbound leg movement from order inventory to intercompany */
+    FX_LEG_OUT: 2009,
+
+    /** Inbound leg movement from intercompany to order inventory */
+    FX_LEG_IN: 2010,
+
     /** Bank fee captured as revenue */
     BANK_FEE_REVENUE: 2006,
 
@@ -43,6 +49,21 @@ export const TransferCodes = {
 
     /** Fee reserved for separate payment order settlement */
     FEE_SEPARATE_PAYMENT_RESERVE: 3002,
+
+    /** External fee payment initiated as pending transfer */
+    FEE_PAYMENT_INITIATED: 3003,
+
+    /** External fee payment settled */
+    FEE_PAYMENT_SETTLED: 3004,
+
+    /** External fee payment voided */
+    FEE_PAYMENT_VOIDED: 3005,
+
+    /** Adjustment that increases charge */
+    ADJUSTMENT_CHARGE: 3006,
+
+    /** Adjustment that decreases charge */
+    ADJUSTMENT_REFUND: 3007,
 
     /** Internal transfer */
     INTERNAL_TRANSFER: 4001,

@@ -1,8 +1,9 @@
-import { pgTable, uuid, text, timestamp, bigint, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, bigint, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { fxPolicies } from "./policies";
 import { sql } from "drizzle-orm";
 
 export type FxQuoteStatus = "active" | "used" | "expired" | "cancelled";
+export type FxQuotePricingMode = "auto_cross" | "explicit_route";
 export type FxQuote = typeof fxQuotes.$inferSelect;
 
 export const fxQuotes = pgTable(
@@ -18,8 +19,10 @@ export const fxQuotes = pgTable(
         fromAmountMinor: bigint("from_amount_minor", { mode: "bigint" }).notNull(),
         toAmountMinor: bigint("to_amount_minor", { mode: "bigint" }).notNull(),
 
-        feeFromMinor: bigint("fee_from_minor", { mode: "bigint" }).notNull().default(sql`0`),
-        spreadFromMinor: bigint("spread_from_minor", { mode: "bigint" }).notNull().default(sql`0`),
+        pricingMode: text("pricing_mode").$type<FxQuotePricingMode>().notNull().default("auto_cross"),
+        pricingTrace: jsonb("pricing_trace").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+        dealDirection: text("deal_direction"),
+        dealForm: text("deal_form"),
 
         rateNum: bigint("rate_num", { mode: "bigint" }).notNull(),
         rateDen: bigint("rate_den", { mode: "bigint" }).notNull(),

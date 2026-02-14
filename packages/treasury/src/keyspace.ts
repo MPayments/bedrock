@@ -7,12 +7,10 @@ export const treasuryKeyspace = defineKeyspace("treasury", {
 
     bank: (orgId: string, bankStableKey: string, currency: string) => `Bank:${orgId}:${bankStableKey}:${currency}`,
 
-    treasuryPool: (currency: string) => `TreasuryPool:${currency}`,
-
     intercompanyNet: (branchOrgId: string, currency: string) =>
         `IC:BranchNet:${branchOrgId}:${currency}`,
 
-    orderPayIn: (orderId: string, currency: string) => `OrderPayIn:${orderId}:${currency}`,
+    orderInventory: (orderId: string, currency: string) => `OrderInventory:${orderId}:${currency}`,
 
     payoutObligation: (orderId: string, currency: string) => `PayoutObligation:${orderId}:${currency}`,
 
@@ -24,5 +22,11 @@ export const treasuryKeyspace = defineKeyspace("treasury", {
         `Revenue:Fee:${bucket}:${currency}`,
 
     feeClearing: (bucket: string, currency: string) =>
-        `Liability:FeeClearing:${bucket}:${currency}`
+        `Liability:FeeClearing:${bucket}:${currency}`,
+
+    adjustmentRevenue: (bucket: string, currency: string) =>
+        `Revenue:Adjustment:${bucket}:${currency}`,
+
+    adjustmentExpense: (bucket: string, currency: string) =>
+        `Expense:Adjustment:${bucket}:${currency}`
 });

@@ -31,6 +31,18 @@ export type FeeSource = "policy" | "manual";
 
 export type FeeSettlementMode = "in_ledger" | "separate_payment_order";
 
+export type AdjustmentKind =
+    | "late_penalty"
+    | "discount"
+    | "manual_adjustment"
+    | (string & {});
+
+export type AdjustmentEffect = "increase_charge" | "decrease_charge";
+
+export type AdjustmentSource = "manual" | "policy";
+
+export type AdjustmentSettlementMode = FeeSettlementMode;
+
 export type FeeComponent = {
     id: string;
     ruleId?: string;
@@ -39,6 +51,21 @@ export type FeeComponent = {
     amountMinor: bigint;
     source: FeeSource;
     settlementMode?: FeeSettlementMode;
+    debitAccountKey?: string;
+    creditAccountKey?: string;
+    transferCode?: number;
+    memo?: string;
+    metadata?: Record<string, string>;
+};
+
+export type AdjustmentComponent = {
+    id: string;
+    kind: AdjustmentKind;
+    effect: AdjustmentEffect;
+    currency: string;
+    amountMinor: bigint;
+    source: AdjustmentSource;
+    settlementMode?: AdjustmentSettlementMode;
     debitAccountKey?: string;
     creditAccountKey?: string;
     transferCode?: number;
@@ -88,23 +115,26 @@ export type ResolveFeeRulesInput = {
     dealForm?: FeeDealForm;
 };
 
-export type BuildFxExecutionFeeComponentsInput = {
-    currency: string;
-    feeMinor: bigint;
-    spreadMinor: bigint;
-    dealDirection?: FeeDealDirection;
-    dealForm?: FeeDealForm;
-};
-
 export type MergeFeeComponentsInput = {
     computed?: FeeComponent[];
     manual?: FeeComponent[];
     aggregate?: boolean;
 };
 
+export type MergeAdjustmentComponentsInput = {
+    computed?: AdjustmentComponent[];
+    manual?: AdjustmentComponent[];
+    aggregate?: boolean;
+};
+
 export type PartitionedFeeComponents = {
     inLedger: FeeComponent[];
     separatePaymentOrder: FeeComponent[];
+};
+
+export type PartitionedAdjustmentComponents = {
+    inLedger: AdjustmentComponent[];
+    separatePaymentOrder: AdjustmentComponent[];
 };
 
 export type BuildFeeTransferPlanInput = {
@@ -135,6 +165,34 @@ export type FeeTransferPlan = {
     component: FeeComponent;
 };
 
+export type BuildAdjustmentTransferPlanInput = {
+    components: AdjustmentComponent[];
+    chain?: string | null;
+    includeZeroAmounts?: boolean;
+    makePlanKey?: (component: AdjustmentComponent, idx: number) => string;
+    resolvePosting: (
+        component: AdjustmentComponent,
+        idx: number
+    ) => {
+        debitKey?: string;
+        creditKey?: string;
+        code?: number;
+        memo?: string | null;
+    };
+};
+
+export type AdjustmentTransferPlan = {
+    planKey: string;
+    debitKey: string;
+    creditKey: string;
+    currency: string;
+    amount: bigint;
+    code?: number;
+    chain?: string | null;
+    memo?: string | null;
+    component: AdjustmentComponent;
+};
+
 export type SaveQuoteFeeComponentsInput = {
     quoteId: string;
     components: FeeComponent[];
@@ -158,9 +216,13 @@ export interface FeesService {
     calculateFxQuoteFeeComponents(input: CalculateFxQuoteFeeComponentsInput, tx?: any): Promise<FeeComponent[]>;
     saveQuoteFeeComponents(input: SaveQuoteFeeComponentsInput, tx?: any): Promise<void>;
     getQuoteFeeComponents(input: GetQuoteFeeComponentsInput, tx?: any): Promise<FeeComponent[]>;
-    buildFxExecutionFeeComponents(input: BuildFxExecutionFeeComponentsInput): FeeComponent[];
     mergeFeeComponents(input: MergeFeeComponentsInput): FeeComponent[];
     aggregateFeeComponents(components: FeeComponent[]): FeeComponent[];
     partitionFeeComponents(components: FeeComponent[]): PartitionedFeeComponents;
     buildFeeTransferPlans(input: BuildFeeTransferPlanInput): FeeTransferPlan[];
+
+    mergeAdjustmentComponents(input: MergeAdjustmentComponentsInput): AdjustmentComponent[];
+    aggregateAdjustmentComponents(components: AdjustmentComponent[]): AdjustmentComponent[];
+    partitionAdjustmentComponents(components: AdjustmentComponent[]): PartitionedAdjustmentComponents;
+    buildAdjustmentTransferPlans(input: BuildAdjustmentTransferPlanInput): AdjustmentTransferPlan[];
 }

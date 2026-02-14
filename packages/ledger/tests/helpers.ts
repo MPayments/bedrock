@@ -11,7 +11,6 @@ import {
     createStubTx,
     mockSelectReturns,
     mockInsertReturns,
-    mockExecuteReturns,
     TEST_UUIDS,
     TEST_DATES,
     type StubDatabase,

@@ -5,36 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1769725127652,
-      "tag": "0000_pink_the_renegades",
+      "when": 1771074489849,
+      "tag": "0000_useful_madame_web",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1769976734670,
-      "tag": "0001_productive_war_machine",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1770804417764,
-      "tag": "0002_flowery_crystal",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1771080000000,
-      "tag": "0003_solid_fee_rules",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1771160000000,
-      "tag": "0004_sparkling_integrity",
+      "when": 1771078901710,
+      "tag": "0001_careful_supreme_intelligence",
       "breakpoints": true
     }
   ]

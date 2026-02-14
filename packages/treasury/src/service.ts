@@ -20,11 +20,17 @@ import {
     validateInitiatePayoutInput,
     validateSettlePayoutInput,
     validateVoidPayoutInput,
+    validateInitiateFeePaymentInput,
+    validateSettleFeePaymentInput,
+    validateVoidFeePaymentInput,
     type FundingSettledInput,
     type ExecuteFxInput,
     type InitiatePayoutInput,
     type SettlePayoutInput,
     type VoidPayoutInput,
+    type InitiateFeePaymentInput,
+    type SettleFeePaymentInput,
+    type VoidFeePaymentInput,
 } from "./validation";
 import {
     AdvancedOrderStatuses,
@@ -44,7 +50,7 @@ type TreasuryServiceDeps = {
     logger?: Logger;
 };
 
-const SYSTEM_LEDGER_ORG_ID = "00000000-0000-0000-0000-000000000001";
+const SYSTEM_LEDGER_ORG_ID = "00000000-0000-4000-8000-000000000001";
 
 export function createTreasuryService(deps: TreasuryServiceDeps) {
     const { db, ledger, logger, feesService } = deps;
@@ -65,6 +71,38 @@ export function createTreasuryService(deps: TreasuryServiceDeps) {
 
         if (!row) throw new NotFoundError("Order", orderId);
         return row;
+    }
+
+    async function fetchFeePaymentOrderState(tx: any, feePaymentOrderId: string) {
+        const [row] = await tx
+            .select()
+            .from(schema.feePaymentOrders)
+            .where(eq(schema.feePaymentOrders.id, feePaymentOrderId))
+            .limit(1);
+
+        if (!row) throw new NotFoundError("FeePaymentOrder", feePaymentOrderId);
+        return row;
+    }
+
+    function assertInitiateFeePaymentReplayCompatible(feeOrder: any, input: InitiateFeePaymentInput) {
+        if (feeOrder.railRef !== input.railRef) {
+            throw new InvalidStateError(
+                `FeePaymentOrder already initiated with different railRef (expected ${feeOrder.railRef ?? "null"}, got ${input.railRef})`
+            );
+        }
+        if (feeOrder.payoutOrgId && feeOrder.payoutOrgId !== input.payoutOrgId) {
+            throw new InvalidStateError(
+                `FeePaymentOrder already initiated with different payoutOrgId (expected ${feeOrder.payoutOrgId}, got ${input.payoutOrgId})`
+            );
+        }
+        if (feeOrder.payoutBankStableKey && feeOrder.payoutBankStableKey !== input.payoutBankStableKey) {
+            throw new InvalidStateError(
+                `FeePaymentOrder already initiated with different payoutBankStableKey (expected ${feeOrder.payoutBankStableKey}, got ${input.payoutBankStableKey})`
+            );
+        }
+        if (!feeOrder.initiateEntryId || !feeOrder.pendingTransferId) {
+            throw new InvalidStateError("FeePaymentOrder missing initiateEntryId/pendingTransferId");
+        }
     }
 
     function quoteUsageRef(orderId: string): string {
@@ -320,9 +358,68 @@ export function createTreasuryService(deps: TreasuryServiceDeps) {
             }
 
             const quote = await consumeFxQuoteForExecution(tx, input);
+            const persistedQuoteLegs = await tx
+                .select()
+                .from(schema.fxQuoteLegs)
+                .where(eq(schema.fxQuoteLegs.quoteId, quote.id))
+                .limit(2048);
+            persistedQuoteLegs.sort((a: any, b: any) => a.idx - b.idx);
+
+            if (!persistedQuoteLegs.length && (quote.pricingMode ?? "auto_cross") === "explicit_route") {
+                throw new InvalidStateError(`Quote ${quote.id} has explicit_route pricingMode but no persisted legs`);
+            }
+
+            const routeLegs = persistedQuoteLegs.length
+                ? persistedQuoteLegs
+                : [{
+                    idx: 1,
+                    fromCurrency: quote.fromCurrency,
+                    toCurrency: quote.toCurrency,
+                    fromAmountMinor: quote.fromAmountMinor,
+                    toAmountMinor: quote.toAmountMinor,
+                    rateNum: quote.rateNum,
+                    rateDen: quote.rateDen,
+                    sourceKind: "derived",
+                    sourceRef: null,
+                    asOf: input.occurredAt,
+                    executionOrgId: null,
+                    createdAt: input.occurredAt,
+                    id: quote.id,
+                    quoteId: quote.id,
+                }];
+
+            if (routeLegs[0]!.fromCurrency !== input.payInCurrency) {
+                throw new CurrencyMismatchError("route[0].fromCurrency", routeLegs[0]!.fromCurrency, input.payInCurrency);
+            }
+            if (routeLegs[routeLegs.length - 1]!.toCurrency !== input.payOutCurrency) {
+                throw new CurrencyMismatchError(
+                    "route[last].toCurrency",
+                    routeLegs[routeLegs.length - 1]!.toCurrency,
+                    input.payOutCurrency
+                );
+            }
+            if (routeLegs[0]!.fromAmountMinor !== input.principalMinor) {
+                throw new AmountMismatchError("route[0].fromAmountMinor", routeLegs[0]!.fromAmountMinor, input.principalMinor);
+            }
+            if (routeLegs[routeLegs.length - 1]!.toAmountMinor !== input.payOutAmountMinor) {
+                throw new AmountMismatchError(
+                    "route[last].toAmountMinor",
+                    routeLegs[routeLegs.length - 1]!.toAmountMinor,
+                    input.payOutAmountMinor
+                );
+            }
 
             const chain = `fx:${input.quoteRef}`;
             const transfers: any[] = [];
+            const separateFeeOrders: Array<{
+                componentId: string;
+                kind: string;
+                bucket: string;
+                currency: string;
+                amountMinor: bigint;
+                memo: string | null | undefined;
+                metadata: Record<string, string> | undefined;
+            }> = [];
 
             transfers.push({
                 type: PlanType.CREATE,
@@ -334,40 +431,56 @@ export function createTreasuryService(deps: TreasuryServiceDeps) {
                     amount: input.principalMinor.toString()
                 }),
                 debitKey: keys.customerWallet(input.customerId, input.payInCurrency),
-                creditKey: keys.orderPayIn(input.orderId, input.payInCurrency),
+                creditKey: keys.orderInventory(input.orderId, input.payInCurrency),
                 currency: input.payInCurrency,
                 amount: input.principalMinor,
                 code: TransferCodes.FX_PRINCIPAL,
                 memo: "FX principal"
             });
 
-            const persistedQuoteFeeComponents = await feesService.getQuoteFeeComponents({ quoteId: quote.id });
-            const quoteFeeComponents = persistedQuoteFeeComponents.length
-                ? persistedQuoteFeeComponents
-                : feesService.buildFxExecutionFeeComponents({
-                    currency: input.payInCurrency,
-                    feeMinor: quote.feeFromMinor ?? 0n,
-                    spreadMinor: quote.spreadFromMinor ?? 0n,
-                    dealDirection: input.dealDirection,
-                    dealForm: input.dealForm,
+            for (const leg of routeLegs) {
+                const executionOrgId = leg.executionOrgId ?? input.branchOrgId;
+
+                transfers.push({
+                    type: PlanType.CREATE,
+                    chain,
+                    planKey: makePlanKey("fx_leg_out", {
+                        quoteRef: input.quoteRef,
+                        orderId: input.orderId,
+                        idx: leg.idx,
+                        executionOrgId,
+                        fromCurrency: leg.fromCurrency,
+                        amount: leg.fromAmountMinor.toString(),
+                    }),
+                    debitKey: keys.orderInventory(input.orderId, leg.fromCurrency),
+                    creditKey: keys.intercompanyNet(executionOrgId, leg.fromCurrency),
+                    currency: leg.fromCurrency,
+                    amount: leg.fromAmountMinor,
+                    code: TransferCodes.FX_LEG_OUT,
+                    memo: `FX leg ${leg.idx} out`,
                 });
 
-            const quoteFeeMinor = quoteFeeComponents.reduce(
-                (sum, component) => component.kind === "fx_fee" ? sum + component.amountMinor : sum,
-                0n
-            );
-            const quoteSpreadMinor = quoteFeeComponents.reduce(
-                (sum, component) => component.kind === "fx_spread" ? sum + component.amountMinor : sum,
-                0n
-            );
-
-            if (quoteFeeMinor !== input.feeMinor) {
-                throw new AmountMismatchError("feeMinor", quoteFeeMinor, input.feeMinor);
+                transfers.push({
+                    type: PlanType.CREATE,
+                    chain,
+                    planKey: makePlanKey("fx_leg_in", {
+                        quoteRef: input.quoteRef,
+                        orderId: input.orderId,
+                        idx: leg.idx,
+                        executionOrgId,
+                        toCurrency: leg.toCurrency,
+                        amount: leg.toAmountMinor.toString(),
+                    }),
+                    debitKey: keys.intercompanyNet(executionOrgId, leg.toCurrency),
+                    creditKey: keys.orderInventory(input.orderId, leg.toCurrency),
+                    currency: leg.toCurrency,
+                    amount: leg.toAmountMinor,
+                    code: TransferCodes.FX_LEG_IN,
+                    memo: `FX leg ${leg.idx} in`,
+                });
             }
-            if (quoteSpreadMinor !== input.spreadMinor) {
-                throw new AmountMismatchError("spreadMinor", quoteSpreadMinor, input.spreadMinor);
-            }
 
+            const quoteFeeComponents = await feesService.getQuoteFeeComponents({ quoteId: quote.id }, tx);
             const mergedFeeComponents = feesService.mergeFeeComponents({
                 computed: quoteFeeComponents,
                 manual: input.fees,
@@ -483,25 +596,153 @@ export function createTreasuryService(deps: TreasuryServiceDeps) {
                     code: plan.code,
                     memo: plan.memo ?? undefined,
                 });
+                separateFeeOrders.push({
+                    componentId: plan.component.id,
+                    kind: plan.component.kind,
+                    bucket: feesService.getComponentDefaults(plan.component.kind).bucket,
+                    currency: plan.component.currency,
+                    amountMinor: plan.component.amountMinor,
+                    memo: plan.memo,
+                    metadata: plan.component.metadata,
+                });
             }
 
-            transfers.push({
-                type: PlanType.CREATE,
-                chain,
-                planKey: makePlanKey("fx_to_ic_payin", {
-                    quoteRef: input.quoteRef,
-                    orderId: input.orderId,
-                    payInOrgId: order.payInOrgId,
-                    currency: input.payInCurrency,
-                    amount: input.principalMinor.toString()
-                }),
-                debitKey: keys.orderPayIn(input.orderId, input.payInCurrency),
-                creditKey: keys.intercompanyNet(order.payInOrgId, input.payInCurrency),
-                currency: input.payInCurrency,
-                amount: input.principalMinor,
-                code: TransferCodes.FX_INTERCOMPANY_COMMIT,
-                memo: "Commit pay-in to intercompany"
+            const mergedAdjustments = feesService.mergeAdjustmentComponents({
+                manual: input.adjustments,
             });
+            const partitionedAdjustments = feesService.partitionAdjustmentComponents(mergedAdjustments);
+
+            const inLedgerAdjustmentPlans = feesService.buildAdjustmentTransferPlans({
+                components: partitionedAdjustments.inLedger,
+                chain,
+                makePlanKey: (component, idx) =>
+                    makePlanKey("fx_adjustment_component", {
+                        quoteRef: input.quoteRef,
+                        orderId: input.orderId,
+                        idx,
+                        componentId: component.id,
+                        kind: component.kind,
+                        effect: component.effect,
+                        currency: component.currency,
+                        amount: component.amountMinor.toString(),
+                    }),
+                resolvePosting: (component) => {
+                    if (component.debitAccountKey && component.creditAccountKey) {
+                        return {
+                            debitKey: component.debitAccountKey,
+                            creditKey: component.creditAccountKey,
+                            code: component.transferCode ??
+                                (component.effect === "increase_charge" ? TransferCodes.ADJUSTMENT_CHARGE : TransferCodes.ADJUSTMENT_REFUND),
+                            memo: component.memo ?? (component.effect === "increase_charge" ? "Adjustment charge" : "Adjustment refund"),
+                        };
+                    }
+
+                    const bucket = component.kind;
+                    if (component.effect === "increase_charge") {
+                        return {
+                            debitKey: keys.customerWallet(input.customerId, component.currency),
+                            creditKey: keys.adjustmentRevenue(bucket, component.currency),
+                            code: component.transferCode ?? TransferCodes.ADJUSTMENT_CHARGE,
+                            memo: component.memo ?? "Adjustment charge",
+                        };
+                    }
+
+                    return {
+                        debitKey: keys.adjustmentExpense(bucket, component.currency),
+                        creditKey: keys.customerWallet(input.customerId, component.currency),
+                        code: component.transferCode ?? TransferCodes.ADJUSTMENT_REFUND,
+                        memo: component.memo ?? "Adjustment refund",
+                    };
+                },
+            });
+
+            for (const plan of inLedgerAdjustmentPlans) {
+                transfers.push({
+                    type: PlanType.CREATE,
+                    chain: plan.chain,
+                    planKey: plan.planKey,
+                    debitKey: plan.debitKey,
+                    creditKey: plan.creditKey,
+                    currency: plan.currency,
+                    amount: plan.amount,
+                    code: plan.code,
+                    memo: plan.memo ?? undefined,
+                });
+            }
+
+            const reserveAdjustments = partitionedAdjustments.separatePaymentOrder.map((component) => ({
+                ...component,
+                settlementMode: "in_ledger" as const,
+            }));
+
+            const reserveAdjustmentPlans = feesService.buildAdjustmentTransferPlans({
+                components: reserveAdjustments,
+                chain,
+                makePlanKey: (component, idx) =>
+                    makePlanKey("fx_adjustment_reserve", {
+                        quoteRef: input.quoteRef,
+                        orderId: input.orderId,
+                        idx,
+                        componentId: component.id,
+                        kind: component.kind,
+                        effect: component.effect,
+                        currency: component.currency,
+                        amount: component.amountMinor.toString(),
+                    }),
+                resolvePosting: (component) => {
+                    const bucket = `adjustment:${component.kind}`;
+                    if (component.debitAccountKey && component.creditAccountKey) {
+                        return {
+                            debitKey: component.debitAccountKey,
+                            creditKey: component.creditAccountKey,
+                            code: component.transferCode ?? TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
+                            memo: component.memo ?? "Adjustment reserved for separate payment order",
+                        };
+                    }
+
+                    if (component.effect === "increase_charge") {
+                        return {
+                            debitKey: keys.customerWallet(input.customerId, component.currency),
+                            creditKey: keys.feeClearing(bucket, component.currency),
+                            code: component.transferCode ?? TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
+                            memo: component.memo ?? "Adjustment reserved for separate payment order",
+                        };
+                    }
+
+                    return {
+                        debitKey: keys.adjustmentExpense(component.kind, component.currency),
+                        creditKey: keys.feeClearing(bucket, component.currency),
+                        code: component.transferCode ?? TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
+                        memo: component.memo ?? "Adjustment reserved for separate payment order",
+                    };
+                },
+            });
+
+            for (const plan of reserveAdjustmentPlans) {
+                transfers.push({
+                    type: PlanType.CREATE,
+                    chain: plan.chain,
+                    planKey: plan.planKey,
+                    debitKey: plan.debitKey,
+                    creditKey: plan.creditKey,
+                    currency: plan.currency,
+                    amount: plan.amount,
+                    code: plan.code,
+                    memo: plan.memo ?? undefined,
+                });
+                separateFeeOrders.push({
+                    componentId: plan.component.id,
+                    kind: `adjustment:${plan.component.kind}`,
+                    bucket: `adjustment:${plan.component.kind}`,
+                    currency: plan.component.currency,
+                    amountMinor: plan.component.amountMinor,
+                    memo: plan.memo,
+                    metadata: {
+                        ...(plan.component.metadata ?? {}),
+                        effect: plan.component.effect,
+                    },
+                });
+            }
 
             transfers.push({
                 type: PlanType.CREATE,
@@ -513,7 +754,7 @@ export function createTreasuryService(deps: TreasuryServiceDeps) {
                     currency: input.payOutCurrency,
                     amount: input.payOutAmountMinor.toString()
                 }),
-                debitKey: keys.intercompanyNet(order.payOutOrgId, input.payOutCurrency),
+                debitKey: keys.orderInventory(input.orderId, input.payOutCurrency),
                 creditKey: keys.payoutObligation(input.orderId, input.payOutCurrency),
                 currency: input.payOutCurrency,
                 amount: input.payOutAmountMinor,
@@ -528,6 +769,30 @@ export function createTreasuryService(deps: TreasuryServiceDeps) {
                 postingDate: input.occurredAt,
                 transfers
             });
+
+            if (separateFeeOrders.length) {
+                await tx
+                    .insert(schema.feePaymentOrders)
+                    .values(
+                        separateFeeOrders.map((item) => ({
+                            parentOrderId: input.orderId,
+                            quoteId: quote.id,
+                            componentId: item.componentId,
+                            idempotencyKey: `fee_order:${input.orderId}:${item.kind}:${item.componentId}`,
+                            kind: item.kind,
+                            bucket: item.bucket,
+                            currency: item.currency,
+                            amountMinor: item.amountMinor,
+                            memo: item.memo ?? null,
+                            metadata: item.metadata ?? null,
+                            reserveEntryId: entryId,
+                            status: "reserved",
+                        }))
+                    )
+                    .onConflictDoNothing({
+                        target: schema.feePaymentOrders.idempotencyKey,
+                    });
+            }
 
             const moved = await tx
                 .update(schema.paymentOrders)
@@ -823,12 +1088,272 @@ export function createTreasuryService(deps: TreasuryServiceDeps) {
         });
     }
 
+    async function initiateFeePayment(rawInput: InitiateFeePaymentInput) {
+        const input = validateInitiateFeePaymentInput(rawInput);
+        const timeoutSeconds = input.timeoutSeconds ?? 86400;
+
+        return db.transaction(async (tx: any) => {
+            const feeOrder = await fetchFeePaymentOrderState(tx, input.feePaymentOrderId);
+
+            if (feeOrder.status !== "reserved") {
+                if (
+                    feeOrder.status === "initiated_pending_posting"
+                    || feeOrder.status === "initiated"
+                    || feeOrder.status === "settled_pending_posting"
+                    || feeOrder.status === "settled"
+                    || feeOrder.status === "voided_pending_posting"
+                    || feeOrder.status === "voided"
+                ) {
+                    assertInitiateFeePaymentReplayCompatible(feeOrder, input);
+                    return {
+                        entryId: feeOrder.initiateEntryId,
+                        pendingTransferId: feeOrder.pendingTransferId,
+                    };
+                }
+                throw new InvalidStateError(`FeePaymentOrder must be reserved, got ${feeOrder.status}`);
+            }
+
+            const planKey = makePlanKey("fee_payment_init", {
+                feePaymentOrderId: input.feePaymentOrderId,
+                railRef: input.railRef,
+                currency: feeOrder.currency,
+                amount: feeOrder.amountMinor.toString(),
+                payoutOrgId: input.payoutOrgId,
+                payoutBankStableKey: input.payoutBankStableKey,
+            });
+
+            const { entryId, transferIds } = await ledger.createEntryTx(tx, {
+                orgId: SYSTEM_LEDGER_ORG_ID,
+                source: { type: "fee_payment/initiated", id: input.feePaymentOrderId },
+                idempotencyKey: `fee_payment:init:${input.feePaymentOrderId}:${input.railRef}`,
+                postingDate: input.occurredAt,
+                transfers: [
+                    {
+                        type: PlanType.CREATE,
+                        planKey,
+                        debitKey: keys.feeClearing(feeOrder.bucket, feeOrder.currency),
+                        creditKey: keys.bank(input.payoutOrgId, input.payoutBankStableKey, feeOrder.currency),
+                        currency: feeOrder.currency,
+                        amount: feeOrder.amountMinor,
+                        code: TransferCodes.FEE_PAYMENT_INITIATED,
+                        pending: { timeoutSeconds },
+                        memo: "Fee payment initiated (pending)",
+                    },
+                ],
+            });
+
+            const pendingTransferId = transferIds.get(1)!;
+
+            const moved = await tx
+                .update(schema.feePaymentOrders)
+                .set({
+                    status: "initiated_pending_posting",
+                    initiateEntryId: entryId,
+                    pendingTransferId,
+                    payoutOrgId: input.payoutOrgId,
+                    payoutBankStableKey: input.payoutBankStableKey,
+                    railRef: input.railRef,
+                    updatedAt: sql`now()`,
+                })
+                .where(
+                    and(
+                        eq(schema.feePaymentOrders.id, input.feePaymentOrderId),
+                        eq(schema.feePaymentOrders.status, "reserved")
+                    )
+                )
+                .returning({ id: schema.feePaymentOrders.id });
+
+            if (moved.length) {
+                return { entryId, pendingTransferId };
+            }
+
+            const current = await fetchFeePaymentOrderState(tx, input.feePaymentOrderId);
+            if (
+                current.initiateEntryId === entryId &&
+                (current.status === "initiated_pending_posting" || current.status === "initiated")
+            ) {
+                if (!current.pendingTransferId) {
+                    throw new InvalidStateError("FeePaymentOrder missing pendingTransferId");
+                }
+                return { entryId, pendingTransferId: current.pendingTransferId };
+            }
+
+            throw new InvalidStateError(
+                `Failed to update fee payment order status: concurrent modification detected. Current status: ${current.status}`
+            );
+        });
+    }
+
+    async function settleFeePayment(rawInput: SettleFeePaymentInput) {
+        const input = validateSettleFeePaymentInput(rawInput);
+
+        return db.transaction(async (tx: any) => {
+            const feeOrder = await fetchFeePaymentOrderState(tx, input.feePaymentOrderId);
+
+            if (feeOrder.status !== "initiated") {
+                if (feeOrder.status === "settled_pending_posting" || feeOrder.status === "settled") {
+                    if (feeOrder.railRef !== input.railRef) {
+                        throw new InvalidStateError(
+                            `FeePaymentOrder already settled with different railRef (expected ${feeOrder.railRef ?? "null"}, got ${input.railRef})`
+                        );
+                    }
+                    if (!feeOrder.resolveEntryId) {
+                        throw new InvalidStateError("FeePaymentOrder missing resolveEntryId");
+                    }
+                    return feeOrder.resolveEntryId;
+                }
+                throw new InvalidStateError(`FeePaymentOrder must be initiated, got ${feeOrder.status}`);
+            }
+            if (!feeOrder.pendingTransferId) {
+                throw new InvalidStateError("FeePaymentOrder missing pendingTransferId");
+            }
+
+            const planKey = makePlanKey("fee_payment_settle", {
+                feePaymentOrderId: input.feePaymentOrderId,
+                railRef: input.railRef,
+                pendingId: feeOrder.pendingTransferId.toString(),
+                currency: feeOrder.currency,
+            });
+
+            const { entryId } = await ledger.createEntryTx(tx, {
+                orgId: SYSTEM_LEDGER_ORG_ID,
+                source: { type: "fee_payment/settled", id: input.feePaymentOrderId },
+                idempotencyKey: `fee_payment:settle:${input.feePaymentOrderId}:${input.railRef}`,
+                postingDate: input.occurredAt,
+                transfers: [
+                    {
+                        type: PlanType.POST_PENDING,
+                        planKey,
+                        currency: feeOrder.currency,
+                        pendingId: feeOrder.pendingTransferId,
+                        amount: 0n,
+                    },
+                ],
+            });
+
+            const moved = await tx
+                .update(schema.feePaymentOrders)
+                .set({
+                    status: "settled_pending_posting",
+                    resolveEntryId: entryId,
+                    railRef: input.railRef,
+                    updatedAt: sql`now()`,
+                })
+                .where(
+                    and(
+                        eq(schema.feePaymentOrders.id, input.feePaymentOrderId),
+                        eq(schema.feePaymentOrders.status, "initiated")
+                    )
+                )
+                .returning({ id: schema.feePaymentOrders.id });
+
+            if (moved.length) {
+                return entryId;
+            }
+
+            const current = await fetchFeePaymentOrderState(tx, input.feePaymentOrderId);
+            if (
+                current.resolveEntryId === entryId &&
+                (current.status === "settled_pending_posting" || current.status === "settled")
+            ) {
+                return entryId;
+            }
+
+            throw new InvalidStateError(
+                `Failed to update fee payment order status: concurrent modification detected. Current status: ${current.status}`
+            );
+        });
+    }
+
+    async function voidFeePayment(rawInput: VoidFeePaymentInput) {
+        const input = validateVoidFeePaymentInput(rawInput);
+
+        return db.transaction(async (tx: any) => {
+            const feeOrder = await fetchFeePaymentOrderState(tx, input.feePaymentOrderId);
+
+            if (feeOrder.status !== "initiated") {
+                if (feeOrder.status === "voided_pending_posting" || feeOrder.status === "voided") {
+                    if (feeOrder.railRef !== input.railRef) {
+                        throw new InvalidStateError(
+                            `FeePaymentOrder already voided with different railRef (expected ${feeOrder.railRef ?? "null"}, got ${input.railRef})`
+                        );
+                    }
+                    if (!feeOrder.resolveEntryId) {
+                        throw new InvalidStateError("FeePaymentOrder missing resolveEntryId");
+                    }
+                    return feeOrder.resolveEntryId;
+                }
+                throw new InvalidStateError(`FeePaymentOrder must be initiated, got ${feeOrder.status}`);
+            }
+            if (!feeOrder.pendingTransferId) {
+                throw new InvalidStateError("FeePaymentOrder missing pendingTransferId");
+            }
+
+            const planKey = makePlanKey("fee_payment_void", {
+                feePaymentOrderId: input.feePaymentOrderId,
+                railRef: input.railRef,
+                pendingId: feeOrder.pendingTransferId.toString(),
+                currency: feeOrder.currency,
+            });
+
+            const { entryId } = await ledger.createEntryTx(tx, {
+                orgId: SYSTEM_LEDGER_ORG_ID,
+                source: { type: "fee_payment/voided", id: input.feePaymentOrderId },
+                idempotencyKey: `fee_payment:void:${input.feePaymentOrderId}:${input.railRef}`,
+                postingDate: input.occurredAt,
+                transfers: [
+                    {
+                        type: PlanType.VOID_PENDING,
+                        planKey,
+                        currency: feeOrder.currency,
+                        pendingId: feeOrder.pendingTransferId,
+                    },
+                ],
+            });
+
+            const moved = await tx
+                .update(schema.feePaymentOrders)
+                .set({
+                    status: "voided_pending_posting",
+                    resolveEntryId: entryId,
+                    railRef: input.railRef,
+                    updatedAt: sql`now()`,
+                })
+                .where(
+                    and(
+                        eq(schema.feePaymentOrders.id, input.feePaymentOrderId),
+                        eq(schema.feePaymentOrders.status, "initiated")
+                    )
+                )
+                .returning({ id: schema.feePaymentOrders.id });
+
+            if (moved.length) {
+                return entryId;
+            }
+
+            const current = await fetchFeePaymentOrderState(tx, input.feePaymentOrderId);
+            if (
+                current.resolveEntryId === entryId &&
+                (current.status === "voided_pending_posting" || current.status === "voided")
+            ) {
+                return entryId;
+            }
+
+            throw new InvalidStateError(
+                `Failed to update fee payment order status: concurrent modification detected. Current status: ${current.status}`
+            );
+        });
+    }
+
     return {
         keys,
         fundingSettled,
         executeFx,
         initiatePayout,
         settlePayout,
-        voidPayout
+        voidPayout,
+        initiateFeePayment,
+        settleFeePayment,
+        voidFeePayment,
     };
 }

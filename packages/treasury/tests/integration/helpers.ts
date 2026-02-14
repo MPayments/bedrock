@@ -19,8 +19,6 @@ export function randomOrderId() {
     return randomUUID();
 }
 
-const SYSTEM_TREASURY_ORG_ID = "00000000-0000-0000-0000-000000000001";
-
 export function randomIdempotencyKey() {
     return `idem-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 }
@@ -173,8 +171,10 @@ export interface TestFxQuote {
     toCurrency: string;
     fromAmountMinor: bigint;
     toAmountMinor: bigint;
-    feeFromMinor: bigint;
-    spreadFromMinor: bigint;
+    pricingMode: "auto_cross" | "explicit_route";
+    pricingTrace: Record<string, unknown>;
+    dealDirection: string | null;
+    dealForm: string | null;
     rateNum: bigint;
     rateDen: bigint;
     status: "active" | "used" | "expired" | "cancelled";
@@ -202,8 +202,10 @@ export async function createTestFxQuote(
         toCurrency: params.toCurrency,
         fromAmountMinor: params.fromAmountMinor,
         toAmountMinor: params.toAmountMinor,
-        feeFromMinor: overrides.feeFromMinor ?? 0n,
-        spreadFromMinor: overrides.spreadFromMinor ?? 0n,
+        pricingMode: overrides.pricingMode ?? "auto_cross",
+        pricingTrace: overrides.pricingTrace ?? { version: "v1", mode: "auto_cross" },
+        dealDirection: overrides.dealDirection ?? null,
+        dealForm: overrides.dealForm ?? null,
         rateNum: overrides.rateNum ?? 85n,
         rateDen: overrides.rateDen ?? 100n,
         status: overrides.status ?? "active",
@@ -240,7 +242,7 @@ export async function createTestScenario(
     } = {}
 ): Promise<TestScenario> {
     // Create organizations
-    const treasuryOrg = await createTestOrg({ id: SYSTEM_TREASURY_ORG_ID, name: "Treasury Corp", isTreasury: true });
+    const treasuryOrg = await createTestOrg({ name: "Treasury Corp", isTreasury: true });
     const branchOrg = await createTestOrg({ name: "Branch Corp" });
     const payoutOrg = await createTestOrg({ name: "Payout Corp" });
 

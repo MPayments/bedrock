@@ -44,6 +44,9 @@ export const feeSourceSchema = z.enum(["policy", "manual"]);
 
 export const feeSettlementModeSchema = z.enum(["in_ledger", "separate_payment_order"]);
 
+export const adjustmentEffectSchema = z.enum(["increase_charge", "decrease_charge"]);
+export const adjustmentSourceSchema = z.enum(["manual", "policy"]);
+
 export const feeComponentSchema = z
     .object({
         id: componentIdSchema,
@@ -52,6 +55,26 @@ export const feeComponentSchema = z
         currency: currencySchema,
         amountMinor: nonNegativeAmountSchema,
         source: feeSourceSchema,
+        settlementMode: feeSettlementModeSchema.optional(),
+        debitAccountKey: z.string().min(1).optional(),
+        creditAccountKey: z.string().min(1).optional(),
+        transferCode: nonNegativeIntegerSchema.optional(),
+        memo: z.string().max(1000).optional(),
+        metadata: z.record(z.string(), z.string().max(255)).optional(),
+    })
+    .refine((data) => Boolean(data.debitAccountKey) === Boolean(data.creditAccountKey), {
+        message: "debitAccountKey and creditAccountKey must be provided together",
+        path: ["debitAccountKey"],
+    });
+
+export const adjustmentComponentSchema = z
+    .object({
+        id: componentIdSchema,
+        kind: componentKindSchema,
+        effect: adjustmentEffectSchema,
+        currency: currencySchema,
+        amountMinor: positiveAmountSchema,
+        source: adjustmentSourceSchema,
         settlementMode: feeSettlementModeSchema.optional(),
         debitAccountKey: z.string().min(1).optional(),
         creditAccountKey: z.string().min(1).optional(),
@@ -140,14 +163,6 @@ export const fxQuoteFeeCalculationSchema = z.object({
     dealForm: feeDealFormSchema.optional(),
 });
 
-export const fxExecutionFeeSchema = z.object({
-    currency: currencySchema,
-    feeMinor: nonNegativeAmountSchema,
-    spreadMinor: nonNegativeAmountSchema,
-    dealDirection: feeDealDirectionSchema.optional(),
-    dealForm: feeDealFormSchema.optional(),
-});
-
 export const saveQuoteFeeComponentsSchema = z.object({
     quoteId: uuidSchema,
     components: z.array(feeComponentSchema),
@@ -161,6 +176,10 @@ export function validateFeeComponent(input: unknown) {
     return validateInput(feeComponentSchema, input, "feeComponent");
 }
 
+export function validateAdjustmentComponent(input: unknown) {
+    return validateInput(adjustmentComponentSchema, input, "adjustmentComponent");
+}
+
 export function validateUpsertFeeRuleInput(input: unknown) {
     return validateInput(upsertFeeRuleSchema, input, "upsertFeeRule");
 }
@@ -171,10 +190,6 @@ export function validateResolveFeeRulesInput(input: unknown) {
 
 export function validateFxQuoteFeeCalculation(input: unknown) {
     return validateInput(fxQuoteFeeCalculationSchema, input, "calculateFxQuoteFeeComponents");
-}
-
-export function validateFxExecutionFee(input: unknown) {
-    return validateInput(fxExecutionFeeSchema, input, "buildFxExecutionFeeComponents");
 }
 
 export function validateSaveQuoteFeeComponentsInput(input: unknown) {

@@ -1,33 +1,478 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { schema } from "@bedrock/db/schema";
+import { TransferCodes } from "@bedrock/kernel/constants";
 import { createFeesService } from "../src/service";
+import { FeeValidationError } from "../src/errors";
+
+const QUOTE_ID = "11111111-1111-4111-8111-111111111111";
+
+function feeComponent(overrides: Record<string, unknown> = {}) {
+    return {
+        id: "component-1",
+        kind: "fx_fee",
+        currency: "USD",
+        amountMinor: 10n,
+        source: "policy",
+        settlementMode: "in_ledger",
+        ...overrides,
+    };
+}
 
 describe("createFeesService", () => {
-    it("uses makePlanKey callback when provided to buildFeeTransferPlans", () => {
+    it("validates and calculates bps amounts with floor rounding", () => {
         const service = createFeesService({ db: {} as any });
-        let callbackCalls = 0;
+        expect(service.calculateBpsAmount(12345n, 50)).toBe(61n);
+        expect(() => service.calculateBpsAmount(-1n, 10)).toThrow(FeeValidationError);
+        expect(() => service.calculateBpsAmount(100n, -1)).toThrow(FeeValidationError);
+        expect(() => service.calculateBpsAmount(100n, 10_001)).toThrow(FeeValidationError);
+        expect(() => service.calculateBpsAmount(100n, 1.2)).toThrow(FeeValidationError);
+    });
+
+    it("returns canonical defaults for known fee kinds and fallback", () => {
+        const service = createFeesService({ db: {} as any });
+
+        expect(service.getComponentDefaults("fx_fee")).toEqual({
+            bucket: "fx_fee",
+            transferCode: TransferCodes.FEE_REVENUE,
+            memo: "Fee revenue",
+        });
+
+        expect(service.getComponentDefaults("fx_spread")).toEqual({
+            bucket: "fx_spread",
+            transferCode: TransferCodes.SPREAD_REVENUE,
+            memo: "FX spread revenue",
+        });
+
+        expect(service.getComponentDefaults("bank_fee")).toEqual({
+            bucket: "bank",
+            transferCode: TransferCodes.BANK_FEE_REVENUE,
+            memo: "Bank fee revenue",
+        });
+
+        expect(service.getComponentDefaults("blockchain_fee")).toEqual({
+            bucket: "blockchain",
+            transferCode: TransferCodes.BLOCKCHAIN_FEE_REVENUE,
+            memo: "Blockchain fee revenue",
+        });
+
+        expect(service.getComponentDefaults("manual_fee")).toEqual({
+            bucket: "manual",
+            transferCode: TransferCodes.ARBITRARY_FEE_REVENUE,
+            memo: "Manual fee",
+        });
+
+        expect(service.getComponentDefaults("unknown")).toEqual({
+            bucket: "custom",
+            transferCode: TransferCodes.ARBITRARY_FEE_REVENUE,
+            memo: "Fee revenue",
+        });
+    });
+
+    it("persists fee rules with defaults and logs saved metadata", async () => {
+        const values = vi.fn(() => ({
+            returning: vi.fn(async () => [{ id: "rule-1" }]),
+        }));
+        const insert = vi.fn(() => ({ values }));
+        const info = vi.fn();
+        const logger = {
+            child: vi.fn(() => ({ info })),
+        };
+        const service = createFeesService({
+            db: { insert } as any,
+            logger: logger as any,
+        });
+
+        const before = Date.now();
+        const id = await service.upsertRule({
+            name: "FX quote bps",
+            operationKind: "fx_quote",
+            feeKind: "fx_fee",
+            calcMethod: "bps",
+            bps: 35,
+        });
+
+        expect(id).toBe("rule-1");
+        expect(insert).toHaveBeenCalledWith(schema.feeRules);
+
+        const persisted = values.mock.calls[0]![0];
+        expect(persisted.settlementMode).toBe("in_ledger");
+        expect(persisted.priority).toBe(100);
+        expect(persisted.isActive).toBe(true);
+        expect(persisted.effectiveFrom).toBeInstanceOf(Date);
+        expect((persisted.effectiveFrom as Date).getTime()).toBeGreaterThanOrEqual(before);
+
+        expect(logger.child).toHaveBeenCalledWith({ svc: "fees" });
+        expect(info).toHaveBeenCalledWith(
+            "Fee rule persisted",
+            expect.objectContaining({
+                ruleId: "rule-1",
+                operationKind: "fx_quote",
+                feeKind: "fx_fee",
+                calcMethod: "bps",
+            })
+        );
+    });
+
+    it("lists applicable rules for both scoped and wildcard lookups", async () => {
+        const orderBy = vi.fn()
+            .mockResolvedValueOnce([{ id: "scoped-rule" }])
+            .mockResolvedValueOnce([{ id: "wildcard-rule" }]);
+        const where = vi.fn(() => ({ orderBy }));
+        const from = vi.fn(() => ({ where }));
+        const select = vi.fn(() => ({ from }));
+        const service = createFeesService({ db: { select } as any });
+        const at = new Date("2026-02-14T00:00:00Z");
+
+        await expect(service.listApplicableRules({
+            operationKind: "fx_quote",
+            at,
+            fromCurrency: "usd",
+            toCurrency: "eur",
+            dealDirection: "cash_to_wire",
+            dealForm: "conversion",
+        })).resolves.toEqual([{ id: "scoped-rule" }]);
+
+        await expect(service.listApplicableRules({
+            operationKind: "fx_quote",
+            at,
+        })).resolves.toEqual([{ id: "wildcard-rule" }]);
+
+        expect(orderBy).toHaveBeenCalledTimes(2);
+    });
+
+    it("calculates FX quote fee components and drops non-chargeable rules", async () => {
+        const rules = [
+            {
+                id: "r-bps",
+                calcMethod: "bps",
+                bps: 50,
+                fixedAmountMinor: null,
+                fixedCurrency: null,
+                feeKind: "fx_fee",
+                settlementMode: "in_ledger",
+                debitAccountKey: null,
+                creditAccountKey: null,
+                transferCode: null,
+                memo: null,
+                metadata: null,
+            },
+            {
+                id: "r-bps-null",
+                calcMethod: "bps",
+                bps: null,
+                fixedAmountMinor: null,
+                fixedCurrency: null,
+                feeKind: "fx_fee",
+                settlementMode: "in_ledger",
+                debitAccountKey: null,
+                creditAccountKey: null,
+                transferCode: null,
+                memo: null,
+                metadata: null,
+            },
+            {
+                id: "r-fixed-zero",
+                calcMethod: "fixed",
+                bps: null,
+                fixedAmountMinor: 0n,
+                fixedCurrency: "usd",
+                feeKind: "bank_fee",
+                settlementMode: "in_ledger",
+                debitAccountKey: null,
+                creditAccountKey: null,
+                transferCode: null,
+                memo: null,
+                metadata: null,
+            },
+            {
+                id: "r-fixed-eur",
+                calcMethod: "fixed",
+                bps: null,
+                fixedAmountMinor: 200n,
+                fixedCurrency: "eur",
+                feeKind: "bank_fee",
+                settlementMode: "separate_payment_order",
+                debitAccountKey: "Account:branch:fees:EUR",
+                creditAccountKey: "Account:treasury:revenue:EUR",
+                transferCode: 777,
+                memo: "External fee",
+                metadata: { channel: "swift" },
+            },
+            {
+                id: "r-fixed-default-ccy",
+                calcMethod: "fixed",
+                bps: null,
+                fixedAmountMinor: 120n,
+                fixedCurrency: null,
+                feeKind: "manual_fee",
+                settlementMode: "in_ledger",
+                debitAccountKey: null,
+                creditAccountKey: null,
+                transferCode: null,
+                memo: null,
+                metadata: null,
+            },
+        ];
+
+        const orderBy = vi.fn(async () => rules);
+        const where = vi.fn(() => ({ orderBy }));
+        const from = vi.fn(() => ({ where }));
+        const select = vi.fn(() => ({ from }));
+        const service = createFeesService({ db: { select } as any });
+
+        const components = await service.calculateFxQuoteFeeComponents({
+            fromCurrency: "usd",
+            toCurrency: "eur",
+            principalMinor: 12_345n,
+            at: new Date("2026-02-14T00:00:00Z"),
+            dealDirection: "cash_to_wire",
+            dealForm: "conversion",
+        });
+
+        expect(components).toHaveLength(3);
+        expect(components[0]).toMatchObject({
+            id: "rule:r-bps",
+            kind: "fx_fee",
+            currency: "USD",
+            amountMinor: 61n,
+            source: "policy",
+        });
+        expect(components[1]).toMatchObject({
+            id: "rule:r-fixed-eur",
+            kind: "bank_fee",
+            currency: "EUR",
+            amountMinor: 200n,
+            settlementMode: "separate_payment_order",
+            debitAccountKey: "Account:branch:fees:EUR",
+            creditAccountKey: "Account:treasury:revenue:EUR",
+            transferCode: 777,
+            memo: "External fee",
+            metadata: { channel: "swift" },
+        });
+        expect(components[2]).toMatchObject({
+            id: "rule:r-fixed-default-ccy",
+            kind: "manual_fee",
+            currency: "USD",
+            amountMinor: 120n,
+        });
+    });
+
+    it("replaces quote snapshot components and defaults settlement mode", async () => {
+        const where = vi.fn(async () => undefined);
+        const deleteFn = vi.fn(() => ({ where }));
+        const values = vi.fn(() => ({}));
+        const insert = vi.fn(() => ({ values }));
+        const service = createFeesService({
+            db: { delete: deleteFn, insert } as any,
+        });
+
+        await service.saveQuoteFeeComponents({
+            quoteId: QUOTE_ID,
+            components: [
+                feeComponent({ id: "c1", currency: "usd", settlementMode: undefined }),
+                feeComponent({
+                    id: "c2",
+                    kind: "fx_spread",
+                    amountMinor: 3n,
+                    settlementMode: "separate_payment_order",
+                }),
+            ] as any,
+        });
+
+        expect(deleteFn).toHaveBeenCalledWith(schema.fxQuoteFeeComponents);
+        expect(values).toHaveBeenCalledWith([
+            expect.objectContaining({
+                quoteId: QUOTE_ID,
+                idx: 1,
+                currency: "USD",
+                settlementMode: "in_ledger",
+            }),
+            expect.objectContaining({
+                quoteId: QUOTE_ID,
+                idx: 2,
+                currency: "USD",
+                settlementMode: "separate_payment_order",
+            }),
+        ]);
+    });
+
+    it("deletes quote snapshot components without inserting when list is empty", async () => {
+        const where = vi.fn(async () => undefined);
+        const deleteFn = vi.fn(() => ({ where }));
+        const insert = vi.fn(() => ({ values: vi.fn() }));
+        const service = createFeesService({
+            db: { delete: deleteFn, insert } as any,
+        });
+
+        await service.saveQuoteFeeComponents({
+            quoteId: QUOTE_ID,
+            components: [],
+        });
+
+        expect(deleteFn).toHaveBeenCalledWith(schema.fxQuoteFeeComponents);
+        expect(insert).not.toHaveBeenCalled();
+    });
+
+    it("reads quote snapshot components in deterministic order", async () => {
+        const rows = [
+            {
+                quoteId: QUOTE_ID,
+                idx: 2,
+                ruleId: null,
+                kind: "fx_spread",
+                currency: "USD",
+                amountMinor: 8n,
+                source: "policy",
+                settlementMode: "in_ledger",
+                debitAccountKey: null,
+                creditAccountKey: null,
+                transferCode: null,
+                memo: null,
+                metadata: null,
+            },
+            {
+                quoteId: QUOTE_ID,
+                idx: 1,
+                ruleId: "11111111-1111-4111-8111-111111111112",
+                kind: "fx_fee",
+                currency: "USD",
+                amountMinor: 12n,
+                source: "policy",
+                settlementMode: "separate_payment_order",
+                debitAccountKey: "Account:from",
+                creditAccountKey: "Account:to",
+                transferCode: 44,
+                memo: "fee",
+                metadata: { reason: "policy" },
+            },
+        ];
+        const limit = vi.fn(async () => rows);
+        const where = vi.fn(() => ({ limit }));
+        const from = vi.fn(() => ({ where }));
+        const select = vi.fn(() => ({ from }));
+        const service = createFeesService({ db: { select } as any });
+
+        const components = await service.getQuoteFeeComponents({ quoteId: QUOTE_ID });
+
+        expect(components.map((x) => x.id)).toEqual([
+            `quote_component:${QUOTE_ID}:1`,
+            `quote_component:${QUOTE_ID}:2`,
+        ]);
+        expect(components[0]).toMatchObject({
+            ruleId: "11111111-1111-4111-8111-111111111112",
+            transferCode: 44,
+            memo: "fee",
+            metadata: { reason: "policy" },
+            settlementMode: "separate_payment_order",
+        });
+        expect(components[1]).toMatchObject({
+            ruleId: undefined,
+            transferCode: undefined,
+            memo: undefined,
+            metadata: undefined,
+        });
+    });
+
+    it("aggregates, merges and partitions components by settlement and posting identity", () => {
+        const service = createFeesService({ db: {} as any });
+
+        const aggregated = service.aggregateFeeComponents([
+            feeComponent({ id: "a1", amountMinor: 10n, memo: "revenue" }),
+            feeComponent({ id: "a2", amountMinor: 5n, memo: "revenue" }),
+            feeComponent({ id: "zero", amountMinor: 0n }),
+            feeComponent({ id: "sep", amountMinor: 7n, settlementMode: "separate_payment_order", memo: "revenue" }),
+        ] as any);
+
+        expect(aggregated).toHaveLength(2);
+        expect(aggregated.find((x) => x.settlementMode === "in_ledger")!.amountMinor).toBe(15n);
+        expect(aggregated.find((x) => x.settlementMode === "separate_payment_order")!.amountMinor).toBe(7n);
+
+        const mergedRaw = service.mergeFeeComponents({
+            computed: [feeComponent({ id: "m1", amountMinor: 4n }) as any],
+            manual: [feeComponent({ id: "m2", amountMinor: 6n }) as any],
+            aggregate: false,
+        });
+        expect(mergedRaw).toHaveLength(2);
+
+        const mergedAggregated = service.mergeFeeComponents({
+            computed: [feeComponent({ id: "m1", amountMinor: 4n, memo: "same" }) as any],
+            manual: [feeComponent({ id: "m2", amountMinor: 6n, memo: "same" }) as any],
+        });
+        expect(mergedAggregated).toHaveLength(1);
+        expect(mergedAggregated[0]!.amountMinor).toBe(10n);
+
+        const partitioned = service.partitionFeeComponents([
+            feeComponent({ id: "p1", settlementMode: undefined }),
+            feeComponent({ id: "p2", settlementMode: "separate_payment_order" }),
+        ] as any);
+        expect(partitioned.inLedger).toHaveLength(1);
+        expect(partitioned.inLedger[0]!.settlementMode).toBe("in_ledger");
+        expect(partitioned.separatePaymentOrder).toHaveLength(1);
+    });
+
+    it("builds transfer plans with posting overrides and custom plan keys", () => {
+        const service = createFeesService({ db: {} as any });
 
         const plans = service.buildFeeTransferPlans({
             components: [
-                {
-                    id: "manual-bank-fee",
-                    kind: "bank_fee",
-                    currency: "USD",
-                    amountMinor: 10n,
-                    source: "manual",
-                    settlementMode: "in_ledger",
-                    debitAccountKey: "Debit:Account",
-                    creditAccountKey: "Credit:Account",
-                },
-            ],
-            makePlanKey: (component, idx) => {
-                callbackCalls++;
-                return `custom:${idx}:${component.id}`;
+                feeComponent({
+                    id: "c1",
+                    debitAccountKey: "Account:fees:debit",
+                    creditAccountKey: "Account:fees:credit",
+                    transferCode: 10,
+                    memo: "component memo",
+                }),
+                feeComponent({ id: "c2", settlementMode: "separate_payment_order", amountMinor: 99n }),
+                feeComponent({
+                    id: "c3",
+                    amountMinor: 0n,
+                    debitAccountKey: "Account:fees:debit",
+                    creditAccountKey: "Account:fees:credit",
+                }),
+            ] as any,
+            chain: "fee-chain",
+            includeZeroAmounts: true,
+            makePlanKey: (component, idx) => `custom:${idx}:${component.id}`,
+            resolvePosting: (component) => {
+                if (component.id === "c1") {
+                    return {
+                        debitKey: "Account:override:debit",
+                        code: 777,
+                        memo: "override memo",
+                    };
+                }
+                return {};
             },
-            resolvePosting: () => ({}),
         });
 
-        expect(callbackCalls).toBe(1);
-        expect(plans).toHaveLength(1);
-        expect(plans[0]!.planKey).toBe("custom:1:manual-bank-fee");
+        expect(plans).toHaveLength(2);
+        expect(plans[0]).toMatchObject({
+            planKey: "custom:1:c1",
+            debitKey: "Account:override:debit",
+            creditKey: "Account:fees:credit",
+            code: 777,
+            memo: "override memo",
+            chain: "fee-chain",
+            amount: 10n,
+        });
+        expect(plans[1]).toMatchObject({
+            planKey: "custom:3:c3",
+            amount: 0n,
+        });
+    });
+
+    it("throws when transfer-plan account keys are still missing after resolvePosting", () => {
+        const service = createFeesService({ db: {} as any });
+
+        expect(() => service.buildFeeTransferPlans({
+            components: [
+                feeComponent({
+                    id: "missing-keys",
+                    debitAccountKey: undefined,
+                    creditAccountKey: undefined,
+                }),
+            ] as any,
+            resolvePosting: () => ({}),
+        })).toThrow(FeeValidationError);
     });
 });

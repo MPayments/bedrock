@@ -1,0 +1,38 @@
+import { sql } from "drizzle-orm";
+import { bigint, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { fxQuotes } from "./quotes";
+import { organizations } from "../treasury/organizations";
+
+export type FxQuoteLegSourceKind = "cb" | "bank" | "manual" | "derived" | "market";
+
+export const fxQuoteLegs = pgTable(
+    "fx_quote_legs",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        quoteId: uuid("quote_id")
+            .notNull()
+            .references(() => fxQuotes.id, { onDelete: "cascade" }),
+        idx: integer("idx").notNull(),
+
+        fromCurrency: text("from_currency").notNull(),
+        toCurrency: text("to_currency").notNull(),
+
+        fromAmountMinor: bigint("from_amount_minor", { mode: "bigint" }).notNull(),
+        toAmountMinor: bigint("to_amount_minor", { mode: "bigint" }).notNull(),
+
+        rateNum: bigint("rate_num", { mode: "bigint" }).notNull(),
+        rateDen: bigint("rate_den", { mode: "bigint" }).notNull(),
+
+        sourceKind: text("source_kind").$type<FxQuoteLegSourceKind>().notNull().default("derived"),
+        sourceRef: text("source_ref"),
+        asOf: timestamp("as_of", { withTimezone: true }).notNull(),
+
+        executionOrgId: uuid("execution_org_id").references(() => organizations.id),
+
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+    },
+    (t) => ([
+        uniqueIndex("fx_quote_legs_quote_idx_uq").on(t.quoteId, t.idx),
+        index("fx_quote_legs_quote_idx").on(t.quoteId),
+    ])
+);

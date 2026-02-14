@@ -19,11 +19,14 @@ Unified fee-domain package.
   - `calculateFxQuoteFeeComponents`
   - `saveQuoteFeeComponents`
   - `getQuoteFeeComponents`
-  - `buildFxExecutionFeeComponents`
   - `mergeFeeComponents`
   - `aggregateFeeComponents`
   - `partitionFeeComponents`
   - `buildFeeTransferPlans`
+  - `mergeAdjustmentComponents`
+  - `aggregateAdjustmentComponents`
+  - `partitionAdjustmentComponents`
+  - `buildAdjustmentTransferPlans`
 
 ## Exports
 

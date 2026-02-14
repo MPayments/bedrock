@@ -70,8 +70,6 @@ describe("executeFxInputSchema", () => {
         customerId: validUuid,
         payInCurrency: "USD",
         principalMinor: 100000n,
-        feeMinor: 500n,
-        spreadMinor: 200n,
         payOutCurrency: "EUR",
         payOutAmountMinor: 85000n,
         occurredAt: new Date(),
@@ -82,32 +80,42 @@ describe("executeFxInputSchema", () => {
         expect(() => validateExecuteFxInput(validInput)).not.toThrow();
     });
 
-    it("should allow zero fee", () => {
-        expect(() => validateExecuteFxInput({ ...validInput, feeMinor: 0n })).not.toThrow();
-    });
-
-    it("should allow zero spread", () => {
-        expect(() => validateExecuteFxInput({ ...validInput, spreadMinor: 0n })).not.toThrow();
-    });
-
-    it("should default fee/spread to 0 when omitted", () => {
+    it("should default fees/adjustments arrays when omitted", () => {
         const result = validateExecuteFxInput({
             ...validInput,
-            feeMinor: undefined,
-            spreadMinor: undefined,
+            fees: undefined,
+            adjustments: undefined,
         } as any);
 
-        expect(result.feeMinor).toBe(0n);
-        expect(result.spreadMinor).toBe(0n);
+        expect(result.fees).toEqual([]);
+        expect(result.adjustments).toEqual([]);
     });
 
-    it("should reject negative fee", () => {
-        expect(() => validateExecuteFxInput({ ...validInput, feeMinor: -100n }))
-            .toThrow(ValidationError);
+    it("should reject zero adjustment amount", () => {
+        expect(() =>
+            validateExecuteFxInput({
+                ...validInput,
+                adjustments: [
+                    {
+                        kind: "discount",
+                        effect: "decrease_charge",
+                        currency: "USD",
+                        amountMinor: 0n,
+                    },
+                ],
+            })
+        ).toThrow(ValidationError);
     });
 
-    it("should reject negative spread", () => {
-        expect(() => validateExecuteFxInput({ ...validInput, spreadMinor: -100n }))
+    it("should reject negative manual fee amount", () => {
+        expect(() => validateExecuteFxInput({
+            ...validInput,
+            fees: [{
+                kind: "manual_fee",
+                currency: "USD",
+                amountMinor: -100n,
+            }],
+        }))
             .toThrow(ValidationError);
     });
 

@@ -4,22 +4,55 @@ import { type Database } from "@bedrock/db";
 import { type Logger, normalizeCurrency } from "@bedrock/kernel";
 import { type FeesService } from "@bedrock/fees";
 import { BPS_SCALE } from "@bedrock/kernel/constants";
-import { QuoteExpiredError, RateNotFoundError, NotFoundError, PolicyNotFoundError } from "./errors";
+import {
+    QuoteExpiredError,
+    RateNotFoundError,
+    NotFoundError,
+    PolicyNotFoundError,
+    ValidationError,
+} from "./errors";
 import {
     validateUpsertPolicyInput,
     validateSetManualRateInput,
     validateQuoteInput,
     validateMarkQuoteUsedInput,
+    validateGetQuoteDetailsInput,
     type UpsertPolicyInput,
     type SetManualRateInput,
     type QuoteInput,
     type MarkQuoteUsedInput,
+    type GetQuoteDetailsInput,
 } from "./validation";
 
 function mulDivFloor(a: bigint, num: bigint, den: bigint): bigint {
     if (den <= 0n) throw new Error("rateDen must be > 0");
     return (a * num) / den;
 }
+
+function gcd(a: bigint, b: bigint): bigint {
+    let x = a < 0n ? -a : a;
+    let y = b < 0n ? -b : b;
+    while (y !== 0n) {
+        const t = y;
+        y = x % y;
+        x = t;
+    }
+    return x;
+}
+
+type ComputedLeg = {
+    idx: number;
+    fromCurrency: string;
+    toCurrency: string;
+    fromAmountMinor: bigint;
+    toAmountMinor: bigint;
+    rateNum: bigint;
+    rateDen: bigint;
+    sourceKind: "cb" | "bank" | "manual" | "derived" | "market";
+    sourceRef: string | null;
+    asOf: Date;
+    executionOrgId: string | null;
+};
 
 export type FxService = ReturnType<typeof createFxService>;
 
@@ -29,19 +62,51 @@ type FxServiceDeps = {
     logger?: Logger;
 };
 
+export type FxQuoteDetails = {
+    quote: FxQuote;
+    legs: typeof schema.fxQuoteLegs.$inferSelect[];
+    feeComponents: Awaited<ReturnType<FeesService["getQuoteFeeComponents"]>>;
+    pricingTrace: Record<string, unknown>;
+};
+
 export function createFxService(deps: FxServiceDeps) {
     const { db, feesService, logger } = deps;
     const log = logger?.child({ svc: "fx" });
 
+    function isUuidLike(value: string): boolean {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    }
+
+    async function resolveQuoteByRef(quoteRef: string): Promise<FxQuote | undefined> {
+        if (isUuidLike(quoteRef)) {
+            const [byId] = await db
+                .select()
+                .from(schema.fxQuotes)
+                .where(eq(schema.fxQuotes.id, quoteRef))
+                .limit(1);
+            const [byIdempotency] = await db
+                .select()
+                .from(schema.fxQuotes)
+                .where(eq(schema.fxQuotes.idempotencyKey, quoteRef))
+                .limit(1);
+
+            if (byId && byIdempotency && byId.id !== byIdempotency.id) {
+                throw new ValidationError(`quoteRef ${quoteRef} is ambiguous between quote ID and idempotency key`);
+            }
+
+            return byId ?? byIdempotency;
+        }
+
+        const [byIdempotency] = await db
+            .select()
+            .from(schema.fxQuotes)
+            .where(eq(schema.fxQuotes.idempotencyKey, quoteRef))
+            .limit(1);
+        return byIdempotency;
+    }
+
     async function upsertPolicy(input: UpsertPolicyInput) {
         const validated = validateUpsertPolicyInput(input);
-
-        log?.debug("Creating FX policy", {
-            name: validated.name,
-            marginBps: validated.marginBps,
-            feeBps: validated.feeBps,
-            ttlSeconds: validated.ttlSeconds,
-        });
 
         const upserted = await db
             .insert(schema.fxPolicies)
@@ -49,7 +114,7 @@ export function createFxService(deps: FxServiceDeps) {
                 name: validated.name,
                 marginBps: validated.marginBps,
                 feeBps: validated.feeBps,
-                ttlSeconds: validated.ttlSeconds
+                ttlSeconds: validated.ttlSeconds,
             })
             .onConflictDoUpdate({
                 target: schema.fxPolicies.name,
@@ -62,23 +127,11 @@ export function createFxService(deps: FxServiceDeps) {
             })
             .returning({ id: schema.fxPolicies.id });
 
-        log?.info("FX policy upserted", {
-            policyId: upserted[0]!.id,
-            name: validated.name,
-        });
-
         return upserted[0]!.id;
     }
 
     async function setManualRate(input: SetManualRateInput) {
         const validated = validateSetManualRateInput(input);
-
-        log?.debug("Setting manual FX rate", {
-            base: validated.base,
-            quote: validated.quote,
-            rateNum: validated.rateNum.toString(),
-            rateDen: validated.rateDen.toString(),
-        });
 
         await db.insert(schema.fxRates).values({
             base: validated.base,
@@ -86,14 +139,7 @@ export function createFxService(deps: FxServiceDeps) {
             rateNum: validated.rateNum,
             rateDen: validated.rateDen,
             asOf: validated.asOf,
-            source: validated.source ?? "manual"
-        });
-
-        log?.info("Manual FX rate set", {
-            base: validated.base,
-            quote: validated.quote,
-            rateNum: validated.rateNum.toString(),
-            rateDen: validated.rateDen.toString(),
+            source: validated.source ?? "manual",
         });
     }
 
@@ -112,43 +158,28 @@ export function createFxService(deps: FxServiceDeps) {
         return rows[0]!;
     }
 
-    /**
-     * Упрощенный cross-rate:
-     * - сначала пробуем прямой base->quote
-     * - иначе через USD: base->USD и USD->quote (можно поменять anchor на любую)
-     */
     async function getCrossRate(base: string, quote: string, asOf: Date, anchor = "USD") {
         base = normalizeCurrency(base);
         quote = normalizeCurrency(quote);
         anchor = normalizeCurrency(anchor);
 
-        if (base === quote) return {
-            base,
-            quote,
-            rateNum: 1n,
-            rateDen: 1n,
-        };
+        if (base === quote) {
+            return {
+                base,
+                quote,
+                rateNum: 1n,
+                rateDen: 1n,
+            };
+        }
 
-        // direct
         try {
             const r = await getLatestRate(base, quote, asOf);
-            return {
-                base,
-                quote,
-                rateNum: r.rateNum,
-                rateDen: r.rateDen,
-            };
+            return { base, quote, rateNum: r.rateNum, rateDen: r.rateDen };
         } catch { }
 
-        // inverse direct
         try {
             const r = await getLatestRate(quote, base, asOf);
-            return {
-                base,
-                quote,
-                rateNum: r.rateDen,
-                rateDen: r.rateNum,
-            };
+            return { base, quote, rateNum: r.rateDen, rateDen: r.rateNum };
         } catch { }
 
         if (base === anchor || quote === anchor) {
@@ -157,21 +188,14 @@ export function createFxService(deps: FxServiceDeps) {
 
         const a = await getLatestRate(base, anchor, asOf).catch(async () => {
             const inv = await getLatestRate(anchor, base, asOf);
-            return {
-                rateNum: inv.rateDen,
-                rateDen: inv.rateNum,
-            };
+            return { rateNum: inv.rateDen, rateDen: inv.rateNum };
         });
 
         const b = await getLatestRate(anchor, quote, asOf).catch(async () => {
             const inv = await getLatestRate(quote, anchor, asOf);
-            return {
-                rateNum: inv.rateDen,
-                rateDen: inv.rateNum,
-            };
+            return { rateNum: inv.rateDen, rateDen: inv.rateNum };
         });
 
-        // (base->anchor) * (anchor->quote)
         return {
             base,
             quote,
@@ -180,38 +204,100 @@ export function createFxService(deps: FxServiceDeps) {
         };
     }
 
-    /**
-     * Quote:
-     * - fromAmountMinor задан
-     * - вычисляем toAmountMinor по mid rate, затем применяем маржу (уменьшаем output)
-     * - fee и spread считаем в валюте FROM (упрощенно)
-     *
-     * Это MVP-уровень: не делаем reservation, позиции, хедж.
-     */
+    function buildAutoCrossTrace(input: QuoteInput & { mode: "auto_cross"; anchor?: string }, rateNum: bigint, rateDen: bigint) {
+        return {
+            version: "v1",
+            mode: "auto_cross",
+            anchor: input.anchor ?? "USD",
+            summary: `${input.fromCurrency}/${input.toCurrency} cross quote`,
+            steps: [
+                {
+                    type: "cross_rate",
+                    fromCurrency: input.fromCurrency,
+                    toCurrency: input.toCurrency,
+                    rateNum: rateNum.toString(),
+                    rateDen: rateDen.toString(),
+                    asOf: input.asOf.toISOString(),
+                },
+            ],
+        } as Record<string, unknown>;
+    }
+
+    function computeExplicitRouteLegs(input: QuoteInput & { mode: "explicit_route" }): ComputedLeg[] {
+        if (input.legs[0]!.fromCurrency !== input.fromCurrency) {
+            throw new ValidationError("First leg fromCurrency must match quote fromCurrency");
+        }
+        if (input.legs[input.legs.length - 1]!.toCurrency !== input.toCurrency) {
+            throw new ValidationError("Last leg toCurrency must match quote toCurrency");
+        }
+
+        let rollingAmount = input.fromAmountMinor;
+        const result: ComputedLeg[] = [];
+
+        for (let idx = 0; idx < input.legs.length; idx++) {
+            const leg = input.legs[idx]!;
+            if (idx > 0) {
+                const prev = input.legs[idx - 1]!;
+                if (prev.toCurrency !== leg.fromCurrency) {
+                    throw new ValidationError(
+                        `Leg continuity mismatch at idx=${idx + 1}: ${prev.toCurrency} != ${leg.fromCurrency}`
+                    );
+                }
+            }
+
+            const toAmountMinor = mulDivFloor(rollingAmount, leg.rateNum, leg.rateDen);
+            if (toAmountMinor <= 0n) {
+                throw new ValidationError(`Computed leg toAmountMinor must be positive at idx=${idx + 1}`);
+            }
+
+            result.push({
+                idx: idx + 1,
+                fromCurrency: leg.fromCurrency,
+                toCurrency: leg.toCurrency,
+                fromAmountMinor: rollingAmount,
+                toAmountMinor,
+                rateNum: leg.rateNum,
+                rateDen: leg.rateDen,
+                sourceKind: leg.sourceKind,
+                sourceRef: leg.sourceRef ?? null,
+                asOf: leg.asOf ?? input.asOf,
+                executionOrgId: leg.executionOrgId ?? null,
+            });
+
+            rollingAmount = toAmountMinor;
+        }
+
+        return result;
+    }
+
+    function effectiveRateFromAmounts(fromAmountMinor: bigint, toAmountMinor: bigint): { rateNum: bigint; rateDen: bigint } {
+        const d = gcd(toAmountMinor, fromAmountMinor);
+        return {
+            rateNum: toAmountMinor / d,
+            rateDen: fromAmountMinor / d,
+        };
+    }
+
+    async function getQuoteDetails(rawInput: GetQuoteDetailsInput): Promise<FxQuoteDetails> {
+        const input = validateGetQuoteDetailsInput(rawInput);
+        const quote = await resolveQuoteByRef(input.quoteRef);
+
+        if (!quote) throw new NotFoundError("Quote", input.quoteRef);
+
+        const legs = await db
+            .select()
+            .from(schema.fxQuoteLegs)
+            .where(eq(schema.fxQuoteLegs.quoteId, quote.id))
+            .orderBy(schema.fxQuoteLegs.idx);
+
+        const feeComponents = await feesService.getQuoteFeeComponents({ quoteId: quote.id });
+        const pricingTrace = (quote.pricingTrace ?? {}) as Record<string, unknown>;
+
+        return { quote, legs, feeComponents, pricingTrace };
+    }
+
     async function quote(input: QuoteInput): Promise<FxQuote> {
         const validated = validateQuoteInput(input);
-
-        log?.debug("Creating FX quote", {
-            policyId: validated.policyId,
-            fromCurrency: validated.fromCurrency,
-            toCurrency: validated.toCurrency,
-            fromAmountMinor: validated.fromAmountMinor.toString(),
-        });
-
-        // idempotent: if exists, return
-        const existing = await db
-            .select()
-            .from(schema.fxQuotes)
-            .where(eq(schema.fxQuotes.idempotencyKey, validated.idempotencyKey))
-            .limit(1);
-
-        if (existing.length) {
-            log?.debug("Quote already exists (idempotent)", {
-                quoteId: existing[0]!.id,
-                idempotencyKey: validated.idempotencyKey,
-            });
-            return existing[0]!;
-        }
 
         const [policy] = await db
             .select()
@@ -223,21 +309,48 @@ export function createFxService(deps: FxServiceDeps) {
             throw new PolicyNotFoundError(validated.policyId);
         }
 
-        const r = await getCrossRate(
-            validated.fromCurrency,
-            validated.toCurrency,
-            validated.asOf,
-            validated.anchor ?? "USD"
-        );
+        let legs: ComputedLeg[] = [];
+        let toAmountMinor = 0n;
+        let rateNum = 1n;
+        let rateDen = 1n;
+        let pricingTrace: Record<string, unknown>;
 
-        // mid toAmount
-        const midTo = mulDivFloor(validated.fromAmountMinor, r.rateNum, r.rateDen);
+        if (validated.mode === "auto_cross") {
+            const cross = await getCrossRate(
+                validated.fromCurrency,
+                validated.toCurrency,
+                validated.asOf,
+                validated.anchor ?? "USD"
+            );
+            const midToAmount = mulDivFloor(validated.fromAmountMinor, cross.rateNum, cross.rateDen);
+            const marginBps = BigInt(policy.marginBps);
+            toAmountMinor = (midToAmount * (BPS_SCALE - marginBps)) / BPS_SCALE;
+            const effectiveRate = effectiveRateFromAmounts(validated.fromAmountMinor, toAmountMinor);
+            rateNum = effectiveRate.rateNum;
+            rateDen = effectiveRate.rateDen;
 
-        // margin reduces customer output: customer gets less toCurrency
-        const marginBps = BigInt(policy.marginBps);
-
-        // customerTo = midTo * (1 - marginBps/10000)
-        const customerTo = (midTo * (BPS_SCALE - marginBps)) / BPS_SCALE;
+            legs = [{
+                idx: 1,
+                fromCurrency: validated.fromCurrency,
+                toCurrency: validated.toCurrency,
+                fromAmountMinor: validated.fromAmountMinor,
+                toAmountMinor,
+                rateNum,
+                rateDen,
+                sourceKind: "derived",
+                sourceRef: validated.anchor ?? "USD",
+                asOf: validated.asOf,
+                executionOrgId: null,
+            }];
+            pricingTrace = validated.pricingTrace ?? buildAutoCrossTrace(validated, cross.rateNum, cross.rateDen);
+        } else {
+            legs = computeExplicitRouteLegs(validated);
+            toAmountMinor = legs[legs.length - 1]!.toAmountMinor;
+            const effectiveRate = effectiveRateFromAmounts(validated.fromAmountMinor, toAmountMinor);
+            rateNum = effectiveRate.rateNum;
+            rateDen = effectiveRate.rateDen;
+            pricingTrace = validated.pricingTrace;
+        }
 
         const feeComponents = await feesService.calculateFxQuoteFeeComponents({
             fromCurrency: validated.fromCurrency,
@@ -248,76 +361,81 @@ export function createFxService(deps: FxServiceDeps) {
             at: validated.asOf,
         });
 
-        const feeFrom =
-            feeComponents.find((component) => component.kind === "fx_fee")?.amountMinor ?? 0n;
-        const spreadFrom =
-            feeComponents.find((component) => component.kind === "fx_spread")?.amountMinor ?? 0n;
-
         const expiresAt = new Date(validated.asOf.getTime() + policy.ttlSeconds * 1000);
 
-        const inserted = await db
-            .insert(schema.fxQuotes)
-            .values({
-                policyId: policy.id,
-                fromCurrency: validated.fromCurrency,
-                toCurrency: validated.toCurrency,
-                fromAmountMinor: validated.fromAmountMinor,
-                toAmountMinor: customerTo,
-                feeFromMinor: feeFrom,
-                spreadFromMinor: spreadFrom,
-                rateNum: r.rateNum,
-                rateDen: r.rateDen,
-                expiresAt,
-                status: "active",
-                idempotencyKey: validated.idempotencyKey
-            })
-            .onConflictDoNothing({
-                target: schema.fxQuotes.idempotencyKey,
-            })
-            .returning();
+        return db.transaction(async (tx: any) => {
+            const inserted = await tx
+                .insert(schema.fxQuotes)
+                .values({
+                    policyId: policy.id,
+                    fromCurrency: validated.fromCurrency,
+                    toCurrency: validated.toCurrency,
+                    fromAmountMinor: validated.fromAmountMinor,
+                    toAmountMinor,
+                    pricingMode: validated.mode,
+                    pricingTrace,
+                    dealDirection: validated.dealDirection ?? null,
+                    dealForm: validated.dealForm ?? null,
+                    rateNum,
+                    rateDen,
+                    expiresAt,
+                    status: "active",
+                    idempotencyKey: validated.idempotencyKey,
+                })
+                .onConflictDoNothing({
+                    target: schema.fxQuotes.idempotencyKey,
+                })
+                .returning();
 
-        const created = inserted[0];
-        if (created) {
-            await feesService.saveQuoteFeeComponents({
-                quoteId: created.id,
-                components: feeComponents,
-            });
+            const created = inserted[0];
+            if (created) {
+                await tx.insert(schema.fxQuoteLegs).values(
+                    legs.map((leg) => ({
+                        quoteId: created.id,
+                        idx: leg.idx,
+                        fromCurrency: leg.fromCurrency,
+                        toCurrency: leg.toCurrency,
+                        fromAmountMinor: leg.fromAmountMinor,
+                        toAmountMinor: leg.toAmountMinor,
+                        rateNum: leg.rateNum,
+                        rateDen: leg.rateDen,
+                        sourceKind: leg.sourceKind,
+                        sourceRef: leg.sourceRef,
+                        asOf: leg.asOf,
+                        executionOrgId: leg.executionOrgId,
+                    }))
+                );
 
-            log?.info("FX quote created", {
-                quoteId: created.id,
-                fromCurrency: validated.fromCurrency,
-                toCurrency: validated.toCurrency,
-                fromAmountMinor: validated.fromAmountMinor.toString(),
-                toAmountMinor: customerTo.toString(),
-                feeComponents: feeComponents.length,
-            });
-            return created;
-        }
+                await feesService.saveQuoteFeeComponents({
+                    quoteId: created.id,
+                    components: feeComponents,
+                }, tx);
 
-        const [racedExisting] = await db
-            .select()
-            .from(schema.fxQuotes)
-            .where(eq(schema.fxQuotes.idempotencyKey, validated.idempotencyKey))
-            .limit(1);
+                log?.info("FX quote created", {
+                    quoteId: created.id,
+                    mode: validated.mode,
+                    legs: legs.length,
+                    feeComponents: feeComponents.length,
+                });
+                return created;
+            }
 
-        if (!racedExisting) {
-            throw new Error(`Quote insert conflict without existing idempotency row: ${validated.idempotencyKey}`);
-        }
+            const [racedExisting] = await tx
+                .select()
+                .from(schema.fxQuotes)
+                .where(eq(schema.fxQuotes.idempotencyKey, validated.idempotencyKey))
+                .limit(1);
 
-        log?.debug("Quote already exists after insert race (idempotent)", {
-            quoteId: racedExisting.id,
-            idempotencyKey: validated.idempotencyKey,
+            if (!racedExisting) {
+                throw new Error(`Quote insert conflict without existing idempotency row: ${validated.idempotencyKey}`);
+            }
+
+            return racedExisting;
         });
-        return racedExisting;
     }
 
     async function markQuoteUsed(input: MarkQuoteUsedInput): Promise<FxQuote> {
         const validated = validateMarkQuoteUsedInput(input);
-
-        log?.debug("Marking quote as used", {
-            quoteId: validated.quoteId,
-            usedByRef: validated.usedByRef,
-        });
 
         const [q] = await db
             .select()
@@ -330,10 +448,6 @@ export function createFxService(deps: FxServiceDeps) {
         }
 
         if (q.status !== "active") {
-            log?.debug("Quote already used or expired", {
-                quoteId: validated.quoteId,
-                status: q.status,
-            });
             return q;
         }
 
@@ -346,7 +460,7 @@ export function createFxService(deps: FxServiceDeps) {
             .set({
                 status: "used",
                 usedByRef: validated.usedByRef,
-                usedAt: validated.at
+                usedAt: validated.at,
             })
             .where(and(
                 eq(schema.fxQuotes.id, validated.quoteId),
@@ -354,23 +468,16 @@ export function createFxService(deps: FxServiceDeps) {
             ))
             .returning();
 
-        if (updated.length) {
-            log?.info("Quote marked as used", {
-                quoteId: validated.quoteId,
-                usedByRef: validated.usedByRef,
-            });
-        }
         return updated[0] ?? q;
     }
 
     async function expireOldQuotes(now: Date) {
-        const result = await db.execute(sql`
+        await db.execute(sql`
       UPDATE ${schema.fxQuotes}
       SET status = 'expired'
       WHERE status = 'active'
         AND expires_at <= ${now}
     `);
-        log?.debug("expireOldQuotes", { expiredCount: result.rowCount ?? 0 });
     }
 
     return {
@@ -379,7 +486,8 @@ export function createFxService(deps: FxServiceDeps) {
         getLatestRate,
         getCrossRate,
         quote,
+        getQuoteDetails,
         markQuoteUsed,
-        expireOldQuotes
+        expireOldQuotes,
     };
 }

@@ -37,7 +37,6 @@ export {
 // Treasury-specific Constants
 // ============================================================================
 
-export const TREASURY_ORG_ID = TEST_UUIDS.ORG_1;
 export const CUSTOMER_ID = TEST_UUIDS.CUSTOMER_1;
 export const ORDER_ID = TEST_UUIDS.ORDER_1;
 export const BRANCH_ORG_ID = TEST_UUIDS.ORG_2;

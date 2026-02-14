@@ -11,9 +11,11 @@ import { reconciliationExceptions } from "./treasury/reconciliation";
 import { fxRates } from "./fx/rates";
 import { fxPolicies } from "./fx/policies";
 import { fxQuotes } from "./fx/quotes";
+import { fxQuoteLegs } from "./fx/quote-legs";
 import { feeRules } from "./fees/rules";
 import { fxQuoteFeeComponents } from "./fees/quote-components";
 import { internalTransfers } from "./transfers/transfers";
+import { feePaymentOrders } from "./treasury/fee-payment-orders";
 
 export const schema = {
   journalEntries,
@@ -30,8 +32,10 @@ export const schema = {
   fxRates,
   fxPolicies,
   fxQuotes,
+  fxQuoteLegs,
   feeRules,
   fxQuoteFeeComponents,
+  feePaymentOrders,
   internalTransfers,
 };
 

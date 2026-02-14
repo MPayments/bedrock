@@ -4,8 +4,8 @@ import { schema } from "@bedrock/db/schema";
 import { type Logger, makePlanKey, normalizeCurrency } from "@bedrock/kernel";
 import { BPS_SCALE, TransferCodes } from "@bedrock/kernel/constants";
 import {
+    validateAdjustmentComponent,
     validateFeeComponent,
-    validateFxExecutionFee,
     validateFxQuoteFeeCalculation,
     validateGetQuoteFeeComponentsInput,
     validateResolveFeeRulesInput,
@@ -13,15 +13,19 @@ import {
     validateUpsertFeeRuleInput,
 } from "./validation";
 import type {
+    AdjustmentComponent,
+    AdjustmentTransferPlan,
+    BuildAdjustmentTransferPlanInput,
     BuildFeeTransferPlanInput,
-    BuildFxExecutionFeeComponentsInput,
     CalculateFxQuoteFeeComponentsInput,
     FeeComponentDefaults,
     FeeComponent,
     FeeTransferPlan,
     FeesService,
     MergeFeeComponentsInput,
+    MergeAdjustmentComponentsInput,
     PartitionedFeeComponents,
+    PartitionedAdjustmentComponents,
     ResolveFeeRulesInput,
     SaveQuoteFeeComponentsInput,
     GetQuoteFeeComponentsInput,
@@ -42,9 +46,31 @@ function normalizeComponent(input: FeeComponent): FeeComponent {
     };
 }
 
+function normalizeAdjustment(input: AdjustmentComponent): AdjustmentComponent {
+    const validated = validateAdjustmentComponent(input);
+    return {
+        ...validated,
+        settlementMode: validated.settlementMode ?? "in_ledger",
+    };
+}
+
 function componentAggregateKey(component: FeeComponent): string {
     return [
         component.kind,
+        component.currency,
+        component.source,
+        component.settlementMode ?? "in_ledger",
+        component.debitAccountKey ?? "",
+        component.creditAccountKey ?? "",
+        String(component.transferCode ?? ""),
+        component.memo ?? "",
+    ].join("|");
+}
+
+function adjustmentAggregateKey(component: AdjustmentComponent): string {
+    return [
+        component.kind,
+        component.effect,
         component.currency,
         component.source,
         component.settlementMode ?? "in_ledger",
@@ -151,6 +177,7 @@ export function createFeesService(deps: CreateFeesServiceDeps): FeesService {
 
     async function listApplicableRules(input: ResolveFeeRulesInput, tx?: any) {
         const validated = validateResolveFeeRulesInput(input);
+        const executor = tx ?? db;
 
         const directionCond = validated.dealDirection
             ? or(isNull(schema.feeRules.dealDirection), eq(schema.feeRules.dealDirection, validated.dealDirection))
@@ -168,7 +195,7 @@ export function createFeesService(deps: CreateFeesServiceDeps): FeesService {
             ? or(isNull(schema.feeRules.toCurrency), eq(schema.feeRules.toCurrency, validated.toCurrency))
             : isNull(schema.feeRules.toCurrency);
 
-        return db
+        return executor
             .select()
             .from(schema.feeRules)
             .where(
@@ -240,8 +267,9 @@ export function createFeesService(deps: CreateFeesServiceDeps): FeesService {
 
     async function saveQuoteFeeComponents(input: SaveQuoteFeeComponentsInput, tx?: any): Promise<void> {
         const validated = validateSaveQuoteFeeComponentsInput(input);
+        const executor = tx ?? db;
 
-        await db.delete(schema.fxQuoteFeeComponents).where(eq(schema.fxQuoteFeeComponents.quoteId, validated.quoteId));
+        await executor.delete(schema.fxQuoteFeeComponents).where(eq(schema.fxQuoteFeeComponents.quoteId, validated.quoteId));
 
         if (!validated.components.length) return;
 
@@ -264,13 +292,14 @@ export function createFeesService(deps: CreateFeesServiceDeps): FeesService {
             };
         });
 
-        await db.insert(schema.fxQuoteFeeComponents).values(rows);
+        await executor.insert(schema.fxQuoteFeeComponents).values(rows);
     }
 
     async function getQuoteFeeComponents(input: GetQuoteFeeComponentsInput, tx?: any): Promise<FeeComponent[]> {
         const validated = validateGetQuoteFeeComponentsInput(input);
+        const executor = tx ?? db;
 
-        const rows = await db
+        const rows = await executor
             .select()
             .from(schema.fxQuoteFeeComponents)
             .where(eq(schema.fxQuoteFeeComponents.quoteId, validated.quoteId))
@@ -292,44 +321,6 @@ export function createFeesService(deps: CreateFeesServiceDeps): FeesService {
             memo: row.memo ?? undefined,
             metadata: row.metadata ?? undefined,
         }));
-    }
-
-    function buildFxExecutionFeeComponents(input: BuildFxExecutionFeeComponentsInput): FeeComponent[] {
-        const validated = validateFxExecutionFee(input);
-        const metadata: Record<string, string> = {};
-
-        if (validated.dealDirection) metadata.dealDirection = validated.dealDirection;
-        if (validated.dealForm) metadata.dealForm = validated.dealForm;
-
-        const result: FeeComponent[] = [];
-
-        if (validated.feeMinor > 0n) {
-            result.push({
-                id: "fx_fee_quote",
-                kind: "fx_fee",
-                currency: validated.currency,
-                amountMinor: validated.feeMinor,
-                source: "policy",
-                settlementMode: "in_ledger",
-                memo: "Fee revenue",
-                metadata,
-            });
-        }
-
-        if (validated.spreadMinor > 0n) {
-            result.push({
-                id: "fx_spread_quote",
-                kind: "fx_spread",
-                currency: validated.currency,
-                amountMinor: validated.spreadMinor,
-                source: "policy",
-                settlementMode: "in_ledger",
-                memo: "FX spread revenue",
-                metadata,
-            });
-        }
-
-        return result;
     }
 
     function aggregateFeeComponents(components: FeeComponent[]): FeeComponent[] {
@@ -366,11 +357,63 @@ export function createFeesService(deps: CreateFeesServiceDeps): FeesService {
         return aggregateFeeComponents(merged);
     }
 
+    function aggregateAdjustmentComponents(components: AdjustmentComponent[]): AdjustmentComponent[] {
+        const grouped = new Map<string, AdjustmentComponent>();
+
+        for (const raw of components) {
+            const component = normalizeAdjustment(raw);
+            if (component.amountMinor === 0n) continue;
+
+            const key = adjustmentAggregateKey(component);
+            const existing = grouped.get(key);
+
+            if (!existing) {
+                grouped.set(key, component);
+                continue;
+            }
+
+            grouped.set(key, {
+                ...existing,
+                amountMinor: existing.amountMinor + component.amountMinor,
+            });
+        }
+
+        return Array.from(grouped.values());
+    }
+
+    function mergeAdjustmentComponents(input: MergeAdjustmentComponentsInput): AdjustmentComponent[] {
+        const computed = (input.computed ?? []).map(normalizeAdjustment);
+        const manual = (input.manual ?? []).map(normalizeAdjustment);
+
+        const merged = [...computed, ...manual].filter((component) => component.amountMinor > 0n);
+
+        if (input.aggregate === false) return merged;
+        return aggregateAdjustmentComponents(merged);
+    }
+
     function partitionFeeComponents(components: FeeComponent[]): PartitionedFeeComponents {
         const normalized = components.map(normalizeComponent);
 
         const inLedger: FeeComponent[] = [];
         const separatePaymentOrder: FeeComponent[] = [];
+
+        for (const component of normalized) {
+            if (component.settlementMode === "separate_payment_order") {
+                separatePaymentOrder.push(component);
+                continue;
+            }
+
+            inLedger.push(component);
+        }
+
+        return { inLedger, separatePaymentOrder };
+    }
+
+    function partitionAdjustmentComponents(components: AdjustmentComponent[]): PartitionedAdjustmentComponents {
+        const normalized = components.map(normalizeAdjustment);
+
+        const inLedger: AdjustmentComponent[] = [];
+        const separatePaymentOrder: AdjustmentComponent[] = [];
 
         for (const component of normalized) {
             if (component.settlementMode === "separate_payment_order") {
@@ -432,6 +475,54 @@ export function createFeesService(deps: CreateFeesServiceDeps): FeesService {
         return result;
     }
 
+    function buildAdjustmentTransferPlans(input: BuildAdjustmentTransferPlanInput): AdjustmentTransferPlan[] {
+        const result: AdjustmentTransferPlan[] = [];
+        const includeZeroAmounts = Boolean(input.includeZeroAmounts);
+
+        for (let idx = 0; idx < input.components.length; idx++) {
+            const component = normalizeAdjustment(input.components[idx]!);
+
+            if (component.settlementMode !== "in_ledger") continue;
+            if (!includeZeroAmounts && component.amountMinor === 0n) continue;
+
+            const posting = input.resolvePosting(component, idx + 1);
+            const debitKey = posting.debitKey ?? component.debitAccountKey;
+            const creditKey = posting.creditKey ?? component.creditAccountKey;
+
+            if (!debitKey || !creditKey) {
+                throw new FeeValidationError(
+                    `Cannot build adjustment transfer plan for component ${component.id}: debit/credit account keys are missing`
+                );
+            }
+
+            const planKey = input.makePlanKey
+                ? input.makePlanKey(component, idx + 1)
+                : makePlanKey("adjustment_component", {
+                    idx: idx + 1,
+                    id: component.id,
+                    kind: component.kind,
+                    effect: component.effect,
+                    currency: component.currency,
+                    amount: component.amountMinor.toString(),
+                    settlementMode: component.settlementMode,
+                });
+
+            result.push({
+                planKey,
+                debitKey,
+                creditKey,
+                currency: component.currency,
+                amount: component.amountMinor,
+                code: posting.code ?? component.transferCode,
+                memo: posting.memo ?? component.memo ?? null,
+                chain: input.chain ?? null,
+                component,
+            });
+        }
+
+        return result;
+    }
+
     return {
         calculateBpsAmount,
         getComponentDefaults,
@@ -440,10 +531,13 @@ export function createFeesService(deps: CreateFeesServiceDeps): FeesService {
         calculateFxQuoteFeeComponents,
         saveQuoteFeeComponents,
         getQuoteFeeComponents,
-        buildFxExecutionFeeComponents,
         mergeFeeComponents,
         aggregateFeeComponents,
         partitionFeeComponents,
         buildFeeTransferPlans,
+        mergeAdjustmentComponents,
+        aggregateAdjustmentComponents,
+        partitionAdjustmentComponents,
+        buildAdjustmentTransferPlans,
     };
 }

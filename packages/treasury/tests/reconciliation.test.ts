@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTreasuryReconciliationWorker } from "../src/reconciliation";
-import { createStubDb, mockDbExecuteResult, type StubDatabase, TREASURY_ORG_ID } from "./helpers";
+import { createStubDb, mockDbExecuteResult, type StubDatabase } from "./helpers";
 
 describe("createTreasuryReconciliationWorker", () => {
     let db: StubDatabase;

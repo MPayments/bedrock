@@ -35,7 +35,9 @@ beforeAll(async () => {
         await pool.query(`
             TRUNCATE TABLE 
                 settlements,
+                fee_payment_orders,
                 fx_quote_fee_components,
+                fx_quote_legs,
                 fx_quotes,
                 fee_rules,
                 fx_policies,
@@ -76,7 +78,9 @@ afterEach(async () => {
     if (pool) {
         try {
             await pool.query("DELETE FROM settlements");
+            await pool.query("DELETE FROM fee_payment_orders");
             await pool.query("DELETE FROM fx_quote_fee_components");
+            await pool.query("DELETE FROM fx_quote_legs");
             await pool.query("DELETE FROM fx_quotes");
             await pool.query("DELETE FROM fee_rules");
             await pool.query("DELETE FROM fx_policies");

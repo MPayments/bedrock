@@ -64,9 +64,6 @@ export const paymentOrders = pgTable(
     ])
 );
 
-// Keep this re-export for backwards compatibility. Canonical definition lives in ../fx/quotes.
-export { fxQuotes } from "../fx/quotes";
-
 export type SettlementKind = "funding" | "payout";
 export type SettlementStatus = "pending" | "settled" | "failed";
 

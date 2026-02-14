@@ -37,13 +37,6 @@ describe("treasuryKeyspace", () => {
         });
     });
 
-    describe("treasuryPool", () => {
-        it("should generate correct key format", () => {
-            const key = K.treasuryPool("USD");
-            expect(key).toBe(`${NS}:TreasuryPool:USD`);
-        });
-    });
-
     describe("intercompanyNet", () => {
         it("should generate correct key format", () => {
             const key = K.intercompanyNet("branch-456", "USD");
@@ -57,10 +50,10 @@ describe("treasuryKeyspace", () => {
         });
     });
 
-    describe("orderPayIn", () => {
+    describe("orderInventory", () => {
         it("should generate correct key format", () => {
-            const key = K.orderPayIn("order-123", "USD");
-            expect(key).toBe(`${NS}:OrderPayIn:order-123:USD`);
+            const key = K.orderInventory("order-123", "USD");
+            expect(key).toBe(`${NS}:OrderInventory:order-123:USD`);
         });
     });
 
@@ -107,9 +100,8 @@ describe("treasuryKeyspace", () => {
         it("should have all expected keys", () => {
             expect(K.customerWallet).toBeDefined();
             expect(K.bank).toBeDefined();
-            expect(K.treasuryPool).toBeDefined();
             expect(K.intercompanyNet).toBeDefined();
-            expect(K.orderPayIn).toBeDefined();
+            expect(K.orderInventory).toBeDefined();
             expect(K.payoutObligation).toBeDefined();
             expect(K.revenueFee).toBeDefined();
             expect(K.revenueSpread).toBeDefined();

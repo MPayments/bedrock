@@ -2,10 +2,7 @@ import { z } from "zod";
 import { normalizeCurrency, isValidCurrency } from "@bedrock/kernel";
 import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
 
-// Shared schemas
-const uuidSchema = z.uuid({
-    version: "v4",
-});
+const uuidSchema = z.string().uuid();
 
 const currencySchema = z
     .string()
@@ -15,14 +12,33 @@ const currencySchema = z
     .transform((val) => normalizeCurrency(val));
 
 const positiveAmountSchema = z.bigint().positive({ message: "Amount must be positive" });
-
 const idempotencyKeySchema = z.string().min(1, "idempotencyKey is required").max(255);
-
 const positiveBigintSchema = z.bigint().positive({ message: "Value must be positive" });
-
 const nonNegativeIntegerSchema = z.number().int().min(0, { message: "Value must be non-negative" });
-
 const positiveIntegerSchema = z.number().int().positive({ message: "Value must be positive" });
+
+const quoteLegSourceKindSchema = z.enum(["cb", "bank", "manual", "derived", "market"]);
+
+export const quoteLegInputSchema = z.object({
+    fromCurrency: currencySchema,
+    toCurrency: currencySchema,
+    rateNum: positiveBigintSchema,
+    rateDen: positiveBigintSchema,
+    sourceKind: quoteLegSourceKindSchema,
+    sourceRef: z.string().min(1).max(512).optional(),
+    asOf: z.date().optional(),
+    executionOrgId: uuidSchema.optional(),
+}).refine((leg) => leg.fromCurrency !== leg.toCurrency, {
+    message: "Leg currencies must be different",
+});
+
+export const pricingTraceSchema = z.object({
+    version: z.literal("v1"),
+    mode: z.enum(["auto_cross", "explicit_route"]),
+    summary: z.string().max(2000).optional(),
+    steps: z.array(z.record(z.string(), z.unknown())).optional(),
+    metadata: z.record(z.string(), z.string().max(255)).optional(),
+}).passthrough();
 
 // UpsertPolicy input schema
 export const upsertPolicyInputSchema = z.object({
@@ -49,8 +65,7 @@ export const setManualRateInputSchema = z.object({
 
 export type SetManualRateInput = z.infer<typeof setManualRateInputSchema>;
 
-// Quote input schema
-export const quoteInputSchema = z.object({
+const quoteBaseSchema = z.object({
     idempotencyKey: idempotencyKeySchema,
     policyId: uuidSchema,
     fromCurrency: currencySchema,
@@ -59,13 +74,29 @@ export const quoteInputSchema = z.object({
     dealDirection: feeDealDirectionSchema.optional(),
     dealForm: feeDealFormSchema.optional(),
     asOf: z.date(),
+});
+
+const autoCrossQuoteSchema = quoteBaseSchema.extend({
+    mode: z.literal("auto_cross"),
     anchor: currencySchema.optional(),
-}).refine(
+    pricingTrace: pricingTraceSchema.optional(),
+});
+
+const explicitRouteQuoteSchema = quoteBaseSchema.extend({
+    mode: z.literal("explicit_route"),
+    legs: z.array(quoteLegInputSchema).min(1),
+    pricingTrace: pricingTraceSchema,
+});
+
+// Quote input schema
+export const quoteInputSchema = z.union([autoCrossQuoteSchema, explicitRouteQuoteSchema]).refine(
     (data) => data.fromCurrency !== data.toCurrency,
     { message: "fromCurrency and toCurrency must be different" }
 );
 
 export type QuoteInput = z.infer<typeof quoteInputSchema>;
+export type QuoteLegInput = z.infer<typeof quoteLegInputSchema>;
+export type PricingTrace = z.infer<typeof pricingTraceSchema>;
 
 // MarkQuoteUsed input schema
 export const markQuoteUsedInputSchema = z.object({
@@ -76,16 +107,12 @@ export const markQuoteUsedInputSchema = z.object({
 
 export type MarkQuoteUsedInput = z.infer<typeof markQuoteUsedInputSchema>;
 
-// GetLatestRate input schema (for internal use)
-export const getLatestRateInputSchema = z.object({
-    base: currencySchema,
-    quote: currencySchema,
-    asOf: z.date(),
+export const getQuoteDetailsInputSchema = z.object({
+    quoteRef: z.string().min(1).max(255),
 });
 
-export type GetLatestRateInput = z.infer<typeof getLatestRateInputSchema>;
+export type GetQuoteDetailsInput = z.infer<typeof getQuoteDetailsInputSchema>;
 
-// Validation helper that throws ValidationError
 import { ValidationError } from "./errors.js";
 
 export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown, context?: string): T {
@@ -94,20 +121,19 @@ export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown, context
     if (!result.success) {
         const errors = result.error.issues;
         if (!errors || errors.length === 0) {
-            throw new ValidationError(`Validation failed${context ? ` for ${context}` : ''}: ${result.error.message || 'Unknown error'}`);
+            throw new ValidationError(`Validation failed${context ? ` for ${context}` : ""}: ${result.error.message || "Unknown error"}`);
         }
 
         const firstError = errors[0]!;
         const path = firstError.path.join(".");
         const message = path ? `${path}: ${firstError.message}` : firstError.message;
 
-        throw new ValidationError(`${context ? `${context}: ` : ''}${message}`);
+        throw new ValidationError(`${context ? `${context}: ` : ""}${message}`);
     }
 
     return result.data;
 }
 
-// Convenience validators
 export function validateUpsertPolicyInput(input: unknown): UpsertPolicyInput {
     return validateInput(upsertPolicyInputSchema, input, "upsertPolicy");
 }
@@ -124,6 +150,6 @@ export function validateMarkQuoteUsedInput(input: unknown): MarkQuoteUsedInput {
     return validateInput(markQuoteUsedInputSchema, input, "markQuoteUsed");
 }
 
-export function validateGetLatestRateInput(input: unknown): GetLatestRateInput {
-    return validateInput(getLatestRateInputSchema, input, "getLatestRate");
+export function validateGetQuoteDetailsInput(input: unknown): GetQuoteDetailsInput {
+    return validateInput(getQuoteDetailsInputSchema, input, "getQuoteDetails");
 }

@@ -180,8 +180,6 @@ describe("Treasury Service Integration Tests", () => {
             scenario: Awaited<ReturnType<typeof createTestScenario>>,
             quoteRef: string,
             overrides: Partial<{
-                feeFromMinor: bigint;
-                spreadFromMinor: bigint;
                 status: "active" | "used" | "expired" | "cancelled";
                 usedByRef: string | null;
                 expiresAt: Date;
@@ -196,8 +194,6 @@ describe("Treasury Service Integration Tests", () => {
                     idempotencyKey: quoteRef,
                 },
                 {
-                    feeFromMinor: overrides.feeFromMinor ?? 500n,
-                    spreadFromMinor: overrides.spreadFromMinor ?? 200n,
                     status: overrides.status,
                     usedByRef: overrides.usedByRef,
                     expiresAt: overrides.expiresAt,
@@ -221,8 +217,6 @@ describe("Treasury Service Integration Tests", () => {
                 customerId: scenario.customer.id,
                 payInCurrency: "USD",
                 principalMinor: 100000n,
-                feeMinor: 500n,
-                spreadMinor: 200n,
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
                 occurredAt: new Date(),
@@ -239,7 +233,7 @@ describe("Treasury Service Integration Tests", () => {
             expect(entry).toBeDefined();
             expect(entry!.idempotencyKey).toBe(`fx:${quoteRef}`);
 
-            // Should have multiple transfers: principal, fee, spread, intercompany commit, payout obligation
+            // Should have multiple transfers: principal, leg postings, payout obligation
             const plans = await getTbTransferPlans(entryId);
             expect(plans.length).toBeGreaterThanOrEqual(3); // At least principal + intercompany + obligation
 
@@ -248,7 +242,7 @@ describe("Treasury Service Integration Tests", () => {
             expect(linkedCount).toBe(plans.length - 1); // All but last should be linked
         });
 
-        it("should skip fee transfer when feeMinor is 0", async () => {
+        it("should skip fee transfer when quote/manual fees are absent", async () => {
             const scenario = await createTestScenario({ orderStatus: "funding_settled" });
             const service = createTreasuryService({
                 db,
@@ -257,15 +251,13 @@ describe("Treasury Service Integration Tests", () => {
             });
 
             const quoteRef = randomQuoteRef();
-            await createQuoteForOrder(scenario, quoteRef, { feeFromMinor: 0n, spreadFromMinor: 0n });
+            await createQuoteForOrder(scenario, quoteRef);
             const entryId = await service.executeFx({
                 orderId: scenario.order.id,
                 branchOrgId: scenario.branchOrg.id,
                 customerId: scenario.customer.id,
                 payInCurrency: "USD",
                 principalMinor: 100000n,
-                feeMinor: 0n,
-                spreadMinor: 0n,
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
                 occurredAt: new Date(),
@@ -297,8 +289,6 @@ describe("Treasury Service Integration Tests", () => {
                     customerId: scenario.customer.id,
                     payInCurrency: "USD",
                     principalMinor: 100000n,
-                    feeMinor: 500n,
-                    spreadMinor: 200n,
                     payOutCurrency: "EUR",
                     payOutAmountMinor: 85000n,
                     occurredAt: new Date(),
@@ -328,8 +318,6 @@ describe("Treasury Service Integration Tests", () => {
                     customerId: scenario.customer.id,
                     payInCurrency: "USD",
                     principalMinor: 100000n,
-                    feeMinor: 500n,
-                    spreadMinor: 200n,
                     payOutCurrency: "EUR",
                     payOutAmountMinor: 85000n,
                     occurredAt: new Date(),
@@ -353,8 +341,6 @@ describe("Treasury Service Integration Tests", () => {
                     customerId: scenario.customer.id,
                     payInCurrency: "USD",
                     principalMinor: 100000n,
-                    feeMinor: 0n,
-                    spreadMinor: 0n,
                     payOutCurrency: "EUR",
                     payOutAmountMinor: 85000n,
                     occurredAt: new Date(),
@@ -608,10 +594,6 @@ describe("Treasury Service Integration Tests", () => {
                     fromAmountMinor: scenario.order.payInExpectedMinor,
                     toAmountMinor: scenario.order.payOutAmountMinor,
                     idempotencyKey: quoteRef,
-                },
-                {
-                    feeFromMinor: 500n,
-                    spreadFromMinor: 200n,
                 }
             );
             const fxEntryId = await service.executeFx({
@@ -620,8 +602,6 @@ describe("Treasury Service Integration Tests", () => {
                 customerId: scenario.customer.id,
                 payInCurrency: "USD",
                 principalMinor: 100000n,
-                feeMinor: 500n,
-                spreadMinor: 200n,
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
                 occurredAt: new Date(),
@@ -704,10 +684,6 @@ describe("Treasury Service Integration Tests", () => {
                     fromAmountMinor: scenario.order.payInExpectedMinor,
                     toAmountMinor: scenario.order.payOutAmountMinor,
                     idempotencyKey: quoteRef,
-                },
-                {
-                    feeFromMinor: 0n,
-                    spreadFromMinor: 0n,
                 }
             );
             await service.executeFx({
@@ -716,8 +692,6 @@ describe("Treasury Service Integration Tests", () => {
                 customerId: scenario.customer.id,
                 payInCurrency: "USD",
                 principalMinor: 100000n,
-                feeMinor: 0n,
-                spreadMinor: 0n,
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
                 occurredAt: new Date(),

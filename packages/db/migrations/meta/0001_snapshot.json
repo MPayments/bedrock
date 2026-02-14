@@ -1,9 +1,387 @@
 {
-  "id": "42a29192-03c6-4b2d-9807-9b458caa2681",
-  "prevId": "490e9c9b-22f0-4946-9334-948e1bf34e98",
+  "id": "579dc555-91b4-4948-9342-d897b22203c9",
+  "prevId": "091fee08-2f91-4b72-af05-2c6e41d76c34",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.fx_quote_fee_components": {
+      "name": "fx_quote_fee_components",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "quote_id": {
+          "name": "quote_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idx": {
+          "name": "idx",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rule_id": {
+          "name": "rule_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'policy'"
+        },
+        "settlement_mode": {
+          "name": "settlement_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'in_ledger'"
+        },
+        "debit_account_key": {
+          "name": "debit_account_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credit_account_key": {
+          "name": "credit_account_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transfer_code": {
+          "name": "transfer_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "memo": {
+          "name": "memo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "fx_quote_fee_components_quote_idx_uq": {
+          "name": "fx_quote_fee_components_quote_idx_uq",
+          "columns": [
+            {
+              "expression": "quote_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idx",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fx_quote_fee_components_quote_id_idx": {
+          "name": "fx_quote_fee_components_quote_id_idx",
+          "columns": [
+            {
+              "expression": "quote_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fx_quote_fee_components_quote_id_fx_quotes_id_fk": {
+          "name": "fx_quote_fee_components_quote_id_fx_quotes_id_fk",
+          "tableFrom": "fx_quote_fee_components",
+          "tableTo": "fx_quotes",
+          "columnsFrom": [
+            "quote_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "fx_quote_fee_components_rule_id_fee_rules_id_fk": {
+          "name": "fx_quote_fee_components_rule_id_fee_rules_id_fk",
+          "tableFrom": "fx_quote_fee_components",
+          "tableTo": "fee_rules",
+          "columnsFrom": [
+            "rule_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.fee_rules": {
+      "name": "fee_rules",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operation_kind": {
+          "name": "operation_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fee_kind": {
+          "name": "fee_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "calc_method": {
+          "name": "calc_method",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'bps'"
+        },
+        "bps": {
+          "name": "bps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fixed_amount_minor": {
+          "name": "fixed_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fixed_currency": {
+          "name": "fixed_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "settlement_mode": {
+          "name": "settlement_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'in_ledger'"
+        },
+        "deal_direction": {
+          "name": "deal_direction",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deal_form": {
+          "name": "deal_form",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "from_currency": {
+          "name": "from_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "to_currency": {
+          "name": "to_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "priority": {
+          "name": "priority",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 100
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "effective_from": {
+          "name": "effective_from",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "effective_to": {
+          "name": "effective_to",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "debit_account_key": {
+          "name": "debit_account_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credit_account_key": {
+          "name": "credit_account_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transfer_code": {
+          "name": "transfer_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "memo": {
+          "name": "memo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "fee_rules_op_active_priority_idx": {
+          "name": "fee_rules_op_active_priority_idx",
+          "columns": [
+            {
+              "expression": "operation_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "is_active",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "priority",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fee_rules_effective_idx": {
+          "name": "fee_rules_effective_idx",
+          "columns": [
+            {
+              "expression": "effective_from",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "effective_to",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.fx_policies": {
       "name": "fx_policies",
       "schema": "",
@@ -57,8 +435,188 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "fx_policies_name_uq": {
+          "name": "fx_policies_name_uq",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.fx_quote_legs": {
+      "name": "fx_quote_legs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "quote_id": {
+          "name": "quote_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idx": {
+          "name": "idx",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_currency": {
+          "name": "from_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_currency": {
+          "name": "to_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_amount_minor": {
+          "name": "from_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_amount_minor": {
+          "name": "to_amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rate_num": {
+          "name": "rate_num",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rate_den": {
+          "name": "rate_den",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_kind": {
+          "name": "source_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'derived'"
+        },
+        "source_ref": {
+          "name": "source_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "as_of": {
+          "name": "as_of",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "execution_org_id": {
+          "name": "execution_org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "fx_quote_legs_quote_idx_uq": {
+          "name": "fx_quote_legs_quote_idx_uq",
+          "columns": [
+            {
+              "expression": "quote_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idx",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fx_quote_legs_quote_idx": {
+          "name": "fx_quote_legs_quote_idx",
+          "columns": [
+            {
+              "expression": "quote_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fx_quote_legs_quote_id_fx_quotes_id_fk": {
+          "name": "fx_quote_legs_quote_id_fx_quotes_id_fk",
+          "tableFrom": "fx_quote_legs",
+          "tableTo": "fx_quotes",
+          "columnsFrom": [
+            "quote_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "fx_quote_legs_execution_org_id_organizations_id_fk": {
+          "name": "fx_quote_legs_execution_org_id_organizations_id_fk",
+          "tableFrom": "fx_quote_legs",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "execution_org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -76,49 +634,61 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "order_id": {
-          "name": "order_id",
+        "policy_id": {
+          "name": "policy_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "base_currency": {
-          "name": "base_currency",
+        "from_currency": {
+          "name": "from_currency",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "quote_currency": {
-          "name": "quote_currency",
+        "to_currency": {
+          "name": "to_currency",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "base_amount_minor": {
-          "name": "base_amount_minor",
+        "from_amount_minor": {
+          "name": "from_amount_minor",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
-        "quote_amount_minor": {
-          "name": "quote_amount_minor",
+        "to_amount_minor": {
+          "name": "to_amount_minor",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
-        "fee_base_minor": {
-          "name": "fee_base_minor",
-          "type": "bigint",
+        "pricing_mode": {
+          "name": "pricing_mode",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "0"
+          "default": "'auto_cross'"
         },
-        "spread_base_minor": {
-          "name": "spread_base_minor",
-          "type": "bigint",
+        "pricing_trace": {
+          "name": "pricing_trace",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
-          "default": "0"
+          "default": "'{}'::jsonb"
+        },
+        "deal_direction": {
+          "name": "deal_direction",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deal_form": {
+          "name": "deal_form",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "rate_num": {
           "name": "rate_num",
@@ -132,9 +702,34 @@
           "primaryKey": false,
           "notNull": true
         },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "used_by_ref": {
+          "name": "used_by_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "used_at": {
+          "name": "used_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "expires_at": {
           "name": "expires_at",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -146,19 +741,65 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "fx_quotes_idem_uq": {
+          "name": "fx_quotes_idem_uq",
+          "columns": [
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fx_quotes_status_idx": {
+          "name": "fx_quotes_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fx_quotes_expires_idx": {
+          "name": "fx_quotes_expires_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
-        "fx_quotes_order_id_payment_orders_id_fk": {
-          "name": "fx_quotes_order_id_payment_orders_id_fk",
+        "fx_quotes_policy_id_fx_policies_id_fk": {
+          "name": "fx_quotes_policy_id_fx_policies_id_fk",
           "tableFrom": "fx_quotes",
-          "tableTo": "payment_orders",
+          "tableTo": "fx_policies",
           "columnsFrom": [
-            "order_id"
+            "policy_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -1102,6 +1743,189 @@
       },
       "isRLSEnabled": false
     },
+    "public.internal_transfers": {
+      "name": "internal_transfers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "from_account_key": {
+          "name": "from_account_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_account_key": {
+          "name": "to_account_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "memo": {
+          "name": "memo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "maker_user_id": {
+          "name": "maker_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "checker_user_id": {
+          "name": "checker_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approved_at": {
+          "name": "approved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejected_at": {
+          "name": "rejected_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reject_reason": {
+          "name": "reject_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ledger_entry_id": {
+          "name": "ledger_entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "internal_transfers_org_idem_uq": {
+          "name": "internal_transfers_org_idem_uq",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "internal_transfers_org_status_idx": {
+          "name": "internal_transfers_org_status_idx",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "internal_transfers_org_created_idx": {
+          "name": "internal_transfers_org_created_idx",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.bank_accounts": {
       "name": "bank_accounts",
       "schema": "",
@@ -1316,6 +2140,274 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.fee_payment_orders": {
+      "name": "fee_payment_orders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "parent_order_id": {
+          "name": "parent_order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quote_id": {
+          "name": "quote_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "component_id": {
+          "name": "component_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bucket": {
+          "name": "bucket",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "memo": {
+          "name": "memo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reserve_entry_id": {
+          "name": "reserve_entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "initiate_entry_id": {
+          "name": "initiate_entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolve_entry_id": {
+          "name": "resolve_entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pending_transfer_id": {
+          "name": "pending_transfer_id",
+          "type": "numeric(39,0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payout_org_id": {
+          "name": "payout_org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payout_bank_stable_key": {
+          "name": "payout_bank_stable_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rail_ref": {
+          "name": "rail_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'reserved'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "fee_payment_orders_idem_uq": {
+          "name": "fee_payment_orders_idem_uq",
+          "columns": [
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fee_payment_orders_status_idx": {
+          "name": "fee_payment_orders_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fee_payment_orders_parent_idx": {
+          "name": "fee_payment_orders_parent_idx",
+          "columns": [
+            {
+              "expression": "parent_order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fee_payment_orders_parent_order_id_payment_orders_id_fk": {
+          "name": "fee_payment_orders_parent_order_id_payment_orders_id_fk",
+          "tableFrom": "fee_payment_orders",
+          "tableTo": "payment_orders",
+          "columnsFrom": [
+            "parent_order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "fee_payment_orders_quote_id_fx_quotes_id_fk": {
+          "name": "fee_payment_orders_quote_id_fx_quotes_id_fk",
+          "tableFrom": "fee_payment_orders",
+          "tableTo": "fx_quotes",
+          "columnsFrom": [
+            "quote_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "fee_payment_orders_reserve_entry_id_journal_entries_id_fk": {
+          "name": "fee_payment_orders_reserve_entry_id_journal_entries_id_fk",
+          "tableFrom": "fee_payment_orders",
+          "tableTo": "journal_entries",
+          "columnsFrom": [
+            "reserve_entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "fee_payment_orders_initiate_entry_id_journal_entries_id_fk": {
+          "name": "fee_payment_orders_initiate_entry_id_journal_entries_id_fk",
+          "tableFrom": "fee_payment_orders",
+          "tableTo": "journal_entries",
+          "columnsFrom": [
+            "initiate_entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "fee_payment_orders_resolve_entry_id_journal_entries_id_fk": {
+          "name": "fee_payment_orders_resolve_entry_id_journal_entries_id_fk",
+          "tableFrom": "fee_payment_orders",
+          "tableTo": "journal_entries",
+          "columnsFrom": [
+            "resolve_entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "fee_payment_orders_payout_org_id_organizations_id_fk": {
+          "name": "fee_payment_orders_payout_org_id_organizations_id_fk",
+          "tableFrom": "fee_payment_orders",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "payout_org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.payment_orders": {
       "name": "payment_orders",
       "schema": "",
@@ -1502,6 +2594,19 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "payment_orders_ledger_entry_id_journal_entries_id_fk": {
+          "name": "payment_orders_ledger_entry_id_journal_entries_id_fk",
+          "tableFrom": "payment_orders",
+          "tableTo": "journal_entries",
+          "columnsFrom": [
+            "ledger_entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "payment_orders_payin_org_id_organizations_id_fk": {
@@ -1693,6 +2798,190 @@
         }
       },
       "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.reconciliation_exceptions": {
+      "name": "reconciliation_exceptions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope_key": {
+          "name": "scope_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issue_code": {
+          "name": "issue_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "severity": {
+          "name": "severity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'high'"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "details": {
+          "name": "details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "first_seen_at": {
+          "name": "first_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "due_at": {
+          "name": "due_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "recon_exc_identity_uq": {
+          "name": "recon_exc_identity_uq",
+          "columns": [
+            {
+              "expression": "source",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "scope_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "issue_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "recon_exc_status_due_idx": {
+          "name": "recon_exc_status_due_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "due_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "recon_exc_scope_status_idx": {
+          "name": "recon_exc_scope_status_idx",
+          "columns": [
+            {
+              "expression": "scope_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
