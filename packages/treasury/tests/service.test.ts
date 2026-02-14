@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createTreasuryService } from "../src/service";
+import { createFeesService } from "@bedrock/fees";
 import {
     NotFoundError,
     InvalidStateError,
@@ -11,7 +12,6 @@ import {
     createStubDb,
     createMockLedger,
     createMockOrder,
-    TREASURY_ORG_ID,
     CUSTOMER_ID,
     ORDER_ID,
     BRANCH_ORG_ID,
@@ -46,10 +46,11 @@ describe("createTreasuryService", () => {
     beforeEach(() => {
         db = createStubDb();
         ledger = createMockLedger();
+        const feesService = createFeesService({ db });
         service = createTreasuryService({
             db,
             ledger,
-            treasuryOrgId: TREASURY_ORG_ID,
+            feesService,
         });
     });
 
@@ -348,6 +349,8 @@ describe("createTreasuryService", () => {
             for (const rows of rowsByCall) {
                 select.mockImplementationOnce(() => selectReturning(rows));
             }
+            // Any additional selects default to empty result set.
+            select.mockImplementation(() => selectReturning([]));
             return select;
         }
 
@@ -384,6 +387,43 @@ describe("createTreasuryService", () => {
 
             expect(result).toBe("test-entry-id");
             expect(ledger.createEntryTx).toHaveBeenCalled();
+        });
+
+        it("should post intercompany legs against order pay-in/pay-out orgs when they differ", async () => {
+            const payInOrgId = "550e8400-e29b-41d4-a716-446655440011";
+            const payOutOrgId = "550e8400-e29b-41d4-a716-446655440012";
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+                payInOrgId,
+                payOutOrgId,
+            });
+            const quote = createFxQuote();
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote]]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                        [{ id: ORDER_ID }],
+                    ]),
+                };
+                return fn(tx);
+            });
+
+            await service.executeFx({ ...validInput, branchOrgId: payInOrgId });
+
+            const transfers = vi.mocked(ledger.createEntryTx).mock.calls[0]![1].transfers;
+            const payInCommit = transfers.find((t: any) => t.memo === "Commit pay-in to intercompany");
+            const payoutObligation = transfers.find((t: any) => t.memo === "Create payout obligation");
+
+            expect(payInCommit).toBeDefined();
+            expect(payInCommit.creditKey).toContain(`:${payInOrgId}:USD`);
+            expect(payoutObligation).toBeDefined();
+            expect(payoutObligation.debitKey).toContain(`:${payOutOrgId}:EUR`);
         });
 
         it("should reject ambiguous UUID quoteRef between id and idempotency key", async () => {
@@ -452,16 +492,6 @@ describe("createTreasuryService", () => {
                 overrides: { toAmountMinor: 999n },
                 error: AmountMismatchError,
             },
-            {
-                label: "feeFromMinor mismatch",
-                overrides: { feeFromMinor: 1n },
-                error: AmountMismatchError,
-            },
-            {
-                label: "spreadFromMinor mismatch",
-                overrides: { spreadFromMinor: 1n },
-                error: AmountMismatchError,
-            },
         ])("should reject quote with $label", async ({ overrides, error }) => {
             const order = createMockOrder({
                 status: "funding_settled",
@@ -482,6 +512,28 @@ describe("createTreasuryService", () => {
 
             await expect(service.executeFx(validInput))
                 .rejects.toThrow(error);
+        });
+
+        it("should throw AmountMismatchError when feeMinor mismatches resolved quote fee", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote({ feeFromMinor: 499n });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote]]),
+                    update: updateSequence([[{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }]]),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput))
+                .rejects.toThrow(AmountMismatchError);
         });
 
         it("should reject quotes that are not active", async () => {
@@ -919,6 +971,90 @@ describe("createTreasuryService", () => {
 
             const feeTransfer = transfers.find((t: any) => t.memo === "Fee revenue");
             expect(feeTransfer).toBeUndefined();
+        });
+
+        it("should create manual bank fee transfer in arbitrary currency", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote();
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote]]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                        [{ id: ORDER_ID }],
+                    ]),
+                };
+                return fn(tx);
+            });
+
+            await service.executeFx({
+                ...validInput,
+                fees: [
+                    {
+                        kind: "bank_fee",
+                        currency: "EUR",
+                        amountMinor: 321n,
+                        memo: "Bank fee revenue",
+                    },
+                ],
+            });
+
+            const createEntryCall = vi.mocked(ledger.createEntryTx).mock.calls[0];
+            const transfers = createEntryCall![1].transfers;
+
+            const manualBankFee = transfers.find((t: any) => t.memo === "Bank fee revenue");
+            expect(manualBankFee).toBeDefined();
+            expect(manualBankFee.currency).toBe("EUR");
+            expect(manualBankFee.amount).toBe(321n);
+        });
+
+        it("should reserve separate-payment-order fees into clearing account", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote();
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote]]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                        [{ id: ORDER_ID }],
+                    ]),
+                };
+                return fn(tx);
+            });
+
+            await service.executeFx({
+                ...validInput,
+                fees: [
+                    {
+                        kind: "bank_fee",
+                        currency: "USD",
+                        amountMinor: 77n,
+                        settlementMode: "separate_payment_order",
+                    },
+                ],
+            });
+
+            const createEntryCall = vi.mocked(ledger.createEntryTx).mock.calls[0];
+            const transfers = createEntryCall![1].transfers;
+
+            const reserveTransfer = transfers.find((t: any) => t.memo === "Fee reserved for separate payment order");
+            expect(reserveTransfer).toBeDefined();
+            expect(reserveTransfer.amount).toBe(77n);
+            expect(reserveTransfer.creditKey).toContain("Liability:FeeClearing:bank");
         });
     });
 

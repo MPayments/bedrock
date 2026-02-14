@@ -8,7 +8,7 @@ describe("createTreasuryWorker", () => {
 
     beforeEach(() => {
         db = createStubDb();
-        worker = createTreasuryWorker({ db, treasuryOrgId: "treasury-org-id" });
+        worker = createTreasuryWorker({ db });
     });
 
     describe("processOnce", () => {
@@ -322,13 +322,11 @@ describe("createTreasuryWorker", () => {
         });
     });
 
-    describe("without treasuryOrgId filter", () => {
-        it("should process all orders when no treasuryOrgId provided", async () => {
-            const workerNoFilter = createTreasuryWorker({ db });
-
+    describe("system scope", () => {
+        it("should process all orders", async () => {
             vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-            await workerNoFilter.processOnce();
+            await worker.processOnce();
 
             expect(db.execute).toHaveBeenCalled();
         });

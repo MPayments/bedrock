@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { normalizeCurrency, isValidCurrency } from "@bedrock/kernel";
+import {
+    feeDealDirectionSchema,
+    feeDealFormSchema,
+    feeSettlementModeSchema,
+} from "@bedrock/fees";
 
 // Shared schemas
 const uuidSchema = z.string().uuid();
@@ -15,6 +20,30 @@ const positiveAmountSchema = z.bigint().positive({ message: "Amount must be posi
 const nonNegativeAmountSchema = z.bigint().min(0n, { message: "Amount must be non-negative" });
 
 const railRefSchema = z.string().min(1, "railRef is required").max(255);
+
+const feeComponentInputSchema = z
+    .object({
+        id: z.string().min(1).max(128).optional(),
+        kind: z.string().min(1).max(64),
+        currency: currencySchema,
+        amountMinor: nonNegativeAmountSchema,
+        settlementMode: feeSettlementModeSchema.optional(),
+        debitAccountKey: z.string().min(1).optional(),
+        creditAccountKey: z.string().min(1).optional(),
+        transferCode: z.number().int().min(0).optional(),
+        memo: z.string().max(1000).optional(),
+        metadata: z.record(z.string(), z.string().max(255)).optional(),
+    })
+    .refine((data) => Boolean(data.debitAccountKey) === Boolean(data.creditAccountKey), {
+        message: "debitAccountKey and creditAccountKey must be provided together",
+        path: ["debitAccountKey"],
+    })
+    .transform((data) => ({
+        ...data,
+        id: data.id ?? `manual:${data.kind}:${data.currency}:${data.amountMinor.toString()}`,
+        source: "manual" as const,
+        settlementMode: data.settlementMode ?? "in_ledger",
+    }));
 
 // FundingSettled input schema
 export const fundingSettledInputSchema = z.object({
@@ -35,10 +64,13 @@ export const executeFxInputSchema = z.object({
     orderId: uuidSchema,
     branchOrgId: uuidSchema,
     customerId: uuidSchema,
+    dealDirection: feeDealDirectionSchema.optional(),
+    dealForm: feeDealFormSchema.optional(),
     payInCurrency: currencySchema,
     principalMinor: positiveAmountSchema,
-    feeMinor: nonNegativeAmountSchema,
-    spreadMinor: nonNegativeAmountSchema,
+    feeMinor: nonNegativeAmountSchema.optional().default(0n),
+    spreadMinor: nonNegativeAmountSchema.optional().default(0n),
+    fees: z.array(feeComponentInputSchema).optional().default([]),
     payOutCurrency: currencySchema,
     payOutAmountMinor: positiveAmountSchema,
     occurredAt: z.date(),
@@ -46,6 +78,7 @@ export const executeFxInputSchema = z.object({
 });
 
 export type ExecuteFxInput = z.infer<typeof executeFxInputSchema>;
+export type ExecuteFxFeeInput = z.infer<typeof feeComponentInputSchema>;
 
 // InitiatePayout input schema
 export const initiatePayoutInputSchema = z.object({

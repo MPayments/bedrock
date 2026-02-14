@@ -7,6 +7,7 @@ Treasury payment-order orchestration and finalization workers.
 - Payment order state machine transitions
 - Order-level business validation for funding/FX/payout stages
 - Ledger entry generation for each stage via `@bedrock/ledger`
+- Unified fee transfer generation via `@bedrock/fees`
 - Worker-driven finalization from `*_pending_posting` states
 
 ## Service operations
@@ -40,6 +41,7 @@ Each operation:
 - Order pay-in
 - Payout obligation
 - Revenue accounts (fee/spread)
+- Fee buckets and fee-clearing accounts
 
 ## Exports
 

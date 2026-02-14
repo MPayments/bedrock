@@ -48,7 +48,6 @@ export const BRANCH_ORG_ID = TEST_UUIDS.ORG_2;
 
 export interface MockOrder {
     id: string;
-    treasuryOrgId: string;
     customerId: string;
     payInOrgId: string;
     payOutOrgId: string;
@@ -64,7 +63,6 @@ export interface MockOrder {
 export function createMockOrder(overrides: Partial<MockOrder> = {}): MockOrder {
     return {
         id: ORDER_ID,
-        treasuryOrgId: TREASURY_ORG_ID,
         customerId: CUSTOMER_ID,
         payInOrgId: BRANCH_ORG_ID,
         payOutOrgId: BRANCH_ORG_ID,

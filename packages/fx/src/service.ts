@@ -2,6 +2,8 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { schema, type FxQuote } from "@bedrock/db/schema";
 import { type Database } from "@bedrock/db";
 import { type Logger, normalizeCurrency } from "@bedrock/kernel";
+import { type FeesService } from "@bedrock/fees";
+import { BPS_SCALE } from "@bedrock/kernel/constants";
 import { QuoteExpiredError, RateNotFoundError, NotFoundError, PolicyNotFoundError } from "./errors";
 import {
     validateUpsertPolicyInput,
@@ -19,13 +21,17 @@ function mulDivFloor(a: bigint, num: bigint, den: bigint): bigint {
     return (a * num) / den;
 }
 
-const BPS_SCALE = 10000n;
-
 export type FxService = ReturnType<typeof createFxService>;
 
-export function createFxService(deps: { db: Database; logger?: Logger }) {
-    const { db } = deps;
-    const log = deps.logger?.child({ svc: "fx" });
+type FxServiceDeps = {
+    db: Database;
+    feesService: FeesService;
+    logger?: Logger;
+};
+
+export function createFxService(deps: FxServiceDeps) {
+    const { db, feesService, logger } = deps;
+    const log = logger?.child({ svc: "fx" });
 
     async function upsertPolicy(input: UpsertPolicyInput) {
         const validated = validateUpsertPolicyInput(input);
@@ -37,7 +43,7 @@ export function createFxService(deps: { db: Database; logger?: Logger }) {
             ttlSeconds: validated.ttlSeconds,
         });
 
-        const inserted = await db
+        const upserted = await db
             .insert(schema.fxPolicies)
             .values({
                 name: validated.name,
@@ -45,14 +51,23 @@ export function createFxService(deps: { db: Database; logger?: Logger }) {
                 feeBps: validated.feeBps,
                 ttlSeconds: validated.ttlSeconds
             })
+            .onConflictDoUpdate({
+                target: schema.fxPolicies.name,
+                set: {
+                    marginBps: validated.marginBps,
+                    feeBps: validated.feeBps,
+                    ttlSeconds: validated.ttlSeconds,
+                    isActive: true,
+                },
+            })
             .returning({ id: schema.fxPolicies.id });
 
-        log?.info("FX policy created", {
-            policyId: inserted[0]!.id,
+        log?.info("FX policy upserted", {
+            policyId: upserted[0]!.id,
             name: validated.name,
         });
 
-        return inserted[0]!.id;
+        return upserted[0]!.id;
     }
 
     async function setManualRate(input: SetManualRateInput) {
@@ -220,14 +235,23 @@ export function createFxService(deps: { db: Database; logger?: Logger }) {
 
         // margin reduces customer output: customer gets less toCurrency
         const marginBps = BigInt(policy.marginBps);
-        const feeBps = BigInt(policy.feeBps);
 
         // customerTo = midTo * (1 - marginBps/10000)
         const customerTo = (midTo * (BPS_SCALE - marginBps)) / BPS_SCALE;
 
-        // spread approximated in FROM currency as fromAmount * marginBps/10000 (MVP)
-        const spreadFrom = (validated.fromAmountMinor * marginBps) / BPS_SCALE;
-        const feeFrom = (validated.fromAmountMinor * feeBps) / BPS_SCALE;
+        const feeComponents = await feesService.calculateFxQuoteFeeComponents({
+            fromCurrency: validated.fromCurrency,
+            toCurrency: validated.toCurrency,
+            principalMinor: validated.fromAmountMinor,
+            dealDirection: validated.dealDirection,
+            dealForm: validated.dealForm,
+            at: validated.asOf,
+        });
+
+        const feeFrom =
+            feeComponents.find((component) => component.kind === "fx_fee")?.amountMinor ?? 0n;
+        const spreadFrom =
+            feeComponents.find((component) => component.kind === "fx_spread")?.amountMinor ?? 0n;
 
         const expiresAt = new Date(validated.asOf.getTime() + policy.ttlSeconds * 1000);
 
@@ -247,16 +271,44 @@ export function createFxService(deps: { db: Database; logger?: Logger }) {
                 status: "active",
                 idempotencyKey: validated.idempotencyKey
             })
+            .onConflictDoNothing({
+                target: schema.fxQuotes.idempotencyKey,
+            })
             .returning();
 
-        log?.info("FX quote created", {
-            quoteId: inserted[0]!.id,
-            fromCurrency: validated.fromCurrency,
-            toCurrency: validated.toCurrency,
-            fromAmountMinor: validated.fromAmountMinor.toString(),
-            toAmountMinor: customerTo.toString(),
+        const created = inserted[0];
+        if (created) {
+            await feesService.saveQuoteFeeComponents({
+                quoteId: created.id,
+                components: feeComponents,
+            });
+
+            log?.info("FX quote created", {
+                quoteId: created.id,
+                fromCurrency: validated.fromCurrency,
+                toCurrency: validated.toCurrency,
+                fromAmountMinor: validated.fromAmountMinor.toString(),
+                toAmountMinor: customerTo.toString(),
+                feeComponents: feeComponents.length,
+            });
+            return created;
+        }
+
+        const [racedExisting] = await db
+            .select()
+            .from(schema.fxQuotes)
+            .where(eq(schema.fxQuotes.idempotencyKey, validated.idempotencyKey))
+            .limit(1);
+
+        if (!racedExisting) {
+            throw new Error(`Quote insert conflict without existing idempotency row: ${validated.idempotencyKey}`);
+        }
+
+        log?.debug("Quote already exists after insert race (idempotent)", {
+            quoteId: racedExisting.id,
+            idempotencyKey: validated.idempotencyKey,
         });
-        return inserted[0]!;
+        return racedExisting;
     }
 
     async function markQuoteUsed(input: MarkQuoteUsedInput): Promise<FxQuote> {

@@ -19,6 +19,8 @@ export function randomOrderId() {
     return randomUUID();
 }
 
+const SYSTEM_TREASURY_ORG_ID = "00000000-0000-0000-0000-000000000001";
+
 export function randomIdempotencyKey() {
     return `idem-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 }
@@ -100,7 +102,6 @@ export async function createTestBankAccount(
 
 export interface TestPaymentOrder {
     id: string;
-    treasuryOrgId: string;
     customerOrgId: string;
     customerId: string;
     status: string;
@@ -115,7 +116,6 @@ export interface TestPaymentOrder {
 
 export async function createTestPaymentOrder(
     params: {
-        treasuryOrgId: string;
         customerOrgId: string;
         customerId: string;
         payInOrgId: string;
@@ -125,7 +125,6 @@ export async function createTestPaymentOrder(
 ): Promise<TestPaymentOrder> {
     const order = {
         id: overrides.id ?? randomOrderId(),
-        treasuryOrgId: params.treasuryOrgId,
         customerOrgId: params.customerOrgId,
         customerId: params.customerId,
         status: overrides.status ?? "quote",
@@ -241,7 +240,7 @@ export async function createTestScenario(
     } = {}
 ): Promise<TestScenario> {
     // Create organizations
-    const treasuryOrg = await createTestOrg({ name: "Treasury Corp", isTreasury: true });
+    const treasuryOrg = await createTestOrg({ id: SYSTEM_TREASURY_ORG_ID, name: "Treasury Corp", isTreasury: true });
     const branchOrg = await createTestOrg({ name: "Branch Corp" });
     const payoutOrg = await createTestOrg({ name: "Payout Corp" });
 
@@ -264,7 +263,6 @@ export async function createTestScenario(
     // Create payment order
     const order = await createTestPaymentOrder(
         {
-            treasuryOrgId: treasuryOrg.id,
             customerOrgId: treasuryOrg.id,
             customerId: customer.id,
             payInOrgId: branchOrg.id,

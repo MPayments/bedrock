@@ -90,6 +90,17 @@ describe("executeFxInputSchema", () => {
         expect(() => validateExecuteFxInput({ ...validInput, spreadMinor: 0n })).not.toThrow();
     });
 
+    it("should default fee/spread to 0 when omitted", () => {
+        const result = validateExecuteFxInput({
+            ...validInput,
+            feeMinor: undefined,
+            spreadMinor: undefined,
+        } as any);
+
+        expect(result.feeMinor).toBe(0n);
+        expect(result.spreadMinor).toBe(0n);
+    });
+
     it("should reject negative fee", () => {
         expect(() => validateExecuteFxInput({ ...validInput, feeMinor: -100n }))
             .toThrow(ValidationError);
@@ -113,6 +124,42 @@ describe("executeFxInputSchema", () => {
     it("should reject empty quoteRef", () => {
         expect(() => validateExecuteFxInput({ ...validInput, quoteRef: "" }))
             .toThrow(ValidationError);
+    });
+
+    it("should accept arbitrary manual fee component", () => {
+        const result = validateExecuteFxInput({
+            ...validInput,
+            fees: [
+                {
+                    kind: "bank_fee",
+                    currency: "usdt",
+                    amountMinor: 25n,
+                    memo: "Correspondent bank fee",
+                    settlementMode: "separate_payment_order",
+                },
+            ],
+        });
+
+        expect(result.fees).toHaveLength(1);
+        expect(result.fees[0]!.currency).toBe("USDT");
+        expect(result.fees[0]!.source).toBe("manual");
+        expect(result.fees[0]!.settlementMode).toBe("separate_payment_order");
+    });
+
+    it("should reject fee with only one account key", () => {
+        expect(() =>
+            validateExecuteFxInput({
+                ...validInput,
+                fees: [
+                    {
+                        kind: "manual_fee",
+                        currency: "USD",
+                        amountMinor: 10n,
+                        debitAccountKey: "custom:debit",
+                    },
+                ],
+            })
+        ).toThrow(ValidationError);
     });
 });
 

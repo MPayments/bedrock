@@ -3,8 +3,8 @@ import { schema } from "@bedrock/db/schema";
 import { Database } from "@bedrock/db";
 import { OrderFinalizeFromPendingPosting } from "./state-machine";
 
-export function createTreasuryWorker(deps: { db: Database; treasuryOrgId?: string }) {
-  const { db, treasuryOrgId } = deps;
+export function createTreasuryWorker(deps: { db: Database }) {
+  const { db } = deps;
 
   async function processOnce(opts?: { batchSize?: number }) {
     const batchSize = opts?.batchSize ?? 50;
@@ -17,7 +17,6 @@ export function createTreasuryWorker(deps: { db: Database; treasuryOrgId?: strin
       JOIN ${schema.journalEntries} j ON j.id = o.ledger_entry_id
       WHERE o.ledger_entry_id IS NOT NULL
         AND o.status LIKE '%_pending_posting'
-        ${treasuryOrgId ? sql`AND o.treasury_org_id = ${treasuryOrgId}` : sql``}
       ORDER BY o.updated_at
       LIMIT ${batchSize}
     `);

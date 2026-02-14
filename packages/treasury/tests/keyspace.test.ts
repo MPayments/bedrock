@@ -39,20 +39,21 @@ describe("treasuryKeyspace", () => {
 
     describe("treasuryPool", () => {
         it("should generate correct key format", () => {
-            const key = K.treasuryPool("treasury-123", "USD");
-            expect(key).toBe(`${NS}:TreasuryPool:treasury-123:USD`);
+            const key = K.treasuryPool("USD");
+            expect(key).toBe(`${NS}:TreasuryPool:USD`);
         });
     });
 
     describe("intercompanyNet", () => {
         it("should generate correct key format", () => {
-            const key = K.intercompanyNet("treasury-123", "branch-456", "USD");
-            expect(key).toBe(`${NS}:IC:BranchNet:treasury-123<->branch-456:USD`);
+            const key = K.intercompanyNet("branch-456", "USD");
+            expect(key).toBe(`${NS}:IC:BranchNet:branch-456:USD`);
         });
 
-        it("should be symmetric indicator with arrow notation", () => {
-            const key = K.intercompanyNet("a", "b", "USD");
-            expect(key).toContain("<->");
+        it("should differentiate by branch org", () => {
+            const key = K.intercompanyNet("a", "USD");
+            const key2 = K.intercompanyNet("b", "USD");
+            expect(key).not.toBe(key2);
         });
     });
 
@@ -72,15 +73,29 @@ describe("treasuryKeyspace", () => {
 
     describe("revenueFee", () => {
         it("should generate correct key format", () => {
-            const key = K.revenueFee("treasury-123", "USD");
-            expect(key).toBe(`${NS}:Revenue:Fee:treasury-123:USD`);
+            const key = K.revenueFee("USD");
+            expect(key).toBe(`${NS}:Revenue:Fee:USD`);
         });
     });
 
     describe("revenueSpread", () => {
         it("should generate correct key format", () => {
-            const key = K.revenueSpread("treasury-123", "USD");
-            expect(key).toBe(`${NS}:Revenue:FXSpread:treasury-123:USD`);
+            const key = K.revenueSpread("USD");
+            expect(key).toBe(`${NS}:Revenue:FXSpread:USD`);
+        });
+    });
+
+    describe("feeRevenueBucket", () => {
+        it("should generate bucketed fee revenue key", () => {
+            const key = K.feeRevenueBucket("bank", "EUR");
+            expect(key).toBe(`${NS}:Revenue:Fee:bank:EUR`);
+        });
+    });
+
+    describe("feeClearing", () => {
+        it("should generate clearing account key for separate fee payment", () => {
+            const key = K.feeClearing("bank", "EUR");
+            expect(key).toBe(`${NS}:Liability:FeeClearing:bank:EUR`);
         });
     });
 
@@ -98,6 +113,8 @@ describe("treasuryKeyspace", () => {
             expect(K.payoutObligation).toBeDefined();
             expect(K.revenueFee).toBeDefined();
             expect(K.revenueSpread).toBeDefined();
+            expect(K.feeRevenueBucket).toBeDefined();
+            expect(K.feeClearing).toBeDefined();
         });
     });
 });

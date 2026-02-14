@@ -3,6 +3,7 @@ import { type Logger, makePlanKey, noopLogger } from "@bedrock/kernel";
 import { schema } from "@bedrock/db/schema";
 import { type Database } from "@bedrock/db";
 import { type LedgerEngine, PlanType } from "@bedrock/ledger";
+import { type FeesService } from "@bedrock/fees";
 
 import {
     InvalidStateError,
@@ -36,14 +37,18 @@ import {
     isSameEntryInAllowedState,
 } from "./state-machine";
 
-export function createTreasuryService(deps: {
+type TreasuryServiceDeps = {
     db: Database;
     ledger: LedgerEngine;
-    treasuryOrgId: string;
+    feesService: FeesService;
     logger?: Logger;
-}) {
-    const { db, ledger, treasuryOrgId } = deps;
-    const log = deps.logger?.child({ svc: "treasury" }) ?? noopLogger;
+};
+
+const SYSTEM_LEDGER_ORG_ID = "00000000-0000-0000-0000-000000000001";
+
+export function createTreasuryService(deps: TreasuryServiceDeps) {
+    const { db, ledger, logger, feesService } = deps;
+    const log = logger?.child({ svc: "treasury" }) ?? noopLogger;
     const { keys } = treasuryKeyspace;
 
     async function fetchOrderState(tx: any, orderId: string) {
@@ -53,10 +58,9 @@ export function createTreasuryService(deps: {
                 status: schema.paymentOrders.status,
                 ledgerEntryId: schema.paymentOrders.ledgerEntryId,
                 payoutPendingTransferId: schema.paymentOrders.payoutPendingTransferId,
-                treasuryOrgId: schema.paymentOrders.treasuryOrgId,
             })
             .from(schema.paymentOrders)
-            .where(and(eq(schema.paymentOrders.id, orderId), eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId)))
+            .where(eq(schema.paymentOrders.id, orderId))
             .limit(1);
 
         if (!row) throw new NotFoundError("Order", orderId);
@@ -114,13 +118,6 @@ export function createTreasuryService(deps: {
         if (quote.toAmountMinor !== input.payOutAmountMinor) {
             throw new AmountMismatchError("quote.toAmountMinor", quote.toAmountMinor, input.payOutAmountMinor);
         }
-        if (quote.feeFromMinor !== input.feeMinor) {
-            throw new AmountMismatchError("quote.feeFromMinor", quote.feeFromMinor, input.feeMinor);
-        }
-        if (quote.spreadFromMinor !== input.spreadMinor) {
-            throw new AmountMismatchError("quote.spreadFromMinor", quote.spreadFromMinor, input.spreadMinor);
-        }
-
         const usageRef = quoteUsageRef(input.orderId);
 
         if (quote.status === "used") {
@@ -184,7 +181,7 @@ export function createTreasuryService(deps: {
             const [order] = await tx
                 .select()
                 .from(schema.paymentOrders)
-                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId)))
+                .where(eq(schema.paymentOrders.id, input.orderId))
                 .limit(1);
 
             if (!order) throw new NotFoundError("Order", input.orderId);
@@ -218,7 +215,7 @@ export function createTreasuryService(deps: {
             });
 
             const { entryId } = await ledger.createEntryTx(tx, {
-                orgId: treasuryOrgId,
+                orgId: SYSTEM_LEDGER_ORG_ID,
                 source: { type: "order/funding_settled", id: input.orderId },
                 idempotencyKey: `funding:${input.railRef}`,
                 postingDate: input.occurredAt,
@@ -247,7 +244,6 @@ export function createTreasuryService(deps: {
                 .where(
                     and(
                         eq(schema.paymentOrders.id, input.orderId),
-                        eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId),
                         or(
                             eq(schema.paymentOrders.status, FundingSettledAllowedFrom[0]),
                             eq(schema.paymentOrders.status, FundingSettledAllowedFrom[1])
@@ -290,7 +286,7 @@ export function createTreasuryService(deps: {
             const [order] = await tx
                 .select()
                 .from(schema.paymentOrders)
-                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId)))
+                .where(eq(schema.paymentOrders.id, input.orderId))
                 .limit(1);
 
             if (!order) throw new NotFoundError("Order", input.orderId);
@@ -323,7 +319,7 @@ export function createTreasuryService(deps: {
                 throw new InvalidStateError(`Order must be ${TreasuryOrderStatus.FUNDING_SETTLED} (posted), got ${order.status}`);
             }
 
-            await consumeFxQuoteForExecution(tx, input);
+            const quote = await consumeFxQuoteForExecution(tx, input);
 
             const chain = `fx:${input.quoteRef}`;
             const transfers: any[] = [];
@@ -345,41 +341,147 @@ export function createTreasuryService(deps: {
                 memo: "FX principal"
             });
 
-            if (input.feeMinor > 0n) {
-                transfers.push({
-                    type: PlanType.CREATE,
-                    chain,
-                    planKey: makePlanKey("fx_fee", {
+            const persistedQuoteFeeComponents = await feesService.getQuoteFeeComponents({ quoteId: quote.id });
+            const quoteFeeComponents = persistedQuoteFeeComponents.length
+                ? persistedQuoteFeeComponents
+                : feesService.buildFxExecutionFeeComponents({
+                    currency: input.payInCurrency,
+                    feeMinor: quote.feeFromMinor ?? 0n,
+                    spreadMinor: quote.spreadFromMinor ?? 0n,
+                    dealDirection: input.dealDirection,
+                    dealForm: input.dealForm,
+                });
+
+            const quoteFeeMinor = quoteFeeComponents.reduce(
+                (sum, component) => component.kind === "fx_fee" ? sum + component.amountMinor : sum,
+                0n
+            );
+            const quoteSpreadMinor = quoteFeeComponents.reduce(
+                (sum, component) => component.kind === "fx_spread" ? sum + component.amountMinor : sum,
+                0n
+            );
+
+            if (quoteFeeMinor !== input.feeMinor) {
+                throw new AmountMismatchError("feeMinor", quoteFeeMinor, input.feeMinor);
+            }
+            if (quoteSpreadMinor !== input.spreadMinor) {
+                throw new AmountMismatchError("spreadMinor", quoteSpreadMinor, input.spreadMinor);
+            }
+
+            const mergedFeeComponents = feesService.mergeFeeComponents({
+                computed: quoteFeeComponents,
+                manual: input.fees,
+            });
+
+            const { inLedger, separatePaymentOrder } = feesService.partitionFeeComponents(mergedFeeComponents);
+
+            const inLedgerFeePlans = feesService.buildFeeTransferPlans({
+                components: inLedger,
+                chain,
+                makePlanKey: (component, idx) =>
+                    makePlanKey("fx_fee_component", {
                         quoteRef: input.quoteRef,
                         orderId: input.orderId,
-                        currency: input.payInCurrency,
-                        amount: input.feeMinor.toString()
+                        idx,
+                        componentId: component.id,
+                        kind: component.kind,
+                        currency: component.currency,
+                        amount: component.amountMinor.toString(),
                     }),
-                    debitKey: keys.customerWallet(input.customerId, input.payInCurrency),
-                    creditKey: keys.revenueFee(treasuryOrgId, input.payInCurrency),
-                    currency: input.payInCurrency,
-                    amount: input.feeMinor,
-                    code: TransferCodes.FX_FEE_REVENUE,
-                    memo: "Fee revenue"
+                resolvePosting: (component) => {
+                    const defaults = feesService.getComponentDefaults(component.kind);
+
+                    if (component.debitAccountKey && component.creditAccountKey) {
+                        return {
+                            debitKey: component.debitAccountKey,
+                            creditKey: component.creditAccountKey,
+                            code: component.transferCode ?? defaults.transferCode,
+                            memo: component.memo ?? defaults.memo,
+                        };
+                    }
+
+                    const debitKey = keys.customerWallet(input.customerId, component.currency);
+                    const creditKey =
+                        component.kind === "fx_fee"
+                            ? keys.revenueFee(component.currency)
+                            : component.kind === "fx_spread"
+                                ? keys.revenueSpread(component.currency)
+                                : keys.feeRevenueBucket(defaults.bucket, component.currency);
+
+                    return {
+                        debitKey,
+                        creditKey,
+                        code: component.transferCode ?? defaults.transferCode,
+                        memo: component.memo ?? defaults.memo,
+                    };
+                },
+            });
+
+            for (const plan of inLedgerFeePlans) {
+                transfers.push({
+                    type: PlanType.CREATE,
+                    chain: plan.chain,
+                    planKey: plan.planKey,
+                    debitKey: plan.debitKey,
+                    creditKey: plan.creditKey,
+                    currency: plan.currency,
+                    amount: plan.amount,
+                    code: plan.code,
+                    memo: plan.memo ?? undefined,
                 });
             }
 
-            if (input.spreadMinor > 0n) {
-                transfers.push({
-                    type: PlanType.CREATE,
-                    chain,
-                    planKey: makePlanKey("fx_spread", {
+            // For banks/chains requiring separate payment order: reserve the fee in a clearing liability account.
+            const reserveComponents = separatePaymentOrder.map((component) => ({
+                ...component,
+                settlementMode: "in_ledger" as const,
+            }));
+
+            const reserveFeePlans = feesService.buildFeeTransferPlans({
+                components: reserveComponents,
+                chain,
+                makePlanKey: (component, idx) =>
+                    makePlanKey("fx_fee_reserve", {
                         quoteRef: input.quoteRef,
                         orderId: input.orderId,
-                        currency: input.payInCurrency,
-                        amount: input.spreadMinor.toString()
+                        idx,
+                        componentId: component.id,
+                        kind: component.kind,
+                        currency: component.currency,
+                        amount: component.amountMinor.toString(),
                     }),
-                    debitKey: keys.customerWallet(input.customerId, input.payInCurrency),
-                    creditKey: keys.revenueSpread(treasuryOrgId, input.payInCurrency),
-                    currency: input.payInCurrency,
-                    amount: input.spreadMinor,
-                    code: TransferCodes.FX_SPREAD_REVENUE,
-                    memo: "FX spread revenue"
+                resolvePosting: (component) => {
+                    const defaults = feesService.getComponentDefaults(component.kind);
+
+                    if (component.debitAccountKey && component.creditAccountKey) {
+                        return {
+                            debitKey: component.debitAccountKey,
+                            creditKey: component.creditAccountKey,
+                            code: component.transferCode ?? TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
+                            memo: component.memo ?? "Fee reserved for separate payment order",
+                        };
+                    }
+
+                    return {
+                        debitKey: keys.customerWallet(input.customerId, component.currency),
+                        creditKey: keys.feeClearing(defaults.bucket, component.currency),
+                        code: component.transferCode ?? TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
+                        memo: component.memo ?? "Fee reserved for separate payment order",
+                    };
+                },
+            });
+
+            for (const plan of reserveFeePlans) {
+                transfers.push({
+                    type: PlanType.CREATE,
+                    chain: plan.chain,
+                    planKey: plan.planKey,
+                    debitKey: plan.debitKey,
+                    creditKey: plan.creditKey,
+                    currency: plan.currency,
+                    amount: plan.amount,
+                    code: plan.code,
+                    memo: plan.memo ?? undefined,
                 });
             }
 
@@ -389,12 +491,12 @@ export function createTreasuryService(deps: {
                 planKey: makePlanKey("fx_to_ic_payin", {
                     quoteRef: input.quoteRef,
                     orderId: input.orderId,
-                    branchOrgId: input.branchOrgId,
+                    payInOrgId: order.payInOrgId,
                     currency: input.payInCurrency,
                     amount: input.principalMinor.toString()
                 }),
                 debitKey: keys.orderPayIn(input.orderId, input.payInCurrency),
-                creditKey: keys.intercompanyNet(treasuryOrgId, input.branchOrgId, input.payInCurrency),
+                creditKey: keys.intercompanyNet(order.payInOrgId, input.payInCurrency),
                 currency: input.payInCurrency,
                 amount: input.principalMinor,
                 code: TransferCodes.FX_INTERCOMPANY_COMMIT,
@@ -407,11 +509,11 @@ export function createTreasuryService(deps: {
                 planKey: makePlanKey("fx_obligation", {
                     quoteRef: input.quoteRef,
                     orderId: input.orderId,
-                    branchOrgId: input.branchOrgId,
+                    payOutOrgId: order.payOutOrgId,
                     currency: input.payOutCurrency,
                     amount: input.payOutAmountMinor.toString()
                 }),
-                debitKey: keys.intercompanyNet(treasuryOrgId, input.branchOrgId, input.payOutCurrency),
+                debitKey: keys.intercompanyNet(order.payOutOrgId, input.payOutCurrency),
                 creditKey: keys.payoutObligation(input.orderId, input.payOutCurrency),
                 currency: input.payOutCurrency,
                 amount: input.payOutAmountMinor,
@@ -420,7 +522,7 @@ export function createTreasuryService(deps: {
             });
 
             const { entryId } = await ledger.createEntryTx(tx, {
-                orgId: treasuryOrgId,
+                orgId: SYSTEM_LEDGER_ORG_ID,
                 source: { type: "order/fx_executed", id: input.orderId },
                 idempotencyKey: `fx:${input.quoteRef}`,
                 postingDate: input.occurredAt,
@@ -474,7 +576,7 @@ export function createTreasuryService(deps: {
             const [order] = await tx
                 .select()
                 .from(schema.paymentOrders)
-                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId)))
+                .where(eq(schema.paymentOrders.id, input.orderId))
                 .limit(1);
 
             if (!order) throw new NotFoundError("Order", input.orderId);
@@ -506,7 +608,7 @@ export function createTreasuryService(deps: {
             });
 
             const { entryId, transferIds } = await ledger.createEntryTx(tx, {
-                orgId: treasuryOrgId,
+                orgId: SYSTEM_LEDGER_ORG_ID,
                 source: { type: "order/payout_initiated", id: input.orderId },
                 idempotencyKey: `payout:init:${input.railRef}`,
                 postingDate: input.occurredAt,
@@ -578,7 +680,7 @@ export function createTreasuryService(deps: {
             const [o] = await tx
                 .select()
                 .from(schema.paymentOrders)
-                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId)))
+                .where(eq(schema.paymentOrders.id, input.orderId))
                 .limit(1);
 
             if (!o) throw new NotFoundError("Order", input.orderId);
@@ -601,7 +703,7 @@ export function createTreasuryService(deps: {
             });
 
             const { entryId } = await ledger.createEntryTx(tx, {
-                orgId: treasuryOrgId,
+                orgId: SYSTEM_LEDGER_ORG_ID,
                 source: { type: "order/payout_settled", id: input.orderId },
                 idempotencyKey: `payout:settle:${input.railRef}`,
                 postingDate: input.occurredAt,
@@ -654,7 +756,7 @@ export function createTreasuryService(deps: {
             const [o] = await tx
                 .select()
                 .from(schema.paymentOrders)
-                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.treasuryOrgId, treasuryOrgId)))
+                .where(eq(schema.paymentOrders.id, input.orderId))
                 .limit(1);
 
             if (!o) throw new NotFoundError("Order", input.orderId);
@@ -677,7 +779,7 @@ export function createTreasuryService(deps: {
             });
 
             const { entryId } = await ledger.createEntryTx(tx, {
-                orgId: treasuryOrgId,
+                orgId: SYSTEM_LEDGER_ORG_ID,
                 source: { type: "order/payout_failed", id: input.orderId },
                 idempotencyKey: `payout:void:${input.railRef}`,
                 postingDate: input.occurredAt,

@@ -58,7 +58,6 @@ CREATE TABLE "customers" (
 --> statement-breakpoint
 CREATE TABLE "payment_orders" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"treasury_org_id" uuid NOT NULL,
 	"customer_org_id" uuid NOT NULL,
 	"customer_id" uuid NOT NULL,
 	"status" text DEFAULT 'quote' NOT NULL,
@@ -104,7 +103,6 @@ CREATE TABLE "organizations" (
 ALTER TABLE "fx_quotes" ADD CONSTRAINT "fx_quotes_order_id_payment_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."payment_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bank_accounts" ADD CONSTRAINT "bank_accounts_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customers" ADD CONSTRAINT "customers_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "payment_orders" ADD CONSTRAINT "payment_orders_treasury_org_id_organizations_id_fk" FOREIGN KEY ("treasury_org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment_orders" ADD CONSTRAINT "payment_orders_customer_org_id_organizations_id_fk" FOREIGN KEY ("customer_org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment_orders" ADD CONSTRAINT "payment_orders_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment_orders" ADD CONSTRAINT "payment_orders_payin_org_id_organizations_id_fk" FOREIGN KEY ("payin_org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -117,5 +115,5 @@ CREATE INDEX "fx_rates_asof_idx" ON "fx_rates" USING btree ("as_of");--> stateme
 CREATE UNIQUE INDEX "bank_accounts_org_stable_uq" ON "bank_accounts" USING btree ("org_id","stable_key");--> statement-breakpoint
 CREATE INDEX "bank_accounts_org_cur_idx" ON "bank_accounts" USING btree ("org_id","currency");--> statement-breakpoint
 CREATE INDEX "customers_org_idx" ON "customers" USING btree ("org_id");--> statement-breakpoint
-CREATE INDEX "orders_treasury_status_idx" ON "payment_orders" USING btree ("treasury_org_id","status");--> statement-breakpoint
-CREATE UNIQUE INDEX "orders_treasury_idem_uq" ON "payment_orders" USING btree ("treasury_org_id","idempotency_key");
+CREATE INDEX "orders_status_idx" ON "payment_orders" USING btree ("status");--> statement-breakpoint
+CREATE UNIQUE INDEX "orders_idem_uq" ON "payment_orders" USING btree ("idempotency_key");

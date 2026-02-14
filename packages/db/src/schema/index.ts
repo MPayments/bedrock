@@ -11,6 +11,8 @@ import { reconciliationExceptions } from "./treasury/reconciliation";
 import { fxRates } from "./fx/rates";
 import { fxPolicies } from "./fx/policies";
 import { fxQuotes } from "./fx/quotes";
+import { feeRules } from "./fees/rules";
+import { fxQuoteFeeComponents } from "./fees/quote-components";
 import { internalTransfers } from "./transfers/transfers";
 
 export const schema = {
@@ -28,6 +30,8 @@ export const schema = {
   fxRates,
   fxPolicies,
   fxQuotes,
+  feeRules,
+  fxQuoteFeeComponents,
   internalTransfers,
 };
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { normalizeCurrency, isValidCurrency } from "@bedrock/kernel";
+import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
 
 // Shared schemas
 const uuidSchema = z.uuid({
@@ -25,7 +26,6 @@ const positiveIntegerSchema = z.number().int().positive({ message: "Value must b
 
 // UpsertPolicy input schema
 export const upsertPolicyInputSchema = z.object({
-    idempotencyKey: idempotencyKeySchema,
     name: z.string().min(1, "name is required").max(255, "name cannot exceed 255 characters"),
     marginBps: nonNegativeIntegerSchema.max(10000, "marginBps cannot exceed 10000 (100%)"),
     feeBps: nonNegativeIntegerSchema.max(10000, "feeBps cannot exceed 10000 (100%)"),
@@ -56,6 +56,8 @@ export const quoteInputSchema = z.object({
     fromCurrency: currencySchema,
     toCurrency: currencySchema,
     fromAmountMinor: positiveAmountSchema,
+    dealDirection: feeDealDirectionSchema.optional(),
+    dealForm: feeDealFormSchema.optional(),
     asOf: z.date(),
     anchor: currencySchema.optional(),
 }).refine(

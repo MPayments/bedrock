@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createLedgerEngine } from "@bedrock/ledger";
+import { createFeesService } from "@bedrock/fees";
 import { createTreasuryService } from "../../src/service";
 import { InvalidStateError, NotFoundError, CurrencyMismatchError, AmountMismatchError } from "../../src/errors";
 import {
@@ -18,6 +19,7 @@ import {
 
 describe("Treasury Service Integration Tests", () => {
     const ledger = createLedgerEngine({ db });
+    const feesService = createFeesService({ db });
 
     describe("fundingSettled", () => {
         it("should process funding and create ledger entry", async () => {
@@ -25,7 +27,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             const railRef = randomRailRef();
@@ -75,7 +77,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             const railRef = randomRailRef();
@@ -111,7 +113,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             await expect(
@@ -133,7 +135,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             await expect(
@@ -155,7 +157,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             await expect(
@@ -208,7 +210,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             const quoteRef = randomQuoteRef();
@@ -251,7 +253,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             const quoteRef = randomQuoteRef();
@@ -280,7 +282,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             const quoteRef = randomQuoteRef();
@@ -310,7 +312,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             const quoteRef = randomQuoteRef();
@@ -341,7 +343,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             await expect(
@@ -368,7 +370,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             const railRef = randomRailRef();
@@ -404,7 +406,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             const result = await service.initiatePayout({
@@ -427,7 +429,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             await expect(
@@ -451,7 +453,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             // First initiate payout
@@ -493,7 +495,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             await expect(
@@ -513,7 +515,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             // First initiate payout
@@ -556,7 +558,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             await expect(
@@ -576,7 +578,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             // 1. Funding settled
@@ -678,7 +680,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             // 1-3: Same as above until payout initiated
@@ -753,7 +755,7 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService
             });
 
             const K = service.keys;

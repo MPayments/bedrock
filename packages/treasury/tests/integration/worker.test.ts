@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { eq } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 import { createLedgerEngine } from "@bedrock/ledger";
+import { createFeesService } from "@bedrock/fees";
 import { createTreasuryService } from "../../src/service";
 import { createTreasuryWorker } from "../../src/worker";
 import {
@@ -13,6 +14,7 @@ import {
 
 describe("Treasury Worker Integration Tests", () => {
     const ledger = createLedgerEngine({ db });
+    const feesService = createFeesService({ db });
 
     it("returns only finalized count when fetched set includes pending journals", async () => {
         const scenarioPosted = await createTestScenario();
@@ -21,12 +23,12 @@ describe("Treasury Worker Integration Tests", () => {
         const servicePosted = createTreasuryService({
             db,
             ledger,
-            treasuryOrgId: scenarioPosted.treasuryOrg.id
+            feesService
         });
         const servicePending = createTreasuryService({
             db,
             ledger,
-            treasuryOrgId: scenarioPending.treasuryOrg.id
+            feesService
         });
 
         const postedEntryId = await servicePosted.fundingSettled({
@@ -71,7 +73,7 @@ describe("Treasury Worker Integration Tests", () => {
         const service = createTreasuryService({
             db,
             ledger,
-            treasuryOrgId: scenario.treasuryOrg.id
+            feesService
         });
 
         const entryId = await service.fundingSettled({
@@ -90,7 +92,7 @@ describe("Treasury Worker Integration Tests", () => {
             .set({ status: "failed" })
             .where(eq(schema.journalEntries.id, entryId));
 
-        const worker = createTreasuryWorker({ db, treasuryOrgId: scenario.treasuryOrg.id });
+        const worker = createTreasuryWorker({ db });
         const processed = await worker.processOnce({ batchSize: 10 });
         expect(processed).toBe(1);
 

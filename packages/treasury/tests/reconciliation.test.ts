@@ -7,18 +7,18 @@ describe("createTreasuryReconciliationWorker", () => {
     let worker: ReturnType<typeof createTreasuryReconciliationWorker>;
 
     function selectReturning(rows: any[]) {
+        const whereResult: any = Promise.resolve(rows);
+        whereResult.limit = vi.fn(async () => rows);
         return {
             from: vi.fn(() => ({
-                where: vi.fn(() => ({
-                    limit: vi.fn(async () => rows),
-                })),
+                where: vi.fn(() => whereResult),
             })),
         };
     }
 
     beforeEach(() => {
         db = createStubDb();
-        worker = createTreasuryReconciliationWorker({ db, treasuryOrgId: TREASURY_ORG_ID });
+        worker = createTreasuryReconciliationWorker({ db });
     });
 
     it("detects issues and upserts them into reconciliation exceptions", async () => {
@@ -65,7 +65,9 @@ describe("createTreasuryReconciliationWorker", () => {
         const onConflictDoUpdate = vi.fn(async () => undefined);
         const values = vi.fn(() => ({ onConflictDoUpdate }));
         vi.mocked(db.insert).mockReturnValue({ values } as any);
-        vi.mocked(db.select).mockReturnValue(selectReturning([]) as any);
+        vi.mocked(db.select)
+            .mockReturnValueOnce(selectReturning([]) as any)
+            .mockReturnValueOnce(selectReturning([{ count: 5 }]) as any);
 
         const result = await worker.processOnce({ slaMinutes: 30, finalizationLagMinutes: 10 });
 
@@ -102,7 +104,9 @@ describe("createTreasuryReconciliationWorker", () => {
                 issueCode: "POSTED_JOURNAL_PLAN_MISMATCH",
             },
         ];
-        vi.mocked(db.select).mockReturnValue(selectReturning(openIssues) as any);
+        vi.mocked(db.select)
+            .mockReturnValueOnce(selectReturning(openIssues) as any)
+            .mockReturnValueOnce(selectReturning([{ count: 0 }]) as any);
 
         const where = vi.fn(async () => []);
         const set = vi.fn(() => ({ where }));
@@ -139,14 +143,16 @@ describe("createTreasuryReconciliationWorker", () => {
         const values = vi.fn(() => ({ onConflictDoUpdate }));
         vi.mocked(db.insert).mockReturnValue({ values } as any);
 
-        vi.mocked(db.select).mockReturnValue(selectReturning([
-            {
-                id: "issue-1",
-                entityType: "payment_order",
-                entityId: "order-stuck",
-                issueCode: "ORDER_STUCK_PENDING_POSTING",
-            },
-        ]) as any);
+        vi.mocked(db.select)
+            .mockReturnValueOnce(selectReturning([
+                {
+                    id: "issue-1",
+                    entityType: "payment_order",
+                    entityId: "order-stuck",
+                    issueCode: "ORDER_STUCK_PENDING_POSTING",
+                },
+            ]) as any)
+            .mockReturnValueOnce(selectReturning([{ count: 1 }]) as any);
 
         const result = await worker.processOnce();
 

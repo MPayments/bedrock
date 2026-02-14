@@ -22,6 +22,20 @@
       "when": 1770804417764,
       "tag": "0002_flowery_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1771080000000,
+      "tag": "0003_solid_fee_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1771160000000,
+      "tag": "0004_sparkling_integrity",
+      "breakpoints": true
     }
   ]
 }

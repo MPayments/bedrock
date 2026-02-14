@@ -1327,12 +1327,6 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "treasury_org_id": {
-          "name": "treasury_org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "customer_org_id": {
           "name": "customer_org_id",
           "type": "uuid",
@@ -1452,15 +1446,9 @@
         }
       },
       "indexes": {
-        "orders_treasury_status_idx": {
-          "name": "orders_treasury_status_idx",
+        "orders_status_idx": {
+          "name": "orders_status_idx",
           "columns": [
-            {
-              "expression": "treasury_org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
             {
               "expression": "status",
               "isExpression": false,
@@ -1473,15 +1461,9 @@
           "method": "btree",
           "with": {}
         },
-        "orders_treasury_idem_uq": {
-          "name": "orders_treasury_idem_uq",
+        "orders_idem_uq": {
+          "name": "orders_idem_uq",
           "columns": [
-            {
-              "expression": "treasury_org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
             {
               "expression": "idempotency_key",
               "isExpression": false,
@@ -1496,19 +1478,6 @@
         }
       },
       "foreignKeys": {
-        "payment_orders_treasury_org_id_organizations_id_fk": {
-          "name": "payment_orders_treasury_org_id_organizations_id_fk",
-          "tableFrom": "payment_orders",
-          "tableTo": "organizations",
-          "columnsFrom": [
-            "treasury_org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "payment_orders_customer_org_id_organizations_id_fk": {
           "name": "payment_orders_customer_org_id_organizations_id_fk",
           "tableFrom": "payment_orders",
