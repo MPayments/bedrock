@@ -3,7 +3,7 @@ import {
     pgTable, text, timestamp, uuid, bigint, index, uniqueIndex
 } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
-import { customers } from "./customers";
+import { customers } from "../customers";
 import { bankAccounts } from "./bank-accounts";
 import { journalEntries } from "../ledger/journal";
 import { uint128 } from "../ledger/ledger";

@@ -1,28 +1,34 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
+import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { swaggerUI } from "@hono/swagger-ui";
-import { AppError } from "@bedrock/kernel/errors";
-import { createAppContext, type Env } from "./context"
+import { cors } from "hono/cors";
+import { AppError } from "@bedrock/kernel";
+import auth from "@bedrock/auth";
+import { createAppContext, type Env } from "./context";
 import { organizationsRoutes, customersRoutes } from "./routes/index";
+import { authMiddleware, type AuthVariables } from "./middleware/auth";
 
 // Load environment (in production, use proper env loading)
 const env: Env = {
-  DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/postgres",
-  TB_ADDRESS: process.env.TB_ADDRESS ?? "127.0.0.1:3000",
-  TB_CLUSTER_ID: process.env.TB_CLUSTER_ID ?? "0",
+  DATABASE_URL:
+    process.env.DATABASE_URL!,
+  TB_ADDRESS: process.env.TB_ADDRESS!,
+  TB_CLUSTER_ID: process.env.TB_CLUSTER_ID!,
 };
 
 const ctx = createAppContext(env);
+const configuredAuthOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS!.split(",");
+const authAllowedOriginSet = new Set(configuredAuthOrigins);
 
 // Create OpenAPIHono app with default error handler
-const app = new OpenAPIHono({
+const app = new OpenAPIHono<{ Variables: AuthVariables }>({
   defaultHook: (result, c) => {
     if (!result.success) {
       return c.json(
         {
           error: "Validation error",
-          details: result.error.flatten(),
+          details: z.flattenError(result.error),
         },
-        400
+        400,
       );
     }
   },
@@ -30,16 +36,34 @@ const app = new OpenAPIHono({
 
 // Global error handler for non-validation errors
 app.onError((err, c) => {
-  // Application errors
   if (AppError.is(err)) {
-    ctx.logger.warn("Application error", { code: err.code, message: err.message });
+    ctx.logger.warn("Application error", {
+      code: err.code,
+      message: err.message,
+    });
     return c.json({ error: err.message, code: err.code }, 500);
   }
 
-  // Unexpected errors
   ctx.logger.error("Unexpected error", { error: String(err) });
   return c.json({ error: "Internal server error" }, 500);
 });
+
+app.use(
+  "/api/auth/*",
+  cors({
+    origin: (origin) => (authAllowedOriginSet.has(origin) ? origin : undefined),
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    exposeHeaders: ["set-cookie"],
+    credentials: true,
+  }),
+);
+
+app.on(["POST", "GET"], "/api/auth/*", (c) => {
+  return auth.handler(c.req.raw);
+});
+
+app.use("*", authMiddleware());
 
 // Health check
 app.get("/", (c) => {

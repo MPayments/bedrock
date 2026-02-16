@@ -1,8 +1,19 @@
-```
-npm install
-npm run dev
+# API
+
+## Run
+
+```bash
+bun run --cwd apps/api dev
 ```
 
-```
-open http://localhost:3000
-```
+API default URL: `http://localhost:3002`
+
+## Better Auth env
+
+Set these in your root `.env` (or process env):
+
+- `BETTER_AUTH_SECRET` - required in production
+- `BETTER_AUTH_URL` - API origin (default: `http://localhost:3002`)
+- `BETTER_AUTH_TRUSTED_ORIGINS` - comma-separated front-end origins (default: `http://localhost:3000`)
+
+Auth handler path: `GET|POST /api/auth/*`
