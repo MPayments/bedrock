@@ -14,7 +14,6 @@ const currencySchema = z
 const positiveAmountSchema = z.bigint().positive({ message: "Amount must be positive" });
 const idempotencyKeySchema = z.string().min(1, "idempotencyKey is required").max(255);
 const positiveBigintSchema = z.bigint().positive({ message: "Value must be positive" });
-const nonNegativeIntegerSchema = z.number().int().min(0, { message: "Value must be non-negative" });
 const positiveIntegerSchema = z.number().int().positive({ message: "Value must be positive" });
 
 const quoteLegSourceKindSchema = z.enum(["cb", "bank", "manual", "derived", "market"]);
@@ -40,16 +39,6 @@ export const pricingTraceSchema = z.object({
     metadata: z.record(z.string(), z.string().max(255)).optional(),
 }).passthrough();
 
-// UpsertPolicy input schema
-export const upsertPolicyInputSchema = z.object({
-    name: z.string().min(1, "name is required").max(255, "name cannot exceed 255 characters"),
-    marginBps: nonNegativeIntegerSchema.max(10000, "marginBps cannot exceed 10000 (100%)"),
-    feeBps: nonNegativeIntegerSchema.max(10000, "feeBps cannot exceed 10000 (100%)"),
-    ttlSeconds: positiveIntegerSchema.max(86400, "ttlSeconds cannot exceed 86400 (24 hours)"),
-});
-
-export type UpsertPolicyInput = z.infer<typeof upsertPolicyInputSchema>;
-
 // SetManualRate input schema
 export const setManualRateInputSchema = z.object({
     base: currencySchema,
@@ -67,12 +56,12 @@ export type SetManualRateInput = z.infer<typeof setManualRateInputSchema>;
 
 const quoteBaseSchema = z.object({
     idempotencyKey: idempotencyKeySchema,
-    policyId: uuidSchema,
     fromCurrency: currencySchema,
     toCurrency: currencySchema,
     fromAmountMinor: positiveAmountSchema,
     dealDirection: feeDealDirectionSchema.optional(),
     dealForm: feeDealFormSchema.optional(),
+    ttlSeconds: positiveIntegerSchema.max(DAY_IN_SECONDS, "ttlSeconds cannot exceed 86400 (24 hours)").optional(),
     asOf: z.date(),
 });
 
@@ -114,6 +103,7 @@ export const getQuoteDetailsInputSchema = z.object({
 export type GetQuoteDetailsInput = z.infer<typeof getQuoteDetailsInputSchema>;
 
 import { ValidationError } from "@bedrock/kernel/errors";
+import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 
 export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown, context?: string): T {
     const result = schema.safeParse(input);
@@ -132,10 +122,6 @@ export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown, context
     }
 
     return result.data;
-}
-
-export function validateUpsertPolicyInput(input: unknown): UpsertPolicyInput {
-    return validateInput(upsertPolicyInputSchema, input, "upsertPolicy");
 }
 
 export function validateSetManualRateInput(input: unknown): SetManualRateInput {

@@ -1,12 +1,8 @@
 import { eq } from "drizzle-orm";
 import { type FxQuote, schema } from "@bedrock/db/schema";
 import { ValidationError } from "@bedrock/kernel/errors";
-
+import { isUuidLike } from "@bedrock/kernel/utils";
 import { type FxServiceContext } from "./context";
-
-function isUuidLike(value: string): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
 
 export async function resolveQuoteByRef(context: FxServiceContext, quoteRef: string): Promise<FxQuote | undefined> {
     const { db } = context;

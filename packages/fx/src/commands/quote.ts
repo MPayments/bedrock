@@ -1,10 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { schema, type FxQuote } from "@bedrock/db/schema";
-import { BPS_SCALE } from "@bedrock/kernel/constants";
 
 import {
     NotFoundError,
-    PolicyNotFoundError,
     QuoteExpiredError,
 } from "../errors";
 import {
@@ -20,6 +18,9 @@ import { effectiveRateFromAmounts, mulDivFloor } from "../internal/math";
 import { resolveQuoteByRef } from "../internal/quote-ref";
 import { buildAutoCrossTrace, computeExplicitRouteLegs } from "../internal/routes";
 import { type FxQuoteDetails } from "../internal/types";
+import { Transaction } from "@bedrock/db";
+
+const DEFAULT_QUOTE_TTL_SECONDS = 600;
 
 export function createQuoteHandlers(
     context: FxServiceContext,
@@ -29,11 +30,11 @@ export function createQuoteHandlers(
 ) {
     const { db, feesService, log } = context;
 
-    async function getQuoteDetails(rawInput: GetQuoteDetailsInput): Promise<FxQuoteDetails> {
-        const input = validateGetQuoteDetailsInput(rawInput);
-        const quote = await resolveQuoteByRef(context, input.quoteRef);
+    async function getQuoteDetails(input: GetQuoteDetailsInput): Promise<FxQuoteDetails> {
+        const vaildated = validateGetQuoteDetailsInput(input);
+        const quote = await resolveQuoteByRef(context, vaildated.quoteRef);
 
-        if (!quote) throw new NotFoundError("Quote", input.quoteRef);
+        if (!quote) throw new NotFoundError("Quote", vaildated.quoteRef);
 
         const legs = await db
             .select()
@@ -50,16 +51,6 @@ export function createQuoteHandlers(
     async function quote(input: QuoteInput): Promise<FxQuote> {
         const validated = validateQuoteInput(input);
 
-        const [policy] = await db
-            .select()
-            .from(schema.fxPolicies)
-            .where(eq(schema.fxPolicies.id, validated.policyId))
-            .limit(1);
-
-        if (!policy || !policy.isActive) {
-            throw new PolicyNotFoundError(validated.policyId);
-        }
-
         let legs = [] as ReturnType<typeof computeExplicitRouteLegs>;
         let toAmountMinor = 0n;
         let rateNum = 1n;
@@ -73,9 +64,7 @@ export function createQuoteHandlers(
                 validated.asOf,
                 validated.anchor ?? "USD"
             );
-            const midToAmount = mulDivFloor(validated.fromAmountMinor, cross.rateNum, cross.rateDen);
-            const marginBps = BigInt(policy.marginBps);
-            toAmountMinor = (midToAmount * (BPS_SCALE - marginBps)) / BPS_SCALE;
+            toAmountMinor = mulDivFloor(validated.fromAmountMinor, cross.rateNum, cross.rateDen);
             const effectiveRate = effectiveRateFromAmounts(validated.fromAmountMinor, toAmountMinor);
             rateNum = effectiveRate.rateNum;
             rateDen = effectiveRate.rateDen;
@@ -112,13 +101,13 @@ export function createQuoteHandlers(
             at: validated.asOf,
         });
 
-        const expiresAt = new Date(validated.asOf.getTime() + policy.ttlSeconds * 1000);
+        const ttlSeconds = validated.ttlSeconds ?? DEFAULT_QUOTE_TTL_SECONDS;
+        const expiresAt = new Date(validated.asOf.getTime() + ttlSeconds * 1000);
 
-        return db.transaction(async (tx: any) => {
+        return db.transaction(async (tx: Transaction) => {
             const inserted = await tx
                 .insert(schema.fxQuotes)
                 .values({
-                    policyId: policy.id,
                     fromCurrency: validated.fromCurrency,
                     toCurrency: validated.toCurrency,
                     fromAmountMinor: validated.fromAmountMinor,

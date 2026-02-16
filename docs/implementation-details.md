@@ -66,7 +66,6 @@ Details:
 
 ### FX schema
 
-- `fx_policies`: margin/ttl parameters and active flag (`fee_bps` remains for legacy records).
 - `fx_rates`: timestamped rate observations.
 - `fx_quotes`: quote snapshot with status lifecycle and idempotency key.
 
@@ -202,7 +201,6 @@ Details:
 
 `createFxService` methods:
 
-- `upsertPolicy` (upserts by policy name)
 - `setManualRate`
 - `getLatestRate`
 - `getCrossRate`:
@@ -224,7 +222,6 @@ Details:
 - Zod-based input validation for each method.
 - Explicit errors:
   - `RateNotFoundError`
-  - `PolicyNotFoundError`
   - `QuoteExpiredError`
   - `NotFoundError`
   - `ValidationError`
@@ -236,7 +233,7 @@ Details:
 `@bedrock/fees` provides shared helpers:
 
 - `calculateFxQuoteFeeComponents`
-  - policy bps -> fee components (`fx_fee`, `fx_spread`)
+  - fee rules -> fee components (`fx_fee`, `fx_spread`)
 - `buildFxExecutionFeeComponents`
   - converts quote-resolved fee amounts to components
 - `mergeFeeComponents` and `aggregateFeeComponents`

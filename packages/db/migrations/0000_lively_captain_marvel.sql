@@ -6,7 +6,7 @@ CREATE TABLE "fx_quote_fee_components" (
 	"kind" text NOT NULL,
 	"currency" text NOT NULL,
 	"amount_minor" bigint NOT NULL,
-	"source" text DEFAULT 'policy' NOT NULL,
+	"source" text DEFAULT 'rule' NOT NULL,
 	"settlement_mode" text DEFAULT 'in_ledger' NOT NULL,
 	"debit_account_key" text,
 	"credit_account_key" text,
@@ -42,19 +42,25 @@ CREATE TABLE "fee_rules" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "fx_policies" (
+CREATE TABLE "fx_quote_legs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"name" text NOT NULL,
-	"margin_bps" integer DEFAULT 0 NOT NULL,
-	"fee_bps" integer DEFAULT 0 NOT NULL,
-	"ttl_seconds" integer DEFAULT 600 NOT NULL,
-	"is_active" boolean DEFAULT true NOT NULL,
+	"quote_id" uuid NOT NULL,
+	"idx" integer NOT NULL,
+	"from_currency" text NOT NULL,
+	"to_currency" text NOT NULL,
+	"from_amount_minor" bigint NOT NULL,
+	"to_amount_minor" bigint NOT NULL,
+	"rate_num" bigint NOT NULL,
+	"rate_den" bigint NOT NULL,
+	"source_kind" text DEFAULT 'derived' NOT NULL,
+	"source_ref" text,
+	"as_of" timestamp with time zone NOT NULL,
+	"execution_org_id" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "fx_quotes" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"policy_id" uuid NOT NULL,
 	"from_currency" text NOT NULL,
 	"to_currency" text NOT NULL,
 	"from_amount_minor" bigint NOT NULL,
@@ -70,23 +76,6 @@ CREATE TABLE "fx_quotes" (
 	"used_at" timestamp with time zone,
 	"expires_at" timestamp with time zone NOT NULL,
 	"idempotency_key" text NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "fx_quote_legs" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"quote_id" uuid NOT NULL,
-	"idx" integer NOT NULL,
-	"from_currency" text NOT NULL,
-	"to_currency" text NOT NULL,
-	"from_amount_minor" bigint NOT NULL,
-	"to_amount_minor" bigint NOT NULL,
-	"rate_num" bigint NOT NULL,
-	"rate_den" bigint NOT NULL,
-	"source_kind" text DEFAULT 'derived' NOT NULL,
-	"source_ref" text,
-	"as_of" timestamp with time zone NOT NULL,
-	"execution_org_id" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -224,29 +213,6 @@ CREATE TABLE "customers" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "payment_orders" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"customer_org_id" uuid NOT NULL,
-	"customer_id" uuid NOT NULL,
-	"status" text DEFAULT 'quote' NOT NULL,
-	"ledger_entry_id" uuid,
-	"payin_currency" text NOT NULL,
-	"payin_expected_minor" bigint NOT NULL,
-	"payout_currency" text NOT NULL,
-	"payout_amount_minor" bigint NOT NULL,
-	"payin_org_id" uuid NOT NULL,
-	"payin_account_id" uuid,
-	"payout_org_id" uuid NOT NULL,
-	"payout_account_id" uuid,
-	"beneficiary_name" text,
-	"beneficiary_country" text,
-	"beneficiary_invoice_ref" text,
-	"idempotency_key" text NOT NULL,
-	"payout_pending_transfer_id" numeric(39,0),
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE "fee_payment_orders" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"parent_order_id" uuid NOT NULL,
@@ -267,6 +233,29 @@ CREATE TABLE "fee_payment_orders" (
 	"payout_bank_stable_key" text,
 	"rail_ref" text,
 	"status" text DEFAULT 'reserved' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "payment_orders" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"customer_org_id" uuid NOT NULL,
+	"customer_id" uuid NOT NULL,
+	"status" text DEFAULT 'quote' NOT NULL,
+	"ledger_entry_id" uuid,
+	"payin_currency" text NOT NULL,
+	"payin_expected_minor" bigint NOT NULL,
+	"payout_currency" text NOT NULL,
+	"payout_amount_minor" bigint NOT NULL,
+	"payin_org_id" uuid NOT NULL,
+	"payin_account_id" uuid,
+	"payout_org_id" uuid NOT NULL,
+	"payout_account_id" uuid,
+	"beneficiary_name" text,
+	"beneficiary_country" text,
+	"beneficiary_invoice_ref" text,
+	"idempotency_key" text NOT NULL,
+	"payout_pending_transfer_id" numeric(39,0),
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -311,13 +300,18 @@ CREATE TABLE "reconciliation_exceptions" (
 --> statement-breakpoint
 ALTER TABLE "fx_quote_fee_components" ADD CONSTRAINT "fx_quote_fee_components_quote_id_fx_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."fx_quotes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fx_quote_fee_components" ADD CONSTRAINT "fx_quote_fee_components_rule_id_fee_rules_id_fk" FOREIGN KEY ("rule_id") REFERENCES "public"."fee_rules"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fx_quotes" ADD CONSTRAINT "fx_quotes_policy_id_fx_policies_id_fk" FOREIGN KEY ("policy_id") REFERENCES "public"."fx_policies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fx_quote_legs" ADD CONSTRAINT "fx_quote_legs_quote_id_fx_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."fx_quotes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fx_quote_legs" ADD CONSTRAINT "fx_quote_legs_execution_org_id_organizations_id_fk" FOREIGN KEY ("execution_org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "journal_lines" ADD CONSTRAINT "journal_lines_entry_id_journal_entries_id_fk" FOREIGN KEY ("entry_id") REFERENCES "public"."journal_entries"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tb_transfer_plans" ADD CONSTRAINT "tb_transfer_plans_journal_entry_id_journal_entries_id_fk" FOREIGN KEY ("journal_entry_id") REFERENCES "public"."journal_entries"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "bank_accounts" ADD CONSTRAINT "bank_accounts_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customers" ADD CONSTRAINT "customers_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fx_quote_legs" ADD CONSTRAINT "fx_quote_legs_execution_org_id_organizations_id_fk" FOREIGN KEY ("execution_org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fee_payment_orders" ADD CONSTRAINT "fee_payment_orders_parent_order_id_payment_orders_id_fk" FOREIGN KEY ("parent_order_id") REFERENCES "public"."payment_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fee_payment_orders" ADD CONSTRAINT "fee_payment_orders_quote_id_fx_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."fx_quotes"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fee_payment_orders" ADD CONSTRAINT "fee_payment_orders_reserve_entry_id_journal_entries_id_fk" FOREIGN KEY ("reserve_entry_id") REFERENCES "public"."journal_entries"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fee_payment_orders" ADD CONSTRAINT "fee_payment_orders_initiate_entry_id_journal_entries_id_fk" FOREIGN KEY ("initiate_entry_id") REFERENCES "public"."journal_entries"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fee_payment_orders" ADD CONSTRAINT "fee_payment_orders_resolve_entry_id_journal_entries_id_fk" FOREIGN KEY ("resolve_entry_id") REFERENCES "public"."journal_entries"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fee_payment_orders" ADD CONSTRAINT "fee_payment_orders_payout_org_id_organizations_id_fk" FOREIGN KEY ("payout_org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment_orders" ADD CONSTRAINT "payment_orders_customer_org_id_organizations_id_fk" FOREIGN KEY ("customer_org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment_orders" ADD CONSTRAINT "payment_orders_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment_orders" ADD CONSTRAINT "payment_orders_ledger_entry_id_journal_entries_id_fk" FOREIGN KEY ("ledger_entry_id") REFERENCES "public"."journal_entries"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -325,23 +319,16 @@ ALTER TABLE "payment_orders" ADD CONSTRAINT "payment_orders_payin_org_id_organiz
 ALTER TABLE "payment_orders" ADD CONSTRAINT "payment_orders_payin_account_id_bank_accounts_id_fk" FOREIGN KEY ("payin_account_id") REFERENCES "public"."bank_accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment_orders" ADD CONSTRAINT "payment_orders_payout_org_id_organizations_id_fk" FOREIGN KEY ("payout_org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment_orders" ADD CONSTRAINT "payment_orders_payout_account_id_bank_accounts_id_fk" FOREIGN KEY ("payout_account_id") REFERENCES "public"."bank_accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fee_payment_orders" ADD CONSTRAINT "fee_payment_orders_parent_order_id_payment_orders_id_fk" FOREIGN KEY ("parent_order_id") REFERENCES "public"."payment_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fee_payment_orders" ADD CONSTRAINT "fee_payment_orders_quote_id_fx_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."fx_quotes"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fee_payment_orders" ADD CONSTRAINT "fee_payment_orders_reserve_entry_id_journal_entries_id_fk" FOREIGN KEY ("reserve_entry_id") REFERENCES "public"."journal_entries"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fee_payment_orders" ADD CONSTRAINT "fee_payment_orders_initiate_entry_id_journal_entries_id_fk" FOREIGN KEY ("initiate_entry_id") REFERENCES "public"."journal_entries"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fee_payment_orders" ADD CONSTRAINT "fee_payment_orders_resolve_entry_id_journal_entries_id_fk" FOREIGN KEY ("resolve_entry_id") REFERENCES "public"."journal_entries"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fee_payment_orders" ADD CONSTRAINT "fee_payment_orders_payout_org_id_organizations_id_fk" FOREIGN KEY ("payout_org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "settlements" ADD CONSTRAINT "settlements_order_id_payment_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."payment_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "fx_quote_fee_components_quote_idx_uq" ON "fx_quote_fee_components" USING btree ("quote_id","idx");--> statement-breakpoint
 CREATE INDEX "fx_quote_fee_components_quote_id_idx" ON "fx_quote_fee_components" USING btree ("quote_id");--> statement-breakpoint
 CREATE INDEX "fee_rules_op_active_priority_idx" ON "fee_rules" USING btree ("operation_kind","is_active","priority");--> statement-breakpoint
 CREATE INDEX "fee_rules_effective_idx" ON "fee_rules" USING btree ("effective_from","effective_to");--> statement-breakpoint
-CREATE UNIQUE INDEX "fx_policies_name_uq" ON "fx_policies" USING btree ("name");--> statement-breakpoint
+CREATE UNIQUE INDEX "fx_quote_legs_quote_idx_uq" ON "fx_quote_legs" USING btree ("quote_id","idx");--> statement-breakpoint
+CREATE INDEX "fx_quote_legs_quote_idx" ON "fx_quote_legs" USING btree ("quote_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "fx_quotes_idem_uq" ON "fx_quotes" USING btree ("idempotency_key");--> statement-breakpoint
 CREATE INDEX "fx_quotes_status_idx" ON "fx_quotes" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "fx_quotes_expires_idx" ON "fx_quotes" USING btree ("expires_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "fx_quote_legs_quote_idx_uq" ON "fx_quote_legs" USING btree ("quote_id","idx");--> statement-breakpoint
-CREATE INDEX "fx_quote_legs_quote_idx" ON "fx_quote_legs" USING btree ("quote_id");--> statement-breakpoint
 CREATE INDEX "fx_rates_pair_asof_idx" ON "fx_rates" USING btree ("base_currency","quote_currency","as_of");--> statement-breakpoint
 CREATE INDEX "fx_rates_asof_idx" ON "fx_rates" USING btree ("as_of");--> statement-breakpoint
 CREATE INDEX "journal_entries_org_status_idx" ON "journal_entries" USING btree ("org_id","status");--> statement-breakpoint
@@ -364,11 +351,11 @@ CREATE INDEX "internal_transfers_org_created_idx" ON "internal_transfers" USING 
 CREATE UNIQUE INDEX "bank_accounts_org_stable_uq" ON "bank_accounts" USING btree ("org_id","stable_key");--> statement-breakpoint
 CREATE INDEX "bank_accounts_org_cur_idx" ON "bank_accounts" USING btree ("org_id","currency");--> statement-breakpoint
 CREATE INDEX "customers_org_idx" ON "customers" USING btree ("org_id");--> statement-breakpoint
-CREATE INDEX "orders_status_idx" ON "payment_orders" USING btree ("status");--> statement-breakpoint
-CREATE UNIQUE INDEX "orders_idem_uq" ON "payment_orders" USING btree ("idempotency_key");--> statement-breakpoint
 CREATE UNIQUE INDEX "fee_payment_orders_idem_uq" ON "fee_payment_orders" USING btree ("idempotency_key");--> statement-breakpoint
 CREATE INDEX "fee_payment_orders_status_idx" ON "fee_payment_orders" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "fee_payment_orders_parent_idx" ON "fee_payment_orders" USING btree ("parent_order_id");--> statement-breakpoint
+CREATE INDEX "orders_status_idx" ON "payment_orders" USING btree ("status");--> statement-breakpoint
+CREATE UNIQUE INDEX "orders_idem_uq" ON "payment_orders" USING btree ("idempotency_key");--> statement-breakpoint
 CREATE UNIQUE INDEX "recon_exc_identity_uq" ON "reconciliation_exceptions" USING btree ("source","scope_key","entity_type","entity_id","issue_code");--> statement-breakpoint
 CREATE INDEX "recon_exc_status_due_idx" ON "reconciliation_exceptions" USING btree ("status","due_at");--> statement-breakpoint
 CREATE INDEX "recon_exc_scope_status_idx" ON "reconciliation_exceptions" USING btree ("scope_key","status");

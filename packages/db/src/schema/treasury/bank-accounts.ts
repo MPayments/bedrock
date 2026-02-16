@@ -2,7 +2,7 @@ import { pgTable, text, timestamp, uuid, uniqueIndex, index } from "drizzle-orm/
 import { organizations } from "./organizations";
 import { sql } from "drizzle-orm";
 
-export type Rail = "bank" | "swift" | "sepa" | "crypto" | "usdt_trc20" | "usdt_erc20" | "cash";
+export type Rail = "bank" | "swift" | "sepa" | "crypto" | "cash";
 
 export const bankAccounts = pgTable(
     "bank_accounts",

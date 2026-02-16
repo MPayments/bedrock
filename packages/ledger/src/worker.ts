@@ -1,8 +1,9 @@
 import { sql } from "drizzle-orm";
-import { type Database } from "@bedrock/db";
+import { Transaction, type Database } from "@bedrock/db";
 import {
     schema
 } from "@bedrock/db/schema";
+
 import type { TbClient } from "./tb";
 import { makeTbTransfer, tbCreateTransfersOrThrow, TransferFlags, TB_AMOUNT_MAX } from "./tb";
 import { resolveTbAccountId } from "./resolve";
@@ -91,7 +92,7 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient; accountCa
                 await postJournal(job.org_id, job.journal_entry_id);
 
                 // Wrap success updates in transaction to ensure atomicity
-                await db.transaction(async (tx: any) => {
+                await db.transaction(async (tx: Transaction) => {
                     await tx.execute(sql`
             UPDATE ${schema.outbox}
             SET status = 'done', locked_at = NULL, error = NULL
@@ -111,7 +112,7 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient; accountCa
                 const retryable = isRetryableError(e);
 
                 // Wrap error handling updates in transaction to ensure atomicity
-                await db.transaction(async (tx: any) => {
+                await db.transaction(async (tx: Transaction) => {
                     // Fail immediately for permanent errors, or when max attempts reached
                     if (!retryable || job.attempts >= maxAttempts) {
                         const errorMsg = !retryable
@@ -250,7 +251,7 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient; accountCa
         // Wrap both updates in a transaction to ensure atomicity
         // If TigerBeetle transfers succeeded but DB update fails, the next retry
         // will skip already-posted plans and update the status correctly
-        await db.transaction(async (tx: any) => {
+        await db.transaction(async (tx: Transaction) => {
             await tx.execute(sql`
           UPDATE ${schema.tbTransferPlans}
           SET status = 'posted', error = NULL

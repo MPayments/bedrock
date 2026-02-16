@@ -32,7 +32,7 @@ function tbAccountFlagsForKey(key: string): number {
         return AccountFlags.credits_must_not_exceed_debits;
     }
 
-    // Unknown account roles remain unconstrained until explicit policy is configured.
+    // Unknown account roles remain unconstrained until explicit configuration is provided.
     return 0;
 }
 

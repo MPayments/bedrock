@@ -21,7 +21,7 @@ describe("fees validation", () => {
             kind: "fx_fee",
             currency: "usd",
             amountMinor: 12n,
-            source: "policy",
+            source: "rule",
         });
 
         expect(normalized.currency).toBe("USD");
@@ -31,7 +31,7 @@ describe("fees validation", () => {
             kind: "fx_fee",
             currency: "USD",
             amountMinor: 5n,
-            source: "policy",
+            source: "rule",
             debitAccountKey: "Account:debit",
         })).toThrowError(/debitAccountKey and creditAccountKey must be provided together/);
     });

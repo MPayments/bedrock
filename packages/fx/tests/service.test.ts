@@ -3,7 +3,6 @@ import { schema } from "@bedrock/db/schema";
 import { ValidationError } from "@bedrock/kernel/errors";
 import { createFxService } from "../src/service";
 
-const POLICY_ID = "550e8400-e29b-41d4-a716-446655440001";
 const QUOTE_ID = "550e8400-e29b-41d4-a716-446655440010";
 
 function selectWhereLimit(rows: any[]) {
@@ -29,23 +28,9 @@ function selectWhereOrderBy(rows: any[]) {
     };
 }
 
-function makePolicy(overrides: Record<string, unknown> = {}) {
-    return {
-        id: POLICY_ID,
-        name: "Default",
-        marginBps: 0,
-        feeBps: 0,
-        ttlSeconds: 120,
-        isActive: true,
-        createdAt: new Date("2026-02-14T00:00:00Z"),
-        ...overrides,
-    };
-}
-
 function makeQuote(overrides: Record<string, unknown> = {}) {
     return {
         id: QUOTE_ID,
-        policyId: POLICY_ID,
         fromCurrency: "RUB",
         toCurrency: "AED",
         fromAmountMinor: 1_000_000n,
@@ -70,9 +55,6 @@ describe("createFxService", () => {
     it("quotes explicit route and persists computed legs + fee snapshot", async () => {
         const createdQuote = makeQuote();
         const insertedLegRows: any[] = [];
-        const dbSelect = vi
-            .fn()
-            .mockImplementationOnce(() => selectWhereLimit([makePolicy()]));
         const txInsert = vi.fn((table: unknown) => {
             if (table === schema.fxQuotes) {
                 return {
@@ -94,7 +76,7 @@ describe("createFxService", () => {
             throw new Error("unexpected insert table");
         });
         const db = {
-            select: dbSelect,
+            select: vi.fn(),
             transaction: vi.fn(async (fn: any) => fn({ insert: txInsert })),
         } as any;
         const feesService = {
@@ -103,7 +85,7 @@ describe("createFxService", () => {
                 kind: "fx_fee",
                 currency: "RUB",
                 amountMinor: 1_000n,
-                source: "policy",
+                source: "rule",
                 settlementMode: "in_ledger",
             }]),
             saveQuoteFeeComponents: vi.fn(async () => undefined),
@@ -114,7 +96,6 @@ describe("createFxService", () => {
         const quote = await service.quote({
             mode: "explicit_route",
             idempotencyKey: "idem-route-1",
-            policyId: POLICY_ID,
             fromCurrency: "RUB",
             toCurrency: "AED",
             fromAmountMinor: 1_000_000n,
@@ -171,9 +152,7 @@ describe("createFxService", () => {
 
     it("rejects explicit route with broken leg continuity", async () => {
         const db = {
-            select: vi
-                .fn()
-                .mockImplementationOnce(() => selectWhereLimit([makePolicy()])),
+            select: vi.fn(),
             transaction: vi.fn(),
         } as any;
         const feesService = {
@@ -186,7 +165,6 @@ describe("createFxService", () => {
         await expect(service.quote({
             mode: "explicit_route",
             idempotencyKey: "idem-route-bad",
-            policyId: POLICY_ID,
             fromCurrency: "RUB",
             toCurrency: "AED",
             fromAmountMinor: 1_000_000n,
@@ -233,7 +211,6 @@ describe("createFxService", () => {
         const db = {
             select: vi
                 .fn()
-                .mockImplementationOnce(() => selectWhereLimit([makePolicy()]))
                 .mockImplementationOnce(() => selectWhereLimit([{
                     base: "USD",
                     quote: "EUR",
@@ -275,7 +252,6 @@ describe("createFxService", () => {
         const quote = await service.quote({
             mode: "auto_cross",
             idempotencyKey: "idem-auto-1",
-            policyId: POLICY_ID,
             fromCurrency: "USD",
             toCurrency: "EUR",
             fromAmountMinor: 10_000n,
@@ -299,9 +275,7 @@ describe("createFxService", () => {
         const insertLegs = vi.fn();
         const txSelect = vi.fn().mockImplementationOnce(() => selectWhereLimit([existingQuote]));
         const db = {
-            select: vi
-                .fn()
-                .mockImplementationOnce(() => selectWhereLimit([makePolicy()])),
+            select: vi.fn(),
             transaction: vi.fn(async (fn: any) => fn({
                 insert: vi.fn((table: unknown) => {
                     if (table === schema.fxQuotes) {
@@ -331,7 +305,6 @@ describe("createFxService", () => {
         const quote = await service.quote({
             mode: "explicit_route",
             idempotencyKey: "idem-race-1",
-            policyId: POLICY_ID,
             fromCurrency: "RUB",
             toCurrency: "AED",
             fromAmountMinor: 1_000_000n,
@@ -378,7 +351,7 @@ describe("createFxService", () => {
             kind: "bank_fee",
             currency: "RUB",
             amountMinor: 300n,
-            source: "policy",
+            source: "rule",
             settlementMode: "in_ledger",
         }];
         const db = {

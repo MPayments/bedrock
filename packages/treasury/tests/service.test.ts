@@ -937,7 +937,7 @@ describe("createTreasuryService", () => {
                 kind: "fx_fee",
                 currency: "USD",
                 amountMinor: 500n,
-                source: "policy",
+                source: "rule",
                 settlementMode: "in_ledger",
                 debitAccountKey: null,
                 creditAccountKey: null,

@@ -54,3 +54,5 @@ export const feePaymentOrders = pgTable(
         index("fee_payment_orders_parent_idx").on(t.parentOrderId),
     ])
 );
+
+export type FeePaymentOrder = typeof feePaymentOrders.$inferSelect;

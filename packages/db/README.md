@@ -23,7 +23,6 @@ Drizzle-based database package for the financial core.
   - `payment_orders`
   - `settlements`
 - FX:
-  - `fx_policies`
   - `fx_rates`
   - `fx_quotes`
 - Transfers:
@@ -44,4 +43,3 @@ Drizzle-based database package for the financial core.
 - `npm run db:migrate`
 - `npm run db:push`
 - `npm run db:studio`
-

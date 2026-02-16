@@ -9,7 +9,6 @@ import { settlements } from "./treasury/orders";
 import { organizations } from "./treasury/organizations";
 import { reconciliationExceptions } from "./treasury/reconciliation";
 import { fxRates } from "./fx/rates";
-import { fxPolicies } from "./fx/policies";
 import { fxQuotes } from "./fx/quotes";
 import { fxQuoteLegs } from "./fx/quote-legs";
 import { feeRules } from "./fees/rules";
@@ -30,7 +29,6 @@ export const schema = {
   settlements,
   reconciliationExceptions,
   fxRates,
-  fxPolicies,
   fxQuotes,
   fxQuoteLegs,
   feeRules,
@@ -42,3 +40,5 @@ export const schema = {
 export { TransferStatus } from "./transfers/transfers";
 export { type JournalStatus } from "./ledger/journal";
 export { type FxQuote, type FxQuoteStatus } from "./fx/quotes";
+export { type FeePaymentOrder, type FeePaymentOrderStatus } from "./treasury/fee-payment-orders";
+export type { PaymentOrder } from "./treasury/orders";

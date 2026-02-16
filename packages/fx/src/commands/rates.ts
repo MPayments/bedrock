@@ -4,9 +4,23 @@ import { normalizeCurrency } from "@bedrock/kernel";
 
 import { RateNotFoundError } from "../errors";
 import { type FxServiceContext } from "../internal/context";
+import { type SetManualRateInput, validateSetManualRateInput } from "../validation";
 
 export function createRateHandlers(context: FxServiceContext) {
     const { db } = context;
+
+    async function setManualRate(input: SetManualRateInput) {
+        const validated = validateSetManualRateInput(input);
+
+        await db.insert(schema.fxRates).values({
+            base: validated.base,
+            quote: validated.quote,
+            rateNum: validated.rateNum,
+            rateDen: validated.rateDen,
+            asOf: validated.asOf,
+            source: validated.source ?? "manual",
+        });
+    }
 
     async function getLatestRate(base: string, quote: string, asOf: Date) {
         base = normalizeCurrency(base);
@@ -73,8 +87,19 @@ export function createRateHandlers(context: FxServiceContext) {
         };
     }
 
+    async function expireOldQuotes(now: Date) {
+        await db.execute(sql`
+      UPDATE ${schema.fxQuotes}
+      SET status = 'expired'
+      WHERE status = 'active'
+        AND expires_at <= ${now}
+    `);
+    }
+
     return {
+        setManualRate,
         getLatestRate,
         getCrossRate,
+        expireOldQuotes,
     };
 }

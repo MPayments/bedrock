@@ -136,7 +136,7 @@ export function createRuleHandlers(context: FeesServiceContext) {
                 kind: rule.feeKind,
                 currency,
                 amountMinor,
-                source: "policy",
+                source: "rule",
                 settlementMode: rule.settlementMode,
                 debitAccountKey: rule.debitAccountKey ?? undefined,
                 creditAccountKey: rule.creditAccountKey ?? undefined,

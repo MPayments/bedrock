@@ -8,26 +8,10 @@ function uniq(prefix: string) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-async function createFxPolicy() {
-    const rows = await db
-        .insert(schema.fxPolicies)
-        .values({
-            name: uniq("policy"),
-            marginBps: 25,
-            feeBps: 10,
-            ttlSeconds: 600,
-            isActive: true,
-        })
-        .returning({ id: schema.fxPolicies.id });
-
-    return rows[0]!.id;
-}
-
-async function createFxQuote(policyId: string) {
+async function createFxQuote() {
     const rows = await db
         .insert(schema.fxQuotes)
         .values({
-            policyId,
             fromCurrency: "USD",
             toCurrency: "EUR",
             fromAmountMinor: 100000n,
@@ -188,7 +172,7 @@ describe("Fees Service Integration Tests", () => {
             kind: "fx_fee",
             currency: "USD",
             amountMinor: 92n,
-            source: "policy",
+            source: "rule",
         });
 
         expect(components[1]).toMatchObject({
@@ -215,8 +199,7 @@ describe("Fees Service Integration Tests", () => {
             effectiveFrom: new Date("2026-02-13T00:00:00.000Z"),
         });
 
-        const policyId = await createFxPolicy();
-        const quoteId = await createFxQuote(policyId);
+        const quoteId = await createFxQuote();
 
         await service.saveQuoteFeeComponents({
             quoteId,
@@ -227,7 +210,7 @@ describe("Fees Service Integration Tests", () => {
                     kind: "fx_fee",
                     currency: "usd",
                     amountMinor: 10n,
-                    source: "policy",
+                    source: "rule",
                 },
                 {
                     id: "fee-2",
@@ -270,7 +253,7 @@ describe("Fees Service Integration Tests", () => {
                     kind: "fx_spread",
                     currency: "USD",
                     amountMinor: 99n,
-                    source: "policy",
+                    source: "rule",
                 },
             ],
         });

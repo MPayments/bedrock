@@ -21,7 +21,6 @@ async function cleanupFeeTables() {
     await pool.query("DELETE FROM fx_quote_legs");
     await pool.query("DELETE FROM fx_quotes");
     await pool.query("DELETE FROM fee_rules");
-    await pool.query("DELETE FROM fx_policies");
 }
 
 beforeAll(async () => {

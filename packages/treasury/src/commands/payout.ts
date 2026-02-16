@@ -3,7 +3,8 @@ import { makePlanKey } from "@bedrock/kernel";
 import { AmountMismatchError, CurrencyMismatchError, InvalidStateError, NotFoundError, ValidationError } from "@bedrock/kernel/errors";
 import { schema } from "@bedrock/db/schema";
 import { PlanType } from "@bedrock/ledger";
-import { TransferCodes } from "@bedrock/kernel/constants";
+import { DAY_IN_SECONDS, TransferCodes } from "@bedrock/kernel/constants";
+import { type Transaction } from "@bedrock/db";
 
 import {
     type InitiatePayoutInput,
@@ -23,8 +24,6 @@ import {
 import { SYSTEM_LEDGER_ORG_ID, type TreasuryServiceContext } from "../internal/context";
 import { fetchOrderState } from "../internal/order-state";
 
-const DAY_IN_SECONDS = 86400;
-
 export function createPayoutHandlers(context: TreasuryServiceContext) {
     const { db, ledger, log, keys } = context;
 
@@ -33,7 +32,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
         const timeoutSeconds = input.timeoutSeconds ?? DAY_IN_SECONDS;
         log.debug("initiatePayout start", { orderId: input.orderId, railRef: input.railRef });
 
-        return db.transaction(async (tx: any) => {
+        return db.transaction(async (tx: Transaction) => {
             const [order] = await tx
                 .select()
                 .from(schema.paymentOrders)
@@ -132,7 +131,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
         const input = validateSettlePayoutInput(rawInput);
         log.debug("settlePayout start", { orderId: input.orderId, railRef: input.railRef });
 
-        return db.transaction(async (tx: any) => {
+        return db.transaction(async (tx: Transaction) => {
             const [order] = await tx
                 .select()
                 .from(schema.paymentOrders)
@@ -207,7 +206,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
         const input = validateVoidPayoutInput(rawInput);
         log.debug("voidPayout start", { orderId: input.orderId, railRef: input.railRef });
 
-        return db.transaction(async (tx: any) => {
+        return db.transaction(async (tx: Transaction) => {
             const [order] = await tx
                 .select()
                 .from(schema.paymentOrders)

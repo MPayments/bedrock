@@ -1,5 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
+import { isUuidLike } from "@bedrock/kernel/utils";
+import { type Transaction } from "@bedrock/db";
 
 import { AmountMismatchError, CurrencyMismatchError, InvalidStateError, NotFoundError, ValidationError } from "../errors";
 import { type ExecuteFxValidatedInput } from "../validation";
@@ -8,11 +10,7 @@ function quoteUsageRef(orderId: string): string {
     return `order:${orderId}:fx`;
 }
 
-function isUuidLike(value: string): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
-export async function consumeFxQuoteForExecution(tx: any, input: ExecuteFxValidatedInput) {
+export async function consumeFxQuoteForExecution(tx: Transaction, input: ExecuteFxValidatedInput) {
     let quote: any | undefined;
     if (isUuidLike(input.quoteRef)) {
         const [byId] = await tx

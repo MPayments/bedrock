@@ -21,6 +21,7 @@ import {
     randomRailRef,
     randomQuoteRef
 } from "./helpers";
+import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 
 describe("Treasury Service Integration Tests", () => {
     const ledger = createLedgerEngine({ db });
@@ -412,7 +413,7 @@ describe("Treasury Service Integration Tests", () => {
             });
 
             const plans = await getTbTransferPlans(result.entryId);
-            expect(plans[0]!.timeoutSeconds).toBe(86400); // Default 24 hours
+            expect(plans[0]!.timeoutSeconds).toBe(DAY_IN_SECONDS); // Default 24 hours
         });
 
         it("should throw InvalidStateError if order is not fx_executed", async () => {

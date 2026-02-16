@@ -154,7 +154,6 @@ Maker/checker behavior:
 
 FX subsystem currently provides:
 
-- Policies (`fx_policies`): margin, fee, TTL
 - Rates (`fx_rates`): direct/inverse/cross rate retrieval
 - Quotes (`fx_quotes`): idempotent quote creation, expiration, mark-used semantics
 
@@ -177,7 +176,6 @@ Primary tables by concern:
   - `customers`
   - `bank_accounts`
 - FX:
-  - `fx_policies`
   - `fx_rates`
   - `fx_quotes`
 - Fees:
@@ -209,7 +207,6 @@ Current architecture is strong for deterministic posting and retries but remains
 - End-to-end reconciliation workflows and exception handling surfaces
 - Full quote-binding and quote-consumption integration in treasury execution paths
 - Netting operations beyond account-level representation
-- Consistent strict typing in transaction internals (many `tx: any`)
 
 ## Diagram: Payment + Posting
 

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
-import { Database } from "@bedrock/db";
+import { Database, Transaction } from "@bedrock/db";
+
 import { OrderFinalizeFromPendingPosting } from "./state-machine";
 
 const FeePaymentOrderFinalizeFromPendingPosting: Readonly<Record<string, string>> = {
@@ -36,7 +37,7 @@ export function createTreasuryWorker(deps: { db: Database }) {
             const target = OrderFinalizeFromPendingPosting[it.order_status];
             if (!target) continue;
 
-            await db.transaction(async (tx: any) => {
+            await db.transaction(async (tx: Transaction) => {
                 const locked = await tx.execute(sql`
           SELECT o.id, o.status, j.status as journal_status
           FROM ${schema.paymentOrders} o
@@ -117,7 +118,7 @@ export function createTreasuryWorker(deps: { db: Database }) {
             const target = FeePaymentOrderFinalizeFromPendingPosting[it.fee_status];
             if (!target) continue;
 
-            await db.transaction(async (tx: any) => {
+            await db.transaction(async (tx: Transaction) => {
                 const locked = await tx.execute(sql`
           SELECT
             f.id,

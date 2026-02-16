@@ -11,11 +11,3 @@ export class RateNotFoundError extends FxError {
 export class QuoteExpiredError extends FxError {
     name = "QuoteExpiredError";
 }
-
-export class PolicyNotFoundError extends FxError {
-    name = "PolicyNotFoundError";
-
-    constructor(policyId: string) {
-        super(`Policy not found or inactive: ${policyId}`);
-    }
-}

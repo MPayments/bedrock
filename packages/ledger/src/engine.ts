@@ -1,11 +1,12 @@
 import { and, eq } from "drizzle-orm";
-import { IdempotencyConflictError } from "./errors";
-import { tbLedgerForCurrency, tbTransferIdForPlan, sha256Hex } from "./ids";
-import { PlanType, type CreateEntryInput, type TransferPlanLine, type CreateEntryResult } from "./types";
 import { schema } from "@bedrock/db/schema";
-import { type Database } from "@bedrock/db";
+import { type Transaction, type Database } from "@bedrock/db";
+import { sha256Hex, stableStringify } from "@bedrock/kernel";
+
+import { tbLedgerForCurrency, tbTransferIdForPlan } from "./ids";
 import { validateCreateEntryInput, validateChainBlocks } from "./validation";
-import { stableStringify } from "@bedrock/kernel";
+import { PlanType, type CreateEntryInput, type TransferPlanLine, type CreateEntryResult } from "./types";
+import { IdempotencyConflictError } from "./errors";
 
 function computeLinkedFlags(transfers: TransferPlanLine[]): boolean[] {
     const linked = new Array(transfers.length).fill(false);
@@ -63,7 +64,7 @@ export type LedgerEngine = ReturnType<typeof createLedgerEngine>;
 export function createLedgerEngine(deps: { db: Database }) {
     const { db } = deps;
 
-    async function createEntryTx(tx: any, input: CreateEntryInput): Promise<CreateEntryResult> {
+    async function createEntryTx(tx: Transaction, input: CreateEntryInput): Promise<CreateEntryResult> {
         const validated = validateCreateEntryInput(input);
 
         validateChainBlocks(validated.transfers);
@@ -236,7 +237,7 @@ export function createLedgerEngine(deps: { db: Database }) {
     }
 
     async function createEntry(input: CreateEntryInput): Promise<CreateEntryResult> {
-        return db.transaction(async (tx: any) => createEntryTx(tx, input));
+        return db.transaction(async (tx: Transaction) => createEntryTx(tx, input));
     }
 
     return {

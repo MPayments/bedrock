@@ -40,7 +40,6 @@ beforeAll(async () => {
                 fx_quote_legs,
                 fx_quotes,
                 fee_rules,
-                fx_policies,
                 payment_orders,
                 outbox,
                 tb_transfer_plans,
@@ -83,7 +82,6 @@ afterEach(async () => {
             await pool.query("DELETE FROM fx_quote_legs");
             await pool.query("DELETE FROM fx_quotes");
             await pool.query("DELETE FROM fee_rules");
-            await pool.query("DELETE FROM fx_policies");
             await pool.query("DELETE FROM payment_orders");
             await pool.query("DELETE FROM outbox");
             await pool.query("DELETE FROM tb_transfer_plans");

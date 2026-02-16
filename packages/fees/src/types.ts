@@ -27,7 +27,7 @@ export type FeeComponentKind =
     | "manual_fee"
     | (string & {});
 
-export type FeeSource = "policy" | "manual";
+export type FeeSource = "rule" | "manual";
 
 export type FeeSettlementMode = "in_ledger" | "separate_payment_order";
 
@@ -39,7 +39,7 @@ export type AdjustmentKind =
 
 export type AdjustmentEffect = "increase_charge" | "decrease_charge";
 
-export type AdjustmentSource = "manual" | "policy";
+export type AdjustmentSource = "manual" | "rule";
 
 export type AdjustmentSettlementMode = FeeSettlementMode;
 

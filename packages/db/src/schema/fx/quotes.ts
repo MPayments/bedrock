@@ -1,5 +1,4 @@
 import { pgTable, uuid, text, timestamp, bigint, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
-import { fxPolicies } from "./policies";
 import { sql } from "drizzle-orm";
 
 export type FxQuoteStatus = "active" | "used" | "expired" | "cancelled";
@@ -10,8 +9,6 @@ export const fxQuotes = pgTable(
     "fx_quotes",
     {
         id: uuid("id").primaryKey().defaultRandom(),
-
-        policyId: uuid("policy_id").notNull().references(() => fxPolicies.id),
 
         fromCurrency: text("from_currency").notNull(),
         toCurrency: text("to_currency").notNull(),

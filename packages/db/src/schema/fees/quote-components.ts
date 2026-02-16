@@ -3,7 +3,7 @@ import { bigint, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, u
 import { fxQuotes } from "../fx/quotes";
 import { feeRules, type FeeSettlementMode } from "./rules";
 
-export type FeeComponentSource = "policy" | "manual";
+export type FeeComponentSource = "rule" | "manual";
 
 export const fxQuoteFeeComponents = pgTable(
     "fx_quote_fee_components",
@@ -20,7 +20,7 @@ export const fxQuoteFeeComponents = pgTable(
         currency: text("currency").notNull(),
         amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
 
-        source: text("source").$type<FeeComponentSource>().notNull().default("policy"),
+        source: text("source").$type<FeeComponentSource>().notNull().default("rule"),
         settlementMode: text("settlement_mode").$type<FeeSettlementMode>().notNull().default("in_ledger"),
 
         debitAccountKey: text("debit_account_key"),

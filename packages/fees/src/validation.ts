@@ -40,12 +40,12 @@ export const feeOperationKindSchema = z.enum([
 
 export const feeCalcMethodSchema = z.enum(["bps", "fixed"]);
 
-export const feeSourceSchema = z.enum(["policy", "manual"]);
+export const feeSourceSchema = z.enum(["rule", "manual"]);
 
 export const feeSettlementModeSchema = z.enum(["in_ledger", "separate_payment_order"]);
 
 export const adjustmentEffectSchema = z.enum(["increase_charge", "decrease_charge"]);
-export const adjustmentSourceSchema = z.enum(["manual", "policy"]);
+export const adjustmentSourceSchema = z.enum(["manual", "rule"]);
 
 export const feeComponentSchema = z
     .object({

@@ -64,6 +64,8 @@ export const paymentOrders = pgTable(
     ])
 );
 
+export type PaymentOrder = typeof paymentOrders.$inferSelect;
+
 export type SettlementKind = "funding" | "payout";
 export type SettlementStatus = "pending" | "settled" | "failed";
 

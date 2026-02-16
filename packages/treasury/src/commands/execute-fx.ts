@@ -3,6 +3,7 @@ import { makePlanKey } from "@bedrock/kernel";
 import { schema } from "@bedrock/db/schema";
 import { PlanType } from "@bedrock/ledger";
 import { TransferCodes } from "@bedrock/kernel/constants";
+import { type Transaction } from "@bedrock/db";
 
 import { AmountMismatchError, CurrencyMismatchError, InvalidStateError, NotFoundError, ValidationError } from "../errors";
 import { type ExecuteFxInput, validateExecuteFxInput } from "../validation";
@@ -17,7 +18,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
         const input = validateExecuteFxInput(rawInput);
         log.debug("executeFx start", { orderId: input.orderId, quoteRef: input.quoteRef });
 
-        return db.transaction(async (tx: any) => {
+        return db.transaction(async (tx: Transaction) => {
             const [order] = await tx
                 .select()
                 .from(schema.paymentOrders)

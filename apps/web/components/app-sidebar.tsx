@@ -74,10 +74,6 @@ const data = {
           title: "Котировки",
           url: "/fx/quotes",
         },
-        {
-          title: "Политики",
-          url: "/fx/policies",
-        },
       ],
     },
     {

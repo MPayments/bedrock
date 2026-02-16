@@ -12,7 +12,7 @@ function feeComponent(overrides: Record<string, unknown> = {}) {
         kind: "fx_fee",
         currency: "USD",
         amountMinor: 10n,
-        source: "policy",
+        source: "rule",
         settlementMode: "in_ledger",
         ...overrides,
     };
@@ -248,7 +248,7 @@ describe("createFeesService", () => {
             kind: "fx_fee",
             currency: "USD",
             amountMinor: 61n,
-            source: "policy",
+            source: "rule",
         });
         expect(components[1]).toMatchObject({
             id: "rule:r-fixed-eur",
@@ -335,7 +335,7 @@ describe("createFeesService", () => {
                 kind: "fx_spread",
                 currency: "USD",
                 amountMinor: 8n,
-                source: "policy",
+                source: "rule",
                 settlementMode: "in_ledger",
                 debitAccountKey: null,
                 creditAccountKey: null,
@@ -350,13 +350,13 @@ describe("createFeesService", () => {
                 kind: "fx_fee",
                 currency: "USD",
                 amountMinor: 12n,
-                source: "policy",
+                source: "rule",
                 settlementMode: "separate_payment_order",
                 debitAccountKey: "Account:from",
                 creditAccountKey: "Account:to",
                 transferCode: 44,
                 memo: "fee",
-                metadata: { reason: "policy" },
+                metadata: { reason: "rule" },
             },
         ];
         const limit = vi.fn(async () => rows);
@@ -375,7 +375,7 @@ describe("createFeesService", () => {
             ruleId: "11111111-1111-4111-8111-111111111112",
             transferCode: 44,
             memo: "fee",
-            metadata: { reason: "policy" },
+            metadata: { reason: "rule" },
             settlementMode: "separate_payment_order",
         });
         expect(components[1]).toMatchObject({
