@@ -19,6 +19,4 @@ export type {
 export {
     OrganizationError,
     OrganizationNotFoundError,
-    ValidationError,
-    NotFoundError,
 } from "./errors";

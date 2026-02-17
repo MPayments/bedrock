@@ -168,11 +168,15 @@ export function organizationsRoutes(ctx: AppContext) {
         })
         .openapi(getRoute, async (c) => {
             const { id } = c.req.valid("param");
-            const org = await ctx.organizations.findById(id);
-            if (!org) {
-                return c.json({ error: "Organization not found" }, 404);
+            try {
+                const org = await ctx.organizations.findById(id);
+                return c.json(org, 200);
+            } catch (err) {
+                if (err instanceof OrganizationNotFoundError) {
+                    return c.json({ error: err.message }, 404);
+                }
+                throw err;
             }
-            return c.json(org, 200);
         })
         .openapi(updateRoute, async (c) => {
             const { id } = c.req.valid("param");

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 
 import { createOrganizationsServiceContext, type OrganizationsServiceDeps } from "./internal/context";
@@ -26,7 +26,9 @@ export function createOrganizationsService(deps: OrganizationsServiceDeps) {
             .where(eq(schema.organizations.id, id))
             .limit(1);
 
-        return row ?? null;
+        if (!row) throw new OrganizationNotFoundError(id);
+
+        return row;
     }
 
     async function create(input: CreateOrganizationInput) {
@@ -58,10 +60,10 @@ export function createOrganizationsService(deps: OrganizationsServiceDeps) {
         if (validated.externalId !== undefined) fields.externalId = validated.externalId;
 
         if (Object.keys(fields).length === 0) {
-            const existing = await findById(id);
-            if (!existing) throw new OrganizationNotFoundError(id);
-            return existing;
+            return findById(id);
         }
+
+        fields.updatedAt = sql`now()`;
 
         const [updated] = await db
             .update(schema.organizations)
@@ -76,8 +78,7 @@ export function createOrganizationsService(deps: OrganizationsServiceDeps) {
     }
 
     async function remove(id: string) {
-        const existing = await findById(id);
-        if (!existing) throw new OrganizationNotFoundError(id);
+        await findById(id);
 
         await db
             .delete(schema.organizations)

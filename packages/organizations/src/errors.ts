@@ -1,6 +1,5 @@
 import { ServiceError } from "@bedrock/kernel/errors";
 
-export { ValidationError, NotFoundError } from "@bedrock/kernel/errors";
 
 export class OrganizationError extends ServiceError {}
 

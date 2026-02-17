@@ -20,6 +20,7 @@ function makeOrg(overrides: Record<string, unknown> = {}) {
         baseCurrency: "USD",
         isTreasury: false,
         createdAt: TEST_DATES.NOW,
+        updatedAt: TEST_DATES.NOW,
         ...overrides,
     };
 }
@@ -52,14 +53,15 @@ describe("createOrganizationsService", () => {
             expect(result).toEqual(org);
         });
 
-        it("returns null when not found", async () => {
+        it("throws OrganizationNotFoundError when not found", async () => {
             const db = createStubDb();
             mockSelectReturns(db.select, []);
 
             const service = createOrganizationsService({ db });
-            const result = await service.findById(TEST_UUIDS.ORG_1);
 
-            expect(result).toBeNull();
+            await expect(
+                service.findById(TEST_UUIDS.ORG_1),
+            ).rejects.toThrow(OrganizationNotFoundError);
         });
     });
 

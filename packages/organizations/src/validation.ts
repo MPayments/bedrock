@@ -9,6 +9,7 @@ export const OrganizationSchema = z.object({
     baseCurrency: z.string(),
     isTreasury: z.boolean(),
     createdAt: z.date(),
+    updatedAt: z.date(),
 });
 
 export type Organization = z.infer<typeof OrganizationSchema>;
