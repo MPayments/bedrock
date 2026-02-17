@@ -20,6 +20,7 @@
         "@bedrock/db": "workspace:*",
         "@bedrock/kernel": "workspace:*",
         "@bedrock/ledger": "workspace:*",
+        "@bedrock/organizations": "workspace:*",
         "@hono/node-server": "^1.19.9",
         "@hono/swagger-ui": "^0.5.3",
         "@hono/zod-openapi": "^1.2.1",
@@ -80,6 +81,7 @@
       "devDependencies": {
         "@bedrock/typescript-config": "*",
         "@types/pg": "^8.16.0",
+        "dotenv": "^17.3.1",
         "drizzle-kit": "^0.31.8",
         "typescript": "^5.8.3",
       },
@@ -163,6 +165,22 @@
         "@types/pg": "^8.16.0",
         "pg": "^8.17.2",
         "typescript": "^5.8.3",
+      },
+    },
+    "packages/organizations": {
+      "name": "@bedrock/organizations",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/db": "*",
+        "@bedrock/kernel": "*",
+        "drizzle-orm": "^0.45.1",
+        "zod": "^4",
+      },
+      "devDependencies": {
+        "@bedrock/test-utils": "*",
+        "@bedrock/typescript-config": "*",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
       },
     },
     "packages/test-utils": {
@@ -286,6 +304,8 @@
     "@bedrock/kernel": ["@bedrock/kernel@workspace:packages/kernel"],
 
     "@bedrock/ledger": ["@bedrock/ledger@workspace:packages/ledger"],
+
+    "@bedrock/organizations": ["@bedrock/organizations@workspace:packages/organizations"],
 
     "@bedrock/test-utils": ["@bedrock/test-utils@workspace:packages/test-utils"],
 
@@ -789,7 +809,7 @@
 
     "doctrine": ["doctrine@2.1.0", "", { "dependencies": { "esutils": "^2.0.2" } }, "sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw=="],
 
-    "dotenv": ["dotenv@16.0.3", "", {}, "sha512-7GO6HghkA5fYG9TYnNxi14/7K9f5occMlp3zXAuSxn7CKCxt9xbNWG7yF8hTCSUchlfWSe3uLmlPfigevRItzQ=="],
+    "dotenv": ["dotenv@17.3.1", "", {}, "sha512-IO8C/dzEb6O3F9/twg6ZLXz164a2fhTnEWb95H23Dm4OuN+92NmEAlTrupP9VW6Jm3sO26tQlqyvyi4CsnY9GA=="],
 
     "drizzle-kit": ["drizzle-kit@0.31.9", "", { "dependencies": { "@drizzle-team/brocli": "^0.10.2", "@esbuild-kit/esm-loader": "^2.5.5", "esbuild": "^0.25.4", "esbuild-register": "^3.5.0" }, "bin": { "drizzle-kit": "bin.cjs" } }, "sha512-GViD3IgsXn7trFyBUUHyTFBpH/FsHTxYJ66qdbVggxef4UBPHRYxQaRzYLTuekYnk9i5FIEL9pbBIwMqX/Uwrg=="],
 
@@ -1448,6 +1468,8 @@
     "@vitest/expect/@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
     "api/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "eslint-plugin-turbo/dotenv": ["dotenv@16.0.3", "", {}, "sha512-7GO6HghkA5fYG9TYnNxi14/7K9f5occMlp3zXAuSxn7CKCxt9xbNWG7yF8hTCSUchlfWSe3uLmlPfigevRItzQ=="],
 
     "fast-glob/glob-parent": ["glob-parent@5.1.2", "", { "dependencies": { "is-glob": "^4.0.1" } }, "sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow=="],
 

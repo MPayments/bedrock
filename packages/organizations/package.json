@@ -1,0 +1,26 @@
+{
+  "name": "@bedrock/organizations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bedrock/db": "*",
+    "@bedrock/kernel": "*",
+    "drizzle-orm": "^0.45.1",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "@bedrock/test-utils": "*",
+    "@bedrock/typescript-config": "*",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  }
+}

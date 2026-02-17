@@ -1,4 +1,6 @@
 import { createConsoleLogger } from "@bedrock/kernel";
+import { db } from "@bedrock/db/client";
+import { createOrganizationsService, type OrganizationsService } from "@bedrock/organizations";
 
 export type Env = {
     DATABASE_URL: string;
@@ -8,9 +10,12 @@ export type Env = {
 
 export function createAppContext(env: Env) {
     const logger = createConsoleLogger({ service: "bedrock-api" });
+    const organizations = createOrganizationsService({ db, logger });
+
     return {
         env,
         logger,
+        organizations,
     };
 }
 

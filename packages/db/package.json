@@ -24,6 +24,7 @@
   "devDependencies": {
     "@bedrock/typescript-config": "*",
     "@types/pg": "^8.16.0",
+    "dotenv": "^17.3.1",
     "drizzle-kit": "^0.31.8",
     "typescript": "^5.8.3"
   }
