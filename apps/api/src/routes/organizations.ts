@@ -1,4 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createPaginatedListSchema, PaginationInputSchema } from "@bedrock/kernel/pagination";
 import {
     OrganizationSchema,
     CreateOrganizationInputSchema,
@@ -6,16 +7,19 @@ import {
     OrganizationIdParamSchema,
     OrganizationNotFoundError,
 } from "@bedrock/organizations";
-import { createPaginatedListSchema, PaginationInputSchema } from "@bedrock/kernel/pagination";
+
 import type { AppContext } from "../context";
 import { ErrorSchema, DeletedSchema } from "../common";
+import { requirePermission } from "../middleware/permission";
+import type { AuthVariables } from "../middleware/auth";
 
 const PaginatedOrganizationsSchema = createPaginatedListSchema(OrganizationSchema);
 
 export function organizationsRoutes(ctx: AppContext) {
-    const app = new OpenAPIHono();
+    const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
     const listRoute = createRoute({
+        middleware: [requirePermission({ organizations: ["list"] })] as const,
         method: "get",
         path: "/",
         tags: ["Organizations"],
@@ -36,6 +40,7 @@ export function organizationsRoutes(ctx: AppContext) {
     });
 
     const createRoute_ = createRoute({
+        middleware: [requirePermission({ organizations: ["create"] })] as const,
         method: "post",
         path: "/",
         tags: ["Organizations"],
@@ -71,6 +76,7 @@ export function organizationsRoutes(ctx: AppContext) {
     });
 
     const getRoute = createRoute({
+        middleware: [requirePermission({ organizations: ["list"] })] as const,
         method: "get",
         path: "/{id}",
         tags: ["Organizations"],
@@ -99,6 +105,7 @@ export function organizationsRoutes(ctx: AppContext) {
     });
 
     const updateRoute = createRoute({
+        middleware: [requirePermission({ organizations: ["update"] })] as const,
         method: "patch",
         path: "/{id}",
         tags: ["Organizations"],
@@ -135,6 +142,7 @@ export function organizationsRoutes(ctx: AppContext) {
     });
 
     const deleteRoute = createRoute({
+        middleware: [requirePermission({ organizations: ["delete"] })] as const,
         method: "delete",
         path: "/{id}",
         tags: ["Organizations"],

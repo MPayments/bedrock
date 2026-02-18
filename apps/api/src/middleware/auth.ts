@@ -26,3 +26,12 @@ export const authMiddleware = (): MiddlewareHandler<{
         await next();
     };
 };
+
+export function requireAuth(): MiddlewareHandler<{ Variables: AuthVariables }> {
+    return async (c, next) => {
+        if (!c.get("user")) {
+            return c.json({ error: "Unauthorized" }, 401);
+        }
+        await next();
+    };
+}

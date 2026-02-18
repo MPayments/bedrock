@@ -5,10 +5,10 @@ import { AppError } from "@bedrock/kernel";
 import auth from "@bedrock/auth";
 import { createAppContext, type Env } from "./context";
 import { organizationsRoutes, customersRoutes } from "./routes/index";
-import { authMiddleware, type AuthVariables } from "./middleware/auth";
+import { authMiddleware, requireAuth, type AuthVariables } from "./middleware/auth";
 import dotenv from "dotenv";
 
-// Load environment (in production, use proper env loading)
+// FIXME: in production, use proper env loading
 dotenv.config({ path: "../../.env" });
 
 const env: Env = {
@@ -55,7 +55,7 @@ app.onError((err, c) => {
 });
 
 app.use(
-  "/api/auth/*",
+  "/auth/*",
   cors({
     origin: (origin) => (authAllowedOriginSet.has(origin) ? origin : undefined),
     allowHeaders: ["Content-Type", "Authorization"],
@@ -65,7 +65,7 @@ app.use(
   }),
 );
 
-app.on(["POST", "GET"], "/api/auth/*", (c) => {
+app.on(["POST", "GET"], "/auth/*", (c) => {
   return auth.handler(c.req.raw);
 });
 
@@ -76,10 +76,14 @@ app.get("/", (c) => {
   return c.json({ status: "ok", service: "ledger-api" });
 });
 
-// Mount routes
-const routes = app
+// Mount routes under /v1 — all require an authenticated session
+const v1 = new OpenAPIHono<{ Variables: AuthVariables }>();
+v1.use("*", requireAuth());
+v1
   .route("/organizations", organizationsRoutes(ctx))
   .route("/customers", customersRoutes(ctx));
+
+const routes = app.route("/v1", v1);
 
 // OpenAPI documentation
 app.doc31("/openapi.json", (c) => ({
@@ -97,10 +101,7 @@ app.doc31("/openapi.json", (c) => ({
   ],
 }));
 
-// Swagger UI
 app.get("/docs", swaggerUI({ url: "/openapi.json" }));
 
-// Export app for Bun/Cloudflare Workers
 export { app };
-// Export type for RPC client
 export type AppType = typeof routes;
