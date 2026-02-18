@@ -1,5 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
+import { PaginationInputSchema, type PaginationInput, type PaginatedList } from "@bedrock/kernel/pagination";
 
 import { createOrganizationsServiceContext, type OrganizationsServiceDeps } from "./internal/context";
 import { OrganizationNotFoundError } from "./errors";
@@ -8,6 +9,7 @@ import {
     UpdateOrganizationInputSchema,
     type CreateOrganizationInput,
     type UpdateOrganizationInput,
+    type Organization,
 } from "./validation";
 
 export type OrganizationsService = ReturnType<typeof createOrganizationsService>;
@@ -15,8 +17,15 @@ export type OrganizationsService = ReturnType<typeof createOrganizationsService>
 export function createOrganizationsService(deps: OrganizationsServiceDeps) {
     const { db, log } = createOrganizationsServiceContext(deps);
 
-    async function list() {
-        return db.select().from(schema.organizations);
+    async function list(pagination?: PaginationInput): Promise<PaginatedList<Organization>> {
+        const { limit, offset } = PaginationInputSchema.parse(pagination ?? {});
+
+        const [data, countRows] = await Promise.all([
+            db.select().from(schema.organizations).limit(limit).offset(offset),
+            db.select({ total: sql<number>`count(*)::int` }).from(schema.organizations),
+        ]);
+
+        return { data, total: countRows[0]!.total, limit, offset };
     }
 
     async function findById(id: string) {

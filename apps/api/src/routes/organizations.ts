@@ -6,8 +6,16 @@ import {
     OrganizationIdParamSchema,
     OrganizationNotFoundError,
 } from "@bedrock/organizations";
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import type { AppContext } from "../context";
 import { ErrorSchema, DeletedSchema } from "../common";
+
+const PaginationQuerySchema = z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+    offset: z.coerce.number().int().min(0).default(0),
+});
+
+const PaginatedOrganizationsSchema = createPaginatedListSchema(OrganizationSchema);
 
 export function organizationsRoutes(ctx: AppContext) {
     const app = new OpenAPIHono();
@@ -16,15 +24,18 @@ export function organizationsRoutes(ctx: AppContext) {
         method: "get",
         path: "/",
         tags: ["Organizations"],
-        summary: "List all organizations",
+        summary: "List organizations",
+        request: {
+            query: PaginationQuerySchema,
+        },
         responses: {
             200: {
                 content: {
                     "application/json": {
-                        schema: z.array(OrganizationSchema),
+                        schema: PaginatedOrganizationsSchema,
                     },
                 },
-                description: "List of organizations",
+                description: "Paginated list of organizations",
             },
         },
     });
@@ -158,8 +169,9 @@ export function organizationsRoutes(ctx: AppContext) {
 
     return app
         .openapi(listRoute, async (c) => {
-            const orgs = await ctx.organizations.list();
-            return c.json(orgs, 200);
+            const { limit, offset } = c.req.valid("query");
+            const result = await ctx.organizations.list({ limit, offset });
+            return c.json(result, 200);
         })
         .openapi(createRoute_, async (c) => {
             const input = c.req.valid("json");
