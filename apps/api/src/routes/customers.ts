@@ -216,8 +216,9 @@
 // }
 
 import { OpenAPIHono } from "@hono/zod-openapi";
+
 import type { AppContext } from "../context";
 
-export function customersRoutes(ctx: AppContext) {
+export function customersRoutes(_ctx: AppContext) {
   return new OpenAPIHono();
 }

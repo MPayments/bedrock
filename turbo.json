@@ -1,6 +1,22 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_TRUSTED_ORIGINS",
+    "BETTER_AUTH_URL",
+    "DATABASE_URL",
+    "DB_HOST",
+    "DB_NAME",
+    "DB_PASSWORD",
+    "DB_PORT",
+    "DB_USER",
+    "LOG_LEVEL",
+    "NODE_ENV",
+    "PORT",
+    "TB_ADDRESS",
+    "TB_CLUSTER_ID"
+  ],
   "tasks": {
     "build": {
       "env": ["VERCEL"],

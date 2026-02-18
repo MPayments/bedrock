@@ -1,5 +1,6 @@
-import { pgTable, uuid, text, timestamp, bigint, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { pgTable, uuid, text, timestamp, bigint, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
+
 import { currencies } from "../currencies";
 
 export type FxQuoteStatus = "active" | "used" | "expired" | "cancelled";

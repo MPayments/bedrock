@@ -1,11 +1,12 @@
 import { z } from "zod";
-import { normalizeCurrency, isValidCurrency } from "@bedrock/kernel";
+
 import {
     adjustmentEffectSchema,
     feeDealDirectionSchema,
     feeDealFormSchema,
     feeSettlementModeSchema,
 } from "@bedrock/fees";
+import { normalizeCurrency, isValidCurrency } from "@bedrock/kernel";
 
 const uuidSchema = z.string().uuid();
 

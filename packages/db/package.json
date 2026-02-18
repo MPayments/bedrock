@@ -16,7 +16,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.1",
@@ -28,6 +29,8 @@
     "@types/pg": "^8.16.0",
     "dotenv": "^17.3.1",
     "drizzle-kit": "^0.31.9",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "@bedrock/eslint-config": "workspace:*",
+    "eslint": "^9.31.0"
   }
 }

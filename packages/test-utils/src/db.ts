@@ -6,10 +6,11 @@
  * 2. `createStubDb()` - Manual stub for tests needing custom behavior
  */
 
-import { vi, type Mock } from "vitest";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { schema } from "@bedrock/db/schema";
+import { vi, type Mock } from "vitest";
+
 import type { Database } from "@bedrock/db";
+import { schema } from "@bedrock/db/schema";
 
 // Type for the mock database from drizzle.mock()
 export type MockDatabase = ReturnType<typeof drizzle.mock<typeof schema>>;

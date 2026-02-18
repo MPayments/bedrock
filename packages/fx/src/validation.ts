@@ -1,8 +1,11 @@
 import { z } from "zod";
-import { normalizeCurrency, isValidCurrency } from "@bedrock/kernel";
-import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
 
-const uuidSchema = z.string().uuid();
+import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
+import { normalizeCurrency, isValidCurrency } from "@bedrock/kernel";
+import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
+import { ValidationError } from "@bedrock/kernel/errors";
+
+const uuidSchema = z.uuid({ version: "v4" });
 
 const currencySchema = z
     .string()
@@ -101,9 +104,6 @@ export const getQuoteDetailsInputSchema = z.object({
 });
 
 export type GetQuoteDetailsInput = z.infer<typeof getQuoteDetailsInputSchema>;
-
-import { ValidationError } from "@bedrock/kernel/errors";
-import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 
 export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown, context?: string): T {
     const result = schema.safeParse(input);

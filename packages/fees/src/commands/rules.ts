@@ -1,20 +1,21 @@
 import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm";
+
 import { schema } from "@bedrock/db/schema";
 import { normalizeCurrency } from "@bedrock/kernel";
 
-import {
-    validateFxQuoteFeeCalculation,
-    validateResolveFeeRulesInput,
-    validateUpsertFeeRuleInput,
-} from "../validation";
+import { type FeesServiceContext } from "../internal/context";
+import { calculateBpsAmount } from "../internal/math";
 import type {
     CalculateFxQuoteFeeComponentsInput,
     FeeComponent,
     ResolveFeeRulesInput,
     UpsertFeeRuleInput,
 } from "../types";
-import { type FeesServiceContext } from "../internal/context";
-import { calculateBpsAmount } from "../internal/math";
+import {
+    validateFxQuoteFeeCalculation,
+    validateResolveFeeRulesInput,
+    validateUpsertFeeRuleInput,
+} from "../validation";
 
 export function createRuleHandlers(context: FeesServiceContext) {
     const { db, log, currenciesService } = context;

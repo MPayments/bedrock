@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { PlanType } from "./types";
 
 const uuidSchema = z.uuid({

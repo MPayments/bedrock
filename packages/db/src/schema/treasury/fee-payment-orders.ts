@@ -1,11 +1,12 @@
 import { sql } from "drizzle-orm";
 import { bigint, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+
 import { paymentOrders } from "./orders";
+import { organizations } from "./organizations";
+import { currencies } from "../currencies";
 import { fxQuotes } from "../fx/quotes";
 import { journalEntries } from "../ledger/journal";
 import { uint128 } from "../ledger/ledger";
-import { organizations } from "./organizations";
-import { currencies } from "../currencies";
 
 export type FeePaymentOrderStatus =
     | "reserved"

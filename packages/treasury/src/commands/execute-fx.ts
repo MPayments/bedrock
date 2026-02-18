@@ -1,15 +1,16 @@
 import { and, eq, sql } from "drizzle-orm";
-import { makePlanKey } from "@bedrock/kernel";
-import { schema } from "@bedrock/db/schema";
-import { PlanType } from "@bedrock/ledger";
-import { TransferCodes } from "@bedrock/kernel/constants";
+
 import { type Transaction } from "@bedrock/db";
+import { schema } from "@bedrock/db/schema";
+import { makePlanKey } from "@bedrock/kernel";
+import { TransferCodes } from "@bedrock/kernel/constants";
+import { PlanType } from "@bedrock/ledger";
 
 import { AmountMismatchError, CurrencyMismatchError, InvalidStateError, NotFoundError, ValidationError } from "../errors";
-import { type ExecuteFxInput, validateExecuteFxInput } from "../validation";
-import { ExecuteFxAllowedFrom, TreasuryOrderStatus, isOrderStatusIn, isSameEntryInAllowedState } from "../state-machine";
 import { SYSTEM_LEDGER_ORG_ID, type TreasuryServiceContext } from "../internal/context";
 import { consumeFxQuoteForExecution } from "../internal/fx-quote";
+import { ExecuteFxAllowedFrom, TreasuryOrderStatus, isOrderStatusIn, isSameEntryInAllowedState } from "../state-machine";
+import { type ExecuteFxInput, validateExecuteFxInput } from "../validation";
 
 export function createExecuteFxHandler(context: TreasuryServiceContext) {
     const { db, ledger, feesService, currenciesService, log, keys } = context;
@@ -129,7 +130,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
 
             const chain = `fx:${validated.quoteRef}`;
             const transfers: any[] = [];
-            const separateFeeOrders: Array<{
+            const separateFeeOrders: {
                 componentId: string;
                 kind: string;
                 bucket: string;
@@ -137,7 +138,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                 amountMinor: bigint;
                 memo: string | null | undefined;
                 metadata: Record<string, string> | undefined;
-            }> = [];
+            }[] = [];
 
             transfers.push({
                 type: PlanType.CREATE,

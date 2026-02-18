@@ -1,15 +1,15 @@
 import type { Database } from "@bedrock/db";
 import { type Logger, noopLogger } from "@bedrock/kernel";
 
-export type CurrenciesServiceDeps = {
+export interface CurrenciesServiceDeps {
     db: Database;
     logger?: Logger;
-};
+}
 
-export type CurrenciesServiceContext = {
+export interface CurrenciesServiceContext {
     db: Database;
     log: Logger;
-};
+}
 
 export function createCurrenciesServiceContext(
     deps: CurrenciesServiceDeps,

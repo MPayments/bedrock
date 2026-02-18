@@ -1,31 +1,34 @@
 {
-    "name": "@bedrock/treasury",
-    "version": "0.0.0",
-    "private": true,
-    "type": "module",
-    "exports": {
-        ".": "./src/index.ts"
-    },
-    "scripts": {
+  "name": "@bedrock/treasury",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "check-types": "tsc --noEmit"
-    },
-    "dependencies": {
-        "@bedrock/currencies": "workspace:*",
-        "@bedrock/db": "*",
-        "@bedrock/fees": "*",
-        "@bedrock/kernel": "*",
-        "@bedrock/ledger": "*",
-        "drizzle-orm": "^0.45.1",
-        "zod": "^4"
-    },
-    "devDependencies": {
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts --max-warnings 0"
+  },
+  "dependencies": {
+    "@bedrock/currencies": "workspace:*",
+    "@bedrock/db": "*",
+    "@bedrock/fees": "*",
+    "@bedrock/kernel": "*",
+    "@bedrock/ledger": "*",
+    "drizzle-orm": "^0.45.1",
+    "zod": "^4"
+  },
+  "devDependencies": {
     "@bedrock/test-utils": "*",
     "@bedrock/typescript-config": "*",
     "@types/pg": "^8.16.0",
     "pg": "^8.18.0",
     "tigerbeetle-node": "^0.16.72",
-    "typescript": "^5.8.3"
-    }
+    "typescript": "^5.8.3",
+    "@bedrock/eslint-config": "workspace:*",
+    "eslint": "^9.31.0"
+  }
 }

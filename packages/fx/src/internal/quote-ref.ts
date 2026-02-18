@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
+
 import { type FxQuote, schema } from "@bedrock/db/schema";
 import { ValidationError } from "@bedrock/kernel/errors";
 import { isUuidLike } from "@bedrock/kernel/utils";
+
 import { type FxServiceContext } from "./context";
 
 async function withCurrencyCodes(context: FxServiceContext, quote: FxQuote): Promise<FxQuote> {

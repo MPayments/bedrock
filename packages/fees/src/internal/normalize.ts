@@ -1,5 +1,5 @@
-import { validateAdjustmentComponent, validateFeeComponent } from "../validation";
 import type { AdjustmentComponent, FeeComponent } from "../types";
+import { validateAdjustmentComponent, validateFeeComponent } from "../validation";
 
 export function normalizeComponent(input: FeeComponent): FeeComponent {
     const validated = validateFeeComponent(input);

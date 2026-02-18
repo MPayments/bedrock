@@ -43,7 +43,7 @@ export type AdjustmentSource = "manual" | "rule";
 
 export type AdjustmentSettlementMode = FeeSettlementMode;
 
-export type FeeComponent = {
+export interface FeeComponent {
     id: string;
     ruleId?: string;
     kind: FeeComponentKind;
@@ -56,9 +56,9 @@ export type FeeComponent = {
     transferCode?: number;
     memo?: string;
     metadata?: Record<string, string>;
-};
+}
 
-export type AdjustmentComponent = {
+export interface AdjustmentComponent {
     id: string;
     kind: AdjustmentKind;
     effect: AdjustmentEffect;
@@ -71,18 +71,18 @@ export type AdjustmentComponent = {
     transferCode?: number;
     memo?: string;
     metadata?: Record<string, string>;
-};
+}
 
-export type CalculateFxQuoteFeeComponentsInput = {
+export interface CalculateFxQuoteFeeComponentsInput {
     fromCurrency: string;
     toCurrency: string;
     principalMinor: bigint;
     at: Date;
     dealDirection?: FeeDealDirection;
     dealForm?: FeeDealForm;
-};
+}
 
-export type UpsertFeeRuleInput = {
+export interface UpsertFeeRuleInput {
     name: string;
     operationKind: FeeOperationKind;
     feeKind: FeeComponentKind;
@@ -104,40 +104,40 @@ export type UpsertFeeRuleInput = {
     transferCode?: number;
     memo?: string;
     metadata?: Record<string, string>;
-};
+}
 
-export type ResolveFeeRulesInput = {
+export interface ResolveFeeRulesInput {
     operationKind: FeeOperationKind;
     at: Date;
     fromCurrency?: string;
     toCurrency?: string;
     dealDirection?: FeeDealDirection;
     dealForm?: FeeDealForm;
-};
+}
 
-export type MergeFeeComponentsInput = {
+export interface MergeFeeComponentsInput {
     computed?: FeeComponent[];
     manual?: FeeComponent[];
     aggregate?: boolean;
-};
+}
 
-export type MergeAdjustmentComponentsInput = {
+export interface MergeAdjustmentComponentsInput {
     computed?: AdjustmentComponent[];
     manual?: AdjustmentComponent[];
     aggregate?: boolean;
-};
+}
 
-export type PartitionedFeeComponents = {
+export interface PartitionedFeeComponents {
     inLedger: FeeComponent[];
     separatePaymentOrder: FeeComponent[];
-};
+}
 
-export type PartitionedAdjustmentComponents = {
+export interface PartitionedAdjustmentComponents {
     inLedger: AdjustmentComponent[];
     separatePaymentOrder: AdjustmentComponent[];
-};
+}
 
-export type BuildFeeTransferPlanInput = {
+export interface BuildFeeTransferPlanInput {
     components: FeeComponent[];
     chain?: string | null;
     includeZeroAmounts?: boolean;
@@ -151,9 +151,9 @@ export type BuildFeeTransferPlanInput = {
         code?: number;
         memo?: string | null;
     };
-};
+}
 
-export type FeeTransferPlan = {
+export interface FeeTransferPlan {
     planKey: string;
     debitKey: string;
     creditKey: string;
@@ -163,9 +163,9 @@ export type FeeTransferPlan = {
     chain?: string | null;
     memo?: string | null;
     component: FeeComponent;
-};
+}
 
-export type BuildAdjustmentTransferPlanInput = {
+export interface BuildAdjustmentTransferPlanInput {
     components: AdjustmentComponent[];
     chain?: string | null;
     includeZeroAmounts?: boolean;
@@ -179,9 +179,9 @@ export type BuildAdjustmentTransferPlanInput = {
         code?: number;
         memo?: string | null;
     };
-};
+}
 
-export type AdjustmentTransferPlan = {
+export interface AdjustmentTransferPlan {
     planKey: string;
     debitKey: string;
     creditKey: string;
@@ -191,22 +191,22 @@ export type AdjustmentTransferPlan = {
     chain?: string | null;
     memo?: string | null;
     component: AdjustmentComponent;
-};
+}
 
-export type SaveQuoteFeeComponentsInput = {
+export interface SaveQuoteFeeComponentsInput {
     quoteId: string;
     components: FeeComponent[];
-};
+}
 
-export type GetQuoteFeeComponentsInput = {
+export interface GetQuoteFeeComponentsInput {
     quoteId: string;
-};
+}
 
-export type FeeComponentDefaults = {
+export interface FeeComponentDefaults {
     bucket: string;
     transferCode: number;
     memo: string;
-};
+}
 
 export interface FeesService {
     calculateBpsAmount(amountMinor: bigint, bps: number): bigint;

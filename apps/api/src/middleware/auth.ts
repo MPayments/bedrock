@@ -1,10 +1,11 @@
 import type { MiddlewareHandler } from "hono";
+
 import auth from "@bedrock/auth";
 
-export type AuthVariables = {
+export interface AuthVariables {
     user: typeof auth.$Infer.Session.user | null;
     session: typeof auth.$Infer.Session.session | null;
-};
+}
 
 export const authMiddleware = (): MiddlewareHandler<{
     Variables: AuthVariables;

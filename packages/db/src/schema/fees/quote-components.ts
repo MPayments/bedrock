@@ -1,8 +1,9 @@
 import { sql } from "drizzle-orm";
 import { bigint, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
-import { fxQuotes } from "../fx/quotes";
+
 import { feeRules, type FeeSettlementMode } from "./rules";
 import { currencies } from "../currencies";
+import { fxQuotes } from "../fx/quotes";
 
 export type FeeComponentSource = "rule" | "manual";
 

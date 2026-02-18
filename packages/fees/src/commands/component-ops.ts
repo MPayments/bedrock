@@ -1,5 +1,12 @@
 import { makePlanKey } from "@bedrock/kernel";
 
+import { FeeValidationError } from "../errors";
+import {
+    adjustmentAggregateKey,
+    componentAggregateKey,
+    normalizeAdjustment,
+    normalizeComponent,
+} from "../internal/normalize";
 import type {
     AdjustmentComponent,
     AdjustmentTransferPlan,
@@ -12,13 +19,6 @@ import type {
     PartitionedAdjustmentComponents,
     PartitionedFeeComponents,
 } from "../types";
-import { FeeValidationError } from "../errors";
-import {
-    adjustmentAggregateKey,
-    componentAggregateKey,
-    normalizeAdjustment,
-    normalizeComponent,
-} from "../internal/normalize";
 
 export function createComponentOperationHandlers() {
     function aggregateFeeComponents(components: FeeComponent[]): FeeComponent[] {

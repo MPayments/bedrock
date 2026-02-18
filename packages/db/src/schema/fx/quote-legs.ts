@@ -1,8 +1,9 @@
 import { sql } from "drizzle-orm";
 import { bigint, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+
 import { fxQuotes } from "./quotes";
-import { organizations } from "../treasury/organizations";
 import { currencies } from "../currencies";
+import { organizations } from "../treasury/organizations";
 
 export type FxQuoteLegSourceKind = "cb" | "bank" | "manual" | "derived" | "market";
 

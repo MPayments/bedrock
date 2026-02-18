@@ -10,7 +10,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "check-types": "tsc --noEmit",
-    "lint": "eslint src/**/*.ts"
+    "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
     "@bedrock/db": "workspace:*",

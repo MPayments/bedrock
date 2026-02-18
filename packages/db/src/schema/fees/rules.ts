@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, integer, pgTable, text, timestamp, uuid, bigint, jsonb } from "drizzle-orm/pg-core";
+
 import { currencies } from "../currencies";
 
 export type FeeCalcMethod = "bps" | "fixed";

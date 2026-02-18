@@ -10,7 +10,8 @@
   },
   "scripts": {
     "check-types": "tsc --noEmit",
-    "test": "echo 'No tests in test-utils package'"
+    "test": "echo 'No tests in test-utils package'",
+    "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
     "@bedrock/db": "*",
@@ -23,6 +24,8 @@
     "@bedrock/typescript-config": "*",
     "@types/node": "^24",
     "typescript": "^5.8.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "@bedrock/eslint-config": "workspace:*",
+    "eslint": "^9.31.0"
   }
 }

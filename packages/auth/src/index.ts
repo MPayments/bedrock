@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
-import { admin as adminPlugin, openAPI as openApiPlugin } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { admin as adminPlugin, openAPI as openApiPlugin } from "better-auth/plugins";
+
 import { db } from "@bedrock/db";
 
 import { ac, admin, user } from "./permissions";

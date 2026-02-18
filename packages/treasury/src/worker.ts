@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
+
+import type { Database, Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
-import { Database, Transaction } from "@bedrock/db";
 
 import { OrderFinalizeFromPendingPosting } from "./state-machine";
 
@@ -24,12 +25,12 @@ export function createTreasuryWorker(deps: { db: Database }) {
       LIMIT ${batchSize}
     `);
 
-        const items = (rows.rows ?? []) as Array<{
+        const items = (rows.rows ?? []) as {
             order_id: string;
             order_status: string;
             ledger_entry_id: string;
             journal_status: string;
-        }>;
+        }[];
 
         let processed = 0;
 
@@ -48,11 +49,11 @@ export function createTreasuryWorker(deps: { db: Database }) {
           FOR UPDATE OF o SKIP LOCKED
         `);
 
-                const lockedRows = (locked.rows ?? []) as Array<{
+                const lockedRows = (locked.rows ?? []) as {
                     id: string;
                     status: string;
                     journal_status: string;
-                }>;
+                }[];
 
                 if (!lockedRows.length) return;
 
@@ -105,12 +106,12 @@ export function createTreasuryWorker(deps: { db: Database }) {
       LIMIT ${batchSize}
     `);
 
-        const items = (rows.rows ?? []) as Array<{
+        const items = (rows.rows ?? []) as {
             fee_payment_order_id: string;
             fee_status: string;
             ledger_entry_id: string;
             journal_status: string;
-        }>;
+        }[];
 
         let processed = 0;
 
@@ -140,12 +141,12 @@ export function createTreasuryWorker(deps: { db: Database }) {
           FOR UPDATE OF f SKIP LOCKED
         `);
 
-                const lockedRows = (locked.rows ?? []) as Array<{
+                const lockedRows = (locked.rows ?? []) as {
                     id: string;
                     status: string;
                     ledger_entry_id: string;
                     journal_status: string;
-                }>;
+                }[];
 
                 if (!lockedRows.length) return;
 

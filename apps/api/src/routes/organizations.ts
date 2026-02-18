@@ -1,4 +1,5 @@
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+
 import { createPaginatedListSchema, PaginationInputSchema } from "@bedrock/kernel/pagination";
 import {
     OrganizationSchema,
@@ -7,10 +8,10 @@ import {
     OrganizationNotFoundError,
 } from "@bedrock/organizations";
 
-import type { AppContext } from "../context";
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
-import { requirePermission } from "../middleware/permission";
+import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
+import { requirePermission } from "../middleware/permission";
 
 const PaginatedOrganizationsSchema = createPaginatedListSchema(OrganizationSchema);
 

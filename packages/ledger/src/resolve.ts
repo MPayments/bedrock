@@ -1,9 +1,11 @@
 import { and, eq } from "drizzle-orm";
-import { schema } from "@bedrock/db/schema";
+
 import { type Database } from "@bedrock/db";
+import { schema } from "@bedrock/db/schema";
+
+import { AccountMappingConflictError } from "./errors";
 import { tbAccountIdFor } from "./ids";
 import { AccountFlags, makeTbAccount, tbCreateAccountsOrThrow, type TbClient } from "./tb";
-import { AccountMappingConflictError } from "./errors";
 
 function accountCodeFromKey(key: string): number {
     let x = 0;
@@ -36,14 +38,14 @@ function tbAccountFlagsForKey(key: string): number {
     return 0;
 }
 
-type ResolveTbAccountIdParams = {
+interface ResolveTbAccountIdParams {
     db: Database;
     tb: TbClient;
     orgId: string;
     key: string;
     currency: string;
     tbLedger: number;
-};
+}
 
 export async function resolveTbAccountId(p: ResolveTbAccountIdParams): Promise<bigint> {
     const expected = tbAccountIdFor(p.orgId, p.key, p.tbLedger);

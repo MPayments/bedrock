@@ -1,4 +1,5 @@
-import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+
 import {
     CurrencySchema,
     CreateCurrencyInputSchema,
@@ -7,10 +8,10 @@ import {
 } from "@bedrock/currencies";
 import { createPaginatedListSchema, PaginationInputSchema } from "@bedrock/kernel/pagination";
 
-import type { AppContext } from "../context";
 import { ErrorSchema, IdParamSchema } from "../common";
-import { requirePermission } from "../middleware/permission";
+import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
+import { requirePermission } from "../middleware/permission";
 
 const PaginatedCurrenciesSchema = createPaginatedListSchema(CurrencySchema);
 

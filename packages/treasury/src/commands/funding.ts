@@ -1,20 +1,21 @@
 import { and, eq, or, sql } from "drizzle-orm";
-import { makePlanKey } from "@bedrock/kernel";
-import { schema } from "@bedrock/db/schema";
-import { PlanType } from "@bedrock/ledger";
-import { TransferCodes } from "@bedrock/kernel/constants";
+
 import { type Transaction } from "@bedrock/db";
+import { schema } from "@bedrock/db/schema";
+import { makePlanKey } from "@bedrock/kernel";
+import { TransferCodes } from "@bedrock/kernel/constants";
+import { PlanType } from "@bedrock/ledger";
 
 import { CurrencyMismatchError, AmountMismatchError, InvalidStateError, NotFoundError, ValidationError } from "../errors";
-import { type FundingSettledInput, validateFundingSettledInput } from "../validation";
+import { SYSTEM_LEDGER_ORG_ID, type TreasuryServiceContext } from "../internal/context";
+import { fetchOrderState } from "../internal/order-state";
 import {
     AdvancedOrderStatuses,
     FundingSettledAllowedFrom,
     TreasuryOrderStatus,
     isOrderStatusIn,
 } from "../state-machine";
-import { SYSTEM_LEDGER_ORG_ID, type TreasuryServiceContext } from "../internal/context";
-import { fetchOrderState } from "../internal/order-state";
+import { type FundingSettledInput, validateFundingSettledInput } from "../validation";
 
 export function createFundingSettledHandler(context: TreasuryServiceContext) {
     const { db, ledger, log, keys, currenciesService } = context;

@@ -1,5 +1,6 @@
-import { pgTable, text, timestamp, uuid, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { pgTable, text, timestamp, uuid, uniqueIndex, index } from "drizzle-orm/pg-core";
+
 import { organizations } from "./organizations";
 import { currencies } from "../currencies";
 

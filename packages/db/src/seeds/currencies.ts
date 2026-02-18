@@ -1,5 +1,5 @@
-import { seed } from "drizzle-seed";
 import { eq } from "drizzle-orm";
+import { seed } from "drizzle-seed";
 
 import type { Database } from "../client";
 import { schema } from "../schema";

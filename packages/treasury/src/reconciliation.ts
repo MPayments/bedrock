@@ -1,21 +1,23 @@
 import { and, eq, sql } from "drizzle-orm";
+
 import { type Database } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { type Logger, noopLogger } from "@bedrock/kernel";
+
 import { TreasuryOrderStatus } from "./state-machine";
 
 const RECON_SOURCE = "treasury_reconciliation";
 
 type Severity = "critical" | "high" | "medium" | "low";
 
-type ReconIssue = {
+interface ReconIssue {
     entityType: string;
     entityId: string;
     issueCode: string;
     severity: Severity;
     summary: string;
     details?: string;
-};
+}
 
 function dueAtFrom(now: Date, minutes: number): Date {
     return new Date(now.getTime() + minutes * 60 * 1000);
@@ -62,7 +64,7 @@ export function createTreasuryReconciliationWorker(deps: {
       LIMIT ${batchSize}
     `);
 
-        for (const row of (stuckPending.rows ?? []) as Array<{ order_id: string; order_status: string; updated_at: Date; journal_entry_id: string }>) {
+        for (const row of (stuckPending.rows ?? []) as { order_id: string; order_status: string; updated_at: Date; journal_entry_id: string }[]) {
             issues.push({
                 entityType: "payment_order",
                 entityId: row.order_id,
@@ -89,7 +91,7 @@ export function createTreasuryReconciliationWorker(deps: {
       LIMIT ${batchSize}
     `);
 
-        for (const row of (finalizationLag.rows ?? []) as Array<{ order_id: string; order_status: string; journal_entry_id: string; journal_status: string; updated_at: Date }>) {
+        for (const row of (finalizationLag.rows ?? []) as { order_id: string; order_status: string; journal_entry_id: string; journal_status: string; updated_at: Date }[]) {
             issues.push({
                 entityType: "payment_order",
                 entityId: row.order_id,
@@ -112,7 +114,7 @@ export function createTreasuryReconciliationWorker(deps: {
       LIMIT ${batchSize}
     `);
 
-        for (const row of (missingJournal.rows ?? []) as Array<{ order_id: string; order_status: string; ledger_entry_id: string }>) {
+        for (const row of (missingJournal.rows ?? []) as { order_id: string; order_status: string; ledger_entry_id: string }[]) {
             issues.push({
                 entityType: "payment_order",
                 entityId: row.order_id,
@@ -134,7 +136,7 @@ export function createTreasuryReconciliationWorker(deps: {
       LIMIT ${batchSize}
     `);
 
-        for (const row of (planMismatch.rows ?? []) as Array<{ order_id: string; journal_entry_id: string }>) {
+        for (const row of (planMismatch.rows ?? []) as { order_id: string; journal_entry_id: string }[]) {
             issues.push({
                 entityType: "journal_entry",
                 entityId: row.journal_entry_id,
@@ -161,7 +163,7 @@ export function createTreasuryReconciliationWorker(deps: {
       LIMIT ${batchSize}
     `);
 
-        for (const row of (railMismatch.rows ?? []) as Array<{ settlement_id: string; order_id: string; kind: string; order_status: string }>) {
+        for (const row of (railMismatch.rows ?? []) as { settlement_id: string; order_id: string; kind: string; order_status: string }[]) {
             issues.push({
                 entityType: "settlement",
                 entityId: row.settlement_id,

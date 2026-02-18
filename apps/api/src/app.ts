@@ -1,12 +1,14 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
-import { cors } from "hono/cors";
 import dotenv from "dotenv";
-import { AppError } from "@bedrock/kernel";
+import { cors } from "hono/cors";
+
 import auth from "@bedrock/auth";
+import { AppError } from "@bedrock/kernel";
+
 import { createAppContext, type Env } from "./context";
-import { organizationsRoutes, customersRoutes, currenciesRoutes } from "./routes/index";
 import { authMiddleware, requireAuth, type AuthVariables } from "./middleware/auth";
+import { organizationsRoutes, customersRoutes, currenciesRoutes } from "./routes/index";
 
 // FIXME: in production, use proper env loading
 dotenv.config({ path: "../../.env" });
@@ -84,7 +86,7 @@ v1
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx));
 
-const routes = app.route("/v1", v1);
+app.route("/v1", v1);
 
 const openApiInfo = {
   info: {
@@ -118,4 +120,4 @@ app.get(
 );
 
 export { app };
-export type AppType = typeof routes;
+export type AppType = typeof app;

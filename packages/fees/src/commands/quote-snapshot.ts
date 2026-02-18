@@ -1,10 +1,11 @@
 import { eq } from "drizzle-orm";
+
 import { schema } from "@bedrock/db/schema";
 
-import { validateGetQuoteFeeComponentsInput, validateSaveQuoteFeeComponentsInput } from "../validation";
-import type { FeeComponent, GetQuoteFeeComponentsInput, SaveQuoteFeeComponentsInput } from "../types";
 import { type FeesServiceContext } from "../internal/context";
 import { normalizeComponent } from "../internal/normalize";
+import type { FeeComponent, GetQuoteFeeComponentsInput, SaveQuoteFeeComponentsInput } from "../types";
+import { validateGetQuoteFeeComponentsInput, validateSaveQuoteFeeComponentsInput } from "../validation";
 
 export function createQuoteSnapshotHandlers(context: FeesServiceContext) {
     const { db, currenciesService } = context;
@@ -55,7 +56,7 @@ export function createQuoteSnapshotHandlers(context: FeesServiceContext) {
             .select()
             .from(schema.fxQuoteFeeComponents)
             .where(eq(schema.fxQuoteFeeComponents.quoteId, validated.quoteId))
-            .limit(2048)) as Array<typeof schema.fxQuoteFeeComponents.$inferSelect>;
+            .limit(2048)) as typeof schema.fxQuoteFeeComponents.$inferSelect[];
         const uniqueCurrencyIds = [...new Set(rows.map((row) => row.currencyId))];
         const currencyCodeById = new Map<string, string>();
         await Promise.all(

@@ -1,11 +1,13 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { makePlanKey } from "@bedrock/kernel";
-import { TransferCodes } from "@bedrock/kernel/constants";
+
+import { type CurrenciesService } from "@bedrock/currencies";
 import { type Database } from "@bedrock/db";
 import { schema, TransferStatus } from "@bedrock/db/schema";
-import { PlanType, type createLedgerEngine } from "@bedrock/ledger";
-import { type CurrenciesService } from "@bedrock/currencies";
+import { makePlanKey } from "@bedrock/kernel";
+import { TransferCodes } from "@bedrock/kernel/constants";
 import { PermissionError, NotFoundError } from "@bedrock/kernel/errors";
+import { PlanType, type createLedgerEngine } from "@bedrock/ledger";
+
 import { InvalidStateError } from "./errors";
 import { transfersKeyspace } from "./keyspace";
 import {
@@ -21,11 +23,11 @@ import {
 
 type LedgerEngine = ReturnType<typeof createLedgerEngine>;
 
-export type Logger = {
+export interface Logger {
     info: (message: string, context?: Record<string, any>) => void;
     error: (message: string, context?: Record<string, any>) => void;
     debug: (message: string, context?: Record<string, any>) => void;
-};
+}
 
 type TransactionClient = Parameters<Parameters<Database["transaction"]>[0]>[0];
 

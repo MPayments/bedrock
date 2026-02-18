@@ -2,12 +2,13 @@ import { sql } from "drizzle-orm";
 import {
     pgTable, text, timestamp, uuid, bigint, index, uniqueIndex
 } from "drizzle-orm/pg-core";
+
 import { organizations } from "./organizations";
 import { customers } from "../customers";
 import { bankAccounts } from "./bank-accounts";
+import { currencies } from "../currencies";
 import { journalEntries } from "../ledger/journal";
 import { uint128 } from "../ledger/ledger";
-import { currencies } from "../currencies";
 
 export type OrderStatus =
     | "quote"

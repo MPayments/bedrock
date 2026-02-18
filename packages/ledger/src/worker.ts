@@ -1,15 +1,16 @@
 import { sql } from "drizzle-orm";
-import { Transaction, type Database } from "@bedrock/db";
+import { LRUCache } from "lru-cache";
+
+import type { Database, Transaction } from "@bedrock/db";
 import {
     schema
 } from "@bedrock/db/schema";
 
+import { PostingError, isRetryableError } from "./errors";
+import { resolveTbAccountId } from "./resolve";
 import type { TbClient } from "./tb";
 import { makeTbTransfer, tbCreateTransfersOrThrow, TransferFlags, TB_AMOUNT_MAX } from "./tb";
-import { resolveTbAccountId } from "./resolve";
-import { PostingError, isRetryableError } from "./errors";
 import { PlanType } from "./types";
-import { LRUCache } from "lru-cache";
 
 const DEFAULT_ACCOUNT_CACHE_MAX = 10_000;
 
@@ -80,12 +81,12 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient; accountCa
       RETURNING o.id as outbox_id, o.org_id, o.ref_id as journal_entry_id, o.attempts as attempts
     `);
 
-        const jobs = (claimed.rows ?? []) as Array<{
+        const jobs = (claimed.rows ?? []) as {
             outbox_id: string;
             org_id: string;
             journal_entry_id: string;
             attempts: number;
-        }>;
+        }[];
 
         for (const job of jobs) {
             try {

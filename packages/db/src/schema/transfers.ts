@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { pgTable, uuid, text, timestamp, bigint, index, uniqueIndex } from "drizzle-orm/pg-core";
+
 import { currencies } from "./currencies";
 
 export enum TransferStatus {

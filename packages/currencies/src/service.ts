@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+
 import { schema, type Currency, type CurrencyInsert } from "@bedrock/db/schema";
 import {
     PaginationInputSchema,
@@ -11,12 +12,13 @@ import {
     createCurrenciesServiceContext,
     type CurrenciesServiceDeps,
 } from "./internal/context";
-import { CreateCurrencyInputSchema, UpdateCurrencyInput, UpdateCurrencyInputSchema } from "./validation";
+import type { UpdateCurrencyInput} from "./validation";
+import { CreateCurrencyInputSchema, UpdateCurrencyInputSchema } from "./validation";
 
-type CurrencyCache = {
+interface CurrencyCache {
     byId: Map<string, Currency>;
     byCode: Map<string, Currency>;
-};
+}
 
 export type CurrenciesService = ReturnType<typeof createCurrenciesService>;
 

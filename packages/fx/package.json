@@ -9,7 +9,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
     "@bedrock/currencies": "workspace:*",
@@ -22,6 +23,8 @@
   },
   "devDependencies": {
     "@bedrock/typescript-config": "*",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "@bedrock/eslint-config": "workspace:*",
+    "eslint": "^9.31.0"
   }
 }

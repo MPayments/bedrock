@@ -1,5 +1,6 @@
-import { type QuoteInput } from "../validation";
 import { ValidationError } from "@bedrock/kernel/errors";
+
+import { type QuoteInput } from "../validation";
 import { mulDivFloor } from "./math";
 import { type ComputedLeg } from "./types";
 

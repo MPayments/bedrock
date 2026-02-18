@@ -7,12 +7,12 @@ export const PaginationInputSchema = z.object({
 
 export type PaginationInput = z.infer<typeof PaginationInputSchema>;
 
-export type PaginatedList<T> = {
+export interface PaginatedList<T> {
     data: T[];
     total: number;
     limit: number;
     offset: number;
-};
+}
 
 export function createPaginatedListSchema<T extends z.ZodType>(itemSchema: T) {
     return z.object({

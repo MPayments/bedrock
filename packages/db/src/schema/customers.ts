@@ -1,6 +1,5 @@
-import { pgTable, text, timestamp, uuid, index } from "drizzle-orm/pg-core";
-import { organizations } from "./treasury/organizations";
 import { sql } from "drizzle-orm";
+import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const customers = pgTable(
     "customers",

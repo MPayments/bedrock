@@ -1,12 +1,13 @@
 import { and, eq } from "drizzle-orm";
-import { schema } from "@bedrock/db/schema";
+
 import { type Transaction, type Database } from "@bedrock/db";
+import { schema } from "@bedrock/db/schema";
 import { sha256Hex, stableStringify } from "@bedrock/kernel";
 
-import { tbLedgerForCurrency, tbTransferIdForPlan } from "./ids";
-import { validateCreateEntryInput, validateChainBlocks } from "./validation";
-import { PlanType, type CreateEntryInput, type TransferPlanLine, type CreateEntryResult } from "./types";
 import { IdempotencyConflictError } from "./errors";
+import { tbLedgerForCurrency, tbTransferIdForPlan } from "./ids";
+import { PlanType, type CreateEntryInput, type TransferPlanLine, type CreateEntryResult } from "./types";
+import { validateCreateEntryInput, validateChainBlocks } from "./validation";
 
 function computeLinkedFlags(transfers: TransferPlanLine[]): boolean[] {
     const linked = new Array(transfers.length).fill(false);
@@ -108,7 +109,7 @@ export function createLedgerEngine(deps: { db: Database }) {
             }
         }
 
-        const derived: Array<{
+        const derived: {
             orgId: string;
             entryId: string;
             lineNo: number;
@@ -117,7 +118,7 @@ export function createLedgerEngine(deps: { db: Database }) {
             currency: string;
             amountMinor: bigint;
             memo: string | null;
-        }> = [];
+        }[] = [];
 
         let lineNo = 1;
         for (const t of transfers) {
