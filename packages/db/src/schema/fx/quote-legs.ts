@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { bigint, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { fxQuotes } from "./quotes";
 import { organizations } from "../treasury/organizations";
+import { currencies } from "../currencies";
 
 export type FxQuoteLegSourceKind = "cb" | "bank" | "manual" | "derived" | "market";
 
@@ -14,8 +15,8 @@ export const fxQuoteLegs = pgTable(
             .references(() => fxQuotes.id, { onDelete: "cascade" }),
         idx: integer("idx").notNull(),
 
-        fromCurrency: text("from_currency").notNull(),
-        toCurrency: text("to_currency").notNull(),
+        fromCurrencyId: uuid("from_currency_id").notNull().references(() => currencies.id),
+        toCurrencyId: uuid("to_currency_id").notNull().references(() => currencies.id),
 
         fromAmountMinor: bigint("from_amount_minor", { mode: "bigint" }).notNull(),
         toAmountMinor: bigint("to_amount_minor", { mode: "bigint" }).notNull(),

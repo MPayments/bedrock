@@ -19,7 +19,7 @@ import { assertInitiateFeePaymentReplayCompatible } from "../internal/fee-paymen
 import { fetchFeePaymentOrderState } from "../internal/order-state";
 
 export function createFeePaymentHandlers(context: TreasuryServiceContext) {
-    const { db, ledger, keys } = context;
+    const { db, ledger, keys, currenciesService } = context;
 
     async function initiateFeePayment(input: InitiateFeePaymentInput) {
         const vaildated = validateInitiateFeePaymentInput(input);
@@ -27,6 +27,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
 
         return db.transaction(async (tx: Transaction) => {
             const feeOrder = await fetchFeePaymentOrderState(tx, vaildated.feePaymentOrderId);
+            const { code: feeOrderCurrency } = await currenciesService.findById(feeOrder.currencyId);
 
             if (feeOrder.status !== "reserved") {
                 if (
@@ -49,7 +50,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
             const planKey = makePlanKey("fee_payment_init", {
                 feePaymentOrderId: vaildated.feePaymentOrderId,
                 railRef: vaildated.railRef,
-                currency: feeOrder.currency,
+                currency: feeOrderCurrency,
                 amount: feeOrder.amountMinor.toString(),
                 payoutOrgId: vaildated.payoutOrgId,
                 payoutBankStableKey: vaildated.payoutBankStableKey,
@@ -64,9 +65,9 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                     {
                         type: PlanType.CREATE,
                         planKey,
-                        debitKey: keys.feeClearing(feeOrder.bucket, feeOrder.currency),
-                        creditKey: keys.bank(vaildated.payoutOrgId, vaildated.payoutBankStableKey, feeOrder.currency),
-                        currency: feeOrder.currency,
+                        debitKey: keys.feeClearing(feeOrder.bucket, feeOrderCurrency),
+                        creditKey: keys.bank(vaildated.payoutOrgId, vaildated.payoutBankStableKey, feeOrderCurrency),
+                        currency: feeOrderCurrency,
                         amount: feeOrder.amountMinor,
                         code: TransferCodes.FEE_PAYMENT_INITIATED,
                         pending: { timeoutSeconds },
@@ -122,6 +123,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
 
         return db.transaction(async (tx: Transaction) => {
             const feeOrder = await fetchFeePaymentOrderState(tx, validated.feePaymentOrderId);
+            const { code: feeOrderCurrency } = await currenciesService.findById(feeOrder.currencyId);
 
             if (feeOrder.status !== "initiated") {
                 if (feeOrder.status === "settled_pending_posting" || feeOrder.status === "settled") {
@@ -145,7 +147,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                 feePaymentOrderId: validated.feePaymentOrderId,
                 railRef: validated.railRef,
                 pendingId: feeOrder.pendingTransferId.toString(),
-                currency: feeOrder.currency,
+                currency: feeOrderCurrency,
             });
 
             const { entryId } = await ledger.createEntryTx(tx, {
@@ -157,7 +159,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                     {
                         type: PlanType.POST_PENDING,
                         planKey,
-                        currency: feeOrder.currency,
+                        currency: feeOrderCurrency,
                         pendingId: feeOrder.pendingTransferId,
                         amount: 0n,
                     },
@@ -203,6 +205,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
 
         return db.transaction(async (tx: Transaction) => {
             const feeOrder = await fetchFeePaymentOrderState(tx, validated.feePaymentOrderId);
+            const { code: feeOrderCurrency } = await currenciesService.findById(feeOrder.currencyId);
 
             if (feeOrder.status !== "initiated") {
                 if (feeOrder.status === "voided_pending_posting" || feeOrder.status === "voided") {
@@ -226,7 +229,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                 feePaymentOrderId: validated.feePaymentOrderId,
                 railRef: validated.railRef,
                 pendingId: feeOrder.pendingTransferId.toString(),
-                currency: feeOrder.currency,
+                currency: feeOrderCurrency,
             });
 
             const { entryId } = await ledger.createEntryTx(tx, {
@@ -238,7 +241,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                     {
                         type: PlanType.VOID_PENDING,
                         planKey,
-                        currency: feeOrder.currency,
+                        currency: feeOrderCurrency,
                         pendingId: feeOrder.pendingTransferId,
                     },
                 ],

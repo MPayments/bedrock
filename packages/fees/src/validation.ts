@@ -1,15 +1,15 @@
 import { z } from "zod";
-import { normalizeCurrency, isValidCurrency } from "@bedrock/kernel";
+import { isValidCurrency, normalizeCurrency } from "@bedrock/kernel";
+
 import { FeeValidationError } from "./errors";
 
-const uuidSchema = z.string().uuid();
-
+const uuidSchema = z.uuid();
 const currencySchema = z
     .string()
-    .refine((val) => isValidCurrency(val), {
+    .refine((value) => isValidCurrency(value), {
         message: "Currency must be 2-16 uppercase alphanumeric characters or underscores",
     })
-    .transform((val) => normalizeCurrency(val));
+    .transform((value) => normalizeCurrency(value));
 
 const componentIdSchema = z.string().min(1, "fee component id is required").max(128);
 const componentKindSchema = z.string().min(1, "fee component kind is required").max(64);

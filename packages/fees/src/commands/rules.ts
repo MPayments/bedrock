@@ -17,10 +17,20 @@ import { type FeesServiceContext } from "../internal/context";
 import { calculateBpsAmount } from "../internal/math";
 
 export function createRuleHandlers(context: FeesServiceContext) {
-    const { db, log } = context;
+    const { db, log, currenciesService } = context;
 
     async function upsertRule(input: UpsertFeeRuleInput): Promise<string> {
         const validated = validateUpsertFeeRuleInput(input);
+
+        const fixedCurrencyId = validated.fixedCurrency
+            ? (await currenciesService.findByCode(validated.fixedCurrency)).id
+            : null;
+        const fromCurrencyId = validated.fromCurrency
+            ? (await currenciesService.findByCode(validated.fromCurrency)).id
+            : null;
+        const toCurrencyId = validated.toCurrency
+            ? (await currenciesService.findByCode(validated.toCurrency)).id
+            : null;
 
         const inserted = await db
             .insert(schema.feeRules)
@@ -31,12 +41,12 @@ export function createRuleHandlers(context: FeesServiceContext) {
                 calcMethod: validated.calcMethod,
                 bps: validated.bps,
                 fixedAmountMinor: validated.fixedAmountMinor,
-                fixedCurrency: validated.fixedCurrency,
+                fixedCurrencyId,
                 settlementMode: validated.settlementMode ?? "in_ledger",
                 dealDirection: validated.dealDirection,
                 dealForm: validated.dealForm,
-                fromCurrency: validated.fromCurrency,
-                toCurrency: validated.toCurrency,
+                fromCurrencyId,
+                toCurrencyId,
                 priority: validated.priority ?? 100,
                 isActive: validated.isActive ?? true,
                 effectiveFrom: validated.effectiveFrom ?? new Date(),
@@ -61,7 +71,14 @@ export function createRuleHandlers(context: FeesServiceContext) {
 
     async function listApplicableRules(input: ResolveFeeRulesInput, tx?: any) {
         const validated = validateResolveFeeRulesInput(input);
+
         const executor = tx ?? db;
+        const fromCurrencyId = validated.fromCurrency
+            ? (await currenciesService.findByCode(validated.fromCurrency)).id
+            : null;
+        const toCurrencyId = validated.toCurrency
+            ? (await currenciesService.findByCode(validated.toCurrency)).id
+            : null;
 
         const directionCond = validated.dealDirection
             ? or(isNull(schema.feeRules.dealDirection), eq(schema.feeRules.dealDirection, validated.dealDirection))
@@ -71,13 +88,13 @@ export function createRuleHandlers(context: FeesServiceContext) {
             ? or(isNull(schema.feeRules.dealForm), eq(schema.feeRules.dealForm, validated.dealForm))
             : isNull(schema.feeRules.dealForm);
 
-        const fromCond = validated.fromCurrency
-            ? or(isNull(schema.feeRules.fromCurrency), eq(schema.feeRules.fromCurrency, validated.fromCurrency))
-            : isNull(schema.feeRules.fromCurrency);
+        const fromCond = fromCurrencyId
+            ? or(isNull(schema.feeRules.fromCurrencyId), eq(schema.feeRules.fromCurrencyId, fromCurrencyId))
+            : isNull(schema.feeRules.fromCurrencyId);
 
-        const toCond = validated.toCurrency
-            ? or(isNull(schema.feeRules.toCurrency), eq(schema.feeRules.toCurrency, validated.toCurrency))
-            : isNull(schema.feeRules.toCurrency);
+        const toCond = toCurrencyId
+            ? or(isNull(schema.feeRules.toCurrencyId), eq(schema.feeRules.toCurrencyId, toCurrencyId))
+            : isNull(schema.feeRules.toCurrencyId);
 
         return executor
             .select()
@@ -126,8 +143,13 @@ export function createRuleHandlers(context: FeesServiceContext) {
 
             if (amountMinor <= 0n) continue;
 
+            const legacyFixedCurrency = (rule as { fixedCurrency?: string | null }).fixedCurrency;
             const currency = rule.calcMethod === "fixed"
-                ? normalizeCurrency(rule.fixedCurrency ?? validated.fromCurrency)
+                ? rule.fixedCurrencyId
+                    ? (await currenciesService.findById(rule.fixedCurrencyId)).code
+                    : legacyFixedCurrency
+                        ? normalizeCurrency(legacyFixedCurrency)
+                        : validated.fromCurrency
                 : validated.fromCurrency;
 
             result.push({

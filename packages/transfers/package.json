@@ -12,6 +12,7 @@
     "check-types": "tsc --noEmit"
     },
     "dependencies": {
+        "@bedrock/currencies": "workspace:*",
         "@bedrock/kernel": "*",
         "@bedrock/db": "*",
         "@bedrock/ledger": "*",

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, integer, pgTable, text, timestamp, uuid, bigint, jsonb } from "drizzle-orm/pg-core";
+import { currencies } from "../currencies";
 
 export type FeeCalcMethod = "bps" | "fixed";
 export type FeeSettlementMode = "in_ledger" | "separate_payment_order";
@@ -24,14 +25,14 @@ export const feeRules = pgTable(
         calcMethod: text("calc_method").$type<FeeCalcMethod>().notNull().default("bps"),
         bps: integer("bps"),
         fixedAmountMinor: bigint("fixed_amount_minor", { mode: "bigint" }),
-        fixedCurrency: text("fixed_currency"),
+        fixedCurrencyId: uuid("fixed_currency_id").references(() => currencies.id),
 
         settlementMode: text("settlement_mode").$type<FeeSettlementMode>().notNull().default("in_ledger"),
 
         dealDirection: text("deal_direction"),
         dealForm: text("deal_form"),
-        fromCurrency: text("from_currency"),
-        toCurrency: text("to_currency"),
+        fromCurrencyId: uuid("from_currency_id").references(() => currencies.id),
+        toCurrencyId: uuid("to_currency_id").references(() => currencies.id),
 
         priority: integer("priority").notNull().default(100),
         isActive: boolean("is_active").notNull().default(true),

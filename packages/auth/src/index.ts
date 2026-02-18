@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { admin as adminPlugin } from "better-auth/plugins";
+import { admin as adminPlugin, openAPI as openApiPlugin } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@bedrock/db";
 
@@ -14,6 +14,7 @@ export const auth = betterAuth({
         provider: "pg",
     }),
     plugins: [
+        openApiPlugin(),
         adminPlugin({
             ac,
             admin,

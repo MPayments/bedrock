@@ -15,6 +15,7 @@ import { feeRules } from "./fees/rules";
 import { fxQuoteFeeComponents } from "./fees/quote-components";
 import { internalTransfers } from "./transfers";
 import { feePaymentOrders } from "./treasury/fee-payment-orders";
+import { currencies } from "./currencies";
 
 export const schema = {
   journalEntries,
@@ -35,6 +36,7 @@ export const schema = {
   fxQuoteFeeComponents,
   feePaymentOrders,
   internalTransfers,
+  currencies,
 };
 
 export { TransferStatus } from "./transfers";
@@ -42,3 +44,4 @@ export { type JournalStatus } from "./ledger/journal";
 export { type FxQuote, type FxQuoteStatus } from "./fx/quotes";
 export { type FeePaymentOrder, type FeePaymentOrderStatus } from "./treasury/fee-payment-orders";
 export type { PaymentOrder } from "./treasury/orders";
+export type { Currency, CurrencyInsert } from "./currencies";

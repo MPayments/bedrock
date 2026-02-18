@@ -1,7 +1,7 @@
 /**
  * Currency code utilities.
- * 
- * Currency codes follow ISO 4217 format: 2-16 uppercase alphanumeric characters.
+ *
+ * Currency codes follow ISO 4217-like format: 2-16 uppercase alphanumeric characters.
  * Examples: USD, EUR, BTC, USDC_ETH
  */
 

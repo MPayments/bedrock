@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { bigint, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { fxQuotes } from "../fx/quotes";
 import { feeRules, type FeeSettlementMode } from "./rules";
+import { currencies } from "../currencies";
 
 export type FeeComponentSource = "rule" | "manual";
 
@@ -17,7 +18,7 @@ export const fxQuoteFeeComponents = pgTable(
         ruleId: uuid("rule_id").references(() => feeRules.id),
 
         kind: text("kind").notNull(),
-        currency: text("currency").notNull(),
+        currencyId: uuid("currency_id").notNull().references(() => currencies.id),
         amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
 
         source: text("source").$type<FeeComponentSource>().notNull().default("rule"),

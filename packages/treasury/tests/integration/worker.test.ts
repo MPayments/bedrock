@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 import { createLedgerEngine } from "@bedrock/ledger";
 import { createFeesService } from "@bedrock/fees";
+import { createCurrenciesService } from "@bedrock/currencies";
 import { createTreasuryService } from "../../src/service";
 import { createTreasuryWorker } from "../../src/worker";
 import {
@@ -14,7 +15,8 @@ import {
 
 describe("Treasury Worker Integration Tests", () => {
     const ledger = createLedgerEngine({ db });
-    const feesService = createFeesService({ db });
+    const currenciesService = createCurrenciesService({ db });
+    const feesService = createFeesService({ db, currenciesService });
 
     it("returns only finalized count when fetched set includes pending journals", async () => {
         const scenarioPosted = await createTestScenario();
@@ -23,12 +25,14 @@ describe("Treasury Worker Integration Tests", () => {
         const servicePosted = createTreasuryService({
             db,
             ledger,
-            feesService
+            feesService,
+            currenciesService,
         });
         const servicePending = createTreasuryService({
             db,
             ledger,
-            feesService
+            feesService,
+            currenciesService,
         });
 
         const postedEntryId = await servicePosted.fundingSettled({
@@ -73,7 +77,8 @@ describe("Treasury Worker Integration Tests", () => {
         const service = createTreasuryService({
             db,
             ledger,
-            feesService
+            feesService,
+            currenciesService,
         });
 
         const entryId = await service.fundingSettled({

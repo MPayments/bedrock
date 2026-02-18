@@ -5,6 +5,35 @@ import { createFxService } from "../src/service";
 
 const QUOTE_ID = "550e8400-e29b-41d4-a716-446655440010";
 
+function createMockCurrenciesService() {
+    const byCode = new Map<string, any>([
+        ["USD", { id: "cur-usd", code: "USD" }],
+        ["EUR", { id: "cur-eur", code: "EUR" }],
+        ["RUB", { id: "cur-rub", code: "RUB" }],
+        ["AED", { id: "cur-aed", code: "AED" }],
+        ["USDT", { id: "cur-usdt", code: "USDT" }],
+        ["BTC", { id: "cur-btc", code: "BTC" }],
+    ]);
+    const byId = new Map<string, any>(Array.from(byCode.values()).map((currency) => [currency.id, currency]));
+
+    return {
+        findByCode: vi.fn(async (code: string) => {
+            const normalized = code.trim().toUpperCase();
+            const existing = byCode.get(normalized);
+            if (existing) return existing;
+            const generated = { id: `cur-${normalized.toLowerCase()}`, code: normalized };
+            byCode.set(normalized, generated);
+            byId.set(generated.id, generated);
+            return generated;
+        }),
+        findById: vi.fn(async (id: string) => {
+            const existing = byId.get(id);
+            if (existing) return existing;
+            throw new Error(`Unknown currency id: ${id}`);
+        }),
+    };
+}
+
 function selectWhereLimit(rows: any[]) {
     return {
         from: vi.fn(() => ({
@@ -31,6 +60,8 @@ function selectWhereOrderBy(rows: any[]) {
 function makeQuote(overrides: Record<string, unknown> = {}) {
     return {
         id: QUOTE_ID,
+        fromCurrencyId: "cur-rub",
+        toCurrencyId: "cur-aed",
         fromCurrency: "RUB",
         toCurrency: "AED",
         fromAmountMinor: 1_000_000n,
@@ -91,7 +122,7 @@ describe("createFxService", () => {
             saveQuoteFeeComponents: vi.fn(async () => undefined),
             getQuoteFeeComponents: vi.fn(async () => []),
         } as any;
-        const service = createFxService({ db, feesService });
+        const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
 
         const quote = await service.quote({
             mode: "explicit_route",
@@ -132,15 +163,15 @@ describe("createFxService", () => {
         expect(insertedLegRows[0]).toMatchObject({
             quoteId: QUOTE_ID,
             idx: 1,
-            fromCurrency: "RUB",
-            toCurrency: "USDT",
+            fromCurrencyId: "cur-rub",
+            toCurrencyId: "cur-usdt",
             fromAmountMinor: 1_000_000n,
             toAmountMinor: 10_000n,
         });
         expect(insertedLegRows[1]).toMatchObject({
             idx: 2,
-            fromCurrency: "USDT",
-            toCurrency: "AED",
+            fromCurrencyId: "cur-usdt",
+            toCurrencyId: "cur-aed",
             fromAmountMinor: 10_000n,
             toAmountMinor: 35_000n,
         });
@@ -160,7 +191,7 @@ describe("createFxService", () => {
             saveQuoteFeeComponents: vi.fn(async () => undefined),
             getQuoteFeeComponents: vi.fn(async () => []),
         } as any;
-        const service = createFxService({ db, feesService });
+        const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
 
         await expect(service.quote({
             mode: "explicit_route",
@@ -192,6 +223,8 @@ describe("createFxService", () => {
     it("quotes auto-cross and persists synthetic leg with generated trace", async () => {
         const createdQuote = makeQuote({
             idempotencyKey: "idem-auto-1",
+            fromCurrencyId: "cur-usd",
+            toCurrencyId: "cur-eur",
             fromCurrency: "USD",
             toCurrency: "EUR",
             fromAmountMinor: 10_000n,
@@ -247,7 +280,7 @@ describe("createFxService", () => {
             saveQuoteFeeComponents: vi.fn(async () => undefined),
             getQuoteFeeComponents: vi.fn(async () => []),
         } as any;
-        const service = createFxService({ db, feesService });
+        const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
 
         const quote = await service.quote({
             mode: "auto_cross",
@@ -262,8 +295,8 @@ describe("createFxService", () => {
         expect(insertedLegRows).toHaveLength(1);
         expect(insertedLegRows[0]).toMatchObject({
             idx: 1,
-            fromCurrency: "USD",
-            toCurrency: "EUR",
+            fromCurrencyId: "cur-usd",
+            toCurrencyId: "cur-eur",
             fromAmountMinor: 10_000n,
             toAmountMinor: 20_000n,
             sourceKind: "derived",
@@ -300,7 +333,7 @@ describe("createFxService", () => {
             saveQuoteFeeComponents: vi.fn(async () => undefined),
             getQuoteFeeComponents: vi.fn(async () => []),
         } as any;
-        const service = createFxService({ db, feesService });
+        const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
 
         const quote = await service.quote({
             mode: "explicit_route",
@@ -333,6 +366,8 @@ describe("createFxService", () => {
                 id: "11111111-1111-4111-8111-111111111111",
                 quoteId: quote.id,
                 idx: 1,
+                fromCurrencyId: "cur-rub",
+                toCurrencyId: "cur-usdt",
                 fromCurrency: "RUB",
                 toCurrency: "USDT",
                 fromAmountMinor: 1_000_000n,
@@ -365,7 +400,7 @@ describe("createFxService", () => {
             saveQuoteFeeComponents: vi.fn(async () => undefined),
             getQuoteFeeComponents: vi.fn(async () => feeComponents),
         } as any;
-        const service = createFxService({ db, feesService });
+        const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
 
         const details = await service.getQuoteDetails({ quoteRef: "idem-details-1" });
 
@@ -390,7 +425,7 @@ describe("createFxService", () => {
             saveQuoteFeeComponents: vi.fn(async () => undefined),
             getQuoteFeeComponents: vi.fn(async () => []),
         } as any;
-        const service = createFxService({ db, feesService });
+        const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
 
         await expect(service.getQuoteDetails({ quoteRef: uuidQuoteRef })).rejects.toThrow(ValidationError);
     });

@@ -21,6 +21,32 @@ import {
 } from "./helpers";
 import { TransferStatus } from "@bedrock/db/schema";
 
+function createMockCurrenciesService() {
+    const byCode = new Map<string, any>([
+        ["USD", { id: "cur-usd", code: "USD" }],
+        ["EUR", { id: "cur-eur", code: "EUR" }],
+        ["GBP", { id: "cur-gbp", code: "GBP" }],
+    ]);
+    const byId = new Map<string, any>(Array.from(byCode.values()).map((currency) => [currency.id, currency]));
+
+    return {
+        findByCode: vi.fn(async (code: string) => {
+            const normalized = code.trim().toUpperCase();
+            const existing = byCode.get(normalized);
+            if (existing) return existing;
+            const generated = { id: `cur-${normalized.toLowerCase()}`, code: normalized };
+            byCode.set(normalized, generated);
+            byId.set(generated.id, generated);
+            return generated;
+        }),
+        findById: vi.fn(async (id: string) => {
+            const existing = byId.get(id);
+            if (existing) return existing;
+            throw new Error(`Unknown currency id: ${id}`);
+        }),
+    };
+}
+
 describe("createTransfersService", () => {
     let db: StubDatabase;
     let ledger: ReturnType<typeof createMockLedger>;
@@ -31,9 +57,11 @@ describe("createTransfersService", () => {
         db = createStubDb();
         ledger = createMockLedger();
         canApprove = vi.fn(async () => true);
+        const currenciesService = createMockCurrenciesService();
         service = createTransfersService({
             db,
             ledger,
+            currenciesService,
             canApprove,
         });
     });
@@ -146,7 +174,7 @@ describe("createTransfersService", () => {
 
             expect(insertMock).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    currency: "USD",
+                    currencyId: "cur-usd",
                 })
             );
         });

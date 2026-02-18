@@ -4,6 +4,19 @@ import { ValidationError } from "@bedrock/kernel/errors";
 import { isUuidLike } from "@bedrock/kernel/utils";
 import { type FxServiceContext } from "./context";
 
+async function withCurrencyCodes(context: FxServiceContext, quote: FxQuote): Promise<FxQuote> {
+    const [fromCurrency, toCurrency] = await Promise.all([
+        context.currenciesService.findById(quote.fromCurrencyId),
+        context.currenciesService.findById(quote.toCurrencyId),
+    ]);
+
+    return {
+        ...quote,
+        fromCurrency: fromCurrency.code,
+        toCurrency: toCurrency.code,
+    } as FxQuote;
+}
+
 export async function resolveQuoteByRef(context: FxServiceContext, quoteRef: string): Promise<FxQuote | undefined> {
     const { db } = context;
 
@@ -23,7 +36,8 @@ export async function resolveQuoteByRef(context: FxServiceContext, quoteRef: str
             throw new ValidationError(`quoteRef ${quoteRef} is ambiguous between quote ID and idempotency key`);
         }
 
-        return byId ?? byIdempotency;
+        const resolved = byId ?? byIdempotency;
+        return resolved ? withCurrencyCodes(context, resolved) : undefined;
     }
 
     const [byIdempotency] = await db
@@ -31,5 +45,5 @@ export async function resolveQuoteByRef(context: FxServiceContext, quoteRef: str
         .from(schema.fxQuotes)
         .where(eq(schema.fxQuotes.idempotencyKey, quoteRef))
         .limit(1);
-    return byIdempotency;
+    return byIdempotency ? withCurrencyCodes(context, byIdempotency) : undefined;
 }

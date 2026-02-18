@@ -6,6 +6,48 @@ import { FeeValidationError } from "../src/errors";
 
 const QUOTE_ID = "11111111-1111-4111-8111-111111111111";
 
+function createMockCurrenciesService() {
+    const byCode = new Map<string, any>([
+        ["USD", { id: "cur-usd", code: "USD", name: "US Dollar", symbol: "$", precision: 2 }],
+        ["EUR", { id: "cur-eur", code: "EUR", name: "Euro", symbol: "€", precision: 2 }],
+        ["RUB", { id: "cur-rub", code: "RUB", name: "Russian Ruble", symbol: "₽", precision: 2 }],
+        ["AED", { id: "cur-aed", code: "AED", name: "UAE Dirham", symbol: "د.إ", precision: 2 }],
+        ["USDT", { id: "cur-usdt", code: "USDT", name: "Tether", symbol: "₮", precision: 6 }],
+        ["BTC", { id: "cur-btc", code: "BTC", name: "Bitcoin", symbol: "₿", precision: 8 }],
+    ]);
+    const byId = new Map<string, any>(Array.from(byCode.values()).map((currency) => [currency.id, currency]));
+
+    return {
+        findByCode: vi.fn(async (code: string) => {
+            const normalized = code.trim().toUpperCase();
+            const existing = byCode.get(normalized);
+            if (existing) return existing;
+            const generated = {
+                id: `cur-${normalized.toLowerCase()}`,
+                code: normalized,
+                name: normalized,
+                symbol: normalized,
+                precision: 2,
+            };
+            byCode.set(normalized, generated);
+            byId.set(generated.id, generated);
+            return generated;
+        }),
+        findById: vi.fn(async (id: string) => {
+            const existing = byId.get(id);
+            if (existing) return existing;
+            throw new Error(`Unknown currency id: ${id}`);
+        }),
+    };
+}
+
+function createTestFeesService(deps: Record<string, any>) {
+    return createFeesService({
+        ...deps,
+        currenciesService: deps.currenciesService ?? createMockCurrenciesService(),
+    });
+}
+
 function feeComponent(overrides: Record<string, unknown> = {}) {
     return {
         id: "component-1",
@@ -33,7 +75,7 @@ function adjustmentComponent(overrides: Record<string, unknown> = {}) {
 
 describe("createFeesService", () => {
     it("validates and calculates bps amounts with floor rounding", () => {
-        const service = createFeesService({ db: {} as any });
+        const service = createTestFeesService({ db: {} as any });
         expect(service.calculateBpsAmount(12345n, 50)).toBe(61n);
         expect(() => service.calculateBpsAmount(-1n, 10)).toThrow(FeeValidationError);
         expect(() => service.calculateBpsAmount(100n, -1)).toThrow(FeeValidationError);
@@ -42,7 +84,7 @@ describe("createFeesService", () => {
     });
 
     it("returns canonical defaults for known fee kinds and fallback", () => {
-        const service = createFeesService({ db: {} as any });
+        const service = createTestFeesService({ db: {} as any });
 
         expect(service.getComponentDefaults("fx_fee")).toEqual({
             bucket: "fx_fee",
@@ -90,7 +132,7 @@ describe("createFeesService", () => {
         const logger = {
             child: vi.fn(() => ({ info })),
         };
-        const service = createFeesService({
+        const service = createTestFeesService({
             db: { insert } as any,
             logger: logger as any,
         });
@@ -133,7 +175,7 @@ describe("createFeesService", () => {
         const where = vi.fn(() => ({ orderBy }));
         const from = vi.fn(() => ({ where }));
         const select = vi.fn(() => ({ from }));
-        const service = createFeesService({ db: { select } as any });
+        const service = createTestFeesService({ db: { select } as any });
         const at = new Date("2026-02-14T00:00:00Z");
 
         await expect(service.listApplicableRules({
@@ -231,7 +273,7 @@ describe("createFeesService", () => {
         const where = vi.fn(() => ({ orderBy }));
         const from = vi.fn(() => ({ where }));
         const select = vi.fn(() => ({ from }));
-        const service = createFeesService({ db: { select } as any });
+        const service = createTestFeesService({ db: { select } as any });
 
         const components = await service.calculateFxQuoteFeeComponents({
             fromCurrency: "usd",
@@ -275,7 +317,7 @@ describe("createFeesService", () => {
         const deleteFn = vi.fn(() => ({ where }));
         const values = vi.fn(() => ({}));
         const insert = vi.fn(() => ({ values }));
-        const service = createFeesService({
+        const service = createTestFeesService({
             db: { delete: deleteFn, insert } as any,
         });
 
@@ -297,13 +339,13 @@ describe("createFeesService", () => {
             expect.objectContaining({
                 quoteId: QUOTE_ID,
                 idx: 1,
-                currency: "USD",
+                currencyId: "cur-usd",
                 settlementMode: "in_ledger",
             }),
             expect.objectContaining({
                 quoteId: QUOTE_ID,
                 idx: 2,
-                currency: "USD",
+                currencyId: "cur-usd",
                 settlementMode: "separate_payment_order",
             }),
         ]);
@@ -313,7 +355,7 @@ describe("createFeesService", () => {
         const where = vi.fn(async () => undefined);
         const deleteFn = vi.fn(() => ({ where }));
         const insert = vi.fn(() => ({ values: vi.fn() }));
-        const service = createFeesService({
+        const service = createTestFeesService({
             db: { delete: deleteFn, insert } as any,
         });
 
@@ -333,7 +375,7 @@ describe("createFeesService", () => {
                 idx: 2,
                 ruleId: null,
                 kind: "fx_spread",
-                currency: "USD",
+                currencyId: "cur-usd",
                 amountMinor: 8n,
                 source: "rule",
                 settlementMode: "in_ledger",
@@ -348,7 +390,7 @@ describe("createFeesService", () => {
                 idx: 1,
                 ruleId: "11111111-1111-4111-8111-111111111112",
                 kind: "fx_fee",
-                currency: "USD",
+                currencyId: "cur-usd",
                 amountMinor: 12n,
                 source: "rule",
                 settlementMode: "separate_payment_order",
@@ -363,7 +405,7 @@ describe("createFeesService", () => {
         const where = vi.fn(() => ({ limit }));
         const from = vi.fn(() => ({ where }));
         const select = vi.fn(() => ({ from }));
-        const service = createFeesService({ db: { select } as any });
+        const service = createTestFeesService({ db: { select } as any });
 
         const components = await service.getQuoteFeeComponents({ quoteId: QUOTE_ID });
 
@@ -387,7 +429,7 @@ describe("createFeesService", () => {
     });
 
     it("aggregates, merges and partitions components by settlement and posting identity", () => {
-        const service = createFeesService({ db: {} as any });
+        const service = createTestFeesService({ db: {} as any });
 
         const aggregated = service.aggregateFeeComponents([
             feeComponent({ id: "a1", amountMinor: 10n, memo: "revenue" }),
@@ -424,7 +466,7 @@ describe("createFeesService", () => {
     });
 
     it("builds transfer plans with posting overrides and custom plan keys", () => {
-        const service = createFeesService({ db: {} as any });
+        const service = createTestFeesService({ db: {} as any });
 
         const plans = service.buildFeeTransferPlans({
             components: [
@@ -475,7 +517,7 @@ describe("createFeesService", () => {
     });
 
     it("builds fee transfer plans with deterministic default plan keys", () => {
-        const service = createFeesService({ db: {} as any });
+        const service = createTestFeesService({ db: {} as any });
 
         const [plan] = service.buildFeeTransferPlans({
             components: [
@@ -497,7 +539,7 @@ describe("createFeesService", () => {
     });
 
     it("aggregates, merges, partitions and builds adjustment transfer plans", () => {
-        const service = createFeesService({ db: {} as any });
+        const service = createTestFeesService({ db: {} as any });
 
         const aggregated = service.aggregateAdjustmentComponents([
             adjustmentComponent({ id: "a1", amountMinor: 5n, memo: "same" }),
@@ -565,7 +607,7 @@ describe("createFeesService", () => {
     });
 
     it("throws when adjustment transfer-plan account keys are missing", () => {
-        const service = createFeesService({ db: {} as any });
+        const service = createTestFeesService({ db: {} as any });
 
         expect(() => service.buildAdjustmentTransferPlans({
             components: [
@@ -580,7 +622,7 @@ describe("createFeesService", () => {
     });
 
     it("throws when transfer-plan account keys are still missing after resolvePosting", () => {
-        const service = createFeesService({ db: {} as any });
+        const service = createTestFeesService({ db: {} as any });
 
         expect(() => service.buildFeeTransferPlans({
             components: [

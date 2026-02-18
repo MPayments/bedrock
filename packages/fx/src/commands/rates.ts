@@ -7,14 +7,17 @@ import { type FxServiceContext } from "../internal/context";
 import { type SetManualRateInput, validateSetManualRateInput } from "../validation";
 
 export function createRateHandlers(context: FxServiceContext) {
-    const { db } = context;
+    const { db, currenciesService } = context;
 
     async function setManualRate(input: SetManualRateInput) {
         const validated = validateSetManualRateInput(input);
 
+        const { id: baseCurrencyId } = await currenciesService.findByCode(validated.base);
+        const { id: quoteCurrencyId } = await currenciesService.findByCode(validated.quote);
+
         await db.insert(schema.fxRates).values({
-            base: validated.base,
-            quote: validated.quote,
+            baseCurrencyId,
+            quoteCurrencyId,
             rateNum: validated.rateNum,
             rateDen: validated.rateDen,
             asOf: validated.asOf,
@@ -26,10 +29,17 @@ export function createRateHandlers(context: FxServiceContext) {
         base = normalizeCurrency(base);
         quote = normalizeCurrency(quote);
 
+        const { id: baseCurrencyId } = await currenciesService.findByCode(base);
+        const { id: quoteCurrencyId } = await currenciesService.findByCode(quote);
+
         const rows = await db
             .select()
             .from(schema.fxRates)
-            .where(and(eq(schema.fxRates.base, base), eq(schema.fxRates.quote, quote), sql`${schema.fxRates.asOf} <= ${asOf}`))
+            .where(and(
+                eq(schema.fxRates.baseCurrencyId, baseCurrencyId),
+                eq(schema.fxRates.quoteCurrencyId, quoteCurrencyId),
+                sql`${schema.fxRates.asOf} <= ${asOf}`
+            ))
             .orderBy(desc(schema.fxRates.asOf))
             .limit(1);
 

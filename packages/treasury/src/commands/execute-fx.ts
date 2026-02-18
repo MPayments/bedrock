@@ -12,40 +12,42 @@ import { SYSTEM_LEDGER_ORG_ID, type TreasuryServiceContext } from "../internal/c
 import { consumeFxQuoteForExecution } from "../internal/fx-quote";
 
 export function createExecuteFxHandler(context: TreasuryServiceContext) {
-    const { db, ledger, feesService, log, keys } = context;
+    const { db, ledger, feesService, currenciesService, log, keys } = context;
 
-    return async function executeFx(rawInput: ExecuteFxInput) {
-        const input = validateExecuteFxInput(rawInput);
-        log.debug("executeFx start", { orderId: input.orderId, quoteRef: input.quoteRef });
+    return async function executeFx(input: ExecuteFxInput) {
+        const validated = validateExecuteFxInput(input);
+        log.debug("executeFx start", { orderId: validated.orderId, quoteRef: validated.quoteRef });
 
         return db.transaction(async (tx: Transaction) => {
             const [order] = await tx
                 .select()
                 .from(schema.paymentOrders)
-                .where(eq(schema.paymentOrders.id, input.orderId))
+                .where(eq(schema.paymentOrders.id, validated.orderId))
                 .limit(1);
 
-            if (!order) throw new NotFoundError("Order", input.orderId);
+            if (!order) throw new NotFoundError("Order", validated.orderId);
+            const { code: payInCurrency } = await currenciesService.findById(order.payInCurrencyId);
+            const { code: payOutCurrency } = await currenciesService.findById(order.payOutCurrencyId);
 
-            if (input.payInCurrency !== order.payInCurrency) {
-                throw new CurrencyMismatchError("payInCurrency", order.payInCurrency, input.payInCurrency);
+            if (validated.payInCurrency !== payInCurrency) {
+                throw new CurrencyMismatchError("payInCurrency", payInCurrency, validated.payInCurrency);
             }
-            if (input.payOutCurrency !== order.payOutCurrency) {
-                throw new CurrencyMismatchError("payOutCurrency", order.payOutCurrency, input.payOutCurrency);
+            if (validated.payOutCurrency !== payOutCurrency) {
+                throw new CurrencyMismatchError("payOutCurrency", payOutCurrency, validated.payOutCurrency);
             }
 
-            if (input.principalMinor !== order.payInExpectedMinor) {
-                throw new AmountMismatchError("principalMinor (payInExpectedMinor)", order.payInExpectedMinor, input.principalMinor);
+            if (validated.principalMinor !== order.payInExpectedMinor) {
+                throw new AmountMismatchError("principalMinor (payInExpectedMinor)", order.payInExpectedMinor, validated.principalMinor);
             }
-            if (input.payOutAmountMinor !== order.payOutAmountMinor) {
-                throw new AmountMismatchError("payOutAmountMinor", order.payOutAmountMinor, input.payOutAmountMinor);
+            if (validated.payOutAmountMinor !== order.payOutAmountMinor) {
+                throw new AmountMismatchError("payOutAmountMinor", order.payOutAmountMinor, validated.payOutAmountMinor);
             }
-            if (input.customerId !== order.customerId) {
-                throw new ValidationError(`customerId mismatch: expected ${order.customerId}, got ${input.customerId}`);
+            if (validated.customerId !== order.customerId) {
+                throw new ValidationError(`customerId mismatch: expected ${order.customerId}, got ${validated.customerId}`);
             }
-            if (input.branchOrgId !== order.payInOrgId && input.branchOrgId !== order.payOutOrgId) {
+            if (validated.branchOrgId !== order.payInOrgId && validated.branchOrgId !== order.payOutOrgId) {
                 throw new ValidationError(
-                    `branchOrgId mismatch: expected one of [${order.payInOrgId}, ${order.payOutOrgId}], got ${input.branchOrgId}`
+                    `branchOrgId mismatch: expected one of [${order.payInOrgId}, ${order.payOutOrgId}], got ${validated.branchOrgId}`
                 );
             }
 
@@ -53,12 +55,32 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                 throw new InvalidStateError(`Order must be ${TreasuryOrderStatus.FUNDING_SETTLED} (posted), got ${order.status}`);
             }
 
-            const quote = await consumeFxQuoteForExecution(tx, input);
-            const persistedQuoteLegs = await tx
+            const quote = await consumeFxQuoteForExecution(tx, input, currenciesService);
+            const persistedQuoteLegRows = await tx
                 .select()
                 .from(schema.fxQuoteLegs)
                 .where(eq(schema.fxQuoteLegs.quoteId, quote.id))
                 .limit(2048);
+            const legCurrencyIds = [...new Set(
+                persistedQuoteLegRows
+                    .flatMap((leg) => [
+                        (leg as { fromCurrencyId?: string }).fromCurrencyId,
+                        (leg as { toCurrencyId?: string }).toCurrencyId,
+                    ])
+                    .filter((id): id is string => Boolean(id)),
+            )];
+            const legCurrencyCodeById = new Map<string, string>();
+            await Promise.all(
+                legCurrencyIds.map(async (id) => {
+                    const currency = await currenciesService.findById(id);
+                    legCurrencyCodeById.set(id, currency.code);
+                }),
+            );
+            const persistedQuoteLegs = persistedQuoteLegRows.map((leg) => ({
+                ...leg,
+                fromCurrency: legCurrencyCodeById.get((leg as { fromCurrencyId: string }).fromCurrencyId)!,
+                toCurrency: legCurrencyCodeById.get((leg as { toCurrencyId: string }).toCurrencyId)!,
+            }));
             persistedQuoteLegs.sort((a: any, b: any) => a.idx - b.idx);
 
             if (!persistedQuoteLegs.length && (quote.pricingMode ?? "auto_cross") === "explicit_route") {
@@ -77,35 +99,35 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                     rateDen: quote.rateDen,
                     sourceKind: "derived",
                     sourceRef: null,
-                    asOf: input.occurredAt,
+                    asOf: validated.occurredAt,
                     executionOrgId: null,
-                    createdAt: input.occurredAt,
+                    createdAt: validated.occurredAt,
                     id: quote.id,
                     quoteId: quote.id,
                 }];
 
-            if (routeLegs[0]!.fromCurrency !== input.payInCurrency) {
-                throw new CurrencyMismatchError("route[0].fromCurrency", routeLegs[0]!.fromCurrency, input.payInCurrency);
+            if (routeLegs[0]!.fromCurrency !== validated.payInCurrency) {
+                throw new CurrencyMismatchError("route[0].fromCurrency", routeLegs[0]!.fromCurrency, validated.payInCurrency);
             }
-            if (routeLegs[routeLegs.length - 1]!.toCurrency !== input.payOutCurrency) {
+            if (routeLegs[routeLegs.length - 1]!.toCurrency !== validated.payOutCurrency) {
                 throw new CurrencyMismatchError(
                     "route[last].toCurrency",
                     routeLegs[routeLegs.length - 1]!.toCurrency,
-                    input.payOutCurrency
+                    validated.payOutCurrency
                 );
             }
-            if (routeLegs[0]!.fromAmountMinor !== input.principalMinor) {
-                throw new AmountMismatchError("route[0].fromAmountMinor", routeLegs[0]!.fromAmountMinor, input.principalMinor);
+            if (routeLegs[0]!.fromAmountMinor !== validated.principalMinor) {
+                throw new AmountMismatchError("route[0].fromAmountMinor", routeLegs[0]!.fromAmountMinor, validated.principalMinor);
             }
-            if (routeLegs[routeLegs.length - 1]!.toAmountMinor !== input.payOutAmountMinor) {
+            if (routeLegs[routeLegs.length - 1]!.toAmountMinor !== validated.payOutAmountMinor) {
                 throw new AmountMismatchError(
                     "route[last].toAmountMinor",
                     routeLegs[routeLegs.length - 1]!.toAmountMinor,
-                    input.payOutAmountMinor
+                    validated.payOutAmountMinor
                 );
             }
 
-            const chain = `fx:${input.quoteRef}`;
+            const chain = `fx:${validated.quoteRef}`;
             const transfers: any[] = [];
             const separateFeeOrders: Array<{
                 componentId: string;
@@ -121,34 +143,34 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                 type: PlanType.CREATE,
                 chain,
                 planKey: makePlanKey("fx_principal", {
-                    quoteRef: input.quoteRef,
-                    orderId: input.orderId,
-                    currency: input.payInCurrency,
-                    amount: input.principalMinor.toString(),
+                    quoteRef: validated.quoteRef,
+                    orderId: validated.orderId,
+                    currency: validated.payInCurrency,
+                    amount: validated.principalMinor.toString(),
                 }),
-                debitKey: keys.customerWallet(input.customerId, input.payInCurrency),
-                creditKey: keys.orderInventory(input.orderId, input.payInCurrency),
-                currency: input.payInCurrency,
-                amount: input.principalMinor,
+                debitKey: keys.customerWallet(validated.customerId, validated.payInCurrency),
+                creditKey: keys.orderInventory(validated.orderId, validated.payInCurrency),
+                currency: validated.payInCurrency,
+                amount: validated.principalMinor,
                 code: TransferCodes.FX_PRINCIPAL,
                 memo: "FX principal",
             });
 
             for (const leg of routeLegs) {
-                const executionOrgId = leg.executionOrgId ?? input.branchOrgId;
+                const executionOrgId = leg.executionOrgId ?? validated.branchOrgId;
 
                 transfers.push({
                     type: PlanType.CREATE,
                     chain,
                     planKey: makePlanKey("fx_leg_out", {
-                        quoteRef: input.quoteRef,
-                        orderId: input.orderId,
+                        quoteRef: validated.quoteRef,
+                        orderId: validated.orderId,
                         idx: leg.idx,
                         executionOrgId,
                         fromCurrency: leg.fromCurrency,
                         amount: leg.fromAmountMinor.toString(),
                     }),
-                    debitKey: keys.orderInventory(input.orderId, leg.fromCurrency),
+                    debitKey: keys.orderInventory(validated.orderId, leg.fromCurrency),
                     creditKey: keys.intercompanyNet(executionOrgId, leg.fromCurrency),
                     currency: leg.fromCurrency,
                     amount: leg.fromAmountMinor,
@@ -160,15 +182,15 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                     type: PlanType.CREATE,
                     chain,
                     planKey: makePlanKey("fx_leg_in", {
-                        quoteRef: input.quoteRef,
-                        orderId: input.orderId,
+                        quoteRef: validated.quoteRef,
+                        orderId: validated.orderId,
                         idx: leg.idx,
                         executionOrgId,
                         toCurrency: leg.toCurrency,
                         amount: leg.toAmountMinor.toString(),
                     }),
                     debitKey: keys.intercompanyNet(executionOrgId, leg.toCurrency),
-                    creditKey: keys.orderInventory(input.orderId, leg.toCurrency),
+                    creditKey: keys.orderInventory(validated.orderId, leg.toCurrency),
                     currency: leg.toCurrency,
                     amount: leg.toAmountMinor,
                     code: TransferCodes.FX_LEG_IN,
@@ -179,7 +201,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             const quoteFeeComponents = await feesService.getQuoteFeeComponents({ quoteId: quote.id }, tx);
             const mergedFeeComponents = feesService.mergeFeeComponents({
                 computed: quoteFeeComponents,
-                manual: input.fees,
+                manual: validated.fees,
             });
 
             const { inLedger, separatePaymentOrder } = feesService.partitionFeeComponents(mergedFeeComponents);
@@ -189,8 +211,8 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                 chain,
                 makePlanKey: (component, idx) =>
                     makePlanKey("fx_fee_component", {
-                        quoteRef: input.quoteRef,
-                        orderId: input.orderId,
+                        quoteRef: validated.quoteRef,
+                        orderId: validated.orderId,
                         idx,
                         componentId: component.id,
                         kind: component.kind,
@@ -209,7 +231,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                         };
                     }
 
-                    const debitKey = keys.customerWallet(input.customerId, component.currency);
+                    const debitKey = keys.customerWallet(validated.customerId, component.currency);
                     const creditKey =
                         component.kind === "fx_fee"
                             ? keys.revenueFee(component.currency)
@@ -250,8 +272,8 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                 chain,
                 makePlanKey: (component, idx) =>
                     makePlanKey("fx_fee_reserve", {
-                        quoteRef: input.quoteRef,
-                        orderId: input.orderId,
+                        quoteRef: validated.quoteRef,
+                        orderId: validated.orderId,
                         idx,
                         componentId: component.id,
                         kind: component.kind,
@@ -271,7 +293,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                     }
 
                     return {
-                        debitKey: keys.customerWallet(input.customerId, component.currency),
+                        debitKey: keys.customerWallet(validated.customerId, component.currency),
                         creditKey: keys.feeClearing(defaults.bucket, component.currency),
                         code: component.transferCode ?? TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
                         memo: component.memo ?? "Fee reserved for separate payment order",
@@ -303,7 +325,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             }
 
             const mergedAdjustments = feesService.mergeAdjustmentComponents({
-                manual: input.adjustments,
+                manual: validated.adjustments,
             });
             const partitionedAdjustments = feesService.partitionAdjustmentComponents(mergedAdjustments);
 
@@ -312,8 +334,8 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                 chain,
                 makePlanKey: (component, idx) =>
                     makePlanKey("fx_adjustment_component", {
-                        quoteRef: input.quoteRef,
-                        orderId: input.orderId,
+                        quoteRef: validated.quoteRef,
+                        orderId: validated.orderId,
                         idx,
                         componentId: component.id,
                         kind: component.kind,
@@ -335,7 +357,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                     const bucket = component.kind;
                     if (component.effect === "increase_charge") {
                         return {
-                            debitKey: keys.customerWallet(input.customerId, component.currency),
+                            debitKey: keys.customerWallet(validated.customerId, component.currency),
                             creditKey: keys.adjustmentRevenue(bucket, component.currency),
                             code: component.transferCode ?? TransferCodes.ADJUSTMENT_CHARGE,
                             memo: component.memo ?? "Adjustment charge",
@@ -344,7 +366,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
 
                     return {
                         debitKey: keys.adjustmentExpense(bucket, component.currency),
-                        creditKey: keys.customerWallet(input.customerId, component.currency),
+                        creditKey: keys.customerWallet(validated.customerId, component.currency),
                         code: component.transferCode ?? TransferCodes.ADJUSTMENT_REFUND,
                         memo: component.memo ?? "Adjustment refund",
                     };
@@ -375,8 +397,8 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                 chain,
                 makePlanKey: (component, idx) =>
                     makePlanKey("fx_adjustment_reserve", {
-                        quoteRef: input.quoteRef,
-                        orderId: input.orderId,
+                        quoteRef: validated.quoteRef,
+                        orderId: validated.orderId,
                         idx,
                         componentId: component.id,
                         kind: component.kind,
@@ -397,7 +419,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
 
                     if (component.effect === "increase_charge") {
                         return {
-                            debitKey: keys.customerWallet(input.customerId, component.currency),
+                            debitKey: keys.customerWallet(validated.customerId, component.currency),
                             creditKey: keys.feeClearing(bucket, component.currency),
                             code: component.transferCode ?? TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
                             memo: component.memo ?? "Adjustment reserved for separate payment order",
@@ -443,45 +465,54 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                 type: PlanType.CREATE,
                 chain,
                 planKey: makePlanKey("fx_obligation", {
-                    quoteRef: input.quoteRef,
-                    orderId: input.orderId,
+                    quoteRef: validated.quoteRef,
+                    orderId: validated.orderId,
                     payOutOrgId: order.payOutOrgId,
-                    currency: input.payOutCurrency,
-                    amount: input.payOutAmountMinor.toString(),
+                    currency: validated.payOutCurrency,
+                    amount: validated.payOutAmountMinor.toString(),
                 }),
-                debitKey: keys.orderInventory(input.orderId, input.payOutCurrency),
-                creditKey: keys.payoutObligation(input.orderId, input.payOutCurrency),
-                currency: input.payOutCurrency,
-                amount: input.payOutAmountMinor,
+                debitKey: keys.orderInventory(validated.orderId, validated.payOutCurrency),
+                creditKey: keys.payoutObligation(validated.orderId, validated.payOutCurrency),
+                currency: validated.payOutCurrency,
+                amount: validated.payOutAmountMinor,
                 code: TransferCodes.FX_PAYOUT_OBLIGATION,
                 memo: "Create payout obligation",
             });
 
             const { entryId } = await ledger.createEntryTx(tx, {
                 orgId: SYSTEM_LEDGER_ORG_ID,
-                source: { type: "order/fx_executed", id: input.orderId },
-                idempotencyKey: `fx:${input.quoteRef}`,
-                postingDate: input.occurredAt,
+                source: { type: "order/fx_executed", id: validated.orderId },
+                idempotencyKey: `fx:${validated.quoteRef}`,
+                postingDate: validated.occurredAt,
                 transfers,
             });
 
             if (separateFeeOrders.length) {
+                const uniqueFeeOrderCurrencies = [...new Set(separateFeeOrders.map((item) => item.currency))];
+                const feeOrderCurrencyIdByCode = new Map<string, string>();
+                await Promise.all(
+                    uniqueFeeOrderCurrencies.map(async (code) => {
+                        const currency = await currenciesService.findByCode(code);
+                        feeOrderCurrencyIdByCode.set(currency.code, currency.id);
+                    }),
+                );
+
                 await tx
                     .insert(schema.feePaymentOrders)
                     .values(
                         separateFeeOrders.map((item) => ({
-                            parentOrderId: input.orderId,
+                            parentOrderId: validated.orderId,
                             quoteId: quote.id,
                             componentId: item.componentId,
-                            idempotencyKey: `fee_order:${input.orderId}:${item.kind}:${item.componentId}`,
+                            idempotencyKey: `fee_order:${validated.orderId}:${item.kind}:${item.componentId}`,
                             kind: item.kind,
                             bucket: item.bucket,
-                            currency: item.currency,
+                            currencyId: feeOrderCurrencyIdByCode.get(item.currency)!,
                             amountMinor: item.amountMinor,
                             memo: item.memo ?? null,
                             metadata: item.metadata ?? null,
                             reserveEntryId: entryId,
-                            status: "reserved",
+                            status: "reserved" as const,
                         }))
                     )
                     .onConflictDoNothing({
@@ -492,14 +523,14 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             const moved = await tx
                 .update(schema.paymentOrders)
                 .set({ status: TreasuryOrderStatus.FX_EXECUTED_PENDING_POSTING, ledgerEntryId: entryId, updatedAt: sql`now()` })
-                .where(and(eq(schema.paymentOrders.id, input.orderId), eq(schema.paymentOrders.status, TreasuryOrderStatus.FUNDING_SETTLED)))
+                .where(and(eq(schema.paymentOrders.id, validated.orderId), eq(schema.paymentOrders.status, TreasuryOrderStatus.FUNDING_SETTLED)))
                 .returning({ id: schema.paymentOrders.id });
 
             if (!moved.length) {
                 const current = await tx
                     .select({ status: schema.paymentOrders.status, ledgerEntryId: schema.paymentOrders.ledgerEntryId })
                     .from(schema.paymentOrders)
-                    .where(eq(schema.paymentOrders.id, input.orderId))
+                    .where(eq(schema.paymentOrders.id, validated.orderId))
                     .limit(1);
 
                 if (current.length && isSameEntryInAllowedState(
@@ -508,7 +539,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                     entryId,
                     [TreasuryOrderStatus.FX_EXECUTED_PENDING_POSTING, TreasuryOrderStatus.FX_EXECUTED]
                 )) {
-                    log.debug("executeFx idempotent", { orderId: input.orderId });
+                    log.debug("executeFx idempotent", { orderId: validated.orderId });
                     return entryId;
                 }
 
@@ -518,7 +549,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                 );
             }
 
-            log.info("executeFx ok", { orderId: input.orderId, entryId, quoteRef: input.quoteRef });
+            log.info("executeFx ok", { orderId: validated.orderId, entryId, quoteRef: validated.quoteRef });
             return entryId;
         });
     };

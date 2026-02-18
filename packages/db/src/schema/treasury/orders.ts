@@ -7,6 +7,7 @@ import { customers } from "../customers";
 import { bankAccounts } from "./bank-accounts";
 import { journalEntries } from "../ledger/journal";
 import { uint128 } from "../ledger/ledger";
+import { currencies } from "../currencies";
 
 export type OrderStatus =
     | "quote"
@@ -35,10 +36,10 @@ export const paymentOrders = pgTable(
         // current ledger entry driving the *_pending_posting state
         ledgerEntryId: uuid("ledger_entry_id").references(() => journalEntries.id, { onDelete: "set null" }),
 
-        payInCurrency: text("payin_currency").notNull(),
+        payInCurrencyId: uuid("payin_currency_id").notNull().references(() => currencies.id),
         payInExpectedMinor: bigint("payin_expected_minor", { mode: "bigint" }).notNull(),
 
-        payOutCurrency: text("payout_currency").notNull(),
+        payOutCurrencyId: uuid("payout_currency_id").notNull().references(() => currencies.id),
         payOutAmountMinor: bigint("payout_amount_minor", { mode: "bigint" }).notNull(),
 
         payInOrgId: uuid("payin_org_id").notNull().references(() => organizations.id),
@@ -56,7 +57,7 @@ export const paymentOrders = pgTable(
         payoutPendingTransferId: uint128("payout_pending_transfer_id"),
 
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
-        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`)
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`).$onUpdateFn(() => new Date())
     },
     (t) => ([
         index("orders_status_idx").on(t.status),
@@ -78,7 +79,7 @@ export const settlements = pgTable(
         kind: text("kind").$type<SettlementKind>().notNull(),
         status: text("status").$type<SettlementStatus>().notNull().default("pending"),
 
-        currency: text("currency").notNull(),
+        currencyId: uuid("currency_id").notNull().references(() => currencies.id),
         amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
 
         railRef: text("rail_ref"),

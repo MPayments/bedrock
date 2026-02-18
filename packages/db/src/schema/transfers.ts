@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { pgTable, uuid, text, timestamp, bigint, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { currencies } from "./currencies";
 
 export enum TransferStatus {
     DRAFT = "draft",
@@ -22,7 +23,7 @@ export const internalTransfers = pgTable(
         fromAccountKey: text("from_account_key").notNull(),
         toAccountKey: text("to_account_key").notNull(),
 
-        currency: text("currency").notNull(),
+        currencyId: uuid("currency_id").notNull().references(() => currencies.id),
         amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
 
         memo: text("memo"),
@@ -39,7 +40,7 @@ export const internalTransfers = pgTable(
         idempotencyKey: text("idempotency_key").notNull(),
 
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
-        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`)
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`).$onUpdateFn(() => new Date())
     },
     (t) => [
         uniqueIndex("internal_transfers_org_idem_uq").on(t.orgId, t.idempotencyKey),

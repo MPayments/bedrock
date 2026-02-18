@@ -36,7 +36,3 @@ export const UpdateOrganizationInputSchema = z.object({
 });
 
 export type UpdateOrganizationInput = z.infer<typeof UpdateOrganizationInputSchema>;
-
-export const OrganizationIdParamSchema = z.object({
-    id: z.string().uuid(),
-});

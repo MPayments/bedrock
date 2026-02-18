@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     projects: [
       "packages/db/vitest.config.ts",
+      "packages/currencies/vitest.config.ts",
       "packages/fees/vitest.config.ts",
       "packages/fees/vitest.integration.config.ts",
       "packages/fx/vitest.config.ts",

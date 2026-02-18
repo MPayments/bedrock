@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import { Transaction } from "@bedrock/db";
 import { schema, type FxQuote } from "@bedrock/db/schema";
 
 import {
@@ -18,7 +19,6 @@ import { effectiveRateFromAmounts, mulDivFloor } from "../internal/math";
 import { resolveQuoteByRef } from "../internal/quote-ref";
 import { buildAutoCrossTrace, computeExplicitRouteLegs } from "../internal/routes";
 import { type FxQuoteDetails } from "../internal/types";
-import { Transaction } from "@bedrock/db";
 
 const DEFAULT_QUOTE_TTL_SECONDS = 600;
 
@@ -28,7 +28,36 @@ export function createQuoteHandlers(
         getCrossRate: (base: string, quote: string, asOf: Date, anchor?: string) => Promise<{ base: string; quote: string; rateNum: bigint; rateDen: bigint }>;
     }
 ) {
-    const { db, feesService, log } = context;
+    const { db, feesService, currenciesService, log } = context;
+
+    async function withQuoteCurrencyCodes(quote: FxQuote): Promise<FxQuote> {
+        const [fromCurrency, toCurrency] = await Promise.all([
+            currenciesService.findById(quote.fromCurrencyId),
+            currenciesService.findById(quote.toCurrencyId),
+        ]);
+        return {
+            ...quote,
+            fromCurrency: fromCurrency.code,
+            toCurrency: toCurrency.code,
+        } as FxQuote;
+    }
+
+    async function withLegCurrencyCodes(legs: typeof schema.fxQuoteLegs.$inferSelect[]): Promise<typeof schema.fxQuoteLegs.$inferSelect[]> {
+        const uniqueCurrencyIds = [...new Set(legs.flatMap((leg) => [leg.fromCurrencyId, leg.toCurrencyId]))];
+        const codeById = new Map<string, string>();
+        await Promise.all(
+            uniqueCurrencyIds.map(async (id) => {
+                const currency = await currenciesService.findById(id);
+                codeById.set(id, currency.code);
+            }),
+        );
+
+        return legs.map((leg) => ({
+            ...leg,
+            fromCurrency: codeById.get(leg.fromCurrencyId)!,
+            toCurrency: codeById.get(leg.toCurrencyId)!,
+        })) as typeof schema.fxQuoteLegs.$inferSelect[];
+    }
 
     async function getQuoteDetails(input: GetQuoteDetailsInput): Promise<FxQuoteDetails> {
         const vaildated = validateGetQuoteDetailsInput(input);
@@ -41,11 +70,12 @@ export function createQuoteHandlers(
             .from(schema.fxQuoteLegs)
             .where(eq(schema.fxQuoteLegs.quoteId, quote.id))
             .orderBy(schema.fxQuoteLegs.idx);
+        const legsWithCurrencyCodes = await withLegCurrencyCodes(legs);
 
         const feeComponents = await feesService.getQuoteFeeComponents({ quoteId: quote.id });
         const pricingTrace = (quote.pricingTrace ?? {}) as Record<string, unknown>;
 
-        return { quote, legs, feeComponents, pricingTrace };
+        return { quote, legs: legsWithCurrencyCodes, feeComponents, pricingTrace };
     }
 
     async function quote(input: QuoteInput): Promise<FxQuote> {
@@ -105,11 +135,25 @@ export function createQuoteHandlers(
         const expiresAt = new Date(validated.asOf.getTime() + ttlSeconds * 1000);
 
         return db.transaction(async (tx: Transaction) => {
+            const currencyCodes = [
+                validated.fromCurrency,
+                validated.toCurrency,
+                ...legs.flatMap((leg) => [leg.fromCurrency, leg.toCurrency]),
+            ];
+            const uniqueCurrencyCodes = [...new Set(currencyCodes)];
+            const currencyIdByCode = new Map<string, string>();
+            await Promise.all(
+                uniqueCurrencyCodes.map(async (code) => {
+                    const currency = await currenciesService.findByCode(code);
+                    currencyIdByCode.set(currency.code, currency.id);
+                }),
+            );
+
             const inserted = await tx
                 .insert(schema.fxQuotes)
                 .values({
-                    fromCurrency: validated.fromCurrency,
-                    toCurrency: validated.toCurrency,
+                    fromCurrencyId: currencyIdByCode.get(validated.fromCurrency)!,
+                    toCurrencyId: currencyIdByCode.get(validated.toCurrency)!,
                     fromAmountMinor: validated.fromAmountMinor,
                     toAmountMinor,
                     pricingMode: validated.mode,
@@ -133,8 +177,8 @@ export function createQuoteHandlers(
                     legs.map((leg) => ({
                         quoteId: created.id,
                         idx: leg.idx,
-                        fromCurrency: leg.fromCurrency,
-                        toCurrency: leg.toCurrency,
+                        fromCurrencyId: currencyIdByCode.get(leg.fromCurrency)!,
+                        toCurrencyId: currencyIdByCode.get(leg.toCurrency)!,
                         fromAmountMinor: leg.fromAmountMinor,
                         toAmountMinor: leg.toAmountMinor,
                         rateNum: leg.rateNum,
@@ -157,7 +201,11 @@ export function createQuoteHandlers(
                     legs: legs.length,
                     feeComponents: feeComponents.length,
                 });
-                return created;
+                return {
+                    ...created,
+                    fromCurrency: validated.fromCurrency,
+                    toCurrency: validated.toCurrency,
+                } as FxQuote;
             }
 
             const [racedExisting] = await tx
@@ -170,7 +218,7 @@ export function createQuoteHandlers(
                 throw new Error(`Quote insert conflict without existing idempotency row: ${validated.idempotencyKey}`);
             }
 
-            return racedExisting;
+            return withQuoteCurrencyCodes(racedExisting);
         });
     }
 
@@ -188,7 +236,7 @@ export function createQuoteHandlers(
         }
 
         if (quoteRow.status !== "active") {
-            return quoteRow;
+            return withQuoteCurrencyCodes(quoteRow);
         }
 
         if (quoteRow.expiresAt.getTime() < validated.at.getTime()) {
@@ -208,7 +256,7 @@ export function createQuoteHandlers(
             ))
             .returning();
 
-        return updated[0] ?? quoteRow;
+        return withQuoteCurrencyCodes(updated[0] ?? quoteRow);
     }
 
     return {

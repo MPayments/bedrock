@@ -18,6 +18,36 @@ import {
     type StubDatabase,
 } from "./helpers";
 
+function createMockCurrenciesService() {
+    const byCode = new Map<string, any>([
+        ["USD", { id: "cur-usd", code: "USD" }],
+        ["EUR", { id: "cur-eur", code: "EUR" }],
+        ["GBP", { id: "cur-gbp", code: "GBP" }],
+        ["RUB", { id: "cur-rub", code: "RUB" }],
+        ["AED", { id: "cur-aed", code: "AED" }],
+        ["USDT", { id: "cur-usdt", code: "USDT" }],
+        ["BTC", { id: "cur-btc", code: "BTC" }],
+    ]);
+    const byId = new Map<string, any>(Array.from(byCode.values()).map((currency) => [currency.id, currency]));
+
+    return {
+        findByCode: vi.fn(async (code: string) => {
+            const normalized = code.trim().toUpperCase();
+            const existing = byCode.get(normalized);
+            if (existing) return existing;
+            const generated = { id: `cur-${normalized.toLowerCase()}`, code: normalized };
+            byCode.set(normalized, generated);
+            byId.set(generated.id, generated);
+            return generated;
+        }),
+        findById: vi.fn(async (id: string) => {
+            const existing = byId.get(id);
+            if (existing) return existing;
+            throw new Error(`Unknown currency id: ${id}`);
+        }),
+    };
+}
+
 describe("createTreasuryService", () => {
     let db: StubDatabase;
     let ledger: ReturnType<typeof createMockLedger>;
@@ -46,11 +76,13 @@ describe("createTreasuryService", () => {
     beforeEach(() => {
         db = createStubDb();
         ledger = createMockLedger();
-        const feesService = createFeesService({ db });
+        const currenciesService = createMockCurrenciesService();
+        const feesService = createFeesService({ db, currenciesService });
         service = createTreasuryService({
             db,
             ledger,
             feesService,
+            currenciesService,
         });
     });
 
@@ -324,10 +356,16 @@ describe("createTreasuryService", () => {
             quoteRef: "quote-ref-123",
         };
 
+        function currencyIdFromCode(code: string): string {
+            return `cur-${code.trim().toLowerCase()}`;
+        }
+
         function createFxQuote(overrides: Record<string, any> = {}) {
-            return {
+            const quote = {
                 id: "550e8400-e29b-41d4-a716-446655440010",
                 idempotencyKey: validInput.quoteRef,
+                fromCurrencyId: currencyIdFromCode(validInput.payInCurrency),
+                toCurrencyId: currencyIdFromCode(validInput.payOutCurrency),
                 fromCurrency: validInput.payInCurrency,
                 toCurrency: validInput.payOutCurrency,
                 fromAmountMinor: validInput.principalMinor,
@@ -338,6 +376,16 @@ describe("createTreasuryService", () => {
                 expiresAt: new Date(validInput.occurredAt.getTime() + 60_000),
                 ...overrides,
             };
+
+            if (overrides.fromCurrency && !overrides.fromCurrencyId) {
+                quote.fromCurrencyId = currencyIdFromCode(overrides.fromCurrency);
+            }
+
+            if (overrides.toCurrency && !overrides.toCurrencyId) {
+                quote.toCurrencyId = currencyIdFromCode(overrides.toCurrency);
+            }
+
+            return quote;
         }
 
         function selectSequence(rowsByCall: any[][]) {
@@ -935,7 +983,7 @@ describe("createTreasuryService", () => {
                 idx: 1,
                 ruleId: null,
                 kind: "fx_fee",
-                currency: "USD",
+                currencyId: "cur-usd",
                 amountMinor: 500n,
                 source: "rule",
                 settlementMode: "in_ledger",
@@ -1115,6 +1163,8 @@ describe("createTreasuryService", () => {
             const persistedLegs = legs.map((leg) => ({
                 id: `leg-${leg.idx}`,
                 quoteId: quote.id,
+                fromCurrencyId: currencyIdFromCode(leg.fromCurrency),
+                toCurrencyId: currencyIdFromCode(leg.toCurrency),
                 rateNum: 1n,
                 rateDen: 1n,
                 sourceKind: "manual",
@@ -1887,7 +1937,7 @@ describe("createTreasuryService", () => {
                 status: "reserved",
                 bucket: "bank",
                 kind: "bank_fee",
-                currency: "USD",
+                currencyId: "cur-usd",
                 amountMinor: 77n,
             };
 
@@ -1912,7 +1962,7 @@ describe("createTreasuryService", () => {
                 status: "initiated",
                 bucket: "bank",
                 kind: "bank_fee",
-                currency: "USD",
+                currencyId: "cur-usd",
                 amountMinor: 77n,
             };
 
@@ -1932,7 +1982,7 @@ describe("createTreasuryService", () => {
                 status: "initiated",
                 bucket: "bank",
                 kind: "bank_fee",
-                currency: "USD",
+                currencyId: "cur-usd",
                 amountMinor: 77n,
                 railRef: "fee-init-rail-ref",
                 payoutOrgId: BRANCH_ORG_ID,
@@ -1962,7 +2012,7 @@ describe("createTreasuryService", () => {
                 status: "initiated",
                 bucket: "bank",
                 kind: "bank_fee",
-                currency: "USD",
+                currencyId: "cur-usd",
                 amountMinor: 77n,
                 railRef: "different-rail-ref",
                 payoutOrgId: BRANCH_ORG_ID,
@@ -1987,7 +2037,7 @@ describe("createTreasuryService", () => {
                 status: "initiated",
                 bucket: "bank",
                 kind: "bank_fee",
-                currency: "USD",
+                currencyId: "cur-usd",
                 amountMinor: 77n,
                 railRef: validInput.railRef,
                 payoutOrgId: BRANCH_ORG_ID,
@@ -2012,7 +2062,7 @@ describe("createTreasuryService", () => {
                 status: "reserved",
                 bucket: "bank",
                 kind: "bank_fee",
-                currency: "USD",
+                currencyId: "cur-usd",
                 amountMinor: 77n,
             };
             const current = {
@@ -2049,7 +2099,7 @@ describe("createTreasuryService", () => {
             const feeOrder = {
                 id: feePaymentOrderId,
                 status: "initiated",
-                currency: "USD",
+                currencyId: "cur-usd",
                 pendingTransferId: 42n,
             };
 
@@ -2069,7 +2119,7 @@ describe("createTreasuryService", () => {
             const feeOrder = {
                 id: feePaymentOrderId,
                 status: "settled",
-                currency: "USD",
+                currencyId: "cur-usd",
                 railRef: "fee-settle-rail-ref",
                 resolveEntryId: "settled-entry-id",
             };
@@ -2090,7 +2140,7 @@ describe("createTreasuryService", () => {
             const feeOrder = {
                 id: feePaymentOrderId,
                 status: "initiated",
-                currency: "USD",
+                currencyId: "cur-usd",
                 pendingTransferId: null,
             };
 
@@ -2108,7 +2158,7 @@ describe("createTreasuryService", () => {
             const feeOrder = {
                 id: feePaymentOrderId,
                 status: "settled",
-                currency: "USD",
+                currencyId: "cur-usd",
                 railRef: "other-rail-ref",
                 resolveEntryId: "settled-entry-id",
             };
@@ -2127,7 +2177,7 @@ describe("createTreasuryService", () => {
             const feeOrder = {
                 id: feePaymentOrderId,
                 status: "settled",
-                currency: "USD",
+                currencyId: "cur-usd",
                 railRef: validInput.railRef,
                 resolveEntryId: null,
             };
@@ -2146,7 +2196,7 @@ describe("createTreasuryService", () => {
             const initiated = {
                 id: feePaymentOrderId,
                 status: "initiated",
-                currency: "USD",
+                currencyId: "cur-usd",
                 pendingTransferId: 42n,
             };
             const current = {
@@ -2182,7 +2232,7 @@ describe("createTreasuryService", () => {
             const feeOrder = {
                 id: feePaymentOrderId,
                 status: "initiated",
-                currency: "USD",
+                currencyId: "cur-usd",
                 pendingTransferId: 42n,
             };
 
@@ -2202,7 +2252,7 @@ describe("createTreasuryService", () => {
             const feeOrder = {
                 id: feePaymentOrderId,
                 status: "voided",
-                currency: "USD",
+                currencyId: "cur-usd",
                 railRef: "fee-void-rail-ref",
                 resolveEntryId: "voided-entry-id",
             };
@@ -2223,7 +2273,7 @@ describe("createTreasuryService", () => {
             const feeOrder = {
                 id: feePaymentOrderId,
                 status: "initiated",
-                currency: "USD",
+                currencyId: "cur-usd",
                 pendingTransferId: null,
             };
 
@@ -2241,7 +2291,7 @@ describe("createTreasuryService", () => {
             const feeOrder = {
                 id: feePaymentOrderId,
                 status: "voided",
-                currency: "USD",
+                currencyId: "cur-usd",
                 railRef: "other-rail-ref",
                 resolveEntryId: "voided-entry-id",
             };
@@ -2260,7 +2310,7 @@ describe("createTreasuryService", () => {
             const feeOrder = {
                 id: feePaymentOrderId,
                 status: "voided",
-                currency: "USD",
+                currencyId: "cur-usd",
                 railRef: validInput.railRef,
                 resolveEntryId: null,
             };
@@ -2279,7 +2329,7 @@ describe("createTreasuryService", () => {
             const initiated = {
                 id: feePaymentOrderId,
                 status: "initiated",
-                currency: "USD",
+                currencyId: "cur-usd",
                 pendingTransferId: 42n,
             };
             const current = {

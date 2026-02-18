@@ -1,12 +1,12 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
-import { swaggerUI } from "@hono/swagger-ui";
+import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
+import dotenv from "dotenv";
 import { AppError } from "@bedrock/kernel";
 import auth from "@bedrock/auth";
 import { createAppContext, type Env } from "./context";
-import { organizationsRoutes, customersRoutes } from "./routes/index";
+import { organizationsRoutes, customersRoutes, currenciesRoutes } from "./routes/index";
 import { authMiddleware, requireAuth, type AuthVariables } from "./middleware/auth";
-import dotenv from "dotenv";
 
 // FIXME: in production, use proper env loading
 dotenv.config({ path: "../../.env" });
@@ -55,7 +55,7 @@ app.onError((err, c) => {
 });
 
 app.use(
-  "/auth/*",
+  "/api/auth/*",
   cors({
     origin: (origin) => (authAllowedOriginSet.has(origin) ? origin : undefined),
     allowHeaders: ["Content-Type", "Authorization"],
@@ -65,7 +65,7 @@ app.use(
   }),
 );
 
-app.on(["POST", "GET"], "/auth/*", (c) => {
+app.on(["POST", "GET"], "/api/auth/*", (c) => {
   return auth.handler(c.req.raw);
 });
 
@@ -81,18 +81,23 @@ const v1 = new OpenAPIHono<{ Variables: AuthVariables }>();
 v1.use("*", requireAuth());
 v1
   .route("/organizations", organizationsRoutes(ctx))
-  .route("/customers", customersRoutes(ctx));
+  .route("/customers", customersRoutes(ctx))
+  .route("/currencies", currenciesRoutes(ctx));
 
 const routes = app.route("/v1", v1);
 
-// OpenAPI documentation
-app.doc31("/openapi.json", (c) => ({
-  openapi: "3.1.0",
+const openApiInfo = {
   info: {
-    title: "Ledger API",
+    title: "Bedrock API",
     version: "1.0.0",
     description: "Double-entry ledger API powered by TigerBeetle",
   },
+};
+
+// OpenAPI documentation
+app.doc31("/api/open-api", (c) => ({
+  openapi: "3.1.0",
+  ...openApiInfo,
   servers: [
     {
       url: new URL(c.req.url).origin,
@@ -101,7 +106,16 @@ app.doc31("/openapi.json", (c) => ({
   ],
 }));
 
-app.get("/docs", swaggerUI({ url: "/openapi.json" }));
+app.get(
+  "/docs",
+  Scalar({
+    pageTitle: openApiInfo.info.title,
+    sources: [
+      { url: "/api/open-api", title: "Api" },
+      { url: "/api/auth/open-api/generate-schema", title: "Auth" },
+    ],
+  }),
+);
 
 export { app };
 export type AppType = typeof routes;

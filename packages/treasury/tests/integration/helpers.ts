@@ -1,7 +1,10 @@
-import { db, tb } from "./setup";
-import { schema } from "@bedrock/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
+
+import { currencyIdForCode } from "@bedrock/db/seeds";
+import { schema } from "@bedrock/db/schema";
+
+import { db, tb } from "./setup";
 
 // ============================================================================
 // Random ID generators
@@ -39,14 +42,17 @@ export interface TestOrg {
     id: string;
     name: string;
     isTreasury: boolean;
+    customerId: string | null;
 }
 
 export async function createTestOrg(overrides: Partial<TestOrg> = {}): Promise<TestOrg> {
+    const isTreasury = overrides.isTreasury ?? false;
     const org = {
         id: overrides.id ?? randomOrgId(),
         name: overrides.name ?? "Test Organization",
-        isTreasury: overrides.isTreasury ?? false,
-        baseCurrency: "USD"
+        isTreasury,
+        customerId: overrides.customerId ?? (isTreasury ? null : randomCustomerId()),
+        baseCurrency: "USD",
     };
 
     await db.insert(schema.organizations).values(org);
@@ -55,17 +61,15 @@ export async function createTestOrg(overrides: Partial<TestOrg> = {}): Promise<T
 
 export interface TestCustomer {
     id: string;
-    orgId: string;
     displayName: string;
 }
 
 export async function createTestCustomer(
-    orgId: string,
+    _orgId: string,
     overrides: Partial<TestCustomer> = {}
 ): Promise<TestCustomer> {
     const customer = {
         id: overrides.id ?? randomCustomerId(),
-        orgId,
         displayName: overrides.displayName ?? "Test Customer"
     };
 
@@ -77,6 +81,7 @@ export interface TestBankAccount {
     id: string;
     orgId: string;
     stableKey: string;
+    currencyId: string;
     currency: string;
     label: string;
 }
@@ -85,17 +90,18 @@ export async function createTestBankAccount(
     orgId: string,
     overrides: Partial<TestBankAccount> = {}
 ): Promise<TestBankAccount> {
+    const currency = overrides.currency ?? "USD";
     const account = {
         id: overrides.id ?? randomUUID(),
         orgId,
         stableKey: overrides.stableKey ?? `bank-${Date.now()}`,
-        currency: overrides.currency ?? "USD",
+        currencyId: overrides.currencyId ?? currencyIdForCode(currency),
         label: overrides.label ?? "Test Bank Account",
         rail: "bank" as const
     };
 
     await db.insert(schema.bankAccounts).values(account);
-    return account;
+    return { ...account, currency };
 }
 
 export interface TestPaymentOrder {
@@ -103,8 +109,10 @@ export interface TestPaymentOrder {
     customerOrgId: string;
     customerId: string;
     status: string;
+    payInCurrencyId: string;
     payInCurrency: string;
     payInExpectedMinor: bigint;
+    payOutCurrencyId: string;
     payOutCurrency: string;
     payOutAmountMinor: bigint;
     payInOrgId: string;
@@ -121,14 +129,16 @@ export async function createTestPaymentOrder(
     },
     overrides: Partial<TestPaymentOrder> = {}
 ): Promise<TestPaymentOrder> {
+    const payInCurrency = overrides.payInCurrency ?? "USD";
+    const payOutCurrency = overrides.payOutCurrency ?? "EUR";
     const order = {
         id: overrides.id ?? randomOrderId(),
         customerOrgId: params.customerOrgId,
         customerId: params.customerId,
         status: overrides.status ?? "quote",
-        payInCurrency: overrides.payInCurrency ?? "USD",
+        payInCurrencyId: overrides.payInCurrencyId ?? currencyIdForCode(payInCurrency),
         payInExpectedMinor: overrides.payInExpectedMinor ?? 100000n,
-        payOutCurrency: overrides.payOutCurrency ?? "EUR",
+        payOutCurrencyId: overrides.payOutCurrencyId ?? currencyIdForCode(payOutCurrency),
         payOutAmountMinor: overrides.payOutAmountMinor ?? 85000n,
         payInOrgId: params.payInOrgId,
         payOutOrgId: params.payOutOrgId,
@@ -136,12 +146,14 @@ export async function createTestPaymentOrder(
     };
 
     await db.insert(schema.paymentOrders).values(order);
-    return order;
+    return { ...order, payInCurrency, payOutCurrency };
 }
 
 export interface TestFxQuote {
     id: string;
+    fromCurrencyId: string;
     fromCurrency: string;
+    toCurrencyId: string;
     toCurrency: string;
     fromAmountMinor: bigint;
     toAmountMinor: bigint;
@@ -168,10 +180,12 @@ export async function createTestFxQuote(
     },
     overrides: Partial<TestFxQuote> = {}
 ): Promise<TestFxQuote> {
+    const fromCurrency = overrides.fromCurrency ?? params.fromCurrency;
+    const toCurrency = overrides.toCurrency ?? params.toCurrency;
     const quote = {
         id: overrides.id ?? randomUUID(),
-        fromCurrency: params.fromCurrency,
-        toCurrency: params.toCurrency,
+        fromCurrencyId: overrides.fromCurrencyId ?? currencyIdForCode(fromCurrency),
+        toCurrencyId: overrides.toCurrencyId ?? currencyIdForCode(toCurrency),
         fromAmountMinor: params.fromAmountMinor,
         toAmountMinor: params.toAmountMinor,
         pricingMode: overrides.pricingMode ?? "auto_cross",
@@ -188,7 +202,7 @@ export async function createTestFxQuote(
     } as const;
 
     await db.insert(schema.fxQuotes).values(quote);
-    return quote;
+    return { ...quote, fromCurrency, toCurrency };
 }
 
 /**
@@ -204,22 +218,22 @@ export interface TestScenario {
     order: TestPaymentOrder;
 }
 
-export async function createTestScenario(
-    overrides: {
-        payInCurrency?: string;
-        payOutCurrency?: string;
-        payInExpectedMinor?: bigint;
-        payOutAmountMinor?: bigint;
-        orderStatus?: string;
-    } = {}
-): Promise<TestScenario> {
-    // Create organizations
-    const treasuryOrg = await createTestOrg({ name: "Treasury Corp", isTreasury: true });
-    const branchOrg = await createTestOrg({ name: "Branch Corp" });
-    const payoutOrg = await createTestOrg({ name: "Payout Corp" });
+type TestScenarioOverrides = Partial<{
+    payInCurrency: string;
+    payOutCurrency: string;
+    payInExpectedMinor: bigint;
+    payOutAmountMinor: bigint;
+    orderStatus: string;
+}>;
 
-    // Create customer under treasury org
+export async function createTestScenario(
+    overrides: TestScenarioOverrides = {}
+): Promise<TestScenario> {
+    // Create treasury org and customer first; non-treasury orgs must reference a customer.
+    const treasuryOrg = await createTestOrg({ name: "Treasury Corp", isTreasury: true });
     const customer = await createTestCustomer(treasuryOrg.id, { displayName: "Test Customer" });
+    const branchOrg = await createTestOrg({ name: "Branch Corp", customerId: customer.id });
+    const payoutOrg = await createTestOrg({ name: "Payout Corp", customerId: customer.id });
 
     // Create bank accounts
     const branchBankAccount = await createTestBankAccount(branchOrg.id, {

@@ -1,5 +1,6 @@
 import { pgTable, uuid, text, timestamp, bigint, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { currencies } from "../currencies";
 
 export type FxQuoteStatus = "active" | "used" | "expired" | "cancelled";
 export type FxQuotePricingMode = "auto_cross" | "explicit_route";
@@ -10,8 +11,8 @@ export const fxQuotes = pgTable(
     {
         id: uuid("id").primaryKey().defaultRandom(),
 
-        fromCurrency: text("from_currency").notNull(),
-        toCurrency: text("to_currency").notNull(),
+        fromCurrencyId: uuid("from_currency_id").notNull().references(() => currencies.id),
+        toCurrencyId: uuid("to_currency_id").notNull().references(() => currencies.id),
 
         fromAmountMinor: bigint("from_amount_minor", { mode: "bigint" }).notNull(),
         toAmountMinor: bigint("to_amount_minor", { mode: "bigint" }).notNull(),

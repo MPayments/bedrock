@@ -17,59 +17,60 @@ import { SYSTEM_LEDGER_ORG_ID, type TreasuryServiceContext } from "../internal/c
 import { fetchOrderState } from "../internal/order-state";
 
 export function createFundingSettledHandler(context: TreasuryServiceContext) {
-    const { db, ledger, log, keys } = context;
+    const { db, ledger, log, keys, currenciesService } = context;
 
-    return async function fundingSettled(rawInput: FundingSettledInput) {
-        const input = validateFundingSettledInput(rawInput);
-        log.debug("fundingSettled start", { orderId: input.orderId, railRef: input.railRef });
+    return async function fundingSettled(input: FundingSettledInput) {
+        const validated = validateFundingSettledInput(input);
+        log.debug("fundingSettled start", { orderId: validated.orderId, railRef: validated.railRef });
 
         return db.transaction(async (tx: Transaction) => {
             const [order] = await tx
                 .select()
                 .from(schema.paymentOrders)
-                .where(eq(schema.paymentOrders.id, input.orderId))
+                .where(eq(schema.paymentOrders.id, validated.orderId))
                 .limit(1);
 
-            if (!order) throw new NotFoundError("Order", input.orderId);
+            if (!order) throw new NotFoundError("Order", validated.orderId);
+            const { code: payInCurrency } = await currenciesService.findById(order.payInCurrencyId);
 
-            if (input.currency !== order.payInCurrency) {
-                throw new CurrencyMismatchError("payInCurrency", order.payInCurrency, input.currency);
+            if (validated.currency !== payInCurrency) {
+                throw new CurrencyMismatchError("payInCurrency", payInCurrency, validated.currency);
             }
 
-            if (input.amountMinor !== order.payInExpectedMinor) {
-                throw new AmountMismatchError("payInExpectedMinor", order.payInExpectedMinor, input.amountMinor);
+            if (validated.amountMinor !== order.payInExpectedMinor) {
+                throw new AmountMismatchError("payInExpectedMinor", order.payInExpectedMinor, validated.amountMinor);
             }
 
-            if (input.customerId !== order.customerId) {
-                throw new ValidationError(`customerId mismatch: expected ${order.customerId}, got ${input.customerId}`);
+            if (validated.customerId !== order.customerId) {
+                throw new ValidationError(`customerId mismatch: expected ${order.customerId}, got ${validated.customerId}`);
             }
-            if (input.branchOrgId !== order.payInOrgId) {
-                throw new ValidationError(`branchOrgId mismatch: expected ${order.payInOrgId}, got ${input.branchOrgId}`);
+            if (validated.branchOrgId !== order.payInOrgId) {
+                throw new ValidationError(`branchOrgId mismatch: expected ${order.payInOrgId}, got ${validated.branchOrgId}`);
             }
 
             const pk = makePlanKey("funding_settled", {
-                railRef: input.railRef,
-                orderId: input.orderId,
-                currency: input.currency,
-                amount: input.amountMinor.toString(),
-                branchOrgId: input.branchOrgId,
-                branchBankStableKey: input.branchBankStableKey,
-                customerId: input.customerId,
+                railRef: validated.railRef,
+                orderId: validated.orderId,
+                currency: validated.currency,
+                amount: validated.amountMinor.toString(),
+                branchOrgId: validated.branchOrgId,
+                branchBankStableKey: validated.branchBankStableKey,
+                customerId: validated.customerId,
             });
 
             const { entryId } = await ledger.createEntryTx(tx, {
                 orgId: SYSTEM_LEDGER_ORG_ID,
-                source: { type: "order/funding_settled", id: input.orderId },
-                idempotencyKey: `funding:${input.railRef}`,
-                postingDate: input.occurredAt,
+                source: { type: "order/funding_settled", id: validated.orderId },
+                idempotencyKey: `funding:${validated.railRef}`,
+                postingDate: validated.occurredAt,
                 transfers: [
                     {
                         type: PlanType.CREATE,
                         planKey: pk,
-                        debitKey: keys.bank(input.branchOrgId, input.branchBankStableKey, input.currency),
-                        creditKey: keys.customerWallet(input.customerId, input.currency),
-                        currency: input.currency,
-                        amount: input.amountMinor,
+                        debitKey: keys.bank(validated.branchOrgId, validated.branchBankStableKey, validated.currency),
+                        creditKey: keys.customerWallet(validated.customerId, validated.currency),
+                        currency: validated.currency,
+                        amount: validated.amountMinor,
                         code: TransferCodes.FUNDING_SETTLED,
                         memo: "Funding settled",
                     },
@@ -85,7 +86,7 @@ export function createFundingSettledHandler(context: TreasuryServiceContext) {
                 })
                 .where(
                     and(
-                        eq(schema.paymentOrders.id, input.orderId),
+                        eq(schema.paymentOrders.id, validated.orderId),
                         or(
                             eq(schema.paymentOrders.status, FundingSettledAllowedFrom[0]),
                             eq(schema.paymentOrders.status, FundingSettledAllowedFrom[1])
@@ -95,11 +96,11 @@ export function createFundingSettledHandler(context: TreasuryServiceContext) {
                 .returning({ id: schema.paymentOrders.id });
 
             if (moved.length) {
-                log.info("fundingSettled ok", { orderId: input.orderId, entryId });
+                log.info("fundingSettled ok", { orderId: validated.orderId, entryId });
                 return entryId;
             }
 
-            const current = await fetchOrderState(tx, input.orderId);
+            const current = await fetchOrderState(tx, validated.orderId);
             const st = current.status as string;
             const led = current.ledgerEntryId;
 
@@ -110,7 +111,7 @@ export function createFundingSettledHandler(context: TreasuryServiceContext) {
                         `Order advanced with different ledgerEntryId (expected ${entryId}, found ${led})`
                     );
                 }
-                log.debug("fundingSettled idempotent", { orderId: input.orderId, status: st });
+                log.debug("fundingSettled idempotent", { orderId: validated.orderId, status: st });
                 return led;
             }
 

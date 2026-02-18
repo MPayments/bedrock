@@ -10,6 +10,7 @@ const statements = {
     customers: ["create", "list", "update", "delete"],
     organizations: ["create", "list", "update", "delete"],
     accounts: ["create", "list", "update", "delete"],
+    currencies: ["create", "list", "update"],
 } as const;
 
 export const ac = createAccessControl(statements);
@@ -19,6 +20,7 @@ export const admin = ac.newRole({
     customers: ["create", "list", "update", "delete"],
     organizations: ["create", "list", "update", "delete"],
     accounts: ["create", "list", "update", "delete"],
+    currencies: ["create", "list", "update"],
 });
 
 export const user = ac.newRole({
@@ -26,4 +28,5 @@ export const user = ac.newRole({
     customers: ["create", "list", "update", "delete"],
     organizations: ["create", "list", "update", "delete"],
     accounts: ["create", "list", "update", "delete"],
+    currencies: ["list"],
 });

@@ -4,6 +4,7 @@ import { TransferCodes } from "@bedrock/kernel/constants";
 import { type Database } from "@bedrock/db";
 import { schema, TransferStatus } from "@bedrock/db/schema";
 import { PlanType, type createLedgerEngine } from "@bedrock/ledger";
+import { type CurrenciesService } from "@bedrock/currencies";
 import { PermissionError, NotFoundError } from "@bedrock/kernel/errors";
 import { InvalidStateError } from "./errors";
 import { transfersKeyspace } from "./keyspace";
@@ -35,14 +36,17 @@ type TransactionClient = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export function createTransfersService(deps: {
     db: Database;
     ledger: LedgerEngine;
+    currenciesService: CurrenciesService;
     canApprove?: (actorUserId: string, transferOrgId: string) => Promise<boolean> | boolean;
     logger?: Logger;
 }) {
-    const { db, ledger, logger } = deps;
+    const { db, ledger, currenciesService, logger } = deps;
     const { keys } = transfersKeyspace;
 
     async function createDraft(input: CreateDraftInput) {
         const validated = validateCreateDraftInput(input);
+
+        const { id: currencyId } = await currenciesService.findByCode(validated.currency);
 
         logger?.debug("Creating draft transfer", {
             orgId: validated.orgId,
@@ -58,7 +62,7 @@ export function createTransfersService(deps: {
                 status: TransferStatus.DRAFT,
                 fromAccountKey: validated.fromAccountKey,
                 toAccountKey: validated.toAccountKey,
-                currency: validated.currency,
+                currencyId,
                 amountMinor: validated.amountMinor,
                 memo: validated.memo ?? null,
                 makerUserId: validated.makerUserId,
@@ -134,13 +138,14 @@ export function createTransfersService(deps: {
                 orgId: transfer.orgId,
                 checkerUserId: validated.checkerUserId,
             });
+            const { code: currencyCode } = await currenciesService.findById(transfer.currencyId);
 
             // ledger entry (atomic with state transition)
             const planKey = makePlanKey("internal_transfer", {
                 transferId: transfer.id,
                 from: transfer.fromAccountKey,
                 to: transfer.toAccountKey,
-                currency: transfer.currency,
+                currency: currencyCode,
                 amount: transfer.amountMinor.toString()
             });
 
@@ -155,7 +160,7 @@ export function createTransfersService(deps: {
                         planKey,
                         debitKey: transfer.fromAccountKey,
                         creditKey: transfer.toAccountKey,
-                        currency: transfer.currency,
+                        currency: currencyCode,
                         amount: transfer.amountMinor,
                         code: TransferCodes.INTERNAL_TRANSFER,
                         memo: transfer.memo ?? undefined

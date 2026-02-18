@@ -1,0 +1,21 @@
+import type { Database } from "@bedrock/db";
+import { type Logger, noopLogger } from "@bedrock/kernel";
+
+export type CurrenciesServiceDeps = {
+    db: Database;
+    logger?: Logger;
+};
+
+export type CurrenciesServiceContext = {
+    db: Database;
+    log: Logger;
+};
+
+export function createCurrenciesServiceContext(
+    deps: CurrenciesServiceDeps,
+): CurrenciesServiceContext {
+    return {
+        db: deps.db,
+        log: deps.logger?.child({ svc: "currencies" }) ?? noopLogger,
+    };
+}

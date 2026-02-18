@@ -49,7 +49,7 @@ export interface MockTransfer {
     status: TransferStatus;
     fromAccountKey: string;
     toAccountKey: string;
-    currency: string;
+    currencyId: string;
     amountMinor: bigint;
     memo: string | null;
     makerUserId: string;
@@ -70,7 +70,7 @@ export function createMockTransfer(overrides: Partial<MockTransfer> = {}): MockT
         status: TransferStatus.DRAFT,
         fromAccountKey: "Account:org1:vault:USD",
         toAccountKey: "Account:org1:operating:USD",
-        currency: "USD",
+        currencyId: "cur-usd",
         amountMinor: 100000n,
         memo: "Test transfer",
         makerUserId: MAKER_USER_ID,

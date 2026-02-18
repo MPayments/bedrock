@@ -7,7 +7,6 @@ export {
     OrganizationSchema,
     CreateOrganizationInputSchema,
     UpdateOrganizationInputSchema,
-    OrganizationIdParamSchema,
 } from "./validation";
 export type {
     Organization,

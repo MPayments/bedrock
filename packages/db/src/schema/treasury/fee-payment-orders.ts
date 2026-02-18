@@ -5,6 +5,7 @@ import { fxQuotes } from "../fx/quotes";
 import { journalEntries } from "../ledger/journal";
 import { uint128 } from "../ledger/ledger";
 import { organizations } from "./organizations";
+import { currencies } from "../currencies";
 
 export type FeePaymentOrderStatus =
     | "reserved"
@@ -29,7 +30,7 @@ export const feePaymentOrders = pgTable(
 
         kind: text("kind").notNull(),
         bucket: text("bucket").notNull(),
-        currency: text("currency").notNull(),
+        currencyId: uuid("currency_id").notNull().references(() => currencies.id),
         amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
         metadata: jsonb("metadata").$type<Record<string, string>>(),
         memo: text("memo"),
@@ -46,7 +47,7 @@ export const feePaymentOrders = pgTable(
         status: text("status").$type<FeePaymentOrderStatus>().notNull().default("reserved"),
 
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
-        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`),
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`).$onUpdateFn(() => new Date()),
     },
     (t) => ([
         uniqueIndex("fee_payment_orders_idem_uq").on(t.idempotencyKey),

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { pgTable, uuid, text, timestamp, bigint, index } from "drizzle-orm/pg-core";
+import { currencies } from "../currencies";
 
 /**
  * rate: base -> quote
@@ -12,8 +13,8 @@ export const fxRates = pgTable(
 
         source: text("source").notNull().default("manual"),
 
-        base: text("base_currency").notNull(),
-        quote: text("quote_currency").notNull(),
+        baseCurrencyId: uuid("base_currency_id").notNull().references(() => currencies.id),
+        quoteCurrencyId: uuid("quote_currency_id").notNull().references(() => currencies.id),
 
         rateNum: bigint("rate_num", { mode: "bigint" }).notNull(),
         rateDen: bigint("rate_den", { mode: "bigint" }).notNull(),
@@ -22,7 +23,7 @@ export const fxRates = pgTable(
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`)
     },
     (t) => [
-        index("fx_rates_pair_asof_idx").on(t.base, t.quote, t.asOf),
+        index("fx_rates_pair_asof_idx").on(t.baseCurrencyId, t.quoteCurrencyId, t.asOf),
         index("fx_rates_asof_idx").on(t.asOf)
     ]
 );

@@ -51,29 +51,49 @@ export interface MockOrder {
     payInOrgId: string;
     payOutOrgId: string;
     status: string;
+    payInCurrencyId: string;
     payInCurrency: string;
     payInExpectedMinor: bigint;
+    payOutCurrencyId: string;
     payOutCurrency: string;
     payOutAmountMinor: bigint;
     ledgerEntryId: string | null;
     payoutPendingTransferId: bigint | null;
 }
 
+function currencyIdFromCode(code: string): string {
+    return `cur-${code.trim().toLowerCase()}`;
+}
+
 export function createMockOrder(overrides: Partial<MockOrder> = {}): MockOrder {
-    return {
+    const order: MockOrder = {
         id: ORDER_ID,
         customerId: CUSTOMER_ID,
         payInOrgId: BRANCH_ORG_ID,
         payOutOrgId: BRANCH_ORG_ID,
         status: "quote",
+        payInCurrencyId: "cur-usd",
         payInCurrency: "USD",
         payInExpectedMinor: 100000n,
+        payOutCurrencyId: "cur-eur",
         payOutCurrency: "EUR",
         payOutAmountMinor: 85000n,
         ledgerEntryId: null,
         payoutPendingTransferId: null,
         ...overrides,
     };
+
+    const payInCurrency = overrides.payInCurrency;
+    if (payInCurrency && !overrides.payInCurrencyId) {
+        order.payInCurrencyId = currencyIdFromCode(payInCurrency);
+    }
+
+    const payOutCurrency = overrides.payOutCurrency;
+    if (payOutCurrency && !overrides.payOutCurrencyId) {
+        order.payOutCurrencyId = currencyIdFromCode(payOutCurrency);
+    }
+
+    return order;
 }
 
 export function createMockLedger() {

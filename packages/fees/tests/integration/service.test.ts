@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
-import { createFeesService } from "../../src/service";
+import { createCurrenciesService } from "@bedrock/currencies";
+import { currencyIdForCode } from "@bedrock/db/seeds";
 import { schema } from "@bedrock/db/schema";
+
+import { createFeesService } from "../../src/service";
 import { db } from "./setup";
 
 function uniq(prefix: string) {
@@ -12,8 +15,8 @@ async function createFxQuote() {
     const rows = await db
         .insert(schema.fxQuotes)
         .values({
-            fromCurrency: "USD",
-            toCurrency: "EUR",
+            fromCurrencyId: currencyIdForCode("USD"),
+            toCurrencyId: currencyIdForCode("EUR"),
             fromAmountMinor: 100000n,
             toAmountMinor: 85000n,
             pricingMode: "auto_cross",
@@ -32,8 +35,10 @@ async function createFxQuote() {
 }
 
 describe("Fees Service Integration Tests", () => {
+    const currenciesService = createCurrenciesService({ db });
+
     it("upserts rules and resolves only applicable rules in priority order", async () => {
-        const service = createFeesService({ db });
+        const service = createFeesService({ db, currenciesService });
         const at = new Date("2026-02-14T00:00:00.000Z");
 
         const specificRuleId = await service.upsertRule({
@@ -112,7 +117,7 @@ describe("Fees Service Integration Tests", () => {
     });
 
     it("calculates FX quote fee components from persisted rules", async () => {
-        const service = createFeesService({ db });
+        const service = createFeesService({ db, currenciesService });
         const at = new Date("2026-02-14T00:00:00.000Z");
 
         await service.upsertRule({
@@ -189,7 +194,7 @@ describe("Fees Service Integration Tests", () => {
     });
 
     it("saves and replaces quote fee component snapshots", async () => {
-        const service = createFeesService({ db });
+        const service = createFeesService({ db, currenciesService });
         const ruleId = await service.upsertRule({
             name: uniq("snapshot-rule"),
             operationKind: "fx_quote",

@@ -5,12 +5,17 @@ import { type Transaction } from "@bedrock/db";
 
 import { AmountMismatchError, CurrencyMismatchError, InvalidStateError, NotFoundError, ValidationError } from "../errors";
 import { type ExecuteFxValidatedInput } from "../validation";
+import { type TreasuryServiceContext } from "./context";
 
 function quoteUsageRef(orderId: string): string {
     return `order:${orderId}:fx`;
 }
 
-export async function consumeFxQuoteForExecution(tx: Transaction, input: ExecuteFxValidatedInput) {
+export async function consumeFxQuoteForExecution(
+    tx: Transaction,
+    input: ExecuteFxValidatedInput,
+    currenciesService: TreasuryServiceContext["currenciesService"],
+) {
     let quote: any | undefined;
     if (isUuidLike(input.quoteRef)) {
         const [byId] = await tx
@@ -41,11 +46,19 @@ export async function consumeFxQuoteForExecution(tx: Transaction, input: Execute
         throw new NotFoundError("FX quote", input.quoteRef);
     }
 
-    if (quote.fromCurrency !== input.payInCurrency) {
-        throw new CurrencyMismatchError("quote.fromCurrency", quote.fromCurrency, input.payInCurrency);
+    const { code: quoteFromCurrency } = await currenciesService.findById(quote.fromCurrencyId);
+    const { code: quoteToCurrency } = await currenciesService.findById(quote.toCurrencyId);
+    const quoteWithCurrencies = {
+        ...quote,
+        fromCurrency: quoteFromCurrency,
+        toCurrency: quoteToCurrency,
+    };
+
+    if (quoteFromCurrency !== input.payInCurrency) {
+        throw new CurrencyMismatchError("quote.fromCurrency", quoteFromCurrency, input.payInCurrency);
     }
-    if (quote.toCurrency !== input.payOutCurrency) {
-        throw new CurrencyMismatchError("quote.toCurrency", quote.toCurrency, input.payOutCurrency);
+    if (quoteToCurrency !== input.payOutCurrency) {
+        throw new CurrencyMismatchError("quote.toCurrency", quoteToCurrency, input.payOutCurrency);
     }
     if (quote.fromAmountMinor !== input.principalMinor) {
         throw new AmountMismatchError("quote.fromAmountMinor", quote.fromAmountMinor, input.principalMinor);
@@ -57,7 +70,7 @@ export async function consumeFxQuoteForExecution(tx: Transaction, input: Execute
 
     if (quote.status === "used") {
         if (quote.usedByRef === usageRef) {
-            return quote;
+            return quoteWithCurrencies;
         }
         throw new InvalidStateError(`Quote ${quote.id} is already used by ${quote.usedByRef ?? "unknown reference"}`);
     }
@@ -88,7 +101,7 @@ export async function consumeFxQuoteForExecution(tx: Transaction, input: Execute
         .returning({ id: schema.fxQuotes.id, status: schema.fxQuotes.status, usedByRef: schema.fxQuotes.usedByRef });
 
     if (updated.length) {
-        return quote;
+        return quoteWithCurrencies;
     }
 
     const [latest] = await tx
@@ -98,7 +111,7 @@ export async function consumeFxQuoteForExecution(tx: Transaction, input: Execute
         .limit(1);
 
     if (latest?.status === "used" && latest.usedByRef === usageRef) {
-        return quote;
+        return quoteWithCurrencies;
     }
 
     throw new InvalidStateError(

@@ -25,7 +25,12 @@ export function createOrganizationsService(deps: OrganizationsServiceDeps) {
             db.select({ total: sql<number>`count(*)::int` }).from(schema.organizations),
         ]);
 
-        return { data, total: countRows[0]!.total, limit, offset };
+        return {
+            data,
+            total: countRows[0]!.total,
+            limit,
+            offset,
+        };
     }
 
     async function findById(id: string) {
@@ -101,6 +106,6 @@ export function createOrganizationsService(deps: OrganizationsServiceDeps) {
         findById,
         create,
         update,
-        delete: remove,
+        remove,
     };
 }

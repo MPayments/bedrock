@@ -15,13 +15,14 @@
   },
   "dependencies": {
     "@bedrock/auth": "workspace:*",
+    "@bedrock/currencies": "workspace:*",
     "@bedrock/db": "workspace:*",
     "@bedrock/kernel": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/organizations": "workspace:*",
     "@hono/node-server": "^1.19.9",
-    "@hono/swagger-ui": "^0.5.3",
     "@hono/zod-openapi": "^1.2.1",
+    "@scalar/hono-api-reference": "^0.9.41",
     "dotenv": "^17.3.1",
     "hono": "^4.11.9"
   },

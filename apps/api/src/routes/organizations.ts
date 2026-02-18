@@ -4,12 +4,11 @@ import {
     OrganizationSchema,
     CreateOrganizationInputSchema,
     UpdateOrganizationInputSchema,
-    OrganizationIdParamSchema,
     OrganizationNotFoundError,
 } from "@bedrock/organizations";
 
 import type { AppContext } from "../context";
-import { ErrorSchema, DeletedSchema } from "../common";
+import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { requirePermission } from "../middleware/permission";
 import type { AuthVariables } from "../middleware/auth";
 
@@ -19,7 +18,7 @@ export function organizationsRoutes(ctx: AppContext) {
     const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
     const listRoute = createRoute({
-        middleware: [requirePermission({ organizations: ["list"] })] as const,
+        middleware: [requirePermission({ organizations: ["list"] })],
         method: "get",
         path: "/",
         tags: ["Organizations"],
@@ -40,7 +39,7 @@ export function organizationsRoutes(ctx: AppContext) {
     });
 
     const createRoute_ = createRoute({
-        middleware: [requirePermission({ organizations: ["create"] })] as const,
+        middleware: [requirePermission({ organizations: ["create"] })],
         method: "post",
         path: "/",
         tags: ["Organizations"],
@@ -76,13 +75,13 @@ export function organizationsRoutes(ctx: AppContext) {
     });
 
     const getRoute = createRoute({
-        middleware: [requirePermission({ organizations: ["list"] })] as const,
+        middleware: [requirePermission({ organizations: ["list"] })],
         method: "get",
         path: "/{id}",
         tags: ["Organizations"],
         summary: "Get an organization by ID",
         request: {
-            params: OrganizationIdParamSchema,
+            params: IdParamSchema,
         },
         responses: {
             200: {
@@ -105,13 +104,13 @@ export function organizationsRoutes(ctx: AppContext) {
     });
 
     const updateRoute = createRoute({
-        middleware: [requirePermission({ organizations: ["update"] })] as const,
+        middleware: [requirePermission({ organizations: ["update"] })],
         method: "patch",
         path: "/{id}",
         tags: ["Organizations"],
         summary: "Update an organization",
         request: {
-            params: OrganizationIdParamSchema,
+            params: IdParamSchema,
             body: {
                 content: {
                     "application/json": {
@@ -142,13 +141,13 @@ export function organizationsRoutes(ctx: AppContext) {
     });
 
     const deleteRoute = createRoute({
-        middleware: [requirePermission({ organizations: ["delete"] })] as const,
+        middleware: [requirePermission({ organizations: ["delete"] })],
         method: "delete",
         path: "/{id}",
         tags: ["Organizations"],
         summary: "Delete an organization",
         request: {
-            params: OrganizationIdParamSchema,
+            params: IdParamSchema,
         },
         responses: {
             200: {
@@ -209,7 +208,7 @@ export function organizationsRoutes(ctx: AppContext) {
         .openapi(deleteRoute, async (c) => {
             const { id } = c.req.valid("param");
             try {
-                await ctx.organizationsService.delete(id);
+                await ctx.organizationsService.remove(id);
                 return c.json({ deleted: true }, 200);
             } catch (err) {
                 if (err instanceof OrganizationNotFoundError) {

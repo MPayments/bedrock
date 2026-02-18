@@ -11,7 +11,7 @@ export const organizations = pgTable("organizations", {
     baseCurrency: text("base_currency").notNull().default("USD"),
     isTreasury: boolean("is_treasury").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`).$onUpdateFn(() => new Date()),
 }, (table) => [
     check("treasury_or_customer", sql`${table.isTreasury} = true OR ${table.customerId} IS NOT NULL`),
 ]);

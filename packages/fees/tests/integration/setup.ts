@@ -1,6 +1,8 @@
 import { afterAll, afterEach, beforeAll } from "vitest";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+
+import { seedCurrencies } from "@bedrock/db/seeds";
 import { schema } from "@bedrock/db/schema";
 
 const testDbConfig = {
@@ -15,6 +17,10 @@ const testDbConfig = {
 const pool = new Pool(testDbConfig);
 const db = drizzle(pool, { schema });
 
+async function ensureTestCurrencies() {
+    await seedCurrencies(db);
+}
+
 async function cleanupFeeTables() {
     await pool.query("DELETE FROM fee_payment_orders");
     await pool.query("DELETE FROM fx_quote_fee_components");
@@ -27,6 +33,7 @@ beforeAll(async () => {
     console.log("Setting up fees integration test environment...");
     await pool.query("SELECT 1");
     await cleanupFeeTables();
+    await ensureTestCurrencies();
     console.log("Fees integration test environment ready");
 }, 30000);
 
