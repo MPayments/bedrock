@@ -8,12 +8,7 @@ import {
 } from "@bedrock/organizations";
 import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import type { AppContext } from "../context";
-import { ErrorSchema, DeletedSchema } from "../common";
-
-const PaginationQuerySchema = z.object({
-    limit: z.coerce.number().int().min(1).max(100).default(20),
-    offset: z.coerce.number().int().min(0).default(0),
-});
+import { ErrorSchema, DeletedSchema, PaginationQuerySchema } from "../common";
 
 const PaginatedOrganizationsSchema = createPaginatedListSchema(OrganizationSchema);
 
