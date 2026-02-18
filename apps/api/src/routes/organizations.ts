@@ -6,9 +6,9 @@ import {
     OrganizationIdParamSchema,
     OrganizationNotFoundError,
 } from "@bedrock/organizations";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+import { createPaginatedListSchema, PaginationInputSchema } from "@bedrock/kernel/pagination";
 import type { AppContext } from "../context";
-import { ErrorSchema, DeletedSchema, PaginationQuerySchema } from "../common";
+import { ErrorSchema, DeletedSchema } from "../common";
 
 const PaginatedOrganizationsSchema = createPaginatedListSchema(OrganizationSchema);
 
@@ -21,7 +21,7 @@ export function organizationsRoutes(ctx: AppContext) {
         tags: ["Organizations"],
         summary: "List organizations",
         request: {
-            query: PaginationQuerySchema,
+            query: PaginationInputSchema,
         },
         responses: {
             200: {
@@ -165,18 +165,18 @@ export function organizationsRoutes(ctx: AppContext) {
     return app
         .openapi(listRoute, async (c) => {
             const { limit, offset } = c.req.valid("query");
-            const result = await ctx.organizations.list({ limit, offset });
+            const result = await ctx.organizationsService.list({ limit, offset });
             return c.json(result, 200);
         })
         .openapi(createRoute_, async (c) => {
             const input = c.req.valid("json");
-            const org = await ctx.organizations.create(input);
+            const org = await ctx.organizationsService.create(input);
             return c.json(org, 201);
         })
         .openapi(getRoute, async (c) => {
             const { id } = c.req.valid("param");
             try {
-                const org = await ctx.organizations.findById(id);
+                const org = await ctx.organizationsService.findById(id);
                 return c.json(org, 200);
             } catch (err) {
                 if (err instanceof OrganizationNotFoundError) {
@@ -189,7 +189,7 @@ export function organizationsRoutes(ctx: AppContext) {
             const { id } = c.req.valid("param");
             const input = c.req.valid("json");
             try {
-                const org = await ctx.organizations.update(id, input);
+                const org = await ctx.organizationsService.update(id, input);
                 return c.json(org, 200);
             } catch (err) {
                 if (err instanceof OrganizationNotFoundError) {
@@ -201,7 +201,7 @@ export function organizationsRoutes(ctx: AppContext) {
         .openapi(deleteRoute, async (c) => {
             const { id } = c.req.valid("param");
             try {
-                await ctx.organizations.delete(id);
+                await ctx.organizationsService.delete(id);
                 return c.json({ deleted: true }, 200);
             } catch (err) {
                 if (err instanceof OrganizationNotFoundError) {

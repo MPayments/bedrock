@@ -6,17 +6,23 @@ import auth from "@bedrock/auth";
 import { createAppContext, type Env } from "./context";
 import { organizationsRoutes, customersRoutes } from "./routes/index";
 import { authMiddleware, type AuthVariables } from "./middleware/auth";
+import dotenv from "dotenv";
 
 // Load environment (in production, use proper env loading)
+dotenv.config({ path: "../../.env" });
+
 const env: Env = {
   DATABASE_URL:
     process.env.DATABASE_URL!,
   TB_ADDRESS: process.env.TB_ADDRESS!,
-  TB_CLUSTER_ID: process.env.TB_CLUSTER_ID!,
+  TB_CLUSTER_ID: Number(process.env.TB_CLUSTER_ID!),
+  BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
+  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL!,
+  BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS!,
 };
 
 const ctx = createAppContext(env);
-const configuredAuthOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS!.split(",");
+const configuredAuthOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS.split(",");
 const authAllowedOriginSet = new Set(configuredAuthOrigins);
 
 // Create OpenAPIHono app with default error handler
