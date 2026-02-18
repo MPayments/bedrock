@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --concurrency 15",
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
     "test": "vitest run --project db --project fees --project fx --project ledger --project treasury --project transfers",
