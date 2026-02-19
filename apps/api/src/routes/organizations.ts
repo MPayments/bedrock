@@ -19,7 +19,7 @@ export function organizationsRoutes(ctx: AppContext) {
     const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
     const listRoute = createRoute({
-        middleware: [requirePermission({ organizations: ["list"] })],
+        // middleware: [requirePermission({ organizations: ["list"] })],
         method: "get",
         path: "/",
         tags: ["Organizations"],

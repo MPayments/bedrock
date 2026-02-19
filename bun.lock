@@ -40,6 +40,7 @@
       "name": "web",
       "version": "0.1.0",
       "dependencies": {
+        "@bedrock/organizations": "workspace:*",
         "@bedrock/ui": "workspace:*",
         "@tanstack/react-table": "^8.21.3",
         "lucide-react": "^0.563.0",

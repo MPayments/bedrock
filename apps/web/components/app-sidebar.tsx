@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowRightLeft,
   Bell,
+  BookOpen,
   CreditCard,
   Currency,
   Home,
@@ -92,6 +93,17 @@ const data = {
         {
           title: "Расчетные операции",
           url: "/payments/settlements",
+        },
+      ],
+    },
+    {
+      title: "Справочники",
+      url: "/entities",
+      icon: BookOpen,
+      items: [
+        {
+          title: "Организации",
+          url: "/entities/organizations",
         },
       ],
     },
