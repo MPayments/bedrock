@@ -9,7 +9,7 @@ import { AppError } from "@bedrock/kernel";
 
 import { createAppContext, type Env } from "./context";
 import { authMiddleware, requireAuth, type AuthVariables } from "./middleware/auth";
-import { organizationsRoutes, customersRoutes, currenciesRoutes } from "./routes/index";
+import { organizationsRoutes, customersRoutes, currenciesRoutes, fxRatesRoutes } from "./routes/index";
 
 // FIXME: in production, use proper env loading
 dotenv.config({ path: "../../.env" });
@@ -95,7 +95,8 @@ v1.use("*", requireAuth());
 v1
   .route("/organizations", organizationsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
-  .route("/currencies", currenciesRoutes(ctx));
+  .route("/currencies", currenciesRoutes(ctx))
+  .route("/fx/rates", fxRatesRoutes(ctx));
 
 app.route("/v1", v1);
 

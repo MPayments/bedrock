@@ -19,12 +19,15 @@
     "@bedrock/kernel": "*",
     "@bedrock/ledger": "*",
     "drizzle-orm": "^0.45.1",
+    "fast-xml-parser": "^5.3.2",
     "zod": "^4"
   },
   "devDependencies": {
     "@bedrock/typescript-config": "*",
+    "@types/pg": "^8.16.0",
     "typescript": "^5.8.3",
     "@bedrock/eslint-config": "workspace:*",
-    "eslint": "^9.31.0"
+    "eslint": "^9.31.0",
+    "pg": "^8.18.0"
   }
 }

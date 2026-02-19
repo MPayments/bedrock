@@ -18,6 +18,7 @@ const positiveAmountSchema = z.bigint().positive({ message: "Amount must be posi
 const idempotencyKeySchema = z.string().min(1, "idempotencyKey is required").max(255);
 const positiveBigintSchema = z.bigint().positive({ message: "Value must be positive" });
 const positiveIntegerSchema = z.number().int().positive({ message: "Value must be positive" });
+const rateSourceSchema = z.enum(["cbr"]);
 
 const quoteLegSourceKindSchema = z.enum(["cb", "bank", "manual", "derived", "market"]);
 
@@ -49,13 +50,26 @@ export const setManualRateInputSchema = z.object({
     rateNum: positiveBigintSchema,
     rateDen: positiveBigintSchema,
     asOf: z.date(),
-    source: z.string().min(1).max(100).optional(),
+    source: z
+        .string()
+        .min(1)
+        .max(100)
+        .refine((source) => source.toLowerCase() !== "cbr", "source 'cbr' is reserved for external provider sync")
+        .optional(),
 }).refine(
     (data) => data.base !== data.quote,
     { message: "base and quote currencies must be different" }
 );
 
 export type SetManualRateInput = z.infer<typeof setManualRateInputSchema>;
+
+export const syncRatesFromSourceInputSchema = z.object({
+    source: rateSourceSchema,
+    force: z.boolean().optional(),
+    now: z.date().optional(),
+});
+
+export type SyncRatesFromSourceInput = z.infer<typeof syncRatesFromSourceInputSchema>;
 
 const quoteBaseSchema = z.object({
     idempotencyKey: idempotencyKeySchema,
@@ -126,6 +140,10 @@ export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown, context
 
 export function validateSetManualRateInput(input: unknown): SetManualRateInput {
     return validateInput(setManualRateInputSchema, input, "setManualRate");
+}
+
+export function validateSyncRatesFromSourceInput(input: unknown): SyncRatesFromSourceInput {
+    return validateInput(syncRatesFromSourceInputSchema, input, "syncRatesFromSource");
 }
 
 export function validateQuoteInput(input: unknown): QuoteInput {

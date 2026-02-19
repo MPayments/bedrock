@@ -8,6 +8,7 @@ export {
     validateQuoteInput,
     validateMarkQuoteUsedInput,
     validateGetQuoteDetailsInput,
+    validateSyncRatesFromSourceInput,
 } from "./validation";
 export type {
     SetManualRateInput,
@@ -16,6 +17,7 @@ export type {
     QuoteLegInput,
     PricingTrace,
     GetQuoteDetailsInput,
+    SyncRatesFromSourceInput,
 } from "./validation";
 
 // Errors
@@ -25,4 +27,9 @@ export {
     NotFoundError,
     RateNotFoundError,
     QuoteExpiredError,
+    RateSourceSyncError,
+    RateSourceStaleError,
 } from "./errors";
+
+export { createFxRatesWorker } from "./worker";
+export type { FxRateSource, FxRateSourceStatus, FxRateSourceSyncResult } from "./sources";
