@@ -2,6 +2,7 @@ import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import dotenv from "dotenv";
 import { cors } from "hono/cors";
+import { csrf } from "hono/csrf";
 
 import auth from "@bedrock/auth";
 import { AppError } from "@bedrock/kernel";
@@ -24,7 +25,10 @@ const env: Env = {
 };
 
 const ctx = createAppContext(env);
-const configuredAuthOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS.split(",");
+const configuredAuthOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
 const authAllowedOriginSet = new Set(configuredAuthOrigins);
 
 // Create OpenAPIHono app with default error handler
@@ -64,6 +68,13 @@ app.use(
     allowMethods: ["GET", "POST", "OPTIONS"],
     exposeHeaders: ["set-cookie"],
     credentials: true,
+  }),
+);
+
+app.use(
+  "*",
+  csrf({
+    origin: configuredAuthOrigins,
   }),
 );
 
