@@ -29,7 +29,7 @@ export class TigerBeetleBatchError extends LedgerError {
     constructor(
         msg: string,
         public readonly operation: "createAccounts" | "createTransfers",
-        public readonly details: Array<{ index: number; code: number; name: string }>
+        public readonly details: { index: number; code: number; name: string }[]
     ) {
         super(msg);
     }

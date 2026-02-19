@@ -12,3 +12,7 @@ export const DeletedSchema = z
     deleted: z.boolean().openapi({ example: true }),
   })
   .openapi("Deleted");
+
+export const IdParamSchema = z.object({
+  id: z.uuid().openapi({ param: { name: "id", in: "path", example: "00000000-0000-0000-0000-000000000001" } })
+});

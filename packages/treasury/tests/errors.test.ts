@@ -1,12 +1,6 @@
 import { describe, it, expect } from "vitest";
-import {
-    PaymentsError,
-    InvalidStateError,
-    NotFoundError,
-    ValidationError,
-    AmountMismatchError,
-    CurrencyMismatchError,
-} from "../src/errors";
+import { AmountMismatchError, CurrencyMismatchError, InvalidStateError, NotFoundError, ServiceError, ValidationError } from "@bedrock/kernel/errors";
+import { PaymentsError } from "../src/errors";
 
 describe("PaymentsError", () => {
     it("should be an instance of Error", () => {
@@ -27,9 +21,9 @@ describe("PaymentsError", () => {
 });
 
 describe("InvalidStateError", () => {
-    it("should extend PaymentsError", () => {
+    it("should extend ServiceError", () => {
         const error = new InvalidStateError("invalid state");
-        expect(error).toBeInstanceOf(PaymentsError);
+        expect(error).toBeInstanceOf(ServiceError);
         expect(error).toBeInstanceOf(InvalidStateError);
     });
 
@@ -40,9 +34,9 @@ describe("InvalidStateError", () => {
 });
 
 describe("NotFoundError", () => {
-    it("should extend PaymentsError", () => {
+    it("should extend ServiceError", () => {
         const error = new NotFoundError("Order", "order-123");
-        expect(error).toBeInstanceOf(PaymentsError);
+        expect(error).toBeInstanceOf(ServiceError);
         expect(error).toBeInstanceOf(NotFoundError);
     });
 
@@ -64,9 +58,9 @@ describe("NotFoundError", () => {
 });
 
 describe("ValidationError", () => {
-    it("should extend PaymentsError", () => {
+    it("should extend ServiceError", () => {
         const error = new ValidationError("validation failed");
-        expect(error).toBeInstanceOf(PaymentsError);
+        expect(error).toBeInstanceOf(ServiceError);
         expect(error).toBeInstanceOf(ValidationError);
     });
 
@@ -127,7 +121,7 @@ describe("CurrencyMismatchError", () => {
 });
 
 describe("error hierarchy", () => {
-    it("should allow catching all payments errors", () => {
+    it("should allow catching all service errors", () => {
         const errors = [
             new InvalidStateError("state"),
             new NotFoundError("Order", "123"),
@@ -137,7 +131,7 @@ describe("error hierarchy", () => {
         ];
 
         for (const error of errors) {
-            expect(error).toBeInstanceOf(PaymentsError);
+            expect(error).toBeInstanceOf(ServiceError);
         }
     });
 

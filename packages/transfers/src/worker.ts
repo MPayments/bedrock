@@ -1,7 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
-import { Database } from "@bedrock/db";
-import { schema, TransferStatus, JournalStatus } from "@bedrock/db/schema";
-import { Logger } from "@bedrock/kernel";
+
+import type { Database } from "@bedrock/db";
+import { schema, TransferStatus, type JournalStatus } from "@bedrock/db/schema";
+import type { Logger } from "@bedrock/kernel";
 
 /**
  * Finalizes internal transfer status based on the linked journal entry status:

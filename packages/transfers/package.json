@@ -1,27 +1,31 @@
 {
-    "name": "@bedrock/transfers",
-    "version": "0.0.0",
-    "private": true,
-    "type": "module",
-    "exports": {
-        ".": "./src/index.ts"
-    },
-    "scripts": {
+  "name": "@bedrock/transfers",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "check-types": "tsc --noEmit"
-    },
-    "dependencies": {
-        "@bedrock/kernel": "*",
-        "@bedrock/db": "*",
-        "@bedrock/ledger": "*",
-        "drizzle-orm": "^0.45.1",
-        "zod": "^4.3.6"
-    },
-    "devDependencies": {
-        "@bedrock/typescript-config": "*",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts --max-warnings 0"
+  },
+  "dependencies": {
+    "@bedrock/currencies": "workspace:*",
+    "@bedrock/kernel": "*",
+    "@bedrock/db": "*",
+    "@bedrock/ledger": "*",
+    "drizzle-orm": "^0.45.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@bedrock/typescript-config": "*",
     "@bedrock/test-utils": "*",
     "@types/node": "^24",
-    "typescript": "^5.8.3"
-    }
+    "typescript": "^5.8.3",
+    "@bedrock/eslint-config": "workspace:*",
+    "eslint": "^9.31.0"
+  }
 }

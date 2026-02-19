@@ -2,9 +2,12 @@ import { sql } from "drizzle-orm";
 import {
     pgTable, text, timestamp, uuid, bigint, index, uniqueIndex
 } from "drizzle-orm/pg-core";
+
 import { organizations } from "./organizations";
-import { customers } from "./customers";
+import { customers } from "../customers";
 import { bankAccounts } from "./bank-accounts";
+import { currencies } from "../currencies";
+import { journalEntries } from "../ledger/journal";
 import { uint128 } from "../ledger/ledger";
 
 export type OrderStatus =
@@ -26,19 +29,18 @@ export const paymentOrders = pgTable(
     {
         id: uuid("id").primaryKey().defaultRandom(),
 
-        treasuryOrgId: uuid("treasury_org_id").notNull().references(() => organizations.id),
         customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
         customerId: uuid("customer_id").notNull().references(() => customers.id),
 
         status: text("status").$type<OrderStatus>().notNull().default("quote"),
 
         // current ledger entry driving the *_pending_posting state
-        ledgerEntryId: uuid("ledger_entry_id"),
+        ledgerEntryId: uuid("ledger_entry_id").references(() => journalEntries.id, { onDelete: "set null" }),
 
-        payInCurrency: text("payin_currency").notNull(),
+        payInCurrencyId: uuid("payin_currency_id").notNull().references(() => currencies.id),
         payInExpectedMinor: bigint("payin_expected_minor", { mode: "bigint" }).notNull(),
 
-        payOutCurrency: text("payout_currency").notNull(),
+        payOutCurrencyId: uuid("payout_currency_id").notNull().references(() => currencies.id),
         payOutAmountMinor: bigint("payout_amount_minor", { mode: "bigint" }).notNull(),
 
         payInOrgId: uuid("payin_org_id").notNull().references(() => organizations.id),
@@ -56,16 +58,15 @@ export const paymentOrders = pgTable(
         payoutPendingTransferId: uint128("payout_pending_transfer_id"),
 
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
-        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`)
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`).$onUpdateFn(() => new Date())
     },
     (t) => ([
-        index("orders_treasury_status_idx").on(t.treasuryOrgId, t.status),
-        uniqueIndex("orders_treasury_idem_uq").on(t.treasuryOrgId, t.idempotencyKey)
+        index("orders_status_idx").on(t.status),
+        uniqueIndex("orders_idem_uq").on(t.idempotencyKey)
     ])
 );
 
-// Keep this re-export for backwards compatibility. Canonical definition lives in ../fx/quotes.
-export { fxQuotes } from "../fx/quotes";
+export type PaymentOrder = typeof paymentOrders.$inferSelect;
 
 export type SettlementKind = "funding" | "payout";
 export type SettlementStatus = "pending" | "settled" | "failed";
@@ -79,7 +80,7 @@ export const settlements = pgTable(
         kind: text("kind").$type<SettlementKind>().notNull(),
         status: text("status").$type<SettlementStatus>().notNull().default("pending"),
 
-        currency: text("currency").notNull(),
+        currencyId: uuid("currency_id").notNull().references(() => currencies.id),
         amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
 
         railRef: text("rail_ref"),

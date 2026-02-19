@@ -1,28 +1,46 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import { swaggerUI } from "@hono/swagger-ui";
-import { AppError } from "@bedrock/kernel";
-import { createAppContext, type Env } from "./context"
-import { organizationsRoutes, customersRoutes } from "./routes/index";
+import { OpenAPIHono, z } from "@hono/zod-openapi";
+import { Scalar } from "@scalar/hono-api-reference";
+import dotenv from "dotenv";
+import { cors } from "hono/cors";
+import { csrf } from "hono/csrf";
 
-// Load environment (in production, use proper env loading)
+import auth from "@bedrock/auth";
+import { AppError } from "@bedrock/kernel";
+
+import { createAppContext, type Env } from "./context";
+import { authMiddleware, requireAuth, type AuthVariables } from "./middleware/auth";
+import { organizationsRoutes, customersRoutes, currenciesRoutes } from "./routes/index";
+
+// FIXME: in production, use proper env loading
+dotenv.config({ path: "../../.env" });
+
 const env: Env = {
-  DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/postgres",
-  TB_ADDRESS: process.env.TB_ADDRESS ?? "127.0.0.1:3000",
-  TB_CLUSTER_ID: process.env.TB_CLUSTER_ID ?? "0",
+  DATABASE_URL:
+    process.env.DATABASE_URL!,
+  TB_ADDRESS: process.env.TB_ADDRESS!,
+  TB_CLUSTER_ID: Number(process.env.TB_CLUSTER_ID!),
+  BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
+  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL!,
+  BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS!,
 };
 
 const ctx = createAppContext(env);
+const configuredAuthOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
+const authAllowedOriginSet = new Set(configuredAuthOrigins);
 
 // Create OpenAPIHono app with default error handler
-const app = new OpenAPIHono({
+const app = new OpenAPIHono<{ Variables: AuthVariables }>({
   defaultHook: (result, c) => {
     if (!result.success) {
       return c.json(
         {
           error: "Validation error",
-          details: result.error.flatten(),
+          details: z.flattenError(result.error),
         },
-        400
+        400,
       );
     }
   },
@@ -30,35 +48,69 @@ const app = new OpenAPIHono({
 
 // Global error handler for non-validation errors
 app.onError((err, c) => {
-  // Application errors
   if (AppError.is(err)) {
-    ctx.logger.warn("Application error", { code: err.code, message: err.message });
+    ctx.logger.warn("Application error", {
+      code: err.code,
+      message: err.message,
+    });
     return c.json({ error: err.message, code: err.code }, 500);
   }
 
-  // Unexpected errors
   ctx.logger.error("Unexpected error", { error: String(err) });
   return c.json({ error: "Internal server error" }, 500);
 });
+
+app.use(
+  "/api/auth/*",
+  cors({
+    origin: (origin) => (authAllowedOriginSet.has(origin) ? origin : undefined),
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    exposeHeaders: ["set-cookie"],
+    credentials: true,
+  }),
+);
+
+app.use(
+  "*",
+  csrf({
+    origin: configuredAuthOrigins,
+  }),
+);
+
+app.on(["POST", "GET"], "/api/auth/*", (c) => {
+  return auth.handler(c.req.raw);
+});
+
+app.use("*", authMiddleware());
 
 // Health check
 app.get("/", (c) => {
   return c.json({ status: "ok", service: "ledger-api" });
 });
 
-// Mount routes
-const routes = app
+// Mount routes under /v1 — all require an authenticated session
+const v1 = new OpenAPIHono<{ Variables: AuthVariables }>();
+v1.use("*", requireAuth());
+v1
   .route("/organizations", organizationsRoutes(ctx))
-  .route("/customers", customersRoutes(ctx));
+  .route("/customers", customersRoutes(ctx))
+  .route("/currencies", currenciesRoutes(ctx));
 
-// OpenAPI documentation
-app.doc31("/openapi.json", (c) => ({
-  openapi: "3.1.0",
+app.route("/v1", v1);
+
+const openApiInfo = {
   info: {
-    title: "Ledger API",
+    title: "Bedrock API",
     version: "1.0.0",
     description: "Double-entry ledger API powered by TigerBeetle",
   },
+};
+
+// OpenAPI documentation
+app.doc31("/api/open-api", (c) => ({
+  openapi: "3.1.0",
+  ...openApiInfo,
   servers: [
     {
       url: new URL(c.req.url).origin,
@@ -67,10 +119,16 @@ app.doc31("/openapi.json", (c) => ({
   ],
 }));
 
-// Swagger UI
-app.get("/docs", swaggerUI({ url: "/openapi.json" }));
+app.get(
+  "/docs",
+  Scalar({
+    pageTitle: openApiInfo.info.title,
+    sources: [
+      { url: "/api/open-api", title: "Api" },
+      { url: "/api/auth/open-api/generate-schema", title: "Auth" },
+    ],
+  }),
+);
 
-// Export app for Bun/Cloudflare Workers
 export { app };
-// Export type for RPC client
-export type AppType = typeof routes;
+export type AppType = typeof app;

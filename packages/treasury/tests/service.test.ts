@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createTreasuryService } from "../src/service";
+import { createFeesService } from "@bedrock/fees";
 import {
     NotFoundError,
     InvalidStateError,
@@ -11,12 +12,41 @@ import {
     createStubDb,
     createMockLedger,
     createMockOrder,
-    TREASURY_ORG_ID,
     CUSTOMER_ID,
     ORDER_ID,
     BRANCH_ORG_ID,
     type StubDatabase,
 } from "./helpers";
+
+function createMockCurrenciesService() {
+    const byCode = new Map<string, any>([
+        ["USD", { id: "cur-usd", code: "USD" }],
+        ["EUR", { id: "cur-eur", code: "EUR" }],
+        ["GBP", { id: "cur-gbp", code: "GBP" }],
+        ["RUB", { id: "cur-rub", code: "RUB" }],
+        ["AED", { id: "cur-aed", code: "AED" }],
+        ["USDT", { id: "cur-usdt", code: "USDT" }],
+        ["BTC", { id: "cur-btc", code: "BTC" }],
+    ]);
+    const byId = new Map<string, any>(Array.from(byCode.values()).map((currency) => [currency.id, currency]));
+
+    return {
+        findByCode: vi.fn(async (code: string) => {
+            const normalized = code.trim().toUpperCase();
+            const existing = byCode.get(normalized);
+            if (existing) return existing;
+            const generated = { id: `cur-${normalized.toLowerCase()}`, code: normalized };
+            byCode.set(normalized, generated);
+            byId.set(generated.id, generated);
+            return generated;
+        }),
+        findById: vi.fn(async (id: string) => {
+            const existing = byId.get(id);
+            if (existing) return existing;
+            throw new Error(`Unknown currency id: ${id}`);
+        }),
+    };
+}
 
 describe("createTreasuryService", () => {
     let db: StubDatabase;
@@ -46,10 +76,13 @@ describe("createTreasuryService", () => {
     beforeEach(() => {
         db = createStubDb();
         ledger = createMockLedger();
+        const currenciesService = createMockCurrenciesService();
+        const feesService = createFeesService({ db, currenciesService });
         service = createTreasuryService({
             db,
             ledger,
-            treasuryOrgId: TREASURY_ORG_ID,
+            feesService,
+            currenciesService,
         });
     });
 
@@ -317,30 +350,42 @@ describe("createTreasuryService", () => {
             customerId: CUSTOMER_ID,
             payInCurrency: "USD",
             principalMinor: 100000n,
-            feeMinor: 500n,
-            spreadMinor: 200n,
             payOutCurrency: "EUR",
             payOutAmountMinor: 85000n,
             occurredAt: new Date(),
             quoteRef: "quote-ref-123",
         };
 
+        function currencyIdFromCode(code: string): string {
+            return `cur-${code.trim().toLowerCase()}`;
+        }
+
         function createFxQuote(overrides: Record<string, any> = {}) {
-            return {
+            const quote = {
                 id: "550e8400-e29b-41d4-a716-446655440010",
                 idempotencyKey: validInput.quoteRef,
+                fromCurrencyId: currencyIdFromCode(validInput.payInCurrency),
+                toCurrencyId: currencyIdFromCode(validInput.payOutCurrency),
                 fromCurrency: validInput.payInCurrency,
                 toCurrency: validInput.payOutCurrency,
                 fromAmountMinor: validInput.principalMinor,
                 toAmountMinor: validInput.payOutAmountMinor,
-                feeFromMinor: validInput.feeMinor,
-                spreadFromMinor: validInput.spreadMinor,
                 status: "active",
                 usedByRef: null,
                 usedAt: null,
                 expiresAt: new Date(validInput.occurredAt.getTime() + 60_000),
                 ...overrides,
             };
+
+            if (overrides.fromCurrency && !overrides.fromCurrencyId) {
+                quote.fromCurrencyId = currencyIdFromCode(overrides.fromCurrency);
+            }
+
+            if (overrides.toCurrency && !overrides.toCurrencyId) {
+                quote.toCurrencyId = currencyIdFromCode(overrides.toCurrency);
+            }
+
+            return quote;
         }
 
         function selectSequence(rowsByCall: any[][]) {
@@ -348,6 +393,8 @@ describe("createTreasuryService", () => {
             for (const rows of rowsByCall) {
                 select.mockImplementationOnce(() => selectReturning(rows));
             }
+            // Any additional selects default to empty result set.
+            select.mockImplementation(() => selectReturning([]));
             return select;
         }
 
@@ -357,6 +404,14 @@ describe("createTreasuryService", () => {
                 update.mockReturnValueOnce(updateReturning(rows));
             }
             return update;
+        }
+
+        function insertNoop() {
+            return vi.fn(() => ({
+                values: vi.fn(() => ({
+                    onConflictDoNothing: vi.fn(async () => []),
+                })),
+            }));
         }
 
         it("should execute FX successfully", async () => {
@@ -384,6 +439,72 @@ describe("createTreasuryService", () => {
 
             expect(result).toBe("test-entry-id");
             expect(ledger.createEntryTx).toHaveBeenCalled();
+        });
+
+        it("should reject explicit-route quote when persisted legs are missing", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote({ pricingMode: "explicit_route" });
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote], []]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                    ]),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput)).rejects.toThrow(InvalidStateError);
+            expect(ledger.createEntryTx).not.toHaveBeenCalled();
+        });
+
+        it("should post intercompany legs against order pay-in/pay-out orgs when they differ", async () => {
+            const payInOrgId = "550e8400-e29b-41d4-a716-446655440011";
+            const payOutOrgId = "550e8400-e29b-41d4-a716-446655440012";
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+                payInOrgId,
+                payOutOrgId,
+            });
+            const quote = createFxQuote();
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote]]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                        [{ id: ORDER_ID }],
+                    ]),
+                };
+                return fn(tx);
+            });
+
+            await service.executeFx({ ...validInput, branchOrgId: payInOrgId });
+
+            const transfers = vi.mocked(ledger.createEntryTx).mock.calls[0]![1].transfers;
+            const legOut = transfers.find((t: any) => t.memo === "FX leg 1 out");
+            const legIn = transfers.find((t: any) => t.memo === "FX leg 1 in");
+            const payoutObligation = transfers.find((t: any) => t.memo === "Create payout obligation");
+
+            expect(legOut).toBeDefined();
+            expect(legOut.creditKey).toContain(`:${payInOrgId}:USD`);
+            expect(legIn).toBeDefined();
+            expect(legIn.debitKey).toContain(`:${payInOrgId}:EUR`);
+            expect(payoutObligation).toBeDefined();
+            expect(payoutObligation.debitKey).toContain(`OrderInventory:${ORDER_ID}:EUR`);
+            expect(legOut.creditKey).not.toContain(`:${payOutOrgId}:`);
+            expect(legIn.debitKey).not.toContain(`:${payOutOrgId}:`);
         });
 
         it("should reject ambiguous UUID quoteRef between id and idempotency key", async () => {
@@ -450,16 +571,6 @@ describe("createTreasuryService", () => {
             {
                 label: "toAmountMinor mismatch",
                 overrides: { toAmountMinor: 999n },
-                error: AmountMismatchError,
-            },
-            {
-                label: "feeFromMinor mismatch",
-                overrides: { feeFromMinor: 1n },
-                error: AmountMismatchError,
-            },
-            {
-                label: "spreadFromMinor mismatch",
-                overrides: { spreadFromMinor: 1n },
                 error: AmountMismatchError,
             },
         ])("should reject quote with $label", async ({ overrides, error }) => {
@@ -815,7 +926,7 @@ describe("createTreasuryService", () => {
 
             vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
                 const tx = {
-                    select: selectSequence([[order], [quote], [current]]),
+                    select: selectSequence([[order], [quote], [], [], [current]]),
                     update: updateSequence([
                         [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
                         [],
@@ -845,7 +956,7 @@ describe("createTreasuryService", () => {
 
             vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
                 const tx = {
-                    select: selectSequence([[order], [quote], [current]]),
+                    select: selectSequence([[order], [quote], [], [], [current]]),
                     update: updateSequence([
                         [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
                         [],
@@ -858,7 +969,53 @@ describe("createTreasuryService", () => {
                 .rejects.toThrow(InvalidStateError);
         });
 
-        it("should create fee transfer when feeMinor > 0", async () => {
+        it("should create fee transfer from persisted quote fee components", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote();
+            const quoteFeeComponent = {
+                quoteId: quote.id,
+                idx: 1,
+                ruleId: null,
+                kind: "fx_fee",
+                currencyId: "cur-usd",
+                amountMinor: 500n,
+                source: "rule",
+                settlementMode: "in_ledger",
+                debitAccountKey: null,
+                creditAccountKey: null,
+                transferCode: null,
+                memo: null,
+                metadata: null,
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote], [], [quoteFeeComponent]]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                        [{ id: ORDER_ID }],
+                    ]),
+                };
+                return fn(tx);
+            });
+
+            await service.executeFx(validInput);
+
+            const createEntryCall = vi.mocked(ledger.createEntryTx).mock.calls[0];
+            const transfers = createEntryCall![1].transfers;
+
+            const feeTransfer = transfers.find((t: any) => t.memo === "Fee revenue");
+            expect(feeTransfer).toBeDefined();
+            expect(feeTransfer.amount).toBe(500n);
+        });
+
+        it("should skip fee transfer when no quote/manual in-ledger fees are present", async () => {
             const order = createMockOrder({
                 status: "funding_settled",
                 payInCurrency: "USD",
@@ -885,11 +1042,10 @@ describe("createTreasuryService", () => {
             const transfers = createEntryCall![1].transfers;
 
             const feeTransfer = transfers.find((t: any) => t.memo === "Fee revenue");
-            expect(feeTransfer).toBeDefined();
-            expect(feeTransfer.amount).toBe(500n);
+            expect(feeTransfer).toBeUndefined();
         });
 
-        it("should skip fee transfer when feeMinor is 0", async () => {
+        it("should create manual bank fee transfer in arbitrary currency", async () => {
             const order = createMockOrder({
                 status: "funding_settled",
                 payInCurrency: "USD",
@@ -897,9 +1053,7 @@ describe("createTreasuryService", () => {
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
             });
-            const quote = createFxQuote({
-                feeFromMinor: 0n,
-            });
+            const quote = createFxQuote();
 
             vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
                 const tx = {
@@ -912,13 +1066,303 @@ describe("createTreasuryService", () => {
                 return fn(tx);
             });
 
-            await service.executeFx({ ...validInput, feeMinor: 0n });
+            await service.executeFx({
+                ...validInput,
+                fees: [
+                    {
+                        kind: "bank_fee",
+                        currency: "EUR",
+                        amountMinor: 321n,
+                        memo: "Bank fee revenue",
+                    },
+                ],
+            });
 
             const createEntryCall = vi.mocked(ledger.createEntryTx).mock.calls[0];
             const transfers = createEntryCall![1].transfers;
 
-            const feeTransfer = transfers.find((t: any) => t.memo === "Fee revenue");
-            expect(feeTransfer).toBeUndefined();
+            const manualBankFee = transfers.find((t: any) => t.memo === "Bank fee revenue");
+            expect(manualBankFee).toBeDefined();
+            expect(manualBankFee.currency).toBe("EUR");
+            expect(manualBankFee.amount).toBe(321n);
+        });
+
+        it("should reserve separate-payment-order fees into clearing account", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote();
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote]]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                        [{ id: ORDER_ID }],
+                    ]),
+                    insert: insertNoop(),
+                };
+                return fn(tx);
+            });
+
+            await service.executeFx({
+                ...validInput,
+                fees: [
+                    {
+                        kind: "bank_fee",
+                        currency: "USD",
+                        amountMinor: 77n,
+                        settlementMode: "separate_payment_order",
+                    },
+                ],
+            });
+
+            const createEntryCall = vi.mocked(ledger.createEntryTx).mock.calls[0];
+            const transfers = createEntryCall![1].transfers;
+
+            const reserveTransfer = transfers.find((t: any) => t.memo === "Fee reserved for separate payment order");
+            expect(reserveTransfer).toBeDefined();
+            expect(reserveTransfer.amount).toBe(77n);
+            expect(reserveTransfer.creditKey).toContain("Liability:FeeClearing:bank");
+        });
+
+        it.each([
+            {
+                label: "first leg fromCurrency mismatch",
+                legs: [{ idx: 1, fromCurrency: "GBP", toCurrency: "EUR", fromAmountMinor: 100000n, toAmountMinor: 85000n }],
+                error: CurrencyMismatchError,
+            },
+            {
+                label: "last leg toCurrency mismatch",
+                legs: [{ idx: 1, fromCurrency: "USD", toCurrency: "GBP", fromAmountMinor: 100000n, toAmountMinor: 85000n }],
+                error: CurrencyMismatchError,
+            },
+            {
+                label: "first leg fromAmountMinor mismatch",
+                legs: [{ idx: 1, fromCurrency: "USD", toCurrency: "EUR", fromAmountMinor: 99999n, toAmountMinor: 85000n }],
+                error: AmountMismatchError,
+            },
+            {
+                label: "last leg toAmountMinor mismatch",
+                legs: [{ idx: 1, fromCurrency: "USD", toCurrency: "EUR", fromAmountMinor: 100000n, toAmountMinor: 84999n }],
+                error: AmountMismatchError,
+            },
+        ])("should reject persisted route with $label", async ({ legs, error }) => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote();
+            const persistedLegs = legs.map((leg) => ({
+                id: `leg-${leg.idx}`,
+                quoteId: quote.id,
+                fromCurrencyId: currencyIdFromCode(leg.fromCurrency),
+                toCurrencyId: currencyIdFromCode(leg.toCurrency),
+                rateNum: 1n,
+                rateDen: 1n,
+                sourceKind: "manual",
+                sourceRef: null,
+                asOf: validInput.occurredAt,
+                executionOrgId: null,
+                createdAt: validInput.occurredAt,
+                ...leg,
+            }));
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote], persistedLegs]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                    ]),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.executeFx(validInput)).rejects.toThrow(error);
+        });
+
+        it("should honor custom debit/credit accounts for in-ledger and reserved fee components", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote();
+            const reserveInsertValues = vi.fn(() => ({
+                onConflictDoNothing: vi.fn(async () => []),
+            }));
+            const reserveInsert = vi.fn(() => ({
+                values: reserveInsertValues,
+            }));
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote]]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                        [{ id: ORDER_ID }],
+                    ]),
+                    insert: reserveInsert,
+                };
+                return fn(tx);
+            });
+
+            await service.executeFx({
+                ...validInput,
+                fees: [
+                    {
+                        id: "manual-in-ledger",
+                        kind: "manual_fee",
+                        currency: "USD",
+                        amountMinor: 11n,
+                        debitAccountKey: "Account:manual:fee:debit",
+                        creditAccountKey: "Account:manual:fee:credit",
+                        transferCode: 501,
+                        memo: "Custom in-ledger fee",
+                    },
+                    {
+                        id: "manual-reserve",
+                        kind: "bank_fee",
+                        currency: "USD",
+                        amountMinor: 12n,
+                        settlementMode: "separate_payment_order",
+                        debitAccountKey: "Account:manual:reserve:debit",
+                        creditAccountKey: "Account:manual:reserve:credit",
+                        memo: "Custom reserve fee",
+                    },
+                ],
+            });
+
+            const transfers = vi.mocked(ledger.createEntryTx).mock.calls[0]![1].transfers;
+            const customInLedger = transfers.find((t: any) => t.memo === "Custom in-ledger fee");
+            const customReserve = transfers.find((t: any) => t.memo === "Custom reserve fee");
+            expect(customInLedger).toBeDefined();
+            expect(customInLedger.debitKey).toBe("Account:manual:fee:debit");
+            expect(customInLedger.creditKey).toBe("Account:manual:fee:credit");
+            expect(customReserve).toBeDefined();
+            expect(customReserve.debitKey).toBe("Account:manual:reserve:debit");
+            expect(customReserve.creditKey).toBe("Account:manual:reserve:credit");
+            expect(reserveInsertValues).toHaveBeenCalled();
+        });
+
+        it("should post manual adjustments and reserve separate adjustment payment orders", async () => {
+            const order = createMockOrder({
+                status: "funding_settled",
+                payInCurrency: "USD",
+                payInExpectedMinor: 100000n,
+                payOutCurrency: "EUR",
+                payOutAmountMinor: 85000n,
+            });
+            const quote = createFxQuote();
+            const reserveInsertValues = vi.fn(() => ({
+                onConflictDoNothing: vi.fn(async () => []),
+            }));
+            const reserveInsert = vi.fn(() => ({
+                values: reserveInsertValues,
+            }));
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: selectSequence([[order], [quote]]),
+                    update: updateSequence([
+                        [{ id: quote.id, status: "used", usedByRef: `order:${ORDER_ID}:fx` }],
+                        [{ id: ORDER_ID }],
+                    ]),
+                    insert: reserveInsert,
+                };
+                return fn(tx);
+            });
+
+            await service.executeFx({
+                ...validInput,
+                adjustments: [
+                    {
+                        id: "adj-increase",
+                        kind: "service_adjustment",
+                        effect: "increase_charge",
+                        currency: "USD",
+                        amountMinor: 5n,
+                    },
+                    {
+                        id: "adj-decrease",
+                        kind: "service_adjustment",
+                        effect: "decrease_charge",
+                        currency: "USD",
+                        amountMinor: 6n,
+                    },
+                    {
+                        id: "adj-custom-in-ledger",
+                        kind: "custom_adjustment",
+                        effect: "increase_charge",
+                        currency: "USD",
+                        amountMinor: 7n,
+                        debitAccountKey: "Account:adjustment:custom:debit",
+                        creditAccountKey: "Account:adjustment:custom:credit",
+                        memo: "Custom adjustment in-ledger",
+                    },
+                    {
+                        id: "adj-separate-increase",
+                        kind: "external_adjustment",
+                        effect: "increase_charge",
+                        currency: "USD",
+                        amountMinor: 8n,
+                        settlementMode: "separate_payment_order",
+                    },
+                    {
+                        id: "adj-separate-decrease",
+                        kind: "external_adjustment",
+                        effect: "decrease_charge",
+                        currency: "USD",
+                        amountMinor: 9n,
+                        settlementMode: "separate_payment_order",
+                    },
+                    {
+                        id: "adj-separate-custom",
+                        kind: "external_adjustment_custom",
+                        effect: "increase_charge",
+                        currency: "USD",
+                        amountMinor: 10n,
+                        settlementMode: "separate_payment_order",
+                        debitAccountKey: "Account:adjustment:reserve:debit",
+                        creditAccountKey: "Account:adjustment:reserve:credit",
+                        memo: "Custom adjustment reserve",
+                    },
+                ],
+            });
+
+            const transfers = vi.mocked(ledger.createEntryTx).mock.calls[0]![1].transfers;
+            const increaseTransfer = transfers.find((t: any) => t.memo === "Adjustment charge" && t.amount === 5n);
+            const decreaseTransfer = transfers.find((t: any) => t.memo === "Adjustment refund" && t.amount === 6n);
+            const customInLedger = transfers.find((t: any) => t.memo === "Custom adjustment in-ledger");
+            const reserveIncrease = transfers.find((t: any) => t.memo === "Adjustment reserved for separate payment order" && t.amount === 8n);
+            const reserveDecrease = transfers.find((t: any) => t.memo === "Adjustment reserved for separate payment order" && t.amount === 9n);
+            const reserveCustom = transfers.find((t: any) => t.memo === "Custom adjustment reserve");
+
+            expect(increaseTransfer).toBeDefined();
+            expect(decreaseTransfer).toBeDefined();
+            expect(customInLedger).toBeDefined();
+            expect(customInLedger.debitKey).toBe("Account:adjustment:custom:debit");
+            expect(customInLedger.creditKey).toBe("Account:adjustment:custom:credit");
+            expect(reserveIncrease).toBeDefined();
+            expect(reserveIncrease.creditKey).toContain("Liability:FeeClearing:adjustment:external_adjustment");
+            expect(reserveDecrease).toBeDefined();
+            expect(reserveDecrease.debitKey).toContain("Expense:Adjustment:external_adjustment");
+            expect(reserveCustom).toBeDefined();
+            expect(reserveCustom.debitKey).toBe("Account:adjustment:reserve:debit");
+            expect(reserveCustom.creditKey).toBe("Account:adjustment:reserve:credit");
+
+            const insertedFeeOrders = reserveInsertValues.mock.calls[0]![0] as any[];
+            expect(insertedFeeOrders).toHaveLength(3);
+            expect(insertedFeeOrders.map((row) => row.kind)).toContain("adjustment:external_adjustment");
         });
     });
 
@@ -1474,6 +1918,438 @@ describe("createTreasuryService", () => {
 
             await expect(service.voidPayout(validInput))
                 .rejects.toThrow(CurrencyMismatchError);
+        });
+    });
+
+    describe("initiateFeePayment", () => {
+        const feePaymentOrderId = "550e8400-e29b-41d4-a716-446655440033";
+        const validInput = {
+            feePaymentOrderId,
+            payoutOrgId: BRANCH_ORG_ID,
+            payoutBankStableKey: "bank-key-fee",
+            railRef: "fee-init-rail-ref",
+            occurredAt: new Date(),
+        };
+
+        it("should initiate fee payment successfully", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "reserved",
+                bucket: "bank",
+                kind: "bank_fee",
+                currencyId: "cur-usd",
+                amountMinor: 77n,
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                    update: vi.fn(() => updateReturning([{ id: feePaymentOrderId }])),
+                };
+                return fn(tx);
+            });
+
+            const result = await service.initiateFeePayment(validInput);
+            expect(result).toEqual({
+                entryId: "test-entry-id",
+                pendingTransferId: 12345678901234567890n,
+            });
+        });
+
+        it("should reject non-reserved fee payment order", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "initiated",
+                bucket: "bank",
+                kind: "bank_fee",
+                currencyId: "cur-usd",
+                amountMinor: 77n,
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.initiateFeePayment(validInput)).rejects.toThrow(InvalidStateError);
+        });
+
+        it("should allow idempotent retry when fee payment is already initiated with same parameters", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "initiated",
+                bucket: "bank",
+                kind: "bank_fee",
+                currencyId: "cur-usd",
+                amountMinor: 77n,
+                railRef: "fee-init-rail-ref",
+                payoutOrgId: BRANCH_ORG_ID,
+                payoutBankStableKey: "bank-key-fee",
+                initiateEntryId: "test-entry-id",
+                pendingTransferId: 12345678901234567890n,
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                };
+                return fn(tx);
+            });
+
+            const result = await service.initiateFeePayment(validInput);
+            expect(result).toEqual({
+                entryId: "test-entry-id",
+                pendingTransferId: 12345678901234567890n,
+            });
+            expect(ledger.createEntryTx).not.toHaveBeenCalled();
+        });
+
+        it("should reject idempotent replay when railRef differs", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "initiated",
+                bucket: "bank",
+                kind: "bank_fee",
+                currencyId: "cur-usd",
+                amountMinor: 77n,
+                railRef: "different-rail-ref",
+                payoutOrgId: BRANCH_ORG_ID,
+                payoutBankStableKey: "bank-key-fee",
+                initiateEntryId: "test-entry-id",
+                pendingTransferId: 12345678901234567890n,
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.initiateFeePayment(validInput)).rejects.toThrow(InvalidStateError);
+        });
+
+        it("should reject idempotent replay when initiated entry identifiers are missing", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "initiated",
+                bucket: "bank",
+                kind: "bank_fee",
+                currencyId: "cur-usd",
+                amountMinor: 77n,
+                railRef: validInput.railRef,
+                payoutOrgId: BRANCH_ORG_ID,
+                payoutBankStableKey: "bank-key-fee",
+                initiateEntryId: null,
+                pendingTransferId: null,
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.initiateFeePayment(validInput)).rejects.toThrow(InvalidStateError);
+        });
+
+        it("should reject CAS fallback when pendingTransferId is missing", async () => {
+            const reserved = {
+                id: feePaymentOrderId,
+                status: "reserved",
+                bucket: "bank",
+                kind: "bank_fee",
+                currencyId: "cur-usd",
+                amountMinor: 77n,
+            };
+            const current = {
+                id: feePaymentOrderId,
+                status: "initiated_pending_posting",
+                initiateEntryId: "test-entry-id",
+                pendingTransferId: null,
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi
+                        .fn()
+                        .mockImplementationOnce(() => selectReturning([reserved]))
+                        .mockImplementationOnce(() => selectReturning([current])),
+                    update: vi.fn(() => updateReturning([])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.initiateFeePayment(validInput)).rejects.toThrow(InvalidStateError);
+        });
+    });
+
+    describe("settleFeePayment", () => {
+        const feePaymentOrderId = "550e8400-e29b-41d4-a716-446655440034";
+        const validInput = {
+            feePaymentOrderId,
+            railRef: "fee-settle-rail-ref",
+            occurredAt: new Date(),
+        };
+
+        it("should settle fee payment successfully", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "initiated",
+                currencyId: "cur-usd",
+                pendingTransferId: 42n,
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                    update: vi.fn(() => updateReturning([{ id: feePaymentOrderId }])),
+                };
+                return fn(tx);
+            });
+
+            const result = await service.settleFeePayment(validInput);
+            expect(result).toBe("test-entry-id");
+        });
+
+        it("should allow idempotent retry when fee payment is already settled", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "settled",
+                currencyId: "cur-usd",
+                railRef: "fee-settle-rail-ref",
+                resolveEntryId: "settled-entry-id",
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                };
+                return fn(tx);
+            });
+
+            const result = await service.settleFeePayment(validInput);
+            expect(result).toBe("settled-entry-id");
+            expect(ledger.createEntryTx).not.toHaveBeenCalled();
+        });
+
+        it("should reject settle when initiated order has no pendingTransferId", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "initiated",
+                currencyId: "cur-usd",
+                pendingTransferId: null,
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.settleFeePayment(validInput)).rejects.toThrow(InvalidStateError);
+        });
+
+        it("should reject settled replay when railRef differs", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "settled",
+                currencyId: "cur-usd",
+                railRef: "other-rail-ref",
+                resolveEntryId: "settled-entry-id",
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.settleFeePayment(validInput)).rejects.toThrow(InvalidStateError);
+        });
+
+        it("should reject settled replay when resolveEntryId is missing", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "settled",
+                currencyId: "cur-usd",
+                railRef: validInput.railRef,
+                resolveEntryId: null,
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.settleFeePayment(validInput)).rejects.toThrow(InvalidStateError);
+        });
+
+        it("should reject settle CAS fallback when latest state does not match created entry", async () => {
+            const initiated = {
+                id: feePaymentOrderId,
+                status: "initiated",
+                currencyId: "cur-usd",
+                pendingTransferId: 42n,
+            };
+            const current = {
+                id: feePaymentOrderId,
+                status: "settled_pending_posting",
+                resolveEntryId: "another-entry",
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi
+                        .fn()
+                        .mockImplementationOnce(() => selectReturning([initiated]))
+                        .mockImplementationOnce(() => selectReturning([current])),
+                    update: vi.fn(() => updateReturning([])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.settleFeePayment(validInput)).rejects.toThrow(InvalidStateError);
+        });
+    });
+
+    describe("voidFeePayment", () => {
+        const feePaymentOrderId = "550e8400-e29b-41d4-a716-446655440035";
+        const validInput = {
+            feePaymentOrderId,
+            railRef: "fee-void-rail-ref",
+            occurredAt: new Date(),
+        };
+
+        it("should void fee payment successfully", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "initiated",
+                currencyId: "cur-usd",
+                pendingTransferId: 42n,
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                    update: vi.fn(() => updateReturning([{ id: feePaymentOrderId }])),
+                };
+                return fn(tx);
+            });
+
+            const result = await service.voidFeePayment(validInput);
+            expect(result).toBe("test-entry-id");
+        });
+
+        it("should allow idempotent retry when fee payment is already voided", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "voided",
+                currencyId: "cur-usd",
+                railRef: "fee-void-rail-ref",
+                resolveEntryId: "voided-entry-id",
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                };
+                return fn(tx);
+            });
+
+            const result = await service.voidFeePayment(validInput);
+            expect(result).toBe("voided-entry-id");
+            expect(ledger.createEntryTx).not.toHaveBeenCalled();
+        });
+
+        it("should reject void when initiated order has no pendingTransferId", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "initiated",
+                currencyId: "cur-usd",
+                pendingTransferId: null,
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.voidFeePayment(validInput)).rejects.toThrow(InvalidStateError);
+        });
+
+        it("should reject voided replay when railRef differs", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "voided",
+                currencyId: "cur-usd",
+                railRef: "other-rail-ref",
+                resolveEntryId: "voided-entry-id",
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.voidFeePayment(validInput)).rejects.toThrow(InvalidStateError);
+        });
+
+        it("should reject voided replay when resolveEntryId is missing", async () => {
+            const feeOrder = {
+                id: feePaymentOrderId,
+                status: "voided",
+                currencyId: "cur-usd",
+                railRef: validInput.railRef,
+                resolveEntryId: null,
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi.fn(() => selectReturning([feeOrder])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.voidFeePayment(validInput)).rejects.toThrow(InvalidStateError);
+        });
+
+        it("should reject void CAS fallback when latest state does not match created entry", async () => {
+            const initiated = {
+                id: feePaymentOrderId,
+                status: "initiated",
+                currencyId: "cur-usd",
+                pendingTransferId: 42n,
+            };
+            const current = {
+                id: feePaymentOrderId,
+                status: "voided_pending_posting",
+                resolveEntryId: "another-entry",
+            };
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    select: vi
+                        .fn()
+                        .mockImplementationOnce(() => selectReturning([initiated]))
+                        .mockImplementationOnce(() => selectReturning([current])),
+                    update: vi.fn(() => updateReturning([])),
+                };
+                return fn(tx);
+            });
+
+            await expect(service.voidFeePayment(validInput)).rejects.toThrow(InvalidStateError);
         });
     });
 

@@ -6,7 +6,6 @@ import {
   tbCreateTransfersOrThrow,
   TB_AMOUNT_MAX,
   TransferFlags,
-  AccountFlags,
   CreateAccountError,
   CreateTransferError
 } from "../src/tb";

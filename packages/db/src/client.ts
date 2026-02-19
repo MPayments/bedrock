@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+
 import { schema } from "./schema/index";
 
 const pool = new Pool({
@@ -13,4 +14,5 @@ const pool = new Pool({
 
 export const db = drizzle(pool, { schema });
 
-export type Database = typeof db
+export type Database = typeof db;
+export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];

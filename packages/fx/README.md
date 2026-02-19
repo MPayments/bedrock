@@ -1,22 +1,24 @@
 # @bedrock/fx
 
-FX policy, rate, and quote service package.
+FX rate and quote service package.
 
 ## Main responsibilities
 
-- Manage FX pricing policies
 - Store and retrieve rates
-- Produce quotes with margin/fee logic
+- Produce quotes from rate data
+- Delegate fee component calculation to `@bedrock/fees`
+  - fee rules are resolved from persisted `fee_rules`
 - Mark quotes as used
 - Expire old quotes
 
 ## Service API
 
-- `upsertPolicy`
 - `setManualRate`
 - `getLatestRate`
 - `getCrossRate`
 - `quote`
+  - uses `@bedrock/fees` for fee/spread component calculation
+  - persists resolved fee snapshot to `fx_quote_fee_components`
 - `markQuoteUsed`
 - `expireOldQuotes`
 
@@ -32,7 +34,7 @@ FX policy, rate, and quote service package.
 - Idempotent by `idempotencyKey`
 - Persists:
   - input/output amounts
-  - fee and spread
+  - effective rate snapshot
   - rate numerator/denominator
   - TTL-based expiration
   - quote status lifecycle
@@ -48,4 +50,3 @@ FX policy, rate, and quote service package.
 - `npm run build`
 - `npm run dev`
 - `npm run check-types`
-

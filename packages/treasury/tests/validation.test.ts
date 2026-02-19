@@ -7,7 +7,7 @@ import {
     validateVoidPayoutInput,
     validateInput,
 } from "../src/validation";
-import { ValidationError } from "../src/errors";
+import { ValidationError } from "@bedrock/kernel/errors";
 
 const validUuid = "550e8400-e29b-41d4-a716-446655440000";
 
@@ -70,8 +70,6 @@ describe("executeFxInputSchema", () => {
         customerId: validUuid,
         payInCurrency: "USD",
         principalMinor: 100000n,
-        feeMinor: 500n,
-        spreadMinor: 200n,
         payOutCurrency: "EUR",
         payOutAmountMinor: 85000n,
         occurredAt: new Date(),
@@ -82,21 +80,42 @@ describe("executeFxInputSchema", () => {
         expect(() => validateExecuteFxInput(validInput)).not.toThrow();
     });
 
-    it("should allow zero fee", () => {
-        expect(() => validateExecuteFxInput({ ...validInput, feeMinor: 0n })).not.toThrow();
+    it("should default fees/adjustments arrays when omitted", () => {
+        const result = validateExecuteFxInput({
+            ...validInput,
+            fees: undefined,
+            adjustments: undefined,
+        } as any);
+
+        expect(result.fees).toEqual([]);
+        expect(result.adjustments).toEqual([]);
     });
 
-    it("should allow zero spread", () => {
-        expect(() => validateExecuteFxInput({ ...validInput, spreadMinor: 0n })).not.toThrow();
+    it("should reject zero adjustment amount", () => {
+        expect(() =>
+            validateExecuteFxInput({
+                ...validInput,
+                adjustments: [
+                    {
+                        kind: "discount",
+                        effect: "decrease_charge",
+                        currency: "USD",
+                        amountMinor: 0n,
+                    },
+                ],
+            })
+        ).toThrow(ValidationError);
     });
 
-    it("should reject negative fee", () => {
-        expect(() => validateExecuteFxInput({ ...validInput, feeMinor: -100n }))
-            .toThrow(ValidationError);
-    });
-
-    it("should reject negative spread", () => {
-        expect(() => validateExecuteFxInput({ ...validInput, spreadMinor: -100n }))
+    it("should reject negative manual fee amount", () => {
+        expect(() => validateExecuteFxInput({
+            ...validInput,
+            fees: [{
+                kind: "manual_fee",
+                currency: "USD",
+                amountMinor: -100n,
+            }],
+        }))
             .toThrow(ValidationError);
     });
 
@@ -113,6 +132,42 @@ describe("executeFxInputSchema", () => {
     it("should reject empty quoteRef", () => {
         expect(() => validateExecuteFxInput({ ...validInput, quoteRef: "" }))
             .toThrow(ValidationError);
+    });
+
+    it("should accept arbitrary manual fee component", () => {
+        const result = validateExecuteFxInput({
+            ...validInput,
+            fees: [
+                {
+                    kind: "bank_fee",
+                    currency: "usdt",
+                    amountMinor: 25n,
+                    memo: "Correspondent bank fee",
+                    settlementMode: "separate_payment_order",
+                },
+            ],
+        });
+
+        expect(result.fees).toHaveLength(1);
+        expect(result.fees[0]!.currency).toBe("USDT");
+        expect(result.fees[0]!.source).toBe("manual");
+        expect(result.fees[0]!.settlementMode).toBe("separate_payment_order");
+    });
+
+    it("should reject fee with only one account key", () => {
+        expect(() =>
+            validateExecuteFxInput({
+                ...validInput,
+                fees: [
+                    {
+                        kind: "manual_fee",
+                        currency: "USD",
+                        amountMinor: 10n,
+                        debitAccountKey: "custom:debit",
+                    },
+                ],
+            })
+        ).toThrow(ValidationError);
     });
 });
 

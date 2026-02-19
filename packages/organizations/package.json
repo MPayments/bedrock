@@ -1,0 +1,29 @@
+{
+  "name": "@bedrock/organizations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts --max-warnings 0"
+  },
+  "dependencies": {
+    "@bedrock/db": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "@bedrock/test-utils": "*",
+    "@bedrock/typescript-config": "*",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18",
+    "@bedrock/eslint-config": "workspace:*",
+    "eslint": "^9.31.0"
+  }
+}

@@ -5,10 +5,10 @@ import {
   tbLedgerForCurrency,
   tbAccountIdFor,
   tbTransferIdForPlan,
-  sha256Hex,
   TB_ID_MAX,
   TB_ID_MAX_ALLOWED
 } from "../src/ids";
+import { sha256Hex } from "@bedrock/kernel";
 
 describe("normalizeTbId", () => {
   it("should normalize zero to 1", () => {

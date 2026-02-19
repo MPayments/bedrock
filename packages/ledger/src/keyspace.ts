@@ -1,11 +1,11 @@
 export type KeyFn = (...args: any[]) => string;
 export type KeyspaceDef = Record<string, KeyFn>;
 
-export type Keyspace<N extends string, D extends KeyspaceDef> = {
+export interface Keyspace<N extends string, D extends KeyspaceDef> {
     namespace: N;
     keys: { [K in keyof D]: (...args: Parameters<D[K]>) => string };
     key: <K extends keyof D>(name: K, ...args: Parameters<D[K]>) => string;
-};
+}
 
 export function defineKeyspace<N extends string, D extends KeyspaceDef>(
     namespace: N,

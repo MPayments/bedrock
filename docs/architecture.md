@@ -23,6 +23,7 @@ The architecture is package-first: domain behavior lives in `packages/*`; apps a
 - `packages/ledger`: journal engine, TB plan generation, TB posting worker
 - `packages/treasury`: payment order state machine and posting finalizer worker
 - `packages/fx`: rates, quotes, quote consumption
+- `packages/fees`: shared fee model, fee calculations, and fee transfer-plan builders
 - `packages/transfers`: internal transfer maker/checker service and posting worker
 - `packages/test-utils`: shared fixture and DB mock helpers for tests
 - `packages/ui`: shared React UI primitives
@@ -38,6 +39,7 @@ graph TD
     L["@bedrock/ledger"]
     T["@bedrock/treasury"]
     FX["@bedrock/fx"]
+    FEES["@bedrock/fees"]
     TR["@bedrock/transfers"]
     TU["@bedrock/test-utils"]
     API["apps/api"]
@@ -47,9 +49,12 @@ graph TD
     T --> L
     T --> DB
     T --> K
+    T --> FEES
     FX --> DB
     FX --> K
     FX --> L
+    FX --> FEES
+    FEES --> K
     TR --> DB
     TR --> K
     TR --> L
@@ -149,7 +154,6 @@ Maker/checker behavior:
 
 FX subsystem currently provides:
 
-- Policies (`fx_policies`): margin, fee, TTL
 - Rates (`fx_rates`): direct/inverse/cross rate retrieval
 - Quotes (`fx_quotes`): idempotent quote creation, expiration, mark-used semantics
 
@@ -172,9 +176,11 @@ Primary tables by concern:
   - `customers`
   - `bank_accounts`
 - FX:
-  - `fx_policies`
   - `fx_rates`
   - `fx_quotes`
+- Fees:
+  - `fee_rules`
+  - `fx_quote_fee_components`
 - Internal transfers:
   - `internal_transfers`
 
@@ -201,7 +207,6 @@ Current architecture is strong for deterministic posting and retries but remains
 - End-to-end reconciliation workflows and exception handling surfaces
 - Full quote-binding and quote-consumption integration in treasury execution paths
 - Netting operations beyond account-level representation
-- Consistent strict typing in transaction internals (many `tx: any`)
 
 ## Diagram: Payment + Posting
 

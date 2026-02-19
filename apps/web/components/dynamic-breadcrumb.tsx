@@ -48,7 +48,6 @@ const segmentMap: Record<string, SegmentConfig> = {
   // FX pages
   rates: { label: "Курсы" },
   quotes: { label: "Котировки" },
-  policies: { label: "Политики" },
 
   // Payments pages
   orders: { label: "Ордера" },

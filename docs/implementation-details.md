@@ -61,14 +61,18 @@ Details:
 - Includes:
   - `ledger_entry_id` pointer for current pending-posting transition
   - `payout_pending_transfer_id` for pending payout settlement/voiding
-  - idempotency uniqueness per `(treasury_org_id, idempotency_key)`
+  - idempotency uniqueness per `(idempotency_key)`
 - `settlements` records settlement events by kind.
 
 ### FX schema
 
-- `fx_policies`: margin/fee/ttl parameters and active flag.
 - `fx_rates`: timestamped rate observations.
 - `fx_quotes`: quote snapshot with status lifecycle and idempotency key.
+
+### Fees schema
+
+- `fee_rules`: persisted rule definitions by operation/context with calc method (`bps`/`fixed`), settlement mode, and optional posting overrides.
+- `fx_quote_fee_components`: per-quote resolved fee snapshot derived from `fee_rules` at quote time.
 
 ### Transfers schema
 
@@ -197,7 +201,6 @@ Details:
 
 `createFxService` methods:
 
-- `upsertPolicy` (current implementation inserts new policy row)
 - `setManualRate`
 - `getLatestRate`
 - `getCrossRate`:
@@ -206,7 +209,8 @@ Details:
   - anchor path (default USD)
 - `quote`:
   - idempotent by `idempotencyKey`
-  - computes `toAmountMinor`, fee and spread using policy bps
+  - computes `toAmountMinor`
+  - delegates fee/spread component math to `@bedrock/fees`
   - stores quote with TTL-based `expiresAt`
 - `markQuoteUsed`:
   - marks active quote used if not expired
@@ -218,10 +222,32 @@ Details:
 - Zod-based input validation for each method.
 - Explicit errors:
   - `RateNotFoundError`
-  - `PolicyNotFoundError`
   - `QuoteExpiredError`
   - `NotFoundError`
   - `ValidationError`
+
+## `@bedrock/fees`
+
+### Service
+
+`@bedrock/fees` provides shared helpers:
+
+- `calculateFxQuoteFeeComponents`
+  - fee rules -> fee components (`fx_fee`, `fx_spread`)
+- `buildFxExecutionFeeComponents`
+  - converts quote-resolved fee amounts to components
+- `mergeFeeComponents` and `aggregateFeeComponents`
+  - combines computed + manual fees
+- `partitionFeeComponents`
+  - splits `in_ledger` vs `separate_payment_order`
+- `buildFeeTransferPlans`
+  - converts fee components into deterministic ledger transfer plans
+
+### Treasury usage
+
+- `executeFx` now builds fee transfers through `@bedrock/fees`.
+- Manual fees in arbitrary currencies are supported through `executeFxInput.fees`.
+- `separate_payment_order` fees are represented as reserve postings to fee-clearing accounts.
 
 ## `@bedrock/transfers`
 
@@ -291,4 +317,3 @@ Exports shared lint presets:
 ### `@bedrock/typescript-config`
 
 Holds reusable TS config package metadata for monorepo package inheritance.
-

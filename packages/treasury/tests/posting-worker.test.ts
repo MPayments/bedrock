@@ -8,7 +8,7 @@ describe("createTreasuryWorker", () => {
 
     beforeEach(() => {
         db = createStubDb();
-        worker = createTreasuryWorker({ db, treasuryOrgId: "treasury-org-id" });
+        worker = createTreasuryWorker({ db });
     });
 
     describe("processOnce", () => {
@@ -320,15 +320,91 @@ describe("createTreasuryWorker", () => {
             const result = await worker.processOnce();
             expect(result).toBe(1);
         });
+
+        it("should finalize initiated_pending_posting fee payment orders when journal is posted", async () => {
+            const feeItems = [
+                {
+                    fee_payment_order_id: "fee-order-1",
+                    fee_status: "initiated_pending_posting",
+                    ledger_entry_id: "entry-1",
+                    journal_status: "posted",
+                },
+            ];
+
+            vi.mocked(db.execute)
+                .mockResolvedValueOnce(mockDbExecuteResult([])) // payment orders
+                .mockResolvedValueOnce(mockDbExecuteResult(feeItems)); // fee payment orders
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    execute: vi.fn()
+                        .mockResolvedValueOnce(mockDbExecuteResult([
+                            { id: "fee-order-1", status: "initiated_pending_posting", journal_status: "posted" }
+                        ]))
+                        .mockResolvedValue(mockDbExecuteResult([]))
+                };
+                return fn(tx);
+            });
+
+            const result = await worker.processOnce();
+            expect(result).toBe(1);
+            expect(db.transaction).toHaveBeenCalledTimes(1);
+        });
+
+        it("should fail fee payment orders when journal is failed", async () => {
+            const feeItems = [
+                {
+                    fee_payment_order_id: "fee-order-2",
+                    fee_status: "settled_pending_posting",
+                    ledger_entry_id: "entry-2",
+                    journal_status: "failed",
+                },
+            ];
+
+            vi.mocked(db.execute)
+                .mockResolvedValueOnce(mockDbExecuteResult([]))
+                .mockResolvedValueOnce(mockDbExecuteResult(feeItems));
+
+            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+                const tx = {
+                    execute: vi.fn()
+                        .mockResolvedValueOnce(mockDbExecuteResult([
+                            { id: "fee-order-2", status: "settled_pending_posting", journal_status: "failed" }
+                        ]))
+                        .mockResolvedValue(mockDbExecuteResult([]))
+                };
+                return fn(tx);
+            });
+
+            const result = await worker.processOnce();
+            expect(result).toBe(1);
+        });
+
+        it("should skip unknown fee pending statuses", async () => {
+            const feeItems = [
+                {
+                    fee_payment_order_id: "fee-order-3",
+                    fee_status: "unknown_pending_posting",
+                    ledger_entry_id: "entry-3",
+                    journal_status: "posted",
+                },
+            ];
+
+            vi.mocked(db.execute)
+                .mockResolvedValueOnce(mockDbExecuteResult([]))
+                .mockResolvedValueOnce(mockDbExecuteResult(feeItems));
+
+            const result = await worker.processOnce();
+            expect(result).toBe(0);
+            expect(db.transaction).not.toHaveBeenCalled();
+        });
     });
 
-    describe("without treasuryOrgId filter", () => {
-        it("should process all orders when no treasuryOrgId provided", async () => {
-            const workerNoFilter = createTreasuryWorker({ db });
-
+    describe("system scope", () => {
+        it("should process all orders", async () => {
             vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-            await workerNoFilter.processOnce();
+            await worker.processOnce();
 
             expect(db.execute).toHaveBeenCalled();
         });

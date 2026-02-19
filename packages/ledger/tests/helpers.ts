@@ -1,17 +1,9 @@
-/**
- * Ledger package test helpers
- *
- * Uses shared utilities from @bedrock/test-utils and provides
- * domain-specific factories for ledger entities.
- */
-
 import { vi } from "vitest";
 import {
     createStubDb,
     createStubTx,
     mockSelectReturns,
     mockInsertReturns,
-    mockExecuteReturns,
     TEST_UUIDS,
     TEST_DATES,
     type StubDatabase,

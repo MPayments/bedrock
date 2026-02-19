@@ -4,7 +4,7 @@ export enum PlanType {
     VOID_PENDING = "void_pending",
 }
 
-export type CreatePlan = {
+export interface CreatePlan {
     type: PlanType.CREATE;
     planKey: string;
 
@@ -23,9 +23,9 @@ export type CreatePlan = {
     chain?: string | null;
 
     memo?: string | null;
-};
+}
 
-export type PostPendingPlan = {
+export interface PostPendingPlan {
     type: PlanType.POST_PENDING;
     planKey: string;
 
@@ -39,9 +39,9 @@ export type PostPendingPlan = {
     chain?: string | null;
 
     memo?: string | null;
-};
+}
 
-export type VoidPendingPlan = {
+export interface VoidPendingPlan {
     type: PlanType.VOID_PENDING;
     planKey: string;
 
@@ -53,11 +53,11 @@ export type VoidPendingPlan = {
     chain?: string | null;
 
     memo?: string | null;
-};
+}
 
 export type TransferPlanLine = CreatePlan | PostPendingPlan | VoidPendingPlan;
 
-export type CreateEntryInput = {
+export interface CreateEntryInput {
     orgId: string;
     source: {
         type: string;
@@ -67,7 +67,7 @@ export type CreateEntryInput = {
     postingDate: Date;
 
     transfers: TransferPlanLine[];
-};
+}
 
 /**
  * Result of creating a journal entry.
@@ -76,7 +76,7 @@ export type CreateEntryInput = {
  * This allows callers to get the deterministic transfer IDs without needing
  * to know the internal ID generation scheme.
  */
-export type CreateEntryResult = {
+export interface CreateEntryResult {
     /** The journal entry ID */
     entryId: string;
     
@@ -86,4 +86,4 @@ export type CreateEntryResult = {
      * referenced later (e.g., for post_pending or void_pending operations).
      */
     transferIds: Map<number, bigint>;
-};
+}

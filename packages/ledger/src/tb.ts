@@ -7,6 +7,7 @@ import {
     type Account,
     type Transfer
 } from "tigerbeetle-node";
+
 import { TigerBeetleBatchError } from "./errors";
 
 export type TbClient = ReturnType<typeof createClient>;

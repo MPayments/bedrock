@@ -1,8 +1,5 @@
 import { createHash } from "node:crypto";
 
-// Re-export sha256Hex from kernel for backward compatibility
-export { sha256Hex } from "@bedrock/kernel";
-
 export const TB_ID_MAX = (1n << 128n) - 1n;
 export const TB_ID_MAX_ALLOWED = TB_ID_MAX - 1n;
 

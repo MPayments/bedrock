@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
     pgTable,
     uuid,
@@ -10,7 +11,7 @@ import {
     uniqueIndex,
     check
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+
 import { journalEntries } from "./journal";
 import { uint128 } from "./ledger";
 

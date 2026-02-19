@@ -7,16 +7,26 @@ export const treasuryKeyspace = defineKeyspace("treasury", {
 
     bank: (orgId: string, bankStableKey: string, currency: string) => `Bank:${orgId}:${bankStableKey}:${currency}`,
 
-    treasuryPool: (treasuryOrgId: string, currency: string) => `TreasuryPool:${treasuryOrgId}:${currency}`,
+    intercompanyNet: (branchOrgId: string, currency: string) =>
+        `IC:BranchNet:${branchOrgId}:${currency}`,
 
-    intercompanyNet: (treasuryOrgId: string, branchOrgId: string, currency: string) =>
-        `IC:BranchNet:${treasuryOrgId}<->${branchOrgId}:${currency}`,
-
-    orderPayIn: (orderId: string, currency: string) => `OrderPayIn:${orderId}:${currency}`,
+    orderInventory: (orderId: string, currency: string) => `OrderInventory:${orderId}:${currency}`,
 
     payoutObligation: (orderId: string, currency: string) => `PayoutObligation:${orderId}:${currency}`,
 
-    revenueFee: (treasuryOrgId: string, currency: string) => `Revenue:Fee:${treasuryOrgId}:${currency}`,
+    revenueFee: (currency: string) => `Revenue:Fee:${currency}`,
 
-    revenueSpread: (treasuryOrgId: string, currency: string) => `Revenue:FXSpread:${treasuryOrgId}:${currency}`
+    revenueSpread: (currency: string) => `Revenue:FXSpread:${currency}`,
+
+    feeRevenueBucket: (bucket: string, currency: string) =>
+        `Revenue:Fee:${bucket}:${currency}`,
+
+    feeClearing: (bucket: string, currency: string) =>
+        `Liability:FeeClearing:${bucket}:${currency}`,
+
+    adjustmentRevenue: (bucket: string, currency: string) =>
+        `Revenue:Adjustment:${bucket}:${currency}`,
+
+    adjustmentExpense: (bucket: string, currency: string) =>
+        `Expense:Adjustment:${bucket}:${currency}`
 });

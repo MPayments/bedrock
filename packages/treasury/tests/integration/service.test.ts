@@ -1,7 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { createLedgerEngine } from "@bedrock/ledger";
+import { createFeesService } from "@bedrock/fees";
+import { createCurrenciesService } from "@bedrock/currencies";
+import {
+    InvalidStateError,
+    NotFoundError,
+    CurrencyMismatchError,
+    AmountMismatchError,
+} from "@bedrock/kernel/errors";
 import { createTreasuryService } from "../../src/service";
-import { InvalidStateError, NotFoundError, CurrencyMismatchError, AmountMismatchError } from "../../src/errors";
 import {
     db,
     createTestScenario,
@@ -15,9 +22,12 @@ import {
     randomRailRef,
     randomQuoteRef
 } from "./helpers";
+import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 
 describe("Treasury Service Integration Tests", () => {
     const ledger = createLedgerEngine({ db });
+    const currenciesService = createCurrenciesService({ db });
+    const feesService = createFeesService({ db, currenciesService });
 
     describe("fundingSettled", () => {
         it("should process funding and create ledger entry", async () => {
@@ -25,7 +35,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+                currenciesService,
             });
 
             const railRef = randomRailRef();
@@ -75,7 +86,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+                currenciesService,
             });
 
             const railRef = randomRailRef();
@@ -111,7 +123,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+                currenciesService,
             });
 
             await expect(
@@ -133,7 +146,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+                currenciesService,
             });
 
             await expect(
@@ -155,7 +169,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+                currenciesService,
             });
 
             await expect(
@@ -178,8 +193,6 @@ describe("Treasury Service Integration Tests", () => {
             scenario: Awaited<ReturnType<typeof createTestScenario>>,
             quoteRef: string,
             overrides: Partial<{
-                feeFromMinor: bigint;
-                spreadFromMinor: bigint;
                 status: "active" | "used" | "expired" | "cancelled";
                 usedByRef: string | null;
                 expiresAt: Date;
@@ -194,8 +207,6 @@ describe("Treasury Service Integration Tests", () => {
                     idempotencyKey: quoteRef,
                 },
                 {
-                    feeFromMinor: overrides.feeFromMinor ?? 500n,
-                    spreadFromMinor: overrides.spreadFromMinor ?? 200n,
                     status: overrides.status,
                     usedByRef: overrides.usedByRef,
                     expiresAt: overrides.expiresAt,
@@ -208,7 +219,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+                currenciesService,
             });
 
             const quoteRef = randomQuoteRef();
@@ -219,8 +231,6 @@ describe("Treasury Service Integration Tests", () => {
                 customerId: scenario.customer.id,
                 payInCurrency: "USD",
                 principalMinor: 100000n,
-                feeMinor: 500n,
-                spreadMinor: 200n,
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
                 occurredAt: new Date(),
@@ -237,7 +247,7 @@ describe("Treasury Service Integration Tests", () => {
             expect(entry).toBeDefined();
             expect(entry!.idempotencyKey).toBe(`fx:${quoteRef}`);
 
-            // Should have multiple transfers: principal, fee, spread, intercompany commit, payout obligation
+            // Should have multiple transfers: principal, leg postings, payout obligation
             const plans = await getTbTransferPlans(entryId);
             expect(plans.length).toBeGreaterThanOrEqual(3); // At least principal + intercompany + obligation
 
@@ -246,24 +256,23 @@ describe("Treasury Service Integration Tests", () => {
             expect(linkedCount).toBe(plans.length - 1); // All but last should be linked
         });
 
-        it("should skip fee transfer when feeMinor is 0", async () => {
+        it("should skip fee transfer when quote/manual fees are absent", async () => {
             const scenario = await createTestScenario({ orderStatus: "funding_settled" });
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             const quoteRef = randomQuoteRef();
-            await createQuoteForOrder(scenario, quoteRef, { feeFromMinor: 0n, spreadFromMinor: 0n });
+            await createQuoteForOrder(scenario, quoteRef);
             const entryId = await service.executeFx({
                 orderId: scenario.order.id,
                 branchOrgId: scenario.branchOrg.id,
                 customerId: scenario.customer.id,
                 payInCurrency: "USD",
                 principalMinor: 100000n,
-                feeMinor: 0n,
-                spreadMinor: 0n,
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
                 occurredAt: new Date(),
@@ -271,8 +280,8 @@ describe("Treasury Service Integration Tests", () => {
             });
 
             const plans = await getTbTransferPlans(entryId);
-            // Without fee and spread, should have: principal, intercompany commit, payout obligation
-            expect(plans).toHaveLength(3);
+            // Without fee/adjustments, single-leg FX posts: principal + leg out + leg in + payout obligation
+            expect(plans).toHaveLength(4);
         });
 
         it("should reject expired quote", async () => {
@@ -280,7 +289,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             const quoteRef = randomQuoteRef();
@@ -295,8 +305,6 @@ describe("Treasury Service Integration Tests", () => {
                     customerId: scenario.customer.id,
                     payInCurrency: "USD",
                     principalMinor: 100000n,
-                    feeMinor: 500n,
-                    spreadMinor: 200n,
                     payOutCurrency: "EUR",
                     payOutAmountMinor: 85000n,
                     occurredAt: new Date(),
@@ -310,7 +318,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             const quoteRef = randomQuoteRef();
@@ -326,8 +335,6 @@ describe("Treasury Service Integration Tests", () => {
                     customerId: scenario.customer.id,
                     payInCurrency: "USD",
                     principalMinor: 100000n,
-                    feeMinor: 500n,
-                    spreadMinor: 200n,
                     payOutCurrency: "EUR",
                     payOutAmountMinor: 85000n,
                     occurredAt: new Date(),
@@ -341,7 +348,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             await expect(
@@ -351,8 +359,6 @@ describe("Treasury Service Integration Tests", () => {
                     customerId: scenario.customer.id,
                     payInCurrency: "USD",
                     principalMinor: 100000n,
-                    feeMinor: 0n,
-                    spreadMinor: 0n,
                     payOutCurrency: "EUR",
                     payOutAmountMinor: 85000n,
                     occurredAt: new Date(),
@@ -368,7 +374,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             const railRef = randomRailRef();
@@ -404,7 +411,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             const result = await service.initiatePayout({
@@ -419,7 +427,7 @@ describe("Treasury Service Integration Tests", () => {
             });
 
             const plans = await getTbTransferPlans(result.entryId);
-            expect(plans[0]!.timeoutSeconds).toBe(86400); // Default 24 hours
+            expect(plans[0]!.timeoutSeconds).toBe(DAY_IN_SECONDS); // Default 24 hours
         });
 
         it("should throw InvalidStateError if order is not fx_executed", async () => {
@@ -427,7 +435,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             await expect(
@@ -451,7 +460,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             // First initiate payout
@@ -493,7 +503,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             await expect(
@@ -513,7 +524,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             // First initiate payout
@@ -556,7 +568,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             await expect(
@@ -576,7 +589,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             // 1. Funding settled
@@ -606,10 +620,6 @@ describe("Treasury Service Integration Tests", () => {
                     fromAmountMinor: scenario.order.payInExpectedMinor,
                     toAmountMinor: scenario.order.payOutAmountMinor,
                     idempotencyKey: quoteRef,
-                },
-                {
-                    feeFromMinor: 500n,
-                    spreadFromMinor: 200n,
                 }
             );
             const fxEntryId = await service.executeFx({
@@ -618,8 +628,6 @@ describe("Treasury Service Integration Tests", () => {
                 customerId: scenario.customer.id,
                 payInCurrency: "USD",
                 principalMinor: 100000n,
-                feeMinor: 500n,
-                spreadMinor: 200n,
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
                 occurredAt: new Date(),
@@ -678,7 +686,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             // 1-3: Same as above until payout initiated
@@ -702,10 +711,6 @@ describe("Treasury Service Integration Tests", () => {
                     fromAmountMinor: scenario.order.payInExpectedMinor,
                     toAmountMinor: scenario.order.payOutAmountMinor,
                     idempotencyKey: quoteRef,
-                },
-                {
-                    feeFromMinor: 0n,
-                    spreadFromMinor: 0n,
                 }
             );
             await service.executeFx({
@@ -714,8 +719,6 @@ describe("Treasury Service Integration Tests", () => {
                 customerId: scenario.customer.id,
                 payInCurrency: "USD",
                 principalMinor: 100000n,
-                feeMinor: 0n,
-                spreadMinor: 0n,
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
                 occurredAt: new Date(),
@@ -753,7 +756,8 @@ describe("Treasury Service Integration Tests", () => {
             const service = createTreasuryService({
                 db,
                 ledger,
-                treasuryOrgId: scenario.treasuryOrg.id
+                feesService,
+            currenciesService,
             });
 
             const K = service.keys;

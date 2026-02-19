@@ -1,5 +1,5 @@
-import { pgTable, uuid, text, timestamp, integer, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { pgTable, uuid, text, timestamp, integer, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 export type OutboxStatus = "pending" | "processing" | "done" | "failed";
 

@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  Activity,
   ArrowRightLeft,
   Bell,
   CreditCard,
@@ -73,10 +72,6 @@ const data = {
         {
           title: "Котировки",
           url: "/fx/quotes",
-        },
-        {
-          title: "Политики",
-          url: "/fx/policies",
         },
       ],
     },

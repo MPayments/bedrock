@@ -1,21 +1,23 @@
 import { and, eq, sql } from "drizzle-orm";
+
 import { type Database } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { type Logger, noopLogger } from "@bedrock/kernel";
+
 import { TreasuryOrderStatus } from "./state-machine";
 
 const RECON_SOURCE = "treasury_reconciliation";
 
 type Severity = "critical" | "high" | "medium" | "low";
 
-type ReconIssue = {
+interface ReconIssue {
     entityType: string;
     entityId: string;
     issueCode: string;
     severity: Severity;
     summary: string;
     details?: string;
-};
+}
 
 function dueAtFrom(now: Date, minutes: number): Date {
     return new Date(now.getTime() + minutes * 60 * 1000);
@@ -27,12 +29,11 @@ function issueKey(issue: Pick<ReconIssue, "entityType" | "entityId" | "issueCode
 
 export function createTreasuryReconciliationWorker(deps: {
     db: Database;
-    treasuryOrgId?: string;
     logger?: Logger;
     defaultSlaMinutes?: number;
 }) {
-    const { db, treasuryOrgId } = deps;
-    const log = deps.logger?.child({ svc: "treasury_reconciliation" }) ?? noopLogger;
+    const { db, logger } = deps;
+    const log = logger?.child({ svc: "treasury_reconciliation" }) ?? noopLogger;
 
     async function processOnce(opts?: {
         batchSize?: number;
@@ -44,7 +45,7 @@ export function createTreasuryReconciliationWorker(deps: {
         const finalizationLagMinutes = opts?.finalizationLagMinutes ?? Math.max(5, Math.floor(slaMinutes / 3));
         const now = new Date();
         const dueAt = dueAtFrom(now, slaMinutes);
-        const scopeKey = treasuryOrgId ?? "all_treasuries";
+        const scopeKey = "system";
 
         const issues: ReconIssue[] = [];
 
@@ -59,12 +60,11 @@ export function createTreasuryReconciliationWorker(deps: {
       WHERE o.status LIKE '%_pending_posting'
         AND j.status = 'pending'
         AND o.updated_at <= now() - (${slaMinutes} || ' minutes')::interval
-        ${treasuryOrgId ? sql`AND o.treasury_org_id = ${treasuryOrgId}` : sql``}
       ORDER BY o.updated_at
       LIMIT ${batchSize}
     `);
 
-        for (const row of (stuckPending.rows ?? []) as Array<{ order_id: string; order_status: string; updated_at: Date; journal_entry_id: string }>) {
+        for (const row of (stuckPending.rows ?? []) as { order_id: string; order_status: string; updated_at: Date; journal_entry_id: string }[]) {
             issues.push({
                 entityType: "payment_order",
                 entityId: row.order_id,
@@ -87,12 +87,11 @@ export function createTreasuryReconciliationWorker(deps: {
       WHERE o.status LIKE '%_pending_posting'
         AND j.status IN ('posted', 'failed')
         AND o.updated_at <= now() - (${finalizationLagMinutes} || ' minutes')::interval
-        ${treasuryOrgId ? sql`AND o.treasury_org_id = ${treasuryOrgId}` : sql``}
       ORDER BY o.updated_at
       LIMIT ${batchSize}
     `);
 
-        for (const row of (finalizationLag.rows ?? []) as Array<{ order_id: string; order_status: string; journal_entry_id: string; journal_status: string; updated_at: Date }>) {
+        for (const row of (finalizationLag.rows ?? []) as { order_id: string; order_status: string; journal_entry_id: string; journal_status: string; updated_at: Date }[]) {
             issues.push({
                 entityType: "payment_order",
                 entityId: row.order_id,
@@ -112,11 +111,10 @@ export function createTreasuryReconciliationWorker(deps: {
       LEFT JOIN ${schema.journalEntries} j ON j.id = o.ledger_entry_id
       WHERE o.ledger_entry_id IS NOT NULL
         AND j.id IS NULL
-        ${treasuryOrgId ? sql`AND o.treasury_org_id = ${treasuryOrgId}` : sql``}
       LIMIT ${batchSize}
     `);
 
-        for (const row of (missingJournal.rows ?? []) as Array<{ order_id: string; order_status: string; ledger_entry_id: string }>) {
+        for (const row of (missingJournal.rows ?? []) as { order_id: string; order_status: string; ledger_entry_id: string }[]) {
             issues.push({
                 entityType: "payment_order",
                 entityId: row.order_id,
@@ -135,11 +133,10 @@ export function createTreasuryReconciliationWorker(deps: {
       JOIN ${schema.tbTransferPlans} p ON p.journal_entry_id = j.id
       WHERE j.status = 'posted'
         AND p.status <> 'posted'
-        ${treasuryOrgId ? sql`AND o.treasury_org_id = ${treasuryOrgId}` : sql``}
       LIMIT ${batchSize}
     `);
 
-        for (const row of (planMismatch.rows ?? []) as Array<{ order_id: string; journal_entry_id: string }>) {
+        for (const row of (planMismatch.rows ?? []) as { order_id: string; journal_entry_id: string }[]) {
             issues.push({
                 entityType: "journal_entry",
                 entityId: row.journal_entry_id,
@@ -163,11 +160,10 @@ export function createTreasuryReconciliationWorker(deps: {
           OR
           (s.kind = 'payout' AND o.status NOT IN (${TreasuryOrderStatus.CLOSED_PENDING_POSTING}, ${TreasuryOrderStatus.CLOSED}))
         )
-        ${treasuryOrgId ? sql`AND o.treasury_org_id = ${treasuryOrgId}` : sql``}
       LIMIT ${batchSize}
     `);
 
-        for (const row of (railMismatch.rows ?? []) as Array<{ settlement_id: string; order_id: string; kind: string; order_status: string }>) {
+        for (const row of (railMismatch.rows ?? []) as { settlement_id: string; order_id: string; kind: string; order_status: string }[]) {
             issues.push({
                 entityType: "settlement",
                 entityId: row.settlement_id,
@@ -229,8 +225,7 @@ export function createTreasuryReconciliationWorker(deps: {
                     eq(schema.reconciliationExceptions.scopeKey, scopeKey),
                     eq(schema.reconciliationExceptions.status, "open")
                 )
-            )
-            .limit(5000);
+            );
 
         let resolved = 0;
         for (const issue of openIssues) {
@@ -246,10 +241,22 @@ export function createTreasuryReconciliationWorker(deps: {
             resolved++;
         }
 
+        const openAfterRunResult = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(schema.reconciliationExceptions)
+            .where(
+                and(
+                    eq(schema.reconciliationExceptions.source, RECON_SOURCE),
+                    eq(schema.reconciliationExceptions.scopeKey, scopeKey),
+                    eq(schema.reconciliationExceptions.status, "open")
+                )
+            );
+        const openAfterRun = Number(openAfterRunResult[0]?.count ?? 0);
+
         log.info("treasury reconciliation completed", {
             scopeKey,
             detected: issues.length,
-            openNow: detectedKeys.size,
+            openNow: openAfterRun,
             resolved,
             slaMinutes,
             finalizationLagMinutes,
@@ -258,7 +265,7 @@ export function createTreasuryReconciliationWorker(deps: {
         return {
             detected: issues.length,
             resolved,
-            openAfterRun: detectedKeys.size,
+            openAfterRun,
         };
     }
 
