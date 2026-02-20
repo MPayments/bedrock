@@ -1,10 +1,8 @@
 import type { MiddlewareHandler } from "hono";
 
-import auth from "@bedrock/auth";
+import auth, { type ResourcePermissions } from "@bedrock/auth";
 
 import type { AuthVariables } from "./auth";
-
-type ResourcePermissions = Record<string, string[]>;
 
 export function requirePermission(
     permissions: ResourcePermissions,
@@ -16,7 +14,7 @@ export function requirePermission(
             const result = await auth.api.userHasPermission({
                 body: {
                     userId: user.id,
-                    permission: permissions
+                    permission: permissions,
                 },
             });
 
