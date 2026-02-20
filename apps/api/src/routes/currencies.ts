@@ -76,7 +76,7 @@ export function currenciesRoutes(ctx: AppContext) {
     });
 
     const getRoute = createRoute({
-        middleware: [requirePermission({ currencies: ["read"] })],
+        middleware: [requirePermission({ currencies: ["list"] })],
         method: "get",
         path: "/{id}",
         tags: ["Currencies"],

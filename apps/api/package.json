@@ -11,6 +11,7 @@
     "build": "tsc",
     "dev": "bun run --hot src/index.ts",
     "start": "bun run src/index.ts",
+    "worker:fx-rates": "bun run src/workers/fx-rates.ts",
     "check-types": "tsc --noEmit",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
@@ -18,6 +19,8 @@
     "@bedrock/auth": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/db": "workspace:*",
+    "@bedrock/fees": "workspace:*",
+    "@bedrock/fx": "workspace:*",
     "@bedrock/kernel": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/organizations": "workspace:*",
