@@ -54,13 +54,13 @@ export function DataTableViewOptions<TData>({
         }
       >
           <Settings2 className="text-muted-foreground" />
-          View
+          Вид
       </PopoverTrigger>
       <PopoverContent className="w-44 p-0" {...props}>
         <Command>
-          <CommandInput placeholder="Search columns..." />
+          <CommandInput placeholder="Поиск столбцов..." />
           <CommandList>
-            <CommandEmpty>No columns found.</CommandEmpty>
+            <CommandEmpty>Не найдено столбцов</CommandEmpty>
             <CommandGroup>
               {columns.map((column) => (
                 <CommandItem

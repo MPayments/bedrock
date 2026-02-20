@@ -42,9 +42,13 @@ export function DataTableSkeleton({
     >
       <div className="flex w-full items-center justify-between gap-2 overflow-auto p-1">
         <div className="flex flex-1 items-center gap-2">
-          {Array.from({ length: filterCount }, (_, i) => (
-            <Skeleton key={i} className="h-7 w-18 border-dashed" />
-          ))}
+          {Array.from({ length: filterCount }, (_, i) =>
+            i === 0 ? (
+              <Skeleton key={i} className="h-7 w-56 border-dashed" />
+            ) : (
+              <Skeleton key={i} className="h-7 w-18 border-dashed" />
+            ),
+          )}
         </div>
         {withViewOptions ? (
           <Skeleton className="ml-auto hidden h-7 w-18 lg:flex" />

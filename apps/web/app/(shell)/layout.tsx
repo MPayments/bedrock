@@ -24,7 +24,7 @@ export default function ShellLayout({
           </div>
         </header>
         <Separator orientation="horizontal" className="h-px w-full" />
-        <div className="flex flex-1 flex-col p-4 pt-0">{children}</div>
+        <div className="flex flex-1 flex-col p-6">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

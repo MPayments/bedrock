@@ -33,11 +33,11 @@ export const columns: ColumnDef<SerializedOrganization>[] = [
       <DataTableColumnHeader column={column} label="Страна" />
     ),
     cell: ({ row }) => row.getValue("country") ?? "—",
-    meta: {
-      label: "Страна",
-      variant: "text",
-      placeholder: "Поиск по стране...",
-    },
+    // meta: {
+    //   label: "Страна",
+    //   variant: "text",
+    //   placeholder: "Поиск по стране...",
+    // },
     enableColumnFilter: true,
     enableSorting: true,
     enableHiding: true,
@@ -49,9 +49,13 @@ export const columns: ColumnDef<SerializedOrganization>[] = [
     ),
     meta: {
       label: "Валюта",
-      variant: "text",
-      placeholder: "Поиск по валюте...",
+      variant: "multiSelect"
     },
+    // meta: {
+    //   label: "Валюта",
+    //   variant: "text",
+    //   placeholder: "Поиск по валюте...",
+    // },
     enableColumnFilter: true,
     enableSorting: true,
     enableHiding: true,

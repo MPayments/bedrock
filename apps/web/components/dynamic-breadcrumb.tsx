@@ -8,6 +8,8 @@ import {
   Currency,
   CreditCard,
   ArrowRightLeft,
+  Building2,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -35,6 +37,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   fx: { label: "FX", icon: Currency },
   payments: { label: "Платежи", icon: CreditCard },
   transfers: { label: "Переводы", icon: ArrowRightLeft },
+  entities: { label: "Справочники", icon: BookOpen },
 
   // Treasury pages
   customers: {
@@ -42,7 +45,7 @@ const segmentMap: Record<string, SegmentConfig> = {
     href: "/treasury/customers",
     dynamicChild: (id) => ({ label: `Клиент #${id}` }),
   },
-  organizations: { label: "Организации" },
+  organizations: { label: "Организации", icon: Building2 },
   accounts: { label: "Счета" },
 
   // FX pages
