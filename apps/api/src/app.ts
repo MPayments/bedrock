@@ -97,6 +97,7 @@ const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/organizations", organizationsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
+  .route("/fx/rates", fxRatesRoutes(ctx));
   // .use("*", requireAuth());
 const routes = app.route("/v1", v1);
 
