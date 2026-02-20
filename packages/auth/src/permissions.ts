@@ -11,6 +11,7 @@ const statements = {
     organizations: ["create", "list", "update", "delete"],
     accounts: ["create", "list", "update", "delete"],
     currencies: ["create", "list", "update"],
+    fx_rates: ["list", "sync"],
 } as const;
 
 export const ac = createAccessControl(statements);
@@ -21,6 +22,7 @@ export const admin = ac.newRole({
     organizations: ["create", "list", "update", "delete"],
     accounts: ["create", "list", "update", "delete"],
     currencies: ["create", "list", "update"],
+    fx_rates: ["list", "sync"],
 });
 
 export const user = ac.newRole({
@@ -29,4 +31,5 @@ export const user = ac.newRole({
     organizations: ["create", "list", "update", "delete"],
     accounts: ["create", "list", "update", "delete"],
     currencies: ["list"],
+    fx_rates: ["list"],
 });

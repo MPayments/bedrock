@@ -39,9 +39,7 @@ function selectWhereLimit(rows: any[]) {
         from: vi.fn(() => ({
             where: vi.fn(() => ({
                 limit: vi.fn(async () => rows),
-                orderBy: vi.fn(() => ({
-                    limit: vi.fn(async () => rows),
-                })),
+                orderBy: vi.fn(async () => rows),
             })),
         })),
     };

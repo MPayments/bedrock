@@ -11,11 +11,13 @@
     "DB_PASSWORD",
     "DB_PORT",
     "DB_USER",
+    "FX_RATES_WORKER_INTERVAL_MS",
     "LOG_LEVEL",
     "NODE_ENV",
     "PORT",
     "TB_ADDRESS",
-    "TB_CLUSTER_ID"
+    "TB_CLUSTER_ID",
+    "ENABLE_EXTERNAL_API_TESTS"
   ],
   "tasks": {
     "build": {

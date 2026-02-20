@@ -9,7 +9,7 @@ import { AppError } from "@bedrock/kernel";
 
 import { createAppContext, type Env } from "./context";
 import { authMiddleware, requireAuth, type AuthVariables } from "./middleware/auth";
-import { organizationsRoutes, customersRoutes, currenciesRoutes } from "./routes/index";
+import { organizationsRoutes, customersRoutes, currenciesRoutes, fxRatesRoutes } from "./routes/index";
 
 // FIXME: in production, use proper env loading
 dotenv.config({ path: "../../.env" });
