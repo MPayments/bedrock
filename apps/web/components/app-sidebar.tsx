@@ -18,6 +18,9 @@ import {
   Workflow,
   CreditCard,
   Receipt,
+  DollarSign,
+  Wallet,
+  Vault,
 } from "lucide-react";
 
 import { NavMain } from "./nav-main";
@@ -50,7 +53,7 @@ const data = {
     {
       title: "Казначейство",
       url: "/treasury",
-      icon: Landmark,
+      icon: Vault,
       items: [
         {
           title: "Клиенты",
@@ -136,6 +139,17 @@ const data = {
           url: "/entities/organizations",
           icon: Building2,
         },
+        {
+          title: "Расчетные методы",
+          url: "/entities/providers",
+          icon: Landmark,
+        },
+        {
+          title: "Счета",
+          url: "/entities/accounts",
+          icon: Wallet,
+        },
+        { title: "Валюты", url: "/entities/currencies", icon: DollarSign },
       ],
     },
     {
