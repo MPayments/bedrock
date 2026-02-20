@@ -7,13 +7,17 @@ import {
   Bell,
   Building2,
   BookOpen,
-  CreditCard,
   Currency,
   Home,
   Landmark,
   Settings2,
   Stone,
   Users,
+  ChartCandlestick,
+  ListChecks,
+  Workflow,
+  CreditCard,
+  Receipt,
 } from "lucide-react";
 
 import { NavMain } from "./nav-main";
@@ -71,30 +75,54 @@ const data = {
         {
           title: "Курсы",
           url: "/fx/rates",
+          icon: ChartCandlestick,
         },
         {
           title: "Котировки",
           url: "/fx/quotes",
+          icon: Receipt,
         },
       ],
     },
+    // {
+    //   title: "Переводы",
+    //   url: "/transfers",
+    //   icon: ArrowRightLeft,
+    // },
+    // {
+    //   title: "Платежи",
+    //   url: "/payments",
+    //   icon: CreditCard,
+    //   items: [
+    //     {
+    //       title: "Ордера",
+    //       url: "/payments/orders",
+    //     },
+    //     {
+    //       title: "Расчетные операции",
+    //       url: "/payments/settlements",
+    //     },
+    //   ],
+    // },
     {
-      title: "Переводы",
-      url: "/transfers",
-      icon: ArrowRightLeft,
-    },
-    {
-      title: "Платежи",
-      url: "/payments",
-      icon: CreditCard,
+      title: "Операции",
+      url: "/operations",
+      icon: Workflow,
       items: [
         {
-          title: "Ордера",
-          url: "/payments/orders",
+          title: "Переводы",
+          url: "/operations/transfers",
+          icon: ArrowRightLeft,
+        },
+        {
+          title: "Платежи",
+          url: "/operations/payments",
+          icon: CreditCard,
         },
         {
           title: "Расчетные операции",
-          url: "/payments/settlements",
+          url: "/operations/settlements",
+          icon: ListChecks,
         },
       ],
     },

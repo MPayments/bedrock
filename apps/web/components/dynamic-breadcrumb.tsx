@@ -11,6 +11,7 @@ import {
   Building2,
   BookOpen,
   type LucideIcon,
+  ChartCandlestick,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -49,7 +50,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   accounts: { label: "Счета" },
 
   // FX pages
-  rates: { label: "Курсы" },
+  rates: { label: "Курсы", icon: ChartCandlestick },
   quotes: { label: "Котировки" },
 
   // Payments pages
