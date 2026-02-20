@@ -1,4 +1,4 @@
-export type FxRateSource = "cbr";
+export type FxRateSource = "cbr" | "investing";
 
 export interface FxRateSourceStatus {
     source: FxRateSource;

@@ -38,11 +38,17 @@ export function createRateQueryHandlers(
 
         await deps.ensureSourceFresh("cbr", new Date());
         const cbrRate = await deps.getLatestRateBySource(baseCurrencyId, quoteCurrencyId, asOf, "cbr");
-        if (!cbrRate) {
-            throw new RateNotFoundError(`Rate not found for ${normalizedBase}/${normalizedQuote} asOf=${asOf.toISOString()}`);
+        if (cbrRate) {
+            return cbrRate;
         }
 
-        return cbrRate;
+        await deps.ensureSourceFresh("investing", new Date());
+        const investingRate = await deps.getLatestRateBySource(baseCurrencyId, quoteCurrencyId, asOf, "investing");
+        if (investingRate) {
+            return investingRate;
+        }
+
+        throw new RateNotFoundError(`Rate not found for ${normalizedBase}/${normalizedQuote} asOf=${asOf.toISOString()}`);
     }
 
     async function getCrossRate(base: string, quote: string, asOf: Date, anchor = "USD") {

@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
-import { FxRate, FxRateSourceRow, schema } from "@bedrock/db/schema";
+import type { FxRate, FxRateSourceRow} from "@bedrock/db/schema";
+import { schema } from "@bedrock/db/schema";
 import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 
 import { RateSourceStaleError, RateSourceSyncError } from "../../errors";
@@ -10,6 +11,7 @@ import { validateSyncRatesFromSourceInput } from "../../validation";
 
 const DEFAULT_SOURCE_TTL_SECONDS: Record<FxRateSource, number> = {
     cbr: DAY_IN_SECONDS,
+    investing: 300,
 };
 
 // FIXME: Use redis/valkey for caching in the future
@@ -186,6 +188,7 @@ export function createRateSourceHandlers(context: FxServiceContext) {
             .from(schema.fxRates)
             .where(and(
                 ne(schema.fxRates.source, "cbr"),
+                ne(schema.fxRates.source, "investing"),
                 eq(schema.fxRates.baseCurrencyId, baseCurrencyId),
                 eq(schema.fxRates.quoteCurrencyId, quoteCurrencyId),
             ))

@@ -1,4 +1,5 @@
 export { createCbrRateSourceProvider } from "./cbr";
+export { createInvestingRateSourceProvider } from "./investing";
 export type {
     FxRateSource,
     FxRateSourceProvider,

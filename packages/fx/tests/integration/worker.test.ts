@@ -37,22 +37,52 @@ function createProvider(publishedAt: Date) {
     };
 }
 
+function createInvestingProvider(publishedAt: Date) {
+    return {
+        source: "investing" as const,
+        fetchLatest: vi.fn(async () => ({
+            source: "investing" as const,
+            fetchedAt: publishedAt,
+            publishedAt,
+            rates: [
+                {
+                    base: "USD",
+                    quote: "RUB",
+                    rateNum: 91n,
+                    rateDen: 1n,
+                    asOf: publishedAt,
+                },
+            ],
+        })),
+    };
+}
+
 describe("FX worker integration", () => {
     it("syncs expired sources in processOnce()", async () => {
         const now = new Date("2026-02-19T12:00:00.000Z");
         const provider = createProvider(new Date("2026-02-19T00:00:00.000Z"));
+        const investingProvider = {
+            source: "investing" as const,
+            fetchLatest: vi.fn(async () => {
+                throw new Error("investing unavailable in this test");
+            }),
+        };
 
         const fxService = createFxService({
             db,
             feesService: createNoopFeesService(),
             currenciesService: createCurrenciesService({ db }),
-            rateSourceProviders: { cbr: provider },
+            rateSourceProviders: {
+                cbr: provider,
+                investing: investingProvider,
+            },
         });
         const worker = createFxRatesWorker({ fxService });
 
         const processed = await worker.processOnce({ now });
         expect(processed).toBe(1);
         expect(provider.fetchLatest).toHaveBeenCalledTimes(1);
+        expect(investingProvider.fetchLatest).toHaveBeenCalledTimes(1);
 
         const [status] = await db
             .select()
@@ -68,14 +98,18 @@ describe("FX worker integration", () => {
 
     it("skips sources with non-expired TTL in processOnce()", async () => {
         const initialNow = new Date("2026-02-19T12:00:00.000Z");
-        const workerNow = new Date("2026-02-19T13:00:00.000Z");
+        const workerNow = new Date("2026-02-19T12:04:00.000Z");
         const provider = createProvider(new Date("2026-02-19T00:00:00.000Z"));
+        const investingProvider = createInvestingProvider(new Date("2026-02-19T00:00:00.000Z"));
 
         const fxService = createFxService({
             db,
             feesService: createNoopFeesService(),
             currenciesService: createCurrenciesService({ db }),
-            rateSourceProviders: { cbr: provider },
+            rateSourceProviders: {
+                cbr: provider,
+                investing: investingProvider,
+            },
         });
         const worker = createFxRatesWorker({ fxService });
 
@@ -84,10 +118,17 @@ describe("FX worker integration", () => {
             force: true,
             now: initialNow,
         });
+        await fxService.syncRatesFromSource({
+            source: "investing",
+            force: true,
+            now: initialNow,
+        });
         provider.fetchLatest.mockClear();
+        investingProvider.fetchLatest.mockClear();
 
         const processed = await worker.processOnce({ now: workerNow });
         expect(processed).toBe(0);
         expect(provider.fetchLatest).not.toHaveBeenCalled();
+        expect(investingProvider.fetchLatest).not.toHaveBeenCalled();
     });
 });

@@ -1,77 +1,40 @@
-import { XMLParser } from "fast-xml-parser";
+import * as soap from "soap";
 
 import { RateSourceSyncError } from "../errors";
 import { type FxRateSourceFetchResult, type FxRateSourceProvider } from "./types";
+import { parseDecimalToFraction, parsePositiveInt, reduceFraction } from "../internal/fraction";
 
 const DEFAULT_BASE_URL = "https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx";
 
-const xmlParser = new XMLParser({
-    ignoreAttributes: true,
-    parseTagValue: false,
-    trimValues: true,
-});
+type SoapMethodResponse = [unknown, string?, unknown?, string?];
+type UnknownRecord = Record<string, unknown>;
 
-interface Fraction {
-    num: bigint;
-    den: bigint;
+interface CbrSoapClient {
+    GetLatestDateTimeAsync(args: Record<string, never>): Promise<SoapMethodResponse>;
+    GetCursOnDateAsync: (args: { On_date: string }) => Promise<SoapMethodResponse>;
 }
 
 export interface CbrRateSourceProviderDeps {
-    fetchFn?: typeof fetch;
     baseUrl?: string;
+    soapClientFactory?: (wsdlUrl: string) => Promise<CbrSoapClient>;
 }
 
 export function createCbrRateSourceProvider(deps: CbrRateSourceProviderDeps = {}): FxRateSourceProvider {
     const baseUrl = deps.baseUrl ?? DEFAULT_BASE_URL;
+    const soapClientFactory = deps.soapClientFactory ?? createSoapClient;
 
     async function fetchLatest(now = new Date()): Promise<FxRateSourceFetchResult> {
-        const fetchFn = deps.fetchFn ?? globalThis.fetch;
-        if (!fetchFn) {
-            throw new RateSourceSyncError("cbr", "fetch is not available in this runtime");
-        }
+        const client = await soapClientFactory(`${baseUrl}?wsdl`);
+        const publishedAt = await fetchPublishedAt(client);
+        const payload = await fetchRatesPayload(client, publishedAt);
+        const rates = parseRates(payload, publishedAt);
 
-        let latestDateResponse: Response;
-        try {
-            latestDateResponse = await fetchFn(`${baseUrl}/GetLatestDateTime`);
-        } catch (error) {
-            throw new RateSourceSyncError("cbr", "request GetLatestDateTime failed", error);
-        }
-
-        if (!latestDateResponse.ok) {
-            throw new RateSourceSyncError("cbr", `GetLatestDateTime failed with status ${latestDateResponse.status}`);
-        }
-
-        const latestDateXml = await latestDateResponse.text();
-        const publishedAt = parseLatestDateTime(latestDateXml);
-
-        const dateCandidates = [
-            formatCbrDate(publishedAt),
-            publishedAt.toISOString().slice(0, 10),
-        ];
-
-        let lastError: unknown;
-        for (const onDate of dateCandidates) {
-            try {
-                const response = await fetchFn(`${baseUrl}/GetCursOnDateXML?On_date=${encodeURIComponent(onDate)}`);
-                if (!response.ok) {
-                    throw new RateSourceSyncError("cbr", `GetCursOnDateXML(${onDate}) failed with status ${response.status}`);
-                }
-
-                const xml = await response.text();
-                const rates = parseRates(xml, publishedAt);
-
-                return {
-                    source: "cbr",
-                    fetchedAt: now,
-                    publishedAt,
-                    rates,
-                };
-            } catch (error) {
-                lastError = error;
-            }
-        }
-
-        throw new RateSourceSyncError("cbr", "all GetCursOnDateXML attempts failed", lastError);
+        return {
+            source: "cbr",
+            fetchedAt: now,
+            publishedAt,
+            rates,
+        };
     }
 
     return {
@@ -80,47 +43,79 @@ export function createCbrRateSourceProvider(deps: CbrRateSourceProviderDeps = {}
     };
 }
 
-function parseXml(xml: string): unknown {
+async function createSoapClient(wsdlUrl: string) {
+    return await soap.createClientAsync(wsdlUrl) as unknown as CbrSoapClient;
+}
+
+async function fetchPublishedAt(client: CbrSoapClient) {
+    let payload: unknown;
+    let rawResponse: string | undefined;
     try {
-        return xmlParser.parse(xml);
+        const response = await client.GetLatestDateTimeAsync({});
+        payload = response[0];
+        rawResponse = response[1];
     } catch (error) {
-        throw new RateSourceSyncError("cbr", "invalid XML response", error);
+        throw new RateSourceSyncError("cbr", "request GetLatestDateTime failed", error);
+    }
+
+    const rawDate = extractLatestDateValue(payload, rawResponse);
+    const publishedAt = parseCbrDateTime(rawDate);
+    if (Number.isNaN(publishedAt.getTime())) {
+        throw new RateSourceSyncError("cbr", `invalid latest date value: ${rawDate}`);
+    }
+    return publishedAt;
+}
+
+async function fetchRatesPayload(client: CbrSoapClient, publishedAt: Date) {
+    try {
+        const response = await client.GetCursOnDateAsync({
+            On_date: formatCbrDateTime(publishedAt),
+        });
+        return response[0];
+    } catch (error) {
+        throw new RateSourceSyncError("cbr", "request GetCursOnDate failed", error);
     }
 }
 
-function formatCbrDate(date: Date): string {
-    const day = String(date.getUTCDate()).padStart(2, "0");
-    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-    const year = String(date.getUTCFullYear());
-    return `${day}/${month}/${year}`;
-}
-
-function parseLatestDateTime(xml: string): Date {
-    const parsed = parseXml(xml);
-    const values = collectNodesByLocalName(parsed, "GetLatestDateTimeResult");
-    const first = firstStringValue(values[0]);
-
-    if (!first) {
-        throw new RateSourceSyncError("cbr", "cannot parse latest date from XML");
+function extractLatestDateValue(payload: unknown, rawResponse?: string) {
+    if (typeof payload === "string") {
+        const text = payload.trim();
+        if (text.length > 0) return text;
     }
 
-    const date = new Date(first);
-    if (Number.isNaN(date.getTime())) {
-        throw new RateSourceSyncError("cbr", `invalid latest date value: ${first}`);
+    if (isRecord(payload)) {
+        const value = asText(getValue(payload, "GetLatestDateTimeResult"));
+        if (value) {
+            return value;
+        }
     }
 
-    return date;
+    if (typeof rawResponse === "string" && rawResponse.trim().length > 0) {
+        const fromXml = extractLatestDateFromRawXml(rawResponse);
+        if (fromXml) {
+            return fromXml;
+        }
+    }
+
+    throw new RateSourceSyncError("cbr", "cannot parse latest date from SOAP payload");
 }
 
-function parseRates(xml: string, publishedAt: Date): FxRateSourceFetchResult["rates"] {
-    const parsed = parseXml(xml);
-    const rowNodes = collectNodesByLocalName(parsed, "ValuteCursOnDate");
-    const rows = flattenNodes(rowNodes);
+function extractLatestDateFromRawXml(xml: string): string | null {
+    const match = /<[^>]*GetLatestDateTimeResult[^>]*>([^<]+)<\/[^>]*GetLatestDateTimeResult>/i.exec(xml);
+    if (!match?.[1]) {
+        return null;
+    }
 
+    const value = match[1].trim();
+    return value.length ? value : null;
+}
+
+function parseRates(payload: unknown, publishedAt: Date) {
+    const rows = extractRateRows(payload);
     const rates: FxRateSourceFetchResult["rates"] = [];
 
     for (const row of rows) {
-        const code = normalizeCode(getFieldValue(row, "VchCode"));
+        const code = normalizeCode(getField(row, "VchCode"));
         if (!code || code === "RUB") continue;
 
         const unitRate = parseUnitRate(row);
@@ -133,7 +128,6 @@ function parseRates(xml: string, publishedAt: Date): FxRateSourceFetchResult["ra
             rateDen: unitRate.den,
             asOf: publishedAt,
         });
-
         rates.push({
             base: "RUB",
             quote: code,
@@ -144,83 +138,72 @@ function parseRates(xml: string, publishedAt: Date): FxRateSourceFetchResult["ra
     }
 
     if (!rates.length) {
-        throw new RateSourceSyncError("cbr", "no parseable rates in GetCursOnDateXML response");
+        throw new RateSourceSyncError("cbr", "no parseable rates in GetCursOnDate response");
     }
 
     return rates;
 }
 
-function parseUnitRate(row: unknown): Fraction | null {
-    const vunitRate = getFieldValue(row, "VunitRate");
-    if (vunitRate) {
-        return parseDecimalToFraction(vunitRate);
+function extractRateRows(payload: unknown) {
+    const root = expectRecord(payload, "invalid GetCursOnDate SOAP payload");
+    const result = asRecord(getValue(root, "GetCursOnDateResult")) ?? root;
+    const diffgram = asRecord(getValue(result, "diffgram")) ?? result;
+    const dataset = asRecord(getValue(diffgram, "NewDataSet"))
+        ?? asRecord(getValue(diffgram, "ValuteData"))
+        ?? diffgram;
+
+    const rows = toRecordArray(getValue(dataset, "ValuteCursOnDate"));
+    if (!rows.length) {
+        throw new RateSourceSyncError("cbr", "no currency rows in GetCursOnDate response");
     }
 
-    const vcursRaw = getFieldValue(row, "Vcurs");
-    const vnomRaw = getFieldValue(row, "Vnom");
-    if (!vcursRaw || !vnomRaw) {
-        return null;
-    }
-
-    const vcurs = parseDecimalToFraction(vcursRaw);
-    const nominal = parsePositiveInt(vnomRaw);
-    if (!nominal) {
-        return null;
-    }
-
-    return reduceFraction(vcurs.num, vcurs.den * nominal);
+    return rows;
 }
 
-function getFieldValue(row: unknown, fieldName: string): string | null {
-    const values = collectNodesByLocalName(row, fieldName);
-    for (const value of values) {
-        const text = firstStringValue(value);
-        if (text) return text;
-    }
-    return null;
+function getField(row: UnknownRecord, fieldName: string) {
+    return asText(getValue(row, fieldName));
 }
 
-function collectNodesByLocalName(node: unknown, keyName: string): unknown[] {
-    const found: unknown[] = [];
-    const target = keyName.toLowerCase();
+function getValue(row: UnknownRecord, fieldName: string) {
+    if (fieldName in row) {
+        return row[fieldName];
+    }
 
-    function visit(value: unknown) {
-        if (Array.isArray(value)) {
-            for (const item of value) visit(item);
-            return;
-        }
-
-        if (!isRecord(value)) return;
-
-        for (const [key, child] of Object.entries(value)) {
-            if (localName(key) === target) {
-                found.push(child);
-            } else {
-                visit(child);
-            }
+    const expected = fieldName.toLowerCase();
+    for (const [key, value] of Object.entries(row)) {
+        if (localName(key) === expected) {
+            return value;
         }
     }
 
-    visit(node);
-    return found;
+    return undefined;
 }
 
-function firstStringValue(value: unknown): string | null {
+function asText(value: unknown): string | null {
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+
     if (typeof value === "string") {
         const normalized = value.trim();
         return normalized.length ? normalized : null;
     }
 
+    if (typeof value === "number" || typeof value === "bigint") {
+        return String(value);
+    }
+
     if (Array.isArray(value)) {
         for (const item of value) {
-            const nested = firstStringValue(item);
+            const nested = asText(item);
             if (nested) return nested;
         }
+        return null;
     }
 
     if (isRecord(value)) {
         for (const nested of Object.values(value)) {
-            const text = firstStringValue(nested);
+            const text = asText(nested);
             if (text) return text;
         }
     }
@@ -228,135 +211,73 @@ function firstStringValue(value: unknown): string | null {
     return null;
 }
 
-function flattenNodes(nodes: unknown[]): unknown[] {
-    const flattened: unknown[] = [];
+function toRecordArray(value: unknown) {
+    if (Array.isArray(value)) {
+        return value.filter(isRecord);
+    }
+    if (isRecord(value)) {
+        return [value];
+    }
+    return [];
+}
 
-    for (const node of nodes) {
-        if (Array.isArray(node)) {
-            for (const nested of node) {
-                flattened.push(nested);
-            }
-        } else {
-            flattened.push(node);
-        }
+function asRecord(value: unknown) {
+    return isRecord(value) ? value : null;
+}
+
+function expectRecord(value: unknown, message: string) {
+    if (!isRecord(value)) {
+        throw new RateSourceSyncError("cbr", message);
+    }
+    return value;
+}
+
+function parseUnitRate(row: UnknownRecord) {
+    const vunitRate = getField(row, "VunitRate");
+    if (vunitRate) {
+        return parseDecimalToFraction(vunitRate, { allowScientific: true });
     }
 
-    return flattened;
+    const vcursRaw = getField(row, "Vcurs");
+    const vnomRaw = getField(row, "Vnom");
+    if (!vcursRaw || !vnomRaw) return null;
+
+    const vcurs = parseDecimalToFraction(vcursRaw, { allowScientific: true });
+    const nominal = parsePositiveInt(vnomRaw);
+    if (!nominal) return null;
+
+    return reduceFraction(vcurs.num, vcurs.den * nominal);
 }
 
-function localName(key: string): string {
-    const index = key.indexOf(":");
-    return (index >= 0 ? key.slice(index + 1) : key).toLowerCase();
+function parseCbrDateTime(input: string) {
+    const normalized = input.trim();
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(normalized)) {
+        return new Date(`${normalized}Z`);
+    }
+    return new Date(normalized);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
+function formatCbrDateTime(date: Date) {
+    const year = String(date.getUTCFullYear());
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    const hours = String(date.getUTCHours()).padStart(2, "0");
+    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+    const seconds = String(date.getUTCSeconds()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
-function normalizeCode(input: string | null): string | null {
+function localName(value: string) {
+    const index = value.indexOf(":");
+    return (index >= 0 ? value.slice(index + 1) : value).toLowerCase();
+}
+
+function normalizeCode(input: string | null) {
     if (!input) return null;
     const normalized = input.trim().toUpperCase();
     return normalized.length ? normalized : null;
 }
 
-function parsePositiveInt(input: string): bigint | null {
-    const normalized = normalizeNumberString(input);
-    if (!isDigits(normalized)) return null;
-    const value = BigInt(normalized);
-    return value > 0n ? value : null;
-}
-
-function parseDecimalToFraction(input: string): Fraction {
-    const normalized = normalizeNumberString(input).split(",").join(".");
-    if (!isPositiveDecimal(normalized)) {
-        throw new RateSourceSyncError("cbr", `invalid decimal number: ${input}`);
-    }
-
-    const [intPartRaw, fractionPartRaw = ""] = normalized.split(".");
-    const intPart = intPartRaw || "0";
-    const fractionPart = fractionPartRaw;
-    const den = 10n ** BigInt(fractionPart.length);
-    const num = BigInt(intPart + fractionPart);
-
-    if (num <= 0n) {
-        throw new RateSourceSyncError("cbr", `decimal must be positive: ${input}`);
-    }
-
-    return reduceFraction(num, den);
-}
-
-function normalizeNumberString(input: string): string {
-    let result = "";
-
-    for (const char of input) {
-        if (char === "\u00a0") continue;
-        if (char.trim() === "") continue;
-        result += char;
-    }
-
-    return result.trim();
-}
-
-function isDigits(input: string): boolean {
-    if (!input.length) return false;
-
-    for (let i = 0; i < input.length; i++) {
-        const code = input.charCodeAt(i);
-        if (code < 48 || code > 57) return false;
-    }
-
-    return true;
-}
-
-function isPositiveDecimal(input: string): boolean {
-    if (!input.length) return false;
-
-    let dotSeen = false;
-    let digitsBeforeDot = 0;
-    let digitsAfterDot = 0;
-
-    for (let i = 0; i < input.length; i++) {
-        const char = input[i]!;
-        if (char === ".") {
-            if (dotSeen) return false;
-            dotSeen = true;
-            continue;
-        }
-
-        const code = input.charCodeAt(i);
-        if (code < 48 || code > 57) return false;
-
-        if (dotSeen) digitsAfterDot++;
-        else digitsBeforeDot++;
-    }
-
-    if (digitsBeforeDot === 0) return false;
-    if (dotSeen && digitsAfterDot === 0) return false;
-
-    return true;
-}
-
-function gcd(a: bigint, b: bigint): bigint {
-    let x = a < 0n ? -a : a;
-    let y = b < 0n ? -b : b;
-
-    while (y !== 0n) {
-        const t = y;
-        y = x % y;
-        x = t;
-    }
-
-    return x;
-}
-
-function reduceFraction(num: bigint, den: bigint): Fraction {
-    if (num <= 0n || den <= 0n) {
-        throw new RateSourceSyncError("cbr", `fraction must be positive: ${num}/${den}`);
-    }
-
-    const factor = gcd(num, den);
-    return {
-        num: num / factor,
-        den: den / factor,
-    };
+function isRecord(value: unknown): value is UnknownRecord {
+    return typeof value === "object" && value !== null;
 }

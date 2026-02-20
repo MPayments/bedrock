@@ -4,6 +4,7 @@ import { type FeesService } from "@bedrock/fees";
 import { type Logger, noopLogger } from "@bedrock/kernel";
 
 import { createCbrRateSourceProvider } from "../sources/cbr";
+import { createInvestingRateSourceProvider } from "../sources/investing";
 import { type FxRateSource, type FxRateSourceProvider } from "../sources/types";
 
 export interface FxServiceDeps {
@@ -11,7 +12,6 @@ export interface FxServiceDeps {
     feesService: FeesService;
     currenciesService: CurrenciesService;
     logger?: Logger;
-    fetchFn?: typeof fetch;
     rateSourceProviders?: Partial<Record<FxRateSource, FxRateSourceProvider>>;
 }
 
@@ -24,9 +24,10 @@ export interface FxServiceContext {
 }
 
 export function createFxServiceContext(deps: FxServiceDeps): FxServiceContext {
-    const cbrProvider = deps.rateSourceProviders?.cbr ?? createCbrRateSourceProvider({
-        fetchFn: deps.fetchFn,
-    });
+    const defaultProviders: Record<FxRateSource, FxRateSourceProvider> = {
+        cbr: createCbrRateSourceProvider(),
+        investing: createInvestingRateSourceProvider(),
+    };
 
     return {
         db: deps.db,
@@ -34,7 +35,8 @@ export function createFxServiceContext(deps: FxServiceDeps): FxServiceContext {
         currenciesService: deps.currenciesService,
         log: deps.logger?.child({ svc: "fx" }) ?? noopLogger,
         rateSourceProviders: {
-            cbr: cbrProvider,
+            ...defaultProviders,
+            ...deps.rateSourceProviders,
         },
     };
 }

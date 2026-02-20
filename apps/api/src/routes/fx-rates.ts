@@ -7,7 +7,7 @@ import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
-const RateSourceSchema = z.enum(["cbr"]);
+const RateSourceSchema = z.enum(["cbr", "investing"]);
 
 const LatestRateQuerySchema = z.object({
     base: z.string().min(2).max(16),
@@ -196,7 +196,7 @@ export function fxRatesRoutes(ctx: AppContext) {
 }
 
 function serializeSourceStatus(status: {
-    source: "cbr";
+    source: "cbr" | "investing";
     ttlSeconds: number;
     lastSyncedAt: Date | null;
     lastPublishedAt: Date | null;

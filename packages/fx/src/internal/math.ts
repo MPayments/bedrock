@@ -3,7 +3,7 @@ export function mulDivFloor(a: bigint, num: bigint, den: bigint): bigint {
     return (a * num) / den;
 }
 
-function gcd(a: bigint, b: bigint): bigint {
+export function gcd(a: bigint, b: bigint): bigint {
     let x = a < 0n ? -a : a;
     let y = b < 0n ? -b : b;
     while (y !== 0n) {

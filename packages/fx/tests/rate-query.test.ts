@@ -21,6 +21,7 @@ function createHarness() {
     const sourceRates = new Map<string, RateRow>();
 
     const pairKey = (baseId: string, quoteId: string) => `${baseId}|${quoteId}`;
+    const sourcePairKey = (source: "cbr" | "investing", baseId: string, quoteId: string) => `${source}|${pairKey(baseId, quoteId)}`;
 
     const currenciesService = {
         findByCode: vi.fn(async (code: string) => {
@@ -34,7 +35,7 @@ function createHarness() {
     const deps = {
         ensureSourceFresh: vi.fn(async () => undefined),
         getLatestManualRate: vi.fn(async (baseId: string, quoteId: string) => manualRates.get(pairKey(baseId, quoteId))),
-        getLatestRateBySource: vi.fn(async (baseId: string, quoteId: string) => sourceRates.get(pairKey(baseId, quoteId))),
+        getLatestRateBySource: vi.fn(async (baseId: string, quoteId: string, _asOf: Date, source: "cbr" | "investing") => sourceRates.get(sourcePairKey(source, baseId, quoteId))),
     };
 
     const handlers = createRateQueryHandlers({ currenciesService } as any, deps);
@@ -48,10 +49,10 @@ function createHarness() {
             const quoteId = byCode.get(quote)!.id;
             manualRates.set(pairKey(baseId, quoteId), row);
         },
-        setSourceRate(base: "USD" | "EUR" | "RUB", quote: "USD" | "EUR" | "RUB", row: RateRow) {
+        setSourceRate(source: "cbr" | "investing", base: "USD" | "EUR" | "RUB", quote: "USD" | "EUR" | "RUB", row: RateRow) {
             const baseId = byCode.get(base)!.id;
             const quoteId = byCode.get(quote)!.id;
-            sourceRates.set(pairKey(baseId, quoteId), row);
+            sourceRates.set(sourcePairKey(source, baseId, quoteId), row);
         },
     };
 }
@@ -74,7 +75,7 @@ describe("rate query handlers", () => {
 
     it("falls back to CBR source when manual rate is absent", async () => {
         const h = createHarness();
-        h.setSourceRate("USD", "RUB", {
+        h.setSourceRate("cbr", "USD", "RUB", {
             source: "cbr",
             rateNum: 90n,
             rateDen: 1n,
@@ -88,12 +89,31 @@ describe("rate query handlers", () => {
         expect(h.deps.ensureSourceFresh).toHaveBeenCalledWith("cbr", expect.any(Date));
     });
 
+    it("falls back to investing when cbr has no pair", async () => {
+        const h = createHarness();
+        h.setSourceRate("investing", "USD", "RUB", {
+            source: "investing",
+            rateNum: 91n,
+            rateDen: 1n,
+            asOf: new Date("2026-02-19T00:00:00.000Z"),
+        });
+
+        const rate = await h.handlers.getLatestRate("USD", "RUB", new Date("2026-02-19T12:00:00.000Z"));
+
+        expect(rate.source).toBe("investing");
+        expect(rate.rateNum).toBe(91n);
+        expect(h.deps.ensureSourceFresh).toHaveBeenNthCalledWith(1, "cbr", expect.any(Date));
+        expect(h.deps.ensureSourceFresh).toHaveBeenNthCalledWith(2, "investing", expect.any(Date));
+    });
+
     it("throws RateNotFoundError when no direct rate exists", async () => {
         const h = createHarness();
 
         await expect(h.handlers.getLatestRate("USD", "RUB", new Date("2026-02-19T12:00:00.000Z")))
             .rejects
             .toThrow(RateNotFoundError);
+        expect(h.deps.ensureSourceFresh).toHaveBeenNthCalledWith(1, "cbr", expect.any(Date));
+        expect(h.deps.ensureSourceFresh).toHaveBeenNthCalledWith(2, "investing", expect.any(Date));
     });
 
     it("returns identity rate for same currency", async () => {
@@ -112,7 +132,7 @@ describe("rate query handlers", () => {
 
     it("uses inverse rate when direct cross rate is absent", async () => {
         const h = createHarness();
-        h.setSourceRate("EUR", "USD", {
+        h.setSourceRate("cbr", "EUR", "USD", {
             source: "cbr",
             rateNum: 5n,
             rateDen: 2n,
@@ -131,13 +151,13 @@ describe("rate query handlers", () => {
 
     it("builds cross rate through anchor using inverse fallbacks", async () => {
         const h = createHarness();
-        h.setSourceRate("USD", "EUR", {
+        h.setSourceRate("cbr", "USD", "EUR", {
             source: "cbr",
             rateNum: 1n,
             rateDen: 2n,
             asOf: new Date("2026-02-19T00:00:00.000Z"),
         });
-        h.setSourceRate("RUB", "USD", {
+        h.setSourceRate("cbr", "RUB", "USD", {
             source: "cbr",
             rateNum: 1n,
             rateDen: 90n,

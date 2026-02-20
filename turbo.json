@@ -16,7 +16,8 @@
     "NODE_ENV",
     "PORT",
     "TB_ADDRESS",
-    "TB_CLUSTER_ID"
+    "TB_CLUSTER_ID",
+    "ENABLE_EXTERNAL_API_TESTS"
   ],
   "tasks": {
     "build": {

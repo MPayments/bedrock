@@ -267,4 +267,105 @@ describe("FX rates priority + TTL", () => {
 
         await expect(service.getLatestRate("USD", "RUB", new Date("2026-02-19T10:00:00Z"))).rejects.toThrow(RateSourceStaleError);
     });
+
+    it("uses investing when cbr has no matching pair", async () => {
+        const now = new Date();
+        const minuteAgo = new Date(now.getTime() - 60_000);
+
+        const cbrProvider = {
+            source: "cbr" as const,
+            fetchLatest: vi.fn(),
+        };
+        const investingProvider = {
+            source: "investing" as const,
+            fetchLatest: vi.fn(),
+        };
+
+        const freshStatus = {
+            ttlSeconds: 86400,
+            lastSyncedAt: minuteAgo,
+            lastPublishedAt: minuteAgo,
+            lastStatus: "ok" as const,
+            lastError: null as string | null,
+            updatedAt: minuteAgo,
+        };
+        const freshInvestingStatus = {
+            ttlSeconds: 300,
+            lastSyncedAt: minuteAgo,
+            lastPublishedAt: minuteAgo,
+            lastStatus: "ok" as const,
+            lastError: null as string | null,
+            updatedAt: minuteAgo,
+        };
+
+        let fxRatesOrderByCall = 0;
+        let sourceLimitCall = 0;
+
+        const db = {
+            select: vi.fn(() => ({
+                from: vi.fn((table: unknown) => ({
+                    where: vi.fn(() => ({
+                        limit: vi.fn(async () => {
+                            if (table === schema.fxRateSources) {
+                                sourceLimitCall += 1;
+                                if (sourceLimitCall === 1) return [{ ...freshStatus, source: "cbr" }];
+                                if (sourceLimitCall === 2) return [{ ...freshInvestingStatus, source: "investing" }];
+                                return [];
+                            }
+                            return [];
+                        }),
+                        orderBy: vi.fn(async () => {
+                            if (table !== schema.fxRates) return [];
+                            fxRatesOrderByCall += 1;
+
+                            if (fxRatesOrderByCall === 1) {
+                                // Manual rates lookup
+                                return [];
+                            }
+                            if (fxRatesOrderByCall === 2) {
+                                // CBR source lookup
+                                return [];
+                            }
+                            // Investing source lookup
+                            return [{
+                                source: "investing",
+                                rateNum: 91n,
+                                rateDen: 1n,
+                                asOf: new Date("2026-02-19T00:00:00Z"),
+                            }];
+                        }),
+                    })),
+                    orderBy: vi.fn(async () => [
+                        { ...freshStatus, source: "cbr" },
+                        { ...freshStatus, source: "investing", ttlSeconds: 300 },
+                    ]),
+                })),
+            })),
+            insert: vi.fn(() => ({
+                values: vi.fn(() => ({
+                    onConflictDoNothing: vi.fn(() => ({
+                        returning: vi.fn(async () => []),
+                    })),
+                })),
+            })),
+            execute: vi.fn(),
+        } as any;
+
+        const service = createFxService({
+            db,
+            feesService: createNoopFeesService(),
+            currenciesService: createCurrenciesService(),
+            rateSourceProviders: {
+                cbr: cbrProvider,
+                investing: investingProvider,
+            },
+        });
+
+        const rate = await service.getLatestRate("USD", "RUB", now);
+
+        expect(rate.source).toBe("investing");
+        expect(rate.rateNum).toBe(91n);
+        expect(cbrProvider.fetchLatest).not.toHaveBeenCalled();
+        expect(investingProvider.fetchLatest).not.toHaveBeenCalled();
+    });
 });
