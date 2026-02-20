@@ -5,11 +5,13 @@ export type { OrganizationsService } from "./service";
 // Validation
 export {
     OrganizationSchema,
+    ListOrganizationsQuerySchema,
     CreateOrganizationInputSchema,
     UpdateOrganizationInputSchema,
 } from "./validation";
 export type {
     Organization,
+    ListOrganizationsQuery,
     CreateOrganizationInput,
     UpdateOrganizationInput,
 } from "./validation";

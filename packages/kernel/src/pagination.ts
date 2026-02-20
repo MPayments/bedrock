@@ -7,6 +7,13 @@ export const PaginationInputSchema = z.object({
 
 export type PaginationInput = z.infer<typeof PaginationInputSchema>;
 
+export const SortInputSchema = z.object({
+    sortBy: z.string().optional(),
+    sortOrder: z.enum(["asc", "desc"]).default("asc").optional(),
+});
+
+export type SortInput = z.infer<typeof SortInputSchema>;
+
 export interface PaginatedList<T> {
     data: T[];
     total: number;

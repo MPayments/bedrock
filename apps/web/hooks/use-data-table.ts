@@ -5,13 +5,13 @@ import {
   getFacetedRowModel,
   getFacetedUniqueValues,
   getFilteredRowModel,
-  type InitialTableState,
   getPaginationRowModel,
   getSortedRowModel,
   type PaginationState,
   type RowSelectionState,
   type SortingState,
   type TableOptions,
+  type TableState,
   type Updater,
   useReactTable,
   type VisibilityState,
@@ -50,12 +50,14 @@ interface UseDataTableProps<TData>
   extends Omit<
     TableOptions<TData>,
     | "state"
+    | "pageCount"
     | "getCoreRowModel"
     | "manualFiltering"
     | "manualPagination"
     | "manualSorting"
-  > {
-  initialState?: Omit<InitialTableState, "sorting"> & {
+  >,
+  Required<Pick<TableOptions<TData>, "pageCount">> {
+  initialState?: Omit<Partial<TableState>, "sorting"> & {
     sorting?: ExtendedColumnSort<TData>[];
   };
   history?: "push" | "replace";
@@ -70,13 +72,14 @@ interface UseDataTableProps<TData>
 export function useDataTable<TData>(props: UseDataTableProps<TData>) {
   const {
     columns,
+    pageCount,
     initialState,
     history = "replace",
     debounceMs = DEBOUNCE_MS,
     throttleMs = THROTTLE_MS,
     clearOnDefault = false,
     scroll = false,
-    shallow = true,
+    shallow = false,
     startTransition,
     ...tableProps
   } = props;
@@ -260,6 +263,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     ...tableProps,
     columns,
     initialState,
+    pageCount,
     state: {
       pagination,
       sorting,
@@ -283,6 +287,9 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    manualPagination: true,
+    manualSorting: true,
+    manualFiltering: true,
   });
 
   return React.useMemo(

@@ -56,7 +56,10 @@ app.onError((err, c) => {
     return c.json({ error: err.message, code: err.code }, 500);
   }
 
-  ctx.logger.error("Unexpected error", { error: String(err) });
+  ctx.logger.error("Unexpected error", {
+    error: String(err),
+    cause: err.cause ? String(err.cause) : undefined,
+  });
   return c.json({ error: "Internal server error" }, 500);
 });
 
@@ -90,14 +93,12 @@ app.get("/", (c) => {
 });
 
 // Mount routes under /v1 — all require an authenticated session
-const v1 = new OpenAPIHono<{ Variables: AuthVariables }>();
-// v1.use("*", requireAuth());
-v1
+const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/organizations", organizationsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
-  .route("/currencies", currenciesRoutes(ctx));
-
-app.route("/v1", v1);
+  .route("/currencies", currenciesRoutes(ctx))
+  // .use("*", requireAuth());
+const routes = app.route("/v1", v1);
 
 const openApiInfo = {
   info: {
@@ -131,4 +132,4 @@ app.get(
 );
 
 export { app };
-export type AppType = typeof app;
+export type AppType = typeof routes;

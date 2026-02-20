@@ -1,8 +1,9 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { createPaginatedListSchema, PaginationInputSchema } from "@bedrock/kernel/pagination";
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import {
     OrganizationSchema,
+    ListOrganizationsQuerySchema,
     CreateOrganizationInputSchema,
     UpdateOrganizationInputSchema,
     OrganizationNotFoundError,
@@ -25,7 +26,7 @@ export function organizationsRoutes(ctx: AppContext) {
         tags: ["Organizations"],
         summary: "List organizations",
         request: {
-            query: PaginationInputSchema,
+            query: ListOrganizationsQuerySchema,
         },
         responses: {
             200: {
@@ -172,8 +173,8 @@ export function organizationsRoutes(ctx: AppContext) {
 
     return app
         .openapi(listRoute, async (c) => {
-            const { limit, offset } = c.req.valid("query");
-            const result = await ctx.organizationsService.list({ limit, offset });
+            const query = c.req.valid("query");
+            const result = await ctx.organizationsService.list(query);
             return c.json(result, 200);
         })
         .openapi(createRoute_, async (c) => {

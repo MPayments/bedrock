@@ -11,6 +11,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "api": "workspace:*",
     "@bedrock/organizations": "workspace:*",
     "@bedrock/ui": "workspace:*",
     "@tanstack/react-table": "^8.21.3",
@@ -24,6 +25,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@hono/zod-openapi": "^1.2.1",
     "@bedrock/eslint-config": "*",
     "@bedrock/typescript-config": "*",
     "@tailwindcss/postcss": "^4.1.18",

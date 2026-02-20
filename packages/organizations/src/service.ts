@@ -1,13 +1,15 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, ilike, sql, asc, desc, and, type SQL } from "drizzle-orm";
 
 import { schema } from "@bedrock/db/schema";
-import { PaginationInputSchema, type PaginationInput, type PaginatedList } from "@bedrock/kernel/pagination";
+import { type PaginatedList } from "@bedrock/kernel/pagination";
 
 import { OrganizationNotFoundError } from "./errors";
 import { createOrganizationsServiceContext, type OrganizationsServiceDeps } from "./internal/context";
 import {
+    ListOrganizationsQuerySchema,
     CreateOrganizationInputSchema,
     UpdateOrganizationInputSchema,
+    type ListOrganizationsQuery,
     type CreateOrganizationInput,
     type UpdateOrganizationInput,
     type Organization,
@@ -15,15 +17,43 @@ import {
 
 export type OrganizationsService = ReturnType<typeof createOrganizationsService>;
 
+const SORT_COLUMN_MAP = {
+    name: schema.organizations.name,
+    country: schema.organizations.country,
+    baseCurrency: schema.organizations.baseCurrency,
+    createdAt: schema.organizations.createdAt,
+    updatedAt: schema.organizations.updatedAt,
+} as const;
+
 export function createOrganizationsService(deps: OrganizationsServiceDeps) {
     const { db, log } = createOrganizationsServiceContext(deps);
 
-    async function list(pagination?: PaginationInput): Promise<PaginatedList<Organization>> {
-        const { limit, offset } = PaginationInputSchema.parse(pagination ?? {});
+    async function list(input?: ListOrganizationsQuery): Promise<PaginatedList<Organization>> {
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+        const query = ListOrganizationsQuerySchema.parse(input ?? {});
+        const { limit, offset, sortBy, sortOrder, name, country, baseCurrency, isTreasury } = query;
+
+        const conditions: SQL[] = [];
+        if (name) conditions.push(ilike(schema.organizations.name, `%${name}%`));
+        if (country) conditions.push(ilike(schema.organizations.country, `%${country}%`));
+        if (baseCurrency) conditions.push(ilike(schema.organizations.baseCurrency, `%${baseCurrency}%`));
+        if (isTreasury !== undefined) conditions.push(eq(schema.organizations.isTreasury, isTreasury));
+
+        const where = conditions.length > 0 ? and(...conditions) : undefined;
+        const orderByFn = sortOrder === "desc" ? desc : asc;
+        const orderByCol = sortBy ? SORT_COLUMN_MAP[sortBy] : schema.organizations.createdAt;
+        const orderByClause = orderByFn(orderByCol);
 
         const [data, countRows] = await Promise.all([
-            db.select().from(schema.organizations).limit(limit).offset(offset),
-            db.select({ total: sql<number>`count(*)::int` }).from(schema.organizations),
+            db.select()
+                .from(schema.organizations)
+                .where(where)
+                .orderBy(orderByClause)
+                .limit(limit)
+                .offset(offset),
+            db.select({ total: sql<number>`count(*)::int` })
+                .from(schema.organizations)
+                .where(where),
         ]);
 
         return {

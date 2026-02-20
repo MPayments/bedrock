@@ -43,6 +43,8 @@
         "@bedrock/organizations": "workspace:*",
         "@bedrock/ui": "workspace:*",
         "@tanstack/react-table": "^8.21.3",
+        "api": "workspace:*",
+        "hono": "^4.11.9",
         "lucide-react": "^0.563.0",
         "next": "^16.0.10",
         "next-themes": "^0.4.6",
@@ -55,6 +57,7 @@
       "devDependencies": {
         "@bedrock/eslint-config": "*",
         "@bedrock/typescript-config": "*",
+        "@hono/zod-openapi": "^1.2.1",
         "@tailwindcss/postcss": "^4.1.18",
         "@types/node": "^20",
         "@types/react": "^19",

@@ -8,14 +8,25 @@ import { useDataTable } from "@/hooks/use-data-table";
 
 import { columns, type SerializedOrganization } from "./columns";
 
-interface OrganizationsTableProps {
+export interface OrganizationsListResult {
   data: SerializedOrganization[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
-export function OrganizationsTable({ data }: OrganizationsTableProps) {
+interface OrganizationsTableProps {
+  promise: Promise<OrganizationsListResult>;
+}
+
+export function OrganizationsTable({ promise }: OrganizationsTableProps) {
+  const result = React.use(promise);
+  const pageCount = Math.ceil(result.total / result.limit);
+
   const { table } = useDataTable({
-    data,
+    data: result.data,
     columns,
+    pageCount,
     initialState: {
       sorting: [{ id: "createdAt", desc: true }],
     },

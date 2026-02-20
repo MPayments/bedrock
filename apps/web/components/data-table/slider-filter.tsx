@@ -241,7 +241,7 @@ export function DataTableSliderFilter<TData>({
             max={max}
             step={step}
             value={range}
-            onValueChange={onSliderValueChange}
+            onValueChange={(value) => onSliderValueChange(value as RangeValue)}
           />
         </div>
         <Button
