@@ -14,6 +14,10 @@ const statements = {
     fx_rates: ["list", "sync"],
 } as const;
 
+export type ResourcePermissions = {
+    [Resource in keyof typeof statements]?: (typeof statements)[Resource][number][];
+};
+
 export const ac = createAccessControl(statements);
 
 export const admin = ac.newRole({

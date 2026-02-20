@@ -25,3 +25,5 @@ export const auth = betterAuth({
 });
 
 export default auth;
+
+export type { ResourcePermissions } from "./permissions";
