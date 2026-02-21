@@ -41,7 +41,15 @@ export function DataTableFacetedFilter<TData, TValue>({
 
   const columnFilterValue = column?.getFilterValue();
   const selectedValues = React.useMemo(
-    () => new Set(Array.isArray(columnFilterValue) ? columnFilterValue : []),
+    () => {
+      if (Array.isArray(columnFilterValue)) {
+        return new Set(columnFilterValue.map(String));
+      }
+      if (typeof columnFilterValue === "string") {
+        return new Set([columnFilterValue]);
+      }
+      return new Set<string>();
+    },
     [columnFilterValue],
   );
 
@@ -59,7 +67,7 @@ export function DataTableFacetedFilter<TData, TValue>({
         const filterValues = Array.from(newSelectedValues);
         column.setFilterValue(filterValues.length ? filterValues : undefined);
       } else {
-        column.setFilterValue(isSelected ? undefined : [option.value]);
+        column.setFilterValue(isSelected ? undefined : option.value);
         setOpen(false);
       }
     },
@@ -76,12 +84,15 @@ export function DataTableFacetedFilter<TData, TValue>({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger>
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-dashed font-normal"
-        >
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-dashed font-normal"
+          />
+        }
+      >
           {selectedValues?.size > 0 ? (
             <div
               role="button"
@@ -114,7 +125,7 @@ export function DataTableFacetedFilter<TData, TValue>({
                     variant="secondary"
                     className="rounded-sm px-1 font-normal"
                   >
-                    {selectedValues.size} selected
+                    {selectedValues.size} выбрано
                   </Badge>
                 ) : (
                   options
@@ -132,13 +143,12 @@ export function DataTableFacetedFilter<TData, TValue>({
               </div>
             </>
           )}
-        </Button>
       </PopoverTrigger>
       <PopoverContent className="w-50 p-0" align="start">
         <Command>
           <CommandInput placeholder={title} />
           <CommandList className="max-h-full">
-            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandEmpty>Не найдено результатов</CommandEmpty>
             <CommandGroup className="max-h-[300px] scroll-py-1 overflow-y-auto overflow-x-hidden">
               {options.map((option) => {
                 const isSelected = selectedValues.has(option.value);
@@ -177,7 +187,7 @@ export function DataTableFacetedFilter<TData, TValue>({
                     onSelect={() => onReset()}
                     className="justify-center text-center"
                   >
-                    Clear filters
+                    Сбросить фильтры
                   </CommandItem>
                 </CommandGroup>
               </>

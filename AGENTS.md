@@ -192,3 +192,11 @@ export class OrderNotFoundError extends ServiceError {
 - Each route module is a function that receives `ctx` (app context) and returns a Hono app.
 - Routes are defined via `createRoute` with Zod request/response schemas for automatic OpenAPI generation.
 - Swagger UI is served at `/docs`.
+
+## Build Requirements
+
+- After modifying any files in `apps/api/`, you **must** rebuild the API package so that the generated type definitions (`dist/`) stay up to date (the web app imports the client types from the built output):
+
+```bash
+bun run build --filter=api
+```

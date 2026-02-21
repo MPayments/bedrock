@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/db";
+import type { FxQuoteLeg, Transaction } from "@bedrock/db";
 import { schema, type FxQuote } from "@bedrock/db/schema";
 
 import {
@@ -31,7 +31,7 @@ export function createQuoteHandlers(
 ) {
     const { db, feesService, currenciesService, log } = context;
 
-    async function withQuoteCurrencyCodes(quote: FxQuote): Promise<FxQuote> {
+    async function withQuoteCurrencyCodes(quote: FxQuote) {
         const [fromCurrency, toCurrency] = await Promise.all([
             currenciesService.findById(quote.fromCurrencyId),
             currenciesService.findById(quote.toCurrencyId),
@@ -43,7 +43,7 @@ export function createQuoteHandlers(
         } as FxQuote;
     }
 
-    async function withLegCurrencyCodes(legs: typeof schema.fxQuoteLegs.$inferSelect[]): Promise<typeof schema.fxQuoteLegs.$inferSelect[]> {
+    async function withLegCurrencyCodes(legs: FxQuoteLeg[]) {
         const uniqueCurrencyIds = [...new Set(legs.flatMap((leg) => [leg.fromCurrencyId, leg.toCurrencyId]))];
         const codeById = new Map<string, string>();
         await Promise.all(
@@ -57,7 +57,7 @@ export function createQuoteHandlers(
             ...leg,
             fromCurrency: codeById.get(leg.fromCurrencyId)!,
             toCurrency: codeById.get(leg.toCurrencyId)!,
-        })) as typeof schema.fxQuoteLegs.$inferSelect[];
+        })) as FxQuoteLeg[];
     }
 
     async function getQuoteDetails(input: GetQuoteDetailsInput): Promise<FxQuoteDetails> {

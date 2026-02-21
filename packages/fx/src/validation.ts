@@ -22,7 +22,7 @@ const rateSourceSchema = z.enum(["cbr", "investing"]);
 
 const quoteLegSourceKindSchema = z.enum(["cb", "bank", "manual", "derived", "market"]);
 
-export const quoteLegInputSchema = z.object({
+const quoteLegInputSchema = z.object({
     fromCurrency: currencySchema,
     toCurrency: currencySchema,
     rateNum: positiveBigintSchema,
@@ -35,7 +35,7 @@ export const quoteLegInputSchema = z.object({
     message: "Leg currencies must be different",
 });
 
-export const pricingTraceSchema = z.object({
+const pricingTraceSchema = z.object({
     version: z.literal("v1"),
     mode: z.enum(["auto_cross", "explicit_route"]),
     summary: z.string().max(2000).optional(),
@@ -44,7 +44,7 @@ export const pricingTraceSchema = z.object({
 }).passthrough();
 
 // SetManualRate input schema
-export const setManualRateInputSchema = z.object({
+const setManualRateInputSchema = z.object({
     base: currencySchema,
     quote: currencySchema,
     rateNum: positiveBigintSchema,
@@ -63,7 +63,7 @@ export const setManualRateInputSchema = z.object({
 
 export type SetManualRateInput = z.infer<typeof setManualRateInputSchema>;
 
-export const syncRatesFromSourceInputSchema = z.object({
+const syncRatesFromSourceInputSchema = z.object({
     source: rateSourceSchema,
     force: z.boolean().optional(),
     now: z.date().optional(),
@@ -95,7 +95,7 @@ const explicitRouteQuoteSchema = quoteBaseSchema.extend({
 });
 
 // Quote input schema
-export const quoteInputSchema = z.union([autoCrossQuoteSchema, explicitRouteQuoteSchema]).refine(
+const quoteInputSchema = z.union([autoCrossQuoteSchema, explicitRouteQuoteSchema]).refine(
     (data) => data.fromCurrency !== data.toCurrency,
     { message: "fromCurrency and toCurrency must be different" }
 );
@@ -105,7 +105,7 @@ export type QuoteLegInput = z.infer<typeof quoteLegInputSchema>;
 export type PricingTrace = z.infer<typeof pricingTraceSchema>;
 
 // MarkQuoteUsed input schema
-export const markQuoteUsedInputSchema = z.object({
+const markQuoteUsedInputSchema = z.object({
     quoteId: uuidSchema,
     usedByRef: z.string().min(1, "usedByRef is required").max(255),
     at: z.date(),
@@ -113,7 +113,7 @@ export const markQuoteUsedInputSchema = z.object({
 
 export type MarkQuoteUsedInput = z.infer<typeof markQuoteUsedInputSchema>;
 
-export const getQuoteDetailsInputSchema = z.object({
+const getQuoteDetailsInputSchema = z.object({
     quoteRef: z.string().min(1).max(255),
 });
 

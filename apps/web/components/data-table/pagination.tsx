@@ -36,12 +36,12 @@ export function DataTablePagination<TData>({
       {...props}
     >
       <div className="flex-1 whitespace-nowrap text-muted-foreground text-sm">
-        {table.getFilteredSelectedRowModel().rows.length} of{" "}
-        {table.getFilteredRowModel().rows.length} row(s) selected.
+        {table.getFilteredSelectedRowModel().rows.length} из{" "}
+        {table.getFilteredRowModel().rows.length} строк выбрано.
       </div>
       <div className="flex flex-col-reverse items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">
         <div className="flex items-center space-x-2">
-          <p className="whitespace-nowrap font-medium text-sm">Rows per page</p>
+          <p className="whitespace-nowrap font-medium text-sm">Строк на странице</p>
           <Select
             value={`${table.getState().pagination.pageSize}`}
             onValueChange={(value) => {
@@ -61,7 +61,7 @@ export function DataTablePagination<TData>({
           </Select>
         </div>
         <div className="flex items-center justify-center font-medium text-sm">
-          Page {table.getState().pagination.pageIndex + 1} of{" "}
+          Страница {table.getState().pagination.pageIndex + 1} из{" "}
           {table.getPageCount()}
         </div>
         <div className="flex items-center space-x-2">

@@ -5,13 +5,22 @@ import Link from "next/link";
 import {
   ArrowRightLeft,
   Bell,
-  CreditCard,
+  Building2,
+  BookOpen,
   Currency,
   Home,
   Landmark,
   Settings2,
   Stone,
   Users,
+  ChartCandlestick,
+  ListChecks,
+  Workflow,
+  CreditCard,
+  Receipt,
+  DollarSign,
+  Wallet,
+  Vault,
 } from "lucide-react";
 
 import { NavMain } from "./nav-main";
@@ -44,7 +53,7 @@ const data = {
     {
       title: "Казначейство",
       url: "/treasury",
-      icon: Landmark,
+      icon: Vault,
       items: [
         {
           title: "Клиенты",
@@ -53,6 +62,7 @@ const data = {
         {
           title: "Организации",
           url: "/treasury/organizations",
+          icon: Building2,
         },
         {
           title: "Счета",
@@ -68,31 +78,78 @@ const data = {
         {
           title: "Курсы",
           url: "/fx/rates",
+          icon: ChartCandlestick,
         },
         {
           title: "Котировки",
           url: "/fx/quotes",
+          icon: Receipt,
+        },
+      ],
+    },
+    // {
+    //   title: "Переводы",
+    //   url: "/transfers",
+    //   icon: ArrowRightLeft,
+    // },
+    // {
+    //   title: "Платежи",
+    //   url: "/payments",
+    //   icon: CreditCard,
+    //   items: [
+    //     {
+    //       title: "Ордера",
+    //       url: "/payments/orders",
+    //     },
+    //     {
+    //       title: "Расчетные операции",
+    //       url: "/payments/settlements",
+    //     },
+    //   ],
+    // },
+    {
+      title: "Операции",
+      url: "/operations",
+      icon: Workflow,
+      items: [
+        {
+          title: "Переводы",
+          url: "/operations/transfers",
+          icon: ArrowRightLeft,
+        },
+        {
+          title: "Платежи",
+          url: "/operations/payments",
+          icon: CreditCard,
+        },
+        {
+          title: "Расчетные операции",
+          url: "/operations/settlements",
+          icon: ListChecks,
         },
       ],
     },
     {
-      title: "Переводы",
-      url: "/transfers",
-      icon: ArrowRightLeft,
-    },
-    {
-      title: "Платежи",
-      url: "/payments",
-      icon: CreditCard,
+      title: "Справочники",
+      url: "/entities",
+      icon: BookOpen,
       items: [
         {
-          title: "Ордера",
-          url: "/payments/orders",
+          title: "Организации",
+          url: "/entities/organizations",
+          icon: Building2,
         },
         {
-          title: "Расчетные операции",
-          url: "/payments/settlements",
+          title: "Расчетные методы",
+          url: "/entities/providers",
+          icon: Landmark,
         },
+        {
+          title: "Счета",
+          url: "/entities/accounts",
+          icon: Wallet,
+        },
+        { title: "Валюты", url: "/entities/currencies", icon: DollarSign },
       ],
     },
     {

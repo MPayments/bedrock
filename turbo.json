@@ -17,7 +17,8 @@
     "PORT",
     "TB_ADDRESS",
     "TB_CLUSTER_ID",
-    "ENABLE_EXTERNAL_API_TESTS"
+    "ENABLE_EXTERNAL_API_TESTS",
+    "NEXT_PUBLIC_API_URL"
   ],
   "tasks": {
     "build": {

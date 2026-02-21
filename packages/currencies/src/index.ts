@@ -2,4 +2,14 @@ export { createCurrenciesService } from "./service";
 export type { CurrenciesService } from "./service";
 export type { CurrenciesServiceDeps } from "./internal/context";
 export { CurrencyNotFoundError } from "./errors";
-export { CurrencySchema, CreateCurrencyInputSchema, UpdateCurrencyInputSchema, type CreateCurrencyInput, type UpdateCurrencyInput } from "./validation";
+export {
+    CurrencySchema,
+    CURRENCIES_LIST_CONTRACT,
+    ListCurrenciesQuerySchema,
+    CreateCurrencyInputSchema,
+    UpdateCurrencyInputSchema,
+    type ListCurrenciesQuery,
+    type CreateCurrencyInput,
+    type UpdateCurrencyInput,
+    type Currency,
+} from "./validation";

@@ -36,6 +36,7 @@ type NavItem = {
   items?: {
     title: string;
     url: string;
+    icon?: LucideIcon;
   }[];
 };
 
@@ -80,6 +81,7 @@ function NavCollapsibleItem({
                   key={subItem.title}
                   render={<Link href={subItem.url} />}
                 >
+                  {subItem.icon && <subItem.icon className="size-4" />}
                   <span>{subItem.title}</span>
                 </DropdownMenuItem>
               ))}
@@ -111,6 +113,7 @@ function NavCollapsibleItem({
                   render={<Link href={subItem.url} />}
                   isActive={pathname === subItem.url}
                 >
+                  {subItem.icon && <subItem.icon className="size-4" />}
                   <span>{subItem.title}</span>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>

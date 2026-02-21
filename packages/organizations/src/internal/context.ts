@@ -6,7 +6,7 @@ export interface OrganizationsServiceDeps {
     logger?: Logger;
 }
 
-export interface OrganizationsServiceContext {
+interface OrganizationsServiceContext {
     db: Database;
     log?: Logger;
 }

@@ -44,6 +44,7 @@ export const schema = {
 export { TransferStatus } from "./transfers";
 export { type JournalStatus } from "./ledger/journal";
 export { type FxQuote, type FxQuoteStatus } from "./fx/quotes";
+export { type FxQuoteLeg } from "./fx/quote-legs";
 export { type FxRateSource, type FxRateSourceRow, type FxRateSourceSyncStatus, } from "./fx/rate-sources";
 export { type FxRate, type FxRateInsert } from "./fx/rates";
 export { type FeePaymentOrder, type FeePaymentOrderStatus } from "./treasury/fee-payment-orders";

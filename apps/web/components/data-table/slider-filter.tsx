@@ -142,12 +142,15 @@ export function DataTableSliderFilter<TData>({
 
   return (
     <Popover>
-      <PopoverTrigger>
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-dashed font-normal"
-        >
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-dashed font-normal"
+          />
+        }
+      >
           {columnFilterValue ? (
             <div
               role="button"
@@ -173,7 +176,6 @@ export function DataTableSliderFilter<TData>({
               {unit ? ` ${unit}` : ""}
             </>
           ) : null}
-        </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="flex w-auto flex-col gap-4">
         <div className="flex flex-col gap-3">
@@ -239,7 +241,7 @@ export function DataTableSliderFilter<TData>({
             max={max}
             step={step}
             value={range}
-            onValueChange={onSliderValueChange}
+            onValueChange={(value) => onSliderValueChange(value as RangeValue)}
           />
         </div>
         <Button

@@ -42,23 +42,25 @@ export function DataTableViewOptions<TData>({
 
   return (
     <Popover>
-      <PopoverTrigger>
-        <Button
-          aria-label="Toggle columns"
-          role="combobox"
-          variant="outline"
-          size="sm"
-          className="ml-auto hidden h-8 font-normal lg:flex"
-        >
+      <PopoverTrigger
+        render={
+          <Button
+            aria-label="Toggle columns"
+            role="combobox"
+            variant="outline"
+            size="sm"
+            className="ml-auto hidden h-8 font-normal lg:flex"
+          />
+        }
+      >
           <Settings2 className="text-muted-foreground" />
-          View
-        </Button>
+          Вид
       </PopoverTrigger>
       <PopoverContent className="w-44 p-0" {...props}>
         <Command>
-          <CommandInput placeholder="Search columns..." />
+          <CommandInput placeholder="Поиск столбцов..." />
           <CommandList>
-            <CommandEmpty>No columns found.</CommandEmpty>
+            <CommandEmpty>Не найдено столбцов</CommandEmpty>
             <CommandGroup>
               {columns.map((column) => (
                 <CommandItem
