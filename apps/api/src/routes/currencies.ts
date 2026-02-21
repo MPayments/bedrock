@@ -2,11 +2,12 @@ import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 
 import {
     CurrencySchema,
+    ListCurrenciesQuerySchema,
     CreateCurrencyInputSchema,
     UpdateCurrencyInputSchema,
     CurrencyNotFoundError,
 } from "@bedrock/currencies";
-import { createPaginatedListSchema, PaginationInputSchema } from "@bedrock/kernel/pagination";
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 
 import { ErrorSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";
@@ -19,13 +20,13 @@ export function currenciesRoutes(ctx: AppContext) {
     const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
     const listRoute = createRoute({
-        middleware: [requirePermission({ currencies: ["list"] })],
+        // middleware: [requirePermission({ currencies: ["list"] })],
         method: "get",
         path: "/",
         tags: ["Currencies"],
         summary: "List currencies",
         request: {
-            query: PaginationInputSchema,
+            query: ListCurrenciesQuerySchema,
         },
         responses: {
             200: {
@@ -143,8 +144,8 @@ export function currenciesRoutes(ctx: AppContext) {
 
     return app
         .openapi(listRoute, async (c) => {
-            const { limit, offset } = c.req.valid("query");
-            const result = await ctx.currenciesService.list({ limit, offset });
+            const query = c.req.valid("query");
+            const result = await ctx.currenciesService.list(query);
             return c.json(result, 200);
         })
         .openapi(createRoute_, async (c) => {

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "api": "workspace:*",
+    "@bedrock/currencies": "workspace:*",
     "@bedrock/organizations": "workspace:*",
     "@bedrock/ui": "workspace:*",
     "@tanstack/react-table": "^8.21.3",

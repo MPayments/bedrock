@@ -5,6 +5,7 @@ export type { OrganizationsService } from "./service";
 // Validation
 export {
     OrganizationSchema,
+    ORGANIZATIONS_LIST_CONTRACT,
     ListOrganizationsQuerySchema,
     CreateOrganizationInputSchema,
     UpdateOrganizationInputSchema,

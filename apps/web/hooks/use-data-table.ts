@@ -29,7 +29,7 @@ import * as React from "react";
 
 import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 import { getSortingStateParser } from "@/lib/parsers";
-import type { ExtendedColumnSort } from "@/types/data-table";
+import type { ExtendedColumnSort, FilterVariant } from "@/types/data-table";
 
 const PAGE_KEY = "page";
 const PER_PAGE_KEY = "perPage";
@@ -44,6 +44,12 @@ function getColumnDefId<TData>(column: ColumnDef<TData, unknown>): string {
     return String(column.accessorKey);
   }
   return "";
+}
+
+function isMultiValueFilterVariant(variant?: FilterVariant) {
+  return (
+    variant === "multiSelect" || variant === "range" || variant === "dateRange"
+  );
 }
 
 interface UseDataTableProps<TData>
@@ -175,6 +181,14 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     return columns.filter((column) => column.enableColumnFilter);
   }, [columns]);
 
+  const filterVariantsById = React.useMemo(() => {
+    return new Map(
+      filterableColumns
+        .map((column) => [getColumnDefId(column), column.meta?.variant] as const)
+        .filter(([id]) => Boolean(id)),
+    );
+  }, [filterableColumns]);
+
   const filterParsers = React.useMemo(() => {
     return filterableColumns.reduce<
       Record<string, SingleParser<string> | SingleParser<string[]>>
@@ -182,7 +196,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
       const id = getColumnDefId(column);
       if (!id) return acc;
 
-      if (column.meta?.options) {
+      if (isMultiValueFilterVariant(column.meta?.variant)) {
         acc[id] = parseAsArrayOf(
           parseAsString,
           ARRAY_SEPARATOR,
@@ -207,20 +221,26 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
   const initialColumnFilters: ColumnFiltersState = React.useMemo(() => {
     return Object.entries(filterValues).reduce<ColumnFiltersState>(
       (filters, [key, value]) => {
-        if (value !== null) {
-          const processedValue = Array.isArray(value)
-            ? value
-            : typeof value === "string" && /[^a-zA-Z0-9]/.test(value)
-              ? value.split(/[^a-zA-Z0-9]+/).filter(Boolean)
-              : [value];
+        if (value === null) {
+          return filters;
+        }
 
-          filters.push({ id: key, value: processedValue });
+        const filterVariant = filterVariantsById.get(key);
+        if (isMultiValueFilterVariant(filterVariant)) {
+          if (Array.isArray(value) && value.length > 0) {
+            filters.push({ id: key, value });
+          }
+          return filters;
+        }
+
+        if (typeof value === "string" && value.length > 0) {
+          filters.push({ id: key, value });
         }
         return filters;
       },
       [],
     );
-  }, [filterValues]);
+  }, [filterValues, filterVariantsById]);
 
   const [columnFilters, setColumnFilters] =
     React.useState<ColumnFiltersState>(initialColumnFilters);
@@ -236,13 +256,34 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
         const filterUpdates = next.reduce<
           Record<string, string | string[] | null>
         >((acc, filter) => {
-          if (
-            filterableColumns.find(
-              (col) => getColumnDefId(col) === filter.id,
-            )
-          ) {
-            acc[filter.id] = filter.value as string | string[];
+          if (!filterVariantsById.has(filter.id)) {
+            return acc;
           }
+
+          const variant = filterVariantsById.get(filter.id);
+          if (isMultiValueFilterVariant(variant)) {
+            const values = Array.isArray(filter.value)
+              ? filter.value
+              : [filter.value];
+            const normalizedValues = values
+              .filter((value) => value !== null && value !== undefined)
+              .map((value) => String(value))
+              .filter((value) => value.length > 0);
+
+            acc[filter.id] =
+              normalizedValues.length > 0 ? normalizedValues : null;
+          } else {
+            const scalarValue = Array.isArray(filter.value)
+              ? filter.value[0]
+              : filter.value;
+            const normalizedValue =
+              scalarValue === null || scalarValue === undefined
+                ? ""
+                : String(scalarValue);
+
+            acc[filter.id] = normalizedValue.length > 0 ? normalizedValue : null;
+          }
+
           return acc;
         }, {});
 
@@ -256,7 +297,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
         return next;
       });
     },
-    [debouncedSetFilterValues, filterableColumns],
+    [debouncedSetFilterValues, filterVariantsById],
   );
 
   const table = useReactTable({

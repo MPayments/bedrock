@@ -10,6 +10,7 @@ import {
   ArrowRightLeft,
   Building2,
   BookOpen,
+  DollarSign,
   type LucideIcon,
   ChartCandlestick,
 } from "lucide-react";
@@ -47,6 +48,7 @@ const segmentMap: Record<string, SegmentConfig> = {
     dynamicChild: (id) => ({ label: `Клиент #${id}` }),
   },
   organizations: { label: "Организации", icon: Building2 },
+  currencies: { label: "Валюты", icon: DollarSign },
   accounts: { label: "Счета" },
 
   // FX pages

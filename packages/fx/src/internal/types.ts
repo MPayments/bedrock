@@ -1,4 +1,4 @@
-import type { schema, FxQuote } from "@bedrock/db/schema";
+import type { schema, FxQuote, FxQuoteLeg } from "@bedrock/db/schema";
 import { type FeesService } from "@bedrock/fees";
 
 export interface ComputedLeg {
@@ -17,7 +17,7 @@ export interface ComputedLeg {
 
 export interface FxQuoteDetails {
     quote: FxQuote;
-    legs: typeof schema.fxQuoteLegs.$inferSelect[];
+    legs: FxQuoteLeg[];
     feeComponents: Awaited<ReturnType<FeesService["getQuoteFeeComponents"]>>;
     pricingTrace: Record<string, unknown>;
 }

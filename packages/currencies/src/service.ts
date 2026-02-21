@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 
 import { schema, type Currency, type CurrencyInsert } from "@bedrock/db/schema";
 import {
-    PaginationInputSchema,
-    type PaginationInput,
+    paginateInMemory,
+    sortInMemory,
     type PaginatedList,
 } from "@bedrock/kernel/pagination";
 
@@ -12,13 +12,26 @@ import {
     createCurrenciesServiceContext,
     type CurrenciesServiceDeps,
 } from "./internal/context";
-import type { UpdateCurrencyInput} from "./validation";
-import { CreateCurrencyInputSchema, UpdateCurrencyInputSchema } from "./validation";
+import type { ListCurrenciesQuery, UpdateCurrencyInput } from "./validation";
+import {
+    CreateCurrencyInputSchema,
+    ListCurrenciesQuerySchema,
+    UpdateCurrencyInputSchema,
+} from "./validation";
 
 interface CurrencyCache {
     byId: Map<string, Currency>;
     byCode: Map<string, Currency>;
 }
+
+const SORT_COLUMN_MAP = {
+    code: (currency: Currency) => currency.code,
+    name: (currency: Currency) => currency.name,
+    symbol: (currency: Currency) => currency.symbol,
+    precision: (currency: Currency) => currency.precision,
+    createdAt: (currency: Currency) => currency.createdAt,
+    updatedAt: (currency: Currency) => currency.updatedAt,
+} as const;
 
 export type CurrenciesService = ReturnType<typeof createCurrenciesService>;
 
@@ -45,18 +58,47 @@ export function createCurrenciesService(deps: CurrenciesServiceDeps) {
         cache = null;
     }
 
-    async function list(pagination?: PaginationInput): Promise<PaginatedList<Currency>> {
-        const { limit, offset } = PaginationInputSchema.parse(pagination ?? {});
-
-        const c = await warmCache();
-        const all = [...c.byId.values()];
-
-        return {
-            data: all.slice(offset, offset + limit),
-            total: all.length,
+    async function list(query?: ListCurrenciesQuery): Promise<PaginatedList<Currency>> {
+        const {
             limit,
             offset,
-        };
+            sortBy,
+            sortOrder,
+            name,
+            code,
+            symbol,
+            precision,
+        } = ListCurrenciesQuerySchema.parse(query ?? {});
+
+        const c = await warmCache();
+        let all = [...c.byId.values()];
+
+        if (name) {
+            const normalizedName = name.toLowerCase();
+            all = all.filter((currency) => currency.name.toLowerCase().includes(normalizedName));
+        }
+
+        if (code) {
+            const normalizedCode = code.toLowerCase();
+            all = all.filter((currency) => currency.code.toLowerCase().includes(normalizedCode));
+        }
+
+        if (symbol) {
+            const normalizedSymbol = symbol.toLowerCase();
+            all = all.filter((currency) => currency.symbol.toLowerCase().includes(normalizedSymbol));
+        }
+
+        if (precision !== undefined) {
+            all = all.filter((currency) => currency.precision === precision);
+        }
+
+        const sorted = sortInMemory(all, {
+            sortBy,
+            sortOrder,
+            sortMap: SORT_COLUMN_MAP,
+        });
+
+        return paginateInMemory(sorted, { limit, offset });
     }
 
     async function findById(id: string) {

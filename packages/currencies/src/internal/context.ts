@@ -6,7 +6,7 @@ export interface CurrenciesServiceDeps {
     logger?: Logger;
 }
 
-export interface CurrenciesServiceContext {
+interface CurrenciesServiceContext {
     db: Database;
     log: Logger;
 }

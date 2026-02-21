@@ -42,6 +42,7 @@
       "name": "web",
       "version": "0.1.0",
       "dependencies": {
+        "@bedrock/currencies": "workspace:*",
         "@bedrock/organizations": "workspace:*",
         "@bedrock/ui": "workspace:*",
         "@tanstack/react-table": "^8.21.3",

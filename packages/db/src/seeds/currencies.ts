@@ -11,7 +11,8 @@ export const CURRENCY_IDS = {
     RUB: "00000000-0000-4000-8000-000000000104",
     AED: "00000000-0000-4000-8000-000000000105",
     USDT: "00000000-0000-4000-8000-000000000106",
-    BTC: "00000000-0000-4000-8000-000000000107",
+    CNY: "00000000-0000-4000-8000-000000000107",
+    TRY: "00000000-0000-4000-8000-000000000108",
 } as const;
 
 export function currencyIdForCode(code: string): string {
@@ -23,12 +24,13 @@ export function currencyIdForCode(code: string): string {
 
 const CURRENCY_SEEDS = [
     { id: CURRENCY_IDS.USD, code: "USD", name: "US Dollar", symbol: "$", precision: 2 },
-    { id: CURRENCY_IDS.EUR, code: "EUR", name: "Euro", symbol: "EUR", precision: 2 },
-    { id: CURRENCY_IDS.GBP, code: "GBP", name: "Pound Sterling", symbol: "GBP", precision: 2 },
-    { id: CURRENCY_IDS.RUB, code: "RUB", name: "Russian Ruble", symbol: "RUB", precision: 2 },
-    { id: CURRENCY_IDS.AED, code: "AED", name: "UAE Dirham", symbol: "AED", precision: 2 },
-    { id: CURRENCY_IDS.USDT, code: "USDT", name: "Tether", symbol: "USDT", precision: 2 },
-    { id: CURRENCY_IDS.BTC, code: "BTC", name: "Bitcoin", symbol: "BTC", precision: 2 },
+    { id: CURRENCY_IDS.EUR, code: "EUR", name: "Euro", symbol: "€", precision: 2 },
+    { id: CURRENCY_IDS.GBP, code: "GBP", name: "Pound Sterling", symbol: "£", precision: 2 },
+    { id: CURRENCY_IDS.RUB, code: "RUB", name: "Russian Ruble", symbol: "₽", precision: 2 },
+    { id: CURRENCY_IDS.AED, code: "AED", name: "UAE Dirham", symbol: "د.إ", precision: 2 },
+    { id: CURRENCY_IDS.CNY, code: "CNY", name: "Chinese Yuan", symbol: "¥", precision: 2 },
+    { id: CURRENCY_IDS.TRY, code: "TRY", name: "Turkish Lira", symbol: "₺", precision: 2 },
+    { id: CURRENCY_IDS.USDT, code: "USDT", name: "Tether", symbol: "₮", precision: 2 },
 ] as const;
 
 async function seedCurrencyRow(db: Database, row: (typeof CURRENCY_SEEDS)[number], rowSeed: number) {

@@ -2,31 +2,28 @@
 
 import * as React from "react";
 
+import type { Currency } from "@bedrock/currencies";
+
 import { DataTable } from "@/components/data-table";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { useDataTable } from "@/hooks/use-data-table";
-import type { Option } from "@/types/data-table";
 
-import { getColumns, type SerializedOrganization } from "./columns";
+import { columns } from "./columns";
 
-export interface OrganizationsListResult {
-  data: SerializedOrganization[];
+export interface CurrenciesListResult {
+  data: Currency[];
   total: number;
   limit: number;
   offset: number;
 }
 
-interface OrganizationsTableProps {
-  promise: Promise<[OrganizationsListResult, Option[]]>;
+interface CurrenciesTableProps {
+  promise: Promise<CurrenciesListResult>;
 }
 
-export function OrganizationsTable({ promise }: OrganizationsTableProps) {
-  const [result, currencyOptions] = React.use(promise);
+export function CurrenciesTable({ promise }: CurrenciesTableProps) {
+  const result = React.use(promise);
   const pageCount = Math.ceil(result.total / result.limit);
-  const columns = React.useMemo(
-    () => getColumns(currencyOptions),
-    [currencyOptions],
-  );
 
   const { table } = useDataTable({
     data: result.data,

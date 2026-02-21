@@ -38,3 +38,5 @@ export const fxQuoteLegs = pgTable(
         index("fx_quote_legs_quote_idx").on(t.quoteId),
     ])
 );
+
+export type FxQuoteLeg = typeof fxQuoteLegs.$inferSelect;

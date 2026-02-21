@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { PaginationInputSchema, SortInputSchema } from "@bedrock/kernel/pagination";
+import {
+    createListQuerySchemaFromContract,
+    type ListQueryContract,
+} from "@bedrock/kernel/pagination";
 
 export const OrganizationSchema = z.object({
     id: z.uuid(),
@@ -16,17 +19,38 @@ export const OrganizationSchema = z.object({
 
 export type Organization = z.infer<typeof OrganizationSchema>;
 
-const SORTABLE_COLUMNS = ["name", "country", "baseCurrency", "createdAt", "updatedAt"] as const;
+const ORGANIZATIONS_SORTABLE_COLUMNS = [
+    "name",
+    "country",
+    "baseCurrency",
+    "createdAt",
+    "updatedAt",
+] as const;
 
-export const ListOrganizationsQuerySchema = PaginationInputSchema
-    .extend(SortInputSchema.shape)
-    .extend({
-        sortBy: z.enum(SORTABLE_COLUMNS).optional(),
-        name: z.string().optional(),
-        country: z.string().optional(),
-        baseCurrency: z.string().optional(),
-        isTreasury: z.coerce.boolean().optional(),
-    });
+interface OrganizationsListFilters {
+    name: { kind: "string"; cardinality: "single" };
+    country: { kind: "string"; cardinality: "single" };
+    baseCurrency: { kind: "string"; cardinality: "multi" };
+    isTreasury: { kind: "boolean"; cardinality: "single" };
+}
+
+export const ORGANIZATIONS_LIST_CONTRACT: ListQueryContract<
+    typeof ORGANIZATIONS_SORTABLE_COLUMNS,
+    OrganizationsListFilters
+> = {
+    sortableColumns: ORGANIZATIONS_SORTABLE_COLUMNS,
+    defaultSort: { id: "createdAt", desc: true },
+    filters: {
+        name: { kind: "string", cardinality: "single" },
+        country: { kind: "string", cardinality: "single" },
+        baseCurrency: { kind: "string", cardinality: "multi" },
+        isTreasury: { kind: "boolean", cardinality: "single" },
+    },
+};
+
+export const ListOrganizationsQuerySchema = createListQuerySchemaFromContract(
+    ORGANIZATIONS_LIST_CONTRACT,
+);
 
 export type ListOrganizationsQuery = z.infer<typeof ListOrganizationsQuerySchema>;
 

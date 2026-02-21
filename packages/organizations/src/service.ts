@@ -1,7 +1,11 @@
-import { eq, ilike, sql, asc, desc, and, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
 import { schema } from "@bedrock/db/schema";
-import { type PaginatedList } from "@bedrock/kernel/pagination";
+import {
+    type PaginatedList,
+    resolveSortOrder,
+    resolveSortValue,
+} from "@bedrock/kernel/pagination";
 
 import { OrganizationNotFoundError } from "./errors";
 import { createOrganizationsServiceContext, type OrganizationsServiceDeps } from "./internal/context";
@@ -29,19 +33,24 @@ export function createOrganizationsService(deps: OrganizationsServiceDeps) {
     const { db, log } = createOrganizationsServiceContext(deps);
 
     async function list(input?: ListOrganizationsQuery): Promise<PaginatedList<Organization>> {
-        await new Promise((resolve) => setTimeout(resolve, 2000))
         const query = ListOrganizationsQuerySchema.parse(input ?? {});
         const { limit, offset, sortBy, sortOrder, name, country, baseCurrency, isTreasury } = query;
 
         const conditions: SQL[] = [];
         if (name) conditions.push(ilike(schema.organizations.name, `%${name}%`));
         if (country) conditions.push(ilike(schema.organizations.country, `%${country}%`));
-        if (baseCurrency) conditions.push(ilike(schema.organizations.baseCurrency, `%${baseCurrency}%`));
+        if (baseCurrency?.length) {
+            conditions.push(inArray(schema.organizations.baseCurrency, baseCurrency));
+        }
         if (isTreasury !== undefined) conditions.push(eq(schema.organizations.isTreasury, isTreasury));
 
         const where = conditions.length > 0 ? and(...conditions) : undefined;
-        const orderByFn = sortOrder === "desc" ? desc : asc;
-        const orderByCol = sortBy ? SORT_COLUMN_MAP[sortBy] : schema.organizations.createdAt;
+        const orderByFn = resolveSortOrder(sortOrder) === "desc" ? desc : asc;
+        const orderByCol = resolveSortValue(
+            sortBy,
+            SORT_COLUMN_MAP,
+            schema.organizations.createdAt,
+        );
         const orderByClause = orderByFn(orderByCol);
 
         const [data, countRows] = await Promise.all([

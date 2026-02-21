@@ -1,31 +1,10 @@
-import {
-  createSearchParamsCache,
-  parseAsArrayOf,
-  parseAsString,
-  parseAsStringEnum,
-} from "nuqs/server";
+import { createSearchParamsCache } from "nuqs/server";
+import { ORGANIZATIONS_LIST_CONTRACT } from "@bedrock/organizations";
 
-import { createListSearchParamsParsers } from "@/lib/list-search-params";
-
-export const ORGANIZATIONS_SORTABLE_COLUMNS = [
-  "name",
-  "country",
-  "baseCurrency",
-  "createdAt",
-  "updatedAt",
-] as const;
+import { createListSearchParamsParsersFromContract } from "@/lib/list-search-params";
 
 export const searchParamsCache = createSearchParamsCache({
-  ...createListSearchParamsParsers({
-    sortableColumns: ORGANIZATIONS_SORTABLE_COLUMNS,
-    defaultSort: { id: "createdAt", desc: true },
-  }),
-  name: parseAsString.withDefault(""),
-  country: parseAsString.withDefault(""),
-  baseCurrency: parseAsArrayOf(parseAsString).withDefault([]),
-  isTreasury: parseAsArrayOf(
-    parseAsStringEnum(["true", "false"]),
-  ).withDefault([]),
+  ...createListSearchParamsParsersFromContract(ORGANIZATIONS_LIST_CONTRACT),
 });
 
 export type OrganizationsSearchParams = Awaited<
