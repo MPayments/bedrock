@@ -10,9 +10,9 @@
     "./seeds": "./src/seeds/index.ts"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsgo",
     "dev": "tsc --watch",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsgo --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",

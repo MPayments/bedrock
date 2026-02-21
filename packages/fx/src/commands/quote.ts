@@ -23,12 +23,32 @@ import {
 
 const DEFAULT_QUOTE_TTL_SECONDS = 600;
 
+interface CrossRate {
+    base: string;
+    quote: string;
+    rateNum: bigint;
+    rateDen: bigint;
+}
+
+export interface QuoteHandlersDeps {
+    getCrossRate: (
+        base: string,
+        quote: string,
+        asOf: Date,
+        anchor?: string,
+    ) => Promise<CrossRate>;
+}
+
+export interface QuoteHandlers {
+    quote: (input: QuoteInput) => Promise<FxQuote>;
+    getQuoteDetails: (input: GetQuoteDetailsInput) => Promise<FxQuoteDetails>;
+    markQuoteUsed: (input: MarkQuoteUsedInput) => Promise<FxQuote>;
+}
+
 export function createQuoteHandlers(
     context: FxServiceContext,
-    deps: {
-        getCrossRate: (base: string, quote: string, asOf: Date, anchor?: string) => Promise<{ base: string; quote: string; rateNum: bigint; rateDen: bigint }>;
-    }
-) {
+    deps: QuoteHandlersDeps,
+): QuoteHandlers {
     const { db, feesService, currenciesService, log } = context;
 
     async function withQuoteCurrencyCodes(quote: FxQuote) {

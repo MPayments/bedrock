@@ -1,4 +1,4 @@
-import { CURRENCIES_LIST_CONTRACT } from "@bedrock/currencies";
+import { CURRENCIES_LIST_CONTRACT, CurrencySchema } from "@bedrock/currencies";
 
 import { apiClient } from "@/lib/api-client";
 import { createListQueryFromSearchParams } from "@/lib/list-search-params";
@@ -26,5 +26,10 @@ export async function getCurrencies(
     throw new Error(`Failed to fetch currencies: ${res.status}`);
   }
 
-  return res.json() as Promise<CurrenciesListResult>;
+  const payload = await res.json();
+
+  return {
+    ...payload,
+    data: payload.data.map((currency) => CurrencySchema.parse(currency)),
+  };
 }

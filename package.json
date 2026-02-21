@@ -15,6 +15,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
+    "@typescript/native-preview": "^7.0.0-dev.20260221.1",
     "@vitest/coverage-v8": "^4.0.18",
     "prettier": "^3.6.2",
     "turbo": "^2.8.6",
