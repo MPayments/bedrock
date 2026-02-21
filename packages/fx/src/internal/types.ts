@@ -1,4 +1,4 @@
-import type { schema, FxQuote, FxQuoteLeg } from "@bedrock/db/schema";
+import type { FxQuote, FxQuoteLeg } from "@bedrock/db/schema";
 import { type FeesService } from "@bedrock/fees";
 
 export interface ComputedLeg {

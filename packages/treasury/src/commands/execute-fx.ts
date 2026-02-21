@@ -56,7 +56,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                 throw new InvalidStateError(`Order must be ${TreasuryOrderStatus.FUNDING_SETTLED} (posted), got ${order.status}`);
             }
 
-            const quote = await consumeFxQuoteForExecution(tx, input, currenciesService);
+            const quote = await consumeFxQuoteForExecution(tx, validated, currenciesService);
             const persistedQuoteLegRows = await tx
                 .select()
                 .from(schema.fxQuoteLegs)
