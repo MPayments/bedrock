@@ -7,9 +7,9 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsgo",
     "dev": "tsc --watch",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsgo --noEmit",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
@@ -17,7 +17,6 @@
     "@bedrock/db": "*",
     "@bedrock/fees": "*",
     "@bedrock/kernel": "*",
-    "@bedrock/ledger": "*",
     "drizzle-orm": "^0.45.1",
     "soap": "^1.6.0",
     "tlsclientwrapper": "^4.1.2",

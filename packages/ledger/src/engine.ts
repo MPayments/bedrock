@@ -60,9 +60,12 @@ function computePlanFingerprint(transfers: TransferPlanLine[]): string {
     return sha256Hex(stableStringify(transfers.map(normalizeForFingerprint)));
 }
 
-export type LedgerEngine = ReturnType<typeof createLedgerEngine>;
+export interface LedgerEngine {
+    createEntry: (input: CreateEntryInput) => Promise<CreateEntryResult>;
+    createEntryTx: (tx: Transaction, input: CreateEntryInput) => Promise<CreateEntryResult>;
+}
 
-export function createLedgerEngine(deps: { db: Database }) {
+export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
     const { db } = deps;
 
     async function createEntryTx(tx: Transaction, input: CreateEntryInput): Promise<CreateEntryResult> {

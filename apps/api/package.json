@@ -10,11 +10,11 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsgo",
     "dev": "bun run --hot src/index.ts",
     "start": "bun run src/index.ts",
     "worker:fx-rates": "bun run src/workers/fx-rates.ts",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsgo --noEmit",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
@@ -24,7 +24,6 @@
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
     "@bedrock/kernel": "workspace:*",
-    "@bedrock/ledger": "workspace:*",
     "@bedrock/organizations": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "@hono/zod-openapi": "^1.2.1",

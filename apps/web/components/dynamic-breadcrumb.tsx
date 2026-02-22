@@ -1,18 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
+  ArrowRightLeft,
+  BookOpen,
+  Building2,
+  ChartCandlestick,
+  CreditCard,
+  Currency,
+  DollarSign,
   Home,
   Landmark,
-  Currency,
-  CreditCard,
-  ArrowRightLeft,
-  Building2,
-  BookOpen,
-  DollarSign,
   type LucideIcon,
-  ChartCandlestick,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -23,89 +22,25 @@ import {
   BreadcrumbSeparator,
 } from "@bedrock/ui/components/breadcrumb";
 
-type BreadcrumbEntry = {
-  label: string;
-  href?: string;
-  icon?: LucideIcon;
+import type { BreadcrumbIconName, BreadcrumbItem as AppBreadcrumbItem } from "@/lib/breadcrumbs";
+
+const iconMap: Record<BreadcrumbIconName, LucideIcon> = {
+  home: Home,
+  landmark: Landmark,
+  currency: Currency,
+  "credit-card": CreditCard,
+  "arrow-right-left": ArrowRightLeft,
+  "building-2": Building2,
+  "book-open": BookOpen,
+  "dollar-sign": DollarSign,
+  "chart-candlestick": ChartCandlestick,
 };
 
-type SegmentConfig = BreadcrumbEntry & {
-  dynamicChild?: (segment: string) => BreadcrumbEntry;
+type DynamicBreadcrumbProps = {
+  items: AppBreadcrumbItem[];
 };
 
-const segmentMap: Record<string, SegmentConfig> = {
-  // Sections (with icons)
-  treasury: { label: "Казначейство", icon: Landmark },
-  fx: { label: "FX", icon: Currency },
-  payments: { label: "Платежи", icon: CreditCard },
-  transfers: { label: "Переводы", icon: ArrowRightLeft },
-  entities: { label: "Справочники", icon: BookOpen },
-
-  // Treasury pages
-  customers: {
-    label: "Клиенты",
-    href: "/treasury/customers",
-    dynamicChild: (id) => ({ label: `Клиент #${id}` }),
-  },
-  organizations: { label: "Организации", icon: Building2 },
-  currencies: { label: "Валюты", icon: DollarSign },
-  accounts: { label: "Счета" },
-
-  // FX pages
-  rates: { label: "Курсы", icon: ChartCandlestick },
-  quotes: { label: "Котировки" },
-
-  // Payments pages
-  orders: { label: "Ордера" },
-  settlements: { label: "Расчетные операции" },
-};
-
-function resolveSegments(segments: string[]): BreadcrumbEntry[] {
-  const items: BreadcrumbEntry[] = [];
-
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i]!;
-    const config = segmentMap[seg];
-
-    if (config) {
-      items.push({
-        label: config.label,
-        href: config.href,
-        icon: config.icon,
-      });
-    } else {
-      const prev = i > 0 ? segmentMap[segments[i - 1]!] : undefined;
-      if (prev?.dynamicChild) {
-        items.push(prev.dynamicChild(seg));
-      }
-    }
-  }
-
-  return items;
-}
-
-export function DynamicBreadcrumb() {
-  const pathname = usePathname();
-
-  // Dashboard (root)
-  if (pathname === "/") {
-    return (
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbPage className="flex items-center gap-1.5">
-              <Home className="size-4" />
-              <span className="hidden md:inline">Дашборд</span>
-            </BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-    );
-  }
-
-  const segments = pathname.split("/").filter(Boolean);
-  const items = resolveSegments(segments);
-
+export function DynamicBreadcrumb({ items }: DynamicBreadcrumbProps) {
   if (items.length === 0) return null;
 
   return (
@@ -113,9 +48,7 @@ export function DynamicBreadcrumb() {
       <BreadcrumbList>
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
-          const Icon = item.icon;
-
-          // On mobile, root-level items with icons show only the icon
+          const Icon = item.icon ? iconMap[item.icon] : undefined;
           const label = Icon ? (
             <span className="hidden md:inline">{item.label}</span>
           ) : (

@@ -41,7 +41,7 @@ export function organizationsRoutes(ctx: AppContext) {
     });
 
     const createRoute_ = createRoute({
-        middleware: [requirePermission({ organizations: ["create"] })],
+        // middleware: [requirePermission({ organizations: ["create"] })],
         method: "post",
         path: "/",
         tags: ["Organizations"],
@@ -77,7 +77,7 @@ export function organizationsRoutes(ctx: AppContext) {
     });
 
     const getRoute = createRoute({
-        middleware: [requirePermission({ organizations: ["list"] })],
+        // middleware: [requirePermission({ organizations: ["list"] })],
         method: "get",
         path: "/{id}",
         tags: ["Organizations"],

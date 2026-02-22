@@ -8,14 +8,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings 0",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsgo --noEmit"
   },
   "dependencies": {
-    "api": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/organizations": "workspace:*",
     "@bedrock/ui": "workspace:*",
+    "@hookform/resolvers": "^5.2.2",
     "@tanstack/react-table": "^8.21.3",
+    "api": "workspace:*",
     "lucide-react": "^0.563.0",
     "next": "^16.0.10",
     "next-themes": "^0.4.6",
@@ -23,13 +24,12 @@
     "react": "^19.2.1",
     "react-day-picker": "^9.13.2",
     "react-dom": "^19.2.1",
+    "react-hook-form": "^7.71.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@hono/zod-openapi": "^1.2.1",
     "@bedrock/eslint-config": "*",
     "@bedrock/typescript-config": "*",
-    "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

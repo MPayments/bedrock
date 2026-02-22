@@ -11,9 +11,9 @@
     "./pagination": "./src/pagination.ts"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsgo",
     "dev": "tsc --watch",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsgo --noEmit",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {

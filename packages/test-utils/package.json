@@ -9,7 +9,7 @@
     "./fixtures": "./src/fixtures.ts"
   },
   "scripts": {
-    "check-types": "tsc --noEmit",
+    "check-types": "tsgo --noEmit",
     "test": "echo 'No tests in test-utils package'",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },

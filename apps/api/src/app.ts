@@ -1,6 +1,5 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
-import dotenv from "dotenv";
 import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 
@@ -10,9 +9,6 @@ import { AppError } from "@bedrock/kernel";
 import { createAppContext, type Env } from "./context";
 import { authMiddleware, requireAuth, type AuthVariables } from "./middleware/auth";
 import { organizationsRoutes, customersRoutes, currenciesRoutes, fxRatesRoutes } from "./routes/index";
-
-// FIXME: in production, use proper env loading
-dotenv.config({ path: "../../.env" });
 
 const env: Env = {
   DATABASE_URL:
@@ -64,11 +60,11 @@ app.onError((err, c) => {
 });
 
 app.use(
-  "/api/auth/*",
+  "*",
   cors({
     origin: (origin) => (authAllowedOriginSet.has(origin) ? origin : undefined),
     allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["set-cookie"],
     credentials: true,
   }),

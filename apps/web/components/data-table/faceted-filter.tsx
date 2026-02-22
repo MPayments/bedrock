@@ -28,15 +28,22 @@ interface DataTableFacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;
   title?: string;
   options: Option[];
-  multiple?: boolean;
 }
 
-export function DataTableFacetedFilter<TData, TValue>({
+type DataTableFacetedFilterMode = "single" | "multi";
+
+type DataTableFacetedFilterBaseProps<TData, TValue> =
+  DataTableFacetedFilterProps<TData, TValue> & {
+    mode: DataTableFacetedFilterMode;
+  };
+
+function DataTableFacetedFilterBase<TData, TValue>({
   column,
   title,
   options,
-  multiple,
-}: DataTableFacetedFilterProps<TData, TValue>) {
+  mode,
+}: DataTableFacetedFilterBaseProps<TData, TValue>) {
+  const isMultiSelectMode = mode === "multi";
   const [open, setOpen] = React.useState(false);
 
   const columnFilterValue = column?.getFilterValue();
@@ -57,7 +64,7 @@ export function DataTableFacetedFilter<TData, TValue>({
     (option: Option, isSelected: boolean) => {
       if (!column) return;
 
-      if (multiple) {
+      if (isMultiSelectMode) {
         const newSelectedValues = new Set(selectedValues);
         if (isSelected) {
           newSelectedValues.delete(option.value);
@@ -71,7 +78,7 @@ export function DataTableFacetedFilter<TData, TValue>({
         setOpen(false);
       }
     },
-    [column, multiple, selectedValues],
+    [column, isMultiSelectMode, selectedValues],
   );
 
   const onReset = React.useCallback(
@@ -197,4 +204,16 @@ export function DataTableFacetedFilter<TData, TValue>({
       </PopoverContent>
     </Popover>
   );
+}
+
+export function DataTableFacetedFilter<TData, TValue>(
+  props: DataTableFacetedFilterProps<TData, TValue>,
+) {
+  return <DataTableFacetedFilterBase mode="single" {...props} />;
+}
+
+export function DataTableFacetedMultiFilter<TData, TValue>(
+  props: DataTableFacetedFilterProps<TData, TValue>,
+) {
+  return <DataTableFacetedFilterBase mode="multi" {...props} />;
 }

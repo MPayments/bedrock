@@ -1,9 +1,10 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { Building2, Plus } from "lucide-react";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 
-import { OrganizationsTable } from "./(table)";
+import { OrganizationsTable } from "./components/table";
 import {
   getOrganizationCurrencyFilterOptions,
   getOrganizations,
@@ -37,7 +38,11 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
             </p>
           </div>
         </div>
-        <Button size="lg">
+        <Button
+          size="lg"
+          nativeButton={false}
+          render={<Link href="/entities/organizations/create" />}
+        >
           <Plus className="h-4 w-4" />
           <span className="hidden md:block">Добавить</span>
         </Button>
@@ -45,7 +50,7 @@ export default async function OrganizationsPage({ searchParams }: PageProps) {
       <Separator className="w-full h-px" />
       <Suspense
         fallback={
-          <DataTableSkeleton columnCount={6} rowCount={10} filterCount={3} />
+          <DataTableSkeleton columnCount={7} rowCount={10} filterCount={3} />
         }
       >
         <OrganizationsTable promise={promise} />
