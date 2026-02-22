@@ -26,10 +26,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@hono/zod-openapi": "^1.2.1",
     "@bedrock/eslint-config": "*",
     "@bedrock/typescript-config": "*",
-    "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

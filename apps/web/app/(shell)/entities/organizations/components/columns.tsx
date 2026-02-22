@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Organization } from "@bedrock/organizations";
+import { ArrowUpRight,Eye } from "lucide-react";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import type { Option } from "@/types/data-table";
 import { Badge } from "@bedrock/ui/components/badge";
+import { Button } from "@bedrock/ui/components/button";
 import { formatDate } from "@/lib/format";
 
 type SerializedOrganization = Omit<Organization, "createdAt" | "updatedAt"> & {
@@ -102,6 +105,25 @@ export function getColumns(
       enableSorting: true,
       enableHiding: true,
       enableColumnFilter: false,
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => (
+        <div className="flex justify-end">
+          <Button
+            size="icon"
+            variant="ghost"
+            nativeButton={false}
+            render={
+              <Link href={`/entities/organizations/${row.original.id}`} />
+            }
+            aria-label={`Открыть организацию ${row.original.name}`}
+          >
+            <Eye size={16} />
+          </Button>
+        </div>
+      ),
+      size: 40,
     },
   ];
 }

@@ -54,7 +54,7 @@ type OrganizationAccount = {
   available: number;
   reserved: number;
   status: "active" | "frozen";
-  updatedAt: string;
+  createdAt: string;
 };
 
 const ACCOUNTS: OrganizationAccount[] = [
@@ -67,7 +67,7 @@ const ACCOUNTS: OrganizationAccount[] = [
     available: 254390.32,
     reserved: 13000.0,
     status: "active",
-    updatedAt: "2026-02-21T10:44:00Z",
+    createdAt: "2026-02-21T10:44:00Z",
   },
   {
     id: "acct-usd-payout",
@@ -78,7 +78,7 @@ const ACCOUNTS: OrganizationAccount[] = [
     available: 78910.0,
     reserved: 5420.75,
     status: "active",
-    updatedAt: "2026-02-20T16:11:00Z",
+    createdAt: "2026-02-20T16:11:00Z",
   },
   {
     id: "acct-eur-settlement",
@@ -89,7 +89,7 @@ const ACCOUNTS: OrganizationAccount[] = [
     available: 64110.45,
     reserved: 2499.5,
     status: "active",
-    updatedAt: "2026-02-21T08:03:00Z",
+    createdAt: "2026-02-21T08:03:00Z",
   },
   {
     id: "acct-rub-local",
@@ -100,7 +100,7 @@ const ACCOUNTS: OrganizationAccount[] = [
     available: 8_930_100.0,
     reserved: 112_340.55,
     status: "active",
-    updatedAt: "2026-02-19T12:00:00Z",
+    createdAt: "2026-02-19T12:00:00Z",
   },
   {
     id: "acct-usdt-otc",
@@ -111,7 +111,7 @@ const ACCOUNTS: OrganizationAccount[] = [
     available: 48120.25,
     reserved: 0,
     status: "frozen",
-    updatedAt: "2026-02-14T09:22:00Z",
+    createdAt: "2026-02-14T09:22:00Z",
   },
 ];
 
@@ -172,7 +172,7 @@ export default function OrganizationAccountsPage() {
               </CardTitle>
               <CardDescription>
                 Балансы сгруппированы по провайдерам. Подытоги считаются по
-                валютам без FX-конвертации.
+                валютам без конвертации.
               </CardDescription>
             </div>
             <Dialog>
@@ -228,7 +228,7 @@ export default function OrganizationAccountsPage() {
         <CardContent className="space-y-4">
           <Accordion multiple defaultValue={defaultOpenProviders}>
             {providerRows.map(([provider, accounts]) => {
-              const totalsByProviderCurrency = accounts.reduce(
+              const totalsByProviderCurrency = accounts.reduce<Record<string, number>>(
                 (acc, account) => {
                   acc[account.currency] =
                     (acc[account.currency] ?? 0) +
@@ -274,7 +274,7 @@ export default function OrganizationAccountsPage() {
                           <TableHead className="text-right">Резерв</TableHead>
                           <TableHead className="text-right">Баланс</TableHead>
                           <TableHead>Статус</TableHead>
-                          <TableHead className="text-right">Обновлен</TableHead>
+                          <TableHead className="text-right">Дата создания</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -323,7 +323,7 @@ export default function OrganizationAccountsPage() {
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right text-xs">
-                                {formatDate(account.updatedAt)}
+                                {formatDate(account.createdAt)}
                               </TableCell>
                             </TableRow>
                           );

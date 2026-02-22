@@ -6,7 +6,7 @@ import { createListQueryFromSearchParams } from "@/lib/list-search-params";
 import type { CurrenciesListResult } from "../(table)";
 import { type CurrenciesSearchParams } from "./validations";
 
-export function createCurrenciesListQuery(search: CurrenciesSearchParams) {
+function createCurrenciesListQuery(search: CurrenciesSearchParams) {
   return createListQueryFromSearchParams(CURRENCIES_LIST_CONTRACT, search);
 }
 

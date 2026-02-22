@@ -60,11 +60,11 @@ app.onError((err, c) => {
 });
 
 app.use(
-  "/api/auth/*",
+  "*",
   cors({
     origin: (origin) => (authAllowedOriginSet.has(origin) ? origin : undefined),
     allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["set-cookie"],
     credentials: true,
   }),
