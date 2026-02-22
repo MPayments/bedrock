@@ -75,46 +75,40 @@ export async function resolveBreadcrumbItems(
   segments: string[],
   options: ResolveBreadcrumbItemsOptions = {},
 ): Promise<BreadcrumbItem[]> {
-  const items: BreadcrumbItem[] = [];
+  return Promise.all(
+    segments.map(async (segment, index) => {
+      const parentSegment = segments[index - 1];
 
-  for (let index = 0; index < segments.length; index++) {
-    const segment = segments[index]!;
-    const parentSegment = segments[index - 1];
+      if (parentSegment) {
+        const resolver = options.resolvers?.[parentSegment];
+        if (resolver) {
+          const resolved = await resolver({
+            segment,
+            parentSegment,
+            segments,
+            index,
+          });
 
-    if (parentSegment) {
-      const resolver = options.resolvers?.[parentSegment];
-      if (resolver) {
-        const resolved = await resolver({
-          segment,
-          parentSegment,
-          segments,
-          index,
-        });
-
-        if (resolved) {
-          items.push(resolved);
-          continue;
+          if (resolved) {
+            return resolved;
+          }
         }
       }
-    }
 
-    const config = segmentMap[segment];
-    if (config) {
-      items.push(config);
-      continue;
-    }
+      const config = segmentMap[segment];
+      if (config) {
+        return config;
+      }
 
-    if (parentSegment) {
-      items.push({
-        label: "Раздел",
-      });
-      continue;
-    }
+      if (parentSegment) {
+        return {
+          label: "Раздел",
+        };
+      }
 
-    items.push({
-      label: decodeSegment(segment),
-    });
-  }
-
-  return items;
+      return {
+        label: decodeSegment(segment),
+      };
+    }),
+  );
 }

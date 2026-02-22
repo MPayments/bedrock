@@ -3,9 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { CreateOrganizationInputSchema } from "@bedrock/organizations";
+import { CreateOrganizationInputSchema } from "@bedrock/organizations/validation";
 
-import { OrganizationGeneralForm, type OrganizationGeneralFormValues } from "../components/organization-general-form";
+import {
+  OrganizationCreateGeneralForm,
+  type OrganizationGeneralFormValues,
+} from "../components/organization-general-form";
 import { useOrganizationCreateDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
 
@@ -61,7 +64,9 @@ export default function CreateOrganizationPage() {
           const body = await res.json();
           const extracted = extractErrorMessage(body);
           if (extracted) message = extracted;
-        } catch {}
+        } catch {
+          // Ignore non-JSON error payloads.
+        }
 
         setError(message);
         return;
@@ -82,8 +87,7 @@ export default function CreateOrganizationPage() {
   }
 
   return (
-    <OrganizationGeneralForm
-      mode="create"
+    <OrganizationCreateGeneralForm
       initialValues={{
         name: "",
         country: "",

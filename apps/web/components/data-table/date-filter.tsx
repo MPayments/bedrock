@@ -53,22 +53,28 @@ function parseColumnFilterValue(value: unknown) {
 interface DataTableDateFilterProps<TData> {
   column: Column<TData, unknown>;
   title?: string;
-  multiple?: boolean;
 }
 
-export function DataTableDateFilter<TData>({
+type DataTableDateFilterMode = "single" | "range";
+
+type DataTableDateFilterBaseProps<TData> = DataTableDateFilterProps<TData> & {
+  mode: DataTableDateFilterMode;
+};
+
+function DataTableDateFilterBase<TData>({
   column,
   title,
-  multiple,
-}: DataTableDateFilterProps<TData>) {
+  mode,
+}: DataTableDateFilterBaseProps<TData>) {
+  const isRangeMode = mode === "range";
   const columnFilterValue = column.getFilterValue();
 
   const selectedDates = React.useMemo<DateSelection>(() => {
     if (!columnFilterValue) {
-      return multiple ? { from: undefined, to: undefined } : [];
+      return isRangeMode ? { from: undefined, to: undefined } : [];
     }
 
-    if (multiple) {
+    if (isRangeMode) {
       const timestamps = parseColumnFilterValue(columnFilterValue);
       return {
         from: parseAsDate(timestamps[0]),
@@ -79,7 +85,7 @@ export function DataTableDateFilter<TData>({
     const timestamps = parseColumnFilterValue(columnFilterValue);
     const date = parseAsDate(timestamps[0]);
     return date ? [date] : [];
-  }, [columnFilterValue, multiple]);
+  }, [columnFilterValue, isRangeMode]);
 
   const onSelect = React.useCallback(
     (date: Date | DateRange | undefined) => {
@@ -88,15 +94,15 @@ export function DataTableDateFilter<TData>({
         return;
       }
 
-      if (multiple && !("getTime" in date)) {
+      if (isRangeMode && !("getTime" in date)) {
         const from = date.from?.getTime();
         const to = date.to?.getTime();
         column.setFilterValue(from || to ? [from, to] : undefined);
-      } else if (!multiple && "getTime" in date) {
+      } else if (!isRangeMode && "getTime" in date) {
         column.setFilterValue(date.getTime());
       }
     },
-    [column, multiple],
+    [column, isRangeMode],
   );
 
   const onReset = React.useCallback(
@@ -108,13 +114,13 @@ export function DataTableDateFilter<TData>({
   );
 
   const hasValue = React.useMemo(() => {
-    if (multiple) {
+    if (isRangeMode) {
       if (!getIsDateRange(selectedDates)) return false;
       return selectedDates.from || selectedDates.to;
     }
     if (!Array.isArray(selectedDates)) return false;
     return selectedDates.length > 0;
-  }, [multiple, selectedDates]);
+  }, [isRangeMode, selectedDates]);
 
   const formatDateRange = React.useCallback((range: DateRange) => {
     if (!range.from && !range.to) return "";
@@ -125,7 +131,7 @@ export function DataTableDateFilter<TData>({
   }, []);
 
   const label = React.useMemo(() => {
-    if (multiple) {
+    if (isRangeMode) {
       if (!getIsDateRange(selectedDates)) return null;
 
       const hasSelectedDates = selectedDates.from || selectedDates.to;
@@ -170,7 +176,7 @@ export function DataTableDateFilter<TData>({
         )}
       </span>
     );
-  }, [selectedDates, multiple, formatDateRange, title]);
+  }, [selectedDates, isRangeMode, formatDateRange, title]);
 
   return (
     <Popover>
@@ -199,7 +205,7 @@ export function DataTableDateFilter<TData>({
           {label}
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
-        {multiple ? (
+        {isRangeMode ? (
           <Calendar
             autoFocus
             captionLayout="dropdown"
@@ -224,4 +230,14 @@ export function DataTableDateFilter<TData>({
       </PopoverContent>
     </Popover>
   );
+}
+
+export function DataTableDateFilter<TData>(props: DataTableDateFilterProps<TData>) {
+  return <DataTableDateFilterBase mode="single" {...props} />;
+}
+
+export function DataTableDateRangeFilter<TData>(
+  props: DataTableDateFilterProps<TData>,
+) {
+  return <DataTableDateFilterBase mode="range" {...props} />;
 }

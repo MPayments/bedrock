@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { Organization } from "@bedrock/organizations";
-import { ArrowUpRight,Eye } from "lucide-react";
+import type { Organization } from "@bedrock/organizations/validation";
+import { Eye } from "lucide-react";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import type { Option } from "@/types/data-table";

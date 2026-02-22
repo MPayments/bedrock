@@ -1,5 +1,5 @@
 import { createSearchParamsCache } from "nuqs/server";
-import { ORGANIZATIONS_LIST_CONTRACT } from "@bedrock/organizations";
+import { ORGANIZATIONS_LIST_CONTRACT } from "@bedrock/organizations/validation";
 
 import { createListSearchParamsParsersFromContract } from "@/lib/list-search-params";
 

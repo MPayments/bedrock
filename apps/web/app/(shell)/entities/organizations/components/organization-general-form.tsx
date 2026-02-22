@@ -1,7 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Save, X } from "lucide-react";
+import { Controller, useForm } from "react-hook-form";
+
+import {
+  CreateOrganizationInputSchema,
+  UpdateOrganizationInputSchema,
+} from "@bedrock/organizations/validation";
+
 import {
   Card,
   CardContent,
@@ -15,6 +23,7 @@ import {
   FieldSet,
   Field,
   FieldDescription,
+  FieldError,
   FieldSeparator,
   FieldContent,
   FieldTitle,
@@ -31,6 +40,7 @@ import { Input } from "@bedrock/ui/components/input";
 import { Switch } from "@bedrock/ui/components/switch";
 import { Button } from "@bedrock/ui/components/button";
 import { Spinner } from "@bedrock/ui/components/spinner";
+
 import { formatDate } from "@/lib/format";
 
 export type OrganizationGeneralFormValues = {
@@ -42,13 +52,34 @@ export type OrganizationGeneralFormValues = {
   customerId: string;
 };
 
+type OrganizationGeneralFormSubmit =
+  | Promise<OrganizationGeneralFormValues | void>
+  | OrganizationGeneralFormValues
+  | void;
+
 type OrganizationGeneralFormProps = {
-  mode: "create" | "edit";
   initialValues?: Partial<OrganizationGeneralFormValues>;
   submitting?: boolean;
   error?: string | null;
-  onSubmit?: (values: OrganizationGeneralFormValues) => Promise<void> | void;
+  onSubmit?: (
+    values: OrganizationGeneralFormValues,
+  ) => OrganizationGeneralFormSubmit;
   onNameChange?: (name: string) => void;
+};
+
+type OrganizationGeneralFormVariant = {
+  schema:
+    | typeof CreateOrganizationInputSchema
+    | typeof UpdateOrganizationInputSchema;
+  submitLabel: string;
+  submittingLabel: string;
+  disableTreasuryFields: boolean;
+  disableSubmitUntilDirty: boolean;
+  usePlaceholderDates: boolean;
+};
+
+type OrganizationGeneralFormBaseProps = OrganizationGeneralFormProps & {
+  variant: OrganizationGeneralFormVariant;
 };
 
 const DEFAULT_VALUES: OrganizationGeneralFormValues = {
@@ -69,62 +100,137 @@ function resolveInitialValues(
   };
 }
 
-export function OrganizationGeneralForm({
-  mode,
+const CREATE_GENERAL_FORM_VARIANT: OrganizationGeneralFormVariant = {
+  schema: CreateOrganizationInputSchema,
+  submitLabel: "Создать",
+  submittingLabel: "Создание...",
+  disableTreasuryFields: false,
+  disableSubmitUntilDirty: false,
+  usePlaceholderDates: true,
+};
+
+const EDIT_GENERAL_FORM_VARIANT: OrganizationGeneralFormVariant = {
+  schema: UpdateOrganizationInputSchema,
+  submitLabel: "Сохранить",
+  submittingLabel: "Сохранение...",
+  disableTreasuryFields: true,
+  disableSubmitUntilDirty: true,
+  usePlaceholderDates: false,
+};
+
+function OrganizationGeneralFormBase({
   initialValues,
   submitting = false,
   error,
   onSubmit,
   onNameChange,
-}: OrganizationGeneralFormProps) {
-  const initial = useMemo(() => resolveInitialValues(initialValues), [initialValues]);
-  const [values, setValues] = useState<OrganizationGeneralFormValues>(initial);
+  variant,
+}: OrganizationGeneralFormBaseProps) {
+  const initialName = initialValues?.name;
+  const initialCountry = initialValues?.country;
+  const initialBaseCurrency = initialValues?.baseCurrency;
+  const initialExternalId = initialValues?.externalId;
+  const initialIsTreasury = initialValues?.isTreasury;
+  const initialCustomerId = initialValues?.customerId;
 
-  const isCreateMode = mode === "create";
+  const initial = useMemo(
+    () =>
+      resolveInitialValues({
+        name: initialName,
+        country: initialCountry,
+        baseCurrency: initialBaseCurrency,
+        externalId: initialExternalId,
+        isTreasury: initialIsTreasury,
+        customerId: initialCustomerId,
+      }),
+    [
+      initialBaseCurrency,
+      initialCountry,
+      initialCustomerId,
+      initialExternalId,
+      initialIsTreasury,
+      initialName,
+    ],
+  );
+
+  const formResolver = useMemo(
+    () =>
+      zodResolver(variant.schema, undefined, {
+        raw: true,
+      }),
+    [variant.schema],
+  );
+
+  const {
+    control,
+    handleSubmit,
+    register,
+    reset,
+    watch,
+    formState: { errors, isDirty },
+  } = useForm<OrganizationGeneralFormValues>({
+    resolver: formResolver as never,
+    defaultValues: initial,
+    mode: "onChange",
+    shouldUnregister: true,
+  });
+
+  const isTreasury = watch("isTreasury");
   const nowFormatted = formatDate(new Date());
 
-  function update<K extends keyof OrganizationGeneralFormValues>(
-    key: K,
-    value: OrganizationGeneralFormValues[K],
-  ) {
-    setValues((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function handleNameChange(value: string) {
-    update("name", value);
-    onNameChange?.(value);
-  }
+  useEffect(() => {
+    reset(initial);
+    onNameChange?.(initial.name);
+  }, [initial, onNameChange, reset]);
 
   function handleReset() {
-    setValues(initial);
+    reset(initial);
     onNameChange?.(initial.name);
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!isCreateMode || !onSubmit) return;
-    await onSubmit(values);
+  async function handleFormSubmit(values: OrganizationGeneralFormValues) {
+    if (!onSubmit) return;
+
+    const submittedValues = await onSubmit(values);
+    if (submittedValues) {
+      reset(submittedValues);
+      onNameChange?.(submittedValues.name);
+    }
   }
+
+  const submitDisabled =
+    submitting || !onSubmit || (variant.disableSubmitUntilDirty && !isDirty);
+  const resetDisabled = submitting || !isDirty;
 
   return (
     <Card className="w-full rounded-sm">
       <CardHeader className="border-b">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <CardTitle className="flex items-center">Общая информация</CardTitle>
+            <CardTitle className="flex items-center">
+              Общая информация
+            </CardTitle>
             <CardDescription>
               Просмотр и редактирование общей информации организации
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Button type="submit" form="organization-general-form" disabled={!isCreateMode || submitting}>
-              {submitting ? <Spinner className="size-4" /> : <Save className="size-4" />}
-              {submitting ? (isCreateMode ? "Создание..." : "Сохранение...") : isCreateMode ? "Создать" : "Сохранить"}
+            <Button
+              type="submit"
+              form="organization-general-form"
+              disabled={submitDisabled}
+            >
+              {submitting ? (
+                <Spinner className="size-4" />
+              ) : (
+                <Save className="size-4" />
+              )}
+              {submitting ? variant.submittingLabel : variant.submitLabel}
             </Button>
             <Button
               variant="outline"
               type="button"
-              disabled={!isCreateMode || submitting}
+              disabled={resetDisabled}
               onClick={handleReset}
             >
               <X className="size-4" />
@@ -134,95 +240,142 @@ export function OrganizationGeneralForm({
         </div>
       </CardHeader>
       <CardContent>
-        <form id="organization-general-form" onSubmit={handleSubmit}>
+        <form
+          id="organization-general-form"
+          onSubmit={handleSubmit(handleFormSubmit)}
+        >
           <FieldGroup>
             <FieldSet>
               <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="organization-name">Название</FieldLabel>
-                  <Input
-                    id="organization-name"
-                    placeholder="Наименование организации"
-                    value={values.name}
-                    onChange={(event) => handleNameChange(event.target.value)}
-                    required
-                  />
-                </Field>
+                <Controller
+                  name="name"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="organization-name">
+                        Название
+                      </FieldLabel>
+                      <Input
+                        {...field}
+                        id="organization-name"
+                        aria-invalid={fieldState.invalid}
+                        placeholder="Наименование организации"
+                        onChange={(event) => {
+                          field.onChange(event);
+                          onNameChange?.(event.target.value);
+                        }}
+                      />
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
                 <div className="grid md:grid-cols-3 gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="organization-country">Страна</FieldLabel>
+                  <Field data-invalid={Boolean(errors.country)}>
+                    <FieldLabel htmlFor="organization-country">
+                      Страна
+                    </FieldLabel>
                     <Input
+                      {...register("country")}
                       id="organization-country"
+                      aria-invalid={Boolean(errors.country)}
                       placeholder="Например: Россия"
-                      value={values.country}
-                      onChange={(event) => update("country", event.target.value)}
                     />
+                    <FieldError errors={[errors.country]} />
                   </Field>
-                  <Field>
-                    <FieldLabel htmlFor="organization-base-currency">Базовая валюта</FieldLabel>
-                    <Select
-                      value={values.baseCurrency}
-                      onValueChange={(value) =>
-                        update("baseCurrency", value ?? DEFAULT_VALUES.baseCurrency)
-                      }
-                    >
-                      <SelectTrigger id="organization-base-currency" className="w-full">
-                        <SelectValue placeholder="Выберите валюту" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="USD">USD</SelectItem>
-                          <SelectItem value="EUR">EUR</SelectItem>
-                          <SelectItem value="RUB">RUB</SelectItem>
-                          <SelectItem value="USDT">USDT</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="organization-external-id">External ID</FieldLabel>
+                  <Controller
+                    name="baseCurrency"
+                    control={control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="organization-base-currency">
+                          Базовая валюта
+                        </FieldLabel>
+                        <Select
+                          name={field.name}
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger
+                            id="organization-base-currency"
+                            aria-invalid={fieldState.invalid}
+                            className="w-full"
+                          >
+                            <SelectValue placeholder="Выберите валюту" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectItem value="USD">USD</SelectItem>
+                              <SelectItem value="EUR">EUR</SelectItem>
+                              <SelectItem value="RUB">RUB</SelectItem>
+                              <SelectItem value="USDT">USDT</SelectItem>
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Field data-invalid={Boolean(errors.externalId)}>
+                    <FieldLabel htmlFor="organization-external-id">
+                      External ID
+                    </FieldLabel>
                     <Input
+                      {...register("externalId")}
                       id="organization-external-id"
+                      aria-invalid={Boolean(errors.externalId)}
                       placeholder="Например: crm-123"
-                      value={values.externalId}
-                      onChange={(event) => update("externalId", event.target.value)}
                     />
+                    <FieldError errors={[errors.externalId]} />
                   </Field>
                 </div>
               </FieldGroup>
 
               <FieldGroup>
                 <FieldLabel htmlFor="organization-treasury">
-                  <Field orientation="horizontal">
-                    <FieldContent>
-                      <FieldTitle>
-                        {values.isTreasury
-                          ? "Принадлежит казначейству"
-                          : "Не принадлежит казначейству"}
-                      </FieldTitle>
-                      <FieldDescription>
-                        Если выключено, требуется UUID клиента.
-                      </FieldDescription>
-                    </FieldContent>
-                    <Switch
-                      id="organization-treasury"
-                      checked={values.isTreasury}
-                      onCheckedChange={(checked) => update("isTreasury", checked)}
-                    />
-                  </Field>
+                  <Controller
+                    name="isTreasury"
+                    control={control}
+                    render={({ field }) => (
+                      <Field orientation="horizontal">
+                        <FieldContent>
+                          <FieldTitle>
+                            {field.value
+                              ? "Принадлежит казначейству"
+                              : "Не принадлежит казначейству"}
+                          </FieldTitle>
+                          <FieldDescription>
+                            Если выключено, требуется UUID клиента.
+                          </FieldDescription>
+                        </FieldContent>
+                        <Switch
+                          id="organization-treasury"
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={variant.disableTreasuryFields}
+                        />
+                      </Field>
+                    )}
+                  />
                 </FieldLabel>
               </FieldGroup>
 
-              {!values.isTreasury && (
-                <Field>
-                  <FieldLabel htmlFor="organization-customer-id">Customer ID (UUID)</FieldLabel>
+              {!isTreasury && (
+                <Field data-invalid={Boolean(errors.customerId)}>
+                  <FieldLabel htmlFor="organization-customer-id">
+                    Customer ID (UUID)
+                  </FieldLabel>
                   <Input
+                    {...register("customerId")}
                     id="organization-customer-id"
+                    aria-invalid={Boolean(errors.customerId)}
                     placeholder="00000000-0000-4000-8000-000000000000"
-                    value={values.customerId}
-                    onChange={(event) => update("customerId", event.target.value)}
-                    required
+                    disabled={variant.disableTreasuryFields}
                   />
+                  <FieldError errors={[errors.customerId]} />
                 </Field>
               )}
             </FieldSet>
@@ -233,7 +386,7 @@ export function OrganizationGeneralForm({
                 <Input
                   readOnly
                   disabled
-                  value={isCreateMode ? "—" : nowFormatted}
+                  value={variant.usePlaceholderDates ? "—" : nowFormatted}
                 />
               </Field>
               <Field>
@@ -241,16 +394,36 @@ export function OrganizationGeneralForm({
                 <Input
                   readOnly
                   disabled
-                  value={isCreateMode ? "—" : nowFormatted}
+                  value={variant.usePlaceholderDates ? "—" : nowFormatted}
                 />
               </Field>
             </div>
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
           </FieldGroup>
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+export function OrganizationCreateGeneralForm(
+  props: OrganizationGeneralFormProps,
+) {
+  return (
+    <OrganizationGeneralFormBase
+      variant={CREATE_GENERAL_FORM_VARIANT}
+      {...props}
+    />
+  );
+}
+
+export function OrganizationEditGeneralForm(
+  props: OrganizationGeneralFormProps,
+) {
+  return (
+    <OrganizationGeneralFormBase
+      variant={EDIT_GENERAL_FORM_VARIANT}
+      {...props}
+    />
   );
 }

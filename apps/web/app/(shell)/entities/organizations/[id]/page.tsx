@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { OrganizationGeneralForm } from "../components/organization-general-form";
+import { OrganizationEditForm } from "../components/organization-edit-form";
 import { getOrganizationById } from "../lib/queries";
 
 interface OrganizationPageProps {
@@ -17,17 +17,5 @@ export default async function OrganizationPage({
     notFound();
   }
 
-  return (
-    <OrganizationGeneralForm
-      mode="edit"
-      initialValues={{
-        name: organization.name,
-        country: organization.country ?? "",
-        baseCurrency: organization.baseCurrency,
-        externalId: organization.externalId ?? "",
-        isTreasury: organization.isTreasury,
-        customerId: organization.customerId ?? "",
-      }}
-    />
-  );
+  return <OrganizationEditForm organization={organization} />;
 }

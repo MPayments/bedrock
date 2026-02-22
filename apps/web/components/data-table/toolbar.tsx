@@ -4,13 +4,19 @@ import type { Column, Table } from "@tanstack/react-table";
 import { X } from "lucide-react";
 import * as React from "react";
 
-import { DataTableDateFilter } from "@/components/data-table/date-filter";
-import { DataTableFacetedFilter } from "@/components/data-table/faceted-filter";
-import { DataTableSliderFilter } from "@/components/data-table/slider-filter";
-import { DataTableViewOptions } from "@/components/data-table/view-options";
 import { Button } from "@bedrock/ui/components/button";
 import { Input } from "@bedrock/ui/components/input";
 import { cn } from "@bedrock/ui/lib/utils";
+import {
+  DataTableDateFilter,
+  DataTableDateRangeFilter,
+} from "@/components/data-table/date-filter";
+import {
+  DataTableFacetedFilter,
+  DataTableFacetedMultiFilter,
+} from "@/components/data-table/faceted-filter";
+import { DataTableSliderFilter } from "@/components/data-table/slider-filter";
+import { DataTableViewOptions } from "@/components/data-table/view-options";
 
 interface DataTableToolbarProps<TData> extends React.ComponentProps<"div"> {
   table: Table<TData>;
@@ -119,23 +125,36 @@ function DataTableToolbarFilter<TData>({
           );
 
         case "date":
-        case "dateRange":
           return (
             <DataTableDateFilter
               column={column}
               title={columnMeta.label ?? column.id}
-              multiple={columnMeta.variant === "dateRange"}
+            />
+          );
+
+        case "dateRange":
+          return (
+            <DataTableDateRangeFilter
+              column={column}
+              title={columnMeta.label ?? column.id}
             />
           );
 
         case "select":
-        case "multiSelect":
           return (
             <DataTableFacetedFilter
               column={column}
               title={columnMeta.label ?? column.id}
               options={columnMeta.options ?? []}
-              multiple={columnMeta.variant === "multiSelect"}
+            />
+          );
+
+        case "multiSelect":
+          return (
+            <DataTableFacetedMultiFilter
+              column={column}
+              title={columnMeta.label ?? column.id}
+              options={columnMeta.options ?? []}
             />
           );
 

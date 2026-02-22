@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, use, useCallback, useMemo, useState } from "react";
 
 const DEFAULT_CREATE_ORGANIZATION_LABEL = "Новая организация";
 
@@ -11,12 +11,9 @@ type CreateDraftNameContextValue = {
   resetCreateName: () => void;
 };
 
-const CreateDraftNameContext = createContext<CreateDraftNameContextValue>({
-  createName: "",
-  createLabel: DEFAULT_CREATE_ORGANIZATION_LABEL,
-  setCreateName: () => {},
-  resetCreateName: () => {},
-});
+const CreateDraftNameContext = createContext<CreateDraftNameContextValue | null>(
+  null,
+);
 
 export function OrganizationCreateDraftNameProvider({
   children,
@@ -44,12 +41,17 @@ export function OrganizationCreateDraftNameProvider({
   }, [createName, resetCreateName, setCreateNameValue]);
 
   return (
-    <CreateDraftNameContext.Provider value={value}>
-      {children}
-    </CreateDraftNameContext.Provider>
+    <CreateDraftNameContext value={value}>{children}</CreateDraftNameContext>
   );
 }
 
 export function useOrganizationCreateDraftName() {
-  return useContext(CreateDraftNameContext);
+  const context = use(CreateDraftNameContext);
+  if (!context) {
+    throw new Error(
+      "useOrganizationCreateDraftName must be used inside OrganizationCreateDraftNameProvider",
+    );
+  }
+
+  return context;
 }

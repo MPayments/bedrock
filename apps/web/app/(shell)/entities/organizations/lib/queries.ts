@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import { ORGANIZATIONS_LIST_CONTRACT } from "@bedrock/organizations";
+import { ORGANIZATIONS_LIST_CONTRACT } from "@bedrock/organizations/validation";
 
 import { apiClient } from "@/lib/api-client";
 import { createListQueryFromSearchParams } from "@/lib/list-search-params";
