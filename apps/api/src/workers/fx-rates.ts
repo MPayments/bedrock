@@ -1,10 +1,7 @@
-import dotenv from "dotenv";
-
 import { createFxRatesWorker } from "@bedrock/fx";
 
+import "../load-env";
 import { createAppContext, type Env } from "../context";
-
-dotenv.config({ path: "../../.env" });
 
 const env: Env = {
     DATABASE_URL: process.env.DATABASE_URL!,

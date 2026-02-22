@@ -17,13 +17,44 @@ const testDbConfig = {
 };
 
 const tbConfig = {
-    cluster_id: 0n,
+    cluster_id: BigInt(process.env.TB_CLUSTER_ID || "1"),
     replica_addresses: [process.env.TB_ADDRESS || "3000"],
 };
 
 const pool = new Pool(testDbConfig);
 const db = drizzle(pool, { schema });
 const tb = createClient(tbConfig);
+
+function formatError(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    return String(error);
+}
+
+async function assertTigerBeetleReady(timeoutMs = 5000) {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    try {
+        await Promise.race([
+            tb.lookupAccounts([0n]),
+            new Promise<never>((_, reject) => {
+                timeoutId = setTimeout(() => {
+                    reject(new Error(`timeout after ${timeoutMs}ms`));
+                }, timeoutMs);
+            }),
+        ]);
+    } catch (error) {
+        throw new Error(
+            `TigerBeetle health check failed (address=${tbConfig.replica_addresses[0]}, cluster_id=${tbConfig.cluster_id}): ${formatError(error)}`
+        );
+    } finally {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+    }
+}
 
 async function ensureTestCurrencies() {
     await seedCurrencies(db);
@@ -73,6 +104,7 @@ beforeAll(async () => {
     console.log("Setting up treasury integration test environment...");
 
     await pool.query("SELECT 1");
+    await assertTigerBeetleReady();
     await resetTreasuryTables();
     await ensureTestCurrencies();
 

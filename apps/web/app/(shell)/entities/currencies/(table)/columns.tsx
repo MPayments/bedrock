@@ -49,7 +49,7 @@ export const columns: ColumnDef<Currency>[] = [
   {
     accessorKey: "createdAt",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} label="Создана" />
+      <DataTableColumnHeader column={column} label="Дата создания" />
     ),
     cell: ({ row }) => formatDate(row.getValue("createdAt")),
     enableSorting: true,
@@ -58,7 +58,7 @@ export const columns: ColumnDef<Currency>[] = [
   {
     accessorKey: "updatedAt",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} label="Обновлена" />
+      <DataTableColumnHeader column={column} label="Дата обновления" />
     ),
     cell: ({ row }) => formatDate(row.getValue("updatedAt")),
     enableSorting: true,

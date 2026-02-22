@@ -45,11 +45,20 @@ const segmentMap: Record<string, SegmentConfig> = {
   customers: {
     label: "Клиенты",
     href: "/treasury/customers",
-    dynamicChild: (id) => ({ label: `Клиент #${id}` }),
+    dynamicChild: (id) => ({ label: `${id}` }),
   },
-  organizations: { label: "Организации", icon: Building2 },
+  organizations: {
+    label: "Организации",
+    href: "/entities/organizations",
+    icon: Building2,
+    dynamicChild: (id) => ({
+      label: `${id}`,
+      href: `/entities/organizations/${id}`,
+    }),
+  },
   currencies: { label: "Валюты", icon: DollarSign },
   accounts: { label: "Счета" },
+  operations: { label: "Операции" },
 
   // FX pages
   rates: { label: "Курсы", icon: ChartCandlestick },
