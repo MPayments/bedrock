@@ -7,7 +7,11 @@ import auth from "@bedrock/auth";
 import { AppError } from "@bedrock/kernel";
 
 import { createAppContext, type Env } from "./context";
-import { authMiddleware, requireAuth, type AuthVariables } from "./middleware/auth";
+import {
+  authMiddleware,
+  requireAuth,
+  type AuthVariables,
+} from "./middleware/auth";
 import {
   counterpartiesRoutes,
   counterpartyGroupsRoutes,
@@ -17,8 +21,7 @@ import {
 } from "./routes/index";
 
 const env: Env = {
-  DATABASE_URL:
-    process.env.DATABASE_URL!,
+  DATABASE_URL: process.env.DATABASE_URL!,
   TB_ADDRESS: process.env.TB_ADDRESS!,
   TB_CLUSTER_ID: Number(process.env.TB_CLUSTER_ID!),
   BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
@@ -27,8 +30,7 @@ const env: Env = {
 };
 
 const ctx = createAppContext(env);
-const configuredAuthOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS
-  .split(",")
+const configuredAuthOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
   .map((origin) => origin.trim())
   .filter((origin) => origin.length > 0);
 const authAllowedOriginSet = new Set(configuredAuthOrigins);
@@ -96,12 +98,12 @@ app.get("/", (c) => {
 
 // Mount routes under /v1 — all require an authenticated session
 const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
+  .use("*", requireAuth())
   .route("/counterparties", counterpartiesRoutes(ctx))
   .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
   .route("/fx/rates", fxRatesRoutes(ctx));
-  // .use("*", requireAuth());
 const routes = app.route("/v1", v1);
 
 const openApiInfo = {

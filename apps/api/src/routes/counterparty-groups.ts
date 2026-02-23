@@ -1,14 +1,14 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import {
-    CounterpartyCustomerNotFoundError,
-    CounterpartyGroupNotFoundError,
-    CounterpartyGroupRuleError,
-    CounterpartyGroupSchema,
-    CounterpartySystemGroupDeleteError,
-    CreateCounterpartyGroupInputSchema,
-    ListCounterpartyGroupsQuerySchema,
-    UpdateCounterpartyGroupInputSchema,
+  CounterpartyCustomerNotFoundError,
+  CounterpartyGroupNotFoundError,
+  CounterpartyGroupRuleError,
+  CounterpartyGroupSchema,
+  CounterpartySystemGroupDeleteError,
+  CreateCounterpartyGroupInputSchema,
+  ListCounterpartyGroupsQuerySchema,
+  UpdateCounterpartyGroupInputSchema,
 } from "@bedrock/counterparties";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
@@ -17,208 +17,235 @@ import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
 export function counterpartyGroupsRoutes(ctx: AppContext) {
-    const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+  const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
-    const listRoute = createRoute({
-        // middleware: [requirePermission({ counterparties: ["list"] })],
-        method: "get",
-        path: "/",
-        tags: ["Counterparty Groups"],
-        summary: "List counterparty groups",
-        request: {
-            query: ListCounterpartyGroupsQuerySchema,
+  const listRoute = createRoute({
+    middleware: [requirePermission({ counterparties: ["list"] })],
+    method: "get",
+    path: "/",
+    tags: ["Counterparty Groups"],
+    summary: "List counterparty groups",
+    request: {
+      query: ListCounterpartyGroupsQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CounterpartyGroupSchema.array(),
+          },
         },
-        responses: {
-            200: {
-                content: {
-                    "application/json": {
-                        schema: CounterpartyGroupSchema.array(),
-                    },
-                },
-                description: "List of counterparty groups",
-            },
+        description: "List of counterparty groups",
+      },
+    },
+  });
+
+  const createRoute_ = createRoute({
+    middleware: [requirePermission({ counterparties: ["create"] })],
+    method: "post",
+    path: "/",
+    tags: ["Counterparty Groups"],
+    summary: "Create a counterparty group",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: CreateCounterpartyGroupInputSchema,
+          },
         },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: CounterpartyGroupSchema,
+          },
+        },
+        description: "Counterparty group created",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const getRoute = createRoute({
+    middleware: [requirePermission({ counterparties: ["list"] })],
+    method: "get",
+    path: "/{id}",
+    tags: ["Counterparty Groups"],
+    summary: "Get a counterparty group by ID",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CounterpartyGroupSchema,
+          },
+        },
+        description: "Counterparty group found",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Parent group not found",
+      },
+    },
+  });
+
+  const updateRoute = createRoute({
+    middleware: [requirePermission({ counterparties: ["update"] })],
+    method: "patch",
+    path: "/{id}",
+    tags: ["Counterparty Groups"],
+    summary: "Update a counterparty group",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: UpdateCounterpartyGroupInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CounterpartyGroupSchema,
+          },
+        },
+        description: "Counterparty group updated",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Counterparty group not found",
+      },
+    },
+  });
+
+  const deleteRoute = createRoute({
+    // middleware: [requirePermission({ counterparties: ["delete"] })],
+    method: "delete",
+    path: "/{id}",
+    tags: ["Counterparty Groups"],
+    summary: "Delete a counterparty group",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DeletedSchema,
+          },
+        },
+        description: "Counterparty group deleted",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "System group cannot be deleted",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Counterparty group not found",
+      },
+    },
+  });
+
+  return app
+    .openapi(listRoute, async (c) => {
+      const query = c.req.valid("query");
+      const groups = await ctx.counterpartiesService.listGroups(query);
+      return c.json(groups, 200);
+    })
+    .openapi(createRoute_, async (c) => {
+      const input = c.req.valid("json");
+
+      try {
+        const group = await ctx.counterpartiesService.createGroup(input);
+        return c.json(group, 201);
+      } catch (err) {
+        if (
+          err instanceof CounterpartyGroupNotFoundError ||
+          err instanceof CounterpartyCustomerNotFoundError
+        ) {
+          return c.json({ error: err.message }, 404);
+        }
+        if (err instanceof CounterpartyGroupRuleError) {
+          return c.json({ error: err.message }, 400);
+        }
+        throw err;
+      }
+    })
+    .openapi(updateRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      const input = c.req.valid("json");
+
+      try {
+        const group = await ctx.counterpartiesService.updateGroup(id, input);
+        return c.json(group, 200);
+      } catch (err) {
+        if (
+          err instanceof CounterpartyGroupNotFoundError ||
+          err instanceof CounterpartyCustomerNotFoundError
+        ) {
+          return c.json({ error: err.message }, 404);
+        }
+        if (err instanceof CounterpartyGroupRuleError) {
+          return c.json({ error: err.message }, 400);
+        }
+        throw err;
+      }
+    })
+    .openapi(deleteRoute, async (c) => {
+      const { id } = c.req.valid("param");
+
+      try {
+        await ctx.counterpartiesService.removeGroup(id);
+        return c.json({ deleted: true }, 200);
+      } catch (err) {
+        if (err instanceof CounterpartyGroupNotFoundError) {
+          return c.json({ error: err.message }, 404);
+        }
+        if (err instanceof CounterpartySystemGroupDeleteError) {
+          return c.json({ error: err.message }, 400);
+        }
+        throw err;
+      }
     });
-
-    const createRoute_ = createRoute({
-        // middleware: [requirePermission({ counterparties: ["create"] })],
-        method: "post",
-        path: "/",
-        tags: ["Counterparty Groups"],
-        summary: "Create a counterparty group",
-        request: {
-            body: {
-                content: {
-                    "application/json": {
-                        schema: CreateCounterpartyGroupInputSchema,
-                    },
-                },
-                required: true,
-            },
-        },
-        responses: {
-            201: {
-                content: {
-                    "application/json": {
-                        schema: CounterpartyGroupSchema,
-                    },
-                },
-                description: "Counterparty group created",
-            },
-            400: {
-                content: {
-                    "application/json": {
-                        schema: ErrorSchema,
-                    },
-                },
-                description: "Validation error",
-            },
-            404: {
-                content: {
-                    "application/json": {
-                        schema: ErrorSchema,
-                    },
-                },
-                description: "Parent group not found",
-            },
-        },
-    });
-
-    const updateRoute = createRoute({
-        // middleware: [requirePermission({ counterparties: ["update"] })],
-        method: "patch",
-        path: "/{id}",
-        tags: ["Counterparty Groups"],
-        summary: "Update a counterparty group",
-        request: {
-            params: IdParamSchema,
-            body: {
-                content: {
-                    "application/json": {
-                        schema: UpdateCounterpartyGroupInputSchema,
-                    },
-                },
-                required: true,
-            },
-        },
-        responses: {
-            200: {
-                content: {
-                    "application/json": {
-                        schema: CounterpartyGroupSchema,
-                    },
-                },
-                description: "Counterparty group updated",
-            },
-            400: {
-                content: {
-                    "application/json": {
-                        schema: ErrorSchema,
-                    },
-                },
-                description: "Validation error",
-            },
-            404: {
-                content: {
-                    "application/json": {
-                        schema: ErrorSchema,
-                    },
-                },
-                description: "Counterparty group not found",
-            },
-        },
-    });
-
-    const deleteRoute = createRoute({
-        // middleware: [requirePermission({ counterparties: ["delete"] })],
-        method: "delete",
-        path: "/{id}",
-        tags: ["Counterparty Groups"],
-        summary: "Delete a counterparty group",
-        request: {
-            params: IdParamSchema,
-        },
-        responses: {
-            200: {
-                content: {
-                    "application/json": {
-                        schema: DeletedSchema,
-                    },
-                },
-                description: "Counterparty group deleted",
-            },
-            400: {
-                content: {
-                    "application/json": {
-                        schema: ErrorSchema,
-                    },
-                },
-                description: "System group cannot be deleted",
-            },
-            404: {
-                content: {
-                    "application/json": {
-                        schema: ErrorSchema,
-                    },
-                },
-                description: "Counterparty group not found",
-            },
-        },
-    });
-
-    return app
-        .openapi(listRoute, async (c) => {
-            const query = c.req.valid("query");
-            const groups = await ctx.counterpartiesService.listGroups(query);
-            return c.json(groups, 200);
-        })
-        .openapi(createRoute_, async (c) => {
-            const input = c.req.valid("json");
-
-            try {
-                const group = await ctx.counterpartiesService.createGroup(input);
-                return c.json(group, 201);
-            } catch (err) {
-                if (err instanceof CounterpartyGroupNotFoundError || err instanceof CounterpartyCustomerNotFoundError) {
-                    return c.json({ error: err.message }, 404);
-                }
-                if (err instanceof CounterpartyGroupRuleError) {
-                    return c.json({ error: err.message }, 400);
-                }
-                throw err;
-            }
-        })
-        .openapi(updateRoute, async (c) => {
-            const { id } = c.req.valid("param");
-            const input = c.req.valid("json");
-
-            try {
-                const group = await ctx.counterpartiesService.updateGroup(id, input);
-                return c.json(group, 200);
-            } catch (err) {
-                if (err instanceof CounterpartyGroupNotFoundError || err instanceof CounterpartyCustomerNotFoundError) {
-                    return c.json({ error: err.message }, 404);
-                }
-                if (err instanceof CounterpartyGroupRuleError) {
-                    return c.json({ error: err.message }, 400);
-                }
-                throw err;
-            }
-        })
-        .openapi(deleteRoute, async (c) => {
-            const { id } = c.req.valid("param");
-
-            try {
-                await ctx.counterpartiesService.removeGroup(id);
-                return c.json({ deleted: true }, 200);
-            } catch (err) {
-                if (err instanceof CounterpartyGroupNotFoundError) {
-                    return c.json({ error: err.message }, 404);
-                }
-                if (err instanceof CounterpartySystemGroupDeleteError) {
-                    return c.json({ error: err.message }, 400);
-                }
-                throw err;
-            }
-        });
 }
