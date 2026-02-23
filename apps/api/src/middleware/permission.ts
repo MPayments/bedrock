@@ -14,7 +14,7 @@ export function requirePermission(
             const result = await auth.api.userHasPermission({
                 body: {
                     userId: user.id,
-                    permission: permissions,
+                    permissions,
                 },
             });
 

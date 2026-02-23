@@ -20,7 +20,7 @@ export function currenciesRoutes(ctx: AppContext) {
     const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
     const listRoute = createRoute({
-        // middleware: [requirePermission({ currencies: ["list"] })],
+        middleware: [requirePermission({ currencies: ["list"] })],
         method: "get",
         path: "/",
         tags: ["Currencies"],

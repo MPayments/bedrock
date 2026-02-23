@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Bell, LucideIcon } from "lucide-react";
+import { type LucideIcon } from "lucide-react";
 
 import {
   SidebarGroup,
@@ -13,23 +13,32 @@ import {
 } from "@bedrock/ui/components/sidebar";
 import { NavNotifications } from "./nav-notifications";
 
+export type NavSecondaryItem =
+  | {
+      kind: "link";
+      title: string;
+      url: string;
+      icon?: LucideIcon;
+    }
+  | {
+      kind: "notifications";
+      title: string;
+      icon: LucideIcon;
+    };
+
 export function NavSecondary({
   items,
   ...props
 }: {
-  items: {
-    title: string;
-    url: string;
-    icon?: LucideIcon;
-  }[];
+  items: NavSecondaryItem[];
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   return (
     <SidebarGroup {...props}>
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              {item.icon === Bell ? (
+            <SidebarMenuItem key={`${item.kind}-${item.title}`}>
+              {item.kind === "notifications" ? (
                 <NavNotifications icon={item.icon} title={item.title} />
               ) : (
                 <SidebarMenuButton

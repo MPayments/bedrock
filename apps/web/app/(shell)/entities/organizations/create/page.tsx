@@ -42,7 +42,9 @@ export default function CreateOrganizationPage() {
       baseCurrency: values.baseCurrency,
       externalId: values.externalId.trim() || undefined,
       isTreasury: values.isTreasury,
-      customerId: values.isTreasury ? undefined : values.customerId.trim() || undefined,
+      customerId: values.isTreasury
+        ? undefined
+        : values.customerId.trim() || undefined,
     };
 
     const parsed = CreateOrganizationInputSchema.safeParse(payload);

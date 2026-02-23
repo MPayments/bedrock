@@ -90,11 +90,11 @@ app.get("/", (c) => {
 
 // Mount routes under /v1 — all require an authenticated session
 const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
+  .use("*", requireAuth())
   .route("/organizations", organizationsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
   .route("/fx/rates", fxRatesRoutes(ctx));
-  // .use("*", requireAuth());
 const routes = app.route("/v1", v1);
 
 const openApiInfo = {
