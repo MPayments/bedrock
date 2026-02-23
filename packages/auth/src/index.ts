@@ -11,6 +11,9 @@ const auth = betterAuth({
     baseURL: process.env.BETTER_AUTH_URL!,
     basePath: "/api/auth",
     trustedOrigins: [process.env.BETTER_AUTH_TRUSTED_ORIGINS!],
+    emailAndPassword: {
+        enabled: true,
+    },
     database: drizzleAdapter(db, {
         provider: "pg",
     }),
