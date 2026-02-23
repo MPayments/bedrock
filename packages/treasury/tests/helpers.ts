@@ -39,7 +39,7 @@ export {
 
 export const CUSTOMER_ID = TEST_UUIDS.CUSTOMER_1;
 export const ORDER_ID = TEST_UUIDS.ORDER_1;
-export const BRANCH_ORG_ID = TEST_UUIDS.ORG_2;
+export const BRANCH_COUNTERPARTY_ID = TEST_UUIDS.ORG_2;
 
 // ============================================================================
 // Treasury-specific Factories
@@ -48,8 +48,8 @@ export const BRANCH_ORG_ID = TEST_UUIDS.ORG_2;
 export interface MockOrder {
     id: string;
     customerId: string;
-    payInOrgId: string;
-    payOutOrgId: string;
+    payInCounterpartyId: string;
+    payOutCounterpartyId: string;
     status: string;
     payInCurrencyId: string;
     payInCurrency: string;
@@ -69,8 +69,8 @@ export function createMockOrder(overrides: Partial<MockOrder> = {}): MockOrder {
     const order: MockOrder = {
         id: ORDER_ID,
         customerId: CUSTOMER_ID,
-        payInOrgId: BRANCH_ORG_ID,
-        payOutOrgId: BRANCH_ORG_ID,
+        payInCounterpartyId: BRANCH_COUNTERPARTY_ID,
+        payOutCounterpartyId: BRANCH_COUNTERPARTY_ID,
         status: "quote",
         payInCurrencyId: "cur-usd",
         payInCurrency: "USD",

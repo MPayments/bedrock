@@ -7,9 +7,9 @@ export function assertInitiateFeePaymentReplayCompatible(feeOrder: any, input: I
             `FeePaymentOrder already initiated with different railRef (expected ${feeOrder.railRef ?? "null"}, got ${input.railRef})`
         );
     }
-    if (feeOrder.payoutOrgId && feeOrder.payoutOrgId !== input.payoutOrgId) {
+    if (feeOrder.payoutCounterpartyId && feeOrder.payoutCounterpartyId !== input.payoutCounterpartyId) {
         throw new InvalidStateError(
-            `FeePaymentOrder already initiated with different payoutOrgId (expected ${feeOrder.payoutOrgId}, got ${input.payoutOrgId})`
+            `FeePaymentOrder already initiated with different payoutCounterpartyId (expected ${feeOrder.payoutCounterpartyId}, got ${input.payoutCounterpartyId})`
         );
     }
     if (feeOrder.payoutBankStableKey && feeOrder.payoutBankStableKey !== input.payoutBankStableKey) {

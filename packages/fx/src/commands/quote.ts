@@ -131,7 +131,7 @@ export function createQuoteHandlers(
                 sourceKind: "derived",
                 sourceRef: validated.anchor ?? "USD",
                 asOf: validated.asOf,
-                executionOrgId: null,
+                executionCounterpartyId: null,
             }];
             pricingTrace = validated.pricingTrace ?? buildAutoCrossTrace(validated, cross.rateNum, cross.rateDen);
         } else {
@@ -207,7 +207,7 @@ export function createQuoteHandlers(
                         sourceKind: leg.sourceKind,
                         sourceRef: leg.sourceRef,
                         asOf: leg.asOf,
-                        executionOrgId: leg.executionOrgId,
+                        executionCounterpartyId: leg.executionCounterpartyId,
                     }))
                 );
 

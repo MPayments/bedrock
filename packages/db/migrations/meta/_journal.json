@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1771440470325,
-      "tag": "0000_redundant_fantastic_four",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1771526400000,
-      "tag": "0001_fx_rates_sources",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1771494585640,
-      "tag": "0002_high_deathstrike",
+      "when": 1771780445238,
+      "tag": "0000_hard_freak",
       "breakpoints": true
     }
   ]

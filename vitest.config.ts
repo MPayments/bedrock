@@ -14,7 +14,7 @@ export default defineConfig({
       "packages/treasury/vitest.config.ts",
       "packages/treasury/vitest.integration.config.ts",
       "packages/transfers/vitest.config.ts",
-      "packages/organizations/vitest.config.ts"
+      "packages/counterparties/vitest.config.ts"
     ],
     exclude: ["**/node_modules/**", "**/dist/**"],
     coverage: {

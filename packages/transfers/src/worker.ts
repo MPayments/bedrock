@@ -21,14 +21,14 @@ export function createTransfersWorker(deps: { db: Database; logger?: Logger }) {
         // Use FOR UPDATE SKIP LOCKED to prevent concurrent processing
         const rows = await db.execute<{
             transfer_id: string;
-            org_id: string;
+            counterparty_id: string;
             status: string;
             ledger_entry_id: string;
             journal_status: string;
         }>(sql`
             SELECT 
                 t.id as transfer_id, 
-                t.org_id, 
+                t.counterparty_id, 
                 t.status, 
                 t.ledger_entry_id, 
                 j.status as journal_status
@@ -62,7 +62,7 @@ export function createTransfersWorker(deps: { db: Database; logger?: Logger }) {
 
                     logger?.info("Transfer marked as posted", {
                         transferId: item.transfer_id,
-                        orgId: item.org_id,
+                        counterpartyId: item.counterparty_id,
                         ledgerEntryId: item.ledger_entry_id,
                     });
 
@@ -82,7 +82,7 @@ export function createTransfersWorker(deps: { db: Database; logger?: Logger }) {
 
                     logger?.info("Transfer marked as failed", {
                         transferId: item.transfer_id,
-                        orgId: item.org_id,
+                        counterpartyId: item.counterparty_id,
                         ledgerEntryId: item.ledger_entry_id,
                     });
 

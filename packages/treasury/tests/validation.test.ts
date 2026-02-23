@@ -14,7 +14,7 @@ const validUuid = "550e8400-e29b-41d4-a716-446655440000";
 describe("fundingSettledInputSchema", () => {
     const validInput = {
         orderId: validUuid,
-        branchOrgId: validUuid,
+        branchCounterpartyId: validUuid,
         branchBankStableKey: "bank-key-123",
         customerId: validUuid,
         currency: "USD",
@@ -66,7 +66,7 @@ describe("fundingSettledInputSchema", () => {
 describe("executeFxInputSchema", () => {
     const validInput = {
         orderId: validUuid,
-        branchOrgId: validUuid,
+        branchCounterpartyId: validUuid,
         customerId: validUuid,
         payInCurrency: "USD",
         principalMinor: 100000n,
@@ -174,7 +174,7 @@ describe("executeFxInputSchema", () => {
 describe("initiatePayoutInputSchema", () => {
     const validInput = {
         orderId: validUuid,
-        payoutOrgId: validUuid,
+        payoutCounterpartyId: validUuid,
         payoutBankStableKey: "bank-key-456",
         payOutCurrency: "EUR",
         amountMinor: 85000n,
@@ -274,7 +274,7 @@ describe("currency normalization", () => {
     it("should uppercase and trim currency in fundingSettled", () => {
         const input = {
             orderId: validUuid,
-            branchOrgId: validUuid,
+            branchCounterpartyId: validUuid,
             branchBankStableKey: "bank-key",
             customerId: validUuid,
             currency: "  eur  ",
@@ -291,7 +291,7 @@ describe("currency normalization", () => {
         for (const currency of validCurrencies) {
             const input = {
                 orderId: validUuid,
-                branchOrgId: validUuid,
+                branchCounterpartyId: validUuid,
                 branchBankStableKey: "bank-key",
                 customerId: validUuid,
                 currency,

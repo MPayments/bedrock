@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { pgTable, text, timestamp, uuid, uniqueIndex, index } from "drizzle-orm/pg-core";
 
-import { organizations } from "./organizations";
+import { counterparties } from "./counterparties";
 import { currencies } from "../currencies";
 
 export type Rail = "bank" | "swift" | "sepa" | "crypto" | "cash";
@@ -10,7 +10,7 @@ export const bankAccounts = pgTable(
     "bank_accounts",
     {
         id: uuid("id").primaryKey().defaultRandom(),
-        orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+        counterpartyId: uuid("counterparty_id").notNull().references(() => counterparties.id, { onDelete: "cascade" }),
 
         rail: text("rail").$type<Rail>().notNull().default("bank"),
         currencyId: uuid("currency_id").notNull().references(() => currencies.id),
@@ -23,10 +23,10 @@ export const bankAccounts = pgTable(
 
         stableKey: text("stable_key").notNull(),
 
-        createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`)
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
     },
     (t) => ([
-        uniqueIndex("bank_accounts_org_stable_uq").on(t.orgId, t.stableKey),
-        index("bank_accounts_org_cur_idx").on(t.orgId, t.currencyId)
-    ])
+        uniqueIndex("bank_accounts_counterparty_stable_uq").on(t.counterpartyId, t.stableKey),
+        index("bank_accounts_counterparty_cur_idx").on(t.counterpartyId, t.currencyId),
+    ]),
 );

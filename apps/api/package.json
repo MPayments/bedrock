@@ -24,7 +24,7 @@
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
     "@bedrock/kernel": "workspace:*",
-    "@bedrock/organizations": "workspace:*",
+    "@bedrock/counterparties": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "@hono/zod-openapi": "^1.2.1",
     "@scalar/hono-api-reference": "^0.9.41",

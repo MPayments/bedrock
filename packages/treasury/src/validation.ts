@@ -72,7 +72,7 @@ const adjustmentInputSchema = z
 
 export const fundingSettledInputSchema = z.object({
     orderId: uuidSchema,
-    branchOrgId: uuidSchema,
+    branchCounterpartyId: uuidSchema,
     branchBankStableKey: z.string().min(1, "branchBankStableKey is required"),
     customerId: uuidSchema,
     currency: currencySchema,
@@ -85,7 +85,7 @@ export type FundingSettledInput = z.infer<typeof fundingSettledInputSchema>;
 
 export const executeFxInputSchema = z.object({
     orderId: uuidSchema,
-    branchOrgId: uuidSchema,
+    branchCounterpartyId: uuidSchema,
     customerId: uuidSchema,
     dealDirection: feeDealDirectionSchema.optional(),
     dealForm: feeDealFormSchema.optional(),
@@ -110,7 +110,7 @@ export type ExecuteFxAdjustmentComponent = z.output<typeof adjustmentInputSchema
 
 export const initiatePayoutInputSchema = z.object({
     orderId: uuidSchema,
-    payoutOrgId: uuidSchema,
+    payoutCounterpartyId: uuidSchema,
     payoutBankStableKey: z.string().min(1, "payoutBankStableKey is required"),
     payOutCurrency: currencySchema,
     amountMinor: positiveAmountSchema,
@@ -141,7 +141,7 @@ export type VoidPayoutInput = z.infer<typeof voidPayoutInputSchema>;
 
 export const initiateFeePaymentInputSchema = z.object({
     feePaymentOrderId: uuidSchema,
-    payoutOrgId: uuidSchema,
+    payoutCounterpartyId: uuidSchema,
     payoutBankStableKey: z.string().min(1),
     railRef: railRefSchema,
     timeoutSeconds: z.number().int().positive().optional(),

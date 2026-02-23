@@ -12,10 +12,10 @@ import { outbox } from "./ledger/outbox";
 import { tbTransferPlans } from "./ledger/tb-plan";
 import { internalTransfers } from "./transfers";
 import { bankAccounts } from "./treasury/bank-accounts";
+import { counterpartyGroupMemberships, counterpartyGroups, counterparties } from "./treasury/counterparties";
 import { feePaymentOrders } from "./treasury/fee-payment-orders";
 import { paymentOrders } from "./treasury/orders";
 import { settlements } from "./treasury/orders";
-import { organizations } from "./treasury/organizations";
 import { reconciliationExceptions } from "./treasury/reconciliation";
 
 export const schema = {
@@ -24,7 +24,9 @@ export const schema = {
   ledgerAccounts,
   outbox,
   tbTransferPlans,
-  organizations,
+  counterparties,
+  counterpartyGroups,
+  counterpartyGroupMemberships,
   customers,
   bankAccounts,
   paymentOrders,

@@ -60,8 +60,8 @@ const data = {
           url: "/treasury/customers",
         },
         {
-          title: "Организации",
-          url: "/treasury/organizations",
+          title: "Контрагенты",
+          url: "/treasury/counterparties",
           icon: Building2,
         },
         {
@@ -135,8 +135,8 @@ const data = {
       icon: BookOpen,
       items: [
         {
-          title: "Организации",
-          url: "/entities/organizations",
+          title: "Контрагенты",
+          url: "/entities/counterparties",
           icon: Building2,
         },
         {

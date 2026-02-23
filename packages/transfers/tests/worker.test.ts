@@ -16,14 +16,14 @@ describe("createTransfersWorker", () => {
             rows: [
                 {
                     transfer_id: "t1",
-                    org_id: "o1",
+                    counterparty_id: "o1",
                     status: "approved_pending_posting",
                     ledger_entry_id: "e1",
                     journal_status: "pending",
                 },
                 {
                     transfer_id: "t2",
-                    org_id: "o1",
+                    counterparty_id: "o1",
                     status: "approved_pending_posting",
                     ledger_entry_id: "e2",
                     journal_status: "pending",
@@ -42,21 +42,21 @@ describe("createTransfersWorker", () => {
             rows: [
                 {
                     transfer_id: "t1",
-                    org_id: "o1",
+                    counterparty_id: "o1",
                     status: "approved_pending_posting",
                     ledger_entry_id: "e1",
                     journal_status: "posted",
                 },
                 {
                     transfer_id: "t2",
-                    org_id: "o1",
+                    counterparty_id: "o1",
                     status: "approved_pending_posting",
                     ledger_entry_id: "e2",
                     journal_status: "failed",
                 },
                 {
                     transfer_id: "t3",
-                    org_id: "o1",
+                    counterparty_id: "o1",
                     status: "approved_pending_posting",
                     ledger_entry_id: "e3",
                     journal_status: "pending",
@@ -82,7 +82,7 @@ describe("createTransfersWorker", () => {
             rows: [
                 {
                     transfer_id: "t1",
-                    org_id: "o1",
+                    counterparty_id: "o1",
                     status: "approved_pending_posting",
                     ledger_entry_id: "e1",
                     journal_status: "posted",

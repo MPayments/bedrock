@@ -7,8 +7,8 @@ export const treasuryKeyspace = defineKeyspace("treasury", {
 
     bank: (orgId: string, bankStableKey: string, currency: string) => `Bank:${orgId}:${bankStableKey}:${currency}`,
 
-    intercompanyNet: (branchOrgId: string, currency: string) =>
-        `IC:BranchNet:${branchOrgId}:${currency}`,
+    intercompanyNet: (branchCounterpartyId: string, currency: string) =>
+        `IC:BranchNet:${branchCounterpartyId}:${currency}`,
 
     orderInventory: (orderId: string, currency: string) => `OrderInventory:${orderId}:${currency}`,
 

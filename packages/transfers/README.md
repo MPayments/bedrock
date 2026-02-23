@@ -30,7 +30,7 @@ Internal transfer maker/checker domain service plus posting finalization worker.
 `transfersKeyspace` currently defines:
 
 - `customerWallet(customerId, currency)`
-- `internal(orgId, name, currency)`
+- `internal(counterpartyId, name, currency)`
 
 ## Exports
 

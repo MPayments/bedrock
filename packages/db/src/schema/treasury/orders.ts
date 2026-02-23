@@ -1,9 +1,9 @@
 import { sql } from "drizzle-orm";
 import {
-    pgTable, text, timestamp, uuid, bigint, index, uniqueIndex
+    pgTable, text, timestamp, uuid, bigint, index, uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { organizations } from "./organizations";
+import { counterparties } from "./counterparties";
 import { customers } from "../customers";
 import { bankAccounts } from "./bank-accounts";
 import { currencies } from "../currencies";
@@ -29,7 +29,7 @@ export const paymentOrders = pgTable(
     {
         id: uuid("id").primaryKey().defaultRandom(),
 
-        customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+        customerCounterpartyId: uuid("customer_counterparty_id").notNull().references(() => counterparties.id),
         customerId: uuid("customer_id").notNull().references(() => customers.id),
 
         status: text("status").$type<OrderStatus>().notNull().default("quote"),
@@ -43,10 +43,10 @@ export const paymentOrders = pgTable(
         payOutCurrencyId: uuid("payout_currency_id").notNull().references(() => currencies.id),
         payOutAmountMinor: bigint("payout_amount_minor", { mode: "bigint" }).notNull(),
 
-        payInOrgId: uuid("payin_org_id").notNull().references(() => organizations.id),
+        payInCounterpartyId: uuid("payin_counterparty_id").notNull().references(() => counterparties.id),
         payInAccountId: uuid("payin_account_id").references(() => bankAccounts.id),
 
-        payOutOrgId: uuid("payout_org_id").notNull().references(() => organizations.id),
+        payOutCounterpartyId: uuid("payout_counterparty_id").notNull().references(() => counterparties.id),
         payOutAccountId: uuid("payout_account_id").references(() => bankAccounts.id),
 
         beneficiaryName: text("beneficiary_name"),
@@ -58,12 +58,12 @@ export const paymentOrders = pgTable(
         payoutPendingTransferId: uint128("payout_pending_transfer_id"),
 
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
-        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`).$onUpdateFn(() => new Date())
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`).$onUpdateFn(() => new Date()),
     },
     (t) => ([
         index("orders_status_idx").on(t.status),
-        uniqueIndex("orders_idem_uq").on(t.idempotencyKey)
-    ])
+        uniqueIndex("orders_idem_uq").on(t.idempotencyKey),
+    ]),
 );
 
 export type PaymentOrder = typeof paymentOrders.$inferSelect;
@@ -86,6 +86,6 @@ export const settlements = pgTable(
         railRef: text("rail_ref"),
         occurredAt: timestamp("occurred_at", { withTimezone: true }),
 
-        createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`)
-    }
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+    },
 );

@@ -53,7 +53,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                 railRef: vaildated.railRef,
                 currency: feeOrderCurrency,
                 amount: feeOrder.amountMinor.toString(),
-                payoutOrgId: vaildated.payoutOrgId,
+                payoutCounterpartyId: vaildated.payoutCounterpartyId,
                 payoutBankStableKey: vaildated.payoutBankStableKey,
             });
 
@@ -67,7 +67,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                         type: PlanType.CREATE,
                         planKey,
                         debitKey: keys.feeClearing(feeOrder.bucket, feeOrderCurrency),
-                        creditKey: keys.bank(vaildated.payoutOrgId, vaildated.payoutBankStableKey, feeOrderCurrency),
+                        creditKey: keys.bank(vaildated.payoutCounterpartyId, vaildated.payoutBankStableKey, feeOrderCurrency),
                         currency: feeOrderCurrency,
                         amount: feeOrder.amountMinor,
                         code: TransferCodes.FEE_PAYMENT_INITIATED,
@@ -85,7 +85,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                     status: "initiated_pending_posting",
                     initiateEntryId: entryId,
                     pendingTransferId,
-                    payoutOrgId: vaildated.payoutOrgId,
+                    payoutCounterpartyId: vaildated.payoutCounterpartyId,
                     payoutBankStableKey: vaildated.payoutBankStableKey,
                     railRef: input.railRef,
                     updatedAt: sql`now()`,

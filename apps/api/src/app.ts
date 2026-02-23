@@ -8,7 +8,13 @@ import { AppError } from "@bedrock/kernel";
 
 import { createAppContext, type Env } from "./context";
 import { authMiddleware, requireAuth, type AuthVariables } from "./middleware/auth";
-import { organizationsRoutes, customersRoutes, currenciesRoutes, fxRatesRoutes } from "./routes/index";
+import {
+  counterpartiesRoutes,
+  counterpartyGroupsRoutes,
+  customersRoutes,
+  currenciesRoutes,
+  fxRatesRoutes,
+} from "./routes/index";
 
 const env: Env = {
   DATABASE_URL:
@@ -90,7 +96,8 @@ app.get("/", (c) => {
 
 // Mount routes under /v1 — all require an authenticated session
 const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
-  .route("/organizations", organizationsRoutes(ctx))
+  .route("/counterparties", counterpartiesRoutes(ctx))
+  .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
   .route("/fx/rates", fxRatesRoutes(ctx));

@@ -375,7 +375,7 @@ describe("createFxService", () => {
                 sourceKind: "bank",
                 sourceRef: "bank-book",
                 asOf: new Date("2026-02-14T00:00:00Z"),
-                executionOrgId: null,
+                executionCounterpartyId: null,
                 createdAt: new Date("2026-02-14T00:00:00Z"),
             },
         ];

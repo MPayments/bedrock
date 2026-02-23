@@ -34,7 +34,7 @@ export {
 // Transfers-specific Constants
 // ============================================================================
 
-export const ORG_ID = TEST_UUIDS.ORG_1;
+export const COUNTERPARTY_ID = TEST_UUIDS.ORG_1;
 export const TRANSFER_ID = TEST_UUIDS.ORDER_1; // Reuse for simplicity
 export const MAKER_USER_ID = TEST_UUIDS.CUSTOMER_1;
 export const CHECKER_USER_ID = TEST_UUIDS.CUSTOMER_2;
@@ -45,7 +45,7 @@ export const CHECKER_USER_ID = TEST_UUIDS.CUSTOMER_2;
 
 export interface MockTransfer {
     id: string;
-    orgId: string;
+    counterpartyId: string;
     status: TransferStatus;
     fromAccountKey: string;
     toAccountKey: string;
@@ -66,7 +66,7 @@ export interface MockTransfer {
 export function createMockTransfer(overrides: Partial<MockTransfer> = {}): MockTransfer {
     return {
         id: TRANSFER_ID,
-        orgId: ORG_ID,
+        counterpartyId: COUNTERPARTY_ID,
         status: TransferStatus.DRAFT,
         fromAccountKey: "Account:org1:vault:USD",
         toAccountKey: "Account:org1:operating:USD",

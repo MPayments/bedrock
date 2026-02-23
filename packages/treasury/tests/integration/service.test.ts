@@ -42,7 +42,7 @@ describe("Treasury Service Integration Tests", () => {
             const railRef = randomRailRef();
             const entryId = await service.fundingSettled({
                 orderId: scenario.order.id,
-                branchOrgId: scenario.branchOrg.id,
+                branchCounterpartyId: scenario.branchCounterparty.id,
                 branchBankStableKey: scenario.branchBankAccount.stableKey,
                 customerId: scenario.customer.id,
                 currency: "USD",
@@ -93,7 +93,7 @@ describe("Treasury Service Integration Tests", () => {
             const railRef = randomRailRef();
             const input = {
                 orderId: scenario.order.id,
-                branchOrgId: scenario.branchOrg.id,
+                branchCounterpartyId: scenario.branchCounterparty.id,
                 branchBankStableKey: scenario.branchBankAccount.stableKey,
                 customerId: scenario.customer.id,
                 currency: "USD",
@@ -130,7 +130,7 @@ describe("Treasury Service Integration Tests", () => {
             await expect(
                 service.fundingSettled({
                     orderId: "00000000-0000-0000-0000-000000000000",
-                    branchOrgId: scenario.branchOrg.id,
+                    branchCounterpartyId: scenario.branchCounterparty.id,
                     branchBankStableKey: scenario.branchBankAccount.stableKey,
                     customerId: scenario.customer.id,
                     currency: "USD",
@@ -153,7 +153,7 @@ describe("Treasury Service Integration Tests", () => {
             await expect(
                 service.fundingSettled({
                     orderId: scenario.order.id,
-                    branchOrgId: scenario.branchOrg.id,
+                    branchCounterpartyId: scenario.branchCounterparty.id,
                     branchBankStableKey: scenario.branchBankAccount.stableKey,
                     customerId: scenario.customer.id,
                     currency: "GBP", // Wrong currency
@@ -176,7 +176,7 @@ describe("Treasury Service Integration Tests", () => {
             await expect(
                 service.fundingSettled({
                     orderId: scenario.order.id,
-                    branchOrgId: scenario.branchOrg.id,
+                    branchCounterpartyId: scenario.branchCounterparty.id,
                     branchBankStableKey: scenario.branchBankAccount.stableKey,
                     customerId: scenario.customer.id,
                     currency: "USD",
@@ -227,7 +227,7 @@ describe("Treasury Service Integration Tests", () => {
             await createQuoteForOrder(scenario, quoteRef);
             const entryId = await service.executeFx({
                 orderId: scenario.order.id,
-                branchOrgId: scenario.branchOrg.id,
+                branchCounterpartyId: scenario.branchCounterparty.id,
                 customerId: scenario.customer.id,
                 payInCurrency: "USD",
                 principalMinor: 100000n,
@@ -269,7 +269,7 @@ describe("Treasury Service Integration Tests", () => {
             await createQuoteForOrder(scenario, quoteRef);
             const entryId = await service.executeFx({
                 orderId: scenario.order.id,
-                branchOrgId: scenario.branchOrg.id,
+                branchCounterpartyId: scenario.branchCounterparty.id,
                 customerId: scenario.customer.id,
                 payInCurrency: "USD",
                 principalMinor: 100000n,
@@ -301,7 +301,7 @@ describe("Treasury Service Integration Tests", () => {
             await expect(
                 service.executeFx({
                     orderId: scenario.order.id,
-                    branchOrgId: scenario.branchOrg.id,
+                    branchCounterpartyId: scenario.branchCounterparty.id,
                     customerId: scenario.customer.id,
                     payInCurrency: "USD",
                     principalMinor: 100000n,
@@ -331,7 +331,7 @@ describe("Treasury Service Integration Tests", () => {
             await expect(
                 service.executeFx({
                     orderId: scenario.order.id,
-                    branchOrgId: scenario.branchOrg.id,
+                    branchCounterpartyId: scenario.branchCounterparty.id,
                     customerId: scenario.customer.id,
                     payInCurrency: "USD",
                     principalMinor: 100000n,
@@ -355,7 +355,7 @@ describe("Treasury Service Integration Tests", () => {
             await expect(
                 service.executeFx({
                     orderId: scenario.order.id,
-                    branchOrgId: scenario.branchOrg.id,
+                    branchCounterpartyId: scenario.branchCounterparty.id,
                     customerId: scenario.customer.id,
                     payInCurrency: "USD",
                     principalMinor: 100000n,
@@ -381,7 +381,7 @@ describe("Treasury Service Integration Tests", () => {
             const railRef = randomRailRef();
             const result = await service.initiatePayout({
                 orderId: scenario.order.id,
-                payoutOrgId: scenario.payoutOrg.id,
+                payoutCounterpartyId: scenario.payoutCounterparty.id,
                 payoutBankStableKey: scenario.payoutBankAccount.stableKey,
                 payOutCurrency: "EUR",
                 amountMinor: 85000n,
@@ -417,7 +417,7 @@ describe("Treasury Service Integration Tests", () => {
 
             const result = await service.initiatePayout({
                 orderId: scenario.order.id,
-                payoutOrgId: scenario.payoutOrg.id,
+                payoutCounterpartyId: scenario.payoutCounterparty.id,
                 payoutBankStableKey: scenario.payoutBankAccount.stableKey,
                 payOutCurrency: "EUR",
                 amountMinor: 85000n,
@@ -442,7 +442,7 @@ describe("Treasury Service Integration Tests", () => {
             await expect(
                 service.initiatePayout({
                     orderId: scenario.order.id,
-                    payoutOrgId: scenario.payoutOrg.id,
+                    payoutCounterpartyId: scenario.payoutCounterparty.id,
                     payoutBankStableKey: scenario.payoutBankAccount.stableKey,
                     payOutCurrency: "EUR",
                     amountMinor: 85000n,
@@ -467,7 +467,7 @@ describe("Treasury Service Integration Tests", () => {
             // First initiate payout
             const initResult = await service.initiatePayout({
                 orderId: scenario.order.id,
-                payoutOrgId: scenario.payoutOrg.id,
+                payoutCounterpartyId: scenario.payoutCounterparty.id,
                 payoutBankStableKey: scenario.payoutBankAccount.stableKey,
                 payOutCurrency: "EUR",
                 amountMinor: 85000n,
@@ -531,7 +531,7 @@ describe("Treasury Service Integration Tests", () => {
             // First initiate payout
             const initResult = await service.initiatePayout({
                 orderId: scenario.order.id,
-                payoutOrgId: scenario.payoutOrg.id,
+                payoutCounterpartyId: scenario.payoutCounterparty.id,
                 payoutBankStableKey: scenario.payoutBankAccount.stableKey,
                 payOutCurrency: "EUR",
                 amountMinor: 85000n,
@@ -596,7 +596,7 @@ describe("Treasury Service Integration Tests", () => {
             // 1. Funding settled
             const fundingEntryId = await service.fundingSettled({
                 orderId: scenario.order.id,
-                branchOrgId: scenario.branchOrg.id,
+                branchCounterpartyId: scenario.branchCounterparty.id,
                 branchBankStableKey: scenario.branchBankAccount.stableKey,
                 customerId: scenario.customer.id,
                 currency: "USD",
@@ -624,7 +624,7 @@ describe("Treasury Service Integration Tests", () => {
             );
             const fxEntryId = await service.executeFx({
                 orderId: scenario.order.id,
-                branchOrgId: scenario.branchOrg.id,
+                branchCounterpartyId: scenario.branchCounterparty.id,
                 customerId: scenario.customer.id,
                 payInCurrency: "USD",
                 principalMinor: 100000n,
@@ -643,7 +643,7 @@ describe("Treasury Service Integration Tests", () => {
             // 3. Initiate payout
             const payoutResult = await service.initiatePayout({
                 orderId: scenario.order.id,
-                payoutOrgId: scenario.payoutOrg.id,
+                payoutCounterpartyId: scenario.payoutCounterparty.id,
                 payoutBankStableKey: scenario.payoutBankAccount.stableKey,
                 payOutCurrency: "EUR",
                 amountMinor: 85000n,
@@ -693,7 +693,7 @@ describe("Treasury Service Integration Tests", () => {
             // 1-3: Same as above until payout initiated
             await service.fundingSettled({
                 orderId: scenario.order.id,
-                branchOrgId: scenario.branchOrg.id,
+                branchCounterpartyId: scenario.branchCounterparty.id,
                 branchBankStableKey: scenario.branchBankAccount.stableKey,
                 customerId: scenario.customer.id,
                 currency: "USD",
@@ -715,7 +715,7 @@ describe("Treasury Service Integration Tests", () => {
             );
             await service.executeFx({
                 orderId: scenario.order.id,
-                branchOrgId: scenario.branchOrg.id,
+                branchCounterpartyId: scenario.branchCounterparty.id,
                 customerId: scenario.customer.id,
                 payInCurrency: "USD",
                 principalMinor: 100000n,
@@ -728,7 +728,7 @@ describe("Treasury Service Integration Tests", () => {
 
             await service.initiatePayout({
                 orderId: scenario.order.id,
-                payoutOrgId: scenario.payoutOrg.id,
+                payoutCounterpartyId: scenario.payoutCounterparty.id,
                 payoutBankStableKey: scenario.payoutBankAccount.stableKey,
                 payOutCurrency: "EUR",
                 amountMinor: 85000n,
@@ -767,8 +767,8 @@ describe("Treasury Service Integration Tests", () => {
             const customerWallet2 = K.customerWallet(scenario.customer.id, "USD");
             expect(customerWallet1).toBe(customerWallet2);
 
-            const bank1 = K.bank(scenario.branchOrg.id, "bank-key", "USD");
-            const bank2 = K.bank(scenario.branchOrg.id, "bank-key", "USD");
+            const bank1 = K.bank(scenario.branchCounterparty.id, "bank-key", "USD");
+            const bank2 = K.bank(scenario.branchCounterparty.id, "bank-key", "USD");
             expect(bank1).toBe(bank2);
 
             // Different inputs should produce different keys
