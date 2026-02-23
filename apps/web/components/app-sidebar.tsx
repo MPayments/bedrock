@@ -35,7 +35,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@bedrock/ui/components/sidebar";
-import { NavSecondary } from "./nav-secondary";
+import { NavSecondary, type NavSecondaryItem } from "./nav-secondary";
 
 const data = {
   navMain: [
@@ -157,19 +157,21 @@ const data = {
       icon: Settings2,
     },
   ],
-  navSecondary: [
-    {
-      title: "Уведомления",
-      url: "#",
-      icon: Bell,
-    },
-    // {
-    //   title: "Активность",
-    //   url: "#",
-    //   icon: Activity,
-    // },
-  ],
 };
+
+const navSecondaryItems: NavSecondaryItem[] = [
+  {
+    kind: "notifications",
+    title: "Уведомления",
+    icon: Bell,
+  },
+  // {
+  //   kind: "link",
+  //   title: "Активность",
+  //   url: "#",
+  //   icon: Activity,
+  // },
+];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -195,7 +197,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavSecondary items={navSecondaryItems} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

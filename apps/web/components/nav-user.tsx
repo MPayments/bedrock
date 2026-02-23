@@ -1,12 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import {
-  BadgeCheck,
-  Bell,
-  ChevronsUpDown,
-  LogOut,
-} from "lucide-react";
+import { BadgeCheck, Bell, ChevronsUpDown, LogOut } from "lucide-react";
 
 import {
   Avatar,
@@ -46,7 +41,6 @@ export function NavUser() {
   const { data: session, isPending } = authClient.useSession();
 
   async function handleSignOut() {
-    console.log("logout")
     await authClient.signOut();
     router.push("/login");
   }
@@ -90,8 +84,13 @@ export function NavUser() {
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={user.image ?? undefined} alt={user.name} />
-                    <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+                    <AvatarImage
+                      src={user.image ?? undefined}
+                      alt={user.name}
+                    />
+                    <AvatarFallback className="rounded-lg">
+                      {initials}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{user.name}</span>
