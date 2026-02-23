@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Save, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Save, X } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
@@ -37,6 +37,7 @@ import { Button } from "@bedrock/ui/components/button";
 import { Spinner } from "@bedrock/ui/components/spinner";
 
 import type { CounterpartyGroupOption } from "../lib/queries";
+import { localizeCounterpartyGroupLabel } from "../lib/group-label";
 import { formatDate } from "@/lib/format";
 
 export type CounterpartyGeneralFormValues = {
@@ -46,6 +47,7 @@ export type CounterpartyGeneralFormValues = {
   country: string;
   externalId: string;
   description: string;
+  // Derived from selected customer-scoped groups; no manual input in UI.
   customerId: string;
   groupIds: string[];
 };
@@ -106,6 +108,23 @@ const CounterpartyGeneralFormSchema = z.object({
     ),
   groupIds: z.array(z.uuid()),
 });
+
+function compareGroupsByName(
+  a: CounterpartyGroupOption,
+  b: CounterpartyGroupOption,
+): number {
+  const normalizedA = a.name.trim().toLowerCase();
+  const normalizedB = b.name.trim().toLowerCase();
+
+  if (normalizedA < normalizedB) {
+    return -1;
+  }
+  if (normalizedA > normalizedB) {
+    return 1;
+  }
+
+  return a.id.localeCompare(b.id);
+}
 
 function resolveInitialValues(
   initialValues?: Partial<CounterpartyGeneralFormValues>,
@@ -189,6 +208,47 @@ function CounterpartyGeneralFormBase({
     return cache;
   }, [groupById, groupOptions]);
 
+  const customerScopeByGroupId = useMemo(() => {
+    const cache = new Map<string, string | null>();
+
+    const resolveCustomerScope = (groupId: string): string | null => {
+      if (cache.has(groupId)) {
+        return cache.get(groupId) ?? null;
+      }
+
+      const visited = new Set<string>();
+      let cursor = groupById.get(groupId);
+
+      while (cursor) {
+        if (visited.has(cursor.id)) {
+          cache.set(groupId, null);
+          return null;
+        }
+        visited.add(cursor.id);
+
+        if (cursor.customerId) {
+          cache.set(groupId, cursor.customerId);
+          return cursor.customerId;
+        }
+
+        if (!cursor.parentId) {
+          break;
+        }
+
+        cursor = groupById.get(cursor.parentId);
+      }
+
+      cache.set(groupId, null);
+      return null;
+    };
+
+    for (const group of groupOptions) {
+      resolveCustomerScope(group.id);
+    }
+
+    return cache;
+  }, [groupById, groupOptions]);
+
   const groupsByParent = useMemo(() => {
     const map = new Map<string, CounterpartyGroupOption[]>();
 
@@ -203,11 +263,165 @@ function CounterpartyGeneralFormBase({
     }
 
     for (const bucket of map.values()) {
-      bucket.sort((a, b) => a.name.localeCompare(b.name));
+      bucket.sort(compareGroupsByName);
     }
 
     return map;
   }, [groupOptions]);
+
+  const getAncestors = useCallback((groupId: string): string[] => {
+    const ancestors: string[] = [];
+    const visited = new Set<string>();
+    let cursor = groupById.get(groupId);
+
+    while (cursor?.parentId) {
+      if (visited.has(cursor.id)) {
+        break;
+      }
+      visited.add(cursor.id);
+
+      const parent = groupById.get(cursor.parentId);
+      if (!parent) {
+        break;
+      }
+
+      ancestors.push(parent.id);
+      cursor = parent;
+    }
+
+    return ancestors;
+  }, [groupById]);
+
+  function getDescendants(groupId: string): string[] {
+    const descendants: string[] = [];
+    const stack = [groupId];
+    const visited = new Set<string>();
+
+    while (stack.length > 0) {
+      const currentId = stack.pop()!;
+      if (visited.has(currentId)) {
+        continue;
+      }
+      visited.add(currentId);
+
+      const children = groupsByParent.get(currentId) ?? [];
+      for (const child of children) {
+        descendants.push(child.id);
+        stack.push(child.id);
+      }
+    }
+
+    return descendants;
+  }
+
+  function getRootCode(groupId: string): "treasury" | "customers" | null {
+    return rootCodeByGroupId.get(groupId) ?? null;
+  }
+
+  function getCustomerScope(groupId: string): string | null {
+    return customerScopeByGroupId.get(groupId) ?? null;
+  }
+
+  function hasSelectedDescendant(
+    groupId: string,
+    selectedSet: Set<string>,
+  ): boolean {
+    const stack = [groupId];
+    const visited = new Set<string>();
+
+    while (stack.length > 0) {
+      const currentId = stack.pop()!;
+      if (visited.has(currentId)) {
+        continue;
+      }
+      visited.add(currentId);
+
+      const children = groupsByParent.get(currentId) ?? [];
+      for (const child of children) {
+        if (selectedSet.has(child.id)) {
+          return true;
+        }
+        stack.push(child.id);
+      }
+    }
+
+    return false;
+  }
+
+  function addAncestorClosure(rawSet: Set<string>): Set<string> {
+    const next = new Set(rawSet);
+
+    for (const selectedId of Array.from(next)) {
+      for (const ancestorId of getAncestors(selectedId)) {
+        next.add(ancestorId);
+      }
+    }
+
+    return next;
+  }
+
+  function enforceBranchConstraints(
+    rawSet: Set<string>,
+    anchorGroupId: string,
+  ): Set<string> {
+    const next = new Set(rawSet);
+    const anchorRootCode = getRootCode(anchorGroupId);
+    const anchorCustomerScope = getCustomerScope(anchorGroupId);
+
+    for (const selectedId of Array.from(next)) {
+      const selectedRootCode = getRootCode(selectedId);
+      const selectedCustomerScope = getCustomerScope(selectedId);
+
+      if (
+        selectedRootCode &&
+        anchorRootCode &&
+        selectedRootCode !== anchorRootCode
+      ) {
+        next.delete(selectedId);
+        continue;
+      }
+
+      if (
+        selectedRootCode === "customers" &&
+        anchorRootCode === "customers" &&
+        selectedCustomerScope &&
+        anchorCustomerScope &&
+        selectedCustomerScope !== anchorCustomerScope
+      ) {
+        next.delete(selectedId);
+      }
+    }
+
+    return next;
+  }
+
+  function toggleOn(groupId: string, currentIds: string[]): string[] {
+    const next = new Set(currentIds);
+    next.add(groupId);
+
+    const constrained = enforceBranchConstraints(next, groupId);
+    const withAncestors = addAncestorClosure(constrained);
+    const normalized = enforceBranchConstraints(withAncestors, groupId);
+
+    return Array.from(normalized);
+  }
+
+  function toggleOff(groupId: string, currentIds: string[]): string[] {
+    const next = new Set(currentIds);
+    const idsToRemove = [groupId, ...getDescendants(groupId)];
+
+    for (const id of idsToRemove) {
+      next.delete(id);
+    }
+
+    for (const ancestorId of getAncestors(groupId)) {
+      if (!hasSelectedDescendant(ancestorId, next)) {
+        next.delete(ancestorId);
+      }
+    }
+
+    return Array.from(next);
+  }
 
   const formSchema = useMemo(
     () =>
@@ -215,20 +429,32 @@ function CounterpartyGeneralFormBase({
         const hasCustomersMembership = values.groupIds.some(
           (groupId) => rootCodeByGroupId.get(groupId) === "customers",
         );
+        const scopedCustomerIds = Array.from(
+          new Set(
+            values.groupIds
+              .map((groupId) => customerScopeByGroupId.get(groupId) ?? null)
+              .filter((customerId): customerId is string => Boolean(customerId)),
+          ),
+        );
 
-        if (
-          hasCustomersMembership &&
-          typeof values.customerId === "string" &&
-          values.customerId.trim().length === 0
-        ) {
+        if (hasCustomersMembership && scopedCustomerIds.length === 0) {
           ctx.addIssue({
             code: "custom",
-            path: ["customerId"],
-            message: "Customer ID обязателен для customers-ветки",
+            path: ["groupIds"],
+            message:
+              "Для ветки Клиенты выберите группу конкретного клиента.",
+          });
+        }
+
+        if (scopedCustomerIds.length > 1) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["groupIds"],
+            message: "Нельзя смешивать группы разных клиентов.",
           });
         }
       }),
-    [rootCodeByGroupId],
+    [customerScopeByGroupId, rootCodeByGroupId],
   );
 
   const {
@@ -249,48 +475,93 @@ function CounterpartyGeneralFormBase({
     control,
     name: "groupIds",
   });
-  const selectedGroupRoots = useMemo(() => {
-    const selectedGroupIds = Array.isArray(selectedGroupIdsValue)
-      ? selectedGroupIdsValue
-      : [];
-    const roots = new Set<string>();
+  const watchedShortName = useWatch({
+    control,
+    name: "shortName",
+  });
+  const selectedGroupIds = useMemo(
+    () =>
+      Array.isArray(selectedGroupIdsValue)
+        ? selectedGroupIdsValue
+        : [],
+    [selectedGroupIdsValue],
+  );
+  const selectedCustomerScopeIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          selectedGroupIds
+            .map((groupId) => customerScopeByGroupId.get(groupId) ?? null)
+            .filter((customerId): customerId is string => Boolean(customerId)),
+        ),
+      ),
+    [customerScopeByGroupId, selectedGroupIds],
+  );
+  const derivedCustomerId = selectedCustomerScopeIds.length === 1
+    ? selectedCustomerScopeIds[0]!
+    : "";
+  const rootGroupIds = useMemo(
+    () => (groupsByParent.get(ROOT_GROUP) ?? []).map((group) => group.id),
+    [groupsByParent],
+  );
+  const selectedPathExpandedIds = useMemo(() => {
+    const expanded = new Set<string>();
+
     for (const groupId of selectedGroupIds) {
-      const rootCode = rootCodeByGroupId.get(groupId);
-      if (rootCode) {
-        roots.add(rootCode);
+      expanded.add(groupId);
+      for (const ancestorId of getAncestors(groupId)) {
+        expanded.add(ancestorId);
       }
     }
-    return roots;
-  }, [rootCodeByGroupId, selectedGroupIdsValue]);
-  const customerIdValue = useWatch({
-    control,
-    name: "customerId",
-  });
 
-  const requiresCustomerId = selectedGroupRoots.has("customers");
-  const isTreasuryTree = selectedGroupRoots.has("treasury");
-  const showCustomerIdField =
-    requiresCustomerId ||
-    (typeof customerIdValue === "string" && customerIdValue.trim().length > 0);
+    return Array.from(expanded);
+  }, [getAncestors, selectedGroupIds]);
+  const initialExpandedIds = useMemo(() => {
+    const expanded = new Set(rootGroupIds);
+    for (const id of selectedPathExpandedIds) {
+      expanded.add(id);
+    }
+    return Array.from(expanded);
+  }, [rootGroupIds, selectedPathExpandedIds]);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(
+    () => new Set(initialExpandedIds),
+  );
+
   const nowFormatted = formatDate(new Date());
 
   useEffect(() => {
     reset(initial);
-    onShortNameChange?.(initial.shortName);
-  }, [initial, onShortNameChange, reset]);
+  }, [initial, reset]);
 
   useEffect(() => {
-    if (isTreasuryTree) {
-      setValue("customerId", "", {
-        shouldDirty: false,
-        shouldValidate: true,
-      });
-    }
-  }, [isTreasuryTree, setValue]);
+    onShortNameChange?.(watchedShortName ?? "");
+  }, [onShortNameChange, watchedShortName]);
+
+  useEffect(() => {
+    setValue("customerId", derivedCustomerId, {
+      shouldDirty: false,
+      shouldValidate: true,
+    });
+  }, [derivedCustomerId, setValue]);
+
+  useEffect(() => {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      let changed = false;
+
+      for (const id of selectedPathExpandedIds) {
+        if (!next.has(id)) {
+          next.add(id);
+          changed = true;
+        }
+      }
+
+      return changed ? next : current;
+    });
+  }, [selectedPathExpandedIds]);
 
   function handleReset() {
     reset(initial);
-    onShortNameChange?.(initial.shortName);
   }
 
   async function handleFormSubmit(values: CounterpartyGeneralFormValues) {
@@ -299,13 +570,33 @@ function CounterpartyGeneralFormBase({
     const submittedValues = await onSubmit(values);
     if (submittedValues) {
       reset(submittedValues);
-      onShortNameChange?.(submittedValues.shortName);
     }
   }
 
   const submitDisabled =
     submitting || !onSubmit || (variant.disableSubmitUntilDirty && !isDirty);
   const resetDisabled = submitting || !isDirty;
+
+  function expandNodePath(groupId: string) {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      let changed = false;
+
+      if (!next.has(groupId)) {
+        next.add(groupId);
+        changed = true;
+      }
+
+      for (const ancestorId of getAncestors(groupId)) {
+        if (!next.has(ancestorId)) {
+          next.add(ancestorId);
+          changed = true;
+        }
+      }
+
+      return changed ? next : current;
+    });
+  }
 
   function renderGroupTree(
     fieldValue: string[],
@@ -317,6 +608,9 @@ function CounterpartyGeneralFormBase({
 
     return children.map((group) => {
       const checked = fieldValue.includes(group.id);
+      const hasChildren = (groupsByParent.get(group.id)?.length ?? 0) > 0;
+      const isExpanded = expandedIds.has(group.id);
+      const groupLabel = localizeCounterpartyGroupLabel(group.name);
 
       return (
         <div key={group.id} className="space-y-1">
@@ -324,43 +618,67 @@ function CounterpartyGeneralFormBase({
             className="flex items-start gap-2"
             style={{ paddingLeft: `${depth * 16}px` }}
           >
+            {hasChildren ? (
+              <button
+                type="button"
+                className="mt-0.5 inline-flex size-4 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-expanded={isExpanded}
+                aria-label={
+                  isExpanded
+                    ? `Свернуть группу ${groupLabel}`
+                    : `Развернуть группу ${groupLabel}`
+                }
+                onClick={() => {
+                  setExpandedIds((current) => {
+                    const next = new Set(current);
+                    if (next.has(group.id)) {
+                      next.delete(group.id);
+                    } else {
+                      next.add(group.id);
+                    }
+                    return next;
+                  });
+                }}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="size-3.5" />
+                ) : (
+                  <ChevronRight className="size-3.5" />
+                )}
+              </button>
+            ) : (
+              <span className="mt-0.5 inline-block size-4" />
+            )}
             <Checkbox
               checked={checked}
               onCheckedChange={(nextChecked) => {
                 const shouldCheck = Boolean(nextChecked);
-                const set = new Set(fieldValue);
+                const nextValue = shouldCheck
+                  ? toggleOn(group.id, fieldValue)
+                  : toggleOff(group.id, fieldValue);
 
                 if (shouldCheck) {
-                  const nextRootCode = rootCodeByGroupId.get(group.id);
-                  for (const selectedId of Array.from(set)) {
-                    const selectedRootCode = rootCodeByGroupId.get(selectedId);
-                    if (
-                      selectedRootCode &&
-                      nextRootCode &&
-                      selectedRootCode !== nextRootCode
-                    ) {
-                      set.delete(selectedId);
-                    }
-                  }
-                  set.add(group.id);
-                } else {
-                  set.delete(group.id);
+                  expandNodePath(group.id);
                 }
 
-                onChange(Array.from(set));
+                onChange(nextValue);
               }}
             />
             <div className="leading-none">
-              <div className="text-sm font-medium">{group.name}</div>
+              <div className="text-sm font-medium">{groupLabel}</div>
               <div className="text-muted-foreground text-xs">
                 {group.code} •{" "}
                 {group.customerId
-                  ? "customer"
-                  : (rootCodeByGroupId.get(group.id) ?? "custom")}
+                  ? "Клиент"
+                  : localizeCounterpartyGroupLabel(
+                      rootCodeByGroupId.get(group.id) ?? "custom",
+                    )}
               </div>
             </div>
           </div>
-          {renderGroupTree(fieldValue, onChange, group.id, depth + 1)}
+          {hasChildren && isExpanded
+            ? renderGroupTree(fieldValue, onChange, group.id, depth + 1)
+            : null}
         </div>
       );
     });
@@ -408,6 +726,7 @@ function CounterpartyGeneralFormBase({
           id="counterparty-general-form"
           onSubmit={handleSubmit(handleFormSubmit)}
         >
+          <input type="hidden" {...register("customerId")} />
           <FieldGroup>
             <FieldSet>
               <FieldGroup>
@@ -430,10 +749,6 @@ function CounterpartyGeneralFormBase({
                           id="counterparty-short-name"
                           aria-invalid={fieldState.invalid}
                           placeholder="Например: Acme"
-                          onChange={(event) => {
-                            field.onChange(event);
-                            onShortNameChange?.(event.target.value);
-                          }}
                         />
                         {fieldState.invalid && (
                           <FieldError errors={[fieldState.error]} />
@@ -542,8 +857,8 @@ function CounterpartyGeneralFormBase({
                       <Field data-invalid={fieldState.invalid}>
                         <FieldLabel>Группы</FieldLabel>
                         <FieldDescription>
-                          Контрагент может быть только в одной ветке: treasury
-                          или customers.
+                          Контрагент может быть только в одной ветке:
+                          Казначейство или Клиенты.
                         </FieldDescription>
                         <div className="space-y-2 rounded-md border p-3">
                           {groupOptions.length === 0 ? (
@@ -578,27 +893,6 @@ function CounterpartyGeneralFormBase({
                     <FieldError errors={[errors.description]} />
                   </Field>
                 </div>
-                {showCustomerIdField ? (
-                  <Field data-invalid={Boolean(errors.customerId)}>
-                    <FieldLabel htmlFor="counterparty-customer-id">
-                      Customer ID (UUID)
-                    </FieldLabel>
-                    <Input
-                      {...register("customerId")}
-                      id="counterparty-customer-id"
-                      aria-invalid={Boolean(errors.customerId)}
-                      placeholder="00000000-0000-4000-8000-000000000000"
-                      disabled={isTreasuryTree}
-                      required={requiresCustomerId}
-                    />
-                    <FieldDescription>
-                      {requiresCustomerId
-                        ? "Обязателен при membership в customers-ветке."
-                        : "Опционально, если нет customers-membership."}
-                    </FieldDescription>
-                    <FieldError errors={[errors.customerId]} />
-                  </Field>
-                ) : null}
               </FieldGroup>
             </FieldSet>
             <FieldSeparator />

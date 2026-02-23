@@ -5,10 +5,12 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { Counterparty } from "@bedrock/counterparties/validation";
 import { Badge } from "@bedrock/ui/components/badge";
 import { Button } from "@bedrock/ui/components/button";
-import { Eye } from "lucide-react";
+import { Eye, Users, Vault } from "lucide-react";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { formatDate } from "@/lib/format";
+import { getCounterpartyGroupPresentation } from "../lib/group-label";
+import type { CounterpartyGroupOption } from "../lib/queries";
 
 type SerializedCounterparty = Omit<Counterparty, "createdAt" | "updatedAt"> & {
   createdAt: string;
@@ -20,18 +22,37 @@ function kindLabel(kind: string) {
   return "Юр. лицо";
 }
 
-export function getColumns(): ColumnDef<SerializedCounterparty>[] {
+export function getColumns(
+  groupOptions: CounterpartyGroupOption[],
+): ColumnDef<SerializedCounterparty>[] {
+  const groupFilterOptions = groupOptions
+    .map((group) => {
+      const presentation = getCounterpartyGroupPresentation(group.name);
+      return {
+        value: group.id,
+        label: presentation.label,
+        icon:
+          presentation.icon === "vault"
+            ? ((props: React.SVGProps<SVGSVGElement>) => <Vault {...props} />)
+            : presentation.icon === "users"
+              ? ((props: React.SVGProps<SVGSVGElement>) => <Users {...props} />)
+              : undefined,
+      };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const groupPresentationById = new Map(
+    groupOptions.map((group) => [
+      group.id,
+      getCounterpartyGroupPresentation(group.name),
+    ]),
+  );
+
   return [
     {
       accessorKey: "shortName",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label="Краткое имя" />
       ),
-      meta: {
-        label: "Краткое имя",
-        variant: "text",
-        placeholder: "Поиск по краткому имени...",
-      },
       enableColumnFilter: true,
       enableSorting: true,
       enableHiding: true,
@@ -92,13 +113,45 @@ export function getColumns(): ColumnDef<SerializedCounterparty>[] {
       enableHiding: true,
     },
     {
-      id: "groups",
+      id: "groupIds",
       accessorFn: (row) => row.groupIds.length,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label="Группы" />
       ),
-      cell: ({ row }) => row.original.groupIds.length,
-      enableColumnFilter: false,
+      meta: {
+        label: "Группы",
+        variant: "multiSelect",
+        options: groupFilterOptions,
+      },
+      cell: ({ row }) => {
+        if (row.original.groupIds.length === 0) {
+          return "—";
+        }
+
+        return (
+          <div className="flex flex-wrap gap-1">
+            {row.original.groupIds.map((groupId) => {
+              const presentation = groupPresentationById.get(groupId);
+              const groupName = presentation?.label ?? "Неизвестная группа";
+              const GroupIcon =
+                presentation?.icon === "vault"
+                  ? Vault
+                  : presentation?.icon === "users"
+                    ? Users
+                    : null;
+              return (
+                <Badge key={groupId} variant="outline">
+                  <span className="inline-flex items-center gap-1">
+                    {GroupIcon ? <GroupIcon className="size-3.5" /> : null}
+                    {groupName}
+                  </span>
+                </Badge>
+              );
+            })}
+          </div>
+        );
+      },
+      enableColumnFilter: true,
       enableSorting: true,
       enableHiding: true,
     },

@@ -1,4 +1,5 @@
 import { getCounterpartyById } from "@/app/(shell)/entities/counterparties/lib/queries";
+import { getCustomerById } from "@/app/(shell)/entities/customers/lib/queries";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import {
   resolveBreadcrumbItems,
@@ -18,6 +19,21 @@ const dynamicResolvers = {
     return {
       label: counterparty.shortName,
       href: `/entities/counterparties/${counterparty.id}`,
+    };
+  },
+  customers: async ({ segment }: { segment: string }) => {
+    const customer = await getCustomerById(segment);
+
+    if (!customer) {
+      return {
+        label: "Клиент",
+        href: `/entities/customers/${segment}`,
+      };
+    }
+
+    return {
+      label: customer.displayName,
+      href: `/entities/customers/${customer.id}`,
     };
   },
 };

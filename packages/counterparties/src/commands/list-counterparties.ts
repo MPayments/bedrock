@@ -17,6 +17,9 @@ import {
     type ListCounterpartiesQuery,
 } from "../validation";
 
+const UUID_PATTERN =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const SORT_COLUMN_MAP = {
     shortName: schema.counterparties.shortName,
     fullName: schema.counterparties.fullName,
@@ -44,10 +47,17 @@ export function createListCounterpartiesHandler(
             fullName,
             country,
             kind,
+            groupIds,
             groupRoot,
         } = query;
 
         const conditions: SQL[] = [];
+        const emptyResult = {
+            data: [],
+            total: 0,
+            limit,
+            offset,
+        } satisfies PaginatedList<Counterparty>;
 
         if (shortName) {
             conditions.push(ilike(schema.counterparties.shortName, `%${shortName}%`));
@@ -64,6 +74,29 @@ export function createListCounterpartiesHandler(
         const kinds = kind?.map((value) => CounterpartyKindSchema.parse(value));
         if (kinds?.length) {
             conditions.push(inArray(schema.counterparties.kind, kinds));
+        }
+
+        const selectedGroupIds = Array.from(
+            new Set((groupIds ?? []).filter((value) => UUID_PATTERN.test(value))),
+        );
+        if (groupIds?.length && selectedGroupIds.length === 0) {
+            return emptyResult;
+        }
+        if (selectedGroupIds.length > 0) {
+            const matchingRows = await db
+                .select({
+                    counterpartyId: schema.counterpartyGroupMemberships.counterpartyId,
+                })
+                .from(schema.counterpartyGroupMemberships)
+                .where(inArray(schema.counterpartyGroupMemberships.groupId, selectedGroupIds))
+                .groupBy(schema.counterpartyGroupMemberships.counterpartyId);
+
+            const matchingCounterpartyIds = matchingRows.map((row) => row.counterpartyId);
+            if (matchingCounterpartyIds.length === 0) {
+                return emptyResult;
+            }
+
+            conditions.push(inArray(schema.counterparties.id, matchingCounterpartyIds));
         }
 
         const groupRoots = groupRoot?.map((value) => CounterpartyGroupRootCodeSchema.parse(value));
@@ -124,12 +157,7 @@ export function createListCounterpartiesHandler(
                 ),
             );
             if (matchingCounterpartyIds.length === 0) {
-                return {
-                    data: [],
-                    total: 0,
-                    limit,
-                    offset,
-                };
+                return emptyResult;
             }
 
             conditions.push(inArray(schema.counterparties.id, matchingCounterpartyIds));

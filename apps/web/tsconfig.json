@@ -4,7 +4,6 @@
     "paths": {
       "*": ["./*"],
       "@/*": ["./*"],
-      "@workspace/ui/*": ["../../packages/ui/src/*"],
       "@bedrock/ui/globals.css": ["../../packages/ui/src/styles/globals.css"],
       "@bedrock/ui/*": ["../../packages/ui/src/*"]
     },

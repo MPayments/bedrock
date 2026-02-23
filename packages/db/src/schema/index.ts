@@ -52,3 +52,4 @@ export { type FxRate, type FxRateInsert } from "./fx/rates";
 export { type FeePaymentOrder, type FeePaymentOrderStatus } from "./treasury/fee-payment-orders";
 export type { PaymentOrder } from "./treasury/orders";
 export type { Currency, CurrencyInsert } from "./currencies";
+export type { Customer, CustomerInsert } from "./customers";

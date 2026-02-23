@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { toast } from "@bedrock/ui/components/sonner";
+
 import {
   CounterpartyCreateGeneralForm,
   type CounterpartyGeneralFormValues,
@@ -10,25 +12,12 @@ import {
 import type { CounterpartyGroupOption } from "../lib/queries";
 import { useCounterpartyCreateDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
+import { resolveApiErrorMessage } from "@/lib/api-error";
 
 type CreateCounterpartyFormClientProps = {
   initialGroupOptions: CounterpartyGroupOption[];
   initialLoadError?: string | null;
 };
-
-function extractErrorMessage(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null;
-
-  if ("error" in payload && typeof payload.error === "string") {
-    return payload.error;
-  }
-
-  if ("message" in payload && typeof payload.message === "string") {
-    return payload.message;
-  }
-
-  return null;
-}
 
 export function CreateCounterpartyFormClient({
   initialGroupOptions,
@@ -78,20 +67,25 @@ export function CreateCounterpartyFormClient({
       });
 
       if (!res.ok) {
-        let message = `Не удалось создать контрагента (${res.status})`;
+        let payload: unknown = null;
         try {
-          const body = await res.json();
-          const extracted = extractErrorMessage(body);
-          if (extracted) message = extracted;
+          payload = await res.json();
         } catch {
           // Ignore non-JSON error payloads.
         }
 
+        const message = resolveApiErrorMessage(
+          res.status,
+          payload,
+          "Не удалось создать контрагента",
+        );
         setError(message);
+        toast.error(message);
         return;
       }
 
       const created = await res.json();
+      toast.success("Контрагент создан");
       resetCreateName();
       router.push(`/entities/counterparties/${created.id}`);
     } catch (submitError) {
@@ -100,6 +94,7 @@ export function CreateCounterpartyFormClient({
           ? submitError.message
           : "Не удалось создать контрагента";
       setError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }

@@ -1,4 +1,4 @@
-import { Button } from "@workspace/ui/components/button";
+import { Button } from "@bedrock/ui/components/button";
 
 export default function Home() {
   return (

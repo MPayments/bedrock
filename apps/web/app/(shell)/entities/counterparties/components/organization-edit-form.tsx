@@ -3,12 +3,15 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { toast } from "@bedrock/ui/components/sonner";
+
 import {
   CounterpartyEditGeneralForm,
   type CounterpartyGeneralFormValues,
 } from "./organization-general-form";
 import { useCounterpartyCreateDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
+import { resolveApiErrorMessage } from "@/lib/api-error";
 import type {
   CounterpartyDetails,
   CounterpartyGroupOption,
@@ -33,20 +36,6 @@ function toFormValues(
     customerId: counterparty.customerId ?? "",
     groupIds: counterparty.groupIds,
   };
-}
-
-function extractErrorMessage(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null;
-
-  if ("error" in payload && typeof payload.error === "string") {
-    return payload.error;
-  }
-
-  if ("message" in payload && typeof payload.message === "string") {
-    return payload.message;
-  }
-
-  return null;
 }
 
 export function CounterpartyEditForm({
@@ -97,22 +86,27 @@ export function CounterpartyEditForm({
       });
 
       if (!res.ok) {
-        let message = `Не удалось обновить контрагента (${res.status})`;
+        let payload: unknown = null;
         try {
-          const body = await res.json();
-          const extracted = extractErrorMessage(body);
-          if (extracted) message = extracted;
+          payload = await res.json();
         } catch {
           // Ignore non-JSON error payloads.
         }
 
+        const message = resolveApiErrorMessage(
+          res.status,
+          payload,
+          "Не удалось обновить контрагента",
+        );
         setError(message);
+        toast.error(message);
         return;
       }
 
       const updated = await res.json();
       const nextValues = toFormValues(updated);
       setInitialValues(nextValues);
+      toast.success("Контрагент обновлен");
       router.refresh();
       return nextValues;
     } catch (submitError) {
@@ -121,6 +115,7 @@ export function CounterpartyEditForm({
           ? submitError.message
           : "Не удалось обновить контрагента";
       setError(message);
+      toast.error(message);
       return;
     } finally {
       setSubmitting(false);

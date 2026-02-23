@@ -1,14 +1,25 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Building2, Plus } from "lucide-react";
+import { Building2, ChevronDown, FolderPlus, Plus } from "lucide-react";
+
+import {
+  ButtonGroup,
+  ButtonGroupSeparator,
+} from "@bedrock/ui/components/button-group";
+import { Button } from "@bedrock/ui/components/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@bedrock/ui/components/dropdown-menu";
+import { Separator } from "@bedrock/ui/components/separator";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 
 import { CounterpartiesTable } from "./components/table";
-import { getCounterparties } from "./lib/queries";
+import { getCounterparties, getCounterpartyGroups } from "./lib/queries";
 import { searchParamsCache } from "./lib/validations";
-import { Separator } from "@workspace/ui/components/separator";
-import { Button } from "@workspace/ui/components/button";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -17,6 +28,7 @@ interface PageProps {
 export default async function CounterpartiesPage({ searchParams }: PageProps) {
   const parsedSearch = await searchParamsCache.parse(searchParams);
   const promise = getCounterparties(parsedSearch);
+  const groupOptionsPromise = getCounterpartyGroups().catch(() => []);
 
   return (
     <div className="flex flex-col gap-4">
@@ -32,22 +44,43 @@ export default async function CounterpartiesPage({ searchParams }: PageProps) {
             </p>
           </div>
         </div>
-        <Button
-          size="lg"
-          nativeButton={false}
-          render={<Link href="/entities/counterparties/create" />}
-        >
-          <Plus className="h-4 w-4" />
-          <span className="hidden md:block">Добавить</span>
-        </Button>
+        <ButtonGroup>
+          <Button
+            size="lg"
+            nativeButton={false}
+            render={<Link href="/entities/counterparties/create" />}
+          >
+            <Plus className="h-4 w-4" />
+            <span className="hidden md:block">Создать</span>
+          </Button>
+          <ButtonGroupSeparator />
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button size="lg" aria-label="Открыть меню создания" />}
+            >
+              <ChevronDown className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-46">
+              <DropdownMenuItem
+                render={<Link href="/entities/counterparties/groups/create" />}
+              >
+                <FolderPlus className="h-4 w-4" />
+                <span>Создать группу</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </ButtonGroup>
       </div>
       <Separator className="w-full h-px" />
       <Suspense
         fallback={
-          <DataTableSkeleton columnCount={8} rowCount={10} filterCount={3} />
+          <DataTableSkeleton columnCount={8} rowCount={10} filterCount={4} />
         }
       >
-        <CounterpartiesTable promise={promise} />
+        <CounterpartiesTable
+          promise={promise}
+          groupOptionsPromise={groupOptionsPromise}
+        />
       </Suspense>
     </div>
   );

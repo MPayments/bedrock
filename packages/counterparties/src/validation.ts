@@ -41,6 +41,7 @@ interface CounterpartiesListFilters {
     fullName: { kind: "string"; cardinality: "single" };
     country: { kind: "string"; cardinality: "single" };
     kind: { kind: "string"; cardinality: "multi" };
+    groupIds: { kind: "string"; cardinality: "multi" };
     groupRoot: { kind: "string"; cardinality: "multi" };
 }
 
@@ -55,6 +56,7 @@ export const COUNTERPARTIES_LIST_CONTRACT: ListQueryContract<
         fullName: { kind: "string", cardinality: "single" },
         country: { kind: "string", cardinality: "single" },
         kind: { kind: "string", cardinality: "multi" },
+        groupIds: { kind: "string", cardinality: "multi" },
         groupRoot: { kind: "string", cardinality: "multi" },
     },
 };
