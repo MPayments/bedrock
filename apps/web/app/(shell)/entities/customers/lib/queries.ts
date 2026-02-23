@@ -2,7 +2,7 @@ import { cache } from "react";
 
 import { CUSTOMERS_LIST_CONTRACT } from "@bedrock/customers/validation";
 
-import { apiClient } from "@/lib/api-client";
+import { getServerApiClient } from "@/lib/api-client.server";
 import { createListQueryFromSearchParams } from "@/lib/list-search-params";
 
 import type { CustomersListResult } from "../components/table";
@@ -15,7 +15,8 @@ function createCustomersListQuery(search: CustomersSearchParams) {
 export async function getCustomers(
   search: CustomersSearchParams,
 ): Promise<CustomersListResult> {
-  const res = await apiClient.v1.customers.$get(
+  const client = await getServerApiClient();
+  const res = await client.v1.customers.$get(
     {
       query: createCustomersListQuery(search),
     },
@@ -48,7 +49,8 @@ const getCustomerByIdUncached = async (
     return null;
   }
 
-  const res = await apiClient.v1.customers[":id"].$get(
+  const client = await getServerApiClient();
+  const res = await client.v1.customers[":id"].$get(
     {
       param: { id },
     },

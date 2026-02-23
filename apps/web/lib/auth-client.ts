@@ -1,5 +1,7 @@
 import { createAuthClient } from "better-auth/react";
 
-export const authClient = createAuthClient({
-  basePath: "/api/auth",
-});
+export const authClient: ReturnType<typeof createAuthClient> = createAuthClient(
+  {
+    basePath: "/api/auth",
+  },
+);

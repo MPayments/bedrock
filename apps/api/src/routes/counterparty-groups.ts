@@ -73,6 +73,14 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
         },
         description: "Validation error",
       },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Parent group or customer not found",
+      },
     },
   });
 

@@ -90,6 +90,7 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => {
 });
 
 app.use("*", authMiddleware());
+app.use("/v1/*", requireAuth());
 
 // Health check
 app.get("/", (c) => {
@@ -98,13 +99,13 @@ app.get("/", (c) => {
 
 // Mount routes under /v1 — all require an authenticated session
 const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
-  .use("*", requireAuth())
   .route("/counterparties", counterpartiesRoutes(ctx))
   .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
   .route("/fx/rates", fxRatesRoutes(ctx));
-const routes = app.route("/v1", v1);
+
+const _routes = app.route("/v1", v1);
 
 const openApiInfo = {
   info: {
@@ -138,4 +139,4 @@ app.get(
 );
 
 export { app };
-export type AppType = typeof routes;
+export type AppType = typeof _routes;

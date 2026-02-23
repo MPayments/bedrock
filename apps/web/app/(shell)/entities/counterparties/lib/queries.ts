@@ -2,7 +2,7 @@ import { cache } from "react";
 
 import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/counterparties/validation";
 
-import { apiClient } from "@/lib/api-client";
+import { getServerApiClient } from "@/lib/api-client.server";
 import { createListQueryFromSearchParams } from "@/lib/list-search-params";
 
 import type { CounterpartiesListResult } from "../components/table";
@@ -15,7 +15,8 @@ function createCounterpartiesListQuery(search: CounterpartiesSearchParams) {
 export async function getCounterparties(
   search: CounterpartiesSearchParams,
 ): Promise<CounterpartiesListResult> {
-  const res = await apiClient.v1.counterparties.$get(
+  const client = await getServerApiClient();
+  const res = await client.v1.counterparties.$get(
     {
       query: createCounterpartiesListQuery(search),
     },
@@ -65,7 +66,8 @@ const getCounterpartyByIdUncached = async (
     return null;
   }
 
-  const res = await apiClient.v1.counterparties[":id"].$get(
+  const client = await getServerApiClient();
+  const res = await client.v1.counterparties[":id"].$get(
     {
       param: { id },
     },
@@ -101,7 +103,8 @@ const getCounterpartyByIdUncached = async (
 export const getCounterpartyById = cache(getCounterpartyByIdUncached);
 
 export async function getCounterpartyGroups(): Promise<CounterpartyGroupOption[]> {
-  const res = await apiClient.v1["counterparty-groups"].$get(
+  const client = await getServerApiClient();
+  const res = await client.v1["counterparty-groups"].$get(
     {
       query: {},
     },
