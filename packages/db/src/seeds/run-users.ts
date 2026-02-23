@@ -1,5 +1,5 @@
-import dotenv from "dotenv";
 import { hashPassword } from "better-auth/crypto";
+import dotenv from "dotenv";
 
 dotenv.config({ path: "./../../.env" });
 

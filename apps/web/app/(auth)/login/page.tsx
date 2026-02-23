@@ -13,7 +13,6 @@ import {
 } from "@bedrock/ui/components/card";
 import {
   Field,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
 } from "@bedrock/ui/components/field";
