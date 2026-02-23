@@ -11,6 +11,12 @@ const auth = betterAuth({
     baseURL: process.env.BETTER_AUTH_URL!,
     basePath: "/api/auth",
     trustedOrigins: [process.env.BETTER_AUTH_TRUSTED_ORIGINS!],
+    trustedHeaders: ["cookie"],
+    advanced: {
+        crossSubDomainCookies: {
+            enabled: true
+        },
+    },
     emailAndPassword: {
         enabled: true,
     },
@@ -21,8 +27,10 @@ const auth = betterAuth({
         openApiPlugin(),
         adminPlugin({
             ac,
-            admin,
-            user,
+            roles: {
+                admin,
+                user,
+            },
         }),
     ],
 });

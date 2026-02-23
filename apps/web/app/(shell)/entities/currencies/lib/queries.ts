@@ -1,6 +1,6 @@
 import { CURRENCIES_LIST_CONTRACT, CurrencySchema } from "@bedrock/currencies";
 
-import { apiClient } from "@/lib/api-client";
+import { getServerApiClient } from "@/lib/api-client.server";
 import { createListQueryFromSearchParams } from "@/lib/list-search-params";
 
 import type { CurrenciesListResult } from "../(table)";
@@ -13,14 +13,10 @@ function createCurrenciesListQuery(search: CurrenciesSearchParams) {
 export async function getCurrencies(
   search: CurrenciesSearchParams,
 ): Promise<CurrenciesListResult> {
-  const res = await apiClient.v1.currencies.$get(
-    {
-      query: createCurrenciesListQuery(search),
-    },
-    {
-      init: { cache: "no-store" },
-    },
-  );
+  const client = await getServerApiClient();
+  const res = await client.v1.currencies.$get({
+    query: createCurrenciesListQuery(search),
+  });
 
   if (!res.ok) {
     throw new Error(`Failed to fetch currencies: ${res.status}`);

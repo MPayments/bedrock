@@ -2,7 +2,7 @@ import { cache } from "react";
 
 import { ORGANIZATIONS_LIST_CONTRACT } from "@bedrock/organizations/validation";
 
-import { apiClient } from "@/lib/api-client";
+import { getServerApiClient } from "@/lib/api-client.server";
 import { createListQueryFromSearchParams } from "@/lib/list-search-params";
 import type { Option } from "@/types/data-table";
 
@@ -16,14 +16,10 @@ function createOrganizationsListQuery(search: OrganizationsSearchParams) {
 export async function getOrganizations(
   search: OrganizationsSearchParams,
 ): Promise<OrganizationsListResult> {
-  const res = await apiClient.v1.organizations.$get(
-    {
-      query: createOrganizationsListQuery(search),
-    },
-    {
-      init: { cache: "no-store" },
-    },
-  );
+  const client = await getServerApiClient();
+  const res = await client.v1.organizations.$get({
+    query: createOrganizationsListQuery(search),
+  });
 
   if (!res.ok) {
     throw new Error(`Failed to fetch organizations: ${res.status}`);
@@ -54,14 +50,10 @@ const getOrganizationByIdUncached = async (
     return null;
   }
 
-  const res = await apiClient.v1.organizations[":id"].$get(
-    {
-      param: { id },
-    },
-    {
-      init: { cache: "no-store" },
-    },
-  );
+  const client = await getServerApiClient();
+  const res = await client.v1.organizations[":id"].$get({
+    param: { id },
+  });
 
   const status = (res as Response).status;
 
@@ -100,25 +92,21 @@ interface CurrenciesFilterListResult {
 }
 
 export async function getOrganizationCurrencyFilterOptions(): Promise<Option[]> {
+  const client = await getServerApiClient();
   const pageSize = 100;
   let offset = 0;
   const codes = new Set<string>();
   const options: Option[] = [];
 
   while (true) {
-    const res = await apiClient.v1.currencies.$get(
-      {
-        query: {
-          limit: pageSize,
-          offset,
-          sortBy: "code",
-          sortOrder: "asc",
-        },
+    const res = await client.v1.currencies.$get({
+      query: {
+        limit: pageSize,
+        offset,
+        sortBy: "code",
+        sortOrder: "asc",
       },
-      {
-        init: { cache: "no-store" },
-      },
-    );
+    });
 
     if (!res.ok) {
       throw new Error(`Failed to fetch currencies for organizations filter: ${res.status}`);

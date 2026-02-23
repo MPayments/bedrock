@@ -5,8 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./client": "./src/client.ts",
-    "./crypto": "./src/crypto.ts"
+    "./client": "./src/client.ts"
   },
   "scripts": {
     "build": "tsgo",

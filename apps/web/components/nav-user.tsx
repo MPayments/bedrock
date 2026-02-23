@@ -46,6 +46,7 @@ export function NavUser() {
   const { data: session, isPending } = authClient.useSession();
 
   async function handleSignOut() {
+    console.log("logout")
     await authClient.signOut();
     router.push("/login");
   }
@@ -111,7 +112,7 @@ export function NavUser() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={handleSignOut}>
+            <DropdownMenuItem onClick={handleSignOut}>
               <LogOut />
               Выйти
             </DropdownMenuItem>

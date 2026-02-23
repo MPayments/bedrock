@@ -1,9 +1,10 @@
 import dotenv from "dotenv";
+import { hashPassword } from "better-auth/crypto";
 
 dotenv.config({ path: "./../../.env" });
 
 const { db } = await import("../client");
-const { hashPassword } = await import("@bedrock/auth/crypto");
+
 const { seedUsers } = await import("./users");
 
 await seedUsers(db, hashPassword);
