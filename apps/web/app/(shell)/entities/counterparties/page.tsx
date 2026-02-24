@@ -17,7 +17,7 @@ import { Separator } from "@bedrock/ui/components/separator";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 
-import { CounterpartiesTable } from "./components/table";
+import { CounterpartiesTable } from "./components/counterparties-table";
 import { getCounterparties, getCounterpartyGroups } from "./lib/queries";
 import { searchParamsCache } from "./lib/validations";
 

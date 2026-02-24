@@ -12,12 +12,24 @@ import {
     uuid,
 } from "drizzle-orm/pg-core";
 
+import { COUNTRY_ALPHA2_SET } from "@bedrock/countries";
+
 import { customers } from "../customers";
 
 export const counterpartyKindEnum = pgEnum("counterparty_kind", [
     "legal_entity",
     "individual",
 ]);
+
+const COUNTERPARTY_COUNTRY_CODES = Array.from(COUNTRY_ALPHA2_SET).sort() as [
+    string,
+    ...string[],
+];
+
+export const counterpartyCountryCodeEnum = pgEnum(
+    "counterparty_country_code",
+    COUNTERPARTY_COUNTRY_CODES,
+);
 
 export const counterparties = pgTable("counterparties", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -26,7 +38,7 @@ export const counterparties = pgTable("counterparties", {
     shortName: text("short_name").notNull(),
     fullName: text("full_name").notNull(),
     description: text("description"),
-    country: text("country"),
+    country: counterpartyCountryCodeEnum("country"),
     kind: counterpartyKindEnum("kind").notNull().default("legal_entity"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`).$onUpdateFn(() => new Date()),

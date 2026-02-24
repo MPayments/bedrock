@@ -1,11 +1,11 @@
 const GROUP_PRESENTATION_BY_KEY = {
-  customers: {
-    label: "Клиенты",
-    icon: "users",
-  },
   treasury: {
     label: "Казначейство",
     icon: "vault",
+  },
+  customers: {
+    label: "Клиенты",
+    icon: "users",
   },
 } as const;
 

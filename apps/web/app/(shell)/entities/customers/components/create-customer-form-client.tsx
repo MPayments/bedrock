@@ -15,7 +15,7 @@ import { resolveApiErrorMessage } from "@/lib/api-error";
 
 export function CreateCustomerFormClient() {
   const router = useRouter();
-  const { setCreateName, resetCreateName } = useCustomerDraftName();
+  const { setCreateName } = useCustomerDraftName();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,7 +59,6 @@ export function CreateCustomerFormClient() {
 
       const created = await res.json();
       toast.success("Клиент создан");
-      resetCreateName();
       router.push(`/entities/customers/${created.id}`);
     } catch (submitError) {
       const message =

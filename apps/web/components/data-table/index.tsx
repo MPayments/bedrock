@@ -1,4 +1,8 @@
-import { flexRender, type Table as TanstackTable } from "@tanstack/react-table";
+import {
+  flexRender,
+  type Row as TanstackRow,
+  type Table as TanstackTable,
+} from "@tanstack/react-table";
 import type * as React from "react";
 
 import { DataTablePagination } from "@/components/data-table/pagination";
@@ -16,11 +20,16 @@ import { cn } from "@bedrock/ui/lib/utils";
 interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   table: TanstackTable<TData>;
   actionBar?: React.ReactNode;
+  onRowDoubleClick?: (
+    row: TanstackRow<TData>,
+    event: React.MouseEvent<HTMLTableRowElement>,
+  ) => void;
 }
 
 export function DataTable<TData>({
   table,
   actionBar,
+  onRowDoubleClick,
   children,
   className,
   ...props
@@ -57,26 +66,30 @@ export function DataTable<TData>({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      style={{
-                        ...getCommonPinningStyles({ column: cell.column }),
-                      }}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                return (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    className={cn(onRowDoubleClick && "cursor-pointer")}
+                    onDoubleClick={(event) => onRowDoubleClick?.(row, event)}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        style={{
+                          ...getCommonPinningStyles({ column: cell.column }),
+                        }}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell

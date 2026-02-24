@@ -5,7 +5,7 @@ import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/counterparties/validation
 import { getServerApiClient } from "@/lib/api-client.server";
 import { createListQueryFromSearchParams } from "@/lib/list-search-params";
 
-import type { CounterpartiesListResult } from "../components/table";
+import type { CounterpartiesListResult } from "../components/counterparties-table";
 import { type CounterpartiesSearchParams } from "./validations";
 
 function createCounterpartiesListQuery(search: CounterpartiesSearchParams) {

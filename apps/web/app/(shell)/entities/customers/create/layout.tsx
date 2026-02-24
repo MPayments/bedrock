@@ -14,9 +14,6 @@ export default function CreateCustomerLayout({
 
   useEffect(() => {
     resetCreateName();
-    return () => {
-      resetCreateName();
-    };
   }, [resetCreateName]);
 
   return (

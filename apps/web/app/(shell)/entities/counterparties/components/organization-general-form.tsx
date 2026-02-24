@@ -30,12 +30,31 @@ import {
   SelectGroup,
   SelectItem,
 } from "@bedrock/ui/components/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@bedrock/ui/components/command";
 import { Checkbox } from "@bedrock/ui/components/checkbox";
 import { Input } from "@bedrock/ui/components/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@bedrock/ui/components/popover";
 import { Textarea } from "@bedrock/ui/components/textarea";
 import { Button } from "@bedrock/ui/components/button";
 import { Spinner } from "@bedrock/ui/components/spinner";
 
+import {
+  COUNTERPARTY_COUNTRY_OPTIONS,
+  getCountryPresentation,
+} from "../lib/countries";
+import { CounterpartyDeleteDialog } from "./counterparty-delete-dialog";
 import type { CounterpartyGroupOption } from "../lib/queries";
 import { localizeCounterpartyGroupLabel } from "../lib/group-label";
 import { formatDate } from "@/lib/format";
@@ -45,7 +64,6 @@ export type CounterpartyGeneralFormValues = {
   fullName: string;
   kind: "legal_entity" | "individual";
   country: string;
-  externalId: string;
   description: string;
   // Derived from selected customer-scoped groups; no manual input in UI.
   customerId: string;
@@ -57,14 +75,18 @@ type CounterpartyGeneralFormSubmit =
   | CounterpartyGeneralFormValues
   | void;
 
+type CounterpartyGeneralFormDelete = Promise<boolean | void> | boolean | void;
+
 type CounterpartyGeneralFormProps = {
   initialValues?: Partial<CounterpartyGeneralFormValues>;
   groupOptions: CounterpartyGroupOption[];
   submitting?: boolean;
+  deleting?: boolean;
   error?: string | null;
   onSubmit?: (
     values: CounterpartyGeneralFormValues,
   ) => CounterpartyGeneralFormSubmit;
+  onDelete?: () => CounterpartyGeneralFormDelete;
   onShortNameChange?: (name: string) => void;
 };
 
@@ -72,6 +94,7 @@ type CounterpartyGeneralFormVariant = {
   submitLabel: string;
   submittingLabel: string;
   disableSubmitUntilDirty: boolean;
+  showDelete: boolean;
   usePlaceholderDates: boolean;
 };
 
@@ -86,18 +109,35 @@ const DEFAULT_VALUES: CounterpartyGeneralFormValues = {
   fullName: "",
   kind: "legal_entity",
   country: "",
-  externalId: "",
   description: "",
   customerId: "",
   groupIds: [],
 };
 
+const COUNTERPARTY_KIND_OPTIONS = [
+  { value: "legal_entity", label: "Юридическое лицо" },
+  { value: "individual", label: "Физическое лицо" },
+] as const satisfies ReadonlyArray<{
+  value: CounterpartyGeneralFormValues["kind"];
+  label: string;
+}>;
+
+const COUNTERPARTY_COUNTRY_CODE_SET = new Set(
+  COUNTERPARTY_COUNTRY_OPTIONS.map((option) => option.value),
+);
+
 const CounterpartyGeneralFormSchema = z.object({
   shortName: z.string().trim().min(1, "Краткое наименование обязательно"),
   fullName: z.string().trim().min(1, "Полное наименование обязательно"),
   kind: z.enum(["legal_entity", "individual"]),
-  country: z.string(),
-  externalId: z.string(),
+  country: z
+    .string()
+    .trim()
+    .transform((value) => value.toUpperCase())
+    .refine(
+      (value) => value.length === 0 || COUNTERPARTY_COUNTRY_CODE_SET.has(value),
+      "Выберите страну из списка",
+    ),
   description: z.string(),
   customerId: z
     .string()
@@ -113,6 +153,15 @@ function compareGroupsByName(
   a: CounterpartyGroupOption,
   b: CounterpartyGroupOption,
 ): number {
+  const getCodePriority = (code: string) =>
+    code === "treasury" ? 0 : code === "customers" ? 1 : 2;
+  const codePriorityA = getCodePriority(a.code);
+  const codePriorityB = getCodePriority(b.code);
+
+  if (codePriorityA !== codePriorityB) {
+    return codePriorityA - codePriorityB;
+  }
+
   const normalizedA = a.name.trim().toLowerCase();
   const normalizedB = b.name.trim().toLowerCase();
 
@@ -139,6 +188,7 @@ const CREATE_GENERAL_FORM_VARIANT: CounterpartyGeneralFormVariant = {
   submitLabel: "Создать",
   submittingLabel: "Создание...",
   disableSubmitUntilDirty: false,
+  showDelete: false,
   usePlaceholderDates: true,
 };
 
@@ -146,6 +196,7 @@ const EDIT_GENERAL_FORM_VARIANT: CounterpartyGeneralFormVariant = {
   submitLabel: "Сохранить",
   submittingLabel: "Сохранение...",
   disableSubmitUntilDirty: true,
+  showDelete: true,
   usePlaceholderDates: false,
 };
 
@@ -153,8 +204,10 @@ function CounterpartyGeneralFormBase({
   initialValues,
   groupOptions,
   submitting = false,
+  deleting = false,
   error,
   onSubmit,
+  onDelete,
   onShortNameChange,
   variant,
 }: CounterpartyGeneralFormBaseProps) {
@@ -269,28 +322,31 @@ function CounterpartyGeneralFormBase({
     return map;
   }, [groupOptions]);
 
-  const getAncestors = useCallback((groupId: string): string[] => {
-    const ancestors: string[] = [];
-    const visited = new Set<string>();
-    let cursor = groupById.get(groupId);
+  const getAncestors = useCallback(
+    (groupId: string): string[] => {
+      const ancestors: string[] = [];
+      const visited = new Set<string>();
+      let cursor = groupById.get(groupId);
 
-    while (cursor?.parentId) {
-      if (visited.has(cursor.id)) {
-        break;
+      while (cursor?.parentId) {
+        if (visited.has(cursor.id)) {
+          break;
+        }
+        visited.add(cursor.id);
+
+        const parent = groupById.get(cursor.parentId);
+        if (!parent) {
+          break;
+        }
+
+        ancestors.push(parent.id);
+        cursor = parent;
       }
-      visited.add(cursor.id);
 
-      const parent = groupById.get(cursor.parentId);
-      if (!parent) {
-        break;
-      }
-
-      ancestors.push(parent.id);
-      cursor = parent;
-    }
-
-    return ancestors;
-  }, [groupById]);
+      return ancestors;
+    },
+    [groupById],
+  );
 
   function getDescendants(groupId: string): string[] {
     const descendants: string[] = [];
@@ -433,7 +489,9 @@ function CounterpartyGeneralFormBase({
           new Set(
             values.groupIds
               .map((groupId) => customerScopeByGroupId.get(groupId) ?? null)
-              .filter((customerId): customerId is string => Boolean(customerId)),
+              .filter((customerId): customerId is string =>
+                Boolean(customerId),
+              ),
           ),
         );
 
@@ -441,8 +499,7 @@ function CounterpartyGeneralFormBase({
           ctx.addIssue({
             code: "custom",
             path: ["groupIds"],
-            message:
-              "Для ветки Клиенты выберите группу конкретного клиента.",
+            message: "Для ветки Клиенты выберите группу конкретного клиента.",
           });
         }
 
@@ -479,12 +536,17 @@ function CounterpartyGeneralFormBase({
     control,
     name: "shortName",
   });
+  const selectedCountryCode = useWatch({
+    control,
+    name: "country",
+  });
   const selectedGroupIds = useMemo(
-    () =>
-      Array.isArray(selectedGroupIdsValue)
-        ? selectedGroupIdsValue
-        : [],
+    () => (Array.isArray(selectedGroupIdsValue) ? selectedGroupIdsValue : []),
     [selectedGroupIdsValue],
+  );
+  const selectedCountry = useMemo(
+    () => getCountryPresentation(selectedCountryCode),
+    [selectedCountryCode],
   );
   const selectedCustomerScopeIds = useMemo(
     () =>
@@ -497,9 +559,8 @@ function CounterpartyGeneralFormBase({
       ),
     [customerScopeByGroupId, selectedGroupIds],
   );
-  const derivedCustomerId = selectedCustomerScopeIds.length === 1
-    ? selectedCustomerScopeIds[0]!
-    : "";
+  const derivedCustomerId =
+    selectedCustomerScopeIds.length === 1 ? selectedCustomerScopeIds[0]! : "";
   const rootGroupIds = useMemo(
     () => (groupsByParent.get(ROOT_GROUP) ?? []).map((group) => group.id),
     [groupsByParent],
@@ -526,6 +587,8 @@ function CounterpartyGeneralFormBase({
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
     () => new Set(initialExpandedIds),
   );
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [countryPickerOpen, setCountryPickerOpen] = useState(false);
 
   const nowFormatted = formatDate(new Date());
 
@@ -573,9 +636,14 @@ function CounterpartyGeneralFormBase({
     }
   }
 
+  async function handleDelete() {
+    return onDelete?.();
+  }
+
   const submitDisabled =
     submitting || !onSubmit || (variant.disableSubmitUntilDirty && !isDirty);
   const resetDisabled = submitting || !isDirty;
+  const deleteDisabled = deleting || submitting || !onDelete;
 
   function expandNodePath(groupId: string) {
     setExpandedIds((current) => {
@@ -718,6 +786,22 @@ function CounterpartyGeneralFormBase({
               <X className="size-4" />
               Отменить
             </Button>
+            {variant.showDelete ? (
+              <CounterpartyDeleteDialog
+                open={deleteDialogOpen}
+                onOpenChange={setDeleteDialogOpen}
+                deleting={deleting}
+                onDelete={handleDelete}
+                disableDelete={submitting}
+                trigger={
+                  <Button
+                    variant="destructive"
+                    type="button"
+                    disabled={deleteDisabled}
+                  />
+                }
+              />
+            ) : null}
           </div>
         </div>
       </CardHeader>
@@ -783,7 +867,7 @@ function CounterpartyGeneralFormBase({
                   />
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-4">
+                <div className="grid md:grid-cols-2 gap-4">
                   <Controller
                     name="kind"
                     control={control}
@@ -805,16 +889,24 @@ function CounterpartyGeneralFormBase({
                             aria-invalid={fieldState.invalid}
                             className="w-full"
                           >
-                            <SelectValue placeholder="Выберите тип" />
+                            <SelectValue placeholder="Выберите тип">
+                              {
+                                COUNTERPARTY_KIND_OPTIONS.find(
+                                  (option) => option.value === field.value,
+                                )?.label
+                              }
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
-                              <SelectItem value="legal_entity">
-                                Юридическое лицо
-                              </SelectItem>
-                              <SelectItem value="individual">
-                                Физическое лицо
-                              </SelectItem>
+                              {COUNTERPARTY_KIND_OPTIONS.map((option) => (
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                >
+                                  {option.label}
+                                </SelectItem>
+                              ))}
                             </SelectGroup>
                           </SelectContent>
                         </Select>
@@ -824,30 +916,90 @@ function CounterpartyGeneralFormBase({
                       </Field>
                     )}
                   />
-                  <Field data-invalid={Boolean(errors.country)}>
-                    <FieldLabel htmlFor="counterparty-country">
-                      Страна
-                    </FieldLabel>
-                    <Input
-                      {...register("country")}
-                      id="counterparty-country"
-                      aria-invalid={Boolean(errors.country)}
-                      placeholder="Например: Россия"
-                    />
-                    <FieldError errors={[errors.country]} />
-                  </Field>
-                  <Field data-invalid={Boolean(errors.externalId)}>
-                    <FieldLabel htmlFor="counterparty-external-id">
-                      External ID
-                    </FieldLabel>
-                    <Input
-                      {...register("externalId")}
-                      id="counterparty-external-id"
-                      aria-invalid={Boolean(errors.externalId)}
-                      placeholder="Например: crm-123"
-                    />
-                    <FieldError errors={[errors.externalId]} />
-                  </Field>
+                  <Controller
+                    name="country"
+                    control={control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="counterparty-country">
+                          Страна
+                        </FieldLabel>
+                        <Popover
+                          open={countryPickerOpen}
+                          onOpenChange={setCountryPickerOpen}
+                        >
+                          <PopoverTrigger
+                            render={
+                              <Button
+                                id="counterparty-country"
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-between font-normal"
+                                aria-invalid={fieldState.invalid}
+                              />
+                            }
+                          >
+                            <span className="truncate">
+                              {selectedCountry?.label ??
+                                (field.value
+                                  ? field.value.trim().toUpperCase()
+                                  : "Выберите страну")}
+                            </span>
+                            <ChevronDown className="text-muted-foreground size-4" />
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="start"
+                            className="w-(--anchor-width) p-0"
+                          >
+                            <Command>
+                              <CommandInput placeholder="Поиск страны..." />
+                              <CommandList className="max-h-64">
+                                <CommandEmpty>Страна не найдена</CommandEmpty>
+                                <CommandGroup>
+                                  {COUNTERPARTY_COUNTRY_OPTIONS.map(
+                                    (option) => (
+                                      <CommandItem
+                                        key={option.value}
+                                        value={option.search}
+                                        data-checked={
+                                          field.value?.toUpperCase() ===
+                                          option.value
+                                        }
+                                        onSelect={() => {
+                                          field.onChange(option.value);
+                                          setCountryPickerOpen(false);
+                                        }}
+                                      >
+                                        {option.label}
+                                      </CommandItem>
+                                    ),
+                                  )}
+                                </CommandGroup>
+                                {field.value ? (
+                                  <>
+                                    <CommandSeparator />
+                                    <CommandGroup>
+                                      <CommandItem
+                                        onSelect={() => {
+                                          field.onChange("");
+                                          setCountryPickerOpen(false);
+                                        }}
+                                      >
+                                        Очистить
+                                      </CommandItem>
+                                    </CommandGroup>
+                                  </>
+                                ) : null}
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
                   <Controller
@@ -860,7 +1012,7 @@ function CounterpartyGeneralFormBase({
                           Контрагент может быть только в одной ветке:
                           Казначейство или Клиенты.
                         </FieldDescription>
-                        <div className="space-y-2 rounded-md border p-3">
+                        <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3">
                           {groupOptions.length === 0 ? (
                             <p className="text-muted-foreground text-sm">
                               Группы не найдены.
@@ -883,6 +1035,9 @@ function CounterpartyGeneralFormBase({
                     <FieldLabel htmlFor="counterparty-description">
                       Описание
                     </FieldLabel>
+                    <FieldDescription>
+                      Дополнительная информация о контрагенте
+                    </FieldDescription>
                     <Textarea
                       {...register("description")}
                       id="counterparty-description"

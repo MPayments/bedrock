@@ -1,16 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Counterparty } from "@bedrock/counterparties/validation";
 import { Badge } from "@bedrock/ui/components/badge";
-import { Button } from "@bedrock/ui/components/button";
-import { Eye, Users, Vault } from "lucide-react";
+import { Users, Vault } from "lucide-react";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { formatDate } from "@/lib/format";
 import { getCounterpartyGroupPresentation } from "../lib/group-label";
+import { getCountryPresentation } from "../lib/countries";
 import type { CounterpartyGroupOption } from "../lib/queries";
+import { CounterpartyRowActions } from "./counterparty-row-actions";
 
 type SerializedCounterparty = Omit<Counterparty, "createdAt" | "updatedAt"> & {
   createdAt: string;
@@ -97,7 +97,20 @@ export function getColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label="Страна" />
       ),
-      cell: ({ row }) => row.getValue("country") ?? "—",
+      cell: ({ row }) => {
+        const rawCountry = row.getValue<string | null>("country");
+        const presentation = getCountryPresentation(rawCountry);
+
+        if (presentation) {
+          return presentation.label;
+        }
+
+        if (typeof rawCountry === "string" && rawCountry.trim().length > 0) {
+          return rawCountry.trim().toUpperCase();
+        }
+
+        return "—";
+      },
       enableColumnFilter: true,
       enableSorting: true,
       enableHiding: true,
@@ -176,22 +189,8 @@ export function getColumns(
     },
     {
       id: "actions",
-      cell: ({ row }) => (
-        <div className="flex justify-end">
-          <Button
-            size="icon"
-            variant="ghost"
-            nativeButton={false}
-            render={
-              <Link href={`/entities/counterparties/${row.original.id}`} />
-            }
-            aria-label={`Открыть контрагента ${row.original.shortName}`}
-          >
-            <Eye size={16} />
-          </Button>
-        </div>
-      ),
-      size: 40,
+      cell: ({ row }) => <CounterpartyRowActions counterparty={row.original} />,
+      size: 48,
     },
   ];
 }

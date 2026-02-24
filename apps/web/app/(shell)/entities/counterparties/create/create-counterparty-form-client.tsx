@@ -24,7 +24,7 @@ export function CreateCounterpartyFormClient({
   initialLoadError = null,
 }: CreateCounterpartyFormClientProps) {
   const router = useRouter();
-  const { setCreateName, resetCreateName } = useCounterpartyCreateDraftName();
+  const { setCreateName } = useCounterpartyCreateDraftName();
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(initialLoadError);
@@ -35,7 +35,6 @@ export function CreateCounterpartyFormClient({
       fullName: "",
       kind: "legal_entity",
       country: "",
-      externalId: "",
       description: "",
       customerId: "",
       groupIds: [],
@@ -53,7 +52,6 @@ export function CreateCounterpartyFormClient({
       fullName: values.fullName.trim(),
       kind: values.kind,
       country: values.country.trim() || undefined,
-      externalId: values.externalId.trim() || undefined,
       description: values.description.trim() || undefined,
       customerId: customerId || null,
       groupIds: values.groupIds,
@@ -86,7 +84,6 @@ export function CreateCounterpartyFormClient({
 
       const created = await res.json();
       toast.success("Контрагент создан");
-      resetCreateName();
       router.push(`/entities/counterparties/${created.id}`);
     } catch (submitError) {
       const message =

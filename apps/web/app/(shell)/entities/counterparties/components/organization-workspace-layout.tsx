@@ -56,7 +56,7 @@ export function CounterpartyWorkspaceLayout({
           {isTabDisabled("general") ? (
             <TabsTrigger value="general" disabled>
               <Info size={16} />
-              Общая информация
+                Информация
             </TabsTrigger>
           ) : (
             <TabsTrigger
@@ -65,7 +65,7 @@ export function CounterpartyWorkspaceLayout({
               render={<Link href={basePath} />}
             >
               <Info size={16} />
-              Общая информация
+              Информация
             </TabsTrigger>
           )}
           {isTabDisabled("accounts") ? (

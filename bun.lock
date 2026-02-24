@@ -47,6 +47,7 @@
       "dependencies": {
         "@bedrock/auth": "workspace:*",
         "@bedrock/counterparties": "workspace:*",
+        "@bedrock/countries": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/customers": "workspace:*",
         "@bedrock/ui": "workspace:*",
@@ -94,6 +95,7 @@
       "name": "@bedrock/counterparties",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/countries": "workspace:*",
         "@bedrock/db": "workspace:*",
         "@bedrock/kernel": "workspace:*",
         "drizzle-orm": "^0.45.1",
@@ -102,6 +104,17 @@
       "devDependencies": {
         "@bedrock/eslint-config": "workspace:*",
         "@bedrock/test-utils": "*",
+        "@bedrock/typescript-config": "*",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/countries": {
+      "name": "@bedrock/countries",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
         "@bedrock/typescript-config": "*",
         "eslint": "^9.31.0",
         "typescript": "^5.8.3",
@@ -148,6 +161,7 @@
       "name": "@bedrock/db",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/countries": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "drizzle-seed": "^0.3.1",
         "pg": "^8.17.2",
@@ -380,6 +394,8 @@
     "@bedrock/auth": ["@bedrock/auth@workspace:packages/auth"],
 
     "@bedrock/counterparties": ["@bedrock/counterparties@workspace:packages/counterparties"],
+
+    "@bedrock/countries": ["@bedrock/countries@workspace:packages/countries"],
 
     "@bedrock/currencies": ["@bedrock/currencies@workspace:packages/currencies"],
 

@@ -31,7 +31,6 @@ function toFormValues(
     fullName: counterparty.fullName,
     kind: counterparty.kind,
     country: counterparty.country ?? "",
-    externalId: counterparty.externalId ?? "",
     description: counterparty.description ?? "",
     customerId: counterparty.customerId ?? "",
     groupIds: counterparty.groupIds,
@@ -44,8 +43,9 @@ export function CounterpartyEditForm({
   initialLoadError = null,
 }: CounterpartyEditFormProps) {
   const router = useRouter();
-  const { setEditName } = useCounterpartyCreateDraftName();
+  const { setEditName, clearEditCounterparty } = useCounterpartyCreateDraftName();
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(initialLoadError);
   const [initialValues, setInitialValues] = useState(() =>
     toFormValues(counterparty),
@@ -69,7 +69,6 @@ export function CounterpartyEditForm({
       fullName: values.fullName.trim(),
       kind: values.kind,
       country: values.country.trim() || null,
-      externalId: values.externalId.trim() || null,
       description: values.description.trim() || null,
       customerId: customerId || null,
       groupIds: values.groupIds,
@@ -122,13 +121,58 @@ export function CounterpartyEditForm({
     }
   }
 
+  async function handleDelete(): Promise<boolean> {
+    setError(null);
+    setDeleting(true);
+
+    try {
+      const res = await apiClient.v1.counterparties[":id"].$delete({
+        param: { id: counterparty.id },
+      });
+
+      if (!res.ok) {
+        let payload: unknown = null;
+        try {
+          payload = await res.json();
+        } catch {
+          // Ignore non-JSON error payloads.
+        }
+
+        const message = resolveApiErrorMessage(
+          res.status,
+          payload,
+          "Не удалось удалить контрагента",
+        );
+        setError(message);
+        toast.error(message);
+        return false;
+      }
+
+      clearEditCounterparty(counterparty.id);
+      router.push("/entities/counterparties");
+      return true;
+    } catch (deleteError) {
+      const message =
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Не удалось удалить контрагента";
+      setError(message);
+      toast.error(message);
+      return false;
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <CounterpartyEditGeneralForm
       initialValues={initialValues}
       groupOptions={initialGroupOptions}
       submitting={submitting}
+      deleting={deleting}
       error={error}
       onSubmit={handleSubmit}
+      onDelete={handleDelete}
       onShortNameChange={handleShortNameChange}
     />
   );

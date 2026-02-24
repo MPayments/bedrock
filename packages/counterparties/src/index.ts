@@ -6,6 +6,7 @@ export type { CounterpartiesService } from "./service";
 export {
     CounterpartyKindSchema,
     CounterpartyGroupRootCodeSchema,
+    CountryCodeSchema,
     CounterpartySchema,
     COUNTERPARTIES_LIST_CONTRACT,
     ListCounterpartiesQuerySchema,

@@ -5,7 +5,7 @@ import { CUSTOMERS_LIST_CONTRACT } from "@bedrock/customers/validation";
 import { getServerApiClient } from "@/lib/api-client.server";
 import { createListQueryFromSearchParams } from "@/lib/list-search-params";
 
-import type { CustomersListResult } from "../components/table";
+import type { CustomersListResult } from "../components/customers-table";
 import type { CustomersSearchParams } from "./validations";
 
 function createCustomersListQuery(search: CustomersSearchParams) {

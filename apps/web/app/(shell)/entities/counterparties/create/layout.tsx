@@ -14,9 +14,6 @@ export default function CreateCounterpartyLayout({
 
   useEffect(() => {
     resetCreateName();
-    return () => {
-      resetCreateName();
-    };
   }, [resetCreateName]);
 
   return (

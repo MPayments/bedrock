@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@bedrock/auth": "workspace:*",
+    "@bedrock/countries": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/customers": "workspace:*",

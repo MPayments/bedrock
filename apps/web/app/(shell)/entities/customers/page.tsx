@@ -4,7 +4,7 @@ import { Plus, Users } from "lucide-react";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 
-import { CustomersTable } from "./components/table";
+import { CustomersTable } from "./components/customers-table";
 import { getCustomers } from "./lib/queries";
 import { searchParamsCache } from "./lib/validations";
 import { Separator } from "@bedrock/ui/components/separator";
