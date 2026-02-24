@@ -43,7 +43,7 @@ describe("Treasury Service Integration Tests", () => {
             const entryId = await service.fundingSettled({
                 orderId: scenario.order.id,
                 branchCounterpartyId: scenario.branchCounterparty.id,
-                branchBankStableKey: scenario.branchBankAccount.stableKey,
+                branchBankStableKey: scenario.branchAccount.stableKey,
                 customerId: scenario.customer.id,
                 currency: "USD",
                 amountMinor: 100000n,
@@ -94,7 +94,7 @@ describe("Treasury Service Integration Tests", () => {
             const input = {
                 orderId: scenario.order.id,
                 branchCounterpartyId: scenario.branchCounterparty.id,
-                branchBankStableKey: scenario.branchBankAccount.stableKey,
+                branchBankStableKey: scenario.branchAccount.stableKey,
                 customerId: scenario.customer.id,
                 currency: "USD",
                 amountMinor: 100000n,
@@ -131,7 +131,7 @@ describe("Treasury Service Integration Tests", () => {
                 service.fundingSettled({
                     orderId: "00000000-0000-0000-0000-000000000000",
                     branchCounterpartyId: scenario.branchCounterparty.id,
-                    branchBankStableKey: scenario.branchBankAccount.stableKey,
+                    branchBankStableKey: scenario.branchAccount.stableKey,
                     customerId: scenario.customer.id,
                     currency: "USD",
                     amountMinor: 100000n,
@@ -154,7 +154,7 @@ describe("Treasury Service Integration Tests", () => {
                 service.fundingSettled({
                     orderId: scenario.order.id,
                     branchCounterpartyId: scenario.branchCounterparty.id,
-                    branchBankStableKey: scenario.branchBankAccount.stableKey,
+                    branchBankStableKey: scenario.branchAccount.stableKey,
                     customerId: scenario.customer.id,
                     currency: "GBP", // Wrong currency
                     amountMinor: 100000n,
@@ -177,7 +177,7 @@ describe("Treasury Service Integration Tests", () => {
                 service.fundingSettled({
                     orderId: scenario.order.id,
                     branchCounterpartyId: scenario.branchCounterparty.id,
-                    branchBankStableKey: scenario.branchBankAccount.stableKey,
+                    branchBankStableKey: scenario.branchAccount.stableKey,
                     customerId: scenario.customer.id,
                     currency: "USD",
                     amountMinor: 50000n, // Wrong amount
@@ -382,7 +382,7 @@ describe("Treasury Service Integration Tests", () => {
             const result = await service.initiatePayout({
                 orderId: scenario.order.id,
                 payoutCounterpartyId: scenario.payoutCounterparty.id,
-                payoutBankStableKey: scenario.payoutBankAccount.stableKey,
+                payoutBankStableKey: scenario.payoutAccount.stableKey,
                 payOutCurrency: "EUR",
                 amountMinor: 85000n,
                 railRef,
@@ -418,7 +418,7 @@ describe("Treasury Service Integration Tests", () => {
             const result = await service.initiatePayout({
                 orderId: scenario.order.id,
                 payoutCounterpartyId: scenario.payoutCounterparty.id,
-                payoutBankStableKey: scenario.payoutBankAccount.stableKey,
+                payoutBankStableKey: scenario.payoutAccount.stableKey,
                 payOutCurrency: "EUR",
                 amountMinor: 85000n,
                 railRef: randomRailRef(),
@@ -443,7 +443,7 @@ describe("Treasury Service Integration Tests", () => {
                 service.initiatePayout({
                     orderId: scenario.order.id,
                     payoutCounterpartyId: scenario.payoutCounterparty.id,
-                    payoutBankStableKey: scenario.payoutBankAccount.stableKey,
+                    payoutBankStableKey: scenario.payoutAccount.stableKey,
                     payOutCurrency: "EUR",
                     amountMinor: 85000n,
                     railRef: randomRailRef(),
@@ -468,7 +468,7 @@ describe("Treasury Service Integration Tests", () => {
             const initResult = await service.initiatePayout({
                 orderId: scenario.order.id,
                 payoutCounterpartyId: scenario.payoutCounterparty.id,
-                payoutBankStableKey: scenario.payoutBankAccount.stableKey,
+                payoutBankStableKey: scenario.payoutAccount.stableKey,
                 payOutCurrency: "EUR",
                 amountMinor: 85000n,
                 railRef: randomRailRef(),
@@ -532,7 +532,7 @@ describe("Treasury Service Integration Tests", () => {
             const initResult = await service.initiatePayout({
                 orderId: scenario.order.id,
                 payoutCounterpartyId: scenario.payoutCounterparty.id,
-                payoutBankStableKey: scenario.payoutBankAccount.stableKey,
+                payoutBankStableKey: scenario.payoutAccount.stableKey,
                 payOutCurrency: "EUR",
                 amountMinor: 85000n,
                 railRef: randomRailRef(),
@@ -597,7 +597,7 @@ describe("Treasury Service Integration Tests", () => {
             const fundingEntryId = await service.fundingSettled({
                 orderId: scenario.order.id,
                 branchCounterpartyId: scenario.branchCounterparty.id,
-                branchBankStableKey: scenario.branchBankAccount.stableKey,
+                branchBankStableKey: scenario.branchAccount.stableKey,
                 customerId: scenario.customer.id,
                 currency: "USD",
                 amountMinor: 100000n,
@@ -644,7 +644,7 @@ describe("Treasury Service Integration Tests", () => {
             const payoutResult = await service.initiatePayout({
                 orderId: scenario.order.id,
                 payoutCounterpartyId: scenario.payoutCounterparty.id,
-                payoutBankStableKey: scenario.payoutBankAccount.stableKey,
+                payoutBankStableKey: scenario.payoutAccount.stableKey,
                 payOutCurrency: "EUR",
                 amountMinor: 85000n,
                 railRef: randomRailRef(),
@@ -694,7 +694,7 @@ describe("Treasury Service Integration Tests", () => {
             await service.fundingSettled({
                 orderId: scenario.order.id,
                 branchCounterpartyId: scenario.branchCounterparty.id,
-                branchBankStableKey: scenario.branchBankAccount.stableKey,
+                branchBankStableKey: scenario.branchAccount.stableKey,
                 customerId: scenario.customer.id,
                 currency: "USD",
                 amountMinor: 100000n,
@@ -729,7 +729,7 @@ describe("Treasury Service Integration Tests", () => {
             await service.initiatePayout({
                 orderId: scenario.order.id,
                 payoutCounterpartyId: scenario.payoutCounterparty.id,
-                payoutBankStableKey: scenario.payoutBankAccount.stableKey,
+                payoutBankStableKey: scenario.payoutAccount.stableKey,
                 payOutCurrency: "EUR",
                 amountMinor: 85000n,
                 railRef: randomRailRef(),

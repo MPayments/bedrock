@@ -5,7 +5,7 @@ import {
 
 import { counterparties } from "./counterparties";
 import { customers } from "../customers";
-import { bankAccounts } from "./bank-accounts";
+import { accounts } from "./bank-accounts";
 import { currencies } from "../currencies";
 import { journalEntries } from "../ledger/journal";
 import { uint128 } from "../ledger/ledger";
@@ -44,10 +44,10 @@ export const paymentOrders = pgTable(
         payOutAmountMinor: bigint("payout_amount_minor", { mode: "bigint" }).notNull(),
 
         payInCounterpartyId: uuid("payin_counterparty_id").notNull().references(() => counterparties.id),
-        payInAccountId: uuid("payin_account_id").references(() => bankAccounts.id),
+        payInAccountId: uuid("payin_account_id").references(() => accounts.id),
 
         payOutCounterpartyId: uuid("payout_counterparty_id").notNull().references(() => counterparties.id),
-        payOutAccountId: uuid("payout_account_id").references(() => bankAccounts.id),
+        payOutAccountId: uuid("payout_account_id").references(() => accounts.id),
 
         beneficiaryName: text("beneficiary_name"),
         beneficiaryCountry: text("beneficiary_country"),

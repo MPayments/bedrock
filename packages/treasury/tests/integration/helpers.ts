@@ -84,30 +84,53 @@ export async function createTestCustomer(
     return customer;
 }
 
-export interface TestBankAccount {
+export interface TestAccountProvider {
+    id: string;
+    type: "bank" | "exchange" | "blockchain" | "custodian";
+    name: string;
+    country: string;
+}
+
+export async function createTestAccountProvider(
+    overrides: Partial<TestAccountProvider> = {}
+): Promise<TestAccountProvider> {
+    const provider = {
+        id: overrides.id ?? randomUUID(),
+        type: overrides.type ?? "bank" as const,
+        name: overrides.name ?? `Test Bank ${Date.now()}`,
+        country: overrides.country ?? "US",
+    };
+
+    await db.insert(schema.accountProviders).values(provider);
+    return provider;
+}
+
+export interface TestAccount {
     id: string;
     counterpartyId: string;
+    accountProviderId: string;
     stableKey: string;
     currencyId: string;
     currency: string;
     label: string;
 }
 
-export async function createTestBankAccount(
+export async function createTestAccount(
     counterpartyId: string,
-    overrides: Partial<TestBankAccount> = {}
-): Promise<TestBankAccount> {
+    accountProviderId: string,
+    overrides: Partial<TestAccount> = {}
+): Promise<TestAccount> {
     const currency = overrides.currency ?? "USD";
     const account = {
         id: overrides.id ?? randomUUID(),
         counterpartyId,
-        stableKey: overrides.stableKey ?? `bank-${Date.now()}`,
+        accountProviderId,
+        stableKey: overrides.stableKey ?? `acct-${Date.now()}`,
         currencyId: overrides.currencyId ?? currencyIdForCode(currency),
-        label: overrides.label ?? "Test Bank Account",
-        rail: "bank" as const
+        label: overrides.label ?? "Test Account",
     };
 
-    await db.insert(schema.bankAccounts).values(account);
+    await db.insert(schema.accounts).values(account);
     return { ...account, currency };
 }
 
@@ -220,8 +243,9 @@ export interface TestScenario {
     branchCounterparty: TestCounterparty;
     payoutCounterparty: TestCounterparty;
     customer: TestCustomer;
-    branchBankAccount: TestBankAccount;
-    payoutBankAccount: TestBankAccount;
+    accountProvider: TestAccountProvider;
+    branchAccount: TestAccount;
+    payoutAccount: TestAccount;
     order: TestPaymentOrder;
 }
 
@@ -242,15 +266,16 @@ export async function createTestScenario(
     const branchCounterparty = await createTestCounterparty({ name: "Branch Corp", customerId: customer.id });
     const payoutCounterparty = await createTestCounterparty({ name: "Payout Corp", customerId: customer.id });
 
-    // Create bank accounts
-    const branchBankAccount = await createTestBankAccount(branchCounterparty.id, {
-        stableKey: "branch-bank-usd",
+    const accountProvider = await createTestAccountProvider({ name: `Test Bank ${Date.now()}` });
+
+    const branchAccount = await createTestAccount(branchCounterparty.id, accountProvider.id, {
+        stableKey: "branch-acct-usd",
         currency: overrides.payInCurrency ?? "USD",
         label: "Branch USD Account"
     });
 
-    const payoutBankAccount = await createTestBankAccount(payoutCounterparty.id, {
-        stableKey: "payout-bank-eur",
+    const payoutAccount = await createTestAccount(payoutCounterparty.id, accountProvider.id, {
+        stableKey: "payout-acct-eur",
         currency: overrides.payOutCurrency ?? "EUR",
         label: "Payout EUR Account"
     });
@@ -277,8 +302,9 @@ export async function createTestScenario(
         branchCounterparty,
         payoutCounterparty,
         customer,
-        branchBankAccount,
-        payoutBankAccount,
+        accountProvider,
+        branchAccount,
+        payoutAccount,
         order
     };
 }
