@@ -1,6 +1,5 @@
-import { notFound } from "next/navigation";
-
 import { getCurrencyById } from "@/app/(shell)/entities/currencies/lib/queries";
+import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 import { EditCurrencyBreadcrumb } from "./edit-currency-breadcrumb";
 
@@ -11,12 +10,10 @@ interface EditCurrencyBreadcrumbPageProps {
 export default async function EditCurrencyBreadcrumbPage({
   params,
 }: EditCurrencyBreadcrumbPageProps) {
-  const { id } = await params;
-  const currency = await getCurrencyById(id);
-
-  if (!currency) {
-    notFound();
-  }
+  const { entity: currency } = await loadResourceByIdParamOrNotFound({
+    params,
+    getById: getCurrencyById,
+  });
 
   return (
     <EditCurrencyBreadcrumb

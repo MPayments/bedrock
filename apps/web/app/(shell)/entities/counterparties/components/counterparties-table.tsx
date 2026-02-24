@@ -4,56 +4,34 @@ import { useRouter } from "next/navigation";
 import type { Row as TanstackRow } from "@tanstack/react-table";
 import * as React from "react";
 
-import { DataTable } from "@/components/data-table";
-import { DataTableToolbar } from "@/components/data-table/toolbar";
-import { useDataTable } from "@/hooks/use-data-table";
+import {
+  EntityTableShell,
+  type EntityListResult,
+} from "@/components/entities/entity-table-shell";
 import type { CounterpartyGroupOption } from "../lib/queries";
 
 import { getColumns, type SerializedCounterparty } from "./columns";
 
-export interface CounterpartiesListResult {
-  data: SerializedCounterparty[];
-  total: number;
-  limit: number;
-  offset: number;
-}
+export type CounterpartiesListResult = EntityListResult<SerializedCounterparty>;
 
-interface CounterpartiesTableProps {
+type CounterpartiesTableBaseProps = {
   promise: Promise<CounterpartiesListResult>;
   groupOptionsPromise: Promise<CounterpartyGroupOption[]>;
-  groupFilterOptionsPromise?: Promise<CounterpartyGroupOption[]>;
-  detailsBasePath?: string;
+  groupFilterOptionsPromise: Promise<CounterpartyGroupOption[]>;
+  detailsBasePath: string;
   lockedGroupFilterIds?: string[];
-}
+};
 
-function toFilterValues(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item));
-  }
-  if (typeof value === "string") {
-    return [value];
-  }
-  return [];
-}
-
-export function CounterpartiesTable({
+function CounterpartiesTableBase({
   promise,
   groupOptionsPromise,
   groupFilterOptionsPromise,
-  detailsBasePath = "/entities/counterparties",
+  detailsBasePath,
   lockedGroupFilterIds,
-}: CounterpartiesTableProps) {
+}: CounterpartiesTableBaseProps) {
   const router = useRouter();
-  const result = React.use(promise);
   const groupOptions = React.use(groupOptionsPromise);
-  const groupFilterOptions = React.use(
-    groupFilterOptionsPromise ?? groupOptionsPromise,
-  );
-  const pageCount = Math.ceil(result.total / result.limit);
-  const allowedGroupFilterIdSet = React.useMemo(
-    () => new Set(groupFilterOptions.map((group) => group.id)),
-    [groupFilterOptions],
-  );
+  const groupFilterOptions = React.use(groupFilterOptionsPromise);
   const columns = React.useMemo(
     () =>
       getColumns(groupOptions, {
@@ -66,60 +44,70 @@ export function CounterpartiesTable({
 
   const handleRowDoubleClick = React.useCallback(
     (row: TanstackRow<SerializedCounterparty>) => {
-      router.push(`${detailsBasePath}/${row.original.id}`);
+      router.push(`${detailsBasePath.replace(/\/+$/, "")}/${row.original.id}`);
     },
     [detailsBasePath, router],
   );
 
-  const { table } = useDataTable({
-    data: result.data,
-    columns,
-    pageCount,
-    initialState: {
-      sorting: [{ id: "createdAt", desc: true }],
-      columnVisibility: {
-        customerId: false,
-      },
-    },
-    getRowId: (row) => row.id,
-    clearOnDefault: true,
-  });
-  React.useEffect(() => {
-    const lockedValues = lockedGroupFilterIds ?? [];
+  return (
+    <EntityTableShell
+      promise={promise}
+      columns={columns}
+      initialState={{
+        sorting: [{ id: "createdAt", desc: true }],
+        columnVisibility: {
+          customerId: false,
+        },
+      }}
+      getRowId={(row) => row.id}
+      onRowDoubleClick={handleRowDoubleClick}
+    />
+  );
+}
 
-    if (allowedGroupFilterIdSet.size === 0 && lockedValues.length === 0) {
-      return;
-    }
+interface EntityCounterpartiesTableProps {
+  promise: Promise<CounterpartiesListResult>;
+  groupOptionsPromise: Promise<CounterpartyGroupOption[]>;
+}
 
-    const groupColumn = table.getColumn("groupIds");
-    if (!groupColumn) {
-      return;
-    }
+export function EntityCounterpartiesTable({
+  promise,
+  groupOptionsPromise,
+}: EntityCounterpartiesTableProps) {
+  return (
+    <CounterpartiesTableBase
+      promise={promise}
+      groupOptionsPromise={groupOptionsPromise}
+      groupFilterOptionsPromise={groupOptionsPromise}
+      detailsBasePath="/entities/counterparties"
+    />
+  );
+}
 
-    const currentValues = toFilterValues(groupColumn.getFilterValue());
-    const filteredValues = currentValues.filter((value) =>
-      allowedGroupFilterIdSet.has(value),
-    );
-    const currentSet = new Set(filteredValues);
-    let changed = filteredValues.length !== currentValues.length;
+export const CounterpartiesTable = EntityCounterpartiesTable;
 
-    for (const lockedGroupId of lockedValues) {
-      if (!currentSet.has(lockedGroupId)) {
-        currentSet.add(lockedGroupId);
-        changed = true;
-      }
-    }
+interface TreasuryCounterpartiesTableProps {
+  promise: Promise<CounterpartiesListResult>;
+  groupOptionsPromise: Promise<CounterpartyGroupOption[]>;
+  treasuryGroupOptionsPromise: Promise<CounterpartyGroupOption[]>;
+  treasuryRootGroupId?: string;
+}
 
-    if (!changed) {
-      return;
-    }
-
-    groupColumn.setFilterValue(Array.from(currentSet));
-  }, [allowedGroupFilterIdSet, lockedGroupFilterIds, table]);
+export function TreasuryCounterpartiesTable({
+  promise,
+  groupOptionsPromise,
+  treasuryGroupOptionsPromise,
+  treasuryRootGroupId,
+}: TreasuryCounterpartiesTableProps) {
+  const lockedGroupFilterIds = treasuryRootGroupId ? [treasuryRootGroupId] : [];
 
   return (
-    <DataTable table={table} onRowDoubleClick={handleRowDoubleClick}>
-      <DataTableToolbar table={table} />
-    </DataTable>
+    <CounterpartiesTableBase
+      promise={promise}
+      groupOptionsPromise={groupOptionsPromise}
+      groupFilterOptionsPromise={treasuryGroupOptionsPromise}
+      lockedGroupFilterIds={lockedGroupFilterIds}
+      detailsBasePath="/treasury/counterparties"
+    />
   );
 }

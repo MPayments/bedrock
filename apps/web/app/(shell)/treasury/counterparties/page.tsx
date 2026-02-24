@@ -1,56 +1,67 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { Building2, Plus } from "lucide-react";
 
 import { Button } from "@bedrock/ui/components/button";
-import { Separator } from "@bedrock/ui/components/separator";
 
-import { CounterpartiesTable } from "@/app/(shell)/entities/counterparties/components/counterparties-table";
-import {
-  getCounterparties,
-  getCounterpartyGroups,
-} from "@/app/(shell)/entities/counterparties/lib/queries";
+import { TreasuryCounterpartiesTable } from "@/app/(shell)/entities/counterparties/components/counterparties-table";
 import {
   filterGroupsByRootCode,
   findSystemRootGroupByCode,
 } from "@/app/(shell)/entities/counterparties/lib/group-scope";
+import {
+  getCounterparties,
+  getCounterpartyGroups,
+} from "@/app/(shell)/entities/counterparties/lib/queries";
 import { searchParamsCache } from "@/app/(shell)/entities/counterparties/lib/validations";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function TreasuryCounterpartiesPage({
-  searchParams,
-}: PageProps) {
-  const parsedSearch = await searchParamsCache.parse(searchParams);
-  const counterpartiesPromise = getCounterparties({
-    ...parsedSearch,
-    groupRoot: ["treasury"],
-  });
+function normalizeSearchListParam(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => String(entry))
+      .filter((entry) => entry.length > 0);
+  }
 
+  if (typeof value === "string" && value.length > 0) {
+    return [value];
+  }
+
+  return [];
+}
+
+export default async function CounterpartiesPage({ searchParams }: PageProps) {
+  const parsedSearch = await searchParamsCache.parse(searchParams);
   const groupOptions = await getCounterpartyGroups().catch(() => []);
   const treasuryGroupOptions = filterGroupsByRootCode(groupOptions, "treasury");
   const treasuryRootGroup = findSystemRootGroupByCode(
     treasuryGroupOptions,
     "treasury",
   );
+  const groupRoot = normalizeSearchListParam(parsedSearch.groupRoot);
+  const groupIds = normalizeSearchListParam(parsedSearch.groupIds);
+  const scopedGroupIds = treasuryRootGroup
+    ? Array.from(new Set([...groupIds, treasuryRootGroup.id]))
+    : groupIds;
+  const scopedSearch = {
+    ...parsedSearch,
+    groupRoot: Array.from(new Set([...groupRoot, "treasury"])),
+    groupIds: scopedGroupIds,
+  };
+  const promise = getCounterparties(scopedSearch);
+  const groupOptionsPromise = Promise.resolve(groupOptions);
+  const treasuryGroupOptionsPromise = Promise.resolve(treasuryGroupOptions);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex w-full flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="bg-muted rounded-lg p-2.5">
-            <Building2 className="text-muted-foreground h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="mb-1 text-xl font-semibold">Контрагенты</h3>
-            <p className="text-muted-foreground text-sm hidden md:block">
-              Контрагенты ветки Казначейство.
-            </p>
-          </div>
-        </div>
+    <EntityListPageShell
+      icon={Building2}
+      title="Контрагенты"
+      description="Контрагенты Казначейства."
+      actions={
         <Button
           size="lg"
           nativeButton={false}
@@ -59,23 +70,17 @@ export default async function TreasuryCounterpartiesPage({
           <Plus className="h-4 w-4" />
           <span className="hidden md:block">Создать</span>
         </Button>
-      </div>
-      <Separator className="w-full h-px" />
-      <Suspense
-        fallback={
-          <DataTableSkeleton columnCount={8} rowCount={10} filterCount={4} />
-        }
-      >
-        <CounterpartiesTable
-          promise={counterpartiesPromise}
-          groupOptionsPromise={Promise.resolve(groupOptions)}
-          groupFilterOptionsPromise={Promise.resolve(treasuryGroupOptions)}
-          detailsBasePath="/treasury/counterparties"
-          lockedGroupFilterIds={
-            treasuryRootGroup ? [treasuryRootGroup.id] : undefined
-          }
-        />
-      </Suspense>
-    </div>
+      }
+      fallback={
+        <DataTableSkeleton columnCount={8} rowCount={10} filterCount={4} />
+      }
+    >
+      <TreasuryCounterpartiesTable
+        promise={promise}
+        groupOptionsPromise={groupOptionsPromise}
+        treasuryGroupOptionsPromise={treasuryGroupOptionsPromise}
+        treasuryRootGroupId={treasuryRootGroup?.id}
+      />
+    </EntityListPageShell>
   );
 }

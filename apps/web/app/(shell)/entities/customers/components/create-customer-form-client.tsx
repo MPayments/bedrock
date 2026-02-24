@@ -11,11 +11,15 @@ import {
 } from "./customer-general-form";
 import { useCustomerDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
-import { resolveApiErrorMessage } from "@/lib/api-error";
+import { executeMutation } from "@/lib/resources/http";
+
+type CreatedCustomer = {
+  id: string;
+};
 
 export function CreateCustomerFormClient() {
   const router = useRouter();
-  const { setCreateName } = useCustomerDraftName();
+  const { actions } = useCustomerDraftName();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,6 +27,7 @@ export function CreateCustomerFormClient() {
     () => ({
       displayName: "",
       externalRef: "",
+      description: "",
     }),
     [],
   );
@@ -30,46 +35,31 @@ export function CreateCustomerFormClient() {
   async function handleSubmit(values: CustomerGeneralFormValues) {
     setError(null);
     setSubmitting(true);
+    const payload = {
+      displayName: values.displayName,
+      externalRef: values.externalRef || undefined,
+      description: values.description || undefined,
+    };
 
-    try {
-      const res = await apiClient.v1.customers.$post({
-        json: {
-          displayName: values.displayName,
-          externalRef: values.externalRef || undefined,
-        },
-      });
+    const result = await executeMutation<CreatedCustomer>({
+      request: () =>
+        apiClient.v1.customers.$post({
+          json: payload,
+        }),
+      fallbackMessage: "Не удалось создать клиента",
+      parseData: async (response) => (await response.json()) as CreatedCustomer,
+    });
 
-      if (!res.ok) {
-        let payload: unknown = null;
-        try {
-          payload = await res.json();
-        } catch {
-          // Ignore non-JSON error payloads.
-        }
+    setSubmitting(false);
 
-        const message = resolveApiErrorMessage(
-          res.status,
-          payload,
-          "Не удалось создать клиента",
-        );
-        setError(message);
-        toast.error(message);
-        return;
-      }
-
-      const created = await res.json();
-      toast.success("Клиент создан");
-      router.push(`/entities/customers/${created.id}`);
-    } catch (submitError) {
-      const message =
-        submitError instanceof Error
-          ? submitError.message
-          : "Не удалось создать клиента";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setSubmitting(false);
+    if (!result.ok) {
+      setError(result.message);
+      toast.error(result.message);
+      return;
     }
+
+    toast.success("Клиент создан");
+    router.push(`/entities/customers/${result.data.id}`);
   }
 
   return (
@@ -78,7 +68,7 @@ export function CreateCustomerFormClient() {
       submitting={submitting}
       error={error}
       onSubmit={handleSubmit}
-      onDisplayNameChange={setCreateName}
+      onDisplayNameChange={actions.setCreateName}
     />
   );
 }

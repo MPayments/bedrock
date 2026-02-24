@@ -3,13 +3,14 @@ import { cache } from "react";
 import { CUSTOMERS_LIST_CONTRACT } from "@bedrock/customers/validation";
 
 import { getServerApiClient } from "@/lib/api-client.server";
-import { createListQueryFromSearchParams } from "@/lib/list-search-params";
+import { createResourceListQuery } from "@/lib/resources/search-params";
+import { readResourceById } from "@/lib/resources/http";
 
 import type { CustomersListResult } from "../components/customers-table";
 import type { CustomersSearchParams } from "./validations";
 
 function createCustomersListQuery(search: CustomersSearchParams) {
-  return createListQueryFromSearchParams(CUSTOMERS_LIST_CONTRACT, search);
+  return createResourceListQuery(CUSTOMERS_LIST_CONTRACT, search);
 }
 
 export async function getCustomers(
@@ -36,52 +37,29 @@ export interface CustomerDetails {
   id: string;
   externalRef: string | null;
   displayName: string;
+  description: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 const getCustomerByIdUncached = async (
   id: string,
 ): Promise<CustomerDetails | null> => {
-  if (!UUID_PATTERN.test(id)) {
-    return null;
-  }
-
-  const client = await getServerApiClient();
-  const res = await client.v1.customers[":id"].$get(
-    {
-      param: { id },
+  return readResourceById<CustomerDetails>({
+    id,
+    resourceName: "customer",
+    request: async (validId) => {
+      const client = await getServerApiClient();
+      return client.v1.customers[":id"].$get(
+        {
+          param: { id: validId },
+        },
+        {
+          init: { cache: "no-store" },
+        },
+      );
     },
-    {
-      init: { cache: "no-store" },
-    },
-  );
-
-  const status = (res as Response).status;
-
-  if (status === 404) {
-    return null;
-  }
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch customer: ${status}`);
-  }
-
-  const payload = await res.json();
-
-  if (
-    !payload ||
-    typeof payload !== "object" ||
-    !("id" in payload) ||
-    typeof payload.id !== "string"
-  ) {
-    return null;
-  }
-
-  return payload as CustomerDetails;
+  });
 };
 
 export const getCustomerById = cache(getCustomerByIdUncached);

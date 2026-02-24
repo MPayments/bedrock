@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-
-import { useCounterpartyCreateDraftName } from "../lib/create-draft-name-context";
+import { useCounterpartyDraftName } from "../lib/create-draft-name-context";
 import { CounterpartyWorkspaceLayout } from "./organization-workspace-layout";
+import { useEntityEditTitle } from "@/components/entities/workspace-layout";
 
 type CounterpartyEditWorkspaceLayoutProps = {
   counterpartyId: string;
@@ -16,27 +15,20 @@ export function CounterpartyEditWorkspaceLayout({
   initialTitle,
   children,
 }: CounterpartyEditWorkspaceLayoutProps) {
-  const { registerEditCounterparty, clearEditCounterparty, getEditLabel } =
-    useCounterpartyCreateDraftName();
+  const { actions, meta } = useCounterpartyDraftName();
 
-  useEffect(() => {
-    registerEditCounterparty(counterpartyId, initialTitle);
-
-    return () => {
-      clearEditCounterparty(counterpartyId);
-    };
-  }, [
-    clearEditCounterparty,
-    counterpartyId,
+  const title = useEntityEditTitle({
+    id: counterpartyId,
     initialTitle,
-    registerEditCounterparty,
-  ]);
+    bridge: {
+      registerEdit: actions.registerEdit,
+      clearEdit: actions.clearEdit,
+      getEditLabel: meta.getEditLabel,
+    },
+  });
 
   return (
-    <CounterpartyWorkspaceLayout
-      title={getEditLabel(counterpartyId, initialTitle)}
-      subtitle="Карточка контрагента"
-    >
+    <CounterpartyWorkspaceLayout title={title} subtitle="Карточка контрагента">
       {children}
     </CounterpartyWorkspaceLayout>
   );

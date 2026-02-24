@@ -9,6 +9,7 @@ export const CustomerSchema = z.object({
   id: z.uuid(),
   externalRef: z.string().nullable(),
   displayName: z.string(),
+  description: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -48,6 +49,7 @@ export type ListCustomersQuery = z.infer<typeof ListCustomersQuerySchema>;
 export const CreateCustomerInputSchema = z.object({
   externalRef: z.string().optional(),
   displayName: z.string().min(1, "displayName is required"),
+  description: z.string().optional(),
 });
 
 export type CreateCustomerInput = z.infer<typeof CreateCustomerInputSchema>;
@@ -55,6 +57,7 @@ export type CreateCustomerInput = z.infer<typeof CreateCustomerInputSchema>;
 export const UpdateCustomerInputSchema = z.object({
   externalRef: z.string().nullable().optional(),
   displayName: z.string().min(1).optional(),
+  description: z.string().nullable().optional(),
 });
 
 export type UpdateCustomerInput = z.infer<typeof UpdateCustomerInputSchema>;

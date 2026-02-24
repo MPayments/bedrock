@@ -45,7 +45,7 @@ import {
   TableRow,
 } from "@bedrock/ui/components/table";
 
-import { formatDate } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 
 type OrganizationAccount = {
   id: string;
@@ -116,24 +116,6 @@ const ACCOUNTS: OrganizationAccount[] = [
     createdAt: "2026-02-14T09:22:00Z",
   },
 ];
-
-function formatMoney(amount: number, currency: string) {
-  try {
-    return new Intl.NumberFormat("ru-RU", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch {
-    const value = new Intl.NumberFormat("ru-RU", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-
-    return `${value} ${currency}`;
-  }
-}
 
 export default function OrganizationAccountsPage() {
   const groupedAccounts = ACCOUNTS.reduce<

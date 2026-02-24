@@ -11,8 +11,8 @@ import {
 } from "./currency-general-form";
 import { useCurrencyDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
-import { resolveApiErrorMessage } from "@/lib/api-error";
 import type { CurrencyDetails } from "../lib/queries";
+import { executeMutation } from "@/lib/resources/http";
 
 function toFormValues(currency: CurrencyDetails): CurrencyGeneralFormValues {
   return {
@@ -29,7 +29,7 @@ type EditCurrencyFormClientProps = {
 
 export function EditCurrencyFormClient({ currency }: EditCurrencyFormClientProps) {
   const router = useRouter();
-  const { setEditName, clearEditCurrency } = useCurrencyDraftName();
+  const { actions } = useCurrencyDraftName();
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +37,9 @@ export function EditCurrencyFormClient({ currency }: EditCurrencyFormClientProps
 
   const handleNameChange = useCallback(
     (name: string) => {
-      setEditName(currency.id, name);
+      actions.setEditName(currency.id, name);
     },
-    [currency.id, setEditName],
+    [actions, currency.id],
   );
 
   async function handleSubmit(
@@ -48,95 +48,60 @@ export function EditCurrencyFormClient({ currency }: EditCurrencyFormClientProps
     setError(null);
     setSubmitting(true);
 
-    try {
-      const res = await apiClient.v1.currencies[":id"].$patch({
-        param: { id: currency.id },
-        json: {
-          name: values.name,
-          code: values.code,
-          symbol: values.symbol,
-          precision: values.precision,
-        },
-      });
+    const result = await executeMutation<CurrencyDetails>({
+      request: () =>
+        apiClient.v1.currencies[":id"].$patch({
+          param: { id: currency.id },
+          json: {
+            name: values.name,
+            code: values.code,
+            symbol: values.symbol,
+            precision: values.precision,
+          },
+        }),
+      fallbackMessage: "Не удалось обновить валюту",
+      parseData: async (response) => (await response.json()) as CurrencyDetails,
+    });
 
-      if (!res.ok) {
-        let payload: unknown = null;
-        try {
-          payload = await res.json();
-        } catch {
-          // Ignore non-JSON error payloads.
-        }
+    setSubmitting(false);
 
-        const message = resolveApiErrorMessage(
-          res.status,
-          payload,
-          "Не удалось обновить валюту",
-        );
-        setError(message);
-        toast.error(message);
-        return;
-      }
-
-      const updated = await res.json();
-      const nextValues = toFormValues(updated);
-      setInitialValues(nextValues);
-      toast.success("Валюта обновлена");
-      router.refresh();
-      return nextValues;
-    } catch (submitError) {
-      const message =
-        submitError instanceof Error
-          ? submitError.message
-          : "Не удалось обновить валюту";
-      setError(message);
-      toast.error(message);
+    if (!result.ok) {
+      setError(result.message);
+      toast.error(result.message);
       return;
-    } finally {
-      setSubmitting(false);
     }
+
+    const nextValues = toFormValues(result.data);
+    setInitialValues(nextValues);
+    toast.success("Валюта обновлена");
+    router.refresh();
+    return nextValues;
   }
 
   async function handleDelete(): Promise<boolean> {
     setError(null);
     setDeleting(true);
 
-    try {
-      const res = await apiClient.v1.currencies[":id"].$delete({
-        param: { id: currency.id },
-      });
+    const result = await executeMutation<void>({
+      request: () =>
+        apiClient.v1.currencies[":id"].$delete({
+          param: { id: currency.id },
+        }),
+      fallbackMessage: "Не удалось удалить валюту",
+      parseData: async () => undefined,
+    });
 
-      if (!res.ok) {
-        let payload: unknown = null;
-        try {
-          payload = await res.json();
-        } catch {
-          // Ignore non-JSON error payloads.
-        }
+    setDeleting(false);
 
-        const message = resolveApiErrorMessage(
-          res.status,
-          payload,
-          "Не удалось удалить валюту",
-        );
-        setError(message);
-        toast.error(message);
-        return false;
-      }
-
-      clearEditCurrency(currency.id);
-      router.push("/entities/currencies");
-      return true;
-    } catch (deleteError) {
-      const message =
-        deleteError instanceof Error
-          ? deleteError.message
-          : "Не удалось удалить валюту";
-      setError(message);
-      toast.error(message);
+    if (!result.ok) {
+      setError(result.message);
+      toast.error(result.message);
       return false;
-    } finally {
-      setDeleting(false);
     }
+
+    actions.clearEdit(currency.id);
+    router.push("/entities/currencies");
+    return true;
   }
 
   return (

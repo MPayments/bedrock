@@ -1,3 +1,5 @@
+import { SectionPlaceholderPage } from "@/components/section-placeholder-page";
+
 export default function SettlementsPage() {
-  return <div>Расчетные операции</div>;
+  return <SectionPlaceholderPage title="Расчетные операции" />;
 }

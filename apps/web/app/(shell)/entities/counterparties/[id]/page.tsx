@@ -1,7 +1,6 @@
-import { notFound } from "next/navigation";
-
 import { CounterpartyEditForm } from "../components/organization-edit-form";
 import { getCounterpartyById, getCounterpartyGroups } from "../lib/queries";
+import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 interface CounterpartyPageProps {
   params: Promise<{ id: string }>;
@@ -10,15 +9,13 @@ interface CounterpartyPageProps {
 export default async function CounterpartyPage({
   params,
 }: CounterpartyPageProps) {
-  const { id } = await params;
-  const [counterparty, groupOptions] = await Promise.all([
-    getCounterpartyById(id),
+  const [{ entity: counterparty }, groupOptions] = await Promise.all([
+    loadResourceByIdParamOrNotFound({
+      params,
+      getById: getCounterpartyById,
+    }),
     getCounterpartyGroups().catch(() => null),
   ]);
-
-  if (!counterparty) {
-    notFound();
-  }
 
   return (
     <CounterpartyEditForm

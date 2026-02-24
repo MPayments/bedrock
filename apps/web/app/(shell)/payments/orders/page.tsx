@@ -1,3 +1,5 @@
+import { SectionPlaceholderPage } from "@/components/section-placeholder-page";
+
 export default function OrdersPage() {
-  return <div>Ордера</div>;
+  return <SectionPlaceholderPage title="Ордера" />;
 }

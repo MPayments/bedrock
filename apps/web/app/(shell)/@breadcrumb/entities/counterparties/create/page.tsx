@@ -1,28 +1,18 @@
 "use client";
 
-import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
-import { useCounterpartyCreateDraftName } from "@/app/(shell)/entities/counterparties/lib/create-draft-name-context";
+import { useCounterpartyDraftName } from "@/app/(shell)/entities/counterparties/lib/create-draft-name-context";
+import { EntityCreateBreadcrumb } from "@/components/entities/entity-breadcrumb";
 
 export default function CreateCounterpartyBreadcrumbPage() {
-  const { createLabel } = useCounterpartyCreateDraftName();
+  const { state } = useCounterpartyDraftName();
 
   return (
-    <DynamicBreadcrumb
-      items={[
-        {
-          label: "Справочники",
-          icon: "book-open",
-        },
-        {
-          label: "Контрагенты",
-          href: "/entities/counterparties",
-          icon: "building-2",
-        },
-        {
-          label: createLabel,
-          href: "/entities/counterparties/create",
-        },
-      ]}
+    <EntityCreateBreadcrumb
+      entityLabel="Контрагенты"
+      entityHref="/entities/counterparties"
+      entityIcon="building-2"
+      currentLabel={state.createLabel}
+      currentHref="/entities/counterparties/create"
     />
   );
 }

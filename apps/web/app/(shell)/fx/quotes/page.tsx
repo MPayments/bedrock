@@ -1,3 +1,5 @@
+import { SectionPlaceholderPage } from "@/components/section-placeholder-page";
+
 export default function QuotesPage() {
-  return <div>Котировки</div>;
+  return <SectionPlaceholderPage title="Котировки" />;
 }

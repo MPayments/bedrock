@@ -3,13 +3,14 @@ import { cache } from "react";
 import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/counterparties/validation";
 
 import { getServerApiClient } from "@/lib/api-client.server";
-import { createListQueryFromSearchParams } from "@/lib/list-search-params";
+import { readResourceById } from "@/lib/resources/http";
+import { createResourceListQuery } from "@/lib/resources/search-params";
 
 import type { CounterpartiesListResult } from "../components/counterparties-table";
 import { type CounterpartiesSearchParams } from "./validations";
 
 function createCounterpartiesListQuery(search: CounterpartiesSearchParams) {
-  return createListQueryFromSearchParams(COUNTERPARTIES_LIST_CONTRACT, search);
+  return createResourceListQuery(COUNTERPARTIES_LIST_CONTRACT, search);
 }
 
 export async function getCounterparties(
@@ -56,48 +57,24 @@ export interface CounterpartyGroupOption {
   isSystem: boolean;
 }
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 const getCounterpartyByIdUncached = async (
   id: string,
 ): Promise<CounterpartyDetails | null> => {
-  if (!UUID_PATTERN.test(id)) {
-    return null;
-  }
-
-  const client = await getServerApiClient();
-  const res = await client.v1.counterparties[":id"].$get(
-    {
-      param: { id },
+  return readResourceById<CounterpartyDetails>({
+    id,
+    resourceName: "counterparty",
+    request: async (validId) => {
+      const client = await getServerApiClient();
+      return client.v1.counterparties[":id"].$get(
+        {
+          param: { id: validId },
+        },
+        {
+          init: { cache: "no-store" },
+        },
+      );
     },
-    {
-      init: { cache: "no-store" },
-    },
-  );
-
-  const status = (res as Response).status;
-
-  if (status === 404) {
-    return null;
-  }
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch counterparty: ${status}`);
-  }
-
-  const payload = await res.json();
-
-  if (
-    !payload ||
-    typeof payload !== "object" ||
-    !("id" in payload) ||
-    typeof payload.id !== "string"
-  ) {
-    return null;
-  }
-
-  return payload as CounterpartyDetails;
+  });
 };
 
 export const getCounterpartyById = cache(getCounterpartyByIdUncached);

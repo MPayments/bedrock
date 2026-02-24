@@ -1,7 +1,7 @@
 "use client";
 
 import { useCurrencyDraftName } from "@/app/(shell)/entities/currencies/lib/create-draft-name-context";
-import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
+import { EntityEditBreadcrumb } from "@/components/entities/entity-breadcrumb";
 
 type EditCurrencyBreadcrumbProps = {
   currencyId: string;
@@ -12,25 +12,15 @@ export function EditCurrencyBreadcrumb({
   currencyId,
   initialLabel,
 }: EditCurrencyBreadcrumbProps) {
-  const { getEditLabel } = useCurrencyDraftName();
+  const { meta } = useCurrencyDraftName();
 
   return (
-    <DynamicBreadcrumb
-      items={[
-        {
-          label: "Справочники",
-          icon: "book-open",
-        },
-        {
-          label: "Валюты",
-          href: "/entities/currencies",
-          icon: "dollar-sign",
-        },
-        {
-          label: getEditLabel(currencyId, initialLabel),
-          href: `/entities/currencies/${currencyId}`,
-        },
-      ]}
+    <EntityEditBreadcrumb
+      entityLabel="Валюты"
+      entityHref="/entities/currencies"
+      entityIcon="dollar-sign"
+      currentLabel={meta.getEditLabel(currencyId, initialLabel)}
+      currentHref={`/entities/currencies/${currencyId}`}
     />
   );
 }

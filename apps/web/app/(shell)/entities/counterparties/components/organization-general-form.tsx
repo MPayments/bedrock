@@ -105,6 +105,7 @@ type CounterpartyGeneralFormBaseProps = CounterpartyGeneralFormProps & {
 };
 
 const ROOT_GROUP = "__root__";
+const EMPTY_GROUP_IDS: string[] = [];
 
 const DEFAULT_VALUES: CounterpartyGeneralFormValues = {
   shortName: "",
@@ -179,7 +180,7 @@ function compareGroupsByName(
 
 function resolveInitialValues(
   initialValues?: Partial<CounterpartyGeneralFormValues>,
-  lockedGroupIds: string[] = [],
+  lockedGroupIds: string[] = EMPTY_GROUP_IDS,
 ): CounterpartyGeneralFormValues {
   const initialGroupIds = Array.isArray(initialValues?.groupIds)
     ? initialValues.groupIds
@@ -225,7 +226,7 @@ function CounterpartyGeneralFormBase({
   initialValues,
   groupOptions,
   allowedRootCode,
-  lockedGroupIds: rawLockedGroupIds = [],
+  lockedGroupIds: rawLockedGroupIds = EMPTY_GROUP_IDS,
   submitting = false,
   deleting = false,
   error,

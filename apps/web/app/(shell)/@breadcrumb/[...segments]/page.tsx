@@ -2,78 +2,58 @@ import { getCounterpartyById } from "@/app/(shell)/entities/counterparties/lib/q
 import { getCurrencyById } from "@/app/(shell)/entities/currencies/lib/queries";
 import { getCustomerById } from "@/app/(shell)/entities/customers/lib/queries";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
-import {
-  resolveBreadcrumbItems,
-} from "@/lib/breadcrumbs";
+import { resolveBreadcrumbItems } from "@/lib/breadcrumbs";
+
+type ResourceResolverConfig<TEntity> = {
+  singularLabel: string;
+  hrefPrefix: string;
+  getById: (id: string) => Promise<TEntity | null>;
+  getLabel: (entity: TEntity) => string;
+  getId: (entity: TEntity) => string;
+};
+
+function createResourceSegmentResolver<TEntity>(
+  config: ResourceResolverConfig<TEntity>,
+) {
+  return async ({ segment }: { segment: string }) => {
+    const entity = await config.getById(segment);
+
+    if (!entity) {
+      return {
+        label: config.singularLabel,
+        href: `${config.hrefPrefix}/${segment}`,
+      };
+    }
+
+    return {
+      label: config.getLabel(entity),
+      href: `${config.hrefPrefix}/${config.getId(entity)}`,
+    };
+  };
+}
 
 const dynamicResolvers = {
-  counterparties: async ({
-    segment,
-    segments,
-    index,
-  }: {
-    segment: string;
-    segments: string[];
-    index: number;
-  }) => {
-    const counterpartiesBasePath = segments
-      .slice(0, index)
-      .includes("treasury")
-      ? "/treasury/counterparties"
-      : "/entities/counterparties";
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-        segment,
-      );
-
-    if (!isUuid) {
-      return null;
-    }
-
-    const counterparty = await getCounterpartyById(segment);
-
-    if (!counterparty) {
-      return {
-        label: "Контрагент",
-        href: `${counterpartiesBasePath}/${segment}`,
-      };
-    }
-
-    return {
-      label: counterparty.shortName,
-      href: `${counterpartiesBasePath}/${counterparty.id}`,
-    };
-  },
-  customers: async ({ segment }: { segment: string }) => {
-    const customer = await getCustomerById(segment);
-
-    if (!customer) {
-      return {
-        label: "Клиент",
-        href: `/entities/customers/${segment}`,
-      };
-    }
-
-    return {
-      label: customer.displayName,
-      href: `/entities/customers/${customer.id}`,
-    };
-  },
-  currencies: async ({ segment }: { segment: string }) => {
-    const currency = await getCurrencyById(segment);
-
-    if (!currency) {
-      return {
-        label: "Валюта",
-        href: `/entities/currencies/${segment}`,
-      };
-    }
-
-    return {
-      label: currency.name,
-      href: `/entities/currencies/${currency.id}`,
-    };
-  },
+  counterparties: createResourceSegmentResolver({
+    singularLabel: "Контрагент",
+    hrefPrefix: "/entities/counterparties",
+    getById: getCounterpartyById,
+    getLabel: (counterparty) => counterparty.shortName,
+    getId: (counterparty) => counterparty.id,
+  }),
+  customers: createResourceSegmentResolver({
+    singularLabel: "Клиент",
+    hrefPrefix: "/entities/customers",
+    getById: getCustomerById,
+    getLabel: (customer) => customer.displayName,
+    getId: (customer) => customer.id,
+  }),
+  currencies: createResourceSegmentResolver({
+    singularLabel: "Валюта",
+    hrefPrefix: "/entities/currencies",
+    getById: getCurrencyById,
+    getLabel: (currency) => currency.name,
+    getId: (currency) => currency.id,
+  }),
 };
 
 interface BreadcrumbSegmentsPageProps {

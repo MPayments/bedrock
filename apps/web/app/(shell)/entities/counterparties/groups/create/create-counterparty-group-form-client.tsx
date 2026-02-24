@@ -38,7 +38,7 @@ import { Textarea } from "@bedrock/ui/components/textarea";
 import { toast } from "@bedrock/ui/components/sonner";
 
 import { apiClient } from "@/lib/api-client";
-import { resolveApiErrorMessage } from "@/lib/api-error";
+import { executeMutation } from "@/lib/resources/http";
 
 import { localizeCounterpartyGroupLabel } from "../../lib/group-label";
 import type { CounterpartyGroupOption } from "../../lib/queries";
@@ -135,50 +135,34 @@ export function CreateCounterpartyGroupFormClient({
     setError(null);
     setSubmitting(true);
 
-    try {
-      const res = await apiClient.v1["counterparty-groups"].$post({
-        json: {
-          name: values.name.trim(),
-          code: values.code.trim(),
-          description: values.description.trim() || undefined,
-          parentId:
-            values.parentId && values.parentId !== NO_PARENT_VALUE
-              ? values.parentId
-              : undefined,
-        },
-      });
+    const result = await executeMutation({
+      request: () =>
+        apiClient.v1["counterparty-groups"].$post({
+          json: {
+            name: values.name.trim(),
+            code: values.code.trim(),
+            description: values.description.trim() || undefined,
+            parentId:
+              values.parentId && values.parentId !== NO_PARENT_VALUE
+                ? values.parentId
+                : undefined,
+          },
+        }),
+      fallbackMessage: "Не удалось создать группу",
+      parseData: async () => undefined,
+    });
 
-      if (!res.ok) {
-        let payload: unknown = null;
-        try {
-          payload = await res.json();
-        } catch {
-          // Ignore non-JSON error payloads.
-        }
+    setSubmitting(false);
 
-        const message = resolveApiErrorMessage(
-          res.status,
-          payload,
-          "Не удалось создать группу",
-        );
-        setError(message);
-        toast.error(message);
-        return;
-      }
-
-      toast.success("Группа контрагентов создана");
-      router.push("/entities/counterparties");
-      router.refresh();
-    } catch (submitError) {
-      const message =
-        submitError instanceof Error
-          ? submitError.message
-          : "Не удалось создать группу";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setSubmitting(false);
+    if (!result.ok) {
+      setError(result.message);
+      toast.error(result.message);
+      return;
     }
+
+    toast.success("Группа контрагентов создана");
+    router.push("/entities/counterparties");
+    router.refresh();
   }
 
   return (
