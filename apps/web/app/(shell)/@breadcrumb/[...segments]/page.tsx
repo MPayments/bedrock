@@ -1,6 +1,8 @@
+import { getAccountById } from "@/app/(shell)/entities/accounts/lib/queries";
 import { getCounterpartyById } from "@/app/(shell)/entities/counterparties/lib/queries";
 import { getCurrencyById } from "@/app/(shell)/entities/currencies/lib/queries";
 import { getCustomerById } from "@/app/(shell)/entities/customers/lib/queries";
+import { getProviderById } from "@/app/(shell)/entities/providers/lib/queries";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import { resolveBreadcrumbItems } from "@/lib/breadcrumbs";
 
@@ -53,6 +55,20 @@ const dynamicResolvers = {
     getById: getCurrencyById,
     getLabel: (currency) => currency.name,
     getId: (currency) => currency.id,
+  }),
+  providers: createResourceSegmentResolver({
+    singularLabel: "Провайдер",
+    hrefPrefix: "/entities/providers",
+    getById: getProviderById,
+    getLabel: (provider) => provider.name,
+    getId: (provider) => provider.id,
+  }),
+  accounts: createResourceSegmentResolver({
+    singularLabel: "Счёт",
+    hrefPrefix: "/entities/accounts",
+    getById: getAccountById,
+    getLabel: (account) => account.label,
+    getId: (account) => account.id,
   }),
 };
 

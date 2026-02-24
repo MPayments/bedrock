@@ -156,7 +156,7 @@ export function validateMergedProviderState(merged: {
 // AccountProvider — list
 // ---------------------------------------------------------------------------
 
-const PROVIDERS_SORTABLE_COLUMNS = ["name", "createdAt"] as const;
+const PROVIDERS_SORTABLE_COLUMNS = ["name", "type", "country", "createdAt"] as const;
 
 interface ProvidersListFilters {
     type: { kind: "string"; cardinality: "multi"; enumValues: readonly ["bank", "exchange", "blockchain", "custodian"] };

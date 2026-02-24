@@ -8,7 +8,8 @@ export type BreadcrumbIconName =
   | "users"
   | "book-open"
   | "dollar-sign"
-  | "chart-candlestick";
+  | "chart-candlestick"
+  | "wallet";
 
 export type BreadcrumbItem = {
   label: string;
@@ -58,8 +59,17 @@ const segmentMap: Record<string, SegmentConfig> = {
     href: "/entities/currencies",
     icon: "dollar-sign",
   },
+  providers: {
+    label: "Расчетные методы",
+    href: "/entities/providers",
+    icon: "landmark",
+  },
   create: { label: "Создать" },
-  accounts: { label: "Счета" },
+  accounts: {
+    label: "Счета",
+    href: "/entities/accounts",
+    icon: "wallet",
+  },
   operations: { label: "Операции" },
 
   rates: { label: "Курсы", icon: "chart-candlestick" },

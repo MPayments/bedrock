@@ -46,6 +46,7 @@
       "name": "web",
       "version": "0.1.0",
       "dependencies": {
+        "@bedrock/accounts": "workspace:*",
         "@bedrock/auth": "workspace:*",
         "@bedrock/counterparties": "workspace:*",
         "@bedrock/countries": "workspace:*",

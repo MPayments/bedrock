@@ -16,6 +16,8 @@ import {
 
 const SORT_COLUMN_MAP = {
     name: schema.accountProviders.name,
+    type: schema.accountProviders.type,
+    country: schema.accountProviders.country,
     createdAt: schema.accountProviders.createdAt,
 } as const;
 
