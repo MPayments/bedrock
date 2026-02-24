@@ -11,6 +11,7 @@ import {
   DollarSign,
   Home,
   Landmark,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -31,6 +32,7 @@ const iconMap: Record<BreadcrumbIconName, LucideIcon> = {
   "credit-card": CreditCard,
   "arrow-right-left": ArrowRightLeft,
   "building-2": Building2,
+  users: Users,
   "book-open": BookOpen,
   "dollar-sign": DollarSign,
   "chart-candlestick": ChartCandlestick,

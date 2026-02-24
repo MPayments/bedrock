@@ -1,23 +1,39 @@
-import { getOrganizationById } from "@/app/(shell)/entities/organizations/lib/queries";
+import { getCounterpartyById } from "@/app/(shell)/entities/counterparties/lib/queries";
+import { getCustomerById } from "@/app/(shell)/entities/customers/lib/queries";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import {
   resolveBreadcrumbItems,
 } from "@/lib/breadcrumbs";
 
 const dynamicResolvers = {
-  organizations: async ({ segment }: { segment: string }) => {
-    const organization = await getOrganizationById(segment);
+  counterparties: async ({ segment }: { segment: string }) => {
+    const counterparty = await getCounterpartyById(segment);
 
-    if (!organization) {
+    if (!counterparty) {
       return {
-        label: "Организация",
-        href: `/entities/organizations/${segment}`,
+        label: "Контрагент",
+        href: `/entities/counterparties/${segment}`,
       };
     }
 
     return {
-      label: organization.name,
-      href: `/entities/organizations/${organization.id}`,
+      label: counterparty.shortName,
+      href: `/entities/counterparties/${counterparty.id}`,
+    };
+  },
+  customers: async ({ segment }: { segment: string }) => {
+    const customer = await getCustomerById(segment);
+
+    if (!customer) {
+      return {
+        label: "Клиент",
+        href: `/entities/customers/${segment}`,
+      };
+    }
+
+    return {
+      label: customer.displayName,
+      href: `/entities/customers/${customer.id}`,
     };
   },
 };

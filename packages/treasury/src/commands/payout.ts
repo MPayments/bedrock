@@ -50,8 +50,8 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
             if (validated.amountMinor !== order.payOutAmountMinor) {
                 throw new AmountMismatchError("payOutAmountMinor", order.payOutAmountMinor, validated.amountMinor);
             }
-            if (validated.payoutOrgId !== order.payOutOrgId) {
-                throw new ValidationError(`payoutOrgId mismatch: expected ${order.payOutOrgId}, got ${validated.payoutOrgId}`);
+            if (validated.payoutCounterpartyId !== order.payOutCounterpartyId) {
+                throw new ValidationError(`payoutCounterpartyId mismatch: expected ${order.payOutCounterpartyId}, got ${validated.payoutCounterpartyId}`);
             }
 
             if (!isOrderStatusIn(order.status, InitiatePayoutAllowedFrom)) {
@@ -63,7 +63,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
                 orderId: validated.orderId,
                 currency: validated.payOutCurrency,
                 amount: validated.amountMinor.toString(),
-                payoutOrgId: validated.payoutOrgId,
+                payoutCounterpartyId: validated.payoutCounterpartyId,
                 payoutBankStableKey: validated.payoutBankStableKey,
             });
 
@@ -77,7 +77,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
                         type: PlanType.CREATE,
                         planKey,
                         debitKey: keys.payoutObligation(validated.orderId, validated.payOutCurrency),
-                        creditKey: keys.bank(validated.payoutOrgId, validated.payoutBankStableKey, validated.payOutCurrency),
+                        creditKey: keys.bank(validated.payoutCounterpartyId, validated.payoutBankStableKey, validated.payOutCurrency),
                         currency: validated.payOutCurrency,
                         amount: validated.amountMinor,
                         code: TransferCodes.PAYOUT_INITIATED,

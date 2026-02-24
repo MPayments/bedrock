@@ -26,7 +26,7 @@ const reasonSchema = z.string().min(1, "reason is required").max(1000, "reason c
 
 // CreateDraft input schema
 export const createDraftInputSchema = z.object({
-    orgId: uuidSchema,
+    counterpartyId: uuidSchema,
     idempotencyKey: idempotencyKeySchema,
     fromAccountKey: accountKeySchema,
     toAccountKey: accountKeySchema,
@@ -43,7 +43,7 @@ export type CreateDraftInput = z.infer<typeof createDraftInputSchema>;
 
 // Approve input schema
 export const approveInputSchema = z.object({
-    orgId: uuidSchema,
+    counterpartyId: uuidSchema,
     transferId: uuidSchema,
     checkerUserId: uuidSchema,
     occurredAt: z.date(),
@@ -53,7 +53,7 @@ export type ApproveInput = z.infer<typeof approveInputSchema>;
 
 // Reject input schema
 export const rejectInputSchema = z.object({
-    orgId: uuidSchema,
+    counterpartyId: uuidSchema,
     transferId: uuidSchema,
     checkerUserId: uuidSchema,
     occurredAt: z.date(),
@@ -64,7 +64,7 @@ export type RejectInput = z.infer<typeof rejectInputSchema>;
 
 // MarkFailed input schema
 export const markFailedInputSchema = z.object({
-    orgId: uuidSchema,
+    counterpartyId: uuidSchema,
     transferId: uuidSchema,
     reason: reasonSchema,
 });

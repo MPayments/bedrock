@@ -46,9 +46,9 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             if (validated.customerId !== order.customerId) {
                 throw new ValidationError(`customerId mismatch: expected ${order.customerId}, got ${validated.customerId}`);
             }
-            if (validated.branchOrgId !== order.payInOrgId && validated.branchOrgId !== order.payOutOrgId) {
+            if (validated.branchCounterpartyId !== order.payInCounterpartyId && validated.branchCounterpartyId !== order.payOutCounterpartyId) {
                 throw new ValidationError(
-                    `branchOrgId mismatch: expected one of [${order.payInOrgId}, ${order.payOutOrgId}], got ${validated.branchOrgId}`
+                    `branchCounterpartyId mismatch: expected one of [${order.payInCounterpartyId}, ${order.payOutCounterpartyId}], got ${validated.branchCounterpartyId}`
                 );
             }
 
@@ -101,7 +101,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                     sourceKind: "derived",
                     sourceRef: null,
                     asOf: validated.occurredAt,
-                    executionOrgId: null,
+                    executionCounterpartyId: null,
                     createdAt: validated.occurredAt,
                     id: quote.id,
                     quoteId: quote.id,
@@ -158,7 +158,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             });
 
             for (const leg of routeLegs) {
-                const executionOrgId = leg.executionOrgId ?? validated.branchOrgId;
+                const executionCounterpartyId = leg.executionCounterpartyId ?? validated.branchCounterpartyId;
 
                 transfers.push({
                     type: PlanType.CREATE,
@@ -167,12 +167,12 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                         quoteRef: validated.quoteRef,
                         orderId: validated.orderId,
                         idx: leg.idx,
-                        executionOrgId,
+                        executionCounterpartyId,
                         fromCurrency: leg.fromCurrency,
                         amount: leg.fromAmountMinor.toString(),
                     }),
                     debitKey: keys.orderInventory(validated.orderId, leg.fromCurrency),
-                    creditKey: keys.intercompanyNet(executionOrgId, leg.fromCurrency),
+                    creditKey: keys.intercompanyNet(executionCounterpartyId, leg.fromCurrency),
                     currency: leg.fromCurrency,
                     amount: leg.fromAmountMinor,
                     code: TransferCodes.FX_LEG_OUT,
@@ -186,11 +186,11 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                         quoteRef: validated.quoteRef,
                         orderId: validated.orderId,
                         idx: leg.idx,
-                        executionOrgId,
+                        executionCounterpartyId,
                         toCurrency: leg.toCurrency,
                         amount: leg.toAmountMinor.toString(),
                     }),
-                    debitKey: keys.intercompanyNet(executionOrgId, leg.toCurrency),
+                    debitKey: keys.intercompanyNet(executionCounterpartyId, leg.toCurrency),
                     creditKey: keys.orderInventory(validated.orderId, leg.toCurrency),
                     currency: leg.toCurrency,
                     amount: leg.toAmountMinor,
@@ -468,7 +468,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                 planKey: makePlanKey("fx_obligation", {
                     quoteRef: validated.quoteRef,
                     orderId: validated.orderId,
-                    payOutOrgId: order.payOutOrgId,
+                    payOutCounterpartyId: order.payOutCounterpartyId,
                     currency: validated.payOutCurrency,
                     amount: validated.payOutAmountMinor.toString(),
                 }),

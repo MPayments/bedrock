@@ -61,7 +61,7 @@ export function computeExplicitRouteLegs(input: QuoteInput & { mode: "explicit_r
             sourceKind: leg.sourceKind,
             sourceRef: leg.sourceRef ?? null,
             asOf: leg.asOf ?? input.asOf,
-            executionOrgId: leg.executionOrgId ?? null,
+            executionCounterpartyId: leg.executionCounterpartyId ?? null,
         });
 
         rollingAmount = toAmountMinor;

@@ -12,7 +12,7 @@ export interface ComputedLeg {
     sourceKind: "cb" | "bank" | "manual" | "derived" | "market";
     sourceRef: string | null;
     asOf: Date;
-    executionOrgId: string | null;
+    executionCounterpartyId: string | null;
 }
 
 export interface FxQuoteDetails {

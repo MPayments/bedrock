@@ -4,10 +4,10 @@ import type { AppType } from "./app";
 
 export type Client = ReturnType<typeof hc<AppType>>;
 
-export type CreateClientOptions = {
+export interface CreateClientOptions {
   headers?: Record<string, string>;
   init?: RequestInit;
-};
+}
 
 export function createClient(
   baseUrl: string,

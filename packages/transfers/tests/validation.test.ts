@@ -11,7 +11,7 @@ import { ValidationError } from "../src/errors";
 describe("Validation", () => {
     describe("validateCreateDraftInput", () => {
         const validInput = {
-            orgId: "550e8400-e29b-41d4-a716-446655440000",
+            counterpartyId: "550e8400-e29b-41d4-a716-446655440000",
             idempotencyKey: "test-key",
             fromAccountKey: "Account:org1:vault:USD",
             toAccountKey: "Account:org1:operating:USD",
@@ -33,11 +33,11 @@ describe("Validation", () => {
             expect(result.currency).toBe("USD");
         });
 
-        it("should throw ValidationError for invalid orgId", () => {
+        it("should throw ValidationError for invalid counterpartyId", () => {
             expect(() =>
                 validateCreateDraftInput({
                     ...validInput,
-                    orgId: "not-a-uuid",
+                    counterpartyId: "not-a-uuid",
                 })
             ).toThrow(ValidationError);
         });
@@ -117,7 +117,7 @@ describe("Validation", () => {
 
     describe("validateApproveInput", () => {
         const validInput = {
-            orgId: "550e8400-e29b-41d4-a716-446655440000",
+            counterpartyId: "550e8400-e29b-41d4-a716-446655440000",
             transferId: "550e8400-e29b-41d4-a716-446655440001",
             checkerUserId: "550e8400-e29b-41d4-a716-446655440002",
             occurredAt: new Date(),
@@ -149,7 +149,7 @@ describe("Validation", () => {
 
     describe("validateRejectInput", () => {
         const validInput = {
-            orgId: "550e8400-e29b-41d4-a716-446655440000",
+            counterpartyId: "550e8400-e29b-41d4-a716-446655440000",
             transferId: "550e8400-e29b-41d4-a716-446655440001",
             checkerUserId: "550e8400-e29b-41d4-a716-446655440002",
             occurredAt: new Date(),
@@ -182,7 +182,7 @@ describe("Validation", () => {
 
     describe("validateMarkFailedInput", () => {
         const validInput = {
-            orgId: "550e8400-e29b-41d4-a716-446655440000",
+            counterpartyId: "550e8400-e29b-41d4-a716-446655440000",
             transferId: "550e8400-e29b-41d4-a716-446655440001",
             reason: "Journal posting failed",
         };

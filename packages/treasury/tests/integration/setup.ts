@@ -77,7 +77,9 @@ async function resetTreasuryTables() {
             ledger_accounts,
             bank_accounts,
             customers,
-            organizations
+            counterparty_group_memberships,
+            counterparty_groups,
+            counterparties
         RESTART IDENTITY CASCADE
     `);
 }
@@ -96,7 +98,9 @@ async function cleanupTreasuryTables() {
     await pool.query("DELETE FROM journal_entries");
     await pool.query("DELETE FROM ledger_accounts");
     await pool.query("DELETE FROM bank_accounts");
-    await pool.query("DELETE FROM organizations");
+    await pool.query("DELETE FROM counterparty_group_memberships");
+    await pool.query("DELETE FROM counterparty_groups");
+    await pool.query("DELETE FROM counterparties");
     await pool.query("DELETE FROM customers");
 }
 

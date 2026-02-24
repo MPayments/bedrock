@@ -172,7 +172,9 @@ Primary tables by concern:
 - Treasury/payment:
   - `payment_orders`
   - `settlements`
-  - `organizations`
+  - `counterparties`
+  - `counterparty_groups`
+  - `counterparty_group_memberships`
   - `customers`
   - `bank_accounts`
 - FX:

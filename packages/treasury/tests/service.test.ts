@@ -14,7 +14,7 @@ import {
     createMockOrder,
     CUSTOMER_ID,
     ORDER_ID,
-    BRANCH_ORG_ID,
+    BRANCH_COUNTERPARTY_ID,
     type StubDatabase,
 } from "./helpers";
 
@@ -89,7 +89,7 @@ describe("createTreasuryService", () => {
     describe("fundingSettled", () => {
         const validInput = {
             orderId: ORDER_ID,
-            branchOrgId: BRANCH_ORG_ID,
+            branchCounterpartyId: BRANCH_COUNTERPARTY_ID,
             branchBankStableKey: "bank-key-123",
             customerId: CUSTOMER_ID,
             currency: "USD",
@@ -288,11 +288,11 @@ describe("createTreasuryService", () => {
             await expect(service.fundingSettled(validInput)).rejects.toThrow(InvalidStateError);
         });
 
-        it("should throw ValidationError when branchOrgId doesn't match order payInOrgId", async () => {
+        it("should throw ValidationError when branchCounterpartyId doesn't match order payInCounterpartyId", async () => {
             const order = createMockOrder({
                 payInCurrency: "USD",
                 payInExpectedMinor: 100000n,
-                payInOrgId: "550e8400-e29b-41d4-a716-446655440099",
+                payInCounterpartyId: "550e8400-e29b-41d4-a716-446655440099",
             });
 
             vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
@@ -346,7 +346,7 @@ describe("createTreasuryService", () => {
     describe("executeFx", () => {
         const validInput = {
             orderId: ORDER_ID,
-            branchOrgId: BRANCH_ORG_ID,
+            branchCounterpartyId: BRANCH_COUNTERPARTY_ID,
             customerId: CUSTOMER_ID,
             payInCurrency: "USD",
             principalMinor: 100000n,
@@ -466,16 +466,16 @@ describe("createTreasuryService", () => {
         });
 
         it("should post intercompany legs against order pay-in/pay-out orgs when they differ", async () => {
-            const payInOrgId = "550e8400-e29b-41d4-a716-446655440011";
-            const payOutOrgId = "550e8400-e29b-41d4-a716-446655440012";
+            const payInCounterpartyId = "550e8400-e29b-41d4-a716-446655440011";
+            const payOutCounterpartyId = "550e8400-e29b-41d4-a716-446655440012";
             const order = createMockOrder({
                 status: "funding_settled",
                 payInCurrency: "USD",
                 payInExpectedMinor: 100000n,
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
-                payInOrgId,
-                payOutOrgId,
+                payInCounterpartyId,
+                payOutCounterpartyId,
             });
             const quote = createFxQuote();
 
@@ -490,7 +490,7 @@ describe("createTreasuryService", () => {
                 return fn(tx);
             });
 
-            await service.executeFx({ ...validInput, branchOrgId: payInOrgId });
+            await service.executeFx({ ...validInput, branchCounterpartyId: payInCounterpartyId });
 
             const transfers = vi.mocked(ledger.createEntryTx).mock.calls[0]![1].transfers;
             const legOut = transfers.find((t: any) => t.memo === "FX leg 1 out");
@@ -498,13 +498,13 @@ describe("createTreasuryService", () => {
             const payoutObligation = transfers.find((t: any) => t.memo === "Create payout obligation");
 
             expect(legOut).toBeDefined();
-            expect(legOut.creditKey).toContain(`:${payInOrgId}:USD`);
+            expect(legOut.creditKey).toContain(`:${payInCounterpartyId}:USD`);
             expect(legIn).toBeDefined();
-            expect(legIn.debitKey).toContain(`:${payInOrgId}:EUR`);
+            expect(legIn.debitKey).toContain(`:${payInCounterpartyId}:EUR`);
             expect(payoutObligation).toBeDefined();
             expect(payoutObligation.debitKey).toContain(`OrderInventory:${ORDER_ID}:EUR`);
-            expect(legOut.creditKey).not.toContain(`:${payOutOrgId}:`);
-            expect(legIn.debitKey).not.toContain(`:${payOutOrgId}:`);
+            expect(legOut.creditKey).not.toContain(`:${payOutCounterpartyId}:`);
+            expect(legIn.debitKey).not.toContain(`:${payOutCounterpartyId}:`);
         });
 
         it("should reject ambiguous UUID quoteRef between id and idempotency key", async () => {
@@ -762,15 +762,15 @@ describe("createTreasuryService", () => {
                 .rejects.toThrow(ValidationError);
         });
 
-        it("should throw ValidationError when branchOrgId doesn't match order branch orgs", async () => {
+        it("should throw ValidationError when branchCounterpartyId doesn't match order branch orgs", async () => {
             const order = createMockOrder({
                 status: "funding_settled",
                 payInCurrency: "USD",
                 payInExpectedMinor: 100000n,
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
-                payInOrgId: "550e8400-e29b-41d4-a716-446655440099",
-                payOutOrgId: "550e8400-e29b-41d4-a716-446655440098",
+                payInCounterpartyId: "550e8400-e29b-41d4-a716-446655440099",
+                payOutCounterpartyId: "550e8400-e29b-41d4-a716-446655440098",
             });
 
             vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
@@ -1170,7 +1170,7 @@ describe("createTreasuryService", () => {
                 sourceKind: "manual",
                 sourceRef: null,
                 asOf: validInput.occurredAt,
-                executionOrgId: null,
+                executionCounterpartyId: null,
                 createdAt: validInput.occurredAt,
                 ...leg,
             }));
@@ -1369,7 +1369,7 @@ describe("createTreasuryService", () => {
     describe("initiatePayout", () => {
         const validInput = {
             orderId: ORDER_ID,
-            payoutOrgId: BRANCH_ORG_ID,
+            payoutCounterpartyId: BRANCH_COUNTERPARTY_ID,
             payoutBankStableKey: "bank-key-456",
             payOutCurrency: "EUR",
             amountMinor: 85000n,
@@ -1530,12 +1530,12 @@ describe("createTreasuryService", () => {
                 .rejects.toThrow(AmountMismatchError);
         });
 
-        it("should throw ValidationError when payoutOrgId doesn't match order", async () => {
+        it("should throw ValidationError when payoutCounterpartyId doesn't match order", async () => {
             const order = createMockOrder({
                 status: "fx_executed",
                 payOutCurrency: "EUR",
                 payOutAmountMinor: 85000n,
-                payOutOrgId: "550e8400-e29b-41d4-a716-446655440099",
+                payOutCounterpartyId: "550e8400-e29b-41d4-a716-446655440099",
             });
 
             vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
@@ -1925,7 +1925,7 @@ describe("createTreasuryService", () => {
         const feePaymentOrderId = "550e8400-e29b-41d4-a716-446655440033";
         const validInput = {
             feePaymentOrderId,
-            payoutOrgId: BRANCH_ORG_ID,
+            payoutCounterpartyId: BRANCH_COUNTERPARTY_ID,
             payoutBankStableKey: "bank-key-fee",
             railRef: "fee-init-rail-ref",
             occurredAt: new Date(),
@@ -1985,7 +1985,7 @@ describe("createTreasuryService", () => {
                 currencyId: "cur-usd",
                 amountMinor: 77n,
                 railRef: "fee-init-rail-ref",
-                payoutOrgId: BRANCH_ORG_ID,
+                payoutCounterpartyId: BRANCH_COUNTERPARTY_ID,
                 payoutBankStableKey: "bank-key-fee",
                 initiateEntryId: "test-entry-id",
                 pendingTransferId: 12345678901234567890n,
@@ -2015,7 +2015,7 @@ describe("createTreasuryService", () => {
                 currencyId: "cur-usd",
                 amountMinor: 77n,
                 railRef: "different-rail-ref",
-                payoutOrgId: BRANCH_ORG_ID,
+                payoutCounterpartyId: BRANCH_COUNTERPARTY_ID,
                 payoutBankStableKey: "bank-key-fee",
                 initiateEntryId: "test-entry-id",
                 pendingTransferId: 12345678901234567890n,
@@ -2040,7 +2040,7 @@ describe("createTreasuryService", () => {
                 currencyId: "cur-usd",
                 amountMinor: 77n,
                 railRef: validInput.railRef,
-                payoutOrgId: BRANCH_ORG_ID,
+                payoutCounterpartyId: BRANCH_COUNTERPARTY_ID,
                 payoutBankStableKey: "bank-key-fee",
                 initiateEntryId: null,
                 pendingTransferId: null,

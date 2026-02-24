@@ -17,7 +17,9 @@ Drizzle-based database package for the financial core.
   - `outbox`
   - `ledger_accounts`
 - Treasury:
-  - `organizations`
+  - `counterparties`
+  - `counterparty_groups`
+  - `counterparty_group_memberships`
   - `customers`
   - `bank_accounts`
   - `payment_orders`
@@ -41,5 +43,6 @@ Drizzle-based database package for the financial core.
 - `npm run check-types`
 - `npm run db:generate`
 - `npm run db:migrate`
+- `npm run db:nuke`
 - `npm run db:push`
 - `npm run db:studio`

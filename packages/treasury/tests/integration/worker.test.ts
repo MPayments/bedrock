@@ -37,7 +37,7 @@ describe("Treasury Worker Integration Tests", () => {
 
         const postedEntryId = await servicePosted.fundingSettled({
             orderId: scenarioPosted.order.id,
-            branchOrgId: scenarioPosted.branchOrg.id,
+            branchCounterpartyId: scenarioPosted.branchCounterparty.id,
             branchBankStableKey: scenarioPosted.branchBankAccount.stableKey,
             customerId: scenarioPosted.customer.id,
             currency: "USD",
@@ -48,7 +48,7 @@ describe("Treasury Worker Integration Tests", () => {
 
         await servicePending.fundingSettled({
             orderId: scenarioPending.order.id,
-            branchOrgId: scenarioPending.branchOrg.id,
+            branchCounterpartyId: scenarioPending.branchCounterparty.id,
             branchBankStableKey: scenarioPending.branchBankAccount.stableKey,
             customerId: scenarioPending.customer.id,
             currency: "USD",
@@ -83,7 +83,7 @@ describe("Treasury Worker Integration Tests", () => {
 
         const entryId = await service.fundingSettled({
             orderId: scenario.order.id,
-            branchOrgId: scenario.branchOrg.id,
+            branchCounterpartyId: scenario.branchCounterparty.id,
             branchBankStableKey: scenario.branchBankAccount.stableKey,
             customerId: scenario.customer.id,
             currency: "USD",

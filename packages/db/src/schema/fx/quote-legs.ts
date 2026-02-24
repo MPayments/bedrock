@@ -3,7 +3,7 @@ import { bigint, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } f
 
 import { fxQuotes } from "./quotes";
 import { currencies } from "../currencies";
-import { organizations } from "../treasury/organizations";
+import { counterparties } from "../treasury/counterparties";
 
 export type FxQuoteLegSourceKind = "cb" | "bank" | "manual" | "derived" | "market";
 
@@ -29,14 +29,14 @@ export const fxQuoteLegs = pgTable(
         sourceRef: text("source_ref"),
         asOf: timestamp("as_of", { withTimezone: true }).notNull(),
 
-        executionOrgId: uuid("execution_org_id").references(() => organizations.id),
+        executionCounterpartyId: uuid("execution_counterparty_id").references(() => counterparties.id),
 
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
     },
     (t) => ([
         uniqueIndex("fx_quote_legs_quote_idx_uq").on(t.quoteId, t.idx),
         index("fx_quote_legs_quote_idx").on(t.quoteId),
-    ])
+    ]),
 );
 
 export type FxQuoteLeg = typeof fxQuoteLegs.$inferSelect;

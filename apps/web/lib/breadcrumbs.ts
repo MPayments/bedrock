@@ -5,6 +5,7 @@ export type BreadcrumbIconName =
   | "credit-card"
   | "arrow-right-left"
   | "building-2"
+  | "users"
   | "book-open"
   | "dollar-sign"
   | "chart-candlestick";
@@ -45,11 +46,12 @@ const segmentMap: Record<string, SegmentConfig> = {
 
   customers: {
     label: "Клиенты",
-    href: "/treasury/customers",
+    href: "/entities/customers",
+    icon: "users",
   },
-  organizations: {
-    label: "Организации",
-    href: "/entities/organizations",
+  counterparties: {
+    label: "Контрагенты",
+    href: "/entities/counterparties",
     icon: "building-2",
   },
   currencies: { label: "Валюты", icon: "dollar-sign" },

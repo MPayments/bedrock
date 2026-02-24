@@ -13,7 +13,7 @@ import {
     setupTxWithTransfer,
     setupTxWithUpdateSuccess,
     setupTxWithUpdateFailure,
-    ORG_ID,
+    COUNTERPARTY_ID,
     TRANSFER_ID,
     MAKER_USER_ID,
     CHECKER_USER_ID,
@@ -68,7 +68,7 @@ describe("createTransfersService", () => {
 
     describe("createDraft", () => {
         const validInput = {
-            orgId: ORG_ID,
+            counterpartyId: COUNTERPARTY_ID,
             idempotencyKey: "test-key-123",
             fromAccountKey: "Account:org1:vault:USD",
             toAccountKey: "Account:org1:operating:USD",
@@ -182,7 +182,7 @@ describe("createTransfersService", () => {
 
     describe("approve", () => {
         const validInput = {
-            orgId: ORG_ID,
+            counterpartyId: COUNTERPARTY_ID,
             transferId: TRANSFER_ID,
             checkerUserId: CHECKER_USER_ID,
             occurredAt: new Date(),
@@ -352,7 +352,7 @@ describe("createTransfersService", () => {
 
     describe("reject", () => {
         const validInput = {
-            orgId: ORG_ID,
+            counterpartyId: COUNTERPARTY_ID,
             transferId: TRANSFER_ID,
             checkerUserId: CHECKER_USER_ID,
             occurredAt: new Date(),
@@ -445,7 +445,7 @@ describe("createTransfersService", () => {
 
     describe("markFailed", () => {
         const validInput = {
-            orgId: ORG_ID,
+            counterpartyId: COUNTERPARTY_ID,
             transferId: TRANSFER_ID,
             reason: "Journal posting failed",
         };

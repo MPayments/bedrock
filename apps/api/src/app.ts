@@ -7,12 +7,21 @@ import auth from "@bedrock/auth";
 import { AppError } from "@bedrock/kernel";
 
 import { createAppContext, type Env } from "./context";
-import { authMiddleware, requireAuth, type AuthVariables } from "./middleware/auth";
-import { organizationsRoutes, customersRoutes, currenciesRoutes, fxRatesRoutes } from "./routes/index";
+import {
+  authMiddleware,
+  requireAuth,
+  type AuthVariables,
+} from "./middleware/auth";
+import {
+  counterpartiesRoutes,
+  counterpartyGroupsRoutes,
+  customersRoutes,
+  currenciesRoutes,
+  fxRatesRoutes,
+} from "./routes/index";
 
 const env: Env = {
-  DATABASE_URL:
-    process.env.DATABASE_URL!,
+  DATABASE_URL: process.env.DATABASE_URL!,
   TB_ADDRESS: process.env.TB_ADDRESS!,
   TB_CLUSTER_ID: Number(process.env.TB_CLUSTER_ID!),
   BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
@@ -21,8 +30,7 @@ const env: Env = {
 };
 
 const ctx = createAppContext(env);
-const configuredAuthOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS
-  .split(",")
+const configuredAuthOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
   .map((origin) => origin.trim())
   .filter((origin) => origin.length > 0);
 const authAllowedOriginSet = new Set(configuredAuthOrigins);
@@ -82,6 +90,7 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => {
 });
 
 app.use("*", authMiddleware());
+app.use("/v1/*", requireAuth());
 
 // Health check
 app.get("/", (c) => {
@@ -90,12 +99,13 @@ app.get("/", (c) => {
 
 // Mount routes under /v1 — all require an authenticated session
 const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
-  .use("*", requireAuth())
-  .route("/organizations", organizationsRoutes(ctx))
+  .route("/counterparties", counterpartiesRoutes(ctx))
+  .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
   .route("/fx/rates", fxRatesRoutes(ctx));
-const routes = app.route("/v1", v1);
+
+const _routes = app.route("/v1", v1);
 
 const openApiInfo = {
   info: {
@@ -129,4 +139,4 @@ app.get(
 );
 
 export { app };
-export type AppType = typeof routes;
+export type AppType = typeof _routes;

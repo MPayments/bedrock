@@ -24,12 +24,13 @@
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
     "@bedrock/kernel": "workspace:*",
-    "@bedrock/organizations": "workspace:*",
+    "@bedrock/counterparties": "workspace:*",
+    "@bedrock/customers": "workspace:*",
     "@hono/node-server": "^1.19.9",
-    "@hono/zod-openapi": "^1.2.1",
-    "@scalar/hono-api-reference": "^0.9.41",
+    "@hono/zod-openapi": "^1.2.2",
+    "@scalar/hono-api-reference": "^0.9.44",
     "dotenv": "^17.3.1",
-    "hono": "^4.11.9"
+    "hono": "^4.12.2"
   },
   "devDependencies": {
     "@bedrock/typescript-config": "*",

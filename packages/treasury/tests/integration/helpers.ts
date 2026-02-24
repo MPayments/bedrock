@@ -10,7 +10,7 @@ import { db, tb } from "./setup";
 // Random ID generators
 // ============================================================================
 
-export function randomOrgId() {
+export function randomCounterpartyId() {
     return randomUUID();
 }
 
@@ -38,25 +38,32 @@ export function randomQuoteRef() {
 // Test Data Setup Helpers
 // ============================================================================
 
-export interface TestOrg {
+export interface TestCounterparty {
     id: string;
-    name: string;
-    isTreasury: boolean;
+    shortName: string;
+    fullName: string;
+    kind: "legal_entity" | "individual";
     customerId: string | null;
 }
 
-export async function createTestOrg(overrides: Partial<TestOrg> = {}): Promise<TestOrg> {
+type TestCounterpartyOverrides = Partial<TestCounterparty> & {
+    name?: string;
+    isTreasury?: boolean;
+};
+
+export async function createTestCounterparty(overrides: TestCounterpartyOverrides = {}): Promise<TestCounterparty> {
     const isTreasury = overrides.isTreasury ?? false;
-    const org = {
-        id: overrides.id ?? randomOrgId(),
-        name: overrides.name ?? "Test Organization",
-        isTreasury,
+    const shortName = overrides.shortName ?? overrides.name ?? "Test Counterparty";
+    const counterparty: TestCounterparty = {
+        id: overrides.id ?? randomCounterpartyId(),
+        shortName,
+        fullName: overrides.fullName ?? shortName,
+        kind: overrides.kind ?? "legal_entity",
         customerId: overrides.customerId ?? (isTreasury ? null : randomCustomerId()),
-        baseCurrency: "USD",
     };
 
-    await db.insert(schema.organizations).values(org);
-    return org;
+    await db.insert(schema.counterparties).values(counterparty);
+    return counterparty;
 }
 
 export interface TestCustomer {
@@ -65,7 +72,7 @@ export interface TestCustomer {
 }
 
 export async function createTestCustomer(
-    _orgId: string,
+    _counterpartyId: string,
     overrides: Partial<TestCustomer> = {}
 ): Promise<TestCustomer> {
     const customer = {
@@ -79,7 +86,7 @@ export async function createTestCustomer(
 
 export interface TestBankAccount {
     id: string;
-    orgId: string;
+    counterpartyId: string;
     stableKey: string;
     currencyId: string;
     currency: string;
@@ -87,13 +94,13 @@ export interface TestBankAccount {
 }
 
 export async function createTestBankAccount(
-    orgId: string,
+    counterpartyId: string,
     overrides: Partial<TestBankAccount> = {}
 ): Promise<TestBankAccount> {
     const currency = overrides.currency ?? "USD";
     const account = {
         id: overrides.id ?? randomUUID(),
-        orgId,
+        counterpartyId,
         stableKey: overrides.stableKey ?? `bank-${Date.now()}`,
         currencyId: overrides.currencyId ?? currencyIdForCode(currency),
         label: overrides.label ?? "Test Bank Account",
@@ -106,7 +113,7 @@ export async function createTestBankAccount(
 
 export interface TestPaymentOrder {
     id: string;
-    customerOrgId: string;
+    customerCounterpartyId: string;
     customerId: string;
     status: string;
     payInCurrencyId: string;
@@ -115,17 +122,17 @@ export interface TestPaymentOrder {
     payOutCurrencyId: string;
     payOutCurrency: string;
     payOutAmountMinor: bigint;
-    payInOrgId: string;
-    payOutOrgId: string;
+    payInCounterpartyId: string;
+    payOutCounterpartyId: string;
     idempotencyKey: string;
 }
 
 export async function createTestPaymentOrder(
     params: {
-        customerOrgId: string;
+        customerCounterpartyId: string;
         customerId: string;
-        payInOrgId: string;
-        payOutOrgId: string;
+        payInCounterpartyId: string;
+        payOutCounterpartyId: string;
     },
     overrides: Partial<TestPaymentOrder> = {}
 ): Promise<TestPaymentOrder> {
@@ -133,15 +140,15 @@ export async function createTestPaymentOrder(
     const payOutCurrency = overrides.payOutCurrency ?? "EUR";
     const order = {
         id: overrides.id ?? randomOrderId(),
-        customerOrgId: params.customerOrgId,
+        customerCounterpartyId: params.customerCounterpartyId,
         customerId: params.customerId,
         status: overrides.status ?? "quote",
         payInCurrencyId: overrides.payInCurrencyId ?? currencyIdForCode(payInCurrency),
         payInExpectedMinor: overrides.payInExpectedMinor ?? 100000n,
         payOutCurrencyId: overrides.payOutCurrencyId ?? currencyIdForCode(payOutCurrency),
         payOutAmountMinor: overrides.payOutAmountMinor ?? 85000n,
-        payInOrgId: params.payInOrgId,
-        payOutOrgId: params.payOutOrgId,
+        payInCounterpartyId: params.payInCounterpartyId,
+        payOutCounterpartyId: params.payOutCounterpartyId,
         idempotencyKey: overrides.idempotencyKey ?? randomIdempotencyKey()
     };
 
@@ -209,9 +216,9 @@ export async function createTestFxQuote(
  * Create a complete test scenario with all required entities
  */
 export interface TestScenario {
-    treasuryOrg: TestOrg;
-    branchOrg: TestOrg;
-    payoutOrg: TestOrg;
+    treasuryCounterparty: TestCounterparty;
+    branchCounterparty: TestCounterparty;
+    payoutCounterparty: TestCounterparty;
     customer: TestCustomer;
     branchBankAccount: TestBankAccount;
     payoutBankAccount: TestBankAccount;
@@ -229,20 +236,20 @@ type TestScenarioOverrides = Partial<{
 export async function createTestScenario(
     overrides: TestScenarioOverrides = {}
 ): Promise<TestScenario> {
-    // Create treasury org and customer first; non-treasury orgs must reference a customer.
-    const treasuryOrg = await createTestOrg({ name: "Treasury Corp", isTreasury: true });
-    const customer = await createTestCustomer(treasuryOrg.id, { displayName: "Test Customer" });
-    const branchOrg = await createTestOrg({ name: "Branch Corp", customerId: customer.id });
-    const payoutOrg = await createTestOrg({ name: "Payout Corp", customerId: customer.id });
+    // Create treasury counterparty and customer first; non-treasury counterparties reference a customer.
+    const treasuryCounterparty = await createTestCounterparty({ name: "Treasury Corp", isTreasury: true });
+    const customer = await createTestCustomer(treasuryCounterparty.id, { displayName: "Test Customer" });
+    const branchCounterparty = await createTestCounterparty({ name: "Branch Corp", customerId: customer.id });
+    const payoutCounterparty = await createTestCounterparty({ name: "Payout Corp", customerId: customer.id });
 
     // Create bank accounts
-    const branchBankAccount = await createTestBankAccount(branchOrg.id, {
+    const branchBankAccount = await createTestBankAccount(branchCounterparty.id, {
         stableKey: "branch-bank-usd",
         currency: overrides.payInCurrency ?? "USD",
         label: "Branch USD Account"
     });
 
-    const payoutBankAccount = await createTestBankAccount(payoutOrg.id, {
+    const payoutBankAccount = await createTestBankAccount(payoutCounterparty.id, {
         stableKey: "payout-bank-eur",
         currency: overrides.payOutCurrency ?? "EUR",
         label: "Payout EUR Account"
@@ -251,10 +258,10 @@ export async function createTestScenario(
     // Create payment order
     const order = await createTestPaymentOrder(
         {
-            customerOrgId: treasuryOrg.id,
+            customerCounterpartyId: treasuryCounterparty.id,
             customerId: customer.id,
-            payInOrgId: branchOrg.id,
-            payOutOrgId: payoutOrg.id
+            payInCounterpartyId: branchCounterparty.id,
+            payOutCounterpartyId: payoutCounterparty.id
         },
         {
             payInCurrency: overrides.payInCurrency ?? "USD",
@@ -266,9 +273,9 @@ export async function createTestScenario(
     );
 
     return {
-        treasuryOrg,
-        branchOrg,
-        payoutOrg,
+        treasuryCounterparty,
+        branchCounterparty,
+        payoutCounterparty,
         customer,
         branchBankAccount,
         payoutBankAccount,

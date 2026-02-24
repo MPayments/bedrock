@@ -16,7 +16,7 @@ export const internalTransfers = pgTable(
     {
         id: uuid("id").primaryKey().defaultRandom(),
 
-        orgId: uuid("org_id").notNull(), // “юридическое лицо/организация” внутри которой делаем перевод (или treasury)
+        counterpartyId: uuid("counterparty_id").notNull(),
 
         status: text("status").$type<TransferStatus>().notNull().default(TransferStatus.DRAFT),
 
@@ -41,11 +41,11 @@ export const internalTransfers = pgTable(
         idempotencyKey: text("idempotency_key").notNull(),
 
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
-        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`).$onUpdateFn(() => new Date())
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`).$onUpdateFn(() => new Date()),
     },
     (t) => [
-        uniqueIndex("internal_transfers_org_idem_uq").on(t.orgId, t.idempotencyKey),
-        index("internal_transfers_org_status_idx").on(t.orgId, t.status),
-        index("internal_transfers_org_created_idx").on(t.orgId, t.createdAt)
-    ]
+        uniqueIndex("internal_transfers_counterparty_idem_uq").on(t.counterpartyId, t.idempotencyKey),
+        index("internal_transfers_counterparty_status_idx").on(t.counterpartyId, t.status),
+        index("internal_transfers_counterparty_created_idx").on(t.counterpartyId, t.createdAt),
+    ],
 );

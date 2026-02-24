@@ -40,6 +40,30 @@ type NavItem = {
   }[];
 };
 
+function normalizePath(path: string) {
+  if (path.length > 1 && path.endsWith("/")) {
+    return path.slice(0, -1);
+  }
+  return path;
+}
+
+function isPathActive(pathname: string, href: string) {
+  if (!href.startsWith("/")) {
+    return false;
+  }
+
+  const currentPath = normalizePath(pathname);
+  const targetPath = normalizePath(href);
+
+  if (targetPath === "/") {
+    return currentPath === "/";
+  }
+
+  return (
+    currentPath === targetPath || currentPath.startsWith(`${targetPath}/`)
+  );
+}
+
 function NavCollapsibleItem({
   item,
   pathname,
@@ -48,7 +72,10 @@ function NavCollapsibleItem({
   pathname: string;
 }) {
   const { state, isMobile } = useSidebar();
-  const isActive = item.items!.some((sub) => pathname === sub.url);
+  const subItems = item.items ?? [];
+  const isActive =
+    isPathActive(pathname, item.url) ||
+    subItems.some((sub) => isPathActive(pathname, sub.url));
   const [open, setOpen] = useState(isActive);
 
   // Auto-open the group when a sub-item becomes active via navigation
@@ -76,7 +103,7 @@ function NavCollapsibleItem({
             className="w-42"
           >
             <DropdownMenuGroup>
-              {item.items?.map((subItem) => (
+              {subItems.map((subItem) => (
                 <DropdownMenuItem
                   key={subItem.title}
                   render={<Link href={subItem.url} />}
@@ -107,11 +134,11 @@ function NavCollapsibleItem({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarMenuSub>
-            {item.items?.map((subItem) => (
+            {subItems.map((subItem) => (
               <SidebarMenuSubItem key={subItem.title}>
                 <SidebarMenuSubButton
                   render={<Link href={subItem.url} />}
-                  isActive={pathname === subItem.url}
+                  isActive={isPathActive(pathname, subItem.url)}
                 >
                   {subItem.icon && <subItem.icon className="size-4" />}
                   <span>{subItem.title}</span>
@@ -134,9 +161,11 @@ export function NavMain({ items }: { items: NavItem[] }) {
       <SidebarMenu>
         {items.map((item) => {
           const hasSubItems = Boolean(item.items?.length);
+          const subItems = item.items ?? [];
           const isActive = hasSubItems
-            ? item.items!.some((sub) => pathname === sub.url)
-            : pathname === item.url;
+            ? isPathActive(pathname, item.url) ||
+              subItems.some((sub) => isPathActive(pathname, sub.url))
+            : isPathActive(pathname, item.url);
 
           if (!hasSubItems) {
             return (

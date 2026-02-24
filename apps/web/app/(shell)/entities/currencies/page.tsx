@@ -6,8 +6,8 @@ import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { CurrenciesTable } from "./(table)";
 import { getCurrencies } from "./lib/queries";
 import { searchParamsCache } from "./lib/validations";
-import { Separator } from "@workspace/ui/components/separator";
-import { Button } from "@workspace/ui/components/button";
+import { Separator } from "@bedrock/ui/components/separator";
+import { Button } from "@bedrock/ui/components/button";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

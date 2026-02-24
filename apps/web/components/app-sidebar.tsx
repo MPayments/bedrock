@@ -50,12 +50,8 @@ const data = {
       icon: Vault,
       items: [
         {
-          title: "Клиенты",
-          url: "/treasury/customers",
-        },
-        {
-          title: "Организации",
-          url: "/treasury/organizations",
+          title: "Контрагенты",
+          url: "/treasury/counterparties",
           icon: Building2,
         },
         {
@@ -129,8 +125,13 @@ const data = {
       icon: BookOpen,
       items: [
         {
-          title: "Организации",
-          url: "/entities/organizations",
+          title: "Клиенты",
+          url: "/entities/customers",
+          icon: Users,
+        },
+        {
+          title: "Контрагенты",
+          url: "/entities/counterparties",
           icon: Building2,
         },
         {

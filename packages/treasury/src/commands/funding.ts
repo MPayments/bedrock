@@ -45,8 +45,8 @@ export function createFundingSettledHandler(context: TreasuryServiceContext) {
             if (validated.customerId !== order.customerId) {
                 throw new ValidationError(`customerId mismatch: expected ${order.customerId}, got ${validated.customerId}`);
             }
-            if (validated.branchOrgId !== order.payInOrgId) {
-                throw new ValidationError(`branchOrgId mismatch: expected ${order.payInOrgId}, got ${validated.branchOrgId}`);
+            if (validated.branchCounterpartyId !== order.payInCounterpartyId) {
+                throw new ValidationError(`branchCounterpartyId mismatch: expected ${order.payInCounterpartyId}, got ${validated.branchCounterpartyId}`);
             }
 
             const pk = makePlanKey("funding_settled", {
@@ -54,7 +54,7 @@ export function createFundingSettledHandler(context: TreasuryServiceContext) {
                 orderId: validated.orderId,
                 currency: validated.currency,
                 amount: validated.amountMinor.toString(),
-                branchOrgId: validated.branchOrgId,
+                branchCounterpartyId: validated.branchCounterpartyId,
                 branchBankStableKey: validated.branchBankStableKey,
                 customerId: validated.customerId,
             });
@@ -68,7 +68,7 @@ export function createFundingSettledHandler(context: TreasuryServiceContext) {
                     {
                         type: PlanType.CREATE,
                         planKey: pk,
-                        debitKey: keys.bank(validated.branchOrgId, validated.branchBankStableKey, validated.currency),
+                        debitKey: keys.bank(validated.branchCounterpartyId, validated.branchBankStableKey, validated.currency),
                         creditKey: keys.customerWallet(validated.customerId, validated.currency),
                         currency: validated.currency,
                         amount: validated.amountMinor,

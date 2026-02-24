@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { bigint, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { paymentOrders } from "./orders";
-import { organizations } from "./organizations";
+import { counterparties } from "./counterparties";
 import { currencies } from "../currencies";
 import { fxQuotes } from "../fx/quotes";
 import { journalEntries } from "../ledger/journal";
@@ -41,7 +41,7 @@ export const feePaymentOrders = pgTable(
         resolveEntryId: uuid("resolve_entry_id").references(() => journalEntries.id, { onDelete: "set null" }),
         pendingTransferId: uint128("pending_transfer_id"),
 
-        payoutOrgId: uuid("payout_org_id").references(() => organizations.id),
+        payoutCounterpartyId: uuid("payout_counterparty_id").references(() => counterparties.id),
         payoutBankStableKey: text("payout_bank_stable_key"),
         railRef: text("rail_ref"),
 
@@ -54,7 +54,7 @@ export const feePaymentOrders = pgTable(
         uniqueIndex("fee_payment_orders_idem_uq").on(t.idempotencyKey),
         index("fee_payment_orders_status_idx").on(t.status),
         index("fee_payment_orders_parent_idx").on(t.parentOrderId),
-    ])
+    ]),
 );
 
 export type FeePaymentOrder = typeof feePaymentOrders.$inferSelect;

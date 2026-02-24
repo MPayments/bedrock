@@ -30,7 +30,7 @@ const quoteLegInputSchema = z.object({
     sourceKind: quoteLegSourceKindSchema,
     sourceRef: z.string().min(1).max(512).optional(),
     asOf: z.date().optional(),
-    executionOrgId: uuidSchema.optional(),
+    executionCounterpartyId: uuidSchema.optional(),
 }).refine((leg) => leg.fromCurrency !== leg.toCurrency, {
     message: "Leg currencies must be different",
 });

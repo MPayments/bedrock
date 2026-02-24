@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
 import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
+export type Customer = typeof customers.$inferSelect;
+export type CustomerInsert = typeof customers.$inferInsert;
+
 export const customers = pgTable(
     "customers",
     {

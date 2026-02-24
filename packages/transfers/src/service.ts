@@ -39,7 +39,7 @@ export function createTransfersService(deps: {
     db: Database;
     ledger: LedgerEngine;
     currenciesService: CurrenciesService;
-    canApprove?: (actorUserId: string, transferOrgId: string) => Promise<boolean> | boolean;
+    canApprove?: (actorUserId: string, transferCounterpartyId: string) => Promise<boolean> | boolean;
     logger?: Logger;
 }) {
     const { db, ledger, currenciesService, logger } = deps;
@@ -51,7 +51,7 @@ export function createTransfersService(deps: {
         const { id: currencyId } = await currenciesService.findByCode(validated.currency);
 
         logger?.debug("Creating draft transfer", {
-            orgId: validated.orgId,
+            counterpartyId: validated.counterpartyId,
             idempotencyKey: validated.idempotencyKey,
             currency: validated.currency,
             amountMinor: validated.amountMinor.toString(),
@@ -60,7 +60,7 @@ export function createTransfersService(deps: {
         const inserted = await db
             .insert(schema.internalTransfers)
             .values({
-                orgId: validated.orgId,
+                counterpartyId: validated.counterpartyId,
                 status: TransferStatus.DRAFT,
                 fromAccountKey: validated.fromAccountKey,
                 toAccountKey: validated.toAccountKey,
@@ -76,7 +76,7 @@ export function createTransfersService(deps: {
         if (inserted.length) {
             logger?.info("Draft transfer created", {
                 transferId: inserted[0]!.id,
-                orgId: validated.orgId,
+                counterpartyId: validated.counterpartyId,
                 currency: validated.currency,
                 amountMinor: validated.amountMinor.toString(),
             });
@@ -88,7 +88,7 @@ export function createTransfersService(deps: {
             .select({ id: schema.internalTransfers.id })
             .from(schema.internalTransfers)
             .where(and(
-                eq(schema.internalTransfers.orgId, validated.orgId),
+                eq(schema.internalTransfers.counterpartyId, validated.counterpartyId),
                 eq(schema.internalTransfers.idempotencyKey, validated.idempotencyKey)
             ))
             .limit(1);
@@ -108,7 +108,7 @@ export function createTransfersService(deps: {
     async function approve(input: ApproveInput) {
         const validated = validateApproveInput(input);
 
-        const allowed = await deps.canApprove?.(validated.checkerUserId, validated.orgId);
+        const allowed = await deps.canApprove?.(validated.checkerUserId, validated.counterpartyId);
         if (allowed === false) {
             throw new PermissionError("Not allowed to approve transfers");
         }
@@ -119,7 +119,7 @@ export function createTransfersService(deps: {
                 .from(schema.internalTransfers)
                 .where(and(
                     eq(schema.internalTransfers.id, validated.transferId),
-                    eq(schema.internalTransfers.orgId, validated.orgId)
+                    eq(schema.internalTransfers.counterpartyId, validated.counterpartyId)
                 ))
                 .limit(1);
 
@@ -137,7 +137,7 @@ export function createTransfersService(deps: {
 
             logger?.debug("Approving transfer", {
                 transferId: transfer.id,
-                orgId: transfer.orgId,
+                counterpartyId: transfer.counterpartyId,
                 checkerUserId: validated.checkerUserId,
             });
             const { code: currencyCode } = await currenciesService.findById(transfer.currencyId);
@@ -152,9 +152,9 @@ export function createTransfersService(deps: {
             });
 
             const result = await ledger.createEntryTx(tx, {
-                orgId: transfer.orgId,
+                orgId: transfer.counterpartyId,
                 source: { type: "internal_transfer", id: transfer.id },
-                idempotencyKey: `transfer:${transfer.orgId}:${transfer.id}`,
+                idempotencyKey: `transfer:${transfer.counterpartyId}:${transfer.id}`,
                 postingDate: validated.occurredAt,
                 transfers: [
                     {
@@ -219,7 +219,7 @@ export function createTransfersService(deps: {
 
             logger?.info("Transfer approved", {
                 transferId: transfer.id,
-                orgId: transfer.orgId,
+                counterpartyId: transfer.counterpartyId,
                 ledgerEntryId: entryId,
                 checkerUserId: validated.checkerUserId,
             });
@@ -231,14 +231,14 @@ export function createTransfersService(deps: {
     async function reject(input: RejectInput) {
         const validated = validateRejectInput(input);
 
-        const allowed = await deps.canApprove?.(validated.checkerUserId, validated.orgId);
+        const allowed = await deps.canApprove?.(validated.checkerUserId, validated.counterpartyId);
         if (allowed === false) {
             throw new PermissionError("Not allowed to reject transfers");
         }
 
         logger?.debug("Rejecting transfer", {
             transferId: validated.transferId,
-            orgId: validated.orgId,
+            counterpartyId: validated.counterpartyId,
             checkerUserId: validated.checkerUserId,
         });
 
@@ -254,7 +254,7 @@ export function createTransfersService(deps: {
             })
             .where(and(
                 eq(schema.internalTransfers.id, validated.transferId),
-                eq(schema.internalTransfers.orgId, validated.orgId),
+                eq(schema.internalTransfers.counterpartyId, validated.counterpartyId),
                 eq(schema.internalTransfers.status, TransferStatus.DRAFT)
             ))
             .returning({ id: schema.internalTransfers.id });
@@ -266,7 +266,7 @@ export function createTransfersService(deps: {
                 .from(schema.internalTransfers)
                 .where(and(
                     eq(schema.internalTransfers.id, validated.transferId),
-                    eq(schema.internalTransfers.orgId, validated.orgId)
+                    eq(schema.internalTransfers.counterpartyId, validated.counterpartyId)
                 ))
                 .limit(1);
 
@@ -291,7 +291,7 @@ export function createTransfersService(deps: {
 
         logger?.info("Transfer rejected", {
             transferId: validated.transferId,
-            orgId: validated.orgId,
+            counterpartyId: validated.counterpartyId,
             checkerUserId: validated.checkerUserId,
             reason: validated.reason,
         });
@@ -304,7 +304,7 @@ export function createTransfersService(deps: {
 
         logger?.debug("Marking transfer as failed", {
             transferId: validated.transferId,
-            orgId: validated.orgId,
+            counterpartyId: validated.counterpartyId,
             reason: validated.reason,
         });
 
@@ -318,7 +318,7 @@ export function createTransfersService(deps: {
             })
             .where(and(
                 eq(schema.internalTransfers.id, validated.transferId),
-                eq(schema.internalTransfers.orgId, validated.orgId),
+                eq(schema.internalTransfers.counterpartyId, validated.counterpartyId),
                 inArray(schema.internalTransfers.status, [
                     TransferStatus.APPROVED_PENDING_POSTING,
                     TransferStatus.FAILED, // Allow idempotent retries
@@ -333,7 +333,7 @@ export function createTransfersService(deps: {
                 .from(schema.internalTransfers)
                 .where(and(
                     eq(schema.internalTransfers.id, validated.transferId),
-                    eq(schema.internalTransfers.orgId, validated.orgId)
+                    eq(schema.internalTransfers.counterpartyId, validated.counterpartyId)
                 ))
                 .limit(1);
 
@@ -350,7 +350,7 @@ export function createTransfersService(deps: {
 
         logger?.info("Transfer marked as failed", {
             transferId: validated.transferId,
-            orgId: validated.orgId,
+            counterpartyId: validated.counterpartyId,
             reason: validated.reason,
         });
     }

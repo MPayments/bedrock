@@ -1,3 +1,5 @@
-export default function CustomersPage() {
-  return <div>Клиенты</div>;
+import { redirect } from "next/navigation";
+
+export default function TreasuryCustomersPage() {
+  redirect("/entities/customers");
 }

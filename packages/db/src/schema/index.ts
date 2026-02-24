@@ -13,10 +13,10 @@ import { outbox } from "./ledger/outbox";
 import { tbTransferPlans } from "./ledger/tb-plan";
 import { internalTransfers } from "./transfers";
 import { bankAccounts } from "./treasury/bank-accounts";
+import { counterpartyGroupMemberships, counterpartyGroups, counterparties } from "./treasury/counterparties";
 import { feePaymentOrders } from "./treasury/fee-payment-orders";
 import { paymentOrders } from "./treasury/orders";
 import { settlements } from "./treasury/orders";
-import { organizations } from "./treasury/organizations";
 import { reconciliationExceptions } from "./treasury/reconciliation";
 
 export const schema = {
@@ -32,7 +32,9 @@ export const schema = {
   ledgerAccounts,
   outbox,
   tbTransferPlans,
-  organizations,
+  counterparties,
+  counterpartyGroups,
+  counterpartyGroupMemberships,
   customers,
   bankAccounts,
   paymentOrders,
@@ -58,3 +60,4 @@ export { type FxRate, type FxRateInsert } from "./fx/rates";
 export { type FeePaymentOrder, type FeePaymentOrderStatus } from "./treasury/fee-payment-orders";
 export type { PaymentOrder } from "./treasury/orders";
 export type { Currency, CurrencyInsert } from "./currencies";
+export type { Customer, CustomerInsert } from "./customers";

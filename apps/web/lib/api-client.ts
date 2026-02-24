@@ -1,3 +1,5 @@
-import { createClient } from "api/client";
+import { Client, createClient } from "api/client";
 
-export const apiClient = createClient(process.env.NEXT_PUBLIC_API_URL!);
+export const apiClient: Client = createClient(
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002",
+);
