@@ -9,6 +9,7 @@ import {
   CounterpartyEditGeneralForm,
   type CounterpartyGeneralFormValues,
 } from "./organization-general-form";
+import { dedupeGroupIds } from "../lib/group-scope";
 import { useCounterpartyCreateDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
 import { resolveApiErrorMessage } from "@/lib/api-error";
@@ -21,10 +22,15 @@ type CounterpartyEditFormProps = {
   counterparty: CounterpartyDetails;
   initialGroupOptions: CounterpartyGroupOption[];
   initialLoadError?: string | null;
+  allowedRootCode?: "treasury" | "customers";
+  lockedGroupIds?: string[];
+  listPath?: string;
+  disableSubmit?: boolean;
 };
 
 function toFormValues(
   counterparty: CounterpartyEditFormProps["counterparty"],
+  lockedGroupIds: string[] = [],
 ): CounterpartyGeneralFormValues {
   return {
     shortName: counterparty.shortName,
@@ -33,7 +39,7 @@ function toFormValues(
     country: counterparty.country ?? "",
     description: counterparty.description ?? "",
     customerId: counterparty.customerId ?? "",
-    groupIds: counterparty.groupIds,
+    groupIds: dedupeGroupIds([...counterparty.groupIds, ...lockedGroupIds]),
   };
 }
 
@@ -41,14 +47,19 @@ export function CounterpartyEditForm({
   counterparty,
   initialGroupOptions,
   initialLoadError = null,
+  allowedRootCode,
+  lockedGroupIds = [],
+  listPath = "/entities/counterparties",
+  disableSubmit = false,
 }: CounterpartyEditFormProps) {
   const router = useRouter();
-  const { setEditName, clearEditCounterparty } = useCounterpartyCreateDraftName();
+  const { setEditName, clearEditCounterparty } =
+    useCounterpartyCreateDraftName();
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(initialLoadError);
   const [initialValues, setInitialValues] = useState(() =>
-    toFormValues(counterparty),
+    toFormValues(counterparty, lockedGroupIds),
   );
   const handleShortNameChange = useCallback(
     (name: string) => {
@@ -103,7 +114,7 @@ export function CounterpartyEditForm({
       }
 
       const updated = await res.json();
-      const nextValues = toFormValues(updated);
+      const nextValues = toFormValues(updated, lockedGroupIds);
       setInitialValues(nextValues);
       toast.success("Контрагент обновлен");
       router.refresh();
@@ -149,7 +160,7 @@ export function CounterpartyEditForm({
       }
 
       clearEditCounterparty(counterparty.id);
-      router.push("/entities/counterparties");
+      router.push(listPath);
       return true;
     } catch (deleteError) {
       const message =
@@ -168,10 +179,12 @@ export function CounterpartyEditForm({
     <CounterpartyEditGeneralForm
       initialValues={initialValues}
       groupOptions={initialGroupOptions}
+      allowedRootCode={allowedRootCode}
+      lockedGroupIds={lockedGroupIds}
       submitting={submitting}
       deleting={deleting}
       error={error}
-      onSubmit={handleSubmit}
+      onSubmit={disableSubmit ? undefined : handleSubmit}
       onDelete={handleDelete}
       onShortNameChange={handleShortNameChange}
     />

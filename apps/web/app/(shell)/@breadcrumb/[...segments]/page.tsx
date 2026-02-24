@@ -7,19 +7,41 @@ import {
 } from "@/lib/breadcrumbs";
 
 const dynamicResolvers = {
-  counterparties: async ({ segment }: { segment: string }) => {
+  counterparties: async ({
+    segment,
+    segments,
+    index,
+  }: {
+    segment: string;
+    segments: string[];
+    index: number;
+  }) => {
+    const counterpartiesBasePath = segments
+      .slice(0, index)
+      .includes("treasury")
+      ? "/treasury/counterparties"
+      : "/entities/counterparties";
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        segment,
+      );
+
+    if (!isUuid) {
+      return null;
+    }
+
     const counterparty = await getCounterpartyById(segment);
 
     if (!counterparty) {
       return {
         label: "Контрагент",
-        href: `/entities/counterparties/${segment}`,
+        href: `${counterpartiesBasePath}/${segment}`,
       };
     }
 
     return {
       label: counterparty.shortName,
-      href: `/entities/counterparties/${counterparty.id}`,
+      href: `${counterpartiesBasePath}/${counterparty.id}`,
     };
   },
   customers: async ({ segment }: { segment: string }) => {

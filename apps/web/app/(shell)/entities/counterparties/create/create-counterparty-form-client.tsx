@@ -17,11 +17,21 @@ import { resolveApiErrorMessage } from "@/lib/api-error";
 type CreateCounterpartyFormClientProps = {
   initialGroupOptions: CounterpartyGroupOption[];
   initialLoadError?: string | null;
+  initialGroupIds?: string[];
+  allowedRootCode?: "treasury" | "customers";
+  lockedGroupIds?: string[];
+  detailsBasePath?: string;
+  disableSubmit?: boolean;
 };
 
 export function CreateCounterpartyFormClient({
   initialGroupOptions,
   initialLoadError = null,
+  initialGroupIds,
+  allowedRootCode,
+  lockedGroupIds,
+  detailsBasePath = "/entities/counterparties",
+  disableSubmit = false,
 }: CreateCounterpartyFormClientProps) {
   const router = useRouter();
   const { setCreateName } = useCounterpartyCreateDraftName();
@@ -37,9 +47,9 @@ export function CreateCounterpartyFormClient({
       country: "",
       description: "",
       customerId: "",
-      groupIds: [],
+      groupIds: initialGroupIds ?? [],
     }),
-    [],
+    [initialGroupIds],
   );
 
   async function handleSubmit(values: CounterpartyGeneralFormValues) {
@@ -84,7 +94,7 @@ export function CreateCounterpartyFormClient({
 
       const created = await res.json();
       toast.success("Контрагент создан");
-      router.push(`/entities/counterparties/${created.id}`);
+      router.push(`${detailsBasePath}/${created.id}`);
     } catch (submitError) {
       const message =
         submitError instanceof Error
@@ -101,10 +111,12 @@ export function CreateCounterpartyFormClient({
     <CounterpartyCreateGeneralForm
       initialValues={initialValues}
       groupOptions={initialGroupOptions}
+      allowedRootCode={allowedRootCode}
+      lockedGroupIds={lockedGroupIds}
       submitting={submitting}
       error={error}
       onShortNameChange={setCreateName}
-      onSubmit={handleSubmit}
+      onSubmit={disableSubmit ? undefined : handleSubmit}
     />
   );
 }

@@ -25,10 +25,12 @@ type CounterpartyRowActionModel = {
 
 type CounterpartyRowActionsProps = {
   counterparty: CounterpartyRowActionModel;
+  detailsBasePath?: string;
 };
 
 export function CounterpartyRowActions({
   counterparty,
+  detailsBasePath = "/entities/counterparties",
 }: CounterpartyRowActionsProps) {
   const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -92,7 +94,7 @@ export function CounterpartyRowActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-34">
           <DropdownMenuItem
-            render={<Link href={`/entities/counterparties/${counterparty.id}`} />}
+            render={<Link href={`${detailsBasePath}/${counterparty.id}`} />}
           >
             <Eye size={16} />
             Открыть
