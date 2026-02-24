@@ -21,7 +21,7 @@ export function customersRoutes(ctx: AppContext) {
     const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
     const listRoute = createRoute({
-        // middleware: [requirePermission({ customers: ["list"] })],
+        middleware: [requirePermission({ customers: ["list"] })],
         method: "get",
         path: "/",
         tags: ["Customers"],
@@ -42,7 +42,7 @@ export function customersRoutes(ctx: AppContext) {
     });
 
     const createRoute_ = createRoute({
-        // middleware: [requirePermission({ customers: ["create"] })],
+        middleware: [requirePermission({ customers: ["create"] })],
         method: "post",
         path: "/",
         tags: ["Customers"],
@@ -78,7 +78,7 @@ export function customersRoutes(ctx: AppContext) {
     });
 
     const getRoute = createRoute({
-        // middleware: [requirePermission({ customers: ["list"] })],
+        middleware: [requirePermission({ customers: ["list"] })],
         method: "get",
         path: "/{id}",
         tags: ["Customers"],
@@ -107,7 +107,7 @@ export function customersRoutes(ctx: AppContext) {
     });
 
     const updateRoute = createRoute({
-        // middleware: [requirePermission({ customers: ["update"] })],
+        middleware: [requirePermission({ customers: ["update"] })],
         method: "patch",
         path: "/{id}",
         tags: ["Customers"],
@@ -144,7 +144,7 @@ export function customersRoutes(ctx: AppContext) {
     });
 
     const deleteRoute = createRoute({
-        // middleware: [requirePermission({ customers: ["delete"] })],
+        middleware: [requirePermission({ customers: ["delete"] })],
         method: "delete",
         path: "/{id}",
         tags: ["Customers"],

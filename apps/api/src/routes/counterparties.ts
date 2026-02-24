@@ -23,7 +23,7 @@ export function counterpartiesRoutes(ctx: AppContext) {
     const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
     const listRoute = createRoute({
-        // middleware: [requirePermission({ counterparties: ["list"] })],
+        middleware: [requirePermission({ counterparties: ["list"] })],
         method: "get",
         path: "/",
         tags: ["Counterparties"],
@@ -44,7 +44,7 @@ export function counterpartiesRoutes(ctx: AppContext) {
     });
 
     const createRoute_ = createRoute({
-        // middleware: [requirePermission({ counterparties: ["create"] })],
+        middleware: [requirePermission({ counterparties: ["create"] })],
         method: "post",
         path: "/",
         tags: ["Counterparties"],
@@ -88,7 +88,7 @@ export function counterpartiesRoutes(ctx: AppContext) {
     });
 
     const getRoute = createRoute({
-        // middleware: [requirePermission({ counterparties: ["list"] })],
+        middleware: [requirePermission({ counterparties: ["list"] })],
         method: "get",
         path: "/{id}",
         tags: ["Counterparties"],
@@ -117,7 +117,7 @@ export function counterpartiesRoutes(ctx: AppContext) {
     });
 
     const updateRoute = createRoute({
-        // middleware: [requirePermission({ counterparties: ["update"] })],
+        middleware: [requirePermission({ counterparties: ["update"] })],
         method: "patch",
         path: "/{id}",
         tags: ["Counterparties"],
@@ -162,7 +162,7 @@ export function counterpartiesRoutes(ctx: AppContext) {
     });
 
     const deleteRoute = createRoute({
-        // middleware: [requirePermission({ counterparties: ["delete"] })],
+        middleware: [requirePermission({ counterparties: ["delete"] })],
         method: "delete",
         path: "/{id}",
         tags: ["Counterparties"],

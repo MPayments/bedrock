@@ -84,7 +84,7 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
     },
   });
 
-  const getRoute = createRoute({
+  const _getRoute = createRoute({
     middleware: [requirePermission({ counterparties: ["list"] })],
     method: "get",
     path: "/{id}",
