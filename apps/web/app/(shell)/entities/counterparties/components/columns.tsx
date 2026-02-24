@@ -7,8 +7,11 @@ import { Users, Vault } from "lucide-react";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { formatDate } from "@/lib/format";
+import {
+  COUNTERPARTY_COUNTRY_OPTIONS,
+  getCountryPresentation,
+} from "../lib/countries";
 import { getCounterpartyGroupPresentation } from "../lib/group-label";
-import { getCountryPresentation } from "../lib/countries";
 import type { CounterpartyGroupOption } from "../lib/queries";
 import { CounterpartyRowActions } from "./counterparty-row-actions";
 
@@ -25,6 +28,10 @@ function kindLabel(kind: string) {
 export function getColumns(
   groupOptions: CounterpartyGroupOption[],
 ): ColumnDef<SerializedCounterparty>[] {
+  const countryFilterOptions = COUNTERPARTY_COUNTRY_OPTIONS.map((country) => ({
+    value: country.value,
+    label: country.label,
+  }));
   const groupFilterOptions = groupOptions
     .map((group) => {
       const presentation = getCounterpartyGroupPresentation(group.name);
@@ -33,9 +40,9 @@ export function getColumns(
         label: presentation.label,
         icon:
           presentation.icon === "vault"
-            ? ((props: React.SVGProps<SVGSVGElement>) => <Vault {...props} />)
+            ? (props: React.SVGProps<SVGSVGElement>) => <Vault {...props} />
             : presentation.icon === "users"
-              ? ((props: React.SVGProps<SVGSVGElement>) => <Users {...props} />)
+              ? (props: React.SVGProps<SVGSVGElement>) => <Users {...props} />
               : undefined,
       };
     })
@@ -110,6 +117,11 @@ export function getColumns(
         }
 
         return "—";
+      },
+      meta: {
+        label: "Страна",
+        variant: "multiSelect",
+        options: countryFilterOptions,
       },
       enableColumnFilter: true,
       enableSorting: true,
