@@ -45,6 +45,8 @@ import {
   TableRow,
 } from "@bedrock/ui/components/table";
 
+import { formatDate } from "@/lib/format";
+
 type OrganizationAccount = {
   id: string;
   name: string;
@@ -131,16 +133,6 @@ function formatMoney(amount: number, currency: string) {
 
     return `${value} ${currency}`;
   }
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }
 
 export default function OrganizationAccountsPage() {

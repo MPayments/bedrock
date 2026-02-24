@@ -39,6 +39,8 @@ import {
   TableRow,
 } from "@bedrock/ui/components/table";
 
+import { formatDate } from "@/lib/format";
+
 type TransactionStatus = "posted" | "processing" | "failed";
 type TransactionType = "create" | "post_pending" | "void_pending";
 type TransactionDirection = "debit" | "credit";
@@ -146,16 +148,6 @@ function formatMoney(amount: number, currency: string) {
     }).format(amount);
     return `${value} ${currency}`;
   }
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }
 
 function statusMeta(status: TransactionStatus): {
