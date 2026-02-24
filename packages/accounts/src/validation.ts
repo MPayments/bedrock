@@ -30,6 +30,42 @@ export const CountryAlpha2Schema = z
     );
 
 // ---------------------------------------------------------------------------
+// AccountProvider — response schema (OpenAPI)
+// ---------------------------------------------------------------------------
+
+export const AccountProviderSchema = z.object({
+    id: z.uuid(),
+    type: AccountProviderTypeSchema,
+    name: z.string(),
+    address: z.string().nullable(),
+    contact: z.string().nullable(),
+    bic: z.string().nullable(),
+    swift: z.string().nullable(),
+    country: z.string(),
+    createdAt: z.date(),
+    updatedAt: z.date(),
+});
+
+// ---------------------------------------------------------------------------
+// Account — response schema (OpenAPI)
+// ---------------------------------------------------------------------------
+
+export const AccountSchema = z.object({
+    id: z.uuid(),
+    counterpartyId: z.uuid(),
+    currencyId: z.uuid(),
+    accountProviderId: z.uuid(),
+    label: z.string(),
+    accountNo: z.string().nullable(),
+    corrAccount: z.string().nullable(),
+    address: z.string().nullable(),
+    iban: z.string().nullable(),
+    stableKey: z.string(),
+    createdAt: z.date(),
+    updatedAt: z.date(),
+});
+
+// ---------------------------------------------------------------------------
 // AccountProvider — create
 // ---------------------------------------------------------------------------
 
@@ -155,9 +191,9 @@ export type ListProvidersQuery = z.infer<typeof ListProvidersQuerySchema>;
 // ---------------------------------------------------------------------------
 
 export const CreateAccountInputSchema = z.object({
-    counterpartyId: z.string().uuid(),
-    currencyId: z.string().uuid(),
-    accountProviderId: z.string().uuid(),
+    counterpartyId: z.uuid(),
+    currencyId: z.uuid(),
+    accountProviderId: z.uuid(),
     label: z.string().min(1, "label is required").max(255),
     stableKey: z.string().min(1, "stableKey is required").max(255),
     accountNo: z.string().max(64).nullish(),

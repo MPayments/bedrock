@@ -1,3 +1,5 @@
+export { accountProvidersRoutes } from "./account-providers";
+export { accountsRoutes } from "./accounts";
 export { counterpartiesRoutes } from "./counterparties";
 export { counterpartyGroupsRoutes } from "./counterparty-groups";
 export { customersRoutes } from "./customers";

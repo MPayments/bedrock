@@ -13,6 +13,8 @@ import {
   type AuthVariables,
 } from "./middleware/auth";
 import {
+  accountProvidersRoutes,
+  accountsRoutes,
   counterpartiesRoutes,
   counterpartyGroupsRoutes,
   customersRoutes,
@@ -99,6 +101,8 @@ app.get("/", (c) => {
 
 // Mount routes under /v1 — all require an authenticated session
 const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
+  .route("/account-providers", accountProvidersRoutes(ctx))
+  .route("/accounts", accountsRoutes(ctx))
   .route("/counterparties", counterpartiesRoutes(ctx))
   .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))

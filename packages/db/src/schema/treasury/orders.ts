@@ -5,7 +5,7 @@ import {
 
 import { counterparties } from "./counterparties";
 import { customers } from "../customers";
-import { accounts } from "./bank-accounts";
+import { accounts } from "./accounts";
 import { currencies } from "../currencies";
 import { journalEntries } from "../ledger/journal";
 import { uint128 } from "../ledger/ledger";

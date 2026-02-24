@@ -1,4 +1,8 @@
 import {
+    createAccountService,
+    type AccountService,
+} from "@bedrock/accounts";
+import {
     createCounterpartiesService,
     type CounterpartiesService,
 } from "@bedrock/counterparties";
@@ -21,6 +25,7 @@ export interface Env {
 export interface AppContext {
     env: Env;
     logger: Logger;
+    accountService: AccountService;
     counterpartiesService: CounterpartiesService;
     customersService: CustomersService;
     currenciesService: CurrenciesService;
@@ -30,6 +35,7 @@ export interface AppContext {
 
 export function createAppContext(env: Env): AppContext {
     const logger = createConsoleLogger({ service: "bedrock-api" });
+    const accountService = createAccountService({ db, logger });
     const counterpartiesService = createCounterpartiesService({ db, logger });
     const customersService = createCustomersService({ db, logger });
     const currenciesService = createCurrenciesService({ db, logger });
@@ -39,6 +45,7 @@ export function createAppContext(env: Env): AppContext {
     return {
         env,
         logger,
+        accountService,
         counterpartiesService,
         customersService,
         currenciesService,

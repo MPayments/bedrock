@@ -19,6 +19,7 @@
       "name": "api",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/accounts": "workspace:*",
         "@bedrock/auth": "workspace:*",
         "@bedrock/counterparties": "workspace:*",
         "@bedrock/currencies": "workspace:*",

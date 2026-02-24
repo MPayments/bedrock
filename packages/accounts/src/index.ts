@@ -3,6 +3,8 @@ export type { AccountService } from "./service";
 
 export {
     AccountProviderTypeSchema,
+    AccountProviderSchema,
+    AccountSchema,
     CountryAlpha2Schema,
     CreateProviderInputSchema,
     UpdateProviderInputSchema,
@@ -28,4 +30,5 @@ export {
     AccountNotFoundError,
     AccountProviderNotFoundError,
     AccountProviderInUseError,
+    ValidationError,
 } from "./errors";
