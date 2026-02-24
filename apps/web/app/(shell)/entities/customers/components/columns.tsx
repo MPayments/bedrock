@@ -1,13 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Customer } from "@bedrock/customers/validation";
-import { Button } from "@bedrock/ui/components/button";
-import { Eye } from "lucide-react";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { formatDate } from "@/lib/format";
+import { CustomerRowActions } from "./customer-row-actions";
 
 export type SerializedCustomer = Omit<Customer, "createdAt"> & {
   createdAt: string;
@@ -51,20 +49,8 @@ export function getColumns(): ColumnDef<SerializedCustomer>[] {
     },
     {
       id: "actions",
-      cell: ({ row }) => (
-        <div className="flex justify-end">
-          <Button
-            size="icon"
-            variant="ghost"
-            nativeButton={false}
-            render={<Link href={`/entities/customers/${row.original.id}`} />}
-            aria-label={`Открыть клиента ${row.original.displayName}`}
-          >
-            <Eye size={16} />
-          </Button>
-        </div>
-      ),
-      size: 40,
+      cell: ({ row }) => <CustomerRowActions customer={row.original} />,
+      size: 48,
     },
   ];
 }
