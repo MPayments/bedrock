@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-
 import { useCustomerDraftName } from "../lib/create-draft-name-context";
 import { CustomerWorkspaceLayout } from "./customer-workspace-layout";
+import { useEntityEditTitle } from "@/components/entities/workspace-layout";
 
 type CustomerEditWorkspaceLayoutProps = {
   customerId: string;
@@ -16,27 +15,20 @@ export function CustomerEditWorkspaceLayout({
   initialTitle,
   children,
 }: CustomerEditWorkspaceLayoutProps) {
-  const { registerEditCustomer, clearEditCustomer, getEditLabel } =
-    useCustomerDraftName();
+  const { actions, meta } = useCustomerDraftName();
 
-  useEffect(() => {
-    registerEditCustomer(customerId, initialTitle);
-
-    return () => {
-      clearEditCustomer(customerId);
-    };
-  }, [
-    clearEditCustomer,
-    customerId,
+  const title = useEntityEditTitle({
+    id: customerId,
     initialTitle,
-    registerEditCustomer,
-  ]);
+    bridge: {
+      registerEdit: actions.registerEdit,
+      clearEdit: actions.clearEdit,
+      getEditLabel: meta.getEditLabel,
+    },
+  });
 
   return (
-    <CustomerWorkspaceLayout
-      title={getEditLabel(customerId, initialTitle)}
-      subtitle="Карточка клиента"
-    >
+    <CustomerWorkspaceLayout title={title} subtitle="Карточка клиента">
       {children}
     </CustomerWorkspaceLayout>
   );

@@ -2,28 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
-import {
-  ArrowRightLeft,
-  Bell,
-  Building2,
-  BookOpen,
-  Currency,
-  Home,
-  Landmark,
-  Settings2,
-  Stone,
-  Users,
-  ChartCandlestick,
-  ListChecks,
-  Workflow,
-  CreditCard,
-  Receipt,
-  DollarSign,
-  Wallet,
-  Vault,
-} from "lucide-react";
+import { Stone } from "lucide-react";
+
+import { navMainItems, navSecondaryItems } from "@/config/navigation";
 
 import { NavMain } from "./nav-main";
+import { NavSecondary } from "./nav-secondary";
 import { NavUser } from "./nav-user";
 import {
   Sidebar,
@@ -35,144 +19,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@bedrock/ui/components/sidebar";
-import { NavSecondary, type NavSecondaryItem } from "./nav-secondary";
-
-const data = {
-  navMain: [
-    {
-      title: "Дашборд",
-      url: "/",
-      icon: Home,
-    },
-    {
-      title: "Казначейство",
-      url: "/treasury",
-      icon: Vault,
-      items: [
-        {
-          title: "Контрагенты",
-          url: "/treasury/counterparties",
-          icon: Building2,
-        },
-        {
-          title: "Счета",
-          url: "/treasury/accounts",
-        },
-      ],
-    },
-    {
-      title: "FX",
-      url: "/fx",
-      icon: Currency,
-      items: [
-        {
-          title: "Курсы",
-          url: "/fx/rates",
-          icon: ChartCandlestick,
-        },
-        {
-          title: "Котировки",
-          url: "/fx/quotes",
-          icon: Receipt,
-        },
-      ],
-    },
-    // {
-    //   title: "Переводы",
-    //   url: "/transfers",
-    //   icon: ArrowRightLeft,
-    // },
-    // {
-    //   title: "Платежи",
-    //   url: "/payments",
-    //   icon: CreditCard,
-    //   items: [
-    //     {
-    //       title: "Ордера",
-    //       url: "/payments/orders",
-    //     },
-    //     {
-    //       title: "Расчетные операции",
-    //       url: "/payments/settlements",
-    //     },
-    //   ],
-    // },
-    {
-      title: "Операции",
-      url: "/operations",
-      icon: Workflow,
-      items: [
-        {
-          title: "Переводы",
-          url: "/operations/transfers",
-          icon: ArrowRightLeft,
-        },
-        {
-          title: "Платежи",
-          url: "/operations/payments",
-          icon: CreditCard,
-        },
-        {
-          title: "Расчетные операции",
-          url: "/operations/settlements",
-          icon: ListChecks,
-        },
-      ],
-    },
-    {
-      title: "Справочники",
-      url: "/entities",
-      icon: BookOpen,
-      items: [
-        {
-          title: "Клиенты",
-          url: "/entities/customers",
-          icon: Users,
-        },
-        {
-          title: "Контрагенты",
-          url: "/entities/counterparties",
-          icon: Building2,
-        },
-        {
-          title: "Расчетные методы",
-          url: "/entities/providers",
-          icon: Landmark,
-        },
-        {
-          title: "Счета",
-          url: "/entities/accounts",
-          icon: Wallet,
-        },
-        { title: "Валюты", url: "/entities/currencies", icon: DollarSign },
-      ],
-    },
-    {
-      title: "Пользователи",
-      url: "#",
-      icon: Users,
-    },
-    {
-      title: "Настройки",
-      url: "#",
-      icon: Settings2,
-    },
-  ],
-};
-
-const navSecondaryItems: NavSecondaryItem[] = [
-  {
-    kind: "notifications",
-    title: "Уведомления",
-    icon: Bell,
-  },
-  // {
-  //   kind: "link",
-  //   title: "Активность",
-  //   url: "#",
-  //   icon: Activity,
-  // },
-];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -197,7 +43,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMainItems} />
         <NavSecondary items={navSecondaryItems} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

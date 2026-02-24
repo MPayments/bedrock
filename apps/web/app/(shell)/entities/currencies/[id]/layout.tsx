@@ -1,7 +1,6 @@
-import { notFound } from "next/navigation";
-
 import { CurrencyEditWorkspaceLayout } from "../components/currency-edit-workspace-layout";
 import { getCurrencyById } from "../lib/queries";
+import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 export default async function CurrencyLayout({
   children,
@@ -10,12 +9,10 @@ export default async function CurrencyLayout({
   children: React.ReactNode;
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const currency = await getCurrencyById(id);
-
-  if (!currency) {
-    notFound();
-  }
+  const { entity: currency } = await loadResourceByIdParamOrNotFound({
+    params,
+    getById: getCurrencyById,
+  });
 
   return (
     <CurrencyEditWorkspaceLayout

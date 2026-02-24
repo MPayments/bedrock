@@ -11,13 +11,14 @@ import {
 } from "./customer-general-form";
 import { useCustomerDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
-import { resolveApiErrorMessage } from "@/lib/api-error";
 import type { CustomerDetails } from "../lib/queries";
+import { executeMutation } from "@/lib/resources/http";
 
 function toFormValues(customer: CustomerDetails): CustomerGeneralFormValues {
   return {
     displayName: customer.displayName,
     externalRef: customer.externalRef ?? "",
+    description: customer.description ?? "",
   };
 }
 
@@ -27,17 +28,19 @@ type EditCustomerFormClientProps = {
 
 export function EditCustomerFormClient({ customer }: EditCustomerFormClientProps) {
   const router = useRouter();
-  const { setEditName, clearEditCustomer } = useCustomerDraftName();
+  const { actions } = useCustomerDraftName();
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialValues, setInitialValues] = useState(() => toFormValues(customer));
+  const [createdAt, setCreatedAt] = useState<string | null>(customer.createdAt);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(customer.updatedAt);
 
   const handleDisplayNameChange = useCallback(
     (name: string) => {
-      setEditName(customer.id, name);
+      actions.setEditName(customer.id, name);
     },
-    [customer.id, setEditName],
+    [actions, customer.id],
   );
 
   async function handleSubmit(
@@ -45,99 +48,70 @@ export function EditCustomerFormClient({ customer }: EditCustomerFormClientProps
   ): Promise<CustomerGeneralFormValues | void> {
     setError(null);
     setSubmitting(true);
+    const payload = {
+      displayName: values.displayName,
+      externalRef: values.externalRef || null,
+      description: values.description || null,
+    };
 
-    try {
-      const res = await apiClient.v1.customers[":id"].$patch({
-        param: { id: customer.id },
-        json: {
-          displayName: values.displayName,
-          externalRef: values.externalRef || null,
-        },
-      });
+    const result = await executeMutation<CustomerDetails>({
+      request: () =>
+        apiClient.v1.customers[":id"].$patch({
+          param: { id: customer.id },
+          json: payload,
+        }),
+      fallbackMessage: "Не удалось обновить клиента",
+      parseData: async (response) => (await response.json()) as CustomerDetails,
+    });
 
-      if (!res.ok) {
-        let payload: unknown = null;
-        try {
-          payload = await res.json();
-        } catch {
-          // Ignore non-JSON error payloads.
-        }
+    setSubmitting(false);
 
-        const message = resolveApiErrorMessage(
-          res.status,
-          payload,
-          "Не удалось обновить клиента",
-        );
-        setError(message);
-        toast.error(message);
-        return;
-      }
-
-      const updated = await res.json();
-      const nextValues = toFormValues(updated);
-      setInitialValues(nextValues);
-      toast.success("Клиент обновлен");
-      router.refresh();
-      return nextValues;
-    } catch (submitError) {
-      const message =
-        submitError instanceof Error
-          ? submitError.message
-          : "Не удалось обновить клиента";
-      setError(message);
-      toast.error(message);
+    if (!result.ok) {
+      setError(result.message);
+      toast.error(result.message);
       return;
-    } finally {
-      setSubmitting(false);
     }
+
+    const nextValues = toFormValues(result.data);
+    setInitialValues(nextValues);
+    setCreatedAt(result.data.createdAt);
+    setUpdatedAt(result.data.updatedAt);
+    toast.success("Клиент обновлен");
+    router.refresh();
+    return nextValues;
   }
 
   async function handleDelete(): Promise<boolean> {
     setError(null);
     setDeleting(true);
 
-    try {
-      const res = await apiClient.v1.customers[":id"].$delete({
-        param: { id: customer.id },
-      });
+    const result = await executeMutation<void>({
+      request: () =>
+        apiClient.v1.customers[":id"].$delete({
+          param: { id: customer.id },
+        }),
+      fallbackMessage: "Не удалось удалить клиента",
+      parseData: async () => undefined,
+    });
 
-      if (!res.ok) {
-        let payload: unknown = null;
-        try {
-          payload = await res.json();
-        } catch {
-          // Ignore non-JSON error payloads.
-        }
+    setDeleting(false);
 
-        const message = resolveApiErrorMessage(
-          res.status,
-          payload,
-          "Не удалось удалить клиента",
-        );
-        setError(message);
-        toast.error(message);
-        return false;
-      }
-
-      clearEditCustomer(customer.id);
-      router.push("/entities/customers");
-      return true;
-    } catch (deleteError) {
-      const message =
-        deleteError instanceof Error
-          ? deleteError.message
-          : "Не удалось удалить клиента";
-      setError(message);
-      toast.error(message);
+    if (!result.ok) {
+      setError(result.message);
+      toast.error(result.message);
       return false;
-    } finally {
-      setDeleting(false);
     }
+
+    actions.clearEdit(customer.id);
+    router.push("/entities/customers");
+    return true;
   }
 
   return (
     <CustomerEditGeneralForm
       initialValues={initialValues}
+      createdAt={createdAt}
+      updatedAt={updatedAt}
       submitting={submitting}
       deleting={deleting}
       error={error}

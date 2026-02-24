@@ -1,28 +1,18 @@
 "use client";
 
 import { useCustomerDraftName } from "@/app/(shell)/entities/customers/lib/create-draft-name-context";
-import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
+import { EntityCreateBreadcrumb } from "@/components/entities/entity-breadcrumb";
 
 export default function CreateCustomerBreadcrumbPage() {
-  const { createLabel } = useCustomerDraftName();
+  const { state } = useCustomerDraftName();
 
   return (
-    <DynamicBreadcrumb
-      items={[
-        {
-          label: "Справочники",
-          icon: "book-open",
-        },
-        {
-          label: "Клиенты",
-          href: "/entities/customers",
-          icon: "users",
-        },
-        {
-          label: createLabel,
-          href: "/entities/customers/create",
-        },
-      ]}
+    <EntityCreateBreadcrumb
+      entityLabel="Клиенты"
+      entityHref="/entities/customers"
+      entityIcon="users"
+      currentLabel={state.createLabel}
+      currentHref="/entities/customers/create"
     />
   );
 }

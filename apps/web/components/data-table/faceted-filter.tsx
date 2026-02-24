@@ -37,6 +37,18 @@ type DataTableFacetedFilterBaseProps<TData, TValue> =
     mode: DataTableFacetedFilterMode;
   };
 
+function toStringFilterValues(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item));
+  }
+
+  if (typeof value === "string" && value.length > 0) {
+    return [value];
+  }
+
+  return [];
+}
+
 function DataTableFacetedFilterBase<TData, TValue>({
   column,
   title,
@@ -45,24 +57,34 @@ function DataTableFacetedFilterBase<TData, TValue>({
 }: DataTableFacetedFilterBaseProps<TData, TValue>) {
   const isMultiSelectMode = mode === "multi";
   const [open, setOpen] = React.useState(false);
+  const lockedValues = React.useMemo(
+    () =>
+      isMultiSelectMode
+        ? new Set(column?.columnDef.meta?.lockedFilterValues ?? [])
+        : new Set<string>(),
+    [column, isMultiSelectMode],
+  );
 
   const columnFilterValue = column?.getFilterValue();
-  const selectedValues = React.useMemo(
-    () => {
-      if (Array.isArray(columnFilterValue)) {
-        return new Set(columnFilterValue.map(String));
-      }
-      if (typeof columnFilterValue === "string") {
-        return new Set([columnFilterValue]);
-      }
-      return new Set<string>();
-    },
-    [columnFilterValue],
+  const selectedValues = React.useMemo(() => {
+    const filterValues = toStringFilterValues(columnFilterValue);
+    const merged = new Set(filterValues);
+
+    for (const lockedValue of lockedValues) {
+      merged.add(lockedValue);
+    }
+
+    return merged;
+  }, [columnFilterValue, lockedValues]);
+  const canReset = React.useMemo(
+    () => Array.from(selectedValues).some((value) => !lockedValues.has(value)),
+    [lockedValues, selectedValues],
   );
 
   const onItemSelect = React.useCallback(
     (option: Option, isSelected: boolean) => {
       if (!column) return;
+      if (lockedValues.has(option.value)) return;
 
       if (isMultiSelectMode) {
         const newSelectedValues = new Set(selectedValues);
@@ -71,6 +93,11 @@ function DataTableFacetedFilterBase<TData, TValue>({
         } else {
           newSelectedValues.add(option.value);
         }
+
+        for (const lockedValue of lockedValues) {
+          newSelectedValues.add(lockedValue);
+        }
+
         const filterValues = Array.from(newSelectedValues);
         column.setFilterValue(filterValues.length ? filterValues : undefined);
       } else {
@@ -78,15 +105,22 @@ function DataTableFacetedFilterBase<TData, TValue>({
         setOpen(false);
       }
     },
-    [column, isMultiSelectMode, selectedValues],
+    [column, isMultiSelectMode, lockedValues, selectedValues],
   );
 
   const onReset = React.useCallback(
     (event?: React.MouseEvent) => {
       event?.stopPropagation();
-      column?.setFilterValue(undefined);
+      if (!column) return;
+
+      if (lockedValues.size > 0) {
+        column.setFilterValue(Array.from(lockedValues));
+        return;
+      }
+
+      column.setFilterValue(undefined);
     },
-    [column],
+    [column, lockedValues],
   );
 
   return (
@@ -101,15 +135,19 @@ function DataTableFacetedFilterBase<TData, TValue>({
         }
       >
           {selectedValues?.size > 0 ? (
-            <div
-              role="button"
-              aria-label={`Clear ${title} filter`}
-              tabIndex={0}
-              className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              onClick={onReset}
-            >
-              <XCircle />
-            </div>
+            canReset ? (
+              <div
+                role="button"
+                aria-label={`Clear ${title} filter`}
+                tabIndex={0}
+                className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onClick={onReset}
+              >
+                <XCircle />
+              </div>
+            ) : (
+              <PlusCircle />
+            )
           ) : (
             <PlusCircle />
           )}
@@ -159,10 +197,12 @@ function DataTableFacetedFilterBase<TData, TValue>({
             <CommandGroup className="max-h-[300px] scroll-py-1 overflow-y-auto overflow-x-hidden">
               {options.map((option) => {
                 const isSelected = selectedValues.has(option.value);
+                const isLocked = lockedValues.has(option.value);
 
                 return (
                   <CommandItem
                     key={option.value}
+                    disabled={isLocked}
                     onSelect={() => onItemSelect(option, isSelected)}
                   >
                     <div
@@ -186,7 +226,7 @@ function DataTableFacetedFilterBase<TData, TValue>({
                 );
               })}
             </CommandGroup>
-            {selectedValues.size > 0 && (
+            {canReset && (
               <>
                 <CommandSeparator />
                 <CommandGroup>

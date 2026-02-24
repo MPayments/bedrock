@@ -1,7 +1,7 @@
 "use client";
 
-import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
-import { useCounterpartyCreateDraftName } from "@/app/(shell)/entities/counterparties/lib/create-draft-name-context";
+import { useCounterpartyDraftName } from "@/app/(shell)/entities/counterparties/lib/create-draft-name-context";
+import { EntityEditBreadcrumb } from "@/components/entities/entity-breadcrumb";
 
 type EditCounterpartyBreadcrumbProps = {
   counterpartyId: string;
@@ -12,25 +12,15 @@ export function EditCounterpartyBreadcrumb({
   counterpartyId,
   initialLabel,
 }: EditCounterpartyBreadcrumbProps) {
-  const { getEditLabel } = useCounterpartyCreateDraftName();
+  const { meta } = useCounterpartyDraftName();
 
   return (
-    <DynamicBreadcrumb
-      items={[
-        {
-          label: "Справочники",
-          icon: "book-open",
-        },
-        {
-          label: "Контрагенты",
-          href: "/entities/counterparties",
-          icon: "building-2",
-        },
-        {
-          label: getEditLabel(counterpartyId, initialLabel),
-          href: `/entities/counterparties/${counterpartyId}`,
-        },
-      ]}
+    <EntityEditBreadcrumb
+      entityLabel="Контрагенты"
+      entityHref="/entities/counterparties"
+      entityIcon="building-2"
+      currentLabel={meta.getEditLabel(counterpartyId, initialLabel)}
+      currentHref={`/entities/counterparties/${counterpartyId}`}
     />
   );
 }

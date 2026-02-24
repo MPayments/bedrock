@@ -36,6 +36,7 @@ export function createUpdateCustomerHandler(
             const fields: Record<string, unknown> = {};
             if (validated.externalRef !== undefined) fields.externalRef = validated.externalRef;
             if (validated.displayName !== undefined) fields.displayName = validated.displayName;
+            if (validated.description !== undefined) fields.description = validated.description;
 
             let row = existing;
 

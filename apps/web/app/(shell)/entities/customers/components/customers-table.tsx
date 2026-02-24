@@ -1,46 +1,44 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import type { Row as TanstackRow } from "@tanstack/react-table";
 import * as React from "react";
 
-import { DataTable } from "@/components/data-table";
-import { DataTableToolbar } from "@/components/data-table/toolbar";
-import { useDataTable } from "@/hooks/use-data-table";
+import {
+  EntityTableShell,
+  type EntityListResult,
+} from "@/components/entities/entity-table-shell";
 
 import { getColumns, type SerializedCustomer } from "./columns";
 
-export interface CustomersListResult {
-  data: SerializedCustomer[];
-  total: number;
-  limit: number;
-  offset: number;
-}
+export type CustomersListResult = EntityListResult<SerializedCustomer>;
 
 interface CustomersTableProps {
   promise: Promise<CustomersListResult>;
 }
 
 export function CustomersTable({ promise }: CustomersTableProps) {
-  const result = React.use(promise);
-  const pageCount = Math.ceil(result.total / result.limit);
+  const router = useRouter();
   const columns = React.useMemo(() => getColumns(), []);
-
-  const { table } = useDataTable({
-    data: result.data,
-    columns,
-    pageCount,
-    initialState: {
-      sorting: [{ id: "createdAt", desc: true }],
-      columnVisibility: {
-        externalRef: false,
-      },
+  const handleRowDoubleClick = React.useCallback(
+    (row: TanstackRow<SerializedCustomer>) => {
+      router.push(`/entities/customers/${row.original.id}`);
     },
-    getRowId: (row) => row.id,
-    clearOnDefault: true,
-  });
+    [router],
+  );
 
   return (
-    <DataTable table={table}>
-      <DataTableToolbar table={table} />
-    </DataTable>
+    <EntityTableShell
+      promise={promise}
+      columns={columns}
+      initialState={{
+        sorting: [{ id: "createdAt", desc: true }],
+        columnVisibility: {
+          externalRef: false,
+        },
+      }}
+      getRowId={(row) => row.id}
+      onRowDoubleClick={handleRowDoubleClick}
+    />
   );
 }

@@ -80,6 +80,8 @@ type CounterpartyGeneralFormDelete = Promise<boolean | void> | boolean | void;
 type CounterpartyGeneralFormProps = {
   initialValues?: Partial<CounterpartyGeneralFormValues>;
   groupOptions: CounterpartyGroupOption[];
+  allowedRootCode?: "treasury" | "customers";
+  lockedGroupIds?: string[];
   submitting?: boolean;
   deleting?: boolean;
   error?: string | null;
@@ -103,6 +105,7 @@ type CounterpartyGeneralFormBaseProps = CounterpartyGeneralFormProps & {
 };
 
 const ROOT_GROUP = "__root__";
+const EMPTY_GROUP_IDS: string[] = [];
 
 const DEFAULT_VALUES: CounterpartyGeneralFormValues = {
   shortName: "",
@@ -177,11 +180,30 @@ function compareGroupsByName(
 
 function resolveInitialValues(
   initialValues?: Partial<CounterpartyGeneralFormValues>,
+  lockedGroupIds: string[] = EMPTY_GROUP_IDS,
 ): CounterpartyGeneralFormValues {
+  const initialGroupIds = Array.isArray(initialValues?.groupIds)
+    ? initialValues.groupIds
+    : [];
+
   return {
     ...DEFAULT_VALUES,
     ...initialValues,
+    groupIds: Array.from(new Set([...initialGroupIds, ...lockedGroupIds])),
   };
+}
+
+function normalizeGroupIds(groupIds: string[]) {
+  return Array.from(new Set(groupIds));
+}
+
+function areGroupIdSetsEqual(a: string[], b: string[]) {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  const bSet = new Set(b);
+  return a.every((id) => bSet.has(id));
 }
 
 const CREATE_GENERAL_FORM_VARIANT: CounterpartyGeneralFormVariant = {
@@ -203,6 +225,8 @@ const EDIT_GENERAL_FORM_VARIANT: CounterpartyGeneralFormVariant = {
 function CounterpartyGeneralFormBase({
   initialValues,
   groupOptions,
+  allowedRootCode,
+  lockedGroupIds: rawLockedGroupIds = EMPTY_GROUP_IDS,
   submitting = false,
   deleting = false,
   error,
@@ -211,9 +235,20 @@ function CounterpartyGeneralFormBase({
   onShortNameChange,
   variant,
 }: CounterpartyGeneralFormBaseProps) {
+  const lockedGroupIds = useMemo(
+    () => normalizeGroupIds(rawLockedGroupIds),
+    [rawLockedGroupIds],
+  );
+  const lockedGroupIdSet = useMemo(
+    () => new Set(lockedGroupIds),
+    [lockedGroupIds],
+  );
+  const allowedRootLabel = allowedRootCode === "customers"
+    ? "Клиенты"
+    : "Казначейство";
   const initial = useMemo(
-    () => resolveInitialValues(initialValues),
-    [initialValues],
+    () => resolveInitialValues(initialValues, lockedGroupIds),
+    [initialValues, lockedGroupIds],
   );
 
   const groupById = useMemo(() => {
@@ -260,6 +295,28 @@ function CounterpartyGeneralFormBase({
 
     return cache;
   }, [groupById, groupOptions]);
+  const allowedGroupIds = useMemo(() => {
+    if (!allowedRootCode) {
+      return null;
+    }
+
+    const ids = new Set<string>();
+
+    for (const group of groupOptions) {
+      if (rootCodeByGroupId.get(group.id) === allowedRootCode) {
+        ids.add(group.id);
+      }
+    }
+
+    return ids;
+  }, [allowedRootCode, groupOptions, rootCodeByGroupId]);
+  const visibleGroupOptions = useMemo(() => {
+    if (!allowedGroupIds) {
+      return groupOptions;
+    }
+
+    return groupOptions.filter((group) => allowedGroupIds.has(group.id));
+  }, [allowedGroupIds, groupOptions]);
 
   const customerScopeByGroupId = useMemo(() => {
     const cache = new Map<string, string | null>();
@@ -305,7 +362,7 @@ function CounterpartyGeneralFormBase({
   const groupsByParent = useMemo(() => {
     const map = new Map<string, CounterpartyGroupOption[]>();
 
-    for (const group of groupOptions) {
+    for (const group of visibleGroupOptions) {
       const key = group.parentId ?? ROOT_GROUP;
       const bucket = map.get(key);
       if (bucket) {
@@ -320,7 +377,7 @@ function CounterpartyGeneralFormBase({
     }
 
     return map;
-  }, [groupOptions]);
+  }, [visibleGroupOptions]);
 
   const getAncestors = useCallback(
     (groupId: string): string[] => {
@@ -416,6 +473,19 @@ function CounterpartyGeneralFormBase({
     return next;
   }
 
+  const normalizeSelectedGroupIds = useCallback(
+    (groupIds: string[]) => {
+      let normalized = normalizeGroupIds(groupIds);
+
+      if (allowedGroupIds) {
+        normalized = normalized.filter((groupId) => allowedGroupIds.has(groupId));
+      }
+
+      return normalizeGroupIds([...normalized, ...lockedGroupIds]);
+    },
+    [allowedGroupIds, lockedGroupIds],
+  );
+
   function enforceBranchConstraints(
     rawSet: Set<string>,
     anchorGroupId: string,
@@ -459,14 +529,21 @@ function CounterpartyGeneralFormBase({
     const withAncestors = addAncestorClosure(constrained);
     const normalized = enforceBranchConstraints(withAncestors, groupId);
 
-    return Array.from(normalized);
+    return normalizeSelectedGroupIds(Array.from(normalized));
   }
 
   function toggleOff(groupId: string, currentIds: string[]): string[] {
+    if (lockedGroupIdSet.has(groupId)) {
+      return normalizeSelectedGroupIds(currentIds);
+    }
+
     const next = new Set(currentIds);
     const idsToRemove = [groupId, ...getDescendants(groupId)];
 
     for (const id of idsToRemove) {
+      if (lockedGroupIdSet.has(id)) {
+        continue;
+      }
       next.delete(id);
     }
 
@@ -476,12 +553,37 @@ function CounterpartyGeneralFormBase({
       }
     }
 
-    return Array.from(next);
+    return normalizeSelectedGroupIds(Array.from(next));
   }
 
   const formSchema = useMemo(
     () =>
       CounterpartyGeneralFormSchema.superRefine((values, ctx) => {
+        if (allowedRootCode) {
+          const hasOutsideRootMembership = values.groupIds.some(
+            (groupId) => rootCodeByGroupId.get(groupId) !== allowedRootCode,
+          );
+
+          if (hasOutsideRootMembership) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["groupIds"],
+              message: `Выберите группы только из ветки ${allowedRootLabel}.`,
+            });
+          }
+        }
+
+        for (const lockedGroupId of lockedGroupIds) {
+          if (!values.groupIds.includes(lockedGroupId)) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["groupIds"],
+              message: "Системная группа Казначейство обязательна.",
+            });
+            break;
+          }
+        }
+
         const hasCustomersMembership = values.groupIds.some(
           (groupId) => rootCodeByGroupId.get(groupId) === "customers",
         );
@@ -511,7 +613,13 @@ function CounterpartyGeneralFormBase({
           });
         }
       }),
-    [customerScopeByGroupId, rootCodeByGroupId],
+    [
+      allowedRootCode,
+      allowedRootLabel,
+      customerScopeByGroupId,
+      lockedGroupIds,
+      rootCodeByGroupId,
+    ],
   );
 
   const {
@@ -540,9 +648,13 @@ function CounterpartyGeneralFormBase({
     control,
     name: "country",
   });
-  const selectedGroupIds = useMemo(
+  const selectedGroupIdsRaw = useMemo(
     () => (Array.isArray(selectedGroupIdsValue) ? selectedGroupIdsValue : []),
     [selectedGroupIdsValue],
+  );
+  const selectedGroupIds = useMemo(
+    () => normalizeSelectedGroupIds(selectedGroupIdsRaw),
+    [normalizeSelectedGroupIds, selectedGroupIdsRaw],
   );
   const selectedCountry = useMemo(
     () => getCountryPresentation(selectedCountryCode),
@@ -599,6 +711,17 @@ function CounterpartyGeneralFormBase({
   useEffect(() => {
     onShortNameChange?.(watchedShortName ?? "");
   }, [onShortNameChange, watchedShortName]);
+
+  useEffect(() => {
+    if (areGroupIdSetsEqual(selectedGroupIdsRaw, selectedGroupIds)) {
+      return;
+    }
+
+    setValue("groupIds", selectedGroupIds, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [selectedGroupIds, selectedGroupIdsRaw, setValue]);
 
   useEffect(() => {
     setValue("customerId", derivedCustomerId, {
@@ -676,6 +799,7 @@ function CounterpartyGeneralFormBase({
 
     return children.map((group) => {
       const checked = fieldValue.includes(group.id);
+      const isLocked = lockedGroupIdSet.has(group.id);
       const hasChildren = (groupsByParent.get(group.id)?.length ?? 0) > 0;
       const isExpanded = expandedIds.has(group.id);
       const groupLabel = localizeCounterpartyGroupLabel(group.name);
@@ -719,7 +843,12 @@ function CounterpartyGeneralFormBase({
             )}
             <Checkbox
               checked={checked}
+              disabled={isLocked}
               onCheckedChange={(nextChecked) => {
+                if (isLocked) {
+                  return;
+                }
+
                 const shouldCheck = Boolean(nextChecked);
                 const nextValue = shouldCheck
                   ? toggleOn(group.id, fieldValue)
@@ -1013,13 +1142,13 @@ function CounterpartyGeneralFormBase({
                           Казначейство или Клиенты.
                         </FieldDescription>
                         <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3">
-                          {groupOptions.length === 0 ? (
+                          {visibleGroupOptions.length === 0 ? (
                             <p className="text-muted-foreground text-sm">
                               Группы не найдены.
                             </p>
                           ) : (
                             renderGroupTree(
-                              field.value ?? [],
+                              normalizeSelectedGroupIds(field.value ?? []),
                               (nextValue) => field.onChange(nextValue),
                               ROOT_GROUP,
                             )

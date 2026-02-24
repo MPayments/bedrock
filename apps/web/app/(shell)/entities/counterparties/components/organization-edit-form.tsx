@@ -9,17 +9,21 @@ import {
   CounterpartyEditGeneralForm,
   type CounterpartyGeneralFormValues,
 } from "./organization-general-form";
-import { useCounterpartyCreateDraftName } from "../lib/create-draft-name-context";
+import { useCounterpartyDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
-import { resolveApiErrorMessage } from "@/lib/api-error";
 import type {
   CounterpartyDetails,
   CounterpartyGroupOption,
 } from "../lib/queries";
+import { executeMutation } from "@/lib/resources/http";
 
 type CounterpartyEditFormProps = {
   counterparty: CounterpartyDetails;
   initialGroupOptions: CounterpartyGroupOption[];
+  allowedRootCode?: "treasury" | "customers";
+  lockedGroupIds?: string[];
+  listPath?: string;
+  disableSubmit?: boolean;
   initialLoadError?: string | null;
 };
 
@@ -40,27 +44,34 @@ function toFormValues(
 export function CounterpartyEditForm({
   counterparty,
   initialGroupOptions,
+  allowedRootCode,
+  lockedGroupIds,
+  listPath = "/entities/counterparties",
+  disableSubmit = false,
   initialLoadError = null,
 }: CounterpartyEditFormProps) {
   const router = useRouter();
-  const { setEditName, clearEditCounterparty } = useCounterpartyCreateDraftName();
+  const { actions } = useCounterpartyDraftName();
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(initialLoadError);
   const [initialValues, setInitialValues] = useState(() =>
     toFormValues(counterparty),
   );
+
   const handleShortNameChange = useCallback(
     (name: string) => {
-      setEditName(counterparty.id, name);
+      actions.setEditName(counterparty.id, name);
     },
-    [counterparty.id, setEditName],
+    [actions, counterparty.id],
   );
 
   async function handleSubmit(
     values: CounterpartyGeneralFormValues,
   ): Promise<CounterpartyGeneralFormValues | void> {
     setError(null);
+    setSubmitting(true);
+
     const customerId =
       typeof values.customerId === "string" ? values.customerId.trim() : "";
 
@@ -74,104 +85,69 @@ export function CounterpartyEditForm({
       groupIds: values.groupIds,
     };
 
-    setSubmitting(true);
+    const result = await executeMutation<CounterpartyDetails>({
+      request: () =>
+        apiClient.v1.counterparties[":id"].$patch({
+          param: {
+            id: counterparty.id,
+          },
+          json: payload,
+        }),
+      fallbackMessage: "Не удалось обновить контрагента",
+      parseData: async (response) => (await response.json()) as CounterpartyDetails,
+    });
 
-    try {
-      const res = await apiClient.v1.counterparties[":id"].$patch({
-        param: {
-          id: counterparty.id,
-        },
-        json: payload,
-      });
+    setSubmitting(false);
 
-      if (!res.ok) {
-        let payload: unknown = null;
-        try {
-          payload = await res.json();
-        } catch {
-          // Ignore non-JSON error payloads.
-        }
-
-        const message = resolveApiErrorMessage(
-          res.status,
-          payload,
-          "Не удалось обновить контрагента",
-        );
-        setError(message);
-        toast.error(message);
-        return;
-      }
-
-      const updated = await res.json();
-      const nextValues = toFormValues(updated);
-      setInitialValues(nextValues);
-      toast.success("Контрагент обновлен");
-      router.refresh();
-      return nextValues;
-    } catch (submitError) {
-      const message =
-        submitError instanceof Error
-          ? submitError.message
-          : "Не удалось обновить контрагента";
-      setError(message);
-      toast.error(message);
+    if (!result.ok) {
+      setError(result.message);
+      toast.error(result.message);
       return;
-    } finally {
-      setSubmitting(false);
     }
+
+    const nextValues = toFormValues(result.data);
+    setInitialValues(nextValues);
+    toast.success("Контрагент обновлен");
+    router.refresh();
+    return nextValues;
   }
 
   async function handleDelete(): Promise<boolean> {
     setError(null);
     setDeleting(true);
 
-    try {
-      const res = await apiClient.v1.counterparties[":id"].$delete({
-        param: { id: counterparty.id },
-      });
+    const result = await executeMutation<void>({
+      request: () =>
+        apiClient.v1.counterparties[":id"].$delete({
+          param: { id: counterparty.id },
+        }),
+      fallbackMessage: "Не удалось удалить контрагента",
+      parseData: async () => undefined,
+    });
 
-      if (!res.ok) {
-        let payload: unknown = null;
-        try {
-          payload = await res.json();
-        } catch {
-          // Ignore non-JSON error payloads.
-        }
+    setDeleting(false);
 
-        const message = resolveApiErrorMessage(
-          res.status,
-          payload,
-          "Не удалось удалить контрагента",
-        );
-        setError(message);
-        toast.error(message);
-        return false;
-      }
-
-      clearEditCounterparty(counterparty.id);
-      router.push("/entities/counterparties");
-      return true;
-    } catch (deleteError) {
-      const message =
-        deleteError instanceof Error
-          ? deleteError.message
-          : "Не удалось удалить контрагента";
-      setError(message);
-      toast.error(message);
+    if (!result.ok) {
+      setError(result.message);
+      toast.error(result.message);
       return false;
-    } finally {
-      setDeleting(false);
     }
+
+    actions.clearEdit(counterparty.id);
+    router.push(listPath.replace(/\/+$/, ""));
+    return true;
   }
 
   return (
     <CounterpartyEditGeneralForm
       initialValues={initialValues}
       groupOptions={initialGroupOptions}
+      allowedRootCode={allowedRootCode}
+      lockedGroupIds={lockedGroupIds}
       submitting={submitting}
       deleting={deleting}
       error={error}
-      onSubmit={handleSubmit}
+      onSubmit={disableSubmit ? undefined : handleSubmit}
       onDelete={handleDelete}
       onShortNameChange={handleShortNameChange}
     />

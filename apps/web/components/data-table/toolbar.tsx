@@ -22,22 +22,73 @@ interface DataTableToolbarProps<TData> extends React.ComponentProps<"div"> {
   table: Table<TData>;
 }
 
+function normalizeFilterValues(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item));
+  }
+
+  if (value === null || value === undefined) {
+    return [];
+  }
+
+  return [String(value)];
+}
+
 export function DataTableToolbar<TData>({
   table,
   children,
   className,
   ...props
 }: DataTableToolbarProps<TData>) {
-  const isFiltered = table.getState().columnFilters.length > 0;
-
   const columns = React.useMemo(
     () => table.getAllColumns().filter((column) => column.getCanFilter()),
     [table],
   );
+  const lockedFiltersByColumnId = React.useMemo(() => {
+    const map = new Map<string, string[]>();
+
+    for (const column of columns) {
+      const values = column.columnDef.meta?.lockedFilterValues;
+      if (!values || values.length === 0) {
+        continue;
+      }
+
+      map.set(column.id, Array.from(new Set(values)));
+    }
+
+    return map;
+  }, [columns]);
+  const columnFilters = table.getState().columnFilters;
+  const isFiltered = React.useMemo(() => {
+    return columnFilters.some((filter) => {
+      const lockedValues = lockedFiltersByColumnId.get(filter.id);
+      if (!lockedValues || lockedValues.length === 0) {
+        return true;
+      }
+
+      const normalizedValues = normalizeFilterValues(filter.value);
+      if (normalizedValues.length !== lockedValues.length) {
+        return true;
+      }
+
+      const normalizedSet = new Set(normalizedValues);
+      return lockedValues.some((value) => !normalizedSet.has(value));
+    });
+  }, [columnFilters, lockedFiltersByColumnId]);
 
   const onReset = React.useCallback(() => {
-    table.resetColumnFilters();
-  }, [table]);
+    if (lockedFiltersByColumnId.size === 0) {
+      table.resetColumnFilters();
+      return;
+    }
+
+    table.setColumnFilters(
+      Array.from(lockedFiltersByColumnId.entries()).map(([id, value]) => ({
+        id,
+        value,
+      })),
+    );
+  }, [lockedFiltersByColumnId, table]);
 
   return (
     <div

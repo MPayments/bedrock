@@ -1,3 +1,5 @@
+const MONEY_LOCALE = "ru-RU";
+
 export function formatDate(date: Date | string | number | undefined) {
   if (!date) return "";
 
@@ -13,4 +15,22 @@ export function formatDate(date: Date | string | number | undefined) {
   const year = normalizedDate.getFullYear();
 
   return `${hours}:${minutes} ${day}.${month}.${year}`;
+}
+
+export function formatMoney(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat(MONEY_LOCALE, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    const value = new Intl.NumberFormat(MONEY_LOCALE, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+
+    return `${value} ${currency}`;
+  }
 }

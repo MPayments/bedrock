@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-
 import { useCurrencyDraftName } from "../lib/create-draft-name-context";
 import { CurrencyWorkspaceLayout } from "./currency-workspace-layout";
+import { useEntityEditTitle } from "@/components/entities/workspace-layout";
 
 type CurrencyEditWorkspaceLayoutProps = {
   currencyId: string;
@@ -16,27 +15,20 @@ export function CurrencyEditWorkspaceLayout({
   initialTitle,
   children,
 }: CurrencyEditWorkspaceLayoutProps) {
-  const { registerEditCurrency, clearEditCurrency, getEditLabel } =
-    useCurrencyDraftName();
+  const { actions, meta } = useCurrencyDraftName();
 
-  useEffect(() => {
-    registerEditCurrency(currencyId, initialTitle);
-
-    return () => {
-      clearEditCurrency(currencyId);
-    };
-  }, [
-    clearEditCurrency,
-    currencyId,
+  const title = useEntityEditTitle({
+    id: currencyId,
     initialTitle,
-    registerEditCurrency,
-  ]);
+    bridge: {
+      registerEdit: actions.registerEdit,
+      clearEdit: actions.clearEdit,
+      getEditLabel: meta.getEditLabel,
+    },
+  });
 
   return (
-    <CurrencyWorkspaceLayout
-      title={getEditLabel(currencyId, initialTitle)}
-      subtitle="Карточка валюты"
-    >
+    <CurrencyWorkspaceLayout title={title} subtitle="Карточка валюты">
       {children}
     </CurrencyWorkspaceLayout>
   );

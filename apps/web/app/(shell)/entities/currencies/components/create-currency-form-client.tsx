@@ -11,11 +11,15 @@ import {
 } from "./currency-general-form";
 import { useCurrencyDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
-import { resolveApiErrorMessage } from "@/lib/api-error";
+import { executeMutation } from "@/lib/resources/http";
+
+type CreatedCurrency = {
+  id: string;
+};
 
 export function CreateCurrencyFormClient() {
   const router = useRouter();
-  const { setCreateName } = useCurrencyDraftName();
+  const { actions } = useCurrencyDraftName();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,47 +37,30 @@ export function CreateCurrencyFormClient() {
     setError(null);
     setSubmitting(true);
 
-    try {
-      const res = await apiClient.v1.currencies.$post({
-        json: {
-          name: values.name,
-          code: values.code,
-          symbol: values.symbol,
-          precision: values.precision,
-        },
-      });
+    const result = await executeMutation<CreatedCurrency>({
+      request: () =>
+        apiClient.v1.currencies.$post({
+          json: {
+            name: values.name,
+            code: values.code,
+            symbol: values.symbol,
+            precision: values.precision,
+          },
+        }),
+      fallbackMessage: "Не удалось создать валюту",
+      parseData: async (response) => (await response.json()) as CreatedCurrency,
+    });
 
-      if (!res.ok) {
-        let payload: unknown = null;
-        try {
-          payload = await res.json();
-        } catch {
-          // Ignore non-JSON error payloads.
-        }
+    setSubmitting(false);
 
-        const message = resolveApiErrorMessage(
-          res.status,
-          payload,
-          "Не удалось создать валюту",
-        );
-        setError(message);
-        toast.error(message);
-        return;
-      }
-
-      const created = await res.json();
-      toast.success("Валюта создана");
-      router.push(`/entities/currencies/${created.id}`);
-    } catch (submitError) {
-      const message =
-        submitError instanceof Error
-          ? submitError.message
-          : "Не удалось создать валюту";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setSubmitting(false);
+    if (!result.ok) {
+      setError(result.message);
+      toast.error(result.message);
+      return;
     }
+
+    toast.success("Валюта создана");
+    router.push(`/entities/currencies/${result.data.id}`);
   }
 
   return (
@@ -82,7 +69,7 @@ export function CreateCurrencyFormClient() {
       submitting={submitting}
       error={error}
       onSubmit={handleSubmit}
-      onNameChange={setCreateName}
+      onNameChange={actions.setCreateName}
     />
   );
 }

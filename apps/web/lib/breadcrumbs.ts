@@ -51,7 +51,6 @@ const segmentMap: Record<string, SegmentConfig> = {
   },
   counterparties: {
     label: "Контрагенты",
-    href: "/entities/counterparties",
     icon: "building-2",
   },
   currencies: {
@@ -59,6 +58,7 @@ const segmentMap: Record<string, SegmentConfig> = {
     href: "/entities/currencies",
     icon: "dollar-sign",
   },
+  create: { label: "Создать" },
   accounts: { label: "Счета" },
   operations: { label: "Операции" },
 
@@ -75,6 +75,18 @@ function decodeSegment(segment: string) {
   } catch {
     return segment;
   }
+}
+
+function getCounterpartiesListHref(
+  segments: string[],
+  index: number,
+): string {
+  const parentSegments = segments.slice(0, index);
+  if (parentSegments.includes("treasury")) {
+    return "/treasury/counterparties";
+  }
+
+  return "/entities/counterparties";
 }
 
 export async function resolveBreadcrumbItems(
@@ -103,6 +115,13 @@ export async function resolveBreadcrumbItems(
 
       const config = segmentMap[segment];
       if (config) {
+        if (segment === "counterparties") {
+          return {
+            ...config,
+            href: getCounterpartiesListHref(segments, index),
+          };
+        }
+
         return config;
       }
 

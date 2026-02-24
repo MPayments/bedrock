@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { Building2, ChevronDown, FolderPlus, Plus } from "lucide-react";
 
@@ -13,9 +12,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@bedrock/ui/components/dropdown-menu";
-import { Separator } from "@bedrock/ui/components/separator";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 
 import { CounterpartiesTable } from "./components/counterparties-table";
 import { getCounterparties, getCounterpartyGroups } from "./lib/queries";
@@ -31,19 +30,11 @@ export default async function CounterpartiesPage({ searchParams }: PageProps) {
   const groupOptionsPromise = getCounterpartyGroups().catch(() => []);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex w-full flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="bg-muted rounded-lg p-2.5">
-            <Building2 className="text-muted-foreground h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="mb-1 text-xl font-semibold">Контрагенты</h3>
-            <p className="text-muted-foreground text-sm hidden md:block">
-              Управление контрагентами, группами и клиентской привязкой.
-            </p>
-          </div>
-        </div>
+    <EntityListPageShell
+      icon={Building2}
+      title="Контрагенты"
+      description="Управление контрагентами, группами и клиентской привязкой."
+      actions={
         <ButtonGroup>
           <Button
             size="lg"
@@ -70,18 +61,13 @@ export default async function CounterpartiesPage({ searchParams }: PageProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         </ButtonGroup>
-      </div>
-      <Separator className="w-full h-px" />
-      <Suspense
-        fallback={
-          <DataTableSkeleton columnCount={8} rowCount={10} filterCount={4} />
-        }
-      >
-        <CounterpartiesTable
-          promise={promise}
-          groupOptionsPromise={groupOptionsPromise}
-        />
-      </Suspense>
-    </div>
+      }
+      fallback={<DataTableSkeleton columnCount={8} rowCount={10} filterCount={4} />}
+    >
+      <CounterpartiesTable
+        promise={promise}
+        groupOptionsPromise={groupOptionsPromise}
+      />
+    </EntityListPageShell>
   );
 }

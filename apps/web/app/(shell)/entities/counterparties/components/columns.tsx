@@ -20,6 +20,12 @@ type SerializedCounterparty = Omit<Counterparty, "createdAt" | "updatedAt"> & {
   updatedAt: string;
 };
 
+type CounterpartyColumnsOptions = {
+  detailsBasePath?: string;
+  groupFilterOptions?: CounterpartyGroupOption[];
+  lockedGroupFilterIds?: string[];
+};
+
 function kindLabel(kind: string) {
   if (kind === "individual") return "Физ. лицо";
   return "Юр. лицо";
@@ -27,12 +33,19 @@ function kindLabel(kind: string) {
 
 export function getColumns(
   groupOptions: CounterpartyGroupOption[],
+  options: CounterpartyColumnsOptions = {},
 ): ColumnDef<SerializedCounterparty>[] {
+  const {
+    detailsBasePath = "/entities/counterparties",
+    groupFilterOptions: rawGroupFilterOptions,
+    lockedGroupFilterIds,
+  } = options;
+  const groupFilterSource = rawGroupFilterOptions ?? groupOptions;
   const countryFilterOptions = COUNTERPARTY_COUNTRY_OPTIONS.map((country) => ({
     value: country.value,
     label: country.label,
   }));
-  const groupFilterOptions = groupOptions
+  const groupFilterOptions = groupFilterSource
     .map((group) => {
       const presentation = getCounterpartyGroupPresentation(group.name);
       return {
@@ -147,6 +160,7 @@ export function getColumns(
         label: "Группы",
         variant: "multiSelect",
         options: groupFilterOptions,
+        lockedFilterValues: lockedGroupFilterIds,
       },
       cell: ({ row }) => {
         if (row.original.groupIds.length === 0) {
@@ -201,7 +215,12 @@ export function getColumns(
     },
     {
       id: "actions",
-      cell: ({ row }) => <CounterpartyRowActions counterparty={row.original} />,
+      cell: ({ row }) => (
+        <CounterpartyRowActions
+          counterparty={row.original}
+          detailsBasePath={detailsBasePath}
+        />
+      ),
       size: 48,
     },
   ];

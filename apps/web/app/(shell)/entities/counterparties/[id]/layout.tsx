@@ -1,7 +1,6 @@
-import { notFound } from "next/navigation";
-
 import { CounterpartyEditWorkspaceLayout } from "../components/counterparty-edit-workspace-layout";
 import { getCounterpartyById } from "../lib/queries";
+import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 export default async function CounterpartyLayout({
   children,
@@ -10,12 +9,10 @@ export default async function CounterpartyLayout({
   children: React.ReactNode;
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const counterparty = await getCounterpartyById(id);
-
-  if (!counterparty) {
-    notFound();
-  }
+  const { entity: counterparty } = await loadResourceByIdParamOrNotFound({
+    params,
+    getById: getCounterpartyById,
+  });
 
   return (
     <CounterpartyEditWorkspaceLayout

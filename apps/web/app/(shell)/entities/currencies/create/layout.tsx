@@ -10,14 +10,14 @@ export default function CreateCurrencyLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { createLabel, resetCreateName } = useCurrencyDraftName();
+  const { state, actions } = useCurrencyDraftName();
 
   useEffect(() => {
-    resetCreateName();
-  }, [resetCreateName]);
+    actions.resetCreateName();
+  }, [actions]);
 
   return (
-    <CurrencyWorkspaceLayout title={createLabel} subtitle="Карточка валюты">
+    <CurrencyWorkspaceLayout title={state.createLabel} subtitle="Карточка валюты">
       {children}
     </CurrencyWorkspaceLayout>
   );
