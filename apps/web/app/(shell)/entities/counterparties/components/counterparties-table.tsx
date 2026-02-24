@@ -68,18 +68,25 @@ function CounterpartiesTableBase({
 interface EntityCounterpartiesTableProps {
   promise: Promise<CounterpartiesListResult>;
   groupOptionsPromise: Promise<CounterpartyGroupOption[]>;
+  groupFilterOptionsPromise?: Promise<CounterpartyGroupOption[]>;
+  lockedGroupFilterIds?: string[];
+  detailsBasePath?: string;
 }
 
 export function EntityCounterpartiesTable({
   promise,
   groupOptionsPromise,
+  groupFilterOptionsPromise,
+  lockedGroupFilterIds,
+  detailsBasePath = "/entities/counterparties",
 }: EntityCounterpartiesTableProps) {
   return (
     <CounterpartiesTableBase
       promise={promise}
       groupOptionsPromise={groupOptionsPromise}
-      groupFilterOptionsPromise={groupOptionsPromise}
-      detailsBasePath="/entities/counterparties"
+      groupFilterOptionsPromise={groupFilterOptionsPromise ?? groupOptionsPromise}
+      lockedGroupFilterIds={lockedGroupFilterIds}
+      detailsBasePath={detailsBasePath}
     />
   );
 }
