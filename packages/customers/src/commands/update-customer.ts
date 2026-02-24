@@ -40,6 +40,8 @@ export function createUpdateCustomerHandler(
             let row = existing;
 
             if (Object.keys(fields).length > 0) {
+                fields.updatedAt = sql`now()`;
+
                 const [updated] = await tx
                     .update(schema.customers)
                     .set(fields)

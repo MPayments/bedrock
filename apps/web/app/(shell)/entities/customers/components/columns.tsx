@@ -7,8 +7,9 @@ import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { formatDate } from "@/lib/format";
 import { CustomerRowActions } from "./customer-row-actions";
 
-export type SerializedCustomer = Omit<Customer, "createdAt"> & {
+export type SerializedCustomer = Omit<Customer, "createdAt" | "updatedAt"> & {
   createdAt: string;
+  updatedAt: string;
 };
 
 export function getColumns(): ColumnDef<SerializedCustomer>[] {
@@ -43,6 +44,16 @@ export function getColumns(): ColumnDef<SerializedCustomer>[] {
         <DataTableColumnHeader column={column} label="Дата создания" />
       ),
       cell: ({ row }) => formatDate(row.getValue("createdAt")),
+      enableSorting: true,
+      enableHiding: true,
+      enableColumnFilter: false,
+    },
+    {
+      accessorKey: "updatedAt",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} label="Дата обновления" />
+      ),
+      cell: ({ row }) => formatDate(row.getValue("updatedAt")),
       enableSorting: true,
       enableHiding: true,
       enableColumnFilter: false,

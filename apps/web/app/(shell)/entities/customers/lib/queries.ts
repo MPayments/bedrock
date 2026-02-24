@@ -37,6 +37,7 @@ export interface CustomerDetails {
   externalRef: string | null;
   displayName: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 const UUID_PATTERN =
