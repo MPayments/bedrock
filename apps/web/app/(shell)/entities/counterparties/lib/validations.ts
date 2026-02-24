@@ -1,12 +1,12 @@
-import { createSearchParamsCache } from "nuqs/server";
 import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/counterparties/validation";
 
-import { createListSearchParamsParsersFromContract } from "@/lib/list-search-params";
+import {
+  createResourceSearchParamsCache,
+  type ResourceSearchParams,
+} from "@/lib/resources/search-params";
 
-export const searchParamsCache = createSearchParamsCache({
-  ...createListSearchParamsParsersFromContract(COUNTERPARTIES_LIST_CONTRACT),
-});
+export const searchParamsCache = createResourceSearchParamsCache(
+  COUNTERPARTIES_LIST_CONTRACT,
+);
 
-export type CounterpartiesSearchParams = Awaited<
-  ReturnType<typeof searchParamsCache.parse>
->;
+export type CounterpartiesSearchParams = ResourceSearchParams;

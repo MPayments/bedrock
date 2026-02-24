@@ -3,22 +3,22 @@
 import { useEffect } from "react";
 
 import { CounterpartyWorkspaceLayout } from "../components/organization-workspace-layout";
-import { useCounterpartyCreateDraftName } from "../lib/create-draft-name-context";
+import { useCounterpartyDraftName } from "../lib/create-draft-name-context";
 
 export default function CreateCounterpartyLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { createLabel, resetCreateName } = useCounterpartyCreateDraftName();
+  const { state, actions } = useCounterpartyDraftName();
 
   useEffect(() => {
-    resetCreateName();
-  }, [resetCreateName]);
+    actions.resetCreateName();
+  }, [actions]);
 
   return (
     <CounterpartyWorkspaceLayout
-      title={createLabel}
+      title={state.createLabel}
       subtitle="Карточка контрагента"
       disabledTabs={["accounts", "operations"]}
     >

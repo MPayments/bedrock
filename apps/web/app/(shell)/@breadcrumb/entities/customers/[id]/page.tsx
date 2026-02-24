@@ -1,6 +1,5 @@
-import { notFound } from "next/navigation";
-
 import { getCustomerById } from "@/app/(shell)/entities/customers/lib/queries";
+import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 import { EditCustomerBreadcrumb } from "./edit-customer-breadcrumb";
 
@@ -11,12 +10,10 @@ interface EditCustomerBreadcrumbPageProps {
 export default async function EditCustomerBreadcrumbPage({
   params,
 }: EditCustomerBreadcrumbPageProps) {
-  const { id } = await params;
-  const customer = await getCustomerById(id);
-
-  if (!customer) {
-    notFound();
-  }
+  const { entity: customer } = await loadResourceByIdParamOrNotFound({
+    params,
+    getById: getCustomerById,
+  });
 
   return (
     <EditCustomerBreadcrumb

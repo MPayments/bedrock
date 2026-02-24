@@ -1,3 +1,5 @@
+import { SectionPlaceholderPage } from "@/components/section-placeholder-page";
+
 export default function RatesPage() {
-  return <div>Курсы</div>;
+  return <SectionPlaceholderPage title="Курсы" />;
 }

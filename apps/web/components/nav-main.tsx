@@ -29,7 +29,7 @@ import {
   useSidebar,
 } from "@bedrock/ui/components/sidebar";
 
-type NavItem = {
+export type NavMainItem = {
   title: string;
   url: string;
   icon?: LucideIcon;
@@ -68,7 +68,7 @@ function NavCollapsibleItem({
   item,
   pathname,
 }: {
-  item: NavItem;
+  item: NavMainItem;
   pathname: string;
 }) {
   const { state, isMobile } = useSidebar();
@@ -152,7 +152,7 @@ function NavCollapsibleItem({
   );
 }
 
-export function NavMain({ items }: { items: NavItem[] }) {
+export function NavMain({ items }: { items: NavMainItem[] }) {
   const pathname = usePathname();
 
   return (

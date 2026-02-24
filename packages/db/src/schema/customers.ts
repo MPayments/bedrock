@@ -4,12 +4,16 @@ import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 export type Customer = typeof customers.$inferSelect;
 export type CustomerInsert = typeof customers.$inferInsert;
 
-export const customers = pgTable(
-    "customers",
-    {
-        id: uuid("id").primaryKey().defaultRandom(),
-        externalRef: text("external_ref"),
-        displayName: text("display_name").notNull(),
-        createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`)
-    }
-);
+export const customers = pgTable("customers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  externalRef: text("external_ref"),
+  displayName: text("display_name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`)
+    .$onUpdateFn(() => new Date()),
+});

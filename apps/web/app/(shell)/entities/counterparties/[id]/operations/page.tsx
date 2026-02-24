@@ -39,7 +39,7 @@ import {
   TableRow,
 } from "@bedrock/ui/components/table";
 
-import { formatDate } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 
 type TransactionStatus = "posted" | "processing" | "failed";
 type TransactionType = "create" | "post_pending" | "void_pending";
@@ -132,23 +132,6 @@ const TRANSACTIONS: OperationTransaction[] = [
     createdAt: "2026-02-20T17:11:00Z",
   },
 ];
-
-function formatMoney(amount: number, currency: string) {
-  try {
-    return new Intl.NumberFormat("ru-RU", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch {
-    const value = new Intl.NumberFormat("ru-RU", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-    return `${value} ${currency}`;
-  }
-}
 
 function statusMeta(status: TransactionStatus): {
   label: string;

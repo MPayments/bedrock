@@ -1,7 +1,6 @@
-import { notFound } from "next/navigation";
-
 import { CustomerEditWorkspaceLayout } from "../components/customer-edit-workspace-layout";
 import { getCustomerById } from "../lib/queries";
+import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 export default async function CustomerLayout({
   children,
@@ -10,12 +9,10 @@ export default async function CustomerLayout({
   children: React.ReactNode;
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const customer = await getCustomerById(id);
-
-  if (!customer) {
-    notFound();
-  }
+  const { entity: customer } = await loadResourceByIdParamOrNotFound({
+    params,
+    getById: getCustomerById,
+  });
 
   return (
     <CustomerEditWorkspaceLayout

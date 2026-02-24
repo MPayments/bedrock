@@ -1,14 +1,14 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { Plus, Users } from "lucide-react";
 
+import { Button } from "@bedrock/ui/components/button";
+
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 
 import { CustomersTable } from "./components/customers-table";
 import { getCustomers } from "./lib/queries";
 import { searchParamsCache } from "./lib/validations";
-import { Separator } from "@bedrock/ui/components/separator";
-import { Button } from "@bedrock/ui/components/button";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -19,19 +19,11 @@ export default async function CustomersPage({ searchParams }: PageProps) {
   const promise = getCustomers(parsedSearch);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex w-full flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="bg-muted rounded-lg p-2.5">
-            <Users className="text-muted-foreground h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="mb-1 text-xl font-semibold">Клиенты</h3>
-            <p className="text-muted-foreground text-sm hidden md:block">
-              Управление клиентами и связанной контрагентской привязкой.
-            </p>
-          </div>
-        </div>
+    <EntityListPageShell
+      icon={Users}
+      title="Клиенты"
+      description="Управление клиентами и связанной контрагентской привязкой."
+      actions={
         <Button
           size="lg"
           nativeButton={false}
@@ -40,15 +32,10 @@ export default async function CustomersPage({ searchParams }: PageProps) {
           <Plus className="h-4 w-4" />
           <span className="hidden md:block">Добавить</span>
         </Button>
-      </div>
-      <Separator className="w-full h-px" />
-      <Suspense
-        fallback={
-          <DataTableSkeleton columnCount={4} rowCount={10} filterCount={2} />
-        }
-      >
-        <CustomersTable promise={promise} />
-      </Suspense>
-    </div>
+      }
+      fallback={<DataTableSkeleton columnCount={4} rowCount={10} filterCount={2} />}
+    >
+      <CustomersTable promise={promise} />
+    </EntityListPageShell>
   );
 }

@@ -1,13 +1,16 @@
+import { cache } from "react";
+
 import { CURRENCIES_LIST_CONTRACT, CurrencySchema } from "@bedrock/currencies";
 
 import { getServerApiClient } from "@/lib/api-client.server";
-import { createListQueryFromSearchParams } from "@/lib/list-search-params";
+import { readResourceById } from "@/lib/resources/http";
+import { createResourceListQuery } from "@/lib/resources/search-params";
 
 import type { CurrenciesListResult } from "../(table)";
 import { type CurrenciesSearchParams } from "./validations";
 
 function createCurrenciesListQuery(search: CurrenciesSearchParams) {
-  return createListQueryFromSearchParams(CURRENCIES_LIST_CONTRACT, search);
+  return createResourceListQuery(CURRENCIES_LIST_CONTRACT, search);
 }
 
 export async function getCurrencies(
@@ -29,3 +32,35 @@ export async function getCurrencies(
     data: payload.data.map((currency) => CurrencySchema.parse(currency)),
   };
 }
+
+export interface CurrencyDetails {
+  id: string;
+  name: string;
+  code: string;
+  symbol: string;
+  precision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const getCurrencyByIdUncached = async (
+  id: string,
+): Promise<CurrencyDetails | null> => {
+  return readResourceById<CurrencyDetails>({
+    id,
+    resourceName: "currency",
+    request: async (validId) => {
+      const client = await getServerApiClient();
+      return client.v1.currencies[":id"].$get(
+        {
+          param: { id: validId },
+        },
+        {
+          init: { cache: "no-store" },
+        },
+      );
+    },
+  });
+};
+
+export const getCurrencyById = cache(getCurrencyByIdUncached);

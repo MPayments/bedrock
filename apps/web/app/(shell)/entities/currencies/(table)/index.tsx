@@ -1,44 +1,43 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import type { Row as TanstackRow } from "@tanstack/react-table";
 import * as React from "react";
 
 import type { Currency } from "@bedrock/currencies";
 
-import { DataTable } from "@/components/data-table";
-import { DataTableToolbar } from "@/components/data-table/toolbar";
-import { useDataTable } from "@/hooks/use-data-table";
+import {
+  EntityTableShell,
+  type EntityListResult,
+} from "@/components/entities/entity-table-shell";
 
 import { columns } from "./columns";
 
-export interface CurrenciesListResult {
-  data: Currency[];
-  total: number;
-  limit: number;
-  offset: number;
-}
+export type CurrenciesListResult = EntityListResult<Currency>;
 
 interface CurrenciesTableProps {
   promise: Promise<CurrenciesListResult>;
 }
 
 export function CurrenciesTable({ promise }: CurrenciesTableProps) {
-  const result = React.use(promise);
-  const pageCount = Math.ceil(result.total / result.limit);
+  const router = useRouter();
 
-  const { table } = useDataTable({
-    data: result.data,
-    columns,
-    pageCount,
-    initialState: {
-      sorting: [{ id: "createdAt", desc: true }],
+  const handleRowDoubleClick = React.useCallback(
+    (row: TanstackRow<Currency>) => {
+      router.push(`/entities/currencies/${row.original.id}`);
     },
-    getRowId: (row) => row.id,
-    clearOnDefault: true,
-  });
+    [router],
+  );
 
   return (
-    <DataTable table={table}>
-      <DataTableToolbar table={table} />
-    </DataTable>
+    <EntityTableShell
+      promise={promise}
+      columns={columns}
+      initialState={{
+        sorting: [{ id: "createdAt", desc: true }],
+      }}
+      getRowId={(row) => row.id}
+      onRowDoubleClick={handleRowDoubleClick}
+    />
   );
 }

@@ -6,6 +6,7 @@ import type { Currency } from "@bedrock/currencies";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { formatDate } from "@/lib/format";
+import { CurrencyRowActions } from "../components/currency-row-actions";
 
 export const columns: ColumnDef<Currency>[] = [
   {
@@ -63,5 +64,10 @@ export const columns: ColumnDef<Currency>[] = [
     cell: ({ row }) => formatDate(row.getValue("updatedAt")),
     enableSorting: true,
     enableHiding: true,
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => <CurrencyRowActions currency={row.original} />,
+    size: 48,
   },
 ];

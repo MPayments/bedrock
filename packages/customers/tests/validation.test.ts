@@ -11,20 +11,24 @@ describe("customers validation", () => {
         const parsed = CreateCustomerInputSchema.parse({
             displayName: "Acme Corp",
             externalRef: "crm-123",
+            description: "VIP customer",
         });
 
         expect(parsed.displayName).toBe("Acme Corp");
         expect(parsed.externalRef).toBe("crm-123");
+        expect(parsed.description).toBe("VIP customer");
     });
 
     it("parses update customer input with nullable externalRef", () => {
         const parsed = UpdateCustomerInputSchema.parse({
             displayName: "Acme Updated",
             externalRef: null,
+            description: null,
         });
 
         expect(parsed.displayName).toBe("Acme Updated");
         expect(parsed.externalRef).toBeNull();
+        expect(parsed.description).toBeNull();
     });
 
     it("parses list query with pagination and filters", () => {

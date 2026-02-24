@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Save, Trash2, X } from "lucide-react";
+import { Save, X } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
@@ -15,28 +15,25 @@ import {
   CardTitle,
 } from "@bedrock/ui/components/card";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@bedrock/ui/components/dialog";
-import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldSeparator,
   FieldSet,
 } from "@bedrock/ui/components/field";
 import { Input } from "@bedrock/ui/components/input";
 import { Spinner } from "@bedrock/ui/components/spinner";
+import { Textarea } from "@bedrock/ui/components/textarea";
+
+import { CustomerDeleteDialog } from "./customer-delete-dialog";
+import { formatDate } from "@/lib/format";
 
 export type CustomerGeneralFormValues = {
   displayName: string;
   externalRef: string;
+  description: string;
 };
 
 type CustomerGeneralFormSubmit =
@@ -48,6 +45,8 @@ type CustomerGeneralFormDelete = Promise<boolean | void> | boolean | void;
 
 type CustomerGeneralFormProps = {
   initialValues?: Partial<CustomerGeneralFormValues>;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   submitting?: boolean;
   deleting?: boolean;
   error?: string | null;
@@ -61,6 +60,7 @@ type CustomerGeneralFormVariant = {
   submittingLabel: string;
   disableSubmitUntilDirty: boolean;
   showDelete: boolean;
+  usePlaceholderDates: boolean;
 };
 
 type CustomerGeneralFormBaseProps = CustomerGeneralFormProps & {
@@ -70,11 +70,13 @@ type CustomerGeneralFormBaseProps = CustomerGeneralFormProps & {
 const DEFAULT_VALUES: CustomerGeneralFormValues = {
   displayName: "",
   externalRef: "",
+  description: "",
 };
 
 const CustomerGeneralFormSchema = z.object({
   displayName: z.string().trim().min(1, "Название клиента обязательно"),
   externalRef: z.string(),
+  description: z.string(),
 });
 
 function resolveInitialValues(
@@ -92,11 +94,12 @@ function normalizeValues(
   return {
     displayName: values.displayName.trim(),
     externalRef: values.externalRef.trim(),
+    description: values.description.trim(),
   };
 }
 
 function valuesSignature(values: CustomerGeneralFormValues) {
-  return `${values.displayName}\n${values.externalRef}`;
+  return `${values.displayName}\n${values.externalRef}\n${values.description}`;
 }
 
 const CREATE_GENERAL_FORM_VARIANT: CustomerGeneralFormVariant = {
@@ -104,6 +107,7 @@ const CREATE_GENERAL_FORM_VARIANT: CustomerGeneralFormVariant = {
   submittingLabel: "Создание...",
   disableSubmitUntilDirty: false,
   showDelete: false,
+  usePlaceholderDates: true,
 };
 
 const EDIT_GENERAL_FORM_VARIANT: CustomerGeneralFormVariant = {
@@ -111,10 +115,13 @@ const EDIT_GENERAL_FORM_VARIANT: CustomerGeneralFormVariant = {
   submittingLabel: "Сохранение...",
   disableSubmitUntilDirty: true,
   showDelete: true,
+  usePlaceholderDates: false,
 };
 
 function CustomerGeneralFormBase({
   initialValues,
+  createdAt,
+  updatedAt,
   submitting = false,
   deleting = false,
   error,
@@ -146,14 +153,33 @@ function CustomerGeneralFormBase({
 
   const watchedValues = useWatch({ control });
   const watchedDisplayName = watchedValues?.displayName ?? "";
+  const formattedCreatedAt = useMemo(() => {
+    if (variant.usePlaceholderDates) {
+      return "—";
+    }
+
+    return formatDate(createdAt ?? "") || "—";
+  }, [createdAt, variant.usePlaceholderDates]);
+  const formattedUpdatedAt = useMemo(() => {
+    if (variant.usePlaceholderDates) {
+      return "—";
+    }
+
+    return formatDate(updatedAt ?? "") || "—";
+  }, [updatedAt, variant.usePlaceholderDates]);
 
   const currentValues = useMemo(
     () =>
       normalizeValues({
         displayName: watchedValues?.displayName ?? "",
         externalRef: watchedValues?.externalRef ?? "",
+        description: watchedValues?.description ?? "",
       }),
-    [watchedValues?.displayName, watchedValues?.externalRef],
+    [
+      watchedValues?.description,
+      watchedValues?.displayName,
+      watchedValues?.externalRef,
+    ],
   );
 
   const isChanged = useMemo(
@@ -233,39 +259,17 @@ function CustomerGeneralFormBase({
               Отменить
             </Button>
             {variant.showDelete ? (
-              <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <DialogTrigger
-                  render={
-                    <Button variant="destructive" type="button" disabled={deleteDisabled} />
-                  }
-                >
-                  <Trash2 className="size-4" />
-                  Удалить
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Удалить клиента?</DialogTitle>
-                    <DialogDescription>
-                      Действие удалит клиента и отвяжет связанные клиентские
-                      контрагенты от customers-ветки.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <DialogClose render={<Button variant="outline" type="button" />}>
-                      Отмена
-                    </DialogClose>
-                    <Button
-                      variant="destructive"
-                      type="button"
-                      disabled={deleteDisabled}
-                      onClick={handleDelete}
-                    >
-                      {deleting ? <Spinner className="size-4" /> : <Trash2 className="size-4" />}
-                      {deleting ? "Удаление..." : "Удалить"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <CustomerDeleteDialog
+                open={deleteDialogOpen}
+                onOpenChange={setDeleteDialogOpen}
+                deleting={deleting}
+                onDelete={handleDelete}
+                description="Действие удалит клиента и отвяжет связанные клиентские контрагенты от customers-ветки."
+                disableDelete={deleteDisabled}
+                trigger={
+                  <Button variant="destructive" type="button" disabled={deleteDisabled} />
+                }
+              />
             ) : null}
           </div>
         </div>
@@ -310,8 +314,33 @@ function CustomerGeneralFormBase({
                   />
                   <FieldError errors={[errors.externalRef]} />
                 </Field>
+                <Field data-invalid={Boolean(errors.description)}>
+                  <FieldLabel htmlFor="customer-description">Описание</FieldLabel>
+                  <FieldDescription>
+                    Дополнительная информация о клиенте
+                  </FieldDescription>
+                  <Textarea
+                    {...register("description")}
+                    id="customer-description"
+                    aria-invalid={Boolean(errors.description)}
+                    placeholder="Дополнительная информация о клиенте"
+                    rows={3}
+                  />
+                  <FieldError errors={[errors.description]} />
+                </Field>
               </FieldGroup>
             </FieldSet>
+            <FieldSeparator />
+            <div className="grid grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel>Дата создания</FieldLabel>
+                <Input readOnly disabled value={formattedCreatedAt} />
+              </Field>
+              <Field>
+                <FieldLabel>Дата обновления</FieldLabel>
+                <Input readOnly disabled value={formattedUpdatedAt} />
+              </Field>
+            </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
           </FieldGroup>
         </form>

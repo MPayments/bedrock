@@ -36,10 +36,13 @@ export function createUpdateCustomerHandler(
             const fields: Record<string, unknown> = {};
             if (validated.externalRef !== undefined) fields.externalRef = validated.externalRef;
             if (validated.displayName !== undefined) fields.displayName = validated.displayName;
+            if (validated.description !== undefined) fields.description = validated.description;
 
             let row = existing;
 
             if (Object.keys(fields).length > 0) {
+                fields.updatedAt = sql`now()`;
+
                 const [updated] = await tx
                     .update(schema.customers)
                     .set(fields)

@@ -10,21 +10,37 @@ import {
   type CounterpartyGeneralFormValues,
 } from "../components/organization-general-form";
 import type { CounterpartyGroupOption } from "../lib/queries";
-import { useCounterpartyCreateDraftName } from "../lib/create-draft-name-context";
+import { useCounterpartyDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
-import { resolveApiErrorMessage } from "@/lib/api-error";
+import { executeMutation } from "@/lib/resources/http";
 
 type CreateCounterpartyFormClientProps = {
   initialGroupOptions: CounterpartyGroupOption[];
+  initialGroupIds?: string[];
+  allowedRootCode?: "treasury" | "customers";
+  lockedGroupIds?: string[];
+  detailsBasePath?: string;
+  disableSubmit?: boolean;
   initialLoadError?: string | null;
 };
 
+type CreatedCounterparty = {
+  id: string;
+};
+
+const EMPTY_GROUP_IDS: string[] = [];
+
 export function CreateCounterpartyFormClient({
   initialGroupOptions,
+  initialGroupIds = EMPTY_GROUP_IDS,
+  allowedRootCode,
+  lockedGroupIds,
+  detailsBasePath = "/entities/counterparties",
+  disableSubmit = false,
   initialLoadError = null,
 }: CreateCounterpartyFormClientProps) {
   const router = useRouter();
-  const { setCreateName } = useCounterpartyCreateDraftName();
+  const { actions } = useCounterpartyDraftName();
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(initialLoadError);
@@ -37,13 +53,15 @@ export function CreateCounterpartyFormClient({
       country: "",
       description: "",
       customerId: "",
-      groupIds: [],
+      groupIds: Array.from(new Set(initialGroupIds)),
     }),
-    [],
+    [initialGroupIds],
   );
 
   async function handleSubmit(values: CounterpartyGeneralFormValues) {
     setError(null);
+    setSubmitting(true);
+
     const customerId =
       typeof values.customerId === "string" ? values.customerId.trim() : "";
 
@@ -57,54 +75,37 @@ export function CreateCounterpartyFormClient({
       groupIds: values.groupIds,
     };
 
-    setSubmitting(true);
+    const result = await executeMutation<CreatedCounterparty>({
+      request: () =>
+        apiClient.v1.counterparties.$post({
+          json: payload,
+        }),
+      fallbackMessage: "Не удалось создать контрагента",
+      parseData: async (response) => (await response.json()) as CreatedCounterparty,
+    });
 
-    try {
-      const res = await apiClient.v1.counterparties.$post({
-        json: payload,
-      });
+    setSubmitting(false);
 
-      if (!res.ok) {
-        let payload: unknown = null;
-        try {
-          payload = await res.json();
-        } catch {
-          // Ignore non-JSON error payloads.
-        }
-
-        const message = resolveApiErrorMessage(
-          res.status,
-          payload,
-          "Не удалось создать контрагента",
-        );
-        setError(message);
-        toast.error(message);
-        return;
-      }
-
-      const created = await res.json();
-      toast.success("Контрагент создан");
-      router.push(`/entities/counterparties/${created.id}`);
-    } catch (submitError) {
-      const message =
-        submitError instanceof Error
-          ? submitError.message
-          : "Не удалось создать контрагента";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setSubmitting(false);
+    if (!result.ok) {
+      setError(result.message);
+      toast.error(result.message);
+      return;
     }
+
+    toast.success("Контрагент создан");
+    router.push(`${detailsBasePath.replace(/\/+$/, "")}/${result.data.id}`);
   }
 
   return (
     <CounterpartyCreateGeneralForm
       initialValues={initialValues}
       groupOptions={initialGroupOptions}
+      allowedRootCode={allowedRootCode}
+      lockedGroupIds={lockedGroupIds}
       submitting={submitting}
       error={error}
-      onShortNameChange={setCreateName}
-      onSubmit={handleSubmit}
+      onShortNameChange={actions.setCreateName}
+      onSubmit={disableSubmit ? undefined : handleSubmit}
     />
   );
 }

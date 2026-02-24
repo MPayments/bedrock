@@ -1,3 +1,5 @@
+import { SectionPlaceholderPage } from "@/components/section-placeholder-page";
+
 export default function AccountsPage() {
-  return <div>Счета</div>;
+  return <SectionPlaceholderPage title="Счета" />;
 }

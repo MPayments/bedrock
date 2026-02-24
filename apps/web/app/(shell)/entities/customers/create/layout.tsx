@@ -10,14 +10,17 @@ export default function CreateCustomerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { createLabel, resetCreateName } = useCustomerDraftName();
+  const { state, actions } = useCustomerDraftName();
 
   useEffect(() => {
-    resetCreateName();
-  }, [resetCreateName]);
+    actions.resetCreateName();
+  }, [actions]);
 
   return (
-    <CustomerWorkspaceLayout title={createLabel} subtitle="Карточка клиента">
+    <CustomerWorkspaceLayout
+      title={state.createLabel}
+      subtitle="Карточка клиента"
+    >
       {children}
     </CustomerWorkspaceLayout>
   );

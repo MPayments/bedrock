@@ -1,7 +1,19 @@
 import { ServiceError } from "@bedrock/kernel/errors";
 
-export class CurrencyNotFoundError extends ServiceError {
+export class CurrencyError extends ServiceError {}
+
+export class CurrencyNotFoundError extends CurrencyError {
+    name = "CurrencyNotFoundError";
+
     constructor(identifier: string) {
         super(`Currency not found: ${identifier}`);
+    }
+}
+
+export class CurrencyDeleteConflictError extends CurrencyError {
+    name = "CurrencyDeleteConflictError";
+
+    constructor(id: string) {
+        super(`Currency ${id} is referenced by existing records`);
     }
 }

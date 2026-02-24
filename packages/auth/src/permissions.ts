@@ -10,7 +10,7 @@ const statements = {
     customers: ["create", "list", "update", "delete"],
     counterparties: ["create", "list", "update", "delete"],
     accounts: ["create", "list", "update", "delete"],
-    currencies: ["create", "list", "update"],
+    currencies: ["create", "list", "update", "delete"],
     fx_rates: ["list", "sync"],
 } as const;
 
@@ -25,7 +25,7 @@ export const admin = ac.newRole({
     customers: ["create", "list", "update", "delete"],
     counterparties: ["create", "list", "update", "delete"],
     accounts: ["create", "list", "update", "delete"],
-    currencies: ["create", "list", "update"],
+    currencies: ["create", "list", "update", "delete"],
     fx_rates: ["list", "sync"],
 });
 
