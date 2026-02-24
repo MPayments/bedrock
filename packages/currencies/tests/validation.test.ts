@@ -28,9 +28,25 @@ describe("currencies validation", () => {
                 name: "",
                 code: "",
                 symbol: "",
-                precision: 0,
+                precision: -1,
             }),
         ).toThrow();
+    });
+
+    it("accepts create input with precision 0", () => {
+        const parsed = CreateCurrencyInputSchema.parse({
+            name: "Japanese Yen",
+            code: "jpy",
+            symbol: "JPY",
+            precision: 0,
+        });
+
+        expect(parsed).toEqual({
+            name: "Japanese Yen",
+            code: "JPY",
+            symbol: "JPY",
+            precision: 0,
+        });
     });
 
     it("accepts partial update input and rejects invalid values", () => {
@@ -39,6 +55,12 @@ describe("currencies validation", () => {
             precision: 3,
         });
         expect(parsed).toEqual({ name: "Euro", precision: 3 });
+
+        expect(() =>
+            UpdateCurrencyInputSchema.parse({
+                precision: -1,
+            }),
+        ).toThrow();
 
         expect(() =>
             UpdateCurrencyInputSchema.parse({

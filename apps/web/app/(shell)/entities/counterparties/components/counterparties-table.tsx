@@ -11,9 +11,6 @@ import type { CounterpartyGroupOption } from "../lib/queries";
 
 import { getColumns, type SerializedCounterparty } from "./columns";
 
-const INTERACTIVE_SELECTOR =
-  'a,button,input,textarea,select,[role="button"],[role="menuitem"]';
-
 export interface CounterpartiesListResult {
   data: SerializedCounterparty[];
   total: number;
@@ -37,18 +34,7 @@ export function CounterpartiesTable({
   const columns = React.useMemo(() => getColumns(groupOptions), [groupOptions]);
 
   const handleRowDoubleClick = React.useCallback(
-    (
-      row: TanstackRow<SerializedCounterparty>,
-      event: React.MouseEvent<HTMLTableRowElement>,
-    ) => {
-      const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        target.closest(INTERACTIVE_SELECTOR)
-      ) {
-        return;
-      }
-
+    (row: TanstackRow<SerializedCounterparty>) => {
       router.push(`/entities/counterparties/${row.original.id}`);
     },
     [router],

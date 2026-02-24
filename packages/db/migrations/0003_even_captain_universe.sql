@@ -1,0 +1,2 @@
+ALTER TABLE "currencies" DROP CONSTRAINT "currencies_precision_positive";--> statement-breakpoint
+ALTER TABLE "currencies" ADD CONSTRAINT "currencies_precision_non_negative" CHECK ("currencies"."precision" >= 0);

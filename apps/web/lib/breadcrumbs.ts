@@ -54,7 +54,11 @@ const segmentMap: Record<string, SegmentConfig> = {
     href: "/entities/counterparties",
     icon: "building-2",
   },
-  currencies: { label: "Валюты", icon: "dollar-sign" },
+  currencies: {
+    label: "Валюты",
+    href: "/entities/currencies",
+    icon: "dollar-sign",
+  },
   accounts: { label: "Счета" },
   operations: { label: "Операции" },
 

@@ -7,7 +7,10 @@ import {
     type PaginatedList,
 } from "@bedrock/kernel/pagination";
 
-import { CurrencyNotFoundError } from "./errors";
+import {
+    CurrencyDeleteConflictError,
+    CurrencyNotFoundError,
+} from "./errors";
 import {
     createCurrenciesServiceContext,
     type CurrenciesServiceDeps,
@@ -32,6 +35,19 @@ const SORT_COLUMN_MAP = {
     createdAt: (currency: Currency) => currency.createdAt,
     updatedAt: (currency: Currency) => currency.updatedAt,
 } as const;
+
+function hasForeignKeyViolation(error: unknown): boolean {
+    if (!error || typeof error !== "object") {
+        return false;
+    }
+
+    const candidate = error as { code?: unknown; cause?: unknown };
+    if (candidate.code === "23503") {
+        return true;
+    }
+
+    return hasForeignKeyViolation(candidate.cause);
+}
 
 export type CurrenciesService = ReturnType<typeof createCurrenciesService>;
 
@@ -150,11 +166,37 @@ export function createCurrenciesService(deps: CurrenciesServiceDeps) {
         return row;
     }
 
+    async function remove(id: string): Promise<void> {
+        try {
+            const [deleted] = await db
+                .delete(schema.currencies)
+                .where(eq(schema.currencies.id, id))
+                .returning({ id: schema.currencies.id });
+
+            if (!deleted) {
+                throw new CurrencyNotFoundError(id);
+            }
+        } catch (error) {
+            if (error instanceof CurrencyNotFoundError) {
+                throw error;
+            }
+
+            if (hasForeignKeyViolation(error)) {
+                throw new CurrencyDeleteConflictError(id);
+            }
+
+            throw error;
+        }
+
+        invalidateCache();
+    }
+
     return {
         list,
         findById,
         findByCode,
         create,
         update,
+        remove,
     };
 }

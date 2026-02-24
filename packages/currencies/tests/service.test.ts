@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { createCurrenciesService } from "../src/service";
-import { CurrencyNotFoundError } from "../src/errors";
+import {
+  CurrencyDeleteConflictError,
+  CurrencyNotFoundError,
+} from "../src/errors";
 
 function makeCurrency(overrides: Record<string, unknown> = {}) {
   return {
@@ -20,6 +23,7 @@ function createStubDb() {
     select: vi.fn(),
     insert: vi.fn(),
     update: vi.fn(),
+    delete: vi.fn(),
   };
 }
 
@@ -206,5 +210,66 @@ describe("createCurrenciesService", () => {
     await expect(
       service.update("missing-id", { name: "Nope" }),
     ).rejects.toThrow(CurrencyNotFoundError);
+  });
+
+  it("removes currency, invalidates cache and fails to resolve removed code", async () => {
+    const usd = makeCurrency();
+    const db = createStubDb();
+    db.select
+      .mockReturnValueOnce({
+        from: vi.fn(async () => [usd]),
+      })
+      .mockReturnValueOnce({
+        from: vi.fn(async () => []),
+      });
+    db.delete.mockReturnValue({
+      where: vi.fn(() => ({
+        returning: vi.fn(async () => [{ id: usd.id }]),
+      })),
+    });
+
+    const service = createCurrenciesService({ db: db as any });
+
+    await service.findByCode("USD");
+    await service.remove(usd.id);
+
+    await expect(service.findByCode("USD")).rejects.toThrow(
+      CurrencyNotFoundError,
+    );
+    expect(db.select).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws CurrencyNotFoundError when remove target is missing", async () => {
+    const db = createStubDb();
+    db.delete.mockReturnValue({
+      where: vi.fn(() => ({
+        returning: vi.fn(async () => []),
+      })),
+    });
+
+    const service = createCurrenciesService({ db: db as any });
+
+    await expect(service.remove("missing-id")).rejects.toThrow(
+      CurrencyNotFoundError,
+    );
+  });
+
+  it("maps foreign key delete conflicts to CurrencyDeleteConflictError", async () => {
+    const db = createStubDb();
+    db.delete.mockReturnValue({
+      where: vi.fn(() => ({
+        returning: vi.fn(async () => {
+          const error = new Error("foreign key conflict");
+          (error as Error & { cause?: unknown }).cause = { code: "23503" };
+          throw error;
+        }),
+      })),
+    });
+
+    const service = createCurrenciesService({ db: db as any });
+
+    await expect(service.remove("in-use-id")).rejects.toThrow(
+      CurrencyDeleteConflictError,
+    );
   });
 });
