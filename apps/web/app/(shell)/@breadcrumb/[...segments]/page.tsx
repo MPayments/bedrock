@@ -1,4 +1,5 @@
 import { getCounterpartyById } from "@/app/(shell)/entities/counterparties/lib/queries";
+import { getCurrencyById } from "@/app/(shell)/entities/currencies/lib/queries";
 import { getCustomerById } from "@/app/(shell)/entities/customers/lib/queries";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import {
@@ -34,6 +35,21 @@ const dynamicResolvers = {
     return {
       label: customer.displayName,
       href: `/entities/customers/${customer.id}`,
+    };
+  },
+  currencies: async ({ segment }: { segment: string }) => {
+    const currency = await getCurrencyById(segment);
+
+    if (!currency) {
+      return {
+        label: "Валюта",
+        href: `/entities/currencies/${segment}`,
+      };
+    }
+
+    return {
+      label: currency.name,
+      href: `/entities/currencies/${currency.id}`,
     };
   },
 };

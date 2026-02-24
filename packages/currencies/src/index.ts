@@ -1,7 +1,11 @@
 export { createCurrenciesService } from "./service";
 export type { CurrenciesService } from "./service";
 export type { CurrenciesServiceDeps } from "./internal/context";
-export { CurrencyNotFoundError } from "./errors";
+export {
+    CurrencyDeleteConflictError,
+    CurrencyError,
+    CurrencyNotFoundError,
+} from "./errors";
 export {
     CurrencySchema,
     CURRENCIES_LIST_CONTRACT,

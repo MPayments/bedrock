@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { DollarSign, Plus } from "lucide-react";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
@@ -31,7 +32,11 @@ export default async function CurrenciesPage({ searchParams }: PageProps) {
             </p>
           </div>
         </div>
-        <Button size="lg">
+        <Button
+          size="lg"
+          nativeButton={false}
+          render={<Link href="/entities/currencies/create" />}
+        >
           <Plus className="h-4 w-4" />
           <span className="hidden md:block">Добавить</span>
         </Button>
@@ -39,7 +44,7 @@ export default async function CurrenciesPage({ searchParams }: PageProps) {
       <Separator className="w-full h-px" />
       <Suspense
         fallback={
-          <DataTableSkeleton columnCount={6} rowCount={10} filterCount={0} />
+          <DataTableSkeleton columnCount={7} rowCount={10} filterCount={0} />
         }
       >
         <CurrenciesTable promise={promise} />

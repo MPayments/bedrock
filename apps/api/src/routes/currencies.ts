@@ -1,6 +1,7 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 
 import {
+  CurrencyDeleteConflictError,
   CurrencySchema,
   ListCurrenciesQuerySchema,
   CreateCurrencyInputSchema,
@@ -9,7 +10,7 @@ import {
 } from "@bedrock/currencies";
 import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 
-import { ErrorSchema, IdParamSchema } from "../common";
+import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
@@ -142,6 +143,43 @@ export function currenciesRoutes(ctx: AppContext) {
     },
   });
 
+  const deleteRoute = createRoute({
+    middleware: [requirePermission({ currencies: ["delete"] })],
+    method: "delete",
+    path: "/{id}",
+    tags: ["Currencies"],
+    summary: "Delete a currency",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DeletedSchema,
+          },
+        },
+        description: "Currency deleted",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Currency not found",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Currency is referenced by existing records",
+      },
+    },
+  });
+
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
@@ -174,6 +212,21 @@ export function currenciesRoutes(ctx: AppContext) {
       } catch (err) {
         if (err instanceof CurrencyNotFoundError) {
           return c.json({ error: err.message }, 404);
+        }
+        throw err;
+      }
+    })
+    .openapi(deleteRoute, async (c) => {
+      const { id } = c.req.valid("param");
+      try {
+        await ctx.currenciesService.remove(id);
+        return c.json({ deleted: true }, 200);
+      } catch (err) {
+        if (err instanceof CurrencyNotFoundError) {
+          return c.json({ error: err.message }, 404);
+        }
+        if (err instanceof CurrencyDeleteConflictError) {
+          return c.json({ error: err.message }, 409);
         }
         throw err;
       }
