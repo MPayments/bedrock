@@ -42,7 +42,6 @@ import {
 } from "@bedrock/ui/components/table";
 
 import { apiClient } from "@/lib/api-client";
-import { authClient } from "@/lib/auth-client";
 import { formatDate } from "@/lib/format";
 import { executeMutation } from "@/lib/resources/http";
 import type { TransferDto, TransferFormOptions } from "../lib/queries";
@@ -137,7 +136,6 @@ export function TransfersPageClient({
   formOptions,
 }: TransfersPageClientProps) {
   const router = useRouter();
-  const { data: session } = authClient.useSession();
   const [createForm, setCreateForm] = useState<CreateTransferFormState>(
     INITIAL_CREATE_FORM,
   );
@@ -174,19 +172,7 @@ export function TransfersPageClient({
     ? currencyById.get(selectedSourceAccount.currencyId) ?? null
     : null;
 
-  function requireUserId(): string | null {
-    const userId = (session?.user as { id?: string } | undefined)?.id;
-    if (!userId) {
-      toast.error("Не удалось определить текущего пользователя");
-      return null;
-    }
-    return userId;
-  }
-
   async function handleCreateTransfer() {
-    const makerUserId = requireUserId();
-    if (!makerUserId) return;
-
     if (!selectedSourceAccount || !selectedDestinationAccount) {
       toast.error("Выберите счет источника и назначения");
       return;
@@ -230,7 +216,6 @@ export function TransfersPageClient({
             idempotencyKey: createIdempotencyKey("ui:transfer:create"),
             amountMinor: converted.value,
             memo: createForm.memo.trim() || undefined,
-            makerUserId,
             settlementMode: createForm.settlementMode,
             timeoutSeconds:
               createForm.settlementMode === "pending" &&
@@ -260,16 +245,12 @@ export function TransfersPageClient({
   }
 
   async function handleApprove(transfer: TransferDto) {
-    const checkerUserId = requireUserId();
-    if (!checkerUserId) return;
-
     setActionTransferId(transfer.id);
     const result = await executeMutation<{ transferId: string; ledgerOperationId: string }>({
       request: () =>
         apiClient.v1.transfers[":id"].approve.$post({
           param: { id: transfer.id },
           json: {
-            checkerUserId,
             occurredAt: new Date().toISOString(),
           },
         }),
@@ -289,9 +270,6 @@ export function TransfersPageClient({
   }
 
   async function handleReject(transfer: TransferDto) {
-    const checkerUserId = requireUserId();
-    if (!checkerUserId) return;
-
     const reason = window.prompt("Причина отклонения");
     if (reason === null) return;
     if (reason.trim().length === 0) {
@@ -305,7 +283,6 @@ export function TransfersPageClient({
         apiClient.v1.transfers[":id"].reject.$post({
           param: { id: transfer.id },
           json: {
-            checkerUserId,
             occurredAt: new Date().toISOString(),
             reason,
           },

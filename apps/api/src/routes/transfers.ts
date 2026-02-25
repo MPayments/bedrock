@@ -165,7 +165,7 @@ export function transfersRoutes(ctx: AppContext) {
       body: {
         content: {
           "application/json": {
-            schema: CreateTransferDraftInputSchema,
+            schema: CreateTransferDraftInputSchema.omit({ makerUserId: true }),
           },
         },
         required: true,
@@ -239,7 +239,10 @@ export function transfersRoutes(ctx: AppContext) {
       body: {
         content: {
           "application/json": {
-            schema: ApproveTransferInputSchema.omit({ transferId: true }),
+            schema: ApproveTransferInputSchema.omit({
+              transferId: true,
+              checkerUserId: true,
+            }),
           },
         },
         required: true,
@@ -284,7 +287,10 @@ export function transfersRoutes(ctx: AppContext) {
       body: {
         content: {
           "application/json": {
-            schema: RejectTransferInputSchema.omit({ transferId: true }),
+            schema: RejectTransferInputSchema.omit({
+              transferId: true,
+              checkerUserId: true,
+            }),
           },
         },
         required: true,
@@ -422,8 +428,12 @@ export function transfersRoutes(ctx: AppContext) {
     })
     .openapi(createDraftRoute, async (c) => {
       const input = c.req.valid("json");
+      const makerUserId = c.get("user")!.id;
       try {
-        const transferId = await ctx.transfersService.createDraft(input);
+        const transferId = await ctx.transfersService.createDraft({
+          ...input,
+          makerUserId,
+        });
         return c.json({ transferId }, 201);
       } catch (err) {
         if (err instanceof NotFoundError || err instanceof AccountNotFoundError) {
@@ -454,10 +464,12 @@ export function transfersRoutes(ctx: AppContext) {
     .openapi(approveRoute, async (c) => {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
+      const checkerUserId = c.get("user")!.id;
       try {
         const result = await ctx.transfersService.approve({
           transferId: id,
           ...input,
+          checkerUserId,
         });
         return c.json(result, 200);
       } catch (err) {
@@ -469,10 +481,12 @@ export function transfersRoutes(ctx: AppContext) {
     .openapi(rejectRoute, async (c) => {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
+      const checkerUserId = c.get("user")!.id;
       try {
         const transferId = await ctx.transfersService.reject({
           transferId: id,
           ...input,
+          checkerUserId,
         });
         return c.json({ transferId }, 200);
       } catch (err) {
@@ -484,11 +498,12 @@ export function transfersRoutes(ctx: AppContext) {
     .openapi(settleRoute, async (c) => {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
+      const actorUserId = c.get("user")!.id;
       try {
         const result = await ctx.transfersService.settlePending({
           transferId: id,
           ...input,
-        });
+        }, actorUserId);
         return c.json(result, 200);
       } catch (err) {
         const handled = handleTransferError(err);
@@ -499,11 +514,12 @@ export function transfersRoutes(ctx: AppContext) {
     .openapi(voidRoute, async (c) => {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
+      const actorUserId = c.get("user")!.id;
       try {
         const result = await ctx.transfersService.voidPending({
           transferId: id,
           ...input,
-        });
+        }, actorUserId);
         return c.json(result, 200);
       } catch (err) {
         const handled = handleTransferError(err);

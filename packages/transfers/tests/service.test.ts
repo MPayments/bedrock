@@ -181,7 +181,7 @@ describe("createTransfersService (v2)", () => {
                 transferId: TRANSFER_ID,
                 eventIdempotencyKey: "void-key",
                 occurredAt: new Date("2026-02-25T00:00:00.000Z"),
-            }),
+            }, CHECKER_USER_ID),
         ).rejects.toThrow(InvalidStateError);
     });
 });

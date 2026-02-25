@@ -7,7 +7,6 @@ import { Button } from "@bedrock/ui/components/button";
 import { toast } from "@bedrock/ui/components/sonner";
 
 import { apiClient } from "@/lib/api-client";
-import { authClient } from "@/lib/auth-client";
 import { executeMutation } from "@/lib/resources/http";
 import type { TransferDto } from "../lib/queries";
 
@@ -25,29 +24,15 @@ function createIdempotencyKey(prefix: string) {
 
 export function TransferActionsClient({ transfer }: TransferActionsClientProps) {
   const router = useRouter();
-  const { data: session } = authClient.useSession();
   const [loading, setLoading] = useState(false);
 
-  function requireUserId() {
-    const userId = (session?.user as { id?: string } | undefined)?.id;
-    if (!userId) {
-      toast.error("Не удалось определить текущего пользователя");
-      return null;
-    }
-    return userId;
-  }
-
   async function handleApprove() {
-    const checkerUserId = requireUserId();
-    if (!checkerUserId) return;
-
     setLoading(true);
     const result = await executeMutation({
       request: () =>
         apiClient.v1.transfers[":id"].approve.$post({
           param: { id: transfer.id },
           json: {
-            checkerUserId,
             occurredAt: new Date().toISOString(),
           },
         }),
@@ -66,9 +51,6 @@ export function TransferActionsClient({ transfer }: TransferActionsClientProps) 
   }
 
   async function handleReject() {
-    const checkerUserId = requireUserId();
-    if (!checkerUserId) return;
-
     const reason = window.prompt("Причина отклонения");
     if (reason === null) return;
     if (reason.trim().length === 0) {
@@ -82,7 +64,6 @@ export function TransferActionsClient({ transfer }: TransferActionsClientProps) 
         apiClient.v1.transfers[":id"].reject.$post({
           param: { id: transfer.id },
           json: {
-            checkerUserId,
             occurredAt: new Date().toISOString(),
             reason,
           },

@@ -676,6 +676,7 @@ export function createTransfersService(deps: {
 
   async function settlePending(
     input: SettlePendingTransferInput,
+    actorUserId: string,
   ): Promise<TransfersServiceResult> {
     const validated = validateSettlePendingTransferInput(input);
 
@@ -691,7 +692,7 @@ export function createTransfersService(deps: {
       }
 
       const allowed = await deps.canApprove?.(
-        transfer.checkerUserId ?? transfer.makerUserId,
+        actorUserId,
         transfer.sourceCounterpartyId,
         transfer.destinationCounterpartyId,
       );
@@ -705,6 +706,7 @@ export function createTransfersService(deps: {
 
   async function voidPending(
     input: VoidPendingTransferInput,
+    actorUserId: string,
   ): Promise<TransfersServiceResult> {
     const validated = validateVoidPendingTransferInput(input);
 
@@ -720,7 +722,7 @@ export function createTransfersService(deps: {
       }
 
       const allowed = await deps.canApprove?.(
-        transfer.checkerUserId ?? transfer.makerUserId,
+        actorUserId,
         transfer.sourceCounterpartyId,
         transfer.destinationCounterpartyId,
       );
