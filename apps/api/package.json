@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@bedrock/accounts": "workspace:*",
+    "@bedrock/accounting": "workspace:*",
     "@bedrock/auth": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/db": "workspace:*",

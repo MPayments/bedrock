@@ -1,89 +1,92 @@
 export enum PlanType {
-    CREATE = "create",
-    POST_PENDING = "post_pending",
-    VOID_PENDING = "void_pending",
+  CREATE = "create",
+  POST_PENDING = "post_pending",
+  VOID_PENDING = "void_pending",
+}
+
+export interface PostingAnalytics {
+  counterpartyId?: string | null;
+  customerId?: string | null;
+  orderId?: string | null;
+  operationalAccountId?: string | null;
+  transferId?: string | null;
+  quoteId?: string | null;
+  feeBucket?: string | null;
 }
 
 export interface CreatePlan {
-    type: PlanType.CREATE;
-    planKey: string;
+  type: PlanType.CREATE;
+  planRef: string;
+  bookOrgId: string;
 
-    debitKey: string;
-    creditKey: string;
+  debitAccountNo: string;
+  creditAccountNo: string;
+  postingCode: string;
 
-    currency: string;
-    amount: bigint;
+  currency: string;
+  amount: bigint;
 
-    code?: number;
+  code?: number;
 
-    pending?: {
-        timeoutSeconds: number
-    };
+  pending?: {
+    timeoutSeconds: number;
+    ref?: string | null;
+  };
 
-    chain?: string | null;
+  chain?: string | null;
 
-    memo?: string | null;
+  memo?: string | null;
+  analytics?: PostingAnalytics;
 }
 
 export interface PostPendingPlan {
-    type: PlanType.POST_PENDING;
-    planKey: string;
+  type: PlanType.POST_PENDING;
+  planRef: string;
 
-    currency: string;
-    pendingId: bigint;
+  currency: string;
+  pendingId: bigint;
 
-    amount?: bigint;
+  amount?: bigint;
 
-    code?: number;
+  code?: number;
 
-    chain?: string | null;
+  chain?: string | null;
 
-    memo?: string | null;
+  memo?: string | null;
 }
 
 export interface VoidPendingPlan {
-    type: PlanType.VOID_PENDING;
-    planKey: string;
+  type: PlanType.VOID_PENDING;
+  planRef: string;
 
-    currency: string;
-    pendingId: bigint;
+  currency: string;
+  pendingId: bigint;
 
-    code?: number;
+  code?: number;
 
-    chain?: string | null;
+  chain?: string | null;
 
-    memo?: string | null;
+  memo?: string | null;
 }
 
 export type TransferPlanLine = CreatePlan | PostPendingPlan | VoidPendingPlan;
 
-export interface CreateEntryInput {
-    orgId: string;
-    source: {
-        type: string;
-        id: string
-    };
-    idempotencyKey: string;
-    postingDate: Date;
+export interface CreateOperationInput {
+  source: {
+    type: string;
+    id: string;
+  };
+  operationCode: string;
+  operationVersion?: number;
+  payload?: unknown;
+  idempotencyKey: string;
+  postingDate: Date;
 
-    transfers: TransferPlanLine[];
+  transfers: TransferPlanLine[];
 }
 
-/**
- * Result of creating a journal entry.
- * 
- * Includes the entry ID and a map of transfer IDs by plan index (1-based).
- * This allows callers to get the deterministic transfer IDs without needing
- * to know the internal ID generation scheme.
- */
-export interface CreateEntryResult {
-    /** The journal entry ID */
-    entryId: string;
-    
-    /** 
-     * Map from plan index (1-based) to the deterministic transfer ID.
-     * Use this to get transfer IDs for pending transfers that need to be
-     * referenced later (e.g., for post_pending or void_pending operations).
-     */
-    transferIds: Map<number, bigint>;
+export interface CreateOperationResult {
+  operationId: string;
+  pendingTransferIdsByRef: Map<string, bigint>;
+  transferIds: Map<number, bigint>;
 }

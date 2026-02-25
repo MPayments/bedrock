@@ -42,8 +42,9 @@ const TransferOrderResponseSchema = z.object({
   approvedAt: z.string().datetime().nullable(),
   rejectedAt: z.string().datetime().nullable(),
   rejectReason: z.string().nullable(),
-  ledgerEntryId: z.uuid().nullable(),
-  pendingTransferId: z.string().nullable(),
+  ledgerOperationId: z.uuid().nullable(),
+  sourcePendingTransferId: z.string().nullable(),
+  destinationPendingTransferId: z.string().nullable(),
   idempotencyKey: z.string(),
   lastError: z.string().nullable(),
   createdAt: z.string().datetime(),
@@ -56,7 +57,7 @@ const TransferDraftCreatedSchema = z.object({
 
 const TransferActionResultSchema = z.object({
   transferId: z.uuid(),
-  ledgerEntryId: z.uuid(),
+  ledgerOperationId: z.uuid(),
 });
 
 const TransferRejectedSchema = z.object({
@@ -86,8 +87,11 @@ function toTransferDto(transfer: any) {
     approvedAt: transfer.approvedAt?.toISOString() ?? null,
     rejectedAt: transfer.rejectedAt?.toISOString() ?? null,
     rejectReason: transfer.rejectReason,
-    ledgerEntryId: transfer.ledgerEntryId,
-    pendingTransferId: transfer.pendingTransferId?.toString() ?? null,
+    ledgerOperationId: transfer.ledgerOperationId,
+    sourcePendingTransferId:
+      transfer.sourcePendingTransferId?.toString() ?? null,
+    destinationPendingTransferId:
+      transfer.destinationPendingTransferId?.toString() ?? null,
     idempotencyKey: transfer.idempotencyKey,
     lastError: transfer.lastError,
     createdAt: transfer.createdAt.toISOString(),
@@ -397,10 +401,13 @@ export function transfersRoutes(ctx: AppContext) {
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
       const result = await ctx.transfersService.list(query);
-      return c.json({
-        ...result,
-        data: result.data.map(toTransferDto),
-      }, 200);
+      return c.json(
+        {
+          ...result,
+          data: result.data.map(toTransferDto),
+        },
+        200,
+      );
     })
     .openapi(createDraftRoute, async (c) => {
       const input = c.req.valid("json");

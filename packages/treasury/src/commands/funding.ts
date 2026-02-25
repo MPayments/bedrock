@@ -1,5 +1,6 @@
 import { and, eq, or, sql } from "drizzle-orm";
 
+import { OPERATION_CODE } from "@bedrock/accounting";
 import { type Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { makePlanKey } from "@bedrock/kernel";
@@ -15,6 +16,7 @@ import {
     TreasuryOrderStatus,
     isOrderStatusIn,
 } from "../state-machine";
+import { buildTreasuryOperationInput } from "../internal/ledger-operation";
 import { type FundingSettledInput, validateFundingSettledInput } from "../validation";
 
 export function createFundingSettledHandler(context: TreasuryServiceContext) {
@@ -59,30 +61,40 @@ export function createFundingSettledHandler(context: TreasuryServiceContext) {
                 customerId: validated.customerId,
             });
 
-            const { entryId } = await ledger.createEntryTx(tx, {
-                orgId: SYSTEM_LEDGER_ORG_ID,
-                source: { type: "order/funding_settled", id: validated.orderId },
-                idempotencyKey: `funding:${validated.railRef}`,
-                postingDate: validated.occurredAt,
-                transfers: [
-                    {
-                        type: PlanType.CREATE,
-                        planKey: pk,
-                        debitKey: keys.bank(validated.branchCounterpartyId, validated.branchBankStableKey, validated.currency),
-                        creditKey: keys.customerWallet(validated.customerId, validated.currency),
+            const { operationId: entryId } = await ledger.createOperationTx(
+                tx,
+                buildTreasuryOperationInput({
+                    source: { type: "order/funding_settled", id: validated.orderId },
+                    operationCode: OPERATION_CODE.TREASURY_FUNDING_SETTLED,
+                    payload: {
+                        orderId: validated.orderId,
+                        railRef: validated.railRef,
+                        amountMinor: validated.amountMinor.toString(),
                         currency: validated.currency,
-                        amount: validated.amountMinor,
-                        code: TransferCodes.FUNDING_SETTLED,
-                        memo: "Funding settled",
                     },
-                ],
-            });
+                    idempotencyKey: `funding:${validated.railRef}`,
+                    postingDate: validated.occurredAt,
+                    bookOrgId: SYSTEM_LEDGER_ORG_ID,
+                    transfers: [
+                        {
+                            type: PlanType.CREATE,
+                            planKey: pk,
+                            debitKey: keys.bank(validated.branchCounterpartyId, validated.branchBankStableKey, validated.currency),
+                            creditKey: keys.customerWallet(validated.customerId, validated.currency),
+                            currency: validated.currency,
+                            amount: validated.amountMinor,
+                            code: TransferCodes.FUNDING_SETTLED,
+                            memo: "Funding settled",
+                        },
+                    ],
+                })
+            );
 
             const moved = await tx
                 .update(schema.paymentOrders)
                 .set({
                     status: TreasuryOrderStatus.FUNDING_SETTLED_PENDING_POSTING,
-                    ledgerEntryId: entryId,
+                    ledgerOperationId: entryId,
                     updatedAt: sql`now()`,
                 })
                 .where(
@@ -103,13 +115,13 @@ export function createFundingSettledHandler(context: TreasuryServiceContext) {
 
             const current = await fetchOrderState(tx, validated.orderId);
             const st = current.status as string;
-            const led = current.ledgerEntryId;
+            const led = current.ledgerOperationId;
 
             if (isOrderStatusIn(st, AdvancedOrderStatuses)) {
-                if (!led) throw new InvalidStateError(`Order in advanced state ${st} but ledgerEntryId missing`);
+                if (!led) throw new InvalidStateError(`Order in advanced state ${st} but ledgerOperationId missing`);
                 if (led !== entryId) {
                     throw new InvalidStateError(
-                        `Order advanced with different ledgerEntryId (expected ${entryId}, found ${led})`
+                        `Order advanced with different ledgerOperationId (expected ${entryId}, found ${led})`
                     );
                 }
                 log.debug("fundingSettled idempotent", { orderId: validated.orderId, status: st });

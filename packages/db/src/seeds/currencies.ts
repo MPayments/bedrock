@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import { seed } from "drizzle-seed";
 
 import type { Database } from "../client";
 import { schema } from "../schema";
@@ -33,23 +32,8 @@ const CURRENCY_SEEDS = [
     { id: CURRENCY_IDS.USDT, code: "USDT", name: "Tether", symbol: "₮", precision: 2 },
 ] as const;
 
-async function seedCurrencyRow(db: Database, row: (typeof CURRENCY_SEEDS)[number], rowSeed: number) {
-    await seed(db, { currencies: schema.currencies }, { count: 1, seed: rowSeed }).refine((funcs) => ({
-        currencies: {
-            columns: {
-                id: funcs.default({ defaultValue: row.id }),
-                code: funcs.default({ defaultValue: row.code }),
-                name: funcs.default({ defaultValue: row.name }),
-                symbol: funcs.default({ defaultValue: row.symbol }),
-                precision: funcs.default({ defaultValue: row.precision }),
-            },
-        },
-    }));
-}
-
 export async function seedCurrencies(db: Database): Promise<void> {
-    for (let i = 0; i < CURRENCY_SEEDS.length; i++) {
-        const row = CURRENCY_SEEDS[i]!;
+    for (const row of CURRENCY_SEEDS) {
         const [existing] = await db
             .select({ id: schema.currencies.id })
             .from(schema.currencies)
@@ -57,14 +41,27 @@ export async function seedCurrencies(db: Database): Promise<void> {
             .limit(1);
 
         if (!existing) {
-            await seedCurrencyRow(db, row, i + 1);
+            await db.insert(schema.currencies).values({
+                id: row.id,
+                code: row.code,
+                name: row.name,
+                symbol: row.symbol,
+                precision: row.precision,
+            });
             continue;
         }
 
         if (existing.id !== row.id) {
-            throw new Error(
-                `Currency id mismatch for code ${row.code}: expected ${row.id}, got ${existing.id}`,
-            );
+            await db
+                .update(schema.currencies)
+                .set({
+                    id: row.id,
+                    name: row.name,
+                    symbol: row.symbol,
+                    precision: row.precision,
+                })
+                .where(eq(schema.currencies.code, row.code));
+            continue;
         }
 
         await db

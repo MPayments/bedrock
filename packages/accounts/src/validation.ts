@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { ACCOUNT_NO } from "@bedrock/accounting";
 import { COUNTRY_ALPHA2_SET } from "@bedrock/countries";
 import {
   createListQuerySchemaFromContract,
@@ -63,6 +64,7 @@ export const AccountSchema = z.object({
   address: z.string().nullable(),
   iban: z.string().nullable(),
   stableKey: z.string(),
+  postingAccountNo: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -241,6 +243,7 @@ export const CreateAccountInputSchema = z.object({
   corrAccount: z.string().max(64).nullish(),
   address: z.string().max(500).nullish(),
   iban: z.string().max(64).nullish(),
+  postingAccountNo: z.string().regex(/^[0-9]{2}(\.[0-9]{2})?$/).default(ACCOUNT_NO.BANK),
 });
 export type CreateAccountInput = z.infer<typeof CreateAccountInputSchema>;
 
@@ -255,6 +258,7 @@ export const UpdateAccountInputSchema = z.object({
   corrAccount: z.string().max(64).nullable().optional(),
   address: z.string().max(500).nullable().optional(),
   iban: z.string().max(64).nullable().optional(),
+  postingAccountNo: z.string().regex(/^[0-9]{2}(\.[0-9]{2})?$/).optional(),
 });
 export type UpdateAccountInput = z.infer<typeof UpdateAccountInputSchema>;
 
@@ -348,8 +352,9 @@ export const TransferAccountBindingSchema = z.object({
     currencyId: z.uuid(),
     currencyCode: z.string(),
     stableKey: z.string(),
-    ledgerOrgId: z.uuid(),
-    ledgerKey: z.string(),
+    bookOrgId: z.uuid(),
+    bookAccountId: z.uuid(),
+    bookAccountNo: z.string(),
 });
 export type TransferAccountBinding = z.infer<typeof TransferAccountBindingSchema>;
 

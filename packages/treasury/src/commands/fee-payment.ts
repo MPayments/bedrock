@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 
+import { OPERATION_CODE } from "@bedrock/accounting";
 import { type Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { makePlanKey } from "@bedrock/kernel";
@@ -9,6 +10,7 @@ import { PlanType } from "@bedrock/ledger";
 
 import { SYSTEM_LEDGER_ORG_ID, type TreasuryServiceContext } from "../internal/context";
 import { assertInitiateFeePaymentReplayCompatible } from "../internal/fee-payment-idempotency";
+import { buildTreasuryOperationInput } from "../internal/ledger-operation";
 import { fetchFeePaymentOrderState } from "../internal/order-state";
 import {
     type InitiateFeePaymentInput,
@@ -41,7 +43,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                 ) {
                     assertInitiateFeePaymentReplayCompatible(feeOrder, vaildated);
                     return {
-                        entryId: feeOrder.initiateEntryId,
+                        entryId: feeOrder.initiateOperationId,
                         pendingTransferId: feeOrder.pendingTransferId,
                     };
                 }
@@ -57,25 +59,35 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                 payoutBankStableKey: vaildated.payoutBankStableKey,
             });
 
-            const { entryId, transferIds } = await ledger.createEntryTx(tx, {
-                orgId: SYSTEM_LEDGER_ORG_ID,
-                source: { type: "fee_payment/initiated", id: vaildated.feePaymentOrderId },
-                idempotencyKey: `fee_payment:init:${vaildated.feePaymentOrderId}:${vaildated.railRef}`,
-                postingDate: vaildated.occurredAt,
-                transfers: [
-                    {
-                        type: PlanType.CREATE,
-                        planKey,
-                        debitKey: keys.feeClearing(feeOrder.bucket, feeOrderCurrency),
-                        creditKey: keys.bank(vaildated.payoutCounterpartyId, vaildated.payoutBankStableKey, feeOrderCurrency),
+            const { operationId: entryId, transferIds } = await ledger.createOperationTx(
+                tx,
+                buildTreasuryOperationInput({
+                    source: { type: "fee_payment/initiated", id: vaildated.feePaymentOrderId },
+                    operationCode: OPERATION_CODE.TREASURY_FEE_PAYMENT_INIT,
+                    payload: {
+                        feePaymentOrderId: vaildated.feePaymentOrderId,
+                        railRef: vaildated.railRef,
+                        amountMinor: feeOrder.amountMinor.toString(),
                         currency: feeOrderCurrency,
-                        amount: feeOrder.amountMinor,
-                        code: TransferCodes.FEE_PAYMENT_INITIATED,
-                        pending: { timeoutSeconds },
-                        memo: "Fee payment initiated (pending)",
                     },
-                ],
-            });
+                    idempotencyKey: `fee_payment:init:${vaildated.feePaymentOrderId}:${vaildated.railRef}`,
+                    postingDate: vaildated.occurredAt,
+                    bookOrgId: SYSTEM_LEDGER_ORG_ID,
+                    transfers: [
+                        {
+                            type: PlanType.CREATE,
+                            planKey,
+                            debitKey: keys.feeClearing(feeOrder.bucket, feeOrderCurrency),
+                            creditKey: keys.bank(vaildated.payoutCounterpartyId, vaildated.payoutBankStableKey, feeOrderCurrency),
+                            currency: feeOrderCurrency,
+                            amount: feeOrder.amountMinor,
+                            code: TransferCodes.FEE_PAYMENT_INITIATED,
+                            pending: { timeoutSeconds },
+                            memo: "Fee payment initiated (pending)",
+                        },
+                    ],
+                })
+            );
 
             const pendingTransferId = transferIds.get(1)!;
 
@@ -83,7 +95,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                 .update(schema.feePaymentOrders)
                 .set({
                     status: "initiated_pending_posting",
-                    initiateEntryId: entryId,
+                    initiateOperationId: entryId,
                     pendingTransferId,
                     payoutCounterpartyId: vaildated.payoutCounterpartyId,
                     payoutBankStableKey: vaildated.payoutBankStableKey,
@@ -104,7 +116,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
 
             const current = await fetchFeePaymentOrderState(tx, vaildated.feePaymentOrderId);
             if (
-                current.initiateEntryId === entryId &&
+                current.initiateOperationId === entryId &&
                 (current.status === "initiated_pending_posting" || current.status === "initiated")
             ) {
                 if (!current.pendingTransferId) {
@@ -133,10 +145,10 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                             `FeePaymentOrder already settled with different railRef (expected ${feeOrder.railRef ?? "null"}, got ${input.railRef})`
                         );
                     }
-                    if (!feeOrder.resolveEntryId) {
-                        throw new InvalidStateError("FeePaymentOrder missing resolveEntryId");
+                    if (!feeOrder.resolveOperationId) {
+                        throw new InvalidStateError("FeePaymentOrder missing resolveOperationId");
                     }
-                    return feeOrder.resolveEntryId;
+                    return feeOrder.resolveOperationId;
                 }
                 throw new InvalidStateError(`FeePaymentOrder must be initiated, got ${feeOrder.status}`);
             }
@@ -151,27 +163,37 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                 currency: feeOrderCurrency,
             });
 
-            const { entryId } = await ledger.createEntryTx(tx, {
-                orgId: SYSTEM_LEDGER_ORG_ID,
-                source: { type: "fee_payment/settled", id: validated.feePaymentOrderId },
-                idempotencyKey: `fee_payment:settle:${validated.feePaymentOrderId}:${validated.railRef}`,
-                postingDate: validated.occurredAt,
-                transfers: [
-                    {
-                        type: PlanType.POST_PENDING,
-                        planKey,
+            const { operationId: entryId } = await ledger.createOperationTx(
+                tx,
+                buildTreasuryOperationInput({
+                    source: { type: "fee_payment/settled", id: validated.feePaymentOrderId },
+                    operationCode: OPERATION_CODE.TREASURY_FEE_PAYMENT_SETTLE,
+                    payload: {
+                        feePaymentOrderId: validated.feePaymentOrderId,
+                        railRef: validated.railRef,
+                        pendingTransferId: feeOrder.pendingTransferId.toString(),
                         currency: feeOrderCurrency,
-                        pendingId: feeOrder.pendingTransferId,
-                        amount: 0n,
                     },
-                ],
-            });
+                    idempotencyKey: `fee_payment:settle:${validated.feePaymentOrderId}:${validated.railRef}`,
+                    postingDate: validated.occurredAt,
+                    bookOrgId: SYSTEM_LEDGER_ORG_ID,
+                    transfers: [
+                        {
+                            type: PlanType.POST_PENDING,
+                            planKey,
+                            currency: feeOrderCurrency,
+                            pendingId: feeOrder.pendingTransferId,
+                            amount: 0n,
+                        },
+                    ],
+                })
+            );
 
             const moved = await tx
                 .update(schema.feePaymentOrders)
                 .set({
                     status: "settled_pending_posting",
-                    resolveEntryId: entryId,
+                    resolveOperationId: entryId,
                     railRef: validated.railRef,
                     updatedAt: sql`now()`,
                 })
@@ -189,7 +211,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
 
             const current = await fetchFeePaymentOrderState(tx, validated.feePaymentOrderId);
             if (
-                current.resolveEntryId === entryId &&
+                current.resolveOperationId === entryId &&
                 (current.status === "settled_pending_posting" || current.status === "settled")
             ) {
                 return entryId;
@@ -215,10 +237,10 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                             `FeePaymentOrder already voided with different railRef (expected ${feeOrder.railRef ?? "null"}, got ${validated.railRef})`
                         );
                     }
-                    if (!feeOrder.resolveEntryId) {
-                        throw new InvalidStateError("FeePaymentOrder missing resolveEntryId");
+                    if (!feeOrder.resolveOperationId) {
+                        throw new InvalidStateError("FeePaymentOrder missing resolveOperationId");
                     }
-                    return feeOrder.resolveEntryId;
+                    return feeOrder.resolveOperationId;
                 }
                 throw new InvalidStateError(`FeePaymentOrder must be initiated, got ${feeOrder.status}`);
             }
@@ -233,26 +255,36 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                 currency: feeOrderCurrency,
             });
 
-            const { entryId } = await ledger.createEntryTx(tx, {
-                orgId: SYSTEM_LEDGER_ORG_ID,
-                source: { type: "fee_payment/voided", id: validated.feePaymentOrderId },
-                idempotencyKey: `fee_payment:void:${validated.feePaymentOrderId}:${validated.railRef}`,
-                postingDate: validated.occurredAt,
-                transfers: [
-                    {
-                        type: PlanType.VOID_PENDING,
-                        planKey,
+            const { operationId: entryId } = await ledger.createOperationTx(
+                tx,
+                buildTreasuryOperationInput({
+                    source: { type: "fee_payment/voided", id: validated.feePaymentOrderId },
+                    operationCode: OPERATION_CODE.TREASURY_FEE_PAYMENT_VOID,
+                    payload: {
+                        feePaymentOrderId: validated.feePaymentOrderId,
+                        railRef: validated.railRef,
+                        pendingTransferId: feeOrder.pendingTransferId.toString(),
                         currency: feeOrderCurrency,
-                        pendingId: feeOrder.pendingTransferId,
                     },
-                ],
-            });
+                    idempotencyKey: `fee_payment:void:${validated.feePaymentOrderId}:${validated.railRef}`,
+                    postingDate: validated.occurredAt,
+                    bookOrgId: SYSTEM_LEDGER_ORG_ID,
+                    transfers: [
+                        {
+                            type: PlanType.VOID_PENDING,
+                            planKey,
+                            currency: feeOrderCurrency,
+                            pendingId: feeOrder.pendingTransferId,
+                        },
+                    ],
+                })
+            );
 
             const moved = await tx
                 .update(schema.feePaymentOrders)
                 .set({
                     status: "voided_pending_posting",
-                    resolveEntryId: entryId,
+                    resolveOperationId: entryId,
                     railRef: validated.railRef,
                     updatedAt: sql`now()`,
                 })
@@ -270,7 +302,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
 
             const current = await fetchFeePaymentOrderState(tx, validated.feePaymentOrderId);
             if (
-                current.resolveEntryId === entryId &&
+                current.resolveOperationId === entryId &&
                 (current.status === "voided_pending_posting" || current.status === "voided")
             ) {
                 return entryId;

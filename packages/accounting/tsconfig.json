@@ -1,0 +1,4 @@
+{
+  "extends": "@bedrock/typescript-config/base.json",
+  "include": ["src", "tests"]
+}

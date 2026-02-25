@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { pgTable, uuid, text, timestamp, uniqueIndex, index, bigint, customType } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  customType,
+  index,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const uint128 = customType<{ data: bigint; driverData: string }>({
   dataType() {
@@ -11,25 +20,35 @@ export const uint128 = customType<{ data: bigint; driverData: string }>({
   },
   fromDriver(v: string) {
     return BigInt(v);
-  }
+  },
 });
 
-export const ledgerAccounts = pgTable(
-  "ledger_accounts",
+export type BookAccount = typeof bookAccounts.$inferSelect;
+export type BookAccountInsert = typeof bookAccounts.$inferInsert;
+
+export const bookAccounts = pgTable(
+  "book_accounts",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     orgId: uuid("org_id").notNull(),
 
-    key: text("key").notNull(),
+    accountNo: text("account_no").notNull(),
     currency: text("currency").notNull(),
 
     tbLedger: bigint("tb_ledger", { mode: "number" }).notNull(),
     tbAccountId: uint128("tb_account_id").notNull(),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`)
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
   },
-  (t) => ([
-    uniqueIndex("ledger_accounts_org_key_uq").on(t.orgId, t.tbLedger, t.key),
-    index("ledger_accounts_org_cur_idx").on(t.orgId, t.currency)
-  ])
+  (t) => [
+    uniqueIndex("book_accounts_org_no_currency_uq").on(
+      t.orgId,
+      t.accountNo,
+      t.currency,
+    ),
+    uniqueIndex("book_accounts_org_tb_uq").on(t.orgId, t.tbLedger, t.tbAccountId),
+    index("book_accounts_org_currency_idx").on(t.orgId, t.currency),
+  ],
 );

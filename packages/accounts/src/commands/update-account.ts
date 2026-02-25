@@ -1,11 +1,13 @@
 import { eq, sql } from "drizzle-orm";
 
+import { ACCOUNT_NO } from "@bedrock/accounting";
 import { schema } from "@bedrock/db/schema";
 
 import {
     AccountNotFoundError,
     AccountProviderNotFoundError,
 } from "../errors";
+import { ensureBookAccountTx } from "../internal/book-account";
 import type { AccountServiceContext } from "../internal/context";
 import {
     UpdateAccountInputSchema,
@@ -48,6 +50,16 @@ export function createUpdateAccountHandler(context: AccountServiceContext) {
 
             validateAccountFieldsForProvider(merged, provider);
 
+            const [currency] = await tx
+                .select({ code: schema.currencies.code })
+                .from(schema.currencies)
+                .where(eq(schema.currencies.id, existing.currencyId))
+                .limit(1);
+
+            if (!currency) {
+                throw new Error(`Currency not found: ${existing.currencyId}`);
+            }
+
             const fields: Record<string, unknown> = {};
 
             if (validated.label !== undefined) fields.label = validated.label;
@@ -57,21 +69,58 @@ export function createUpdateAccountHandler(context: AccountServiceContext) {
             if (validated.address !== undefined) fields.address = validated.address;
             if (validated.iban !== undefined) fields.iban = validated.iban;
 
-            if (Object.keys(fields).length === 0) {
-                return existing;
+            let updatedAccount = existing;
+
+            if (Object.keys(fields).length > 0) {
+                fields.updatedAt = sql`now()`;
+
+                const [updated] = await tx
+                    .update(schema.accounts)
+                    .set(fields)
+                    .where(eq(schema.accounts.id, id))
+                    .returning();
+
+                updatedAccount = updated!;
             }
 
-            fields.updatedAt = sql`now()`;
+            if (validated.postingAccountNo !== undefined) {
+                const bookAccountId = await ensureBookAccountTx(tx, {
+                    orgId: existing.counterpartyId,
+                    accountNo: validated.postingAccountNo,
+                    currency: currency.code,
+                });
 
-            const [updated] = await tx
-                .update(schema.accounts)
-                .set(fields)
-                .where(eq(schema.accounts.id, id))
-                .returning();
+                await tx
+                    .insert(schema.operationalAccountBindings)
+                    .values({
+                        accountId: id,
+                        bookAccountId,
+                    })
+                    .onConflictDoUpdate({
+                        target: schema.operationalAccountBindings.accountId,
+                        set: {
+                            bookAccountId,
+                            updatedAt: sql`now()`,
+                        },
+                    });
+            }
+
+            const [binding] = await tx
+                .select({ postingAccountNo: schema.bookAccounts.accountNo })
+                .from(schema.operationalAccountBindings)
+                .innerJoin(
+                    schema.bookAccounts,
+                    eq(schema.bookAccounts.id, schema.operationalAccountBindings.bookAccountId),
+                )
+                .where(eq(schema.operationalAccountBindings.accountId, id))
+                .limit(1);
 
             log.info("Account updated", { id });
 
-            return updated!;
+            return {
+                ...updatedAccount,
+                postingAccountNo: binding?.postingAccountNo ?? ACCOUNT_NO.BANK,
+            };
         });
     };
 }

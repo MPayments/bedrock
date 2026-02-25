@@ -65,7 +65,9 @@ beforeAll(async () => {
 
   // Clean all test data at the start
   try {
-    await pool.query("TRUNCATE TABLE outbox, tb_transfer_plans, journal_lines, journal_entries, ledger_accounts RESTART IDENTITY CASCADE");
+    await pool.query(
+      "TRUNCATE TABLE outbox, tb_transfer_plans, ledger_postings, ledger_operations, book_accounts RESTART IDENTITY CASCADE",
+    );
   } catch (error) {
     console.error("Initial cleanup error:", error);
   }
@@ -95,9 +97,9 @@ afterEach(async () => {
       // Delete in reverse dependency order
       await pool.query("DELETE FROM outbox");
       await pool.query("DELETE FROM tb_transfer_plans");
-      await pool.query("DELETE FROM journal_lines");
-      await pool.query("DELETE FROM journal_entries");
-      await pool.query("DELETE FROM ledger_accounts");
+      await pool.query("DELETE FROM ledger_postings");
+      await pool.query("DELETE FROM ledger_operations");
+      await pool.query("DELETE FROM book_accounts");
     } catch (error) {
       console.error("Cleanup error:", error);
       // If cleanup fails, try to continue anyway

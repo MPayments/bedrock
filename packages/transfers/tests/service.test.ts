@@ -30,8 +30,9 @@ function createTransfer(overrides: Record<string, unknown> = {}) {
         approvedAt: null,
         rejectedAt: null,
         rejectReason: null,
-        ledgerEntryId: null,
-        pendingTransferId: null,
+        ledgerOperationId: null,
+        sourcePendingTransferId: null,
+        destinationPendingTransferId: null,
         idempotencyKey: "draft-key",
         lastError: null,
         createdAt: new Date("2026-02-25T00:00:00.000Z"),
@@ -43,7 +44,7 @@ function createTransfer(overrides: Record<string, unknown> = {}) {
 describe("createTransfersService (v2)", () => {
     let db: StubDatabase;
     let accountService: { resolveTransferBindings: ReturnType<typeof vi.fn> };
-    let ledger: { createEntryTx: ReturnType<typeof vi.fn> };
+    let ledger: { createOperationTx: ReturnType<typeof vi.fn> };
     let service: ReturnType<typeof createTransfersService>;
 
     const sourceBinding = {
@@ -72,8 +73,10 @@ describe("createTransfersService (v2)", () => {
             resolveTransferBindings: vi.fn(async () => [sourceBinding, destinationBinding]),
         };
         ledger = {
-            createEntryTx: vi.fn(async () => ({
+            createOperationTx: vi.fn(async () => ({
+                operationId: "550e8400-e29b-41d4-a716-446655440777",
                 entryId: "550e8400-e29b-41d4-a716-446655440777",
+                pendingTransferIdsByRef: new Map<string, bigint>(),
                 transferIds: new Map([[1, 123n]]),
             })),
         };
@@ -147,7 +150,7 @@ describe("createTransfersService (v2)", () => {
         mockSelectReturns(db._tx.select, [
             createTransfer({
                 status: "posted",
-                ledgerEntryId: "550e8400-e29b-41d4-a716-446655440888",
+                ledgerOperationId: "550e8400-e29b-41d4-a716-446655440888",
             }),
         ]);
 
@@ -159,9 +162,9 @@ describe("createTransfersService (v2)", () => {
 
         expect(result).toEqual({
             transferId: TRANSFER_ID,
-            ledgerEntryId: "550e8400-e29b-41d4-a716-446655440888",
+            ledgerOperationId: "550e8400-e29b-41d4-a716-446655440888",
         });
-        expect(ledger.createEntryTx).not.toHaveBeenCalled();
+        expect(ledger.createOperationTx).not.toHaveBeenCalled();
     });
 
     it("rejects voidPending when transfer is not in pending state", async () => {
@@ -169,7 +172,7 @@ describe("createTransfersService (v2)", () => {
             createTransfer({
                 status: "posted",
                 settlementMode: "pending",
-                pendingTransferId: 123n,
+                sourcePendingTransferId: 123n,
             }),
         ]);
 

@@ -1,7 +1,9 @@
-import { db, tb } from "./setup";
+import { and, eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+
 import { schema } from "@bedrock/db/schema";
-import { eq, and } from "drizzle-orm";
-import { randomUUID } from "crypto";
+
+import { db, tb } from "./setup";
 
 export function randomOrgId() {
   return randomUUID();
@@ -12,8 +14,8 @@ export function randomIdempotencyKey() {
 }
 
 export async function waitForOutboxProcessing(
-  journalEntryId: string,
-  timeoutMs = 5000
+  operationId: string,
+  timeoutMs = 5000,
 ): Promise<void> {
   const start = Date.now();
 
@@ -21,55 +23,63 @@ export async function waitForOutboxProcessing(
     const outboxEntry = await db
       .select()
       .from(schema.outbox)
-      .where(eq(schema.outbox.refId, journalEntryId))
+      .where(eq(schema.outbox.refId, operationId))
       .limit(1);
 
-    if (outboxEntry.length > 0 && outboxEntry[0].status === "done") {
+    if (outboxEntry.length > 0 && outboxEntry[0]!.status === "done") {
       return;
     }
 
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  throw new Error(`Outbox processing timed out for entry ${journalEntryId}`);
+  throw new Error(`Outbox processing timed out for operation ${operationId}`);
 }
 
-export async function getJournalEntry(entryId: string) {
-  const entries = await db
+export async function getOperation(operationId: string) {
+  const rows = await db
     .select()
-    .from(schema.journalEntries)
-    .where(eq(schema.journalEntries.id, entryId))
+    .from(schema.ledgerOperations)
+    .where(eq(schema.ledgerOperations.id, operationId))
     .limit(1);
 
-  return entries[0] || null;
+  return rows[0] ?? null;
 }
 
-export async function getJournalLines(entryId: string) {
-  return await db
+export async function getPostings(operationId: string) {
+  return db
     .select()
-    .from(schema.journalLines)
-    .where(eq(schema.journalLines.entryId, entryId));
+    .from(schema.ledgerPostings)
+    .where(eq(schema.ledgerPostings.operationId, operationId))
+    .orderBy(schema.ledgerPostings.lineNo);
 }
 
-export async function getTbTransferPlans(entryId: string) {
-  return await db
+export async function getTbTransferPlans(operationId: string) {
+  return db
     .select()
     .from(schema.tbTransferPlans)
-    .where(eq(schema.tbTransferPlans.journalEntryId, entryId));
+    .where(eq(schema.tbTransferPlans.operationId, operationId))
+    .orderBy(schema.tbTransferPlans.lineNo);
 }
 
-export async function getLedgerAccount(orgId: string, key: string, tbLedger: number) {
-  const accounts = await db
+export async function getBookAccount(
+  orgId: string,
+  accountNo: string,
+  tbLedger: number,
+) {
+  const rows = await db
     .select()
-    .from(schema.ledgerAccounts)
-    .where(and(
-      eq(schema.ledgerAccounts.orgId, orgId),
-      eq(schema.ledgerAccounts.key, key),
-      eq(schema.ledgerAccounts.tbLedger, tbLedger)
-    ))
+    .from(schema.bookAccounts)
+    .where(
+      and(
+        eq(schema.bookAccounts.orgId, orgId),
+        eq(schema.bookAccounts.accountNo, accountNo),
+        eq(schema.bookAccounts.tbLedger, tbLedger),
+      ),
+    )
     .limit(1);
 
-  return accounts[0] || null;
+  return rows[0] ?? null;
 }
 
 export async function getTbAccount(accountId: bigint) {

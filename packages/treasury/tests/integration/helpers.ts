@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 import { currencyIdForCode } from "@bedrock/db/seeds";
@@ -320,31 +320,101 @@ export async function getPaymentOrder(orderId: string) {
         .where(eq(schema.paymentOrders.id, orderId))
         .limit(1);
 
-    return orders[0] || null;
+    const order = orders[0] || null;
+    if (!order) return null;
+
+    return {
+        ...order,
+        ledgerEntryId: order.ledgerOperationId,
+    };
 }
 
 export async function getJournalEntry(entryId: string) {
     const entries = await db
         .select()
-        .from(schema.journalEntries)
-        .where(eq(schema.journalEntries.id, entryId))
+        .from(schema.ledgerOperations)
+        .where(eq(schema.ledgerOperations.id, entryId))
         .limit(1);
 
-    return entries[0] || null;
+    const entry = entries[0] || null;
+    if (!entry) return null;
+
+    const [posting] = await db
+        .select({ bookOrgId: schema.ledgerPostings.bookOrgId })
+        .from(schema.ledgerPostings)
+        .where(eq(schema.ledgerPostings.operationId, entryId))
+        .limit(1);
+
+    return {
+        ...entry,
+        orgId: posting?.bookOrgId ?? null,
+        postedAt: entry.postedAt,
+    };
 }
 
 export async function getJournalLines(entryId: string) {
-    return await db
+    const postings = await db
         .select()
-        .from(schema.journalLines)
-        .where(eq(schema.journalLines.entryId, entryId));
+        .from(schema.ledgerPostings)
+        .where(eq(schema.ledgerPostings.operationId, entryId));
+
+    if (postings.length === 0) {
+        return [];
+    }
+
+    const accountIds = new Set<string>();
+    for (const posting of postings) {
+        accountIds.add(posting.debitBookAccountId);
+        accountIds.add(posting.creditBookAccountId);
+    }
+
+    const accounts = await db
+        .select({
+            id: schema.bookAccounts.id,
+            accountNo: schema.bookAccounts.accountNo,
+        })
+        .from(schema.bookAccounts)
+        .where(inArray(schema.bookAccounts.id, Array.from(accountIds)));
+
+    const accountById = new Map(accounts.map((account) => [account.id, account.accountNo]));
+    const lines: Array<{
+        entryId: string;
+        side: "debit" | "credit";
+        accountKey: string;
+        amountMinor: bigint;
+        lineNo: number;
+    }> = [];
+
+    for (const posting of postings) {
+        lines.push({
+            entryId,
+            side: "debit",
+            accountKey: accountById.get(posting.debitBookAccountId) ?? "",
+            amountMinor: posting.amountMinor,
+            lineNo: posting.lineNo,
+        });
+        lines.push({
+            entryId,
+            side: "credit",
+            accountKey: accountById.get(posting.creditBookAccountId) ?? "",
+            amountMinor: posting.amountMinor,
+            lineNo: posting.lineNo,
+        });
+    }
+
+    return lines;
 }
 
 export async function getTbTransferPlans(entryId: string) {
-    return await db
+    const plans = await db
         .select()
         .from(schema.tbTransferPlans)
-        .where(eq(schema.tbTransferPlans.journalEntryId, entryId));
+        .where(eq(schema.tbTransferPlans.operationId, entryId));
+
+    return plans.map((plan) => ({
+        ...plan,
+        journalEntryId: plan.operationId,
+    }));
 }
 
 export async function getOutboxEntry(refId: string) {
@@ -354,7 +424,13 @@ export async function getOutboxEntry(refId: string) {
         .where(eq(schema.outbox.refId, refId))
         .limit(1);
 
-    return entries[0] || null;
+    const entry = entries[0] || null;
+    if (!entry) return null;
+
+    return {
+        ...entry,
+        kind: entry.kind === "post_operation" ? "post_journal" : entry.kind,
+    };
 }
 
 export async function updateOrderStatus(orderId: string, status: string) {

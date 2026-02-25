@@ -1,3 +1,4 @@
+export { accountingRoutes } from "./accounting";
 export { accountProvidersRoutes } from "./account-providers";
 export { accountsRoutes } from "./accounts";
 export { counterpartiesRoutes } from "./counterparties";

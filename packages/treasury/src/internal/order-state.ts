@@ -8,7 +8,7 @@ import { NotFoundError } from "../errors";
 
 type OrderState = Pick<
     PaymentOrder,
-    "id" | "status" | "ledgerEntryId" | "payoutPendingTransferId"
+    "id" | "status" | "ledgerOperationId" | "payoutPendingTransferId"
 >;
 
 export async function fetchOrderState(tx: Transaction, orderId: string): Promise<OrderState> {
@@ -16,7 +16,7 @@ export async function fetchOrderState(tx: Transaction, orderId: string): Promise
         .select({
             id: schema.paymentOrders.id,
             status: schema.paymentOrders.status,
-            ledgerEntryId: schema.paymentOrders.ledgerEntryId,
+            ledgerOperationId: schema.paymentOrders.ledgerOperationId,
             payoutPendingTransferId: schema.paymentOrders.payoutPendingTransferId,
         })
         .from(schema.paymentOrders)

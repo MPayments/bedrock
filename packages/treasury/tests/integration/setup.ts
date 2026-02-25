@@ -72,9 +72,9 @@ async function resetTreasuryTables() {
             payment_orders,
             outbox,
             tb_transfer_plans,
-            journal_lines,
-            journal_entries,
-            ledger_accounts,
+            ledger_postings,
+            ledger_operations,
+            book_accounts,
             accounts,
             account_providers,
             customers,
@@ -95,9 +95,9 @@ async function cleanupTreasuryTables() {
     await pool.query("DELETE FROM payment_orders");
     await pool.query("DELETE FROM outbox");
     await pool.query("DELETE FROM tb_transfer_plans");
-    await pool.query("DELETE FROM journal_lines");
-    await pool.query("DELETE FROM journal_entries");
-    await pool.query("DELETE FROM ledger_accounts");
+    await pool.query("DELETE FROM ledger_postings");
+    await pool.query("DELETE FROM ledger_operations");
+    await pool.query("DELETE FROM book_accounts");
     await pool.query("DELETE FROM accounts");
     await pool.query("DELETE FROM account_providers");
     await pool.query("DELETE FROM counterparty_group_memberships");

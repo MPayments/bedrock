@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import type { Database } from "@bedrock/db";
-import { schema, type JournalStatus, type TransferStatus } from "@bedrock/db/schema";
+import { schema, type LedgerOperationStatus, type TransferStatus } from "@bedrock/db/schema";
 import type { Logger } from "@bedrock/kernel";
 
 type ClaimableStatus = "approved_pending_posting" | "settle_pending_posting" | "void_pending_posting";
@@ -34,19 +34,19 @@ export function createTransfersWorker(deps: { db: Database; logger?: Logger }) {
             transfer_id: string;
             status: ClaimableStatus;
             settlement_mode: "immediate" | "pending";
-            ledger_entry_id: string;
-            journal_status: JournalStatus;
+            ledger_operation_id: string;
+            journal_status: LedgerOperationStatus;
             journal_error: string | null;
         }>(sql`
             SELECT
                 t.id AS transfer_id,
                 t.status,
                 t.settlement_mode,
-                t.ledger_entry_id,
+                t.ledger_operation_id,
                 j.status AS journal_status,
                 j.error AS journal_error
             FROM ${schema.transferOrders} t
-            JOIN ${schema.journalEntries} j ON j.id = t.ledger_entry_id
+            JOIN ${schema.ledgerOperations} j ON j.id = t.ledger_operation_id
             WHERE t.status IN (${sql.join(CLAIMABLE_STATUSES.map((status) => sql`${status}`), sql`, `)})
             ORDER BY t.updated_at
             LIMIT ${batchSize}
@@ -78,7 +78,7 @@ export function createTransfersWorker(deps: { db: Database; logger?: Logger }) {
                     .where(and(
                         eq(schema.transferOrders.id, row.transfer_id),
                         eq(schema.transferOrders.status, row.status),
-                        eq(schema.transferOrders.ledgerEntryId, row.ledger_entry_id),
+                        eq(schema.transferOrders.ledgerOperationId, row.ledger_operation_id),
                     ));
 
                 processed += 1;

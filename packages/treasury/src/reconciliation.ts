@@ -56,7 +56,7 @@ export function createTreasuryReconciliationWorker(deps: {
         o.updated_at as updated_at,
         j.id as journal_entry_id
       FROM ${schema.paymentOrders} o
-      JOIN ${schema.journalEntries} j ON j.id = o.ledger_entry_id
+      JOIN ${schema.ledgerOperations} j ON j.id = o.ledger_operation_id
       WHERE o.status LIKE '%_pending_posting'
         AND j.status = 'pending'
         AND o.updated_at <= now() - (${slaMinutes} || ' minutes')::interval
@@ -83,7 +83,7 @@ export function createTreasuryReconciliationWorker(deps: {
         j.status as journal_status,
         o.updated_at as updated_at
       FROM ${schema.paymentOrders} o
-      JOIN ${schema.journalEntries} j ON j.id = o.ledger_entry_id
+      JOIN ${schema.ledgerOperations} j ON j.id = o.ledger_operation_id
       WHERE o.status LIKE '%_pending_posting'
         AND j.status IN ('posted', 'failed')
         AND o.updated_at <= now() - (${finalizationLagMinutes} || ' minutes')::interval
@@ -106,21 +106,21 @@ export function createTreasuryReconciliationWorker(deps: {
       SELECT
         o.id as order_id,
         o.status as order_status,
-        o.ledger_entry_id as ledger_entry_id
+        o.ledger_operation_id as ledger_operation_id
       FROM ${schema.paymentOrders} o
-      LEFT JOIN ${schema.journalEntries} j ON j.id = o.ledger_entry_id
-      WHERE o.ledger_entry_id IS NOT NULL
+      LEFT JOIN ${schema.ledgerOperations} j ON j.id = o.ledger_operation_id
+      WHERE o.ledger_operation_id IS NOT NULL
         AND j.id IS NULL
       LIMIT ${batchSize}
     `);
 
-        for (const row of (missingJournal.rows ?? []) as { order_id: string; order_status: string; ledger_entry_id: string }[]) {
+        for (const row of (missingJournal.rows ?? []) as { order_id: string; order_status: string; ledger_operation_id: string }[]) {
             issues.push({
                 entityType: "payment_order",
                 entityId: row.order_id,
                 issueCode: "MISSING_JOURNAL_ENTRY",
                 severity: "critical",
-                summary: `Order ${row.order_id} in ${row.order_status} references missing journal ${row.ledger_entry_id}`,
+                summary: `Order ${row.order_id} in ${row.order_status} references missing journal ${row.ledger_operation_id}`,
             });
         }
 
@@ -129,8 +129,8 @@ export function createTreasuryReconciliationWorker(deps: {
         o.id as order_id,
         j.id as journal_entry_id
       FROM ${schema.paymentOrders} o
-      JOIN ${schema.journalEntries} j ON j.id = o.ledger_entry_id
-      JOIN ${schema.tbTransferPlans} p ON p.journal_entry_id = j.id
+      JOIN ${schema.ledgerOperations} j ON j.id = o.ledger_operation_id
+      JOIN ${schema.tbTransferPlans} p ON p.operation_id = j.id
       WHERE j.status = 'posted'
         AND p.status <> 'posted'
       LIMIT ${batchSize}

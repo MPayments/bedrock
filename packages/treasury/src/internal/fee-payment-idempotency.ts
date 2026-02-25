@@ -17,7 +17,8 @@ export function assertInitiateFeePaymentReplayCompatible(feeOrder: any, input: I
             `FeePaymentOrder already initiated with different payoutBankStableKey (expected ${feeOrder.payoutBankStableKey}, got ${input.payoutBankStableKey})`
         );
     }
-    if (!feeOrder.initiateEntryId || !feeOrder.pendingTransferId) {
-        throw new InvalidStateError("FeePaymentOrder missing initiateEntryId/pendingTransferId");
+    const initiateOperationId = feeOrder.initiateOperationId ?? null;
+    if (!initiateOperationId || !feeOrder.pendingTransferId) {
+        throw new InvalidStateError("FeePaymentOrder missing initiateOperationId/pendingTransferId");
     }
 }

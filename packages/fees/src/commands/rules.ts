@@ -1,7 +1,6 @@
 import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/db/schema";
-import { normalizeCurrency } from "@bedrock/kernel";
 
 import { type FeesServiceContext } from "../internal/context";
 import { calculateBpsAmount } from "../internal/math";
@@ -144,13 +143,10 @@ export function createRuleHandlers(context: FeesServiceContext) {
 
             if (amountMinor <= 0n) continue;
 
-            const legacyFixedCurrency = (rule as { fixedCurrency?: string | null }).fixedCurrency;
             const currency = rule.calcMethod === "fixed"
                 ? rule.fixedCurrencyId
                     ? (await currenciesService.findById(rule.fixedCurrencyId)).code
-                    : legacyFixedCurrency
-                        ? normalizeCurrency(legacyFixedCurrency)
-                        : validated.fromCurrency
+                    : validated.fromCurrency
                 : validated.fromCurrency;
 
             result.push({

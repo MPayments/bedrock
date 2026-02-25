@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 
+import { OPERATION_CODE } from "@bedrock/accounting";
 import { type Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { makePlanKey } from "@bedrock/kernel";
@@ -9,6 +10,7 @@ import { PlanType } from "@bedrock/ledger";
 import { AmountMismatchError, CurrencyMismatchError, InvalidStateError, NotFoundError, ValidationError } from "../errors";
 import { SYSTEM_LEDGER_ORG_ID, type TreasuryServiceContext } from "../internal/context";
 import { consumeFxQuoteForExecution } from "../internal/fx-quote";
+import { buildTreasuryOperationInput, type KeyedTransferPlan } from "../internal/ledger-operation";
 import { ExecuteFxAllowedFrom, TreasuryOrderStatus, isOrderStatusIn, isSameEntryInAllowedState } from "../state-machine";
 import { type ExecuteFxInput, validateExecuteFxInput } from "../validation";
 
@@ -129,7 +131,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             }
 
             const chain = `fx:${validated.quoteRef}`;
-            const transfers: any[] = [];
+            const transfers: KeyedTransferPlan[] = [];
             const separateFeeOrders: {
                 componentId: string;
                 kind: string;
@@ -480,13 +482,25 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                 memo: "Create payout obligation",
             });
 
-            const { entryId } = await ledger.createEntryTx(tx, {
-                orgId: SYSTEM_LEDGER_ORG_ID,
-                source: { type: "order/fx_executed", id: validated.orderId },
-                idempotencyKey: `fx:${validated.quoteRef}`,
-                postingDate: validated.occurredAt,
-                transfers,
-            });
+            const { operationId: entryId } = await ledger.createOperationTx(
+                tx,
+                buildTreasuryOperationInput({
+                    source: { type: "order/fx_executed", id: validated.orderId },
+                    operationCode: OPERATION_CODE.TREASURY_FX_EXECUTED,
+                    payload: {
+                        orderId: validated.orderId,
+                        quoteRef: validated.quoteRef,
+                        principalMinor: validated.principalMinor.toString(),
+                        payOutAmountMinor: validated.payOutAmountMinor.toString(),
+                        payInCurrency: validated.payInCurrency,
+                        payOutCurrency: validated.payOutCurrency,
+                    },
+                    idempotencyKey: `fx:${validated.quoteRef}`,
+                    postingDate: validated.occurredAt,
+                    bookOrgId: SYSTEM_LEDGER_ORG_ID,
+                    transfers,
+                })
+            );
 
             if (separateFeeOrders.length) {
                 const uniqueFeeOrderCurrencies = [...new Set(separateFeeOrders.map((item) => item.currency))];
@@ -512,7 +526,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                             amountMinor: item.amountMinor,
                             memo: item.memo ?? null,
                             metadata: item.metadata ?? null,
-                            reserveEntryId: entryId,
+                            reserveOperationId: entryId,
                             status: "reserved" as const,
                         }))
                     )
@@ -523,20 +537,21 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
 
             const moved = await tx
                 .update(schema.paymentOrders)
-                .set({ status: TreasuryOrderStatus.FX_EXECUTED_PENDING_POSTING, ledgerEntryId: entryId, updatedAt: sql`now()` })
+                .set({ status: TreasuryOrderStatus.FX_EXECUTED_PENDING_POSTING, ledgerOperationId: entryId, updatedAt: sql`now()` })
                 .where(and(eq(schema.paymentOrders.id, validated.orderId), eq(schema.paymentOrders.status, TreasuryOrderStatus.FUNDING_SETTLED)))
                 .returning({ id: schema.paymentOrders.id });
 
             if (!moved.length) {
                 const current = await tx
-                    .select({ status: schema.paymentOrders.status, ledgerEntryId: schema.paymentOrders.ledgerEntryId })
+                    .select({ status: schema.paymentOrders.status, ledgerOperationId: schema.paymentOrders.ledgerOperationId })
                     .from(schema.paymentOrders)
                     .where(eq(schema.paymentOrders.id, validated.orderId))
                     .limit(1);
+                const currentLedgerOperationId = current[0]?.ledgerOperationId ?? null;
 
                 if (current.length && isSameEntryInAllowedState(
                     current[0]!.status as string,
-                    current[0]!.ledgerEntryId,
+                    currentLedgerOperationId,
                     entryId,
                     [TreasuryOrderStatus.FX_EXECUTED_PENDING_POSTING, TreasuryOrderStatus.FX_EXECUTED]
                 )) {

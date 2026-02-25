@@ -10,7 +10,7 @@ import {
     type StubTransaction,
 } from "@bedrock/test-utils";
 import type { TbClient } from "../src/tb";
-import { PlanType, type CreatePlan } from "../src/types";
+import { PlanType, type LegacyCreatePlan } from "../src/types";
 
 // Re-export shared utilities for convenience
 export {
@@ -62,7 +62,7 @@ export function createTestEntry(overrides = {}) {
 /**
  * Create a test transfer plan
  */
-export function createTestTransferPlan(overrides: Partial<CreatePlan> = {}): CreatePlan {
+export function createTestTransferPlan(overrides: Partial<LegacyCreatePlan> = {}): LegacyCreatePlan {
     return {
         type: PlanType.CREATE,
         planKey: "test-plan-1",

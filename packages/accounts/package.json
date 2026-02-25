@@ -14,9 +14,11 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/accounting": "workspace:*",
     "@bedrock/countries": "workspace:*",
     "@bedrock/db": "workspace:*",
     "@bedrock/kernel": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4"
   },

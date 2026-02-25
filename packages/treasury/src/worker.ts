@@ -16,10 +16,10 @@ export function createTreasuryWorker(deps: { db: Database }) {
 
     async function processPaymentOrders(batchSize: number): Promise<number> {
         const rows = await db.execute(sql`
-      SELECT o.id as order_id, o.status as order_status, o.ledger_entry_id as ledger_entry_id, j.status as journal_status
+      SELECT o.id as order_id, o.status as order_status, o.ledger_operation_id as ledger_operation_id, j.status as journal_status
       FROM ${schema.paymentOrders} o
-      JOIN ${schema.journalEntries} j ON j.id = o.ledger_entry_id
-      WHERE o.ledger_entry_id IS NOT NULL
+      JOIN ${schema.ledgerOperations} j ON j.id = o.ledger_operation_id
+      WHERE o.ledger_operation_id IS NOT NULL
         AND o.status LIKE '%_pending_posting'
       ORDER BY o.updated_at
       LIMIT ${batchSize}
@@ -28,7 +28,7 @@ export function createTreasuryWorker(deps: { db: Database }) {
         const items = (rows.rows ?? []) as {
             order_id: string;
             order_status: string;
-            ledger_entry_id: string;
+            ledger_operation_id: string;
             journal_status: string;
         }[];
 
@@ -42,10 +42,10 @@ export function createTreasuryWorker(deps: { db: Database }) {
                 const locked = await tx.execute(sql`
           SELECT o.id, o.status, j.status as journal_status
           FROM ${schema.paymentOrders} o
-          JOIN ${schema.journalEntries} j ON j.id = o.ledger_entry_id
+          JOIN ${schema.ledgerOperations} j ON j.id = o.ledger_operation_id
           WHERE o.id = ${it.order_id}
             AND o.status = ${it.order_status}
-            AND o.ledger_entry_id = ${it.ledger_entry_id}
+            AND o.ledger_operation_id = ${it.ledger_operation_id}
           FOR UPDATE OF o SKIP LOCKED
         `);
 
@@ -65,7 +65,7 @@ export function createTreasuryWorker(deps: { db: Database }) {
             SET status = ${target}, updated_at = now()
             WHERE id = ${it.order_id}
               AND status = ${it.order_status}
-              AND ledger_entry_id = ${it.ledger_entry_id}
+              AND ledger_operation_id = ${it.ledger_operation_id}
           `);
                     processed++;
                 } else if (currentJournalStatus === "failed") {
@@ -74,7 +74,7 @@ export function createTreasuryWorker(deps: { db: Database }) {
             SET status = 'failed', updated_at = now()
             WHERE id = ${it.order_id}
               AND status = ${it.order_status}
-              AND ledger_entry_id = ${it.ledger_entry_id}
+              AND ledger_operation_id = ${it.ledger_operation_id}
           `);
                     processed++;
                 }
@@ -90,15 +90,15 @@ export function createTreasuryWorker(deps: { db: Database }) {
         f.id as fee_payment_order_id,
         f.status as fee_status,
         CASE
-          WHEN f.status = 'initiated_pending_posting' THEN f.initiate_entry_id
-          ELSE f.resolve_entry_id
-        END as ledger_entry_id,
+          WHEN f.status = 'initiated_pending_posting' THEN f.initiate_operation_id
+          ELSE f.resolve_operation_id
+        END as ledger_operation_id,
         j.status as journal_status
       FROM ${schema.feePaymentOrders} f
-      JOIN ${schema.journalEntries} j ON j.id = (
+      JOIN ${schema.ledgerOperations} j ON j.id = (
         CASE
-          WHEN f.status = 'initiated_pending_posting' THEN f.initiate_entry_id
-          ELSE f.resolve_entry_id
+          WHEN f.status = 'initiated_pending_posting' THEN f.initiate_operation_id
+          ELSE f.resolve_operation_id
         END
       )
       WHERE f.status IN ('initiated_pending_posting', 'settled_pending_posting', 'voided_pending_posting')
@@ -109,7 +109,7 @@ export function createTreasuryWorker(deps: { db: Database }) {
         const items = (rows.rows ?? []) as {
             fee_payment_order_id: string;
             fee_status: string;
-            ledger_entry_id: string;
+            ledger_operation_id: string;
             journal_status: string;
         }[];
 
@@ -125,15 +125,15 @@ export function createTreasuryWorker(deps: { db: Database }) {
             f.id,
             f.status,
             CASE
-              WHEN f.status = 'initiated_pending_posting' THEN f.initiate_entry_id
-              ELSE f.resolve_entry_id
-            END as ledger_entry_id,
+              WHEN f.status = 'initiated_pending_posting' THEN f.initiate_operation_id
+              ELSE f.resolve_operation_id
+            END as ledger_operation_id,
             j.status as journal_status
           FROM ${schema.feePaymentOrders} f
-          JOIN ${schema.journalEntries} j ON j.id = (
+          JOIN ${schema.ledgerOperations} j ON j.id = (
             CASE
-              WHEN f.status = 'initiated_pending_posting' THEN f.initiate_entry_id
-              ELSE f.resolve_entry_id
+              WHEN f.status = 'initiated_pending_posting' THEN f.initiate_operation_id
+              ELSE f.resolve_operation_id
             END
           )
           WHERE f.id = ${it.fee_payment_order_id}
@@ -144,7 +144,7 @@ export function createTreasuryWorker(deps: { db: Database }) {
                 const lockedRows = (locked.rows ?? []) as {
                     id: string;
                     status: string;
-                    ledger_entry_id: string;
+                    ledger_operation_id: string;
                     journal_status: string;
                 }[];
 

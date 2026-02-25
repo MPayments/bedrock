@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 
 import { AccountProviderNotFoundError } from "../errors";
+import { ensureBookAccountTx } from "../internal/book-account";
 import type { AccountServiceContext } from "../internal/context";
 import {
     CreateAccountInputSchema,
@@ -45,9 +46,41 @@ export function createCreateAccountHandler(context: AccountServiceContext) {
                 })
                 .returning();
 
+            const [currency] = await tx
+                .select({ code: schema.currencies.code })
+                .from(schema.currencies)
+                .where(eq(schema.currencies.id, validated.currencyId))
+                .limit(1);
+
+            if (!currency) {
+                throw new Error(`Currency not found: ${validated.currencyId}`);
+            }
+
+            const bookAccountId = await ensureBookAccountTx(tx, {
+                orgId: validated.counterpartyId,
+                accountNo: validated.postingAccountNo,
+                currency: currency.code,
+            });
+
+            await tx
+                .insert(schema.operationalAccountBindings)
+                .values({
+                    accountId: created!.id,
+                    bookAccountId,
+                })
+                .onConflictDoUpdate({
+                    target: schema.operationalAccountBindings.accountId,
+                    set: {
+                        bookAccountId,
+                    },
+                });
+
             log.info("Account created", { id: created!.id, label: created!.label });
 
-            return created!;
+            return {
+                ...created!,
+                postingAccountNo: validated.postingAccountNo,
+            };
         });
     };
 }

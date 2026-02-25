@@ -1,0 +1,27 @@
+{
+  "name": "@bedrock/accounting",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsgo",
+    "dev": "tsc --watch",
+    "check-types": "tsgo --noEmit",
+    "lint": "eslint src/**/*.ts --max-warnings 0"
+  },
+  "dependencies": {
+    "@bedrock/db": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "@bedrock/typescript-config": "workspace:*",
+    "typescript": "^5.8.3",
+    "@bedrock/eslint-config": "workspace:*",
+    "eslint": "^9.31.0"
+  }
+}

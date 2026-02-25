@@ -19,6 +19,7 @@
       "name": "api",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/accounting": "workspace:*",
         "@bedrock/accounts": "workspace:*",
         "@bedrock/auth": "workspace:*",
         "@bedrock/counterparties": "workspace:*",
@@ -80,13 +81,31 @@
         "typescript": "^5",
       },
     },
+    "packages/accounting": {
+      "name": "@bedrock/accounting",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/db": "workspace:*",
+        "@bedrock/kernel": "workspace:*",
+        "drizzle-orm": "^0.45.1",
+        "zod": "^4",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+      },
+    },
     "packages/accounts": {
       "name": "@bedrock/accounts",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/accounting": "workspace:*",
         "@bedrock/countries": "workspace:*",
         "@bedrock/db": "workspace:*",
         "@bedrock/kernel": "workspace:*",
+        "@bedrock/ledger": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4",
       },
@@ -280,6 +299,7 @@
       "name": "@bedrock/ledger",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/accounting": "workspace:*",
         "@bedrock/db": "*",
         "@bedrock/kernel": "*",
         "drizzle-orm": "^0.45.1",
@@ -320,6 +340,7 @@
       "name": "@bedrock/transfers",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/accounting": "workspace:*",
         "@bedrock/accounts": "workspace:*",
         "@bedrock/db": "workspace:*",
         "@bedrock/kernel": "workspace:*",
@@ -413,6 +434,8 @@
     "@base-ui/utils": ["@base-ui/utils@0.2.4", "", { "dependencies": { "@babel/runtime": "^7.28.4", "@floating-ui/utils": "^0.2.10", "reselect": "^5.1.1", "use-sync-external-store": "^1.6.0" }, "peerDependencies": { "@types/react": "^17 || ^18 || ^19", "react": "^17 || ^18 || ^19", "react-dom": "^17 || ^18 || ^19" }, "optionalPeers": ["@types/react"] }, "sha512-smZwpMhjO29v+jrZusBSc5T+IJ3vBb9cjIiBjtKcvWmRj9Z4DWGVR3efr1eHR56/bqY5a4qyY9ElkOY5ljo3ng=="],
 
     "@bcoe/v8-coverage": ["@bcoe/v8-coverage@1.0.2", "", {}, "sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA=="],
+
+    "@bedrock/accounting": ["@bedrock/accounting@workspace:packages/accounting"],
 
     "@bedrock/accounts": ["@bedrock/accounts@workspace:packages/accounts"],
 

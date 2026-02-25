@@ -218,13 +218,15 @@ describe("resolveTbAccountId", () => {
 
     await resolveTbAccountId({ db, tb, orgId, key, currency, tbLedger });
 
-    expect(mockValues).toHaveBeenCalledWith({
-      orgId,
-      key,
-      currency,
-      tbLedger,
-      tbAccountId: expectedId
-    });
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orgId,
+        key,
+        currency,
+        tbLedger,
+        tbAccountId: expectedId,
+      }),
+    );
   });
 
   it("should handle race condition with onConflictDoNothing", async () => {

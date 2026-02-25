@@ -57,7 +57,8 @@ export interface MockOrder {
     payOutCurrencyId: string;
     payOutCurrency: string;
     payOutAmountMinor: bigint;
-    ledgerEntryId: string | null;
+    ledgerOperationId: string | null;
+    ledgerEntryId?: string | null;
     payoutPendingTransferId: bigint | null;
 }
 
@@ -78,10 +79,18 @@ export function createMockOrder(overrides: Partial<MockOrder> = {}): MockOrder {
         payOutCurrencyId: "cur-eur",
         payOutCurrency: "EUR",
         payOutAmountMinor: 85000n,
+        ledgerOperationId: null,
         ledgerEntryId: null,
         payoutPendingTransferId: null,
         ...overrides,
     };
+
+    if (overrides.ledgerEntryId !== undefined && overrides.ledgerOperationId === undefined) {
+        order.ledgerOperationId = overrides.ledgerEntryId;
+    }
+    if (overrides.ledgerOperationId !== undefined && overrides.ledgerEntryId === undefined) {
+        order.ledgerEntryId = overrides.ledgerOperationId;
+    }
 
     const payInCurrency = overrides.payInCurrency;
     if (payInCurrency && !overrides.payInCurrencyId) {

@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 
+import { ACCOUNT_NO } from "@bedrock/accounting";
 import { schema } from "@bedrock/db/schema";
 import {
     type PaginatedList,
@@ -18,7 +19,9 @@ const SORT_COLUMN_MAP = {
     createdAt: schema.accounts.createdAt,
 } as const;
 
-type AccountRow = typeof schema.accounts.$inferSelect;
+type AccountRow = typeof schema.accounts.$inferSelect & {
+    postingAccountNo: string;
+};
 
 export function createListAccountsHandler(context: AccountServiceContext) {
     const { db } = context;
@@ -49,8 +52,31 @@ export function createListAccountsHandler(context: AccountServiceContext) {
 
         const [rows, countRows] = await Promise.all([
             db
-                .select()
+                .select({
+                    id: schema.accounts.id,
+                    counterpartyId: schema.accounts.counterpartyId,
+                    currencyId: schema.accounts.currencyId,
+                    accountProviderId: schema.accounts.accountProviderId,
+                    label: schema.accounts.label,
+                    description: schema.accounts.description,
+                    accountNo: schema.accounts.accountNo,
+                    corrAccount: schema.accounts.corrAccount,
+                    address: schema.accounts.address,
+                    iban: schema.accounts.iban,
+                    stableKey: schema.accounts.stableKey,
+                    postingAccountNo: schema.bookAccounts.accountNo,
+                    createdAt: schema.accounts.createdAt,
+                    updatedAt: schema.accounts.updatedAt,
+                })
                 .from(schema.accounts)
+                .leftJoin(
+                    schema.operationalAccountBindings,
+                    eq(schema.operationalAccountBindings.accountId, schema.accounts.id),
+                )
+                .leftJoin(
+                    schema.bookAccounts,
+                    eq(schema.bookAccounts.id, schema.operationalAccountBindings.bookAccountId),
+                )
                 .where(where)
                 .orderBy(orderByFn(orderByCol))
                 .limit(limit)
@@ -62,7 +88,10 @@ export function createListAccountsHandler(context: AccountServiceContext) {
         ]);
 
         return {
-            data: rows,
+            data: rows.map((row) => ({
+                ...row,
+                postingAccountNo: row.postingAccountNo ?? ACCOUNT_NO.BANK,
+            })),
             total: countRows[0]?.total ?? 0,
             limit,
             offset,
