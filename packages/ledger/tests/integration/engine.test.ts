@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { createLedgerEngine } from "../../src/engine";
 import { IdempotencyConflictError } from "../../src/errors";
-import { PlanType } from "../../src/types";
+import { OPERATION_TRANSFER_TYPE } from "../../src/types";
 import {
   db,
   randomOrgId,
@@ -26,7 +26,7 @@ describe("Engine Integration Tests", () => {
       postingDate: new Date(),
       transfers: [
         {
-          type: PlanType.CREATE,
+          type: OPERATION_TRANSFER_TYPE.CREATE,
           planKey: "transfer-1",
           debitKey: "customer:alice",
           creditKey: "revenue:sales",
@@ -62,7 +62,7 @@ describe("Engine Integration Tests", () => {
       postingDate: new Date(),
       transfers: [
         {
-          type: PlanType.CREATE as const,
+          type: OPERATION_TRANSFER_TYPE.CREATE as const,
           planKey: "transfer-1",
           debitKey: "customer:bob",
           creditKey: "revenue:sales",
@@ -92,7 +92,7 @@ describe("Engine Integration Tests", () => {
       postingDate: new Date(),
       transfers: [
         {
-          type: PlanType.CREATE,
+          type: OPERATION_TRANSFER_TYPE.CREATE,
           planKey: "transfer-1",
           debitKey: "customer:charlie",
           creditKey: "revenue:sales",
@@ -110,7 +110,7 @@ describe("Engine Integration Tests", () => {
         postingDate: new Date(),
         transfers: [
           {
-            type: PlanType.CREATE,
+            type: OPERATION_TRANSFER_TYPE.CREATE,
             planKey: "transfer-1",
             debitKey: "customer:charlie",
             creditKey: "revenue:sales",
@@ -132,14 +132,14 @@ describe("Engine Integration Tests", () => {
       postingDate: new Date(),
       transfers: [
         {
-          type: PlanType.POST_PENDING,
+          type: OPERATION_TRANSFER_TYPE.POST_PENDING,
           planKey: "post-1",
           currency: "USD",
           pendingId: 123n,
           amount: 0n,
         },
         {
-          type: PlanType.VOID_PENDING,
+          type: OPERATION_TRANSFER_TYPE.VOID_PENDING,
           planKey: "void-1",
           currency: "USD",
           pendingId: 124n,

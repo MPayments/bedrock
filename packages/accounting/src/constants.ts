@@ -143,6 +143,34 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
   },
 ] as const;
 
+export const DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS = [
+  {
+    accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+    analyticType: "customer_id",
+    required: true,
+  },
+  {
+    accountNo: ACCOUNT_NO.ORDER_INVENTORY,
+    analyticType: "order_id",
+    required: true,
+  },
+  {
+    accountNo: ACCOUNT_NO.FEE_CLEARING,
+    analyticType: "fee_bucket",
+    required: true,
+  },
+  {
+    accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
+    analyticType: "order_id",
+    required: true,
+  },
+  {
+    accountNo: ACCOUNT_NO.INTERCOMPANY_NET,
+    analyticType: "counterparty_id",
+    required: true,
+  },
+] as const;
+
 export const DEFAULT_GLOBAL_CORRESPONDENCE_RULES = [
   {
     postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,

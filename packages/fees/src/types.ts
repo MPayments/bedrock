@@ -51,9 +51,6 @@ export interface FeeComponent {
     amountMinor: bigint;
     source: FeeSource;
     settlementMode?: FeeSettlementMode;
-    debitAccountKey?: string;
-    creditAccountKey?: string;
-    transferCode?: number;
     memo?: string;
     metadata?: Record<string, string>;
 }
@@ -66,9 +63,6 @@ export interface AdjustmentComponent {
     amountMinor: bigint;
     source: AdjustmentSource;
     settlementMode?: AdjustmentSettlementMode;
-    debitAccountKey?: string;
-    creditAccountKey?: string;
-    transferCode?: number;
     memo?: string;
     metadata?: Record<string, string>;
 }
@@ -99,9 +93,6 @@ export interface UpsertFeeRuleInput {
     isActive?: boolean;
     effectiveFrom?: Date;
     effectiveTo?: Date;
-    debitAccountKey?: string;
-    creditAccountKey?: string;
-    transferCode?: number;
     memo?: string;
     metadata?: Record<string, string>;
 }
@@ -137,62 +128,6 @@ export interface PartitionedAdjustmentComponents {
     separatePaymentOrder: AdjustmentComponent[];
 }
 
-export interface BuildFeeTransferPlanInput {
-    components: FeeComponent[];
-    chain?: string | null;
-    includeZeroAmounts?: boolean;
-    makePlanKey?: (component: FeeComponent, idx: number) => string;
-    resolvePosting: (
-        component: FeeComponent,
-        idx: number
-    ) => {
-        debitKey?: string;
-        creditKey?: string;
-        code?: number;
-        memo?: string | null;
-    };
-}
-
-export interface FeeTransferPlan {
-    planKey: string;
-    debitKey: string;
-    creditKey: string;
-    currency: string;
-    amount: bigint;
-    code?: number;
-    chain?: string | null;
-    memo?: string | null;
-    component: FeeComponent;
-}
-
-export interface BuildAdjustmentTransferPlanInput {
-    components: AdjustmentComponent[];
-    chain?: string | null;
-    includeZeroAmounts?: boolean;
-    makePlanKey?: (component: AdjustmentComponent, idx: number) => string;
-    resolvePosting: (
-        component: AdjustmentComponent,
-        idx: number
-    ) => {
-        debitKey?: string;
-        creditKey?: string;
-        code?: number;
-        memo?: string | null;
-    };
-}
-
-export interface AdjustmentTransferPlan {
-    planKey: string;
-    debitKey: string;
-    creditKey: string;
-    currency: string;
-    amount: bigint;
-    code?: number;
-    chain?: string | null;
-    memo?: string | null;
-    component: AdjustmentComponent;
-}
-
 export interface SaveQuoteFeeComponentsInput {
     quoteId: string;
     components: FeeComponent[];
@@ -219,10 +154,8 @@ export interface FeesService {
     mergeFeeComponents(input: MergeFeeComponentsInput): FeeComponent[];
     aggregateFeeComponents(components: FeeComponent[]): FeeComponent[];
     partitionFeeComponents(components: FeeComponent[]): PartitionedFeeComponents;
-    buildFeeTransferPlans(input: BuildFeeTransferPlanInput): FeeTransferPlan[];
 
     mergeAdjustmentComponents(input: MergeAdjustmentComponentsInput): AdjustmentComponent[];
     aggregateAdjustmentComponents(components: AdjustmentComponent[]): AdjustmentComponent[];
     partitionAdjustmentComponents(components: AdjustmentComponent[]): PartitionedAdjustmentComponents;
-    buildAdjustmentTransferPlans(input: BuildAdjustmentTransferPlanInput): AdjustmentTransferPlan[];
 }

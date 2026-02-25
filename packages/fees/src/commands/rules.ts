@@ -51,9 +51,9 @@ export function createRuleHandlers(context: FeesServiceContext) {
                 isActive: validated.isActive ?? true,
                 effectiveFrom: validated.effectiveFrom ?? new Date(),
                 effectiveTo: validated.effectiveTo,
-                debitAccountKey: validated.debitAccountKey,
-                creditAccountKey: validated.creditAccountKey,
-                transferCode: validated.transferCode,
+                debitAccountKey: null,
+                creditAccountKey: null,
+                transferCode: null,
                 memo: validated.memo,
                 metadata: validated.metadata,
             })
@@ -157,9 +157,6 @@ export function createRuleHandlers(context: FeesServiceContext) {
                 amountMinor,
                 source: "rule",
                 settlementMode: rule.settlementMode,
-                debitAccountKey: rule.debitAccountKey ?? undefined,
-                creditAccountKey: rule.creditAccountKey ?? undefined,
-                transferCode: rule.transferCode ?? undefined,
                 memo: rule.memo ?? undefined,
                 metadata: rule.metadata ?? undefined,
             });

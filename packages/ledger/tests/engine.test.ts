@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createLedgerEngine } from "../src/engine";
 import { IdempotencyConflictError } from "../src/errors";
-import { PlanType } from "../src/types";
+import { OPERATION_TRANSFER_TYPE } from "../src/types";
 import { createSmartStubDb, createTestEntry, createTestTransferPlan, type StubDatabase } from "./helpers";
 
 describe("createLedgerEngine", () => {
@@ -80,7 +80,7 @@ describe("createLedgerEngine", () => {
         ...createTestEntry(),
         transfers: [
           {
-            type: PlanType.POST_PENDING,
+            type: OPERATION_TRANSFER_TYPE.POST_PENDING,
             planKey: "post-1",
             currency: "USD",
             pendingId: 0n
@@ -95,7 +95,7 @@ describe("createLedgerEngine", () => {
         ...createTestEntry(),
         transfers: [
           {
-            type: PlanType.POST_PENDING,
+            type: OPERATION_TRANSFER_TYPE.POST_PENDING,
             planKey: "post-1",
             currency: "USD",
             pendingId: 123n,
@@ -111,7 +111,7 @@ describe("createLedgerEngine", () => {
         ...createTestEntry(),
         transfers: [
           {
-            type: PlanType.POST_PENDING as const,
+            type: OPERATION_TRANSFER_TYPE.POST_PENDING as const,
             planKey: "post-1",
             currency: "USD",
             pendingId: 123n,
@@ -131,7 +131,7 @@ describe("createLedgerEngine", () => {
         ...createTestEntry(),
         transfers: [
           {
-            type: PlanType.VOID_PENDING,
+            type: OPERATION_TRANSFER_TYPE.VOID_PENDING,
             planKey: "void-1",
             currency: "USD",
             pendingId: 0n
@@ -603,7 +603,7 @@ describe("createLedgerEngine", () => {
         ...createTestEntry(),
         transfers: [
           {
-            type: PlanType.POST_PENDING as const,
+            type: OPERATION_TRANSFER_TYPE.POST_PENDING as const,
             planKey: "post-1",
             currency: "USD",
             pendingId: 123n,
@@ -642,7 +642,7 @@ describe("createLedgerEngine", () => {
         ...createTestEntry(),
         transfers: [
           {
-            type: PlanType.VOID_PENDING as const,
+            type: OPERATION_TRANSFER_TYPE.VOID_PENDING as const,
             planKey: "void-1",
             currency: "USD",
             pendingId: 999n
@@ -688,7 +688,7 @@ describe("createLedgerEngine", () => {
         ...createTestEntry(),
         transfers: [
           {
-            type: PlanType.VOID_PENDING as const,
+            type: OPERATION_TRANSFER_TYPE.VOID_PENDING as const,
             planKey: "void-pending-1",
             currency: "USD",
             pendingId: 999n,
@@ -700,7 +700,7 @@ describe("createLedgerEngine", () => {
       await engine.createEntry(input);
 
       expect(capturedPlanRows).toHaveLength(1);
-      expect(capturedPlanRows[0].type).toBe(PlanType.VOID_PENDING);
+      expect(capturedPlanRows[0].type).toBe(OPERATION_TRANSFER_TYPE.VOID_PENDING);
       expect(capturedPlanRows[0].pendingId).toBe(999n);
       expect(capturedPlanRows[0].amount).toBe(0n);
       expect(capturedPlanRows[0].debitKey).toBeNull();

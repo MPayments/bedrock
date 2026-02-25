@@ -1,21 +1,29 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { OPERATION_CODE } from "@bedrock/accounting";
+import {
+    ACCOUNT_NO,
+    OPERATION_CODE,
+    POSTING_CODE,
+    resolveAdjustmentInLedgerPostingTemplate,
+    resolveAdjustmentReservePostingTemplate,
+    resolveFeeReservePostingTemplate,
+    resolveInLedgerFeePostingTemplate,
+} from "@bedrock/accounting";
 import { type Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { makePlanKey } from "@bedrock/kernel";
 import { TransferCodes } from "@bedrock/kernel/constants";
-import { PlanType } from "@bedrock/ledger";
+import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
 
 import { AmountMismatchError, CurrencyMismatchError, InvalidStateError, NotFoundError, ValidationError } from "../errors";
 import { SYSTEM_LEDGER_ORG_ID, type TreasuryServiceContext } from "../internal/context";
 import { consumeFxQuoteForExecution } from "../internal/fx-quote";
-import { buildTreasuryOperationInput, type KeyedTransferPlan } from "../internal/ledger-operation";
+import { buildTreasuryOperationInput, type TemplateTransferPlan } from "../internal/ledger-operation";
 import { ExecuteFxAllowedFrom, TreasuryOrderStatus, isOrderStatusIn, isSameEntryInAllowedState } from "../state-machine";
 import { type ExecuteFxInput, validateExecuteFxInput } from "../validation";
 
 export function createExecuteFxHandler(context: TreasuryServiceContext) {
-    const { db, ledger, feesService, currenciesService, log, keys } = context;
+    const { db, ledger, feesService, currenciesService, log } = context;
 
     return async function executeFx(input: ExecuteFxInput) {
         const validated = validateExecuteFxInput(input);
@@ -131,7 +139,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             }
 
             const chain = `fx:${validated.quoteRef}`;
-            const transfers: KeyedTransferPlan[] = [];
+            const transfers: TemplateTransferPlan[] = [];
             const separateFeeOrders: {
                 componentId: string;
                 kind: string;
@@ -143,7 +151,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             }[] = [];
 
             transfers.push({
-                type: PlanType.CREATE,
+                type: OPERATION_TRANSFER_TYPE.CREATE,
                 chain,
                 planKey: makePlanKey("fx_principal", {
                     quoteRef: validated.quoteRef,
@@ -151,19 +159,25 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                     currency: validated.payInCurrency,
                     amount: validated.principalMinor.toString(),
                 }),
-                debitKey: keys.customerWallet(validated.customerId, validated.payInCurrency),
-                creditKey: keys.orderInventory(validated.orderId, validated.payInCurrency),
+                postingCode: POSTING_CODE.FX_PRINCIPAL,
+                debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+                creditAccountNo: ACCOUNT_NO.ORDER_INVENTORY,
                 currency: validated.payInCurrency,
                 amount: validated.principalMinor,
                 code: TransferCodes.FX_PRINCIPAL,
                 memo: "FX principal",
+                analytics: {
+                    customerId: validated.customerId,
+                    orderId: validated.orderId,
+                    quoteId: quote.id,
+                },
             });
 
             for (const leg of routeLegs) {
                 const executionCounterpartyId = leg.executionCounterpartyId ?? validated.branchCounterpartyId;
 
                 transfers.push({
-                    type: PlanType.CREATE,
+                    type: OPERATION_TRANSFER_TYPE.CREATE,
                     chain,
                     planKey: makePlanKey("fx_leg_out", {
                         quoteRef: validated.quoteRef,
@@ -173,16 +187,22 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                         fromCurrency: leg.fromCurrency,
                         amount: leg.fromAmountMinor.toString(),
                     }),
-                    debitKey: keys.orderInventory(validated.orderId, leg.fromCurrency),
-                    creditKey: keys.intercompanyNet(executionCounterpartyId, leg.fromCurrency),
+                    postingCode: POSTING_CODE.FX_LEG_OUT,
+                    debitAccountNo: ACCOUNT_NO.ORDER_INVENTORY,
+                    creditAccountNo: ACCOUNT_NO.INTERCOMPANY_NET,
                     currency: leg.fromCurrency,
                     amount: leg.fromAmountMinor,
                     code: TransferCodes.FX_LEG_OUT,
                     memo: `FX leg ${leg.idx} out`,
+                    analytics: {
+                        orderId: validated.orderId,
+                        counterpartyId: executionCounterpartyId,
+                        quoteId: quote.id,
+                    },
                 });
 
                 transfers.push({
-                    type: PlanType.CREATE,
+                    type: OPERATION_TRANSFER_TYPE.CREATE,
                     chain,
                     planKey: makePlanKey("fx_leg_in", {
                         quoteRef: validated.quoteRef,
@@ -192,12 +212,18 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                         toCurrency: leg.toCurrency,
                         amount: leg.toAmountMinor.toString(),
                     }),
-                    debitKey: keys.intercompanyNet(executionCounterpartyId, leg.toCurrency),
-                    creditKey: keys.orderInventory(validated.orderId, leg.toCurrency),
+                    postingCode: POSTING_CODE.FX_LEG_IN,
+                    debitAccountNo: ACCOUNT_NO.INTERCOMPANY_NET,
+                    creditAccountNo: ACCOUNT_NO.ORDER_INVENTORY,
                     currency: leg.toCurrency,
                     amount: leg.toAmountMinor,
                     code: TransferCodes.FX_LEG_IN,
                     memo: `FX leg ${leg.idx} in`,
+                    analytics: {
+                        orderId: validated.orderId,
+                        counterpartyId: executionCounterpartyId,
+                        quoteId: quote.id,
+                    },
                 });
             }
 
@@ -209,121 +235,74 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
 
             const { inLedger, separatePaymentOrder } = feesService.partitionFeeComponents(mergedFeeComponents);
 
-            const inLedgerFeePlans = feesService.buildFeeTransferPlans({
-                components: inLedger,
-                chain,
-                makePlanKey: (component, idx) =>
-                    makePlanKey("fx_fee_component", {
+            for (const [idx, component] of inLedger.entries()) {
+                const posting = resolveInLedgerFeePostingTemplate(component.kind);
+
+                transfers.push({
+                    type: OPERATION_TRANSFER_TYPE.CREATE,
+                    chain,
+                    planKey: makePlanKey("fx_fee_component", {
                         quoteRef: validated.quoteRef,
                         orderId: validated.orderId,
-                        idx,
+                        idx: idx + 1,
                         componentId: component.id,
                         kind: component.kind,
                         currency: component.currency,
                         amount: component.amountMinor.toString(),
                     }),
-                resolvePosting: (component) => {
-                    const defaults = feesService.getComponentDefaults(component.kind);
-
-                    if (component.debitAccountKey && component.creditAccountKey) {
-                        return {
-                            debitKey: component.debitAccountKey,
-                            creditKey: component.creditAccountKey,
-                            code: component.transferCode ?? defaults.transferCode,
-                            memo: component.memo ?? defaults.memo,
-                        };
-                    }
-
-                    const debitKey = keys.customerWallet(validated.customerId, component.currency);
-                    const creditKey =
-                        component.kind === "fx_fee"
-                            ? keys.revenueFee(component.currency)
-                            : component.kind === "fx_spread"
-                                ? keys.revenueSpread(component.currency)
-                                : keys.feeRevenueBucket(defaults.bucket, component.currency);
-
-                    return {
-                        debitKey,
-                        creditKey,
-                        code: component.transferCode ?? defaults.transferCode,
-                        memo: component.memo ?? defaults.memo,
-                    };
-                },
-            });
-
-            for (const plan of inLedgerFeePlans) {
-                transfers.push({
-                    type: PlanType.CREATE,
-                    chain: plan.chain,
-                    planKey: plan.planKey,
-                    debitKey: plan.debitKey,
-                    creditKey: plan.creditKey,
-                    currency: plan.currency,
-                    amount: plan.amount,
-                    code: plan.code,
-                    memo: plan.memo ?? undefined,
+                    postingCode: posting.postingCode,
+                    debitAccountNo: posting.debitAccountNo,
+                    creditAccountNo: posting.creditAccountNo,
+                    currency: component.currency,
+                    amount: component.amountMinor,
+                    code: posting.transferCode,
+                    memo: component.memo ?? feesService.getComponentDefaults(component.kind).memo,
+                    analytics: {
+                        customerId: validated.customerId,
+                        feeBucket: posting.feeBucket ?? component.kind,
+                        quoteId: quote.id,
+                    },
                 });
             }
 
-            const reserveComponents = separatePaymentOrder.map((component) => ({
-                ...component,
-                settlementMode: "in_ledger" as const,
-            }));
+            for (const [idx, component] of separatePaymentOrder.entries()) {
+                const defaults = feesService.getComponentDefaults(component.kind);
+                const posting = resolveFeeReservePostingTemplate(defaults.bucket);
 
-            const reserveFeePlans = feesService.buildFeeTransferPlans({
-                components: reserveComponents,
-                chain,
-                makePlanKey: (component, idx) =>
-                    makePlanKey("fx_fee_reserve", {
+                transfers.push({
+                    type: OPERATION_TRANSFER_TYPE.CREATE,
+                    chain,
+                    planKey: makePlanKey("fx_fee_reserve", {
                         quoteRef: validated.quoteRef,
                         orderId: validated.orderId,
-                        idx,
+                        idx: idx + 1,
                         componentId: component.id,
                         kind: component.kind,
                         currency: component.currency,
                         amount: component.amountMinor.toString(),
                     }),
-                resolvePosting: (component) => {
-                    const defaults = feesService.getComponentDefaults(component.kind);
-
-                    if (component.debitAccountKey && component.creditAccountKey) {
-                        return {
-                            debitKey: component.debitAccountKey,
-                            creditKey: component.creditAccountKey,
-                            code: component.transferCode ?? TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
-                            memo: component.memo ?? "Fee reserved for separate payment order",
-                        };
-                    }
-
-                    return {
-                        debitKey: keys.customerWallet(validated.customerId, component.currency),
-                        creditKey: keys.feeClearing(defaults.bucket, component.currency),
-                        code: component.transferCode ?? TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
-                        memo: component.memo ?? "Fee reserved for separate payment order",
-                    };
-                },
-            });
-
-            for (const plan of reserveFeePlans) {
-                transfers.push({
-                    type: PlanType.CREATE,
-                    chain: plan.chain,
-                    planKey: plan.planKey,
-                    debitKey: plan.debitKey,
-                    creditKey: plan.creditKey,
-                    currency: plan.currency,
-                    amount: plan.amount,
-                    code: plan.code,
-                    memo: plan.memo ?? undefined,
+                    postingCode: posting.postingCode,
+                    debitAccountNo: posting.debitAccountNo,
+                    creditAccountNo: posting.creditAccountNo,
+                    currency: component.currency,
+                    amount: component.amountMinor,
+                    code: posting.transferCode,
+                    memo: component.memo ?? "Fee reserved for separate payment order",
+                    analytics: {
+                        customerId: validated.customerId,
+                        feeBucket: posting.feeBucket ?? defaults.bucket,
+                        quoteId: quote.id,
+                    },
                 });
+
                 separateFeeOrders.push({
-                    componentId: plan.component.id,
-                    kind: plan.component.kind,
-                    bucket: feesService.getComponentDefaults(plan.component.kind).bucket,
-                    currency: plan.component.currency,
-                    amountMinor: plan.component.amountMinor,
-                    memo: plan.memo,
-                    metadata: plan.component.metadata,
+                    componentId: component.id,
+                    kind: component.kind,
+                    bucket: defaults.bucket,
+                    currency: component.currency,
+                    amountMinor: component.amountMinor,
+                    memo: component.memo,
+                    metadata: component.metadata,
                 });
             }
 
@@ -332,140 +311,90 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             });
             const partitionedAdjustments = feesService.partitionAdjustmentComponents(mergedAdjustments);
 
-            const inLedgerAdjustmentPlans = feesService.buildAdjustmentTransferPlans({
-                components: partitionedAdjustments.inLedger,
-                chain,
-                makePlanKey: (component, idx) =>
-                    makePlanKey("fx_adjustment_component", {
+            for (const [idx, component] of partitionedAdjustments.inLedger.entries()) {
+                const posting = resolveAdjustmentInLedgerPostingTemplate(
+                    component.effect,
+                    component.kind,
+                );
+
+                transfers.push({
+                    type: OPERATION_TRANSFER_TYPE.CREATE,
+                    chain,
+                    planKey: makePlanKey("fx_adjustment_component", {
                         quoteRef: validated.quoteRef,
                         orderId: validated.orderId,
-                        idx,
+                        idx: idx + 1,
                         componentId: component.id,
                         kind: component.kind,
                         effect: component.effect,
                         currency: component.currency,
                         amount: component.amountMinor.toString(),
                     }),
-                resolvePosting: (component) => {
-                    if (component.debitAccountKey && component.creditAccountKey) {
-                        return {
-                            debitKey: component.debitAccountKey,
-                            creditKey: component.creditAccountKey,
-                            code: component.transferCode ??
-                                (component.effect === "increase_charge" ? TransferCodes.ADJUSTMENT_CHARGE : TransferCodes.ADJUSTMENT_REFUND),
-                            memo: component.memo ?? (component.effect === "increase_charge" ? "Adjustment charge" : "Adjustment refund"),
-                        };
-                    }
-
-                    const bucket = component.kind;
-                    if (component.effect === "increase_charge") {
-                        return {
-                            debitKey: keys.customerWallet(validated.customerId, component.currency),
-                            creditKey: keys.adjustmentRevenue(bucket, component.currency),
-                            code: component.transferCode ?? TransferCodes.ADJUSTMENT_CHARGE,
-                            memo: component.memo ?? "Adjustment charge",
-                        };
-                    }
-
-                    return {
-                        debitKey: keys.adjustmentExpense(bucket, component.currency),
-                        creditKey: keys.customerWallet(validated.customerId, component.currency),
-                        code: component.transferCode ?? TransferCodes.ADJUSTMENT_REFUND,
-                        memo: component.memo ?? "Adjustment refund",
-                    };
-                },
-            });
-
-            for (const plan of inLedgerAdjustmentPlans) {
-                transfers.push({
-                    type: PlanType.CREATE,
-                    chain: plan.chain,
-                    planKey: plan.planKey,
-                    debitKey: plan.debitKey,
-                    creditKey: plan.creditKey,
-                    currency: plan.currency,
-                    amount: plan.amount,
-                    code: plan.code,
-                    memo: plan.memo ?? undefined,
+                    postingCode: posting.postingCode,
+                    debitAccountNo: posting.debitAccountNo,
+                    creditAccountNo: posting.creditAccountNo,
+                    currency: component.currency,
+                    amount: component.amountMinor,
+                    code: posting.transferCode,
+                    memo: component.memo ?? (component.effect === "increase_charge" ? "Adjustment charge" : "Adjustment refund"),
+                    analytics: {
+                        customerId: validated.customerId,
+                        feeBucket: posting.feeBucket,
+                        quoteId: quote.id,
+                    },
                 });
             }
 
-            const reserveAdjustments = partitionedAdjustments.separatePaymentOrder.map((component) => ({
-                ...component,
-                settlementMode: "in_ledger" as const,
-            }));
+            for (const [idx, component] of partitionedAdjustments.separatePaymentOrder.entries()) {
+                const posting = resolveAdjustmentReservePostingTemplate(
+                    component.effect,
+                    component.kind,
+                );
+                const bucket = posting.feeBucket ?? `adjustment:${component.kind}`;
 
-            const reserveAdjustmentPlans = feesService.buildAdjustmentTransferPlans({
-                components: reserveAdjustments,
-                chain,
-                makePlanKey: (component, idx) =>
-                    makePlanKey("fx_adjustment_reserve", {
+                transfers.push({
+                    type: OPERATION_TRANSFER_TYPE.CREATE,
+                    chain,
+                    planKey: makePlanKey("fx_adjustment_reserve", {
                         quoteRef: validated.quoteRef,
                         orderId: validated.orderId,
-                        idx,
+                        idx: idx + 1,
                         componentId: component.id,
                         kind: component.kind,
                         effect: component.effect,
                         currency: component.currency,
                         amount: component.amountMinor.toString(),
                     }),
-                resolvePosting: (component) => {
-                    const bucket = `adjustment:${component.kind}`;
-                    if (component.debitAccountKey && component.creditAccountKey) {
-                        return {
-                            debitKey: component.debitAccountKey,
-                            creditKey: component.creditAccountKey,
-                            code: component.transferCode ?? TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
-                            memo: component.memo ?? "Adjustment reserved for separate payment order",
-                        };
-                    }
-
-                    if (component.effect === "increase_charge") {
-                        return {
-                            debitKey: keys.customerWallet(validated.customerId, component.currency),
-                            creditKey: keys.feeClearing(bucket, component.currency),
-                            code: component.transferCode ?? TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
-                            memo: component.memo ?? "Adjustment reserved for separate payment order",
-                        };
-                    }
-
-                    return {
-                        debitKey: keys.adjustmentExpense(component.kind, component.currency),
-                        creditKey: keys.feeClearing(bucket, component.currency),
-                        code: component.transferCode ?? TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
-                        memo: component.memo ?? "Adjustment reserved for separate payment order",
-                    };
-                },
-            });
-
-            for (const plan of reserveAdjustmentPlans) {
-                transfers.push({
-                    type: PlanType.CREATE,
-                    chain: plan.chain,
-                    planKey: plan.planKey,
-                    debitKey: plan.debitKey,
-                    creditKey: plan.creditKey,
-                    currency: plan.currency,
-                    amount: plan.amount,
-                    code: plan.code,
-                    memo: plan.memo ?? undefined,
+                    postingCode: posting.postingCode,
+                    debitAccountNo: posting.debitAccountNo,
+                    creditAccountNo: posting.creditAccountNo,
+                    currency: component.currency,
+                    amount: component.amountMinor,
+                    code: posting.transferCode,
+                    memo: component.memo ?? "Adjustment reserved for separate payment order",
+                    analytics: {
+                        customerId: validated.customerId,
+                        feeBucket: bucket,
+                        quoteId: quote.id,
+                    },
                 });
+
                 separateFeeOrders.push({
-                    componentId: plan.component.id,
-                    kind: `adjustment:${plan.component.kind}`,
-                    bucket: `adjustment:${plan.component.kind}`,
-                    currency: plan.component.currency,
-                    amountMinor: plan.component.amountMinor,
-                    memo: plan.memo,
+                    componentId: component.id,
+                    kind: `adjustment:${component.kind}`,
+                    bucket,
+                    currency: component.currency,
+                    amountMinor: component.amountMinor,
+                    memo: component.memo,
                     metadata: {
-                        ...(plan.component.metadata ?? {}),
-                        effect: plan.component.effect,
+                        ...(component.metadata ?? {}),
+                        effect: component.effect,
                     },
                 });
             }
 
             transfers.push({
-                type: PlanType.CREATE,
+                type: OPERATION_TRANSFER_TYPE.CREATE,
                 chain,
                 planKey: makePlanKey("fx_obligation", {
                     quoteRef: validated.quoteRef,
@@ -474,12 +403,17 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
                     currency: validated.payOutCurrency,
                     amount: validated.payOutAmountMinor.toString(),
                 }),
-                debitKey: keys.orderInventory(validated.orderId, validated.payOutCurrency),
-                creditKey: keys.payoutObligation(validated.orderId, validated.payOutCurrency),
+                postingCode: POSTING_CODE.FX_PAYOUT_OBLIGATION,
+                debitAccountNo: ACCOUNT_NO.ORDER_INVENTORY,
+                creditAccountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
                 currency: validated.payOutCurrency,
                 amount: validated.payOutAmountMinor,
                 code: TransferCodes.FX_PAYOUT_OBLIGATION,
                 memo: "Create payout obligation",
+                analytics: {
+                    orderId: validated.orderId,
+                    quoteId: quote.id,
+                },
             });
 
             const { operationId: entryId } = await ledger.createOperationTx(

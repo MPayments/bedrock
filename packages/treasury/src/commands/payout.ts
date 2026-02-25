@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { OPERATION_CODE } from "@bedrock/accounting";
+import { ACCOUNT_NO, OPERATION_CODE, POSTING_CODE } from "@bedrock/accounting";
 import { type Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { makePlanKey } from "@bedrock/kernel";
@@ -12,7 +12,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "@bedrock/kernel/errors";
-import { PlanType } from "@bedrock/ledger";
+import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
 
 import {
   SYSTEM_LEDGER_ORG_ID,
@@ -37,7 +37,7 @@ import {
 } from "../validation";
 
 export function createPayoutHandlers(context: TreasuryServiceContext) {
-  const { db, ledger, log, keys, currenciesService } = context;
+  const { db, ledger, log, currenciesService } = context;
 
   async function initiatePayout(input: InitiatePayoutInput) {
     const validated = validateInitiatePayoutInput(input);
@@ -94,8 +94,9 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
         payoutCounterpartyId: validated.payoutCounterpartyId,
         payoutBankStableKey: validated.payoutBankStableKey,
       });
+      const pendingRef = `payout:${validated.orderId}:init`;
 
-      const { operationId: entryId, transferIds } =
+      const { operationId: entryId, pendingTransferIdsByRef } =
         await ledger.createOperationTx(
           tx,
           buildTreasuryOperationInput({
@@ -112,30 +113,34 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
             bookOrgId: SYSTEM_LEDGER_ORG_ID,
             transfers: [
               {
-                type: PlanType.CREATE,
+                type: OPERATION_TRANSFER_TYPE.CREATE,
                 planKey,
-                debitKey: keys.payoutObligation(
-                  validated.orderId,
-                  validated.payOutCurrency,
-                ),
-                creditKey: keys.bank(
-                  validated.payoutCounterpartyId,
-                  validated.payoutBankStableKey,
-                  validated.payOutCurrency,
-                ),
+                postingCode: POSTING_CODE.PAYOUT_INITIATED,
+                debitAccountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
+                creditAccountNo: ACCOUNT_NO.BANK,
                 currency: validated.payOutCurrency,
                 amount: validated.amountMinor,
                 code: TransferCodes.PAYOUT_INITIATED,
                 pending: {
                   timeoutSeconds,
+                  ref: pendingRef,
                 },
                 memo: "Payout initiated (pending)",
+                analytics: {
+                  orderId: validated.orderId,
+                  counterpartyId: validated.payoutCounterpartyId,
+                },
               },
             ],
           }),
         );
 
-      const pendingTransferId = transferIds.get(1)!;
+      const pendingTransferId = pendingTransferIdsByRef.get(pendingRef);
+      if (!pendingTransferId) {
+        throw new InvalidStateError(
+          `Missing pending transfer id for ref=${pendingRef}`,
+        );
+      }
 
       const moved = await tx
         .update(schema.paymentOrders)
@@ -254,7 +259,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
           bookOrgId: SYSTEM_LEDGER_ORG_ID,
           transfers: [
             {
-              type: PlanType.POST_PENDING,
+              type: OPERATION_TRANSFER_TYPE.POST_PENDING,
               planKey,
               currency: validated.payOutCurrency,
               pendingId: order.payoutPendingTransferId,
@@ -374,7 +379,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
           bookOrgId: SYSTEM_LEDGER_ORG_ID,
           transfers: [
             {
-              type: PlanType.VOID_PENDING,
+              type: OPERATION_TRANSFER_TYPE.VOID_PENDING,
               planKey,
               currency: validated.payOutCurrency,
               pendingId: order.payoutPendingTransferId,

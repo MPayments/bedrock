@@ -28,15 +28,8 @@ const feeComponentInputSchema = z
         currency: currencySchema,
         amountMinor: nonNegativeAmountSchema,
         settlementMode: feeSettlementModeSchema.optional(),
-        debitAccountKey: z.string().min(1).optional(),
-        creditAccountKey: z.string().min(1).optional(),
-        transferCode: z.number().int().min(0).optional(),
         memo: z.string().max(1000).optional(),
         metadata: z.record(z.string(), z.string().max(255)).optional(),
-    })
-    .refine((data) => Boolean(data.debitAccountKey) === Boolean(data.creditAccountKey), {
-        message: "debitAccountKey and creditAccountKey must be provided together",
-        path: ["debitAccountKey"],
     })
     .transform((data) => ({
         ...data,
@@ -53,15 +46,8 @@ const adjustmentInputSchema = z
         currency: currencySchema,
         amountMinor: positiveAmountSchema,
         settlementMode: feeSettlementModeSchema.optional(),
-        debitAccountKey: z.string().min(1).optional(),
-        creditAccountKey: z.string().min(1).optional(),
-        transferCode: z.number().int().min(0).optional(),
         memo: z.string().max(1000).optional(),
         metadata: z.record(z.string(), z.string().max(255)).optional(),
-    })
-    .refine((data) => Boolean(data.debitAccountKey) === Boolean(data.creditAccountKey), {
-        message: "debitAccountKey and creditAccountKey must be provided together",
-        path: ["debitAccountKey"],
     })
     .transform((data) => ({
         ...data,

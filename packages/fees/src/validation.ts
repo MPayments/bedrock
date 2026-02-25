@@ -57,15 +57,8 @@ export const feeComponentSchema = z
         amountMinor: nonNegativeAmountSchema,
         source: feeSourceSchema,
         settlementMode: feeSettlementModeSchema.optional(),
-        debitAccountKey: z.string().min(1).optional(),
-        creditAccountKey: z.string().min(1).optional(),
-        transferCode: nonNegativeIntegerSchema.optional(),
         memo: z.string().max(1000).optional(),
         metadata: z.record(z.string(), z.string().max(255)).optional(),
-    })
-    .refine((data) => Boolean(data.debitAccountKey) === Boolean(data.creditAccountKey), {
-        message: "debitAccountKey and creditAccountKey must be provided together",
-        path: ["debitAccountKey"],
     });
 
 export const adjustmentComponentSchema = z
@@ -77,15 +70,8 @@ export const adjustmentComponentSchema = z
         amountMinor: positiveAmountSchema,
         source: adjustmentSourceSchema,
         settlementMode: feeSettlementModeSchema.optional(),
-        debitAccountKey: z.string().min(1).optional(),
-        creditAccountKey: z.string().min(1).optional(),
-        transferCode: nonNegativeIntegerSchema.optional(),
         memo: z.string().max(1000).optional(),
         metadata: z.record(z.string(), z.string().max(255)).optional(),
-    })
-    .refine((data) => Boolean(data.debitAccountKey) === Boolean(data.creditAccountKey), {
-        message: "debitAccountKey and creditAccountKey must be provided together",
-        path: ["debitAccountKey"],
     });
 
 export const upsertFeeRuleSchema = z
@@ -111,16 +97,8 @@ export const upsertFeeRuleSchema = z
 
         effectiveFrom: z.date().optional(),
         effectiveTo: z.date().optional(),
-
-        debitAccountKey: z.string().min(1).optional(),
-        creditAccountKey: z.string().min(1).optional(),
-        transferCode: nonNegativeIntegerSchema.optional(),
         memo: z.string().max(1000).optional(),
         metadata: z.record(z.string(), z.string().max(255)).optional(),
-    })
-    .refine((data) => Boolean(data.debitAccountKey) === Boolean(data.creditAccountKey), {
-        message: "debitAccountKey and creditAccountKey must be provided together",
-        path: ["debitAccountKey"],
     })
     .refine(
         (data) => {

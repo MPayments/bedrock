@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { PlanType } from "../src/types";
+import { OPERATION_TRANSFER_TYPE } from "../src/types";
 import { createEntryInputSchema, validateCreateEntryInput } from "../src/validation";
 
 describe("validateCreateEntryInput", () => {
@@ -10,7 +10,7 @@ describe("validateCreateEntryInput", () => {
     postingDate: new Date(),
     transfers: [
       {
-        type: PlanType.CREATE,
+        type: OPERATION_TRANSFER_TYPE.CREATE,
         planKey: "plan-1",
         debitKey: "customer:1",
         creditKey: "revenue:sales",

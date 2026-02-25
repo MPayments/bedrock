@@ -1,8 +1,11 @@
-export enum PlanType {
-  CREATE = "create",
-  POST_PENDING = "post_pending",
-  VOID_PENDING = "void_pending",
-}
+export const OPERATION_TRANSFER_TYPE = {
+  CREATE: "create",
+  POST_PENDING: "post_pending",
+  VOID_PENDING: "void_pending",
+} as const;
+
+export type OperationTransferType =
+  (typeof OPERATION_TRANSFER_TYPE)[keyof typeof OPERATION_TRANSFER_TYPE];
 
 export interface PostingAnalytics {
   counterpartyId?: string | null;
@@ -15,7 +18,7 @@ export interface PostingAnalytics {
 }
 
 export interface CreatePlan {
-  type: PlanType.CREATE;
+  type: typeof OPERATION_TRANSFER_TYPE.CREATE;
   planRef: string;
   bookOrgId: string;
 
@@ -40,7 +43,7 @@ export interface CreatePlan {
 }
 
 export interface PostPendingPlan {
-  type: PlanType.POST_PENDING;
+  type: typeof OPERATION_TRANSFER_TYPE.POST_PENDING;
   planRef: string;
 
   currency: string;
@@ -56,7 +59,7 @@ export interface PostPendingPlan {
 }
 
 export interface VoidPendingPlan {
-  type: PlanType.VOID_PENDING;
+  type: typeof OPERATION_TRANSFER_TYPE.VOID_PENDING;
   planRef: string;
 
   currency: string;
@@ -88,5 +91,4 @@ export interface CreateOperationInput {
 export interface CreateOperationResult {
   operationId: string;
   pendingTransferIdsByRef: Map<string, bigint>;
-  transferIds: Map<number, bigint>;
 }

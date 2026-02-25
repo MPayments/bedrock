@@ -37,9 +37,9 @@ export function createQuoteSnapshotHandlers(context: FeesServiceContext) {
                 amountMinor: component.amountMinor,
                 source: component.source,
                 settlementMode: component.settlementMode ?? "in_ledger",
-                debitAccountKey: component.debitAccountKey,
-                creditAccountKey: component.creditAccountKey,
-                transferCode: component.transferCode,
+                debitAccountKey: null,
+                creditAccountKey: null,
+                transferCode: null,
                 memo: component.memo,
                 metadata: component.metadata,
             };
@@ -76,9 +76,6 @@ export function createQuoteSnapshotHandlers(context: FeesServiceContext) {
             amountMinor: row.amountMinor,
             source: row.source,
             settlementMode: row.settlementMode,
-            debitAccountKey: row.debitAccountKey ?? undefined,
-            creditAccountKey: row.creditAccountKey ?? undefined,
-            transferCode: row.transferCode ?? undefined,
             memo: row.memo ?? undefined,
             metadata: row.metadata ?? undefined,
         }));

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { PlanType } from "./types";
+import { OPERATION_TRANSFER_TYPE } from "./types";
 
 const uuidSchema = z.uuid({ version: "v4" });
 
@@ -57,7 +57,7 @@ const baseTransferPlanSchema = z.object({
 });
 
 export const createTransferPlanSchema = baseTransferPlanSchema.extend({
-  type: z.literal(PlanType.CREATE),
+  type: z.literal(OPERATION_TRANSFER_TYPE.CREATE),
   bookOrgId: orgIdSchema,
   postingCode: z.string().min(1).max(128),
   debitAccountNo: accountNoSchema,
@@ -68,13 +68,13 @@ export const createTransferPlanSchema = baseTransferPlanSchema.extend({
 });
 
 export const postPendingTransferPlanSchema = baseTransferPlanSchema.extend({
-  type: z.literal(PlanType.POST_PENDING),
+  type: z.literal(OPERATION_TRANSFER_TYPE.POST_PENDING),
   pendingId: z.bigint().positive(),
   amount: nonNegativeAmountSchema.optional(),
 });
 
 export const voidPendingTransferPlanSchema = baseTransferPlanSchema.extend({
-  type: z.literal(PlanType.VOID_PENDING),
+  type: z.literal(OPERATION_TRANSFER_TYPE.VOID_PENDING),
   pendingId: z.bigint().positive(),
 });
 

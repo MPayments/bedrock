@@ -10,6 +10,20 @@ export class IdempotencyConflictError extends LedgerError {
     name = "IdempotencyConflictError";
 }
 
+export class AccountPostingValidationError extends LedgerError {
+    name = "AccountPostingValidationError";
+}
+
+export class MissingRequiredAnalyticsError extends LedgerError {
+    name = "MissingRequiredAnalyticsError";
+
+    constructor(accountNo: string, analyticType: string, postingCode: string) {
+        super(
+            `Missing required analytics "${analyticType}" for account=${accountNo}, postingCode=${postingCode}`
+        );
+    }
+}
+
 export class AccountMappingConflictError extends LedgerError {
     name = "AccountMappingConflictError";
     constructor(

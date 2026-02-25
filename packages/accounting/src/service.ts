@@ -4,6 +4,7 @@ import { schema } from "@bedrock/db/schema";
 
 import {
   DEFAULT_CHART_TEMPLATE_ACCOUNTS,
+  DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS,
   DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
 } from "./constants";
 import {
@@ -67,6 +68,25 @@ export function createAccountingService(deps: AccountingServiceDeps) {
           ],
           set: {
             enabled: true,
+          },
+        });
+    }
+
+    for (const analytic of DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS) {
+      await db
+        .insert(schema.chartTemplateAccountAnalytics)
+        .values({
+          accountNo: analytic.accountNo,
+          analyticType: analytic.analyticType,
+          required: analytic.required,
+        })
+        .onConflictDoUpdate({
+          target: [
+            schema.chartTemplateAccountAnalytics.accountNo,
+            schema.chartTemplateAccountAnalytics.analyticType,
+          ],
+          set: {
+            required: analytic.required,
           },
         });
     }

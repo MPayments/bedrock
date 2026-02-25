@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createLedgerWorker } from "../src/worker";
 import { PostingError } from "../src/errors";
-import { PlanType } from "../src/types";
+import { OPERATION_TRANSFER_TYPE } from "../src/types";
 import { createStubDb, createMockTbClient, mockDbExecuteResult, type StubDatabase } from "./helpers";
 
 describe("createLedgerWorker", () => {
@@ -227,7 +227,7 @@ describe("createLedgerWorker", () => {
         journalEntryId: "entry-456",
         idx: 1,
         planKey: "plan-key-1",
-        type: PlanType.POST_PENDING,
+        type: OPERATION_TRANSFER_TYPE.POST_PENDING,
         chainId: null,
         transferId: 12345n,
         debitKey: null,
@@ -281,7 +281,7 @@ describe("createLedgerWorker", () => {
         journalEntryId: "entry-456",
         idx: 1,
         planKey: "plan-key-1",
-        type: PlanType.POST_PENDING,
+        type: OPERATION_TRANSFER_TYPE.POST_PENDING,
         chainId: null,
         transferId: 12345n,
         debitKey: null,
@@ -335,7 +335,7 @@ describe("createLedgerWorker", () => {
         journalEntryId: "entry-456",
         idx: 1,
         planKey: "plan-key-1",
-        type: PlanType.POST_PENDING,
+        type: OPERATION_TRANSFER_TYPE.POST_PENDING,
         chainId: null,
         transferId: 12345n,
         debitKey: null,
@@ -385,7 +385,7 @@ describe("createLedgerWorker", () => {
         journalEntryId: "entry-456",
         idx: 1,
         planKey: "plan-key-1",
-        type: PlanType.VOID_PENDING,
+        type: OPERATION_TRANSFER_TYPE.VOID_PENDING,
         chainId: null,
         transferId: 12345n,
         debitKey: null,
@@ -439,7 +439,7 @@ describe("createLedgerWorker", () => {
         journalEntryId: "entry-456",
         idx: 1,
         planKey: "plan-key-1",
-        type: PlanType.CREATE,
+        type: OPERATION_TRANSFER_TYPE.CREATE,
         chainId: null,
         transferId: 12345n,
         debitKey: null, // Missing
@@ -489,7 +489,7 @@ describe("createLedgerWorker", () => {
         journalEntryId: "entry-456",
         idx: 1,
         planKey: "plan-key-1",
-        type: PlanType.VOID_PENDING,
+        type: OPERATION_TRANSFER_TYPE.VOID_PENDING,
         chainId: null,
         transferId: 12345n,
         debitKey: null,

@@ -1,17 +1,15 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import {
-  ACCOUNT_NO,
-  OPERATION_CODE,
-  POSTING_CODE,
+  buildTransferApproveTemplate,
+  buildTransferPendingActionTemplate,
 } from "@bedrock/accounting";
 import type { AccountService, TransferAccountBinding } from "@bedrock/accounts";
 import { type Database } from "@bedrock/db";
 import { schema, type TransferStatus } from "@bedrock/db/schema";
-import { makePlanKey, type Logger } from "@bedrock/kernel";
+import { type Logger } from "@bedrock/kernel";
 import {
   DAY_IN_SECONDS,
-  TransferCodes,
 } from "@bedrock/kernel/constants";
 import { NotFoundError, PermissionError } from "@bedrock/kernel/errors";
 import {
@@ -19,7 +17,7 @@ import {
   resolveSortOrder,
   resolveSortValue,
 } from "@bedrock/kernel/pagination";
-import { PlanType, type createLedgerEngine } from "@bedrock/ledger";
+import { type createLedgerEngine } from "@bedrock/ledger";
 
 import {
   InvalidStateError,
@@ -51,7 +49,7 @@ const SORT_COLUMN_MAP = {
 } as const;
 
 type TransferOrderRow = typeof schema.transferOrders.$inferSelect;
-type TransferEventType = typeof schema.transferEvents.$inferSelect.eventType;
+type PendingTransferEventType = "settle" | "void";
 
 function inArraySafe<T>(column: any, values: T[] | undefined) {
   if (!values || values.length === 0) return undefined;
@@ -232,133 +230,35 @@ export function createTransfersService(deps: {
         transfer.destinationAccountId,
       );
 
-      const operationCode =
-        transfer.kind === "intra_org"
-          ? transfer.settlementMode === "pending"
-            ? OPERATION_CODE.TRANSFER_APPROVE_PENDING_INTRA
-            : OPERATION_CODE.TRANSFER_APPROVE_IMMEDIATE_INTRA
-          : transfer.settlementMode === "pending"
-            ? OPERATION_CODE.TRANSFER_APPROVE_PENDING_CROSS
-            : OPERATION_CODE.TRANSFER_APPROVE_IMMEDIATE_CROSS;
-
-      const sourcePendingRef = `transfer:${transfer.id}:source`;
-      const destinationPendingRef = `transfer:${transfer.id}:destination`;
-
-      const transfers: Parameters<typeof ledger.createOperationTx>[1]["transfers"] = [];
-
-      if (transfer.kind === "intra_org") {
-        transfers.push({
-          type: PlanType.CREATE,
-          planRef: makePlanKey("transfer_v3_approve_intra", {
-            transferId: transfer.id,
-            sourceAccountId: transfer.sourceAccountId,
-            destinationAccountId: transfer.destinationAccountId,
-            amount: transfer.amountMinor.toString(),
-            currency: sourceBinding.currencyCode,
-            settlementMode: transfer.settlementMode,
-          }),
+      const template = buildTransferApproveTemplate({
+        transferId: transfer.id,
+        kind: transfer.kind,
+        settlementMode: transfer.settlementMode,
+        amountMinor: transfer.amountMinor,
+        timeoutSeconds: transfer.timeoutSeconds || DAY_IN_SECONDS,
+        memo: transfer.memo,
+        source: {
+          accountId: transfer.sourceAccountId,
+          counterpartyId: sourceBinding.counterpartyId,
           bookOrgId: sourceBinding.bookOrgId,
-          postingCode:
-            transfer.settlementMode === "pending"
-              ? POSTING_CODE.TRANSFER_INTRA_PENDING
-              : POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
-          debitAccountNo: destinationBinding.bookAccountNo,
-          creditAccountNo: sourceBinding.bookAccountNo,
-          currency: sourceBinding.currencyCode,
-          amount: transfer.amountMinor,
-          code: TransferCodes.INTERNAL_TRANSFER,
-          pending:
-            transfer.settlementMode === "pending"
-              ? {
-                  timeoutSeconds: transfer.timeoutSeconds || DAY_IN_SECONDS,
-                  ref: sourcePendingRef,
-                }
-              : undefined,
-          memo: transfer.memo ?? undefined,
-          analytics: {
-            counterpartyId: sourceBinding.counterpartyId,
-            operationalAccountId: transfer.sourceAccountId,
-            transferId: transfer.id,
-          },
-        });
-      } else {
-        transfers.push({
-          type: PlanType.CREATE,
-          planRef: makePlanKey("transfer_v3_approve_cross_source", {
-            transferId: transfer.id,
-            sourceAccountId: transfer.sourceAccountId,
-            destinationAccountId: transfer.destinationAccountId,
-            amount: transfer.amountMinor.toString(),
-            currency: sourceBinding.currencyCode,
-            settlementMode: transfer.settlementMode,
-          }),
-          bookOrgId: sourceBinding.bookOrgId,
-          postingCode:
-            transfer.settlementMode === "pending"
-              ? POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING
-              : POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE,
-          debitAccountNo: ACCOUNT_NO.INTERCOMPANY_NET,
-          creditAccountNo: sourceBinding.bookAccountNo,
-          currency: sourceBinding.currencyCode,
-          amount: transfer.amountMinor,
-          code: TransferCodes.INTERNAL_TRANSFER,
-          pending:
-            transfer.settlementMode === "pending"
-              ? {
-                  timeoutSeconds: transfer.timeoutSeconds || DAY_IN_SECONDS,
-                  ref: sourcePendingRef,
-                }
-              : undefined,
-          memo: transfer.memo ?? undefined,
-          analytics: {
-            counterpartyId: destinationBinding.counterpartyId,
-            operationalAccountId: transfer.sourceAccountId,
-            transferId: transfer.id,
-          },
-        });
-
-        transfers.push({
-          type: PlanType.CREATE,
-          planRef: makePlanKey("transfer_v3_approve_cross_destination", {
-            transferId: transfer.id,
-            sourceAccountId: transfer.sourceAccountId,
-            destinationAccountId: transfer.destinationAccountId,
-            amount: transfer.amountMinor.toString(),
-            currency: sourceBinding.currencyCode,
-            settlementMode: transfer.settlementMode,
-          }),
+          bookAccountNo: sourceBinding.bookAccountNo,
+          currencyCode: sourceBinding.currencyCode,
+        },
+        destination: {
+          accountId: transfer.destinationAccountId,
+          counterpartyId: destinationBinding.counterpartyId,
           bookOrgId: destinationBinding.bookOrgId,
-          postingCode:
-            transfer.settlementMode === "pending"
-              ? POSTING_CODE.TRANSFER_CROSS_DEST_PENDING
-              : POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE,
-          debitAccountNo: destinationBinding.bookAccountNo,
-          creditAccountNo: ACCOUNT_NO.INTERCOMPANY_NET,
-          currency: sourceBinding.currencyCode,
-          amount: transfer.amountMinor,
-          code: TransferCodes.INTERNAL_TRANSFER,
-          pending:
-            transfer.settlementMode === "pending"
-              ? {
-                  timeoutSeconds: transfer.timeoutSeconds || DAY_IN_SECONDS,
-                  ref: destinationPendingRef,
-                }
-              : undefined,
-          memo: transfer.memo ?? undefined,
-          analytics: {
-            counterpartyId: sourceBinding.counterpartyId,
-            operationalAccountId: transfer.destinationAccountId,
-            transferId: transfer.id,
-          },
-        });
-      }
+          bookAccountNo: destinationBinding.bookAccountNo,
+          currencyCode: destinationBinding.currencyCode,
+        },
+      });
 
       const result = await ledger.createOperationTx(tx, {
         source: {
           type: "transfer/v3/approve",
           id: transfer.id,
         },
-        operationCode,
+        operationCode: template.operationCode,
         operationVersion: 1,
         payload: {
           transferId: transfer.id,
@@ -370,17 +270,19 @@ export function createTransfersService(deps: {
         },
         idempotencyKey: `tr3:approve:${transfer.id}`,
         postingDate: validated.occurredAt,
-        transfers,
+        transfers: template.transfers,
       });
 
       const sourcePendingTransferId =
         transfer.settlementMode === "pending"
-          ? (result.pendingTransferIdsByRef.get(sourcePendingRef) ?? null)
+          ? (result.pendingTransferIdsByRef.get(template.sourcePendingRef) ?? null)
           : null;
 
       const destinationPendingTransferId =
-        transfer.settlementMode === "pending" && transfer.kind === "cross_org"
-          ? (result.pendingTransferIdsByRef.get(destinationPendingRef) ?? null)
+        transfer.settlementMode === "pending" &&
+        transfer.kind === "cross_org" &&
+        template.destinationPendingRef
+          ? (result.pendingTransferIdsByRef.get(template.destinationPendingRef) ?? null)
           : null;
 
       const moved = await tx
@@ -518,7 +420,7 @@ export function createTransfersService(deps: {
     tx: TransactionClient,
     transfer: TransferOrderRow,
     input: SettlePendingTransferInput | VoidPendingTransferInput,
-    eventType: TransferEventType,
+    eventType: PendingTransferEventType,
   ): Promise<TransfersServiceResult> {
     const idempotentStatuses: TransferStatus[] =
       eventType === "settle"
@@ -630,17 +532,20 @@ export function createTransfersService(deps: {
       throw new InvalidStateError("Unable to resolve source account binding");
     }
 
-    const operationCode =
-      eventType === "settle"
-        ? OPERATION_CODE.TRANSFER_SETTLE_PENDING
-        : OPERATION_CODE.TRANSFER_VOID_PENDING;
+    const template = buildTransferPendingActionTemplate({
+      transferId: transfer.id,
+      eventIdempotencyKey: input.eventIdempotencyKey,
+      eventType,
+      currency: sourceBinding.currencyCode,
+      pendingIds,
+    });
 
     const entry = await ledger.createOperationTx(tx, {
       source: {
         type: `transfer/v3/${eventType}`,
         id: transfer.id,
       },
-      operationCode,
+      operationCode: template.operationCode,
       operationVersion: 1,
       payload: {
         transferId: transfer.id,
@@ -649,30 +554,7 @@ export function createTransfersService(deps: {
       },
       idempotencyKey: `tr3:${eventType}:${transfer.id}:${input.eventIdempotencyKey}`,
       postingDate: input.occurredAt,
-      transfers: pendingIds.map((pendingId, idx) =>
-        eventType === "settle"
-          ? {
-              type: PlanType.POST_PENDING as const,
-              planRef: makePlanKey(`transfer_v3_${eventType}_${idx + 1}`, {
-                transferId: transfer.id,
-                pendingId: pendingId.toString(),
-                eventIdempotencyKey: input.eventIdempotencyKey,
-              }),
-              currency: sourceBinding.currencyCode,
-              pendingId,
-              amount: 0n,
-            }
-          : {
-              type: PlanType.VOID_PENDING as const,
-              planRef: makePlanKey(`transfer_v3_${eventType}_${idx + 1}`, {
-                transferId: transfer.id,
-                pendingId: pendingId.toString(),
-                eventIdempotencyKey: input.eventIdempotencyKey,
-              }),
-              currency: sourceBinding.currencyCode,
-              pendingId,
-            },
-      ),
+      transfers: template.transfers,
     });
 
     await tx

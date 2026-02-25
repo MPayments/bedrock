@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { PlanType } from "../src/types";
+import { OPERATION_TRANSFER_TYPE } from "../src/types";
 import { TransferFlags } from "../src/tb";
 import {
   createStubDb,
@@ -31,7 +31,7 @@ describe("createLedgerWorker account setup", () => {
       {
         operationId: "op-456",
         lineNo: 1,
-        type: PlanType.CREATE,
+        type: OPERATION_TRANSFER_TYPE.CREATE,
         transferId: 111n,
         debitTbAccountId: 11n,
         creditTbAccountId: 22n,
@@ -47,7 +47,7 @@ describe("createLedgerWorker account setup", () => {
       {
         operationId: "op-456",
         lineNo: 2,
-        type: PlanType.CREATE,
+        type: OPERATION_TRANSFER_TYPE.CREATE,
         transferId: 222n,
         debitTbAccountId: 11n,
         creditTbAccountId: 22n,

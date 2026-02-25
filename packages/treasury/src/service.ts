@@ -15,7 +15,6 @@ export function createTreasuryService(deps: TreasuryServiceDeps) {
     const feePaymentHandlers = createFeePaymentHandlers(context);
 
     return {
-        keys: context.keys,
         fundingSettled,
         executeFx,
         ...payoutHandlers,

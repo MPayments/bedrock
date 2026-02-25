@@ -1,10 +1,8 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
-import { ACCOUNT_NO } from "@bedrock/accounting";
 import { schema } from "@bedrock/db/schema";
 
 import { AccountNotFoundError } from "../errors";
-import { ensureBookAccountTx } from "../internal/book-account";
 import type { AccountServiceContext } from "../internal/context";
 import {
   ResolveTransferBindingsInputSchema,
@@ -54,63 +52,16 @@ export function createResolveTransferBindingsHandler(context: AccountServiceCont
     }
 
     const unresolved = rows.filter((row) => !row.bookAccountId);
-
     if (unresolved.length > 0) {
-      await db.transaction(async (tx) => {
-        for (const row of unresolved) {
-          const bookAccountId = await ensureBookAccountTx(tx, {
-            orgId: row.counterpartyId,
-            accountNo: ACCOUNT_NO.BANK,
-            currency: row.currencyCode,
-          });
-
-          await tx
-            .insert(schema.operationalAccountBindings)
-            .values({
-              accountId: row.accountId,
-              bookAccountId,
-            })
-            .onConflictDoUpdate({
-              target: schema.operationalAccountBindings.accountId,
-              set: {
-                bookAccountId,
-                updatedAt: sql`now()`,
-              },
-            });
-        }
-      });
+      const missingAccountId = unresolved[0]!.accountId;
+      throw new Error(
+        `Missing operational_account_binding for account=${missingAccountId}`,
+      );
     }
-
-    const refreshedRows = unresolved.length
-      ? await db
-          .select({
-            accountId: schema.accounts.id,
-            counterpartyId: schema.accounts.counterpartyId,
-            currencyId: schema.accounts.currencyId,
-            currencyCode: schema.currencies.code,
-            stableKey: schema.accounts.stableKey,
-            bookAccountId: schema.bookAccounts.id,
-            bookAccountNo: schema.bookAccounts.accountNo,
-          })
-          .from(schema.accounts)
-          .innerJoin(
-            schema.currencies,
-            eq(schema.accounts.currencyId, schema.currencies.id),
-          )
-          .innerJoin(
-            schema.operationalAccountBindings,
-            eq(schema.operationalAccountBindings.accountId, schema.accounts.id),
-          )
-          .innerJoin(
-            schema.bookAccounts,
-            eq(schema.bookAccounts.id, schema.operationalAccountBindings.bookAccountId),
-          )
-          .where(inArray(schema.accounts.id, uniqueAccountIds))
-      : rows;
 
     const byAccountId = new Map<string, TransferAccountBinding>();
 
-    for (const row of refreshedRows) {
+    for (const row of rows) {
       if (!row.bookAccountId || !row.bookAccountNo) {
         throw new Error(`Missing book account binding for account=${row.accountId}`);
       }

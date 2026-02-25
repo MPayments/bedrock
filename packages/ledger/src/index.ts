@@ -1,13 +1,13 @@
 export { createLedgerEngine, type LedgerEngine } from "./engine";
-export { PlanType } from "./types";
+export { OPERATION_TRANSFER_TYPE } from "./types";
 export type {
   CreateOperationInput,
   CreateOperationResult,
   TransferPlanLine,
+  OperationTransferType,
 } from "./types";
 export { IdempotencyConflictError } from "./errors";
 export { defineKeyspace, type Keyspace } from "./keyspace";
-export { createLedgerWorker } from "./worker";
 export {
   tbLedgerForCurrency,
   tbBookAccountIdFor,

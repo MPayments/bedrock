@@ -1,12 +1,12 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { OPERATION_CODE } from "@bedrock/accounting";
+import { ACCOUNT_NO, OPERATION_CODE, POSTING_CODE } from "@bedrock/accounting";
 import { type Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { makePlanKey } from "@bedrock/kernel";
 import { DAY_IN_SECONDS, TransferCodes } from "@bedrock/kernel/constants";
 import { InvalidStateError } from "@bedrock/kernel/errors";
-import { PlanType } from "@bedrock/ledger";
+import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
 
 import { SYSTEM_LEDGER_ORG_ID, type TreasuryServiceContext } from "../internal/context";
 import { assertInitiateFeePaymentReplayCompatible } from "../internal/fee-payment-idempotency";
@@ -22,7 +22,7 @@ import {
 } from "../validation";
 
 export function createFeePaymentHandlers(context: TreasuryServiceContext) {
-    const { db, ledger, keys, currenciesService } = context;
+    const { db, ledger, currenciesService } = context;
 
     async function initiateFeePayment(input: InitiateFeePaymentInput) {
         const vaildated = validateInitiateFeePaymentInput(input);
@@ -58,8 +58,9 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                 payoutCounterpartyId: vaildated.payoutCounterpartyId,
                 payoutBankStableKey: vaildated.payoutBankStableKey,
             });
+            const pendingRef = `fee_payment:${vaildated.feePaymentOrderId}:init`;
 
-            const { operationId: entryId, transferIds } = await ledger.createOperationTx(
+            const { operationId: entryId, pendingTransferIdsByRef } = await ledger.createOperationTx(
                 tx,
                 buildTreasuryOperationInput({
                     source: { type: "fee_payment/initiated", id: vaildated.feePaymentOrderId },
@@ -75,21 +76,34 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                     bookOrgId: SYSTEM_LEDGER_ORG_ID,
                     transfers: [
                         {
-                            type: PlanType.CREATE,
+                            type: OPERATION_TRANSFER_TYPE.CREATE,
                             planKey,
-                            debitKey: keys.feeClearing(feeOrder.bucket, feeOrderCurrency),
-                            creditKey: keys.bank(vaildated.payoutCounterpartyId, vaildated.payoutBankStableKey, feeOrderCurrency),
+                            postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED,
+                            debitAccountNo: ACCOUNT_NO.FEE_CLEARING,
+                            creditAccountNo: ACCOUNT_NO.BANK,
                             currency: feeOrderCurrency,
                             amount: feeOrder.amountMinor,
                             code: TransferCodes.FEE_PAYMENT_INITIATED,
-                            pending: { timeoutSeconds },
+                            pending: {
+                                timeoutSeconds,
+                                ref: pendingRef,
+                            },
                             memo: "Fee payment initiated (pending)",
+                            analytics: {
+                                feeBucket: feeOrder.bucket,
+                                counterpartyId: vaildated.payoutCounterpartyId,
+                            },
                         },
                     ],
                 })
             );
 
-            const pendingTransferId = transferIds.get(1)!;
+            const pendingTransferId = pendingTransferIdsByRef.get(pendingRef);
+            if (!pendingTransferId) {
+                throw new InvalidStateError(
+                    `Missing pending transfer id for ref=${pendingRef}`
+                );
+            }
 
             const moved = await tx
                 .update(schema.feePaymentOrders)
@@ -179,7 +193,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                     bookOrgId: SYSTEM_LEDGER_ORG_ID,
                     transfers: [
                         {
-                            type: PlanType.POST_PENDING,
+                            type: OPERATION_TRANSFER_TYPE.POST_PENDING,
                             planKey,
                             currency: feeOrderCurrency,
                             pendingId: feeOrder.pendingTransferId,
@@ -271,7 +285,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                     bookOrgId: SYSTEM_LEDGER_ORG_ID,
                     transfers: [
                         {
-                            type: PlanType.VOID_PENDING,
+                            type: OPERATION_TRANSFER_TYPE.VOID_PENDING,
                             planKey,
                             currency: feeOrderCurrency,
                             pendingId: feeOrder.pendingTransferId,

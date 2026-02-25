@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { createLedgerEngine } from "../../src/engine";
 import { createLedgerWorker } from "../../src/worker";
-import { PlanType } from "../../src/types";
+import { OPERATION_TRANSFER_TYPE } from "../../src/types";
 import {
   db,
   tb,
@@ -26,7 +26,7 @@ describe("Worker Integration Tests", () => {
       postingDate: new Date(),
       transfers: [
         {
-          type: PlanType.CREATE,
+          type: OPERATION_TRANSFER_TYPE.CREATE,
           planKey: "transfer-1",
           debitKey: "customer:alice",
           creditKey: "revenue:sales",
@@ -65,7 +65,7 @@ describe("Worker Integration Tests", () => {
       postingDate: new Date(),
       transfers: [
         {
-          type: PlanType.CREATE,
+          type: OPERATION_TRANSFER_TYPE.CREATE,
           planKey: "pending-1",
           debitKey: "customer:bob",
           creditKey: "revenue:pending",
@@ -98,7 +98,7 @@ describe("Worker Integration Tests", () => {
         postingDate: new Date(),
         transfers: [
           {
-            type: PlanType.CREATE,
+            type: OPERATION_TRANSFER_TYPE.CREATE,
             planKey: `transfer-${i}`,
             debitKey: `customer:${i}`,
             creditKey: "revenue:sales",

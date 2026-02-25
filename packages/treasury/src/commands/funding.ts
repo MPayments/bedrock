@@ -1,11 +1,11 @@
 import { and, eq, or, sql } from "drizzle-orm";
 
-import { OPERATION_CODE } from "@bedrock/accounting";
+import { ACCOUNT_NO, OPERATION_CODE, POSTING_CODE } from "@bedrock/accounting";
 import { type Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { makePlanKey } from "@bedrock/kernel";
 import { TransferCodes } from "@bedrock/kernel/constants";
-import { PlanType } from "@bedrock/ledger";
+import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
 
 import { CurrencyMismatchError, AmountMismatchError, InvalidStateError, NotFoundError, ValidationError } from "../errors";
 import { SYSTEM_LEDGER_ORG_ID, type TreasuryServiceContext } from "../internal/context";
@@ -20,7 +20,7 @@ import { buildTreasuryOperationInput } from "../internal/ledger-operation";
 import { type FundingSettledInput, validateFundingSettledInput } from "../validation";
 
 export function createFundingSettledHandler(context: TreasuryServiceContext) {
-    const { db, ledger, log, keys, currenciesService } = context;
+    const { db, ledger, log, currenciesService } = context;
 
     return async function fundingSettled(input: FundingSettledInput) {
         const validated = validateFundingSettledInput(input);
@@ -77,14 +77,20 @@ export function createFundingSettledHandler(context: TreasuryServiceContext) {
                     bookOrgId: SYSTEM_LEDGER_ORG_ID,
                     transfers: [
                         {
-                            type: PlanType.CREATE,
+                            type: OPERATION_TRANSFER_TYPE.CREATE,
                             planKey: pk,
-                            debitKey: keys.bank(validated.branchCounterpartyId, validated.branchBankStableKey, validated.currency),
-                            creditKey: keys.customerWallet(validated.customerId, validated.currency),
+                            postingCode: POSTING_CODE.FUNDING_SETTLED,
+                            debitAccountNo: ACCOUNT_NO.BANK,
+                            creditAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
                             currency: validated.currency,
                             amount: validated.amountMinor,
                             code: TransferCodes.FUNDING_SETTLED,
                             memo: "Funding settled",
+                            analytics: {
+                                counterpartyId: validated.branchCounterpartyId,
+                                customerId: validated.customerId,
+                                orderId: validated.orderId,
+                            },
                         },
                     ],
                 })

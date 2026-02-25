@@ -5,7 +5,7 @@ import { schema } from "@bedrock/db/schema";
 
 import { isRetryableError } from "./errors";
 import { makeTbAccount, makeTbTransfer, tbCreateAccountsOrThrow, tbCreateTransfersOrThrow, TransferFlags, TB_AMOUNT_MAX, type TbClient } from "./tb";
-import { PlanType } from "./types";
+import { OPERATION_TRANSFER_TYPE } from "./types";
 
 function tbAccountCodeFromId(id: bigint): number {
   return Number(id % 65535n) + 1;
@@ -137,7 +137,7 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
       .orderBy(schema.tbTransferPlans.lineNo);
 
     const createPlans = plans.filter(
-      (plan) => plan.type === PlanType.CREATE && plan.status !== "posted",
+      (plan) => plan.type === OPERATION_TRANSFER_TYPE.CREATE && plan.status !== "posted",
     );
 
     const accountRows = new Map<bigint, { tbLedger: number }>();
@@ -164,7 +164,7 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
     for (const plan of plans) {
       if (plan.status === "posted") continue;
 
-      if (plan.type === PlanType.CREATE) {
+      if (plan.type === OPERATION_TRANSFER_TYPE.CREATE) {
         if (!plan.debitTbAccountId || !plan.creditTbAccountId) {
           throw new Error("create plan requires debitTbAccountId and creditTbAccountId");
         }
@@ -196,7 +196,7 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
       let flags = 0;
       if (plan.isLinked) flags |= TransferFlags.linked;
 
-      if (plan.type === PlanType.POST_PENDING) {
+      if (plan.type === OPERATION_TRANSFER_TYPE.POST_PENDING) {
         flags |= TransferFlags.post_pending_transfer;
 
         transfers.push(
