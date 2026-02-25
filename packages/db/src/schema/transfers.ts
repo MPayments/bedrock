@@ -1,45 +1,123 @@
 import { sql } from "drizzle-orm";
-import { pgTable, uuid, text, timestamp, bigint, index, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+    bigint,
+    index,
+    integer,
+    pgEnum,
+    pgTable,
+    text,
+    timestamp,
+    uniqueIndex,
+    uuid,
+} from "drizzle-orm/pg-core";
 
 import { currencies } from "./currencies";
+import { uint128 } from "./ledger/ledger";
+import { accounts } from "./treasury/accounts";
 
-export enum TransferStatus {
-    DRAFT = "draft",
-    APPROVED_PENDING_POSTING = "approved_pending_posting",
-    POSTED = "posted",
-    REJECTED = "rejected",
-    FAILED = "failed",
-}
+export const transferKindEnum = pgEnum("transfer_kind", [
+    "intra_org",
+    "cross_org",
+]);
 
-export const internalTransfers = pgTable(
-    "internal_transfers",
+export const transferSettlementModeEnum = pgEnum("transfer_settlement_mode", [
+    "immediate",
+    "pending",
+]);
+
+export const transferStatusV2Enum = pgEnum("transfer_status_v2", [
+    "draft",
+    "approved_pending_posting",
+    "pending",
+    "settle_pending_posting",
+    "void_pending_posting",
+    "posted",
+    "voided",
+    "rejected",
+    "failed",
+]);
+
+export const transferEventTypeEnum = pgEnum("transfer_event_type", [
+    "approve",
+    "settle",
+    "void",
+]);
+
+export type TransferKind = (typeof transferKindEnum.enumValues)[number];
+export type TransferSettlementMode = (typeof transferSettlementModeEnum.enumValues)[number];
+export type TransferStatus = (typeof transferStatusV2Enum.enumValues)[number];
+export type TransferEventType = (typeof transferEventTypeEnum.enumValues)[number];
+
+export const transferOrders = pgTable(
+    "transfer_orders",
     {
         id: uuid("id").primaryKey().defaultRandom(),
-
-        counterpartyId: uuid("counterparty_id").notNull(),
-
-        status: text("status").$type<TransferStatus>().notNull().default(TransferStatus.DRAFT),
-
-        // счета/участники задаются keyspace-ключами (инвариант ledger)
-        fromAccountKey: text("from_account_key").notNull(),
-        toAccountKey: text("to_account_key").notNull(),
-
+        sourceCounterpartyId: uuid("source_counterparty_id").notNull(),
+        destinationCounterpartyId: uuid("destination_counterparty_id").notNull(),
+        sourceAccountId: uuid("source_account_id").notNull().references(() => accounts.id),
+        destinationAccountId: uuid("destination_account_id").notNull().references(() => accounts.id),
         currencyId: uuid("currency_id").notNull().references(() => currencies.id),
         amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
-
+        kind: transferKindEnum("kind").notNull(),
+        settlementMode: transferSettlementModeEnum("settlement_mode").notNull().default("immediate"),
+        timeoutSeconds: integer("timeout_seconds").notNull().default(0),
+        status: transferStatusV2Enum("status").notNull().default("draft"),
         memo: text("memo"),
-
-        // maker/checker
         makerUserId: uuid("maker_user_id").notNull(),
         checkerUserId: uuid("checker_user_id"),
         approvedAt: timestamp("approved_at", { withTimezone: true }),
         rejectedAt: timestamp("rejected_at", { withTimezone: true }),
         rejectReason: text("reject_reason"),
+        ledgerEntryId: uuid("ledger_entry_id"),
+        pendingTransferId: uint128("pending_transfer_id"),
+        idempotencyKey: text("idempotency_key").notNull(),
+        lastError: text("last_error"),
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`).$onUpdateFn(() => new Date()),
+    },
+    (t) => [
+        uniqueIndex("transfer_orders_source_counterparty_idem_uq").on(t.sourceCounterpartyId, t.idempotencyKey),
+        index("transfer_orders_status_idx").on(t.status),
+        index("transfer_orders_source_counterparty_created_idx").on(t.sourceCounterpartyId, t.createdAt),
+        index("transfer_orders_destination_counterparty_created_idx").on(t.destinationCounterpartyId, t.createdAt),
+    ],
+);
 
-        // привязка к ledger
+export const transferEvents = pgTable(
+    "transfer_events",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        transferId: uuid("transfer_id").notNull().references(() => transferOrders.id, { onDelete: "cascade" }),
+        eventType: transferEventTypeEnum("event_type").notNull(),
+        eventIdempotencyKey: text("event_idempotency_key").notNull(),
+        externalRef: text("external_ref"),
+        ledgerEntryId: uuid("ledger_entry_id"),
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+    },
+    (t) => [
+        uniqueIndex("transfer_events_transfer_type_idem_uq").on(t.transferId, t.eventType, t.eventIdempotencyKey),
+        index("transfer_events_transfer_created_idx").on(t.transferId, t.createdAt),
+    ],
+);
+
+export const internalTransfersLegacy = pgTable(
+    "internal_transfers_legacy",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        counterpartyId: uuid("counterparty_id").notNull(),
+        status: text("status").notNull(),
+        fromAccountKey: text("from_account_key").notNull(),
+        toAccountKey: text("to_account_key").notNull(),
+        currencyId: uuid("currency_id").notNull().references(() => currencies.id),
+        amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+        memo: text("memo"),
+        makerUserId: uuid("maker_user_id").notNull(),
+        checkerUserId: uuid("checker_user_id"),
+        approvedAt: timestamp("approved_at", { withTimezone: true }),
+        rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+        rejectReason: text("reject_reason"),
         ledgerEntryId: uuid("ledger_entry_id"),
         idempotencyKey: text("idempotency_key").notNull(),
-
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`).$onUpdateFn(() => new Date()),
     },

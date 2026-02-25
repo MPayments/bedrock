@@ -329,9 +329,29 @@ export const ACCOUNTS_LIST_CONTRACT: ListQueryContract<
 };
 
 export const ListAccountsQuerySchema = createListQuerySchemaFromContract(
-  ACCOUNTS_LIST_CONTRACT,
+    ACCOUNTS_LIST_CONTRACT,
 );
 export type ListAccountsQuery = z.infer<typeof ListAccountsQuerySchema>;
+
+// ---------------------------------------------------------------------------
+// Account — transfer bindings
+// ---------------------------------------------------------------------------
+
+export const ResolveTransferBindingsInputSchema = z.object({
+    accountIds: z.array(z.uuid()).min(1).max(100),
+});
+export type ResolveTransferBindingsInput = z.infer<typeof ResolveTransferBindingsInputSchema>;
+
+export const TransferAccountBindingSchema = z.object({
+    accountId: z.uuid(),
+    counterpartyId: z.uuid(),
+    currencyId: z.uuid(),
+    currencyCode: z.string(),
+    stableKey: z.string(),
+    ledgerOrgId: z.uuid(),
+    ledgerKey: z.string(),
+});
+export type TransferAccountBinding = z.infer<typeof TransferAccountBindingSchema>;
 
 // ---------------------------------------------------------------------------
 // Generic validate helper (reuse across commands)

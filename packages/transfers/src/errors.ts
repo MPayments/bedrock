@@ -16,3 +16,15 @@ export class InvalidStateError extends BaseInvalidStateError {
         super(message);
     }
 }
+
+export class MakerCheckerViolationError extends TransfersError {
+    constructor() {
+        super("checkerUserId must differ from makerUserId");
+    }
+}
+
+export class TransferCurrencyMismatchError extends TransfersError {
+    constructor(sourceCurrencyId: string, destinationCurrencyId: string) {
+        super(`Cross-account transfer requires same currency. source=${sourceCurrencyId}, destination=${destinationCurrencyId}`);
+    }
+}

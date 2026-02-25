@@ -14,6 +14,7 @@
     "dev": "bun run --hot src/index.ts",
     "start": "bun run src/index.ts",
     "worker:fx-rates": "bun run src/workers/fx-rates.ts",
+    "worker:transfers": "bun run src/workers/transfers.ts",
     "check-types": "tsgo --noEmit",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
@@ -25,8 +26,10 @@
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
     "@bedrock/kernel": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/customers": "workspace:*",
+    "@bedrock/transfers": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "@hono/zod-openapi": "^1.2.2",
     "@scalar/hono-api-reference": "^0.9.44",

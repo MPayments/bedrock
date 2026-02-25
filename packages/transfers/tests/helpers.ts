@@ -16,7 +16,7 @@ import {
     type StubDatabase,
     type StubTransaction,
 } from "@bedrock/test-utils";
-import { TransferStatus } from "@bedrock/db/schema";
+import type { TransferStatus } from "@bedrock/db/schema";
 
 // Re-export shared utilities for convenience
 export {
@@ -67,7 +67,7 @@ export function createMockTransfer(overrides: Partial<MockTransfer> = {}): MockT
     return {
         id: TRANSFER_ID,
         counterpartyId: COUNTERPARTY_ID,
-        status: TransferStatus.DRAFT,
+        status: "draft",
         fromAccountKey: "Account:org1:vault:USD",
         toAccountKey: "Account:org1:operating:USD",
         currencyId: "cur-usd",

@@ -11,7 +11,8 @@ import { journalEntries, journalLines } from "./ledger/journal";
 import { ledgerAccounts } from "./ledger/ledger";
 import { outbox } from "./ledger/outbox";
 import { tbTransferPlans } from "./ledger/tb-plan";
-import { internalTransfers } from "./transfers";
+import { internalTransfersLegacy, transferEvents, transferOrders } from "./transfers";
+import { accountLedgerBindings } from "./treasury/account-ledger-bindings";
 import { accountProviders } from "./treasury/account-providers";
 import { accounts } from "./treasury/accounts";
 import { counterpartyGroupMemberships, counterpartyGroups, counterparties } from "./treasury/counterparties";
@@ -37,6 +38,7 @@ export const schema = {
   counterpartyGroups,
   counterpartyGroupMemberships,
   customers,
+  accountLedgerBindings,
   accountProviders,
   accounts,
   paymentOrders,
@@ -49,11 +51,18 @@ export const schema = {
   feeRules,
   fxQuoteFeeComponents,
   feePaymentOrders,
-  internalTransfers,
+  transferOrders,
+  transferEvents,
+  internalTransfersLegacy,
   currencies,
 };
 
-export { TransferStatus } from "./transfers";
+export {
+  type TransferEventType,
+  type TransferKind,
+  type TransferSettlementMode,
+  type TransferStatus,
+} from "./transfers";
 export { type JournalStatus } from "./ledger/journal";
 export { type FxQuote, type FxQuoteStatus } from "./fx/quotes";
 export { type FxQuoteLeg } from "./fx/quote-legs";
@@ -64,4 +73,5 @@ export type { PaymentOrder } from "./treasury/orders";
 export type { Currency, CurrencyInsert } from "./currencies";
 export type { Customer, CustomerInsert } from "./customers";
 export type { Account, AccountInsert } from "./treasury/accounts";
+export type { AccountLedgerBinding, AccountLedgerBindingInsert } from "./treasury/account-ledger-bindings";
 export type { AccountProvider, AccountProviderInsert } from "./treasury/account-providers";

@@ -14,6 +14,8 @@ export {
   UpdateAccountInputSchema,
   ACCOUNTS_LIST_CONTRACT,
   ListAccountsQuerySchema,
+  ResolveTransferBindingsInputSchema,
+  TransferAccountBindingSchema,
 } from "./validation";
 export type {
   AccountProviderType,
@@ -23,6 +25,8 @@ export type {
   CreateAccountInput,
   UpdateAccountInput,
   ListAccountsQuery,
+  ResolveTransferBindingsInput,
+  TransferAccountBinding,
 } from "./validation";
 
 export {

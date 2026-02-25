@@ -16,17 +16,19 @@ describe("createTransfersWorker", () => {
             rows: [
                 {
                     transfer_id: "t1",
-                    counterparty_id: "o1",
                     status: "approved_pending_posting",
+                    settlement_mode: "pending",
                     ledger_entry_id: "e1",
                     journal_status: "pending",
+                    journal_error: null,
                 },
                 {
                     transfer_id: "t2",
-                    counterparty_id: "o1",
                     status: "approved_pending_posting",
+                    settlement_mode: "immediate",
                     ledger_entry_id: "e2",
                     journal_status: "pending",
+                    journal_error: null,
                 },
             ],
         } as any);
@@ -42,24 +44,27 @@ describe("createTransfersWorker", () => {
             rows: [
                 {
                     transfer_id: "t1",
-                    counterparty_id: "o1",
                     status: "approved_pending_posting",
+                    settlement_mode: "immediate",
                     ledger_entry_id: "e1",
                     journal_status: "posted",
+                    journal_error: null,
                 },
                 {
                     transfer_id: "t2",
-                    counterparty_id: "o1",
                     status: "approved_pending_posting",
+                    settlement_mode: "pending",
                     ledger_entry_id: "e2",
                     journal_status: "failed",
+                    journal_error: "failed to post",
                 },
                 {
                     transfer_id: "t3",
-                    counterparty_id: "o1",
                     status: "approved_pending_posting",
+                    settlement_mode: "pending",
                     ledger_entry_id: "e3",
                     journal_status: "pending",
+                    journal_error: null,
                 },
             ],
         } as any);
@@ -82,10 +87,11 @@ describe("createTransfersWorker", () => {
             rows: [
                 {
                     transfer_id: "t1",
-                    counterparty_id: "o1",
                     status: "approved_pending_posting",
+                    settlement_mode: "immediate",
                     ledger_entry_id: "e1",
                     journal_status: "posted",
+                    journal_error: null,
                 },
             ],
         } as any);

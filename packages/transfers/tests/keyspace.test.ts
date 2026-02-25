@@ -1,11 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+
 import { transfersKeyspace } from "../src/keyspace";
 
 describe("transfersKeyspace", () => {
-  it("builds namespaced transfer keys", () => {
-    expect(transfersKeyspace.namespace).toBe("tr");
-    expect(transfersKeyspace.keys.customerWallet("cust-1", "USD")).toBe("tr:CustomerWallet:cust-1:USD");
-    expect(transfersKeyspace.keys.internal("org-1", "ops", "EUR")).toBe("tr:Internal:org-1:ops:EUR");
-    expect(transfersKeyspace.key("customerWallet", "cust-2", "GBP")).toBe("tr:CustomerWallet:cust-2:GBP");
+  it("builds account keys in tr2 namespace", () => {
+    expect(transfersKeyspace.namespace).toBe("tr2");
+    expect(
+      transfersKeyspace.keys.account("org-1", "bank-main", "USD"),
+    ).toBe("tr2:Account:org-1:bank-main:USD");
+    expect(
+      transfersKeyspace.key("account", "org-2", "wallet", "EUR"),
+    ).toBe("tr2:Account:org-2:wallet:EUR");
   });
 });

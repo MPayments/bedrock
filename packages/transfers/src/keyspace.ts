@@ -1,6 +1,6 @@
 import { defineKeyspace } from "@bedrock/ledger";
 
-export const transfersKeyspace = defineKeyspace("tr", {
-    customerWallet: (customerId: string, currency: string) => `CustomerWallet:${customerId}:${currency}`,
-    internal: (counterpartyId: string, name: string, currency: string) => `Internal:${counterpartyId}:${name}:${currency}`
+export const transfersKeyspace = defineKeyspace("tr2", {
+  account: (counterpartyId: string, stableKey: string, currency: string) =>
+    `Account:${counterpartyId}:${stableKey}:${currency}`,
 });

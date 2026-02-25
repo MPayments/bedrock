@@ -1,507 +1,184 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+
+import { createStubDb, mockInsertReturns, mockSelectReturns, type StubDatabase } from "@bedrock/test-utils";
+
+import { InvalidStateError, MakerCheckerViolationError, TransferCurrencyMismatchError } from "../src/errors";
 import { createTransfersService } from "../src/service";
-import {
-    NotFoundError,
-    InvalidStateError,
-    PermissionError,
-    ValidationError,
-} from "../src/errors";
-import {
-    createStubDb,
-    createMockLedger,
-    createMockTransfer,
-    setupTxWithTransfer,
-    setupTxWithUpdateSuccess,
-    setupTxWithUpdateFailure,
-    COUNTERPARTY_ID,
-    TRANSFER_ID,
-    MAKER_USER_ID,
-    CHECKER_USER_ID,
-    type StubDatabase,
-} from "./helpers";
-import { TransferStatus } from "@bedrock/db/schema";
 
-function createMockCurrenciesService() {
-    const byCode = new Map<string, any>([
-        ["USD", { id: "cur-usd", code: "USD" }],
-        ["EUR", { id: "cur-eur", code: "EUR" }],
-        ["GBP", { id: "cur-gbp", code: "GBP" }],
-    ]);
-    const byId = new Map<string, any>(Array.from(byCode.values()).map((currency) => [currency.id, currency]));
+const SOURCE_ACCOUNT_ID = "550e8400-e29b-41d4-a716-446655440001";
+const DESTINATION_ACCOUNT_ID = "550e8400-e29b-41d4-a716-446655440002";
+const TRANSFER_ID = "550e8400-e29b-41d4-a716-446655440010";
+const MAKER_USER_ID = "550e8400-e29b-41d4-a716-446655440003";
+const CHECKER_USER_ID = "550e8400-e29b-41d4-a716-446655440004";
 
+function createTransfer(overrides: Record<string, unknown> = {}) {
     return {
-        findByCode: vi.fn(async (code: string) => {
-            const normalized = code.trim().toUpperCase();
-            const existing = byCode.get(normalized);
-            if (existing) return existing;
-            const generated = { id: `cur-${normalized.toLowerCase()}`, code: normalized };
-            byCode.set(normalized, generated);
-            byId.set(generated.id, generated);
-            return generated;
-        }),
-        findById: vi.fn(async (id: string) => {
-            const existing = byId.get(id);
-            if (existing) return existing;
-            throw new Error(`Unknown currency id: ${id}`);
-        }),
+        id: TRANSFER_ID,
+        sourceCounterpartyId: "550e8400-e29b-41d4-a716-446655440111",
+        destinationCounterpartyId: "550e8400-e29b-41d4-a716-446655440222",
+        sourceAccountId: SOURCE_ACCOUNT_ID,
+        destinationAccountId: DESTINATION_ACCOUNT_ID,
+        currencyId: "550e8400-e29b-41d4-a716-446655440555",
+        amountMinor: 1000n,
+        kind: "cross_org",
+        settlementMode: "pending",
+        timeoutSeconds: 3600,
+        status: "draft",
+        memo: "test",
+        makerUserId: MAKER_USER_ID,
+        checkerUserId: null,
+        approvedAt: null,
+        rejectedAt: null,
+        rejectReason: null,
+        ledgerEntryId: null,
+        pendingTransferId: null,
+        idempotencyKey: "draft-key",
+        lastError: null,
+        createdAt: new Date("2026-02-25T00:00:00.000Z"),
+        updatedAt: new Date("2026-02-25T00:00:00.000Z"),
+        ...overrides,
     };
 }
 
-describe("createTransfersService", () => {
+describe("createTransfersService (v2)", () => {
     let db: StubDatabase;
-    let ledger: ReturnType<typeof createMockLedger>;
+    let accountService: { resolveTransferBindings: ReturnType<typeof vi.fn> };
+    let ledger: { createEntryTx: ReturnType<typeof vi.fn> };
     let service: ReturnType<typeof createTransfersService>;
-    let canApprove: ReturnType<typeof vi.fn>;
+
+    const sourceBinding = {
+        accountId: SOURCE_ACCOUNT_ID,
+        counterpartyId: "550e8400-e29b-41d4-a716-446655440111",
+        currencyId: "550e8400-e29b-41d4-a716-446655440555",
+        currencyCode: "USD",
+        stableKey: "source-main",
+        ledgerOrgId: "00000000-0000-4000-8000-000000000002",
+        ledgerKey: "tr2:Account:550e8400-e29b-41d4-a716-446655440111:source-main:USD",
+    };
+
+    const destinationBinding = {
+        accountId: DESTINATION_ACCOUNT_ID,
+        counterpartyId: "550e8400-e29b-41d4-a716-446655440222",
+        currencyId: "550e8400-e29b-41d4-a716-446655440555",
+        currencyCode: "USD",
+        stableKey: "destination-main",
+        ledgerOrgId: "00000000-0000-4000-8000-000000000002",
+        ledgerKey: "tr2:Account:550e8400-e29b-41d4-a716-446655440222:destination-main:USD",
+    };
 
     beforeEach(() => {
         db = createStubDb();
-        ledger = createMockLedger();
-        canApprove = vi.fn(async () => true);
-        const currenciesService = createMockCurrenciesService();
+        accountService = {
+            resolveTransferBindings: vi.fn(async () => [sourceBinding, destinationBinding]),
+        };
+        ledger = {
+            createEntryTx: vi.fn(async () => ({
+                entryId: "550e8400-e29b-41d4-a716-446655440777",
+                transferIds: new Map([[1, 123n]]),
+            })),
+        };
+
         service = createTransfersService({
             db,
-            ledger,
-            currenciesService,
-            canApprove,
+            ledger: ledger as any,
+            accountService: accountService as any,
         });
     });
 
-    describe("createDraft", () => {
-        const validInput = {
-            counterpartyId: COUNTERPARTY_ID,
-            idempotencyKey: "test-key-123",
-            fromAccountKey: "Account:org1:vault:USD",
-            toAccountKey: "Account:org1:operating:USD",
-            currency: "USD",
-            amountMinor: 100000n,
-            memo: "Test transfer",
+    it("creates a transfer draft from account IDs", async () => {
+        mockInsertReturns(db.insert, [{ id: TRANSFER_ID }]);
+
+        const transferId = await service.createDraft({
+            sourceAccountId: SOURCE_ACCOUNT_ID,
+            destinationAccountId: DESTINATION_ACCOUNT_ID,
+            idempotencyKey: "draft-key",
+            amountMinor: 1000n,
             makerUserId: MAKER_USER_ID,
-        };
-
-        it("should create a draft transfer successfully", async () => {
-            vi.mocked(db.insert).mockReturnValue({
-                values: vi.fn(() => ({
-                    onConflictDoNothing: vi.fn(() => ({
-                        returning: vi.fn(async () => [{ id: TRANSFER_ID }]),
-                    })),
-                })),
-            } as any);
-
-            const result = await service.createDraft(validInput);
-
-            expect(result).toBe(TRANSFER_ID);
-            expect(db.insert).toHaveBeenCalled();
+            settlementMode: "pending",
+            timeoutSeconds: 900,
+            memo: "test",
         });
 
-        it("should return existing transfer on idempotency key conflict", async () => {
-            // First insert returns nothing (conflict)
-            vi.mocked(db.insert).mockReturnValue({
-                values: vi.fn(() => ({
-                    onConflictDoNothing: vi.fn(() => ({
-                        returning: vi.fn(async () => []),
-                    })),
-                })),
-            } as any);
-
-            // Then select returns existing
-            vi.mocked(db.select).mockReturnValue({
-                from: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        limit: vi.fn(async () => [{ id: TRANSFER_ID }]),
-                    })),
-                })),
-            } as any);
-
-            const result = await service.createDraft(validInput);
-
-            expect(result).toBe(TRANSFER_ID);
-        });
-
-        it("should throw when idempotent conflict exists but record is missing", async () => {
-            vi.mocked(db.insert).mockReturnValue({
-                values: vi.fn(() => ({
-                    onConflictDoNothing: vi.fn(() => ({
-                        returning: vi.fn(async () => []),
-                    })),
-                })),
-            } as any);
-
-            vi.mocked(db.select).mockReturnValue({
-                from: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        limit: vi.fn(async () => []),
-                    })),
-                })),
-            } as any);
-
-            await expect(service.createDraft(validInput)).rejects.toThrow(InvalidStateError);
-        });
-
-        it("should throw ValidationError for negative amount", async () => {
-            const invalidInput = {
-                ...validInput,
-                amountMinor: -100n,
-            };
-
-            await expect(service.createDraft(invalidInput)).rejects.toThrow(ValidationError);
-        });
-
-        it("should throw ValidationError for same from and to account", async () => {
-            const invalidInput = {
-                ...validInput,
-                fromAccountKey: "Account:org1:vault:USD",
-                toAccountKey: "Account:org1:vault:USD",
-            };
-
-            await expect(service.createDraft(invalidInput)).rejects.toThrow(ValidationError);
-        });
-
-        it("should normalize currency to uppercase", async () => {
-            const insertMock = vi.fn(() => ({
-                onConflictDoNothing: vi.fn(() => ({
-                    returning: vi.fn(async () => [{ id: TRANSFER_ID }]),
-                })),
-            }));
-            
-            vi.mocked(db.insert).mockReturnValue({
-                values: insertMock,
-            } as any);
-
-            await service.createDraft({
-                ...validInput,
-                currency: "usd",
-            });
-
-            expect(insertMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    currencyId: "cur-usd",
-                })
-            );
+        expect(transferId).toBe(TRANSFER_ID);
+        expect(accountService.resolveTransferBindings).toHaveBeenCalledWith({
+            accountIds: [SOURCE_ACCOUNT_ID, DESTINATION_ACCOUNT_ID],
         });
     });
 
-    describe("approve", () => {
-        const validInput = {
-            counterpartyId: COUNTERPARTY_ID,
+    it("rejects draft when source/destination currencies differ", async () => {
+        accountService.resolveTransferBindings.mockResolvedValueOnce([
+            sourceBinding,
+            {
+                ...destinationBinding,
+                currencyId: "550e8400-e29b-41d4-a716-446655440556",
+                currencyCode: "EUR",
+            },
+        ]);
+
+        await expect(
+            service.createDraft({
+                sourceAccountId: SOURCE_ACCOUNT_ID,
+                destinationAccountId: DESTINATION_ACCOUNT_ID,
+                idempotencyKey: "draft-key",
+                amountMinor: 1000n,
+                makerUserId: MAKER_USER_ID,
+            }),
+        ).rejects.toThrow(TransferCurrencyMismatchError);
+    });
+
+    it("enforces maker/checker separation on approve", async () => {
+        mockSelectReturns(db._tx.select, [
+            createTransfer({
+                status: "draft",
+                makerUserId: CHECKER_USER_ID,
+            }),
+        ]);
+
+        await expect(
+            service.approve({
+                transferId: TRANSFER_ID,
+                checkerUserId: CHECKER_USER_ID,
+                occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+            }),
+        ).rejects.toThrow(MakerCheckerViolationError);
+    });
+
+    it("returns idempotent approve response when already posted", async () => {
+        mockSelectReturns(db._tx.select, [
+            createTransfer({
+                status: "posted",
+                ledgerEntryId: "550e8400-e29b-41d4-a716-446655440888",
+            }),
+        ]);
+
+        const result = await service.approve({
             transferId: TRANSFER_ID,
             checkerUserId: CHECKER_USER_ID,
-            occurredAt: new Date(),
-        };
-
-        it("should approve a draft transfer successfully", async () => {
-            const transfer = createMockTransfer({
-                status: TransferStatus.DRAFT,
-            });
-
-            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
-                const tx = {
-                    select: vi.fn(() => ({
-                        from: vi.fn(() => ({
-                            where: vi.fn(() => ({
-                                limit: vi.fn(async () => [transfer]),
-                            })),
-                        })),
-                    })),
-                    update: vi.fn(() => ({
-                        set: vi.fn(() => ({
-                            where: vi.fn(() => ({
-                                returning: vi.fn(async () => [{ id: TRANSFER_ID }]),
-                            })),
-                        })),
-                    })),
-                };
-                return fn(tx);
-            });
-
-            const result = await service.approve(validInput);
-
-            expect(result).toEqual({
-                transferId: TRANSFER_ID,
-                ledgerEntryId: "test-entry-id",
-            });
-            expect(ledger.createEntryTx).toHaveBeenCalled();
+            occurredAt: new Date("2026-02-25T00:00:00.000Z"),
         });
 
-        it("should throw NotFoundError when transfer does not exist", async () => {
-            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
-                const tx = {
-                    select: vi.fn(() => ({
-                        from: vi.fn(() => ({
-                            where: vi.fn(() => ({
-                                limit: vi.fn(async () => []),
-                            })),
-                        })),
-                    })),
-                };
-                return fn(tx);
-            });
-
-            await expect(service.approve(validInput)).rejects.toThrow(NotFoundError);
+        expect(result).toEqual({
+            transferId: TRANSFER_ID,
+            ledgerEntryId: "550e8400-e29b-41d4-a716-446655440888",
         });
-
-        it("should throw InvalidStateError when transfer is not in draft", async () => {
-            const transfer = createMockTransfer({
-                status: TransferStatus.POSTED,
-            });
-
-            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
-                const tx = {
-                    select: vi.fn(() => ({
-                        from: vi.fn(() => ({
-                            where: vi.fn(() => ({
-                                limit: vi.fn(async () => [transfer]),
-                            })),
-                        })),
-                    })),
-                };
-                return fn(tx);
-            });
-
-            await expect(service.approve(validInput)).rejects.toThrow(InvalidStateError);
-        });
-
-        it("should throw PermissionError when canApprove returns false", async () => {
-            canApprove.mockResolvedValue(false);
-
-            await expect(service.approve(validInput)).rejects.toThrow(PermissionError);
-        });
-
-        it("should handle idempotent retry when CAS fails but already approved", async () => {
-            const transfer = createMockTransfer({
-                status: TransferStatus.DRAFT,
-            });
-
-            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
-                const tx = {
-                    select: vi.fn()
-                        .mockReturnValueOnce({
-                            from: vi.fn(() => ({
-                                where: vi.fn(() => ({
-                                    limit: vi.fn(async () => [transfer]),
-                                })),
-                            })),
-                        })
-                        .mockReturnValueOnce({
-                            from: vi.fn(() => ({
-                                where: vi.fn(() => ({
-                                    limit: vi.fn(async () => [{
-                                        status: TransferStatus.APPROVED_PENDING_POSTING,
-                                        ledgerEntryId: "test-entry-id",
-                                    }]),
-                                })),
-                            })),
-                        }),
-                    update: vi.fn(() => ({
-                        set: vi.fn(() => ({
-                            where: vi.fn(() => ({
-                                returning: vi.fn(async () => []), // CAS fails
-                            })),
-                        })),
-                    })),
-                };
-                return fn(tx);
-            });
-
-            const result = await service.approve(validInput);
-
-            expect(result).toEqual({
-                transferId: TRANSFER_ID,
-                ledgerEntryId: "test-entry-id",
-            });
-        });
-
-        it("should throw when CAS fails and transfer is not in an advanced status", async () => {
-            const transfer = createMockTransfer({
-                status: TransferStatus.DRAFT,
-            });
-
-            vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
-                const tx = {
-                    select: vi.fn()
-                        .mockReturnValueOnce({
-                            from: vi.fn(() => ({
-                                where: vi.fn(() => ({
-                                    limit: vi.fn(async () => [transfer]),
-                                })),
-                            })),
-                        })
-                        .mockReturnValueOnce({
-                            from: vi.fn(() => ({
-                                where: vi.fn(() => ({
-                                    limit: vi.fn(async () => [{
-                                        status: TransferStatus.DRAFT,
-                                        ledgerEntryId: "test-entry-id",
-                                    }]),
-                                })),
-                            })),
-                        }),
-                    update: vi.fn(() => ({
-                        set: vi.fn(() => ({
-                            where: vi.fn(() => ({
-                                returning: vi.fn(async () => []),
-                            })),
-                        })),
-                    })),
-                };
-                return fn(tx);
-            });
-
-            await expect(service.approve(validInput)).rejects.toThrow(InvalidStateError);
-        });
+        expect(ledger.createEntryTx).not.toHaveBeenCalled();
     });
 
-    describe("reject", () => {
-        const validInput = {
-            counterpartyId: COUNTERPARTY_ID,
-            transferId: TRANSFER_ID,
-            checkerUserId: CHECKER_USER_ID,
-            occurredAt: new Date(),
-            reason: "Invalid transfer",
-        };
+    it("rejects voidPending when transfer is not in pending state", async () => {
+        mockSelectReturns(db._tx.select, [
+            createTransfer({
+                status: "posted",
+                settlementMode: "pending",
+                pendingTransferId: 123n,
+            }),
+        ]);
 
-        it("should reject a draft transfer successfully", async () => {
-            vi.mocked(db.update).mockReturnValue({
-                set: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        returning: vi.fn(async () => [{ id: TRANSFER_ID }]),
-                    })),
-                })),
-            } as any);
-
-            const result = await service.reject(validInput);
-
-            expect(result).toBe(TRANSFER_ID);
-            expect(db.update).toHaveBeenCalled();
-        });
-
-        it("should throw NotFoundError when transfer does not exist", async () => {
-            vi.mocked(db.update).mockReturnValue({
-                set: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        returning: vi.fn(async () => []),
-                    })),
-                })),
-            } as any);
-
-            vi.mocked(db.select).mockReturnValue({
-                from: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        limit: vi.fn(async () => []),
-                    })),
-                })),
-            } as any);
-
-            await expect(service.reject(validInput)).rejects.toThrow(NotFoundError);
-        });
-
-        it("should throw InvalidStateError when transfer is not in draft", async () => {
-            vi.mocked(db.update).mockReturnValue({
-                set: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        returning: vi.fn(async () => []),
-                    })),
-                })),
-            } as any);
-
-            vi.mocked(db.select).mockReturnValue({
-                from: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        limit: vi.fn(async () => [{ status: TransferStatus.POSTED }]),
-                    })),
-                })),
-            } as any);
-
-            await expect(service.reject(validInput)).rejects.toThrow(InvalidStateError);
-        });
-
-        it("should handle idempotent retry when already rejected", async () => {
-            vi.mocked(db.update).mockReturnValue({
-                set: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        returning: vi.fn(async () => []),
-                    })),
-                })),
-            } as any);
-
-            vi.mocked(db.select).mockReturnValue({
-                from: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        limit: vi.fn(async () => [{ status: TransferStatus.REJECTED }]),
-                    })),
-                })),
-            } as any);
-
-            const result = await service.reject(validInput);
-
-            expect(result).toBe(TRANSFER_ID);
-        });
-
-        it("should throw PermissionError when canApprove returns false", async () => {
-            canApprove.mockResolvedValue(false);
-
-            await expect(service.reject(validInput)).rejects.toThrow(PermissionError);
-        });
-    });
-
-    describe("markFailed", () => {
-        const validInput = {
-            counterpartyId: COUNTERPARTY_ID,
-            transferId: TRANSFER_ID,
-            reason: "Journal posting failed",
-        };
-
-        it("should mark approved_pending_posting transfer as failed", async () => {
-            vi.mocked(db.update).mockReturnValue({
-                set: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        returning: vi.fn(async () => [{ id: TRANSFER_ID }]),
-                    })),
-                })),
-            } as any);
-
-            await service.markFailed(validInput);
-
-            expect(db.update).toHaveBeenCalled();
-        });
-
-        it("should throw NotFoundError when transfer does not exist", async () => {
-            vi.mocked(db.update).mockReturnValue({
-                set: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        returning: vi.fn(async () => []),
-                    })),
-                })),
-            } as any);
-
-            vi.mocked(db.select).mockReturnValue({
-                from: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        limit: vi.fn(async () => []),
-                    })),
-                })),
-            } as any);
-
-            await expect(service.markFailed(validInput)).rejects.toThrow(NotFoundError);
-        });
-
-        it("should throw InvalidStateError when transfer is not in allowed state", async () => {
-            vi.mocked(db.update).mockReturnValue({
-                set: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        returning: vi.fn(async () => []),
-                    })),
-                })),
-            } as any);
-
-            vi.mocked(db.select).mockReturnValue({
-                from: vi.fn(() => ({
-                    where: vi.fn(() => ({
-                        limit: vi.fn(async () => [{ status: TransferStatus.DRAFT }]),
-                    })),
-                })),
-            } as any);
-
-            await expect(service.markFailed(validInput)).rejects.toThrow(InvalidStateError);
-        });
+        await expect(
+            service.voidPending({
+                transferId: TRANSFER_ID,
+                eventIdempotencyKey: "void-key",
+                occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+            }),
+        ).rejects.toThrow(InvalidStateError);
     });
 });

@@ -5,6 +5,7 @@ import { createDeleteProviderHandler } from "./commands/delete-provider";
 import { createGetAccountHandler } from "./commands/get-account";
 import { createGetProviderHandler } from "./commands/get-provider";
 import { createListAccountsHandler } from "./commands/list-accounts";
+import { createResolveTransferBindingsHandler } from "./commands/resolve-transfer-bindings";
 import { createListProvidersHandler } from "./commands/list-providers";
 import { createUpdateAccountHandler } from "./commands/update-account";
 import { createUpdateProviderHandler } from "./commands/update-provider";
@@ -27,8 +28,9 @@ export function createAccountService(deps: AccountServiceDeps) {
   const createAccount = createCreateAccountHandler(context);
   const getAccount = createGetAccountHandler(context);
   const updateAccount = createUpdateAccountHandler(context);
-  const deleteAccount = createDeleteAccountHandler(context);
-  const listAccounts = createListAccountsHandler(context);
+    const deleteAccount = createDeleteAccountHandler(context);
+    const listAccounts = createListAccountsHandler(context);
+    const resolveTransferBindings = createResolveTransferBindingsHandler(context);
 
   return {
     createProvider,
@@ -39,8 +41,9 @@ export function createAccountService(deps: AccountServiceDeps) {
 
     createAccount,
     getAccount,
-    updateAccount,
-    deleteAccount,
-    listAccounts,
-  };
+        updateAccount,
+        deleteAccount,
+        listAccounts,
+        resolveTransferBindings,
+    };
 }

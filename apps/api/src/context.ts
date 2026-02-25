@@ -11,7 +11,9 @@ import { createCurrenciesService, type CurrenciesService } from "@bedrock/curren
 import { db } from "@bedrock/db/client";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
+import { createLedgerEngine } from "@bedrock/ledger";
 import { createConsoleLogger, type Logger } from "@bedrock/kernel";
+import { createTransfersService, type TransfersService } from "@bedrock/transfers";
 
 export interface Env {
     DATABASE_URL: string;
@@ -31,6 +33,7 @@ export interface AppContext {
     currenciesService: CurrenciesService;
     feesService: FeesService;
     fxService: FxService;
+    transfersService: TransfersService;
 }
 
 export function createAppContext(env: Env): AppContext {
@@ -39,8 +42,15 @@ export function createAppContext(env: Env): AppContext {
     const counterpartiesService = createCounterpartiesService({ db, logger });
     const customersService = createCustomersService({ db, logger });
     const currenciesService = createCurrenciesService({ db, logger });
+    const ledger = createLedgerEngine({ db });
     const feesService = createFeesService({ db, logger, currenciesService });
     const fxService = createFxService({ db, logger, feesService, currenciesService });
+    const transfersService = createTransfersService({
+        db,
+        ledger,
+        accountService,
+        logger,
+    });
 
     return {
         env,
@@ -51,5 +61,6 @@ export function createAppContext(env: Env): AppContext {
         currenciesService,
         feesService,
         fxService,
+        transfersService,
     };
 }
