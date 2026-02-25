@@ -1,8 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { createLedgerEngine } from "../../src/engine";
-import { IdempotencyConflictError } from "../../src/errors";
-import { OPERATION_TRANSFER_TYPE } from "../../src/types";
+import { ACCOUNT_NO, POSTING_CODE } from "@bedrock/accounting";
+
 import {
   db,
   randomOrgId,
@@ -11,6 +10,9 @@ import {
   getPostings,
   getTbTransferPlans,
 } from "./helpers";
+import { createLedgerEngine } from "../../src/engine";
+import { IdempotencyConflictError } from "../../src/errors";
+import { OPERATION_TRANSFER_TYPE } from "../../src/types";
 
 describe("Engine Integration Tests", () => {
   const engine = createLedgerEngine({ db });
@@ -19,34 +21,36 @@ describe("Engine Integration Tests", () => {
     const orgId = randomOrgId();
     const idempotencyKey = randomIdempotencyKey();
 
-    const { entryId } = await engine.createEntry({
-      orgId,
+    const { operationId } = await engine.createOperation({
       source: { type: "payment", id: "pay-123" },
+      operationCode: "TEST.ENGINE.CREATE",
       idempotencyKey,
       postingDate: new Date(),
       transfers: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE,
-          planKey: "transfer-1",
-          debitKey: "customer:alice",
-          creditKey: "revenue:sales",
+          planRef: "transfer-1",
+          bookOrgId: orgId,
+          debitAccountNo: ACCOUNT_NO.BANK,
+          creditAccountNo: ACCOUNT_NO.BANK,
+          postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
           currency: "USD",
           amount: 100000n,
         },
       ],
     });
 
-    const operation = await getOperation(entryId);
+    const operation = await getOperation(operationId);
     expect(operation).toBeDefined();
     expect(operation!.status).toBe("pending");
     expect(operation!.idempotencyKey).toBe(idempotencyKey);
 
-    const postings = await getPostings(entryId);
+    const postings = await getPostings(operationId);
     expect(postings).toHaveLength(1);
     expect(postings[0]!.bookOrgId).toBe(orgId);
     expect(postings[0]!.amountMinor).toBe(100000n);
 
-    const plans = await getTbTransferPlans(entryId);
+    const plans = await getTbTransferPlans(operationId);
     expect(plans).toHaveLength(1);
     expect(plans[0]!.status).toBe("pending");
     expect(plans[0]!.amount).toBe(100000n);
@@ -56,28 +60,30 @@ describe("Engine Integration Tests", () => {
     const orgId = randomOrgId();
     const idempotencyKey = randomIdempotencyKey();
     const input = {
-      orgId,
       source: { type: "payment", id: "pay-789" },
+      operationCode: "TEST.ENGINE.REPLAY",
       idempotencyKey,
       postingDate: new Date(),
       transfers: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE as const,
-          planKey: "transfer-1",
-          debitKey: "customer:bob",
-          creditKey: "revenue:sales",
+          planRef: "transfer-1",
+          bookOrgId: orgId,
+          debitAccountNo: ACCOUNT_NO.BANK,
+          creditAccountNo: ACCOUNT_NO.BANK,
+          postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
           currency: "USD",
           amount: 200000n,
         },
       ],
     };
 
-    const first = await engine.createEntry(input);
-    const second = await engine.createEntry(input);
+    const first = await engine.createOperation(input);
+    const second = await engine.createOperation(input);
 
-    expect(second.entryId).toBe(first.entryId);
+    expect(second.operationId).toBe(first.operationId);
 
-    const postings = await getPostings(first.entryId);
+    const postings = await getPostings(first.operationId);
     expect(postings).toHaveLength(1);
   });
 
@@ -85,17 +91,19 @@ describe("Engine Integration Tests", () => {
     const orgId = randomOrgId();
     const idempotencyKey = randomIdempotencyKey();
 
-    await engine.createEntry({
-      orgId,
+    await engine.createOperation({
       source: { type: "payment", id: "pay-999" },
+      operationCode: "TEST.ENGINE.CONFLICT",
       idempotencyKey,
       postingDate: new Date(),
       transfers: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE,
-          planKey: "transfer-1",
-          debitKey: "customer:charlie",
-          creditKey: "revenue:sales",
+          planRef: "transfer-1",
+          bookOrgId: orgId,
+          debitAccountNo: ACCOUNT_NO.BANK,
+          creditAccountNo: ACCOUNT_NO.BANK,
+          postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
           currency: "USD",
           amount: 100000n,
         },
@@ -103,17 +111,19 @@ describe("Engine Integration Tests", () => {
     });
 
     await expect(
-      engine.createEntry({
-        orgId,
+      engine.createOperation({
         source: { type: "payment", id: "pay-999" },
+        operationCode: "TEST.ENGINE.CONFLICT",
         idempotencyKey,
         postingDate: new Date(),
         transfers: [
           {
             type: OPERATION_TRANSFER_TYPE.CREATE,
-            planKey: "transfer-1",
-            debitKey: "customer:charlie",
-            creditKey: "revenue:sales",
+            planRef: "transfer-1",
+            bookOrgId: orgId,
+            debitAccountNo: ACCOUNT_NO.BANK,
+            creditAccountNo: ACCOUNT_NO.BANK,
+            postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
             currency: "USD",
             amount: 200000n,
           },
@@ -123,34 +133,32 @@ describe("Engine Integration Tests", () => {
   });
 
   it("creates non-posting plans for post/void pending", async () => {
-    const orgId = randomOrgId();
-
-    const { entryId } = await engine.createEntry({
-      orgId,
+    const { operationId } = await engine.createOperation({
       source: { type: "pending", id: "pending-ops" },
+      operationCode: "TEST.ENGINE.PENDING",
       idempotencyKey: randomIdempotencyKey(),
       postingDate: new Date(),
       transfers: [
         {
           type: OPERATION_TRANSFER_TYPE.POST_PENDING,
-          planKey: "post-1",
+          planRef: "post-1",
           currency: "USD",
           pendingId: 123n,
           amount: 0n,
         },
         {
           type: OPERATION_TRANSFER_TYPE.VOID_PENDING,
-          planKey: "void-1",
+          planRef: "void-1",
           currency: "USD",
           pendingId: 124n,
         },
       ],
     });
 
-    const postings = await getPostings(entryId);
+    const postings = await getPostings(operationId);
     expect(postings).toHaveLength(0);
 
-    const plans = await getTbTransferPlans(entryId);
+    const plans = await getTbTransferPlans(operationId);
     expect(plans).toHaveLength(2);
     expect(plans[0]!.type).toBe("post_pending");
     expect(plans[1]!.type).toBe("void_pending");

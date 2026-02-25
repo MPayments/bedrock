@@ -1,4 +1,7 @@
 import { describe, it, expect } from "vitest";
+
+import { ValidationError } from "@bedrock/kernel/errors";
+
 import {
     validateFundingSettledInput,
     validateExecuteFxInput,
@@ -7,7 +10,7 @@ import {
     validateVoidPayoutInput,
     validateInput,
 } from "../src/validation";
-import { ValidationError } from "@bedrock/kernel/errors";
+
 
 const validUuid = "550e8400-e29b-41d4-a716-446655440000";
 
@@ -154,20 +157,21 @@ describe("executeFxInputSchema", () => {
         expect(result.fees[0]!.settlementMode).toBe("separate_payment_order");
     });
 
-    it("should reject fee with only one account key", () => {
-        expect(() =>
-            validateExecuteFxInput({
-                ...validInput,
-                fees: [
-                    {
-                        kind: "manual_fee",
-                        currency: "USD",
-                        amountMinor: 10n,
-                        debitAccountKey: "custom:debit",
-                    },
-                ],
-            })
-        ).toThrow(ValidationError);
+    it("should ignore unsupported custom account keys on fee input", () => {
+        const result = validateExecuteFxInput({
+            ...validInput,
+            fees: [
+                {
+                    kind: "manual_fee",
+                    currency: "USD",
+                    amountMinor: 10n,
+                    debitAccountKey: "custom:debit",
+                } as any,
+            ],
+        });
+
+        expect(result.fees).toHaveLength(1);
+        expect((result.fees[0] as any).debitAccountKey).toBeUndefined();
     });
 });
 

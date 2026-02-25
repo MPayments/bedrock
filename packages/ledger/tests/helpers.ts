@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+
 import {
     createStubDb,
     createStubTx,
@@ -9,8 +10,10 @@ import {
     type StubDatabase,
     type StubTransaction,
 } from "@bedrock/test-utils";
+
 import type { TbClient } from "../src/tb";
-import { OPERATION_TRANSFER_TYPE, type LegacyCreatePlan } from "../src/types";
+import type { CreateOperationInput, CreatePlan } from "../src/types";
+import { OPERATION_TRANSFER_TYPE } from "../src/types";
 
 // Re-export shared utilities for convenience
 export {
@@ -46,28 +49,35 @@ export function createMockTbClient(): TbClient {
 }
 
 /**
- * Create a test journal entry input
+ * Create a test operation input
  */
-export function createTestEntry(overrides = {}) {
+export function createTestEntry(
+    overrides: Partial<CreateOperationInput> = {},
+): CreateOperationInput {
     return {
-        orgId: TEST_UUIDS.ORG_1,
         source: { type: "payment", id: "pay-456" },
+        operationCode: "ledger.test",
+        operationVersion: 1,
         idempotencyKey: "idem-789",
         postingDate: TEST_DATES.NOW,
-        transfers: [],
+        transfers: [createTestTransferPlan()],
         ...overrides,
     };
 }
 
 /**
- * Create a test transfer plan
+ * Create a test create-transfer plan
  */
-export function createTestTransferPlan(overrides: Partial<LegacyCreatePlan> = {}): LegacyCreatePlan {
+export function createTestTransferPlan(
+    overrides: Partial<CreatePlan> = {},
+): CreatePlan {
     return {
         type: OPERATION_TRANSFER_TYPE.CREATE,
-        planKey: "test-plan-1",
-        debitKey: "customer:123",
-        creditKey: "revenue:sales",
+        planRef: "test-plan-1",
+        bookOrgId: TEST_UUIDS.ORG_1,
+        debitAccountNo: "1000",
+        creditAccountNo: "2000",
+        postingCode: "test.posting",
         currency: "USD",
         amount: 10000n,
         code: 1,
@@ -89,14 +99,20 @@ export function mockDbExecuteResult(rows: unknown[]) {
 /**
  * Configure select mock to return data
  */
-export function mockDbSelectResult(selectMock: ReturnType<typeof vi.fn>, data: unknown[]) {
+export function mockDbSelectResult(
+    selectMock: ReturnType<typeof vi.fn>,
+    data: unknown[],
+) {
     mockSelectReturns(selectMock, data);
 }
 
 /**
  * Configure insert mock for successful insert with returning values
  */
-export function mockDbInsertSuccess(insertMock: ReturnType<typeof vi.fn>, returning: unknown[] = [{ id: "test-id" }]) {
+export function mockDbInsertSuccess(
+    insertMock: ReturnType<typeof vi.fn>,
+    returning: unknown[] = [{ id: "test-id" }],
+) {
     mockInsertReturns(insertMock, returning);
 }
 
@@ -109,12 +125,11 @@ export function mockDbInsertConflict(insertMock: ReturnType<typeof vi.fn>) {
 
 /**
  * Create a stub transaction with smart insert behavior
- * that returns appropriate data based on the inserted values
+ * that returns appropriate data based on the inserted values.
  */
 export function createSmartStubTx(): StubTransaction {
     const tx = createStubTx();
 
-    // Override insert to provide smart defaults based on input
     tx.insert = vi.fn(() => ({
         values: vi.fn((vals: any) => {
             const insertedValues = Array.isArray(vals) ? vals : [vals];
@@ -122,34 +137,43 @@ export function createSmartStubTx(): StubTransaction {
             return {
                 onConflictDoNothing: vi.fn(() => ({
                     returning: vi.fn(() => {
-                        // For journal entries
                         if (insertedValues[0]?.idempotencyKey !== undefined) {
-                            return Promise.resolve([{ id: "test-entry-id" }]);
+                            return Promise.resolve([{ id: "test-operation-id" }]);
                         }
-                        // For journal lines
+
+                        if (insertedValues[0]?.tbAccountId !== undefined) {
+                            return Promise.resolve(
+                                insertedValues.map((v: any, i: number) => ({
+                                    id: v.id ?? `book-account-${i + 1}`,
+                                    tbLedger: v.tbLedger,
+                                    tbAccountId: v.tbAccountId,
+                                })),
+                            );
+                        }
+
                         if (insertedValues[0]?.lineNo !== undefined) {
-                            return Promise.resolve(insertedValues.map((v: any, i: number) => ({
-                                lineNo: v.lineNo || i + 1,
-                            })));
+                            return Promise.resolve(
+                                insertedValues.map((v: any, i: number) => ({
+                                    lineNo: v.lineNo || i + 1,
+                                })),
+                            );
                         }
-                        // For TB transfer plans
-                        if (insertedValues[0]?.planKey !== undefined) {
-                            return Promise.resolve(insertedValues.map((_: any, i: number) => ({
-                                id: `plan-${i}`,
-                            })));
-                        }
-                        // For outbox
+
                         if (insertedValues[0]?.kind !== undefined) {
                             return Promise.resolve([{ id: "outbox-id" }]);
                         }
-                        // Default
-                        return Promise.resolve(insertedValues.map((_: any, i: number) => ({
-                            id: `id-${i}`,
-                        })));
+
+                        return Promise.resolve(
+                            insertedValues.map((_: any, i: number) => ({
+                                id: `id-${i + 1}`,
+                            })),
+                        );
                     }),
                 })),
                 onConflictDoUpdate: vi.fn(() => ({
-                    returning: vi.fn(() => Promise.resolve([{ tbAccountId: 12345n }])),
+                    returning: vi.fn(() =>
+                        Promise.resolve([{ tbAccountId: 12345n }]),
+                    ),
                 })),
             };
         }),
@@ -164,7 +188,9 @@ export function createSmartStubTx(): StubTransaction {
 export function createSmartStubDb(): StubDatabase {
     const tx = createSmartStubTx();
     const db = createStubDb();
-    db.transaction = vi.fn(async (fn: (tx: StubTransaction) => Promise<unknown>) => fn(tx));
+    db.transaction = vi.fn(async (fn: (tx: StubTransaction) => Promise<unknown>) =>
+        fn(tx),
+    );
     (db as any)._tx = tx;
     return db;
 }

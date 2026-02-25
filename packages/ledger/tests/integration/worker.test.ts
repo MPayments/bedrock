@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { randomUUID } from "node:crypto";
+import { describe, expect, it } from "vitest";
 
-import { createLedgerEngine } from "../../src/engine";
-import { createLedgerWorker } from "../../src/worker";
-import { OPERATION_TRANSFER_TYPE } from "../../src/types";
+import { ACCOUNT_NO, POSTING_CODE } from "@bedrock/accounting";
+
 import {
   db,
   tb,
@@ -13,25 +13,33 @@ import {
   getTbAccount,
   getTbTransfer,
 } from "./helpers";
+import { createLedgerEngine } from "../../src/engine";
+import { OPERATION_TRANSFER_TYPE } from "../../src/types";
+import { createLedgerWorker } from "../../src/worker";
 
 describe("Worker Integration Tests", () => {
   const engine = createLedgerEngine({ db });
   const worker = createLedgerWorker({ db, tb });
 
   it("posts create operation to TigerBeetle", async () => {
-    const { entryId } = await engine.createEntry({
-      orgId: randomOrgId(),
+    const { operationId } = await engine.createOperation({
       source: { type: "payment", id: "pay-001" },
+      operationCode: "TEST.WORKER.CREATE",
       idempotencyKey: randomIdempotencyKey(),
       postingDate: new Date(),
       transfers: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE,
-          planKey: "transfer-1",
-          debitKey: "customer:alice",
-          creditKey: "revenue:sales",
+          planRef: "transfer-1",
+          bookOrgId: randomOrgId(),
+          debitAccountNo: ACCOUNT_NO.BANK,
+          creditAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+          postingCode: POSTING_CODE.FUNDING_SETTLED,
           currency: "USD",
           amount: 100000n,
+          analytics: {
+            customerId: randomUUID(),
+          },
         },
       ],
     });
@@ -39,11 +47,11 @@ describe("Worker Integration Tests", () => {
     const processed = await worker.processOnce();
     expect(processed).toBe(1);
 
-    const operation = await getOperation(entryId);
+    const operation = await getOperation(operationId);
     expect(operation!.status).toBe("posted");
     expect(operation!.postedAt).toBeDefined();
 
-    const plans = await getTbTransferPlans(entryId);
+    const plans = await getTbTransferPlans(operationId);
     expect(plans).toHaveLength(1);
     expect(plans[0]!.status).toBe("posted");
 
@@ -58,27 +66,32 @@ describe("Worker Integration Tests", () => {
   });
 
   it("posts pending create with timeout", async () => {
-    const { entryId } = await engine.createEntry({
-      orgId: randomOrgId(),
+    const { operationId } = await engine.createOperation({
       source: { type: "reservation", id: "res-001" },
+      operationCode: "TEST.WORKER.PENDING",
       idempotencyKey: randomIdempotencyKey(),
       postingDate: new Date(),
       transfers: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE,
-          planKey: "pending-1",
-          debitKey: "customer:bob",
-          creditKey: "revenue:pending",
+          planRef: "pending-1",
+          bookOrgId: randomOrgId(),
+          debitAccountNo: ACCOUNT_NO.BANK,
+          creditAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+          postingCode: POSTING_CODE.FUNDING_SETTLED,
           currency: "USD",
           amount: 150000n,
           pending: { timeoutSeconds: 3600 },
+          analytics: {
+            customerId: randomUUID(),
+          },
         },
       ],
     });
 
     await worker.processOnce();
 
-    const plans = await getTbTransferPlans(entryId);
+    const plans = await getTbTransferPlans(operationId);
     const transfer = await getTbTransfer(plans[0]!.transferId);
     expect(transfer).toBeDefined();
     expect(transfer!.timeout).toBeGreaterThan(0);
@@ -91,17 +104,19 @@ describe("Worker Integration Tests", () => {
   it("processes multiple operations in one batch", async () => {
     const orgId = randomOrgId();
     for (let i = 0; i < 3; i++) {
-      await engine.createEntry({
-        orgId,
+      await engine.createOperation({
         source: { type: "payment", id: `pay-batch-${i}` },
+        operationCode: "TEST.WORKER.BATCH",
         idempotencyKey: randomIdempotencyKey(),
         postingDate: new Date(),
         transfers: [
           {
             type: OPERATION_TRANSFER_TYPE.CREATE,
-            planKey: `transfer-${i}`,
-            debitKey: `customer:${i}`,
-            creditKey: "revenue:sales",
+            planRef: `transfer-${i}`,
+            bookOrgId: orgId,
+            debitAccountNo: ACCOUNT_NO.BANK,
+            creditAccountNo: ACCOUNT_NO.BANK,
+            postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
             currency: "USD",
             amount: 10000n,
           },

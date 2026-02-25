@@ -1,7 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { resolveTbAccountId } from "../../src/resolve";
-import { tbAccountIdFor, tbLedgerForCurrency } from "../../src/ids";
 import {
   db,
   tb,
@@ -9,26 +7,32 @@ import {
   getBookAccount,
   getTbAccount,
 } from "./helpers";
+import {
+  tbBookAccountIdFor,
+  tbLedgerForCurrency,
+} from "../../src/ids";
+import { resolveTbBookAccountId } from "../../src/resolve";
 
 describe("Resolve Integration Tests", () => {
-  it("creates legacy account mapping in DB and TigerBeetle", async () => {
+  it("creates book account mapping in DB and TigerBeetle", async () => {
     const orgId = randomOrgId();
-    const key = "customer:alice";
+    const accountNo = "1000";
     const currency = "USD";
     const tbLedger = tbLedgerForCurrency(currency);
 
-    const accountId = await resolveTbAccountId({
+    const accountId = await resolveTbBookAccountId({
       db,
       tb,
       orgId,
-      key,
+      accountNo,
       currency,
-      tbLedger,
     });
 
-    expect(accountId).toBe(tbAccountIdFor(orgId, key, tbLedger));
+    expect(accountId).toBe(
+      tbBookAccountIdFor(orgId, accountNo, currency, tbLedger),
+    );
 
-    const dbAccount = await getBookAccount(orgId, key, tbLedger);
+    const dbAccount = await getBookAccount(orgId, accountNo, tbLedger);
     expect(dbAccount).toBeDefined();
     expect(dbAccount!.tbAccountId).toBe(accountId);
 
@@ -39,46 +43,42 @@ describe("Resolve Integration Tests", () => {
 
   it("returns same account id on repeated resolve", async () => {
     const orgId = randomOrgId();
-    const key = "customer:bob";
+    const accountNo = "2110";
     const currency = "USD";
-    const tbLedger = tbLedgerForCurrency(currency);
 
-    const id1 = await resolveTbAccountId({
+    const id1 = await resolveTbBookAccountId({
       db,
       tb,
       orgId,
-      key,
+      accountNo,
       currency,
-      tbLedger,
     });
-    const id2 = await resolveTbAccountId({
+    const id2 = await resolveTbBookAccountId({
       db,
       tb,
       orgId,
-      key,
+      accountNo,
       currency,
-      tbLedger,
     });
 
     expect(id1).toBe(id2);
   });
 
-  it("sets credit-normal flags for customer wallet-style keys", async () => {
+  it("creates TB account with no extra flags", async () => {
     const orgId = randomOrgId();
-    const key = "treasury:CustomerWallet:customer-1:USD";
-    const tbLedger = tbLedgerForCurrency("USD");
+    const accountNo = "1000";
+    const currency = "USD";
 
-    const accountId = await resolveTbAccountId({
+    const accountId = await resolveTbBookAccountId({
       db,
       tb,
       orgId,
-      key,
-      currency: "USD",
-      tbLedger,
+      accountNo,
+      currency,
     });
 
     const account = await getTbAccount(accountId);
-    const { AccountFlags } = await import("tigerbeetle-node");
-    expect(account!.flags).toBe(AccountFlags.debits_must_not_exceed_credits);
+    expect(account).toBeDefined();
+    expect(account!.flags).toBe(0);
   });
 });

@@ -1,50 +1,86 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+
 import { OPERATION_TRANSFER_TYPE } from "../src/types";
-import { createEntryInputSchema, validateCreateEntryInput } from "../src/validation";
+import {
+  createOperationInputSchema,
+  validateCreateOperationInput,
+} from "../src/validation";
 
-describe("validateCreateEntryInput", () => {
-  const validInput = {
-    orgId: "550e8400-e29b-41d4-a716-446655440000",
-    source: { type: "payment", id: "src-1" },
-    idempotencyKey: "idem-123",
-    postingDate: new Date(),
-    transfers: [
-      {
-        type: OPERATION_TRANSFER_TYPE.CREATE,
-        planKey: "plan-1",
-        debitKey: "customer:1",
-        creditKey: "revenue:sales",
-        currency: "USD",
-        amount: 1n,
-      },
-    ],
-  };
+const validInput = {
+  source: { type: "payment", id: "src-1" },
+  operationCode: "ledger.payment",
+  operationVersion: 1,
+  idempotencyKey: "idem-123",
+  postingDate: new Date(),
+  transfers: [
+    {
+      type: OPERATION_TRANSFER_TYPE.CREATE,
+      planRef: "plan-1",
+      bookOrgId: "550e8400-e29b-41d4-a716-446655440000",
+      debitAccountNo: "1000",
+      creditAccountNo: "2000",
+      postingCode: "payment.settled",
+      currency: "USD",
+      amount: 1n,
+    },
+  ],
+};
 
-  it("formats orgId errors with a helpful message", () => {
-    expect(() =>
-      validateCreateEntryInput({
-        ...validInput,
-        orgId: "not-a-uuid",
-      })
-    ).toThrow(/orgId must be a valid UUID/);
+describe("validateCreateOperationInput", () => {
+  it("accepts valid input", () => {
+    const parsed = validateCreateOperationInput(validInput);
+    expect(parsed.operationCode).toBe("ledger.payment");
+    expect(parsed.transfers).toHaveLength(1);
   });
 
-  it("falls back to path-based error messages for unknown paths", () => {
+  it("normalizes transfer currency to uppercase", () => {
+    const parsed = validateCreateOperationInput({
+      ...validInput,
+      transfers: [
+        {
+          ...validInput.transfers[0],
+          currency: "usd",
+        },
+      ],
+    });
+
+    expect(parsed.transfers[0]!.currency).toBe("USD");
+  });
+
+  it("rejects empty transfers", () => {
     expect(() =>
-      validateCreateEntryInput({
+      validateCreateOperationInput({
+        ...validInput,
+        transfers: [],
+      }),
+    ).toThrow(/transfers must be a non-empty array/);
+  });
+
+  it("rejects invalid source.type", () => {
+    expect(() =>
+      validateCreateOperationInput({
         ...validInput,
         source: { type: "", id: "src-1" },
-      })
-    ).toThrow(/source\.type:/);
+      }),
+    ).toThrow();
   });
 
-  it("handles zod errors with no issues array", () => {
-    const spy = vi.spyOn(createEntryInputSchema, "safeParse").mockReturnValueOnce({
-      success: false,
-      error: { issues: [], message: "boom" },
-    } as any);
+  it("rejects invalid planRef", () => {
+    expect(() =>
+      validateCreateOperationInput({
+        ...validInput,
+        transfers: [
+          {
+            ...validInput.transfers[0],
+            planRef: "",
+          },
+        ],
+      }),
+    ).toThrow();
+  });
 
-    expect(() => validateCreateEntryInput(validInput)).toThrow(/Validation failed: boom/);
-    spy.mockRestore();
+  it("exposes schema for direct parsing", () => {
+    const result = createOperationInputSchema.safeParse(validInput);
+    expect(result.success).toBe(true);
   });
 });
