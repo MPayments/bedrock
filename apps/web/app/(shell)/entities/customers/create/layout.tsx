@@ -20,6 +20,7 @@ export default function CreateCustomerLayout({
     <CustomerWorkspaceLayout
       title={state.createLabel}
       subtitle="Карточка клиента"
+      disabledTabs={["counterparties"]}
     >
       {children}
     </CustomerWorkspaceLayout>
