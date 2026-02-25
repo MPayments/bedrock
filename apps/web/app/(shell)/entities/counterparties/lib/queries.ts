@@ -96,3 +96,229 @@ export async function getCounterpartyGroups(): Promise<CounterpartyGroupOption[]
 
   return (await res.json()) as CounterpartyGroupOption[];
 }
+
+type CounterpartyAccountPayload = {
+  id: string;
+  counterpartyId: string;
+  currencyId: string;
+  accountProviderId: string;
+  label: string;
+  description: string | null;
+  accountNo: string | null;
+  corrAccount: string | null;
+  address: string | null;
+  iban: string | null;
+  stableKey: string;
+  postingAccountNo: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AccountProviderPayload = {
+  id: string;
+  name: string;
+  type: string;
+};
+
+type CurrencyPayload = {
+  id: string;
+  code: string;
+  name: string;
+};
+
+type PaginatedPayload<T> = {
+  data: T[];
+  total?: number;
+  limit?: number;
+};
+
+export interface CounterpartyAccount {
+  id: string;
+  counterpartyId: string;
+  currencyId: string;
+  accountProviderId: string;
+  label: string;
+  description: string | null;
+  accountNo: string | null;
+  corrAccount: string | null;
+  address: string | null;
+  iban: string | null;
+  stableKey: string;
+  postingAccountNo: string;
+  createdAt: string;
+  updatedAt: string;
+  providerName: string;
+  providerType: string | null;
+  currencyCode: string;
+  currencyName: string;
+}
+
+async function listAllCounterpartyAccounts(
+  client: Awaited<ReturnType<typeof getServerApiClient>>,
+  counterpartyId: string,
+): Promise<CounterpartyAccountPayload[]> {
+  const ACCOUNTS_PAGE_SIZE = 100;
+  const accounts: CounterpartyAccountPayload[] = [];
+  let offset = 0;
+
+  while (true) {
+    const res = await client.v1.accounts.$get(
+      {
+        query: {
+          limit: ACCOUNTS_PAGE_SIZE,
+          offset,
+          counterpartyId,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        } as Record<string, unknown>,
+      },
+      {
+        init: { cache: "no-store" },
+      },
+    );
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch accounts: ${res.status}`);
+    }
+
+    const payload = (await res.json()) as PaginatedPayload<CounterpartyAccountPayload>;
+    accounts.push(...payload.data);
+
+    if (payload.data.length === 0) {
+      break;
+    }
+
+    const limit =
+      typeof payload.limit === "number" && payload.limit > 0
+        ? payload.limit
+        : ACCOUNTS_PAGE_SIZE;
+    offset += limit;
+
+    if (typeof payload.total === "number" && offset >= payload.total) {
+      break;
+    }
+  }
+
+  return accounts;
+}
+
+async function listAllAccountProviders(
+  client: Awaited<ReturnType<typeof getServerApiClient>>,
+): Promise<AccountProviderPayload[]> {
+  const PROVIDERS_PAGE_SIZE = 100;
+  const providers: AccountProviderPayload[] = [];
+  let offset = 0;
+
+  while (true) {
+    const res = await client.v1["account-providers"].$get(
+      {
+        query: {
+          limit: PROVIDERS_PAGE_SIZE,
+          offset,
+        } as Record<string, unknown>,
+      },
+      {
+        init: { cache: "no-store" },
+      },
+    );
+
+    if (!res.ok) {
+      break;
+    }
+
+    const payload = (await res.json()) as PaginatedPayload<AccountProviderPayload>;
+    providers.push(...payload.data);
+
+    if (payload.data.length === 0) {
+      break;
+    }
+
+    const limit =
+      typeof payload.limit === "number" && payload.limit > 0
+        ? payload.limit
+        : PROVIDERS_PAGE_SIZE;
+    offset += limit;
+
+    if (typeof payload.total === "number" && offset >= payload.total) {
+      break;
+    }
+  }
+
+  return providers;
+}
+
+async function listAllCurrencies(
+  client: Awaited<ReturnType<typeof getServerApiClient>>,
+): Promise<CurrencyPayload[]> {
+  const CURRENCIES_PAGE_SIZE = 100;
+  const currencies: CurrencyPayload[] = [];
+  let offset = 0;
+
+  while (true) {
+    const res = await client.v1.currencies.$get({
+      query: {
+        limit: CURRENCIES_PAGE_SIZE,
+        offset,
+      } as Record<string, unknown>,
+    });
+
+    if (!res.ok) {
+      break;
+    }
+
+    const payload = (await res.json()) as PaginatedPayload<CurrencyPayload>;
+    currencies.push(...payload.data);
+
+    if (payload.data.length === 0) {
+      break;
+    }
+
+    const limit =
+      typeof payload.limit === "number" && payload.limit > 0
+        ? payload.limit
+        : CURRENCIES_PAGE_SIZE;
+    offset += limit;
+
+    if (typeof payload.total === "number" && offset >= payload.total) {
+      break;
+    }
+  }
+
+  return currencies;
+}
+
+export async function getCounterpartyAccounts(
+  counterpartyId: string,
+): Promise<CounterpartyAccount[]> {
+  const client = await getServerApiClient();
+  const accounts = await listAllCounterpartyAccounts(client, counterpartyId);
+
+  if (accounts.length === 0) {
+    return [];
+  }
+
+  const [providers, currencies] = await Promise.all([
+    listAllAccountProviders(client),
+    listAllCurrencies(client),
+  ]);
+
+  const providerById = new Map(
+    providers.map((provider) => [provider.id, provider] as const),
+  );
+  const currencyById = new Map(
+    currencies.map((currency) => [currency.id, currency] as const),
+  );
+
+  return accounts.map((account) => {
+    const provider = providerById.get(account.accountProviderId);
+    const currency = currencyById.get(account.currencyId);
+
+    return {
+      ...account,
+      providerName: provider?.name ?? account.accountProviderId,
+      providerType: provider?.type ?? null,
+      currencyCode: currency?.code ?? account.currencyId,
+      currencyName: currency?.name ?? account.currencyId,
+    };
+  });
+}

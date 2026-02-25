@@ -1,4 +1,4 @@
-import { PROVIDERS_LIST_CONTRACT } from "@bedrock/accounts";
+import { PROVIDERS_LIST_CONTRACT } from "@bedrock/accounts/validation";
 
 import {
   createResourceSearchParamsCache,

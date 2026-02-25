@@ -59,7 +59,7 @@ export const chartTemplateAccounts = pgTable(
       .default(sql`now()`),
   },
   (t) => [
-    check("chart_template_account_no_fmt", sql`${t.accountNo} ~ '^[0-9]{2}(\\.[0-9]{2})?$'`),
+    check("chart_template_account_no_fmt", sql`${t.accountNo} ~ '^[0-9]{4}$'`),
     index("chart_template_parent_idx").on(t.parentAccountNo),
   ],
 );
@@ -69,7 +69,9 @@ export const chartTemplateAccountAnalytics = pgTable(
   {
     accountNo: text("account_no")
       .notNull()
-      .references(() => chartTemplateAccounts.accountNo, { onDelete: "cascade" }),
+      .references(() => chartTemplateAccounts.accountNo, {
+        onDelete: "cascade",
+      }),
     analyticType: chartAnalyticTypeEnum("analytic_type").notNull(),
     required: boolean("required").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -85,7 +87,9 @@ export const chartOrgOverrides = pgTable(
     orgId: uuid("org_id").notNull(),
     accountNo: text("account_no")
       .notNull()
-      .references(() => chartTemplateAccounts.accountNo, { onDelete: "cascade" }),
+      .references(() => chartTemplateAccounts.accountNo, {
+        onDelete: "cascade",
+      }),
     enabled: boolean("enabled").notNull().default(true),
     nameOverride: text("name_override"),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -96,7 +100,10 @@ export const chartOrgOverrides = pgTable(
       .default(sql`now()`)
       .$onUpdateFn(() => new Date()),
   },
-  (t) => [primaryKey({ columns: [t.orgId, t.accountNo] }), index("chart_org_override_org_idx").on(t.orgId)],
+  (t) => [
+    primaryKey({ columns: [t.orgId, t.accountNo] }),
+    index("chart_org_override_org_idx").on(t.orgId),
+  ],
 );
 
 export const correspondenceRules = pgTable(
@@ -165,7 +172,9 @@ export const operationalAccountBindings = pgTable(
 );
 
 export type ChartTemplateAccount = typeof chartTemplateAccounts.$inferSelect;
-export type ChartTemplateAccountAnalytic = typeof chartTemplateAccountAnalytics.$inferSelect;
+export type ChartTemplateAccountAnalytic =
+  typeof chartTemplateAccountAnalytics.$inferSelect;
 export type ChartOrgOverride = typeof chartOrgOverrides.$inferSelect;
 export type CorrespondenceRule = typeof correspondenceRules.$inferSelect;
-export type OperationalAccountBinding = typeof operationalAccountBindings.$inferSelect;
+export type OperationalAccountBinding =
+  typeof operationalAccountBindings.$inferSelect;

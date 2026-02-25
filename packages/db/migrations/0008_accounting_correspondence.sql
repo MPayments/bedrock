@@ -46,7 +46,7 @@ CREATE TABLE "chart_template_accounts" (
     "posting_allowed" boolean DEFAULT true NOT NULL,
     "parent_account_no" text,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT "chart_template_account_no_fmt" CHECK ("chart_template_accounts"."account_no" ~ '^[0-9]{2}(\\.[0-9]{2})?$')
+    CONSTRAINT "chart_template_account_no_fmt" CHECK ("chart_template_accounts"."account_no" ~ '^[0-9]{2}([.][0-9]{2})?$')
 );--> statement-breakpoint
 
 CREATE TABLE "chart_template_account_analytics" (

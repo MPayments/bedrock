@@ -5,13 +5,36 @@ import {
     type ListQueryContract,
 } from "@bedrock/kernel/pagination";
 
-import { ValidationError } from "./errors.js";
+import { ValidationError } from "./errors";
 
 const uuidSchema = z.uuid({
     version: "v4",
 });
 
-const positiveAmountSchema = z.bigint().positive({ message: "amountMinor must be positive" });
+const positiveAmountSchema = z
+    .union([z.string(), z.number().int(), z.bigint()])
+    .transform((value, ctx) => {
+        try {
+            const normalized = typeof value === "string" ? value.trim() : value;
+            const parsed = typeof normalized === "bigint" ? normalized : BigInt(normalized);
+
+            if (parsed <= 0n) {
+                ctx.addIssue({
+                    code: "custom",
+                    message: "amountMinor must be positive",
+                });
+                return z.NEVER;
+            }
+
+            return parsed;
+        } catch {
+            ctx.addIssue({
+                code: "custom",
+                message: "amountMinor must be an integer in minor units",
+            });
+            return z.NEVER;
+        }
+    });
 const idempotencyKeySchema = z.string().min(1, "idempotencyKey is required").max(255);
 const eventIdempotencyKeySchema = z.string().min(1, "eventIdempotencyKey is required").max(255);
 const memoSchema = z.string().max(1000, "memo cannot exceed 1000 characters").optional();

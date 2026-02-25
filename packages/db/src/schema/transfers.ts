@@ -12,18 +12,21 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { currencies } from "./currencies";
-import { uint128 } from "./ledger/ledger";
 import { ledgerOperations } from "./ledger/journal";
+import { uint128 } from "./ledger/ledger";
 import { accounts } from "./treasury/accounts";
 
-export const transferKindEnum = pgEnum("transfer_kind", ["intra_org", "cross_org"]);
+export const transferKindEnum = pgEnum("transfer_kind", [
+  "intra_org",
+  "cross_org",
+]);
 
 export const transferSettlementModeEnum = pgEnum("transfer_settlement_mode", [
   "immediate",
   "pending",
 ]);
 
-export const transferStatusV2Enum = pgEnum("transfer_status_v2", [
+export const transferStatusEnum = pgEnum("transfer_status", [
   "draft",
   "approved_pending_posting",
   "pending",
@@ -42,9 +45,11 @@ export const transferEventTypeEnum = pgEnum("transfer_event_type", [
 ]);
 
 export type TransferKind = (typeof transferKindEnum.enumValues)[number];
-export type TransferSettlementMode = (typeof transferSettlementModeEnum.enumValues)[number];
-export type TransferStatus = (typeof transferStatusV2Enum.enumValues)[number];
-export type TransferEventType = (typeof transferEventTypeEnum.enumValues)[number];
+export type TransferSettlementMode =
+  (typeof transferSettlementModeEnum.enumValues)[number];
+export type TransferStatus = (typeof transferStatusEnum.enumValues)[number];
+export type TransferEventType =
+  (typeof transferEventTypeEnum.enumValues)[number];
 
 export const transferOrders = pgTable(
   "transfer_orders",
@@ -58,21 +63,25 @@ export const transferOrders = pgTable(
     destinationAccountId: uuid("destination_account_id")
       .notNull()
       .references(() => accounts.id),
-    currencyId: uuid("currency_id").notNull().references(() => currencies.id),
+    currencyId: uuid("currency_id")
+      .notNull()
+      .references(() => currencies.id),
     amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
     kind: transferKindEnum("kind").notNull(),
     settlementMode: transferSettlementModeEnum("settlement_mode")
       .notNull()
       .default("immediate"),
     timeoutSeconds: integer("timeout_seconds").notNull().default(0),
-    status: transferStatusV2Enum("status").notNull().default("draft"),
+    status: transferStatusEnum("status").notNull().default("draft"),
     memo: text("memo"),
     makerUserId: uuid("maker_user_id").notNull(),
     checkerUserId: uuid("checker_user_id"),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     rejectedAt: timestamp("rejected_at", { withTimezone: true }),
     rejectReason: text("reject_reason"),
-    ledgerOperationId: uuid("ledger_operation_id").references(() => ledgerOperations.id),
+    ledgerOperationId: uuid("ledger_operation_id").references(
+      () => ledgerOperations.id,
+    ),
     sourcePendingTransferId: uint128("source_pending_transfer_id"),
     destinationPendingTransferId: uint128("destination_pending_transfer_id"),
     idempotencyKey: text("idempotency_key").notNull(),
@@ -112,7 +121,9 @@ export const transferEvents = pgTable(
     eventType: transferEventTypeEnum("event_type").notNull(),
     eventIdempotencyKey: text("event_idempotency_key").notNull(),
     externalRef: text("external_ref"),
-    ledgerOperationId: uuid("ledger_operation_id").references(() => ledgerOperations.id),
+    ledgerOperationId: uuid("ledger_operation_id").references(
+      () => ledgerOperations.id,
+    ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),

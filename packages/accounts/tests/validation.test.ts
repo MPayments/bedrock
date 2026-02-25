@@ -478,4 +478,24 @@ describe("ListAccountsQuerySchema", () => {
 
     expect(parsed.counterpartyId).toBe("550e8400-e29b-41d4-a716-446655440001");
   });
+
+  it("parses filter by label", () => {
+    const parsed = ListAccountsQuerySchema.parse({
+      label: "main account",
+    });
+
+    expect(parsed.label).toBe("main account");
+  });
+
+  it("parses multi-value currency filter", () => {
+    const parsed = ListAccountsQuerySchema.parse({
+      currencyId:
+        "550e8400-e29b-41d4-a716-446655440001,550e8400-e29b-41d4-a716-446655440002",
+    });
+
+    expect(parsed.currencyId).toEqual([
+      "550e8400-e29b-41d4-a716-446655440001",
+      "550e8400-e29b-41d4-a716-446655440002",
+    ]);
+  });
 });

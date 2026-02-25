@@ -64,6 +64,27 @@
       "when": 1772060000000,
       "tag": "0008_accounting_correspondence",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1772063600000,
+      "tag": "0009_fix_chart_template_account_no_check",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1772067200000,
+      "tag": "0010_intl_coa_and_fin_results_prep",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1772070800000,
+      "tag": "0011_translate_coa_labels_ru",
+      "breakpoints": true
     }
   ]
 }

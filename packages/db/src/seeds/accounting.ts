@@ -4,46 +4,55 @@ import type { Database } from "../client";
 import { schema } from "../schema";
 
 const ACCOUNTS = [
-  ["51.01", "Bank", "asset", "debit"],
-  ["57.01", "Order Inventory", "asset", "debit"],
-  ["57.02", "Transit", "asset", "debit"],
-  ["62.01", "Customer Wallet", "liability", "credit"],
-  ["76.10", "Fee Clearing", "liability", "credit"],
-  ["76.20", "Payout Obligation", "liability", "credit"],
-  ["79.01", "Intercompany Net", "active_passive", "both"],
-  ["90.01", "Fee Revenue", "revenue", "credit"],
-  ["90.02", "Spread Revenue", "revenue", "credit"],
-  ["91.01", "Adjustment Revenue", "revenue", "credit"],
-  ["91.02", "Adjustment Expense", "expense", "debit"],
+  ["1000", "Активы", "asset", "debit", false, null],
+  ["1100", "Денежные средства и эквиваленты", "asset", "debit", false, "1000"],
+  ["1200", "Операционные активы", "asset", "debit", false, "1000"],
+  ["1300", "Внутригрупповые расчеты", "active_passive", "both", false, "1000"],
+  ["2000", "Обязательства", "liability", "credit", false, null],
+  ["2100", "Операционные обязательства", "liability", "credit", false, "2000"],
+  ["3000", "Капитал", "equity", "credit", false, null],
+  ["4000", "Доходы", "revenue", "credit", false, null],
+  ["5000", "Расходы", "expense", "debit", false, null],
+  ["1110", "Банк", "asset", "debit", true, "1100"],
+  ["1210", "Резерв по ордерам", "asset", "debit", true, "1200"],
+  ["1220", "Транзит", "asset", "debit", true, "1200"],
+  ["1310", "Внутригрупповой неттинг", "active_passive", "both", true, "1300"],
+  ["2110", "Кошелек клиента", "liability", "credit", true, "2100"],
+  ["2120", "Клиринг комиссий", "liability", "credit", true, "2100"],
+  ["2130", "Обязательство по выплате", "liability", "credit", true, "2100"],
+  ["4110", "Доход от комиссий", "revenue", "credit", true, "4000"],
+  ["4120", "Доход от спреда", "revenue", "credit", true, "4000"],
+  ["4130", "Доход от корректировок", "revenue", "credit", true, "4000"],
+  ["5110", "Расход по корректировкам", "expense", "debit", true, "5000"],
 ] as const;
 
 const RULES = [
-  ["TR.INTRA.IMMEDIATE", "51.01", "51.01"],
-  ["TR.INTRA.PENDING", "51.01", "51.01"],
-  ["TR.CROSS.SOURCE.IMMEDIATE", "79.01", "51.01"],
-  ["TR.CROSS.DEST.IMMEDIATE", "51.01", "79.01"],
-  ["TR.CROSS.SOURCE.PENDING", "79.01", "51.01"],
-  ["TR.CROSS.DEST.PENDING", "51.01", "79.01"],
-  ["TC.1001", "51.01", "62.01"],
-  ["TC.2001", "62.01", "57.01"],
-  ["TC.2002", "62.01", "90.01"],
-  ["TC.2003", "62.01", "90.02"],
-  ["TC.2006", "62.01", "90.01"],
-  ["TC.2007", "62.01", "90.01"],
-  ["TC.2008", "62.01", "90.01"],
-  ["TC.2009", "57.01", "79.01"],
-  ["TC.2010", "79.01", "57.01"],
-  ["TC.2005", "57.01", "76.20"],
-  ["TC.3001", "76.20", "51.01"],
-  ["TC.3002", "62.01", "76.10"],
-  ["TC.3002", "91.02", "76.10"],
-  ["TC.3003", "76.10", "51.01"],
-  ["TC.3006", "62.01", "91.01"],
-  ["TC.3007", "91.02", "62.01"],
+  ["TR.INTRA.IMMEDIATE", "1110", "1110"],
+  ["TR.INTRA.PENDING", "1110", "1110"],
+  ["TR.CROSS.SOURCE.IMMEDIATE", "1310", "1110"],
+  ["TR.CROSS.DEST.IMMEDIATE", "1110", "1310"],
+  ["TR.CROSS.SOURCE.PENDING", "1310", "1110"],
+  ["TR.CROSS.DEST.PENDING", "1110", "1310"],
+  ["TC.1001", "1110", "2110"],
+  ["TC.2001", "2110", "1210"],
+  ["TC.2002", "2110", "4110"],
+  ["TC.2003", "2110", "4120"],
+  ["TC.2006", "2110", "4110"],
+  ["TC.2007", "2110", "4110"],
+  ["TC.2008", "2110", "4110"],
+  ["TC.2009", "1210", "1310"],
+  ["TC.2010", "1310", "1210"],
+  ["TC.2005", "1210", "2130"],
+  ["TC.3001", "2130", "1110"],
+  ["TC.3002", "2110", "2120"],
+  ["TC.3002", "5110", "2120"],
+  ["TC.3003", "2120", "1110"],
+  ["TC.3006", "2110", "4130"],
+  ["TC.3007", "5110", "2110"],
 ] as const;
 
 export async function seedAccounting(db: Database) {
-  for (const [accountNo, name, kind, normalSide] of ACCOUNTS) {
+  for (const [accountNo, name, kind, normalSide, postingAllowed, parentAccountNo] of ACCOUNTS) {
     await db
       .insert(schema.chartTemplateAccounts)
       .values({
@@ -51,11 +60,18 @@ export async function seedAccounting(db: Database) {
         name,
         kind,
         normalSide,
-        postingAllowed: true,
+        postingAllowed,
+        parentAccountNo,
       })
       .onConflictDoUpdate({
         target: schema.chartTemplateAccounts.accountNo,
-        set: { name, kind, normalSide, postingAllowed: true },
+        set: {
+          name,
+          kind,
+          normalSide,
+          postingAllowed,
+          parentAccountNo,
+        },
       });
   }
 

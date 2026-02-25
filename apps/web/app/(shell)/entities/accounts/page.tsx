@@ -7,7 +7,7 @@ import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 
 import { AccountsTable } from "./(table)";
-import { getAccounts } from "./lib/queries";
+import { getAccountCurrencyFilterOptions, getAccounts } from "./lib/queries";
 import { searchParamsCache } from "./lib/validations";
 
 interface PageProps {
@@ -17,6 +17,9 @@ interface PageProps {
 export default async function AccountsPage({ searchParams }: PageProps) {
   const parsedSearch = await searchParamsCache.parse(searchParams);
   const promise = getAccounts(parsedSearch);
+  const currencyOptionsPromise = getAccountCurrencyFilterOptions().catch(
+    () => [],
+  );
 
   return (
     <EntityListPageShell
@@ -33,9 +36,12 @@ export default async function AccountsPage({ searchParams }: PageProps) {
           <span className="hidden md:block">Добавить</span>
         </Button>
       }
-      fallback={<DataTableSkeleton columnCount={7} rowCount={10} filterCount={0} />}
+      fallback={<DataTableSkeleton columnCount={8} rowCount={10} filterCount={2} />}
     >
-      <AccountsTable promise={promise} />
+      <AccountsTable
+        promise={promise}
+        currencyOptionsPromise={currencyOptionsPromise}
+      />
     </EntityListPageShell>
   );
 }

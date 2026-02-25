@@ -3,7 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { z } from "zod";
 
-import type { AccountProviderSchema } from "@bedrock/accounts";
+import type { AccountProviderSchema } from "@bedrock/accounts/validation";
 import { Badge } from "@bedrock/ui/components/badge";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";

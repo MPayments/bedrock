@@ -243,7 +243,7 @@ export const CreateAccountInputSchema = z.object({
   corrAccount: z.string().max(64).nullish(),
   address: z.string().max(500).nullish(),
   iban: z.string().max(64).nullish(),
-  postingAccountNo: z.string().regex(/^[0-9]{2}(\.[0-9]{2})?$/).default(ACCOUNT_NO.BANK),
+  postingAccountNo: z.string().regex(/^[0-9]{4}$/).default(ACCOUNT_NO.BANK),
 });
 export type CreateAccountInput = z.infer<typeof CreateAccountInputSchema>;
 
@@ -258,7 +258,7 @@ export const UpdateAccountInputSchema = z.object({
   corrAccount: z.string().max(64).nullable().optional(),
   address: z.string().max(500).nullable().optional(),
   iban: z.string().max(64).nullable().optional(),
-  postingAccountNo: z.string().regex(/^[0-9]{2}(\.[0-9]{2})?$/).optional(),
+  postingAccountNo: z.string().regex(/^[0-9]{4}$/).optional(),
 });
 export type UpdateAccountInput = z.infer<typeof UpdateAccountInputSchema>;
 
@@ -314,8 +314,9 @@ export function validateAccountFieldsForProvider(
 const ACCOUNTS_SORTABLE_COLUMNS = ["label", "createdAt"] as const;
 
 interface AccountsListFilters {
+  label: { kind: "string"; cardinality: "single" };
   counterpartyId: { kind: "string"; cardinality: "single" };
-  currencyId: { kind: "string"; cardinality: "single" };
+  currencyId: { kind: "string"; cardinality: "multi" };
   accountProviderId: { kind: "string"; cardinality: "single" };
 }
 
@@ -326,8 +327,9 @@ export const ACCOUNTS_LIST_CONTRACT: ListQueryContract<
   sortableColumns: ACCOUNTS_SORTABLE_COLUMNS,
   defaultSort: { id: "createdAt", desc: true },
   filters: {
+    label: { kind: "string", cardinality: "single" },
     counterpartyId: { kind: "string", cardinality: "single" },
-    currencyId: { kind: "string", cardinality: "single" },
+    currencyId: { kind: "string", cardinality: "multi" },
     accountProviderId: { kind: "string", cardinality: "single" },
   },
 };

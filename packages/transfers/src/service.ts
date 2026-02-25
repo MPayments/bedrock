@@ -8,9 +8,7 @@ import type { AccountService, TransferAccountBinding } from "@bedrock/accounts";
 import { type Database } from "@bedrock/db";
 import { schema, type TransferStatus } from "@bedrock/db/schema";
 import { type Logger } from "@bedrock/kernel";
-import {
-  DAY_IN_SECONDS,
-} from "@bedrock/kernel/constants";
+import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 import { NotFoundError, PermissionError } from "@bedrock/kernel/errors";
 import {
   type PaginatedList,
@@ -49,7 +47,72 @@ const SORT_COLUMN_MAP = {
 } as const;
 
 type TransferOrderRow = typeof schema.transferOrders.$inferSelect;
+type TransferOrderProjection = TransferOrderRow & {
+  currencyCode: string | null;
+  sourceCounterpartyName: string | null;
+  destinationCounterpartyName: string | null;
+  sourceAccountLabel: string | null;
+  destinationAccountLabel: string | null;
+};
 type PendingTransferEventType = "settle" | "void";
+
+const TRANSFER_SELECT_FIELDS = {
+  id: schema.transferOrders.id,
+  sourceCounterpartyId: schema.transferOrders.sourceCounterpartyId,
+  destinationCounterpartyId: schema.transferOrders.destinationCounterpartyId,
+  sourceAccountId: schema.transferOrders.sourceAccountId,
+  destinationAccountId: schema.transferOrders.destinationAccountId,
+  currencyId: schema.transferOrders.currencyId,
+  amountMinor: schema.transferOrders.amountMinor,
+  kind: schema.transferOrders.kind,
+  settlementMode: schema.transferOrders.settlementMode,
+  timeoutSeconds: schema.transferOrders.timeoutSeconds,
+  status: schema.transferOrders.status,
+  memo: schema.transferOrders.memo,
+  makerUserId: schema.transferOrders.makerUserId,
+  checkerUserId: schema.transferOrders.checkerUserId,
+  approvedAt: schema.transferOrders.approvedAt,
+  rejectedAt: schema.transferOrders.rejectedAt,
+  rejectReason: schema.transferOrders.rejectReason,
+  ledgerOperationId: schema.transferOrders.ledgerOperationId,
+  sourcePendingTransferId: schema.transferOrders.sourcePendingTransferId,
+  destinationPendingTransferId:
+    schema.transferOrders.destinationPendingTransferId,
+  idempotencyKey: schema.transferOrders.idempotencyKey,
+  lastError: schema.transferOrders.lastError,
+  createdAt: schema.transferOrders.createdAt,
+  updatedAt: schema.transferOrders.updatedAt,
+  currencyCode: sql<string | null>`(
+    select ${schema.currencies.code}
+    from ${schema.currencies}
+    where ${schema.currencies.id} = ${schema.transferOrders.currencyId}
+    limit 1
+  )`,
+  sourceCounterpartyName: sql<string | null>`(
+    select ${schema.counterparties.shortName}
+    from ${schema.counterparties}
+    where ${schema.counterparties.id} = ${schema.transferOrders.sourceCounterpartyId}
+    limit 1
+  )`,
+  destinationCounterpartyName: sql<string | null>`(
+    select ${schema.counterparties.shortName}
+    from ${schema.counterparties}
+    where ${schema.counterparties.id} = ${schema.transferOrders.destinationCounterpartyId}
+    limit 1
+  )`,
+  sourceAccountLabel: sql<string | null>`(
+    select ${schema.accounts.label}
+    from ${schema.accounts}
+    where ${schema.accounts.id} = ${schema.transferOrders.sourceAccountId}
+    limit 1
+  )`,
+  destinationAccountLabel: sql<string | null>`(
+    select ${schema.accounts.label}
+    from ${schema.accounts}
+    where ${schema.accounts.id} = ${schema.transferOrders.destinationAccountId}
+    limit 1
+  )`,
+};
 
 function inArraySafe<T>(column: any, values: T[] | undefined) {
   if (!values || values.length === 0) return undefined;
@@ -86,7 +149,9 @@ export function createTransfersService(deps: {
       });
 
     if (!sourceBinding || !destinationBinding) {
-      throw new InvalidStateError("Unable to resolve transfer account bindings");
+      throw new InvalidStateError(
+        "Unable to resolve transfer account bindings",
+      );
     }
 
     if (sourceBinding.currencyId !== destinationBinding.currencyId) {
@@ -275,14 +340,17 @@ export function createTransfersService(deps: {
 
       const sourcePendingTransferId =
         transfer.settlementMode === "pending"
-          ? (result.pendingTransferIdsByRef.get(template.sourcePendingRef) ?? null)
+          ? (result.pendingTransferIdsByRef.get(template.sourcePendingRef) ??
+            null)
           : null;
 
       const destinationPendingTransferId =
         transfer.settlementMode === "pending" &&
         transfer.kind === "cross_org" &&
         template.destinationPendingRef
-          ? (result.pendingTransferIdsByRef.get(template.destinationPendingRef) ?? null)
+          ? (result.pendingTransferIdsByRef.get(
+              template.destinationPendingRef,
+            ) ?? null)
           : null;
 
       const moved = await tx
@@ -664,9 +732,9 @@ export function createTransfersService(deps: {
     });
   }
 
-  async function get(transferId: string): Promise<TransferOrderRow> {
+  async function get(transferId: string): Promise<TransferOrderProjection> {
     const [transfer] = await db
-      .select()
+      .select(TRANSFER_SELECT_FIELDS)
       .from(schema.transferOrders)
       .where(eq(schema.transferOrders.id, transferId))
       .limit(1);
@@ -680,7 +748,7 @@ export function createTransfersService(deps: {
 
   async function list(
     input?: ListTransfersQuery,
-  ): Promise<PaginatedList<TransferOrderRow>> {
+  ): Promise<PaginatedList<TransferOrderProjection>> {
     const query = ListTransfersQuerySchema.parse(input ?? {});
     const {
       limit,
@@ -731,7 +799,7 @@ export function createTransfersService(deps: {
 
     const [rows, countRows] = await Promise.all([
       db
-        .select()
+        .select(TRANSFER_SELECT_FIELDS)
         .from(schema.transferOrders)
         .where(where)
         .orderBy(orderByFn(orderByCol))

@@ -361,7 +361,7 @@ async function ensureAccountingDefaultsSeeded(tx: Transaction) {
         kind: account.kind,
         normalSide: account.normalSide,
         postingAllowed: account.postingAllowed,
-        parentAccountNo: null,
+        parentAccountNo: account.parentAccountNo ?? null,
       })
       .onConflictDoUpdate({
         target: schema.chartTemplateAccounts.accountNo,
@@ -370,7 +370,7 @@ async function ensureAccountingDefaultsSeeded(tx: Transaction) {
           kind: account.kind,
           normalSide: account.normalSide,
           postingAllowed: account.postingAllowed,
-          parentAccountNo: null,
+          parentAccountNo: account.parentAccountNo ?? null,
         },
       });
   }
@@ -509,8 +509,8 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
     }
 
     const pendingTransferIdsByRef = new Map<string, bigint>();
-    const postingRows: Array<typeof schema.ledgerPostings.$inferInsert> = [];
-    const tbPlanRows: Array<typeof schema.tbTransferPlans.$inferInsert> = [];
+    const postingRows: (typeof schema.ledgerPostings.$inferInsert)[] = [];
+    const tbPlanRows: (typeof schema.tbTransferPlans.$inferInsert)[] = [];
     const postingPolicyCache = new Map<string, PostingAccountPolicy>();
 
     for (let i = 0; i < transfers.length; i++) {

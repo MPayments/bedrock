@@ -9,16 +9,29 @@ import {
   type EntityListResult,
 } from "@/components/entities/entity-table-shell";
 
-import { columns, type SerializedAccount } from "./columns";
+import {
+  getColumns,
+  type CurrencyFilterOption,
+  type SerializedAccount,
+} from "./columns";
 
 export type AccountsListResult = EntityListResult<SerializedAccount>;
 
 interface AccountsTableProps {
   promise: Promise<AccountsListResult>;
+  currencyOptionsPromise: Promise<CurrencyFilterOption[]>;
 }
 
-export function AccountsTable({ promise }: AccountsTableProps) {
+export function AccountsTable({
+  promise,
+  currencyOptionsPromise,
+}: AccountsTableProps) {
   const router = useRouter();
+  const currencyOptions = React.use(currencyOptionsPromise);
+  const columns = React.useMemo(
+    () => getColumns(currencyOptions),
+    [currencyOptions],
+  );
 
   const handleRowDoubleClick = React.useCallback(
     (row: TanstackRow<SerializedAccount>) => {

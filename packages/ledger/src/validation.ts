@@ -22,7 +22,7 @@ export const planRefSchema = z.string().min(1).max(512);
 export const accountNoSchema = z
   .string()
   .trim()
-  .regex(/^[0-9]{2}(\.[0-9]{2})?$/, "accountNo must match NN or NN.NN");
+  .regex(/^[0-9]{4}$/, "accountNo must match NNNN");
 export const positiveAmountSchema = z.bigint().positive();
 export const nonNegativeAmountSchema = z.bigint().min(0n);
 export const positiveTimeoutSchema = z.number().int().positive();

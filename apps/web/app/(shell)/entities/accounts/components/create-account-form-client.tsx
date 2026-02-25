@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { toast } from "@bedrock/ui/components/sonner";
@@ -20,6 +20,7 @@ type CreatedAccount = {
 
 type CreateAccountFormClientProps = {
   options: AccountFormOptions;
+  initialValues?: Partial<AccountGeneralFormValues>;
 };
 
 const INITIAL_VALUES: AccountGeneralFormValues = {
@@ -35,11 +36,18 @@ const INITIAL_VALUES: AccountGeneralFormValues = {
   iban: "",
 };
 
-export function CreateAccountFormClient({ options }: CreateAccountFormClientProps) {
+export function CreateAccountFormClient({
+  options,
+  initialValues,
+}: CreateAccountFormClientProps) {
   const router = useRouter();
   const { actions } = useAccountDraftName();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const resolvedInitialValues = useMemo(
+    () => ({ ...INITIAL_VALUES, ...initialValues }),
+    [initialValues],
+  );
 
   async function handleSubmit(values: AccountGeneralFormValues) {
     setError(null);
@@ -79,7 +87,7 @@ export function CreateAccountFormClient({ options }: CreateAccountFormClientProp
 
   return (
     <AccountCreateGeneralForm
-      initialValues={INITIAL_VALUES}
+      initialValues={resolvedInitialValues}
       options={options}
       submitting={submitting}
       error={error}

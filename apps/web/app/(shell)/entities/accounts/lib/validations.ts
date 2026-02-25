@@ -1,4 +1,4 @@
-import { ACCOUNTS_LIST_CONTRACT } from "@bedrock/accounts";
+import { ACCOUNTS_LIST_CONTRACT } from "@bedrock/accounts/validation";
 
 import {
   createResourceSearchParamsCache,

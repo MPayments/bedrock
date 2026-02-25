@@ -43,6 +43,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   fx: { label: "FX", icon: "currency" },
   payments: { label: "Платежи", icon: "credit-card" },
   transfers: { label: "Переводы", icon: "arrow-right-left" },
+  accounting: { label: "Бухгалтерия", icon: "book-open" },
   entities: { label: "Справочники", icon: "book-open" },
 
   customers: {
@@ -71,6 +72,10 @@ const segmentMap: Record<string, SegmentConfig> = {
     icon: "wallet",
   },
   operations: { label: "Операции" },
+  journal: { label: "Журнал операций" },
+  correspondence: { label: "Корреспонденция" },
+  "financial-results": { label: "Финрез" },
+  template: { label: "Шаблон счетов" },
 
   rates: { label: "Курсы", icon: "chart-candlestick" },
   quotes: { label: "Котировки" },
@@ -129,6 +134,13 @@ export async function resolveBreadcrumbItems(
           return {
             ...config,
             href: getCounterpartiesListHref(segments, index),
+          };
+        }
+
+        if (segment === "accounts" && segments.includes("accounting")) {
+          return {
+            ...config,
+            href: "/accounting/accounts",
           };
         }
 

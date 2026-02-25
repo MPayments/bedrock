@@ -1,4 +1,8 @@
 export { createLedgerEngine, type LedgerEngine } from "./engine";
+export {
+  createLedgerReadService,
+  type LedgerReadService,
+} from "./read-service";
 export { OPERATION_TRANSFER_TYPE } from "./types";
 export type {
   CreateOperationInput,

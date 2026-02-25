@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import { ACCOUNTS_LIST_CONTRACT } from "@bedrock/accounts";
+import { ACCOUNTS_LIST_CONTRACT } from "@bedrock/accounts/validation";
 
 import { getServerApiClient } from "@/lib/api-client.server";
 import { readResourceById } from "@/lib/resources/http";
@@ -13,19 +13,110 @@ function createAccountsListQuery(search: AccountsSearchParams) {
   return createResourceListQuery(ACCOUNTS_LIST_CONTRACT, search);
 }
 
+type AccountCurrency = {
+  id: string;
+  code: string;
+  name: string;
+};
+
+async function listAllCurrencies(
+  client: Awaited<ReturnType<typeof getServerApiClient>>,
+): Promise<AccountCurrency[]> {
+  const CURRENCIES_PAGE_SIZE = 100;
+  const currencies: AccountCurrency[] = [];
+  let offset = 0;
+
+  while (true) {
+    const currenciesRes = await client.v1.currencies.$get({
+      query: { limit: CURRENCIES_PAGE_SIZE, offset } as Record<string, unknown>,
+    });
+
+    if (!currenciesRes.ok) {
+      break;
+    }
+
+    const payload = (await currenciesRes.json()) as {
+      data: AccountCurrency[];
+      total?: number;
+      limit?: number;
+    };
+
+    currencies.push(...payload.data);
+
+    if (payload.data.length === 0) {
+      break;
+    }
+
+    const limit =
+      typeof payload.limit === "number" && payload.limit > 0
+        ? payload.limit
+        : CURRENCIES_PAGE_SIZE;
+
+    offset += limit;
+
+    if (typeof payload.total === "number" && offset >= payload.total) {
+      break;
+    }
+  }
+
+  return currencies;
+}
+
+const getAllCurrencies = cache(async (): Promise<AccountCurrency[]> => {
+  const client = await getServerApiClient();
+  return listAllCurrencies(client);
+});
+
+export async function getAccountCurrencyFilterOptions(): Promise<
+  { value: string; label: string }[]
+> {
+  const currencies = await getAllCurrencies();
+
+  return currencies
+    .map((currency) => ({
+      value: currency.id,
+      label: currency.name,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 export async function getAccounts(
   search: AccountsSearchParams,
 ): Promise<AccountsListResult> {
   const client = await getServerApiClient();
-  const res = await client.v1.accounts.$get({
+  const accountsRes = await client.v1.accounts.$get({
     query: createAccountsListQuery(search),
   });
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch accounts: ${res.status}`);
+  if (!accountsRes.ok) {
+    throw new Error(`Failed to fetch accounts: ${accountsRes.status}`);
   }
 
-  return res.json() as Promise<AccountsListResult>;
+  const accountsPayload = (await accountsRes.json()) as AccountsListResult;
+  const accountCurrencyIds = new Set(
+    accountsPayload.data.map((account) => account.currencyId),
+  );
+  const currencyNameById = new Map<string, string>();
+
+  if (accountCurrencyIds.size > 0) {
+    const currencies = await getAllCurrencies();
+    for (const currency of currencies) {
+      if (accountCurrencyIds.has(currency.id)) {
+        currencyNameById.set(currency.id, currency.name);
+      }
+      if (currencyNameById.size === accountCurrencyIds.size) {
+        break;
+      }
+    }
+  }
+
+  return {
+    ...accountsPayload,
+    data: accountsPayload.data.map((account) => ({
+      ...account,
+      currencyDisplay: currencyNameById.get(account.currencyId) ?? "—",
+    })),
+  };
 }
 
 export interface AccountDetails {
@@ -82,9 +173,9 @@ export async function getAccountFormOptions(): Promise<AccountFormOptions> {
       { query: { limit: 100, offset: 0 } as Record<string, unknown> },
       { init: { cache: "no-store" } },
     ),
-    client.v1.currencies.$get(
-      { query: { limit: 100, offset: 0 } as Record<string, unknown> },
-    ),
+    client.v1.currencies.$get({
+      query: { limit: 100, offset: 0 } as Record<string, unknown>,
+    }),
     client.v1["account-providers"].$get(
       { query: { limit: 100, offset: 0 } as Record<string, unknown> },
       { init: { cache: "no-store" } },
@@ -92,7 +183,9 @@ export async function getAccountFormOptions(): Promise<AccountFormOptions> {
   ]);
 
   if (!counterpartiesRes.ok) {
-    throw new Error(`Failed to fetch counterparties: ${counterpartiesRes.status}`);
+    throw new Error(
+      `Failed to fetch counterparties: ${counterpartiesRes.status}`,
+    );
   }
   if (!currenciesRes.ok) {
     throw new Error(`Failed to fetch currencies: ${currenciesRes.status}`);

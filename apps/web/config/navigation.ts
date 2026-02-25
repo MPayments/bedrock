@@ -3,6 +3,7 @@ import {
   Bell,
   BookOpen,
   Building2,
+  Calculator,
   ChartCandlestick,
   CreditCard,
   Currency,
@@ -71,6 +72,11 @@ export const navMainItems: NavMainItem[] = [
         icon: ArrowRightLeft,
       },
       {
+        title: "Журнал",
+        url: "/operations/journal",
+        icon: BookOpen,
+      },
+      {
         title: "Платежи",
         url: "/operations/payments",
         icon: CreditCard,
@@ -79,6 +85,29 @@ export const navMainItems: NavMainItem[] = [
         title: "Расчетные операции",
         url: "/operations/settlements",
         icon: ListChecks,
+      },
+    ],
+  },
+  {
+    title: "Бухгалтерия",
+    url: "/accounting",
+    icon: Calculator,
+    items: [
+      {
+        title: "Счета",
+        url: "/accounting/accounts",
+      },
+      {
+        title: "Корреспонденция",
+        url: "/accounting/correspondence",
+      },
+      {
+        title: "Финрез",
+        url: "/accounting/financial-results",
+      },
+      {
+        title: "Шаблон",
+        url: "/accounting/template",
       },
     ],
   },

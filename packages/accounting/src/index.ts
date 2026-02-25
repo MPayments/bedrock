@@ -8,10 +8,19 @@ export {
 } from "./constants";
 
 export {
+  ACCOUNTING_OPERATIONS_LIST_CONTRACT,
+  FINANCIAL_RESULTS_COUNTERPARTY_LIST_CONTRACT,
+  FINANCIAL_RESULTS_GROUP_LIST_CONTRACT,
+  ListAccountingOperationsQuerySchema,
+  ListFinancialResultsByCounterpartyQuerySchema,
+  ListFinancialResultsByGroupQuerySchema,
   accountNoSchema,
   correspondenceRuleSchema,
   replaceCorrespondenceRulesSchema,
   upsertOrgAccountOverrideSchema,
+  type ListAccountingOperationsQuery,
+  type ListFinancialResultsByCounterpartyQuery,
+  type ListFinancialResultsByGroupQuery,
   type ReplaceCorrespondenceRulesInput,
   type UpsertOrgAccountOverrideInput,
 } from "./validation";
