@@ -33,7 +33,7 @@ export function createFxServiceContext(deps: FxServiceDeps): FxServiceContext {
         db: deps.db,
         feesService: deps.feesService,
         currenciesService: deps.currenciesService,
-        log: deps.logger?.child({ svc: "fx" }) ?? noopLogger,
+        log: deps.logger?.child({ service: "fx" }) ?? noopLogger,
         rateSourceProviders: {
             ...defaultProviders,
             ...deps.rateSourceProviders,

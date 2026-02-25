@@ -16,6 +16,6 @@ export function createCustomersServiceContext(
 ): CustomersServiceContext {
     return {
         db: deps.db,
-        log: deps.logger?.child({ svc: "customers" }) ?? noopLogger,
+        log: deps.logger?.child({ service: "customers" }) ?? noopLogger,
     };
 }

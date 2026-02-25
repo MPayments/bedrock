@@ -14,6 +14,6 @@ export interface AccountServiceContext {
 export function createAccountServiceContext(deps: AccountServiceDeps): AccountServiceContext {
     return {
         db: deps.db,
-        log: deps.logger?.child({ svc: "accounts" }) ?? noopLogger,
+        log: deps.logger?.child({ service: "accounts" }) ?? noopLogger,
     };
 }

@@ -34,7 +34,7 @@ export interface AppContext {
 }
 
 export function createAppContext(env: Env): AppContext {
-    const logger = createConsoleLogger({ service: "bedrock-api" });
+    const logger = createConsoleLogger({ app: "bedrock-api" });
     const accountService = createAccountService({ db, logger });
     const counterpartiesService = createCounterpartiesService({ db, logger });
     const customersService = createCustomersService({ db, logger });
