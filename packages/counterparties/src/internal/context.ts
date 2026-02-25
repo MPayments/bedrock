@@ -16,6 +16,6 @@ export function createCounterpartiesServiceContext(
 ): CounterpartiesServiceContext {
     return {
         db: deps.db,
-        log: deps.logger?.child({ svc: "counterparties" }) ?? noopLogger,
+        log: deps.logger?.child({ service: "counterparties" }) ?? noopLogger,
     };
 }

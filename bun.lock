@@ -19,6 +19,7 @@
       "name": "api",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/accounts": "workspace:*",
         "@bedrock/auth": "workspace:*",
         "@bedrock/counterparties": "workspace:*",
         "@bedrock/currencies": "workspace:*",
@@ -45,6 +46,7 @@
       "name": "web",
       "version": "0.1.0",
       "dependencies": {
+        "@bedrock/accounts": "workspace:*",
         "@bedrock/auth": "workspace:*",
         "@bedrock/counterparties": "workspace:*",
         "@bedrock/countries": "workspace:*",
@@ -74,6 +76,25 @@
         "@types/react-dom": "^19",
         "eslint": "^9.31.0",
         "typescript": "^5",
+      },
+    },
+    "packages/accounts": {
+      "name": "@bedrock/accounts",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/countries": "workspace:*",
+        "@bedrock/db": "workspace:*",
+        "@bedrock/kernel": "workspace:*",
+        "drizzle-orm": "^0.45.1",
+        "zod": "^4",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/test-utils": "*",
+        "@bedrock/typescript-config": "*",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
       },
     },
     "packages/auth": {
@@ -390,6 +411,8 @@
     "@base-ui/utils": ["@base-ui/utils@0.2.4", "", { "dependencies": { "@babel/runtime": "^7.28.4", "@floating-ui/utils": "^0.2.10", "reselect": "^5.1.1", "use-sync-external-store": "^1.6.0" }, "peerDependencies": { "@types/react": "^17 || ^18 || ^19", "react": "^17 || ^18 || ^19", "react-dom": "^17 || ^18 || ^19" }, "optionalPeers": ["@types/react"] }, "sha512-smZwpMhjO29v+jrZusBSc5T+IJ3vBb9cjIiBjtKcvWmRj9Z4DWGVR3efr1eHR56/bqY5a4qyY9ElkOY5ljo3ng=="],
 
     "@bcoe/v8-coverage": ["@bcoe/v8-coverage@1.0.2", "", {}, "sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA=="],
+
+    "@bedrock/accounts": ["@bedrock/accounts@workspace:packages/accounts"],
 
     "@bedrock/auth": ["@bedrock/auth@workspace:packages/auth"],
 

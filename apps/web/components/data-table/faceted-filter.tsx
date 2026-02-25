@@ -134,60 +134,60 @@ function DataTableFacetedFilterBase<TData, TValue>({
           />
         }
       >
-          {selectedValues?.size > 0 ? (
-            canReset ? (
-              <div
-                role="button"
-                aria-label={`Clear ${title} filter`}
-                tabIndex={0}
-                className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                onClick={onReset}
-              >
-                <XCircle />
-              </div>
-            ) : (
-              <PlusCircle />
-            )
+        {selectedValues?.size > 0 ? (
+          canReset ? (
+            <div
+              role="button"
+              aria-label={`Clear ${title} filter`}
+              tabIndex={0}
+              className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              onClick={onReset}
+            >
+              <XCircle />
+            </div>
           ) : (
             <PlusCircle />
-          )}
-          {title}
-          {selectedValues?.size > 0 && (
-            <>
-              <Separator
-                orientation="vertical"
-                className="mx-0.5 data-[orientation=vertical]:h-4"
-              />
-              <Badge
-                variant="secondary"
-                className="rounded-sm px-1 font-normal lg:hidden"
-              >
-                {selectedValues.size}
-              </Badge>
-              <div className="hidden items-center gap-1 lg:flex">
-                {selectedValues.size > 2 ? (
-                  <Badge
-                    variant="secondary"
-                    className="rounded-sm px-1 font-normal"
-                  >
-                    {selectedValues.size} выбрано
-                  </Badge>
-                ) : (
-                  options
-                    .filter((option) => selectedValues.has(option.value))
-                    .map((option) => (
-                      <Badge
-                        variant="secondary"
-                        key={option.value}
-                        className="rounded-sm px-1 font-normal"
-                      >
-                        {option.label}
-                      </Badge>
-                    ))
-                )}
-              </div>
-            </>
-          )}
+          )
+        ) : (
+          <PlusCircle />
+        )}
+        {title}
+        {selectedValues?.size > 0 && (
+          <>
+            <Separator
+              orientation="vertical"
+              className="mx-0.5 data-[orientation=vertical]:h-4"
+            />
+            <Badge
+              variant="secondary"
+              className="rounded-sm px-1 font-normal lg:hidden"
+            >
+              {selectedValues.size}
+            </Badge>
+            <div className="hidden items-center gap-1 lg:flex">
+              {selectedValues.size > 2 ? (
+                <Badge
+                  variant="secondary"
+                  className="rounded-sm px-1 font-normal"
+                >
+                  {selectedValues.size} выбрано
+                </Badge>
+              ) : (
+                options
+                  .filter((option) => selectedValues.has(option.value))
+                  .map((option) => (
+                    <Badge
+                      variant="secondary"
+                      key={option.value}
+                      className="rounded-sm px-1 font-normal"
+                    >
+                      {option.label}
+                    </Badge>
+                  ))
+              )}
+            </div>
+          </>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-50 p-0" align="start">
         <Command>

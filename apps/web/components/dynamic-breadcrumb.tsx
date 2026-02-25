@@ -12,6 +12,7 @@ import {
   Home,
   Landmark,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -36,6 +37,7 @@ const iconMap: Record<BreadcrumbIconName, LucideIcon> = {
   "book-open": BookOpen,
   "dollar-sign": DollarSign,
   "chart-candlestick": ChartCandlestick,
+  wallet: Wallet,
 };
 
 type DynamicBreadcrumbProps = {

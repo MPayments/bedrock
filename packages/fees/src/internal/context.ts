@@ -17,7 +17,7 @@ export interface FeesServiceContext {
 export function createFeesServiceContext(deps: FeesServiceDeps): FeesServiceContext {
     return {
         db: deps.db,
-        log: deps.logger?.child({ svc: "fees" }),
+        log: deps.logger?.child({ service: "fees" }),
         currenciesService: deps.currenciesService
     };
 }

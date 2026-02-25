@@ -31,7 +31,7 @@ export function createTreasuryContext(deps: TreasuryServiceDeps): TreasuryServic
         ledger: deps.ledger,
         feesService: deps.feesService,
         currenciesService: deps.currenciesService,
-        log: deps.logger?.child({ svc: "treasury" }) ?? noopLogger,
+        log: deps.logger?.child({ service: "treasury" }) ?? noopLogger,
         keys: treasuryKeyspace.keys,
     };
 }

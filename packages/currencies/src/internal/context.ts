@@ -16,6 +16,6 @@ export function createCurrenciesServiceContext(
 ): CurrenciesServiceContext {
     return {
         db: deps.db,
-        log: deps.logger?.child({ svc: "currencies" }) ?? noopLogger,
+        log: deps.logger?.child({ service: "currencies" }) ?? noopLogger,
     };
 }

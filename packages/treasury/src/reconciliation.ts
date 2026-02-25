@@ -33,7 +33,7 @@ export function createTreasuryReconciliationWorker(deps: {
     defaultSlaMinutes?: number;
 }) {
     const { db, logger } = deps;
-    const log = logger?.child({ svc: "treasury_reconciliation" }) ?? noopLogger;
+    const log = logger?.child({ service: "treasury_reconciliation" }) ?? noopLogger;
 
     async function processOnce(opts?: {
         batchSize?: number;

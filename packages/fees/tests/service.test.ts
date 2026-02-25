@@ -156,7 +156,7 @@ describe("createFeesService", () => {
         expect(persisted.effectiveFrom).toBeInstanceOf(Date);
         expect((persisted.effectiveFrom as Date).getTime()).toBeGreaterThanOrEqual(before);
 
-        expect(logger.child).toHaveBeenCalledWith({ svc: "fees" });
+        expect(logger.child).toHaveBeenCalledWith({ service: "fees" });
         expect(info).toHaveBeenCalledWith(
             "Fee rule persisted",
             expect.objectContaining({
