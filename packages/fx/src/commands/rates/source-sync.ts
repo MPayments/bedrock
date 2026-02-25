@@ -144,7 +144,16 @@ export function createRateSourceHandlers(context: FxServiceContext) {
         const sources = configuredSources();
         if (!sources.length) return [];
 
-        await warmSourceStatusCache();
+        const rows = await db
+            .select()
+            .from(schema.fxRateSources)
+            .where(inArray(schema.fxRateSources.source, sources))
+            .orderBy(schema.fxRateSources.source);
+
+        for (const row of rows) {
+            setCachedSourceRow(row);
+        }
+        sourceStatusCacheLoaded = true;
 
         return sources.map((source) => toStatus(sourceStatusBySource.get(source) ?? buildDefaultSourceRow(source), now));
     }

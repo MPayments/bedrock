@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 
 import { type FxServiceContext } from "../internal/context";
+import { createListPairsHandler } from "./rates/list-pairs";
 import { createManualRateHandlers } from "./rates/manual-rates";
 import { createRateQueryHandlers } from "./rates/query";
 import { createRateSourceHandlers } from "./rates/source-sync";
@@ -19,6 +20,7 @@ export function createRateHandlers(context: FxServiceContext) {
         getLatestManualRate: sourceRates.getLatestManualRate,
         getLatestRateBySource: sourceRates.getLatestRateBySource,
     });
+    const pairsHandler = createListPairsHandler(context);
 
     async function expireOldQuotes(now: Date) {
         await db.execute(sql`
@@ -32,6 +34,7 @@ export function createRateHandlers(context: FxServiceContext) {
     return {
         ...manualRates,
         ...queryRates,
+        listPairs: pairsHandler.listPairs,
         getRateSourceStatuses: sourceRates.getRateSourceStatuses,
         syncRatesFromSource: sourceRates.syncRatesFromSource,
         expireOldQuotes,

@@ -4,6 +4,7 @@ import {
   RateNotFoundError,
   RateSourceStaleError,
   RateSourceSyncError,
+  ValidationError,
 } from "@bedrock/fx";
 
 import { ErrorSchema } from "../common";
@@ -25,17 +26,17 @@ const LatestRateResponseSchema = z.object({
   rateNum: z.string(),
   rateDen: z.string(),
   source: z.string(),
-  asOf: z.string().datetime(),
+  asOf: z.iso.datetime(),
 });
 
 const SourceStatusSchema = z.object({
   source: RateSourceSchema,
   ttlSeconds: z.number().int().positive(),
-  lastSyncedAt: z.string().datetime().nullable(),
-  lastPublishedAt: z.string().datetime().nullable(),
+  lastSyncedAt: z.iso.datetime().nullable(),
+  lastPublishedAt: z.iso.datetime().nullable(),
   lastStatus: z.enum(["idle", "ok", "error"]),
   lastError: z.string().nullable(),
-  expiresAt: z.string().datetime().nullable(),
+  expiresAt: z.iso.datetime().nullable(),
   isExpired: z.boolean(),
 });
 
@@ -55,12 +56,99 @@ const SyncRateSourceResponseSchema = z.object({
   source: RateSourceSchema,
   synced: z.boolean(),
   rateCount: z.number().int().nonnegative(),
-  publishedAt: z.string().datetime().nullable(),
+  publishedAt: z.iso.datetime().nullable(),
   status: SourceStatusSchema,
+});
+
+const SourceRateViewSchema = z.object({
+  source: z.string(),
+  rateNum: z.string(),
+  rateDen: z.string(),
+  asOf: z.iso.datetime(),
+  change: z.number().nullable(),
+  changePercent: z.number().nullable(),
+});
+
+const RatePairViewSchema = z.object({
+  baseCurrencyCode: z.string(),
+  quoteCurrencyCode: z.string(),
+  bestRate: SourceRateViewSchema,
+  rates: z.array(SourceRateViewSchema),
+});
+
+const PairsResponseSchema = z.object({
+  data: z.array(RatePairViewSchema),
+});
+
+const BigIntStringSchema = z.string().min(1).regex(/^\d+$/, "Must be a non-negative integer string");
+
+const SetManualRateBodySchema = z.object({
+  base: z.string().min(2).max(16),
+  quote: z.string().min(2).max(16),
+  rateNum: BigIntStringSchema,
+  rateDen: BigIntStringSchema,
+  asOf: z.coerce.date().optional(),
+});
+
+const SetManualRateResponseSchema = z.object({
+  ok: z.boolean(),
 });
 
 export function fxRatesRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+
+  const pairsRoute = createRoute({
+    middleware: [requirePermission({ fx_rates: ["list"] })],
+    method: "get",
+    path: "/pairs",
+    tags: ["FX"],
+    summary: "List all currency pairs with rates by source",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: PairsResponseSchema,
+          },
+        },
+        description: "All currency pairs with latest rates grouped by source",
+      },
+    },
+  });
+
+  const setManualRateRoute = createRoute({
+    middleware: [requirePermission({ fx_rates: ["sync"] })],
+    method: "post",
+    path: "/manual",
+    tags: ["FX"],
+    summary: "Set a manual FX rate",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: SetManualRateBodySchema,
+          },
+        },
+      },
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: SetManualRateResponseSchema,
+          },
+        },
+        description: "Manual rate created",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
 
   const latestRateRoute = createRoute({
     middleware: [requirePermission({ fx_rates: ["list"] })],
@@ -148,6 +236,38 @@ export function fxRatesRoutes(ctx: AppContext) {
   });
 
   return app
+    .openapi(pairsRoute, async (c) => {
+      const pairs = await ctx.fxService.listPairs();
+      return c.json(
+        {
+          data: pairs.map((pair) => ({
+            baseCurrencyCode: pair.baseCurrencyCode,
+            quoteCurrencyCode: pair.quoteCurrencyCode,
+            bestRate: serializeSourceRate(pair.bestRate),
+            rates: pair.rates.map(serializeSourceRate),
+          })),
+        },
+        200,
+      );
+    })
+    .openapi(setManualRateRoute, async (c) => {
+      const body = c.req.valid("json");
+      try {
+        await ctx.fxService.setManualRate({
+          base: body.base.trim().toUpperCase(),
+          quote: body.quote.trim().toUpperCase(),
+          rateNum: BigInt(body.rateNum),
+          rateDen: BigInt(body.rateDen),
+          asOf: body.asOf ?? new Date(),
+        });
+        return c.json({ ok: true }, 201);
+      } catch (error) {
+        if (error instanceof ValidationError) {
+          return c.json({ error: error.message }, 400);
+        }
+        throw error;
+      }
+    })
     .openapi(latestRateRoute, async (c) => {
       const { base, quote, asOf } = c.req.valid("query");
 
@@ -219,6 +339,24 @@ export function fxRatesRoutes(ctx: AppContext) {
         throw error;
       }
     });
+}
+
+function serializeSourceRate(rate: {
+  source: string;
+  rateNum: bigint;
+  rateDen: bigint;
+  asOf: Date;
+  change: number | null;
+  changePercent: number | null;
+}) {
+  return {
+    source: rate.source,
+    rateNum: rate.rateNum.toString(),
+    rateDen: rate.rateDen.toString(),
+    asOf: rate.asOf.toISOString(),
+    change: rate.change,
+    changePercent: rate.changePercent,
+  };
 }
 
 function serializeSourceStatus(status: {
