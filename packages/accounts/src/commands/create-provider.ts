@@ -17,6 +17,7 @@ export function createCreateProviderHandler(context: AccountServiceContext) {
             .values({
                 type: validated.type,
                 name: validated.name,
+                description: validated.description ?? null,
                 country: validated.country,
                 address: validated.address ?? null,
                 contact: validated.contact ?? null,

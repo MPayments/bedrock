@@ -24,11 +24,12 @@ import {
 } from "@bedrock/ui/components/command";
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldSeparator,
   FieldSet,
-  FieldDescription,
 } from "@bedrock/ui/components/field";
 import { Input } from "@bedrock/ui/components/input";
 import {
@@ -37,12 +38,15 @@ import {
   PopoverTrigger,
 } from "@bedrock/ui/components/popover";
 import { Spinner } from "@bedrock/ui/components/spinner";
+import { Textarea } from "@bedrock/ui/components/textarea";
 
 import type { AccountFormOptions } from "../lib/queries";
 import { AccountDeleteDialog } from "./account-delete-dialog";
+import { formatDate } from "@/lib/format";
 
 export type AccountGeneralFormValues = {
   label: string;
+  description: string;
   stableKey: string;
   counterpartyId: string;
   currencyId: string;
@@ -62,6 +66,8 @@ type AccountGeneralFormDelete = Promise<boolean | void> | boolean | void;
 
 type AccountGeneralFormProps = {
   initialValues?: Partial<AccountGeneralFormValues>;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   options: AccountFormOptions;
   submitting?: boolean;
   deleting?: boolean;
@@ -78,6 +84,7 @@ type AccountGeneralFormVariant = {
   disableSubmitUntilDirty: boolean;
   showDelete: boolean;
   showStableKey: boolean;
+  usePlaceholderDates: boolean;
 };
 
 type AccountGeneralFormBaseProps = AccountGeneralFormProps & {
@@ -86,6 +93,7 @@ type AccountGeneralFormBaseProps = AccountGeneralFormProps & {
 
 const DEFAULT_VALUES: AccountGeneralFormValues = {
   label: "",
+  description: "",
   stableKey: "",
   counterpartyId: "",
   currencyId: "",
@@ -155,12 +163,11 @@ function getProviderFieldsConfig(
   }
 }
 
-function createAccountFormSchema(
-  providers: AccountFormOptions["providers"],
-) {
+function createAccountFormSchema(providers: AccountFormOptions["providers"]) {
   return z
     .object({
       label: z.string().trim().min(1, "Название счёта обязательно"),
+      description: z.string(),
       stableKey: z.string().trim(),
       counterpartyId: z.string().trim().min(1, "Контрагент обязателен"),
       currencyId: z.string().trim().min(1, "Валюта обязательна"),
@@ -217,6 +224,7 @@ function normalizeValues(
 ): AccountGeneralFormValues {
   return {
     label: values.label.trim(),
+    description: values.description.trim(),
     stableKey: values.stableKey.trim(),
     counterpartyId: values.counterpartyId.trim(),
     currencyId: values.currencyId.trim(),
@@ -231,6 +239,7 @@ function normalizeValues(
 function valuesSignature(values: AccountGeneralFormValues) {
   return [
     values.label,
+    values.description,
     values.stableKey,
     values.counterpartyId,
     values.currencyId,
@@ -248,6 +257,7 @@ const CREATE_VARIANT: AccountGeneralFormVariant = {
   disableSubmitUntilDirty: false,
   showDelete: false,
   showStableKey: true,
+  usePlaceholderDates: true,
 };
 
 const EDIT_VARIANT: AccountGeneralFormVariant = {
@@ -256,10 +266,13 @@ const EDIT_VARIANT: AccountGeneralFormVariant = {
   disableSubmitUntilDirty: true,
   showDelete: true,
   showStableKey: false,
+  usePlaceholderDates: false,
 };
 
 function AccountGeneralFormBase({
   initialValues,
+  createdAt,
+  updatedAt,
   options,
   submitting = false,
   deleting = false,
@@ -304,6 +317,20 @@ function AccountGeneralFormBase({
 
   const watchedValues = useWatch({ control });
   const watchedLabel = watchedValues?.label ?? "";
+  const formattedCreatedAt = useMemo(() => {
+    if (variant.usePlaceholderDates) {
+      return "—";
+    }
+
+    return formatDate(createdAt ?? "") || "—";
+  }, [createdAt, variant.usePlaceholderDates]);
+  const formattedUpdatedAt = useMemo(() => {
+    if (variant.usePlaceholderDates) {
+      return "—";
+    }
+
+    return formatDate(updatedAt ?? "") || "—";
+  }, [updatedAt, variant.usePlaceholderDates]);
 
   const selectedProvider = useMemo(
     () =>
@@ -324,6 +351,7 @@ function AccountGeneralFormBase({
     () =>
       normalizeValues({
         label: watchedValues?.label ?? "",
+        description: watchedValues?.description ?? "",
         stableKey: watchedValues?.stableKey ?? "",
         counterpartyId: watchedValues?.counterpartyId ?? "",
         currencyId: watchedValues?.currencyId ?? "",
@@ -367,7 +395,12 @@ function AccountGeneralFormBase({
     if (!config.showIban) setValue("iban", "");
 
     clearErrors(["accountNo", "corrAccount", "address", "iban"]);
-  }, [watchedValues?.accountProviderId, options.providers, setValue, clearErrors]);
+  }, [
+    watchedValues?.accountProviderId,
+    options.providers,
+    setValue,
+    clearErrors,
+  ]);
 
   function handleReset() {
     reset(initial);
@@ -380,8 +413,7 @@ function AccountGeneralFormBase({
     if (submittedValues) {
       const normalizedSubmitted = normalizeValues(submittedValues);
       reset(normalizedSubmitted);
-      appliedInitialSignatureRef.current =
-        valuesSignature(normalizedSubmitted);
+      appliedInitialSignatureRef.current = valuesSignature(normalizedSubmitted);
     }
   }
 
@@ -403,7 +435,9 @@ function AccountGeneralFormBase({
       <CardHeader className="border-b">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <CardTitle className="flex items-center">Общая информация</CardTitle>
+            <CardTitle className="flex items-center">
+              Общая информация
+            </CardTitle>
             <CardDescription>
               Просмотр и редактирование параметров счёта.
             </CardDescription>
@@ -438,7 +472,11 @@ function AccountGeneralFormBase({
                 onDelete={handleDelete}
                 disableDelete={deleteDisabled}
                 trigger={
-                  <Button variant="destructive" type="button" disabled={deleteDisabled} />
+                  <Button
+                    variant="destructive"
+                    type="button"
+                    disabled={deleteDisabled}
+                  />
                 }
               />
             ) : null}
@@ -459,7 +497,9 @@ function AccountGeneralFormBase({
                     control={control}
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="account-label">Название</FieldLabel>
+                        <FieldLabel htmlFor="account-label">
+                          Название
+                        </FieldLabel>
                         <Input
                           {...field}
                           id="account-label"
@@ -769,8 +809,35 @@ function AccountGeneralFormBase({
                     ) : null}
                   </div>
                 ) : null}
+
+                <Field data-invalid={Boolean(errors.description)}>
+                  <FieldLabel htmlFor="account-description">
+                    Описание
+                  </FieldLabel>
+                  <FieldDescription>
+                    Дополнительная информация о счёте
+                  </FieldDescription>
+                  <Textarea
+                    {...register("description")}
+                    id="account-description"
+                    aria-invalid={Boolean(errors.description)}
+                    rows={3}
+                  />
+                  <FieldError errors={[errors.description]} />
+                </Field>
               </FieldGroup>
             </FieldSet>
+            <FieldSeparator />
+            <div className="grid grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel>Дата создания</FieldLabel>
+                <Input readOnly disabled value={formattedCreatedAt} />
+              </Field>
+              <Field>
+                <FieldLabel>Дата обновления</FieldLabel>
+                <Input readOnly disabled value={formattedUpdatedAt} />
+              </Field>
+            </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
           </FieldGroup>
         </form>
@@ -787,10 +854,6 @@ export function AccountEditGeneralForm(
   props: Omit<AccountGeneralFormProps, "lockRelations">,
 ) {
   return (
-    <AccountGeneralFormBase
-      variant={EDIT_VARIANT}
-      lockRelations
-      {...props}
-    />
+    <AccountGeneralFormBase variant={EDIT_VARIANT} lockRelations {...props} />
   );
 }

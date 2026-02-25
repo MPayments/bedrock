@@ -19,6 +19,7 @@ export const accountProviders = pgTable(
         id: uuid("id").primaryKey().defaultRandom(),
         type: accountProviderTypeEnum("type").notNull(),
         name: text("name").notNull(),
+        description: text("description"),
         address: text("address"),
         contact: text("contact"),
         bic: text("bic"),

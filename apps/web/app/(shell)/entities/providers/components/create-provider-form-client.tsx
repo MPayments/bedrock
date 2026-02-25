@@ -19,6 +19,7 @@ type CreatedProvider = {
 
 const INITIAL_VALUES: ProviderGeneralFormValues = {
   name: "",
+  description: "",
   type: "bank",
   country: "",
   address: "",
@@ -42,6 +43,7 @@ export function CreateProviderFormClient() {
         apiClient.v1["account-providers"].$post({
           json: {
             name: values.name,
+            description: values.description || null,
             type: values.type,
             country: values.country,
             address: values.address || null,

@@ -1171,7 +1171,6 @@ function CounterpartyGeneralFormBase({
                       {...register("description")}
                       id="counterparty-description"
                       aria-invalid={Boolean(errors.description)}
-                      placeholder="Дополнительная информация о контрагенте"
                       rows={3}
                     />
                     <FieldError errors={[errors.description]} />

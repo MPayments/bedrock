@@ -19,6 +19,7 @@ export const accounts = pgTable(
         accountProviderId: uuid("account_provider_id").notNull().references(() => accountProviders.id),
 
         label: text("label").notNull(),
+        description: text("description"),
         accountNo: text("account_no"),
         corrAccount: text("corr_account"),
         address: text("address"),

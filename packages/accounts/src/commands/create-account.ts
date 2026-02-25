@@ -36,6 +36,7 @@ export function createCreateAccountHandler(context: AccountServiceContext) {
                     currencyId: validated.currencyId,
                     accountProviderId: validated.accountProviderId,
                     label: validated.label,
+                    description: validated.description ?? null,
                     stableKey: validated.stableKey,
                     accountNo: validated.accountNo ?? null,
                     corrAccount: validated.corrAccount ?? null,

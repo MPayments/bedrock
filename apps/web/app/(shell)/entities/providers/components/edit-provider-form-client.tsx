@@ -17,6 +17,7 @@ import { executeMutation } from "@/lib/resources/http";
 function toFormValues(provider: ProviderDetails): ProviderGeneralFormValues {
   return {
     name: provider.name,
+    description: provider.description ?? "",
     type: provider.type as ProviderGeneralFormValues["type"],
     country: provider.country,
     address: provider.address ?? "",
@@ -37,6 +38,8 @@ export function EditProviderFormClient({ provider }: EditProviderFormClientProps
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialValues, setInitialValues] = useState(() => toFormValues(provider));
+  const [createdAt, setCreatedAt] = useState<string | null>(provider.createdAt);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(provider.updatedAt);
 
   const handleNameChange = useCallback(
     (name: string) => {
@@ -57,6 +60,7 @@ export function EditProviderFormClient({ provider }: EditProviderFormClientProps
           param: { id: provider.id },
           json: {
             name: values.name,
+            description: values.description || null,
             country: values.country,
             address: values.address || null,
             contact: values.contact || null,
@@ -78,6 +82,8 @@ export function EditProviderFormClient({ provider }: EditProviderFormClientProps
 
     const nextValues = toFormValues(result.data);
     setInitialValues(nextValues);
+    setCreatedAt(result.data.createdAt);
+    setUpdatedAt(result.data.updatedAt);
     toast.success("Провайдер обновлён");
     router.refresh();
     return nextValues;
@@ -112,6 +118,8 @@ export function EditProviderFormClient({ provider }: EditProviderFormClientProps
   return (
     <ProviderEditGeneralForm
       initialValues={initialValues}
+      createdAt={createdAt}
+      updatedAt={updatedAt}
       submitting={submitting}
       deleting={deleting}
       error={error}

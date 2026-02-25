@@ -151,31 +151,31 @@ export function DataTableSliderFilter<TData>({
           />
         }
       >
-          {columnFilterValue ? (
-            <div
-              role="button"
-              aria-label={`Clear ${title} filter`}
-              tabIndex={0}
-              className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              onClick={onReset}
-            >
-              <XCircle />
-            </div>
-          ) : (
-            <PlusCircle />
-          )}
-          <span>{title}</span>
-          {columnFilterValue ? (
-            <>
-              <Separator
-                orientation="vertical"
-                className="mx-0.5 data-[orientation=vertical]:h-4"
-              />
-              {formatValue(columnFilterValue[0])} -{" "}
-              {formatValue(columnFilterValue[1])}
-              {unit ? ` ${unit}` : ""}
-            </>
-          ) : null}
+        {columnFilterValue ? (
+          <div
+            role="button"
+            aria-label={`Clear ${title} filter`}
+            tabIndex={0}
+            className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            onClick={onReset}
+          >
+            <XCircle />
+          </div>
+        ) : (
+          <PlusCircle />
+        )}
+        <span>{title}</span>
+        {columnFilterValue ? (
+          <>
+            <Separator
+              orientation="vertical"
+              className="mx-0.5 data-[orientation=vertical]:h-4"
+            />
+            {formatValue(columnFilterValue[0])} -{" "}
+            {formatValue(columnFilterValue[1])}
+            {unit ? ` ${unit}` : ""}
+          </>
+        ) : null}
       </PopoverTrigger>
       <PopoverContent align="start" className="flex w-auto flex-col gap-4">
         <div className="flex flex-col gap-3">

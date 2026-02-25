@@ -51,6 +51,7 @@ export function createUpdateAccountHandler(context: AccountServiceContext) {
             const fields: Record<string, unknown> = {};
 
             if (validated.label !== undefined) fields.label = validated.label;
+            if (validated.description !== undefined) fields.description = validated.description;
             if (validated.accountNo !== undefined) fields.accountNo = validated.accountNo;
             if (validated.corrAccount !== undefined) fields.corrAccount = validated.corrAccount;
             if (validated.address !== undefined) fields.address = validated.address;

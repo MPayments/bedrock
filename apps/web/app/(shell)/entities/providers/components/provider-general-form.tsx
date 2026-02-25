@@ -25,9 +25,11 @@ import {
 } from "@bedrock/ui/components/command";
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldSeparator,
   FieldSet,
 } from "@bedrock/ui/components/field";
 import { Input } from "@bedrock/ui/components/input";
@@ -45,15 +47,18 @@ import {
   SelectValue,
 } from "@bedrock/ui/components/select";
 import { Spinner } from "@bedrock/ui/components/spinner";
+import { Textarea } from "@bedrock/ui/components/textarea";
 
 import {
   PROVIDER_COUNTRY_OPTIONS,
   getCountryPresentation,
 } from "../lib/countries";
 import { ProviderDeleteDialog } from "./provider-delete-dialog";
+import { formatDate } from "@/lib/format";
 
 export type ProviderGeneralFormValues = {
   name: string;
+  description: string;
   type: "bank" | "exchange" | "blockchain" | "custodian";
   country: string;
   address: string;
@@ -71,6 +76,8 @@ type ProviderGeneralFormDelete = Promise<boolean | void> | boolean | void;
 
 type ProviderGeneralFormProps = {
   initialValues?: Partial<ProviderGeneralFormValues>;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   submitting?: boolean;
   deleting?: boolean;
   error?: string | null;
@@ -85,6 +92,7 @@ type ProviderGeneralFormVariant = {
   submittingLabel: string;
   disableSubmitUntilDirty: boolean;
   showDelete: boolean;
+  usePlaceholderDates: boolean;
 };
 
 type ProviderGeneralFormBaseProps = ProviderGeneralFormProps & {
@@ -93,6 +101,7 @@ type ProviderGeneralFormBaseProps = ProviderGeneralFormProps & {
 
 const DEFAULT_VALUES: ProviderGeneralFormValues = {
   name: "",
+  description: "",
   type: "bank",
   country: "",
   address: "",
@@ -115,6 +124,7 @@ const COUNTRY_CODE_SET = new Set(
 const ProviderGeneralFormSchema = z
   .object({
     name: z.string().trim().min(1, "Название обязательно"),
+    description: z.string(),
     type: z.enum(["bank", "exchange", "blockchain", "custodian"]),
     country: z
       .string()
@@ -195,6 +205,7 @@ function normalizeValues(
 ): ProviderGeneralFormValues {
   return {
     name: values.name.trim(),
+    description: values.description.trim(),
     type: values.type,
     country: values.country.trim().toUpperCase(),
     address: values.address.trim(),
@@ -205,7 +216,7 @@ function normalizeValues(
 }
 
 function valuesSignature(values: ProviderGeneralFormValues) {
-  return `${values.name}\n${values.type}\n${values.country}\n${values.address}\n${values.contact}\n${values.bic}\n${values.swift}`;
+  return `${values.name}\n${values.description}\n${values.type}\n${values.country}\n${values.address}\n${values.contact}\n${values.bic}\n${values.swift}`;
 }
 
 const CREATE_VARIANT: ProviderGeneralFormVariant = {
@@ -213,6 +224,7 @@ const CREATE_VARIANT: ProviderGeneralFormVariant = {
   submittingLabel: "Создание...",
   disableSubmitUntilDirty: false,
   showDelete: false,
+  usePlaceholderDates: true,
 };
 
 const EDIT_VARIANT: ProviderGeneralFormVariant = {
@@ -220,10 +232,13 @@ const EDIT_VARIANT: ProviderGeneralFormVariant = {
   submittingLabel: "Сохранение...",
   disableSubmitUntilDirty: true,
   showDelete: true,
+  usePlaceholderDates: false,
 };
 
 function ProviderGeneralFormBase({
   initialValues,
+  createdAt,
+  updatedAt,
   submitting = false,
   deleting = false,
   error,
@@ -259,10 +274,25 @@ function ProviderGeneralFormBase({
   const watchedName = watchedValues?.name ?? "";
   const watchedType = watchedValues?.type ?? "bank";
   const watchedCountry = (watchedValues?.country ?? "").trim().toUpperCase();
+  const formattedCreatedAt = useMemo(() => {
+    if (variant.usePlaceholderDates) {
+      return "—";
+    }
+
+    return formatDate(createdAt ?? "") || "—";
+  }, [createdAt, variant.usePlaceholderDates]);
+  const formattedUpdatedAt = useMemo(() => {
+    if (variant.usePlaceholderDates) {
+      return "—";
+    }
+
+    return formatDate(updatedAt ?? "") || "—";
+  }, [updatedAt, variant.usePlaceholderDates]);
 
   const showBicSwift = watchedType === "bank";
   const showBic = showBicSwift && watchedCountry === "RU";
-  const showSwift = showBicSwift && watchedCountry !== "RU" && watchedCountry !== "";
+  const showSwift =
+    showBicSwift && watchedCountry !== "RU" && watchedCountry !== "";
 
   const selectedCountry = useMemo(
     () => getCountryPresentation(watchedCountry),
@@ -273,7 +303,9 @@ function ProviderGeneralFormBase({
     () =>
       normalizeValues({
         name: watchedValues?.name ?? "",
-        type: (watchedValues?.type as ProviderGeneralFormValues["type"]) ?? "bank",
+        description: watchedValues?.description ?? "",
+        type:
+          (watchedValues?.type as ProviderGeneralFormValues["type"]) ?? "bank",
         country: watchedValues?.country ?? "",
         address: watchedValues?.address ?? "",
         contact: watchedValues?.contact ?? "",
@@ -332,7 +364,9 @@ function ProviderGeneralFormBase({
       <CardHeader className="border-b">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <CardTitle className="flex items-center">Общая информация</CardTitle>
+            <CardTitle className="flex items-center">
+              Общая информация
+            </CardTitle>
             <CardDescription>
               Просмотр и редактирование параметров провайдера.
             </CardDescription>
@@ -367,7 +401,11 @@ function ProviderGeneralFormBase({
                 onDelete={handleDelete}
                 disableDelete={deleteDisabled}
                 trigger={
-                  <Button variant="destructive" type="button" disabled={deleteDisabled} />
+                  <Button
+                    variant="destructive"
+                    type="button"
+                    disabled={deleteDisabled}
+                  />
                 }
               />
             ) : null}
@@ -388,7 +426,9 @@ function ProviderGeneralFormBase({
                     control={control}
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="provider-name">Название</FieldLabel>
+                        <FieldLabel htmlFor="provider-name">
+                          Название
+                        </FieldLabel>
                         <Input
                           {...field}
                           id="provider-name"
@@ -429,7 +469,10 @@ function ProviderGeneralFormBase({
                           <SelectContent>
                             <SelectGroup>
                               {PROVIDER_TYPE_OPTIONS.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                >
                                   {option.label}
                                 </SelectItem>
                               ))}
@@ -450,7 +493,9 @@ function ProviderGeneralFormBase({
                     control={control}
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="provider-country">Страна</FieldLabel>
+                        <FieldLabel htmlFor="provider-country">
+                          Страна
+                        </FieldLabel>
                         <Popover
                           open={countryPickerOpen}
                           onOpenChange={setCountryPickerOpen}
@@ -488,7 +533,8 @@ function ProviderGeneralFormBase({
                                       key={option.value}
                                       value={option.search}
                                       data-checked={
-                                        field.value?.toUpperCase() === option.value
+                                        field.value?.toUpperCase() ===
+                                        option.value
                                       }
                                       onSelect={() => {
                                         field.onChange(option.value);
@@ -575,7 +621,9 @@ function ProviderGeneralFormBase({
                     ) : null}
                     {watchedCountry === "RU" ? (
                       <Field data-invalid={Boolean(errors.swift)}>
-                        <FieldLabel htmlFor="provider-swift">SWIFT (опц.)</FieldLabel>
+                        <FieldLabel htmlFor="provider-swift">
+                          SWIFT (опц.)
+                        </FieldLabel>
                         <Input
                           {...register("swift")}
                           id="provider-swift-optional"
@@ -589,6 +637,32 @@ function ProviderGeneralFormBase({
                 ) : null}
               </FieldGroup>
             </FieldSet>
+
+            <Field data-invalid={Boolean(errors.description)}>
+              <FieldLabel htmlFor="provider-description">Описание</FieldLabel>
+              <FieldDescription>
+                Дополнительная информация о провайдере
+              </FieldDescription>
+              <Textarea
+                {...register("description")}
+                id="provider-description"
+                aria-invalid={Boolean(errors.description)}
+                rows={3}
+              />
+              <FieldError errors={[errors.description]} />
+            </Field>
+
+            <FieldSeparator />
+            <div className="grid grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel>Дата создания</FieldLabel>
+                <Input readOnly disabled value={formattedCreatedAt} />
+              </Field>
+              <Field>
+                <FieldLabel>Дата обновления</FieldLabel>
+                <Input readOnly disabled value={formattedUpdatedAt} />
+              </Field>
+            </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
           </FieldGroup>
         </form>
@@ -603,10 +677,6 @@ export function ProviderCreateGeneralForm(props: ProviderGeneralFormProps) {
 
 export function ProviderEditGeneralForm(props: ProviderGeneralFormProps) {
   return (
-    <ProviderGeneralFormBase
-      variant={EDIT_VARIANT}
-      typeReadonly
-      {...props}
-    />
+    <ProviderGeneralFormBase variant={EDIT_VARIANT} typeReadonly {...props} />
   );
 }

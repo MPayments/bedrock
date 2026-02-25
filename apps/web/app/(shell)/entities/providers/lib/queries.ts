@@ -32,6 +32,7 @@ export interface ProviderDetails {
   id: string;
   type: string;
   name: string;
+  description: string | null;
   address: string | null;
   contact: string | null;
   bic: string | null;

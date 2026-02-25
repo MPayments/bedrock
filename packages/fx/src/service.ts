@@ -5,14 +5,14 @@ import { createFxServiceContext, type FxServiceDeps } from "./internal/context";
 export type FxService = ReturnType<typeof createRateHandlers> & QuoteHandlers;
 
 export function createFxService(deps: FxServiceDeps): FxService {
-    const context = createFxServiceContext(deps);
-    const rates = createRateHandlers(context);
-    const quotes = createQuoteHandlers(context, {
-        getCrossRate: rates.getCrossRate,
-    });
+  const context = createFxServiceContext(deps);
+  const rates = createRateHandlers(context);
+  const quotes = createQuoteHandlers(context, {
+    getCrossRate: rates.getCrossRate,
+  });
 
-    return {
-        ...rates,
-        ...quotes,
-    };
+  return {
+    ...rates,
+    ...quotes,
+  };
 }

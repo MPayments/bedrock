@@ -17,6 +17,7 @@ import { executeMutation } from "@/lib/resources/http";
 function toFormValues(account: AccountDetails): AccountGeneralFormValues {
   return {
     label: account.label,
+    description: account.description ?? "",
     stableKey: account.stableKey,
     counterpartyId: account.counterpartyId,
     currencyId: account.currencyId,
@@ -40,6 +41,8 @@ export function EditAccountFormClient({ account, options }: EditAccountFormClien
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialValues, setInitialValues] = useState(() => toFormValues(account));
+  const [createdAt, setCreatedAt] = useState<string | null>(account.createdAt);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(account.updatedAt);
 
   const handleLabelChange = useCallback(
     (label: string) => {
@@ -60,6 +63,7 @@ export function EditAccountFormClient({ account, options }: EditAccountFormClien
           param: { id: account.id },
           json: {
             label: values.label,
+            description: values.description || null,
             accountNo: values.accountNo || null,
             corrAccount: values.corrAccount || null,
             address: values.address || null,
@@ -80,6 +84,8 @@ export function EditAccountFormClient({ account, options }: EditAccountFormClien
 
     const nextValues = toFormValues(result.data);
     setInitialValues(nextValues);
+    setCreatedAt(result.data.createdAt);
+    setUpdatedAt(result.data.updatedAt);
     toast.success("Счёт обновлён");
     router.refresh();
     return nextValues;
@@ -115,6 +121,8 @@ export function EditAccountFormClient({ account, options }: EditAccountFormClien
     <AccountEditGeneralForm
       initialValues={initialValues}
       options={options}
+      createdAt={createdAt}
+      updatedAt={updatedAt}
       submitting={submitting}
       deleting={deleting}
       error={error}

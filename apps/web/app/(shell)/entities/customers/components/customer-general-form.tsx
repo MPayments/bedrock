@@ -323,7 +323,6 @@ function CustomerGeneralFormBase({
                     {...register("description")}
                     id="customer-description"
                     aria-invalid={Boolean(errors.description)}
-                    placeholder="Дополнительная информация о клиенте"
                     rows={3}
                   />
                   <FieldError errors={[errors.description]} />

@@ -63,9 +63,11 @@ describe("CreateProviderInputSchema", () => {
       type: "exchange",
       name: "Binance",
       country: "KY",
+      description: "Main exchange account",
     });
 
     expect(parsed.type).toBe("exchange");
+    expect(parsed.description).toBe("Main exchange account");
   });
 
   it("rejects Russian bank without BIC", () => {
@@ -175,10 +177,12 @@ describe("UpdateProviderInputSchema", () => {
 
   it("allows nullable BIC and SWIFT", () => {
     const parsed = UpdateProviderInputSchema.parse({
+      description: null,
       bic: null,
       swift: null,
     });
 
+    expect(parsed.description).toBeNull();
     expect(parsed.bic).toBeNull();
     expect(parsed.swift).toBeNull();
   });
@@ -348,11 +352,13 @@ describe("CreateAccountInputSchema", () => {
       currencyId: "550e8400-e29b-41d4-a716-446655440002",
       accountProviderId: "550e8400-e29b-41d4-a716-446655440003",
       label: "Main Account",
+      description: "Primary account",
       stableKey: "main-usd",
       accountNo: "40817810099910004312",
     });
 
     expect(parsed.label).toBe("Main Account");
+    expect(parsed.description).toBe("Primary account");
     expect(parsed.stableKey).toBe("main-usd");
     expect(parsed.accountNo).toBe("40817810099910004312");
   });
@@ -399,12 +405,14 @@ describe("UpdateAccountInputSchema", () => {
 
   it("allows nullable optional fields", () => {
     const parsed = UpdateAccountInputSchema.parse({
+      description: null,
       accountNo: null,
       corrAccount: null,
       address: null,
       iban: null,
     });
 
+    expect(parsed.description).toBeNull();
     expect(parsed.accountNo).toBeNull();
     expect(parsed.corrAccount).toBeNull();
   });

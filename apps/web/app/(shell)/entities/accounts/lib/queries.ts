@@ -34,6 +34,7 @@ export interface AccountDetails {
   currencyId: string;
   accountProviderId: string;
   label: string;
+  description: string | null;
   accountNo: string | null;
   corrAccount: string | null;
   address: string | null;
