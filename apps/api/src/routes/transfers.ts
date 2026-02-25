@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
+import { AccountNotFoundError } from "@bedrock/accounts";
 import {
   ApproveTransferInputSchema,
   CreateTransferDraftInputSchema,
@@ -100,7 +101,7 @@ function toTransferDto(transfer: any) {
 }
 
 function handleTransferError(err: unknown) {
-  if (err instanceof NotFoundError) {
+  if (err instanceof NotFoundError || err instanceof AccountNotFoundError) {
     return { status: 404 as const, body: { error: err.message } };
   }
   if (err instanceof PermissionError) {
@@ -415,7 +416,7 @@ export function transfersRoutes(ctx: AppContext) {
         const transferId = await ctx.transfersService.createDraft(input);
         return c.json({ transferId }, 201);
       } catch (err) {
-        if (err instanceof NotFoundError) {
+        if (err instanceof NotFoundError || err instanceof AccountNotFoundError) {
           return c.json({ error: err.message }, 404);
         }
         if (

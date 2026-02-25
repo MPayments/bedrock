@@ -57,14 +57,14 @@ export type CreateTransferDraftInput = z.infer<typeof CreateTransferDraftInputSc
 export const ApproveTransferInputSchema = z.object({
     transferId: uuidSchema,
     checkerUserId: uuidSchema,
-    occurredAt: z.date(),
+    occurredAt: z.coerce.date(),
 });
 export type ApproveTransferInput = z.infer<typeof ApproveTransferInputSchema>;
 
 export const RejectTransferInputSchema = z.object({
     transferId: uuidSchema,
     checkerUserId: uuidSchema,
-    occurredAt: z.date(),
+    occurredAt: z.coerce.date(),
     reason: reasonSchema,
 });
 export type RejectTransferInput = z.infer<typeof RejectTransferInputSchema>;
@@ -72,7 +72,7 @@ export type RejectTransferInput = z.infer<typeof RejectTransferInputSchema>;
 const settleVoidBaseSchema = z.object({
     transferId: uuidSchema,
     eventIdempotencyKey: eventIdempotencyKeySchema,
-    occurredAt: z.date(),
+    occurredAt: z.coerce.date(),
     externalRef: z.string().max(255).optional(),
 });
 

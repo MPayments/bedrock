@@ -47,6 +47,28 @@ describe("transfers validation (v2)", () => {
         expect(result.transferId).toBe("550e8400-e29b-41d4-a716-446655440010");
     });
 
+    it("coerces ISO timestamps for action inputs", () => {
+        const approve = validateApproveTransferInput({
+            transferId: "550e8400-e29b-41d4-a716-446655440010",
+            checkerUserId: "550e8400-e29b-41d4-a716-446655440011",
+            occurredAt: "2026-02-25T00:00:00.000Z",
+        });
+        const settle = validateSettlePendingTransferInput({
+            transferId: "550e8400-e29b-41d4-a716-446655440010",
+            eventIdempotencyKey: "settle-1",
+            occurredAt: "2026-02-25T00:00:00.000Z",
+        });
+        const voidPending = validateVoidPendingTransferInput({
+            transferId: "550e8400-e29b-41d4-a716-446655440010",
+            eventIdempotencyKey: "void-1",
+            occurredAt: "2026-02-25T00:00:00.000Z",
+        });
+
+        expect(approve.occurredAt).toBeInstanceOf(Date);
+        expect(settle.occurredAt).toBeInstanceOf(Date);
+        expect(voidPending.occurredAt).toBeInstanceOf(Date);
+    });
+
     it("validates settle pending input", () => {
         const result = validateSettlePendingTransferInput({
             transferId: "550e8400-e29b-41d4-a716-446655440010",

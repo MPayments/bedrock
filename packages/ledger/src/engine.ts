@@ -85,6 +85,30 @@ function computePayloadHash(input: {
   );
 }
 
+function buildReplayTransferMaps(
+  operationId: string,
+  transfers: TransferPlanLine[],
+) {
+  const pendingTransferIdsByRef = new Map<string, bigint>();
+  const transferIds = new Map<number, bigint>();
+
+  for (let i = 0; i < transfers.length; i++) {
+    const lineNo = i + 1;
+    const line = transfers[i]!;
+    const transferId = tbTransferIdForOperation(operationId, lineNo, line.planRef);
+
+    transferIds.set(lineNo, transferId);
+    if (line.type === PlanType.CREATE && line.pending) {
+      pendingTransferIdsByRef.set(line.pending.ref ?? line.planRef, transferId);
+    }
+  }
+
+  return {
+    pendingTransferIdsByRef,
+    transferIds,
+  };
+}
+
 async function ensureCorrespondenceRule(
   tx: Transaction,
   plan: Extract<TransferPlanLine, { type: PlanType.CREATE }>,
@@ -270,10 +294,11 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
     }
 
     if (isIdempotentReplay) {
+      const replayTransferMaps = buildReplayTransferMaps(operationId, transfers);
       return {
         operationId,
-        pendingTransferIdsByRef: new Map<string, bigint>(),
-        transferIds: new Map<number, bigint>(),
+        pendingTransferIdsByRef: replayTransferMaps.pendingTransferIdsByRef,
+        transferIds: replayTransferMaps.transferIds,
       };
     }
 

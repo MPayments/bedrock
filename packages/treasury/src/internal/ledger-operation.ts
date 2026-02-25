@@ -1,4 +1,4 @@
-import { ACCOUNT_NO, POSTING_CODE, type PostingCode } from "@bedrock/accounting";
+import { ACCOUNT_NO, POSTING_CODE } from "@bedrock/accounting";
 import { TransferCodes } from "@bedrock/kernel/constants";
 import {
   PlanType,
@@ -81,19 +81,29 @@ function accountNoFromKey(key: string): string {
   if (normalized.startsWith("liability:")) return ACCOUNT_NO.FEE_CLEARING;
   if (normalized.includes("customerwallet")) return ACCOUNT_NO.CUSTOMER_WALLET;
   if (normalized.includes("orderinventory")) return ACCOUNT_NO.ORDER_INVENTORY;
-  if (normalized.includes("payoutobligation")) return ACCOUNT_NO.PAYOUT_OBLIGATION;
+  if (normalized.includes("payoutobligation")) {
+    return ACCOUNT_NO.PAYOUT_OBLIGATION;
+  }
   if (normalized.includes("ic:branchnet")) return ACCOUNT_NO.INTERCOMPANY_NET;
-  if (normalized.includes("liability:feeclearing")) return ACCOUNT_NO.FEE_CLEARING;
+  if (normalized.includes("liability:feeclearing")) {
+    return ACCOUNT_NO.FEE_CLEARING;
+  }
   if (normalized.includes("revenue:fxspread")) return ACCOUNT_NO.SPREAD_REVENUE;
-  if (normalized.includes("revenue:adjustment")) return ACCOUNT_NO.ADJUSTMENT_REVENUE;
-  if (normalized.includes("expense:adjustment")) return ACCOUNT_NO.ADJUSTMENT_EXPENSE;
+  if (normalized.includes("revenue:adjustment")) {
+    return ACCOUNT_NO.ADJUSTMENT_REVENUE;
+  }
+  if (normalized.includes("expense:adjustment")) {
+    return ACCOUNT_NO.ADJUSTMENT_EXPENSE;
+  }
   if (normalized.includes("revenue:fee")) return ACCOUNT_NO.FEE_REVENUE;
   if (normalized.includes("account:")) return ACCOUNT_NO.BANK;
   if (normalized.includes("bank:")) return ACCOUNT_NO.BANK;
   return ACCOUNT_NO.BANK;
 }
 
-function postingCodeFromTransferCode(code: number | undefined): PostingCode {
+function postingCodeFromTransferCode(
+  code: number | undefined,
+): (typeof POSTING_CODE)[keyof typeof POSTING_CODE] {
   switch (code) {
     case TransferCodes.FUNDING_SETTLED:
       return POSTING_CODE.FUNDING_SETTLED;
