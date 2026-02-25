@@ -368,4 +368,26 @@ describe("FX rates priority + TTL", () => {
         expect(cbrProvider.fetchLatest).not.toHaveBeenCalled();
         expect(investingProvider.fetchLatest).not.toHaveBeenCalled();
     });
+
+    it("expires old active quotes", async () => {
+        const db = {
+            select: vi.fn(),
+            insert: vi.fn(),
+            execute: vi.fn(async () => undefined),
+        } as any;
+
+        const service = createFxService({
+            db,
+            feesService: createNoopFeesService(),
+            currenciesService: createCurrenciesService(),
+            rateSourceProviders: {
+                cbr: { source: "cbr", fetchLatest: vi.fn() },
+                investing: { source: "investing", fetchLatest: vi.fn() },
+            },
+        });
+
+        await service.expireOldQuotes(new Date("2026-02-19T10:00:00Z"));
+
+        expect(db.execute).toHaveBeenCalledTimes(1);
+    });
 });

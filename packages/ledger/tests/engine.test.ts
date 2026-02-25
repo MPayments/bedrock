@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { schema } from "@bedrock/db/schema";
+
 import {
   createSmartStubDb,
   createTestEntry,
@@ -10,6 +12,94 @@ import { createLedgerEngine } from "../src/engine";
 import { IdempotencyConflictError } from "../src/errors";
 import { OPERATION_TRANSFER_TYPE } from "../src/types";
 
+function createCreateTransferTx(options?: {
+  orgRuleExists?: boolean;
+  globalRuleExists?: boolean;
+  postingAllowed?: boolean;
+  orgOverrideEnabled?: boolean;
+  requiredAnalytics?: string[];
+}) {
+  const orgRuleExists = options?.orgRuleExists ?? true;
+  const globalRuleExists = options?.globalRuleExists ?? true;
+  const postingAllowed = options?.postingAllowed ?? true;
+  const orgOverrideEnabled = options?.orgOverrideEnabled ?? true;
+  const requiredAnalytics = options?.requiredAnalytics ?? [];
+
+  let correspondenceLookupCount = 0;
+  let bookInsertCount = 0;
+
+  return {
+    insert: vi.fn((table: unknown) => ({
+      values: vi.fn((vals: any) => {
+        const rows = Array.isArray(vals) ? vals : [vals];
+
+        if (table === schema.ledgerOperations) {
+          return {
+            onConflictDoNothing: vi.fn(() => ({
+              returning: vi.fn(async () => [{ id: "op-create-1" }]),
+            })),
+          };
+        }
+
+        if (table === schema.bookAccounts) {
+          bookInsertCount += 1;
+          return {
+            onConflictDoNothing: vi.fn(() => ({
+              returning: vi.fn(async () => [
+                {
+                  id: `ba-${bookInsertCount}`,
+                  tbLedger: rows[0]?.tbLedger ?? 1,
+                  tbAccountId: BigInt(bookInsertCount),
+                },
+              ]),
+            })),
+          };
+        }
+
+        return {
+          onConflictDoNothing: vi.fn(() => ({
+            returning: vi.fn(async () => []),
+          })),
+          onConflictDoUpdate: vi.fn(() => ({})),
+        };
+      }),
+    })),
+    select: vi.fn(() => ({
+      from: vi.fn((table: unknown) => ({
+        where: vi.fn(() => {
+          if (table === schema.chartTemplateAccountAnalytics) {
+            return Promise.resolve(
+              requiredAnalytics.map((analyticType) => ({ analyticType })),
+            );
+          }
+
+          return {
+            limit: vi.fn(async () => {
+              if (table === schema.correspondenceRules) {
+                correspondenceLookupCount += 1;
+                if (correspondenceLookupCount === 1) {
+                  return orgRuleExists ? [{ id: "org-rule" }] : [];
+                }
+                return globalRuleExists ? [{ id: "global-rule" }] : [];
+              }
+
+              if (table === schema.chartTemplateAccounts) {
+                return [{ postingAllowed }];
+              }
+
+              if (table === schema.chartOrgOverrides) {
+                return orgOverrideEnabled ? [] : [{ enabled: false }];
+              }
+
+              return [];
+            }),
+          };
+        }),
+      })),
+    })),
+  } as any;
+}
+
 function createPostPendingInput(overrides: Record<string, unknown> = {}) {
   return createTestEntry({
     transfers: [
@@ -18,6 +108,20 @@ function createPostPendingInput(overrides: Record<string, unknown> = {}) {
         planRef: "post-1",
         currency: "USD",
         pendingId: 123n,
+      },
+    ],
+    ...overrides,
+  });
+}
+
+function createVoidPendingInput(overrides: Record<string, unknown> = {}) {
+  return createTestEntry({
+    transfers: [
+      {
+        type: OPERATION_TRANSFER_TYPE.VOID_PENDING,
+        planRef: "void-1",
+        currency: "USD",
+        pendingId: 456n,
       },
     ],
     ...overrides,
@@ -319,12 +423,161 @@ describe("createLedgerEngine", () => {
       ).rejects.toThrow(IdempotencyConflictError);
     });
 
+    it("throws when idempotency conflict row is missing", async () => {
+      const tx = {
+        insert: vi.fn(() => ({
+          values: vi.fn(() => ({
+            onConflictDoNothing: vi.fn(() => ({
+              returning: vi.fn(async () => []),
+            })),
+            onConflictDoUpdate: vi.fn(() => ({})),
+          })),
+        })),
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => []),
+            })),
+          })),
+        })),
+      } as any;
+
+      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
+
+      await expect(engine.createOperation(createPostPendingInput())).rejects.toThrow(
+        "Idempotency conflict but operation not found",
+      );
+    });
+
     it("creates a new operation on first request", async () => {
       const result = await engine.createOperation(createPostPendingInput());
 
       expect(result.operationId).toBe("test-operation-id");
       expect(result.pendingTransferIdsByRef).toBeInstanceOf(Map);
       expect(result.pendingTransferIdsByRef.size).toBe(0);
+    });
+
+    it("creates a void_pending transfer plan row", async () => {
+      const capturedRows: any[] = [];
+
+      const tx = {
+        insert: vi.fn(() => ({
+          values: vi.fn((vals: any) => {
+            const rows = Array.isArray(vals) ? vals : [vals];
+            if (rows[0]?.type && rows[0]?.lineNo !== undefined) {
+              capturedRows.push(...rows);
+            }
+
+            return {
+              onConflictDoNothing: vi.fn(() => ({
+                returning: vi.fn(async () => {
+                  if (rows[0]?.idempotencyKey !== undefined) {
+                    return [{ id: "op-void" }];
+                  }
+                  return [];
+                }),
+              })),
+              onConflictDoUpdate: vi.fn(() => ({})),
+            };
+          }),
+        })),
+        select: vi.fn(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => []),
+            })),
+          })),
+        })),
+      } as any;
+
+      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
+
+      await engine.createOperation(createVoidPendingInput());
+
+      expect(capturedRows).toHaveLength(1);
+      expect(capturedRows[0].type).toBe(OPERATION_TRANSFER_TYPE.VOID_PENDING);
+      expect(capturedRows[0].amount).toBe(0n);
+    });
+  });
+
+  describe("create transfer branches", () => {
+    it("creates pending transfer and returns ref mapping", async () => {
+      const tx = createCreateTransferTx();
+      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
+
+      const result = await engine.createOperation(
+        createTestEntry({
+          transfers: [
+            createTestTransferPlan({
+              pending: { timeoutSeconds: 120, ref: "pending-ref-1" },
+            }),
+          ],
+        }),
+      );
+
+      expect(result.operationId).toBe("op-create-1");
+      expect(result.pendingTransferIdsByRef.has("pending-ref-1")).toBe(true);
+    });
+
+    it("throws when correspondence rule is missing", async () => {
+      const tx = createCreateTransferTx({
+        orgRuleExists: false,
+        globalRuleExists: false,
+      });
+      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
+
+      await expect(
+        engine.createOperation(
+          createTestEntry({
+            transfers: [createTestTransferPlan()],
+          }),
+        ),
+      ).rejects.toThrow("Correspondence rule not found");
+    });
+
+    it("throws when account is not postable", async () => {
+      const tx = createCreateTransferTx({ postingAllowed: false });
+      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
+
+      await expect(
+        engine.createOperation(
+          createTestEntry({
+            transfers: [createTestTransferPlan()],
+          }),
+        ),
+      ).rejects.toThrow("is not postable");
+    });
+
+    it("throws when org account override disables posting", async () => {
+      const tx = createCreateTransferTx({ orgOverrideEnabled: false });
+      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
+
+      await expect(
+        engine.createOperation(
+          createTestEntry({
+            transfers: [createTestTransferPlan()],
+          }),
+        ),
+      ).rejects.toThrow("is disabled for org");
+    });
+
+    it("throws when required analytics are missing", async () => {
+      const tx = createCreateTransferTx({
+        requiredAnalytics: ["customer_id"],
+      });
+      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
+
+      await expect(
+        engine.createOperation(
+          createTestEntry({
+            transfers: [
+              createTestTransferPlan({
+                analytics: {},
+              }),
+            ],
+          }),
+        ),
+      ).rejects.toThrow("Missing required analytics");
     });
   });
 });

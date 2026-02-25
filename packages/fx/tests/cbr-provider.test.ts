@@ -1,9 +1,51 @@
 import { describe, expect, it, vi } from "vitest";
 
+const soapMocks = vi.hoisted(() => ({
+    createClientAsync: vi.fn(),
+}));
+
+vi.mock("soap", () => ({
+    createClientAsync: soapMocks.createClientAsync,
+}));
+
 import { RateSourceSyncError } from "../src/errors";
 import { createCbrRateSourceProvider } from "../src/sources/cbr";
 
 describe("createCbrRateSourceProvider", () => {
+    it("uses default SOAP client factory", async () => {
+        soapMocks.createClientAsync.mockReset();
+        soapMocks.createClientAsync.mockResolvedValue({
+            GetLatestDateTimeAsync: vi.fn(async () => [
+                { GetLatestDateTimeResult: "2026-02-19T00:00:00" },
+            ]),
+            GetCursOnDateAsync: vi.fn(async () => [
+                {
+                    GetCursOnDateResult: {
+                        diffgram: {
+                            NewDataSet: {
+                                ValuteCursOnDate: [
+                                    { VchCode: "USD", VunitRate: "90,00" },
+                                ],
+                            },
+                        },
+                    },
+                },
+            ]),
+        });
+
+        const provider = createCbrRateSourceProvider({
+            baseUrl: "https://example.test/DailyInfo.asmx",
+        });
+
+        const result = await provider.fetchLatest();
+
+        expect(result.source).toBe("cbr");
+        expect(result.rates.length).toBe(2);
+        expect(soapMocks.createClientAsync).toHaveBeenCalledWith(
+            "https://example.test/DailyInfo.asmx?wsdl",
+        );
+    });
+
     it("parses CBR SOAP dataset and emits RUB pairs in both directions", async () => {
         const soapClient = {
             GetLatestDateTimeAsync: vi.fn(async () => [
@@ -84,6 +126,56 @@ describe("createCbrRateSourceProvider", () => {
                     },
                 },
             }]),
+        }));
+
+        const provider = createCbrRateSourceProvider({
+            soapClientFactory,
+            baseUrl: "https://example.test/DailyInfo.asmx",
+        });
+
+        await expect(provider.fetchLatest()).rejects.toThrow(RateSourceSyncError);
+    });
+
+    it("throws when GetLatestDateTime request fails", async () => {
+        const soapClientFactory = vi.fn(async () => ({
+            GetLatestDateTimeAsync: vi.fn(async () => {
+                throw new Error("transport failure");
+            }),
+            GetCursOnDateAsync: vi.fn(),
+        }));
+
+        const provider = createCbrRateSourceProvider({
+            soapClientFactory,
+            baseUrl: "https://example.test/DailyInfo.asmx",
+        });
+
+        await expect(provider.fetchLatest()).rejects.toThrow(RateSourceSyncError);
+    });
+
+    it("throws when latest date value is invalid", async () => {
+        const soapClientFactory = vi.fn(async () => ({
+            GetLatestDateTimeAsync: vi.fn(async () => [
+                { GetLatestDateTimeResult: "not-a-date" },
+            ]),
+            GetCursOnDateAsync: vi.fn(),
+        }));
+
+        const provider = createCbrRateSourceProvider({
+            soapClientFactory,
+            baseUrl: "https://example.test/DailyInfo.asmx",
+        });
+
+        await expect(provider.fetchLatest()).rejects.toThrow(RateSourceSyncError);
+    });
+
+    it("throws when GetCursOnDate request fails", async () => {
+        const soapClientFactory = vi.fn(async () => ({
+            GetLatestDateTimeAsync: vi.fn(async () => [
+                { GetLatestDateTimeResult: "2026-02-19T00:00:00" },
+            ]),
+            GetCursOnDateAsync: vi.fn(async () => {
+                throw new Error("timeout");
+            }),
         }));
 
         const provider = createCbrRateSourceProvider({

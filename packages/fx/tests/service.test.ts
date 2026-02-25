@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { schema } from "@bedrock/db/schema";
 import { ValidationError } from "@bedrock/kernel/errors";
+import { NotFoundError, QuoteExpiredError } from "../src/errors";
 import { createFxService } from "../src/service";
 
 const QUOTE_ID = "550e8400-e29b-41d4-a716-446655440010";
@@ -32,6 +33,14 @@ function createMockCurrenciesService() {
             throw new Error(`Unknown currency id: ${id}`);
         }),
     };
+}
+
+function createNoopFeesService() {
+    return {
+        calculateFxQuoteFeeComponents: vi.fn(async () => []),
+        saveQuoteFeeComponents: vi.fn(async () => undefined),
+        getQuoteFeeComponents: vi.fn(async () => []),
+    } as any;
 }
 
 function selectWhereLimit(rows: any[]) {
@@ -426,5 +435,115 @@ describe("createFxService", () => {
         const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
 
         await expect(service.getQuoteDetails({ quoteRef: uuidQuoteRef })).rejects.toThrow(ValidationError);
+    });
+
+    it("throws NotFoundError when markQuoteUsed cannot find quote", async () => {
+        const db = {
+            select: vi.fn(() => selectWhereLimit([])),
+            update: vi.fn(),
+        } as any;
+        const service = createFxService({
+            db,
+            feesService: createNoopFeesService(),
+            currenciesService: createMockCurrenciesService(),
+        });
+
+        await expect(
+            service.markQuoteUsed({
+                quoteId: QUOTE_ID,
+                usedByRef: "order:1:fx",
+                at: new Date("2026-02-14T00:00:00Z"),
+            }),
+        ).rejects.toThrow(NotFoundError);
+    });
+
+    it("returns quote as-is when markQuoteUsed is called for non-active quote", async () => {
+        const quote = makeQuote({
+            status: "used",
+            usedByRef: "order:1:fx",
+            usedAt: new Date("2026-02-14T00:00:00Z"),
+        });
+
+        const db = {
+            select: vi.fn(() => selectWhereLimit([quote])),
+            update: vi.fn(),
+        } as any;
+        const service = createFxService({
+            db,
+            feesService: createNoopFeesService(),
+            currenciesService: createMockCurrenciesService(),
+        });
+
+        const result = await service.markQuoteUsed({
+            quoteId: QUOTE_ID,
+            usedByRef: "order:2:fx",
+            at: new Date("2026-02-14T00:01:00Z"),
+        });
+
+        expect(result).toEqual(quote);
+        expect(db.update).not.toHaveBeenCalled();
+    });
+
+    it("throws QuoteExpiredError when markQuoteUsed is called after expiry", async () => {
+        const quote = makeQuote({
+            status: "active",
+            expiresAt: new Date("2026-02-14T00:00:00Z"),
+        });
+
+        const db = {
+            select: vi.fn(() => selectWhereLimit([quote])),
+            update: vi.fn(),
+        } as any;
+        const service = createFxService({
+            db,
+            feesService: createNoopFeesService(),
+            currenciesService: createMockCurrenciesService(),
+        });
+
+        await expect(
+            service.markQuoteUsed({
+                quoteId: QUOTE_ID,
+                usedByRef: "order:3:fx",
+                at: new Date("2026-02-14T00:01:00Z"),
+            }),
+        ).rejects.toThrow(QuoteExpiredError);
+    });
+
+    it("marks active quote as used and returns updated row", async () => {
+        const quote = makeQuote({
+            status: "active",
+            expiresAt: new Date("2026-02-14T00:05:00Z"),
+        });
+        const updated = {
+            ...quote,
+            status: "used",
+            usedByRef: "order:4:fx",
+            usedAt: new Date("2026-02-14T00:01:00Z"),
+        };
+
+        const db = {
+            select: vi.fn(() => selectWhereLimit([quote])),
+            update: vi.fn(() => ({
+                set: vi.fn(() => ({
+                    where: vi.fn(() => ({
+                        returning: vi.fn(async () => [updated]),
+                    })),
+                })),
+            })),
+        } as any;
+        const service = createFxService({
+            db,
+            feesService: createNoopFeesService(),
+            currenciesService: createMockCurrenciesService(),
+        });
+
+        const result = await service.markQuoteUsed({
+            quoteId: QUOTE_ID,
+            usedByRef: "order:4:fx",
+            at: new Date("2026-02-14T00:01:00Z"),
+        });
+
+        expect(result.status).toBe("used");
+        expect(result.usedByRef).toBe("order:4:fx");
     });
 });
