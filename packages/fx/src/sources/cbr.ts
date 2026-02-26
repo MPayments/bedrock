@@ -26,7 +26,7 @@ interface CbrSoapClient {
   }) => Promise<SoapMethodResponse>;
 }
 
-export interface CbrRateSourceProviderDeps {
+interface CbrRateSourceProviderDeps {
   baseUrl?: string;
   soapClientFactory?: (wsdlUrl: string) => Promise<CbrSoapClient>;
 }

@@ -21,7 +21,6 @@
   },
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",
-    "@bedrock/test-utils": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/pg": "^8.16.0",
     "eslint": "^9.31.0",

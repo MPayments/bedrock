@@ -2,10 +2,6 @@ import type { CounterpartyGroupRootCode } from "@bedrock/counterparties";
 
 import type { CounterpartyGroupOption } from "./queries";
 
-export function dedupeGroupIds(groupIds: string[]): string[] {
-  return Array.from(new Set(groupIds));
-}
-
 function buildGroupById(groupOptions: CounterpartyGroupOption[]) {
   return new Map(groupOptions.map((group) => [group.id, group]));
 }

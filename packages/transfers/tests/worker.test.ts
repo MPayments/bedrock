@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createTransfersWorker } from "../src/worker";
-import { createStubDb, type StubDatabase } from "./helpers";
+import { createStubDb, type StubDatabase } from "@bedrock/test-utils";
 
 describe("createTransfersWorker", () => {
     let db: StubDatabase;

@@ -1,8 +1,15 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
-  "tags": [
-    "-lintignore"
-  ],
+    "$schema": "https://unpkg.com/knip@5/schema.json",
+    "ignoreDependencies": [
+        "pino-pretty",
+        "@tailwindcss/postcss"
+    ],
+    "ignoreUnresolved": [
+        "next"
+    ],
+    "tags": [
+        "-lintignore"
+    ],
   "workspaces": {
     ".": {}
   }

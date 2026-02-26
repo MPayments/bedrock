@@ -1,14 +1,13 @@
 import { and, eq } from "drizzle-orm";
 
 import {
+  ACCOUNT_NO,
   CorrespondenceRuleNotFoundError,
-  DEFAULT_CHART_TEMPLATE_ACCOUNTS,
-  DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS,
-  DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
   POSTING_CODE_REQUIRED_ANALYTICS,
 } from "@bedrock/accounting";
 import { type Transaction, type Database } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
+import { seedAccounting } from "@bedrock/db/seeds";
 import { sha256Hex, stableStringify } from "@bedrock/kernel";
 
 import {
@@ -53,6 +52,8 @@ interface PostingAccountPolicy {
   enabled: boolean;
   requiredAnalytics: PostingAnalyticType[];
 }
+
+let accountingDefaultsKnownPresent = false;
 
 function computeLinkedFlags(transfers: TransferPlanLine[]): boolean[] {
   const linked = new Array(transfers.length).fill(false);
@@ -338,70 +339,22 @@ async function ensureBookAccount(
 }
 
 async function ensureAccountingDefaultsSeeded(tx: Transaction) {
-  for (const account of DEFAULT_CHART_TEMPLATE_ACCOUNTS) {
-    await tx
-      .insert(schema.chartTemplateAccounts)
-      .values({
-        accountNo: account.accountNo,
-        name: account.name,
-        kind: account.kind,
-        normalSide: account.normalSide,
-        postingAllowed: account.postingAllowed,
-        enabled: account.enabled,
-        parentAccountNo: account.parentAccountNo ?? null,
-      })
-      .onConflictDoUpdate({
-        target: schema.chartTemplateAccounts.accountNo,
-        set: {
-          name: account.name,
-          kind: account.kind,
-          normalSide: account.normalSide,
-          postingAllowed: account.postingAllowed,
-          enabled: account.enabled,
-          parentAccountNo: account.parentAccountNo ?? null,
-        },
-      });
+  if (accountingDefaultsKnownPresent) {
+    return;
   }
 
-  for (const analytic of DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS) {
-    await tx
-      .insert(schema.chartTemplateAccountAnalytics)
-      .values({
-        accountNo: analytic.accountNo,
-        analyticType: analytic.analyticType,
-        required: analytic.required,
-      })
-      .onConflictDoUpdate({
-        target: [
-          schema.chartTemplateAccountAnalytics.accountNo,
-          schema.chartTemplateAccountAnalytics.analyticType,
-        ],
-        set: {
-          required: analytic.required,
-        },
-      });
+  const [existing] = await tx
+    .select({ accountNo: schema.chartTemplateAccounts.accountNo })
+    .from(schema.chartTemplateAccounts)
+    .where(eq(schema.chartTemplateAccounts.accountNo, ACCOUNT_NO.ASSETS))
+    .limit(1);
+
+  if (existing) {
+    accountingDefaultsKnownPresent = true;
+    return;
   }
 
-  for (const rule of DEFAULT_GLOBAL_CORRESPONDENCE_RULES) {
-    await tx
-      .insert(schema.correspondenceRules)
-      .values({
-        postingCode: rule.postingCode,
-        debitAccountNo: rule.debitAccountNo,
-        creditAccountNo: rule.creditAccountNo,
-        enabled: true,
-      })
-      .onConflictDoUpdate({
-        target: [
-          schema.correspondenceRules.postingCode,
-          schema.correspondenceRules.debitAccountNo,
-          schema.correspondenceRules.creditAccountNo,
-        ],
-        set: {
-          enabled: true,
-        },
-      });
-  }
+  await seedAccounting(tx);
 }
 
 export interface LedgerEngine {

@@ -7,8 +7,6 @@ import { getComponentDefaults } from "./internal/defaults";
 import { calculateBpsAmount } from "./internal/math";
 import type { FeesService } from "./types";
 
-export type { FeesServiceDeps } from "./internal/context";
-
 export function createFeesService(deps: FeesServiceDeps): FeesService {
     const context = createFeesServiceContext(deps);
 

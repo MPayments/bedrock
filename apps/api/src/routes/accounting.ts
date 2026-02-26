@@ -38,12 +38,6 @@ const CorrespondenceRuleSchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
-const SeedResultSchema = z.object({
-  seeded: z.boolean(),
-  accounts: z.number().int(),
-  rules: z.number().int(),
-});
-
 const ValidatePostingMatrixResultSchema = z.object({
   ok: z.boolean(),
   errors: z.array(
@@ -368,24 +362,6 @@ export function accountingRoutes(ctx: AppContext) {
     },
   });
 
-  const seedRoute = createRoute({
-    middleware: [requirePermission({ accounting: ["seed"] })],
-    method: "post",
-    path: "/seed-defaults",
-    tags: ["Accounting"],
-    summary: "Seed default global accounting setup",
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: SeedResultSchema,
-          },
-        },
-        description: "Seed result",
-      },
-    },
-  });
-
   return app
     .openapi(listTemplateAccountsRoute, async (c) => {
       const rows = await ctx.accountingService.listTemplateAccounts();
@@ -576,9 +552,5 @@ export function accountingRoutes(ctx: AppContext) {
           400,
         );
       }
-    })
-    .openapi(seedRoute, async (c) => {
-      const result = await ctx.accountingService.seedDefaults();
-      return c.json(result, 200);
     });
 }

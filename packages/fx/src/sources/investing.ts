@@ -44,7 +44,7 @@ interface SessionScope {
   dispose: () => Promise<void>;
 }
 
-export interface InvestingRateSourceProviderDeps {
+interface InvestingRateSourceProviderDeps {
   session?: InvestingSession;
   createSession?: () => InvestingSession;
   pairMappings?: PairMapping[];

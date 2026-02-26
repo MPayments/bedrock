@@ -7,7 +7,7 @@ export interface AccountingServiceDeps {
   logger?: Logger;
 }
 
-export interface AccountingServiceContext {
+interface AccountingServiceContext {
   db: Database;
   log: Logger;
 }

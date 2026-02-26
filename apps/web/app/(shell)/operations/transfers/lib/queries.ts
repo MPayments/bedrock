@@ -49,7 +49,7 @@ export interface TransferDto {
   updatedAt: string;
 }
 
-export interface TransfersListResult {
+interface TransfersListResult {
   data: TransferDto[];
   total: number;
   limit: number;

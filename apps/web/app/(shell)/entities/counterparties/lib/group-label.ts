@@ -9,7 +9,7 @@ const GROUP_PRESENTATION_BY_KEY = {
   },
 } as const;
 
-export type CounterpartyGroupIcon = "users" | "vault";
+type CounterpartyGroupIcon = "users" | "vault";
 
 export function getCounterpartyGroupPresentation(value: string): {
   label: string;

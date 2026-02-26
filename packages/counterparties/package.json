@@ -21,7 +21,6 @@
     "zod": "^4"
   },
   "devDependencies": {
-    "@bedrock/test-utils": "*",
     "@bedrock/typescript-config": "*",
     "typescript": "^5.8.3",
     "vitest": "^4.0.18",

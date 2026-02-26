@@ -1,6 +1,6 @@
 import { COUNTRIES, type CountryRecord } from "@bedrock/countries";
 
-export type ProviderCountryOption = {
+type ProviderCountryOption = {
   value: string;
   label: string;
   search: string;
@@ -10,7 +10,7 @@ const COUNTRY_BY_ALPHA2 = new Map(
   COUNTRIES.map((country) => [country.alpha2, country]),
 );
 
-export function formatCountryLabel(
+function formatCountryLabel(
   country: Pick<CountryRecord, "emoji" | "name">,
 ): string {
   return `${country.emoji} ${country.name}`;

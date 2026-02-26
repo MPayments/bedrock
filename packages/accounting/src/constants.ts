@@ -66,8 +66,6 @@ export const POSTING_CODE = {
   PAYOUT_INITIATED: "TC.3101",
 } as const;
 
-export type PostingCode = (typeof POSTING_CODE)[keyof typeof POSTING_CODE];
-
 export const POSTING_CODE_REQUIRED_ANALYTICS = {
   [POSTING_CODE.TRANSFER_INTRA_IMMEDIATE]: ["operational_account_id"],
   [POSTING_CODE.TRANSFER_INTRA_PENDING]: ["operational_account_id"],

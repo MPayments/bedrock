@@ -26,7 +26,7 @@ export interface OperationSummaryDto {
   currencies: string[];
 }
 
-export interface OperationPostingDto {
+interface OperationPostingDto {
   id: string;
   lineNo: number;
   bookOrgId: string;
@@ -49,7 +49,7 @@ export interface OperationPostingDto {
   createdAt: string;
 }
 
-export interface OperationTbPlanDto {
+interface OperationTbPlanDto {
   id: string;
   lineNo: number;
   type: "create" | "post_pending" | "void_pending";
@@ -69,13 +69,13 @@ export interface OperationTbPlanDto {
   createdAt: string;
 }
 
-export interface OperationDetailsDto {
+interface OperationDetailsDto {
   operation: OperationSummaryDto;
   postings: OperationPostingDto[];
   tbPlans: OperationTbPlanDto[];
 }
 
-export interface OperationsListResult {
+interface OperationsListResult {
   data: OperationSummaryDto[];
   total: number;
   limit: number;

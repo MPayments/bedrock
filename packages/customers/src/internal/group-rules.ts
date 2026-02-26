@@ -11,10 +11,10 @@ interface GroupNode {
   code: string;
 }
 
-export const TREASURY_ROOT_GROUP_CODE = "treasury";
-export const CUSTOMERS_ROOT_GROUP_CODE = "customers";
+const TREASURY_ROOT_GROUP_CODE = "treasury";
+const CUSTOMERS_ROOT_GROUP_CODE = "customers";
 
-export async function ensureSystemRootGroups(tx: Transaction): Promise<{
+async function ensureSystemRootGroups(tx: Transaction): Promise<{
   treasuryGroupId: string;
   customersGroupId: string;
 }> {

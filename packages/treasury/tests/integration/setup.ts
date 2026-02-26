@@ -143,4 +143,4 @@ afterEach(async () => {
   }
 });
 
-export { db, tb, pool };
+export { db };

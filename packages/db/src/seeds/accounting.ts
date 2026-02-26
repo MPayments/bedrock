@@ -1,4 +1,4 @@
-import type { Database } from "../client";
+import type { Database, Transaction } from "../client";
 import { schema } from "../schema";
 
 const ACCOUNTS = [
@@ -100,7 +100,7 @@ const ANALYTICS = [
   ["5120", "quote_id", false],
 ] as const;
 
-export async function seedAccounting(db: Database) {
+export async function seedAccounting(db: Database | Transaction) {
   for (const [
     accountNo,
     name,

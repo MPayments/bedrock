@@ -8,12 +8,7 @@ import {
   type PaginatedList,
 } from "@bedrock/kernel/pagination";
 
-import {
-  DEFAULT_CHART_TEMPLATE_ACCOUNTS,
-  DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS,
-  DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
-  POSTING_CODE_REQUIRED_ANALYTICS,
-} from "./constants";
+import { POSTING_CODE_REQUIRED_ANALYTICS } from "./constants";
 import {
   createAccountingServiceContext,
   type AccountingServiceDeps,
@@ -40,14 +35,14 @@ interface FinancialResultAttributionDelta {
   netMinor: bigint;
 }
 
-export interface FinancialResultSummaryByCurrency {
+interface FinancialResultSummaryByCurrency {
   currency: string;
   revenueMinor: bigint;
   expenseMinor: bigint;
   netMinor: bigint;
 }
 
-export interface FinancialResultsByCounterpartyRow {
+interface FinancialResultsByCounterpartyRow {
   entityType: "counterparty" | "unattributed";
   counterpartyId: string | null;
   counterpartyName: string | null;
@@ -57,11 +52,11 @@ export interface FinancialResultsByCounterpartyRow {
   netMinor: bigint;
 }
 
-export interface FinancialResultsByCounterpartyResult extends PaginatedList<FinancialResultsByCounterpartyRow> {
+interface FinancialResultsByCounterpartyResult extends PaginatedList<FinancialResultsByCounterpartyRow> {
   summaryByCurrency: FinancialResultSummaryByCurrency[];
 }
 
-export interface FinancialResultsByGroupRow {
+interface FinancialResultsByGroupRow {
   groupId: string;
   groupCode: string | null;
   groupName: string | null;
@@ -71,107 +66,14 @@ export interface FinancialResultsByGroupRow {
   netMinor: bigint;
 }
 
-export interface FinancialResultsByGroupResult extends PaginatedList<FinancialResultsByGroupRow> {
+interface FinancialResultsByGroupResult extends PaginatedList<FinancialResultsByGroupRow> {
   summaryByCurrency: FinancialResultSummaryByCurrency[];
   unattributedByCurrency: FinancialResultSummaryByCurrency[];
 }
 
 export function createAccountingService(deps: AccountingServiceDeps) {
   const context = createAccountingServiceContext(deps);
-  const { db, log } = context;
-
-  async function seedTemplateAndGlobalRules() {
-    for (const account of DEFAULT_CHART_TEMPLATE_ACCOUNTS) {
-      await db
-        .insert(schema.chartTemplateAccounts)
-        .values({
-          accountNo: account.accountNo,
-          name: account.name,
-          kind: account.kind,
-          normalSide: account.normalSide,
-          postingAllowed: account.postingAllowed,
-          enabled: account.enabled,
-          parentAccountNo: account.parentAccountNo ?? null,
-        })
-        .onConflictDoUpdate({
-          target: schema.chartTemplateAccounts.accountNo,
-          set: {
-            name: account.name,
-            kind: account.kind,
-            normalSide: account.normalSide,
-            postingAllowed: account.postingAllowed,
-            enabled: account.enabled,
-            parentAccountNo: account.parentAccountNo ?? null,
-          },
-        });
-    }
-
-    for (const rule of DEFAULT_GLOBAL_CORRESPONDENCE_RULES) {
-      await db
-        .insert(schema.correspondenceRules)
-        .values({
-          postingCode: rule.postingCode,
-          debitAccountNo: rule.debitAccountNo,
-          creditAccountNo: rule.creditAccountNo,
-          enabled: true,
-        })
-        .onConflictDoUpdate({
-          target: [
-            schema.correspondenceRules.postingCode,
-            schema.correspondenceRules.debitAccountNo,
-            schema.correspondenceRules.creditAccountNo,
-          ],
-          set: {
-            enabled: true,
-          },
-        });
-    }
-
-    for (const analytic of DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS) {
-      await db
-        .insert(schema.chartTemplateAccountAnalytics)
-        .values({
-          accountNo: analytic.accountNo,
-          analyticType: analytic.analyticType,
-          required: analytic.required,
-        })
-        .onConflictDoUpdate({
-          target: [
-            schema.chartTemplateAccountAnalytics.accountNo,
-            schema.chartTemplateAccountAnalytics.analyticType,
-          ],
-          set: {
-            required: analytic.required,
-          },
-        });
-    }
-  }
-
-  async function seedDefaults() {
-    await seedTemplateAndGlobalRules();
-
-    const [templateAccounts, globalRules] = await Promise.all([
-      db
-        .select()
-        .from(schema.chartTemplateAccounts)
-        .orderBy(schema.chartTemplateAccounts.accountNo),
-      db
-        .select({
-          postingCode: schema.correspondenceRules.postingCode,
-          debitAccountNo: schema.correspondenceRules.debitAccountNo,
-          creditAccountNo: schema.correspondenceRules.creditAccountNo,
-        })
-        .from(schema.correspondenceRules)
-        .where(eq(schema.correspondenceRules.enabled, true)),
-    ]);
-
-    log.info("Seeded accounting defaults");
-    return {
-      seeded: true,
-      accounts: templateAccounts.length,
-      rules: globalRules.length,
-    };
-  }
+  const { db } = context;
 
   async function listTemplateAccounts() {
     return db
@@ -911,8 +813,6 @@ export function createAccountingService(deps: AccountingServiceDeps) {
   }
 
   return {
-    seedTemplateAndGlobalRules,
-    seedDefaults,
     listTemplateAccounts,
     listCorrespondenceRules,
     replaceCorrespondenceRules,

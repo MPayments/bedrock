@@ -259,6 +259,15 @@ export function createTransfersService(deps: {
         throw new NotFoundError("Transfer", validated.transferId);
       }
 
+      const allowed = await deps.canApprove?.(
+        validated.checkerUserId,
+        transfer.sourceCounterpartyId,
+        transfer.destinationCounterpartyId,
+      );
+      if (allowed === false) {
+        throw new PermissionError("Not allowed to approve transfer");
+      }
+
       const existingLedgerOperationId = transfer.ledgerOperationId;
 
       if (transfer.status !== "draft") {
@@ -283,15 +292,6 @@ export function createTransfersService(deps: {
 
       if (transfer.makerUserId === validated.checkerUserId) {
         throw new MakerCheckerViolationError();
-      }
-
-      const allowed = await deps.canApprove?.(
-        validated.checkerUserId,
-        transfer.sourceCounterpartyId,
-        transfer.destinationCounterpartyId,
-      );
-      if (allowed === false) {
-        throw new PermissionError("Not allowed to approve transfer");
       }
 
       const [sourceBinding, destinationBinding] = await resolveTransferBindings(
@@ -476,6 +476,18 @@ export function createTransfersService(deps: {
         .returning({ id: schema.transferOrders.id });
 
       if (!updated.length) {
+        const [current] = await tx
+          .select({
+            status: schema.transferOrders.status,
+          })
+          .from(schema.transferOrders)
+          .where(eq(schema.transferOrders.id, transfer.id))
+          .limit(1);
+
+        if (current?.status === "rejected") {
+          return transfer.id;
+        }
+
         throw new InvalidStateError(
           "Reject race: transfer state changed during transaction",
         );
@@ -500,6 +512,27 @@ export function createTransfersService(deps: {
         ? ["settle_pending_posting", "posted"]
         : ["void_pending_posting", "voided"];
 
+    const resolveIdempotentEventResult = async (
+      ledgerOperationId: string,
+    ): Promise<TransfersServiceResult | null> => {
+      const [current] = await tx
+        .select({
+          status: schema.transferOrders.status,
+        })
+        .from(schema.transferOrders)
+        .where(eq(schema.transferOrders.id, transfer.id))
+        .limit(1);
+
+      if (current && idempotentStatuses.includes(current.status)) {
+        return {
+          transferId: transfer.id,
+          ledgerOperationId,
+        };
+      }
+
+      return null;
+    };
+
     const [existingEvent] = await tx
       .select({
         ledgerOperationId: schema.transferEvents.ledgerOperationId,
@@ -517,14 +550,13 @@ export function createTransfersService(deps: {
       )
       .limit(1);
 
-    if (
-      existingEvent?.ledgerOperationId &&
-      idempotentStatuses.includes(transfer.status)
-    ) {
-      return {
-        transferId: transfer.id,
-        ledgerOperationId: existingEvent.ledgerOperationId,
-      };
+    if (existingEvent?.ledgerOperationId) {
+      const existingResult = await resolveIdempotentEventResult(
+        existingEvent.ledgerOperationId,
+      );
+      if (existingResult) {
+        return existingResult;
+      }
     }
 
     if (transfer.status !== "pending") {
@@ -583,14 +615,13 @@ export function createTransfersService(deps: {
         )
         .limit(1);
 
-      if (
-        conflictEvent?.ledgerOperationId &&
-        idempotentStatuses.includes(transfer.status)
-      ) {
-        return {
-          transferId: transfer.id,
-          ledgerOperationId: conflictEvent.ledgerOperationId,
-        };
+      if (conflictEvent?.ledgerOperationId) {
+        const conflictResult = await resolveIdempotentEventResult(
+          conflictEvent.ledgerOperationId,
+        );
+        if (conflictResult) {
+          return conflictResult;
+        }
       }
 
       throw new InvalidStateError(

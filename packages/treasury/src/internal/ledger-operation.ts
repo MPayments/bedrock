@@ -53,7 +53,7 @@ export type TemplateTransferPlan =
   | TemplatePostPendingTransferPlan
   | TemplateVoidPendingTransferPlan;
 
-export interface BuildTreasuryOperationInput {
+interface BuildTreasuryOperationInput {
   source: CreateOperationInput["source"];
   operationCode: string;
   operationVersion?: number;

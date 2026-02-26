@@ -21,12 +21,12 @@ export interface AccountingCorrespondenceRule {
   updatedAt: string;
 }
 
-export interface AccountingOrgOption {
+interface AccountingOrgOption {
   id: string;
   shortName: string;
 }
 
-export interface CounterpartyGroupOption {
+interface CounterpartyGroupOption {
   id: string;
   code: string;
   name: string;

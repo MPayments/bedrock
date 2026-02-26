@@ -10,6 +10,7 @@ import {
 import {
   InvalidStateError,
   MakerCheckerViolationError,
+  PermissionError,
   TransferCurrencyMismatchError,
 } from "../src/errors";
 import { createTransfersService } from "../src/service";
@@ -47,6 +48,36 @@ function createTransfer(overrides: Record<string, unknown> = {}) {
     createdAt: new Date("2026-02-25T00:00:00.000Z"),
     updatedAt: new Date("2026-02-25T00:00:00.000Z"),
     ...overrides,
+  };
+}
+
+function selectReturning(rows: unknown[]) {
+  return {
+    from: vi.fn(() => ({
+      where: vi.fn(() => ({
+        limit: vi.fn(async () => rows),
+      })),
+    })),
+  };
+}
+
+function updateReturning(rows: unknown[]) {
+  return {
+    set: vi.fn(() => ({
+      where: vi.fn(() => ({
+        returning: vi.fn(async () => rows),
+      })),
+    })),
+  };
+}
+
+function insertReturning(rows: unknown[]) {
+  return {
+    values: vi.fn(() => ({
+      onConflictDoNothing: vi.fn(() => ({
+        returning: vi.fn(async () => rows),
+      })),
+    })),
   };
 }
 
@@ -177,6 +208,100 @@ describe("createTransfersService (v2)", () => {
     expect(result).toEqual({
       transferId: TRANSFER_ID,
       ledgerOperationId: "550e8400-e29b-41d4-a716-446655440888",
+    });
+    expect(ledger.createOperationTx).not.toHaveBeenCalled();
+  });
+
+  it("checks canApprove before idempotent approve return", async () => {
+    const canApprove = vi.fn(async () => false);
+    service = createTransfersService({
+      db,
+      ledger: ledger as any,
+      accountService: accountService as any,
+      canApprove,
+    });
+
+    mockSelectReturns(db._tx.select, [
+      createTransfer({
+        status: "posted",
+        ledgerOperationId: "550e8400-e29b-41d4-a716-446655440888",
+      }),
+    ]);
+
+    await expect(
+      service.approve({
+        transferId: TRANSFER_ID,
+        checkerUserId: CHECKER_USER_ID,
+        occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+      }),
+    ).rejects.toThrow(PermissionError);
+    expect(canApprove).toHaveBeenCalledWith(
+      CHECKER_USER_ID,
+      "550e8400-e29b-41d4-a716-446655440111",
+      "550e8400-e29b-41d4-a716-446655440222",
+    );
+  });
+
+  it("returns idempotent reject result when CAS loses race", async () => {
+    const draftTransfer = createTransfer({ status: "draft" });
+
+    vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+      const tx = {
+        select: vi
+          .fn()
+          .mockImplementationOnce(() => selectReturning([draftTransfer]))
+          .mockImplementationOnce(() => selectReturning([{ status: "rejected" }])),
+        update: vi.fn(() => updateReturning([])),
+      };
+      return fn(tx);
+    });
+
+    const result = await service.reject({
+      transferId: TRANSFER_ID,
+      checkerUserId: CHECKER_USER_ID,
+      occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+      reason: "duplicate request",
+    });
+
+    expect(result).toBe(TRANSFER_ID);
+  });
+
+  it("returns idempotent settle result on event conflict after state advance", async () => {
+    const operationId = "550e8400-e29b-41d4-a716-446655440999";
+    const pendingTransfer = createTransfer({
+      status: "pending",
+      settlementMode: "pending",
+      sourcePendingTransferId: 123n,
+      destinationPendingTransferId: null,
+    });
+
+    vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+      const tx = {
+        select: vi
+          .fn()
+          .mockImplementationOnce(() => selectReturning([pendingTransfer]))
+          .mockImplementationOnce(() => selectReturning([]))
+          .mockImplementationOnce(() =>
+            selectReturning([{ ledgerOperationId: operationId }]),
+          )
+          .mockImplementationOnce(() => selectReturning([{ status: "posted" }])),
+        insert: vi.fn(() => insertReturning([])),
+      };
+      return fn(tx);
+    });
+
+    const result = await service.settlePending(
+      {
+        transferId: TRANSFER_ID,
+        eventIdempotencyKey: "settle-event-key",
+        occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+      },
+      CHECKER_USER_ID,
+    );
+
+    expect(result).toEqual({
+      transferId: TRANSFER_ID,
+      ledgerOperationId: operationId,
     });
     expect(ledger.createOperationTx).not.toHaveBeenCalled();
   });

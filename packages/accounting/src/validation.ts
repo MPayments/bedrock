@@ -23,10 +23,6 @@ export const replaceCorrespondenceRulesSchema = z.object({
   rules: z.array(correspondenceRuleSchema),
 });
 
-export const seedDefaultsSchema = z.object({
-  force: z.boolean().optional(),
-});
-
 const ACCOUNTING_OPERATIONS_SORTABLE_COLUMNS = [
   "createdAt",
   "postingDate",

@@ -4,13 +4,13 @@ import { OPERATION_TRANSFER_TYPE } from "./types";
 
 const uuidSchema = z.uuid({ version: "v4" });
 
-export const orgIdSchema = uuidSchema;
-export const idempotencyKeySchema = z.string().min(1).max(255);
-export const sourceTypeSchema = z.string().min(1).max(100);
-export const sourceIdSchema = z.string().min(1).max(255);
-export const memoSchema = z.string().max(1000).optional().nullable();
+const orgIdSchema = uuidSchema;
+const idempotencyKeySchema = z.string().min(1).max(255);
+const sourceTypeSchema = z.string().min(1).max(100);
+const sourceIdSchema = z.string().min(1).max(255);
+const memoSchema = z.string().max(1000).optional().nullable();
 
-export const currencySchema = z
+const currencySchema = z
   .string()
   .transform((val) => val.trim().toUpperCase())
   .refine((val) => /^[A-Z0-9_]{2,16}$/.test(val), {
@@ -18,18 +18,18 @@ export const currencySchema = z
       "Currency must be 2-16 uppercase alphanumeric characters or underscores",
   });
 
-export const planRefSchema = z.string().min(1).max(512);
-export const accountNoSchema = z
+const planRefSchema = z.string().min(1).max(512);
+const accountNoSchema = z
   .string()
   .trim()
   .regex(/^[0-9]{4}$/, "accountNo must match NNNN");
-export const positiveAmountSchema = z.bigint().positive();
-export const nonNegativeAmountSchema = z.bigint().min(0n);
-export const positiveTimeoutSchema = z.number().int().positive();
-export const transferCodeSchema = z.number().int().min(0).optional();
-export const chainIdSchema = z.string().min(1).optional().nullable();
+const positiveAmountSchema = z.bigint().positive();
+const nonNegativeAmountSchema = z.bigint().min(0n);
+const positiveTimeoutSchema = z.number().int().positive();
+const transferCodeSchema = z.number().int().min(0).optional();
+const chainIdSchema = z.string().min(1).optional().nullable();
 
-export const postingAnalyticsSchema = z
+const postingAnalyticsSchema = z
   .object({
     counterpartyId: uuidSchema.optional().nullable(),
     customerId: uuidSchema.optional().nullable(),
@@ -41,7 +41,7 @@ export const postingAnalyticsSchema = z
   })
   .optional();
 
-export const pendingConfigSchema = z
+const pendingConfigSchema = z
   .object({
     timeoutSeconds: positiveTimeoutSchema,
     ref: z.string().min(1).max(255).optional().nullable(),
@@ -56,7 +56,7 @@ const baseTransferPlanSchema = z.object({
   memo: memoSchema,
 });
 
-export const createTransferPlanSchema = baseTransferPlanSchema.extend({
+const createTransferPlanSchema = baseTransferPlanSchema.extend({
   type: z.literal(OPERATION_TRANSFER_TYPE.CREATE),
   bookOrgId: orgIdSchema,
   postingCode: z.string().min(1).max(128),
@@ -67,24 +67,24 @@ export const createTransferPlanSchema = baseTransferPlanSchema.extend({
   analytics: postingAnalyticsSchema,
 });
 
-export const postPendingTransferPlanSchema = baseTransferPlanSchema.extend({
+const postPendingTransferPlanSchema = baseTransferPlanSchema.extend({
   type: z.literal(OPERATION_TRANSFER_TYPE.POST_PENDING),
   pendingId: z.bigint().positive(),
   amount: nonNegativeAmountSchema.optional(),
 });
 
-export const voidPendingTransferPlanSchema = baseTransferPlanSchema.extend({
+const voidPendingTransferPlanSchema = baseTransferPlanSchema.extend({
   type: z.literal(OPERATION_TRANSFER_TYPE.VOID_PENDING),
   pendingId: z.bigint().positive(),
 });
 
-export const transferPlanSchema = z.discriminatedUnion("type", [
+const transferPlanSchema = z.discriminatedUnion("type", [
   createTransferPlanSchema,
   postPendingTransferPlanSchema,
   voidPendingTransferPlanSchema,
 ]);
 
-export const sourceSchema = z.object({
+const sourceSchema = z.object({
   type: sourceTypeSchema,
   id: sourceIdSchema,
 });
@@ -99,8 +99,8 @@ export const createOperationInputSchema = z.object({
   transfers: z.array(transferPlanSchema).min(1, "transfers must be a non-empty array"),
 });
 
-export type ValidatedCreateOperationInput = z.infer<typeof createOperationInputSchema>;
-export type ValidatedTransferPlan = z.infer<typeof transferPlanSchema>;
+type ValidatedCreateOperationInput = z.infer<typeof createOperationInputSchema>;
+type ValidatedTransferPlan = z.infer<typeof transferPlanSchema>;
 
 export function validateCreateOperationInput(
   input: unknown,

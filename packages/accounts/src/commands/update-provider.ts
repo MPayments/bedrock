@@ -39,8 +39,9 @@ export function createUpdateProviderHandler(context: AccountServiceContext) {
       const fields: Record<string, unknown> = {};
 
       if (validated.name !== undefined) fields.name = validated.name;
-      if (validated.description !== undefined)
+      if (validated.description !== undefined) {
         fields.description = validated.description;
+      }
       if (validated.country !== undefined) fields.country = validated.country;
       if (validated.address !== undefined) fields.address = validated.address;
       if (validated.contact !== undefined) fields.contact = validated.contact;

@@ -4,8 +4,6 @@ import { createFundingSettledHandler } from "./commands/funding";
 import { createPayoutHandlers } from "./commands/payout";
 import { createTreasuryContext, type TreasuryServiceDeps } from "./internal/context";
 
-export type { TreasuryServiceDeps } from "./internal/context";
-
 export function createTreasuryService(deps: TreasuryServiceDeps) {
     const context = createTreasuryContext(deps);
 

@@ -30,7 +30,7 @@ interface CrossRate {
     rateDen: bigint;
 }
 
-export interface QuoteHandlersDeps {
+interface QuoteHandlersDeps {
     getCrossRate: (
         base: string,
         quote: string,

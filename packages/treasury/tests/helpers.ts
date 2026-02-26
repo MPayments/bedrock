@@ -7,30 +7,9 @@
 
 import { vi } from "vitest";
 
-import {
-  createStubDb,
-  mockSelectReturns,
-  mockUpdateReturns,
-  TEST_UUIDS,
-  type StubDatabase,
-  type StubTransaction,
-} from "@bedrock/test-utils";
+import { TEST_UUIDS } from "@bedrock/test-utils";
 
-// Re-export shared utilities for convenience
-export {
-  createMockDb,
-  createStubDb,
-  createStubTx,
-  mockSelectReturns,
-  mockInsertReturns,
-  mockUpdateReturns,
-  mockExecuteReturns,
-  mockTransactionWith,
-  TEST_UUIDS,
-  TEST_DATES,
-  type StubDatabase,
-  type StubTransaction,
-} from "@bedrock/test-utils";
+export { createStubDb, type StubDatabase } from "@bedrock/test-utils";
 
 // ============================================================================
 // Treasury-specific Constants
@@ -45,7 +24,7 @@ export const BANK_ACCOUNT_ID = "550e8400-e29b-41d4-a716-446655440777";
 // Treasury-specific Factories
 // ============================================================================
 
-export interface MockOrder {
+interface MockOrder {
   id: string;
   customerId: string;
   payInCounterpartyId: string;
@@ -159,47 +138,9 @@ export function createMockLedger() {
   } as any;
 }
 
-// ============================================================================
-// Treasury-specific Mock Setup Helpers
-// ============================================================================
-
-/**
- * Configure a stub transaction to return a specific order on select
- */
-export function setupTxWithOrder(
-  tx: StubTransaction,
-  order: MockOrder | null,
-): void {
-  mockSelectReturns(tx.select, order ? [order] : []);
-}
-
-/**
- * Configure a stub transaction for successful update
- */
-export function setupTxWithUpdateSuccess(tx: StubTransaction): void {
-  mockUpdateReturns(tx.update, [{ id: "test-id" }]);
-}
-
-/**
- * Configure a stub transaction for failed update (no rows affected)
- */
-export function setupTxWithUpdateFailure(tx: StubTransaction): void {
-  mockUpdateReturns(tx.update, []);
-}
-
 /**
  * Helper to create execute result format
  */
 export function mockDbExecuteResult(rows: unknown[]) {
   return { rows };
-}
-
-/**
- * Create a stub database with custom transaction behavior
- * for tests that need fine-grained control over tx mocks
- */
-export function createStubDbWithCustomTx(): StubDatabase & {
-  _tx: StubTransaction;
-} {
-  return createStubDb() as StubDatabase & { _tx: StubTransaction };
 }

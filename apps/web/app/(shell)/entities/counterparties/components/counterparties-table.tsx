@@ -73,7 +73,7 @@ interface EntityCounterpartiesTableProps {
   detailsBasePath?: string;
 }
 
-export function EntityCounterpartiesTable({
+export function CounterpartiesTable({
   promise,
   groupOptionsPromise,
   groupFilterOptionsPromise,
@@ -90,8 +90,6 @@ export function EntityCounterpartiesTable({
     />
   );
 }
-
-export const CounterpartiesTable = EntityCounterpartiesTable;
 
 interface TreasuryCounterpartiesTableProps {
   promise: Promise<CounterpartiesListResult>;

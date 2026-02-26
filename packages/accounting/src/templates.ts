@@ -9,9 +9,6 @@ export const OPERATION_TRANSFER_TYPE = {
   VOID_PENDING: "void_pending",
 } as const;
 
-export type OperationTransferType =
-  (typeof OPERATION_TRANSFER_TYPE)[keyof typeof OPERATION_TRANSFER_TYPE];
-
 export interface PostingAnalytics {
   counterpartyId?: string | null;
   customerId?: string | null;
@@ -22,7 +19,7 @@ export interface PostingAnalytics {
   feeBucket?: string | null;
 }
 
-export interface PendingConfig {
+interface PendingConfig {
   timeoutSeconds: number;
   ref?: string | null;
 }

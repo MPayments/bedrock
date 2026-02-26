@@ -5,8 +5,8 @@ import { createDeleteProviderHandler } from "./commands/delete-provider";
 import { createGetAccountHandler } from "./commands/get-account";
 import { createGetProviderHandler } from "./commands/get-provider";
 import { createListAccountsHandler } from "./commands/list-accounts";
-import { createResolveTransferBindingsHandler } from "./commands/resolve-transfer-bindings";
 import { createListProvidersHandler } from "./commands/list-providers";
+import { createResolveTransferBindingsHandler } from "./commands/resolve-transfer-bindings";
 import { createUpdateAccountHandler } from "./commands/update-account";
 import { createUpdateProviderHandler } from "./commands/update-provider";
 import {

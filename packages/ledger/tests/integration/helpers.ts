@@ -13,29 +13,6 @@ export function randomIdempotencyKey() {
   return `idem-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 }
 
-export async function waitForOutboxProcessing(
-  operationId: string,
-  timeoutMs = 5000,
-): Promise<void> {
-  const start = Date.now();
-
-  while (Date.now() - start < timeoutMs) {
-    const outboxEntry = await db
-      .select()
-      .from(schema.outbox)
-      .where(eq(schema.outbox.refId, operationId))
-      .limit(1);
-
-    if (outboxEntry.length > 0 && outboxEntry[0]!.status === "done") {
-      return;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-
-  throw new Error(`Outbox processing timed out for operation ${operationId}`);
-}
-
 export async function getOperation(operationId: string) {
   const rows = await db
     .select()

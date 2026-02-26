@@ -3,8 +3,6 @@ import { vi } from "vitest";
 import {
     createStubDb,
     createStubTx,
-    mockSelectReturns,
-    mockInsertReturns,
     TEST_UUIDS,
     TEST_DATES,
     type StubDatabase,
@@ -15,21 +13,7 @@ import type { TbClient } from "../src/tb";
 import type { CreateOperationInput, CreatePlan } from "../src/types";
 import { OPERATION_TRANSFER_TYPE } from "../src/types";
 
-// Re-export shared utilities for convenience
-export {
-    createMockDb,
-    createStubDb,
-    createStubTx,
-    mockSelectReturns,
-    mockInsertReturns,
-    mockUpdateReturns,
-    mockExecuteReturns,
-    mockTransactionWith,
-    TEST_UUIDS,
-    TEST_DATES,
-    type StubDatabase,
-    type StubTransaction,
-} from "@bedrock/test-utils";
+export { createStubDb, type StubDatabase } from "@bedrock/test-utils";
 
 // ============================================================================
 // Ledger-specific Factories
@@ -97,37 +81,10 @@ export function mockDbExecuteResult(rows: unknown[]) {
 }
 
 /**
- * Configure select mock to return data
- */
-export function mockDbSelectResult(
-    selectMock: ReturnType<typeof vi.fn>,
-    data: unknown[],
-) {
-    mockSelectReturns(selectMock, data);
-}
-
-/**
- * Configure insert mock for successful insert with returning values
- */
-export function mockDbInsertSuccess(
-    insertMock: ReturnType<typeof vi.fn>,
-    returning: unknown[] = [{ id: "test-id" }],
-) {
-    mockInsertReturns(insertMock, returning);
-}
-
-/**
- * Configure insert mock for conflict (no rows returned)
- */
-export function mockDbInsertConflict(insertMock: ReturnType<typeof vi.fn>) {
-    mockInsertReturns(insertMock, []);
-}
-
-/**
  * Create a stub transaction with smart insert behavior
  * that returns appropriate data based on the inserted values.
  */
-export function createSmartStubTx(): StubTransaction {
+function createSmartStubTx(): StubTransaction {
     const tx = createStubTx();
 
     tx.insert = vi.fn(() => ({

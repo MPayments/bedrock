@@ -13,7 +13,7 @@ export function isUuid(value: string) {
   return UUID_PATTERN.test(value);
 }
 
-export async function parseJsonSafely(
+async function parseJsonSafely(
   response: HttpResponseLike,
 ): Promise<unknown | null> {
   try {
@@ -23,7 +23,7 @@ export async function parseJsonSafely(
   }
 }
 
-export async function resolveResponseErrorMessage(
+async function resolveResponseErrorMessage(
   response: HttpResponseLike,
   fallbackMessage: string,
 ) {
@@ -31,7 +31,7 @@ export async function resolveResponseErrorMessage(
   return resolveApiErrorMessage(response.status, payload, fallbackMessage);
 }
 
-export function resolveUnknownErrorMessage(
+function resolveUnknownErrorMessage(
   error: unknown,
   fallbackMessage: string,
 ) {
@@ -42,7 +42,7 @@ export function resolveUnknownErrorMessage(
   return fallbackMessage;
 }
 
-export type MutationResult<T> =
+type MutationResult<T> =
   | {
       ok: true;
       data: T;

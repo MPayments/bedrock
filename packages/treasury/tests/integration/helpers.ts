@@ -4,25 +4,25 @@ import { eq, inArray } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 import { currencyIdForCode } from "@bedrock/db/seeds";
 
-import { db, tb } from "./setup";
+import { db } from "./setup";
 
 // ============================================================================
 // Random ID generators
 // ============================================================================
 
-export function randomCounterpartyId() {
+function randomCounterpartyId() {
   return randomUUID();
 }
 
-export function randomCustomerId() {
+function randomCustomerId() {
   return randomUUID();
 }
 
-export function randomOrderId() {
+function randomOrderId() {
   return randomUUID();
 }
 
-export function randomIdempotencyKey() {
+function randomIdempotencyKey() {
   return `idem-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 }
 
@@ -38,7 +38,7 @@ export function randomQuoteRef() {
 // Test Data Setup Helpers
 // ============================================================================
 
-export interface TestCounterparty {
+interface TestCounterparty {
   id: string;
   shortName: string;
   fullName: string;
@@ -51,7 +51,7 @@ type TestCounterpartyOverrides = Partial<TestCounterparty> & {
   isTreasury?: boolean;
 };
 
-export async function createTestCounterparty(
+async function createTestCounterparty(
   overrides: TestCounterpartyOverrides = {},
 ): Promise<TestCounterparty> {
   const isTreasury = overrides.isTreasury ?? false;
@@ -70,12 +70,12 @@ export async function createTestCounterparty(
   return counterparty;
 }
 
-export interface TestCustomer {
+interface TestCustomer {
   id: string;
   displayName: string;
 }
 
-export async function createTestCustomer(
+async function createTestCustomer(
   _counterpartyId: string,
   overrides: Partial<TestCustomer> = {},
 ): Promise<TestCustomer> {
@@ -88,14 +88,14 @@ export async function createTestCustomer(
   return customer;
 }
 
-export interface TestAccountProvider {
+interface TestAccountProvider {
   id: string;
   type: "bank" | "exchange" | "blockchain" | "custodian";
   name: string;
   country: string;
 }
 
-export async function createTestAccountProvider(
+async function createTestAccountProvider(
   overrides: Partial<TestAccountProvider> = {},
 ): Promise<TestAccountProvider> {
   const provider = {
@@ -109,7 +109,7 @@ export async function createTestAccountProvider(
   return provider;
 }
 
-export interface TestAccount {
+interface TestAccount {
   id: string;
   counterpartyId: string;
   accountProviderId: string;
@@ -119,7 +119,7 @@ export interface TestAccount {
   label: string;
 }
 
-export async function createTestAccount(
+async function createTestAccount(
   counterpartyId: string,
   accountProviderId: string,
   overrides: Partial<TestAccount> = {},
@@ -138,7 +138,7 @@ export async function createTestAccount(
   return { ...account, currency };
 }
 
-export interface TestPaymentOrder {
+interface TestPaymentOrder {
   id: string;
   customerCounterpartyId: string;
   customerId: string;
@@ -156,7 +156,7 @@ export interface TestPaymentOrder {
   idempotencyKey: string;
 }
 
-export async function createTestPaymentOrder(
+async function createTestPaymentOrder(
   params: {
     customerCounterpartyId: string;
     customerId: string;
@@ -191,7 +191,7 @@ export async function createTestPaymentOrder(
   return { ...order, payInCurrency, payOutCurrency };
 }
 
-export interface TestFxQuote {
+interface TestFxQuote {
   id: string;
   fromCurrencyId: string;
   fromCurrency: string;
@@ -253,7 +253,7 @@ export async function createTestFxQuote(
 /**
  * Create a complete test scenario with all required entities
  */
-export interface TestScenario {
+interface TestScenario {
   treasuryCounterparty: TestCounterparty;
   branchCounterparty: TestCounterparty;
   payoutCounterparty: TestCounterparty;
@@ -480,18 +480,4 @@ export async function updateOrderStatus(orderId: string, status: string) {
     .where(eq(schema.paymentOrders.id, orderId));
 }
 
-export async function updateOrderWithPendingTransferId(
-  orderId: string,
-  status: string,
-  pendingTransferId: bigint,
-) {
-  await db
-    .update(schema.paymentOrders)
-    .set({
-      status: status as any,
-      payoutPendingTransferId: pendingTransferId,
-    })
-    .where(eq(schema.paymentOrders.id, orderId));
-}
-
-export { db, tb };
+export { db };

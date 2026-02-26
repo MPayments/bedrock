@@ -16,6 +16,7 @@ import {
   type CustomersService,
 } from "@bedrock/customers";
 import { db } from "@bedrock/db/client";
+import { seedAccounting } from "@bedrock/db/seeds";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import {
@@ -75,8 +76,8 @@ export function createAppContext(env: Env): AppContext {
     logger,
   });
 
-  void accountingService.seedTemplateAndGlobalRules().catch((error) => {
-    logger.error("Failed to seed default accounting template/rules", {
+  void seedAccounting(db).catch((error) => {
+    logger.error("Failed to seed accounting defaults", {
       error: error instanceof Error ? error.message : String(error),
     });
   });
