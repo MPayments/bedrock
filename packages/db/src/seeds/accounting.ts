@@ -36,15 +36,6 @@ const ACCOUNTS = [
   ["4000", "Доходы", "revenue", "credit", false, true, null],
   ["5000", "Расходы", "expense", "debit", false, true, null],
   ["1110", "Банк", "asset", "debit", true, true, "1100"],
-  [
-    "1210",
-    "Резерв по ордерам (deprecated)",
-    "asset",
-    "debit",
-    false,
-    false,
-    "1200",
-  ],
   ["1220", "Транзит", "asset", "debit", true, true, "1200"],
   ["1310", "INTERCOMPANY_NET", "active_passive", "both", true, true, "1300"],
   ["1320", "TREASURY_CLEARING", "active_passive", "both", true, true, "1300"],
@@ -178,8 +169,4 @@ export async function seedAccounting(db: Database) {
         set: { required },
       });
   }
-}
-
-export async function seedAccountingForOrg(db: Database, _orgId: string) {
-  await seedAccounting(db);
 }

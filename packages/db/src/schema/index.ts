@@ -57,16 +57,13 @@ export const schema = {
   chartTemplateAccountAnalytics,
   correspondenceRules,
   operationalAccountsBookBindings,
-  operationalAccountBindings: operationalAccountsBookBindings,
 
   counterparties,
   counterpartyGroups,
   counterpartyGroupMemberships,
   customers,
   operationalAccountProviders,
-  accountProviders: operationalAccountProviders,
   operationalAccounts,
-  accounts: operationalAccounts,
   paymentOrders,
   settlements,
   reconciliationExceptions,
@@ -107,18 +104,12 @@ export type { Customer, CustomerInsert } from "./customers";
 export type {
   OperationalAccount,
   OperationalAccountInsert,
-  Account,
-  AccountInsert,
 } from "./treasury/accounts";
 export type {
   OperationalAccountsBookBinding,
   OperationalAccountsBookBindingInsert,
-  OperationalAccountBinding,
-  OperationalAccountBindingInsert,
 } from "./treasury/account-ledger-bindings";
 export type {
   OperationalAccountProvider,
   OperationalAccountProviderInsert,
-  AccountProvider,
-  AccountProviderInsert,
 } from "./treasury/account-providers";

@@ -1,7 +1,7 @@
 import { and, asc, desc, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
 import { schema } from "@bedrock/db/schema";
-import type { AccountProvider } from "@bedrock/db/schema";
+import type { OperationalAccountProvider } from "@bedrock/db/schema";
 import {
   type PaginatedList,
   resolveSortOrder,
@@ -27,7 +27,7 @@ export function createListProvidersHandler(context: AccountServiceContext) {
 
   return async function listProviders(
     input?: ListProvidersQuery,
-  ): Promise<PaginatedList<AccountProvider>> {
+  ): Promise<PaginatedList<OperationalAccountProvider>> {
     const query = ListProvidersQuerySchema.parse(input ?? {});
     const { limit, offset, sortBy, sortOrder, name, type, country } = query;
 

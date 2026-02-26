@@ -148,37 +148,37 @@ describe("createFeesService", () => {
 
     expect(service.getComponentDefaults("fx_fee")).toEqual({
       bucket: "fx_fee",
-      transferCode: TransferCodes.FEE_REVENUE,
+      transferCode: TransferCodes.FEE_INCOME,
       memo: "Fee revenue",
     });
 
     expect(service.getComponentDefaults("fx_spread")).toEqual({
       bucket: "fx_spread",
-      transferCode: TransferCodes.SPREAD_REVENUE,
+      transferCode: TransferCodes.SPREAD_INCOME,
       memo: "FX spread revenue",
     });
 
     expect(service.getComponentDefaults("bank_fee")).toEqual({
       bucket: "bank",
-      transferCode: TransferCodes.BANK_FEE_REVENUE,
+      transferCode: TransferCodes.FEE_INCOME,
       memo: "Bank fee revenue",
     });
 
     expect(service.getComponentDefaults("blockchain_fee")).toEqual({
       bucket: "blockchain",
-      transferCode: TransferCodes.BLOCKCHAIN_FEE_REVENUE,
+      transferCode: TransferCodes.FEE_INCOME,
       memo: "Blockchain fee revenue",
     });
 
     expect(service.getComponentDefaults("manual_fee")).toEqual({
       bucket: "manual",
-      transferCode: TransferCodes.ARBITRARY_FEE_REVENUE,
+      transferCode: TransferCodes.FEE_INCOME,
       memo: "Manual fee",
     });
 
     expect(service.getComponentDefaults("unknown")).toEqual({
       bucket: "custom",
-      transferCode: TransferCodes.ARBITRARY_FEE_REVENUE,
+      transferCode: TransferCodes.FEE_INCOME,
       memo: "Fee revenue",
     });
   });

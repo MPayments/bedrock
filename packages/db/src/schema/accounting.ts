@@ -140,6 +140,3 @@ export type ChartTemplateAccountAnalytic =
 export type CorrespondenceRule = typeof correspondenceRules.$inferSelect;
 export type OperationalAccountsBookBinding =
   typeof operationalAccountsBookBindings.$inferSelect;
-export type OperationalAccountBinding = OperationalAccountsBookBinding;
-
-export const operationalAccountBindings = operationalAccountsBookBindings;

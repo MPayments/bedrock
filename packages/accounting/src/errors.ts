@@ -8,9 +8,13 @@ export class AccountingError extends ServiceError {
 }
 
 export class CorrespondenceRuleNotFoundError extends AccountingError {
-  constructor(postingCode: string, debitAccountNo: string, creditAccountNo: string, orgId: string) {
+  constructor(
+    postingCode: string,
+    debitAccountNo: string,
+    creditAccountNo: string,
+  ) {
     super(
-      `Correspondence rule not found for org=${orgId}, postingCode=${postingCode}, debit=${debitAccountNo}, credit=${creditAccountNo}`,
+      `Correspondence rule not found for postingCode=${postingCode}, debit=${debitAccountNo}, credit=${creditAccountNo}`,
     );
     this.name = "CorrespondenceRuleNotFoundError";
   }

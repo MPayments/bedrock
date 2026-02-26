@@ -14,8 +14,6 @@ import { currencies } from "../currencies";
 
 export type OperationalAccount = typeof operationalAccounts.$inferSelect;
 export type OperationalAccountInsert = typeof operationalAccounts.$inferInsert;
-export type Account = OperationalAccount;
-export type AccountInsert = OperationalAccountInsert;
 
 export const operationalAccounts = pgTable(
   "operational_accounts",
@@ -61,5 +59,3 @@ export const operationalAccounts = pgTable(
     ),
   ],
 );
-
-export const accounts = operationalAccounts;

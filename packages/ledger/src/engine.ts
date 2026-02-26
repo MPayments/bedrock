@@ -2,7 +2,6 @@ import { and, eq } from "drizzle-orm";
 
 import {
   CorrespondenceRuleNotFoundError,
-  DEPRECATED_ACCOUNT_NO,
   DEFAULT_CHART_TEMPLATE_ACCOUNTS,
   DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS,
   DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
@@ -149,15 +148,6 @@ async function ensureCorrespondenceRule(
   tx: Transaction,
   plan: CreateTransferLine,
 ) {
-  if (
-    plan.debitAccountNo === DEPRECATED_ACCOUNT_NO.ORDER_INVENTORY ||
-    plan.creditAccountNo === DEPRECATED_ACCOUNT_NO.ORDER_INVENTORY
-  ) {
-    throw new AccountPostingValidationError(
-      `Posting code ${plan.postingCode} references deprecated account ${DEPRECATED_ACCOUNT_NO.ORDER_INVENTORY}`,
-    );
-  }
-
   const [rule] = await tx
     .select({ id: schema.correspondenceRules.id })
     .from(schema.correspondenceRules)
@@ -176,7 +166,6 @@ async function ensureCorrespondenceRule(
       plan.postingCode,
       plan.debitAccountNo,
       plan.creditAccountNo,
-      plan.bookOrgId,
     );
   }
 }

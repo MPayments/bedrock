@@ -21,8 +21,6 @@ export type OperationalAccountProvider =
   typeof operationalAccountProviders.$inferSelect;
 export type OperationalAccountProviderInsert =
   typeof operationalAccountProviders.$inferInsert;
-export type AccountProvider = OperationalAccountProvider;
-export type AccountProviderInsert = OperationalAccountProviderInsert;
 
 export const operationalAccountProviders = pgTable(
   "operational_account_providers",
@@ -46,5 +44,3 @@ export const operationalAccountProviders = pgTable(
   },
   (t) => [uniqueIndex("operational_account_providers_name_uq").on(t.name)],
 );
-
-export const accountProviders = operationalAccountProviders;

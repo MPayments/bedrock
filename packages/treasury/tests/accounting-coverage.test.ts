@@ -122,26 +122,26 @@ describe("accounting template coverage", () => {
 
   it("resolves in-ledger fee posting templates for all kinds", () => {
     expect(resolveInLedgerFeePostingTemplate("fx_spread").postingCode).toBe(
-      POSTING_CODE.SPREAD_REVENUE,
+      POSTING_CODE.SPREAD_INCOME,
     );
     expect(resolveInLedgerFeePostingTemplate("bank_fee").postingCode).toBe(
-      POSTING_CODE.BANK_FEE_REVENUE,
+      POSTING_CODE.FEE_INCOME,
     );
     expect(
       resolveInLedgerFeePostingTemplate("blockchain_fee").postingCode,
-    ).toBe(POSTING_CODE.BLOCKCHAIN_FEE_REVENUE);
+    ).toBe(POSTING_CODE.FEE_INCOME);
     expect(resolveInLedgerFeePostingTemplate("manual_fee").postingCode).toBe(
-      POSTING_CODE.ARBITRARY_FEE_REVENUE,
+      POSTING_CODE.FEE_INCOME,
     );
 
     const fallback = resolveInLedgerFeePostingTemplate("other_fee");
-    expect(fallback.postingCode).toBe(POSTING_CODE.FEE_REVENUE);
+    expect(fallback.postingCode).toBe(POSTING_CODE.FEE_INCOME);
     expect(fallback.feeBucket).toBe("other_fee");
   });
 
   it("resolves reserve/adjustment templates", () => {
     const reserve = resolveFeeReservePostingTemplate("bank");
-    expect(reserve.postingCode).toBe(POSTING_CODE.FEE_SEPARATE_PAYMENT_RESERVE);
+    expect(reserve.postingCode).toBe(POSTING_CODE.FEE_PASS_THROUGH_RESERVE);
 
     const increase = resolveAdjustmentInLedgerPostingTemplate(
       "increase_charge",
@@ -230,12 +230,7 @@ describe("accounting errors", () => {
     expect(base.name).toBe("AccountingError");
     expect(base.message).toBe("base error");
 
-    const rule = new CorrespondenceRuleNotFoundError(
-      "P",
-      "1000",
-      "2000",
-      "org-1",
-    );
+    const rule = new CorrespondenceRuleNotFoundError("P", "1000", "2000");
     expect(rule.name).toBe("CorrespondenceRuleNotFoundError");
     expect(rule.message).toContain("postingCode=P");
   });

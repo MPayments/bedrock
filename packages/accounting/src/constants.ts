@@ -10,7 +10,6 @@ export const ACCOUNT_NO = {
   EXPENSES: "5000",
 
   BANK: "1110",
-  ORDER_INVENTORY: "1210",
   TRANSIT: "1220",
   INTERCOMPANY_NET: "1310",
   TREASURY_CLEARING: "1320",
@@ -65,16 +64,6 @@ export const POSTING_CODE = {
   PROVIDER_FEE_EXPENSE_ACCRUAL: "TC.3008",
   FEE_PAYMENT_INITIATED: "TC.3011",
   PAYOUT_INITIATED: "TC.3101",
-
-  // Backward-compatible aliases for legacy naming.
-  FEE_REVENUE: "TC.3001",
-  SPREAD_REVENUE: "TC.3002",
-  BANK_FEE_REVENUE: "TC.3001",
-  BLOCKCHAIN_FEE_REVENUE: "TC.3001",
-  ARBITRARY_FEE_REVENUE: "TC.3001",
-  FEE_SEPARATE_PAYMENT_RESERVE: "TC.3003",
-  FEE_PAYMENT_SETTLED: "TC.3011",
-  FEE_PAYMENT_VOIDED: "TC.3011",
 } as const;
 
 export type PostingCode = (typeof POSTING_CODE)[keyof typeof POSTING_CODE];
@@ -150,10 +139,6 @@ export const POSTING_CODE_REQUIRED_ANALYTICS = {
     "fee_bucket",
     "quote_id",
   ],
-} as const;
-
-export const DEPRECATED_ACCOUNT_NO = {
-  ORDER_INVENTORY: ACCOUNT_NO.ORDER_INVENTORY,
 } as const;
 
 export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
@@ -246,15 +231,6 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     postingAllowed: true,
     enabled: true,
     parentAccountNo: ACCOUNT_NO.CASH_AND_EQUIVALENTS,
-  },
-  {
-    accountNo: ACCOUNT_NO.ORDER_INVENTORY,
-    name: "Резерв по ордерам (deprecated)",
-    kind: "asset",
-    normalSide: "debit",
-    postingAllowed: false,
-    enabled: false,
-    parentAccountNo: ACCOUNT_NO.OPERATING_ASSETS,
   },
   {
     accountNo: ACCOUNT_NO.TRANSIT,

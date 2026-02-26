@@ -56,16 +56,6 @@ export const TransferCodes = {
 
   /** Internal transfer */
   INTERNAL_TRANSFER: 4001,
-
-  // Backward-compatible aliases for legacy code paths.
-  FEE_REVENUE: 3001,
-  SPREAD_REVENUE: 3002,
-  FEE_SEPARATE_PAYMENT_RESERVE: 3003,
-  BANK_FEE_REVENUE: 3001,
-  BLOCKCHAIN_FEE_REVENUE: 3001,
-  ARBITRARY_FEE_REVENUE: 3001,
-  FEE_PAYMENT_SETTLED: 3011,
-  FEE_PAYMENT_VOIDED: 3011,
 } as const;
 
 export type TransferCode = (typeof TransferCodes)[keyof typeof TransferCodes];

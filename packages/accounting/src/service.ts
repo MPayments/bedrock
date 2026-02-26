@@ -9,7 +9,6 @@ import {
 } from "@bedrock/kernel/pagination";
 
 import {
-  DEPRECATED_ACCOUNT_NO,
   DEFAULT_CHART_TEMPLATE_ACCOUNTS,
   DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS,
   DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
@@ -264,17 +263,6 @@ export function createAccountingService(deps: AccountingServiceDeps) {
         rule.creditAccountNo,
       ].join("|");
       duplicateRuleCounts.set(key, (duplicateRuleCounts.get(key) ?? 0) + 1);
-
-      if (
-        rule.debitAccountNo === DEPRECATED_ACCOUNT_NO.ORDER_INVENTORY ||
-        rule.creditAccountNo === DEPRECATED_ACCOUNT_NO.ORDER_INVENTORY
-      ) {
-        errors.push({
-          code: "DEPRECATED_ACCOUNT_RULE",
-          message: `Enabled rule references deprecated account ${DEPRECATED_ACCOUNT_NO.ORDER_INVENTORY}`,
-          postingCode: rule.postingCode,
-        });
-      }
 
       for (const accountNo of [rule.debitAccountNo, rule.creditAccountNo]) {
         const account = activeAccounts.get(accountNo);
