@@ -58,8 +58,6 @@ async function assertTigerBeetleReady(timeoutMs = 5000) {
 beforeAll(async () => {
   console.log("Setting up integration test environment...");
 
-  // Tables should already exist from migrations
-  // Just verify connection works
   await pool.query("SELECT 1");
   await assertTigerBeetleReady();
 

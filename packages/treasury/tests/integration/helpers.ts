@@ -361,10 +361,7 @@ export async function getPaymentOrder(orderId: string) {
   const order = orders[0] || null;
   if (!order) return null;
 
-  return {
-    ...order,
-    ledgerEntryId: order.ledgerOperationId,
-  };
+  return order;
 }
 
 export async function getJournalEntry(entryId: string) {
@@ -377,17 +374,7 @@ export async function getJournalEntry(entryId: string) {
   const entry = entries[0] || null;
   if (!entry) return null;
 
-  const [posting] = await db
-    .select({ bookOrgId: schema.ledgerPostings.bookOrgId })
-    .from(schema.ledgerPostings)
-    .where(eq(schema.ledgerPostings.operationId, entryId))
-    .limit(1);
-
-  return {
-    ...entry,
-    orgId: posting?.bookOrgId ?? null,
-    postedAt: entry.postedAt,
-  };
+  return entry;
 }
 
 export async function getJournalLines(entryId: string) {
@@ -451,10 +438,7 @@ export async function getTbTransferPlans(entryId: string) {
     .from(schema.tbTransferPlans)
     .where(eq(schema.tbTransferPlans.operationId, entryId));
 
-  return plans.map((plan) => ({
-    ...plan,
-    journalEntryId: plan.operationId,
-  }));
+  return plans;
 }
 
 export async function getOutboxEntry(refId: string) {
@@ -467,10 +451,7 @@ export async function getOutboxEntry(refId: string) {
   const entry = entries[0] || null;
   if (!entry) return null;
 
-  return {
-    ...entry,
-    kind: entry.kind === "post_operation" ? "post_journal" : entry.kind,
-  };
+  return entry;
 }
 
 export async function updateOrderStatus(orderId: string, status: string) {

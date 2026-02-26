@@ -39,6 +39,7 @@ describe("Worker Integration Tests", () => {
           amount: 100000n,
           analytics: {
             customerId: randomUUID(),
+            operationalAccountId: randomUUID(),
           },
         },
       ],
@@ -84,6 +85,7 @@ describe("Worker Integration Tests", () => {
           pending: { timeoutSeconds: 3600 },
           analytics: {
             customerId: randomUUID(),
+            operationalAccountId: randomUUID(),
           },
         },
       ],
@@ -119,6 +121,9 @@ describe("Worker Integration Tests", () => {
             postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
             currency: "USD",
             amount: 10000n,
+            analytics: {
+              operationalAccountId: randomUUID(),
+            },
           },
         ],
       });

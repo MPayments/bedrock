@@ -19,12 +19,12 @@ import { db } from "@bedrock/db/client";
 import { seedAccounting } from "@bedrock/db/seeds";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
+import { createConsoleLogger, type Logger } from "@bedrock/kernel";
 import {
   createLedgerEngine,
   createLedgerReadService,
   type LedgerReadService,
 } from "@bedrock/ledger";
-import { createConsoleLogger, type Logger } from "@bedrock/kernel";
 import {
   createTransfersService,
   type TransfersService,

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import { ACCOUNT_NO, POSTING_CODE } from "@bedrock/accounting";
@@ -36,6 +37,9 @@ describe("Engine Integration Tests", () => {
           postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
           currency: "USD",
           amount: 100000n,
+          analytics: {
+            operationalAccountId: randomUUID(),
+          },
         },
       ],
     });
@@ -74,6 +78,9 @@ describe("Engine Integration Tests", () => {
           postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
           currency: "USD",
           amount: 200000n,
+          analytics: {
+            operationalAccountId: randomUUID(),
+          },
         },
       ],
     };
@@ -106,6 +113,9 @@ describe("Engine Integration Tests", () => {
           postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
           currency: "USD",
           amount: 100000n,
+          analytics: {
+            operationalAccountId: randomUUID(),
+          },
         },
       ],
     });
@@ -126,6 +136,9 @@ describe("Engine Integration Tests", () => {
             postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
             currency: "USD",
             amount: 200000n,
+            analytics: {
+              operationalAccountId: randomUUID(),
+            },
           },
         ],
       }),

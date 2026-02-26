@@ -57,7 +57,7 @@ describe("Treasury Service Integration Tests", () => {
       const order = await getPaymentOrder(scenario.order.id);
       expect(order).toBeDefined();
       expect(order!.status).toBe("funding_settled_pending_posting");
-      expect(order!.ledgerEntryId).toBe(entryId);
+      expect(order!.ledgerOperationId).toBe(entryId);
 
       // Verify journal entry created
       const entry = await getJournalEntry(entryId);
@@ -79,7 +79,7 @@ describe("Treasury Service Integration Tests", () => {
       // Verify outbox entry created
       const outbox = await getOutboxEntry(entryId);
       expect(outbox).toBeDefined();
-      expect(outbox!.kind).toBe("post_journal");
+      expect(outbox!.kind).toBe("post_operation");
       expect(outbox!.status).toBe("pending");
     });
 
@@ -244,7 +244,7 @@ describe("Treasury Service Integration Tests", () => {
       // Verify order state updated
       const order = await getPaymentOrder(scenario.order.id);
       expect(order!.status).toBe("fx_executed_pending_posting");
-      expect(order!.ledgerEntryId).toBe(entryId);
+      expect(order!.ledgerOperationId).toBe(entryId);
 
       // Verify journal entry created
       const entry = await getJournalEntry(entryId);
