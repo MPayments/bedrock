@@ -6,18 +6,18 @@ import { AccountNotFoundError } from "../errors";
 import type { AccountServiceContext } from "../internal/context";
 
 export function createDeleteAccountHandler(context: AccountServiceContext) {
-    const { db, log } = context;
+  const { db, log } = context;
 
-    return async function deleteAccount(id: string): Promise<void> {
-        const [deleted] = await db
-            .delete(schema.accounts)
-            .where(eq(schema.accounts.id, id))
-            .returning({ id: schema.accounts.id });
+  return async function deleteAccount(id: string): Promise<void> {
+    const [deleted] = await db
+      .delete(schema.operationalAccounts)
+      .where(eq(schema.operationalAccounts.id, id))
+      .returning({ id: schema.operationalAccounts.id });
 
-        if (!deleted) {
-            throw new AccountNotFoundError(id);
-        }
+    if (!deleted) {
+      throw new AccountNotFoundError(id);
+    }
 
-        log.info("Account deleted", { id });
-    };
+    log.info("Account deleted", { id });
+  };
 }

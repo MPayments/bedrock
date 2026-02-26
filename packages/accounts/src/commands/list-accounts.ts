@@ -13,8 +13,8 @@ import type { AccountServiceContext } from "../internal/context";
 import { ListAccountsQuerySchema, type ListAccountsQuery } from "../validation";
 
 const SORT_COLUMN_MAP = {
-  label: schema.accounts.label,
-  createdAt: schema.accounts.createdAt,
+  label: schema.operationalAccounts.label,
+  createdAt: schema.operationalAccounts.createdAt,
 } as const;
 
 type AccountRow = Account & {
@@ -42,19 +42,25 @@ export function createListAccountsHandler(context: AccountServiceContext) {
     const conditions: SQL[] = [];
 
     if (label) {
-      conditions.push(ilike(schema.accounts.label, `%${label}%`));
+      conditions.push(ilike(schema.operationalAccounts.label, `%${label}%`));
     }
 
     if (counterpartyId) {
-      conditions.push(eq(schema.accounts.counterpartyId, counterpartyId));
+      conditions.push(
+        eq(schema.operationalAccounts.counterpartyId, counterpartyId),
+      );
     }
 
     if (currencyId?.length) {
-      conditions.push(inArray(schema.accounts.currencyId, currencyId));
+      conditions.push(
+        inArray(schema.operationalAccounts.currencyId, currencyId),
+      );
     }
 
     if (accountProviderId) {
-      conditions.push(eq(schema.accounts.accountProviderId, accountProviderId));
+      conditions.push(
+        eq(schema.operationalAccounts.accountProviderId, accountProviderId),
+      );
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -62,37 +68,40 @@ export function createListAccountsHandler(context: AccountServiceContext) {
     const orderByCol = resolveSortValue(
       sortBy,
       SORT_COLUMN_MAP,
-      schema.accounts.createdAt,
+      schema.operationalAccounts.createdAt,
     );
 
     const [rows, countRows] = await Promise.all([
       db
         .select({
-          id: schema.accounts.id,
-          counterpartyId: schema.accounts.counterpartyId,
-          currencyId: schema.accounts.currencyId,
-          accountProviderId: schema.accounts.accountProviderId,
-          label: schema.accounts.label,
-          description: schema.accounts.description,
-          accountNo: schema.accounts.accountNo,
-          corrAccount: schema.accounts.corrAccount,
-          address: schema.accounts.address,
-          iban: schema.accounts.iban,
-          stableKey: schema.accounts.stableKey,
+          id: schema.operationalAccounts.id,
+          counterpartyId: schema.operationalAccounts.counterpartyId,
+          currencyId: schema.operationalAccounts.currencyId,
+          accountProviderId: schema.operationalAccounts.accountProviderId,
+          label: schema.operationalAccounts.label,
+          description: schema.operationalAccounts.description,
+          accountNo: schema.operationalAccounts.accountNo,
+          corrAccount: schema.operationalAccounts.corrAccount,
+          address: schema.operationalAccounts.address,
+          iban: schema.operationalAccounts.iban,
+          stableKey: schema.operationalAccounts.stableKey,
           postingAccountNo: schema.bookAccounts.accountNo,
-          createdAt: schema.accounts.createdAt,
-          updatedAt: schema.accounts.updatedAt,
+          createdAt: schema.operationalAccounts.createdAt,
+          updatedAt: schema.operationalAccounts.updatedAt,
         })
-        .from(schema.accounts)
+        .from(schema.operationalAccounts)
         .leftJoin(
-          schema.operationalAccountBindings,
-          eq(schema.operationalAccountBindings.accountId, schema.accounts.id),
+          schema.operationalAccountsBookBindings,
+          eq(
+            schema.operationalAccountsBookBindings.operationalAccountId,
+            schema.operationalAccounts.id,
+          ),
         )
         .leftJoin(
           schema.bookAccounts,
           eq(
             schema.bookAccounts.id,
-            schema.operationalAccountBindings.bookAccountId,
+            schema.operationalAccountsBookBindings.bookAccountId,
           ),
         )
         .where(where)
@@ -101,7 +110,7 @@ export function createListAccountsHandler(context: AccountServiceContext) {
         .offset(offset),
       db
         .select({ total: sql<number>`count(*)::int` })
-        .from(schema.accounts)
+        .from(schema.operationalAccounts)
         .where(where),
     ]);
 

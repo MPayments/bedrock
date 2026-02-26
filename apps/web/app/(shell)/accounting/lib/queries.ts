@@ -6,24 +6,13 @@ export interface AccountingTemplateAccount {
   kind: string;
   normalSide: string;
   postingAllowed: boolean;
+  enabled: boolean;
   parentAccountNo: string | null;
   createdAt: string;
 }
 
-export interface AccountingOrgAccount {
-  orgId: string;
-  accountNo: string;
-  name: string;
-  kind: string;
-  normalSide: string;
-  postingAllowed: boolean;
-  enabled: boolean;
-}
-
 export interface AccountingCorrespondenceRule {
   id: string;
-  scope: string;
-  orgId: string | null;
   postingCode: string;
   debitAccountNo: string;
   creditAccountNo: string;
@@ -155,28 +144,11 @@ export async function getAccountingTemplateAccounts(): Promise<
   return (await res.json()) as AccountingTemplateAccount[];
 }
 
-export async function getAccountingOrgAccounts(
-  orgId: string,
-): Promise<AccountingOrgAccount[]> {
-  const client = await getServerApiClient();
-  const res = await client.v1.accounting.orgs[":orgId"].accounts.$get(
-    { param: { orgId } },
-    { init: { cache: "no-store" } },
-  );
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch org accounts: ${res.status}`);
-  }
-
-  return (await res.json()) as AccountingOrgAccount[];
-}
-
 export async function getAccountingCorrespondenceRules(
-  orgId: string,
 ): Promise<AccountingCorrespondenceRule[]> {
   const client = await getServerApiClient();
-  const res = await client.v1.accounting.orgs[":orgId"]["correspondence-rules"].$get(
-    { param: { orgId } },
+  const res = await client.v1.accounting["correspondence-rules"].$get(
+    {},
     { init: { cache: "no-store" } },
   );
 

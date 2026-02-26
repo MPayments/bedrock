@@ -8,15 +8,17 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 
-import { accountProviders } from "./account-providers";
+import { operationalAccountProviders } from "./account-providers";
 import { counterparties } from "./counterparties";
 import { currencies } from "../currencies";
 
-export type Account = typeof accounts.$inferSelect;
-export type AccountInsert = typeof accounts.$inferInsert;
+export type OperationalAccount = typeof operationalAccounts.$inferSelect;
+export type OperationalAccountInsert = typeof operationalAccounts.$inferInsert;
+export type Account = OperationalAccount;
+export type AccountInsert = OperationalAccountInsert;
 
-export const accounts = pgTable(
-  "accounts",
+export const operationalAccounts = pgTable(
+  "operational_accounts",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     counterpartyId: uuid("counterparty_id")
@@ -29,7 +31,7 @@ export const accounts = pgTable(
 
     accountProviderId: uuid("account_provider_id")
       .notNull()
-      .references(() => accountProviders.id),
+      .references(() => operationalAccountProviders.id),
 
     label: text("label").notNull(),
     description: text("description"),
@@ -49,10 +51,15 @@ export const accounts = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (t) => [
-    uniqueIndex("accounts_counterparty_stable_uq").on(
+    uniqueIndex("operational_accounts_counterparty_stable_uq").on(
       t.counterpartyId,
       t.stableKey,
     ),
-    index("accounts_counterparty_cur_idx").on(t.counterpartyId, t.currencyId),
+    index("operational_accounts_counterparty_cur_idx").on(
+      t.counterpartyId,
+      t.currencyId,
+    ),
   ],
 );
+
+export const accounts = operationalAccounts;

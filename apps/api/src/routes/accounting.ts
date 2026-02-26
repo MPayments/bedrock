@@ -4,9 +4,7 @@ import {
   ListAccountingOperationsQuerySchema,
   ListFinancialResultsByCounterpartyQuerySchema,
   ListFinancialResultsByGroupQuerySchema,
-  accountNoSchema,
   replaceCorrespondenceRulesSchema,
-  upsertOrgAccountOverrideSchema,
 } from "@bedrock/accounting";
 import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 
@@ -15,17 +13,8 @@ import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
-const OrgParamSchema = z.object({
-  orgId: z.uuid(),
-});
-
 const OperationParamSchema = z.object({
   operationId: z.uuid(),
-});
-
-const OrgAccountParamSchema = z.object({
-  orgId: z.uuid(),
-  accountNo: accountNoSchema,
 });
 
 const TemplateAccountSchema = z.object({
@@ -34,24 +23,13 @@ const TemplateAccountSchema = z.object({
   kind: z.string(),
   normalSide: z.string(),
   postingAllowed: z.boolean(),
+  enabled: z.boolean(),
   parentAccountNo: z.string().nullable(),
   createdAt: z.string().datetime(),
 });
 
-const OrgAccountSchema = z.object({
-  orgId: z.uuid(),
-  accountNo: z.string(),
-  name: z.string(),
-  kind: z.string(),
-  normalSide: z.string(),
-  postingAllowed: z.boolean(),
-  enabled: z.boolean(),
-});
-
 const CorrespondenceRuleSchema = z.object({
   id: z.uuid(),
-  scope: z.string(),
-  orgId: z.uuid().nullable(),
   postingCode: z.string(),
   debitAccountNo: z.string(),
   creditAccountNo: z.string(),
@@ -64,6 +42,18 @@ const SeedResultSchema = z.object({
   seeded: z.boolean(),
   accounts: z.number().int(),
   rules: z.number().int(),
+});
+
+const ValidatePostingMatrixResultSchema = z.object({
+  ok: z.boolean(),
+  errors: z.array(
+    z.object({
+      code: z.string(),
+      message: z.string(),
+      postingCode: z.string().optional(),
+      accountNo: z.string().optional(),
+    }),
+  ),
 });
 
 const LedgerOperationSummarySchema = z.object({
@@ -198,80 +188,12 @@ export function accountingRoutes(ctx: AppContext) {
     },
   });
 
-  const listOrgAccountsRoute = createRoute({
-    middleware: [requirePermission({ accounting: ["list"] })],
-    method: "get",
-    path: "/orgs/{orgId}/accounts",
-    tags: ["Accounting"],
-    summary: "List effective org chart accounts",
-    request: {
-      params: OrgParamSchema,
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: z.array(OrgAccountSchema),
-          },
-        },
-        description: "Org chart accounts",
-      },
-    },
-  });
-
-  const upsertOrgAccountRoute = createRoute({
-    middleware: [requirePermission({ accounting: ["manage_accounts"] })],
-    method: "put",
-    path: "/orgs/{orgId}/accounts/{accountNo}",
-    tags: ["Accounting"],
-    summary: "Upsert org account override",
-    request: {
-      params: OrgAccountParamSchema,
-      body: {
-        content: {
-          "application/json": {
-            schema: upsertOrgAccountOverrideSchema,
-          },
-        },
-        required: true,
-      },
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: z.object({
-              orgId: z.uuid(),
-              accountNo: z.string(),
-              enabled: z.boolean(),
-              nameOverride: z.string().nullable(),
-              createdAt: z.string().datetime(),
-              updatedAt: z.string().datetime(),
-            }),
-          },
-        },
-        description: "Override saved",
-      },
-      400: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Validation error",
-      },
-    },
-  });
-
   const listRulesRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
-    path: "/orgs/{orgId}/correspondence-rules",
+    path: "/correspondence-rules",
     tags: ["Accounting"],
-    summary: "List org correspondence rules",
-    request: {
-      params: OrgParamSchema,
-    },
+    summary: "List global correspondence rules",
     responses: {
       200: {
         content: {
@@ -287,11 +209,10 @@ export function accountingRoutes(ctx: AppContext) {
   const replaceRulesRoute = createRoute({
     middleware: [requirePermission({ accounting: ["manage_correspondence"] })],
     method: "put",
-    path: "/orgs/{orgId}/correspondence-rules",
+    path: "/correspondence-rules",
     tags: ["Accounting"],
-    summary: "Replace org correspondence rules",
+    summary: "Replace global correspondence rules",
     request: {
-      params: OrgParamSchema,
       body: {
         content: {
           "application/json": {
@@ -317,6 +238,24 @@ export function accountingRoutes(ctx: AppContext) {
           },
         },
         description: "Validation error",
+      },
+    },
+  });
+
+  const validatePostingMatrixRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["manage_correspondence"] })],
+    method: "post",
+    path: "/correspondence-rules/validate",
+    tags: ["Accounting"],
+    summary: "Validate posting matrix and account analytics consistency",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: ValidatePostingMatrixResultSchema,
+          },
+        },
+        description: "Validation result",
       },
     },
   });
@@ -432,12 +371,9 @@ export function accountingRoutes(ctx: AppContext) {
   const seedRoute = createRoute({
     middleware: [requirePermission({ accounting: ["seed"] })],
     method: "post",
-    path: "/orgs/{orgId}/seed-defaults",
+    path: "/seed-defaults",
     tags: ["Accounting"],
-    summary: "Seed default accounting setup for org",
-    request: {
-      params: OrgParamSchema,
-    },
+    summary: "Seed default global accounting setup",
     responses: {
       200: {
         content: {
@@ -460,54 +396,18 @@ export function accountingRoutes(ctx: AppContext) {
           kind: row.kind,
           normalSide: row.normalSide,
           postingAllowed: row.postingAllowed,
+          enabled: row.enabled,
           parentAccountNo: row.parentAccountNo,
           createdAt: row.createdAt.toISOString(),
         })),
         200,
       );
     })
-    .openapi(listOrgAccountsRoute, async (c) => {
-      const { orgId } = c.req.valid("param");
-      const rows = await ctx.accountingService.listOrgAccounts(orgId);
-      return c.json(rows, 200);
-    })
-    .openapi(upsertOrgAccountRoute, async (c) => {
-      try {
-        const { orgId, accountNo } = c.req.valid("param");
-        const body = c.req.valid("json");
-        const row = await ctx.accountingService.upsertOrgAccountOverride(
-          orgId,
-          accountNo,
-          body,
-        );
-        return c.json(
-          {
-            orgId: row.orgId,
-            accountNo: row.accountNo,
-            enabled: row.enabled,
-            nameOverride: row.nameOverride,
-            createdAt: row.createdAt.toISOString(),
-            updatedAt: row.updatedAt.toISOString(),
-          },
-          200,
-        );
-      } catch (error) {
-        return c.json(
-          {
-            error: error instanceof Error ? error.message : String(error),
-          },
-          400,
-        );
-      }
-    })
     .openapi(listRulesRoute, async (c) => {
-      const { orgId } = c.req.valid("param");
-      const rows = await ctx.accountingService.listCorrespondenceRules(orgId);
+      const rows = await ctx.accountingService.listCorrespondenceRules();
       return c.json(
         rows.map((row) => ({
           id: row.id,
-          scope: row.scope,
-          orgId: row.orgId,
           postingCode: row.postingCode,
           debitAccountNo: row.debitAccountNo,
           creditAccountNo: row.creditAccountNo,
@@ -520,17 +420,12 @@ export function accountingRoutes(ctx: AppContext) {
     })
     .openapi(replaceRulesRoute, async (c) => {
       try {
-        const { orgId } = c.req.valid("param");
         const body = c.req.valid("json");
-        const rows = await ctx.accountingService.replaceCorrespondenceRules(
-          orgId,
-          body,
-        );
+        const rows =
+          await ctx.accountingService.replaceCorrespondenceRules(body);
         return c.json(
           rows.map((row) => ({
             id: row.id,
-            scope: row.scope,
-            orgId: row.orgId,
             postingCode: row.postingCode,
             debitAccountNo: row.debitAccountNo,
             creditAccountNo: row.creditAccountNo,
@@ -548,6 +443,10 @@ export function accountingRoutes(ctx: AppContext) {
           400,
         );
       }
+    })
+    .openapi(validatePostingMatrixRoute, async (c) => {
+      const result = await ctx.accountingService.validatePostingMatrix();
+      return c.json(result, 200);
     })
     .openapi(listOperationsRoute, async (c) => {
       const query = c.req.valid("query");
@@ -679,8 +578,7 @@ export function accountingRoutes(ctx: AppContext) {
       }
     })
     .openapi(seedRoute, async (c) => {
-      const { orgId } = c.req.valid("param");
-      const result = await ctx.accountingService.seedDefaults(orgId);
+      const result = await ctx.accountingService.seedDefaults();
       return c.json(result, 200);
     });
 }

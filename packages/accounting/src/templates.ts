@@ -141,8 +141,8 @@ export function buildTransferApproveTemplate(
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: makePlanKey("transfer_v3_approve_intra", {
             transferId: input.transferId,
-            sourceAccountId: input.source.accountId,
-            destinationAccountId: input.destination.accountId,
+            sourceOperationalAccountId: input.source.accountId,
+            destinationOperationalAccountId: input.destination.accountId,
             amount: input.amountMinor.toString(),
             currency: input.source.currencyCode,
             settlementMode: input.settlementMode,
@@ -186,8 +186,8 @@ export function buildTransferApproveTemplate(
         type: OPERATION_TRANSFER_TYPE.CREATE,
         planRef: makePlanKey("transfer_v3_approve_cross_source", {
           transferId: input.transferId,
-          sourceAccountId: input.source.accountId,
-          destinationAccountId: input.destination.accountId,
+          sourceOperationalAccountId: input.source.accountId,
+          destinationOperationalAccountId: input.destination.accountId,
           amount: input.amountMinor.toString(),
           currency: input.source.currencyCode,
           settlementMode: input.settlementMode,
@@ -220,8 +220,8 @@ export function buildTransferApproveTemplate(
         type: OPERATION_TRANSFER_TYPE.CREATE,
         planRef: makePlanKey("transfer_v3_approve_cross_destination", {
           transferId: input.transferId,
-          sourceAccountId: input.source.accountId,
-          destinationAccountId: input.destination.accountId,
+          sourceOperationalAccountId: input.source.accountId,
+          destinationOperationalAccountId: input.destination.accountId,
           amount: input.amountMinor.toString(),
           currency: input.source.currencyCode,
           settlementMode: input.settlementMode,
@@ -298,49 +298,38 @@ export function resolveInLedgerFeePostingTemplate(
 ): FeePostingTemplate {
   if (kind === "fx_spread") {
     return {
-      postingCode: POSTING_CODE.SPREAD_REVENUE,
+      postingCode: POSTING_CODE.SPREAD_INCOME,
       debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
       creditAccountNo: ACCOUNT_NO.SPREAD_REVENUE,
-      transferCode: TransferCodes.SPREAD_REVENUE,
+      transferCode: TransferCodes.SPREAD_INCOME,
       feeBucket: "spread",
     };
   }
 
-  if (kind === "bank_fee") {
+  if (
+    kind === "bank_fee" ||
+    kind === "blockchain_fee" ||
+    kind === "manual_fee"
+  ) {
     return {
-      postingCode: POSTING_CODE.BANK_FEE_REVENUE,
+      postingCode: POSTING_CODE.FEE_INCOME,
       debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
       creditAccountNo: ACCOUNT_NO.FEE_REVENUE,
-      transferCode: TransferCodes.BANK_FEE_REVENUE,
-      feeBucket: "bank",
-    };
-  }
-
-  if (kind === "blockchain_fee") {
-    return {
-      postingCode: POSTING_CODE.BLOCKCHAIN_FEE_REVENUE,
-      debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-      creditAccountNo: ACCOUNT_NO.FEE_REVENUE,
-      transferCode: TransferCodes.BLOCKCHAIN_FEE_REVENUE,
-      feeBucket: "blockchain",
-    };
-  }
-
-  if (kind === "manual_fee") {
-    return {
-      postingCode: POSTING_CODE.ARBITRARY_FEE_REVENUE,
-      debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-      creditAccountNo: ACCOUNT_NO.FEE_REVENUE,
-      transferCode: TransferCodes.ARBITRARY_FEE_REVENUE,
-      feeBucket: "manual",
+      transferCode: TransferCodes.FEE_INCOME,
+      feeBucket:
+        kind === "bank_fee"
+          ? "bank"
+          : kind === "blockchain_fee"
+            ? "blockchain"
+            : "manual",
     };
   }
 
   return {
-    postingCode: POSTING_CODE.FEE_REVENUE,
+    postingCode: POSTING_CODE.FEE_INCOME,
     debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
     creditAccountNo: ACCOUNT_NO.FEE_REVENUE,
-    transferCode: TransferCodes.FEE_REVENUE,
+    transferCode: TransferCodes.FEE_INCOME,
     feeBucket: kind,
   };
 }
@@ -349,10 +338,22 @@ export function resolveFeeReservePostingTemplate(
   bucket: string,
 ): FeePostingTemplate {
   return {
-    postingCode: POSTING_CODE.FEE_SEPARATE_PAYMENT_RESERVE,
+    postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
     debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
     creditAccountNo: ACCOUNT_NO.FEE_CLEARING,
-    transferCode: TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
+    transferCode: TransferCodes.FEE_PASS_THROUGH_RESERVE,
+    feeBucket: bucket,
+  };
+}
+
+export function resolveProviderFeeExpenseAccrualPostingTemplate(
+  bucket: string,
+): FeePostingTemplate {
+  return {
+    postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL,
+    debitAccountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
+    creditAccountNo: ACCOUNT_NO.FEE_CLEARING,
+    transferCode: TransferCodes.PROVIDER_FEE_EXPENSE_ACCRUAL,
     feeBucket: bucket,
   };
 }
@@ -386,19 +387,19 @@ export function resolveAdjustmentReservePostingTemplate(
 ): FeePostingTemplate {
   if (effect === "decrease_charge") {
     return {
-      postingCode: POSTING_CODE.FEE_SEPARATE_PAYMENT_RESERVE,
+      postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
       debitAccountNo: ACCOUNT_NO.ADJUSTMENT_EXPENSE,
       creditAccountNo: ACCOUNT_NO.FEE_CLEARING,
-      transferCode: TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
+      transferCode: TransferCodes.FEE_PASS_THROUGH_RESERVE,
       feeBucket: `adjustment:${kind}`,
     };
   }
 
   return {
-    postingCode: POSTING_CODE.FEE_SEPARATE_PAYMENT_RESERVE,
+    postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
     debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
     creditAccountNo: ACCOUNT_NO.FEE_CLEARING,
-    transferCode: TransferCodes.FEE_SEPARATE_PAYMENT_RESERVE,
+    transferCode: TransferCodes.FEE_PASS_THROUGH_RESERVE,
     feeBucket: `adjustment:${kind}`,
   };
 }

@@ -39,6 +39,7 @@ export {
 export const CUSTOMER_ID = TEST_UUIDS.CUSTOMER_1;
 export const ORDER_ID = TEST_UUIDS.ORDER_1;
 export const BRANCH_COUNTERPARTY_ID = TEST_UUIDS.ORG_2;
+export const BANK_ACCOUNT_ID = "550e8400-e29b-41d4-a716-446655440777";
 
 // ============================================================================
 // Treasury-specific Factories
@@ -49,6 +50,8 @@ export interface MockOrder {
   customerId: string;
   payInCounterpartyId: string;
   payOutCounterpartyId: string;
+  payInAccountId: string | null;
+  payOutAccountId: string | null;
   status: string;
   payInCurrencyId: string;
   payInCurrency: string;
@@ -71,6 +74,8 @@ export function createMockOrder(overrides: Partial<MockOrder> = {}): MockOrder {
     customerId: CUSTOMER_ID,
     payInCounterpartyId: BRANCH_COUNTERPARTY_ID,
     payOutCounterpartyId: BRANCH_COUNTERPARTY_ID,
+    payInAccountId: BANK_ACCOUNT_ID,
+    payOutAccountId: BANK_ACCOUNT_ID,
     status: "quote",
     payInCurrencyId: "cur-usd",
     payInCurrency: "USD",

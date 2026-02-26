@@ -12,14 +12,14 @@ export interface TransferDto {
   id: string;
   sourceCounterpartyId: string;
   destinationCounterpartyId: string;
-  sourceAccountId: string;
-  destinationAccountId: string;
+  sourceOperationalAccountId: string;
+  destinationOperationalAccountId: string;
   currencyId: string;
   currencyCode: string | null;
   sourceCounterpartyName: string | null;
   destinationCounterpartyName: string | null;
-  sourceAccountLabel: string | null;
-  destinationAccountLabel: string | null;
+  sourceOperationalAccountLabel: string | null;
+  destinationOperationalAccountLabel: string | null;
   amountMinor: string;
   kind: "intra_org" | "cross_org";
   settlementMode: "immediate" | "pending";

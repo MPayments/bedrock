@@ -1,10 +1,12 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import {
   CorrespondenceRuleNotFoundError,
+  DEPRECATED_ACCOUNT_NO,
   DEFAULT_CHART_TEMPLATE_ACCOUNTS,
   DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS,
   DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
+  POSTING_CODE_REQUIRED_ANALYTICS,
 } from "@bedrock/accounting";
 import { type Transaction, type Database } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
@@ -147,13 +149,20 @@ async function ensureCorrespondenceRule(
   tx: Transaction,
   plan: CreateTransferLine,
 ) {
-  const [orgRule] = await tx
+  if (
+    plan.debitAccountNo === DEPRECATED_ACCOUNT_NO.ORDER_INVENTORY ||
+    plan.creditAccountNo === DEPRECATED_ACCOUNT_NO.ORDER_INVENTORY
+  ) {
+    throw new AccountPostingValidationError(
+      `Posting code ${plan.postingCode} references deprecated account ${DEPRECATED_ACCOUNT_NO.ORDER_INVENTORY}`,
+    );
+  }
+
+  const [rule] = await tx
     .select({ id: schema.correspondenceRules.id })
     .from(schema.correspondenceRules)
     .where(
       and(
-        eq(schema.correspondenceRules.scope, "org"),
-        eq(schema.correspondenceRules.orgId, plan.bookOrgId),
         eq(schema.correspondenceRules.postingCode, plan.postingCode),
         eq(schema.correspondenceRules.debitAccountNo, plan.debitAccountNo),
         eq(schema.correspondenceRules.creditAccountNo, plan.creditAccountNo),
@@ -162,24 +171,7 @@ async function ensureCorrespondenceRule(
     )
     .limit(1);
 
-  if (orgRule) return;
-
-  const [globalRule] = await tx
-    .select({ id: schema.correspondenceRules.id })
-    .from(schema.correspondenceRules)
-    .where(
-      and(
-        eq(schema.correspondenceRules.scope, "global"),
-        isNull(schema.correspondenceRules.orgId),
-        eq(schema.correspondenceRules.postingCode, plan.postingCode),
-        eq(schema.correspondenceRules.debitAccountNo, plan.debitAccountNo),
-        eq(schema.correspondenceRules.creditAccountNo, plan.creditAccountNo),
-        eq(schema.correspondenceRules.enabled, true),
-      ),
-    )
-    .limit(1);
-
-  if (!globalRule) {
+  if (!rule) {
     throw new CorrespondenceRuleNotFoundError(
       plan.postingCode,
       plan.debitAccountNo,
@@ -191,28 +183,16 @@ async function ensureCorrespondenceRule(
 
 async function loadPostingAccountPolicy(
   tx: Transaction,
-  orgId: string,
   accountNo: string,
 ): Promise<PostingAccountPolicy> {
-  const [templateAccount, orgOverride, requiredAnalytics] = await Promise.all([
+  const [templateAccount, requiredAnalytics] = await Promise.all([
     tx
       .select({
         postingAllowed: schema.chartTemplateAccounts.postingAllowed,
+        enabled: schema.chartTemplateAccounts.enabled,
       })
       .from(schema.chartTemplateAccounts)
       .where(eq(schema.chartTemplateAccounts.accountNo, accountNo))
-      .limit(1),
-    tx
-      .select({
-        enabled: schema.chartOrgOverrides.enabled,
-      })
-      .from(schema.chartOrgOverrides)
-      .where(
-        and(
-          eq(schema.chartOrgOverrides.orgId, orgId),
-          eq(schema.chartOrgOverrides.accountNo, accountNo),
-        ),
-      )
       .limit(1),
     tx
       .select({
@@ -236,7 +216,7 @@ async function loadPostingAccountPolicy(
 
   return {
     postingAllowed: template.postingAllowed,
-    enabled: orgOverride[0]?.enabled ?? true,
+    enabled: template.enabled,
     requiredAnalytics: requiredAnalytics.map(
       (item) => item.analyticType as PostingAnalyticType,
     ),
@@ -247,16 +227,15 @@ async function ensurePostingAccountAllowed(
   tx: Transaction,
   cache: Map<string, PostingAccountPolicy>,
   input: {
-    orgId: string;
     accountNo: string;
     postingCode: string;
     analytics?: CreateTransferLine["analytics"];
   },
 ) {
-  const cacheKey = `${input.orgId}:${input.accountNo}`;
+  const cacheKey = input.accountNo;
   let policy = cache.get(cacheKey);
   if (!policy) {
-    policy = await loadPostingAccountPolicy(tx, input.orgId, input.accountNo);
+    policy = await loadPostingAccountPolicy(tx, input.accountNo);
     cache.set(cacheKey, policy);
   }
 
@@ -268,7 +247,7 @@ async function ensurePostingAccountAllowed(
 
   if (!policy.enabled) {
     throw new AccountPostingValidationError(
-      `Account ${input.accountNo} is disabled for org=${input.orgId}`,
+      `Account ${input.accountNo} is disabled`,
     );
   }
 
@@ -280,6 +259,24 @@ async function ensurePostingAccountAllowed(
         input.accountNo,
         analyticType,
         input.postingCode,
+      );
+    }
+  }
+
+  const postingRequired =
+    POSTING_CODE_REQUIRED_ANALYTICS[
+      input.postingCode as keyof typeof POSTING_CODE_REQUIRED_ANALYTICS
+    ] ?? [];
+
+  for (const analyticType of postingRequired) {
+    const field =
+      ANALYTIC_FIELD_BY_TYPE[
+        analyticType as keyof typeof ANALYTIC_FIELD_BY_TYPE
+      ];
+    const value = input.analytics?.[field];
+    if (value === undefined || value === null || value === "") {
+      throw new AccountPostingValidationError(
+        `Posting code ${input.postingCode} requires analytic ${analyticType}`,
       );
     }
   }
@@ -361,6 +358,7 @@ async function ensureAccountingDefaultsSeeded(tx: Transaction) {
         kind: account.kind,
         normalSide: account.normalSide,
         postingAllowed: account.postingAllowed,
+        enabled: account.enabled,
         parentAccountNo: account.parentAccountNo ?? null,
       })
       .onConflictDoUpdate({
@@ -370,6 +368,7 @@ async function ensureAccountingDefaultsSeeded(tx: Transaction) {
           kind: account.kind,
           normalSide: account.normalSide,
           postingAllowed: account.postingAllowed,
+          enabled: account.enabled,
           parentAccountNo: account.parentAccountNo ?? null,
         },
       });
@@ -398,8 +397,6 @@ async function ensureAccountingDefaultsSeeded(tx: Transaction) {
     await tx
       .insert(schema.correspondenceRules)
       .values({
-        scope: "global",
-        orgId: null,
         postingCode: rule.postingCode,
         debitAccountNo: rule.debitAccountNo,
         creditAccountNo: rule.creditAccountNo,
@@ -407,8 +404,6 @@ async function ensureAccountingDefaultsSeeded(tx: Transaction) {
       })
       .onConflictDoUpdate({
         target: [
-          schema.correspondenceRules.scope,
-          schema.correspondenceRules.orgId,
           schema.correspondenceRules.postingCode,
           schema.correspondenceRules.debitAccountNo,
           schema.correspondenceRules.creditAccountNo,
@@ -526,13 +521,11 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
       if (line.type === OPERATION_TRANSFER_TYPE.CREATE) {
         await ensureCorrespondenceRule(tx, line);
         await ensurePostingAccountAllowed(tx, postingPolicyCache, {
-          orgId: line.bookOrgId,
           accountNo: line.debitAccountNo,
           postingCode: line.postingCode,
           analytics: line.analytics,
         });
         await ensurePostingAccountAllowed(tx, postingPolicyCache, {
-          orgId: line.bookOrgId,
           accountNo: line.creditAccountNo,
           postingCode: line.postingCode,
           analytics: line.analytics,

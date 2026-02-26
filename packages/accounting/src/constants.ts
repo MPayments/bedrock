@@ -13,13 +13,16 @@ export const ACCOUNT_NO = {
   ORDER_INVENTORY: "1210",
   TRANSIT: "1220",
   INTERCOMPANY_NET: "1310",
+  TREASURY_CLEARING: "1320",
   CUSTOMER_WALLET: "2110",
   FEE_CLEARING: "2120",
   PAYOUT_OBLIGATION: "2130",
+  ORDER_RESERVE: "2140",
   FEE_REVENUE: "4110",
   SPREAD_REVENUE: "4120",
   ADJUSTMENT_REVENUE: "4130",
   ADJUSTMENT_EXPENSE: "5110",
+  PROVIDER_FEE_EXPENSE: "5120",
 } as const;
 
 export const OPERATION_CODE = {
@@ -41,7 +44,6 @@ export const OPERATION_CODE = {
 } as const;
 
 export const POSTING_CODE = {
-  // Transfers
   TRANSFER_INTRA_IMMEDIATE: "TR.INTRA.IMMEDIATE",
   TRANSFER_INTRA_PENDING: "TR.INTRA.PENDING",
   TRANSFER_CROSS_SOURCE_IMMEDIATE: "TR.CROSS.SOURCE.IMMEDIATE",
@@ -49,29 +51,110 @@ export const POSTING_CODE = {
   TRANSFER_CROSS_SOURCE_PENDING: "TR.CROSS.SOURCE.PENDING",
   TRANSFER_CROSS_DEST_PENDING: "TR.CROSS.DEST.PENDING",
 
-  // Treasury / transfer code mapping
   FUNDING_SETTLED: "TC.1001",
   FX_PRINCIPAL: "TC.2001",
-  FEE_REVENUE: "TC.2002",
-  SPREAD_REVENUE: "TC.2003",
-  FX_INTERCOMPANY_COMMIT: "TC.2004",
   FX_PAYOUT_OBLIGATION: "TC.2005",
-  BANK_FEE_REVENUE: "TC.2006",
-  BLOCKCHAIN_FEE_REVENUE: "TC.2007",
-  ARBITRARY_FEE_REVENUE: "TC.2008",
   FX_LEG_OUT: "TC.2009",
   FX_LEG_IN: "TC.2010",
-  PAYOUT_INITIATED: "TC.3001",
-  FEE_SEPARATE_PAYMENT_RESERVE: "TC.3002",
-  FEE_PAYMENT_INITIATED: "TC.3003",
-  FEE_PAYMENT_SETTLED: "TC.3004",
-  FEE_PAYMENT_VOIDED: "TC.3005",
+
+  FEE_INCOME: "TC.3001",
+  SPREAD_INCOME: "TC.3002",
+  FEE_PASS_THROUGH_RESERVE: "TC.3003",
   ADJUSTMENT_CHARGE: "TC.3006",
   ADJUSTMENT_REFUND: "TC.3007",
-  INTERNAL_TRANSFER: "TC.4001",
+  PROVIDER_FEE_EXPENSE_ACCRUAL: "TC.3008",
+  FEE_PAYMENT_INITIATED: "TC.3011",
+  PAYOUT_INITIATED: "TC.3101",
+
+  // Backward-compatible aliases for legacy naming.
+  FEE_REVENUE: "TC.3001",
+  SPREAD_REVENUE: "TC.3002",
+  BANK_FEE_REVENUE: "TC.3001",
+  BLOCKCHAIN_FEE_REVENUE: "TC.3001",
+  ARBITRARY_FEE_REVENUE: "TC.3001",
+  FEE_SEPARATE_PAYMENT_RESERVE: "TC.3003",
+  FEE_PAYMENT_SETTLED: "TC.3011",
+  FEE_PAYMENT_VOIDED: "TC.3011",
 } as const;
 
 export type PostingCode = (typeof POSTING_CODE)[keyof typeof POSTING_CODE];
+
+export const POSTING_CODE_REQUIRED_ANALYTICS = {
+  [POSTING_CODE.TRANSFER_INTRA_IMMEDIATE]: ["operational_account_id"],
+  [POSTING_CODE.TRANSFER_INTRA_PENDING]: ["operational_account_id"],
+  [POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE]: [
+    "counterparty_id",
+    "operational_account_id",
+  ],
+  [POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE]: [
+    "counterparty_id",
+    "operational_account_id",
+  ],
+  [POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING]: [
+    "counterparty_id",
+    "operational_account_id",
+  ],
+  [POSTING_CODE.TRANSFER_CROSS_DEST_PENDING]: [
+    "counterparty_id",
+    "operational_account_id",
+  ],
+  [POSTING_CODE.FUNDING_SETTLED]: ["customer_id", "operational_account_id"],
+  [POSTING_CODE.FX_PRINCIPAL]: ["order_id", "customer_id", "quote_id"],
+  [POSTING_CODE.FX_LEG_OUT]: ["order_id", "counterparty_id", "quote_id"],
+  [POSTING_CODE.FX_LEG_IN]: ["order_id", "counterparty_id", "quote_id"],
+  [POSTING_CODE.FX_PAYOUT_OBLIGATION]: ["order_id", "quote_id"],
+  [POSTING_CODE.FEE_INCOME]: [
+    "order_id",
+    "customer_id",
+    "fee_bucket",
+    "quote_id",
+  ],
+  [POSTING_CODE.SPREAD_INCOME]: [
+    "order_id",
+    "customer_id",
+    "fee_bucket",
+    "quote_id",
+  ],
+  [POSTING_CODE.FEE_PASS_THROUGH_RESERVE]: [
+    "order_id",
+    "customer_id",
+    "fee_bucket",
+    "quote_id",
+  ],
+  [POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL]: [
+    "order_id",
+    "fee_bucket",
+    "counterparty_id",
+    "quote_id",
+  ],
+  [POSTING_CODE.FEE_PAYMENT_INITIATED]: [
+    "order_id",
+    "fee_bucket",
+    "counterparty_id",
+    "operational_account_id",
+  ],
+  [POSTING_CODE.PAYOUT_INITIATED]: [
+    "order_id",
+    "counterparty_id",
+    "operational_account_id",
+  ],
+  [POSTING_CODE.ADJUSTMENT_CHARGE]: [
+    "order_id",
+    "customer_id",
+    "fee_bucket",
+    "quote_id",
+  ],
+  [POSTING_CODE.ADJUSTMENT_REFUND]: [
+    "order_id",
+    "customer_id",
+    "fee_bucket",
+    "quote_id",
+  ],
+} as const;
+
+export const DEPRECATED_ACCOUNT_NO = {
+  ORDER_INVENTORY: ACCOUNT_NO.ORDER_INVENTORY,
+} as const;
 
 export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
   {
@@ -80,6 +163,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "asset",
     normalSide: "debit",
     postingAllowed: false,
+    enabled: true,
     parentAccountNo: null,
   },
   {
@@ -88,6 +172,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "asset",
     normalSide: "debit",
     postingAllowed: false,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.ASSETS,
   },
   {
@@ -96,6 +181,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "asset",
     normalSide: "debit",
     postingAllowed: false,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.ASSETS,
   },
   {
@@ -104,6 +190,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "active_passive",
     normalSide: "both",
     postingAllowed: false,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.ASSETS,
   },
   {
@@ -112,6 +199,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "liability",
     normalSide: "credit",
     postingAllowed: false,
+    enabled: true,
     parentAccountNo: null,
   },
   {
@@ -120,6 +208,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "liability",
     normalSide: "credit",
     postingAllowed: false,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.LIABILITIES,
   },
   {
@@ -128,6 +217,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "equity",
     normalSide: "credit",
     postingAllowed: false,
+    enabled: true,
     parentAccountNo: null,
   },
   {
@@ -136,6 +226,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "revenue",
     normalSide: "credit",
     postingAllowed: false,
+    enabled: true,
     parentAccountNo: null,
   },
   {
@@ -144,6 +235,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "expense",
     normalSide: "debit",
     postingAllowed: false,
+    enabled: true,
     parentAccountNo: null,
   },
   {
@@ -152,14 +244,16 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "asset",
     normalSide: "debit",
     postingAllowed: true,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.CASH_AND_EQUIVALENTS,
   },
   {
     accountNo: ACCOUNT_NO.ORDER_INVENTORY,
-    name: "Резерв по ордерам",
+    name: "Резерв по ордерам (deprecated)",
     kind: "asset",
     normalSide: "debit",
-    postingAllowed: true,
+    postingAllowed: false,
+    enabled: false,
     parentAccountNo: ACCOUNT_NO.OPERATING_ASSETS,
   },
   {
@@ -168,14 +262,25 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "asset",
     normalSide: "debit",
     postingAllowed: true,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.OPERATING_ASSETS,
   },
   {
     accountNo: ACCOUNT_NO.INTERCOMPANY_NET,
-    name: "Внутригрупповой неттинг",
+    name: "INTERCOMPANY_NET",
     kind: "active_passive",
     normalSide: "both",
     postingAllowed: true,
+    enabled: true,
+    parentAccountNo: ACCOUNT_NO.INTERCOMPANY_ASSETS,
+  },
+  {
+    accountNo: ACCOUNT_NO.TREASURY_CLEARING,
+    name: "TREASURY_CLEARING",
+    kind: "active_passive",
+    normalSide: "both",
+    postingAllowed: true,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.INTERCOMPANY_ASSETS,
   },
   {
@@ -184,6 +289,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "liability",
     normalSide: "credit",
     postingAllowed: true,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.OPERATING_LIABILITIES,
   },
   {
@@ -192,6 +298,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "liability",
     normalSide: "credit",
     postingAllowed: true,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.OPERATING_LIABILITIES,
   },
   {
@@ -200,6 +307,16 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "liability",
     normalSide: "credit",
     postingAllowed: true,
+    enabled: true,
+    parentAccountNo: ACCOUNT_NO.OPERATING_LIABILITIES,
+  },
+  {
+    accountNo: ACCOUNT_NO.ORDER_RESERVE,
+    name: "ORDER_RESERVE",
+    kind: "liability",
+    normalSide: "credit",
+    postingAllowed: true,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.OPERATING_LIABILITIES,
   },
   {
@@ -208,6 +325,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "revenue",
     normalSide: "credit",
     postingAllowed: true,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.REVENUES,
   },
   {
@@ -216,6 +334,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "revenue",
     normalSide: "credit",
     postingAllowed: true,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.REVENUES,
   },
   {
@@ -224,6 +343,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "revenue",
     normalSide: "credit",
     postingAllowed: true,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.REVENUES,
   },
   {
@@ -232,20 +352,50 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     kind: "expense",
     normalSide: "debit",
     postingAllowed: true,
+    enabled: true,
+    parentAccountNo: ACCOUNT_NO.EXPENSES,
+  },
+  {
+    accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
+    name: "PROVIDER_FEE_EXPENSE",
+    kind: "expense",
+    normalSide: "debit",
+    postingAllowed: true,
+    enabled: true,
     parentAccountNo: ACCOUNT_NO.EXPENSES,
   },
 ] as const;
 
 export const DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS = [
   {
+    accountNo: ACCOUNT_NO.BANK,
+    analyticType: "operational_account_id",
+    required: true,
+  },
+  {
     accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
     analyticType: "customer_id",
     required: true,
   },
   {
-    accountNo: ACCOUNT_NO.ORDER_INVENTORY,
+    accountNo: ACCOUNT_NO.INTERCOMPANY_NET,
+    analyticType: "counterparty_id",
+    required: true,
+  },
+  {
+    accountNo: ACCOUNT_NO.TREASURY_CLEARING,
     analyticType: "order_id",
     required: true,
+  },
+  {
+    accountNo: ACCOUNT_NO.TREASURY_CLEARING,
+    analyticType: "counterparty_id",
+    required: true,
+  },
+  {
+    accountNo: ACCOUNT_NO.TREASURY_CLEARING,
+    analyticType: "quote_id",
+    required: false,
   },
   {
     accountNo: ACCOUNT_NO.FEE_CLEARING,
@@ -253,14 +403,59 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS = [
     required: true,
   },
   {
+    accountNo: ACCOUNT_NO.FEE_CLEARING,
+    analyticType: "order_id",
+    required: true,
+  },
+  {
+    accountNo: ACCOUNT_NO.FEE_CLEARING,
+    analyticType: "counterparty_id",
+    required: false,
+  },
+  {
+    accountNo: ACCOUNT_NO.FEE_CLEARING,
+    analyticType: "quote_id",
+    required: false,
+  },
+  {
     accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
     analyticType: "order_id",
     required: true,
   },
   {
-    accountNo: ACCOUNT_NO.INTERCOMPANY_NET,
-    analyticType: "counterparty_id",
+    accountNo: ACCOUNT_NO.ORDER_RESERVE,
+    analyticType: "order_id",
     required: true,
+  },
+  {
+    accountNo: ACCOUNT_NO.ORDER_RESERVE,
+    analyticType: "customer_id",
+    required: false,
+  },
+  {
+    accountNo: ACCOUNT_NO.ORDER_RESERVE,
+    analyticType: "quote_id",
+    required: false,
+  },
+  {
+    accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
+    analyticType: "fee_bucket",
+    required: true,
+  },
+  {
+    accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
+    analyticType: "order_id",
+    required: true,
+  },
+  {
+    accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
+    analyticType: "counterparty_id",
+    required: false,
+  },
+  {
+    accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
+    analyticType: "quote_id",
+    required: false,
   },
 ] as const;
 
@@ -303,56 +498,51 @@ export const DEFAULT_GLOBAL_CORRESPONDENCE_RULES = [
   {
     postingCode: POSTING_CODE.FX_PRINCIPAL,
     debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-    creditAccountNo: ACCOUNT_NO.ORDER_INVENTORY,
+    creditAccountNo: ACCOUNT_NO.ORDER_RESERVE,
   },
   {
     postingCode: POSTING_CODE.FX_LEG_OUT,
-    debitAccountNo: ACCOUNT_NO.ORDER_INVENTORY,
-    creditAccountNo: ACCOUNT_NO.INTERCOMPANY_NET,
+    debitAccountNo: ACCOUNT_NO.ORDER_RESERVE,
+    creditAccountNo: ACCOUNT_NO.TREASURY_CLEARING,
   },
   {
     postingCode: POSTING_CODE.FX_LEG_IN,
-    debitAccountNo: ACCOUNT_NO.INTERCOMPANY_NET,
-    creditAccountNo: ACCOUNT_NO.ORDER_INVENTORY,
+    debitAccountNo: ACCOUNT_NO.TREASURY_CLEARING,
+    creditAccountNo: ACCOUNT_NO.ORDER_RESERVE,
   },
   {
-    postingCode: POSTING_CODE.FEE_REVENUE,
+    postingCode: POSTING_CODE.FX_PAYOUT_OBLIGATION,
+    debitAccountNo: ACCOUNT_NO.ORDER_RESERVE,
+    creditAccountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
+  },
+  {
+    postingCode: POSTING_CODE.FEE_INCOME,
     debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
     creditAccountNo: ACCOUNT_NO.FEE_REVENUE,
   },
   {
-    postingCode: POSTING_CODE.SPREAD_REVENUE,
+    postingCode: POSTING_CODE.SPREAD_INCOME,
     debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
     creditAccountNo: ACCOUNT_NO.SPREAD_REVENUE,
   },
   {
-    postingCode: POSTING_CODE.BANK_FEE_REVENUE,
+    postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
     debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-    creditAccountNo: ACCOUNT_NO.FEE_REVENUE,
+    creditAccountNo: ACCOUNT_NO.FEE_CLEARING,
   },
   {
-    postingCode: POSTING_CODE.BLOCKCHAIN_FEE_REVENUE,
-    debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-    creditAccountNo: ACCOUNT_NO.FEE_REVENUE,
-  },
-  {
-    postingCode: POSTING_CODE.ARBITRARY_FEE_REVENUE,
-    debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-    creditAccountNo: ACCOUNT_NO.FEE_REVENUE,
-  },
-  {
-    postingCode: POSTING_CODE.FX_PAYOUT_OBLIGATION,
-    debitAccountNo: ACCOUNT_NO.ORDER_INVENTORY,
-    creditAccountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
-  },
-  {
-    postingCode: POSTING_CODE.PAYOUT_INITIATED,
-    debitAccountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
-    creditAccountNo: ACCOUNT_NO.BANK,
+    postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL,
+    debitAccountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
+    creditAccountNo: ACCOUNT_NO.FEE_CLEARING,
   },
   {
     postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED,
     debitAccountNo: ACCOUNT_NO.FEE_CLEARING,
+    creditAccountNo: ACCOUNT_NO.BANK,
+  },
+  {
+    postingCode: POSTING_CODE.PAYOUT_INITIATED,
+    debitAccountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
     creditAccountNo: ACCOUNT_NO.BANK,
   },
   {
@@ -364,15 +554,5 @@ export const DEFAULT_GLOBAL_CORRESPONDENCE_RULES = [
     postingCode: POSTING_CODE.ADJUSTMENT_REFUND,
     debitAccountNo: ACCOUNT_NO.ADJUSTMENT_EXPENSE,
     creditAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-  },
-  {
-    postingCode: POSTING_CODE.FEE_SEPARATE_PAYMENT_RESERVE,
-    debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-    creditAccountNo: ACCOUNT_NO.FEE_CLEARING,
-  },
-  {
-    postingCode: POSTING_CODE.FEE_SEPARATE_PAYMENT_RESERVE,
-    debitAccountNo: ACCOUNT_NO.ADJUSTMENT_EXPENSE,
-    creditAccountNo: ACCOUNT_NO.FEE_CLEARING,
   },
 ] as const;

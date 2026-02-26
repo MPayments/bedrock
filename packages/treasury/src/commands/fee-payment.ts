@@ -66,7 +66,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
         currency: feeOrderCurrency,
         amount: feeOrder.amountMinor.toString(),
         payoutCounterpartyId: vaildated.payoutCounterpartyId,
-        payoutBankStableKey: vaildated.payoutBankStableKey,
+        payoutOperationalAccountId: vaildated.payoutOperationalAccountId,
       });
       const pendingRef = `fee_payment:${vaildated.feePaymentOrderId}:init`;
 
@@ -104,8 +104,10 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
                 },
                 memo: "Fee payment initiated (pending)",
                 analytics: {
+                  orderId: feeOrder.parentOrderId,
                   feeBucket: feeOrder.bucket,
                   counterpartyId: vaildated.payoutCounterpartyId,
+                  operationalAccountId: vaildated.payoutOperationalAccountId,
                 },
               },
             ],
@@ -126,7 +128,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
           initiateOperationId: entryId,
           pendingTransferId,
           payoutCounterpartyId: vaildated.payoutCounterpartyId,
-          payoutBankStableKey: vaildated.payoutBankStableKey,
+          payoutOperationalAccountId: vaildated.payoutOperationalAccountId,
           railRef: input.railRef,
           updatedAt: sql`now()`,
         })

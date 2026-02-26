@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { bookAccounts } from "./ledger/ledger";
-import { accounts } from "./treasury/accounts";
+import { operationalAccounts } from "./treasury/accounts";
 
 export const chartAccountKindEnum = pgEnum("chart_account_kind", [
   "asset",
@@ -40,11 +40,6 @@ export const chartAnalyticTypeEnum = pgEnum("chart_analytic_type", [
   "fee_bucket",
 ]);
 
-export const correspondenceScopeEnum = pgEnum("correspondence_scope", [
-  "global",
-  "org",
-]);
-
 export const chartTemplateAccounts = pgTable(
   "chart_template_accounts",
   {
@@ -53,6 +48,7 @@ export const chartTemplateAccounts = pgTable(
     kind: chartAccountKindEnum("kind").notNull(),
     normalSide: chartNormalSideEnum("normal_side").notNull(),
     postingAllowed: boolean("posting_allowed").notNull().default(true),
+    enabled: boolean("enabled").notNull().default(true),
     parentAccountNo: text("parent_account_no"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -81,37 +77,10 @@ export const chartTemplateAccountAnalytics = pgTable(
   (t) => [primaryKey({ columns: [t.accountNo, t.analyticType] })],
 );
 
-export const chartOrgOverrides = pgTable(
-  "chart_org_overrides",
-  {
-    orgId: uuid("org_id").notNull(),
-    accountNo: text("account_no")
-      .notNull()
-      .references(() => chartTemplateAccounts.accountNo, {
-        onDelete: "cascade",
-      }),
-    enabled: boolean("enabled").notNull().default(true),
-    nameOverride: text("name_override"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`)
-      .$onUpdateFn(() => new Date()),
-  },
-  (t) => [
-    primaryKey({ columns: [t.orgId, t.accountNo] }),
-    index("chart_org_override_org_idx").on(t.orgId),
-  ],
-);
-
 export const correspondenceRules = pgTable(
   "correspondence_rules",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    scope: correspondenceScopeEnum("scope").notNull(),
-    orgId: uuid("org_id"),
     postingCode: text("posting_code").notNull(),
     debitAccountNo: text("debit_account_no")
       .notNull()
@@ -130,33 +99,25 @@ export const correspondenceRules = pgTable(
   },
   (t) => [
     uniqueIndex("correspondence_rule_uq").on(
-      t.scope,
-      t.orgId,
       t.postingCode,
       t.debitAccountNo,
       t.creditAccountNo,
     ),
     index("correspondence_rule_lookup_idx").on(
-      t.scope,
-      t.orgId,
       t.postingCode,
       t.debitAccountNo,
       t.creditAccountNo,
       t.enabled,
     ),
-    check(
-      "correspondence_scope_org_ck",
-      sql`(${t.scope} = 'global' AND ${t.orgId} IS NULL) OR (${t.scope} = 'org' AND ${t.orgId} IS NOT NULL)`,
-    ),
   ],
 );
 
-export const operationalAccountBindings = pgTable(
-  "operational_account_bindings",
+export const operationalAccountsBookBindings = pgTable(
+  "operational_accounts_book_bindings",
   {
-    accountId: uuid("account_id")
+    operationalAccountId: uuid("operational_account_id")
       .primaryKey()
-      .references(() => accounts.id, { onDelete: "cascade" }),
+      .references(() => operationalAccounts.id, { onDelete: "cascade" }),
     bookAccountId: uuid("book_account_id")
       .notNull()
       .references(() => bookAccounts.id),
@@ -168,13 +129,17 @@ export const operationalAccountBindings = pgTable(
       .default(sql`now()`)
       .$onUpdateFn(() => new Date()),
   },
-  (t) => [index("operational_account_binding_book_idx").on(t.bookAccountId)],
+  (t) => [
+    index("operational_accounts_book_binding_book_idx").on(t.bookAccountId),
+  ],
 );
 
 export type ChartTemplateAccount = typeof chartTemplateAccounts.$inferSelect;
 export type ChartTemplateAccountAnalytic =
   typeof chartTemplateAccountAnalytics.$inferSelect;
-export type ChartOrgOverride = typeof chartOrgOverrides.$inferSelect;
 export type CorrespondenceRule = typeof correspondenceRules.$inferSelect;
-export type OperationalAccountBinding =
-  typeof operationalAccountBindings.$inferSelect;
+export type OperationalAccountsBookBinding =
+  typeof operationalAccountsBookBindings.$inferSelect;
+export type OperationalAccountBinding = OperationalAccountsBookBinding;
+
+export const operationalAccountBindings = operationalAccountsBookBindings;

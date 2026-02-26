@@ -10,7 +10,9 @@ import {
   type TransferAccountBinding,
 } from "../validation";
 
-export function createResolveTransferBindingsHandler(context: AccountServiceContext) {
+export function createResolveTransferBindingsHandler(
+  context: AccountServiceContext,
+) {
   const { db, log } = context;
 
   return async function resolveTransferBindings(
@@ -21,33 +23,40 @@ export function createResolveTransferBindingsHandler(context: AccountServiceCont
 
     const rows = await db
       .select({
-        accountId: schema.accounts.id,
-        counterpartyId: schema.accounts.counterpartyId,
-        currencyId: schema.accounts.currencyId,
+        accountId: schema.operationalAccounts.id,
+        counterpartyId: schema.operationalAccounts.counterpartyId,
+        currencyId: schema.operationalAccounts.currencyId,
         currencyCode: schema.currencies.code,
-        stableKey: schema.accounts.stableKey,
+        stableKey: schema.operationalAccounts.stableKey,
         bookAccountId: schema.bookAccounts.id,
         bookAccountNo: schema.bookAccounts.accountNo,
       })
-      .from(schema.accounts)
+      .from(schema.operationalAccounts)
       .innerJoin(
         schema.currencies,
-        eq(schema.accounts.currencyId, schema.currencies.id),
+        eq(schema.operationalAccounts.currencyId, schema.currencies.id),
       )
       .leftJoin(
-        schema.operationalAccountBindings,
-        eq(schema.operationalAccountBindings.accountId, schema.accounts.id),
+        schema.operationalAccountsBookBindings,
+        eq(
+          schema.operationalAccountsBookBindings.operationalAccountId,
+          schema.operationalAccounts.id,
+        ),
       )
       .leftJoin(
         schema.bookAccounts,
-        eq(schema.bookAccounts.id, schema.operationalAccountBindings.bookAccountId),
+        eq(
+          schema.bookAccounts.id,
+          schema.operationalAccountsBookBindings.bookAccountId,
+        ),
       )
-      .where(inArray(schema.accounts.id, uniqueAccountIds));
+      .where(inArray(schema.operationalAccounts.id, uniqueAccountIds));
 
     if (rows.length !== uniqueAccountIds.length) {
       const foundIds = new Set(rows.map((row) => row.accountId));
       const missingId =
-        uniqueAccountIds.find((id) => !foundIds.has(id)) ?? uniqueAccountIds[0]!;
+        uniqueAccountIds.find((id) => !foundIds.has(id)) ??
+        uniqueAccountIds[0]!;
       throw new AccountNotFoundError(missingId);
     }
 
@@ -63,7 +72,9 @@ export function createResolveTransferBindingsHandler(context: AccountServiceCont
 
     for (const row of rows) {
       if (!row.bookAccountId || !row.bookAccountNo) {
-        throw new Error(`Missing book account binding for account=${row.accountId}`);
+        throw new Error(
+          `Missing book account binding for account=${row.accountId}`,
+        );
       }
 
       byAccountId.set(row.accountId, {
@@ -78,7 +89,9 @@ export function createResolveTransferBindingsHandler(context: AccountServiceCont
       });
     }
 
-    const orderedBindings = validated.accountIds.map((id) => byAccountId.get(id)!);
+    const orderedBindings = validated.accountIds.map(
+      (id) => byAccountId.get(id)!,
+    );
 
     log.debug("Resolved transfer account bindings", {
       requested: validated.accountIds.length,

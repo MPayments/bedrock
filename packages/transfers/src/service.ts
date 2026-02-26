@@ -51,8 +51,8 @@ type TransferOrderProjection = TransferOrderRow & {
   currencyCode: string | null;
   sourceCounterpartyName: string | null;
   destinationCounterpartyName: string | null;
-  sourceAccountLabel: string | null;
-  destinationAccountLabel: string | null;
+  sourceOperationalAccountLabel: string | null;
+  destinationOperationalAccountLabel: string | null;
 };
 type PendingTransferEventType = "settle" | "void";
 
@@ -60,8 +60,9 @@ const TRANSFER_SELECT_FIELDS = {
   id: schema.transferOrders.id,
   sourceCounterpartyId: schema.transferOrders.sourceCounterpartyId,
   destinationCounterpartyId: schema.transferOrders.destinationCounterpartyId,
-  sourceAccountId: schema.transferOrders.sourceAccountId,
-  destinationAccountId: schema.transferOrders.destinationAccountId,
+  sourceOperationalAccountId: schema.transferOrders.sourceOperationalAccountId,
+  destinationOperationalAccountId:
+    schema.transferOrders.destinationOperationalAccountId,
   currencyId: schema.transferOrders.currencyId,
   amountMinor: schema.transferOrders.amountMinor,
   kind: schema.transferOrders.kind,
@@ -100,16 +101,16 @@ const TRANSFER_SELECT_FIELDS = {
     where ${schema.counterparties.id} = ${schema.transferOrders.destinationCounterpartyId}
     limit 1
   )`,
-  sourceAccountLabel: sql<string | null>`(
-    select ${schema.accounts.label}
-    from ${schema.accounts}
-    where ${schema.accounts.id} = ${schema.transferOrders.sourceAccountId}
+  sourceOperationalAccountLabel: sql<string | null>`(
+    select ${schema.operationalAccounts.label}
+    from ${schema.operationalAccounts}
+    where ${schema.operationalAccounts.id} = ${schema.transferOrders.sourceOperationalAccountId}
     limit 1
   )`,
-  destinationAccountLabel: sql<string | null>`(
-    select ${schema.accounts.label}
-    from ${schema.accounts}
-    where ${schema.accounts.id} = ${schema.transferOrders.destinationAccountId}
+  destinationOperationalAccountLabel: sql<string | null>`(
+    select ${schema.operationalAccounts.label}
+    from ${schema.operationalAccounts}
+    where ${schema.operationalAccounts.id} = ${schema.transferOrders.destinationOperationalAccountId}
     limit 1
   )`,
 };
@@ -140,12 +141,15 @@ export function createTransfersService(deps: {
   const { db, ledger, accountService, logger } = deps;
 
   async function resolveTransferBindings(
-    sourceAccountId: string,
-    destinationAccountId: string,
+    sourceOperationalAccountId: string,
+    destinationOperationalAccountId: string,
   ): Promise<[TransferAccountBinding, TransferAccountBinding]> {
     const [sourceBinding, destinationBinding] =
       await accountService.resolveTransferBindings({
-        accountIds: [sourceAccountId, destinationAccountId],
+        accountIds: [
+          sourceOperationalAccountId,
+          destinationOperationalAccountId,
+        ],
       });
 
     if (!sourceBinding || !destinationBinding) {
@@ -167,8 +171,8 @@ export function createTransfersService(deps: {
   async function createDraft(input: CreateTransferDraftInput) {
     const validated = validateCreateTransferDraftInput(input);
     const [sourceBinding, destinationBinding] = await resolveTransferBindings(
-      validated.sourceAccountId,
-      validated.destinationAccountId,
+      validated.sourceOperationalAccountId,
+      validated.destinationOperationalAccountId,
     );
 
     const kind: typeof schema.transferOrders.$inferInsert.kind =
@@ -186,8 +190,8 @@ export function createTransfersService(deps: {
       .values({
         sourceCounterpartyId: sourceBinding.counterpartyId,
         destinationCounterpartyId: destinationBinding.counterpartyId,
-        sourceAccountId: sourceBinding.accountId,
-        destinationAccountId: destinationBinding.accountId,
+        sourceOperationalAccountId: sourceBinding.accountId,
+        destinationOperationalAccountId: destinationBinding.accountId,
         currencyId: sourceBinding.currencyId,
         amountMinor: validated.amountMinor,
         kind,
@@ -291,8 +295,8 @@ export function createTransfersService(deps: {
       }
 
       const [sourceBinding, destinationBinding] = await resolveTransferBindings(
-        transfer.sourceAccountId,
-        transfer.destinationAccountId,
+        transfer.sourceOperationalAccountId,
+        transfer.destinationOperationalAccountId,
       );
 
       const template = buildTransferApproveTemplate({
@@ -303,14 +307,14 @@ export function createTransfersService(deps: {
         timeoutSeconds: transfer.timeoutSeconds || DAY_IN_SECONDS,
         memo: transfer.memo,
         source: {
-          accountId: transfer.sourceAccountId,
+          accountId: transfer.sourceOperationalAccountId,
           counterpartyId: sourceBinding.counterpartyId,
           bookOrgId: sourceBinding.bookOrgId,
           bookAccountNo: sourceBinding.bookAccountNo,
           currencyCode: sourceBinding.currencyCode,
         },
         destination: {
-          accountId: transfer.destinationAccountId,
+          accountId: transfer.destinationOperationalAccountId,
           counterpartyId: destinationBinding.counterpartyId,
           bookOrgId: destinationBinding.bookOrgId,
           bookAccountNo: destinationBinding.bookAccountNo,
@@ -327,8 +331,9 @@ export function createTransfersService(deps: {
         operationVersion: 1,
         payload: {
           transferId: transfer.id,
-          sourceAccountId: transfer.sourceAccountId,
-          destinationAccountId: transfer.destinationAccountId,
+          sourceOperationalAccountId: transfer.sourceOperationalAccountId,
+          destinationOperationalAccountId:
+            transfer.destinationOperationalAccountId,
           amountMinor: transfer.amountMinor.toString(),
           settlementMode: transfer.settlementMode,
           kind: transfer.kind,
@@ -594,7 +599,7 @@ export function createTransfersService(deps: {
     }
 
     const [sourceBinding] = await accountService.resolveTransferBindings({
-      accountIds: [transfer.sourceAccountId],
+      accountIds: [transfer.sourceOperationalAccountId],
     });
     if (!sourceBinding) {
       throw new InvalidStateError("Unable to resolve source account binding");

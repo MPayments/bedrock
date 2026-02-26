@@ -14,7 +14,7 @@ import {
 import { currencies } from "./currencies";
 import { ledgerOperations } from "./ledger/journal";
 import { uint128 } from "./ledger/ledger";
-import { accounts } from "./treasury/accounts";
+import { operationalAccounts } from "./treasury/accounts";
 
 export const transferKindEnum = pgEnum("transfer_kind", [
   "intra_org",
@@ -57,12 +57,12 @@ export const transferOrders = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     sourceCounterpartyId: uuid("source_counterparty_id").notNull(),
     destinationCounterpartyId: uuid("destination_counterparty_id").notNull(),
-    sourceAccountId: uuid("source_account_id")
+    sourceOperationalAccountId: uuid("source_operational_account_id")
       .notNull()
-      .references(() => accounts.id),
-    destinationAccountId: uuid("destination_account_id")
+      .references(() => operationalAccounts.id),
+    destinationOperationalAccountId: uuid("destination_operational_account_id")
       .notNull()
-      .references(() => accounts.id),
+      .references(() => operationalAccounts.id),
     currencyId: uuid("currency_id")
       .notNull()
       .references(() => currencies.id),

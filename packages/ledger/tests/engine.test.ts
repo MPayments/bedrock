@@ -13,19 +13,16 @@ import { IdempotencyConflictError } from "../src/errors";
 import { OPERATION_TRANSFER_TYPE } from "../src/types";
 
 function createCreateTransferTx(options?: {
-  orgRuleExists?: boolean;
-  globalRuleExists?: boolean;
+  ruleExists?: boolean;
   postingAllowed?: boolean;
-  orgOverrideEnabled?: boolean;
+  accountEnabled?: boolean;
   requiredAnalytics?: string[];
 }) {
-  const orgRuleExists = options?.orgRuleExists ?? true;
-  const globalRuleExists = options?.globalRuleExists ?? true;
+  const ruleExists = options?.ruleExists ?? true;
   const postingAllowed = options?.postingAllowed ?? true;
-  const orgOverrideEnabled = options?.orgOverrideEnabled ?? true;
+  const accountEnabled = options?.accountEnabled ?? true;
   const requiredAnalytics = options?.requiredAnalytics ?? [];
 
-  let correspondenceLookupCount = 0;
   let bookInsertCount = 0;
 
   return {
@@ -76,19 +73,11 @@ function createCreateTransferTx(options?: {
           return {
             limit: vi.fn(async () => {
               if (table === schema.correspondenceRules) {
-                correspondenceLookupCount += 1;
-                if (correspondenceLookupCount === 1) {
-                  return orgRuleExists ? [{ id: "org-rule" }] : [];
-                }
-                return globalRuleExists ? [{ id: "global-rule" }] : [];
+                return ruleExists ? [{ id: "rule" }] : [];
               }
 
               if (table === schema.chartTemplateAccounts) {
-                return [{ postingAllowed }];
-              }
-
-              if (table === schema.chartOrgOverrides) {
-                return orgOverrideEnabled ? [] : [{ enabled: false }];
+                return [{ postingAllowed, enabled: accountEnabled }];
               }
 
               return [];
@@ -444,9 +433,9 @@ describe("createLedgerEngine", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
-      await expect(engine.createOperation(createPostPendingInput())).rejects.toThrow(
-        "Idempotency conflict but operation not found",
-      );
+      await expect(
+        engine.createOperation(createPostPendingInput()),
+      ).rejects.toThrow("Idempotency conflict but operation not found");
     });
 
     it("creates a new operation on first request", async () => {
@@ -521,8 +510,7 @@ describe("createLedgerEngine", () => {
 
     it("throws when correspondence rule is missing", async () => {
       const tx = createCreateTransferTx({
-        orgRuleExists: false,
-        globalRuleExists: false,
+        ruleExists: false,
       });
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
@@ -548,8 +536,8 @@ describe("createLedgerEngine", () => {
       ).rejects.toThrow("is not postable");
     });
 
-    it("throws when org account override disables posting", async () => {
-      const tx = createCreateTransferTx({ orgOverrideEnabled: false });
+    it("throws when account is disabled", async () => {
+      const tx = createCreateTransferTx({ accountEnabled: false });
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
       await expect(
@@ -558,7 +546,7 @@ describe("createLedgerEngine", () => {
             transfers: [createTestTransferPlan()],
           }),
         ),
-      ).rejects.toThrow("is disabled for org");
+      ).rejects.toThrow("is disabled");
     });
 
     it("throws when required analytics are missing", async () => {

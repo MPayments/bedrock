@@ -89,7 +89,7 @@ export default async function TransferDetailsPage({
               <div className="text-muted-foreground text-sm">Источник</div>
               <div className="mt-1">
                 {transfer.sourceCounterpartyName ?? transfer.sourceCounterpartyId} /{" "}
-                {transfer.sourceAccountLabel ?? transfer.sourceAccountId}
+                {transfer.sourceOperationalAccountLabel ?? transfer.sourceOperationalAccountId}
               </div>
             </div>
             <div>
@@ -97,7 +97,7 @@ export default async function TransferDetailsPage({
               <div className="mt-1">
                 {transfer.destinationCounterpartyName ??
                   transfer.destinationCounterpartyId}{" "}
-                / {transfer.destinationAccountLabel ?? transfer.destinationAccountId}
+                / {transfer.destinationOperationalAccountLabel ?? transfer.destinationOperationalAccountId}
               </div>
             </div>
             <div>

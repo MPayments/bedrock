@@ -1,9 +1,8 @@
 import {
-  chartOrgOverrides,
   chartTemplateAccountAnalytics,
   chartTemplateAccounts,
   correspondenceRules,
-  operationalAccountBindings,
+  operationalAccountsBookBindings,
 } from "./accounting";
 import {
   account,
@@ -27,8 +26,8 @@ import { bookAccounts } from "./ledger/ledger";
 import { outbox } from "./ledger/outbox";
 import { tbTransferPlans } from "./ledger/tb-plan";
 import { transferEvents, transferOrders } from "./transfers";
-import { accountProviders } from "./treasury/account-providers";
-import { accounts } from "./treasury/accounts";
+import { operationalAccountProviders } from "./treasury/account-providers";
+import { operationalAccounts } from "./treasury/accounts";
 import {
   counterpartyGroupMemberships,
   counterpartyGroups,
@@ -56,16 +55,18 @@ export const schema = {
 
   chartTemplateAccounts,
   chartTemplateAccountAnalytics,
-  chartOrgOverrides,
   correspondenceRules,
-  operationalAccountBindings,
+  operationalAccountsBookBindings,
+  operationalAccountBindings: operationalAccountsBookBindings,
 
   counterparties,
   counterpartyGroups,
   counterpartyGroupMemberships,
   customers,
-  accountProviders,
-  accounts,
+  operationalAccountProviders,
+  accountProviders: operationalAccountProviders,
+  operationalAccounts,
+  accounts: operationalAccounts,
   paymentOrders,
   settlements,
   reconciliationExceptions,
@@ -103,9 +104,21 @@ export {
 export type { PaymentOrder } from "./treasury/orders";
 export type { Currency, CurrencyInsert } from "./currencies";
 export type { Customer, CustomerInsert } from "./customers";
-export type { Account, AccountInsert } from "./treasury/accounts";
 export type {
+  OperationalAccount,
+  OperationalAccountInsert,
+  Account,
+  AccountInsert,
+} from "./treasury/accounts";
+export type {
+  OperationalAccountsBookBinding,
+  OperationalAccountsBookBindingInsert,
   OperationalAccountBinding,
   OperationalAccountBindingInsert,
 } from "./treasury/account-ledger-bindings";
-export type { AccountProvider, AccountProviderInsert } from "./treasury/account-providers";
+export type {
+  OperationalAccountProvider,
+  OperationalAccountProviderInsert,
+  AccountProvider,
+  AccountProviderInsert,
+} from "./treasury/account-providers";

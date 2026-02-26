@@ -1,6 +1,11 @@
-import { operationalAccountBindings } from "../accounting";
+import { operationalAccountsBookBindings } from "../accounting";
 
-export { operationalAccountBindings };
+export { operationalAccountsBookBindings };
 
-export type OperationalAccountBinding = typeof operationalAccountBindings.$inferSelect;
-export type OperationalAccountBindingInsert = typeof operationalAccountBindings.$inferInsert;
+export type OperationalAccountsBookBinding =
+  typeof operationalAccountsBookBindings.$inferSelect;
+export type OperationalAccountsBookBindingInsert =
+  typeof operationalAccountsBookBindings.$inferInsert;
+export type OperationalAccountBinding = OperationalAccountsBookBinding;
+export type OperationalAccountBindingInsert =
+  OperationalAccountsBookBindingInsert;

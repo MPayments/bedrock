@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import { eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import { schema } from "@bedrock/db/schema";
 import {
@@ -9,9 +9,11 @@ import {
 } from "@bedrock/kernel/pagination";
 
 import {
+  DEPRECATED_ACCOUNT_NO,
   DEFAULT_CHART_TEMPLATE_ACCOUNTS,
   DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS,
   DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
+  POSTING_CODE_REQUIRED_ANALYTICS,
 } from "./constants";
 import {
   createAccountingServiceContext,
@@ -21,11 +23,9 @@ import {
   ListFinancialResultsByCounterpartyQuerySchema,
   ListFinancialResultsByGroupQuerySchema,
   replaceCorrespondenceRulesSchema,
-  upsertOrgAccountOverrideSchema,
   type ListFinancialResultsByCounterpartyQuery,
   type ListFinancialResultsByGroupQuery,
   type ReplaceCorrespondenceRulesInput,
-  type UpsertOrgAccountOverrideInput,
 } from "./validation";
 
 export type AccountingService = ReturnType<typeof createAccountingService>;
@@ -91,6 +91,7 @@ export function createAccountingService(deps: AccountingServiceDeps) {
           kind: account.kind,
           normalSide: account.normalSide,
           postingAllowed: account.postingAllowed,
+          enabled: account.enabled,
           parentAccountNo: account.parentAccountNo ?? null,
         })
         .onConflictDoUpdate({
@@ -100,6 +101,7 @@ export function createAccountingService(deps: AccountingServiceDeps) {
             kind: account.kind,
             normalSide: account.normalSide,
             postingAllowed: account.postingAllowed,
+            enabled: account.enabled,
             parentAccountNo: account.parentAccountNo ?? null,
           },
         });
@@ -109,8 +111,6 @@ export function createAccountingService(deps: AccountingServiceDeps) {
       await db
         .insert(schema.correspondenceRules)
         .values({
-          scope: "global",
-          orgId: null,
           postingCode: rule.postingCode,
           debitAccountNo: rule.debitAccountNo,
           creditAccountNo: rule.creditAccountNo,
@@ -118,8 +118,6 @@ export function createAccountingService(deps: AccountingServiceDeps) {
         })
         .onConflictDoUpdate({
           target: [
-            schema.correspondenceRules.scope,
-            schema.correspondenceRules.orgId,
             schema.correspondenceRules.postingCode,
             schema.correspondenceRules.debitAccountNo,
             schema.correspondenceRules.creditAccountNo,
@@ -150,78 +148,30 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     }
   }
 
-  async function seedDefaults(orgId: string) {
+  async function seedDefaults() {
     await seedTemplateAndGlobalRules();
 
-    return db.transaction(async (tx) => {
-      const templateAccounts = await tx
+    const [templateAccounts, globalRules] = await Promise.all([
+      db
         .select()
         .from(schema.chartTemplateAccounts)
-        .orderBy(schema.chartTemplateAccounts.accountNo);
-
-      if (templateAccounts.length > 0) {
-        await tx
-          .insert(schema.chartOrgOverrides)
-          .values(
-            templateAccounts.map((account) => ({
-              orgId,
-              accountNo: account.accountNo,
-              enabled: true,
-              nameOverride: null,
-            })),
-          )
-          .onConflictDoNothing();
-      }
-
-      const globalRules = await tx
+        .orderBy(schema.chartTemplateAccounts.accountNo),
+      db
         .select({
           postingCode: schema.correspondenceRules.postingCode,
           debitAccountNo: schema.correspondenceRules.debitAccountNo,
           creditAccountNo: schema.correspondenceRules.creditAccountNo,
         })
         .from(schema.correspondenceRules)
-        .where(
-          and(
-            eq(schema.correspondenceRules.scope, "global"),
-            isNull(schema.correspondenceRules.orgId),
-            eq(schema.correspondenceRules.enabled, true),
-          ),
-        );
+        .where(eq(schema.correspondenceRules.enabled, true)),
+    ]);
 
-      if (globalRules.length > 0) {
-        await tx
-          .insert(schema.correspondenceRules)
-          .values(
-            globalRules.map((rule) => ({
-              scope: "org" as const,
-              orgId,
-              postingCode: rule.postingCode,
-              debitAccountNo: rule.debitAccountNo,
-              creditAccountNo: rule.creditAccountNo,
-              enabled: true,
-            })),
-          )
-          .onConflictDoUpdate({
-            target: [
-              schema.correspondenceRules.scope,
-              schema.correspondenceRules.orgId,
-              schema.correspondenceRules.postingCode,
-              schema.correspondenceRules.debitAccountNo,
-              schema.correspondenceRules.creditAccountNo,
-            ],
-            set: {
-              enabled: true,
-            },
-          });
-      }
-
-      log.info("Seeded accounting defaults", { orgId });
-      return {
-        seeded: true,
-        accounts: templateAccounts.length,
-        rules: globalRules.length,
-      };
-    });
+    log.info("Seeded accounting defaults");
+    return {
+      seeded: true,
+      accounts: templateAccounts.length,
+      rules: globalRules.length,
+    };
   }
 
   async function listTemplateAccounts() {
@@ -231,74 +181,10 @@ export function createAccountingService(deps: AccountingServiceDeps) {
       .orderBy(schema.chartTemplateAccounts.accountNo);
   }
 
-  async function listOrgAccounts(orgId: string) {
-    const [templateAccounts, overrides] = await Promise.all([
-      db
-        .select()
-        .from(schema.chartTemplateAccounts)
-        .orderBy(schema.chartTemplateAccounts.accountNo),
-      db
-        .select()
-        .from(schema.chartOrgOverrides)
-        .where(eq(schema.chartOrgOverrides.orgId, orgId)),
-    ]);
-
-    const overrideByNo = new Map(overrides.map((row) => [row.accountNo, row]));
-
-    return templateAccounts.map((base) => {
-      const override = overrideByNo.get(base.accountNo);
-      return {
-        orgId,
-        accountNo: base.accountNo,
-        name: override?.nameOverride ?? base.name,
-        kind: base.kind,
-        normalSide: base.normalSide,
-        postingAllowed: base.postingAllowed,
-        enabled: override?.enabled ?? true,
-      };
-    });
-  }
-
-  async function upsertOrgAccountOverride(
-    orgId: string,
-    accountNo: string,
-    input: UpsertOrgAccountOverrideInput,
-  ) {
-    const validated = upsertOrgAccountOverrideSchema.parse(input);
-
-    const [row] = await db
-      .insert(schema.chartOrgOverrides)
-      .values({
-        orgId,
-        accountNo,
-        enabled: validated.enabled,
-        nameOverride: validated.nameOverride ?? null,
-      })
-      .onConflictDoUpdate({
-        target: [
-          schema.chartOrgOverrides.orgId,
-          schema.chartOrgOverrides.accountNo,
-        ],
-        set: {
-          enabled: validated.enabled,
-          nameOverride: validated.nameOverride ?? null,
-        },
-      })
-      .returning();
-
-    return row!;
-  }
-
-  async function listCorrespondenceRules(orgId: string) {
+  async function listCorrespondenceRules() {
     return db
       .select()
       .from(schema.correspondenceRules)
-      .where(
-        and(
-          eq(schema.correspondenceRules.scope, "org"),
-          eq(schema.correspondenceRules.orgId, orgId),
-        ),
-      )
       .orderBy(
         schema.correspondenceRules.postingCode,
         schema.correspondenceRules.debitAccountNo,
@@ -307,20 +193,12 @@ export function createAccountingService(deps: AccountingServiceDeps) {
   }
 
   async function replaceCorrespondenceRules(
-    orgId: string,
     input: ReplaceCorrespondenceRulesInput,
   ) {
     const validated = replaceCorrespondenceRulesSchema.parse(input);
 
     return db.transaction(async (tx) => {
-      await tx
-        .delete(schema.correspondenceRules)
-        .where(
-          and(
-            eq(schema.correspondenceRules.scope, "org"),
-            eq(schema.correspondenceRules.orgId, orgId),
-          ),
-        );
+      await tx.delete(schema.correspondenceRules);
 
       if (validated.rules.length === 0) {
         return [];
@@ -330,8 +208,6 @@ export function createAccountingService(deps: AccountingServiceDeps) {
         .insert(schema.correspondenceRules)
         .values(
           validated.rules.map((rule) => ({
-            scope: "org" as const,
-            orgId,
             postingCode: rule.postingCode,
             debitAccountNo: rule.debitAccountNo,
             creditAccountNo: rule.creditAccountNo,
@@ -340,6 +216,140 @@ export function createAccountingService(deps: AccountingServiceDeps) {
         )
         .returning();
     });
+  }
+
+  async function validatePostingMatrix() {
+    const [rules, accounts, accountAnalytics] = await Promise.all([
+      db
+        .select()
+        .from(schema.correspondenceRules)
+        .where(eq(schema.correspondenceRules.enabled, true)),
+      db.select().from(schema.chartTemplateAccounts),
+      db
+        .select()
+        .from(schema.chartTemplateAccountAnalytics)
+        .where(eq(schema.chartTemplateAccountAnalytics.required, true)),
+    ]);
+
+    const errors: {
+      code: string;
+      message: string;
+      postingCode?: string;
+      accountNo?: string;
+    }[] = [];
+
+    const activeAccounts = new Map(
+      accounts.map((account) => [account.accountNo, account]),
+    );
+    const requiredAccountAnalyticsByNo = new Map<string, Set<string>>();
+
+    for (const row of accountAnalytics) {
+      const existing = requiredAccountAnalyticsByNo.get(row.accountNo);
+      if (existing) {
+        existing.add(row.analyticType);
+      } else {
+        requiredAccountAnalyticsByNo.set(
+          row.accountNo,
+          new Set([row.analyticType]),
+        );
+      }
+    }
+
+    const duplicateRuleCounts = new Map<string, number>();
+
+    for (const rule of rules) {
+      const key = [
+        rule.postingCode,
+        rule.debitAccountNo,
+        rule.creditAccountNo,
+      ].join("|");
+      duplicateRuleCounts.set(key, (duplicateRuleCounts.get(key) ?? 0) + 1);
+
+      if (
+        rule.debitAccountNo === DEPRECATED_ACCOUNT_NO.ORDER_INVENTORY ||
+        rule.creditAccountNo === DEPRECATED_ACCOUNT_NO.ORDER_INVENTORY
+      ) {
+        errors.push({
+          code: "DEPRECATED_ACCOUNT_RULE",
+          message: `Enabled rule references deprecated account ${DEPRECATED_ACCOUNT_NO.ORDER_INVENTORY}`,
+          postingCode: rule.postingCode,
+        });
+      }
+
+      for (const accountNo of [rule.debitAccountNo, rule.creditAccountNo]) {
+        const account = activeAccounts.get(accountNo);
+        if (!account) {
+          errors.push({
+            code: "ACCOUNT_NOT_FOUND",
+            message: `Rule references unknown account ${accountNo}`,
+            postingCode: rule.postingCode,
+            accountNo,
+          });
+          continue;
+        }
+
+        if (!account.postingAllowed) {
+          errors.push({
+            code: "ACCOUNT_NOT_POSTABLE",
+            message: `Rule references non-postable account ${accountNo}`,
+            postingCode: rule.postingCode,
+            accountNo,
+          });
+        }
+
+        if (!account.enabled) {
+          errors.push({
+            code: "ACCOUNT_DISABLED",
+            message: `Rule references disabled account ${accountNo}`,
+            postingCode: rule.postingCode,
+            accountNo,
+          });
+        }
+
+        const accountRequired =
+          requiredAccountAnalyticsByNo.get(accountNo) ?? new Set<string>();
+        const postingRequired = new Set(
+          (POSTING_CODE_REQUIRED_ANALYTICS[
+            rule.postingCode as keyof typeof POSTING_CODE_REQUIRED_ANALYTICS
+          ] ?? []) as readonly string[],
+        );
+
+        for (const analyticType of accountRequired) {
+          if (!postingRequired.has(analyticType)) {
+            errors.push({
+              code: "ACCOUNT_ANALYTICS_UNSATISFIED",
+              message: `Posting code ${rule.postingCode} does not declare required analytic ${analyticType} for account ${accountNo}`,
+              postingCode: rule.postingCode,
+              accountNo,
+            });
+          }
+        }
+      }
+
+      if (!(rule.postingCode in POSTING_CODE_REQUIRED_ANALYTICS)) {
+        errors.push({
+          code: "POSTING_CODE_ANALYTICS_UNDECLARED",
+          message: `Posting code ${rule.postingCode} has no declared template-level analytics`,
+          postingCode: rule.postingCode,
+        });
+      }
+    }
+
+    for (const [key, count] of duplicateRuleCounts) {
+      if (count > 1) {
+        const [postingCode, debitAccountNo, creditAccountNo] = key.split("|");
+        errors.push({
+          code: "DUPLICATE_ACTIVE_RULE",
+          message: `Duplicate active rule for postingCode=${postingCode}, debit=${debitAccountNo}, credit=${creditAccountNo}`,
+          postingCode,
+        });
+      }
+    }
+
+    return {
+      ok: errors.length === 0,
+      errors,
+    };
   }
 
   function parseOptionalIsoDate(
@@ -916,10 +926,9 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     seedTemplateAndGlobalRules,
     seedDefaults,
     listTemplateAccounts,
-    listOrgAccounts,
-    upsertOrgAccountOverride,
     listCorrespondenceRules,
     replaceCorrespondenceRules,
+    validatePostingMatrix,
     listFinancialResultsByCounterparty,
     listFinancialResultsByGroup,
   };

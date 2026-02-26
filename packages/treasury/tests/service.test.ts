@@ -10,6 +10,7 @@ import {
   CUSTOMER_ID,
   ORDER_ID,
   BRANCH_COUNTERPARTY_ID,
+  BANK_ACCOUNT_ID,
   type StubDatabase,
 } from "./helpers";
 import {
@@ -541,13 +542,13 @@ describe("createTreasuryService", () => {
       );
 
       expect(legOut).toBeDefined();
-      expect(legOut.creditAccountNo).toBe(ACCOUNT_NO.INTERCOMPANY_NET);
+      expect(legOut.creditAccountNo).toBe(ACCOUNT_NO.TREASURY_CLEARING);
       expect(legOut.analytics?.counterpartyId).toBe(payInCounterpartyId);
       expect(legIn).toBeDefined();
-      expect(legIn.debitAccountNo).toBe(ACCOUNT_NO.INTERCOMPANY_NET);
+      expect(legIn.debitAccountNo).toBe(ACCOUNT_NO.TREASURY_CLEARING);
       expect(legIn.analytics?.counterpartyId).toBe(payInCounterpartyId);
       expect(payoutObligation).toBeDefined();
-      expect(payoutObligation.debitAccountNo).toBe(ACCOUNT_NO.ORDER_INVENTORY);
+      expect(payoutObligation.debitAccountNo).toBe(ACCOUNT_NO.ORDER_RESERVE);
       expect(legOut.analytics?.counterpartyId).not.toBe(payOutCounterpartyId);
       expect(legIn.analytics?.counterpartyId).not.toBe(payOutCounterpartyId);
     });
@@ -2138,7 +2139,7 @@ describe("createTreasuryService", () => {
     const validInput = {
       feePaymentOrderId,
       payoutCounterpartyId: BRANCH_COUNTERPARTY_ID,
-      payoutBankStableKey: "bank-key-fee",
+      payoutOperationalAccountId: BANK_ACCOUNT_ID,
       railRef: "fee-init-rail-ref",
       occurredAt: new Date(),
     };
@@ -2200,7 +2201,7 @@ describe("createTreasuryService", () => {
         amountMinor: 77n,
         railRef: "fee-init-rail-ref",
         payoutCounterpartyId: BRANCH_COUNTERPARTY_ID,
-        payoutBankStableKey: "bank-key-fee",
+        payoutOperationalAccountId: BANK_ACCOUNT_ID,
         initiateOperationId: "test-entry-id",
         pendingTransferId: 12345678901234567890n,
       };
@@ -2230,7 +2231,7 @@ describe("createTreasuryService", () => {
         amountMinor: 77n,
         railRef: "different-rail-ref",
         payoutCounterpartyId: BRANCH_COUNTERPARTY_ID,
-        payoutBankStableKey: "bank-key-fee",
+        payoutOperationalAccountId: BANK_ACCOUNT_ID,
         initiateOperationId: "test-entry-id",
         pendingTransferId: 12345678901234567890n,
       };
@@ -2257,7 +2258,7 @@ describe("createTreasuryService", () => {
         amountMinor: 77n,
         railRef: validInput.railRef,
         payoutCounterpartyId: BRANCH_COUNTERPARTY_ID,
-        payoutBankStableKey: "bank-key-fee",
+        payoutOperationalAccountId: BANK_ACCOUNT_ID,
         initiateOperationId: null,
         pendingTransferId: null,
       };

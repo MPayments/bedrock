@@ -54,8 +54,8 @@ interface TransfersPageClientProps {
 type SettlementMode = "immediate" | "pending";
 
 type CreateTransferFormState = {
-  sourceAccountId: string;
-  destinationAccountId: string;
+  sourceOperationalAccountId: string;
+  destinationOperationalAccountId: string;
   amountMajor: string;
   memo: string;
   settlementMode: SettlementMode;
@@ -63,8 +63,8 @@ type CreateTransferFormState = {
 };
 
 const INITIAL_CREATE_FORM: CreateTransferFormState = {
-  sourceAccountId: "",
-  destinationAccountId: "",
+  sourceOperationalAccountId: "",
+  destinationOperationalAccountId: "",
   amountMajor: "",
   memo: "",
   settlementMode: "immediate",
@@ -162,11 +162,11 @@ export function TransfersPageClient({
     [formOptions.accounts],
   );
 
-  const selectedSourceAccount = createForm.sourceAccountId
-    ? accountById.get(createForm.sourceAccountId) ?? null
+  const selectedSourceAccount = createForm.sourceOperationalAccountId
+    ? accountById.get(createForm.sourceOperationalAccountId) ?? null
     : null;
-  const selectedDestinationAccount = createForm.destinationAccountId
-    ? accountById.get(createForm.destinationAccountId) ?? null
+  const selectedDestinationAccount = createForm.destinationOperationalAccountId
+    ? accountById.get(createForm.destinationOperationalAccountId) ?? null
     : null;
   const selectedCurrency = selectedSourceAccount
     ? currencyById.get(selectedSourceAccount.currencyId) ?? null
@@ -211,8 +211,8 @@ export function TransfersPageClient({
       request: () =>
         apiClient.v1.transfers.drafts.$post({
           json: {
-            sourceAccountId: selectedSourceAccount.id,
-            destinationAccountId: selectedDestinationAccount.id,
+            sourceOperationalAccountId: selectedSourceAccount.id,
+            destinationOperationalAccountId: selectedDestinationAccount.id,
             idempotencyKey: createIdempotencyKey("ui:transfer:create"),
             amountMinor: converted.value,
             memo: createForm.memo.trim() || undefined,
@@ -383,11 +383,11 @@ export function TransfersPageClient({
                   <div className="grid gap-1.5">
                     <Label>Счет источника</Label>
                     <Select
-                      value={createForm.sourceAccountId}
+                      value={createForm.sourceOperationalAccountId}
                       onValueChange={(value) =>
                         setCreateForm((prev) => ({
                           ...prev,
-                          sourceAccountId: value ?? "",
+                          sourceOperationalAccountId: value ?? "",
                         }))
                       }
                     >
@@ -407,11 +407,11 @@ export function TransfersPageClient({
                   <div className="grid gap-1.5">
                     <Label>Счет назначения</Label>
                     <Select
-                      value={createForm.destinationAccountId}
+                      value={createForm.destinationOperationalAccountId}
                       onValueChange={(value) =>
                         setCreateForm((prev) => ({
                           ...prev,
-                          destinationAccountId: value ?? "",
+                          destinationOperationalAccountId: value ?? "",
                         }))
                       }
                     >
@@ -554,7 +554,7 @@ export function TransfersPageClient({
                         <div className="text-sm">
                           <div>{transfer.sourceCounterpartyName ?? transfer.sourceCounterpartyId}</div>
                           <div className="text-muted-foreground text-xs">
-                            {transfer.sourceAccountLabel ?? transfer.sourceAccountId}
+                            {transfer.sourceOperationalAccountLabel ?? transfer.sourceOperationalAccountId}
                           </div>
                         </div>
                       </TableCell>
@@ -565,8 +565,8 @@ export function TransfersPageClient({
                               transfer.destinationCounterpartyId}
                           </div>
                           <div className="text-muted-foreground text-xs">
-                            {transfer.destinationAccountLabel ??
-                              transfer.destinationAccountId}
+                            {transfer.destinationOperationalAccountLabel ??
+                              transfer.destinationOperationalAccountId}
                           </div>
                         </div>
                       </TableCell>

@@ -12,7 +12,7 @@ import {
 import { counterparties } from "./counterparties";
 import { currencies } from "../currencies";
 import { customers } from "../customers";
-import { accounts } from "./accounts";
+import { operationalAccounts } from "./accounts";
 import { ledgerOperations } from "../ledger/journal";
 import { uint128 } from "../ledger/ledger";
 
@@ -68,12 +68,16 @@ export const paymentOrders = pgTable(
     payInCounterpartyId: uuid("payin_counterparty_id")
       .notNull()
       .references(() => counterparties.id),
-    payInAccountId: uuid("payin_account_id").references(() => accounts.id),
+    payInAccountId: uuid("payin_account_id").references(
+      () => operationalAccounts.id,
+    ),
 
     payOutCounterpartyId: uuid("payout_counterparty_id")
       .notNull()
       .references(() => counterparties.id),
-    payOutAccountId: uuid("payout_account_id").references(() => accounts.id),
+    payOutAccountId: uuid("payout_account_id").references(
+      () => operationalAccounts.id,
+    ),
 
     beneficiaryName: text("beneficiary_name"),
     beneficiaryCountry: text("beneficiary_country"),

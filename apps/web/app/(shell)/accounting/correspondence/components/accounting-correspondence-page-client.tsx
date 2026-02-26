@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@bedrock/ui/components/button";
@@ -18,14 +18,9 @@ import {
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";
 
-import type {
-  AccountingCorrespondenceRule,
-  AccountingOrgOption,
-} from "../../lib/queries";
+import type { AccountingCorrespondenceRule } from "../../lib/queries";
 
 interface AccountingCorrespondencePageClientProps {
-  orgId: string | null;
-  orgOptions: AccountingOrgOption[];
   rules: AccountingCorrespondenceRule[];
 }
 
@@ -50,24 +45,11 @@ function isAccountNo(value: string) {
 }
 
 export function AccountingCorrespondencePageClient({
-  orgId,
-  orgOptions,
   rules,
 }: AccountingCorrespondencePageClientProps) {
   const router = useRouter();
   const [rows, setRows] = useState<EditableRule[]>(() => rules.map(toEditableRule));
   const [saving, setSaving] = useState(false);
-
-  const selectedOrg = useMemo(
-    () => orgOptions.find((item) => item.id === orgId) ?? null,
-    [orgId, orgOptions],
-  );
-
-  function changeOrg(nextOrgId: string) {
-    const params = new URLSearchParams();
-    params.set("orgId", nextOrgId);
-    router.push(`/accounting/correspondence?${params.toString()}`);
-  }
 
   function validateRows(): string | null {
     const keys = new Set<string>();
@@ -99,8 +81,6 @@ export function AccountingCorrespondencePageClient({
   }
 
   async function handleSave() {
-    if (!orgId) return;
-
     const validationError = validateRows();
     if (validationError) {
       toast.error(validationError);
@@ -110,8 +90,7 @@ export function AccountingCorrespondencePageClient({
     setSaving(true);
     const result = await executeMutation({
       request: () =>
-        apiClient.v1.accounting.orgs[":orgId"]["correspondence-rules"].$put({
-          param: { orgId },
+        apiClient.v1.accounting["correspondence-rules"].$put({
           json: {
             rules: rows.map((row) => ({
               postingCode: row.postingCode.trim(),
@@ -138,23 +117,6 @@ export function AccountingCorrespondencePageClient({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="grid gap-1">
-          <label className="text-sm font-medium" htmlFor="correspondence-org-selector">
-            Организация (book org)
-          </label>
-          <select
-            id="correspondence-org-selector"
-            value={orgId ?? ""}
-            onChange={(event) => changeOrg(event.target.value)}
-            className="border-input bg-background h-9 min-w-80 rounded-md border px-3 text-sm"
-          >
-            {orgOptions.map((org) => (
-              <option key={org.id} value={org.id}>
-                {org.shortName}
-              </option>
-            ))}
-          </select>
-        </div>
         <Button
           size="sm"
           variant="outline"
@@ -172,15 +134,9 @@ export function AccountingCorrespondencePageClient({
         >
           Добавить правило
         </Button>
-        <Button size="sm" onClick={handleSave} disabled={!orgId || saving}>
+        <Button size="sm" onClick={handleSave} disabled={saving}>
           {saving ? "Сохранение..." : "Сохранить правила"}
         </Button>
-      </div>
-
-      <div className="text-muted-foreground text-sm">
-        {selectedOrg
-          ? `Текущая организация: ${selectedOrg.shortName}`
-          : "Организация не выбрана"}
       </div>
 
       <div className="overflow-hidden rounded-md border">

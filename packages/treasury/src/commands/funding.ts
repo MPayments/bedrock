@@ -79,6 +79,12 @@ export function createFundingSettledHandler(context: TreasuryServiceContext) {
           `branchCounterpartyId mismatch: expected ${order.payInCounterpartyId}, got ${validated.branchCounterpartyId}`,
         );
       }
+      const payInOperationalAccountId = order.payInAccountId;
+      if (!payInOperationalAccountId) {
+        throw new ValidationError(
+          `Order ${order.id} is missing payIn operational account id`,
+        );
+      }
 
       const pk = makePlanKey("funding_settled", {
         railRef: validated.railRef,
@@ -119,6 +125,7 @@ export function createFundingSettledHandler(context: TreasuryServiceContext) {
                 counterpartyId: validated.branchCounterpartyId,
                 customerId: validated.customerId,
                 orderId: validated.orderId,
+                operationalAccountId: payInOperationalAccountId,
               },
             },
           ],

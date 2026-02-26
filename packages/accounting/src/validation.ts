@@ -23,13 +23,8 @@ export const replaceCorrespondenceRulesSchema = z.object({
   rules: z.array(correspondenceRuleSchema),
 });
 
-export const upsertOrgAccountOverrideSchema = z.object({
-  enabled: z.boolean(),
-  nameOverride: z.string().trim().min(1).max(255).optional().nullable(),
-});
-
 export const seedDefaultsSchema = z.object({
-  orgId: uuidSchema,
+  force: z.boolean().optional(),
 });
 
 const ACCOUNTING_OPERATIONS_SORTABLE_COLUMNS = [
@@ -218,18 +213,16 @@ export const FINANCIAL_RESULTS_GROUP_LIST_CONTRACT: ListQueryContract<
   },
 };
 
-export const ListAccountingOperationsQuerySchema = createListQuerySchemaFromContract(
-  ACCOUNTING_OPERATIONS_LIST_CONTRACT,
-);
+export const ListAccountingOperationsQuerySchema =
+  createListQuerySchemaFromContract(ACCOUNTING_OPERATIONS_LIST_CONTRACT);
 
 const ListFinancialResultsByCounterpartyQueryBaseSchema =
   createListQuerySchemaFromContract(
     FINANCIAL_RESULTS_COUNTERPARTY_LIST_CONTRACT,
   );
 
-const ListFinancialResultsByGroupQueryBaseSchema = createListQuerySchemaFromContract(
-  FINANCIAL_RESULTS_GROUP_LIST_CONTRACT,
-);
+const ListFinancialResultsByGroupQueryBaseSchema =
+  createListQuerySchemaFromContract(FINANCIAL_RESULTS_GROUP_LIST_CONTRACT);
 
 export const ListFinancialResultsByCounterpartyQuerySchema =
   ListFinancialResultsByCounterpartyQueryBaseSchema.superRefine(
@@ -256,12 +249,16 @@ export const ListFinancialResultsByCounterpartyQuerySchema =
           ctx.addIssue({
             code: "custom",
             path: ["currency"],
-            message: "currency must be 2-16 uppercase alphanumeric characters or underscores",
+            message:
+              "currency must be 2-16 uppercase alphanumeric characters or underscores",
           });
         }
       }
 
-      if (value.counterpartyId && !uuidSchema.safeParse(value.counterpartyId).success) {
+      if (
+        value.counterpartyId &&
+        !uuidSchema.safeParse(value.counterpartyId).success
+      ) {
         ctx.addIssue({
           code: "custom",
           path: ["counterpartyId"],
@@ -321,16 +318,20 @@ export const ListFinancialResultsByGroupQuerySchema =
         ctx.addIssue({
           code: "custom",
           path: ["currency"],
-          message: "currency must be 2-16 uppercase alphanumeric characters or underscores",
+          message:
+            "currency must be 2-16 uppercase alphanumeric characters or underscores",
         });
       }
     }
   });
 
 export type CorrespondenceRuleInput = z.infer<typeof correspondenceRuleSchema>;
-export type ReplaceCorrespondenceRulesInput = z.infer<typeof replaceCorrespondenceRulesSchema>;
-export type UpsertOrgAccountOverrideInput = z.infer<typeof upsertOrgAccountOverrideSchema>;
-export type ListAccountingOperationsQuery = z.infer<typeof ListAccountingOperationsQuerySchema>;
+export type ReplaceCorrespondenceRulesInput = z.infer<
+  typeof replaceCorrespondenceRulesSchema
+>;
+export type ListAccountingOperationsQuery = z.infer<
+  typeof ListAccountingOperationsQuerySchema
+>;
 export type ListFinancialResultsByCounterpartyQuery = z.infer<
   typeof ListFinancialResultsByCounterpartyQuerySchema
 >;

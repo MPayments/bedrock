@@ -16,10 +16,10 @@ import {
 } from "../validation";
 
 const SORT_COLUMN_MAP = {
-  name: schema.accountProviders.name,
-  type: schema.accountProviders.type,
-  country: schema.accountProviders.country,
-  createdAt: schema.accountProviders.createdAt,
+  name: schema.operationalAccountProviders.name,
+  type: schema.operationalAccountProviders.type,
+  country: schema.operationalAccountProviders.country,
+  createdAt: schema.operationalAccountProviders.createdAt,
 } as const;
 
 export function createListProvidersHandler(context: AccountServiceContext) {
@@ -34,17 +34,24 @@ export function createListProvidersHandler(context: AccountServiceContext) {
     const conditions: SQL[] = [];
 
     if (name) {
-      conditions.push(ilike(schema.accountProviders.name, `%${name}%`));
+      conditions.push(
+        ilike(schema.operationalAccountProviders.name, `%${name}%`),
+      );
     }
 
     if (type?.length) {
       conditions.push(
-        inArray(schema.accountProviders.type, type as AccountProviderType[]),
+        inArray(
+          schema.operationalAccountProviders.type,
+          type as AccountProviderType[],
+        ),
       );
     }
 
     if (country?.length) {
-      conditions.push(inArray(schema.accountProviders.country, country));
+      conditions.push(
+        inArray(schema.operationalAccountProviders.country, country),
+      );
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -52,20 +59,20 @@ export function createListProvidersHandler(context: AccountServiceContext) {
     const orderByCol = resolveSortValue(
       sortBy,
       SORT_COLUMN_MAP,
-      schema.accountProviders.createdAt,
+      schema.operationalAccountProviders.createdAt,
     );
 
     const [rows, countRows] = await Promise.all([
       db
         .select()
-        .from(schema.accountProviders)
+        .from(schema.operationalAccountProviders)
         .where(where)
         .orderBy(orderByFn(orderByCol))
         .limit(limit)
         .offset(offset),
       db
         .select({ total: sql<number>`count(*)::int` })
-        .from(schema.accountProviders)
+        .from(schema.operationalAccountProviders)
         .where(where),
     ]);
 

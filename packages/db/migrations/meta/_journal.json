@@ -85,6 +85,13 @@
       "when": 1772070800000,
       "tag": "0011_translate_coa_labels_ru",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1772074400000,
+      "tag": "0012_global_coa_operational_accounts",
+      "breakpoints": true
     }
   ]
 }

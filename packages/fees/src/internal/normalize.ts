@@ -4,11 +4,27 @@ import {
   validateFeeComponent,
 } from "../validation";
 
+function resolveAccountingTreatment(input: {
+  accountingTreatment?: FeeComponent["accountingTreatment"];
+  settlementMode?: FeeComponent["settlementMode"];
+}): FeeComponent["accountingTreatment"] {
+  if (input.accountingTreatment) {
+    return input.accountingTreatment;
+  }
+
+  if (input.settlementMode === "separate_payment_order") {
+    return "pass_through";
+  }
+
+  return "income";
+}
+
 export function normalizeComponent(input: FeeComponent): FeeComponent {
   const validated = validateFeeComponent(input);
   return {
     ...validated,
     settlementMode: validated.settlementMode ?? "in_ledger",
+    accountingTreatment: resolveAccountingTreatment(validated),
   };
 }
 
@@ -28,6 +44,7 @@ export function componentAggregateKey(component: FeeComponent): string {
     component.currency,
     component.source,
     component.settlementMode ?? "in_ledger",
+    component.accountingTreatment ?? "income",
     component.memo ?? "",
   ].join("|");
 }

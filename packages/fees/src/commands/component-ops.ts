@@ -59,7 +59,7 @@ export function createComponentOperationHandlers() {
     const separatePaymentOrder: FeeComponent[] = [];
 
     for (const component of normalized) {
-      if (component.settlementMode === "separate_payment_order") {
+      if (component.accountingTreatment !== "income") {
         separatePaymentOrder.push(component);
         continue;
       }

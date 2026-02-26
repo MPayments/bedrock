@@ -3,6 +3,7 @@ import {
   bigint,
   index,
   jsonb,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -10,6 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { operationalAccounts } from "./accounts";
 import { counterparties } from "./counterparties";
 import { paymentOrders } from "./orders";
 import { currencies } from "../currencies";
@@ -26,6 +28,12 @@ export type FeePaymentOrderStatus =
   | "voided_pending_posting"
   | "voided"
   | "failed";
+
+export const feeAccountingTreatmentEnum = pgEnum("fee_accounting_treatment", [
+  "income",
+  "pass_through",
+  "expense",
+]);
 
 export const feePaymentOrders = pgTable(
   "fee_payment_orders",
@@ -72,7 +80,12 @@ export const feePaymentOrders = pgTable(
     payoutCounterpartyId: uuid("payout_counterparty_id").references(
       () => counterparties.id,
     ),
-    payoutBankStableKey: text("payout_bank_stable_key"),
+    payoutOperationalAccountId: uuid("payout_operational_account_id")
+      .notNull()
+      .references(() => operationalAccounts.id),
+    accountingTreatment: feeAccountingTreatmentEnum("accounting_treatment")
+      .notNull()
+      .default("pass_through"),
     railRef: text("rail_ref"),
 
     status: text("status")

@@ -2,6 +2,8 @@ export {
   ACCOUNT_NO,
   OPERATION_CODE,
   POSTING_CODE,
+  POSTING_CODE_REQUIRED_ANALYTICS,
+  DEPRECATED_ACCOUNT_NO,
   DEFAULT_CHART_TEMPLATE_ACCOUNTS,
   DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS,
   DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
@@ -17,23 +19,15 @@ export {
   accountNoSchema,
   correspondenceRuleSchema,
   replaceCorrespondenceRulesSchema,
-  upsertOrgAccountOverrideSchema,
   type ListAccountingOperationsQuery,
   type ListFinancialResultsByCounterpartyQuery,
   type ListFinancialResultsByGroupQuery,
   type ReplaceCorrespondenceRulesInput,
-  type UpsertOrgAccountOverrideInput,
 } from "./validation";
 
-export {
-  AccountingError,
-  CorrespondenceRuleNotFoundError,
-} from "./errors";
+export { AccountingError, CorrespondenceRuleNotFoundError } from "./errors";
 
-export {
-  createAccountingService,
-  type AccountingService,
-} from "./service";
+export { createAccountingService, type AccountingService } from "./service";
 
 export {
   OPERATION_TRANSFER_TYPE,
@@ -41,6 +35,7 @@ export {
   buildTransferPendingActionTemplate,
   resolveInLedgerFeePostingTemplate,
   resolveFeeReservePostingTemplate,
+  resolveProviderFeeExpenseAccrualPostingTemplate,
   resolveAdjustmentInLedgerPostingTemplate,
   resolveAdjustmentReservePostingTemplate,
   type PostingAnalytics,

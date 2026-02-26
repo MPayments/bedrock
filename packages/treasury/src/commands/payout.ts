@@ -79,6 +79,12 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
           `payoutCounterpartyId mismatch: expected ${order.payOutCounterpartyId}, got ${validated.payoutCounterpartyId}`,
         );
       }
+      const payoutOperationalAccountId = order.payOutAccountId;
+      if (!payoutOperationalAccountId) {
+        throw new ValidationError(
+          `Order ${order.id} is missing payOut operational account id`,
+        );
+      }
 
       if (!isOrderStatusIn(order.status, InitiatePayoutAllowedFrom)) {
         throw new InvalidStateError(
@@ -129,6 +135,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
                 analytics: {
                   orderId: validated.orderId,
                   counterpartyId: validated.payoutCounterpartyId,
+                  operationalAccountId: payoutOperationalAccountId,
                 },
               },
             ],
