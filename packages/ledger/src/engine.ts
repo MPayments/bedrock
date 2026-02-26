@@ -1,10 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import {
-  ACCOUNT_NO,
-  CorrespondenceRuleNotFoundError,
-  POSTING_CODE_REQUIRED_ANALYTICS,
-} from "@bedrock/accounting";
+import { ACCOUNT_NO } from "@bedrock/accounting";
 import { type Transaction, type Database } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { seedAccounting } from "@bedrock/db/seeds";
@@ -12,94 +8,102 @@ import { sha256Hex, stableStringify } from "@bedrock/kernel";
 
 import {
   AccountPostingValidationError,
+  DimensionPolicyViolationError,
   IdempotencyConflictError,
-  MissingRequiredAnalyticsError,
 } from "./errors";
 import {
-  tbBookAccountIdFor,
+  tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
   tbTransferIdForOperation,
 } from "./ids";
 import {
   OPERATION_TRANSFER_TYPE,
-  type CreateOperationInput,
-  type CreateOperationResult,
-  type TransferPlanLine,
+  type OperationIntent,
+  type CommitResult,
+  type IntentLine,
+  type Dimensions,
 } from "./types";
 import {
-  validateCreateOperationInput,
+  validateOperationIntent,
   validateChainBlocks,
 } from "./validation";
 
-const ANALYTIC_FIELD_BY_TYPE = {
-  counterparty_id: "counterpartyId",
-  customer_id: "customerId",
-  order_id: "orderId",
-  operational_account_id: "operationalAccountId",
-  transfer_id: "transferId",
-  quote_id: "quoteId",
-  fee_bucket: "feeBucket",
-} as const;
+type DimensionMode = "required" | "optional" | "forbidden";
+type CreateIntentLine = Extract<IntentLine, { type: typeof OPERATION_TRANSFER_TYPE.CREATE }>;
 
-type PostingAnalyticType = keyof typeof ANALYTIC_FIELD_BY_TYPE;
-type CreateTransferLine = Extract<
-  TransferPlanLine,
-  { type: typeof OPERATION_TRANSFER_TYPE.CREATE }
->;
-
-interface PostingAccountPolicy {
+interface AccountPolicy {
   postingAllowed: boolean;
   enabled: boolean;
-  requiredAnalytics: PostingAnalyticType[];
+  dimensionPolicies: Map<string, DimensionMode>;
+}
+
+interface PostingCodePolicy {
+  requiredDimensions: Set<string>;
 }
 
 let accountingDefaultsKnownPresent = false;
 
-function computeLinkedFlags(transfers: TransferPlanLine[]): boolean[] {
-  const linked = new Array(transfers.length).fill(false);
-  for (let i = 0; i < transfers.length - 1; i++) {
-    const a = transfers[i]!.chain;
-    const b = transfers[i + 1]!.chain;
+function computeDimensionsHash(dimensions: Dimensions): string {
+  const sorted = Object.keys(dimensions)
+    .sort()
+    .reduce<Record<string, string>>((acc, key) => {
+      acc[key] = dimensions[key]!;
+      return acc;
+    }, {});
+  return sha256Hex(stableStringify(sorted));
+}
+
+function computeLinkedFlags(lines: IntentLine[]): boolean[] {
+  const linked = new Array(lines.length).fill(false);
+  for (let i = 0; i < lines.length - 1; i++) {
+    const a = lines[i]!.chain;
+    const b = lines[i + 1]!.chain;
     if (a && b && a === b) linked[i] = true;
   }
   return linked;
 }
 
-function normalizeForFingerprint(t: TransferPlanLine) {
-  switch (t.type) {
+function normalizeForFingerprint(line: IntentLine) {
+  switch (line.type) {
     case OPERATION_TRANSFER_TYPE.CREATE:
       return {
-        type: t.type,
-        planRef: t.planRef,
-        chain: t.chain ?? null,
-        bookOrgId: t.bookOrgId,
-        debitAccountNo: t.debitAccountNo,
-        creditAccountNo: t.creditAccountNo,
-        postingCode: t.postingCode,
-        currency: t.currency,
-        amount: t.amount.toString(),
-        code: t.code ?? 1,
-        pendingTimeoutSeconds: t.pending?.timeoutSeconds ?? 0,
+        type: line.type,
+        planRef: line.planRef,
+        chain: line.chain ?? null,
+        postingCode: line.postingCode,
+        debit: {
+          accountNo: line.debit.accountNo,
+          currency: line.debit.currency,
+          dimensionsHash: computeDimensionsHash(line.debit.dimensions),
+        },
+        credit: {
+          accountNo: line.credit.accountNo,
+          currency: line.credit.currency,
+          dimensionsHash: computeDimensionsHash(line.credit.dimensions),
+        },
+        amount: line.amountMinor.toString(),
+        code: line.code ?? 1,
+        pendingTimeoutSeconds: line.pending?.timeoutSeconds ?? 0,
       };
     case OPERATION_TRANSFER_TYPE.POST_PENDING:
       return {
-        type: t.type,
-        planRef: t.planRef,
-        chain: t.chain ?? null,
-        currency: t.currency,
-        pendingId: t.pendingId.toString(),
-        amount: (t.amount ?? 0n).toString(),
-        code: t.code ?? 0,
+        type: line.type,
+        planRef: line.planRef,
+        chain: line.chain ?? null,
+        currency: line.currency,
+        pendingId: line.pendingId.toString(),
+        amount: (line.amount ?? 0n).toString(),
+        code: line.code ?? 0,
       };
     case OPERATION_TRANSFER_TYPE.VOID_PENDING:
       return {
-        type: t.type,
-        planRef: t.planRef,
-        chain: t.chain ?? null,
-        currency: t.currency,
-        pendingId: t.pendingId.toString(),
+        type: line.type,
+        planRef: line.planRef,
+        chain: line.chain ?? null,
+        currency: line.currency,
+        pendingId: line.pendingId.toString(),
         amount: "0",
-        code: t.code ?? 0,
+        code: line.code ?? 0,
       };
   }
 }
@@ -108,27 +112,29 @@ function computePayloadHash(input: {
   operationCode: string;
   operationVersion: number;
   payload: unknown;
-  transfers: TransferPlanLine[];
+  bookOrgId: string;
+  lines: IntentLine[];
 }): string {
   return sha256Hex(
     stableStringify({
       operationCode: input.operationCode,
       operationVersion: input.operationVersion,
       payload: input.payload ?? null,
-      transfers: input.transfers.map(normalizeForFingerprint),
+      bookOrgId: input.bookOrgId,
+      lines: input.lines.map(normalizeForFingerprint),
     }),
   );
 }
 
 function buildReplayTransferMaps(
   operationId: string,
-  transfers: TransferPlanLine[],
+  lines: IntentLine[],
 ) {
   const pendingTransferIdsByRef = new Map<string, bigint>();
 
-  for (let i = 0; i < transfers.length; i++) {
+  for (let i = 0; i < lines.length; i++) {
     const lineNo = i + 1;
-    const line = transfers[i]!;
+    const line = lines[i]!;
     const transferId = tbTransferIdForOperation(
       operationId,
       lineNo,
@@ -140,42 +146,41 @@ function buildReplayTransferMaps(
     }
   }
 
-  return {
-    pendingTransferIdsByRef,
-  };
+  return { pendingTransferIdsByRef };
 }
 
 async function ensureCorrespondenceRule(
   tx: Transaction,
-  plan: CreateTransferLine,
+  line: CreateIntentLine,
 ) {
   const [rule] = await tx
     .select({ id: schema.correspondenceRules.id })
     .from(schema.correspondenceRules)
     .where(
       and(
-        eq(schema.correspondenceRules.postingCode, plan.postingCode),
-        eq(schema.correspondenceRules.debitAccountNo, plan.debitAccountNo),
-        eq(schema.correspondenceRules.creditAccountNo, plan.creditAccountNo),
+        eq(schema.correspondenceRules.postingCode, line.postingCode),
+        eq(schema.correspondenceRules.debitAccountNo, line.debit.accountNo),
+        eq(schema.correspondenceRules.creditAccountNo, line.credit.accountNo),
         eq(schema.correspondenceRules.enabled, true),
       ),
     )
     .limit(1);
 
   if (!rule) {
+    const { CorrespondenceRuleNotFoundError } = await import("@bedrock/accounting");
     throw new CorrespondenceRuleNotFoundError(
-      plan.postingCode,
-      plan.debitAccountNo,
-      plan.creditAccountNo,
+      line.postingCode,
+      line.debit.accountNo,
+      line.credit.accountNo,
     );
   }
 }
 
-async function loadPostingAccountPolicy(
+async function loadAccountPolicy(
   tx: Transaction,
   accountNo: string,
-): Promise<PostingAccountPolicy> {
-  const [templateAccount, requiredAnalytics] = await Promise.all([
+): Promise<AccountPolicy> {
+  const [templateAccount, dimensionRows] = await Promise.all([
     tx
       .select({
         postingAllowed: schema.chartTemplateAccounts.postingAllowed,
@@ -186,15 +191,11 @@ async function loadPostingAccountPolicy(
       .limit(1),
     tx
       .select({
-        analyticType: schema.chartTemplateAccountAnalytics.analyticType,
+        dimensionKey: schema.chartAccountDimensionPolicy.dimensionKey,
+        mode: schema.chartAccountDimensionPolicy.mode,
       })
-      .from(schema.chartTemplateAccountAnalytics)
-      .where(
-        and(
-          eq(schema.chartTemplateAccountAnalytics.accountNo, accountNo),
-          eq(schema.chartTemplateAccountAnalytics.required, true),
-        ),
-      ),
+      .from(schema.chartAccountDimensionPolicy)
+      .where(eq(schema.chartAccountDimensionPolicy.accountNo, accountNo)),
   ]);
 
   const template = templateAccount[0];
@@ -204,100 +205,128 @@ async function loadPostingAccountPolicy(
     );
   }
 
+  const dimensionPolicies = new Map<string, DimensionMode>();
+  for (const row of dimensionRows) {
+    dimensionPolicies.set(row.dimensionKey, row.mode as DimensionMode);
+  }
+
   return {
     postingAllowed: template.postingAllowed,
     enabled: template.enabled,
-    requiredAnalytics: requiredAnalytics.map(
-      (item) => item.analyticType as PostingAnalyticType,
-    ),
+    dimensionPolicies,
   };
 }
 
-async function ensurePostingAccountAllowed(
+async function loadPostingCodePolicy(
   tx: Transaction,
-  cache: Map<string, PostingAccountPolicy>,
-  input: {
-    accountNo: string;
-    postingCode: string;
-    analytics?: CreateTransferLine["analytics"];
-  },
+  postingCode: string,
+): Promise<PostingCodePolicy> {
+  const rows = await tx
+    .select({
+      dimensionKey: schema.postingCodeDimensionPolicy.dimensionKey,
+      required: schema.postingCodeDimensionPolicy.required,
+    })
+    .from(schema.postingCodeDimensionPolicy)
+    .where(
+      and(
+        eq(schema.postingCodeDimensionPolicy.postingCode, postingCode),
+        eq(schema.postingCodeDimensionPolicy.required, true),
+      ),
+    );
+
+  return {
+    requiredDimensions: new Set(rows.map((r) => r.dimensionKey)),
+  };
+}
+
+function validateDimensions(
+  accountPolicy: AccountPolicy,
+  dimensions: Dimensions,
+  accountNo: string,
 ) {
-  const cacheKey = input.accountNo;
-  let policy = cache.get(cacheKey);
-  if (!policy) {
-    policy = await loadPostingAccountPolicy(tx, input.accountNo);
-    cache.set(cacheKey, policy);
-  }
-
-  if (!policy.postingAllowed) {
+  if (!accountPolicy.postingAllowed) {
     throw new AccountPostingValidationError(
-      `Account ${input.accountNo} is not postable`,
+      `Account ${accountNo} is not postable`,
+    );
+  }
+  if (!accountPolicy.enabled) {
+    throw new AccountPostingValidationError(
+      `Account ${accountNo} is disabled`,
     );
   }
 
-  if (!policy.enabled) {
-    throw new AccountPostingValidationError(
-      `Account ${input.accountNo} is disabled`,
-    );
-  }
-
-  for (const analyticType of policy.requiredAnalytics) {
-    const field = ANALYTIC_FIELD_BY_TYPE[analyticType];
-    const value = input.analytics?.[field];
-    if (value === undefined || value === null || value === "") {
-      throw new MissingRequiredAnalyticsError(
-        input.accountNo,
-        analyticType,
-        input.postingCode,
+  for (const [key, mode] of accountPolicy.dimensionPolicies) {
+    if (mode === "required" && !(key in dimensions)) {
+      throw new DimensionPolicyViolationError(
+        accountNo,
+        key,
+        `required dimension missing`,
       );
     }
-  }
-
-  const postingRequired =
-    POSTING_CODE_REQUIRED_ANALYTICS[
-      input.postingCode as keyof typeof POSTING_CODE_REQUIRED_ANALYTICS
-    ] ?? [];
-
-  for (const analyticType of postingRequired) {
-    const field =
-      ANALYTIC_FIELD_BY_TYPE[
-        analyticType as keyof typeof ANALYTIC_FIELD_BY_TYPE
-      ];
-    const value = input.analytics?.[field];
-    if (value === undefined || value === null || value === "") {
-      throw new AccountPostingValidationError(
-        `Posting code ${input.postingCode} requires analytic ${analyticType}`,
+    if (mode === "forbidden" && key in dimensions) {
+      throw new DimensionPolicyViolationError(
+        accountNo,
+        key,
+        `forbidden dimension present`,
       );
     }
   }
 }
 
-async function ensureBookAccount(
-  tx: Transaction,
-  input: { orgId: string; accountNo: string; currency: string },
+function validatePostingCodeDimensions(
+  postingCodePolicy: PostingCodePolicy,
+  debitDimensions: Dimensions,
+  creditDimensions: Dimensions,
+  postingCode: string,
 ) {
+  const allDimensions = { ...debitDimensions, ...creditDimensions };
+
+  for (const key of postingCodePolicy.requiredDimensions) {
+    if (!(key in allDimensions)) {
+      throw new DimensionPolicyViolationError(
+        postingCode,
+        key,
+        `required by posting code but not present in either debit or credit dimensions`,
+      );
+    }
+  }
+}
+
+async function ensureBookAccountInstance(
+  tx: Transaction,
+  input: {
+    bookOrgId: string;
+    accountNo: string;
+    currency: string;
+    dimensions: Dimensions;
+  },
+) {
+  const dimensionsHash = computeDimensionsHash(input.dimensions);
   const tbLedger = tbLedgerForCurrency(input.currency);
-  const expectedTbAccountId = tbBookAccountIdFor(
-    input.orgId,
+  const expectedTbAccountId = tbBookAccountInstanceIdFor(
+    input.bookOrgId,
     input.accountNo,
     input.currency,
+    dimensionsHash,
     tbLedger,
   );
 
   const inserted = await tx
-    .insert(schema.bookAccounts)
+    .insert(schema.bookAccountInstances)
     .values({
-      orgId: input.orgId,
+      bookOrgId: input.bookOrgId,
       accountNo: input.accountNo,
       currency: input.currency,
+      dimensions: input.dimensions,
+      dimensionsHash,
       tbLedger,
       tbAccountId: expectedTbAccountId,
     })
     .onConflictDoNothing()
     .returning({
-      id: schema.bookAccounts.id,
-      tbLedger: schema.bookAccounts.tbLedger,
-      tbAccountId: schema.bookAccounts.tbAccountId,
+      id: schema.bookAccountInstances.id,
+      tbLedger: schema.bookAccountInstances.tbLedger,
+      tbAccountId: schema.bookAccountInstances.tbAccountId,
     });
 
   if (inserted.length > 0) {
@@ -306,32 +335,24 @@ async function ensureBookAccount(
 
   const [existing] = await tx
     .select({
-      id: schema.bookAccounts.id,
-      tbLedger: schema.bookAccounts.tbLedger,
-      tbAccountId: schema.bookAccounts.tbAccountId,
+      id: schema.bookAccountInstances.id,
+      tbLedger: schema.bookAccountInstances.tbLedger,
+      tbAccountId: schema.bookAccountInstances.tbAccountId,
     })
-    .from(schema.bookAccounts)
+    .from(schema.bookAccountInstances)
     .where(
       and(
-        eq(schema.bookAccounts.orgId, input.orgId),
-        eq(schema.bookAccounts.accountNo, input.accountNo),
-        eq(schema.bookAccounts.currency, input.currency),
+        eq(schema.bookAccountInstances.bookOrgId, input.bookOrgId),
+        eq(schema.bookAccountInstances.accountNo, input.accountNo),
+        eq(schema.bookAccountInstances.currency, input.currency),
+        eq(schema.bookAccountInstances.dimensionsHash, dimensionsHash),
       ),
     )
     .limit(1);
 
   if (!existing) {
     throw new Error(
-      `book account upsert failed for org=${input.orgId}, accountNo=${input.accountNo}, currency=${input.currency}`,
-    );
-  }
-
-  if (
-    existing.tbLedger !== tbLedger ||
-    existing.tbAccountId !== expectedTbAccountId
-  ) {
-    throw new Error(
-      `book account mapping mismatch for org=${input.orgId}, accountNo=${input.accountNo}, currency=${input.currency}`,
+      `book account instance upsert failed for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}, hash=${dimensionsHash}`,
     );
   }
 
@@ -358,36 +379,37 @@ async function ensureAccountingDefaultsSeeded(tx: Transaction) {
 }
 
 export interface LedgerEngine {
-  createOperation: (
-    input: CreateOperationInput,
-  ) => Promise<CreateOperationResult>;
-  createOperationTx: (
+  commit: (
     tx: Transaction,
-    input: CreateOperationInput,
-  ) => Promise<CreateOperationResult>;
+    intent: OperationIntent,
+  ) => Promise<CommitResult>;
+  commitStandalone: (
+    intent: OperationIntent,
+  ) => Promise<CommitResult>;
 }
 
 export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
   const { db } = deps;
 
-  async function createOperationTx(
+  async function commit(
     tx: Transaction,
-    input: CreateOperationInput,
-  ): Promise<CreateOperationResult> {
-    const validated = validateCreateOperationInput(input);
+    intent: OperationIntent,
+  ): Promise<CommitResult> {
+    const validated = validateOperationIntent(intent);
     await ensureAccountingDefaultsSeeded(tx);
 
-    validateChainBlocks(validated.transfers);
+    validateChainBlocks(validated.lines);
 
-    const transfers = validated.transfers;
+    const lines = validated.lines;
     const payloadHash = computePayloadHash({
       operationCode: validated.operationCode,
       operationVersion: validated.operationVersion,
       payload: validated.payload,
-      transfers,
+      bookOrgId: validated.bookOrgId,
+      lines,
     });
 
-    const linkedFlags = computeLinkedFlags(transfers);
+    const linkedFlags = computeLinkedFlags(lines);
 
     const inserted = await tx
       .insert(schema.ledgerOperations)
@@ -435,10 +457,7 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
     }
 
     if (isIdempotentReplay) {
-      const replayTransferMaps = buildReplayTransferMaps(
-        operationId,
-        transfers,
-      );
+      const replayTransferMaps = buildReplayTransferMaps(operationId, lines);
       return {
         operationId,
         pendingTransferIdsByRef: replayTransferMaps.pendingTransferIdsByRef,
@@ -446,13 +465,32 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
     }
 
     const pendingTransferIdsByRef = new Map<string, bigint>();
-    const postingRows: (typeof schema.ledgerPostings.$inferInsert)[] = [];
+    const postingRows: (typeof schema.postings.$inferInsert)[] = [];
     const tbPlanRows: (typeof schema.tbTransferPlans.$inferInsert)[] = [];
-    const postingPolicyCache = new Map<string, PostingAccountPolicy>();
+    const accountPolicyCache = new Map<string, AccountPolicy>();
+    const postingCodePolicyCache = new Map<string, PostingCodePolicy>();
 
-    for (let i = 0; i < transfers.length; i++) {
+    async function getAccountPolicy(accountNo: string): Promise<AccountPolicy> {
+      let policy = accountPolicyCache.get(accountNo);
+      if (!policy) {
+        policy = await loadAccountPolicy(tx, accountNo);
+        accountPolicyCache.set(accountNo, policy);
+      }
+      return policy;
+    }
+
+    async function getPostingCodePolicy(postingCode: string): Promise<PostingCodePolicy> {
+      let policy = postingCodePolicyCache.get(postingCode);
+      if (!policy) {
+        policy = await loadPostingCodePolicy(tx, postingCode);
+        postingCodePolicyCache.set(postingCode, policy);
+      }
+      return policy;
+    }
+
+    for (let i = 0; i < lines.length; i++) {
       const lineNo = i + 1;
-      const line = transfers[i]!;
+      const line = lines[i]!;
 
       const transferId = tbTransferIdForOperation(
         operationId,
@@ -462,48 +500,48 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
 
       if (line.type === OPERATION_TRANSFER_TYPE.CREATE) {
         await ensureCorrespondenceRule(tx, line);
-        await ensurePostingAccountAllowed(tx, postingPolicyCache, {
-          accountNo: line.debitAccountNo,
-          postingCode: line.postingCode,
-          analytics: line.analytics,
-        });
-        await ensurePostingAccountAllowed(tx, postingPolicyCache, {
-          accountNo: line.creditAccountNo,
-          postingCode: line.postingCode,
-          analytics: line.analytics,
-        });
 
-        const [debitBookAccount, creditBookAccount] = await Promise.all([
-          ensureBookAccount(tx, {
-            orgId: line.bookOrgId,
-            accountNo: line.debitAccountNo,
-            currency: line.currency,
+        const [debitPolicy, creditPolicy, postingCodePolicy] = await Promise.all([
+          getAccountPolicy(line.debit.accountNo),
+          getAccountPolicy(line.credit.accountNo),
+          getPostingCodePolicy(line.postingCode),
+        ]);
+
+        validateDimensions(debitPolicy, line.debit.dimensions, line.debit.accountNo);
+        validateDimensions(creditPolicy, line.credit.dimensions, line.credit.accountNo);
+        validatePostingCodeDimensions(
+          postingCodePolicy,
+          line.debit.dimensions,
+          line.credit.dimensions,
+          line.postingCode,
+        );
+
+        const [debitInstance, creditInstance] = await Promise.all([
+          ensureBookAccountInstance(tx, {
+            bookOrgId: validated.bookOrgId,
+            accountNo: line.debit.accountNo,
+            currency: line.debit.currency,
+            dimensions: line.debit.dimensions,
           }),
-          ensureBookAccount(tx, {
-            orgId: line.bookOrgId,
-            accountNo: line.creditAccountNo,
-            currency: line.currency,
+          ensureBookAccountInstance(tx, {
+            bookOrgId: validated.bookOrgId,
+            accountNo: line.credit.accountNo,
+            currency: line.credit.currency,
+            dimensions: line.credit.dimensions,
           }),
         ]);
 
         postingRows.push({
           operationId,
           lineNo,
-          bookOrgId: line.bookOrgId,
-          debitBookAccountId: debitBookAccount.id,
-          creditBookAccountId: creditBookAccount.id,
+          bookOrgId: validated.bookOrgId,
+          debitInstanceId: debitInstance.id,
+          creditInstanceId: creditInstance.id,
           postingCode: line.postingCode,
-          currency: line.currency,
-          amountMinor: line.amount,
+          currency: line.debit.currency,
+          amountMinor: line.amountMinor,
           memo: line.memo ?? null,
-          analyticCounterpartyId: line.analytics?.counterpartyId ?? null,
-          analyticCustomerId: line.analytics?.customerId ?? null,
-          analyticOrderId: line.analytics?.orderId ?? null,
-          analyticOperationalAccountId:
-            line.analytics?.operationalAccountId ?? null,
-          analyticTransferId: line.analytics?.transferId ?? null,
-          analyticQuoteId: line.analytics?.quoteId ?? null,
-          analyticFeeBucket: line.analytics?.feeBucket ?? null,
+          context: line.context ?? null,
         });
 
         if (line.pending) {
@@ -518,10 +556,10 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
           lineNo,
           type: OPERATION_TRANSFER_TYPE.CREATE,
           transferId,
-          debitTbAccountId: debitBookAccount.tbAccountId,
-          creditTbAccountId: creditBookAccount.tbAccountId,
-          tbLedger: debitBookAccount.tbLedger,
-          amount: line.amount,
+          debitTbAccountId: debitInstance.tbAccountId,
+          creditTbAccountId: creditInstance.tbAccountId,
+          tbLedger: debitInstance.tbLedger,
+          amount: line.amountMinor,
           code: line.code ?? 1,
           pendingRef: line.pending?.ref ?? null,
           pendingId: null,
@@ -576,7 +614,7 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
 
     if (postingRows.length > 0) {
       await tx
-        .insert(schema.ledgerPostings)
+        .insert(schema.postings)
         .values(postingRows)
         .onConflictDoNothing();
     }
@@ -597,16 +635,14 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
     };
   }
 
-  async function createOperation(
-    input: CreateOperationInput,
-  ): Promise<CreateOperationResult> {
-    return db.transaction(async (tx: Transaction) =>
-      createOperationTx(tx, input),
-    );
+  async function commitStandalone(
+    intent: OperationIntent,
+  ): Promise<CommitResult> {
+    return db.transaction(async (tx: Transaction) => commit(tx, intent));
   }
 
   return {
-    createOperation,
-    createOperationTx,
+    commit,
+    commitStandalone,
   };
 }

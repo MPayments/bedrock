@@ -72,26 +72,24 @@ const PaginatedLedgerOperationsSchema = createPaginatedListSchema(
   LedgerOperationSummarySchema,
 );
 
+const DimensionsSchema = z.record(z.string(), z.string()).nullable();
+
 const LedgerOperationPostingSchema = z.object({
   id: z.uuid(),
   lineNo: z.number().int(),
   bookOrgId: z.uuid(),
   bookOrgName: z.string().nullable(),
-  debitBookAccountId: z.uuid(),
+  debitInstanceId: z.uuid(),
   debitAccountNo: z.string().nullable(),
-  creditBookAccountId: z.uuid(),
+  debitDimensions: DimensionsSchema,
+  creditInstanceId: z.uuid(),
   creditAccountNo: z.string().nullable(),
+  creditDimensions: DimensionsSchema,
   postingCode: z.string(),
   currency: z.string(),
   amountMinor: z.string(),
   memo: z.string().nullable(),
-  analyticCounterpartyId: z.uuid().nullable(),
-  analyticCustomerId: z.uuid().nullable(),
-  analyticOrderId: z.uuid().nullable(),
-  analyticOperationalAccountId: z.uuid().nullable(),
-  analyticTransferId: z.uuid().nullable(),
-  analyticQuoteId: z.uuid().nullable(),
-  analyticFeeBucket: z.string().nullable(),
+  context: z.record(z.string(), z.string()).nullable(),
   createdAt: z.string().datetime(),
 });
 

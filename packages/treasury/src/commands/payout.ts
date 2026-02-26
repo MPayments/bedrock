@@ -18,7 +18,7 @@ import {
   SYSTEM_LEDGER_ORG_ID,
   type TreasuryServiceContext,
 } from "../internal/context";
-import { buildTreasuryOperationInput } from "../internal/ledger-operation";
+import { buildTreasuryIntent } from "../internal/ledger-operation";
 import { fetchOrderState } from "../internal/order-state";
 import {
   InitiatePayoutAllowedFrom,
@@ -103,9 +103,9 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
       const pendingRef = `payout:${validated.orderId}:init`;
 
       const { operationId: entryId, pendingTransferIdsByRef } =
-        await ledger.createOperationTx(
+        await ledger.commit(
           tx,
-          buildTreasuryOperationInput({
+          buildTreasuryIntent({
             source: { type: "order/payout_initiated", id: validated.orderId },
             operationCode: OPERATION_CODE.TREASURY_PAYOUT_INIT,
             payload: {
@@ -117,26 +117,30 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
             idempotencyKey: `payout:init:${validated.railRef}`,
             postingDate: validated.occurredAt,
             bookOrgId: SYSTEM_LEDGER_ORG_ID,
-            transfers: [
+            lines: [
               {
                 type: OPERATION_TRANSFER_TYPE.CREATE,
                 planKey,
                 postingCode: POSTING_CODE.PAYOUT_INITIATED,
-                debitAccountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
-                creditAccountNo: ACCOUNT_NO.BANK,
-                currency: validated.payOutCurrency,
-                amount: validated.amountMinor,
+                debit: {
+                  accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
+                  currency: validated.payOutCurrency,
+                  dimensions: { orderId: validated.orderId },
+                },
+                credit: {
+                  accountNo: ACCOUNT_NO.BANK,
+                  currency: validated.payOutCurrency,
+                  dimensions: {
+                    operationalAccountId: payoutOperationalAccountId,
+                  },
+                },
+                amountMinor: validated.amountMinor,
                 code: TransferCodes.PAYOUT_INITIATED,
                 pending: {
                   timeoutSeconds,
                   ref: pendingRef,
                 },
                 memo: "Payout initiated (pending)",
-                analytics: {
-                  orderId: validated.orderId,
-                  counterpartyId: validated.payoutCounterpartyId,
-                  operationalAccountId: payoutOperationalAccountId,
-                },
               },
             ],
           }),
@@ -251,9 +255,9 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
         pendingId: order.payoutPendingTransferId.toString(),
       });
 
-      const { operationId: entryId } = await ledger.createOperationTx(
+      const { operationId: entryId } = await ledger.commit(
         tx,
-        buildTreasuryOperationInput({
+        buildTreasuryIntent({
           source: { type: "order/payout_settled", id: validated.orderId },
           operationCode: OPERATION_CODE.TREASURY_PAYOUT_SETTLE,
           payload: {
@@ -265,7 +269,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
           idempotencyKey: `payout:settle:${validated.railRef}`,
           postingDate: validated.occurredAt,
           bookOrgId: SYSTEM_LEDGER_ORG_ID,
-          transfers: [
+          lines: [
             {
               type: OPERATION_TRANSFER_TYPE.POST_PENDING,
               planKey,
@@ -372,9 +376,9 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
         pendingId: order.payoutPendingTransferId.toString(),
       });
 
-      const { operationId: entryId } = await ledger.createOperationTx(
+      const { operationId: entryId } = await ledger.commit(
         tx,
-        buildTreasuryOperationInput({
+        buildTreasuryIntent({
           source: { type: "order/payout_failed", id: validated.orderId },
           operationCode: OPERATION_CODE.TREASURY_PAYOUT_VOID,
           payload: {
@@ -386,7 +390,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
           idempotencyKey: `payout:void:${validated.railRef}`,
           postingDate: validated.occurredAt,
           bookOrgId: SYSTEM_LEDGER_ORG_ID,
-          transfers: [
+          lines: [
             {
               type: OPERATION_TRANSFER_TYPE.VOID_PENDING,
               planKey,

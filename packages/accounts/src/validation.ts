@@ -354,9 +354,6 @@ export const TransferAccountBindingSchema = z.object({
     currencyId: z.uuid(),
     currencyCode: z.string(),
     stableKey: z.string(),
-    bookOrgId: z.uuid(),
-    bookAccountId: z.uuid(),
-    bookAccountNo: z.string(),
 });
 export type TransferAccountBinding = z.infer<typeof TransferAccountBindingSchema>;
 

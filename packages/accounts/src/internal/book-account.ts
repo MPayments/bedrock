@@ -28,66 +28,107 @@ function tbLedgerForCurrency(currency: string): number {
   return u === 0 ? 1 : u;
 }
 
-function tbBookAccountIdFor(
-  orgId: string,
+function stableStringify(obj: Record<string, string>): string {
+  return JSON.stringify(
+    Object.keys(obj)
+      .sort()
+      .reduce<Record<string, string>>((acc, k) => {
+        acc[k] = obj[k]!;
+        return acc;
+      }, {}),
+  );
+}
+
+function sha256Hex(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
+}
+
+function computeDimensionsHash(dimensions: Record<string, string>): string {
+  return sha256Hex(stableStringify(dimensions));
+}
+
+function tbBookAccountInstanceIdFor(
+  bookOrgId: string,
   accountNo: string,
   currency: string,
+  dimensionsHash: string,
   tbLedger: number,
 ): bigint {
-  return u128FromHash(`book:${orgId}:${accountNo}:${currency}:${tbLedger}`);
+  return u128FromHash(
+    `instance:${bookOrgId}:${accountNo}:${currency}:${dimensionsHash}:${tbLedger}`,
+  );
 }
 
-interface EnsureBookAccountInput {
-  orgId: string;
+interface EnsureBookAccountInstanceInput {
+  bookOrgId: string;
   accountNo: string;
   currency: string;
+  dimensions: Record<string, string>;
 }
 
-export async function ensureBookAccountTx(
+export async function ensureBookAccountInstanceTx(
   tx: any,
-  input: EnsureBookAccountInput,
+  input: EnsureBookAccountInstanceInput,
 ) {
+  const dimensionsHash = computeDimensionsHash(input.dimensions);
   const tbLedger = tbLedgerForCurrency(input.currency);
-  const tbAccountId = tbBookAccountIdFor(
-    input.orgId,
+  const tbAccountId = tbBookAccountInstanceIdFor(
+    input.bookOrgId,
     input.accountNo,
     input.currency,
+    dimensionsHash,
     tbLedger,
   );
 
   const inserted = await tx
-    .insert(schema.bookAccounts)
+    .insert(schema.bookAccountInstances)
     .values({
-      orgId: input.orgId,
+      bookOrgId: input.bookOrgId,
       accountNo: input.accountNo,
       currency: input.currency,
+      dimensions: input.dimensions,
+      dimensionsHash,
       tbLedger,
       tbAccountId,
     })
     .onConflictDoNothing()
-    .returning({ id: schema.bookAccounts.id });
+    .returning({ id: schema.bookAccountInstances.id });
 
   if (inserted.length > 0) {
     return inserted[0]!.id;
   }
 
   const [existing] = await tx
-    .select({ id: schema.bookAccounts.id })
-    .from(schema.bookAccounts)
+    .select({ id: schema.bookAccountInstances.id })
+    .from(schema.bookAccountInstances)
     .where(
       and(
-        eq(schema.bookAccounts.orgId, input.orgId),
-        eq(schema.bookAccounts.accountNo, input.accountNo),
-        eq(schema.bookAccounts.currency, input.currency),
+        eq(schema.bookAccountInstances.bookOrgId, input.bookOrgId),
+        eq(schema.bookAccountInstances.accountNo, input.accountNo),
+        eq(schema.bookAccountInstances.currency, input.currency),
+        eq(schema.bookAccountInstances.dimensionsHash, dimensionsHash),
       ),
     )
     .limit(1);
 
   if (!existing) {
     throw new Error(
-      `Failed to resolve book account for org=${input.orgId}, accountNo=${input.accountNo}, currency=${input.currency}`,
+      `Failed to resolve book account instance for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}`,
     );
   }
 
   return existing.id;
+}
+
+/** @deprecated Use ensureBookAccountInstanceTx with bookOrgId and dimensions. */
+export async function ensureBookAccountTx(
+  tx: Parameters<typeof ensureBookAccountInstanceTx>[0],
+  input: { orgId: string; accountNo: string; currency: string },
+) {
+  return ensureBookAccountInstanceTx(tx, {
+    bookOrgId: input.orgId,
+    accountNo: input.accountNo,
+    currency: input.currency,
+    dimensions: {},
+  });
 }

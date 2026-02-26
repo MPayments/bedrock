@@ -13,15 +13,7 @@ const ACCOUNTS = [
     "1000",
   ],
   ["1200", "Операционные активы", "asset", "debit", false, true, "1000"],
-  [
-    "1300",
-    "Внутригрупповые расчеты",
-    "active_passive",
-    "both",
-    false,
-    true,
-    "1000",
-  ],
+  ["1300", "Clearing", "active_passive", "both", true, true, "1000"],
   ["2000", "Обязательства", "liability", "credit", false, true, null],
   [
     "2100",
@@ -37,8 +29,6 @@ const ACCOUNTS = [
   ["5000", "Расходы", "expense", "debit", false, true, null],
   ["1110", "Банк", "asset", "debit", true, true, "1100"],
   ["1220", "Транзит", "asset", "debit", true, true, "1200"],
-  ["1310", "INTERCOMPANY_NET", "active_passive", "both", true, true, "1300"],
-  ["1320", "TREASURY_CLEARING", "active_passive", "both", true, true, "1300"],
   ["2110", "Кошелек клиента", "liability", "credit", true, true, "2100"],
   ["2120", "Клиринг комиссий", "liability", "credit", true, true, "2100"],
   [
@@ -61,14 +51,14 @@ const ACCOUNTS = [
 const RULES = [
   ["TR.INTRA.IMMEDIATE", "1110", "1110"],
   ["TR.INTRA.PENDING", "1110", "1110"],
-  ["TR.CROSS.SOURCE.IMMEDIATE", "1310", "1110"],
-  ["TR.CROSS.DEST.IMMEDIATE", "1110", "1310"],
-  ["TR.CROSS.SOURCE.PENDING", "1310", "1110"],
-  ["TR.CROSS.DEST.PENDING", "1110", "1310"],
+  ["TR.CROSS.SOURCE.IMMEDIATE", "1300", "1110"],
+  ["TR.CROSS.DEST.IMMEDIATE", "1110", "1300"],
+  ["TR.CROSS.SOURCE.PENDING", "1300", "1110"],
+  ["TR.CROSS.DEST.PENDING", "1110", "1300"],
   ["TC.1001", "1110", "2110"],
   ["TC.2001", "2110", "2140"],
-  ["TC.2009", "2140", "1320"],
-  ["TC.2010", "1320", "2140"],
+  ["TC.2009", "2140", "1300"],
+  ["TC.2010", "1300", "2140"],
   ["TC.2005", "2140", "2130"],
   ["TC.3001", "2110", "4110"],
   ["TC.3002", "2110", "4120"],
@@ -80,24 +70,70 @@ const RULES = [
   ["TC.3007", "5110", "2110"],
 ] as const;
 
-const ANALYTICS = [
-  ["1110", "operational_account_id", true],
-  ["1310", "counterparty_id", true],
-  ["1320", "order_id", true],
-  ["1320", "counterparty_id", true],
-  ["1320", "quote_id", false],
-  ["2120", "fee_bucket", true],
-  ["2120", "order_id", true],
-  ["2120", "counterparty_id", false],
-  ["2120", "quote_id", false],
-  ["2130", "order_id", true],
-  ["2140", "order_id", true],
-  ["2140", "customer_id", false],
-  ["2140", "quote_id", false],
-  ["5120", "fee_bucket", true],
-  ["5120", "order_id", true],
-  ["5120", "counterparty_id", false],
-  ["5120", "quote_id", false],
+const ACCOUNT_DIMENSION_POLICIES = [
+  ["1110", "operationalAccountId", "required"],
+  ["1300", "clearingKind", "required"],
+  ["1300", "counterpartyId", "optional"],
+  ["1300", "orderId", "optional"],
+  ["2110", "customerId", "required"],
+  ["2120", "feeBucket", "required"],
+  ["2120", "orderId", "required"],
+  ["2120", "counterpartyId", "optional"],
+  ["2130", "orderId", "required"],
+  ["2140", "orderId", "required"],
+  ["2140", "customerId", "optional"],
+  ["5120", "feeBucket", "required"],
+  ["5120", "orderId", "required"],
+  ["5120", "counterpartyId", "optional"],
+] as const;
+
+const POSTING_CODE_DIMENSION_POLICIES = [
+  ["TR.INTRA.IMMEDIATE", "operationalAccountId", true],
+  ["TR.INTRA.PENDING", "operationalAccountId", true],
+  ["TR.CROSS.SOURCE.IMMEDIATE", "counterpartyId", true],
+  ["TR.CROSS.SOURCE.IMMEDIATE", "operationalAccountId", true],
+  ["TR.CROSS.DEST.IMMEDIATE", "counterpartyId", true],
+  ["TR.CROSS.DEST.IMMEDIATE", "operationalAccountId", true],
+  ["TR.CROSS.SOURCE.PENDING", "counterpartyId", true],
+  ["TR.CROSS.SOURCE.PENDING", "operationalAccountId", true],
+  ["TR.CROSS.DEST.PENDING", "counterpartyId", true],
+  ["TR.CROSS.DEST.PENDING", "operationalAccountId", true],
+  ["TC.1001", "customerId", true],
+  ["TC.1001", "operationalAccountId", true],
+  ["TC.2001", "orderId", true],
+  ["TC.2001", "customerId", true],
+  ["TC.2009", "orderId", true],
+  ["TC.2009", "counterpartyId", true],
+  ["TC.2009", "clearingKind", true],
+  ["TC.2010", "orderId", true],
+  ["TC.2010", "counterpartyId", true],
+  ["TC.2010", "clearingKind", true],
+  ["TC.2005", "orderId", true],
+  ["TC.3001", "orderId", true],
+  ["TC.3001", "customerId", true],
+  ["TC.3001", "feeBucket", true],
+  ["TC.3002", "orderId", true],
+  ["TC.3002", "customerId", true],
+  ["TC.3002", "feeBucket", true],
+  ["TC.3003", "orderId", true],
+  ["TC.3003", "customerId", true],
+  ["TC.3003", "feeBucket", true],
+  ["TC.3008", "orderId", true],
+  ["TC.3008", "feeBucket", true],
+  ["TC.3008", "counterpartyId", true],
+  ["TC.3011", "orderId", true],
+  ["TC.3011", "feeBucket", true],
+  ["TC.3011", "counterpartyId", true],
+  ["TC.3011", "operationalAccountId", true],
+  ["TC.3101", "orderId", true],
+  ["TC.3101", "counterpartyId", true],
+  ["TC.3101", "operationalAccountId", true],
+  ["TC.3006", "orderId", true],
+  ["TC.3006", "customerId", true],
+  ["TC.3006", "feeBucket", true],
+  ["TC.3007", "orderId", true],
+  ["TC.3007", "customerId", true],
+  ["TC.3007", "feeBucket", true],
 ] as const;
 
 export async function seedAccounting(db: Database | Transaction) {
@@ -153,18 +189,39 @@ export async function seedAccounting(db: Database | Transaction) {
       });
   }
 
-  for (const [accountNo, analyticType, required] of ANALYTICS) {
+  for (const [accountNo, dimensionKey, mode] of ACCOUNT_DIMENSION_POLICIES) {
     await db
-      .insert(schema.chartTemplateAccountAnalytics)
+      .insert(schema.chartAccountDimensionPolicy)
       .values({
         accountNo,
-        analyticType,
+        dimensionKey,
+        mode,
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.chartAccountDimensionPolicy.accountNo,
+          schema.chartAccountDimensionPolicy.dimensionKey,
+        ],
+        set: { mode },
+      });
+  }
+
+  for (const [
+    postingCode,
+    dimensionKey,
+    required,
+  ] of POSTING_CODE_DIMENSION_POLICIES) {
+    await db
+      .insert(schema.postingCodeDimensionPolicy)
+      .values({
+        postingCode,
+        dimensionKey,
         required,
       })
       .onConflictDoUpdate({
         target: [
-          schema.chartTemplateAccountAnalytics.accountNo,
-          schema.chartTemplateAccountAnalytics.analyticType,
+          schema.postingCodeDimensionPolicy.postingCode,
+          schema.postingCodeDimensionPolicy.dimensionKey,
         ],
         set: { required },
       });

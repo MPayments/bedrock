@@ -8,7 +8,6 @@ import {
   type PaginatedList,
 } from "@bedrock/kernel/pagination";
 
-import { POSTING_CODE_REQUIRED_ANALYTICS } from "./constants";
 import {
   createAccountingServiceContext,
   type AccountingServiceDeps,
@@ -25,7 +24,6 @@ import {
 export type AccountingService = ReturnType<typeof createAccountingService>;
 
 type FinancialResultStatus = "pending" | "posted" | "failed";
-type FinancialResultAttributionMode = "book_org" | "analytic_counterparty";
 
 interface FinancialResultAttributionDelta {
   attributionId: string | null;
@@ -120,16 +118,17 @@ export function createAccountingService(deps: AccountingServiceDeps) {
   }
 
   async function validatePostingMatrix() {
-    const [rules, accounts, accountAnalytics] = await Promise.all([
+    const [rules, accounts, accountDimPolicies, postingCodeDimPolicies] = await Promise.all([
       db
         .select()
         .from(schema.correspondenceRules)
         .where(eq(schema.correspondenceRules.enabled, true)),
       db.select().from(schema.chartTemplateAccounts),
+      db.select().from(schema.chartAccountDimensionPolicy),
       db
         .select()
-        .from(schema.chartTemplateAccountAnalytics)
-        .where(eq(schema.chartTemplateAccountAnalytics.required, true)),
+        .from(schema.postingCodeDimensionPolicy)
+        .where(eq(schema.postingCodeDimensionPolicy.required, true)),
     ]);
 
     const errors: {
@@ -142,16 +141,30 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     const activeAccounts = new Map(
       accounts.map((account) => [account.accountNo, account]),
     );
-    const requiredAccountAnalyticsByNo = new Map<string, Set<string>>();
+    const requiredAccountDimsByNo = new Map<string, Set<string>>();
 
-    for (const row of accountAnalytics) {
-      const existing = requiredAccountAnalyticsByNo.get(row.accountNo);
+    for (const row of accountDimPolicies) {
+      if (row.mode !== "required") continue;
+      const existing = requiredAccountDimsByNo.get(row.accountNo);
       if (existing) {
-        existing.add(row.analyticType);
+        existing.add(row.dimensionKey);
       } else {
-        requiredAccountAnalyticsByNo.set(
+        requiredAccountDimsByNo.set(
           row.accountNo,
-          new Set([row.analyticType]),
+          new Set([row.dimensionKey]),
+        );
+      }
+    }
+
+    const requiredPostingCodeDims = new Map<string, Set<string>>();
+    for (const row of postingCodeDimPolicies) {
+      const existing = requiredPostingCodeDims.get(row.postingCode);
+      if (existing) {
+        existing.add(row.dimensionKey);
+      } else {
+        requiredPostingCodeDims.set(
+          row.postingCode,
+          new Set([row.dimensionKey]),
         );
       }
     }
@@ -197,18 +210,15 @@ export function createAccountingService(deps: AccountingServiceDeps) {
         }
 
         const accountRequired =
-          requiredAccountAnalyticsByNo.get(accountNo) ?? new Set<string>();
-        const postingRequired = new Set(
-          (POSTING_CODE_REQUIRED_ANALYTICS[
-            rule.postingCode as keyof typeof POSTING_CODE_REQUIRED_ANALYTICS
-          ] ?? []) as readonly string[],
-        );
+          requiredAccountDimsByNo.get(accountNo) ?? new Set<string>();
+        const postingRequired =
+          requiredPostingCodeDims.get(rule.postingCode) ?? new Set<string>();
 
-        for (const analyticType of accountRequired) {
-          if (!postingRequired.has(analyticType)) {
+        for (const dimKey of accountRequired) {
+          if (!postingRequired.has(dimKey)) {
             errors.push({
-              code: "ACCOUNT_ANALYTICS_UNSATISFIED",
-              message: `Posting code ${rule.postingCode} does not declare required analytic ${analyticType} for account ${accountNo}`,
+              code: "ACCOUNT_DIMENSION_UNSATISFIED",
+              message: `Posting code ${rule.postingCode} does not declare required dimension ${dimKey} for account ${accountNo}`,
               postingCode: rule.postingCode,
               accountNo,
             });
@@ -216,10 +226,10 @@ export function createAccountingService(deps: AccountingServiceDeps) {
         }
       }
 
-      if (!(rule.postingCode in POSTING_CODE_REQUIRED_ANALYTICS)) {
+      if (!requiredPostingCodeDims.has(rule.postingCode)) {
         errors.push({
-          code: "POSTING_CODE_ANALYTICS_UNDECLARED",
-          message: `Posting code ${rule.postingCode} has no declared template-level analytics`,
+          code: "POSTING_CODE_DIMENSIONS_UNDECLARED",
+          message: `Posting code ${rule.postingCode} has no declared dimension policies`,
           postingCode: rule.postingCode,
         });
       }
@@ -431,7 +441,6 @@ export function createAccountingService(deps: AccountingServiceDeps) {
   }
 
   async function fetchAttributionDeltas(input: {
-    attributionMode: FinancialResultAttributionMode;
     statuses: FinancialResultStatus[];
     from?: Date;
     to?: Date;
@@ -446,11 +455,6 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     ) {
       return [];
     }
-
-    const attributionSql =
-      input.attributionMode === "book_org"
-        ? sql`lp.book_org_id`
-        : sql`lp.analytic_counterparty_id`;
 
     const conditions: SQL[] = [
       sql`lo.status IN (${sql.join(
@@ -469,8 +473,13 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     }
 
     if (input.currency) {
-      conditions.push(sql`lp.currency = ${input.currency}`);
+      conditions.push(sql`p.currency = ${input.currency}`);
     }
+
+    const attributionSql = sql`COALESCE(
+      debit_inst.dimensions->>'counterpartyId',
+      credit_inst.dimensions->>'counterpartyId'
+    )`;
 
     if (input.requireNullAttribution) {
       conditions.push(sql`${attributionSql} IS NULL`);
@@ -494,12 +503,12 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     const result = await db.execute(sql`
       SELECT
         ${attributionSql} AS attribution_id,
-        lp.currency AS currency,
+        p.currency AS currency,
         COALESCE(
           SUM(
             CASE
-              WHEN credit_acc.kind = 'revenue' THEN lp.amount_minor
-              WHEN debit_acc.kind = 'revenue' THEN -lp.amount_minor
+              WHEN credit_acc.kind = 'revenue' THEN p.amount_minor
+              WHEN debit_acc.kind = 'revenue' THEN -p.amount_minor
               ELSE 0
             END
           ),
@@ -508,26 +517,26 @@ export function createAccountingService(deps: AccountingServiceDeps) {
         COALESCE(
           SUM(
             CASE
-              WHEN debit_acc.kind = 'expense' THEN lp.amount_minor
-              WHEN credit_acc.kind = 'expense' THEN -lp.amount_minor
+              WHEN debit_acc.kind = 'expense' THEN p.amount_minor
+              WHEN credit_acc.kind = 'expense' THEN -p.amount_minor
               ELSE 0
             END
           ),
           0
         )::bigint AS expense_minor
-      FROM ${schema.ledgerPostings} lp
+      FROM ${schema.postings} p
       INNER JOIN ${schema.ledgerOperations} lo
-        ON lo.id = lp.operation_id
-      INNER JOIN ${schema.bookAccounts} debit_ba
-        ON debit_ba.id = lp.debit_book_account_id
+        ON lo.id = p.operation_id
+      INNER JOIN ${schema.bookAccountInstances} debit_inst
+        ON debit_inst.id = p.debit_instance_id
       INNER JOIN ${schema.chartTemplateAccounts} debit_acc
-        ON debit_acc.account_no = debit_ba.account_no
-      INNER JOIN ${schema.bookAccounts} credit_ba
-        ON credit_ba.id = lp.credit_book_account_id
+        ON debit_acc.account_no = debit_inst.account_no
+      INNER JOIN ${schema.bookAccountInstances} credit_inst
+        ON credit_inst.id = p.credit_instance_id
       INNER JOIN ${schema.chartTemplateAccounts} credit_acc
-        ON credit_acc.account_no = credit_ba.account_no
+        ON credit_acc.account_no = credit_inst.account_no
       WHERE ${whereSql}
-      GROUP BY ${attributionSql}, lp.currency
+      GROUP BY ${attributionSql}, p.currency
     `);
 
     const rows = (result.rows ?? []) as {
@@ -557,8 +566,6 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     const query = ListFinancialResultsByCounterpartyQuerySchema.parse(
       input ?? {},
     );
-    const attributionMode = (query.attributionMode ??
-      "book_org") as FinancialResultAttributionMode;
     const statuses = ((query.status?.length
       ? query.status
       : ["posted", "pending"]) ?? [
@@ -595,7 +602,6 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     }
 
     const deltas = await fetchAttributionDeltas({
-      attributionMode,
       statuses,
       from,
       to,
@@ -656,8 +662,6 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     input?: ListFinancialResultsByGroupQuery,
   ): Promise<FinancialResultsByGroupResult> {
     const query = ListFinancialResultsByGroupQuerySchema.parse(input ?? {});
-    const attributionMode = (query.attributionMode ??
-      "book_org") as FinancialResultAttributionMode;
     const statuses = ((query.status?.length
       ? query.status
       : ["posted", "pending"]) ?? [
@@ -699,7 +703,6 @@ export function createAccountingService(deps: AccountingServiceDeps) {
       relevantCounterpartyIds.length === 0
         ? []
         : await fetchAttributionDeltas({
-            attributionMode,
             statuses,
             from,
             to,
@@ -792,18 +795,14 @@ export function createAccountingService(deps: AccountingServiceDeps) {
       offset: query.offset,
     });
 
-    let unattributedByCurrency: FinancialResultSummaryByCurrency[] = [];
-    if (attributionMode === "analytic_counterparty") {
-      const unattributedRows = await fetchAttributionDeltas({
-        attributionMode,
-        statuses,
-        from,
-        to,
-        currency,
-        requireNullAttribution: true,
-      });
-      unattributedByCurrency = summarizeByCurrency(unattributedRows);
-    }
+    const unattributedRows = await fetchAttributionDeltas({
+      statuses,
+      from,
+      to,
+      currency,
+      requireNullAttribution: true,
+    });
+    const unattributedByCurrency = summarizeByCurrency(unattributedRows);
 
     return {
       ...paginated,

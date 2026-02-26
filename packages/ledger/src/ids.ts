@@ -16,7 +16,6 @@ export function u128FromHash(input: string): bigint {
   return normalizeTbId(x);
 }
 
-// TB ledger id is u32. Store in PG as bigint to avoid signed int overflow.
 export function tbLedgerForCurrency(currency: string): number {
   const h = createHash("sha256").update(`cur:${currency}`).digest();
   const n = (h[0]! << 24) | (h[1]! << 16) | (h[2]! << 8) | h[3]!;
@@ -24,13 +23,16 @@ export function tbLedgerForCurrency(currency: string): number {
   return u === 0 ? 1 : u;
 }
 
-export function tbBookAccountIdFor(
-  orgId: string,
+export function tbBookAccountInstanceIdFor(
+  bookOrgId: string,
   accountNo: string,
   currency: string,
+  dimensionsHash: string,
   tbLedger: number,
 ): bigint {
-  return u128FromHash(`book:${orgId}:${accountNo}:${currency}:${tbLedger}`);
+  return u128FromHash(
+    `instance:${bookOrgId}:${accountNo}:${currency}:${dimensionsHash}:${tbLedger}`,
+  );
 }
 
 export function tbTransferIdForOperation(

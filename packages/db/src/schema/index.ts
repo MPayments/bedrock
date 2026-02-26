@@ -1,8 +1,9 @@
 import {
-  chartTemplateAccountAnalytics,
+  chartAccountDimensionPolicy,
   chartTemplateAccounts,
   correspondenceRules,
-  operationalAccountsBookBindings,
+  operationalAccountBindings,
+  postingCodeDimensionPolicy,
 } from "./accounting";
 import {
   account,
@@ -21,8 +22,8 @@ import { fxQuoteLegs } from "./fx/quote-legs";
 import { fxQuotes } from "./fx/quotes";
 import { fxRateSources } from "./fx/rate-sources";
 import { fxRates } from "./fx/rates";
-import { ledgerOperations, ledgerPostings } from "./ledger/journal";
-import { bookAccounts } from "./ledger/ledger";
+import { ledgerOperations, postings } from "./ledger/journal";
+import { bookAccountInstances } from "./ledger/ledger";
 import { outbox } from "./ledger/outbox";
 import { tbTransferPlans } from "./ledger/tb-plan";
 import { transferEvents, transferOrders } from "./transfers";
@@ -47,16 +48,17 @@ export const schema = {
   accountRelations,
 
   ledgerOperations,
-  ledgerPostings,
-  bookAccounts,
+  postings,
+  bookAccountInstances,
 
   outbox,
   tbTransferPlans,
 
   chartTemplateAccounts,
-  chartTemplateAccountAnalytics,
+  chartAccountDimensionPolicy,
+  postingCodeDimensionPolicy,
   correspondenceRules,
-  operationalAccountsBookBindings,
+  operationalAccountBindings,
 
   counterparties,
   counterpartyGroups,
@@ -106,10 +108,11 @@ export type {
   OperationalAccountInsert,
 } from "./treasury/accounts";
 export type {
-  OperationalAccountsBookBinding,
-  OperationalAccountsBookBindingInsert,
+  OperationalAccountBinding,
+  OperationalAccountBindingInsert,
 } from "./treasury/account-ledger-bindings";
 export type {
   OperationalAccountProvider,
   OperationalAccountProviderInsert,
 } from "./treasury/account-providers";
+export type { Dimensions } from "./ledger/ledger";

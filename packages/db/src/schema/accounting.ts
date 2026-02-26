@@ -12,7 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { bookAccounts } from "./ledger/ledger";
+import { bookAccountInstances } from "./ledger/ledger";
 import { operationalAccounts } from "./treasury/accounts";
 
 export const chartAccountKindEnum = pgEnum("chart_account_kind", [
@@ -30,14 +30,10 @@ export const chartNormalSideEnum = pgEnum("chart_normal_side", [
   "both",
 ]);
 
-export const chartAnalyticTypeEnum = pgEnum("chart_analytic_type", [
-  "counterparty_id",
-  "customer_id",
-  "order_id",
-  "operational_account_id",
-  "transfer_id",
-  "quote_id",
-  "fee_bucket",
+export const dimensionModeEnum = pgEnum("dimension_mode", [
+  "required",
+  "optional",
+  "forbidden",
 ]);
 
 export const chartTemplateAccounts = pgTable(
@@ -60,21 +56,34 @@ export const chartTemplateAccounts = pgTable(
   ],
 );
 
-export const chartTemplateAccountAnalytics = pgTable(
-  "chart_template_account_analytics",
+export const chartAccountDimensionPolicy = pgTable(
+  "chart_account_dimension_policy",
   {
     accountNo: text("account_no")
       .notNull()
       .references(() => chartTemplateAccounts.accountNo, {
         onDelete: "cascade",
       }),
-    analyticType: chartAnalyticTypeEnum("analytic_type").notNull(),
+    dimensionKey: text("dimension_key").notNull(),
+    mode: dimensionModeEnum("mode").notNull().default("required"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [primaryKey({ columns: [t.accountNo, t.dimensionKey] })],
+);
+
+export const postingCodeDimensionPolicy = pgTable(
+  "posting_code_dimension_policy",
+  {
+    postingCode: text("posting_code").notNull(),
+    dimensionKey: text("dimension_key").notNull(),
     required: boolean("required").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
   },
-  (t) => [primaryKey({ columns: [t.accountNo, t.analyticType] })],
+  (t) => [primaryKey({ columns: [t.postingCode, t.dimensionKey] })],
 );
 
 export const correspondenceRules = pgTable(
@@ -112,15 +121,15 @@ export const correspondenceRules = pgTable(
   ],
 );
 
-export const operationalAccountsBookBindings = pgTable(
-  "operational_accounts_book_bindings",
+export const operationalAccountBindings = pgTable(
+  "operational_account_bindings",
   {
     operationalAccountId: uuid("operational_account_id")
       .primaryKey()
       .references(() => operationalAccounts.id, { onDelete: "cascade" }),
-    bookAccountId: uuid("book_account_id")
+    bookAccountInstanceId: uuid("book_account_instance_id")
       .notNull()
-      .references(() => bookAccounts.id),
+      .references(() => bookAccountInstances.id),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -130,13 +139,17 @@ export const operationalAccountsBookBindings = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (t) => [
-    index("operational_accounts_book_binding_book_idx").on(t.bookAccountId),
+    index("operational_account_binding_instance_idx").on(
+      t.bookAccountInstanceId,
+    ),
   ],
 );
 
 export type ChartTemplateAccount = typeof chartTemplateAccounts.$inferSelect;
-export type ChartTemplateAccountAnalytic =
-  typeof chartTemplateAccountAnalytics.$inferSelect;
+export type ChartAccountDimensionPolicyRow =
+  typeof chartAccountDimensionPolicy.$inferSelect;
+export type PostingCodeDimensionPolicyRow =
+  typeof postingCodeDimensionPolicy.$inferSelect;
 export type CorrespondenceRule = typeof correspondenceRules.$inferSelect;
-export type OperationalAccountsBookBinding =
-  typeof operationalAccountsBookBindings.$inferSelect;
+export type OperationalAccountBinding =
+  typeof operationalAccountBindings.$inferSelect;

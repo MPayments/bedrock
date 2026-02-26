@@ -1,22 +1,24 @@
 import {
   OPERATION_TRANSFER_TYPE,
-  type CreateOperationInput,
-  type TransferPlanLine,
+  type OperationIntent,
+  type IntentLine,
 } from "@bedrock/ledger";
 
-type CreateTransferAnalytics = Extract<
-  TransferPlanLine,
-  { type: typeof OPERATION_TRANSFER_TYPE.CREATE }
->["analytics"];
+type Dimensions = Record<string, string>;
 
-interface TemplateCreateTransferPlan {
+interface AccountSide {
+  accountNo: string;
+  currency: string;
+  dimensions: Dimensions;
+}
+
+interface TemplateCreateLine {
   type: typeof OPERATION_TRANSFER_TYPE.CREATE;
   planKey: string;
   postingCode: string;
-  debitAccountNo: string;
-  creditAccountNo: string;
-  currency: string;
-  amount: bigint;
+  debit: AccountSide;
+  credit: AccountSide;
+  amountMinor: bigint;
   code?: number;
   pending?: {
     timeoutSeconds: number;
@@ -24,10 +26,10 @@ interface TemplateCreateTransferPlan {
   };
   chain?: string | null;
   memo?: string | null;
-  analytics?: CreateTransferAnalytics;
+  context?: Record<string, string> | null;
 }
 
-interface TemplatePostPendingTransferPlan {
+interface TemplatePostPendingLine {
   type: typeof OPERATION_TRANSFER_TYPE.POST_PENDING;
   planKey: string;
   currency: string;
@@ -38,7 +40,7 @@ interface TemplatePostPendingTransferPlan {
   memo?: string | null;
 }
 
-interface TemplateVoidPendingTransferPlan {
+interface TemplateVoidPendingLine {
   type: typeof OPERATION_TRANSFER_TYPE.VOID_PENDING;
   planKey: string;
   currency: string;
@@ -48,76 +50,71 @@ interface TemplateVoidPendingTransferPlan {
   memo?: string | null;
 }
 
-export type TemplateTransferPlan =
-  | TemplateCreateTransferPlan
-  | TemplatePostPendingTransferPlan
-  | TemplateVoidPendingTransferPlan;
+export type TemplateLine =
+  | TemplateCreateLine
+  | TemplatePostPendingLine
+  | TemplateVoidPendingLine;
 
-interface BuildTreasuryOperationInput {
-  source: CreateOperationInput["source"];
+interface BuildTreasuryIntentInput {
+  source: OperationIntent["source"];
   operationCode: string;
   operationVersion?: number;
   payload?: unknown;
   idempotencyKey: string;
   postingDate: Date;
   bookOrgId: string;
-  transfers: TemplateTransferPlan[];
+  lines: TemplateLine[];
 }
 
-function toTransferPlan(
-  bookOrgId: string,
-  transfer: TemplateTransferPlan,
-): TransferPlanLine {
-  if (transfer.type === OPERATION_TRANSFER_TYPE.CREATE) {
+function toIntentLine(line: TemplateLine): IntentLine {
+  if (line.type === OPERATION_TRANSFER_TYPE.CREATE) {
     return {
       type: OPERATION_TRANSFER_TYPE.CREATE,
-      planRef: transfer.planKey,
-      bookOrgId,
-      postingCode: transfer.postingCode,
-      debitAccountNo: transfer.debitAccountNo,
-      creditAccountNo: transfer.creditAccountNo,
-      currency: transfer.currency,
-      amount: transfer.amount,
-      code: transfer.code,
-      pending: transfer.pending
+      planRef: line.planKey,
+      postingCode: line.postingCode,
+      debit: line.debit,
+      credit: line.credit,
+      amountMinor: line.amountMinor,
+      code: line.code,
+      pending: line.pending
         ? {
-            timeoutSeconds: transfer.pending.timeoutSeconds,
-            ref: transfer.pending.ref ?? transfer.planKey,
+            timeoutSeconds: line.pending.timeoutSeconds,
+            ref: line.pending.ref ?? line.planKey,
           }
         : undefined,
-      chain: transfer.chain,
-      memo: transfer.memo,
-      analytics: transfer.analytics,
+      chain: line.chain,
+      memo: line.memo,
+      context: line.context,
     };
   }
 
-  if (transfer.type === OPERATION_TRANSFER_TYPE.POST_PENDING) {
+  if (line.type === OPERATION_TRANSFER_TYPE.POST_PENDING) {
     return {
       type: OPERATION_TRANSFER_TYPE.POST_PENDING,
-      planRef: transfer.planKey,
-      currency: transfer.currency,
-      pendingId: transfer.pendingId,
-      amount: transfer.amount,
-      code: transfer.code,
-      chain: transfer.chain,
-      memo: transfer.memo,
+      planRef: line.planKey,
+      currency: line.currency,
+      pendingId: line.pendingId,
+      amount: line.amount,
+      code: line.code,
+      chain: line.chain,
+      memo: line.memo,
     };
   }
 
   return {
     type: OPERATION_TRANSFER_TYPE.VOID_PENDING,
-    planRef: transfer.planKey,
-    currency: transfer.currency,
-    pendingId: transfer.pendingId,
-    code: transfer.code,
-    chain: transfer.chain,
-    memo: transfer.memo,
+    planRef: line.planKey,
+    currency: line.currency,
+    pendingId: line.pendingId,
+    code: line.code,
+    chain: line.chain,
+    memo: line.memo,
   };
 }
 
-export function buildTreasuryOperationInput(
-  input: BuildTreasuryOperationInput,
-): CreateOperationInput {
+export function buildTreasuryIntent(
+  input: BuildTreasuryIntentInput,
+): OperationIntent {
   return {
     source: input.source,
     operationCode: input.operationCode,
@@ -125,8 +122,7 @@ export function buildTreasuryOperationInput(
     payload: input.payload,
     idempotencyKey: input.idempotencyKey,
     postingDate: input.postingDate,
-    transfers: input.transfers.map((transfer) =>
-      toTransferPlan(input.bookOrgId, transfer),
-    ),
+    bookOrgId: input.bookOrgId,
+    lines: input.lines.map(toIntentLine),
   };
 }

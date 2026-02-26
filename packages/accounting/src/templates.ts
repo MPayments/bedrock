@@ -1,7 +1,7 @@
 import { makePlanKey } from "@bedrock/kernel";
 import { TransferCodes } from "@bedrock/kernel/constants";
 
-import { ACCOUNT_NO, OPERATION_CODE, POSTING_CODE } from "./constants";
+import { ACCOUNT_NO, CLEARING_KIND, OPERATION_CODE, POSTING_CODE } from "./constants";
 
 export const OPERATION_TRANSFER_TYPE = {
   CREATE: "create",
@@ -9,38 +9,34 @@ export const OPERATION_TRANSFER_TYPE = {
   VOID_PENDING: "void_pending",
 } as const;
 
-export interface PostingAnalytics {
-  counterpartyId?: string | null;
-  customerId?: string | null;
-  orderId?: string | null;
-  operationalAccountId?: string | null;
-  transferId?: string | null;
-  quoteId?: string | null;
-  feeBucket?: string | null;
-}
+export type Dimensions = Record<string, string>;
 
 interface PendingConfig {
   timeoutSeconds: number;
   ref?: string | null;
 }
 
-export interface CreateOperationTransferLine {
+interface AccountSide {
+  accountNo: string;
+  currency: string;
+  dimensions: Dimensions;
+}
+
+export interface CreateIntentLine {
   type: typeof OPERATION_TRANSFER_TYPE.CREATE;
   planRef: string;
-  bookOrgId: string;
-  debitAccountNo: string;
-  creditAccountNo: string;
   postingCode: string;
-  currency: string;
-  amount: bigint;
+  debit: AccountSide;
+  credit: AccountSide;
+  amountMinor: bigint;
   code?: number;
   pending?: PendingConfig;
   chain?: string | null;
   memo?: string | null;
-  analytics?: PostingAnalytics;
+  context?: Record<string, string> | null;
 }
 
-export interface PostPendingOperationTransferLine {
+export interface PostPendingIntentLine {
   type: typeof OPERATION_TRANSFER_TYPE.POST_PENDING;
   planRef: string;
   currency: string;
@@ -51,7 +47,7 @@ export interface PostPendingOperationTransferLine {
   memo?: string | null;
 }
 
-export interface VoidPendingOperationTransferLine {
+export interface VoidPendingIntentLine {
   type: typeof OPERATION_TRANSFER_TYPE.VOID_PENDING;
   planRef: string;
   currency: string;
@@ -61,16 +57,14 @@ export interface VoidPendingOperationTransferLine {
   memo?: string | null;
 }
 
-export type OperationTransferLine =
-  | CreateOperationTransferLine
-  | PostPendingOperationTransferLine
-  | VoidPendingOperationTransferLine;
+export type IntentLine =
+  | CreateIntentLine
+  | PostPendingIntentLine
+  | VoidPendingIntentLine;
 
 export interface TransferPostingBinding {
   accountId: string;
   counterpartyId: string;
-  bookOrgId: string;
-  bookAccountNo: string;
   currencyCode: string;
 }
 
@@ -99,7 +93,7 @@ export interface TransferApproveTemplateResult {
     | typeof OPERATION_CODE.TRANSFER_APPROVE_PENDING_INTRA
     | typeof OPERATION_CODE.TRANSFER_APPROVE_IMMEDIATE_CROSS
     | typeof OPERATION_CODE.TRANSFER_APPROVE_PENDING_CROSS;
-  transfers: OperationTransferLine[];
+  lines: IntentLine[];
   sourcePendingRef: string;
   destinationPendingRef: string | null;
 }
@@ -108,7 +102,7 @@ export interface TransferPendingActionTemplateResult {
   operationCode:
     | typeof OPERATION_CODE.TRANSFER_SETTLE_PENDING
     | typeof OPERATION_CODE.TRANSFER_VOID_PENDING;
-  transfers: OperationTransferLine[];
+  lines: IntentLine[];
 }
 
 export interface FeePostingTemplate {
@@ -133,7 +127,7 @@ export function buildTransferApproveTemplate(
           : OPERATION_CODE.TRANSFER_APPROVE_IMMEDIATE_INTRA,
       sourcePendingRef,
       destinationPendingRef: null,
-      transfers: [
+      lines: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: makePlanKey("transfer_v3_approve_intra", {
@@ -144,15 +138,21 @@ export function buildTransferApproveTemplate(
             currency: input.source.currencyCode,
             settlementMode: input.settlementMode,
           }),
-          bookOrgId: input.source.bookOrgId,
           postingCode:
             input.settlementMode === "pending"
               ? POSTING_CODE.TRANSFER_INTRA_PENDING
               : POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
-          debitAccountNo: input.destination.bookAccountNo,
-          creditAccountNo: input.source.bookAccountNo,
-          currency: input.source.currencyCode,
-          amount: input.amountMinor,
+          debit: {
+            accountNo: ACCOUNT_NO.BANK,
+            currency: input.source.currencyCode,
+            dimensions: { operationalAccountId: input.destination.accountId },
+          },
+          credit: {
+            accountNo: ACCOUNT_NO.BANK,
+            currency: input.source.currencyCode,
+            dimensions: { operationalAccountId: input.source.accountId },
+          },
+          amountMinor: input.amountMinor,
           code: TransferCodes.INTERNAL_TRANSFER,
           pending:
             input.settlementMode === "pending"
@@ -162,10 +162,6 @@ export function buildTransferApproveTemplate(
                 }
               : undefined,
           memo: input.memo ?? null,
-          analytics: {
-            transferId: input.transferId,
-            operationalAccountId: input.source.accountId,
-          },
         },
       ],
     };
@@ -178,7 +174,7 @@ export function buildTransferApproveTemplate(
         : OPERATION_CODE.TRANSFER_APPROVE_IMMEDIATE_CROSS,
     sourcePendingRef,
     destinationPendingRef,
-    transfers: [
+    lines: [
       {
         type: OPERATION_TRANSFER_TYPE.CREATE,
         planRef: makePlanKey("transfer_v3_approve_cross_source", {
@@ -189,15 +185,24 @@ export function buildTransferApproveTemplate(
           currency: input.source.currencyCode,
           settlementMode: input.settlementMode,
         }),
-        bookOrgId: input.source.bookOrgId,
         postingCode:
           input.settlementMode === "pending"
             ? POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING
             : POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE,
-        debitAccountNo: ACCOUNT_NO.INTERCOMPANY_NET,
-        creditAccountNo: input.source.bookAccountNo,
-        currency: input.source.currencyCode,
-        amount: input.amountMinor,
+        debit: {
+          accountNo: ACCOUNT_NO.CLEARING,
+          currency: input.source.currencyCode,
+          dimensions: {
+            clearingKind: CLEARING_KIND.INTERCOMPANY,
+            counterpartyId: input.destination.counterpartyId,
+          },
+        },
+        credit: {
+          accountNo: ACCOUNT_NO.BANK,
+          currency: input.source.currencyCode,
+          dimensions: { operationalAccountId: input.source.accountId },
+        },
+        amountMinor: input.amountMinor,
         code: TransferCodes.INTERNAL_TRANSFER,
         pending:
           input.settlementMode === "pending"
@@ -207,11 +212,6 @@ export function buildTransferApproveTemplate(
               }
             : undefined,
         memo: input.memo ?? null,
-        analytics: {
-          transferId: input.transferId,
-          counterpartyId: input.destination.counterpartyId,
-          operationalAccountId: input.source.accountId,
-        },
       },
       {
         type: OPERATION_TRANSFER_TYPE.CREATE,
@@ -223,15 +223,24 @@ export function buildTransferApproveTemplate(
           currency: input.source.currencyCode,
           settlementMode: input.settlementMode,
         }),
-        bookOrgId: input.destination.bookOrgId,
         postingCode:
           input.settlementMode === "pending"
             ? POSTING_CODE.TRANSFER_CROSS_DEST_PENDING
             : POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE,
-        debitAccountNo: input.destination.bookAccountNo,
-        creditAccountNo: ACCOUNT_NO.INTERCOMPANY_NET,
-        currency: input.source.currencyCode,
-        amount: input.amountMinor,
+        debit: {
+          accountNo: ACCOUNT_NO.BANK,
+          currency: input.source.currencyCode,
+          dimensions: { operationalAccountId: input.destination.accountId },
+        },
+        credit: {
+          accountNo: ACCOUNT_NO.CLEARING,
+          currency: input.source.currencyCode,
+          dimensions: {
+            clearingKind: CLEARING_KIND.INTERCOMPANY,
+            counterpartyId: input.source.counterpartyId,
+          },
+        },
+        amountMinor: input.amountMinor,
         code: TransferCodes.INTERNAL_TRANSFER,
         pending:
           input.settlementMode === "pending"
@@ -241,11 +250,6 @@ export function buildTransferApproveTemplate(
               }
             : undefined,
         memo: input.memo ?? null,
-        analytics: {
-          transferId: input.transferId,
-          counterpartyId: input.source.counterpartyId,
-          operationalAccountId: input.destination.accountId,
-        },
       },
     ],
   };
@@ -259,7 +263,7 @@ export function buildTransferPendingActionTemplate(
       ? OPERATION_CODE.TRANSFER_SETTLE_PENDING
       : OPERATION_CODE.TRANSFER_VOID_PENDING;
 
-  const transfers = input.pendingIds.map((pendingId, idx) => {
+  const lines = input.pendingIds.map((pendingId, idx) => {
     const planRef = makePlanKey(`transfer_v3_${input.eventType}_${idx + 1}`, {
       transferId: input.transferId,
       pendingId: pendingId.toString(),
@@ -273,7 +277,7 @@ export function buildTransferPendingActionTemplate(
         currency: input.currency,
         pendingId,
         amount: 0n,
-      } satisfies PostPendingOperationTransferLine;
+      } satisfies PostPendingIntentLine;
     }
 
     return {
@@ -281,12 +285,12 @@ export function buildTransferPendingActionTemplate(
       planRef,
       currency: input.currency,
       pendingId,
-    } satisfies VoidPendingOperationTransferLine;
+    } satisfies VoidPendingIntentLine;
   });
 
   return {
     operationCode,
-    transfers,
+    lines,
   };
 }
 

@@ -18,7 +18,7 @@ import {
   SYSTEM_LEDGER_ORG_ID,
   type TreasuryServiceContext,
 } from "../internal/context";
-import { buildTreasuryOperationInput } from "../internal/ledger-operation";
+import { buildTreasuryIntent } from "../internal/ledger-operation";
 import { fetchOrderState } from "../internal/order-state";
 import {
   AdvancedOrderStatuses,
@@ -96,9 +96,9 @@ export function createFundingSettledHandler(context: TreasuryServiceContext) {
         customerId: validated.customerId,
       });
 
-      const { operationId: entryId } = await ledger.createOperationTx(
+      const { operationId: entryId } = await ledger.commit(
         tx,
-        buildTreasuryOperationInput({
+        buildTreasuryIntent({
           source: { type: "order/funding_settled", id: validated.orderId },
           operationCode: OPERATION_CODE.TREASURY_FUNDING_SETTLED,
           payload: {
@@ -110,23 +110,28 @@ export function createFundingSettledHandler(context: TreasuryServiceContext) {
           idempotencyKey: `funding:${validated.railRef}`,
           postingDate: validated.occurredAt,
           bookOrgId: SYSTEM_LEDGER_ORG_ID,
-          transfers: [
+          lines: [
             {
               type: OPERATION_TRANSFER_TYPE.CREATE,
               planKey: pk,
               postingCode: POSTING_CODE.FUNDING_SETTLED,
-              debitAccountNo: ACCOUNT_NO.BANK,
-              creditAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-              currency: validated.currency,
-              amount: validated.amountMinor,
+              debit: {
+                accountNo: ACCOUNT_NO.BANK,
+                currency: validated.currency,
+                dimensions: {
+                  operationalAccountId: payInOperationalAccountId,
+                },
+              },
+              credit: {
+                accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+                currency: validated.currency,
+                dimensions: {
+                  customerId: validated.customerId,
+                },
+              },
+              amountMinor: validated.amountMinor,
               code: TransferCodes.FUNDING_SETTLED,
               memo: "Funding settled",
-              analytics: {
-                counterpartyId: validated.branchCounterpartyId,
-                customerId: validated.customerId,
-                orderId: validated.orderId,
-                operationalAccountId: payInOperationalAccountId,
-              },
             },
           ],
         }),

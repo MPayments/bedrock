@@ -40,6 +40,8 @@ import {
 type LedgerEngine = ReturnType<typeof createLedgerEngine>;
 type TransactionClient = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
+const SYSTEM_LEDGER_ORG_ID = "00000000-0000-4000-8000-000000000001";
+
 const SORT_COLUMN_MAP = {
   createdAt: schema.transferOrders.createdAt,
   updatedAt: schema.transferOrders.updatedAt,
@@ -309,20 +311,16 @@ export function createTransfersService(deps: {
         source: {
           accountId: transfer.sourceOperationalAccountId,
           counterpartyId: sourceBinding.counterpartyId,
-          bookOrgId: sourceBinding.bookOrgId,
-          bookAccountNo: sourceBinding.bookAccountNo,
           currencyCode: sourceBinding.currencyCode,
         },
         destination: {
           accountId: transfer.destinationOperationalAccountId,
           counterpartyId: destinationBinding.counterpartyId,
-          bookOrgId: destinationBinding.bookOrgId,
-          bookAccountNo: destinationBinding.bookAccountNo,
           currencyCode: destinationBinding.currencyCode,
         },
       });
 
-      const result = await ledger.createOperationTx(tx, {
+      const result = await ledger.commit(tx, {
         source: {
           type: "transfer/v3/approve",
           id: transfer.id,
@@ -340,7 +338,8 @@ export function createTransfersService(deps: {
         },
         idempotencyKey: `tr3:approve:${transfer.id}`,
         postingDate: validated.occurredAt,
-        transfers: template.transfers,
+        bookOrgId: SYSTEM_LEDGER_ORG_ID,
+        lines: template.lines,
       });
 
       const sourcePendingTransferId =
@@ -644,7 +643,7 @@ export function createTransfersService(deps: {
       pendingIds,
     });
 
-    const entry = await ledger.createOperationTx(tx, {
+    const entry = await ledger.commit(tx, {
       source: {
         type: `transfer/v3/${eventType}`,
         id: transfer.id,
@@ -658,7 +657,8 @@ export function createTransfersService(deps: {
       },
       idempotencyKey: `tr3:${eventType}:${transfer.id}:${input.eventIdempotencyKey}`,
       postingDate: input.occurredAt,
-      transfers: template.transfers,
+      bookOrgId: SYSTEM_LEDGER_ORG_ID,
+      lines: template.lines,
     });
 
     await tx

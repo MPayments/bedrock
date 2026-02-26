@@ -98,39 +98,39 @@ export function createUpdateAccountHandler(context: AccountServiceContext) {
       }
 
       if (validated.postingAccountNo !== undefined) {
-        const bookAccountId = await ensureBookAccountTx(tx, {
+        const bookAccountInstanceId = await ensureBookAccountTx(tx, {
           orgId: existing.counterpartyId,
           accountNo: validated.postingAccountNo,
           currency: currency.code,
         });
 
         await tx
-          .insert(schema.operationalAccountsBookBindings)
+          .insert(schema.operationalAccountBindings)
           .values({
             operationalAccountId: id,
-            bookAccountId,
+            bookAccountInstanceId,
           })
           .onConflictDoUpdate({
-            target: schema.operationalAccountsBookBindings.operationalAccountId,
+            target: schema.operationalAccountBindings.operationalAccountId,
             set: {
-              bookAccountId,
+              bookAccountInstanceId,
               updatedAt: sql`now()`,
             },
           });
       }
 
       const [binding] = await tx
-        .select({ postingAccountNo: schema.bookAccounts.accountNo })
-        .from(schema.operationalAccountsBookBindings)
+        .select({ postingAccountNo: schema.bookAccountInstances.accountNo })
+        .from(schema.operationalAccountBindings)
         .innerJoin(
-          schema.bookAccounts,
+          schema.bookAccountInstances,
           eq(
-            schema.bookAccounts.id,
-            schema.operationalAccountsBookBindings.bookAccountId,
+            schema.bookAccountInstances.id,
+            schema.operationalAccountBindings.bookAccountInstanceId,
           ),
         )
         .where(
-          eq(schema.operationalAccountsBookBindings.operationalAccountId, id),
+          eq(schema.operationalAccountBindings.operationalAccountId, id),
         )
         .limit(1);
 

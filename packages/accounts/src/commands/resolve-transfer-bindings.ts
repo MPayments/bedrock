@@ -28,27 +28,11 @@ export function createResolveTransferBindingsHandler(
         currencyId: schema.operationalAccounts.currencyId,
         currencyCode: schema.currencies.code,
         stableKey: schema.operationalAccounts.stableKey,
-        bookAccountId: schema.bookAccounts.id,
-        bookAccountNo: schema.bookAccounts.accountNo,
       })
       .from(schema.operationalAccounts)
       .innerJoin(
         schema.currencies,
         eq(schema.operationalAccounts.currencyId, schema.currencies.id),
-      )
-      .leftJoin(
-        schema.operationalAccountsBookBindings,
-        eq(
-          schema.operationalAccountsBookBindings.operationalAccountId,
-          schema.operationalAccounts.id,
-        ),
-      )
-      .leftJoin(
-        schema.bookAccounts,
-        eq(
-          schema.bookAccounts.id,
-          schema.operationalAccountsBookBindings.bookAccountId,
-        ),
       )
       .where(inArray(schema.operationalAccounts.id, uniqueAccountIds));
 
@@ -60,32 +44,15 @@ export function createResolveTransferBindingsHandler(
       throw new AccountNotFoundError(missingId);
     }
 
-    const unresolved = rows.filter((row) => !row.bookAccountId);
-    if (unresolved.length > 0) {
-      const missingAccountId = unresolved[0]!.accountId;
-      throw new Error(
-        `Missing operational_account_binding for account=${missingAccountId}`,
-      );
-    }
-
     const byAccountId = new Map<string, TransferAccountBinding>();
 
     for (const row of rows) {
-      if (!row.bookAccountId || !row.bookAccountNo) {
-        throw new Error(
-          `Missing book account binding for account=${row.accountId}`,
-        );
-      }
-
       byAccountId.set(row.accountId, {
         accountId: row.accountId,
         counterpartyId: row.counterpartyId,
         currencyId: row.currencyId,
         currencyCode: row.currencyCode,
         stableKey: row.stableKey,
-        bookOrgId: row.counterpartyId,
-        bookAccountId: row.bookAccountId,
-        bookAccountNo: row.bookAccountNo,
       });
     }
 

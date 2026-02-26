@@ -3,6 +3,7 @@ import {
   bigint,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -10,7 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { bookAccounts } from "./ledger";
+import { bookAccountInstances } from "./ledger";
 
 export type LedgerOperationStatus = "pending" | "posted" | "failed";
 
@@ -47,8 +48,8 @@ export const ledgerOperations = pgTable(
   ],
 );
 
-export const ledgerPostings = pgTable(
-  "ledger_postings",
+export const postings = pgTable(
+  "postings",
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
@@ -59,12 +60,12 @@ export const ledgerPostings = pgTable(
     lineNo: integer("line_no").notNull(),
     bookOrgId: uuid("book_org_id").notNull(),
 
-    debitBookAccountId: uuid("debit_book_account_id")
+    debitInstanceId: uuid("debit_instance_id")
       .notNull()
-      .references(() => bookAccounts.id),
-    creditBookAccountId: uuid("credit_book_account_id")
+      .references(() => bookAccountInstances.id),
+    creditInstanceId: uuid("credit_instance_id")
       .notNull()
-      .references(() => bookAccounts.id),
+      .references(() => bookAccountInstances.id),
 
     postingCode: text("posting_code").notNull(),
 
@@ -72,21 +73,15 @@ export const ledgerPostings = pgTable(
     amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
     memo: text("memo"),
 
-    analyticCounterpartyId: uuid("analytic_counterparty_id"),
-    analyticCustomerId: uuid("analytic_customer_id"),
-    analyticOrderId: uuid("analytic_order_id"),
-    analyticOperationalAccountId: uuid("analytic_operational_account_id"),
-    analyticTransferId: uuid("analytic_transfer_id"),
-    analyticQuoteId: uuid("analytic_quote_id"),
-    analyticFeeBucket: text("analytic_fee_bucket"),
+    context: jsonb("context").$type<Record<string, string>>(),
 
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
   },
   (t) => [
-    uniqueIndex("ledger_postings_op_line_uq").on(t.operationId, t.lineNo),
-    index("ledger_postings_op_idx").on(t.operationId),
-    index("ledger_postings_org_currency_idx").on(t.bookOrgId, t.currency),
+    uniqueIndex("postings_op_line_uq").on(t.operationId, t.lineNo),
+    index("postings_op_idx").on(t.operationId),
+    index("postings_org_currency_idx").on(t.bookOrgId, t.currency),
   ],
 );

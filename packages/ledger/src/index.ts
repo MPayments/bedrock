@@ -5,15 +5,19 @@ export {
 } from "./read-service";
 export { OPERATION_TRANSFER_TYPE } from "./types";
 export type {
-  CreateOperationInput,
-  CreateOperationResult,
-  TransferPlanLine,
+  OperationIntent,
+  CommitResult,
+  IntentLine,
+  CreateIntentLine,
+  PostPendingIntentLine,
+  VoidPendingIntentLine,
   OperationTransferType,
+  Dimensions,
 } from "./types";
-export { IdempotencyConflictError } from "./errors";
+export { IdempotencyConflictError, DimensionPolicyViolationError } from "./errors";
 export { createLedgerWorker } from "./worker";
 export {
   tbLedgerForCurrency,
-  tbBookAccountIdFor,
+  tbBookAccountInstanceIdFor,
   tbTransferIdForOperation,
 } from "./ids";

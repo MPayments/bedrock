@@ -13,7 +13,7 @@ import {
   type TreasuryServiceContext,
 } from "../internal/context";
 import { assertInitiateFeePaymentReplayCompatible } from "../internal/fee-payment-idempotency";
-import { buildTreasuryOperationInput } from "../internal/ledger-operation";
+import { buildTreasuryIntent } from "../internal/ledger-operation";
 import { fetchFeePaymentOrderState } from "../internal/order-state";
 import {
   type InitiateFeePaymentInput,
@@ -71,9 +71,9 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
       const pendingRef = `fee_payment:${vaildated.feePaymentOrderId}:init`;
 
       const { operationId: entryId, pendingTransferIdsByRef } =
-        await ledger.createOperationTx(
+        await ledger.commit(
           tx,
-          buildTreasuryOperationInput({
+          buildTreasuryIntent({
             source: {
               type: "fee_payment/initiated",
               id: vaildated.feePaymentOrderId,
@@ -88,27 +88,34 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
             idempotencyKey: `fee_payment:init:${vaildated.feePaymentOrderId}:${vaildated.railRef}`,
             postingDate: vaildated.occurredAt,
             bookOrgId: SYSTEM_LEDGER_ORG_ID,
-            transfers: [
+            lines: [
               {
                 type: OPERATION_TRANSFER_TYPE.CREATE,
                 planKey,
                 postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED,
-                debitAccountNo: ACCOUNT_NO.FEE_CLEARING,
-                creditAccountNo: ACCOUNT_NO.BANK,
-                currency: feeOrderCurrency,
-                amount: feeOrder.amountMinor,
+                debit: {
+                  accountNo: ACCOUNT_NO.FEE_CLEARING,
+                  currency: feeOrderCurrency,
+                  dimensions: {
+                    feeBucket: feeOrder.bucket,
+                    orderId: feeOrder.parentOrderId,
+                    counterpartyId: vaildated.payoutCounterpartyId,
+                  },
+                },
+                credit: {
+                  accountNo: ACCOUNT_NO.BANK,
+                  currency: feeOrderCurrency,
+                  dimensions: {
+                    operationalAccountId: vaildated.payoutOperationalAccountId,
+                  },
+                },
+                amountMinor: feeOrder.amountMinor,
                 code: TransferCodes.FEE_PAYMENT_INITIATED,
                 pending: {
                   timeoutSeconds,
                   ref: pendingRef,
                 },
                 memo: "Fee payment initiated (pending)",
-                analytics: {
-                  orderId: feeOrder.parentOrderId,
-                  feeBucket: feeOrder.bucket,
-                  counterpartyId: vaildated.payoutCounterpartyId,
-                  operationalAccountId: vaildated.payoutOperationalAccountId,
-                },
               },
             ],
           }),
@@ -213,9 +220,9 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
         currency: feeOrderCurrency,
       });
 
-      const { operationId: entryId } = await ledger.createOperationTx(
+      const { operationId: entryId } = await ledger.commit(
         tx,
-        buildTreasuryOperationInput({
+        buildTreasuryIntent({
           source: {
             type: "fee_payment/settled",
             id: validated.feePaymentOrderId,
@@ -230,7 +237,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
           idempotencyKey: `fee_payment:settle:${validated.feePaymentOrderId}:${validated.railRef}`,
           postingDate: validated.occurredAt,
           bookOrgId: SYSTEM_LEDGER_ORG_ID,
-          transfers: [
+          lines: [
             {
               type: OPERATION_TRANSFER_TYPE.POST_PENDING,
               planKey,
@@ -326,9 +333,9 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
         currency: feeOrderCurrency,
       });
 
-      const { operationId: entryId } = await ledger.createOperationTx(
+      const { operationId: entryId } = await ledger.commit(
         tx,
-        buildTreasuryOperationInput({
+        buildTreasuryIntent({
           source: {
             type: "fee_payment/voided",
             id: validated.feePaymentOrderId,
@@ -343,7 +350,7 @@ export function createFeePaymentHandlers(context: TreasuryServiceContext) {
           idempotencyKey: `fee_payment:void:${validated.feePaymentOrderId}:${validated.railRef}`,
           postingDate: validated.occurredAt,
           bookOrgId: SYSTEM_LEDGER_ORG_ID,
-          transfers: [
+          lines: [
             {
               type: OPERATION_TRANSFER_TYPE.VOID_PENDING,
               planKey,

@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import {
   ACCOUNT_NO,
+  CLEARING_KIND,
   OPERATION_CODE,
   POSTING_CODE,
   resolveAdjustmentInLedgerPostingTemplate,
@@ -29,8 +30,8 @@ import {
 } from "../internal/context";
 import { consumeFxQuoteForExecution } from "../internal/fx-quote";
 import {
-  buildTreasuryOperationInput,
-  type TemplateTransferPlan,
+  buildTreasuryIntent,
+  type TemplateLine,
 } from "../internal/ledger-operation";
 import {
   ExecuteFxAllowedFrom,
@@ -217,7 +218,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
       }
 
       const chain = `fx:${validated.quoteRef}`;
-      const transfers: TemplateTransferPlan[] = [];
+      const lines: TemplateLine[] = [];
       const separateFeeOrders: {
         componentId: string;
         kind: string;
@@ -237,7 +238,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
         );
       }
 
-      transfers.push({
+      lines.push({
         type: OPERATION_TRANSFER_TYPE.CREATE,
         chain,
         planKey: makePlanKey("fx_principal", {
@@ -247,24 +248,26 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
           amount: validated.principalMinor.toString(),
         }),
         postingCode: POSTING_CODE.FX_PRINCIPAL,
-        debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-        creditAccountNo: ACCOUNT_NO.ORDER_RESERVE,
-        currency: validated.payInCurrency,
-        amount: validated.principalMinor,
+        debit: {
+          accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+          currency: validated.payInCurrency,
+          dimensions: { customerId: validated.customerId },
+        },
+        credit: {
+          accountNo: ACCOUNT_NO.ORDER_RESERVE,
+          currency: validated.payInCurrency,
+          dimensions: { orderId: validated.orderId },
+        },
+        amountMinor: validated.principalMinor,
         code: TransferCodes.FX_PRINCIPAL,
         memo: "FX principal",
-        analytics: {
-          customerId: validated.customerId,
-          orderId: validated.orderId,
-          quoteId: quote.id,
-        },
       });
 
       for (const leg of routeLegs) {
         const executionCounterpartyId =
           leg.executionCounterpartyId ?? validated.branchCounterpartyId;
 
-        transfers.push({
+        lines.push({
           type: OPERATION_TRANSFER_TYPE.CREATE,
           chain,
           planKey: makePlanKey("fx_leg_out", {
@@ -276,20 +279,26 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             amount: leg.fromAmountMinor.toString(),
           }),
           postingCode: POSTING_CODE.FX_LEG_OUT,
-          debitAccountNo: ACCOUNT_NO.ORDER_RESERVE,
-          creditAccountNo: ACCOUNT_NO.TREASURY_CLEARING,
-          currency: leg.fromCurrency,
-          amount: leg.fromAmountMinor,
+          debit: {
+            accountNo: ACCOUNT_NO.ORDER_RESERVE,
+            currency: leg.fromCurrency,
+            dimensions: { orderId: validated.orderId },
+          },
+          credit: {
+            accountNo: ACCOUNT_NO.CLEARING,
+            currency: leg.fromCurrency,
+            dimensions: {
+              clearingKind: CLEARING_KIND.TREASURY_FX,
+              orderId: validated.orderId,
+              counterpartyId: executionCounterpartyId,
+            },
+          },
+          amountMinor: leg.fromAmountMinor,
           code: TransferCodes.FX_LEG_OUT,
           memo: `FX leg ${leg.idx} out`,
-          analytics: {
-            orderId: validated.orderId,
-            counterpartyId: executionCounterpartyId,
-            quoteId: quote.id,
-          },
         });
 
-        transfers.push({
+        lines.push({
           type: OPERATION_TRANSFER_TYPE.CREATE,
           chain,
           planKey: makePlanKey("fx_leg_in", {
@@ -301,17 +310,23 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             amount: leg.toAmountMinor.toString(),
           }),
           postingCode: POSTING_CODE.FX_LEG_IN,
-          debitAccountNo: ACCOUNT_NO.TREASURY_CLEARING,
-          creditAccountNo: ACCOUNT_NO.ORDER_RESERVE,
-          currency: leg.toCurrency,
-          amount: leg.toAmountMinor,
+          debit: {
+            accountNo: ACCOUNT_NO.CLEARING,
+            currency: leg.toCurrency,
+            dimensions: {
+              clearingKind: CLEARING_KIND.TREASURY_FX,
+              orderId: validated.orderId,
+              counterpartyId: executionCounterpartyId,
+            },
+          },
+          credit: {
+            accountNo: ACCOUNT_NO.ORDER_RESERVE,
+            currency: leg.toCurrency,
+            dimensions: { orderId: validated.orderId },
+          },
+          amountMinor: leg.toAmountMinor,
           code: TransferCodes.FX_LEG_IN,
           memo: `FX leg ${leg.idx} in`,
-          analytics: {
-            orderId: validated.orderId,
-            counterpartyId: executionCounterpartyId,
-            quoteId: quote.id,
-          },
         });
       }
 
@@ -335,7 +350,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
         if (accountingTreatment === "income") {
           const posting = resolveInLedgerFeePostingTemplate(component.kind);
 
-          transfers.push({
+          lines.push({
             type: OPERATION_TRANSFER_TYPE.CREATE,
             chain,
             planKey: makePlanKey("fx_fee_component_income", {
@@ -348,18 +363,19 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
               amount: component.amountMinor.toString(),
             }),
             postingCode: posting.postingCode,
-            debitAccountNo: posting.debitAccountNo,
-            creditAccountNo: posting.creditAccountNo,
-            currency: component.currency,
-            amount: component.amountMinor,
+            debit: {
+              accountNo: posting.debitAccountNo,
+              currency: component.currency,
+              dimensions: { customerId: validated.customerId },
+            },
+            credit: {
+              accountNo: posting.creditAccountNo,
+              currency: component.currency,
+              dimensions: {},
+            },
+            amountMinor: component.amountMinor,
             code: posting.transferCode,
             memo: component.memo ?? defaults.memo,
-            analytics: {
-              orderId: validated.orderId,
-              customerId: validated.customerId,
-              feeBucket: posting.feeBucket ?? defaults.bucket,
-              quoteId: quote.id,
-            },
           });
           continue;
         }
@@ -367,7 +383,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
         if (accountingTreatment === "pass_through") {
           const posting = resolveFeeReservePostingTemplate(defaults.bucket);
 
-          transfers.push({
+          lines.push({
             type: OPERATION_TRANSFER_TYPE.CREATE,
             chain,
             planKey: makePlanKey("fx_fee_component_pass_through", {
@@ -380,18 +396,22 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
               amount: component.amountMinor.toString(),
             }),
             postingCode: posting.postingCode,
-            debitAccountNo: posting.debitAccountNo,
-            creditAccountNo: posting.creditAccountNo,
-            currency: component.currency,
-            amount: component.amountMinor,
+            debit: {
+              accountNo: posting.debitAccountNo,
+              currency: component.currency,
+              dimensions: { customerId: validated.customerId },
+            },
+            credit: {
+              accountNo: posting.creditAccountNo,
+              currency: component.currency,
+              dimensions: {
+                feeBucket: posting.feeBucket ?? defaults.bucket,
+                orderId: validated.orderId,
+              },
+            },
+            amountMinor: component.amountMinor,
             code: posting.transferCode,
             memo: component.memo ?? "Fee reserved for separate payment order",
-            analytics: {
-              orderId: validated.orderId,
-              customerId: validated.customerId,
-              feeBucket: posting.feeBucket ?? defaults.bucket,
-              quoteId: quote.id,
-            },
           });
 
           separateFeeOrders.push({
@@ -412,7 +432,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
           defaults.bucket,
         );
 
-        transfers.push({
+        lines.push({
           type: OPERATION_TRANSFER_TYPE.CREATE,
           chain,
           planKey: makePlanKey("fx_fee_component_expense", {
@@ -425,18 +445,26 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             amount: component.amountMinor.toString(),
           }),
           postingCode: posting.postingCode,
-          debitAccountNo: posting.debitAccountNo,
-          creditAccountNo: posting.creditAccountNo,
-          currency: component.currency,
-          amount: component.amountMinor,
+          debit: {
+            accountNo: posting.debitAccountNo,
+            currency: component.currency,
+            dimensions: {
+              feeBucket: posting.feeBucket ?? defaults.bucket,
+              orderId: validated.orderId,
+              counterpartyId: validated.branchCounterpartyId,
+            },
+          },
+          credit: {
+            accountNo: posting.creditAccountNo,
+            currency: component.currency,
+            dimensions: {
+              feeBucket: posting.feeBucket ?? defaults.bucket,
+              orderId: validated.orderId,
+            },
+          },
+          amountMinor: component.amountMinor,
           code: posting.transferCode,
           memo: component.memo ?? "Provider fee expense accrual",
-          analytics: {
-            orderId: validated.orderId,
-            feeBucket: posting.feeBucket ?? defaults.bucket,
-            counterpartyId: validated.branchCounterpartyId,
-            quoteId: quote.id,
-          },
         });
 
         separateFeeOrders.push({
@@ -467,7 +495,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
           component.kind,
         );
 
-        transfers.push({
+        lines.push({
           type: OPERATION_TRANSFER_TYPE.CREATE,
           chain,
           planKey: makePlanKey("fx_adjustment_component", {
@@ -481,22 +509,29 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             amount: component.amountMinor.toString(),
           }),
           postingCode: posting.postingCode,
-          debitAccountNo: posting.debitAccountNo,
-          creditAccountNo: posting.creditAccountNo,
-          currency: component.currency,
-          amount: component.amountMinor,
+          debit: {
+            accountNo: posting.debitAccountNo,
+            currency: component.currency,
+            dimensions:
+              posting.debitAccountNo === ACCOUNT_NO.CUSTOMER_WALLET
+                ? { customerId: validated.customerId }
+                : {},
+          },
+          credit: {
+            accountNo: posting.creditAccountNo,
+            currency: component.currency,
+            dimensions:
+              posting.creditAccountNo === ACCOUNT_NO.CUSTOMER_WALLET
+                ? { customerId: validated.customerId }
+                : {},
+          },
+          amountMinor: component.amountMinor,
           code: posting.transferCode,
           memo:
             component.memo ??
             (component.effect === "increase_charge"
               ? "Adjustment charge"
               : "Adjustment refund"),
-          analytics: {
-            orderId: validated.orderId,
-            customerId: validated.customerId,
-            feeBucket: posting.feeBucket,
-            quoteId: quote.id,
-          },
         });
       }
 
@@ -510,7 +545,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
         );
         const bucket = posting.feeBucket ?? `adjustment:${component.kind}`;
 
-        transfers.push({
+        lines.push({
           type: OPERATION_TRANSFER_TYPE.CREATE,
           chain,
           planKey: makePlanKey("fx_adjustment_reserve", {
@@ -524,19 +559,26 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             amount: component.amountMinor.toString(),
           }),
           postingCode: posting.postingCode,
-          debitAccountNo: posting.debitAccountNo,
-          creditAccountNo: posting.creditAccountNo,
-          currency: component.currency,
-          amount: component.amountMinor,
+          debit: {
+            accountNo: posting.debitAccountNo,
+            currency: component.currency,
+            dimensions:
+              posting.debitAccountNo === ACCOUNT_NO.CUSTOMER_WALLET
+                ? { customerId: validated.customerId }
+                : {},
+          },
+          credit: {
+            accountNo: posting.creditAccountNo,
+            currency: component.currency,
+            dimensions: {
+              feeBucket: bucket,
+              orderId: validated.orderId,
+            },
+          },
+          amountMinor: component.amountMinor,
           code: posting.transferCode,
           memo:
             component.memo ?? "Adjustment reserved for separate payment order",
-          analytics: {
-            orderId: validated.orderId,
-            customerId: validated.customerId,
-            feeBucket: bucket,
-            quoteId: quote.id,
-          },
         });
 
         separateFeeOrders.push({
@@ -555,7 +597,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
         });
       }
 
-      transfers.push({
+      lines.push({
         type: OPERATION_TRANSFER_TYPE.CREATE,
         chain,
         planKey: makePlanKey("fx_obligation", {
@@ -566,21 +608,24 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
           amount: validated.payOutAmountMinor.toString(),
         }),
         postingCode: POSTING_CODE.FX_PAYOUT_OBLIGATION,
-        debitAccountNo: ACCOUNT_NO.ORDER_RESERVE,
-        creditAccountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
-        currency: validated.payOutCurrency,
-        amount: validated.payOutAmountMinor,
+        debit: {
+          accountNo: ACCOUNT_NO.ORDER_RESERVE,
+          currency: validated.payOutCurrency,
+          dimensions: { orderId: validated.orderId },
+        },
+        credit: {
+          accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
+          currency: validated.payOutCurrency,
+          dimensions: { orderId: validated.orderId },
+        },
+        amountMinor: validated.payOutAmountMinor,
         code: TransferCodes.FX_PAYOUT_OBLIGATION,
         memo: "Create payout obligation",
-        analytics: {
-          orderId: validated.orderId,
-          quoteId: quote.id,
-        },
       });
 
-      const { operationId: entryId } = await ledger.createOperationTx(
+      const { operationId: entryId } = await ledger.commit(
         tx,
-        buildTreasuryOperationInput({
+        buildTreasuryIntent({
           source: { type: "order/fx_executed", id: validated.orderId },
           operationCode: OPERATION_CODE.TREASURY_FX_EXECUTED,
           payload: {
@@ -594,7 +639,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
           idempotencyKey: `fx:${validated.quoteRef}`,
           postingDate: validated.occurredAt,
           bookOrgId: SYSTEM_LEDGER_ORG_ID,
-          transfers,
+          lines,
         }),
       );
 

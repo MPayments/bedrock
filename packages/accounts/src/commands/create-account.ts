@@ -61,22 +61,22 @@ export function createCreateAccountHandler(context: AccountServiceContext) {
         throw new Error(`Currency not found: ${validated.currencyId}`);
       }
 
-      const bookAccountId = await ensureBookAccountTx(tx, {
+      const bookAccountInstanceId = await ensureBookAccountTx(tx, {
         orgId: validated.counterpartyId,
         accountNo: validated.postingAccountNo,
         currency: currency.code,
       });
 
       await tx
-        .insert(schema.operationalAccountsBookBindings)
+        .insert(schema.operationalAccountBindings)
         .values({
           operationalAccountId: created!.id,
-          bookAccountId,
+          bookAccountInstanceId,
         })
         .onConflictDoUpdate({
-          target: schema.operationalAccountsBookBindings.operationalAccountId,
+          target: schema.operationalAccountBindings.operationalAccountId,
           set: {
-            bookAccountId,
+            bookAccountInstanceId,
           },
         });
 

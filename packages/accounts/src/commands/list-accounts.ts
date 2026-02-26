@@ -85,23 +85,23 @@ export function createListAccountsHandler(context: AccountServiceContext) {
           address: schema.operationalAccounts.address,
           iban: schema.operationalAccounts.iban,
           stableKey: schema.operationalAccounts.stableKey,
-          postingAccountNo: schema.bookAccounts.accountNo,
+          postingAccountNo: schema.bookAccountInstances.accountNo,
           createdAt: schema.operationalAccounts.createdAt,
           updatedAt: schema.operationalAccounts.updatedAt,
         })
         .from(schema.operationalAccounts)
         .leftJoin(
-          schema.operationalAccountsBookBindings,
+          schema.operationalAccountBindings,
           eq(
-            schema.operationalAccountsBookBindings.operationalAccountId,
+            schema.operationalAccountBindings.operationalAccountId,
             schema.operationalAccounts.id,
           ),
         )
         .leftJoin(
-          schema.bookAccounts,
+          schema.bookAccountInstances,
           eq(
-            schema.bookAccounts.id,
-            schema.operationalAccountsBookBindings.bookAccountId,
+            schema.bookAccountInstances.id,
+            schema.operationalAccountBindings.bookAccountInstanceId,
           ),
         )
         .where(where)

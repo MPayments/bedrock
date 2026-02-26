@@ -11,8 +11,7 @@ export const ACCOUNT_NO = {
 
   BANK: "1110",
   TRANSIT: "1220",
-  INTERCOMPANY_NET: "1310",
-  TREASURY_CLEARING: "1320",
+  CLEARING: "1300",
   CUSTOMER_WALLET: "2110",
   FEE_CLEARING: "2120",
   PAYOUT_OBLIGATION: "2130",
@@ -22,6 +21,11 @@ export const ACCOUNT_NO = {
   ADJUSTMENT_REVENUE: "4130",
   ADJUSTMENT_EXPENSE: "5110",
   PROVIDER_FEE_EXPENSE: "5120",
+} as const;
+
+export const CLEARING_KIND = {
+  INTERCOMPANY: "intercompany",
+  TREASURY_FX: "treasury_fx",
 } as const;
 
 export const OPERATION_CODE = {
@@ -66,78 +70,19 @@ export const POSTING_CODE = {
   PAYOUT_INITIATED: "TC.3101",
 } as const;
 
-export const POSTING_CODE_REQUIRED_ANALYTICS = {
-  [POSTING_CODE.TRANSFER_INTRA_IMMEDIATE]: ["operational_account_id"],
-  [POSTING_CODE.TRANSFER_INTRA_PENDING]: ["operational_account_id"],
-  [POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE]: [
-    "counterparty_id",
-    "operational_account_id",
-  ],
-  [POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE]: [
-    "counterparty_id",
-    "operational_account_id",
-  ],
-  [POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING]: [
-    "counterparty_id",
-    "operational_account_id",
-  ],
-  [POSTING_CODE.TRANSFER_CROSS_DEST_PENDING]: [
-    "counterparty_id",
-    "operational_account_id",
-  ],
-  [POSTING_CODE.FUNDING_SETTLED]: ["customer_id", "operational_account_id"],
-  [POSTING_CODE.FX_PRINCIPAL]: ["order_id", "customer_id", "quote_id"],
-  [POSTING_CODE.FX_LEG_OUT]: ["order_id", "counterparty_id", "quote_id"],
-  [POSTING_CODE.FX_LEG_IN]: ["order_id", "counterparty_id", "quote_id"],
-  [POSTING_CODE.FX_PAYOUT_OBLIGATION]: ["order_id", "quote_id"],
-  [POSTING_CODE.FEE_INCOME]: [
-    "order_id",
-    "customer_id",
-    "fee_bucket",
-    "quote_id",
-  ],
-  [POSTING_CODE.SPREAD_INCOME]: [
-    "order_id",
-    "customer_id",
-    "fee_bucket",
-    "quote_id",
-  ],
-  [POSTING_CODE.FEE_PASS_THROUGH_RESERVE]: [
-    "order_id",
-    "customer_id",
-    "fee_bucket",
-    "quote_id",
-  ],
-  [POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL]: [
-    "order_id",
-    "fee_bucket",
-    "counterparty_id",
-    "quote_id",
-  ],
-  [POSTING_CODE.FEE_PAYMENT_INITIATED]: [
-    "order_id",
-    "fee_bucket",
-    "counterparty_id",
-    "operational_account_id",
-  ],
-  [POSTING_CODE.PAYOUT_INITIATED]: [
-    "order_id",
-    "counterparty_id",
-    "operational_account_id",
-  ],
-  [POSTING_CODE.ADJUSTMENT_CHARGE]: [
-    "order_id",
-    "customer_id",
-    "fee_bucket",
-    "quote_id",
-  ],
-  [POSTING_CODE.ADJUSTMENT_REFUND]: [
-    "order_id",
-    "customer_id",
-    "fee_bucket",
-    "quote_id",
-  ],
-} as const;
+export type DimensionMode = "required" | "optional" | "forbidden";
+
+export interface AccountDimensionPolicy {
+  accountNo: string;
+  dimensionKey: string;
+  mode: DimensionMode;
+}
+
+export interface PostingCodeDimensionPolicyEntry {
+  postingCode: string;
+  dimensionKey: string;
+  required: boolean;
+}
 
 export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
   {
@@ -168,11 +113,11 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     parentAccountNo: ACCOUNT_NO.ASSETS,
   },
   {
-    accountNo: ACCOUNT_NO.INTERCOMPANY_ASSETS,
-    name: "Внутригрупповые расчеты",
+    accountNo: ACCOUNT_NO.CLEARING,
+    name: "Clearing",
     kind: "active_passive",
     normalSide: "both",
-    postingAllowed: false,
+    postingAllowed: true,
     enabled: true,
     parentAccountNo: ACCOUNT_NO.ASSETS,
   },
@@ -238,24 +183,6 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     postingAllowed: true,
     enabled: true,
     parentAccountNo: ACCOUNT_NO.OPERATING_ASSETS,
-  },
-  {
-    accountNo: ACCOUNT_NO.INTERCOMPANY_NET,
-    name: "INTERCOMPANY_NET",
-    kind: "active_passive",
-    normalSide: "both",
-    postingAllowed: true,
-    enabled: true,
-    parentAccountNo: ACCOUNT_NO.INTERCOMPANY_ASSETS,
-  },
-  {
-    accountNo: ACCOUNT_NO.TREASURY_CLEARING,
-    name: "TREASURY_CLEARING",
-    kind: "active_passive",
-    normalSide: "both",
-    postingAllowed: true,
-    enabled: true,
-    parentAccountNo: ACCOUNT_NO.INTERCOMPANY_ASSETS,
   },
   {
     accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
@@ -340,98 +267,71 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
   },
 ] as const;
 
-export const DEFAULT_CHART_TEMPLATE_ACCOUNT_ANALYTICS = [
-  {
-    accountNo: ACCOUNT_NO.BANK,
-    analyticType: "operational_account_id",
-    required: true,
-  },
-  {
-    accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-    analyticType: "customer_id",
-    required: true,
-  },
-  {
-    accountNo: ACCOUNT_NO.INTERCOMPANY_NET,
-    analyticType: "counterparty_id",
-    required: true,
-  },
-  {
-    accountNo: ACCOUNT_NO.TREASURY_CLEARING,
-    analyticType: "order_id",
-    required: true,
-  },
-  {
-    accountNo: ACCOUNT_NO.TREASURY_CLEARING,
-    analyticType: "counterparty_id",
-    required: true,
-  },
-  {
-    accountNo: ACCOUNT_NO.TREASURY_CLEARING,
-    analyticType: "quote_id",
-    required: false,
-  },
-  {
-    accountNo: ACCOUNT_NO.FEE_CLEARING,
-    analyticType: "fee_bucket",
-    required: true,
-  },
-  {
-    accountNo: ACCOUNT_NO.FEE_CLEARING,
-    analyticType: "order_id",
-    required: true,
-  },
-  {
-    accountNo: ACCOUNT_NO.FEE_CLEARING,
-    analyticType: "counterparty_id",
-    required: false,
-  },
-  {
-    accountNo: ACCOUNT_NO.FEE_CLEARING,
-    analyticType: "quote_id",
-    required: false,
-  },
-  {
-    accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
-    analyticType: "order_id",
-    required: true,
-  },
-  {
-    accountNo: ACCOUNT_NO.ORDER_RESERVE,
-    analyticType: "order_id",
-    required: true,
-  },
-  {
-    accountNo: ACCOUNT_NO.ORDER_RESERVE,
-    analyticType: "customer_id",
-    required: false,
-  },
-  {
-    accountNo: ACCOUNT_NO.ORDER_RESERVE,
-    analyticType: "quote_id",
-    required: false,
-  },
-  {
-    accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
-    analyticType: "fee_bucket",
-    required: true,
-  },
-  {
-    accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
-    analyticType: "order_id",
-    required: true,
-  },
-  {
-    accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
-    analyticType: "counterparty_id",
-    required: false,
-  },
-  {
-    accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
-    analyticType: "quote_id",
-    required: false,
-  },
-] as const;
+export const DEFAULT_ACCOUNT_DIMENSION_POLICIES: AccountDimensionPolicy[] = [
+  { accountNo: ACCOUNT_NO.BANK, dimensionKey: "operationalAccountId", mode: "required" },
+  { accountNo: ACCOUNT_NO.CUSTOMER_WALLET, dimensionKey: "customerId", mode: "required" },
+  { accountNo: ACCOUNT_NO.CLEARING, dimensionKey: "clearingKind", mode: "required" },
+  { accountNo: ACCOUNT_NO.CLEARING, dimensionKey: "counterpartyId", mode: "optional" },
+  { accountNo: ACCOUNT_NO.CLEARING, dimensionKey: "orderId", mode: "optional" },
+  { accountNo: ACCOUNT_NO.FEE_CLEARING, dimensionKey: "feeBucket", mode: "required" },
+  { accountNo: ACCOUNT_NO.FEE_CLEARING, dimensionKey: "orderId", mode: "required" },
+  { accountNo: ACCOUNT_NO.FEE_CLEARING, dimensionKey: "counterpartyId", mode: "optional" },
+  { accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION, dimensionKey: "orderId", mode: "required" },
+  { accountNo: ACCOUNT_NO.ORDER_RESERVE, dimensionKey: "orderId", mode: "required" },
+  { accountNo: ACCOUNT_NO.ORDER_RESERVE, dimensionKey: "customerId", mode: "optional" },
+  { accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE, dimensionKey: "feeBucket", mode: "required" },
+  { accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE, dimensionKey: "orderId", mode: "required" },
+  { accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE, dimensionKey: "counterpartyId", mode: "optional" },
+];
+
+export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicyEntry[] = [
+  { postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE, dimensionKey: "operationalAccountId", required: true },
+  { postingCode: POSTING_CODE.TRANSFER_INTRA_PENDING, dimensionKey: "operationalAccountId", required: true },
+  { postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE, dimensionKey: "counterpartyId", required: true },
+  { postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE, dimensionKey: "operationalAccountId", required: true },
+  { postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE, dimensionKey: "counterpartyId", required: true },
+  { postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE, dimensionKey: "operationalAccountId", required: true },
+  { postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING, dimensionKey: "counterpartyId", required: true },
+  { postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING, dimensionKey: "operationalAccountId", required: true },
+  { postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_PENDING, dimensionKey: "counterpartyId", required: true },
+  { postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_PENDING, dimensionKey: "operationalAccountId", required: true },
+  { postingCode: POSTING_CODE.FUNDING_SETTLED, dimensionKey: "customerId", required: true },
+  { postingCode: POSTING_CODE.FUNDING_SETTLED, dimensionKey: "operationalAccountId", required: true },
+  { postingCode: POSTING_CODE.FX_PRINCIPAL, dimensionKey: "orderId", required: true },
+  { postingCode: POSTING_CODE.FX_PRINCIPAL, dimensionKey: "customerId", required: true },
+  { postingCode: POSTING_CODE.FX_LEG_OUT, dimensionKey: "orderId", required: true },
+  { postingCode: POSTING_CODE.FX_LEG_OUT, dimensionKey: "counterpartyId", required: true },
+  { postingCode: POSTING_CODE.FX_LEG_OUT, dimensionKey: "clearingKind", required: true },
+  { postingCode: POSTING_CODE.FX_LEG_IN, dimensionKey: "orderId", required: true },
+  { postingCode: POSTING_CODE.FX_LEG_IN, dimensionKey: "counterpartyId", required: true },
+  { postingCode: POSTING_CODE.FX_LEG_IN, dimensionKey: "clearingKind", required: true },
+  { postingCode: POSTING_CODE.FX_PAYOUT_OBLIGATION, dimensionKey: "orderId", required: true },
+  { postingCode: POSTING_CODE.FEE_INCOME, dimensionKey: "orderId", required: true },
+  { postingCode: POSTING_CODE.FEE_INCOME, dimensionKey: "customerId", required: true },
+  { postingCode: POSTING_CODE.FEE_INCOME, dimensionKey: "feeBucket", required: true },
+  { postingCode: POSTING_CODE.SPREAD_INCOME, dimensionKey: "orderId", required: true },
+  { postingCode: POSTING_CODE.SPREAD_INCOME, dimensionKey: "customerId", required: true },
+  { postingCode: POSTING_CODE.SPREAD_INCOME, dimensionKey: "feeBucket", required: true },
+  { postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE, dimensionKey: "orderId", required: true },
+  { postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE, dimensionKey: "customerId", required: true },
+  { postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE, dimensionKey: "feeBucket", required: true },
+  { postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL, dimensionKey: "orderId", required: true },
+  { postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL, dimensionKey: "feeBucket", required: true },
+  { postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL, dimensionKey: "counterpartyId", required: true },
+  { postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED, dimensionKey: "orderId", required: true },
+  { postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED, dimensionKey: "feeBucket", required: true },
+  { postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED, dimensionKey: "counterpartyId", required: true },
+  { postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED, dimensionKey: "operationalAccountId", required: true },
+  { postingCode: POSTING_CODE.PAYOUT_INITIATED, dimensionKey: "orderId", required: true },
+  { postingCode: POSTING_CODE.PAYOUT_INITIATED, dimensionKey: "counterpartyId", required: true },
+  { postingCode: POSTING_CODE.PAYOUT_INITIATED, dimensionKey: "operationalAccountId", required: true },
+  { postingCode: POSTING_CODE.ADJUSTMENT_CHARGE, dimensionKey: "orderId", required: true },
+  { postingCode: POSTING_CODE.ADJUSTMENT_CHARGE, dimensionKey: "customerId", required: true },
+  { postingCode: POSTING_CODE.ADJUSTMENT_CHARGE, dimensionKey: "feeBucket", required: true },
+  { postingCode: POSTING_CODE.ADJUSTMENT_REFUND, dimensionKey: "orderId", required: true },
+  { postingCode: POSTING_CODE.ADJUSTMENT_REFUND, dimensionKey: "customerId", required: true },
+  { postingCode: POSTING_CODE.ADJUSTMENT_REFUND, dimensionKey: "feeBucket", required: true },
+];
 
 export const DEFAULT_GLOBAL_CORRESPONDENCE_RULES = [
   {
@@ -446,23 +346,23 @@ export const DEFAULT_GLOBAL_CORRESPONDENCE_RULES = [
   },
   {
     postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE,
-    debitAccountNo: ACCOUNT_NO.INTERCOMPANY_NET,
+    debitAccountNo: ACCOUNT_NO.CLEARING,
     creditAccountNo: ACCOUNT_NO.BANK,
   },
   {
     postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE,
     debitAccountNo: ACCOUNT_NO.BANK,
-    creditAccountNo: ACCOUNT_NO.INTERCOMPANY_NET,
+    creditAccountNo: ACCOUNT_NO.CLEARING,
   },
   {
     postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING,
-    debitAccountNo: ACCOUNT_NO.INTERCOMPANY_NET,
+    debitAccountNo: ACCOUNT_NO.CLEARING,
     creditAccountNo: ACCOUNT_NO.BANK,
   },
   {
     postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_PENDING,
     debitAccountNo: ACCOUNT_NO.BANK,
-    creditAccountNo: ACCOUNT_NO.INTERCOMPANY_NET,
+    creditAccountNo: ACCOUNT_NO.CLEARING,
   },
   {
     postingCode: POSTING_CODE.FUNDING_SETTLED,
@@ -477,11 +377,11 @@ export const DEFAULT_GLOBAL_CORRESPONDENCE_RULES = [
   {
     postingCode: POSTING_CODE.FX_LEG_OUT,
     debitAccountNo: ACCOUNT_NO.ORDER_RESERVE,
-    creditAccountNo: ACCOUNT_NO.TREASURY_CLEARING,
+    creditAccountNo: ACCOUNT_NO.CLEARING,
   },
   {
     postingCode: POSTING_CODE.FX_LEG_IN,
-    debitAccountNo: ACCOUNT_NO.TREASURY_CLEARING,
+    debitAccountNo: ACCOUNT_NO.CLEARING,
     creditAccountNo: ACCOUNT_NO.ORDER_RESERVE,
   },
   {

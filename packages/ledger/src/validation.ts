@@ -29,17 +29,18 @@ const positiveTimeoutSchema = z.number().int().positive();
 const transferCodeSchema = z.number().int().min(0).optional();
 const chainIdSchema = z.string().min(1).optional().nullable();
 
-const postingAnalyticsSchema = z
-  .object({
-    counterpartyId: uuidSchema.optional().nullable(),
-    customerId: uuidSchema.optional().nullable(),
-    orderId: uuidSchema.optional().nullable(),
-    operationalAccountId: uuidSchema.optional().nullable(),
-    transferId: uuidSchema.optional().nullable(),
-    quoteId: uuidSchema.optional().nullable(),
-    feeBucket: z.string().max(128).optional().nullable(),
-  })
-  .optional();
+const dimensionsSchema = z.record(z.string().min(1), z.string().min(1));
+
+const contextSchema = z
+  .record(z.string().min(1), z.string())
+  .optional()
+  .nullable();
+
+const accountSideSchema = z.object({
+  accountNo: accountNoSchema,
+  currency: currencySchema,
+  dimensions: dimensionsSchema,
+});
 
 const pendingConfigSchema = z
   .object({
@@ -48,40 +49,40 @@ const pendingConfigSchema = z
   })
   .optional();
 
-const baseTransferPlanSchema = z.object({
+const baseIntentLineSchema = z.object({
   planRef: planRefSchema,
-  currency: currencySchema,
   code: transferCodeSchema,
   chain: chainIdSchema,
   memo: memoSchema,
 });
 
-const createTransferPlanSchema = baseTransferPlanSchema.extend({
+const createIntentLineSchema = baseIntentLineSchema.extend({
   type: z.literal(OPERATION_TRANSFER_TYPE.CREATE),
-  bookOrgId: orgIdSchema,
   postingCode: z.string().min(1).max(128),
-  debitAccountNo: accountNoSchema,
-  creditAccountNo: accountNoSchema,
-  amount: positiveAmountSchema,
+  debit: accountSideSchema,
+  credit: accountSideSchema,
+  amountMinor: positiveAmountSchema,
   pending: pendingConfigSchema,
-  analytics: postingAnalyticsSchema,
+  context: contextSchema,
 });
 
-const postPendingTransferPlanSchema = baseTransferPlanSchema.extend({
+const postPendingIntentLineSchema = baseIntentLineSchema.extend({
   type: z.literal(OPERATION_TRANSFER_TYPE.POST_PENDING),
+  currency: currencySchema,
   pendingId: z.bigint().positive(),
   amount: nonNegativeAmountSchema.optional(),
 });
 
-const voidPendingTransferPlanSchema = baseTransferPlanSchema.extend({
+const voidPendingIntentLineSchema = baseIntentLineSchema.extend({
   type: z.literal(OPERATION_TRANSFER_TYPE.VOID_PENDING),
+  currency: currencySchema,
   pendingId: z.bigint().positive(),
 });
 
-const transferPlanSchema = z.discriminatedUnion("type", [
-  createTransferPlanSchema,
-  postPendingTransferPlanSchema,
-  voidPendingTransferPlanSchema,
+const intentLineSchema = z.discriminatedUnion("type", [
+  createIntentLineSchema,
+  postPendingIntentLineSchema,
+  voidPendingIntentLineSchema,
 ]);
 
 const sourceSchema = z.object({
@@ -89,30 +90,31 @@ const sourceSchema = z.object({
   id: sourceIdSchema,
 });
 
-export const createOperationInputSchema = z.object({
+export const operationIntentSchema = z.object({
   source: sourceSchema,
   operationCode: z.string().min(1).max(128),
   operationVersion: z.number().int().positive().default(1),
   payload: z.unknown().optional(),
   idempotencyKey: idempotencyKeySchema,
   postingDate: z.date(),
-  transfers: z.array(transferPlanSchema).min(1, "transfers must be a non-empty array"),
+  bookOrgId: orgIdSchema,
+  lines: z.array(intentLineSchema).min(1, "lines must be a non-empty array"),
 });
 
-type ValidatedCreateOperationInput = z.infer<typeof createOperationInputSchema>;
-type ValidatedTransferPlan = z.infer<typeof transferPlanSchema>;
+type ValidatedOperationIntent = z.infer<typeof operationIntentSchema>;
+type ValidatedIntentLine = z.infer<typeof intentLineSchema>;
 
-export function validateCreateOperationInput(
+export function validateOperationIntent(
   input: unknown,
-): ValidatedCreateOperationInput {
-  return createOperationInputSchema.parse(input);
+): ValidatedOperationIntent {
+  return operationIntentSchema.parse(input);
 }
 
-export function validateChainBlocks(transfers: ValidatedTransferPlan[]): void {
+export function validateChainBlocks(lines: ValidatedIntentLine[]): void {
   const pos = new Map<string, number[]>();
 
-  for (let i = 0; i < transfers.length; i++) {
-    const ch = transfers[i]!.chain;
+  for (let i = 0; i < lines.length; i++) {
+    const ch = lines[i]!.chain;
     if (!ch) continue;
 
     const arr = pos.get(ch) ?? [];
@@ -125,7 +127,7 @@ export function validateChainBlocks(transfers: ValidatedTransferPlan[]): void {
       if (arr[i]! !== arr[i - 1]! + 1) {
         throw new Error(
           `Non-contiguous chain block detected for chain="${ch}". ` +
-            "Chain entries must be adjacent in transfers[] to be safe with TB linked semantics.",
+            "Chain entries must be adjacent in lines[] to be safe with TB linked semantics.",
         );
       }
     }

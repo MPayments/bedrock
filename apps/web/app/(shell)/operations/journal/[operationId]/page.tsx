@@ -122,8 +122,8 @@ export default async function OperationDetailsPage({
                     <TableCell>
                       {posting.bookOrgName ?? posting.bookOrgId}
                     </TableCell>
-                    <TableCell>{posting.debitAccountNo ?? posting.debitBookAccountId}</TableCell>
-                    <TableCell>{posting.creditAccountNo ?? posting.creditBookAccountId}</TableCell>
+                    <TableCell>{posting.debitAccountNo ?? posting.debitInstanceId}</TableCell>
+                    <TableCell>{posting.creditAccountNo ?? posting.creditInstanceId}</TableCell>
                     <TableCell>{posting.postingCode}</TableCell>
                     <TableCell>{posting.currency}</TableCell>
                     <TableCell className="text-right">{posting.amountMinor}</TableCell>

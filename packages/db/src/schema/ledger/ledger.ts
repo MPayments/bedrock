@@ -3,6 +3,7 @@ import {
   bigint,
   customType,
   index,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -23,17 +24,22 @@ export const uint128 = customType<{ data: bigint; driverData: string }>({
   },
 });
 
-export type BookAccount = typeof bookAccounts.$inferSelect;
-export type BookAccountInsert = typeof bookAccounts.$inferInsert;
+export type Dimensions = Record<string, string>;
 
-export const bookAccounts = pgTable(
-  "book_accounts",
+export type BookAccountInstance = typeof bookAccountInstances.$inferSelect;
+export type BookAccountInstanceInsert = typeof bookAccountInstances.$inferInsert;
+
+export const bookAccountInstances = pgTable(
+  "book_account_instances",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id").notNull(),
+    bookOrgId: uuid("book_org_id").notNull(),
 
     accountNo: text("account_no").notNull(),
     currency: text("currency").notNull(),
+
+    dimensions: jsonb("dimensions").$type<Dimensions>().notNull().default({}),
+    dimensionsHash: text("dimensions_hash").notNull(),
 
     tbLedger: bigint("tb_ledger", { mode: "number" }).notNull(),
     tbAccountId: uint128("tb_account_id").notNull(),
@@ -43,12 +49,18 @@ export const bookAccounts = pgTable(
       .default(sql`now()`),
   },
   (t) => [
-    uniqueIndex("book_accounts_org_no_currency_uq").on(
-      t.orgId,
+    uniqueIndex("book_account_instances_uq").on(
+      t.bookOrgId,
       t.accountNo,
       t.currency,
+      t.dimensionsHash,
     ),
-    uniqueIndex("book_accounts_org_tb_uq").on(t.orgId, t.tbLedger, t.tbAccountId),
-    index("book_accounts_org_currency_idx").on(t.orgId, t.currency),
+    uniqueIndex("book_account_instances_tb_uq").on(
+      t.bookOrgId,
+      t.tbLedger,
+      t.tbAccountId,
+    ),
+    index("book_account_instances_org_currency_idx").on(t.bookOrgId, t.currency),
+    index("book_account_instances_account_no_idx").on(t.accountNo),
   ],
 );

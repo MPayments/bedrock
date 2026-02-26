@@ -7,27 +7,25 @@ export const OPERATION_TRANSFER_TYPE = {
 export type OperationTransferType =
   (typeof OPERATION_TRANSFER_TYPE)[keyof typeof OPERATION_TRANSFER_TYPE];
 
-export interface PostingAnalytics {
-  counterpartyId?: string | null;
-  customerId?: string | null;
-  orderId?: string | null;
-  operationalAccountId?: string | null;
-  transferId?: string | null;
-  quoteId?: string | null;
-  feeBucket?: string | null;
-}
+export type Dimensions = Record<string, string>;
 
-export interface CreatePlan {
+export interface CreateIntentLine {
   type: typeof OPERATION_TRANSFER_TYPE.CREATE;
   planRef: string;
-  bookOrgId: string;
 
-  debitAccountNo: string;
-  creditAccountNo: string;
   postingCode: string;
+  debit: {
+    accountNo: string;
+    currency: string;
+    dimensions: Dimensions;
+  };
+  credit: {
+    accountNo: string;
+    currency: string;
+    dimensions: Dimensions;
+  };
 
-  currency: string;
-  amount: bigint;
+  amountMinor: bigint;
 
   code?: number;
 
@@ -39,10 +37,10 @@ export interface CreatePlan {
   chain?: string | null;
 
   memo?: string | null;
-  analytics?: PostingAnalytics;
+  context?: Record<string, string> | null;
 }
 
-export interface PostPendingPlan {
+export interface PostPendingIntentLine {
   type: typeof OPERATION_TRANSFER_TYPE.POST_PENDING;
   planRef: string;
 
@@ -58,7 +56,7 @@ export interface PostPendingPlan {
   memo?: string | null;
 }
 
-export interface VoidPendingPlan {
+export interface VoidPendingIntentLine {
   type: typeof OPERATION_TRANSFER_TYPE.VOID_PENDING;
   planRef: string;
 
@@ -72,9 +70,9 @@ export interface VoidPendingPlan {
   memo?: string | null;
 }
 
-export type TransferPlanLine = CreatePlan | PostPendingPlan | VoidPendingPlan;
+export type IntentLine = CreateIntentLine | PostPendingIntentLine | VoidPendingIntentLine;
 
-export interface CreateOperationInput {
+export interface OperationIntent {
   source: {
     type: string;
     id: string;
@@ -84,11 +82,12 @@ export interface CreateOperationInput {
   payload?: unknown;
   idempotencyKey: string;
   postingDate: Date;
+  bookOrgId: string;
 
-  transfers: TransferPlanLine[];
+  lines: IntentLine[];
 }
 
-export interface CreateOperationResult {
+export interface CommitResult {
   operationId: string;
   pendingTransferIdsByRef: Map<string, bigint>;
 }

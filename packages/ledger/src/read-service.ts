@@ -6,6 +6,7 @@ import {
 } from "@bedrock/accounting";
 import { type Database } from "@bedrock/db";
 import { schema, type LedgerOperationStatus } from "@bedrock/db/schema";
+import type { Dimensions } from "@bedrock/db/schema";
 import {
   type PaginatedList,
   resolveSortOrder,
@@ -46,21 +47,17 @@ interface LedgerOperationPostingRow {
   lineNo: number;
   bookOrgId: string;
   bookOrgName: string | null;
-  debitBookAccountId: string;
+  debitInstanceId: string;
   debitAccountNo: string | null;
-  creditBookAccountId: string;
+  debitDimensions: Dimensions | null;
+  creditInstanceId: string;
   creditAccountNo: string | null;
+  creditDimensions: Dimensions | null;
   postingCode: string;
   currency: string;
   amountMinor: bigint;
   memo: string | null;
-  analyticCounterpartyId: string | null;
-  analyticCustomerId: string | null;
-  analyticOrderId: string | null;
-  analyticOperationalAccountId: string | null;
-  analyticTransferId: string | null;
-  analyticQuoteId: string | null;
-  analyticFeeBucket: string | null;
+  context: Record<string, string> | null;
   createdAt: Date;
 }
 
@@ -135,9 +132,9 @@ export function createLedgerReadService(deps: { db: Database }) {
     if (bookOrgId) {
       conditions.push(sql`exists (
         select 1
-        from ${schema.ledgerPostings} lp
-        where lp.operation_id = ${schema.ledgerOperations.id}
-          and lp.book_org_id = ${bookOrgId}
+        from ${schema.postings} p
+        where p.operation_id = ${schema.ledgerOperations.id}
+          and p.book_org_id = ${bookOrgId}
       )`);
     }
 
@@ -164,14 +161,14 @@ export function createLedgerReadService(deps: { db: Database }) {
           outboxAttempts: schema.ledgerOperations.outboxAttempts,
           lastOutboxErrorAt: schema.ledgerOperations.lastOutboxErrorAt,
           createdAt: schema.ledgerOperations.createdAt,
-          postingCount: sql<number>`count(${schema.ledgerPostings.id})::int`,
-          bookOrgIds: sql<string[]>`coalesce(array_agg(distinct ${schema.ledgerPostings.bookOrgId}) filter (where ${schema.ledgerPostings.bookOrgId} is not null), '{}')`,
-          currencies: sql<string[]>`coalesce(array_agg(distinct ${schema.ledgerPostings.currency}) filter (where ${schema.ledgerPostings.currency} is not null), '{}')`,
+          postingCount: sql<number>`count(${schema.postings.id})::int`,
+          bookOrgIds: sql<string[]>`coalesce(array_agg(distinct ${schema.postings.bookOrgId}) filter (where ${schema.postings.bookOrgId} is not null), '{}')`,
+          currencies: sql<string[]>`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
         })
         .from(schema.ledgerOperations)
         .leftJoin(
-          schema.ledgerPostings,
-          eq(schema.ledgerPostings.operationId, schema.ledgerOperations.id),
+          schema.postings,
+          eq(schema.postings.operationId, schema.ledgerOperations.id),
         )
         .where(where)
         .groupBy(
@@ -228,14 +225,14 @@ export function createLedgerReadService(deps: { db: Database }) {
         outboxAttempts: schema.ledgerOperations.outboxAttempts,
         lastOutboxErrorAt: schema.ledgerOperations.lastOutboxErrorAt,
         createdAt: schema.ledgerOperations.createdAt,
-        postingCount: sql<number>`count(${schema.ledgerPostings.id})::int`,
-        bookOrgIds: sql<string[]>`coalesce(array_agg(distinct ${schema.ledgerPostings.bookOrgId}) filter (where ${schema.ledgerPostings.bookOrgId} is not null), '{}')`,
-        currencies: sql<string[]>`coalesce(array_agg(distinct ${schema.ledgerPostings.currency}) filter (where ${schema.ledgerPostings.currency} is not null), '{}')`,
+        postingCount: sql<number>`count(${schema.postings.id})::int`,
+        bookOrgIds: sql<string[]>`coalesce(array_agg(distinct ${schema.postings.bookOrgId}) filter (where ${schema.postings.bookOrgId} is not null), '{}')`,
+        currencies: sql<string[]>`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
       })
       .from(schema.ledgerOperations)
       .leftJoin(
-        schema.ledgerPostings,
-        eq(schema.ledgerPostings.operationId, schema.ledgerOperations.id),
+        schema.postings,
+        eq(schema.postings.operationId, schema.ledgerOperations.id),
       )
       .where(eq(schema.ledgerOperations.id, operationId))
       .groupBy(
@@ -258,11 +255,11 @@ export function createLedgerReadService(deps: { db: Database }) {
       return null;
     }
 
-    const postings = await db
+    const postingRows = await db
       .select()
-      .from(schema.ledgerPostings)
-      .where(eq(schema.ledgerPostings.operationId, operationId))
-      .orderBy(schema.ledgerPostings.lineNo);
+      .from(schema.postings)
+      .where(eq(schema.postings.operationId, operationId))
+      .orderBy(schema.postings.lineNo);
 
     const tbPlans = await db
       .select()
@@ -270,31 +267,29 @@ export function createLedgerReadService(deps: { db: Database }) {
       .where(eq(schema.tbTransferPlans.operationId, operationId))
       .orderBy(schema.tbTransferPlans.lineNo);
 
-    const bookAccountIds = Array.from(
+    const instanceIds = Array.from(
       new Set(
-        postings.flatMap((posting) => [
-          posting.debitBookAccountId,
-          posting.creditBookAccountId,
-        ]),
+        postingRows.flatMap((p) => [p.debitInstanceId, p.creditInstanceId]),
       ),
     );
 
-    const bookAccounts =
-      bookAccountIds.length === 0
+    const instances =
+      instanceIds.length === 0
         ? []
         : await db
             .select({
-              id: schema.bookAccounts.id,
-              accountNo: schema.bookAccounts.accountNo,
+              id: schema.bookAccountInstances.id,
+              accountNo: schema.bookAccountInstances.accountNo,
+              dimensions: schema.bookAccountInstances.dimensions,
             })
-            .from(schema.bookAccounts)
-            .where(inArray(schema.bookAccounts.id, bookAccountIds));
+            .from(schema.bookAccountInstances)
+            .where(inArray(schema.bookAccountInstances.id, instanceIds));
 
-    const bookAccountById = new Map(
-      bookAccounts.map((bookAccount) => [bookAccount.id, bookAccount.accountNo]),
+    const instanceById = new Map(
+      instances.map((inst) => [inst.id, inst]),
     );
 
-    const bookOrgIds = Array.from(new Set(postings.map((posting) => posting.bookOrgId)));
+    const bookOrgIds = Array.from(new Set(postingRows.map((p) => p.bookOrgId)));
     const orgNames =
       bookOrgIds.length === 0
         ? []
@@ -314,28 +309,28 @@ export function createLedgerReadService(deps: { db: Database }) {
         bookOrgIds: operation.bookOrgIds ?? [],
         currencies: operation.currencies ?? [],
       },
-      postings: postings.map((posting) => ({
-        id: posting.id,
-        lineNo: posting.lineNo,
-        bookOrgId: posting.bookOrgId,
-        bookOrgName: orgNameById.get(posting.bookOrgId) ?? null,
-        debitBookAccountId: posting.debitBookAccountId,
-        debitAccountNo: bookAccountById.get(posting.debitBookAccountId) ?? null,
-        creditBookAccountId: posting.creditBookAccountId,
-        creditAccountNo: bookAccountById.get(posting.creditBookAccountId) ?? null,
-        postingCode: posting.postingCode,
-        currency: posting.currency,
-        amountMinor: posting.amountMinor,
-        memo: posting.memo,
-        analyticCounterpartyId: posting.analyticCounterpartyId,
-        analyticCustomerId: posting.analyticCustomerId,
-        analyticOrderId: posting.analyticOrderId,
-        analyticOperationalAccountId: posting.analyticOperationalAccountId,
-        analyticTransferId: posting.analyticTransferId,
-        analyticQuoteId: posting.analyticQuoteId,
-        analyticFeeBucket: posting.analyticFeeBucket,
-        createdAt: posting.createdAt,
-      })),
+      postings: postingRows.map((p) => {
+        const debitInst = instanceById.get(p.debitInstanceId);
+        const creditInst = instanceById.get(p.creditInstanceId);
+        return {
+          id: p.id,
+          lineNo: p.lineNo,
+          bookOrgId: p.bookOrgId,
+          bookOrgName: orgNameById.get(p.bookOrgId) ?? null,
+          debitInstanceId: p.debitInstanceId,
+          debitAccountNo: debitInst?.accountNo ?? null,
+          debitDimensions: (debitInst?.dimensions as Dimensions) ?? null,
+          creditInstanceId: p.creditInstanceId,
+          creditAccountNo: creditInst?.accountNo ?? null,
+          creditDimensions: (creditInst?.dimensions as Dimensions) ?? null,
+          postingCode: p.postingCode,
+          currency: p.currency,
+          amountMinor: p.amountMinor,
+          memo: p.memo,
+          context: p.context as Record<string, string> | null,
+          createdAt: p.createdAt,
+        };
+      }),
       tbPlans: tbPlans.map((plan) => ({
         id: plan.id,
         lineNo: plan.lineNo,

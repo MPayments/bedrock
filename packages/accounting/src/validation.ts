@@ -58,6 +58,7 @@ interface AccountingOperationsListFilters {
 }
 
 interface FinancialResultsByCounterpartyFilters {
+  /** Aggregation mode: book_org (entity-level) or analytic_counterparty (by counterparty from dimensions). */
   attributionMode: {
     kind: "string";
     cardinality: "single";
@@ -77,6 +78,7 @@ interface FinancialResultsByCounterpartyFilters {
 }
 
 interface FinancialResultsByGroupFilters {
+  /** Aggregation mode: book_org (entity-level) or analytic_counterparty (by counterparty from dimensions). */
   attributionMode: {
     kind: "string";
     cardinality: "single";

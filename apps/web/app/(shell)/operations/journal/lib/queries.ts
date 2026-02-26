@@ -31,21 +31,17 @@ interface OperationPostingDto {
   lineNo: number;
   bookOrgId: string;
   bookOrgName: string | null;
-  debitBookAccountId: string;
+  debitInstanceId: string;
   debitAccountNo: string | null;
-  creditBookAccountId: string;
+  debitDimensions: Record<string, string> | null;
+  creditInstanceId: string;
   creditAccountNo: string | null;
+  creditDimensions: Record<string, string> | null;
   postingCode: string;
   currency: string;
   amountMinor: string;
   memo: string | null;
-  analyticCounterpartyId: string | null;
-  analyticCustomerId: string | null;
-  analyticOrderId: string | null;
-  analyticOperationalAccountId: string | null;
-  analyticTransferId: string | null;
-  analyticQuoteId: string | null;
-  analyticFeeBucket: string | null;
+  context: Record<string, string> | null;
   createdAt: string;
 }
 
