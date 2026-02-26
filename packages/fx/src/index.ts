@@ -37,3 +37,8 @@ export type {
   FxRateSourceStatus,
   FxRateSourceSyncResult,
 } from "./sources";
+
+export type {
+  RatePairView,
+  SourceRateView,
+} from "./commands/rates/list-pairs";
