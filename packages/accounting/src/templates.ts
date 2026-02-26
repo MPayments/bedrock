@@ -293,7 +293,9 @@ export function buildTransferPendingActionTemplate(
   };
 }
 
-export function resolveInLedgerFeePostingTemplate(kind: string): FeePostingTemplate {
+export function resolveInLedgerFeePostingTemplate(
+  kind: string,
+): FeePostingTemplate {
   if (kind === "fx_spread") {
     return {
       postingCode: POSTING_CODE.SPREAD_REVENUE,
@@ -343,7 +345,9 @@ export function resolveInLedgerFeePostingTemplate(kind: string): FeePostingTempl
   };
 }
 
-export function resolveFeeReservePostingTemplate(bucket: string): FeePostingTemplate {
+export function resolveFeeReservePostingTemplate(
+  bucket: string,
+): FeePostingTemplate {
   return {
     postingCode: POSTING_CODE.FEE_SEPARATE_PAYMENT_RESERVE,
     debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,

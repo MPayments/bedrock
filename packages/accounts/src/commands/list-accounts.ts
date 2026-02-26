@@ -2,6 +2,7 @@ import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
 import { ACCOUNT_NO } from "@bedrock/accounting";
 import { schema } from "@bedrock/db/schema";
+import type { Account } from "@bedrock/db/schema";
 import {
   type PaginatedList,
   resolveSortOrder,
@@ -16,7 +17,7 @@ const SORT_COLUMN_MAP = {
   createdAt: schema.accounts.createdAt,
 } as const;
 
-type AccountRow = typeof schema.accounts.$inferSelect & {
+type AccountRow = Account & {
   postingAccountNo: string;
 };
 

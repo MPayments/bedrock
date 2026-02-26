@@ -10,9 +10,9 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { counterparties } from "./counterparties";
+import { currencies } from "../currencies";
 import { customers } from "../customers";
 import { accounts } from "./accounts";
-import { currencies } from "../currencies";
 import { ledgerOperations } from "../ledger/journal";
 import { uint128 } from "../ledger/ledger";
 
@@ -38,24 +38,41 @@ export const paymentOrders = pgTable(
     customerCounterpartyId: uuid("customer_counterparty_id")
       .notNull()
       .references(() => counterparties.id),
-    customerId: uuid("customer_id").notNull().references(() => customers.id),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id),
 
     status: text("status").$type<OrderStatus>().notNull().default("quote"),
 
-    ledgerOperationId: uuid("ledger_operation_id").references(() => ledgerOperations.id, {
-      onDelete: "set null",
-    }),
+    ledgerOperationId: uuid("ledger_operation_id").references(
+      () => ledgerOperations.id,
+      {
+        onDelete: "set null",
+      },
+    ),
 
-    payInCurrencyId: uuid("payin_currency_id").notNull().references(() => currencies.id),
-    payInExpectedMinor: bigint("payin_expected_minor", { mode: "bigint" }).notNull(),
+    payInCurrencyId: uuid("payin_currency_id")
+      .notNull()
+      .references(() => currencies.id),
+    payInExpectedMinor: bigint("payin_expected_minor", {
+      mode: "bigint",
+    }).notNull(),
 
-    payOutCurrencyId: uuid("payout_currency_id").notNull().references(() => currencies.id),
-    payOutAmountMinor: bigint("payout_amount_minor", { mode: "bigint" }).notNull(),
+    payOutCurrencyId: uuid("payout_currency_id")
+      .notNull()
+      .references(() => currencies.id),
+    payOutAmountMinor: bigint("payout_amount_minor", {
+      mode: "bigint",
+    }).notNull(),
 
-    payInCounterpartyId: uuid("payin_counterparty_id").notNull().references(() => counterparties.id),
+    payInCounterpartyId: uuid("payin_counterparty_id")
+      .notNull()
+      .references(() => counterparties.id),
     payInAccountId: uuid("payin_account_id").references(() => accounts.id),
 
-    payOutCounterpartyId: uuid("payout_counterparty_id").notNull().references(() => counterparties.id),
+    payOutCounterpartyId: uuid("payout_counterparty_id")
+      .notNull()
+      .references(() => counterparties.id),
     payOutAccountId: uuid("payout_account_id").references(() => accounts.id),
 
     beneficiaryName: text("beneficiary_name"),
@@ -94,7 +111,9 @@ export const settlements = pgTable("settlements", {
   kind: text("kind").$type<SettlementKind>().notNull(),
   status: text("status").$type<SettlementStatus>().notNull().default("pending"),
 
-  currencyId: uuid("currency_id").notNull().references(() => currencies.id),
+  currencyId: uuid("currency_id")
+    .notNull()
+    .references(() => currencies.id),
   amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
 
   railRef: text("rail_ref"),

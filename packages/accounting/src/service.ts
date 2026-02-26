@@ -33,13 +33,13 @@ export type AccountingService = ReturnType<typeof createAccountingService>;
 type FinancialResultStatus = "pending" | "posted" | "failed";
 type FinancialResultAttributionMode = "book_org" | "analytic_counterparty";
 
-type FinancialResultAttributionDelta = {
+interface FinancialResultAttributionDelta {
   attributionId: string | null;
   currency: string;
   revenueMinor: bigint;
   expenseMinor: bigint;
   netMinor: bigint;
-};
+}
 
 export interface FinancialResultSummaryByCurrency {
   currency: string;
@@ -58,8 +58,7 @@ export interface FinancialResultsByCounterpartyRow {
   netMinor: bigint;
 }
 
-export interface FinancialResultsByCounterpartyResult
-  extends PaginatedList<FinancialResultsByCounterpartyRow> {
+export interface FinancialResultsByCounterpartyResult extends PaginatedList<FinancialResultsByCounterpartyRow> {
   summaryByCurrency: FinancialResultSummaryByCurrency[];
 }
 
@@ -73,8 +72,7 @@ export interface FinancialResultsByGroupRow {
   netMinor: bigint;
 }
 
-export interface FinancialResultsByGroupResult
-  extends PaginatedList<FinancialResultsByGroupRow> {
+export interface FinancialResultsByGroupResult extends PaginatedList<FinancialResultsByGroupRow> {
   summaryByCurrency: FinancialResultSummaryByCurrency[];
   unattributedByCurrency: FinancialResultSummaryByCurrency[];
 }
@@ -218,7 +216,11 @@ export function createAccountingService(deps: AccountingServiceDeps) {
       }
 
       log.info("Seeded accounting defaults", { orgId });
-      return { seeded: true, accounts: templateAccounts.length, rules: globalRules.length };
+      return {
+        seeded: true,
+        accounts: templateAccounts.length,
+        rules: globalRules.length,
+      };
     });
   }
 
@@ -273,7 +275,10 @@ export function createAccountingService(deps: AccountingServiceDeps) {
         nameOverride: validated.nameOverride ?? null,
       })
       .onConflictDoUpdate({
-        target: [schema.chartOrgOverrides.orgId, schema.chartOrgOverrides.accountNo],
+        target: [
+          schema.chartOrgOverrides.orgId,
+          schema.chartOrgOverrides.accountNo,
+        ],
         set: {
           enabled: validated.enabled,
           nameOverride: validated.nameOverride ?? null,
@@ -378,14 +383,17 @@ export function createAccountingService(deps: AccountingServiceDeps) {
   }
 
   function summarizeByCurrency(
-    rows: Array<{
+    rows: {
       currency: string;
       revenueMinor: bigint;
       expenseMinor: bigint;
       netMinor: bigint;
-    }>,
+    }[],
   ): FinancialResultSummaryByCurrency[] {
-    const summaryByCurrency = new Map<string, FinancialResultSummaryByCurrency>();
+    const summaryByCurrency = new Map<
+      string,
+      FinancialResultSummaryByCurrency
+    >();
 
     for (const row of rows) {
       const existing = summaryByCurrency.get(row.currency);
@@ -412,13 +420,16 @@ export function createAccountingService(deps: AccountingServiceDeps) {
   async function resolveGroupMemberRows(
     groupIds: string[],
     includeDescendants: boolean,
-  ): Promise<Array<{ rootGroupId: string; counterpartyId: string }>> {
+  ): Promise<{ rootGroupId: string; counterpartyId: string }[]> {
     if (groupIds.length === 0) {
       return [];
     }
 
     const uniqueGroupIds = Array.from(new Set(groupIds));
-    const groupIdsSql = sql.join(uniqueGroupIds.map((id) => sql`${id}`), sql`, `);
+    const groupIdsSql = sql.join(
+      uniqueGroupIds.map((id) => sql`${id}`),
+      sql`, `,
+    );
 
     if (!includeDescendants) {
       const result = await db.execute(sql`
@@ -435,10 +446,12 @@ export function createAccountingService(deps: AccountingServiceDeps) {
           ON m.group_id = sg.root_group_id
       `);
 
-      return ((result.rows ?? []) as Array<{
-        root_group_id: string;
-        counterparty_id: string;
-      }>).map((row) => ({
+      return (
+        (result.rows ?? []) as {
+          root_group_id: string;
+          counterparty_id: string;
+        }[]
+      ).map((row) => ({
         rootGroupId: row.root_group_id,
         counterpartyId: row.counterparty_id,
       }));
@@ -467,10 +480,12 @@ export function createAccountingService(deps: AccountingServiceDeps) {
         ON m.group_id = gt.group_id
     `);
 
-    return ((result.rows ?? []) as Array<{
-      root_group_id: string;
-      counterparty_id: string;
-    }>).map((row) => ({
+    return (
+      (result.rows ?? []) as {
+        root_group_id: string;
+        counterparty_id: string;
+      }[]
+    ).map((row) => ({
       rootGroupId: row.root_group_id,
       counterpartyId: row.counterparty_id,
     }));
@@ -525,7 +540,10 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     allowedCounterpartyIds?: string[];
     requireNullAttribution?: boolean;
   }): Promise<FinancialResultAttributionDelta[]> {
-    if (input.allowedCounterpartyIds && input.allowedCounterpartyIds.length === 0) {
+    if (
+      input.allowedCounterpartyIds &&
+      input.allowedCounterpartyIds.length === 0
+    ) {
       return [];
     }
 
@@ -535,7 +553,10 @@ export function createAccountingService(deps: AccountingServiceDeps) {
         : sql`lp.analytic_counterparty_id`;
 
     const conditions: SQL[] = [
-      sql`lo.status IN (${sql.join(input.statuses.map((status) => sql`${status}`), sql`, `)})`,
+      sql`lo.status IN (${sql.join(
+        input.statuses.map((status) => sql`${status}`),
+        sql`, `,
+      )})`,
       sql`(debit_acc.kind IN ('revenue', 'expense') OR credit_acc.kind IN ('revenue', 'expense'))`,
     ];
 
@@ -609,12 +630,12 @@ export function createAccountingService(deps: AccountingServiceDeps) {
       GROUP BY ${attributionSql}, lp.currency
     `);
 
-    const rows = (result.rows ?? []) as Array<{
+    const rows = (result.rows ?? []) as {
       attribution_id: string | null;
       currency: string;
       revenue_minor: unknown;
       expense_minor: unknown;
-    }>;
+    }[];
 
     return rows.map((row) => {
       const revenueMinor = toBigInt(row.revenue_minor);
@@ -638,8 +659,12 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     );
     const attributionMode = (query.attributionMode ??
       "book_org") as FinancialResultAttributionMode;
-    const statuses = ((query.status?.length ? query.status : ["posted", "pending"]) ??
-      ["posted", "pending"]) as FinancialResultStatus[];
+    const statuses = ((query.status?.length
+      ? query.status
+      : ["posted", "pending"]) ?? [
+      "posted",
+      "pending",
+    ]) as FinancialResultStatus[];
     const includeDescendants = query.includeDescendants ?? true;
     const from = parseOptionalIsoDate(query.from, "from");
     const to = parseOptionalIsoDate(query.to, "to");
@@ -704,8 +729,10 @@ export function createAccountingService(deps: AccountingServiceDeps) {
       entityName: (row: FinancialResultsByCounterpartyRow) =>
         row.counterpartyName ?? "Unattributed",
       currency: (row: FinancialResultsByCounterpartyRow) => row.currency,
-      revenueMinor: (row: FinancialResultsByCounterpartyRow) => row.revenueMinor,
-      expenseMinor: (row: FinancialResultsByCounterpartyRow) => row.expenseMinor,
+      revenueMinor: (row: FinancialResultsByCounterpartyRow) =>
+        row.revenueMinor,
+      expenseMinor: (row: FinancialResultsByCounterpartyRow) =>
+        row.expenseMinor,
       netMinor: (row: FinancialResultsByCounterpartyRow) => row.netMinor,
     };
 
@@ -731,8 +758,12 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     const query = ListFinancialResultsByGroupQuerySchema.parse(input ?? {});
     const attributionMode = (query.attributionMode ??
       "book_org") as FinancialResultAttributionMode;
-    const statuses = ((query.status?.length ? query.status : ["posted", "pending"]) ??
-      ["posted", "pending"]) as FinancialResultStatus[];
+    const statuses = ((query.status?.length
+      ? query.status
+      : ["posted", "pending"]) ?? [
+      "posted",
+      "pending",
+    ]) as FinancialResultStatus[];
     const includeDescendants = query.includeDescendants ?? true;
     const from = parseOptionalIsoDate(query.from, "from");
     const to = parseOptionalIsoDate(query.to, "to");
