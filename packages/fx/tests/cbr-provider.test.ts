@@ -93,4 +93,41 @@ describe("createCbrRateSourceProvider", () => {
 
         await expect(provider.fetchLatest()).rejects.toThrow(RateSourceSyncError);
     });
+
+    it("prefers raw latest-date XML over payload date coercion", async () => {
+        const soapClient = {
+            GetLatestDateTimeAsync: vi.fn(async () => [
+                {
+                    // Simulates timezone-shifted coercion from SOAP client parser.
+                    GetLatestDateTimeResult: new Date("2026-02-25T21:00:00.000Z"),
+                },
+                `<soap:Envelope><soap:Body><GetLatestDateTimeResponse><GetLatestDateTimeResult>2026-02-26T00:00:00</GetLatestDateTimeResult></GetLatestDateTimeResponse></soap:Body></soap:Envelope>`,
+            ]),
+            GetCursOnDateAsync: vi.fn(async () => [{
+                GetCursOnDateResult: {
+                    diffgram: {
+                        NewDataSet: {
+                            ValuteCursOnDate: [
+                                {
+                                    VchCode: "USD",
+                                    VunitRate: "76,4678",
+                                },
+                            ],
+                        },
+                    },
+                },
+            }]),
+        };
+        const provider = createCbrRateSourceProvider({
+            soapClientFactory: vi.fn(async () => soapClient),
+            baseUrl: "https://example.test/DailyInfo.asmx",
+        });
+
+        const result = await provider.fetchLatest(new Date("2026-02-26T09:00:00.000Z"));
+
+        expect(soapClient.GetCursOnDateAsync).toHaveBeenCalledWith({
+            On_date: "2026-02-26T00:00:00",
+        });
+        expect(result.publishedAt.toISOString()).toBe("2026-02-26T00:00:00.000Z");
+    });
 });

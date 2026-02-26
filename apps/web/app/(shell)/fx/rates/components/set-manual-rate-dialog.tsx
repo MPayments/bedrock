@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
+import { parseDecimalToFraction } from "@bedrock/kernel/math";
 import { Button } from "@bedrock/ui/components/button";
 import {
   Dialog,
@@ -37,28 +38,49 @@ type SetManualRateDialogProps = {
   currencies: CurrencyOption[];
 };
 
-export function SetManualRateDialog({ children, currencies }: SetManualRateDialogProps) {
+export function SetManualRateDialog({
+  children,
+  currencies,
+}: SetManualRateDialogProps) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
 
   const [base, setBase] = React.useState<string | null>(null);
   const [quote, setQuote] = React.useState<string | null>(null);
-  const [rateNum, setRateNum] = React.useState("");
-  const [rateDen, setRateDen] = React.useState("1");
+  const [rate, setRate] = React.useState("");
+
+  const baseCurrencyOptions = currencies.filter(
+    (currency) => currency.code !== quote,
+  );
+  const quoteCurrencyOptions = currencies.filter(
+    (currency) => currency.code !== base,
+  );
 
   function resetForm() {
     setBase(null);
     setQuote(null);
-    setRateNum("");
-    setRateDen("1");
+    setRate("");
   }
 
   async function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault();
 
-    if (!base || !quote || !rateNum.trim() || !rateDen.trim()) {
+    if (!base || !quote || !rate.trim()) {
       toast.error("Заполните все обязательные поля");
+      return;
+    }
+
+    if (base === quote) {
+      toast.error("Базовая и котируемая валюты должны отличаться");
+      return;
+    }
+
+    let fraction: { num: bigint; den: bigint };
+    try {
+      fraction = parseDecimalToFraction(rate, { allowScientific: false });
+    } catch {
+      toast.error("Введите корректный курс больше 0, например 92.345");
       return;
     }
 
@@ -70,8 +92,8 @@ export function SetManualRateDialog({ children, currencies }: SetManualRateDialo
           json: {
             base,
             quote,
-            rateNum: rateNum.trim(),
-            rateDen: rateDen.trim(),
+            rateNum: fraction.num.toString(),
+            rateDen: fraction.den.toString(),
           },
         }),
       fallbackMessage: "Не удалось добавить курс",
@@ -92,7 +114,9 @@ export function SetManualRateDialog({ children, currencies }: SetManualRateDialo
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={React.isValidElement(children) ? children : undefined}>
+      <DialogTrigger
+        render={React.isValidElement(children) ? children : undefined}
+      >
         {!React.isValidElement(children) && children}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -113,7 +137,7 @@ export function SetManualRateDialog({ children, currencies }: SetManualRateDialo
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {currencies.map((c) => (
+                    {baseCurrencyOptions.map((c) => (
                       <SelectItem key={c.code} value={c.code}>
                         {c.code} — {c.name}
                       </SelectItem>
@@ -130,7 +154,7 @@ export function SetManualRateDialog({ children, currencies }: SetManualRateDialo
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {currencies.map((c) => (
+                    {quoteCurrencyOptions.map((c) => (
                       <SelectItem key={c.code} value={c.code}>
                         {c.code} — {c.name}
                       </SelectItem>
@@ -141,38 +165,35 @@ export function SetManualRateDialog({ children, currencies }: SetManualRateDialo
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="manual-rate-num">Числитель (rate num)</Label>
-              <Input
-                id="manual-rate-num"
-                placeholder="92345"
-                value={rateNum}
-                onChange={(e) => setRateNum(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="manual-rate-den">Знаменатель (rate den)</Label>
-              <Input
-                id="manual-rate-den"
-                placeholder="1000"
-                value={rateDen}
-                onChange={(e) => setRateDen(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="manual-rate-value">Курс</Label>
+            <Input
+              id="manual-rate-value"
+              placeholder="92.345"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              disabled={submitting}
+              inputMode="decimal"
+            />
+            <p className="text-muted-foreground text-xs">
+              Можно вводить с точкой или запятой, например: 92.345 или 92,345
+            </p>
           </div>
 
-          {rateNum && rateDen && Number(rateDen) !== 0 && (
+          {rate.trim() && Number(rate.replace(",", ".")) > 0 && (
             <p className="text-muted-foreground text-sm">
-              Курс: <span className="font-mono">{(Number(rateNum) / Number(rateDen)).toFixed(6)}</span>
+              Курс:{" "}
+              <span className="font-mono">
+                {Number(rate.replace(",", ".")).toFixed(6)}
+              </span>
             </p>
           )}
 
           <DialogFooter>
             <DialogClose
-              render={<Button variant="outline" type="button" disabled={submitting} />}
+              render={
+                <Button variant="outline" type="button" disabled={submitting} />
+              }
             >
               Отмена
             </DialogClose>
