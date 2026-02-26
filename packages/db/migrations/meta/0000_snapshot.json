@@ -1,9 +1,387 @@
 {
-  "id": "1ad9d3ce-7ce5-4af6-afde-6d8f4d73544e",
+  "id": "76649e46-1541-4f6c-8129-ab01cf698bb9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.chart_template_account_analytics": {
+      "name": "chart_template_account_analytics",
+      "schema": "",
+      "columns": {
+        "account_no": {
+          "name": "account_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "analytic_type": {
+          "name": "analytic_type",
+          "type": "chart_analytic_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "required": {
+          "name": "required",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "chart_template_account_analytics_account_no_chart_template_accounts_account_no_fk": {
+          "name": "chart_template_account_analytics_account_no_chart_template_accounts_account_no_fk",
+          "tableFrom": "chart_template_account_analytics",
+          "tableTo": "chart_template_accounts",
+          "columnsFrom": [
+            "account_no"
+          ],
+          "columnsTo": [
+            "account_no"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "chart_template_account_analytics_account_no_analytic_type_pk": {
+          "name": "chart_template_account_analytics_account_no_analytic_type_pk",
+          "columns": [
+            "account_no",
+            "analytic_type"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.chart_template_accounts": {
+      "name": "chart_template_accounts",
+      "schema": "",
+      "columns": {
+        "account_no": {
+          "name": "account_no",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "chart_account_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normal_side": {
+          "name": "normal_side",
+          "type": "chart_normal_side",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "posting_allowed": {
+          "name": "posting_allowed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "parent_account_no": {
+          "name": "parent_account_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "chart_template_parent_idx": {
+          "name": "chart_template_parent_idx",
+          "columns": [
+            {
+              "expression": "parent_account_no",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "chart_template_account_no_fmt": {
+          "name": "chart_template_account_no_fmt",
+          "value": "\"chart_template_accounts\".\"account_no\" ~ '^[0-9]{4}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.correspondence_rules": {
+      "name": "correspondence_rules",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "posting_code": {
+          "name": "posting_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "debit_account_no": {
+          "name": "debit_account_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credit_account_no": {
+          "name": "credit_account_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "correspondence_rule_uq": {
+          "name": "correspondence_rule_uq",
+          "columns": [
+            {
+              "expression": "posting_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "debit_account_no",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "credit_account_no",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "correspondence_rule_lookup_idx": {
+          "name": "correspondence_rule_lookup_idx",
+          "columns": [
+            {
+              "expression": "posting_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "debit_account_no",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "credit_account_no",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "enabled",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "correspondence_rules_debit_account_no_chart_template_accounts_account_no_fk": {
+          "name": "correspondence_rules_debit_account_no_chart_template_accounts_account_no_fk",
+          "tableFrom": "correspondence_rules",
+          "tableTo": "chart_template_accounts",
+          "columnsFrom": [
+            "debit_account_no"
+          ],
+          "columnsTo": [
+            "account_no"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "correspondence_rules_credit_account_no_chart_template_accounts_account_no_fk": {
+          "name": "correspondence_rules_credit_account_no_chart_template_accounts_account_no_fk",
+          "tableFrom": "correspondence_rules",
+          "tableTo": "chart_template_accounts",
+          "columnsFrom": [
+            "credit_account_no"
+          ],
+          "columnsTo": [
+            "account_no"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.operational_accounts_book_bindings": {
+      "name": "operational_accounts_book_bindings",
+      "schema": "",
+      "columns": {
+        "operational_account_id": {
+          "name": "operational_account_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "book_account_id": {
+          "name": "book_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "operational_accounts_book_binding_book_idx": {
+          "name": "operational_accounts_book_binding_book_idx",
+          "columns": [
+            {
+              "expression": "book_account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "operational_accounts_book_bindings_operational_account_id_operational_accounts_id_fk": {
+          "name": "operational_accounts_book_bindings_operational_account_id_operational_accounts_id_fk",
+          "tableFrom": "operational_accounts_book_bindings",
+          "tableTo": "operational_accounts",
+          "columnsFrom": [
+            "operational_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "operational_accounts_book_bindings_book_account_id_book_accounts_id_fk": {
+          "name": "operational_accounts_book_bindings_book_account_id_book_accounts_id_fk",
+          "tableFrom": "operational_accounts_book_bindings",
+          "tableTo": "book_accounts",
+          "columnsFrom": [
+            "book_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.account": {
       "name": "account",
       "schema": "",
@@ -462,9 +840,9 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "currencies_precision_positive": {
-          "name": "currencies_precision_positive",
-          "value": "\"currencies\".\"precision\" > 0"
+        "currencies_precision_non_negative": {
+          "name": "currencies_precision_non_negative",
+          "value": "\"currencies\".\"precision\" >= 0"
         }
       },
       "isRLSEnabled": false
@@ -492,8 +870,21 @@
           "primaryKey": false,
           "notNull": true
         },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -752,6 +1143,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'in_ledger'"
+        },
+        "accounting_treatment": {
+          "name": "accounting_treatment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'income'"
         },
         "deal_direction": {
           "name": "deal_direction",
@@ -1567,8 +1965,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.journal_entries": {
-      "name": "journal_entries",
+    "public.ledger_operations": {
+      "name": "ledger_operations",
       "schema": "",
       "columns": {
         "id": {
@@ -1577,12 +1975,6 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
         },
         "source_type": {
           "name": "source_type",
@@ -1596,14 +1988,27 @@
           "primaryKey": false,
           "notNull": true
         },
+        "operation_code": {
+          "name": "operation_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operation_version": {
+          "name": "operation_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
         "idempotency_key": {
           "name": "idempotency_key",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "plan_fingerprint": {
-          "name": "plan_fingerprint",
+        "payload_hash": {
+          "name": "payload_hash",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -1655,15 +2060,24 @@
         }
       },
       "indexes": {
-        "journal_entries_org_status_idx": {
-          "name": "journal_entries_org_status_idx",
+        "ledger_operations_idem_uq": {
+          "name": "ledger_operations_idem_uq",
           "columns": [
             {
-              "expression": "org_id",
+              "expression": "idempotency_key",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
-            },
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ledger_operations_status_idx": {
+          "name": "ledger_operations_status_idx",
+          "columns": [
             {
               "expression": "status",
               "isExpression": false,
@@ -1676,23 +2090,23 @@
           "method": "btree",
           "with": {}
         },
-        "journal_entries_org_idem_uq": {
-          "name": "journal_entries_org_idem_uq",
+        "ledger_operations_source_idx": {
+          "name": "ledger_operations_source_idx",
           "columns": [
             {
-              "expression": "org_id",
+              "expression": "source_type",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "idempotency_key",
+              "expression": "source_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1705,8 +2119,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.journal_lines": {
-      "name": "journal_lines",
+    "public.ledger_postings": {
+      "name": "ledger_postings",
       "schema": "",
       "columns": {
         "id": {
@@ -1716,14 +2130,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entry_id": {
-          "name": "entry_id",
+        "operation_id": {
+          "name": "operation_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -1734,14 +2142,26 @@
           "primaryKey": false,
           "notNull": true
         },
-        "account_key": {
-          "name": "account_key",
-          "type": "text",
+        "book_org_id": {
+          "name": "book_org_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "side": {
-          "name": "side",
+        "debit_book_account_id": {
+          "name": "debit_book_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credit_book_account_id": {
+          "name": "credit_book_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "posting_code": {
+          "name": "posting_code",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -1764,6 +2184,48 @@
           "primaryKey": false,
           "notNull": false
         },
+        "analytic_counterparty_id": {
+          "name": "analytic_counterparty_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analytic_customer_id": {
+          "name": "analytic_customer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analytic_order_id": {
+          "name": "analytic_order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analytic_operational_account_id": {
+          "name": "analytic_operational_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analytic_transfer_id": {
+          "name": "analytic_transfer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analytic_quote_id": {
+          "name": "analytic_quote_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "analytic_fee_bucket": {
+          "name": "analytic_fee_bucket",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1773,26 +2235,11 @@
         }
       },
       "indexes": {
-        "journal_lines_entry_idx": {
-          "name": "journal_lines_entry_idx",
+        "ledger_postings_op_line_uq": {
+          "name": "ledger_postings_op_line_uq",
           "columns": [
             {
-              "expression": "entry_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "journal_lines_entry_lineno_uq": {
-          "name": "journal_lines_entry_lineno_uq",
-          "columns": [
-            {
-              "expression": "entry_id",
+              "expression": "operation_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1808,20 +2255,82 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "ledger_postings_op_idx": {
+          "name": "ledger_postings_op_idx",
+          "columns": [
+            {
+              "expression": "operation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ledger_postings_org_currency_idx": {
+          "name": "ledger_postings_org_currency_idx",
+          "columns": [
+            {
+              "expression": "book_org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "currency",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
-        "journal_lines_entry_id_journal_entries_id_fk": {
-          "name": "journal_lines_entry_id_journal_entries_id_fk",
-          "tableFrom": "journal_lines",
-          "tableTo": "journal_entries",
+        "ledger_postings_operation_id_ledger_operations_id_fk": {
+          "name": "ledger_postings_operation_id_ledger_operations_id_fk",
+          "tableFrom": "ledger_postings",
+          "tableTo": "ledger_operations",
           "columnsFrom": [
-            "entry_id"
+            "operation_id"
           ],
           "columnsTo": [
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "ledger_postings_debit_book_account_id_book_accounts_id_fk": {
+          "name": "ledger_postings_debit_book_account_id_book_accounts_id_fk",
+          "tableFrom": "ledger_postings",
+          "tableTo": "book_accounts",
+          "columnsFrom": [
+            "debit_book_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "ledger_postings_credit_book_account_id_book_accounts_id_fk": {
+          "name": "ledger_postings_credit_book_account_id_book_accounts_id_fk",
+          "tableFrom": "ledger_postings",
+          "tableTo": "book_accounts",
+          "columnsFrom": [
+            "credit_book_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -1831,8 +2340,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.ledger_accounts": {
-      "name": "ledger_accounts",
+    "public.book_accounts": {
+      "name": "book_accounts",
       "schema": "",
       "columns": {
         "id": {
@@ -1848,8 +2357,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "key": {
-          "name": "key",
+        "account_no": {
+          "name": "account_no",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -1881,8 +2390,35 @@
         }
       },
       "indexes": {
-        "ledger_accounts_org_key_uq": {
-          "name": "ledger_accounts_org_key_uq",
+        "book_accounts_org_no_currency_uq": {
+          "name": "book_accounts_org_no_currency_uq",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "account_no",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "currency",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "book_accounts_org_tb_uq": {
+          "name": "book_accounts_org_tb_uq",
           "columns": [
             {
               "expression": "org_id",
@@ -1897,7 +2433,7 @@
               "nulls": "last"
             },
             {
-              "expression": "key",
+              "expression": "tb_account_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1908,8 +2444,8 @@
           "method": "btree",
           "with": {}
         },
-        "ledger_accounts_org_cur_idx": {
-          "name": "ledger_accounts_org_cur_idx",
+        "book_accounts_org_currency_idx": {
+          "name": "book_accounts_org_currency_idx",
           "columns": [
             {
               "expression": "org_id",
@@ -1952,7 +2488,7 @@
           "name": "org_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "kind": {
           "name": "kind",
@@ -2131,27 +2667,15 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "org_id": {
-          "name": "org_id",
+        "operation_id": {
+          "name": "operation_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "journal_entry_id": {
-          "name": "journal_entry_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "idx": {
-          "name": "idx",
+        "line_no": {
+          "name": "line_no",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "plan_key": {
-          "name": "plan_key",
-          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -2162,41 +2686,30 @@
           "notNull": true,
           "default": "'create'"
         },
-        "chain_id": {
-          "name": "chain_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "transfer_id": {
           "name": "transfer_id",
           "type": "numeric(39,0)",
           "primaryKey": false,
           "notNull": true
         },
-        "debit_key": {
-          "name": "debit_key",
-          "type": "text",
+        "debit_tb_account_id": {
+          "name": "debit_tb_account_id",
+          "type": "numeric(39,0)",
           "primaryKey": false,
           "notNull": false
         },
-        "credit_key": {
-          "name": "credit_key",
-          "type": "text",
+        "credit_tb_account_id": {
+          "name": "credit_tb_account_id",
+          "type": "numeric(39,0)",
           "primaryKey": false,
           "notNull": false
-        },
-        "currency": {
-          "name": "currency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
         },
         "tb_ledger": {
           "name": "tb_ledger",
           "type": "bigint",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": 0
         },
         "amount": {
           "name": "amount",
@@ -2211,6 +2724,18 @@
           "primaryKey": false,
           "notNull": true,
           "default": 1
+        },
+        "pending_ref": {
+          "name": "pending_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pending_id": {
+          "name": "pending_id",
+          "type": "numeric(39,0)",
+          "primaryKey": false,
+          "notNull": false
         },
         "is_linked": {
           "name": "is_linked",
@@ -2232,12 +2757,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
-        },
-        "pending_id": {
-          "name": "pending_id",
-          "type": "numeric(39,0)",
-          "primaryKey": false,
-          "notNull": false
         },
         "status": {
           "name": "status",
@@ -2261,44 +2780,17 @@
         }
       },
       "indexes": {
-        "tb_plan_post_idx": {
-          "name": "tb_plan_post_idx",
+        "tb_plan_operation_line_uq": {
+          "name": "tb_plan_operation_line_uq",
           "columns": [
             {
-              "expression": "org_id",
+              "expression": "operation_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "journal_entry_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "idx",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "tb_plan_entry_idx_uq": {
-          "name": "tb_plan_entry_idx_uq",
-          "columns": [
-            {
-              "expression": "journal_entry_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "idx",
+              "expression": "line_no",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2309,15 +2801,9 @@
           "method": "btree",
           "with": {}
         },
-        "tb_plan_org_transfer_uq": {
-          "name": "tb_plan_org_transfer_uq",
+        "tb_plan_transfer_uq": {
+          "name": "tb_plan_transfer_uq",
           "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
             {
               "expression": "transfer_id",
               "isExpression": false,
@@ -2330,15 +2816,30 @@
           "method": "btree",
           "with": {}
         },
-        "tb_plan_status_idx": {
-          "name": "tb_plan_status_idx",
+        "tb_plan_post_idx": {
+          "name": "tb_plan_post_idx",
           "columns": [
             {
-              "expression": "org_id",
+              "expression": "operation_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
+            {
+              "expression": "line_no",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "tb_plan_status_idx": {
+          "name": "tb_plan_status_idx",
+          "columns": [
             {
               "expression": "status",
               "isExpression": false,
@@ -2353,12 +2854,12 @@
         }
       },
       "foreignKeys": {
-        "tb_transfer_plans_journal_entry_id_journal_entries_id_fk": {
-          "name": "tb_transfer_plans_journal_entry_id_journal_entries_id_fk",
+        "tb_transfer_plans_operation_id_ledger_operations_id_fk": {
+          "name": "tb_transfer_plans_operation_id_ledger_operations_id_fk",
           "tableFrom": "tb_transfer_plans",
-          "tableTo": "journal_entries",
+          "tableTo": "ledger_operations",
           "columnsFrom": [
-            "journal_entry_id"
+            "operation_id"
           ],
           "columnsTo": [
             "id"
@@ -2375,9 +2876,9 @@
           "name": "tb_plan_amount_nonneg",
           "value": "\"tb_transfer_plans\".\"amount\" >= 0"
         },
-        "tb_plan_create_keys": {
-          "name": "tb_plan_create_keys",
-          "value": "(\"tb_transfer_plans\".\"type\" <> 'create') OR (\"tb_transfer_plans\".\"debit_key\" IS NOT NULL AND \"tb_transfer_plans\".\"credit_key\" IS NOT NULL)"
+        "tb_plan_create_accounts": {
+          "name": "tb_plan_create_accounts",
+          "value": "(\"tb_transfer_plans\".\"type\" <> 'create') OR (\"tb_transfer_plans\".\"debit_tb_account_id\" IS NOT NULL AND \"tb_transfer_plans\".\"credit_tb_account_id\" IS NOT NULL)"
         },
         "tb_plan_pending_id": {
           "name": "tb_plan_pending_id",
@@ -2394,8 +2895,8 @@
       },
       "isRLSEnabled": false
     },
-    "public.internal_transfers": {
-      "name": "internal_transfers",
+    "public.transfer_events": {
+      "name": "transfer_events",
       "schema": "",
       "columns": {
         "id": {
@@ -2405,28 +2906,161 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "counterparty_id": {
-          "name": "counterparty_id",
+        "transfer_id": {
+          "name": "transfer_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "status": {
-          "name": "status",
-          "type": "text",
+        "event_type": {
+          "name": "event_type",
+          "type": "transfer_event_type",
+          "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'draft'"
+          "notNull": true
         },
-        "from_account_key": {
-          "name": "from_account_key",
+        "event_idempotency_key": {
+          "name": "event_idempotency_key",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "to_account_key": {
-          "name": "to_account_key",
+        "external_ref": {
+          "name": "external_ref",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ledger_operation_id": {
+          "name": "ledger_operation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "transfer_events_transfer_type_idem_uq": {
+          "name": "transfer_events_transfer_type_idem_uq",
+          "columns": [
+            {
+              "expression": "transfer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "event_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "event_idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transfer_events_transfer_created_idx": {
+          "name": "transfer_events_transfer_created_idx",
+          "columns": [
+            {
+              "expression": "transfer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "transfer_events_transfer_id_transfer_orders_id_fk": {
+          "name": "transfer_events_transfer_id_transfer_orders_id_fk",
+          "tableFrom": "transfer_events",
+          "tableTo": "transfer_orders",
+          "columnsFrom": [
+            "transfer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "transfer_events_ledger_operation_id_ledger_operations_id_fk": {
+          "name": "transfer_events_ledger_operation_id_ledger_operations_id_fk",
+          "tableFrom": "transfer_events",
+          "tableTo": "ledger_operations",
+          "columnsFrom": [
+            "ledger_operation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.transfer_orders": {
+      "name": "transfer_orders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "source_counterparty_id": {
+          "name": "source_counterparty_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "destination_counterparty_id": {
+          "name": "destination_counterparty_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_operational_account_id": {
+          "name": "source_operational_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "destination_operational_account_id": {
+          "name": "destination_operational_account_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -2441,6 +3075,36 @@
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "transfer_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "settlement_mode": {
+          "name": "settlement_mode",
+          "type": "transfer_settlement_mode",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'immediate'"
+        },
+        "timeout_seconds": {
+          "name": "timeout_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "transfer_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
         },
         "memo": {
           "name": "memo",
@@ -2478,14 +3142,358 @@
           "primaryKey": false,
           "notNull": false
         },
-        "ledger_entry_id": {
-          "name": "ledger_entry_id",
+        "ledger_operation_id": {
+          "name": "ledger_operation_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_pending_transfer_id": {
+          "name": "source_pending_transfer_id",
+          "type": "numeric(39,0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "destination_pending_transfer_id": {
+          "name": "destination_pending_transfer_id",
+          "type": "numeric(39,0)",
           "primaryKey": false,
           "notNull": false
         },
         "idempotency_key": {
           "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "transfer_orders_source_counterparty_idem_uq": {
+          "name": "transfer_orders_source_counterparty_idem_uq",
+          "columns": [
+            {
+              "expression": "source_counterparty_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transfer_orders_status_idx": {
+          "name": "transfer_orders_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transfer_orders_source_counterparty_created_idx": {
+          "name": "transfer_orders_source_counterparty_created_idx",
+          "columns": [
+            {
+              "expression": "source_counterparty_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transfer_orders_destination_counterparty_created_idx": {
+          "name": "transfer_orders_destination_counterparty_created_idx",
+          "columns": [
+            {
+              "expression": "destination_counterparty_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "transfer_orders_source_operational_account_id_operational_accounts_id_fk": {
+          "name": "transfer_orders_source_operational_account_id_operational_accounts_id_fk",
+          "tableFrom": "transfer_orders",
+          "tableTo": "operational_accounts",
+          "columnsFrom": [
+            "source_operational_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "transfer_orders_destination_operational_account_id_operational_accounts_id_fk": {
+          "name": "transfer_orders_destination_operational_account_id_operational_accounts_id_fk",
+          "tableFrom": "transfer_orders",
+          "tableTo": "operational_accounts",
+          "columnsFrom": [
+            "destination_operational_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "transfer_orders_currency_id_currencies_id_fk": {
+          "name": "transfer_orders_currency_id_currencies_id_fk",
+          "tableFrom": "transfer_orders",
+          "tableTo": "currencies",
+          "columnsFrom": [
+            "currency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "transfer_orders_ledger_operation_id_ledger_operations_id_fk": {
+          "name": "transfer_orders_ledger_operation_id_ledger_operations_id_fk",
+          "tableFrom": "transfer_orders",
+          "tableTo": "ledger_operations",
+          "columnsFrom": [
+            "ledger_operation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.operational_account_providers": {
+      "name": "operational_account_providers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "type": {
+          "name": "type",
+          "type": "account_provider_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact": {
+          "name": "contact",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bic": {
+          "name": "bic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "swift": {
+          "name": "swift",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country": {
+          "name": "country",
+          "type": "counterparty_country_code",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "operational_account_providers_name_uq": {
+          "name": "operational_account_providers_name_uq",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.operational_accounts": {
+      "name": "operational_accounts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "counterparty_id": {
+          "name": "counterparty_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_id": {
+          "name": "currency_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_provider_id": {
+          "name": "account_provider_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "account_no": {
+          "name": "account_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "corr_account": {
+          "name": "corr_account",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "iban": {
+          "name": "iban",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stable_key": {
+          "name": "stable_key",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -2506,168 +3514,8 @@
         }
       },
       "indexes": {
-        "internal_transfers_counterparty_idem_uq": {
-          "name": "internal_transfers_counterparty_idem_uq",
-          "columns": [
-            {
-              "expression": "counterparty_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "idempotency_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "internal_transfers_counterparty_status_idx": {
-          "name": "internal_transfers_counterparty_status_idx",
-          "columns": [
-            {
-              "expression": "counterparty_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "internal_transfers_counterparty_created_idx": {
-          "name": "internal_transfers_counterparty_created_idx",
-          "columns": [
-            {
-              "expression": "counterparty_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "internal_transfers_currency_id_currencies_id_fk": {
-          "name": "internal_transfers_currency_id_currencies_id_fk",
-          "tableFrom": "internal_transfers",
-          "tableTo": "currencies",
-          "columnsFrom": [
-            "currency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.bank_accounts": {
-      "name": "bank_accounts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "counterparty_id": {
-          "name": "counterparty_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rail": {
-          "name": "rail",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'bank'"
-        },
-        "currency_id": {
-          "name": "currency_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "account_no": {
-          "name": "account_no",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "iban": {
-          "name": "iban",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bic_swift": {
-          "name": "bic_swift",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_name": {
-          "name": "bank_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "stable_key": {
-          "name": "stable_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "bank_accounts_counterparty_stable_uq": {
-          "name": "bank_accounts_counterparty_stable_uq",
+        "operational_accounts_counterparty_stable_uq": {
+          "name": "operational_accounts_counterparty_stable_uq",
           "columns": [
             {
               "expression": "counterparty_id",
@@ -2687,8 +3535,8 @@
           "method": "btree",
           "with": {}
         },
-        "bank_accounts_counterparty_cur_idx": {
-          "name": "bank_accounts_counterparty_cur_idx",
+        "operational_accounts_counterparty_cur_idx": {
+          "name": "operational_accounts_counterparty_cur_idx",
           "columns": [
             {
               "expression": "counterparty_id",
@@ -2710,9 +3558,9 @@
         }
       },
       "foreignKeys": {
-        "bank_accounts_counterparty_id_counterparties_id_fk": {
-          "name": "bank_accounts_counterparty_id_counterparties_id_fk",
-          "tableFrom": "bank_accounts",
+        "operational_accounts_counterparty_id_counterparties_id_fk": {
+          "name": "operational_accounts_counterparty_id_counterparties_id_fk",
+          "tableFrom": "operational_accounts",
           "tableTo": "counterparties",
           "columnsFrom": [
             "counterparty_id"
@@ -2723,12 +3571,25 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "bank_accounts_currency_id_currencies_id_fk": {
-          "name": "bank_accounts_currency_id_currencies_id_fk",
-          "tableFrom": "bank_accounts",
+        "operational_accounts_currency_id_currencies_id_fk": {
+          "name": "operational_accounts_currency_id_currencies_id_fk",
+          "tableFrom": "operational_accounts",
           "tableTo": "currencies",
           "columnsFrom": [
             "currency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "operational_accounts_account_provider_id_operational_account_providers_id_fk": {
+          "name": "operational_accounts_account_provider_id_operational_account_providers_id_fk",
+          "tableFrom": "operational_accounts",
+          "tableTo": "operational_account_providers",
+          "columnsFrom": [
+            "account_provider_id"
           ],
           "columnsTo": [
             "id"
@@ -2786,7 +3647,8 @@
         },
         "country": {
           "name": "country",
-          "type": "text",
+          "type": "counterparty_country_code",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
         },
@@ -3118,20 +3980,20 @@
           "primaryKey": false,
           "notNull": false
         },
-        "reserve_entry_id": {
-          "name": "reserve_entry_id",
+        "reserve_operation_id": {
+          "name": "reserve_operation_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "initiate_entry_id": {
-          "name": "initiate_entry_id",
+        "initiate_operation_id": {
+          "name": "initiate_operation_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "resolve_entry_id": {
-          "name": "resolve_entry_id",
+        "resolve_operation_id": {
+          "name": "resolve_operation_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -3148,11 +4010,19 @@
           "primaryKey": false,
           "notNull": false
         },
-        "payout_bank_stable_key": {
-          "name": "payout_bank_stable_key",
-          "type": "text",
+        "payout_operational_account_id": {
+          "name": "payout_operational_account_id",
+          "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
+        },
+        "accounting_treatment": {
+          "name": "accounting_treatment",
+          "type": "fee_accounting_treatment",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pass_through'"
         },
         "rail_ref": {
           "name": "rail_ref",
@@ -3269,12 +4139,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "fee_payment_orders_reserve_entry_id_journal_entries_id_fk": {
-          "name": "fee_payment_orders_reserve_entry_id_journal_entries_id_fk",
+        "fee_payment_orders_reserve_operation_id_ledger_operations_id_fk": {
+          "name": "fee_payment_orders_reserve_operation_id_ledger_operations_id_fk",
           "tableFrom": "fee_payment_orders",
-          "tableTo": "journal_entries",
+          "tableTo": "ledger_operations",
           "columnsFrom": [
-            "reserve_entry_id"
+            "reserve_operation_id"
           ],
           "columnsTo": [
             "id"
@@ -3282,12 +4152,12 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "fee_payment_orders_initiate_entry_id_journal_entries_id_fk": {
-          "name": "fee_payment_orders_initiate_entry_id_journal_entries_id_fk",
+        "fee_payment_orders_initiate_operation_id_ledger_operations_id_fk": {
+          "name": "fee_payment_orders_initiate_operation_id_ledger_operations_id_fk",
           "tableFrom": "fee_payment_orders",
-          "tableTo": "journal_entries",
+          "tableTo": "ledger_operations",
           "columnsFrom": [
-            "initiate_entry_id"
+            "initiate_operation_id"
           ],
           "columnsTo": [
             "id"
@@ -3295,12 +4165,12 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "fee_payment_orders_resolve_entry_id_journal_entries_id_fk": {
-          "name": "fee_payment_orders_resolve_entry_id_journal_entries_id_fk",
+        "fee_payment_orders_resolve_operation_id_ledger_operations_id_fk": {
+          "name": "fee_payment_orders_resolve_operation_id_ledger_operations_id_fk",
           "tableFrom": "fee_payment_orders",
-          "tableTo": "journal_entries",
+          "tableTo": "ledger_operations",
           "columnsFrom": [
-            "resolve_entry_id"
+            "resolve_operation_id"
           ],
           "columnsTo": [
             "id"
@@ -3314,6 +4184,19 @@
           "tableTo": "counterparties",
           "columnsFrom": [
             "payout_counterparty_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "fee_payment_orders_payout_operational_account_id_operational_accounts_id_fk": {
+          "name": "fee_payment_orders_payout_operational_account_id_operational_accounts_id_fk",
+          "tableFrom": "fee_payment_orders",
+          "tableTo": "operational_accounts",
+          "columnsFrom": [
+            "payout_operational_account_id"
           ],
           "columnsTo": [
             "id"
@@ -3358,8 +4241,8 @@
           "notNull": true,
           "default": "'quote'"
         },
-        "ledger_entry_id": {
-          "name": "ledger_entry_id",
+        "ledger_operation_id": {
+          "name": "ledger_operation_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -3516,12 +4399,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "payment_orders_ledger_entry_id_journal_entries_id_fk": {
-          "name": "payment_orders_ledger_entry_id_journal_entries_id_fk",
+        "payment_orders_ledger_operation_id_ledger_operations_id_fk": {
+          "name": "payment_orders_ledger_operation_id_ledger_operations_id_fk",
           "tableFrom": "payment_orders",
-          "tableTo": "journal_entries",
+          "tableTo": "ledger_operations",
           "columnsFrom": [
-            "ledger_entry_id"
+            "ledger_operation_id"
           ],
           "columnsTo": [
             "id"
@@ -3568,10 +4451,10 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "payment_orders_payin_account_id_bank_accounts_id_fk": {
-          "name": "payment_orders_payin_account_id_bank_accounts_id_fk",
+        "payment_orders_payin_account_id_operational_accounts_id_fk": {
+          "name": "payment_orders_payin_account_id_operational_accounts_id_fk",
           "tableFrom": "payment_orders",
-          "tableTo": "bank_accounts",
+          "tableTo": "operational_accounts",
           "columnsFrom": [
             "payin_account_id"
           ],
@@ -3594,10 +4477,10 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "payment_orders_payout_account_id_bank_accounts_id_fk": {
-          "name": "payment_orders_payout_account_id_bank_accounts_id_fk",
+        "payment_orders_payout_account_id_operational_accounts_id_fk": {
+          "name": "payment_orders_payout_account_id_operational_accounts_id_fk",
           "tableFrom": "payment_orders",
-          "tableTo": "bank_accounts",
+          "tableTo": "operational_accounts",
           "columnsFrom": [
             "payout_account_id"
           ],
@@ -3897,12 +4780,360 @@
     }
   },
   "enums": {
+    "public.chart_account_kind": {
+      "name": "chart_account_kind",
+      "schema": "public",
+      "values": [
+        "asset",
+        "liability",
+        "equity",
+        "revenue",
+        "expense",
+        "active_passive"
+      ]
+    },
+    "public.chart_analytic_type": {
+      "name": "chart_analytic_type",
+      "schema": "public",
+      "values": [
+        "counterparty_id",
+        "customer_id",
+        "order_id",
+        "operational_account_id",
+        "transfer_id",
+        "quote_id",
+        "fee_bucket"
+      ]
+    },
+    "public.chart_normal_side": {
+      "name": "chart_normal_side",
+      "schema": "public",
+      "values": [
+        "debit",
+        "credit",
+        "both"
+      ]
+    },
+    "public.transfer_event_type": {
+      "name": "transfer_event_type",
+      "schema": "public",
+      "values": [
+        "approve",
+        "settle",
+        "void"
+      ]
+    },
+    "public.transfer_kind": {
+      "name": "transfer_kind",
+      "schema": "public",
+      "values": [
+        "intra_org",
+        "cross_org"
+      ]
+    },
+    "public.transfer_settlement_mode": {
+      "name": "transfer_settlement_mode",
+      "schema": "public",
+      "values": [
+        "immediate",
+        "pending"
+      ]
+    },
+    "public.transfer_status": {
+      "name": "transfer_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "approved_pending_posting",
+        "pending",
+        "settle_pending_posting",
+        "void_pending_posting",
+        "posted",
+        "voided",
+        "rejected",
+        "failed"
+      ]
+    },
+    "public.account_provider_type": {
+      "name": "account_provider_type",
+      "schema": "public",
+      "values": [
+        "bank",
+        "exchange",
+        "blockchain",
+        "custodian"
+      ]
+    },
+    "public.counterparty_country_code": {
+      "name": "counterparty_country_code",
+      "schema": "public",
+      "values": [
+        "AD",
+        "AE",
+        "AF",
+        "AG",
+        "AI",
+        "AL",
+        "AM",
+        "AO",
+        "AQ",
+        "AR",
+        "AS",
+        "AT",
+        "AU",
+        "AW",
+        "AX",
+        "AZ",
+        "BA",
+        "BB",
+        "BD",
+        "BE",
+        "BF",
+        "BG",
+        "BH",
+        "BI",
+        "BJ",
+        "BL",
+        "BM",
+        "BN",
+        "BO",
+        "BQ",
+        "BR",
+        "BS",
+        "BT",
+        "BV",
+        "BW",
+        "BY",
+        "BZ",
+        "CA",
+        "CC",
+        "CD",
+        "CF",
+        "CG",
+        "CH",
+        "CI",
+        "CK",
+        "CL",
+        "CM",
+        "CN",
+        "CO",
+        "CR",
+        "CU",
+        "CV",
+        "CW",
+        "CX",
+        "CY",
+        "CZ",
+        "DE",
+        "DJ",
+        "DK",
+        "DM",
+        "DO",
+        "DZ",
+        "EC",
+        "EE",
+        "EG",
+        "EH",
+        "ER",
+        "ES",
+        "ET",
+        "FI",
+        "FJ",
+        "FK",
+        "FM",
+        "FO",
+        "FR",
+        "GA",
+        "GB",
+        "GD",
+        "GE",
+        "GF",
+        "GG",
+        "GH",
+        "GI",
+        "GL",
+        "GM",
+        "GN",
+        "GP",
+        "GQ",
+        "GR",
+        "GS",
+        "GT",
+        "GU",
+        "GW",
+        "GY",
+        "HK",
+        "HM",
+        "HN",
+        "HR",
+        "HT",
+        "HU",
+        "ID",
+        "IE",
+        "IL",
+        "IM",
+        "IN",
+        "IO",
+        "IQ",
+        "IR",
+        "IS",
+        "IT",
+        "JE",
+        "JM",
+        "JO",
+        "JP",
+        "KE",
+        "KG",
+        "KH",
+        "KI",
+        "KM",
+        "KN",
+        "KP",
+        "KR",
+        "KW",
+        "KY",
+        "KZ",
+        "LA",
+        "LB",
+        "LC",
+        "LI",
+        "LK",
+        "LR",
+        "LS",
+        "LT",
+        "LU",
+        "LV",
+        "LY",
+        "MA",
+        "MC",
+        "MD",
+        "ME",
+        "MF",
+        "MG",
+        "MH",
+        "MK",
+        "ML",
+        "MM",
+        "MN",
+        "MO",
+        "MP",
+        "MQ",
+        "MR",
+        "MS",
+        "MT",
+        "MU",
+        "MV",
+        "MW",
+        "MX",
+        "MY",
+        "MZ",
+        "NA",
+        "NC",
+        "NE",
+        "NF",
+        "NG",
+        "NI",
+        "NL",
+        "NO",
+        "NP",
+        "NR",
+        "NU",
+        "NZ",
+        "OM",
+        "PA",
+        "PE",
+        "PF",
+        "PG",
+        "PH",
+        "PK",
+        "PL",
+        "PM",
+        "PN",
+        "PR",
+        "PS",
+        "PT",
+        "PW",
+        "PY",
+        "QA",
+        "RE",
+        "RO",
+        "RS",
+        "RU",
+        "RW",
+        "SA",
+        "SB",
+        "SC",
+        "SD",
+        "SE",
+        "SG",
+        "SH",
+        "SI",
+        "SJ",
+        "SK",
+        "SL",
+        "SM",
+        "SN",
+        "SO",
+        "SR",
+        "SS",
+        "ST",
+        "SV",
+        "SX",
+        "SY",
+        "SZ",
+        "TC",
+        "TD",
+        "TF",
+        "TG",
+        "TH",
+        "TJ",
+        "TK",
+        "TL",
+        "TM",
+        "TN",
+        "TO",
+        "TR",
+        "TT",
+        "TV",
+        "TW",
+        "TZ",
+        "UA",
+        "UG",
+        "UM",
+        "US",
+        "UY",
+        "UZ",
+        "VA",
+        "VC",
+        "VE",
+        "VG",
+        "VI",
+        "VN",
+        "VU",
+        "WF",
+        "WS",
+        "YE",
+        "YT",
+        "ZA",
+        "ZM",
+        "ZW"
+      ]
+    },
     "public.counterparty_kind": {
       "name": "counterparty_kind",
       "schema": "public",
       "values": [
         "legal_entity",
         "individual"
+      ]
+    },
+    "public.fee_accounting_treatment": {
+      "name": "fee_accounting_treatment",
+      "schema": "public",
+      "values": [
+        "income",
+        "pass_through",
+        "expense"
       ]
     }
   },
