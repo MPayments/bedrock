@@ -46,7 +46,7 @@ function createCreateTransferTx(options?: {
                 {
                   id: `ba-${bookInsertCount}`,
                   tbLedger: rows[0]?.tbLedger ?? 1,
-                  tbAccountId: BigInt(bookInsertCount),
+                  tbAccountId: rows[0]?.tbAccountId ?? BigInt(bookInsertCount),
                 },
               ]),
             })),
@@ -55,7 +55,7 @@ function createCreateTransferTx(options?: {
                 {
                   id: `ba-${bookInsertCount}`,
                   tbLedger: rows[0]?.tbLedger ?? 1,
-                  tbAccountId: BigInt(bookInsertCount),
+                  tbAccountId: rows[0]?.tbAccountId ?? BigInt(bookInsertCount),
                 },
               ]),
             })),

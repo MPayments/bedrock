@@ -9,7 +9,7 @@ import {
 import { type Transaction, type Database } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { seedAccounting } from "@bedrock/db/seeds";
-import { sha256Hex, stableStringify } from "@bedrock/kernel";
+import { computeDimensionsHash, sha256Hex, stableStringify } from "@bedrock/kernel";
 
 import {
   AccountPostingValidationError,
@@ -53,16 +53,6 @@ interface PostingCodePolicy {
 }
 
 let accountingDefaultsKnownPresent = false;
-
-function computeDimensionsHash(dimensions: Dimensions): string {
-  const sorted = Object.keys(dimensions)
-    .sort()
-    .reduce<Record<string, string>>((acc, key) => {
-      acc[key] = dimensions[key]!;
-      return acc;
-    }, {});
-  return sha256Hex(stableStringify(sorted));
-}
 
 function computeLinkedFlags(lines: IntentLine[]): boolean[] {
   const linked = new Array(lines.length).fill(false);

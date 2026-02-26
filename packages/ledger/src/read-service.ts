@@ -364,8 +364,13 @@ export function createLedgerReadService(deps: { db: Database }) {
     );
     const dimOrderUuids = dimOrderIds.filter(isUuid);
 
-    const [dimCounterparties, dimAccounts, dimCustomers, paymentOrders, transferOrders] =
-      await Promise.all([
+    const [
+      dimCounterparties,
+      dimAccounts,
+      dimCustomers,
+      paymentOrders,
+      transferOrders,
+    ] = await Promise.all([
       dimCounterpartyIds.length === 0
         ? []
         : db
@@ -409,7 +414,7 @@ export function createLedgerReadService(deps: { db: Database }) {
             })
             .from(schema.transferOrders)
             .where(inArray(schema.transferOrders.id, dimOrderUuids)),
-      ]);
+    ]);
 
     const dimensionLabels: Record<string, string> = {};
     for (const { id, shortName } of dimCounterparties) {

@@ -156,7 +156,7 @@ export function createAccountingService(deps: AccountingServiceDeps) {
       }
     }
 
-    type ScopedDim = { dimensionKey: string; scope: string };
+    interface ScopedDim { dimensionKey: string; scope: string }
     const requiredPostingCodeDims = new Map<string, ScopedDim[]>();
     for (const row of postingCodeDimPolicies) {
       const existing = requiredPostingCodeDims.get(row.postingCode);
@@ -452,6 +452,7 @@ export function createAccountingService(deps: AccountingServiceDeps) {
   }
 
   async function fetchAttributionDeltas(input: {
+    attributionMode: "book_org" | "analytic_counterparty";
     statuses: FinancialResultStatus[];
     from?: Date;
     to?: Date;
@@ -487,10 +488,13 @@ export function createAccountingService(deps: AccountingServiceDeps) {
       conditions.push(sql`p.currency = ${input.currency}`);
     }
 
-    const attributionSql = sql`COALESCE(
-      debit_inst.dimensions->>'counterpartyId',
-      credit_inst.dimensions->>'counterpartyId'
-    )`;
+    const attributionSql =
+      input.attributionMode === "book_org"
+        ? sql`p.book_org_id::text`
+        : sql`COALESCE(
+            debit_inst.dimensions->>'counterpartyId',
+            credit_inst.dimensions->>'counterpartyId'
+          )`;
 
     if (input.requireNullAttribution) {
       conditions.push(sql`${attributionSql} IS NULL`);
@@ -577,6 +581,10 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     const query = ListFinancialResultsByCounterpartyQuerySchema.parse(
       input ?? {},
     );
+    const attributionMode: "book_org" | "analytic_counterparty" =
+      query.attributionMode === "analytic_counterparty"
+        ? "analytic_counterparty"
+        : "book_org";
     const statuses = ((query.status?.length
       ? query.status
       : ["posted", "pending"]) ?? [
@@ -613,6 +621,7 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     }
 
     const deltas = await fetchAttributionDeltas({
+      attributionMode,
       statuses,
       from,
       to,
@@ -673,6 +682,10 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     input?: ListFinancialResultsByGroupQuery,
   ): Promise<FinancialResultsByGroupResult> {
     const query = ListFinancialResultsByGroupQuerySchema.parse(input ?? {});
+    const attributionMode: "book_org" | "analytic_counterparty" =
+      query.attributionMode === "analytic_counterparty"
+        ? "analytic_counterparty"
+        : "book_org";
     const statuses = ((query.status?.length
       ? query.status
       : ["posted", "pending"]) ?? [
@@ -714,6 +727,7 @@ export function createAccountingService(deps: AccountingServiceDeps) {
       relevantCounterpartyIds.length === 0
         ? []
         : await fetchAttributionDeltas({
+            attributionMode,
             statuses,
             from,
             to,
@@ -806,13 +820,17 @@ export function createAccountingService(deps: AccountingServiceDeps) {
       offset: query.offset,
     });
 
-    const unattributedRows = await fetchAttributionDeltas({
-      statuses,
-      from,
-      to,
-      currency,
-      requireNullAttribution: true,
-    });
+    const unattributedRows =
+      attributionMode === "analytic_counterparty"
+        ? await fetchAttributionDeltas({
+            attributionMode,
+            statuses,
+            from,
+            to,
+            currency,
+            requireNullAttribution: true,
+          })
+        : [];
     const unattributedByCurrency = summarizeByCurrency(unattributedRows);
 
     return {

@@ -1,10 +1,33 @@
 export function formatAmount(amountMinor: string | number, precision: number): string {
-  const divisor = Math.pow(10, precision);
-  const major = Number(amountMinor) / divisor;
-  return major.toLocaleString("ru-RU", {
-    minimumFractionDigits: precision,
-    maximumFractionDigits: precision,
-  });
+  const normalizedPrecision = Number.isFinite(precision)
+    ? Math.max(0, Math.trunc(precision))
+    : 0;
+
+  let minor: bigint;
+  try {
+    minor =
+      typeof amountMinor === "string"
+        ? BigInt(amountMinor)
+        : BigInt(Math.trunc(amountMinor));
+  } catch {
+    return String(amountMinor);
+  }
+
+  const negative = minor < 0n;
+  const absoluteMinor = negative ? -minor : minor;
+  const sign = negative ? "-" : "";
+
+  if (normalizedPrecision === 0) {
+    return `${sign}${absoluteMinor.toLocaleString("ru-RU")}`;
+  }
+
+  const divisor = 10n ** BigInt(normalizedPrecision);
+  const major = absoluteMinor / divisor;
+  const fraction = (absoluteMinor % divisor)
+    .toString()
+    .padStart(normalizedPrecision, "0");
+
+  return `${sign}${major.toLocaleString("ru-RU")},${fraction}`;
 }
 
 export function formatDate(date: Date | string | number | undefined) {

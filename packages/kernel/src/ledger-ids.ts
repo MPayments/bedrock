@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
 
+import { stableStringify } from "./canon";
+import { sha256Hex } from "./crypto";
+
 export const TB_ID_MAX = (1n << 128n) - 1n;
 export const TB_ID_MAX_ALLOWED = TB_ID_MAX - 1n;
 
@@ -14,6 +17,18 @@ export function u128FromHash(input: string): bigint {
   let x = 0n;
   for (let i = 0; i < 16; i++) x = (x << 8n) | BigInt(h[i]!);
   return normalizeTbId(x);
+}
+
+export function computeDimensionsHash(
+  dimensions: Record<string, string>,
+): string {
+  const sorted = Object.keys(dimensions)
+    .sort()
+    .reduce<Record<string, string>>((acc, key) => {
+      acc[key] = dimensions[key]!;
+      return acc;
+    }, {});
+  return sha256Hex(stableStringify(sorted));
 }
 
 export function tbLedgerForCurrency(currency: string): number {
