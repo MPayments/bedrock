@@ -34,7 +34,6 @@ Ledger intent and posting engine built around Postgres + TigerBeetle.
 - `createLedgerWorker`
 - `OPERATION_TRANSFER_TYPE`
 - `CreateOperationResult`
-- `defineKeyspace`
 - `IdempotencyConflictError`
 
 ## Posting model

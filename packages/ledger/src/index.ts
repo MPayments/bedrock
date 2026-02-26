@@ -11,7 +11,6 @@ export type {
   OperationTransferType,
 } from "./types";
 export { IdempotencyConflictError } from "./errors";
-export { defineKeyspace, type Keyspace } from "./keyspace";
 export { createLedgerWorker } from "./worker";
 export {
   tbLedgerForCurrency,

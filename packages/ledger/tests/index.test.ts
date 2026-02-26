@@ -6,7 +6,6 @@ describe("ledger public exports", () => {
     expect(ledger.createLedgerEngine).toBeTypeOf("function");
     expect(ledger.OPERATION_TRANSFER_TYPE).toBeDefined();
     expect(ledger.IdempotencyConflictError).toBeTypeOf("function");
-    expect(ledger.defineKeyspace).toBeTypeOf("function");
     expect(ledger.createLedgerWorker).toBeTypeOf("function");
   });
 });

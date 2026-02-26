@@ -137,7 +137,7 @@ Details:
 `postJournal`:
 
 - Loads `tb_transfer_plans` in idx order.
-- Resolves account keys to TB account ids with in-memory cache.
+- Ensures referenced TB accounts exist before posting transfers.
 - Builds TB transfers for:
   - `create`
   - `post_pending` (`amount=0` means full post using `TB_AMOUNT_MAX`)
@@ -146,19 +146,6 @@ Details:
 - Marks plans and journal posted.
 
 ## `@bedrock/treasury`
-
-### Keyspace
-
-`treasuryKeyspace` keys include:
-
-- `customerWallet`
-- `bank`
-- `treasuryPool`
-- `intercompanyNet`
-- `orderPayIn`
-- `payoutObligation`
-- `revenueFee`
-- `revenueSpread`
 
 ### Service lifecycle methods
 
@@ -250,13 +237,6 @@ Details:
 - `separate_payment_order` fees are represented as reserve postings to fee-clearing accounts.
 
 ## `@bedrock/transfers`
-
-### Keyspace
-
-`transfersKeyspace` defines:
-
-- `customerWallet(customerId,currency)`
-- `internal(orgId,name,currency)`
 
 ### Service
 

@@ -30,24 +30,10 @@ Each operation:
 - Finalizes order status by linked `journal_entries.status`
 - Uses row locking to avoid concurrent double-finalization
 
-## Keyspace
-
-`treasuryKeyspace` provides account key builders for:
-
-- Customer wallet
-- Bank account
-- Treasury pool
-- Intercompany net
-- Order pay-in
-- Payout obligation
-- Revenue accounts (fee/spread)
-- Fee buckets and fee-clearing accounts
-
 ## Exports
 
 - `createTreasuryService`
 - `createTreasuryWorker`
-- `treasuryKeyspace`
 - Validation schemas/types
 - Error classes
 

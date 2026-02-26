@@ -25,18 +25,10 @@ Internal transfer maker/checker domain service plus posting finalization worker.
   - `failed` when journal is `failed`
 - Returns count of actually processed/finalized items
 
-## Keyspace
-
-`transfersKeyspace` currently defines:
-
-- `customerWallet(customerId, currency)`
-- `internal(counterpartyId, name, currency)`
-
 ## Exports
 
 - `createTransfersService`
 - `createTransfersWorker`
-- `transfersKeyspace`
 - Validation schemas/types
 - Transfer error classes
 

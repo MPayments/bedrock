@@ -42,6 +42,3 @@ export {
     MakerCheckerViolationError,
     TransferCurrencyMismatchError,
 } from "./errors";
-
-// Keyspace
-export { transfersKeyspace } from "./keyspace";

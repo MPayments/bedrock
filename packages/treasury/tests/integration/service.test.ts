@@ -24,7 +24,6 @@ import {
   randomRailRef,
   randomQuoteRef,
 } from "./helpers";
-import { treasuryKeyspace } from "../../src/keyspace";
 import { createTreasuryService } from "../../src/service";
 
 describe("Treasury Service Integration Tests", () => {
@@ -761,24 +760,4 @@ describe("Treasury Service Integration Tests", () => {
     });
   });
 
-  describe("keyspace integration", () => {
-    it("should generate consistent account keys", async () => {
-      const scenario = await createTestScenario();
-      const K = treasuryKeyspace.keys;
-
-      // Verify deterministic key generation
-      const customerWallet1 = K.customerWallet(scenario.customer.id, "USD");
-      const customerWallet2 = K.customerWallet(scenario.customer.id, "USD");
-      expect(customerWallet1).toBe(customerWallet2);
-
-      const bank1 = K.bank(scenario.branchCounterparty.id, "bank-key", "USD");
-      const bank2 = K.bank(scenario.branchCounterparty.id, "bank-key", "USD");
-      expect(bank1).toBe(bank2);
-
-      // Different inputs should produce different keys
-      const walletUSD = K.customerWallet(scenario.customer.id, "USD");
-      const walletEUR = K.customerWallet(scenario.customer.id, "EUR");
-      expect(walletUSD).not.toBe(walletEUR);
-    });
-  });
 });
