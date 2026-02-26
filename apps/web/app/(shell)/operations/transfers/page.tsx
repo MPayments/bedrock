@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowRightLeft } from "lucide-react";
 
 import {
@@ -161,12 +162,12 @@ export default async function OperationsTransfersPage({
               >
                 Применить
               </button>
-              <a
+              <Link
                 href="/operations/transfers"
                 className="border-input bg-background h-9 rounded-md border px-3 text-sm leading-9"
               >
                 Сброс
-              </a>
+              </Link>
             </div>
           </form>
         </CardContent>

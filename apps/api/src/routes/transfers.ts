@@ -1,6 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import { AccountNotFoundError } from "@bedrock/accounts";
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import {
   ApproveTransferInputSchema,
   CreateTransferDraftInputSchema,
@@ -18,7 +19,6 @@ import {
   ValidationError,
   VoidPendingTransferInputSchema,
 } from "@bedrock/transfers";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 
 import { ErrorSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";
@@ -436,7 +436,10 @@ export function transfersRoutes(ctx: AppContext) {
         });
         return c.json({ transferId }, 201);
       } catch (err) {
-        if (err instanceof NotFoundError || err instanceof AccountNotFoundError) {
+        if (
+          err instanceof NotFoundError ||
+          err instanceof AccountNotFoundError
+        ) {
           return c.json({ error: err.message }, 404);
         }
         if (
@@ -500,10 +503,13 @@ export function transfersRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
       const actorUserId = c.get("user")!.id;
       try {
-        const result = await ctx.transfersService.settlePending({
-          transferId: id,
-          ...input,
-        }, actorUserId);
+        const result = await ctx.transfersService.settlePending(
+          {
+            transferId: id,
+            ...input,
+          },
+          actorUserId,
+        );
         return c.json(result, 200);
       } catch (err) {
         const handled = handleTransferError(err);
@@ -516,10 +522,13 @@ export function transfersRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
       const actorUserId = c.get("user")!.id;
       try {
-        const result = await ctx.transfersService.voidPending({
-          transferId: id,
-          ...input,
-        }, actorUserId);
+        const result = await ctx.transfersService.voidPending(
+          {
+            transferId: id,
+            ...input,
+          },
+          actorUserId,
+        );
         return c.json(result, 200);
       } catch (err) {
         const handled = handleTransferError(err);

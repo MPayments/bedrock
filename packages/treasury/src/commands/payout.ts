@@ -231,10 +231,11 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
           `Order must be ${TreasuryOrderStatus.PAYOUT_INITIATED} (posted), got ${order.status}`,
         );
       }
-      if (!order.payoutPendingTransferId)
+      if (!order.payoutPendingTransferId) {
         throw new InvalidStateError(
           "Missing payoutPendingTransferId - order state is inconsistent",
         );
+      }
 
       const planKey = makePlanKey("payout_settle", {
         railRef: validated.railRef,
@@ -351,10 +352,11 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
           `Order must be ${TreasuryOrderStatus.PAYOUT_INITIATED} (posted), got ${order.status}`,
         );
       }
-      if (!order.payoutPendingTransferId)
+      if (!order.payoutPendingTransferId) {
         throw new InvalidStateError(
           "Missing payoutPendingTransferId - order state is inconsistent",
         );
+      }
 
       const planKey = makePlanKey("payout_void", {
         railRef: validated.railRef,

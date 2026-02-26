@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import {
   Card,
   CardContent,
@@ -389,12 +391,12 @@ export default async function AccountingFinancialResultsPage({
               >
                 Применить
               </button>
-              <a
+              <Link
                 href="/accounting/financial-results"
                 className="border-input bg-background h-9 rounded-md border px-3 text-sm leading-9"
               >
                 Сброс
-              </a>
+              </Link>
             </div>
           </form>
         </CardContent>

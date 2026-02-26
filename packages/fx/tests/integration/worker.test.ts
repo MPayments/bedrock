@@ -99,8 +99,8 @@ describe("FX worker integration", () => {
     it("skips sources with non-expired TTL in processOnce()", async () => {
         const initialNow = new Date("2026-02-19T12:00:00.000Z");
         const workerNow = new Date("2026-02-19T12:04:00.000Z");
-        const provider = createProvider(new Date("2026-02-19T00:00:00.000Z"));
-        const investingProvider = createInvestingProvider(new Date("2026-02-19T00:00:00.000Z"));
+        const provider = createProvider(initialNow);
+        const investingProvider = createInvestingProvider(initialNow);
 
         const fxService = createFxService({
             db,

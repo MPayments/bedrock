@@ -103,6 +103,7 @@ describe("fx source sync", () => {
                 return [
                   createSourceStatusRow({
                     lastSyncedAt: new Date("2026-01-01T23:59:30Z"),
+                    lastPublishedAt: new Date("2026-01-01T23:59:30Z"),
                     ttlSeconds: 3600,
                   }),
                 ];

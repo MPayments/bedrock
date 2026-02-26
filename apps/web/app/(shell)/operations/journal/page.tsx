@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BookOpen } from "lucide-react";
 
 import {
@@ -168,12 +169,12 @@ export default async function OperationsJournalPage({
               >
                 Применить
               </button>
-              <a
+              <Link
                 href="/operations/journal"
                 className="border-input bg-background h-9 rounded-md border px-3 text-sm leading-9"
               >
                 Сброс
-              </a>
+              </Link>
             </div>
           </form>
         </CardContent>
