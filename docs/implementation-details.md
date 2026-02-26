@@ -1,299 +1,320 @@
 # Implementation Details
 
-Last updated: 2026-02-10
+Last updated: 2026-02-26
 
-This document describes implementation specifics as they exist today in code.
+This document captures implementation specifics as they exist in the current codebase.
+
+## Naming note
+
+Current ledger naming is operation-centric:
+
+- `ledger_operations` / `ledger_postings`
+- `createOperationTx`
+- outbox kind `post_operation`
+
+Legacy terms like `journal_entries`, `journal_lines`, or `createEntryTx` are not the current implementation.
 
 ## `@bedrock/kernel`
 
 Key files:
 
 - `packages/kernel/src/error.ts`
+- `packages/kernel/src/errors.ts`
 - `packages/kernel/src/logger.ts`
 - `packages/kernel/src/canon.ts`
 - `packages/kernel/src/currency.ts`
-- `packages/kernel/src/crypto.ts`
 - `packages/kernel/src/constants.ts`
 
-Details:
+Current behavior:
 
-- `AppError` is the shared application error shape with `code`.
-- `createConsoleLogger` wraps `pino`; `noopLogger` is default silent logger.
-- `stableStringify` deterministically serializes objects for hashing and key creation.
-- `makePlanKey(operation, payload)` creates canonical plan keys.
+- `AppError` is transport-facing error with `code`.
+- `ServiceError` hierarchy (`ValidationError`, `InvalidStateError`, `NotFoundError`, etc.) is used in domain packages.
+- `stableStringify` and `makePlanKey` provide deterministic serialization/plan keys.
 - `normalizeCurrency` enforces `^[A-Z0-9_]{2,16}$`.
-- `TransferCodes` defines domain transfer code map:
-  - `FUNDING_SETTLED=1001`
-  - `FX_*` codes in 2000 range
-  - `PAYOUT_INITIATED=3001`
-  - `INTERNAL_TRANSFER=4001`
+- `TransferCodes` includes funding, FX, fee, payout, and internal-transfer codes (including `300x` fee family and `PAYOUT_INITIATED=3101`).
 
 ## `@bedrock/db`
 
-### Client and schema export
+### Client
 
-- `db` is `drizzle(pool, { schema })`.
-- `schema` aggregates ledger, treasury, fx, and transfers tables.
-- DB connection is environment-driven with fallback localhost values.
+- `db = drizzle(pool, { schema })`
+- connection uses env-driven host/port/db/user/password with localhost fallbacks
 
 ### Ledger schema
 
-- `journal_entries`
-  - Unique: `(org_id, idempotency_key)`
-  - Contains `plan_fingerprint`, posting status, error, observability counters
-- `journal_lines`
-  - Unique: `(entry_id, line_no)`
-  - Stores derived debit/credit lines for create plans
+- `ledger_operations`
+  - unique: `idempotency_key`
+  - fields: source (`source_type`, `source_id`), operation code/version, `payload_hash`, posting status/error metadata
+- `ledger_postings`
+  - unique: `(operation_id, line_no)`
+  - debit/credit `book_account` references + analytics columns
 - `tb_transfer_plans`
-  - Stores normalized TB transfer instructions
-  - Unique: `(journal_entry_id, idx)` and `(org_id, transfer_id)`
-  - Check constraints enforce non-negative amount and type-specific requirements
+  - unique: `(operation_id, line_no)` and global `transfer_id`
+  - supports `create`, `post_pending`, `void_pending`
 - `outbox`
-  - Unique: `(kind, ref_id)`
-  - Lease/retry fields: `status`, `attempts`, `locked_at`, `available_at`
-- `ledger_accounts`
-  - Unique deterministic account mapping `(org_id, tb_ledger, key)`
-  - `tb_account_id` stored via custom `uint128` numeric type
+  - unique: `(kind, ref_id)`
+  - lease and retry columns
+- `book_accounts`
+  - unique deterministic mapping by `(org_id, account_no, currency)` and `(org_id, tb_ledger, tb_account_id)`
+
+### Accounting schema
+
+- `chart_template_accounts`
+- `chart_template_account_analytics`
+- `correspondence_rules`
+- `operational_accounts_book_bindings`
 
 ### Treasury schema
 
-- `payment_orders` stores lifecycle state and expected settlement values.
-- Includes:
-  - `ledger_entry_id` pointer for current pending-posting transition
-  - `payout_pending_transfer_id` for pending payout settlement/voiding
-  - idempotency uniqueness per `(idempotency_key)`
-- `settlements` records settlement events by kind.
-
-### FX schema
-
-- `fx_rates`: timestamped rate observations.
-- `fx_quotes`: quote snapshot with status lifecycle and idempotency key.
-
-### Fees schema
-
-- `fee_rules`: persisted rule definitions by operation/context with calc method (`bps`/`fixed`), settlement mode, and optional posting overrides.
-- `fx_quote_fee_components`: per-quote resolved fee snapshot derived from `fee_rules` at quote time.
+- `payment_orders` with `ledger_operation_id` and `payout_pending_transfer_id`
+- `settlements`
+- `fee_payment_orders` (reserve/initiate/resolve operation links + pending transfer)
+- `reconciliation_exceptions`
+- `counterparties`, `counterparty_groups`, `counterparty_group_memberships`
+- `operational_accounts`, `operational_account_providers`
 
 ### Transfers schema
 
-- `internal_transfers` implements maker/checker workflow and ledger link.
-- Unique `(org_id, idempotency_key)` for draft creation idempotency.
+- `transfer_orders`
+  - statuses include `pending`, `settle_pending_posting`, `void_pending_posting`, `voided`
+  - supports pending transfer IDs for source/destination
+- `transfer_events`
+  - idempotent settle/void events
+
+### FX and fees schema
+
+- `fx_rates`, `fx_rate_sources`
+- `fx_quotes`, `fx_quote_legs`
+- `fee_rules`, `fx_quote_fee_components`
+
+## `@bedrock/accounting`
+
+Key files:
+
+- `packages/accounting/src/constants.ts`
+- `packages/accounting/src/templates.ts`
+- `packages/accounting/src/service.ts`
+
+Current behavior:
+
+- Defines CoA account constants (`ACCOUNT_NO`), operation codes, posting codes, and required analytics by posting code.
+- Provides template builders for transfers:
+  - `buildTransferApproveTemplate`
+  - `buildTransferPendingActionTemplate`
+- Cross-org transfer templates route via `1310 INTERCOMPANY_NET`.
+- Fee template resolvers map fee/spread/adjustment/provider-expense behaviors to posting shapes.
+- `createAccountingService` supports correspondence management, posting matrix validation, and financial-results aggregation views.
+
+## `@bedrock/accounts`
+
+Key files:
+
+- `packages/accounts/src/commands/create-account.ts`
+- `packages/accounts/src/commands/resolve-transfer-bindings.ts`
+- `packages/accounts/src/internal/book-account.ts`
+
+Current behavior:
+
+- Creates `operational_accounts` and validates provider-specific fields.
+- Requires `postingAccountNo` on account creation path and ensures/creates matching `book_account`.
+- Persists OA->book binding in `operational_accounts_book_bindings`.
+- `resolveTransferBindings` returns binding metadata used by transfers:
+  - counterparty
+  - currency
+  - bound book account
+  - `bookOrgId` (currently counterparty-based)
 
 ## `@bedrock/ledger`
 
-### Engine: journal intent creation
+### Engine
 
-`createLedgerEngine(...).createEntryTx(tx, input)`:
+`createLedgerEngine(...).createOperationTx(tx, input)`:
 
-1. Validate input and chain-block adjacency.
-2. Compute deterministic `planFingerprint`.
-3. Insert `journal_entries` with `onConflictDoNothing`.
-4. On conflict, fetch existing row and compare fingerprint.
-5. Derive `journal_lines` for each `PlanType.CREATE`.
-6. Build `tb_transfer_plans` rows:
-   - Compute `tbLedgerForCurrency`.
-   - Compute deterministic `transferId` by plan.
-   - Set `isLinked` flags from adjacent shared `chain`.
-7. Insert outbox `post_journal` job.
-8. Return `{ entryId, transferIds }`.
+1. Validates operation input and contiguous chain blocks.
+2. Computes deterministic `payloadHash` from operation code/version, payload, and normalized transfer lines.
+3. Inserts `ledger_operations` idempotently.
+4. On idempotent replay, checks matching `payloadHash`.
+5. For each `create` transfer line:
+
+- validates `correspondence_rules`
+- validates chart account policy (`posting_allowed`, `enabled`)
+- validates required analytics (account-level + posting-code-level)
+- ensures deterministic `book_accounts`
+
+6. Writes `ledger_postings` (for create lines).
+7. Writes `tb_transfer_plans` (all lines).
+8. Enqueues `outbox(kind='post_operation')`.
+9. Returns `{ operationId, pendingTransferIdsByRef }`.
 
 ### Deterministic IDs
 
-- `tbLedgerForCurrency(currency)` -> `u32` hash.
-- `tbAccountIdFor(orgId,key,tbLedger)` -> `u128` hash.
-- `tbTransferIdForPlan(orgId,entryId,idx,planKey)` -> `u128` hash.
+- `tbLedgerForCurrency(currency)` -> u32 hash
+- `tbBookAccountIdFor(orgId, accountNo, currency, tbLedger)` -> u128 hash
+- `tbTransferIdForOperation(operationId, lineNo, planRef)` -> u128 hash
 
-### TB integration
+### TB integration and worker
 
-- `makeTbAccount` and `makeTbTransfer` map internal shape to TB API shape.
-- `tbCreateAccountsOrThrow` treats `exists` as success.
-- `tbCreateTransfersOrThrow` treats `exists` as success.
-- Hard errors throw `TigerBeetleBatchError`.
-
-### Account resolution and self-healing
-
-`resolveTbAccountId`:
-
-- Deterministically computes expected TB account id.
-- Reads existing mapping from `ledger_accounts`.
-- If mapping exists and matches deterministic id:
-  - idempotently calls TB `createAccounts` to self-heal missing TB account cases.
-- If mapping does not exist:
-  - inserts mapping first with `onConflictDoNothing`.
-  - creates TB account when winning insert race.
-  - refetches on conflict and validates deterministic id.
-
-### Ledger worker
-
-`createLedgerWorker(...).processOnce`:
-
-- Claims outbox jobs with SQL CTE + lease semantics.
-- For each job:
-  - Executes `postJournal` to create TB transfers.
-  - Updates outbox/journal statuses atomically.
-  - Uses retryability classifier and exponential backoff.
-- Terminal failure marks outbox, transfer plans, and journal failed.
-
-`postJournal`:
-
-- Loads `tb_transfer_plans` in idx order.
-- Ensures referenced TB accounts exist before posting transfers.
-- Builds TB transfers for:
+- `tbCreateAccountsOrThrow` and `tbCreateTransfersOrThrow` treat TB `exists` as success.
+- `createLedgerWorker(...).processOnce`:
+  - claims outbox jobs with lease semantics
+  - executes posting
+  - retries retryable failures with exponential backoff
+  - marks terminal failures in outbox, tb plans, and operations
+- Posting supports:
   - `create`
-  - `post_pending` (`amount=0` means full post using `TB_AMOUNT_MAX`)
+  - `post_pending` (`amount=0` means full post via `TB_AMOUNT_MAX`)
   - `void_pending`
-- Posts to TigerBeetle.
-- Marks plans and journal posted.
+
+### Account resolution helper
+
+`resolveTbBookAccountId` ensures deterministic mapping in `book_accounts` and idempotent TB account creation.
 
 ## `@bedrock/treasury`
 
-### Service lifecycle methods
+### Service surface
 
-`createTreasuryService`:
+`createTreasuryService` composes command handlers and currently exposes:
 
 - `fundingSettled`
-  - Validates order identity, currency, amount, customer, branch org
-  - Creates ledger entry
-  - CAS-transition to `funding_settled_pending_posting`
-  - Idempotent path requires matching `ledgerEntryId`
 - `executeFx`
-  - Validates order currencies, amounts, customer, branch org
-  - Builds multi-leg FX journal with `chain=fx:<quoteRef>`
-  - CAS-transition to `fx_executed_pending_posting`
 - `initiatePayout`
-  - Creates pending transfer from payout obligation to destination bank account
-  - Saves deterministic pending transfer id to order
-  - CAS-transition to `payout_initiated_pending_posting`
 - `settlePayout`
-  - Posts pending payout transfer by `pendingId`
-  - CAS-transition to `closed_pending_posting`
 - `voidPayout`
-  - Voids pending payout transfer by `pendingId`
-  - CAS-transition to `failed_pending_posting`
+- `initiateFeePayment`
+- `settleFeePayment`
+- `voidFeePayment`
 
-### Treasury worker
+### Payment order lifecycle integration
 
-`createTreasuryWorker(...).processOnce`:
+- Commands validate order identity/currency/amount/customer/counterparty invariants.
+- Commands call `ledger.createOperationTx` and perform CAS transitions to pending-posting states.
+- Idempotency checks are transition-aware and tied to `ledgerOperationId`.
 
-- Reads orders with `*_pending_posting` status and linked journal.
-- Locks each row (`FOR UPDATE SKIP LOCKED`) in transaction.
-- Finalizes:
-  - pending status -> terminal business status when journal is `posted`
-  - pending status -> `failed` when journal is `failed`
-- Returns count of actually finalized rows.
+### Worker behavior
+
+`createTreasuryWorker(...).processOnce` finalizes:
+
+- `payment_orders` pending-posting statuses based on linked `ledger_operations.status`
+- `fee_payment_orders` pending-posting statuses based on linked initiate/resolve operation status
+
+### Reconciliation worker
+
+`createTreasuryReconciliationWorker(...).processOnce` scans for invariant violations (stuck pending, missing journal links, plan mismatch, settlement/order mismatch) and manages `reconciliation_exceptions` state.
 
 ## `@bedrock/fx`
 
-### Service
+### Service surface
 
-`createFxService` methods:
+`createFxService` composes rates + quote handlers.
+
+Rates:
 
 - `setManualRate`
 - `getLatestRate`
-- `getCrossRate`:
-  - direct pair
-  - inverse pair
-  - anchor path (default USD)
-- `quote`:
-  - idempotent by `idempotencyKey`
-  - computes `toAmountMinor`
-  - delegates fee/spread component math to `@bedrock/fees`
-  - stores quote with TTL-based `expiresAt`
-- `markQuoteUsed`:
-  - marks active quote used if not expired
-- `expireOldQuotes`:
-  - bulk expires active quotes older than cutoff
+- `getCrossRate`
+- `listPairs`
+- `getRateSourceStatuses`
+- `syncRatesFromSource`
+- `expireOldQuotes`
 
-### Validation and errors
+Quotes:
 
-- Zod-based input validation for each method.
-- Explicit errors:
-  - `RateNotFoundError`
-  - `QuoteExpiredError`
-  - `NotFoundError`
-  - `ValidationError`
+- `quote`
+- `getQuoteDetails`
+- `markQuoteUsed`
+
+### Current quote implementation
+
+- Supports `auto_cross` and `explicit_route` pricing modes.
+- Persists:
+  - quote header in `fx_quotes`
+  - route legs in `fx_quote_legs`
+  - fee snapshot in `fx_quote_fee_components` (via fees service)
+- Quote creation is idempotent by `idempotencyKey`.
+
+### Rate source behavior
+
+- Source sync/status logic is in `commands/rates/source-sync.ts`.
+- Source statuses are stored in `fx_rate_sources`.
+- Current sources include `cbr` and `investing` with source-specific TTL behavior.
+
+### Worker
+
+`createFxRatesWorker` periodically syncs configured sources and expires old quotes.
 
 ## `@bedrock/fees`
 
-### Service
+`createFeesService` provides:
 
-`@bedrock/fees` provides shared helpers:
-
-- `calculateFxQuoteFeeComponents`
-  - fee rules -> fee components (`fx_fee`, `fx_spread`)
-- `buildFxExecutionFeeComponents`
-  - converts quote-resolved fee amounts to components
-- `mergeFeeComponents` and `aggregateFeeComponents`
-  - combines computed + manual fees
-- `partitionFeeComponents`
-  - splits `in_ledger` vs `separate_payment_order`
-- `buildFeeTransferPlans`
-  - converts fee components into deterministic ledger transfer plans
-
-### Treasury usage
-
-- `executeFx` now builds fee transfers through `@bedrock/fees`.
-- Manual fees in arbitrary currencies are supported through `executeFxInput.fees`.
-- `separate_payment_order` fees are represented as reserve postings to fee-clearing accounts.
+- rule upsert/query/resolve
+- FX quote fee component calculation
+- quote component persistence and retrieval
+- fee/adjustment merge and partition helpers
+- transfer-plan helper functions used by treasury execution flows
 
 ## `@bedrock/transfers`
 
-### Service
+### Service surface
 
-`createTransfersService`:
+`createTransfersService` currently provides:
 
 - `createDraft`
-  - inserts `internal_transfers` draft with idempotency
 - `approve`
-  - optional `canApprove` callback check
-  - validates draft state
-  - creates ledger entry
-  - CAS-transition to `approved_pending_posting`
 - `reject`
-  - optional `canApprove` callback check
-  - CAS-transition draft -> rejected
-- `markFailed`
-  - operational transition from pending posting to failed
+- `settlePending`
+- `voidPending`
+- `get`
+- `list`
 
-### Transfers worker
+### Behavior
 
-`createTransfersWorker(...).processOnce`:
+- Maker/checker enforcement with optional authorization callback.
+- Draft creation is idempotent by `(sourceCounterpartyId, idempotencyKey)`.
+- Approve creates operation + CAS move to `approved_pending_posting`.
+- Pending settle/void use `transfer_events` for event-level idempotency.
+- Cross/intra posting templates are provided by `@bedrock/accounting` templates.
 
-- Selects transfers in `approved_pending_posting` with joined journal status.
-- Marks transfer `posted` when journal `posted`.
-- Marks transfer `failed` when journal `failed`.
-- Logs `found` and `processed`.
-- Returns `processed` count (actual finalized items).
+### Worker
 
-## `@bedrock/test-utils`
+`createTransfersWorker(...).processOnce` finalizes transfer states by linked ledger status:
 
-Shared test helpers:
+- posted path:
+  - `approved_pending_posting -> posted` (immediate)
+  - `approved_pending_posting -> pending` (pending settlement mode)
+  - `settle_pending_posting -> posted`
+  - `void_pending_posting -> voided`
+- failed path:
+  - any claimable pending-posting state -> `failed`
 
-- Deterministic UUID/date/currency fixtures.
-- Drizzle mock-db and stub-db builders.
-- Chain-friendly mocks for `select/insert/update/execute`.
-- Utility functions for wiring transaction behavior in tests.
+## Apps
 
-## `@bedrock/ui`
+### `apps/api`
 
-Current UI package is a simple shared component set:
+Current composition root wires:
 
-- `Button`
-- `Card`
-- `Code`
+- accounting/account providers/accounts
+- counterparties/groups
+- customers
+- currencies
+- FX rates
+- transfers
+- ledger read service
 
-It is scaffold-level and not part of the financial domain runtime.
+Current worker entrypoints in this app:
 
-## Config Packages
+- `worker:fx-rates`
+- `worker:transfers`
 
-### `@bedrock/eslint-config`
+Treasury service and workers exist in package code but are not currently mounted as API routes/worker entrypoints in this app.
 
-Exports shared lint presets:
+### `apps/web`
 
-- `./base`
-- `./next-js`
-- `./react-internal`
+The web app is not a default scaffold. It contains active product pages for accounting, FX, treasury entities, operations, and transfers.
 
-### `@bedrock/typescript-config`
+## Accounting model summary (implementation alignment)
 
-Holds reusable TS config package metadata for monorepo package inheritance.
+- `Counterparty` is the ownership/reporting subject.
+- `OperationalAccount` is a single-currency external endpoint.
+- `OperationalAccount` is bound to a `BookAccount` via `operational_accounts_book_bindings`.
+- `BookAccount` is the internal ledger place (org + account + currency) mapped deterministically to TB.
+- `ledger.createOperationTx` is the single write gate for operation + postings + TB plan + outbox, including correspondence and analytics enforcement.

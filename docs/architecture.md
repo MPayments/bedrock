@@ -1,121 +1,191 @@
-# Ledger Monorepo Architecture
+# Bedrock Monorepo Architecture
 
-Last updated: 2026-02-10
+Last updated: 2026-02-26
 
-## Purpose
+## Source of truth
 
-This repository implements a financial processing core with:
+This document reflects the current implementation in the repository.
+The accounting model in this doc is treated as the canonical architecture:
 
-- Double-entry ledger journaling
-- TigerBeetle posting pipeline
-- Treasury payment lifecycle orchestration
-- FX quote/rate services
-- Internal maker/checker transfers
+1. `Counterparty`
+2. `OperationalAccount` (single-currency external endpoint)
+3. `BookAccount` (book org + account no + currency)
+4. `LedgerOperation` / `LedgerPostings` (operation header + postings)
 
-The architecture is package-first: domain behavior lives in `packages/*`; apps are thin entrypoints.
+## Core accounting model
 
-## Monorepo Layout
+### 1) Counterparty
 
-- `apps/api`: Hono/OpenAPI API app (composition root for services)
-- `apps/web`: default Next.js frontend scaffold
-- `packages/kernel`: shared primitives (errors, logging, canonicalization, currency, codes)
-- `packages/db`: Drizzle schema and DB client
-- `packages/ledger`: journal engine, TB plan generation, TB posting worker
-- `packages/treasury`: payment order state machine and posting finalizer worker
-- `packages/fx`: rates, quotes, quote consumption
-- `packages/fees`: shared fee model, fee calculations, and fee transfer-plan builders
-- `packages/transfers`: internal transfer maker/checker service and posting worker
-- `packages/test-utils`: shared fixture and DB mock helpers for tests
-- `packages/ui`: shared React UI primitives
-- `packages/eslint-config`: shared lint config
-- `packages/typescript-config`: shared TS config package
+`counterparties` represents legal entities and operational subjects (bank, exchange, custodian, intragroup entity).
 
-## Package Dependency Graph
+### 2) OperationalAccount (OA)
 
-```mermaid
-graph TD
-    K["@bedrock/kernel"]
-    DB["@bedrock/db"]
-    L["@bedrock/ledger"]
-    T["@bedrock/treasury"]
-    FX["@bedrock/fx"]
-    FEES["@bedrock/fees"]
-    TR["@bedrock/transfers"]
-    TU["@bedrock/test-utils"]
-    API["apps/api"]
+`operational_accounts` is an external money endpoint bound to one counterparty and one currency:
 
-    L --> K
-    L --> DB
-    T --> L
-    T --> DB
-    T --> K
-    T --> FEES
-    FX --> DB
-    FX --> K
-    FX --> L
-    FX --> FEES
-    FEES --> K
-    TR --> DB
-    TR --> K
-    TR --> L
-    TU --> DB
-    API --> K
-```
+- `counterparty_id`
+- `currency_id`
+- provider/type via `account_provider_id`
+- external attributes (`iban`, `account_no`, `address`, `corr_account`, etc.)
+- `stable_key` for deterministic identity per counterparty
 
-## Core Runtime Model
+### 3) BookAccount
 
-The financial core is split into two phases:
+`book_accounts` is the internal ledger location for postings:
 
-1. Synchronous business acceptance phase:
-- Domain services (`treasury`, `transfers`) validate inputs and state.
-- Ledger engine (`ledger.createEntryTx`) writes immutable journal intent.
-- Transfer plans and outbox jobs are created transactionally.
+- `org_id` (book org)
+- `account_no` (CoA account)
+- `currency`
+- deterministic TigerBeetle mapping (`tb_ledger`, `tb_account_id`)
 
-2. Asynchronous posting phase:
-- `ledger` worker claims outbox jobs, resolves TB accounts, executes transfers in TigerBeetle.
-- Journal and TB plan statuses are finalized.
-- Domain-specific workers (`treasury`, `transfers`) finalize business statuses when journal status becomes `posted` or `failed`.
+### 4) LedgerOperation and LedgerPostings
 
-This pattern decouples business APIs from external posting side effects while keeping exactly-once semantics through idempotency and deterministic IDs.
+Financial facts are persisted as:
 
-## Primary Data Flow
+- `ledger_operations`: operation metadata, idempotency, payload hash, posting status
+- `ledger_postings`: debit/credit posting rows with analytics
+- `tb_transfer_plans`: TB execution plan rows
+- `outbox`: async posting queue
 
-### 1) Ledger intent creation
+## Relationship model
 
-`@bedrock/ledger` `createEntryTx`:
+### OA -> Counterparty
 
-- Validates `CreateEntryInput` and transfer plan shapes
-- Enforces contiguous chain blocks for linked TB semantics
-- Computes deterministic `planFingerprint` from canonicalized transfer plan
-- Inserts `journal_entries` with `(org_id, idempotency_key)` uniqueness
-- Derives human-readable journal lines for `create` transfers
-- Generates deterministic TB transfer IDs from `(orgId, entryId, idx, planKey)`
-- Inserts `tb_transfer_plans`
-- Enqueues outbox job (`kind='post_journal'`)
+`operational_accounts.counterparty_id` is mandatory and enforces ownership.
 
-### 2) TigerBeetle posting
+### OA -> BookAccount binding
 
-`@bedrock/ledger` worker:
+OA is bound to a `book_account` through `operational_accounts_book_bindings`.
+At account creation, a `postingAccountNo` is provided and the system ensures/creates a matching `book_account` for:
 
-- Claims outbox jobs via SQL leasing and retries
-- Builds TB transfers from `tb_transfer_plans`
-- Resolves account keys to TB account IDs using deterministic mapping
-- Executes `createTransfers`
-- Marks plans and journal as `posted` on success
-- Exponential backoff for retryable failures
-- Terminal failure path updates outbox, plan, and journal statuses
+- `org_id = counterparty_id` (current account-service behavior)
+- `account_no = postingAccountNo`
+- `currency = OA currency code`
 
-### 3) Domain state finalization
+Then `operational_account_id -> book_account_id` is persisted.
 
-`@bedrock/treasury` and `@bedrock/transfers` workers:
+### CoA + correspondence matrix
 
-- Poll domain rows in `*_pending_posting` states
-- Read linked journal status
-- Move domain status to final `posted/failed` family when journal finalizes
+Global accounting policy is enforced by:
 
-## Treasury Order Lifecycle
+- `chart_template_accounts`
+- `chart_template_account_analytics`
+- `correspondence_rules`
 
-Defined `payment_orders.status` states:
+`correspondence_rules` is global and is the source of truth for allowed `(postingCode, debitAccountNo, creditAccountNo)` triples.
+
+### Analytics are validated in two layers
+
+1. Account-level requirements from `chart_template_account_analytics`
+2. Posting-code-level requirements from `POSTING_CODE_REQUIRED_ANALYTICS` (`@bedrock/accounting`)
+
+`ledger.createOperationTx` enforces both.
+
+## Monorepo structure (current)
+
+### Apps
+
+- `apps/api`: Hono/OpenAPI API, current composition root
+- `apps/web`: Next.js app (active product UI)
+
+### Core packages
+
+- `packages/kernel`: errors, logging, canonicalization, currency/math/pagination helpers
+- `packages/db`: Drizzle schema + DB client
+- `packages/accounting`: CoA defaults, posting templates, correspondence and financial-result services
+- `packages/accounts`: operational accounts/providers + OA->BookAccount binding and transfer binding resolution
+- `packages/ledger`: operation engine, TB planning, TB worker, read service
+- `packages/treasury`: payment/FX/payout/fee-payment orchestration and reconciliation workers
+- `packages/transfers`: maker/checker transfer order service + posting finalizer worker
+- `packages/fx`: rates/quote services and FX rates worker
+- `packages/fees`: fee rules and fee component computation/persistence
+- `packages/currencies`, `packages/customers`, `packages/counterparties`: supporting domain services
+- `packages/test-utils`, `packages/ui`, config packages
+
+## Current API runtime composition
+
+`apps/api` currently wires and exposes:
+
+- accounting
+- accounts and account providers
+- counterparties and groups
+- customers
+- currencies
+- FX rates
+- transfers
+- ledger read service (used by accounting routes)
+
+`@bedrock/treasury` exists and is tested in package/integration tests, but treasury routes and treasury workers are not currently mounted in `apps/api`.
+
+Available API worker entrypoints in `apps/api` today:
+
+- `fx-rates` worker
+- `transfers` worker
+
+## Runtime model
+
+### Phase 1: synchronous acceptance (`createOperationTx`)
+
+Domain service builds posting template lines and calls `ledger.createOperationTx` in a DB transaction.
+
+`createOperationTx`:
+
+1. Validates operation input and chain block adjacency
+2. Computes deterministic `payloadHash`
+3. Inserts/replays `ledger_operations` idempotently
+4. For `create` lines:
+
+- validates correspondence rule
+- validates account policy (`exists`, `enabled`, `posting_allowed`)
+- validates required analytics (account-level + posting-code-level)
+- ensures deterministic `book_accounts`
+
+5. Persists `ledger_postings`
+6. Persists `tb_transfer_plans`
+7. Enqueues outbox job `kind='post_operation'`
+8. Returns `{ operationId, pendingTransferIdsByRef }`
+
+### Phase 2: asynchronous posting (ledger worker)
+
+`createLedgerWorker().processOnce`:
+
+- claims outbox jobs via lease/retry SQL CTE
+- creates TB accounts (idempotent)
+- creates TB transfers for `create`, `post_pending`, `void_pending`
+- finalizes `tb_transfer_plans` and `ledger_operations`
+- performs retry backoff and terminal failure handling
+
+### Phase 3: domain finalization workers
+
+- `transfers` worker finalizes `transfer_orders` statuses from linked `ledger_operations.status`
+- `treasury` worker finalizes both `payment_orders` and `fee_payment_orders` pending-posting states from linked ledger statuses
+
+## How one operation flows
+
+### A) Domain service builds template lines
+
+`treasury` or `transfers` builds lines with:
+
+- `postingCode`
+- `debitAccountNo` / `creditAccountNo`
+- `currency`
+- `amountMinor`
+- analytics (`orderId`, `counterpartyId`, `operationalAccountId`, `quoteId`, `feeBucket`, ...)
+
+### B) Ledger engine validates and persists
+
+`ledger.createOperationTx` is the single persistence truth for accounting intent.
+
+### C) Ledger worker publishes to TigerBeetle
+
+Outbox-driven posting transitions operation state to `posted` or `failed`.
+
+### D) Domain worker closes business status
+
+`*_pending_posting` states transition idempotently to final domain statuses using `ledgerOperationId` checks.
+
+## Domain lifecycles (current)
+
+### Payment orders (`payment_orders.status`)
 
 - `quote`
 - `funding_pending`
@@ -130,108 +200,160 @@ Defined `payment_orders.status` states:
 - `failed_pending_posting`
 - `failed`
 
-Transitions are service-driven and finalized by worker based on journal status.
-
-## Internal Transfers Lifecycle
-
-Defined `internal_transfers.status` states:
+### Transfer orders (`transfer_orders.status`)
 
 - `draft`
 - `approved_pending_posting`
+- `pending`
+- `settle_pending_posting`
+- `void_pending_posting`
 - `posted`
+- `voided`
 - `rejected`
 - `failed`
 
-Maker/checker behavior:
+### Fee payment orders (`fee_payment_orders.status`)
 
-- `createDraft` creates draft transfer with idempotency per `(orgId, idempotencyKey)`
-- `approve` creates ledger entry and CAS-transitions to pending posting
-- `reject` CAS-transitions from draft to rejected
-- `markFailed` supports operational failure handling from pending posting
-- Worker finalizes posted/failed from journal status
+- `reserved`
+- `initiated_pending_posting`
+- `initiated`
+- `settled_pending_posting`
+- `settled`
+- `voided_pending_posting`
+- `voided`
+- `failed`
 
-## FX Lifecycle
+## Treasury vs Transfers attribution nuance
 
-FX subsystem currently provides:
+### Treasury
 
-- Rates (`fx_rates`): direct/inverse/cross rate retrieval
-- Quotes (`fx_quotes`): idempotent quote creation, expiration, mark-used semantics
+Treasury commands currently post with fixed `bookOrgId = SYSTEM_LEDGER_ORG_ID`.
+Entity-level business attribution is carried mainly in analytics (`counterpartyId`, `orderId`, `customerId`, etc.).
 
-Treasury `executeFx` currently uses quote reference as input for journaling keys; quote-binding enforcement should be considered part of further hardening.
+### Transfers
 
-## Storage Model
+Transfers resolve OA bindings and use book-org attribution derived from account ownership (`bookOrgId` from account binding, currently counterparty-based).
+Cross-org templates route through `1310 INTERCOMPANY_NET`.
 
-Primary tables by concern:
+## Storage model (current table names)
 
-- Ledger intent/posting:
-  - `journal_entries`
-  - `journal_lines`
-  - `tb_transfer_plans`
-  - `outbox`
-  - `ledger_accounts`
-- Treasury/payment:
-  - `payment_orders`
-  - `settlements`
-  - `counterparties`
-  - `counterparty_groups`
-  - `counterparty_group_memberships`
-  - `customers`
-  - `bank_accounts`
-- FX:
-  - `fx_rates`
-  - `fx_quotes`
-- Fees:
-  - `fee_rules`
-  - `fx_quote_fee_components`
-- Internal transfers:
-  - `internal_transfers`
+### Ledger and posting pipeline
 
-## Reliability and Control Patterns
+- `ledger_operations`
+- `ledger_postings`
+- `tb_transfer_plans`
+- `outbox`
+- `book_accounts`
 
-- Deterministic IDs:
-  - TB ledger ID from currency hash
-  - TB account ID from `(orgId, key, tbLedger)` hash
-  - TB transfer ID from `(orgId, journalEntryId, idx, planKey)` hash
-- Idempotency:
-  - Unique keys on journal entries, payment orders, internal transfers, fx quotes
-- CAS transitions:
-  - Service updates use status predicates to avoid lost updates
-- Outbox + worker retries:
-  - Lease-based claiming
-  - Retry/backoff and terminal failure handling
-- Self-healing account mapping:
-  - Existing DB account mappings are re-attempted in TigerBeetle during resolution
+### Accounting policy
 
-## Current Gaps and Tradeoffs
+- `chart_template_accounts`
+- `chart_template_account_analytics`
+- `correspondence_rules`
+- `operational_accounts_book_bindings`
 
-Current architecture is strong for deterministic posting and retries but remains a work in progress for:
+### Treasury
 
-- End-to-end reconciliation workflows and exception handling surfaces
-- Full quote-binding and quote-consumption integration in treasury execution paths
-- Netting operations beyond account-level representation
+- `payment_orders`
+- `settlements`
+- `fee_payment_orders`
+- `reconciliation_exceptions`
+- `operational_accounts`
+- `operational_account_providers`
+- `counterparties`, `counterparty_groups`, `counterparty_group_memberships`
+- `customers`
 
-## Diagram: Payment + Posting
+### Transfers
+
+- `transfer_orders`
+- `transfer_events`
+
+### FX and fees
+
+- `fx_rates`
+- `fx_rate_sources`
+- `fx_quotes`
+- `fx_quote_legs`
+- `fee_rules`
+- `fx_quote_fee_components`
+
+## Determinism and reliability controls
+
+- deterministic TB ledger/account/transfer IDs via hash-based functions
+- idempotent upserts on operation and domain keys
+- compare-and-set updates for state transitions
+- outbox leasing with retries/backoff and terminal failure paths
+- idempotent TB create semantics (`exists` treated as success)
+
+## Code anchors
+
+- Accounting model and policies:
+- `packages/db/src/schema/accounting.ts`
+- `packages/accounting/src/constants.ts`
+- `packages/accounting/src/templates.ts`
+- OA and bindings:
+- `packages/db/src/schema/treasury/accounts.ts`
+- `packages/accounts/src/commands/create-account.ts`
+- `packages/accounts/src/commands/resolve-transfer-bindings.ts`
+- Ledger engine/worker:
+- `packages/ledger/src/engine.ts`
+- `packages/ledger/src/worker.ts`
+- Treasury commands:
+- `packages/treasury/src/commands/funding.ts`
+- `packages/treasury/src/commands/execute-fx.ts`
+- `packages/treasury/src/commands/payout.ts`
+- `packages/treasury/src/commands/fee-payment.ts`
+- Transfers:
+- `packages/transfers/src/service.ts`
+- `packages/transfers/src/worker.ts`
+
+## Diagram
 
 ```mermaid
-sequenceDiagram
-    participant API as API/Caller
-    participant Treasury as Treasury Service
-    participant Ledger as Ledger Engine
-    participant DB as Postgres
-    participant LWorker as Ledger Worker
-    participant TB as TigerBeetle
-    participant TWorker as Treasury Worker
+flowchart TD
+  CP["counterparties"]
+  CG["counterparty_groups"]
+  OA["operational_accounts"]
+  OAB["operational_accounts_book_bindings"]
+  BA["book_accounts"]
+  COA["chart_template_accounts"]
+  CAA["chart_template_account_analytics"]
+  CR["correspondence_rules"]
 
-    API->>Treasury: fundingSettled/executeFx/initiatePayout
-    Treasury->>Ledger: createEntryTx(...)
-    Ledger->>DB: insert journal + plans + outbox (single tx)
-    Treasury->>DB: CAS order status -> *_pending_posting
-    Treasury-->>API: accepted (entry id)
+  PO["payment_orders"]
+  FPO["fee_payment_orders"]
+  TO["transfer_orders"]
+  DS["treasury/transfers services"]
+  LE["ledger.createOperationTx"]
+  LO["ledger_operations"]
+  LP["ledger_postings"]
+  TP["tb_transfer_plans"]
+  OB["outbox"]
+  LW["ledger worker"]
+  TB["TigerBeetle"]
 
-    LWorker->>DB: claim outbox job
-    LWorker->>TB: createTransfers(...)
-    LWorker->>DB: mark journal/plans posted or failed
+  CP --> OA
+  CP --> CG
+  OA --> OAB
+  OAB --> BA
+  BA --> COA
+  COA --> CAA
 
-    TWorker->>DB: read orders in *_pending_posting
-    TWorker->>DB: finalize status from journal state
+  PO --> DS
+  FPO --> DS
+  TO --> DS
+  OA --> DS
+  CP --> DS
+
+  DS --> LE
+  LE --> CR
+  LE --> COA
+  LE --> LO
+  LE --> LP
+  LE --> TP
+  LE --> OB
+
+  OB --> LW
+  LW --> TB
+  LW --> LO
 ```
