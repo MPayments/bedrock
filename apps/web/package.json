@@ -16,6 +16,7 @@
     "@bedrock/currencies": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/customers": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "@bedrock/ui": "workspace:*",
     "@bedrock/accounts": "workspace:*",
     "@hookform/resolvers": "^5.2.2",

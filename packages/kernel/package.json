@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./constants": "./src/constants.ts",
     "./errors": "./src/errors.ts",
+    "./math": "./src/math.ts",
     "./utils": "./src/utils.ts",
     "./pagination": "./src/pagination.ts"
   },

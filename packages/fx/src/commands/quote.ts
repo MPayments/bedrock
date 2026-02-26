@@ -2,13 +2,13 @@ import { and, eq } from "drizzle-orm";
 
 import type { FxQuoteLeg, Transaction } from "@bedrock/db";
 import { schema, type FxQuote } from "@bedrock/db/schema";
+import { effectiveRateFromAmounts, mulDivFloor } from "@bedrock/kernel/math";
 
 import {
     NotFoundError,
     QuoteExpiredError,
 } from "../errors";
 import { type FxServiceContext } from "../internal/context";
-import { effectiveRateFromAmounts, mulDivFloor } from "../internal/math";
 import { resolveQuoteByRef } from "../internal/quote-ref";
 import { buildAutoCrossTrace, computeExplicitRouteLegs } from "../internal/routes";
 import { type FxQuoteDetails } from "../internal/types";
