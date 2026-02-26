@@ -6,7 +6,7 @@ import {
   normalizeTbId,
   TB_ID_MAX,
   TB_ID_MAX_ALLOWED,
-  tbBookAccountIdFor,
+  tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
   tbTransferIdForOperation,
   u128FromHash,
@@ -70,13 +70,14 @@ describe("tbLedgerForCurrency", () => {
   });
 });
 
-describe("tbBookAccountIdFor", () => {
+describe("tbBookAccountInstanceIdFor", () => {
   it("generates valid account IDs", () => {
     const tbLedger = tbLedgerForCurrency("USD");
-    const id = tbBookAccountIdFor(
+    const id = tbBookAccountInstanceIdFor(
       "550e8400-e29b-41d4-a716-446655440000",
       "1000",
       "USD",
+      "dims-hash",
       tbLedger,
     );
 
@@ -86,16 +87,18 @@ describe("tbBookAccountIdFor", () => {
 
   it("is deterministic", () => {
     const tbLedger = tbLedgerForCurrency("USD");
-    const id1 = tbBookAccountIdFor(
+    const id1 = tbBookAccountInstanceIdFor(
       "550e8400-e29b-41d4-a716-446655440000",
       "1000",
       "USD",
+      "dims-hash",
       tbLedger,
     );
-    const id2 = tbBookAccountIdFor(
+    const id2 = tbBookAccountInstanceIdFor(
       "550e8400-e29b-41d4-a716-446655440000",
       "1000",
       "USD",
+      "dims-hash",
       tbLedger,
     );
 
@@ -106,36 +109,40 @@ describe("tbBookAccountIdFor", () => {
     const usdLedger = tbLedgerForCurrency("USD");
     const eurLedger = tbLedgerForCurrency("EUR");
 
-    const base = tbBookAccountIdFor(
+    const base = tbBookAccountInstanceIdFor(
       "550e8400-e29b-41d4-a716-446655440000",
       "1000",
       "USD",
+      "dims-hash",
       usdLedger,
     );
 
     expect(
-      tbBookAccountIdFor(
+      tbBookAccountInstanceIdFor(
         "550e8400-e29b-41d4-a716-446655440001",
         "1000",
         "USD",
+        "dims-hash",
         usdLedger,
       ),
     ).not.toBe(base);
 
     expect(
-      tbBookAccountIdFor(
+      tbBookAccountInstanceIdFor(
         "550e8400-e29b-41d4-a716-446655440000",
         "2000",
         "USD",
+        "dims-hash",
         usdLedger,
       ),
     ).not.toBe(base);
 
     expect(
-      tbBookAccountIdFor(
+      tbBookAccountInstanceIdFor(
         "550e8400-e29b-41d4-a716-446655440000",
         "1000",
         "EUR",
+        "dims-hash",
         eurLedger,
       ),
     ).not.toBe(base);

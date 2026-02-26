@@ -287,6 +287,31 @@ async function listAllCurrencies(
   return currencies;
 }
 
+export interface AccountBalance {
+  operationalAccountId: string;
+  currency: string;
+  balanceMinor: string;
+  precision: number;
+}
+
+export async function getAccountBalances(
+  accountIds: string[],
+): Promise<AccountBalance[]> {
+  if (accountIds.length === 0) return [];
+
+  const client = await getServerApiClient();
+  const res = await client.v1.accounting["operational-account-balances"].$get(
+    {
+      query: { accountIds: accountIds.join(",") },
+    },
+    { init: { cache: "no-store" } },
+  );
+
+  if (!res.ok) return [];
+
+  return (await res.json()) as AccountBalance[];
+}
+
 export async function getCounterpartyAccounts(
   counterpartyId: string,
 ): Promise<CounterpartyAccount[]> {

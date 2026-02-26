@@ -34,9 +34,11 @@ import {
 
 import {
   getCounterpartyAccounts,
+  getAccountBalances,
   type CounterpartyAccount,
+  type AccountBalance,
 } from "@/app/(shell)/entities/counterparties/lib/queries";
-import { formatDate } from "@/lib/format";
+import { formatAmount, formatDate } from "@/lib/format";
 
 interface CounterpartyAccountsPageProps {
   params: Promise<{ id: string }>;
@@ -79,6 +81,14 @@ export default async function CounterpartyAccountsPage({
 }: CounterpartyAccountsPageProps) {
   const { id } = await params;
   const accounts = await getCounterpartyAccounts(id);
+
+  const balances = await getAccountBalances(accounts.map((a) => a.id));
+  const balanceMap = new Map<string, AccountBalance[]>();
+  for (const b of balances) {
+    const list = balanceMap.get(b.operationalAccountId) ?? [];
+    list.push(b);
+    balanceMap.set(b.operationalAccountId, list);
+  }
 
   const groupedAccounts = accounts.reduce<
     Record<string, CounterpartyAccount[]>
@@ -155,11 +165,19 @@ export default async function CounterpartyAccountsPage({
           ) : (
             <Accordion multiple defaultValue={defaultOpenProviders}>
               {providerRows.map(([provider, providerAccounts]) => {
-                const countByCurrency = providerAccounts.reduce<
-                  Record<string, number>
+                const totalByCurrency = providerAccounts.reduce<
+                  Record<string, { balanceMinor: bigint; precision: number }>
                 >((acc, account) => {
-                  acc[account.currencyCode] =
-                    (acc[account.currencyCode] ?? 0) + 1;
+                  const accountBalances = balanceMap.get(account.id) ?? [];
+                  for (const b of accountBalances) {
+                    const cur = b.currency;
+                    const existing = acc[cur];
+                    acc[cur] = {
+                      balanceMinor:
+                        (existing?.balanceMinor ?? 0n) + BigInt(b.balanceMinor),
+                      precision: b.precision,
+                    };
+                  }
                   return acc;
                 }, {});
 
@@ -172,17 +190,16 @@ export default async function CounterpartyAccountsPage({
                           {providerAccounts.length}{" "}
                           {getAccountsWord(providerAccounts.length)}
                         </span>
-                        {Object.entries(countByCurrency)
-                          .sort(([currencyA], [currencyB]) =>
-                            currencyA.localeCompare(currencyB),
-                          )
-                          .map(([currency, count]) => (
+                        {Object.entries(totalByCurrency)
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([currency, { balanceMinor, precision }]) => (
                             <Badge
                               key={currency}
                               variant="secondary"
-                              className="h-5 px-2"
+                              className="h-5 px-2 font-mono"
                             >
-                              {currency}: {count}
+                              {currency}{" "}
+                              {formatAmount(balanceMinor.toString(), precision)}
                             </Badge>
                           ))}
                       </div>
@@ -193,6 +210,7 @@ export default async function CounterpartyAccountsPage({
                           <TableRow>
                             <TableHead>Счет</TableHead>
                             <TableHead>Валюта</TableHead>
+                            <TableHead className="text-right">Баланс</TableHead>
                             <TableHead>Реквизиты</TableHead>
                             <TableHead>Стабильный ключ</TableHead>
                             <TableHead className="text-right">
@@ -201,31 +219,63 @@ export default async function CounterpartyAccountsPage({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {providerAccounts.map((account) => (
-                            <TableRow key={account.id}>
-                              <TableCell className="font-medium">
-                                <div className="flex flex-col">
-                                  <Link
-                                    href={`/entities/accounts/${account.id}`}
-                                    className="hover:underline"
-                                  >
-                                    {account.label}
-                                  </Link>
-                                  <span className="text-muted-foreground text-xs">
-                                    {account.id}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell>{account.currencyCode}</TableCell>
-                              <TableCell className="text-xs">
-                                {resolveRequisites(account)}
-                              </TableCell>
-                              <TableCell>{account.stableKey}</TableCell>
-                              <TableCell className="text-right text-xs">
-                                {formatDate(account.createdAt)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                          {providerAccounts.map((account) => {
+                            const accountBalances =
+                              balanceMap.get(account.id) ?? [];
+                            return (
+                              <TableRow key={account.id}>
+                                <TableCell className="font-medium">
+                                  <div className="flex flex-col">
+                                    <Link
+                                      href={`/entities/accounts/${account.id}`}
+                                      className="hover:underline"
+                                    >
+                                      {account.label}
+                                    </Link>
+                                    <span className="text-muted-foreground text-xs">
+                                      {account.id}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>{account.currencyCode}</TableCell>
+                                <TableCell className="text-right">
+                                  {accountBalances.length === 0 ? (
+                                    <span className="text-muted-foreground text-xs">
+                                      —
+                                    </span>
+                                  ) : (
+                                    <div className="flex flex-col items-end gap-0.5">
+                                      {accountBalances
+                                        .sort((a, b) =>
+                                          a.currency.localeCompare(b.currency),
+                                        )
+                                        .map((b) => (
+                                          <span
+                                            key={b.currency}
+                                            className="font-mono text-sm"
+                                          >
+                                            {formatAmount(
+                                              b.balanceMinor,
+                                              b.precision,
+                                            )}{" "}
+                                            <span className="text-muted-foreground">
+                                              {b.currency}
+                                            </span>
+                                          </span>
+                                        ))}
+                                    </div>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-xs">
+                                  {resolveRequisites(account)}
+                                </TableCell>
+                                <TableCell>{account.stableKey}</TableCell>
+                                <TableCell className="text-right text-xs">
+                                  {formatDate(account.createdAt)}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </AccordionContent>

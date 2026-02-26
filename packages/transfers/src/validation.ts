@@ -69,29 +69,36 @@ export const TransferStatusSchema = z.enum([
   "failed",
 ]);
 
-export const CreateTransferDraftInputSchema = z
-  .object({
-    sourceOperationalAccountId: uuidSchema,
-    destinationOperationalAccountId: uuidSchema,
-    idempotencyKey: idempotencyKeySchema,
-    amountMinor: positiveAmountSchema,
-    memo: memoSchema,
-    makerUserId: uuidSchema,
-    settlementMode: TransferSettlementModeSchema.default("immediate"),
-    timeoutSeconds: z.coerce
-      .number()
-      .int()
-      .positive()
-      .max(7 * 24 * 60 * 60)
-      .optional(),
-  })
-  .refine(
-    (data) =>
-      data.sourceOperationalAccountId !== data.destinationOperationalAccountId,
-    {
-      message:
-        "sourceOperationalAccountId and destinationOperationalAccountId must be different",
-    },
+export const CreateTransferDraftInputBaseSchema = z.object({
+  sourceOperationalAccountId: uuidSchema,
+  destinationOperationalAccountId: uuidSchema,
+  idempotencyKey: idempotencyKeySchema,
+  amountMinor: positiveAmountSchema,
+  memo: memoSchema,
+  makerUserId: uuidSchema,
+  settlementMode: TransferSettlementModeSchema.default("immediate"),
+  timeoutSeconds: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(7 * 24 * 60 * 60)
+    .optional(),
+});
+
+const sourceDestDifferent = (data: {
+  sourceOperationalAccountId: string;
+  destinationOperationalAccountId: string;
+}) => data.sourceOperationalAccountId !== data.destinationOperationalAccountId;
+
+const sourceDestDifferentMessage = {
+  message:
+    "sourceOperationalAccountId and destinationOperationalAccountId must be different",
+};
+
+export const CreateTransferDraftInputSchema =
+  CreateTransferDraftInputBaseSchema.refine(
+    sourceDestDifferent,
+    sourceDestDifferentMessage,
   );
 export type CreateTransferDraftInput = z.infer<
   typeof CreateTransferDraftInputSchema

@@ -8,9 +8,10 @@ import {
     type StubDatabase,
     type StubTransaction,
 } from "@bedrock/test-utils";
+import { schema } from "@bedrock/db/schema";
 
 import type { TbClient } from "../src/tb";
-import type { CreateOperationInput, CreatePlan } from "../src/types";
+import type { OperationIntent, CreateIntentLine } from "../src/types";
 import { OPERATION_TRANSFER_TYPE } from "../src/types";
 
 export { createStubDb, type StubDatabase } from "@bedrock/test-utils";
@@ -36,15 +37,17 @@ export function createMockTbClient(): TbClient {
  * Create a test operation input
  */
 export function createTestEntry(
-    overrides: Partial<CreateOperationInput> = {},
-): CreateOperationInput {
+    overrides: Partial<OperationIntent> & { transfers?: any[] } = {},
+): OperationIntent {
+    const lines = overrides.lines ?? overrides.transfers ?? [createTestTransferPlan()];
     return {
         source: { type: "payment", id: "pay-456" },
         operationCode: "ledger.test",
         operationVersion: 1,
         idempotencyKey: "idem-789",
         postingDate: TEST_DATES.NOW,
-        transfers: [createTestTransferPlan()],
+        bookOrgId: TEST_UUIDS.ORG_1,
+        lines,
         ...overrides,
     };
 }
@@ -53,19 +56,34 @@ export function createTestEntry(
  * Create a test create-transfer plan
  */
 export function createTestTransferPlan(
-    overrides: Partial<CreatePlan> = {},
-): CreatePlan {
+    overrides: Partial<CreateIntentLine> & Record<string, any> = {},
+): CreateIntentLine {
+    const currency = overrides.currency ?? overrides.debit?.currency ?? "USD";
+    const debitAccountNo = overrides.debitAccountNo ?? overrides.debit?.accountNo ?? "1000";
+    const creditAccountNo =
+        overrides.creditAccountNo ?? overrides.credit?.accountNo ?? "2000";
+    const analytics = overrides.analytics ?? {};
+
     return {
         type: OPERATION_TRANSFER_TYPE.CREATE,
-        planRef: "test-plan-1",
-        bookOrgId: TEST_UUIDS.ORG_1,
-        debitAccountNo: "1000",
-        creditAccountNo: "2000",
-        postingCode: "test.posting",
-        currency: "USD",
-        amount: 10000n,
-        code: 1,
-        ...overrides,
+        planRef: overrides.planRef ?? "test-plan-1",
+        postingCode: overrides.postingCode ?? "test.posting",
+        debit: overrides.debit ?? {
+            accountNo: debitAccountNo,
+            currency,
+            dimensions: analytics,
+        },
+        credit: overrides.credit ?? {
+            accountNo: creditAccountNo,
+            currency,
+            dimensions: analytics,
+        },
+        amountMinor: overrides.amountMinor ?? overrides.amount ?? 10000n,
+        code: overrides.code ?? 1,
+        pending: overrides.pending,
+        chain: overrides.chain ?? null,
+        memo: overrides.memo ?? null,
+        context: overrides.context ?? null,
     };
 }
 
@@ -134,6 +152,28 @@ function createSmartStubTx(): StubTransaction {
                 })),
             };
         }),
+    })) as any;
+
+    tx.select = vi.fn(() => ({
+        from: vi.fn((table: any) => ({
+            where: vi.fn(() => ({
+                limit: vi.fn(async () => {
+                    if (table === (schema as any).correspondenceRules) {
+                        return [{ id: "rule-1" }];
+                    }
+                    if (table === (schema as any).chartTemplateAccounts) {
+                        return [{ postingAllowed: true, enabled: true, accountNo: "1000" }];
+                    }
+                    if (table === (schema as any).chartAccountDimensionPolicy) {
+                        return [];
+                    }
+                    if (table === (schema as any).postingCodeDimensionPolicy) {
+                        return [];
+                    }
+                    return [];
+                }),
+            })),
+        })),
     })) as any;
 
     return tx;

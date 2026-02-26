@@ -1,4 +1,3 @@
-import { and, eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import { schema } from "@bedrock/db/schema";
@@ -91,44 +90,38 @@ export async function ensureBookAccountInstanceTx(
       tbLedger,
       tbAccountId,
     })
-    .onConflictDoNothing()
-    .returning({ id: schema.bookAccountInstances.id });
+    .onConflictDoUpdate({
+      target: [
+        schema.bookAccountInstances.bookOrgId,
+        schema.bookAccountInstances.accountNo,
+        schema.bookAccountInstances.currency,
+        schema.bookAccountInstances.dimensionsHash,
+      ],
+      set: {
+        tbLedger,
+        tbAccountId,
+        dimensions: input.dimensions,
+      },
+    })
+    .returning({
+      id: schema.bookAccountInstances.id,
+      tbLedger: schema.bookAccountInstances.tbLedger,
+      tbAccountId: schema.bookAccountInstances.tbAccountId,
+    });
 
-  if (inserted.length > 0) {
-    return inserted[0]!.id;
-  }
-
-  const [existing] = await tx
-    .select({ id: schema.bookAccountInstances.id })
-    .from(schema.bookAccountInstances)
-    .where(
-      and(
-        eq(schema.bookAccountInstances.bookOrgId, input.bookOrgId),
-        eq(schema.bookAccountInstances.accountNo, input.accountNo),
-        eq(schema.bookAccountInstances.currency, input.currency),
-        eq(schema.bookAccountInstances.dimensionsHash, dimensionsHash),
-      ),
-    )
-    .limit(1);
-
+  const existing = inserted[0];
   if (!existing) {
     throw new Error(
-      `Failed to resolve book account instance for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}`,
+      `book account instance upsert failed unexpectedly for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}`,
+    );
+  }
+
+  if (existing.tbLedger !== tbLedger || existing.tbAccountId !== tbAccountId) {
+    throw new Error(
+      `book_account_instance invariant mismatch for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}, hash=${dimensionsHash}`,
     );
   }
 
   return existing.id;
 }
 
-/** @deprecated Use ensureBookAccountInstanceTx with bookOrgId and dimensions. */
-export async function ensureBookAccountTx(
-  tx: Parameters<typeof ensureBookAccountInstanceTx>[0],
-  input: { orgId: string; accountNo: string; currency: string },
-) {
-  return ensureBookAccountInstanceTx(tx, {
-    bookOrgId: input.orgId,
-    accountNo: input.accountNo,
-    currency: input.currency,
-    dimensions: {},
-  });
-}

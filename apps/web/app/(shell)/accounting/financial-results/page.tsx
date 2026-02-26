@@ -238,8 +238,8 @@ export default async function AccountingFinancialResultsPage({
                 defaultValue={attributionMode}
                 className="border-input bg-background h-9 rounded-md border px-3 text-sm"
               >
-                <option value="book_org">book_org</option>
-                <option value="analytic_counterparty">analytic_counterparty</option>
+                <option value="book_org">Book Org (entity-level)</option>
+                <option value="analytic_counterparty">Counterparty (from dimensions)</option>
               </select>
             </div>
             <div className="grid gap-1">

@@ -166,19 +166,13 @@ describe("createLedgerReadService", () => {
               id: "posting-1",
               lineNo: 1,
               bookOrgId: "org-1",
-              debitBookAccountId: "ba-1",
-              creditBookAccountId: "ba-2",
+              debitInstanceId: "ba-1",
+              creditInstanceId: "ba-2",
               postingCode: "PCODE",
               currency: "USD",
               amountMinor: 100n,
               memo: "memo",
-              analyticCounterpartyId: null,
-              analyticCustomerId: null,
-              analyticOrderId: null,
-              analyticOperationalAccountId: null,
-              analyticTransferId: null,
-              analyticQuoteId: null,
-              analyticFeeBucket: null,
+              context: null,
               createdAt: new Date("2026-01-01T00:00:00Z"),
             },
           ]),
@@ -208,12 +202,15 @@ describe("createLedgerReadService", () => {
         )
         .mockImplementationOnce(() =>
           makeWhereChain([
-            { id: "ba-1", accountNo: "1110" },
-            { id: "ba-2", accountNo: "2110" },
+            { id: "ba-1", accountNo: "1110", dimensions: {} },
+            { id: "ba-2", accountNo: "2110", dimensions: {} },
           ]),
         )
         .mockImplementationOnce(() =>
           makeWhereChain([{ id: "org-1", shortName: "Org One" }]),
+        )
+        .mockImplementationOnce(() =>
+          makeWhereChain([{ code: "USD", precision: 2 }]),
         ),
     } as any;
 
@@ -278,7 +275,10 @@ describe("createLedgerReadService", () => {
               createdAt: new Date("2026-01-01T00:00:00Z"),
             },
           ]),
-        ),
+        )
+        .mockImplementationOnce(() => makeWhereChain([]))
+        .mockImplementationOnce(() => makeWhereChain([]))
+        .mockImplementationOnce(() => makeWhereChain([])),
     } as any;
 
     const service = createLedgerReadService({ db });

@@ -542,10 +542,10 @@ describe("createTreasuryService", () => {
       );
 
       expect(legOut).toBeDefined();
-      expect(legOut.creditAccountNo).toBe(ACCOUNT_NO.TREASURY_CLEARING);
+      expect(legOut.creditAccountNo).toBe(ACCOUNT_NO.CLEARING);
       expect(legOut.analytics?.counterpartyId).toBe(payInCounterpartyId);
       expect(legIn).toBeDefined();
-      expect(legIn.debitAccountNo).toBe(ACCOUNT_NO.TREASURY_CLEARING);
+      expect(legIn.debitAccountNo).toBe(ACCOUNT_NO.CLEARING);
       expect(legIn.analytics?.counterpartyId).toBe(payInCounterpartyId);
       expect(payoutObligation).toBeDefined();
       expect(payoutObligation.debitAccountNo).toBe(ACCOUNT_NO.ORDER_RESERVE);

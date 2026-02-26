@@ -39,6 +39,7 @@ interface OperationPostingDto {
   creditDimensions: Record<string, string> | null;
   postingCode: string;
   currency: string;
+  currencyPrecision: number;
   amountMinor: string;
   memo: string | null;
   context: Record<string, string> | null;
@@ -69,6 +70,7 @@ interface OperationDetailsDto {
   operation: OperationSummaryDto;
   postings: OperationPostingDto[];
   tbPlans: OperationTbPlanDto[];
+  dimensionLabels: Record<string, string>;
 }
 
 interface OperationsListResult {

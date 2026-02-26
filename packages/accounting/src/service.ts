@@ -156,16 +156,15 @@ export function createAccountingService(deps: AccountingServiceDeps) {
       }
     }
 
-    const requiredPostingCodeDims = new Map<string, Set<string>>();
+    type ScopedDim = { dimensionKey: string; scope: string };
+    const requiredPostingCodeDims = new Map<string, ScopedDim[]>();
     for (const row of postingCodeDimPolicies) {
       const existing = requiredPostingCodeDims.get(row.postingCode);
+      const entry = { dimensionKey: row.dimensionKey, scope: (row as any).scope ?? "line" };
       if (existing) {
-        existing.add(row.dimensionKey);
+        existing.push(entry);
       } else {
-        requiredPostingCodeDims.set(
-          row.postingCode,
-          new Set([row.dimensionKey]),
-        );
+        requiredPostingCodeDims.set(row.postingCode, [entry]);
       }
     }
 
@@ -211,14 +210,25 @@ export function createAccountingService(deps: AccountingServiceDeps) {
 
         const accountRequired =
           requiredAccountDimsByNo.get(accountNo) ?? new Set<string>();
-        const postingRequired =
-          requiredPostingCodeDims.get(rule.postingCode) ?? new Set<string>();
+        const postingEntries =
+          requiredPostingCodeDims.get(rule.postingCode) ?? [];
+        const isDebitSide = accountNo === rule.debitAccountNo;
+        const postingDimKeys = new Set(
+          postingEntries
+            .filter((e) => {
+              if (e.scope === "line") return true;
+              if (e.scope === "debit" && isDebitSide) return true;
+              if (e.scope === "credit" && !isDebitSide) return true;
+              return false;
+            })
+            .map((e) => e.dimensionKey),
+        );
 
         for (const dimKey of accountRequired) {
-          if (!postingRequired.has(dimKey)) {
+          if (!postingDimKeys.has(dimKey)) {
             errors.push({
               code: "ACCOUNT_DIMENSION_UNSATISFIED",
-              message: `Posting code ${rule.postingCode} does not declare required dimension ${dimKey} for account ${accountNo}`,
+              message: `Posting code ${rule.postingCode} does not declare required dimension ${dimKey} for account ${accountNo} (${isDebitSide ? "debit" : "credit"} side)`,
               postingCode: rule.postingCode,
               accountNo,
             });
@@ -226,7 +236,8 @@ export function createAccountingService(deps: AccountingServiceDeps) {
         }
       }
 
-      if (!requiredPostingCodeDims.has(rule.postingCode)) {
+      const pEntries = requiredPostingCodeDims.get(rule.postingCode);
+      if (!pEntries || pEntries.length === 0) {
         errors.push({
           code: "POSTING_CODE_DIMENSIONS_UNDECLARED",
           message: `Posting code ${rule.postingCode} has no declared dimension policies`,

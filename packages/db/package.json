@@ -18,8 +18,10 @@
     "db:nuke": "node ./scripts/db-nuke.mjs",
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push",
+    "db:seed": "bun x tsx ./src/seeds/run-all.ts",
     "db:seed:accounting": "bun x tsx ./src/seeds/run-accounting.ts",
     "db:seed:users": "bun x tsx ./src/seeds/run-users.ts",
+    "db:seed:op": "bun x tsx ./src/seeds/run-operational.ts",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {

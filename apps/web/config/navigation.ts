@@ -105,10 +105,6 @@ export const navMainItems: NavMainItem[] = [
         title: "Финрез",
         url: "/accounting/financial-results",
       },
-      {
-        title: "Шаблон",
-        url: "/accounting/template",
-      },
     ],
   },
   {

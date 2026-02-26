@@ -1,6 +1,6 @@
 // Service
 export { createTransfersService } from "./service";
-export type { TransfersService, TransfersServiceResult } from "./service";
+export type { TransfersService, TransfersServiceResult, ActionOptions } from "./service";
 
 // Posting worker
 export { createTransfersWorker } from "./worker";
@@ -10,6 +10,7 @@ export {
     TransferKindSchema,
     TransferSettlementModeSchema,
     TransferStatusSchema,
+    CreateTransferDraftInputBaseSchema,
     CreateTransferDraftInputSchema,
     ApproveTransferInputSchema,
     RejectTransferInputSchema,

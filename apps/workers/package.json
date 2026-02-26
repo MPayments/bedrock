@@ -1,45 +1,35 @@
 {
-  "name": "api",
+  "name": "workers",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": {
-    "./client": {
-      "types": "./dist/client.d.ts",
-      "default": "./src/client.ts"
-    }
-  },
   "scripts": {
+    "worker:ledger": "bun run src/ledger.ts",
+    "worker:transfers": "bun run src/transfers.ts",
+    "worker:treasury": "bun run src/treasury.ts",
+    "worker:reconciliation": "bun run src/reconciliation.ts",
+    "worker:fx-rates": "bun run src/fx-rates.ts",
+    "worker:all": "bun run src/all.ts",
     "build": "tsgo",
-    "dev": "bun run --hot src/index.ts",
-    "start": "bun run src/index.ts",
     "check-types": "tsgo --noEmit",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/accounts": "workspace:*",
-    "@bedrock/accounting": "workspace:*",
-    "@bedrock/auth": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/db": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
     "@bedrock/kernel": "workspace:*",
     "@bedrock/ledger": "workspace:*",
-    "@bedrock/counterparties": "workspace:*",
-    "@bedrock/customers": "workspace:*",
     "@bedrock/transfers": "workspace:*",
-    "@hono/node-server": "^1.19.9",
-    "@hono/zod-openapi": "^1.2.2",
-    "@scalar/hono-api-reference": "^0.9.44",
-    "dotenv": "^17.3.1",
-    "hono": "^4.12.2"
+    "@bedrock/treasury": "workspace:*",
+    "dotenv": "^17.3.1"
   },
   "devDependencies": {
     "@bedrock/typescript-config": "*",
+    "@bedrock/eslint-config": "workspace:*",
     "@types/node": "^24",
     "typescript": "^5.8.3",
-    "@bedrock/eslint-config": "workspace:*",
     "eslint": "^9.31.0"
   }
 }

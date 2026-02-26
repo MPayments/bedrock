@@ -371,7 +371,10 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             credit: {
               accountNo: posting.creditAccountNo,
               currency: component.currency,
-              dimensions: {},
+              dimensions: {
+                orderId: validated.orderId,
+                feeBucket: posting.feeBucket ?? component.kind,
+              },
             },
             amountMinor: component.amountMinor,
             code: posting.transferCode,
@@ -495,6 +498,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
           component.kind,
         );
 
+        const adjFeeBucket = posting.feeBucket ?? `adjustment:${component.kind}`;
         lines.push({
           type: OPERATION_TRANSFER_TYPE.CREATE,
           chain,
@@ -515,7 +519,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             dimensions:
               posting.debitAccountNo === ACCOUNT_NO.CUSTOMER_WALLET
                 ? { customerId: validated.customerId }
-                : {},
+                : { orderId: validated.orderId, feeBucket: adjFeeBucket },
           },
           credit: {
             accountNo: posting.creditAccountNo,
@@ -523,7 +527,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             dimensions:
               posting.creditAccountNo === ACCOUNT_NO.CUSTOMER_WALLET
                 ? { customerId: validated.customerId }
-                : {},
+                : { orderId: validated.orderId, feeBucket: adjFeeBucket },
           },
           amountMinor: component.amountMinor,
           code: posting.transferCode,
@@ -565,7 +569,7 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
             dimensions:
               posting.debitAccountNo === ACCOUNT_NO.CUSTOMER_WALLET
                 ? { customerId: validated.customerId }
-                : {},
+                : { orderId: validated.orderId, feeBucket: bucket },
           },
           credit: {
             accountNo: posting.creditAccountNo,

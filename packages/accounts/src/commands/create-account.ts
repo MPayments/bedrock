@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 
 import { AccountProviderNotFoundError } from "../errors";
-import { ensureBookAccountTx } from "../internal/book-account";
+import { ensureBookAccountInstanceTx } from "../internal/book-account";
 import type { AccountServiceContext } from "../internal/context";
 import {
   CreateAccountInputSchema,
@@ -61,10 +61,11 @@ export function createCreateAccountHandler(context: AccountServiceContext) {
         throw new Error(`Currency not found: ${validated.currencyId}`);
       }
 
-      const bookAccountInstanceId = await ensureBookAccountTx(tx, {
-        orgId: validated.counterpartyId,
+      const bookAccountInstanceId = await ensureBookAccountInstanceTx(tx, {
+        bookOrgId: validated.counterpartyId,
         accountNo: validated.postingAccountNo,
         currency: currency.code,
+        dimensions: {},
       });
 
       await tx

@@ -48,8 +48,8 @@ describe("accounting template coverage", () => {
       OPERATION_CODE.TRANSFER_APPROVE_PENDING_INTRA,
     );
     expect(result.destinationPendingRef).toBeNull();
-    expect(result.transfers).toHaveLength(1);
-    const transfer = result.transfers[0]!;
+    expect(result.lines).toHaveLength(1);
+    const transfer = result.lines[0]!;
     expect(transfer.type).toBe(OPERATION_TRANSFER_TYPE.CREATE);
     expect(transfer.postingCode).toBe(POSTING_CODE.TRANSFER_INTRA_PENDING);
     expect(transfer.pending?.timeoutSeconds).toBe(60);
@@ -82,11 +82,11 @@ describe("accounting template coverage", () => {
       OPERATION_CODE.TRANSFER_APPROVE_IMMEDIATE_CROSS,
     );
     expect(result.destinationPendingRef).toBe("transfer:tr-2:destination");
-    expect(result.transfers).toHaveLength(2);
-    expect(result.transfers[0]!.postingCode).toBe(
+    expect(result.lines).toHaveLength(2);
+    expect(result.lines[0]!.postingCode).toBe(
       POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE,
     );
-    expect(result.transfers[1]!.postingCode).toBe(
+    expect(result.lines[1]!.postingCode).toBe(
       POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE,
     );
   });
@@ -101,8 +101,8 @@ describe("accounting template coverage", () => {
     });
 
     expect(settle.operationCode).toBe(OPERATION_CODE.TRANSFER_SETTLE_PENDING);
-    expect(settle.transfers).toHaveLength(2);
-    expect(settle.transfers[0]!.type).toBe(
+    expect(settle.lines).toHaveLength(2);
+    expect(settle.lines[0]!.type).toBe(
       OPERATION_TRANSFER_TYPE.POST_PENDING,
     );
 
@@ -115,7 +115,7 @@ describe("accounting template coverage", () => {
     });
 
     expect(voided.operationCode).toBe(OPERATION_CODE.TRANSFER_VOID_PENDING);
-    expect(voided.transfers[0]!.type).toBe(
+    expect(voided.lines[0]!.type).toBe(
       OPERATION_TRANSFER_TYPE.VOID_PENDING,
     );
   });

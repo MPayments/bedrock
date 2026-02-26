@@ -4,7 +4,7 @@ import { AccountNotFoundError } from "@bedrock/accounts";
 import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import {
   ApproveTransferInputSchema,
-  CreateTransferDraftInputSchema,
+  CreateTransferDraftInputBaseSchema,
   InvalidStateError,
   ListTransfersQuerySchema,
   MakerCheckerViolationError,
@@ -167,7 +167,10 @@ export function transfersRoutes(ctx: AppContext) {
       body: {
         content: {
           "application/json": {
-            schema: CreateTransferDraftInputSchema.omit({ makerUserId: true }),
+            schema: CreateTransferDraftInputBaseSchema.omit({ makerUserId: true }).refine(
+              (d) => d.sourceOperationalAccountId !== d.destinationOperationalAccountId,
+              { message: "sourceOperationalAccountId and destinationOperationalAccountId must be different" },
+            ),
           },
         },
         required: true,
@@ -469,13 +472,12 @@ export function transfersRoutes(ctx: AppContext) {
     .openapi(approveRoute, async (c) => {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
-      const checkerUserId = c.get("user")!.id;
+      const user = c.get("user")!;
       try {
-        const result = await ctx.transfersService.approve({
-          transferId: id,
-          ...input,
-          checkerUserId,
-        });
+        const result = await ctx.transfersService.approve(
+          { transferId: id, ...input, checkerUserId: user.id },
+          { skipMakerCheckerValidation: user.role === "admin" },
+        );
         return c.json(result, 200);
       } catch (err) {
         const handled = handleTransferError(err);
@@ -486,13 +488,12 @@ export function transfersRoutes(ctx: AppContext) {
     .openapi(rejectRoute, async (c) => {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
-      const checkerUserId = c.get("user")!.id;
+      const user = c.get("user")!;
       try {
-        const transferId = await ctx.transfersService.reject({
-          transferId: id,
-          ...input,
-          checkerUserId,
-        });
+        const transferId = await ctx.transfersService.reject(
+          { transferId: id, ...input, checkerUserId: user.id },
+          { skipMakerCheckerValidation: user.role === "admin" },
+        );
         return c.json({ transferId }, 200);
       } catch (err) {
         const handled = handleTransferError(err);

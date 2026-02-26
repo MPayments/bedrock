@@ -4,7 +4,7 @@ import { ACCOUNT_NO } from "@bedrock/accounting";
 import { schema } from "@bedrock/db/schema";
 
 import { AccountNotFoundError, AccountProviderNotFoundError } from "../errors";
-import { ensureBookAccountTx } from "../internal/book-account";
+import { ensureBookAccountInstanceTx } from "../internal/book-account";
 import type { AccountServiceContext } from "../internal/context";
 import {
   UpdateAccountInputSchema,
@@ -98,10 +98,11 @@ export function createUpdateAccountHandler(context: AccountServiceContext) {
       }
 
       if (validated.postingAccountNo !== undefined) {
-        const bookAccountInstanceId = await ensureBookAccountTx(tx, {
-          orgId: existing.counterpartyId,
+        const bookAccountInstanceId = await ensureBookAccountInstanceTx(tx, {
+          bookOrgId: existing.counterpartyId,
           accountNo: validated.postingAccountNo,
           currency: currency.code,
+          dimensions: {},
         });
 
         await tx

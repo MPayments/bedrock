@@ -1,3 +1,12 @@
+export function formatAmount(amountMinor: string | number, precision: number): string {
+  const divisor = Math.pow(10, precision);
+  const major = Number(amountMinor) / divisor;
+  return major.toLocaleString("ru-RU", {
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision,
+  });
+}
+
 export function formatDate(date: Date | string | number | undefined) {
   if (!date) return "";
 

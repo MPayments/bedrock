@@ -1,11 +1,11 @@
 {
-  "id": "76649e46-1541-4f6c-8129-ab01cf698bb9",
+  "id": "1fda5126-b32c-46ce-9f54-dd393efe7bd4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.chart_template_account_analytics": {
-      "name": "chart_template_account_analytics",
+    "public.chart_account_dimension_policy": {
+      "name": "chart_account_dimension_policy",
       "schema": "",
       "columns": {
         "account_no": {
@@ -14,19 +14,19 @@
           "primaryKey": false,
           "notNull": true
         },
-        "analytic_type": {
-          "name": "analytic_type",
-          "type": "chart_analytic_type",
-          "typeSchema": "public",
+        "dimension_key": {
+          "name": "dimension_key",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "required": {
-          "name": "required",
-          "type": "boolean",
+        "mode": {
+          "name": "mode",
+          "type": "dimension_mode",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": true
+          "default": "'required'"
         },
         "created_at": {
           "name": "created_at",
@@ -38,9 +38,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "chart_template_account_analytics_account_no_chart_template_accounts_account_no_fk": {
-          "name": "chart_template_account_analytics_account_no_chart_template_accounts_account_no_fk",
-          "tableFrom": "chart_template_account_analytics",
+        "chart_account_dimension_policy_account_no_chart_template_accounts_account_no_fk": {
+          "name": "chart_account_dimension_policy_account_no_chart_template_accounts_account_no_fk",
+          "tableFrom": "chart_account_dimension_policy",
           "tableTo": "chart_template_accounts",
           "columnsFrom": [
             "account_no"
@@ -53,11 +53,11 @@
         }
       },
       "compositePrimaryKeys": {
-        "chart_template_account_analytics_account_no_analytic_type_pk": {
-          "name": "chart_template_account_analytics_account_no_analytic_type_pk",
+        "chart_account_dimension_policy_account_no_dimension_key_pk": {
+          "name": "chart_account_dimension_policy_account_no_dimension_key_pk",
           "columns": [
             "account_no",
-            "analytic_type"
+            "dimension_key"
           ]
         }
       },
@@ -300,8 +300,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.operational_accounts_book_bindings": {
-      "name": "operational_accounts_book_bindings",
+    "public.operational_account_bindings": {
+      "name": "operational_account_bindings",
       "schema": "",
       "columns": {
         "operational_account_id": {
@@ -310,8 +310,8 @@
           "primaryKey": true,
           "notNull": true
         },
-        "book_account_id": {
-          "name": "book_account_id",
+        "book_account_instance_id": {
+          "name": "book_account_instance_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -332,11 +332,11 @@
         }
       },
       "indexes": {
-        "operational_accounts_book_binding_book_idx": {
-          "name": "operational_accounts_book_binding_book_idx",
+        "operational_account_binding_instance_idx": {
+          "name": "operational_account_binding_instance_idx",
           "columns": [
             {
-              "expression": "book_account_id",
+              "expression": "book_account_instance_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -349,9 +349,9 @@
         }
       },
       "foreignKeys": {
-        "operational_accounts_book_bindings_operational_account_id_operational_accounts_id_fk": {
-          "name": "operational_accounts_book_bindings_operational_account_id_operational_accounts_id_fk",
-          "tableFrom": "operational_accounts_book_bindings",
+        "operational_account_bindings_operational_account_id_operational_accounts_id_fk": {
+          "name": "operational_account_bindings_operational_account_id_operational_accounts_id_fk",
+          "tableFrom": "operational_account_bindings",
           "tableTo": "operational_accounts",
           "columnsFrom": [
             "operational_account_id"
@@ -362,12 +362,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "operational_accounts_book_bindings_book_account_id_book_accounts_id_fk": {
-          "name": "operational_accounts_book_bindings_book_account_id_book_accounts_id_fk",
-          "tableFrom": "operational_accounts_book_bindings",
-          "tableTo": "book_accounts",
+        "operational_account_bindings_book_account_instance_id_book_account_instances_id_fk": {
+          "name": "operational_account_bindings_book_account_instance_id_book_account_instances_id_fk",
+          "tableFrom": "operational_account_bindings",
+          "tableTo": "book_account_instances",
           "columnsFrom": [
-            "book_account_id"
+            "book_account_instance_id"
           ],
           "columnsTo": [
             "id"
@@ -377,6 +377,61 @@
         }
       },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.posting_code_dimension_policy": {
+      "name": "posting_code_dimension_policy",
+      "schema": "",
+      "columns": {
+        "posting_code": {
+          "name": "posting_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dimension_key": {
+          "name": "dimension_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "required": {
+          "name": "required",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "scope": {
+          "name": "scope",
+          "type": "dimension_policy_scope",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'line'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "posting_code_dimension_policy_posting_code_dimension_key_pk": {
+          "name": "posting_code_dimension_policy_posting_code_dimension_key_pk",
+          "columns": [
+            "posting_code",
+            "dimension_key"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -2119,8 +2174,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.ledger_postings": {
-      "name": "ledger_postings",
+    "public.postings": {
+      "name": "postings",
       "schema": "",
       "columns": {
         "id": {
@@ -2148,14 +2203,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "debit_book_account_id": {
-          "name": "debit_book_account_id",
+        "debit_instance_id": {
+          "name": "debit_instance_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "credit_book_account_id": {
-          "name": "credit_book_account_id",
+        "credit_instance_id": {
+          "name": "credit_instance_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -2184,45 +2239,9 @@
           "primaryKey": false,
           "notNull": false
         },
-        "analytic_counterparty_id": {
-          "name": "analytic_counterparty_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "analytic_customer_id": {
-          "name": "analytic_customer_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "analytic_order_id": {
-          "name": "analytic_order_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "analytic_operational_account_id": {
-          "name": "analytic_operational_account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "analytic_transfer_id": {
-          "name": "analytic_transfer_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "analytic_quote_id": {
-          "name": "analytic_quote_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "analytic_fee_bucket": {
-          "name": "analytic_fee_bucket",
-          "type": "text",
+        "context": {
+          "name": "context",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -2235,8 +2254,8 @@
         }
       },
       "indexes": {
-        "ledger_postings_op_line_uq": {
-          "name": "ledger_postings_op_line_uq",
+        "postings_op_line_uq": {
+          "name": "postings_op_line_uq",
           "columns": [
             {
               "expression": "operation_id",
@@ -2256,8 +2275,8 @@
           "method": "btree",
           "with": {}
         },
-        "ledger_postings_op_idx": {
-          "name": "ledger_postings_op_idx",
+        "postings_op_idx": {
+          "name": "postings_op_idx",
           "columns": [
             {
               "expression": "operation_id",
@@ -2271,8 +2290,8 @@
           "method": "btree",
           "with": {}
         },
-        "ledger_postings_org_currency_idx": {
-          "name": "ledger_postings_org_currency_idx",
+        "postings_org_currency_idx": {
+          "name": "postings_org_currency_idx",
           "columns": [
             {
               "expression": "book_org_id",
@@ -2294,9 +2313,9 @@
         }
       },
       "foreignKeys": {
-        "ledger_postings_operation_id_ledger_operations_id_fk": {
-          "name": "ledger_postings_operation_id_ledger_operations_id_fk",
-          "tableFrom": "ledger_postings",
+        "postings_operation_id_ledger_operations_id_fk": {
+          "name": "postings_operation_id_ledger_operations_id_fk",
+          "tableFrom": "postings",
           "tableTo": "ledger_operations",
           "columnsFrom": [
             "operation_id"
@@ -2307,12 +2326,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "ledger_postings_debit_book_account_id_book_accounts_id_fk": {
-          "name": "ledger_postings_debit_book_account_id_book_accounts_id_fk",
-          "tableFrom": "ledger_postings",
-          "tableTo": "book_accounts",
+        "postings_debit_instance_id_book_account_instances_id_fk": {
+          "name": "postings_debit_instance_id_book_account_instances_id_fk",
+          "tableFrom": "postings",
+          "tableTo": "book_account_instances",
           "columnsFrom": [
-            "debit_book_account_id"
+            "debit_instance_id"
           ],
           "columnsTo": [
             "id"
@@ -2320,12 +2339,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "ledger_postings_credit_book_account_id_book_accounts_id_fk": {
-          "name": "ledger_postings_credit_book_account_id_book_accounts_id_fk",
-          "tableFrom": "ledger_postings",
-          "tableTo": "book_accounts",
+        "postings_credit_instance_id_book_account_instances_id_fk": {
+          "name": "postings_credit_instance_id_book_account_instances_id_fk",
+          "tableFrom": "postings",
+          "tableTo": "book_account_instances",
           "columnsFrom": [
-            "credit_book_account_id"
+            "credit_instance_id"
           ],
           "columnsTo": [
             "id"
@@ -2340,8 +2359,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.book_accounts": {
-      "name": "book_accounts",
+    "public.book_account_instances": {
+      "name": "book_account_instances",
       "schema": "",
       "columns": {
         "id": {
@@ -2351,8 +2370,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "org_id": {
-          "name": "org_id",
+        "book_org_id": {
+          "name": "book_org_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -2365,6 +2384,19 @@
         },
         "currency": {
           "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dimensions": {
+          "name": "dimensions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "dimensions_hash": {
+          "name": "dimensions_hash",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -2390,11 +2422,11 @@
         }
       },
       "indexes": {
-        "book_accounts_org_no_currency_uq": {
-          "name": "book_accounts_org_no_currency_uq",
+        "book_account_instances_uq": {
+          "name": "book_account_instances_uq",
           "columns": [
             {
-              "expression": "org_id",
+              "expression": "book_org_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2410,6 +2442,12 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last"
+            },
+            {
+              "expression": "dimensions_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
             }
           ],
           "isUnique": true,
@@ -2417,11 +2455,11 @@
           "method": "btree",
           "with": {}
         },
-        "book_accounts_org_tb_uq": {
-          "name": "book_accounts_org_tb_uq",
+        "book_account_instances_tb_uq": {
+          "name": "book_account_instances_tb_uq",
           "columns": [
             {
-              "expression": "org_id",
+              "expression": "book_org_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2444,17 +2482,32 @@
           "method": "btree",
           "with": {}
         },
-        "book_accounts_org_currency_idx": {
-          "name": "book_accounts_org_currency_idx",
+        "book_account_instances_org_currency_idx": {
+          "name": "book_account_instances_org_currency_idx",
           "columns": [
             {
-              "expression": "org_id",
+              "expression": "book_org_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
               "expression": "currency",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "book_account_instances_account_no_idx": {
+          "name": "book_account_instances_account_no_idx",
+          "columns": [
+            {
+              "expression": "account_no",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4792,19 +4845,6 @@
         "active_passive"
       ]
     },
-    "public.chart_analytic_type": {
-      "name": "chart_analytic_type",
-      "schema": "public",
-      "values": [
-        "counterparty_id",
-        "customer_id",
-        "order_id",
-        "operational_account_id",
-        "transfer_id",
-        "quote_id",
-        "fee_bucket"
-      ]
-    },
     "public.chart_normal_side": {
       "name": "chart_normal_side",
       "schema": "public",
@@ -4812,6 +4852,24 @@
         "debit",
         "credit",
         "both"
+      ]
+    },
+    "public.dimension_mode": {
+      "name": "dimension_mode",
+      "schema": "public",
+      "values": [
+        "required",
+        "optional",
+        "forbidden"
+      ]
+    },
+    "public.dimension_policy_scope": {
+      "name": "dimension_policy_scope",
+      "schema": "public",
+      "values": [
+        "line",
+        "debit",
+        "credit"
       ]
     },
     "public.transfer_event_type": {

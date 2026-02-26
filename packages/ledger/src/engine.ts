@@ -1,6 +1,11 @@
 import { and, eq } from "drizzle-orm";
 
-import { ACCOUNT_NO } from "@bedrock/accounting";
+import {
+  ACCOUNT_NO,
+  KNOWN_DIMENSION_KEYS,
+  CLEARING_KIND_DIMENSION_RULES,
+  DIM,
+} from "@bedrock/accounting";
 import { type Transaction, type Database } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { seedAccounting } from "@bedrock/db/seeds";
@@ -23,13 +28,14 @@ import {
   type IntentLine,
   type Dimensions,
 } from "./types";
-import {
-  validateOperationIntent,
-  validateChainBlocks,
-} from "./validation";
+import { validateOperationIntent, validateChainBlocks } from "./validation";
 
 type DimensionMode = "required" | "optional" | "forbidden";
-type CreateIntentLine = Extract<IntentLine, { type: typeof OPERATION_TRANSFER_TYPE.CREATE }>;
+type DimensionPolicyScope = "line" | "debit" | "credit";
+type CreateIntentLine = Extract<
+  IntentLine,
+  { type: typeof OPERATION_TRANSFER_TYPE.CREATE }
+>;
 
 interface AccountPolicy {
   postingAllowed: boolean;
@@ -37,8 +43,13 @@ interface AccountPolicy {
   dimensionPolicies: Map<string, DimensionMode>;
 }
 
+interface PostingCodePolicyEntry {
+  dimensionKey: string;
+  scope: DimensionPolicyScope;
+}
+
 interface PostingCodePolicy {
-  requiredDimensions: Set<string>;
+  entries: PostingCodePolicyEntry[];
 }
 
 let accountingDefaultsKnownPresent = false;
@@ -126,10 +137,7 @@ function computePayloadHash(input: {
   );
 }
 
-function buildReplayTransferMaps(
-  operationId: string,
-  lines: IntentLine[],
-) {
+function buildReplayTransferMaps(operationId: string, lines: IntentLine[]) {
   const pendingTransferIdsByRef = new Map<string, bigint>();
 
   for (let i = 0; i < lines.length; i++) {
@@ -167,7 +175,8 @@ async function ensureCorrespondenceRule(
     .limit(1);
 
   if (!rule) {
-    const { CorrespondenceRuleNotFoundError } = await import("@bedrock/accounting");
+    const { CorrespondenceRuleNotFoundError } =
+      await import("@bedrock/accounting");
     throw new CorrespondenceRuleNotFoundError(
       line.postingCode,
       line.debit.accountNo,
@@ -225,6 +234,7 @@ async function loadPostingCodePolicy(
     .select({
       dimensionKey: schema.postingCodeDimensionPolicy.dimensionKey,
       required: schema.postingCodeDimensionPolicy.required,
+      scope: schema.postingCodeDimensionPolicy.scope,
     })
     .from(schema.postingCodeDimensionPolicy)
     .where(
@@ -235,8 +245,23 @@ async function loadPostingCodePolicy(
     );
 
   return {
-    requiredDimensions: new Set(rows.map((r) => r.dimensionKey)),
+    entries: rows.map((r) => ({
+      dimensionKey: r.dimensionKey,
+      scope: (r.scope ?? "line") as DimensionPolicyScope,
+    })),
   };
+}
+
+function validateDimensionKeys(dimensions: Dimensions, label: string) {
+  for (const key of Object.keys(dimensions)) {
+    if (!KNOWN_DIMENSION_KEYS.has(key)) {
+      throw new DimensionPolicyViolationError(
+        label,
+        key,
+        `unknown dimension key (not in canonical DIM registry)`,
+      );
+    }
+  }
 }
 
 function validateDimensions(
@@ -250,24 +275,71 @@ function validateDimensions(
     );
   }
   if (!accountPolicy.enabled) {
-    throw new AccountPostingValidationError(
-      `Account ${accountNo} is disabled`,
-    );
+    throw new AccountPostingValidationError(`Account ${accountNo} is disabled`);
+  }
+
+  validateDimensionKeys(dimensions, accountNo);
+
+  for (const key of Object.keys(dimensions)) {
+    const mode = accountPolicy.dimensionPolicies.get(key);
+    if (!mode) {
+      throw new DimensionPolicyViolationError(
+        accountNo,
+        key,
+        `dimension not allowed for this account`,
+      );
+    }
+    if (mode === "forbidden") {
+      throw new DimensionPolicyViolationError(
+        accountNo,
+        key,
+        `forbidden dimension present`,
+      );
+    }
   }
 
   for (const [key, mode] of accountPolicy.dimensionPolicies) {
-    if (mode === "required" && !(key in dimensions)) {
+    if (mode !== "required") continue;
+    if (!(key in dimensions)) {
       throw new DimensionPolicyViolationError(
         accountNo,
         key,
         `required dimension missing`,
       );
     }
-    if (mode === "forbidden" && key in dimensions) {
+  }
+
+  if (accountNo === ACCOUNT_NO.CLEARING && DIM.clearingKind in dimensions) {
+    validateClearingKindDimensions(dimensions);
+  }
+}
+
+function validateClearingKindDimensions(dimensions: Dimensions) {
+  const kind = dimensions[DIM.clearingKind];
+  if (!kind) return;
+
+  const rules = CLEARING_KIND_DIMENSION_RULES[kind];
+  if (!rules) {
+    throw new DimensionPolicyViolationError(
+      ACCOUNT_NO.CLEARING,
+      DIM.clearingKind,
+      `unknown clearingKind value: ${kind}`,
+    );
+  }
+
+  for (const rule of rules) {
+    if (rule.mode === "required" && !(rule.dimensionKey in dimensions)) {
       throw new DimensionPolicyViolationError(
-        accountNo,
-        key,
-        `forbidden dimension present`,
+        `CLEARING[${kind}]`,
+        rule.dimensionKey,
+        `required for clearingKind=${kind}`,
+      );
+    }
+    if (rule.mode === "forbidden" && rule.dimensionKey in dimensions) {
+      throw new DimensionPolicyViolationError(
+        `CLEARING[${kind}]`,
+        rule.dimensionKey,
+        `forbidden for clearingKind=${kind}`,
       );
     }
   }
@@ -279,15 +351,41 @@ function validatePostingCodeDimensions(
   creditDimensions: Dimensions,
   postingCode: string,
 ) {
-  const allDimensions = { ...debitDimensions, ...creditDimensions };
+  for (const entry of postingCodePolicy.entries) {
+    const { dimensionKey, scope } = entry;
 
-  for (const key of postingCodePolicy.requiredDimensions) {
-    if (!(key in allDimensions)) {
-      throw new DimensionPolicyViolationError(
-        postingCode,
-        key,
-        `required by posting code but not present in either debit or credit dimensions`,
-      );
+    switch (scope) {
+      case "debit":
+        if (!(dimensionKey in debitDimensions)) {
+          throw new DimensionPolicyViolationError(
+            postingCode,
+            dimensionKey,
+            `required on debit side by posting code`,
+          );
+        }
+        break;
+      case "credit":
+        if (!(dimensionKey in creditDimensions)) {
+          throw new DimensionPolicyViolationError(
+            postingCode,
+            dimensionKey,
+            `required on credit side by posting code`,
+          );
+        }
+        break;
+      case "line":
+      default:
+        if (
+          !(dimensionKey in debitDimensions) &&
+          !(dimensionKey in creditDimensions)
+        ) {
+          throw new DimensionPolicyViolationError(
+            postingCode,
+            dimensionKey,
+            `required by posting code but not present in either debit or credit dimensions`,
+          );
+        }
+        break;
     }
   }
 }
@@ -322,37 +420,38 @@ async function ensureBookAccountInstance(
       tbLedger,
       tbAccountId: expectedTbAccountId,
     })
-    .onConflictDoNothing()
+    .onConflictDoUpdate({
+      target: [
+        schema.bookAccountInstances.bookOrgId,
+        schema.bookAccountInstances.accountNo,
+        schema.bookAccountInstances.currency,
+        schema.bookAccountInstances.dimensionsHash,
+      ],
+      set: {
+        tbLedger,
+        tbAccountId: expectedTbAccountId,
+        dimensions: input.dimensions,
+      },
+    })
     .returning({
       id: schema.bookAccountInstances.id,
       tbLedger: schema.bookAccountInstances.tbLedger,
       tbAccountId: schema.bookAccountInstances.tbAccountId,
     });
 
-  if (inserted.length > 0) {
-    return inserted[0]!;
-  }
-
-  const [existing] = await tx
-    .select({
-      id: schema.bookAccountInstances.id,
-      tbLedger: schema.bookAccountInstances.tbLedger,
-      tbAccountId: schema.bookAccountInstances.tbAccountId,
-    })
-    .from(schema.bookAccountInstances)
-    .where(
-      and(
-        eq(schema.bookAccountInstances.bookOrgId, input.bookOrgId),
-        eq(schema.bookAccountInstances.accountNo, input.accountNo),
-        eq(schema.bookAccountInstances.currency, input.currency),
-        eq(schema.bookAccountInstances.dimensionsHash, dimensionsHash),
-      ),
-    )
-    .limit(1);
-
+  const existing = inserted[0];
   if (!existing) {
     throw new Error(
-      `book account instance upsert failed for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}, hash=${dimensionsHash}`,
+      `book account instance upsert failed unexpectedly for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}, hash=${dimensionsHash}`,
+    );
+  }
+
+  if (
+    existing.tbLedger !== tbLedger ||
+    existing.tbAccountId !== expectedTbAccountId
+  ) {
+    throw new Error(
+      `book_account_instance invariant mismatch for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}, hash=${dimensionsHash}`,
     );
   }
 
@@ -379,13 +478,8 @@ async function ensureAccountingDefaultsSeeded(tx: Transaction) {
 }
 
 export interface LedgerEngine {
-  commit: (
-    tx: Transaction,
-    intent: OperationIntent,
-  ) => Promise<CommitResult>;
-  commitStandalone: (
-    intent: OperationIntent,
-  ) => Promise<CommitResult>;
+  commit: (tx: Transaction, intent: OperationIntent) => Promise<CommitResult>;
+  commitStandalone: (intent: OperationIntent) => Promise<CommitResult>;
 }
 
 export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
@@ -457,11 +551,30 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
     }
 
     if (isIdempotentReplay) {
-      const replayTransferMaps = buildReplayTransferMaps(operationId, lines);
-      return {
-        operationId,
-        pendingTransferIdsByRef: replayTransferMaps.pendingTransferIdsByRef,
-      };
+      const [hasAnyPlan] = await tx
+        .select({ id: schema.tbTransferPlans.id })
+        .from(schema.tbTransferPlans)
+        .where(eq(schema.tbTransferPlans.operationId, operationId))
+        .limit(1);
+      const [hasAnyPosting] = await tx
+        .select({ id: schema.postings.id })
+        .from(schema.postings)
+        .where(eq(schema.postings.operationId, operationId))
+        .limit(1);
+
+      const shouldHavePostings = lines.some(
+        (line) => line.type === OPERATION_TRANSFER_TYPE.CREATE,
+      );
+      const incomplete =
+        !hasAnyPlan || (shouldHavePostings && !hasAnyPosting);
+
+      if (!incomplete) {
+        const replayTransferMaps = buildReplayTransferMaps(operationId, lines);
+        return {
+          operationId,
+          pendingTransferIdsByRef: replayTransferMaps.pendingTransferIdsByRef,
+        };
+      }
     }
 
     const pendingTransferIdsByRef = new Map<string, bigint>();
@@ -479,7 +592,9 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
       return policy;
     }
 
-    async function getPostingCodePolicy(postingCode: string): Promise<PostingCodePolicy> {
+    async function getPostingCodePolicy(
+      postingCode: string,
+    ): Promise<PostingCodePolicy> {
       let policy = postingCodePolicyCache.get(postingCode);
       if (!policy) {
         policy = await loadPostingCodePolicy(tx, postingCode);
@@ -500,15 +615,29 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
 
       if (line.type === OPERATION_TRANSFER_TYPE.CREATE) {
         await ensureCorrespondenceRule(tx, line);
+        if (line.debit.currency !== line.credit.currency) {
+          throw new AccountPostingValidationError(
+            `Currency mismatch for postingCode=${line.postingCode}: debit=${line.debit.currency}, credit=${line.credit.currency}`,
+          );
+        }
 
-        const [debitPolicy, creditPolicy, postingCodePolicy] = await Promise.all([
-          getAccountPolicy(line.debit.accountNo),
-          getAccountPolicy(line.credit.accountNo),
-          getPostingCodePolicy(line.postingCode),
-        ]);
+        const [debitPolicy, creditPolicy, postingCodePolicy] =
+          await Promise.all([
+            getAccountPolicy(line.debit.accountNo),
+            getAccountPolicy(line.credit.accountNo),
+            getPostingCodePolicy(line.postingCode),
+          ]);
 
-        validateDimensions(debitPolicy, line.debit.dimensions, line.debit.accountNo);
-        validateDimensions(creditPolicy, line.credit.dimensions, line.credit.accountNo);
+        validateDimensions(
+          debitPolicy,
+          line.debit.dimensions,
+          line.debit.accountNo,
+        );
+        validateDimensions(
+          creditPolicy,
+          line.credit.dimensions,
+          line.credit.accountNo,
+        );
         validatePostingCodeDimensions(
           postingCodePolicy,
           line.debit.dimensions,
@@ -580,7 +709,7 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
           transferId,
           debitTbAccountId: null,
           creditTbAccountId: null,
-          tbLedger: 0,
+          tbLedger: tbLedgerForCurrency(line.currency),
           amount: line.amount ?? 0n,
           code: line.code ?? 0,
           pendingRef: null,
@@ -600,7 +729,7 @@ export function createLedgerEngine(deps: { db: Database }): LedgerEngine {
         transferId,
         debitTbAccountId: null,
         creditTbAccountId: null,
-        tbLedger: 0,
+        tbLedger: tbLedgerForCurrency(line.currency),
         amount: 0n,
         code: line.code ?? 0,
         pendingRef: null,

@@ -1,6 +1,9 @@
 export {
   ACCOUNT_NO,
   CLEARING_KIND,
+  DIM,
+  KNOWN_DIMENSION_KEYS,
+  CLEARING_KIND_DIMENSION_RULES,
   OPERATION_CODE,
   POSTING_CODE,
   DEFAULT_CHART_TEMPLATE_ACCOUNTS,
@@ -9,7 +12,10 @@ export {
   DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
   type AccountDimensionPolicy,
   type PostingCodeDimensionPolicyEntry,
+  type ClearingKindDimensionRule,
   type DimensionMode,
+  type DimensionPolicyScope,
+  type DimensionKey,
 } from "./constants";
 
 export {

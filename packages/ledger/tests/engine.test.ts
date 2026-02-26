@@ -16,12 +16,12 @@ function createCreateTransferTx(options?: {
   ruleExists?: boolean;
   postingAllowed?: boolean;
   accountEnabled?: boolean;
-  requiredAnalytics?: string[];
+  requiredDimensions?: string[];
 }) {
   const ruleExists = options?.ruleExists ?? true;
   const postingAllowed = options?.postingAllowed ?? true;
   const accountEnabled = options?.accountEnabled ?? true;
-  const requiredAnalytics = options?.requiredAnalytics ?? [];
+  const requiredDimensions = options?.requiredDimensions ?? [];
 
   let bookInsertCount = 0;
 
@@ -38,9 +38,18 @@ function createCreateTransferTx(options?: {
           };
         }
 
-        if (table === schema.bookAccounts) {
+        if (table === schema.bookAccountInstances) {
           bookInsertCount += 1;
           return {
+            onConflictDoUpdate: vi.fn(() => ({
+              returning: vi.fn(async () => [
+                {
+                  id: `ba-${bookInsertCount}`,
+                  tbLedger: rows[0]?.tbLedger ?? 1,
+                  tbAccountId: BigInt(bookInsertCount),
+                },
+              ]),
+            })),
             onConflictDoNothing: vi.fn(() => ({
               returning: vi.fn(async () => [
                 {
@@ -64,9 +73,16 @@ function createCreateTransferTx(options?: {
     select: vi.fn(() => ({
       from: vi.fn((table: unknown) => ({
         where: vi.fn(() => {
-          if (table === schema.chartTemplateAccountAnalytics) {
+          if (table === schema.chartAccountDimensionPolicy) {
+            return Promise.resolve([]);
+          }
+          if (table === schema.postingCodeDimensionPolicy) {
             return Promise.resolve(
-              requiredAnalytics.map((analyticType) => ({ analyticType })),
+              requiredDimensions.map((dimensionKey) => ({
+                dimensionKey,
+                required: true,
+                scope: "line",
+              })),
             );
           }
 
@@ -129,8 +145,8 @@ describe("createLedgerEngine", () => {
   describe("validation", () => {
     it("rejects empty transfers", async () => {
       const input = createTestEntry({ transfers: [] });
-      await expect(engine.createOperation(input)).rejects.toThrow(
-        "transfers must be a non-empty array",
+      await expect(engine.commitStandalone(input)).rejects.toThrow(
+        "lines must be a non-empty array",
       );
     });
 
@@ -143,7 +159,7 @@ describe("createLedgerEngine", () => {
         ],
       });
 
-      await expect(engine.createOperation(input)).rejects.toThrow(
+      await expect(engine.commitStandalone(input)).rejects.toThrow(
         /accountNo must match NNNN/,
       );
     });
@@ -194,7 +210,7 @@ describe("createLedgerEngine", () => {
         ],
       });
 
-      await engine.createOperation(input);
+      await engine.commitStandalone(input);
 
       expect(capturedRows).toHaveLength(1);
       expect(capturedRows[0].type).toBe(OPERATION_TRANSFER_TYPE.POST_PENDING);
@@ -222,7 +238,7 @@ describe("createLedgerEngine", () => {
         ],
       });
 
-      await expect(engine.createOperation(input)).resolves.toBeDefined();
+      await expect(engine.commitStandalone(input)).resolves.toBeDefined();
     });
 
     it("rejects non-contiguous chains", async () => {
@@ -251,7 +267,7 @@ describe("createLedgerEngine", () => {
         ],
       });
 
-      await expect(engine.createOperation(input)).rejects.toThrow(
+      await expect(engine.commitStandalone(input)).rejects.toThrow(
         /Non-contiguous chain block/,
       );
     });
@@ -326,7 +342,7 @@ describe("createLedgerEngine", () => {
         ],
       });
 
-      await engine.createOperation(input);
+      await engine.commitStandalone(input);
 
       expect(capturedRows).toHaveLength(4);
       expect(capturedRows[0].isLinked).toBe(true);
@@ -377,7 +393,7 @@ describe("createLedgerEngine", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
-      const result = await engine.createOperation(createPostPendingInput());
+      const result = await engine.commitStandalone(createPostPendingInput());
       expect(result.operationId).toBe("existing-op");
     });
 
@@ -408,7 +424,7 @@ describe("createLedgerEngine", () => {
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
       await expect(
-        engine.createOperation(createPostPendingInput()),
+        engine.commitStandalone(createPostPendingInput()),
       ).rejects.toThrow(IdempotencyConflictError);
     });
 
@@ -434,12 +450,12 @@ describe("createLedgerEngine", () => {
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
       await expect(
-        engine.createOperation(createPostPendingInput()),
+        engine.commitStandalone(createPostPendingInput()),
       ).rejects.toThrow("Idempotency conflict but operation not found");
     });
 
     it("creates a new operation on first request", async () => {
-      const result = await engine.createOperation(createPostPendingInput());
+      const result = await engine.commitStandalone(createPostPendingInput());
 
       expect(result.operationId).toBe("test-operation-id");
       expect(result.pendingTransferIdsByRef).toBeInstanceOf(Map);
@@ -481,7 +497,7 @@ describe("createLedgerEngine", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
-      await engine.createOperation(createVoidPendingInput());
+      await engine.commitStandalone(createVoidPendingInput());
 
       expect(capturedRows).toHaveLength(1);
       expect(capturedRows[0].type).toBe(OPERATION_TRANSFER_TYPE.VOID_PENDING);
@@ -494,7 +510,7 @@ describe("createLedgerEngine", () => {
       const tx = createCreateTransferTx();
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
-      const result = await engine.createOperation(
+      const result = await engine.commitStandalone(
         createTestEntry({
           transfers: [
             createTestTransferPlan({
@@ -515,7 +531,7 @@ describe("createLedgerEngine", () => {
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
       await expect(
-        engine.createOperation(
+        engine.commitStandalone(
           createTestEntry({
             transfers: [createTestTransferPlan()],
           }),
@@ -528,7 +544,7 @@ describe("createLedgerEngine", () => {
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
       await expect(
-        engine.createOperation(
+        engine.commitStandalone(
           createTestEntry({
             transfers: [createTestTransferPlan()],
           }),
@@ -541,7 +557,7 @@ describe("createLedgerEngine", () => {
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
       await expect(
-        engine.createOperation(
+        engine.commitStandalone(
           createTestEntry({
             transfers: [createTestTransferPlan()],
           }),
@@ -549,14 +565,14 @@ describe("createLedgerEngine", () => {
       ).rejects.toThrow("is disabled");
     });
 
-    it("throws when required analytics are missing", async () => {
+    it("throws when required posting dimensions are missing", async () => {
       const tx = createCreateTransferTx({
-        requiredAnalytics: ["customer_id"],
+        requiredDimensions: ["customerId"],
       });
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
       await expect(
-        engine.createOperation(
+        engine.commitStandalone(
           createTestEntry({
             transfers: [
               createTestTransferPlan({
@@ -565,7 +581,7 @@ describe("createLedgerEngine", () => {
             ],
           }),
         ),
-      ).rejects.toThrow("Missing required analytics");
+      ).rejects.toThrow(/required by posting code/);
     });
   });
 });

@@ -53,6 +53,27 @@ BEGIN
 END $$;
 `;
 
+const dropEnumsSql = `
+DO $$
+DECLARE
+    row RECORD;
+BEGIN
+    FOR row IN
+        SELECT n.nspname AS schema_name, t.typname AS type_name
+        FROM pg_type t
+        JOIN pg_namespace n ON t.typnamespace = n.oid
+        WHERE t.typtype = 'e'
+          AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+    LOOP
+        EXECUTE format(
+            'DROP TYPE IF EXISTS %I.%I CASCADE',
+            row.schema_name,
+            row.type_name
+        );
+    END LOOP;
+END $$;
+`;
+
 async function main() {
     await client.connect();
 
@@ -67,6 +88,7 @@ async function main() {
     }
 
     await client.query(dropTablesSql);
+    await client.query(dropEnumsSql);
 
     const after = await client.query(getTablesSql);
     console.log(

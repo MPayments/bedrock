@@ -129,8 +129,63 @@ export function createMockLedger() {
   const createOperation = vi.fn(async (input: any) =>
     createOperationTx(undefined, input),
   );
+  const commit = vi.fn(async (tx: unknown, intent: any) => {
+    const lines = intent?.lines ?? intent?.transfers ?? [];
+    const legacyTransfers = Array.isArray(lines)
+      ? lines.map((line: any) => {
+          if (line?.type === "create") {
+            return {
+              type: line.type,
+              planRef: line.planRef,
+              postingCode: line.postingCode,
+              debitAccountNo: line.debit?.accountNo,
+              creditAccountNo: line.credit?.accountNo,
+              currency: line.debit?.currency ?? line.credit?.currency,
+              amount: line.amountMinor,
+              pending: line.pending,
+              memo: line.memo,
+              analytics: {
+                ...(line.debit?.dimensions ?? {}),
+                ...(line.credit?.dimensions ?? {}),
+              },
+            };
+          }
+          return {
+            ...line,
+            amount: line.amount ?? 0n,
+          };
+        })
+      : [];
+    const legacyInput = {
+      ...intent,
+      transfers: legacyTransfers,
+    };
+    const legacy = await createEntryTx(tx as any, legacyInput);
+    const pendingTransferIdsByRef = new Map<string, bigint>();
+
+    if (Array.isArray(lines)) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line?.type !== "create" || !line?.pending) continue;
+        const ref = line.pending.ref ?? line.planRef;
+        const transferId =
+          legacy?.transferIds instanceof Map
+            ? legacy.transferIds.get(i + 1) ?? BigInt(i + 1)
+            : BigInt(i + 1);
+        pendingTransferIdsByRef.set(ref, transferId);
+      }
+    }
+
+    return {
+      operationId: legacy?.entryId ?? "test-entry-id",
+      pendingTransferIdsByRef,
+    };
+  });
+  const commitStandalone = vi.fn(async (intent: any) => commit(undefined, intent));
 
   return {
+    commit,
+    commitStandalone,
     createEntryTx,
     createEntry,
     createOperationTx,

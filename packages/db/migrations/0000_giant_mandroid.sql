@@ -1,6 +1,7 @@
 CREATE TYPE "public"."chart_account_kind" AS ENUM('asset', 'liability', 'equity', 'revenue', 'expense', 'active_passive');--> statement-breakpoint
-CREATE TYPE "public"."chart_analytic_type" AS ENUM('counterparty_id', 'customer_id', 'order_id', 'operational_account_id', 'transfer_id', 'quote_id', 'fee_bucket');--> statement-breakpoint
 CREATE TYPE "public"."chart_normal_side" AS ENUM('debit', 'credit', 'both');--> statement-breakpoint
+CREATE TYPE "public"."dimension_mode" AS ENUM('required', 'optional', 'forbidden');--> statement-breakpoint
+CREATE TYPE "public"."dimension_policy_scope" AS ENUM('line', 'debit', 'credit');--> statement-breakpoint
 CREATE TYPE "public"."transfer_event_type" AS ENUM('approve', 'settle', 'void');--> statement-breakpoint
 CREATE TYPE "public"."transfer_kind" AS ENUM('intra_org', 'cross_org');--> statement-breakpoint
 CREATE TYPE "public"."transfer_settlement_mode" AS ENUM('immediate', 'pending');--> statement-breakpoint
@@ -9,12 +10,12 @@ CREATE TYPE "public"."account_provider_type" AS ENUM('bank', 'exchange', 'blockc
 CREATE TYPE "public"."counterparty_country_code" AS ENUM('AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AW', 'AX', 'AZ', 'BA', 'BB', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BL', 'BM', 'BN', 'BO', 'BQ', 'BR', 'BS', 'BT', 'BV', 'BW', 'BY', 'BZ', 'CA', 'CC', 'CD', 'CF', 'CG', 'CH', 'CI', 'CK', 'CL', 'CM', 'CN', 'CO', 'CR', 'CU', 'CV', 'CW', 'CX', 'CY', 'CZ', 'DE', 'DJ', 'DK', 'DM', 'DO', 'DZ', 'EC', 'EE', 'EG', 'EH', 'ER', 'ES', 'ET', 'FI', 'FJ', 'FK', 'FM', 'FO', 'FR', 'GA', 'GB', 'GD', 'GE', 'GF', 'GG', 'GH', 'GI', 'GL', 'GM', 'GN', 'GP', 'GQ', 'GR', 'GS', 'GT', 'GU', 'GW', 'GY', 'HK', 'HM', 'HN', 'HR', 'HT', 'HU', 'ID', 'IE', 'IL', 'IM', 'IN', 'IO', 'IQ', 'IR', 'IS', 'IT', 'JE', 'JM', 'JO', 'JP', 'KE', 'KG', 'KH', 'KI', 'KM', 'KN', 'KP', 'KR', 'KW', 'KY', 'KZ', 'LA', 'LB', 'LC', 'LI', 'LK', 'LR', 'LS', 'LT', 'LU', 'LV', 'LY', 'MA', 'MC', 'MD', 'ME', 'MF', 'MG', 'MH', 'MK', 'ML', 'MM', 'MN', 'MO', 'MP', 'MQ', 'MR', 'MS', 'MT', 'MU', 'MV', 'MW', 'MX', 'MY', 'MZ', 'NA', 'NC', 'NE', 'NF', 'NG', 'NI', 'NL', 'NO', 'NP', 'NR', 'NU', 'NZ', 'OM', 'PA', 'PE', 'PF', 'PG', 'PH', 'PK', 'PL', 'PM', 'PN', 'PR', 'PS', 'PT', 'PW', 'PY', 'QA', 'RE', 'RO', 'RS', 'RU', 'RW', 'SA', 'SB', 'SC', 'SD', 'SE', 'SG', 'SH', 'SI', 'SJ', 'SK', 'SL', 'SM', 'SN', 'SO', 'SR', 'SS', 'ST', 'SV', 'SX', 'SY', 'SZ', 'TC', 'TD', 'TF', 'TG', 'TH', 'TJ', 'TK', 'TL', 'TM', 'TN', 'TO', 'TR', 'TT', 'TV', 'TW', 'TZ', 'UA', 'UG', 'UM', 'US', 'UY', 'UZ', 'VA', 'VC', 'VE', 'VG', 'VI', 'VN', 'VU', 'WF', 'WS', 'YE', 'YT', 'ZA', 'ZM', 'ZW');--> statement-breakpoint
 CREATE TYPE "public"."counterparty_kind" AS ENUM('legal_entity', 'individual');--> statement-breakpoint
 CREATE TYPE "public"."fee_accounting_treatment" AS ENUM('income', 'pass_through', 'expense');--> statement-breakpoint
-CREATE TABLE "chart_template_account_analytics" (
+CREATE TABLE "chart_account_dimension_policy" (
 	"account_no" text NOT NULL,
-	"analytic_type" chart_analytic_type NOT NULL,
-	"required" boolean DEFAULT true NOT NULL,
+	"dimension_key" text NOT NULL,
+	"mode" "dimension_mode" DEFAULT 'required' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "chart_template_account_analytics_account_no_analytic_type_pk" PRIMARY KEY("account_no","analytic_type")
+	CONSTRAINT "chart_account_dimension_policy_account_no_dimension_key_pk" PRIMARY KEY("account_no","dimension_key")
 );
 --> statement-breakpoint
 CREATE TABLE "chart_template_accounts" (
@@ -39,11 +40,20 @@ CREATE TABLE "correspondence_rules" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "operational_accounts_book_bindings" (
+CREATE TABLE "operational_account_bindings" (
 	"operational_account_id" uuid PRIMARY KEY NOT NULL,
-	"book_account_id" uuid NOT NULL,
+	"book_account_instance_id" uuid NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "posting_code_dimension_policy" (
+	"posting_code" text NOT NULL,
+	"dimension_key" text NOT NULL,
+	"required" boolean DEFAULT true NOT NULL,
+	"scope" "dimension_policy_scope" DEFAULT 'line' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "posting_code_dimension_policy_posting_code_dimension_key_pk" PRIMARY KEY("posting_code","dimension_key")
 );
 --> statement-breakpoint
 CREATE TABLE "account" (
@@ -239,32 +249,28 @@ CREATE TABLE "ledger_operations" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "ledger_postings" (
+CREATE TABLE "postings" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"operation_id" uuid NOT NULL,
 	"line_no" integer NOT NULL,
 	"book_org_id" uuid NOT NULL,
-	"debit_book_account_id" uuid NOT NULL,
-	"credit_book_account_id" uuid NOT NULL,
+	"debit_instance_id" uuid NOT NULL,
+	"credit_instance_id" uuid NOT NULL,
 	"posting_code" text NOT NULL,
 	"currency" text NOT NULL,
 	"amount_minor" bigint NOT NULL,
 	"memo" text,
-	"analytic_counterparty_id" uuid,
-	"analytic_customer_id" uuid,
-	"analytic_order_id" uuid,
-	"analytic_operational_account_id" uuid,
-	"analytic_transfer_id" uuid,
-	"analytic_quote_id" uuid,
-	"analytic_fee_bucket" text,
+	"context" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "book_accounts" (
+CREATE TABLE "book_account_instances" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"org_id" uuid NOT NULL,
+	"book_org_id" uuid NOT NULL,
 	"account_no" text NOT NULL,
 	"currency" text NOT NULL,
+	"dimensions" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"dimensions_hash" text NOT NULL,
 	"tb_ledger" bigint NOT NULL,
 	"tb_account_id" numeric(39,0) NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -485,11 +491,11 @@ CREATE TABLE "reconciliation_exceptions" (
 	"resolved_at" timestamp with time zone
 );
 --> statement-breakpoint
-ALTER TABLE "chart_template_account_analytics" ADD CONSTRAINT "chart_template_account_analytics_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chart_account_dimension_policy" ADD CONSTRAINT "chart_account_dimension_policy_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "correspondence_rules" ADD CONSTRAINT "correspondence_rules_debit_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("debit_account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "correspondence_rules" ADD CONSTRAINT "correspondence_rules_credit_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("credit_account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "operational_accounts_book_bindings" ADD CONSTRAINT "operational_accounts_book_bindings_operational_account_id_operational_accounts_id_fk" FOREIGN KEY ("operational_account_id") REFERENCES "public"."operational_accounts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "operational_accounts_book_bindings" ADD CONSTRAINT "operational_accounts_book_bindings_book_account_id_book_accounts_id_fk" FOREIGN KEY ("book_account_id") REFERENCES "public"."book_accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "operational_account_bindings" ADD CONSTRAINT "operational_account_bindings_operational_account_id_operational_accounts_id_fk" FOREIGN KEY ("operational_account_id") REFERENCES "public"."operational_accounts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "operational_account_bindings" ADD CONSTRAINT "operational_account_bindings_book_account_instance_id_book_account_instances_id_fk" FOREIGN KEY ("book_account_instance_id") REFERENCES "public"."book_account_instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fx_quote_fee_components" ADD CONSTRAINT "fx_quote_fee_components_quote_id_fx_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."fx_quotes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -506,9 +512,9 @@ ALTER TABLE "fx_quotes" ADD CONSTRAINT "fx_quotes_from_currency_id_currencies_id
 ALTER TABLE "fx_quotes" ADD CONSTRAINT "fx_quotes_to_currency_id_currencies_id_fk" FOREIGN KEY ("to_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fx_rates" ADD CONSTRAINT "fx_rates_base_currency_id_currencies_id_fk" FOREIGN KEY ("base_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fx_rates" ADD CONSTRAINT "fx_rates_quote_currency_id_currencies_id_fk" FOREIGN KEY ("quote_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ledger_postings" ADD CONSTRAINT "ledger_postings_operation_id_ledger_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ledger_postings" ADD CONSTRAINT "ledger_postings_debit_book_account_id_book_accounts_id_fk" FOREIGN KEY ("debit_book_account_id") REFERENCES "public"."book_accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ledger_postings" ADD CONSTRAINT "ledger_postings_credit_book_account_id_book_accounts_id_fk" FOREIGN KEY ("credit_book_account_id") REFERENCES "public"."book_accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "postings" ADD CONSTRAINT "postings_operation_id_ledger_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "postings" ADD CONSTRAINT "postings_debit_instance_id_book_account_instances_id_fk" FOREIGN KEY ("debit_instance_id") REFERENCES "public"."book_account_instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "postings" ADD CONSTRAINT "postings_credit_instance_id_book_account_instances_id_fk" FOREIGN KEY ("credit_instance_id") REFERENCES "public"."book_account_instances"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tb_transfer_plans" ADD CONSTRAINT "tb_transfer_plans_operation_id_ledger_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "transfer_events" ADD CONSTRAINT "transfer_events_transfer_id_transfer_orders_id_fk" FOREIGN KEY ("transfer_id") REFERENCES "public"."transfer_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "transfer_events" ADD CONSTRAINT "transfer_events_ledger_operation_id_ledger_operations_id_fk" FOREIGN KEY ("ledger_operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -546,7 +552,7 @@ ALTER TABLE "settlements" ADD CONSTRAINT "settlements_currency_id_currencies_id_
 CREATE INDEX "chart_template_parent_idx" ON "chart_template_accounts" USING btree ("parent_account_no");--> statement-breakpoint
 CREATE UNIQUE INDEX "correspondence_rule_uq" ON "correspondence_rules" USING btree ("posting_code","debit_account_no","credit_account_no");--> statement-breakpoint
 CREATE INDEX "correspondence_rule_lookup_idx" ON "correspondence_rules" USING btree ("posting_code","debit_account_no","credit_account_no","enabled");--> statement-breakpoint
-CREATE INDEX "operational_accounts_book_binding_book_idx" ON "operational_accounts_book_bindings" USING btree ("book_account_id");--> statement-breakpoint
+CREATE INDEX "operational_account_binding_instance_idx" ON "operational_account_bindings" USING btree ("book_account_instance_id");--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
@@ -567,12 +573,13 @@ CREATE INDEX "fx_rates_source_asof_idx" ON "fx_rates" USING btree ("source","as_
 CREATE UNIQUE INDEX "ledger_operations_idem_uq" ON "ledger_operations" USING btree ("idempotency_key");--> statement-breakpoint
 CREATE INDEX "ledger_operations_status_idx" ON "ledger_operations" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "ledger_operations_source_idx" ON "ledger_operations" USING btree ("source_type","source_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "ledger_postings_op_line_uq" ON "ledger_postings" USING btree ("operation_id","line_no");--> statement-breakpoint
-CREATE INDEX "ledger_postings_op_idx" ON "ledger_postings" USING btree ("operation_id");--> statement-breakpoint
-CREATE INDEX "ledger_postings_org_currency_idx" ON "ledger_postings" USING btree ("book_org_id","currency");--> statement-breakpoint
-CREATE UNIQUE INDEX "book_accounts_org_no_currency_uq" ON "book_accounts" USING btree ("org_id","account_no","currency");--> statement-breakpoint
-CREATE UNIQUE INDEX "book_accounts_org_tb_uq" ON "book_accounts" USING btree ("org_id","tb_ledger","tb_account_id");--> statement-breakpoint
-CREATE INDEX "book_accounts_org_currency_idx" ON "book_accounts" USING btree ("org_id","currency");--> statement-breakpoint
+CREATE UNIQUE INDEX "postings_op_line_uq" ON "postings" USING btree ("operation_id","line_no");--> statement-breakpoint
+CREATE INDEX "postings_op_idx" ON "postings" USING btree ("operation_id");--> statement-breakpoint
+CREATE INDEX "postings_org_currency_idx" ON "postings" USING btree ("book_org_id","currency");--> statement-breakpoint
+CREATE UNIQUE INDEX "book_account_instances_uq" ON "book_account_instances" USING btree ("book_org_id","account_no","currency","dimensions_hash");--> statement-breakpoint
+CREATE UNIQUE INDEX "book_account_instances_tb_uq" ON "book_account_instances" USING btree ("book_org_id","tb_ledger","tb_account_id");--> statement-breakpoint
+CREATE INDEX "book_account_instances_org_currency_idx" ON "book_account_instances" USING btree ("book_org_id","currency");--> statement-breakpoint
+CREATE INDEX "book_account_instances_account_no_idx" ON "book_account_instances" USING btree ("account_no");--> statement-breakpoint
 CREATE UNIQUE INDEX "outbox_kind_ref_uq" ON "outbox" USING btree ("kind","ref_id");--> statement-breakpoint
 CREATE INDEX "outbox_claim_idx" ON "outbox" USING btree ("kind","status","available_at","created_at") WHERE "outbox"."status" = 'pending';--> statement-breakpoint
 CREATE INDEX "outbox_processing_lease_idx" ON "outbox" USING btree ("kind","status","locked_at") WHERE "outbox"."status" = 'processing';--> statement-breakpoint

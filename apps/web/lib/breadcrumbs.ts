@@ -75,8 +75,6 @@ const segmentMap: Record<string, SegmentConfig> = {
   journal: { label: "Журнал операций" },
   correspondence: { label: "Корреспонденция" },
   "financial-results": { label: "Финрез" },
-  template: { label: "Шаблон счетов" },
-
   rates: { label: "Курсы", icon: "chart-candlestick" },
   quotes: { label: "Котировки" },
 

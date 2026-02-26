@@ -40,6 +40,10 @@ import {
 type LedgerEngine = ReturnType<typeof createLedgerEngine>;
 type TransactionClient = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
+export interface ActionOptions {
+  skipMakerCheckerValidation?: boolean;
+}
+
 const SYSTEM_LEDGER_ORG_ID = "00000000-0000-4000-8000-000000000001";
 
 const SORT_COLUMN_MAP = {
@@ -247,6 +251,7 @@ export function createTransfersService(deps: {
 
   async function approve(
     input: ApproveTransferInput,
+    options?: ActionOptions,
   ): Promise<TransfersServiceResult> {
     const validated = validateApproveTransferInput(input);
 
@@ -292,7 +297,10 @@ export function createTransfersService(deps: {
         );
       }
 
-      if (transfer.makerUserId === validated.checkerUserId) {
+      if (
+        transfer.makerUserId === validated.checkerUserId &&
+        !options?.skipMakerCheckerValidation
+      ) {
         throw new MakerCheckerViolationError();
       }
 
@@ -418,7 +426,7 @@ export function createTransfersService(deps: {
     });
   }
 
-  async function reject(input: RejectTransferInput) {
+  async function reject(input: RejectTransferInput, options?: ActionOptions) {
     const validated = validateRejectTransferInput(input);
 
     return db.transaction(async (tx: TransactionClient) => {
@@ -453,7 +461,10 @@ export function createTransfersService(deps: {
         );
       }
 
-      if (transfer.makerUserId === validated.checkerUserId) {
+      if (
+        transfer.makerUserId === validated.checkerUserId &&
+        !options?.skipMakerCheckerValidation
+      ) {
         throw new MakerCheckerViolationError();
       }
 

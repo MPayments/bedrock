@@ -36,6 +36,12 @@ export const dimensionModeEnum = pgEnum("dimension_mode", [
   "forbidden",
 ]);
 
+export const dimensionPolicyScopeEnum = pgEnum("dimension_policy_scope", [
+  "line",
+  "debit",
+  "credit",
+]);
+
 export const chartTemplateAccounts = pgTable(
   "chart_template_accounts",
   {
@@ -79,6 +85,7 @@ export const postingCodeDimensionPolicy = pgTable(
     postingCode: text("posting_code").notNull(),
     dimensionKey: text("dimension_key").notNull(),
     required: boolean("required").notNull().default(true),
+    scope: dimensionPolicyScopeEnum("scope").notNull().default("line"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),

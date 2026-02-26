@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import {
+  ACCOUNT_NO,
   ListAccountingOperationsQuerySchema,
   type ListAccountingOperationsQuery,
 } from "@bedrock/accounting";
@@ -18,10 +19,16 @@ const OPERATION_SORT_COLUMN_MAP = {
   postingDate: schema.ledgerOperations.postingDate,
   postedAt: schema.ledgerOperations.postedAt,
 } as const;
+const UUID_V4_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function inArraySafe<T>(column: any, values: T[] | undefined) {
   if (!values || values.length === 0) return undefined;
   return inArray(column, values as any[]);
+}
+
+function isUuid(value: string): boolean {
+  return UUID_V4_REGEX.test(value);
 }
 
 interface LedgerOperationListRow {
@@ -55,6 +62,7 @@ interface LedgerOperationPostingRow {
   creditDimensions: Dimensions | null;
   postingCode: string;
   currency: string;
+  currencyPrecision: number;
   amountMinor: bigint;
   memo: string | null;
   context: Record<string, string> | null;
@@ -85,6 +93,8 @@ interface LedgerOperationDetails {
   operation: LedgerOperationListRow;
   postings: LedgerOperationPostingRow[];
   tbPlans: LedgerOperationTbPlanRow[];
+  /** Entity labels keyed by UUID — covers counterpartyId, operationalAccountId, customerId, orderId dimensions */
+  dimensionLabels: Record<string, string>;
 }
 
 export type LedgerReadService = ReturnType<typeof createLedgerReadService>;
@@ -162,8 +172,12 @@ export function createLedgerReadService(deps: { db: Database }) {
           lastOutboxErrorAt: schema.ledgerOperations.lastOutboxErrorAt,
           createdAt: schema.ledgerOperations.createdAt,
           postingCount: sql<number>`count(${schema.postings.id})::int`,
-          bookOrgIds: sql<string[]>`coalesce(array_agg(distinct ${schema.postings.bookOrgId}) filter (where ${schema.postings.bookOrgId} is not null), '{}')`,
-          currencies: sql<string[]>`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
+          bookOrgIds: sql<
+            string[]
+          >`coalesce(array_agg(distinct ${schema.postings.bookOrgId}) filter (where ${schema.postings.bookOrgId} is not null), '{}')`,
+          currencies: sql<
+            string[]
+          >`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
         })
         .from(schema.ledgerOperations)
         .leftJoin(
@@ -226,8 +240,12 @@ export function createLedgerReadService(deps: { db: Database }) {
         lastOutboxErrorAt: schema.ledgerOperations.lastOutboxErrorAt,
         createdAt: schema.ledgerOperations.createdAt,
         postingCount: sql<number>`count(${schema.postings.id})::int`,
-        bookOrgIds: sql<string[]>`coalesce(array_agg(distinct ${schema.postings.bookOrgId}) filter (where ${schema.postings.bookOrgId} is not null), '{}')`,
-        currencies: sql<string[]>`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
+        bookOrgIds: sql<
+          string[]
+        >`coalesce(array_agg(distinct ${schema.postings.bookOrgId}) filter (where ${schema.postings.bookOrgId} is not null), '{}')`,
+        currencies: sql<
+          string[]
+        >`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
       })
       .from(schema.ledgerOperations)
       .leftJoin(
@@ -285,9 +303,7 @@ export function createLedgerReadService(deps: { db: Database }) {
             .from(schema.bookAccountInstances)
             .where(inArray(schema.bookAccountInstances.id, instanceIds));
 
-    const instanceById = new Map(
-      instances.map((inst) => [inst.id, inst]),
-    );
+    const instanceById = new Map(instances.map((inst) => [inst.id, inst]));
 
     const bookOrgIds = Array.from(new Set(postingRows.map((p) => p.bookOrgId)));
     const orgNames =
@@ -302,6 +318,115 @@ export function createLedgerReadService(deps: { db: Database }) {
             .where(inArray(schema.counterparties.id, bookOrgIds));
 
     const orgNameById = new Map(orgNames.map((org) => [org.id, org.shortName]));
+
+    const currencyCodes = Array.from(
+      new Set(postingRows.map((p) => p.currency)),
+    );
+    const currencyRows =
+      currencyCodes.length === 0
+        ? []
+        : await db
+            .select({
+              code: schema.currencies.code,
+              precision: schema.currencies.precision,
+            })
+            .from(schema.currencies)
+            .where(inArray(schema.currencies.code, currencyCodes));
+
+    const precisionByCode = new Map(
+      currencyRows.map((c) => [c.code, c.precision]),
+    );
+
+    // Resolve human-readable labels for dimension values.
+    const allDimensions = instances.flatMap((inst) =>
+      Object.entries((inst.dimensions as Dimensions) ?? {}),
+    );
+
+    const dimCounterpartyIds = Array.from(
+      new Set(
+        allDimensions.filter(([k]) => k === "counterpartyId").map(([, v]) => v),
+      ),
+    );
+    const dimAccountIds = Array.from(
+      new Set(
+        allDimensions
+          .filter(([k]) => k === "operationalAccountId")
+          .map(([, v]) => v),
+      ),
+    );
+    const dimCustomerIds = Array.from(
+      new Set(
+        allDimensions.filter(([k]) => k === "customerId").map(([, v]) => v),
+      ),
+    );
+    const dimOrderIds = Array.from(
+      new Set(allDimensions.filter(([k]) => k === "orderId").map(([, v]) => v)),
+    );
+    const dimOrderUuids = dimOrderIds.filter(isUuid);
+
+    const [dimCounterparties, dimAccounts, dimCustomers, paymentOrders, transferOrders] =
+      await Promise.all([
+      dimCounterpartyIds.length === 0
+        ? []
+        : db
+            .select({
+              id: schema.counterparties.id,
+              shortName: schema.counterparties.shortName,
+            })
+            .from(schema.counterparties)
+            .where(inArray(schema.counterparties.id, dimCounterpartyIds)),
+      dimAccountIds.length === 0
+        ? []
+        : db
+            .select({
+              id: schema.operationalAccounts.id,
+              label: schema.operationalAccounts.label,
+            })
+            .from(schema.operationalAccounts)
+            .where(inArray(schema.operationalAccounts.id, dimAccountIds)),
+      dimCustomerIds.length === 0
+        ? []
+        : db
+            .select({
+              id: schema.customers.id,
+              displayName: schema.customers.displayName,
+            })
+            .from(schema.customers)
+            .where(inArray(schema.customers.id, dimCustomerIds)),
+      dimOrderUuids.length === 0
+        ? []
+        : db
+            .select({
+              id: schema.paymentOrders.id,
+            })
+            .from(schema.paymentOrders)
+            .where(inArray(schema.paymentOrders.id, dimOrderUuids)),
+      dimOrderUuids.length === 0
+        ? []
+        : db
+            .select({
+              id: schema.transferOrders.id,
+            })
+            .from(schema.transferOrders)
+            .where(inArray(schema.transferOrders.id, dimOrderUuids)),
+      ]);
+
+    const dimensionLabels: Record<string, string> = {};
+    for (const { id, shortName } of dimCounterparties) {
+      dimensionLabels[id] = shortName;
+    }
+    for (const { id, label } of dimAccounts) dimensionLabels[id] = label;
+    for (const { id, displayName } of dimCustomers) {
+      dimensionLabels[id] = displayName;
+    }
+    for (const { id } of paymentOrders) {
+      dimensionLabels[id] = `payment order ${id}`;
+    }
+    for (const { id } of transferOrders) {
+      if (!(id in dimensionLabels)) {
+        dimensionLabels[id] = `transfer order ${id}`;
+      }
+    }
 
     return {
       operation: {
@@ -325,6 +450,7 @@ export function createLedgerReadService(deps: { db: Database }) {
           creditDimensions: (creditInst?.dimensions as Dimensions) ?? null,
           postingCode: p.postingCode,
           currency: p.currency,
+          currencyPrecision: precisionByCode.get(p.currency) ?? 2,
           amountMinor: p.amountMinor,
           memo: p.memo,
           context: p.context as Record<string, string> | null,
@@ -350,11 +476,89 @@ export function createLedgerReadService(deps: { db: Database }) {
         error: plan.error,
         createdAt: plan.createdAt,
       })),
+      dimensionLabels,
     };
+  }
+
+  async function getBalancesByOperationalAccountIds(
+    accountIds: string[],
+  ): Promise<
+    {
+      operationalAccountId: string;
+      currency: string;
+      balanceMinor: bigint;
+      precision: number;
+    }[]
+  > {
+    if (accountIds.length === 0) return [];
+
+    const accountIdList = sql.join(
+      accountIds.map((id) => sql`${id}`),
+      sql`, `,
+    );
+
+    const result = await db.execute(sql`
+      SELECT
+        operational_account_id,
+        currency,
+        SUM(delta)::text AS balance_minor
+      FROM (
+        SELECT
+          inst.dimensions->>'operationalAccountId' AS operational_account_id,
+          inst.currency,
+          p.amount_minor AS delta
+        FROM book_account_instances inst
+        JOIN postings p ON p.debit_instance_id = inst.id
+        JOIN ledger_operations lo ON lo.id = p.operation_id AND lo.status = 'posted'
+        WHERE inst.account_no = ${ACCOUNT_NO.BANK}
+          AND inst.dimensions->>'operationalAccountId' IN (${accountIdList})
+        UNION ALL
+        SELECT
+          inst.dimensions->>'operationalAccountId' AS operational_account_id,
+          inst.currency,
+          -p.amount_minor AS delta
+        FROM book_account_instances inst
+        JOIN postings p ON p.credit_instance_id = inst.id
+        JOIN ledger_operations lo ON lo.id = p.operation_id AND lo.status = 'posted'
+        WHERE inst.account_no = ${ACCOUNT_NO.BANK}
+          AND inst.dimensions->>'operationalAccountId' IN (${accountIdList})
+      ) t
+      GROUP BY operational_account_id, currency
+    `);
+
+    const rows = result.rows as {
+      operational_account_id: string;
+      currency: string;
+      balance_minor: string;
+    }[];
+
+    const currencyCodes = Array.from(new Set(rows.map((r) => r.currency)));
+    const currencyRows =
+      currencyCodes.length === 0
+        ? []
+        : await db
+            .select({
+              code: schema.currencies.code,
+              precision: schema.currencies.precision,
+            })
+            .from(schema.currencies)
+            .where(inArray(schema.currencies.code, currencyCodes));
+
+    const precisionByCode = new Map(
+      currencyRows.map((c) => [c.code, c.precision]),
+    );
+
+    return rows.map((r) => ({
+      operationalAccountId: r.operational_account_id,
+      currency: r.currency,
+      balanceMinor: BigInt(r.balance_minor),
+      precision: precisionByCode.get(r.currency) ?? 2,
+    }));
   }
 
   return {
     listOperations,
     getOperationDetails,
+    getBalancesByOperationalAccountIds,
   };
 }

@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { sha256Hex, stableStringify } from "@bedrock/kernel";
+
 import { AccountMappingConflictError } from "../src/errors";
-import { tbBookAccountIdFor, tbLedgerForCurrency } from "../src/ids";
-import { resolveTbBookAccountId } from "../src/resolve";
+import { tbBookAccountInstanceIdFor, tbLedgerForCurrency } from "../src/ids";
+import { resolveTbBookAccountInstanceId } from "../src/resolve";
 import { createMockTbClient, createStubDb, type StubDatabase } from "./helpers";
 
-describe("resolveTbBookAccountId", () => {
+describe("resolveTbBookAccountInstanceId", () => {
   let db: StubDatabase;
   let tb: ReturnType<typeof createMockTbClient>;
 
@@ -14,12 +16,20 @@ describe("resolveTbBookAccountId", () => {
     tb = createMockTbClient();
   });
 
+  const emptyDimensionsHash = sha256Hex(stableStringify({}));
+
   it("returns existing mapped account ID", async () => {
     const orgId = "550e8400-e29b-41d4-a716-446655440000";
     const accountNo = "1000";
     const currency = "USD";
     const tbLedger = tbLedgerForCurrency(currency);
-    const expectedId = tbBookAccountIdFor(orgId, accountNo, currency, tbLedger);
+    const expectedId = tbBookAccountInstanceIdFor(
+      orgId,
+      accountNo,
+      currency,
+      emptyDimensionsHash,
+      tbLedger,
+    );
 
     vi.mocked(db.select).mockReturnValue({
       from: vi.fn(() => ({
@@ -29,12 +39,13 @@ describe("resolveTbBookAccountId", () => {
       })),
     } as any);
 
-    const result = await resolveTbBookAccountId({
+    const result = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      orgId,
+      bookOrgId: orgId,
       accountNo,
       currency,
+      dimensions: {},
     });
 
     expect(result).toBe(expectedId);
@@ -58,7 +69,14 @@ describe("resolveTbBookAccountId", () => {
     } as any);
 
     await expect(
-      resolveTbBookAccountId({ db, tb, orgId, accountNo, currency }),
+      resolveTbBookAccountInstanceId({
+        db,
+        tb,
+        bookOrgId: orgId,
+        accountNo,
+        currency,
+        dimensions: {},
+      }),
     ).rejects.toThrow(AccountMappingConflictError);
 
     expect(tb.createAccounts).not.toHaveBeenCalled();
@@ -69,7 +87,13 @@ describe("resolveTbBookAccountId", () => {
     const accountNo = "2000";
     const currency = "USD";
     const tbLedger = tbLedgerForCurrency(currency);
-    const expectedId = tbBookAccountIdFor(orgId, accountNo, currency, tbLedger);
+    const expectedId = tbBookAccountInstanceIdFor(
+      orgId,
+      accountNo,
+      currency,
+      emptyDimensionsHash,
+      tbLedger,
+    );
 
     vi.mocked(db.select).mockReturnValue({
       from: vi.fn(() => ({
@@ -84,20 +108,22 @@ describe("resolveTbBookAccountId", () => {
     }));
     vi.mocked(db.insert).mockReturnValue({ values: insertValues } as any);
 
-    const result = await resolveTbBookAccountId({
+    const result = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      orgId,
+      bookOrgId: orgId,
       accountNo,
       currency,
+      dimensions: {},
     });
 
     expect(result).toBe(expectedId);
     expect(insertValues).toHaveBeenCalledWith(
       expect.objectContaining({
-        orgId,
+        bookOrgId: orgId,
         accountNo,
         currency,
+        dimensionsHash: expect.any(String),
         tbLedger,
         tbAccountId: expectedId,
       }),
@@ -120,12 +146,13 @@ describe("resolveTbBookAccountId", () => {
       values: vi.fn(() => ({ onConflictDoNothing: vi.fn(async () => undefined) })),
     } as any);
 
-    await resolveTbBookAccountId({
+    await resolveTbBookAccountInstanceId({
       db,
       tb,
-      orgId,
+      bookOrgId: orgId,
       accountNo,
       currency,
+      dimensions: {},
     });
 
     const created = vi.mocked(tb.createAccounts).mock.calls[0]![0]![0];
@@ -156,7 +183,14 @@ describe("resolveTbBookAccountId", () => {
     ] as any);
 
     await expect(
-      resolveTbBookAccountId({ db, tb, orgId, accountNo, currency }),
+      resolveTbBookAccountInstanceId({
+        db,
+        tb,
+        bookOrgId: orgId,
+        accountNo,
+        currency,
+        dimensions: {},
+      }),
     ).resolves.toBeTypeOf("bigint");
   });
 
@@ -183,7 +217,14 @@ describe("resolveTbBookAccountId", () => {
     ] as any);
 
     await expect(
-      resolveTbBookAccountId({ db, tb, orgId, accountNo, currency }),
+      resolveTbBookAccountInstanceId({
+        db,
+        tb,
+        bookOrgId: orgId,
+        accountNo,
+        currency,
+        dimensions: {},
+      }),
     ).rejects.toThrow("TigerBeetle createAccounts failed");
   });
 
@@ -202,20 +243,22 @@ describe("resolveTbBookAccountId", () => {
       values: vi.fn(() => ({ onConflictDoNothing: vi.fn(async () => undefined) })),
     } as any);
 
-    const usd = await resolveTbBookAccountId({
+    const usd = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      orgId,
+      bookOrgId: orgId,
       accountNo,
       currency: "USD",
+      dimensions: {},
     });
 
-    const eur = await resolveTbBookAccountId({
+    const eur = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      orgId,
+      bookOrgId: orgId,
       accountNo,
       currency: "EUR",
+      dimensions: {},
     });
 
     expect(usd).not.toBe(eur);

@@ -87,6 +87,7 @@ const LedgerOperationPostingSchema = z.object({
   creditDimensions: DimensionsSchema,
   postingCode: z.string(),
   currency: z.string(),
+  currencyPrecision: z.number().int(),
   amountMinor: z.string(),
   memo: z.string().nullable(),
   context: z.record(z.string(), z.string()).nullable(),
@@ -117,6 +118,7 @@ const LedgerOperationDetailsSchema = z.object({
   operation: LedgerOperationSummarySchema,
   postings: z.array(LedgerOperationPostingSchema),
   tbPlans: z.array(LedgerOperationTbPlanSchema),
+  dimensionLabels: z.record(z.string(), z.string()),
 });
 
 const FinancialResultSummaryByCurrencySchema = z.object({
@@ -331,6 +333,36 @@ export function accountingRoutes(ctx: AppContext) {
     },
   });
 
+  const getOperationalAccountBalancesRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/operational-account-balances",
+    tags: ["Accounting"],
+    summary: "Get posted balances for operational accounts by their IDs",
+    request: {
+      query: z.object({
+        accountIds: z.string().describe("Comma-separated list of operational account IDs"),
+      }),
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.array(
+              z.object({
+                operationalAccountId: z.string().uuid(),
+                currency: z.string(),
+                balanceMinor: z.string(),
+                precision: z.number().int(),
+              }),
+            ),
+          },
+        },
+        description: "Balances per operational account and currency",
+      },
+    },
+  });
+
   const listFinancialResultsByGroupRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
@@ -473,6 +505,7 @@ export function accountingRoutes(ctx: AppContext) {
             pendingId: plan.pendingId?.toString() ?? null,
             createdAt: plan.createdAt.toISOString(),
           })),
+          dimensionLabels: details.dimensionLabels,
         },
         200,
       );
@@ -509,6 +542,26 @@ export function accountingRoutes(ctx: AppContext) {
           400,
         );
       }
+    })
+    .openapi(getOperationalAccountBalancesRoute, async (c) => {
+      const { accountIds: accountIdsParam } = c.req.valid("query");
+      const accountIds = accountIdsParam
+        .split(",")
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0);
+
+      const balances =
+        await ctx.ledgerReadService.getBalancesByOperationalAccountIds(accountIds);
+
+      return c.json(
+        balances.map((b) => ({
+          operationalAccountId: b.operationalAccountId,
+          currency: b.currency,
+          balanceMinor: b.balanceMinor.toString(),
+          precision: b.precision,
+        })),
+        200,
+      );
     })
     .openapi(listFinancialResultsByGroupRoute, async (c) => {
       try {
