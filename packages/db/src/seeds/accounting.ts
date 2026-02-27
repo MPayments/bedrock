@@ -13,8 +13,15 @@ const ACCOUNTS = [
     "1000",
   ],
   ["1200", "Операционные активы", "asset", "debit", false, true, "1000"],
-  ["1300", "Клиринг (группа)", "active_passive", "both", false, true, "1000"],
-  ["1310", "Клиринг", "active_passive", "both", true, true, "1300"],
+  [
+    "1300",
+    "Внутригрупповые расчеты",
+    "active_passive",
+    "both",
+    false,
+    true,
+    "1000",
+  ],
   ["2000", "Обязательства", "liability", "credit", false, true, null],
   [
     "2100",

@@ -22,7 +22,9 @@
     "db:seed:accounting": "bun x tsx ./src/seeds/run-accounting.ts",
     "db:bootstrap:accounting": "bun x tsx ./src/seeds/run-accounting.ts",
     "db:seed:users": "bun x tsx ./src/seeds/run-users.ts",
-    "db:seed:op": "bun x tsx ./src/seeds/run-operational.ts",
+    "db:seed:counterparties": "bun x tsx ./src/seeds/run-counterparties.ts",
+    "db:seed:account-providers": "bun x tsx ./src/seeds/run-account-providers.ts",
+    "db:seed:accounts": "bun x tsx ./src/seeds/run-accounts.ts",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {

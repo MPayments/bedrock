@@ -12,6 +12,9 @@ export const CURRENCY_IDS = {
   USDT: "00000000-0000-4000-8000-000000000106",
   CNY: "00000000-0000-4000-8000-000000000107",
   TRY: "00000000-0000-4000-8000-000000000108",
+  JPY: "00000000-0000-4000-8000-000000000109",
+  CHF: "00000000-0000-4000-8000-000000000110",
+  BTC: "00000000-0000-4000-8000-000000000111",
 } as const;
 
 export function currencyIdForCode(code: string): string {
@@ -77,6 +80,27 @@ const CURRENCY_SEEDS = [
     name: "Tether",
     symbol: "₮",
     precision: 2,
+  },
+  {
+    id: CURRENCY_IDS.JPY,
+    code: "JPY",
+    name: "Japanese Yen",
+    symbol: "¥",
+    precision: 0,
+  },
+  {
+    id: CURRENCY_IDS.CHF,
+    code: "CHF",
+    name: "Swiss Franc",
+    symbol: "CHF",
+    precision: 2,
+  },
+  {
+    id: CURRENCY_IDS.BTC,
+    code: "BTC",
+    name: "Bitcoin",
+    symbol: "₿",
+    precision: 8,
   },
 ] as const;
 

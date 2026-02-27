@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: "./../../.env" });
 
 const { db } = await import("../client");
-const { seedOperational } = await import("./operational");
+const { seedAccountProviders } = await import("./operational");
 
-await seedOperational(db);
+await seedAccountProviders(db);
 process.exit(0);
