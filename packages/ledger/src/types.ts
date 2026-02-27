@@ -1,3 +1,5 @@
+import type { Dimensions } from "@bedrock/accounting";
+
 export const OPERATION_TRANSFER_TYPE = {
   CREATE: "create",
   POST_PENDING: "post_pending",
@@ -6,8 +8,6 @@ export const OPERATION_TRANSFER_TYPE = {
 
 export type OperationTransferType =
   (typeof OPERATION_TRANSFER_TYPE)[keyof typeof OPERATION_TRANSFER_TYPE];
-
-export type Dimensions = Record<string, string>;
 
 export interface CreateIntentLine {
   type: typeof OPERATION_TRANSFER_TYPE.CREATE;

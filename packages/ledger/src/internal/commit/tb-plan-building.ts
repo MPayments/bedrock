@@ -1,3 +1,4 @@
+import type { Dimensions } from "@bedrock/accounting";
 import { type Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import {
@@ -9,7 +10,6 @@ import {
 
 import {
   OPERATION_TRANSFER_TYPE,
-  type Dimensions,
   type IntentLine,
 } from "../../types";
 

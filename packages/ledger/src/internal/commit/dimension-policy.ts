@@ -5,6 +5,9 @@ import {
   CLEARING_KIND_DIMENSION_RULES,
   DIM,
   KNOWN_DIMENSION_KEYS,
+  type Dimensions,
+  type DimensionMode,
+  type DimensionPolicyScope,
 } from "@bedrock/accounting";
 import type { Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
@@ -13,10 +16,8 @@ import {
   AccountPostingValidationError,
   DimensionPolicyViolationError,
 } from "../../errors";
-import { type Dimensions, type IntentLine } from "../../types";
+import { type IntentLine } from "../../types";
 
-type DimensionMode = "required" | "optional" | "forbidden";
-type DimensionPolicyScope = "line" | "debit" | "credit";
 type CreateIntentLine = Extract<IntentLine, { type: "create" }>;
 
 interface AccountPolicy {

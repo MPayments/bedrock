@@ -26,7 +26,7 @@ export default async function CounterpartyOperationsPage({
 
   const operations = await getOperations({
     ...parsedSearch,
-    bookOrgId: id,
+    counterpartyId: id,
   });
 
   return (
@@ -40,8 +40,9 @@ export default async function CounterpartyOperationsPage({
         </CardHeader>
         <CardContent className="pt-4">
           <p className="text-muted-foreground text-sm">
-            Отображаются операции с фильтром <code>bookOrgId={id}</code>. Для
-            полного журнала откройте{" "}
+            Отображаются операции с фильтром{" "}
+            <code>counterpartyId={id}</code> по аналитике проводок. Для полного
+            журнала откройте{" "}
             <Link href="/operations/journal" className="underline">
               глобальный журнал операций
             </Link>

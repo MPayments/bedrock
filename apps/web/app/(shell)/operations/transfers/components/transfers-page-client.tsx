@@ -54,7 +54,9 @@ interface TransfersPageClientProps {
 type SettlementMode = "immediate" | "pending";
 
 type CreateTransferFormState = {
+  sourceCounterpartyId: string;
   sourceOperationalAccountId: string;
+  destinationCounterpartyId: string;
   destinationOperationalAccountId: string;
   amountMajor: string;
   memo: string;
@@ -63,7 +65,9 @@ type CreateTransferFormState = {
 };
 
 const INITIAL_CREATE_FORM: CreateTransferFormState = {
+  sourceCounterpartyId: "",
   sourceOperationalAccountId: "",
+  destinationCounterpartyId: "",
   destinationOperationalAccountId: "",
   amountMajor: "",
   memo: "",
@@ -71,16 +75,20 @@ const INITIAL_CREATE_FORM: CreateTransferFormState = {
   timeoutSeconds: "86400",
 };
 
-function resolveStatusBadge(
-  status: TransferDto["status"],
-): { label: string; variant: "default" | "secondary" | "destructive" | "outline" } {
+function resolveStatusBadge(status: TransferDto["status"]): {
+  label: string;
+  variant: "default" | "secondary" | "destructive" | "outline";
+} {
   if (status === "draft") return { label: "Черновик", variant: "outline" };
   if (status === "approved_pending_posting") {
     return { label: "В постинге", variant: "secondary" };
   }
-  if (status === "pending") return { label: "Ожидает settle/void", variant: "secondary" };
-  if (status === "settle_pending_posting") return { label: "Settle в постинге", variant: "secondary" };
-  if (status === "void_pending_posting") return { label: "Void в постинге", variant: "secondary" };
+  if (status === "pending")
+    return { label: "Ожидает settle/void", variant: "secondary" };
+  if (status === "settle_pending_posting")
+    return { label: "Settle в постинге", variant: "secondary" };
+  if (status === "void_pending_posting")
+    return { label: "Void в постинге", variant: "secondary" };
   if (status === "posted") return { label: "Проведен", variant: "default" };
   if (status === "voided") return { label: "Аннулирован", variant: "outline" };
   if (status === "rejected") return { label: "Отклонен", variant: "outline" };
@@ -116,8 +124,14 @@ function majorToMinor(
   return { ok: true, value: value.toString() };
 }
 
-function formatMinorAmount(amountMinor: string, currencyCode: string, precision: number) {
-  const value = amountMinor.startsWith("-") ? amountMinor.slice(1) : amountMinor;
+function formatMinorAmount(
+  amountMinor: string,
+  currencyCode: string,
+  precision: number,
+) {
+  const value = amountMinor.startsWith("-")
+    ? amountMinor.slice(1)
+    : amountMinor;
   const negative = amountMinor.startsWith("-");
   const padded = precision > 0 ? value.padStart(precision + 1, "0") : value;
   const integerPart = precision > 0 ? padded.slice(0, -precision) : padded;
@@ -127,7 +141,10 @@ function formatMinorAmount(amountMinor: string, currencyCode: string, precision:
 }
 
 function createIdempotencyKey(prefix: string) {
-  const random = typeof crypto !== "undefined" ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+  const random =
+    typeof crypto !== "undefined"
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
   return `${prefix}:${random}`;
 }
 
@@ -136,17 +153,12 @@ export function TransfersPageClient({
   formOptions,
 }: TransfersPageClientProps) {
   const router = useRouter();
-  const [createForm, setCreateForm] = useState<CreateTransferFormState>(
-    INITIAL_CREATE_FORM,
-  );
+  const [createForm, setCreateForm] =
+    useState<CreateTransferFormState>(INITIAL_CREATE_FORM);
   const [createOpen, setCreateOpen] = useState(false);
   const [submittingCreate, setSubmittingCreate] = useState(false);
   const [actionTransferId, setActionTransferId] = useState<string | null>(null);
 
-  const counterpartyById = useMemo(
-    () => new Map(formOptions.counterparties.map((item) => [item.id, item.shortName])),
-    [formOptions.counterparties],
-  );
   const currencyById = useMemo(
     () =>
       new Map(
@@ -161,20 +173,60 @@ export function TransfersPageClient({
     () => new Map(formOptions.accounts.map((account) => [account.id, account])),
     [formOptions.accounts],
   );
+  const counterpartyById = useMemo(
+    () =>
+      new Map(
+        formOptions.counterparties.map((counterparty) => [
+          counterparty.id,
+          counterparty,
+        ]),
+      ),
+    [formOptions.counterparties],
+  );
+  const accountsByCounterpartyId = useMemo(() => {
+    const map = new Map<string, TransferFormOptions["accounts"]>();
+    for (const account of formOptions.accounts) {
+      const list = map.get(account.counterpartyId) ?? [];
+      list.push(account);
+      map.set(account.counterpartyId, list);
+    }
+    return map;
+  }, [formOptions.accounts]);
+
+  const sourceAccounts = createForm.sourceCounterpartyId
+    ? (accountsByCounterpartyId.get(createForm.sourceCounterpartyId) ?? [])
+    : [];
+  const destinationAccounts = createForm.destinationCounterpartyId
+    ? (accountsByCounterpartyId.get(createForm.destinationCounterpartyId) ?? [])
+    : [];
 
   const selectedSourceAccount = createForm.sourceOperationalAccountId
-    ? accountById.get(createForm.sourceOperationalAccountId) ?? null
+    ? (accountById.get(createForm.sourceOperationalAccountId) ?? null)
     : null;
   const selectedDestinationAccount = createForm.destinationOperationalAccountId
-    ? accountById.get(createForm.destinationOperationalAccountId) ?? null
+    ? (accountById.get(createForm.destinationOperationalAccountId) ?? null)
+    : null;
+  const selectedSourceCounterparty = createForm.sourceCounterpartyId
+    ? (counterpartyById.get(createForm.sourceCounterpartyId) ?? null)
+    : null;
+  const selectedDestinationCounterparty = createForm.destinationCounterpartyId
+    ? (counterpartyById.get(createForm.destinationCounterpartyId) ?? null)
     : null;
   const selectedCurrency = selectedSourceAccount
-    ? currencyById.get(selectedSourceAccount.currencyId) ?? null
+    ? (currencyById.get(selectedSourceAccount.currencyId) ?? null)
     : null;
 
   async function handleCreateTransfer() {
+    if (
+      !createForm.sourceCounterpartyId ||
+      !createForm.destinationCounterpartyId
+    ) {
+      toast.error("Выберите контрагентов источника и назначения");
+      return;
+    }
+
     if (!selectedSourceAccount || !selectedDestinationAccount) {
-      toast.error("Выберите счет источника и назначения");
+      toast.error("Выберите счета списания и зачисления");
       return;
     }
 
@@ -183,7 +235,9 @@ export function TransfersPageClient({
       return;
     }
 
-    if (selectedSourceAccount.currencyId !== selectedDestinationAccount.currencyId) {
+    if (
+      selectedSourceAccount.currencyId !== selectedDestinationAccount.currencyId
+    ) {
       toast.error("Счета должны быть в одной валюте");
       return;
     }
@@ -227,7 +281,8 @@ export function TransfersPageClient({
           },
         }),
       fallbackMessage: "Не удалось создать черновик перевода",
-      parseData: async (response) => (await response.json()) as { transferId: string },
+      parseData: async (response) =>
+        (await response.json()) as { transferId: string },
     });
 
     setSubmittingCreate(false);
@@ -246,7 +301,10 @@ export function TransfersPageClient({
 
   async function handleApprove(transfer: TransferDto) {
     setActionTransferId(transfer.id);
-    const result = await executeMutation<{ transferId: string; ledgerOperationId: string }>({
+    const result = await executeMutation<{
+      transferId: string;
+      ledgerOperationId: string;
+    }>({
       request: () =>
         apiClient.v1.transfers[":id"].approve.$post({
           param: { id: transfer.id },
@@ -256,7 +314,10 @@ export function TransfersPageClient({
         }),
       fallbackMessage: "Не удалось подтвердить перевод",
       parseData: async (response) =>
-        (await response.json()) as { transferId: string; ledgerOperationId: string },
+        (await response.json()) as {
+          transferId: string;
+          ledgerOperationId: string;
+        },
     });
     setActionTransferId(null);
 
@@ -288,7 +349,8 @@ export function TransfersPageClient({
           },
         }),
       fallbackMessage: "Не удалось отклонить перевод",
-      parseData: async (response) => (await response.json()) as { transferId: string },
+      parseData: async (response) =>
+        (await response.json()) as { transferId: string },
     });
     setActionTransferId(null);
 
@@ -303,7 +365,10 @@ export function TransfersPageClient({
 
   async function handleSettle(transfer: TransferDto) {
     setActionTransferId(transfer.id);
-    const result = await executeMutation<{ transferId: string; ledgerOperationId: string }>({
+    const result = await executeMutation<{
+      transferId: string;
+      ledgerOperationId: string;
+    }>({
       request: () =>
         apiClient.v1.transfers[":id"].settle.$post({
           param: { id: transfer.id },
@@ -314,7 +379,10 @@ export function TransfersPageClient({
         }),
       fallbackMessage: "Не удалось провести settle",
       parseData: async (response) =>
-        (await response.json()) as { transferId: string; ledgerOperationId: string },
+        (await response.json()) as {
+          transferId: string;
+          ledgerOperationId: string;
+        },
     });
     setActionTransferId(null);
 
@@ -332,7 +400,10 @@ export function TransfersPageClient({
     if (reason === null) return;
 
     setActionTransferId(transfer.id);
-    const result = await executeMutation<{ transferId: string; ledgerOperationId: string }>({
+    const result = await executeMutation<{
+      transferId: string;
+      ledgerOperationId: string;
+    }>({
       request: () =>
         apiClient.v1.transfers[":id"].void.$post({
           param: { id: transfer.id },
@@ -344,7 +415,10 @@ export function TransfersPageClient({
         }),
       fallbackMessage: "Не удалось выполнить void",
       parseData: async (response) =>
-        (await response.json()) as { transferId: string; ledgerOperationId: string },
+        (await response.json()) as {
+          transferId: string;
+          ledgerOperationId: string;
+        },
     });
     setActionTransferId(null);
 
@@ -376,56 +450,127 @@ export function TransfersPageClient({
                 <DialogHeader>
                   <DialogTitle>Новый перевод</DialogTitle>
                   <DialogDescription>
-                    Перевод будет создан как черновик и потребует подтверждения checker-ом.
+                    Перевод будет создан как черновик и потребует подтверждения
+                    checker-ом.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-3">
-                  <div className="grid gap-1.5">
-                    <Label>Счет источника</Label>
-                    <Select
-                      value={createForm.sourceOperationalAccountId}
-                      onValueChange={(value) =>
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          sourceOperationalAccountId: value ?? "",
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Выберите счет источника" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {formOptions.accounts.map((account) => (
-                          <SelectItem key={account.id} value={account.id}>
-                            {account.label} · {counterpartyById.get(account.counterpartyId) ?? account.counterpartyId}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid gap-1.5">
+                      <Label>Откуда</Label>
+                      <Select
+                        value={createForm.sourceCounterpartyId}
+                        onValueChange={(value) =>
+                          setCreateForm((prev) => ({
+                            ...prev,
+                            sourceCounterpartyId: value ?? "",
+                            sourceOperationalAccountId: "",
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Выберите контрагента">
+                            {selectedSourceCounterparty?.displayName}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {formOptions.counterparties.map((counterparty) => (
+                            <SelectItem
+                              key={counterparty.id}
+                              value={counterparty.id}
+                            >
+                              {counterparty.displayName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid gap-1.5">
+                      <Label>С какого счета</Label>
+                      <Select
+                        value={createForm.sourceOperationalAccountId}
+                        onValueChange={(value) =>
+                          setCreateForm((prev) => ({
+                            ...prev,
+                            sourceOperationalAccountId: value ?? "",
+                          }))
+                        }
+                        disabled={!createForm.sourceCounterpartyId}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Выберите счет источника">
+                            {selectedSourceAccount?.label}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sourceAccounts.map((account) => (
+                            <SelectItem key={account.id} value={account.id}>
+                              {account.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
-                  <div className="grid gap-1.5">
-                    <Label>Счет назначения</Label>
-                    <Select
-                      value={createForm.destinationOperationalAccountId}
-                      onValueChange={(value) =>
-                        setCreateForm((prev) => ({
-                          ...prev,
-                          destinationOperationalAccountId: value ?? "",
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Выберите счет назначения" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {formOptions.accounts.map((account) => (
-                          <SelectItem key={account.id} value={account.id}>
-                            {account.label} · {counterpartyById.get(account.counterpartyId) ?? account.counterpartyId}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid gap-1.5">
+                      <Label>Куда</Label>
+                      <Select
+                        value={createForm.destinationCounterpartyId}
+                        onValueChange={(value) =>
+                          setCreateForm((prev) => ({
+                            ...prev,
+                            destinationCounterpartyId: value ?? "",
+                            destinationOperationalAccountId: "",
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Выберите контрагента">
+                            {selectedDestinationCounterparty?.displayName}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {formOptions.counterparties.map((counterparty) => (
+                            <SelectItem
+                              key={counterparty.id}
+                              value={counterparty.id}
+                            >
+                              {counterparty.displayName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid gap-1.5">
+                      <Label>На какой счет</Label>
+                      <Select
+                        value={createForm.destinationOperationalAccountId}
+                        onValueChange={(value) =>
+                          setCreateForm((prev) => ({
+                            ...prev,
+                            destinationOperationalAccountId: value ?? "",
+                          }))
+                        }
+                        disabled={!createForm.destinationCounterpartyId}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Выберите счет назначения">
+                            {selectedDestinationAccount?.label}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {destinationAccounts.map((account) => (
+                            <SelectItem key={account.id} value={account.id}>
+                              {account.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="grid gap-1.5">
@@ -486,7 +631,10 @@ export function TransfersPageClient({
                     <Input
                       value={createForm.memo}
                       onChange={(event) =>
-                        setCreateForm((prev) => ({ ...prev, memo: event.target.value }))
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          memo: event.target.value,
+                        }))
                       }
                       placeholder="Комментарий (опционально)"
                     />
@@ -500,7 +648,10 @@ export function TransfersPageClient({
                   >
                     Отмена
                   </Button>
-                  <Button onClick={handleCreateTransfer} disabled={submittingCreate}>
+                  <Button
+                    onClick={handleCreateTransfer}
+                    disabled={submittingCreate}
+                  >
                     {submittingCreate ? "Создание..." : "Создать черновик"}
                   </Button>
                 </DialogFooter>
@@ -529,7 +680,10 @@ export function TransfersPageClient({
             <TableBody>
               {transfers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-muted-foreground h-20 text-center">
+                  <TableCell
+                    colSpan={9}
+                    className="text-muted-foreground h-20 text-center"
+                  >
                     Переводы не найдены
                   </TableCell>
                 </TableRow>
@@ -546,15 +700,22 @@ export function TransfersPageClient({
                   return (
                     <TableRow key={transfer.id}>
                       <TableCell className="font-medium">
-                        <Link href={`/operations/transfers/${transfer.id}`} className="hover:underline">
+                        <Link
+                          href={`/operations/transfers/${transfer.id}`}
+                          className="hover:underline"
+                        >
                           {transfer.id.slice(0, 8)}
                         </Link>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <div>{transfer.sourceCounterpartyName ?? transfer.sourceCounterpartyId}</div>
+                          <div>
+                            {transfer.sourceCounterpartyName ??
+                              transfer.sourceCounterpartyId}
+                          </div>
                           <div className="text-muted-foreground text-xs">
-                            {transfer.sourceOperationalAccountLabel ?? transfer.sourceOperationalAccountId}
+                            {transfer.sourceOperationalAccountLabel ??
+                              transfer.sourceOperationalAccountId}
                           </div>
                         </div>
                       </TableCell>
@@ -572,8 +733,10 @@ export function TransfersPageClient({
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {transfer.kind === "cross_org" ? "Cross-org" : "Intra-org"} ·{" "}
-                          {transfer.settlementMode}
+                          {transfer.kind === "cross_org"
+                            ? "Cross-org"
+                            : "Intra-org"}{" "}
+                          · {transfer.settlementMode}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -605,7 +768,11 @@ export function TransfersPageClient({
                         <div className="flex justify-end gap-2">
                           {transfer.status === "draft" ? (
                             <>
-                              <Button size="sm" disabled={busy} onClick={() => handleApprove(transfer)}>
+                              <Button
+                                size="sm"
+                                disabled={busy}
+                                onClick={() => handleApprove(transfer)}
+                              >
                                 Approve
                               </Button>
                               <Button
@@ -620,7 +787,11 @@ export function TransfersPageClient({
                           ) : null}
                           {transfer.status === "pending" ? (
                             <>
-                              <Button size="sm" disabled={busy} onClick={() => handleSettle(transfer)}>
+                              <Button
+                                size="sm"
+                                disabled={busy}
+                                onClick={() => handleSettle(transfer)}
+                              >
                                 Settle
                               </Button>
                               <Button

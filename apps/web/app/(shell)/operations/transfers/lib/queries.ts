@@ -1,6 +1,7 @@
 import { cache } from "react";
 
 import { TRANSFERS_LIST_CONTRACT } from "@bedrock/transfers/validation";
+import { isUuidLike } from "@bedrock/kernel";
 
 import { getServerApiClient } from "@/lib/api-client.server";
 import { readResourceById } from "@/lib/resources/http";
@@ -66,6 +67,8 @@ export interface TransferFormOptions {
   counterparties: {
     id: string;
     shortName: string;
+    fullName: string | null;
+    displayName: string;
   }[];
   currencies: {
     id: string;
@@ -154,6 +157,7 @@ export async function getTransferFormOptions(): Promise<TransferFormOptions> {
     data: {
       id: string;
       shortName: string;
+      fullName?: string | null;
     }[];
   };
   const currenciesPayload = (await currenciesRes.json()) as {
@@ -167,7 +171,22 @@ export async function getTransferFormOptions(): Promise<TransferFormOptions> {
 
   return {
     accounts: accountsPayload.data,
-    counterparties: counterpartiesPayload.data,
+    counterparties: counterpartiesPayload.data.map((counterparty) => {
+      const shortName = counterparty.shortName?.trim() ?? "";
+      const fullName = counterparty.fullName?.trim() ?? null;
+      const isShortNameTechnical = shortName.length === 0 || isUuidLike(shortName);
+      const displayName =
+        !isShortNameTechnical
+          ? shortName
+          : (fullName && fullName.length > 0 ? fullName : counterparty.id);
+
+      return {
+        id: counterparty.id,
+        shortName: counterparty.shortName,
+        fullName: counterparty.fullName ?? null,
+        displayName,
+      };
+    }),
     currencies: currenciesPayload.data,
   };
 }

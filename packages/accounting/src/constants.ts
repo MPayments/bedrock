@@ -33,6 +33,7 @@ export const DIM = {
 } as const;
 
 export type DimensionKey = (typeof DIM)[keyof typeof DIM];
+export type Dimensions = Record<string, string>;
 
 export const KNOWN_DIMENSION_KEYS = new Set<string>(Object.values(DIM));
 

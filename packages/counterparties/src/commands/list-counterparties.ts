@@ -1,6 +1,7 @@
 import { and, asc, desc, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
 import { schema } from "@bedrock/db/schema";
+import { isUuidLike } from "@bedrock/kernel";
 import {
   type PaginatedList,
   resolveSortOrder,
@@ -17,9 +18,6 @@ import {
   type Counterparty,
   type ListCounterpartiesQuery,
 } from "../validation";
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const SORT_COLUMN_MAP = {
   shortName: schema.counterparties.shortName,
@@ -79,7 +77,7 @@ export function createListCounterpartiesHandler(
     }
 
     const selectedGroupIds = Array.from(
-      new Set((groupIds ?? []).filter((value) => UUID_PATTERN.test(value))),
+      new Set((groupIds ?? []).filter((value) => isUuidLike(value))),
     );
     if (groupIds?.length && selectedGroupIds.length === 0) {
       return emptyResult;

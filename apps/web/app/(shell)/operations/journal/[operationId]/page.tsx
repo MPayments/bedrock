@@ -20,6 +20,8 @@ import {
 import { formatAmount, formatDate } from "@/lib/format";
 
 import { getOperationById } from "../lib/queries";
+import { getOperationCodeLabel } from "../lib/operation-code-labels";
+import { getPostingCodeLabel } from "../lib/posting-code-labels";
 
 interface OperationDetailsPageProps {
   params: Promise<{ operationId: string }>;
@@ -119,8 +121,11 @@ export default async function OperationDetailsPage({
             </div>
             <div>
               <div className="text-muted-foreground text-sm">Код операции</div>
-              <div className="mt-1 font-medium">
-                {details.operation.operationCode}
+              <div
+                className="mt-1 font-medium"
+                title={details.operation.operationCode}
+              >
+                {getOperationCodeLabel(details.operation.operationCode)}
               </div>
             </div>
             <div>
@@ -228,8 +233,10 @@ export default async function OperationDetailsPage({
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {posting.postingCode}
+                      <TableCell className="text-xs">
+                        <span className="font-mono text-muted-foreground" title={posting.postingCode}>
+                          {getPostingCodeLabel(posting.postingCode)}
+                        </span>
                       </TableCell>
                       <TableCell className="text-muted-foreground max-w-40 truncate text-xs">
                         {posting.memo ?? "—"}

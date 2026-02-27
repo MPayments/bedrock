@@ -16,6 +16,7 @@ import {
 import { formatDate } from "@/lib/format";
 
 import type { OperationSummaryDto } from "../lib/queries";
+import { getOperationCodeLabel } from "../lib/operation-code-labels";
 
 interface OperationsJournalTableProps {
   operations: OperationSummaryDto[];
@@ -23,9 +24,13 @@ interface OperationsJournalTableProps {
 }
 
 function statusMeta(status: OperationSummaryDto["status"]) {
-  if (status === "posted") return { label: "Posted", variant: "default" as const };
-  if (status === "pending") return { label: "Pending", variant: "secondary" as const };
-  return { label: "Failed", variant: "destructive" as const };
+  if (status === "posted") {
+    return { label: "Проведено", variant: "default" as const };
+  }
+  if (status === "pending") {
+    return { label: "В обработке", variant: "secondary" as const };
+  }
+  return { label: "Ошибка", variant: "destructive" as const };
 }
 
 export function OperationsJournalTable({
@@ -38,13 +43,13 @@ export function OperationsJournalTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Operation</TableHead>
-          <TableHead>Source</TableHead>
-          <TableHead>Code</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Postings</TableHead>
-          <TableHead>Currencies</TableHead>
-          <TableHead className="text-right">Created</TableHead>
+          <TableHead>Операция</TableHead>
+          <TableHead>Источник</TableHead>
+          <TableHead>Код</TableHead>
+          <TableHead>Статус</TableHead>
+          <TableHead className="text-right">Проводки</TableHead>
+          <TableHead>Валюты</TableHead>
+          <TableHead className="text-right">Создана</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -74,7 +79,9 @@ export function OperationsJournalTable({
                     <div className="text-muted-foreground text-xs">{operation.sourceId}</div>
                   </div>
                 </TableCell>
-                <TableCell>{operation.operationCode}</TableCell>
+                <TableCell title={operation.operationCode}>
+                  {getOperationCodeLabel(operation.operationCode)}
+                </TableCell>
                 <TableCell>
                   <Badge variant={status.variant}>{status.label}</Badge>
                 </TableCell>

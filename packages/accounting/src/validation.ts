@@ -55,6 +55,7 @@ interface AccountingOperationsListFilters {
   sourceType: { kind: "string"; cardinality: "multi" };
   sourceId: { kind: "string"; cardinality: "single" };
   bookOrgId: { kind: "string"; cardinality: "single" };
+  counterpartyId: { kind: "string"; cardinality: "single" };
 }
 
 interface FinancialResultsByCounterpartyFilters {
@@ -121,6 +122,10 @@ export const ACCOUNTING_OPERATIONS_LIST_CONTRACT: ListQueryContract<
       cardinality: "single",
     },
     bookOrgId: {
+      kind: "string",
+      cardinality: "single",
+    },
+    counterpartyId: {
       kind: "string",
       cardinality: "single",
     },

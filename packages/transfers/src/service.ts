@@ -3,11 +3,11 @@ import { createCreateDraftHandler } from "./commands/create-draft";
 import { createPendingHandlers } from "./commands/pending";
 import { createReadHandlers } from "./commands/read";
 import { createRejectHandler } from "./commands/reject";
-import type { ActionOptions, TransfersServiceResult } from "./contracts";
 import {
   createTransfersServiceContext,
   type TransfersServiceDeps,
 } from "./internal/context";
+import type { ActionOptions, TransfersServiceResult } from "./types";
 
 export type { ActionOptions, TransfersServiceResult };
 export type TransfersService = ReturnType<typeof createTransfersService>;

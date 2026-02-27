@@ -5,13 +5,13 @@ import type { Transaction } from "@bedrock/db";
 import { schema, type TransferStatus } from "@bedrock/db/schema";
 import { NotFoundError, PermissionError } from "@bedrock/kernel/errors";
 
-import type { TransfersServiceResult } from "../contracts";
 import { InvalidStateError } from "../errors";
 import type { TransfersServiceContext } from "../internal/context";
 import {
   SYSTEM_LEDGER_ORG_ID,
   type TransferOrderRow,
 } from "../internal/shared";
+import type { TransfersServiceResult } from "../types";
 import {
   type SettlePendingTransferInput,
   type VoidPendingTransferInput,

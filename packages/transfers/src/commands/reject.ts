@@ -4,9 +4,9 @@ import type { Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { NotFoundError, PermissionError } from "@bedrock/kernel/errors";
 
-import type { ActionOptions } from "../contracts";
 import { InvalidStateError, MakerCheckerViolationError } from "../errors";
 import type { TransfersServiceContext } from "../internal/context";
+import type { ActionOptions } from "../types";
 import {
   type RejectTransferInput,
   validateRejectTransferInput,

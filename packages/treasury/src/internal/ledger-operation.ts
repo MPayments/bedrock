@@ -1,10 +1,9 @@
+import type { Dimensions } from "@bedrock/accounting";
 import {
   OPERATION_TRANSFER_TYPE,
   type OperationIntent,
   type IntentLine,
 } from "@bedrock/ledger";
-
-type Dimensions = Record<string, string>;
 
 interface AccountSide {
   accountNo: string;

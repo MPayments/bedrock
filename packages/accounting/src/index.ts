@@ -16,6 +16,7 @@ export {
   type DimensionMode,
   type DimensionPolicyScope,
   type DimensionKey,
+  type Dimensions,
 } from "./constants";
 
 export {
@@ -47,7 +48,6 @@ export {
   resolveProviderFeeExpenseAccrualPostingTemplate,
   resolveAdjustmentInLedgerPostingTemplate,
   resolveAdjustmentReservePostingTemplate,
-  type Dimensions,
   type CreateIntentLine,
   type PostPendingIntentLine,
   type VoidPendingIntentLine,

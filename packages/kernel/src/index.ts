@@ -15,3 +15,4 @@ export {
   tbBookAccountInstanceIdFor,
   tbTransferIdForOperation,
 } from "./ledger-ids";
+export { isUuidLike } from "./utils";

@@ -74,13 +74,15 @@ export default async function OperationsJournalPage({
       <Card className="rounded-sm">
         <CardHeader className="border-b">
           <CardTitle>Фильтры</CardTitle>
-          <CardDescription>Фильтрация по статусу, source и operation code.</CardDescription>
+          <CardDescription>
+            Фильтрация по статусу, источнику и коду операции.
+          </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           <form className="grid gap-3 md:grid-cols-5">
             <div className="grid gap-1">
               <label className="text-sm font-medium" htmlFor="status">
-                Status
+                Статус
               </label>
               <select
                 id="status"
@@ -92,15 +94,15 @@ export default async function OperationsJournalPage({
                 }
                 className="border-input bg-background h-9 rounded-md border px-3 text-sm"
               >
-                <option value="">All</option>
-                <option value="pending">pending</option>
-                <option value="posted">posted</option>
-                <option value="failed">failed</option>
+                <option value="">Все</option>
+                <option value="pending">В обработке</option>
+                <option value="posted">Проведено</option>
+                <option value="failed">Ошибка</option>
               </select>
             </div>
             <div className="grid gap-1">
               <label className="text-sm font-medium" htmlFor="sourceType">
-                Source type
+                Тип источника
               </label>
               <input
                 id="sourceType"
@@ -116,7 +118,7 @@ export default async function OperationsJournalPage({
             </div>
             <div className="grid gap-1">
               <label className="text-sm font-medium" htmlFor="operationCode">
-                Operation code
+                Код операции
               </label>
               <input
                 id="operationCode"
@@ -132,7 +134,7 @@ export default async function OperationsJournalPage({
             </div>
             <div className="grid gap-1">
               <label className="text-sm font-medium" htmlFor="sourceId">
-                Source ID
+                ID источника
               </label>
               <input
                 id="sourceId"
@@ -148,7 +150,7 @@ export default async function OperationsJournalPage({
             </div>
             <div className="grid gap-1">
               <label className="text-sm font-medium" htmlFor="bookOrgId">
-                Book org ID
+                ID book org
               </label>
               <input
                 id="bookOrgId"

@@ -6,13 +6,13 @@ import { schema } from "@bedrock/db/schema";
 import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 import { NotFoundError, PermissionError } from "@bedrock/kernel/errors";
 
-import type { ActionOptions, TransfersServiceResult } from "../contracts";
 import { InvalidStateError, MakerCheckerViolationError } from "../errors";
 import type { TransfersServiceContext } from "../internal/context";
 import {
   createResolveTransferBindings,
   SYSTEM_LEDGER_ORG_ID,
 } from "../internal/shared";
+import type { ActionOptions, TransfersServiceResult } from "../types";
 import {
   type ApproveTransferInput,
   validateApproveTransferInput,

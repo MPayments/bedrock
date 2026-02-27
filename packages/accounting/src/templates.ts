@@ -1,15 +1,19 @@
 import { makePlanKey } from "@bedrock/kernel";
 import { TransferCodes } from "@bedrock/kernel/constants";
 
-import { ACCOUNT_NO, CLEARING_KIND, OPERATION_CODE, POSTING_CODE } from "./constants";
+import {
+  ACCOUNT_NO,
+  CLEARING_KIND,
+  OPERATION_CODE,
+  POSTING_CODE,
+  type Dimensions,
+} from "./constants";
 
 export const OPERATION_TRANSFER_TYPE = {
   CREATE: "create",
   POST_PENDING: "post_pending",
   VOID_PENDING: "void_pending",
 } as const;
-
-export type Dimensions = Record<string, string>;
 
 interface PendingConfig {
   timeoutSeconds: number;

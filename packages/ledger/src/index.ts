@@ -12,7 +12,6 @@ export type {
   PostPendingIntentLine,
   VoidPendingIntentLine,
   OperationTransferType,
-  Dimensions,
 } from "./types";
 export {
   IdempotencyConflictError,

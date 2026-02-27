@@ -7,6 +7,7 @@ import {
 } from "@bedrock/accounting";
 import { schema, type LedgerOperationStatus } from "@bedrock/db/schema";
 import type { Dimensions } from "@bedrock/db/schema";
+import { isUuidLike } from "@bedrock/kernel";
 import {
   type PaginatedList,
   resolveSortOrder,
@@ -21,16 +22,9 @@ const OPERATION_SORT_COLUMN_MAP = {
   postedAt: schema.ledgerOperations.postedAt,
 } as const;
 
-const UUID_V4_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 function inArraySafe<T>(column: any, values: T[] | undefined) {
   if (!values || values.length === 0) return undefined;
   return inArray(column, values as any[]);
-}
-
-function isUuid(value: string): boolean {
-  return UUID_V4_REGEX.test(value);
 }
 
 function uniqueStrings(values: string[]): string[] {
@@ -99,7 +93,7 @@ export const DIMENSION_LABEL_REGISTRY: Record<string, DimensionLabelResolver> =
     },
 
     orderId: async ({ db, values }) => {
-      const ids = uniqueStrings(values).filter(isUuid);
+      const ids = uniqueStrings(values).filter(isUuidLike);
       if (ids.length === 0) return new Map();
 
       const labels = new Map<string, string>();
@@ -275,6 +269,7 @@ export function createLedgerReadQueries(
       sourceType,
       sourceId,
       bookOrgId,
+      counterpartyId,
     } = query;
 
     const conditions: SQL[] = [];
@@ -302,6 +297,22 @@ export function createLedgerReadQueries(
         from ${schema.postings} p
         where p.operation_id = ${schema.ledgerOperations.id}
           and p.book_org_id = ${bookOrgId}
+      )`);
+    }
+
+    if (counterpartyId) {
+      conditions.push(sql`exists (
+        select 1
+        from ${schema.postings} p
+        inner join ${schema.bookAccountInstances} debit_inst
+          on debit_inst.id = p.debit_instance_id
+        inner join ${schema.bookAccountInstances} credit_inst
+          on credit_inst.id = p.credit_instance_id
+        where p.operation_id = ${schema.ledgerOperations.id}
+          and (
+            debit_inst.dimensions->>'counterpartyId' = ${counterpartyId}
+            or credit_inst.dimensions->>'counterpartyId' = ${counterpartyId}
+          )
       )`);
     }
 
