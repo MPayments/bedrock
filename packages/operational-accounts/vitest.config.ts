@@ -2,7 +2,7 @@ import { defineProject } from "vitest/config";
 
 export default defineProject({
     test: {
-        name: "accounts",
+        name: "operational-accounts",
         globals: true,
         environment: "node",
         include: ["tests/**/*.test.ts"],

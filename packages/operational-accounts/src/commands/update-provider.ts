@@ -3,14 +3,14 @@ import { eq, sql } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 
 import { AccountProviderNotFoundError } from "../errors";
-import type { AccountServiceContext } from "../internal/context";
+import type { OperationalAccountsServiceContext } from "../internal/context";
 import {
   UpdateProviderInputSchema,
   validateMergedProviderState,
   type UpdateProviderInput,
 } from "../validation";
 
-export function createUpdateProviderHandler(context: AccountServiceContext) {
+export function createUpdateProviderHandler(context: OperationalAccountsServiceContext) {
   const { db, log } = context;
 
   return async function updateProvider(id: string, input: UpdateProviderInput) {

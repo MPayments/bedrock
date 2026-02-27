@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createAccountService } from "../src/service";
+import { createOperationalAccountsService } from "../src/service";
 import {
   AccountNotFoundError,
   AccountProviderNotFoundError,
@@ -130,7 +130,7 @@ describe("providers", () => {
     const db = createStubDb();
     db.insert.mockReturnValue(insertReturning([provider]));
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     const result = await service.createProvider({
       type: "bank",
       name: "Sberbank",
@@ -147,7 +147,7 @@ describe("providers", () => {
     const db = createStubDb();
     db.select.mockReturnValue(selectSingleRow([provider]));
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     const result = await service.getProvider(provider.id);
 
     expect(result).toEqual(provider);
@@ -157,7 +157,7 @@ describe("providers", () => {
     const db = createStubDb();
     db.select.mockReturnValue(selectSingleRow([]));
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
 
     await expect(service.getProvider("missing-id")).rejects.toThrow(
       AccountProviderNotFoundError,
@@ -178,7 +178,7 @@ describe("providers", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     const result = await service.updateProvider(existing.id, { name: "Sber" });
 
     expect(result).toEqual(updated);
@@ -198,7 +198,7 @@ describe("providers", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     const result = await service.updateProvider(existing.id, {});
 
     expect(result).toEqual(existing);
@@ -217,7 +217,7 @@ describe("providers", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
 
     await expect(
       service.updateProvider("missing-id", { name: "Nope" }),
@@ -237,7 +237,7 @@ describe("providers", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
 
     // Removing BIC from Russian bank should fail
     await expect(
@@ -262,7 +262,7 @@ describe("providers", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     await service.deleteProvider(provider.id);
 
     expect(tx.delete).toHaveBeenCalledTimes(1);
@@ -282,7 +282,7 @@ describe("providers", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
 
     await expect(service.deleteProvider("missing-id")).rejects.toThrow(
       AccountProviderNotFoundError,
@@ -303,7 +303,7 @@ describe("providers", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
 
     await expect(
       service.deleteProvider("00000000-0000-4000-8000-000000000301"),
@@ -325,7 +325,7 @@ describe("providers", () => {
       .mockReturnValueOnce(selectList([p1, p2]))
       .mockReturnValueOnce(selectWhereTerminal([{ total: 2 }]));
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     const page = await service.listProviders({
       limit: 20,
       offset: 0,
@@ -347,7 +347,7 @@ describe("providers", () => {
       .mockReturnValueOnce(selectList([]))
       .mockReturnValueOnce(selectWhereTerminal([{ total: 0 }]));
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     const page = await service.listProviders();
 
     expect(page).toEqual({
@@ -380,7 +380,7 @@ describe("accounts", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     const result = await service.createAccount({
       counterpartyId: account.counterpartyId,
       currencyId: account.currencyId,
@@ -407,7 +407,7 @@ describe("accounts", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
 
     await expect(
       service.createAccount({
@@ -435,7 +435,7 @@ describe("accounts", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
 
     await expect(
       service.createAccount({
@@ -470,7 +470,7 @@ describe("accounts", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
 
     await expect(
       service.createAccount({
@@ -488,7 +488,7 @@ describe("accounts", () => {
     const db = createStubDb();
     db.select.mockReturnValue(selectSingleRow([account]));
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     const result = await service.getAccount(account.id);
 
     expect(result).toEqual(account);
@@ -498,7 +498,7 @@ describe("accounts", () => {
     const db = createStubDb();
     db.select.mockReturnValue(selectSingleRow([]));
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
 
     await expect(service.getAccount("missing-id")).rejects.toThrow(
       AccountNotFoundError,
@@ -523,7 +523,7 @@ describe("accounts", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     const result = await service.updateAccount(existing.id, {
       label: "Новый счёт",
     });
@@ -549,7 +549,7 @@ describe("accounts", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     const result = await service.updateAccount(existing.id, {});
 
     expect(result).toEqual(existing);
@@ -568,7 +568,7 @@ describe("accounts", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
 
     await expect(
       service.updateAccount("missing-id", { label: "Nope" }),
@@ -591,7 +591,7 @@ describe("accounts", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
 
     await expect(
       service.updateAccount(existing.id, { label: "Test" }),
@@ -615,7 +615,7 @@ describe("accounts", () => {
       async (fn: (tx: any) => Promise<unknown>) => fn(tx),
     );
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
 
     // Setting accountNo to null on a bank account should fail
     await expect(
@@ -629,7 +629,7 @@ describe("accounts", () => {
     const db = createStubDb();
     db.delete.mockReturnValue(deleteReturning([{ id: account.id }]));
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     await service.deleteAccount(account.id);
 
     expect(db.delete).toHaveBeenCalledTimes(1);
@@ -639,7 +639,7 @@ describe("accounts", () => {
     const db = createStubDb();
     db.delete.mockReturnValue(deleteReturning([]));
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
 
     await expect(service.deleteAccount("missing-id")).rejects.toThrow(
       AccountNotFoundError,
@@ -658,7 +658,7 @@ describe("accounts", () => {
       .mockReturnValueOnce(selectList([a1, a2]))
       .mockReturnValueOnce(selectWhereTerminal([{ total: 2 }]));
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     const page = await service.listAccounts({
       limit: 10,
       offset: 0,
@@ -680,7 +680,7 @@ describe("accounts", () => {
       .mockReturnValueOnce(selectList([]))
       .mockReturnValueOnce(selectWhereTerminal([{ total: 0 }]));
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     const page = await service.listAccounts();
 
     expect(page).toEqual({
@@ -698,7 +698,7 @@ describe("accounts", () => {
       .mockReturnValueOnce(selectList([account]))
       .mockReturnValueOnce(selectWhereTerminal([{ total: 1 }]));
 
-    const service = createAccountService({ db: db as any });
+    const service = createOperationalAccountsService({ db: db as any });
     const page = await service.listAccounts({
       counterpartyId: account.counterpartyId,
       limit: 20,

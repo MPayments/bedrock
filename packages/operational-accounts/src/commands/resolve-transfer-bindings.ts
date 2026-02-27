@@ -3,15 +3,15 @@ import { eq, inArray } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 
 import { AccountNotFoundError } from "../errors";
-import type { AccountServiceContext } from "../internal/context";
+import type { OperationalAccountsServiceContext } from "../internal/context";
 import {
   ResolveTransferBindingsInputSchema,
   type ResolveTransferBindingsInput,
   type TransferAccountBinding,
 } from "../validation";
 
-export function createResolveTransferBindingsHandler(
-  context: AccountServiceContext,
+export function createResolveOperationalTransferBindingsHandler(
+  context: OperationalAccountsServiceContext,
 ) {
   const { db, log } = context;
 

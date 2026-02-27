@@ -3,9 +3,9 @@ import { eq } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 
 import { AccountProviderNotFoundError } from "../errors";
-import type { AccountServiceContext } from "../internal/context";
+import type { OperationalAccountsServiceContext } from "../internal/context";
 
-export function createGetProviderHandler(context: AccountServiceContext) {
+export function createGetProviderHandler(context: OperationalAccountsServiceContext) {
   const { db } = context;
 
   return async function getProvider(id: string) {

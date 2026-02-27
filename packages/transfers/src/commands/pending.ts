@@ -20,7 +20,7 @@ import {
 type PendingTransferEventType = "settle" | "void";
 
 export function createPendingHandlers(context: TransfersServiceContext) {
-  const { db, ledger, canApprove, accountService } = context;
+  const { db, ledger, canApprove, operationalAccountsService } = context;
 
   async function movePendingTransfer(
     tx: Transaction,
@@ -106,7 +106,7 @@ export function createPendingHandlers(context: TransfersServiceContext) {
       );
     }
 
-    const [sourceBinding] = await accountService.resolveTransferBindings({
+    const [sourceBinding] = await operationalAccountsService.resolveTransferBindings({
       accountIds: [transfer.sourceOperationalAccountId],
     });
     if (!sourceBinding) {

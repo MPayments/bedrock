@@ -5,14 +5,16 @@ import { ensureBookAccountInstanceTx } from "@bedrock/book-accounts";
 import { schema } from "@bedrock/db/schema";
 
 import { AccountNotFoundError, AccountProviderNotFoundError } from "../errors";
-import type { AccountServiceContext } from "../internal/context";
+import type { OperationalAccountsServiceContext } from "../internal/context";
 import {
   UpdateAccountInputSchema,
   validateAccountFieldsForProvider,
   type UpdateAccountInput,
 } from "../validation";
 
-export function createUpdateAccountHandler(context: AccountServiceContext) {
+export function createUpdateOperationalAccountHandler(
+  context: OperationalAccountsServiceContext,
+) {
   const { db, log } = context;
 
   return async function updateAccount(id: string, input: UpdateAccountInput) {

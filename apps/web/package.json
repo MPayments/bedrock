@@ -17,7 +17,7 @@
     "@bedrock/customers": "workspace:*",
     "@bedrock/kernel": "workspace:*",
     "@bedrock/ui": "workspace:*",
-    "@bedrock/accounts": "workspace:*",
+    "@bedrock/operational-accounts": "workspace:*",
     "@bedrock/accounting": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "@tanstack/react-table": "^8.21.3",

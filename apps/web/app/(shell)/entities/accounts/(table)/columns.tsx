@@ -3,7 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { z } from "zod";
 
-import type { AccountSchema } from "@bedrock/accounts/validation";
+import type { AccountSchema } from "@bedrock/operational-accounts/validation";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { formatDate } from "@/lib/format";

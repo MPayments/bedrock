@@ -4,9 +4,11 @@ import { ACCOUNT_NO } from "@bedrock/accounting";
 import { schema } from "@bedrock/db/schema";
 
 import { AccountNotFoundError } from "../errors";
-import type { AccountServiceContext } from "../internal/context";
+import type { OperationalAccountsServiceContext } from "../internal/context";
 
-export function createGetAccountHandler(context: AccountServiceContext) {
+export function createGetOperationalAccountHandler(
+  context: OperationalAccountsServiceContext,
+) {
   const { db } = context;
 
   return async function getAccount(id: string) {

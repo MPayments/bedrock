@@ -1,12 +1,12 @@
 import { schema } from "@bedrock/db/schema";
 
-import type { AccountServiceContext } from "../internal/context";
+import type { OperationalAccountsServiceContext } from "../internal/context";
 import {
   CreateProviderInputSchema,
   type CreateProviderInput,
 } from "../validation";
 
-export function createCreateProviderHandler(context: AccountServiceContext) {
+export function createCreateProviderHandler(context: OperationalAccountsServiceContext) {
   const { db, log } = context;
 
   return async function createProvider(input: CreateProviderInput) {

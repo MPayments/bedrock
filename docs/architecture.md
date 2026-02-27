@@ -110,7 +110,7 @@ Global accounting policy is enforced by:
 - `packages/book-accounts`: deterministic `book_account_instances` identity + upsert lifecycle
 - `packages/accounting`: CoA defaults, posting templates, correspondence and policy validation
 - `packages/accounting-reporting`: financial-results reporting queries
-- `packages/accounts`: operational accounts/providers + OA->BookAccountInstance binding and transfer binding resolution
+- `packages/operational-accounts`: operational accounts/providers + OA->BookAccountInstance binding and transfer binding resolution
 - `packages/ledger`: operation engine, TB planning, TB worker, read service
 - `packages/treasury`: payment/FX/payout/fee-payment orchestration and reconciliation workers
 - `packages/transfers`: maker/checker transfer order service + posting finalizer worker
@@ -309,8 +309,8 @@ Cross-org templates route through `1310 INTERCOMPANY_NET`.
 - `packages/accounting/src/templates.ts`
 - OA and bindings:
 - `packages/db/src/schema/treasury/accounts.ts`
-- `packages/accounts/src/commands/create-account.ts`
-- `packages/accounts/src/commands/resolve-transfer-bindings.ts`
+- `packages/operational-accounts/src/commands/create-account.ts`
+- `packages/operational-accounts/src/commands/resolve-transfer-bindings.ts`
 - Ledger engine/worker:
 - `packages/ledger/src/engine.ts`
 - `packages/ledger/src/worker.ts`

@@ -8,7 +8,7 @@ import {
   resolveSortValue,
 } from "@bedrock/kernel/pagination";
 
-import type { AccountServiceContext } from "../internal/context";
+import type { OperationalAccountsServiceContext } from "../internal/context";
 import {
   ListProvidersQuerySchema,
   type AccountProviderType,
@@ -22,7 +22,7 @@ const SORT_COLUMN_MAP = {
   createdAt: schema.operationalAccountProviders.createdAt,
 } as const;
 
-export function createListProvidersHandler(context: AccountServiceContext) {
+export function createListProvidersHandler(context: OperationalAccountsServiceContext) {
   const { db } = context;
 
   return async function listProviders(

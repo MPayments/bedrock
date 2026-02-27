@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/accounts": "workspace:*",
+    "@bedrock/operational-accounts": "workspace:*",
     "@bedrock/db": "workspace:*",
     "@bedrock/kernel": "workspace:*",
     "@bedrock/ledger": "workspace:*",

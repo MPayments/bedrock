@@ -6,7 +6,7 @@ import {
   createAccountingReportingService,
   type AccountingReportingService,
 } from "@bedrock/accounting-reporting";
-import { createAccountService, type AccountService } from "@bedrock/accounts";
+import { createOperationalAccountsService, type OperationalAccountsService } from "@bedrock/operational-accounts";
 import {
   createCounterpartiesService,
   type CounterpartiesService,
@@ -46,7 +46,7 @@ export interface Env {
 export interface AppContext {
   env: Env;
   logger: Logger;
-  accountService: AccountService;
+  operationalAccountsService: OperationalAccountsService;
   accountingService: AccountingService;
   accountingReportingService: AccountingReportingService;
   counterpartiesService: CounterpartiesService;
@@ -61,7 +61,7 @@ export interface AppContext {
 
 export function createAppContext(env: Env): AppContext {
   const logger = createConsoleLogger({ app: "bedrock-api" });
-  const accountService = createAccountService({ db, logger });
+  const operationalAccountsService = createOperationalAccountsService({ db, logger });
   const accountingService = createAccountingService({ db, logger });
   const accountingReportingService = createAccountingReportingService({
     db,
@@ -89,14 +89,14 @@ export function createAppContext(env: Env): AppContext {
   const transfersService = createTransfersService({
     db,
     ledger,
-    accountService,
+    operationalAccountsService,
     logger,
   });
 
   return {
     env,
     logger,
-    accountService,
+    operationalAccountsService,
     accountingService,
     accountingReportingService,
     counterpartiesService,

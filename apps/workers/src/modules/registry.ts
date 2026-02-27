@@ -11,23 +11,23 @@ import {
 
 import type { env } from "../env";
 
-export interface RegisteredWorker {
+interface RegisteredWorker {
   id: string;
   intervalMs: number;
   processOnce: () => Promise<unknown>;
 }
 
-export interface WorkerRegistry {
+interface WorkerRegistry {
   register: (worker: RegisteredWorker) => void;
 }
 
-export interface WorkerModuleDeps {
+interface WorkerModuleDeps {
   db: Database;
   logger: Logger;
   env: typeof env;
 }
 
-export interface ApplicationModule {
+interface ApplicationModule {
   id: string;
   registerWorkers?: (registry: WorkerRegistry, deps: WorkerModuleDeps) => void;
 }
@@ -112,8 +112,4 @@ export function registerApplicationWorkers(deps: WorkerModuleDeps) {
     module.registerWorkers?.(registry, deps);
   }
   return workers;
-}
-
-export function listApplicationModules(): ApplicationModule[] {
-  return APPLICATION_MODULES;
 }

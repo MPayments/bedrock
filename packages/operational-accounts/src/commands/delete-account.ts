@@ -3,9 +3,11 @@ import { eq } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 
 import { AccountNotFoundError } from "../errors";
-import type { AccountServiceContext } from "../internal/context";
+import type { OperationalAccountsServiceContext } from "../internal/context";
 
-export function createDeleteAccountHandler(context: AccountServiceContext) {
+export function createDeleteOperationalAccountHandler(
+  context: OperationalAccountsServiceContext,
+) {
   const { db, log } = context;
 
   return async function deleteAccount(id: string): Promise<void> {

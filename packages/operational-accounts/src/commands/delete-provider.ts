@@ -6,9 +6,9 @@ import {
   AccountProviderNotFoundError,
   AccountProviderInUseError,
 } from "../errors";
-import type { AccountServiceContext } from "../internal/context";
+import type { OperationalAccountsServiceContext } from "../internal/context";
 
-export function createDeleteProviderHandler(context: AccountServiceContext) {
+export function createDeleteProviderHandler(context: OperationalAccountsServiceContext) {
   const { db, log } = context;
 
   return async function deleteProvider(id: string): Promise<void> {

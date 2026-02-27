@@ -1,6 +1,6 @@
 import { createConsoleLogger } from "@bedrock/kernel";
 
-export interface RunLoopOptions {
+interface RunLoopOptions {
   intervalMs: number;
 }
 

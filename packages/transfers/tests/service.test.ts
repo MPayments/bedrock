@@ -112,7 +112,7 @@ function selectCountReturning(rows: unknown[]) {
 
 describe("createTransfersService (v2)", () => {
   let db: StubDatabase;
-  let accountService: { resolveTransferBindings: ReturnType<typeof vi.fn> };
+  let operationalAccountsService: { resolveTransferBindings: ReturnType<typeof vi.fn> };
   let ledger: { commit: ReturnType<typeof vi.fn> };
   let service: ReturnType<typeof createTransfersService>;
 
@@ -140,7 +140,7 @@ describe("createTransfersService (v2)", () => {
 
   beforeEach(() => {
     db = createStubDb();
-    accountService = {
+    operationalAccountsService = {
       resolveTransferBindings: vi.fn(async () => [
         sourceBinding,
         destinationBinding,
@@ -158,7 +158,7 @@ describe("createTransfersService (v2)", () => {
     service = createTransfersService({
       db,
       ledger: ledger as any,
-      accountService: accountService as any,
+      operationalAccountsService: operationalAccountsService as any,
     });
   });
 
@@ -190,13 +190,13 @@ describe("createTransfersService (v2)", () => {
     });
 
     expect(transferId).toBe(TRANSFER_ID);
-    expect(accountService.resolveTransferBindings).toHaveBeenCalledWith({
+    expect(operationalAccountsService.resolveTransferBindings).toHaveBeenCalledWith({
       accountIds: [SOURCE_ACCOUNT_ID, DESTINATION_ACCOUNT_ID],
     });
   });
 
   it("rejects draft when source/destination currencies differ", async () => {
-    accountService.resolveTransferBindings.mockResolvedValueOnce([
+    operationalAccountsService.resolveTransferBindings.mockResolvedValueOnce([
       sourceBinding,
       {
         ...destinationBinding,
@@ -357,7 +357,7 @@ describe("createTransfersService (v2)", () => {
     service = createTransfersService({
       db,
       ledger: ledger as any,
-      accountService: accountService as any,
+      operationalAccountsService: operationalAccountsService as any,
       canApprove,
     });
 

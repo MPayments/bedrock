@@ -41,12 +41,12 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
-export type DimensionLabelResolver = (deps: {
+type DimensionLabelResolver = (deps: {
   db: LedgerContext["db"];
   values: string[];
 }) => Promise<Map<string, string>>;
 
-export const DIMENSION_LABEL_REGISTRY: Record<string, DimensionLabelResolver> =
+const DIMENSION_LABEL_REGISTRY: Record<string, DimensionLabelResolver> =
   {
     counterpartyId: async ({ db, values }) => {
       const ids = uniqueStrings(values);

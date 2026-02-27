@@ -1,6 +1,6 @@
 import { getServerApiClient } from "@/lib/api-client.server";
 
-export interface AccountingTemplateAccount {
+interface AccountingTemplateAccount {
   accountNo: string;
   name: string;
   kind: string;

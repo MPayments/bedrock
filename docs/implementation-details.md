@@ -119,12 +119,12 @@ Current behavior:
   - `listFinancialResultsByGroup`
 - Owns financial-results query contracts/schemas used by API routes.
 
-## `@bedrock/accounts`
+## `@bedrock/operational-accounts`
 
 Key files:
 
-- `packages/accounts/src/commands/create-account.ts`
-- `packages/accounts/src/commands/resolve-transfer-bindings.ts`
+- `packages/operational-accounts/src/commands/create-account.ts`
+- `packages/operational-accounts/src/commands/resolve-transfer-bindings.ts`
 - `packages/book-accounts/src/index.ts`
 
 Current behavior:
@@ -306,7 +306,7 @@ Quotes:
 
 Current composition root wires:
 
-- accounting/account providers/accounts
+- accounting/account providers/operational-accounts
 - counterparties/groups
 - customers
 - currencies

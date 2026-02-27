@@ -9,7 +9,7 @@ import {
   resolveSortValue,
 } from "@bedrock/kernel/pagination";
 
-import type { AccountServiceContext } from "../internal/context";
+import type { OperationalAccountsServiceContext } from "../internal/context";
 import { ListAccountsQuerySchema, type ListAccountsQuery } from "../validation";
 
 const SORT_COLUMN_MAP = {
@@ -21,7 +21,9 @@ type AccountRow = OperationalAccount & {
   postingAccountNo: string;
 };
 
-export function createListAccountsHandler(context: AccountServiceContext) {
+export function createListOperationalAccountsHandler(
+  context: OperationalAccountsServiceContext,
+) {
   const { db } = context;
 
   return async function listAccounts(

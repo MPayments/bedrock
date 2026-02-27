@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { AccountNotFoundError } from "@bedrock/accounts";
 import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+import { AccountNotFoundError } from "@bedrock/operational-accounts";
 import {
   ApproveTransferInputSchema,
   CreateTransferDraftInputBaseSchema,

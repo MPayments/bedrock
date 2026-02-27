@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import {
   AccountSchema,
   AccountNotFoundError,
@@ -8,8 +9,7 @@ import {
   CreateAccountInputSchema,
   UpdateAccountInputSchema,
   ListAccountsQuerySchema,
-} from "@bedrock/accounts";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+} from "@bedrock/operational-accounts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";
@@ -192,13 +192,13 @@ export function accountsRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.accountService.listAccounts(query);
+      const result = await ctx.operationalAccountsService.listAccounts(query);
       return c.json(result, 200);
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");
       try {
-        const account = await ctx.accountService.createAccount(input);
+        const account = await ctx.operationalAccountsService.createAccount(input);
         return c.json(account, 201);
       } catch (err) {
         if (err instanceof AccountProviderNotFoundError) {
@@ -213,7 +213,7 @@ export function accountsRoutes(ctx: AppContext) {
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");
       try {
-        const account = await ctx.accountService.getAccount(id);
+        const account = await ctx.operationalAccountsService.getAccount(id);
         return c.json(account, 200);
       } catch (err) {
         if (err instanceof AccountNotFoundError) {
@@ -226,7 +226,7 @@ export function accountsRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
       try {
-        const account = await ctx.accountService.updateAccount(id, input);
+        const account = await ctx.operationalAccountsService.updateAccount(id, input);
         return c.json(account, 200);
       } catch (err) {
         if (
@@ -244,7 +244,7 @@ export function accountsRoutes(ctx: AppContext) {
     .openapi(deleteRoute, async (c) => {
       const { id } = c.req.valid("param");
       try {
-        await ctx.accountService.deleteAccount(id);
+        await ctx.operationalAccountsService.deleteAccount(id);
         return c.json({ deleted: true }, 200);
       } catch (err) {
         if (err instanceof AccountNotFoundError) {

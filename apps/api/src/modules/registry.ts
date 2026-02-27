@@ -25,9 +25,3 @@ export const treasuryModule = {
     return treasuryRoutes(ctx);
   },
 } as const satisfies ApplicationModule<"/treasury">;
-
-export const API_APPLICATION_MODULES = [
-  fxRatesModule,
-  transfersModule,
-  treasuryModule,
-] as const;

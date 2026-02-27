@@ -1,6 +1,5 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
-import type { TransferAccountBinding } from "@bedrock/accounts";
 import type { Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import {
@@ -8,6 +7,7 @@ import {
   resolveSortValue,
   type PaginatedList,
 } from "@bedrock/kernel/pagination";
+import type { TransferAccountBinding } from "@bedrock/operational-accounts";
 
 import { InvalidStateError, TransferCurrencyMismatchError } from "../errors";
 import type { TransfersServiceContext } from "./context";
@@ -27,7 +27,7 @@ export const SORT_COLUMN_MAP = {
   approvedAt: schema.transferOrders.approvedAt,
 } as const;
 
-export const TRANSFER_SELECT_FIELDS = {
+const TRANSFER_SELECT_FIELDS = {
   id: schema.transferOrders.id,
   sourceCounterpartyId: schema.transferOrders.sourceCounterpartyId,
   destinationCounterpartyId: schema.transferOrders.destinationCounterpartyId,
@@ -86,7 +86,7 @@ export const TRANSFER_SELECT_FIELDS = {
   )`,
 };
 
-export function inArraySafe<T>(column: any, values: T[] | undefined) {
+function inArraySafe<T>(column: any, values: T[] | undefined) {
   if (!values || values.length === 0) return undefined;
   return inArray(column, values as any[]);
 }
@@ -94,14 +94,14 @@ export function inArraySafe<T>(column: any, values: T[] | undefined) {
 export function createResolveTransferBindings(
   context: TransfersServiceContext,
 ) {
-  const { accountService } = context;
+  const { operationalAccountsService } = context;
 
   return async function resolveTransferBindings(
     sourceOperationalAccountId: string,
     destinationOperationalAccountId: string,
   ): Promise<[TransferAccountBinding, TransferAccountBinding]> {
     const [sourceBinding, destinationBinding] =
-      await accountService.resolveTransferBindings({
+      await operationalAccountsService.resolveTransferBindings({
         accountIds: [
           sourceOperationalAccountId,
           destinationOperationalAccountId,

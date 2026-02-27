@@ -24,7 +24,7 @@ interface LedgerOperationsListFilters {
   counterpartyId: { kind: "string"; cardinality: "single" };
 }
 
-export const LEDGER_OPERATIONS_LIST_CONTRACT: ListQueryContract<
+const LEDGER_OPERATIONS_LIST_CONTRACT: ListQueryContract<
   typeof LEDGER_OPERATIONS_SORTABLE_COLUMNS,
   LedgerOperationsListFilters
 > = {

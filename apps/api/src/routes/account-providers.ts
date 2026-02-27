@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import {
   AccountProviderSchema,
   AccountProviderNotFoundError,
@@ -8,8 +9,7 @@ import {
   CreateProviderInputSchema,
   UpdateProviderInputSchema,
   ListProvidersQuerySchema,
-} from "@bedrock/accounts";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+} from "@bedrock/operational-accounts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";
@@ -194,13 +194,13 @@ export function accountProvidersRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.accountService.listProviders(query);
+      const result = await ctx.operationalAccountsService.listProviders(query);
       return c.json(result, 200);
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");
       try {
-        const provider = await ctx.accountService.createProvider(input);
+        const provider = await ctx.operationalAccountsService.createProvider(input);
         return c.json(provider, 201);
       } catch (err) {
         if (err instanceof ValidationError) {
@@ -212,7 +212,7 @@ export function accountProvidersRoutes(ctx: AppContext) {
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");
       try {
-        const provider = await ctx.accountService.getProvider(id);
+        const provider = await ctx.operationalAccountsService.getProvider(id);
         return c.json(provider, 200);
       } catch (err) {
         if (err instanceof AccountProviderNotFoundError) {
@@ -225,7 +225,7 @@ export function accountProvidersRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
       try {
-        const provider = await ctx.accountService.updateProvider(id, input);
+        const provider = await ctx.operationalAccountsService.updateProvider(id, input);
         return c.json(provider, 200);
       } catch (err) {
         if (err instanceof AccountProviderNotFoundError) {
@@ -240,7 +240,7 @@ export function accountProvidersRoutes(ctx: AppContext) {
     .openapi(deleteRoute, async (c) => {
       const { id } = c.req.valid("param");
       try {
-        await ctx.accountService.deleteProvider(id);
+        await ctx.operationalAccountsService.deleteProvider(id);
         return c.json({ deleted: true }, 200);
       } catch (err) {
         if (err instanceof AccountProviderNotFoundError) {

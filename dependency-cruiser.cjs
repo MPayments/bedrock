@@ -11,7 +11,7 @@ const APPLICATION_PACKAGES = [
   "treasury",
   "fx",
   "fees",
-  "accounts",
+  "operational-accounts",
   "counterparties",
   "customers",
   "currencies",

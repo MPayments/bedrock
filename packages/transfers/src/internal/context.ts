@@ -1,13 +1,16 @@
-import type { AccountService } from "@bedrock/accounts";
 import type { Database } from "@bedrock/db";
 import type { Logger } from "@bedrock/kernel";
 import { noopLogger } from "@bedrock/kernel";
 import type { LedgerEngine } from "@bedrock/ledger";
+import type { OperationalAccountsService } from "@bedrock/operational-accounts";
 
 export interface TransfersServiceDeps {
   db: Database;
   ledger: LedgerEngine;
-  accountService: Pick<AccountService, "resolveTransferBindings">;
+  operationalAccountsService: Pick<
+    OperationalAccountsService,
+    "resolveTransferBindings"
+  >;
   canApprove?: (
     actorUserId: string,
     sourceCounterpartyId: string,
@@ -19,7 +22,10 @@ export interface TransfersServiceDeps {
 export interface TransfersServiceContext {
   db: Database;
   ledger: LedgerEngine;
-  accountService: Pick<AccountService, "resolveTransferBindings">;
+  operationalAccountsService: Pick<
+    OperationalAccountsService,
+    "resolveTransferBindings"
+  >;
   canApprove?: (
     actorUserId: string,
     sourceCounterpartyId: string,
@@ -34,7 +40,7 @@ export function createTransfersServiceContext(
   return {
     db: deps.db,
     ledger: deps.ledger,
-    accountService: deps.accountService,
+    operationalAccountsService: deps.operationalAccountsService,
     canApprove: deps.canApprove,
     log: deps.logger?.child({ service: "transfers" }) ?? noopLogger,
   };

@@ -1,5 +1,5 @@
-export { createAccountService } from "./service";
-export type { AccountService } from "./service";
+export { createOperationalAccountsService } from "./service";
+export type { OperationalAccountsService } from "./service";
 
 export {
   AccountProviderTypeSchema,
