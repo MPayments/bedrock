@@ -1,12 +1,12 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
+import { replaceCorrespondenceRulesSchema } from "@bedrock/accounting";
 import {
-  ListAccountingOperationsQuerySchema,
   ListFinancialResultsByCounterpartyQuerySchema,
   ListFinancialResultsByGroupQuerySchema,
-  replaceCorrespondenceRulesSchema,
-} from "@bedrock/accounting";
+} from "@bedrock/accounting-reporting";
 import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+import { ListLedgerOperationsQuerySchema } from "@bedrock/ledger";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";
@@ -261,7 +261,7 @@ export function accountingRoutes(ctx: AppContext) {
     tags: ["Accounting"],
     summary: "List accounting operations journal",
     request: {
-      query: ListAccountingOperationsQuerySchema,
+      query: ListLedgerOperationsQuerySchema,
     },
     responses: {
       200: {
@@ -514,7 +514,9 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const query = c.req.valid("query");
         const result =
-          await ctx.accountingService.listFinancialResultsByCounterparty(query);
+          await ctx.accountingReportingService.listFinancialResultsByCounterparty(
+            query,
+          );
 
         return c.json(
           {
@@ -567,7 +569,9 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const query = c.req.valid("query");
         const result =
-          await ctx.accountingService.listFinancialResultsByGroup(query);
+          await ctx.accountingReportingService.listFinancialResultsByGroup(
+            query,
+          );
 
         return c.json(
           {

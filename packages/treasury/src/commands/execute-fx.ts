@@ -14,7 +14,7 @@ import {
 import { type Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { makePlanKey } from "@bedrock/kernel";
-import { TransferCodes } from "@bedrock/kernel/constants";
+import { SYSTEM_LEDGER_ORG_ID, TransferCodes } from "@bedrock/kernel/constants";
 import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
 
 import {
@@ -24,10 +24,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "../errors";
-import {
-  SYSTEM_LEDGER_ORG_ID,
-  type TreasuryServiceContext,
-} from "../internal/context";
+import type { TreasuryServiceContext } from "../internal/context";
 import { consumeFxQuoteForExecution } from "../internal/fx-quote";
 import {
   buildTreasuryIntent,
@@ -498,7 +495,8 @@ export function createExecuteFxHandler(context: TreasuryServiceContext) {
           component.kind,
         );
 
-        const adjFeeBucket = posting.feeBucket ?? `adjustment:${component.kind}`;
+        const adjFeeBucket =
+          posting.feeBucket ?? `adjustment:${component.kind}`;
         lines.push({
           type: OPERATION_TRANSFER_TYPE.CREATE,
           chain,

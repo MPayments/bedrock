@@ -4,7 +4,7 @@ import { createClient } from "tigerbeetle-node";
 import { beforeAll, afterAll, afterEach } from "vitest";
 
 import { schema } from "@bedrock/db/schema";
-import { seedCurrencies } from "@bedrock/db/seeds";
+import { seedAccounting, seedCurrencies } from "@bedrock/db/seeds";
 
 // Test database and TigerBeetle connection
 const testDbConfig = {
@@ -72,10 +72,10 @@ async function resetTreasuryTables() {
             payment_orders,
             outbox,
             tb_transfer_plans,
-            ledger_postings,
+            postings,
             ledger_operations,
-            book_accounts,
-            operational_accounts_book_bindings,
+            book_account_instances,
+            operational_account_bindings,
             operational_accounts,
             operational_account_providers,
             customers,
@@ -96,10 +96,10 @@ async function cleanupTreasuryTables() {
   await pool.query("DELETE FROM payment_orders");
   await pool.query("DELETE FROM outbox");
   await pool.query("DELETE FROM tb_transfer_plans");
-  await pool.query("DELETE FROM ledger_postings");
+  await pool.query("DELETE FROM postings");
   await pool.query("DELETE FROM ledger_operations");
-  await pool.query("DELETE FROM book_accounts");
-  await pool.query("DELETE FROM operational_accounts_book_bindings");
+  await pool.query("DELETE FROM book_account_instances");
+  await pool.query("DELETE FROM operational_account_bindings");
   await pool.query("DELETE FROM operational_accounts");
   await pool.query("DELETE FROM operational_account_providers");
   await pool.query("DELETE FROM counterparty_group_memberships");
@@ -115,6 +115,7 @@ beforeAll(async () => {
   await assertTigerBeetleReady();
   await resetTreasuryTables();
   await ensureTestCurrencies();
+  await seedAccounting(db);
 
   console.log("Treasury integration test environment ready");
 }, 30000);

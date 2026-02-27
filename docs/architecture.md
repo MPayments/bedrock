@@ -9,8 +9,8 @@ The accounting model in this doc is treated as the canonical architecture:
 
 1. `Counterparty`
 2. `OperationalAccount` (single-currency external endpoint)
-3. `BookAccount` (book org + account no + currency)
-4. `LedgerOperation` / `LedgerPostings` (operation header + postings)
+3. `BookAccountInstance` (book org + account no + currency + dimensions hash)
+4. `LedgerOperation` / `Posting` (operation header + postings)
 
 ## Core accounting model
 
@@ -28,21 +28,22 @@ The accounting model in this doc is treated as the canonical architecture:
 - external attributes (`iban`, `account_no`, `address`, `corr_account`, etc.)
 - `stable_key` for deterministic identity per counterparty
 
-### 3) BookAccount
+### 3) BookAccountInstance
 
-`book_accounts` is the internal ledger location for postings:
+`book_account_instances` is the internal ledger location for postings:
 
-- `org_id` (book org)
+- `book_org_id` (book org)
 - `account_no` (CoA account)
 - `currency`
+- `dimensions` + `dimensions_hash`
 - deterministic TigerBeetle mapping (`tb_ledger`, `tb_account_id`)
 
-### 4) LedgerOperation and LedgerPostings
+### 4) LedgerOperation and Postings
 
 Financial facts are persisted as:
 
 - `ledger_operations`: operation metadata, idempotency, payload hash, posting status
-- `ledger_postings`: debit/credit posting rows with analytics
+- `postings`: debit/credit posting rows with analytics
 - `tb_transfer_plans`: TB execution plan rows
 - `outbox`: async posting queue
 
@@ -52,33 +53,48 @@ Financial facts are persisted as:
 
 `operational_accounts.counterparty_id` is mandatory and enforces ownership.
 
-### OA -> BookAccount binding
+### OA -> BookAccountInstance binding
 
-OA is bound to a `book_account` through `operational_accounts_book_bindings`.
-At account creation, a `postingAccountNo` is provided and the system ensures/creates a matching `book_account` for:
+OA is bound to a `book_account_instance` through `operational_account_bindings`.
+At account creation, a `postingAccountNo` is provided and the system ensures/creates a matching `book_account_instance` for:
 
-- `org_id = counterparty_id` (current account-service behavior)
+- `book_org_id = counterparty_id` (current account-service behavior)
 - `account_no = postingAccountNo`
 - `currency = OA currency code`
+- `dimensions = {}`
 
-Then `operational_account_id -> book_account_id` is persisted.
+Then `operational_account_id -> book_account_instance_id` is persisted.
+
+## Layer contract
+
+Target layering for this monorepo:
+
+1. Platform core: `@bedrock/kernel`, `@bedrock/db`, `@bedrock/book-accounts`, `@bedrock/accounting`, `@bedrock/ledger`
+2. Application modules: `@bedrock/transfers`, `@bedrock/treasury`, `@bedrock/fx`, `@bedrock/fees`, `@bedrock/accounting-reporting`
+3. Adapters: `apps/api`, `apps/workers`, `apps/web`
+
+Dependency rules:
+
+- Platform core must not import application modules or adapters
+- Application modules may import platform core, but not adapters
+- Adapters compose platform core + application modules
 
 ### CoA + correspondence matrix
 
 Global accounting policy is enforced by:
 
 - `chart_template_accounts`
-- `chart_template_account_analytics`
+- `chart_account_dimension_policy`
 - `correspondence_rules`
 
 `correspondence_rules` is global and is the source of truth for allowed `(postingCode, debitAccountNo, creditAccountNo)` triples.
 
 ### Analytics are validated in two layers
 
-1. Account-level requirements from `chart_template_account_analytics`
-2. Posting-code-level requirements from `POSTING_CODE_REQUIRED_ANALYTICS` (`@bedrock/accounting`)
+1. Account-level requirements from `chart_account_dimension_policy`
+2. Posting-code-level requirements from `posting_code_dimension_policy` (`@bedrock/db`)
 
-`ledger.createOperationTx` enforces both.
+`ledger.commit` enforces both.
 
 ## Monorepo structure (current)
 
@@ -91,8 +107,10 @@ Global accounting policy is enforced by:
 
 - `packages/kernel`: errors, logging, canonicalization, currency/math/pagination helpers
 - `packages/db`: Drizzle schema + DB client
-- `packages/accounting`: CoA defaults, posting templates, correspondence and financial-result services
-- `packages/accounts`: operational accounts/providers + OA->BookAccount binding and transfer binding resolution
+- `packages/book-accounts`: deterministic `book_account_instances` identity + upsert lifecycle
+- `packages/accounting`: CoA defaults, posting templates, correspondence and policy validation
+- `packages/accounting-reporting`: financial-results reporting queries
+- `packages/accounts`: operational accounts/providers + OA->BookAccountInstance binding and transfer binding resolution
 - `packages/ledger`: operation engine, TB planning, TB worker, read service
 - `packages/treasury`: payment/FX/payout/fee-payment orchestration and reconciliation workers
 - `packages/transfers`: maker/checker transfer order service + posting finalizer worker
@@ -111,23 +129,21 @@ Global accounting policy is enforced by:
 - customers
 - currencies
 - FX rates
+- treasury
 - transfers
 - ledger read service (used by accounting routes)
 
-`@bedrock/treasury` exists and is tested in package/integration tests, but treasury routes and treasury workers are not currently mounted in `apps/api`.
+`apps/api` mounts application modules through `apps/api/src/modules/registry.ts`.
 
-Available API worker entrypoints in `apps/api` today:
-
-- `fx-rates` worker
-- `transfers` worker
+Workers are composed through `apps/workers/src/modules/registry.ts`.
 
 ## Runtime model
 
-### Phase 1: synchronous acceptance (`createOperationTx`)
+### Phase 1: synchronous acceptance (`commit`)
 
-Domain service builds posting template lines and calls `ledger.createOperationTx` in a DB transaction.
+Domain service builds posting template lines and calls `ledger.commit` in a DB transaction.
 
-`createOperationTx`:
+`commit`:
 
 1. Validates operation input and chain block adjacency
 2. Computes deterministic `payloadHash`
@@ -137,9 +153,9 @@ Domain service builds posting template lines and calls `ledger.createOperationTx
 - validates correspondence rule
 - validates account policy (`exists`, `enabled`, `posting_allowed`)
 - validates required analytics (account-level + posting-code-level)
-- ensures deterministic `book_accounts`
+- ensures deterministic `book_account_instances`
 
-5. Persists `ledger_postings`
+5. Persists `postings`
 6. Persists `tb_transfer_plans`
 7. Enqueues outbox job `kind='post_operation'`
 8. Returns `{ operationId, pendingTransferIdsByRef }`
@@ -173,7 +189,7 @@ Domain service builds posting template lines and calls `ledger.createOperationTx
 
 ### B) Ledger engine validates and persists
 
-`ledger.createOperationTx` is the single persistence truth for accounting intent.
+`ledger.commit` is the single persistence truth for accounting intent.
 
 ### C) Ledger worker publishes to TigerBeetle
 
@@ -240,17 +256,17 @@ Cross-org templates route through `1310 INTERCOMPANY_NET`.
 ### Ledger and posting pipeline
 
 - `ledger_operations`
-- `ledger_postings`
+- `postings`
 - `tb_transfer_plans`
 - `outbox`
-- `book_accounts`
+- `book_account_instances`
 
 ### Accounting policy
 
 - `chart_template_accounts`
-- `chart_template_account_analytics`
+- `chart_account_dimension_policy`
 - `correspondence_rules`
-- `operational_accounts_book_bindings`
+- `operational_account_bindings`
 
 ### Treasury
 
@@ -314,19 +330,19 @@ flowchart TD
   CP["counterparties"]
   CG["counterparty_groups"]
   OA["operational_accounts"]
-  OAB["operational_accounts_book_bindings"]
-  BA["book_accounts"]
+  OAB["operational_account_bindings"]
+  BA["book_account_instances"]
   COA["chart_template_accounts"]
-  CAA["chart_template_account_analytics"]
+  CAA["chart_account_dimension_policy"]
   CR["correspondence_rules"]
 
   PO["payment_orders"]
   FPO["fee_payment_orders"]
   TO["transfer_orders"]
   DS["treasury/transfers services"]
-  LE["ledger.createOperationTx"]
+  LE["ledger.commit"]
   LO["ledger_operations"]
-  LP["ledger_postings"]
+  LP["postings"]
   TP["tb_transfer_plans"]
   OB["outbox"]
   LW["ledger worker"]

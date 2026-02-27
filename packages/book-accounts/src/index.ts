@@ -1,21 +1,31 @@
-import { schema } from "@bedrock/db/schema";
+import type { Transaction } from "@bedrock/db";
+import { schema, type Dimensions } from "@bedrock/db/schema";
 import {
   computeDimensionsHash,
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
 } from "@bedrock/kernel";
 
-interface EnsureBookAccountInstanceInput {
+export interface BookAccountIdentityInput {
   bookOrgId: string;
   accountNo: string;
   currency: string;
-  dimensions: Record<string, string>;
+  dimensions: Dimensions;
 }
 
-export async function ensureBookAccountInstanceTx(
-  tx: any,
-  input: EnsureBookAccountInstanceInput,
-) {
+export interface BookAccountIdentity {
+  dimensionsHash: string;
+  tbLedger: number;
+  tbAccountId: bigint;
+}
+
+export interface BookAccountInstanceRef extends BookAccountIdentity {
+  id: string;
+}
+
+export function computeBookAccountIdentity(
+  input: BookAccountIdentityInput,
+): BookAccountIdentity {
   const dimensionsHash = computeDimensionsHash(input.dimensions);
   const tbLedger = tbLedgerForCurrency(input.currency);
   const tbAccountId = tbBookAccountInstanceIdFor(
@@ -25,6 +35,20 @@ export async function ensureBookAccountInstanceTx(
     dimensionsHash,
     tbLedger,
   );
+
+  return {
+    dimensionsHash,
+    tbLedger,
+    tbAccountId,
+  };
+}
+
+export async function ensureBookAccountInstanceTx(
+  tx: Transaction,
+  input: BookAccountIdentityInput,
+): Promise<BookAccountInstanceRef> {
+  const { dimensionsHash, tbLedger, tbAccountId } =
+    computeBookAccountIdentity(input);
 
   const inserted = await tx
     .insert(schema.bookAccountInstances)
@@ -69,6 +93,10 @@ export async function ensureBookAccountInstanceTx(
     );
   }
 
-  return existing.id;
+  return {
+    id: existing.id,
+    dimensionsHash,
+    tbLedger,
+    tbAccountId,
+  };
 }
-

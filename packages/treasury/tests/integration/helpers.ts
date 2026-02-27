@@ -380,8 +380,8 @@ export async function getJournalEntry(entryId: string) {
 export async function getJournalLines(entryId: string) {
   const postings = await db
     .select()
-    .from(schema.ledgerPostings)
-    .where(eq(schema.ledgerPostings.operationId, entryId));
+    .from(schema.postings)
+    .where(eq(schema.postings.operationId, entryId));
 
   if (postings.length === 0) {
     return [];
@@ -389,17 +389,17 @@ export async function getJournalLines(entryId: string) {
 
   const accountIds = new Set<string>();
   for (const posting of postings) {
-    accountIds.add(posting.debitBookAccountId);
-    accountIds.add(posting.creditBookAccountId);
+    accountIds.add(posting.debitInstanceId);
+    accountIds.add(posting.creditInstanceId);
   }
 
   const accounts = await db
     .select({
-      id: schema.bookAccounts.id,
-      accountNo: schema.bookAccounts.accountNo,
+      id: schema.bookAccountInstances.id,
+      accountNo: schema.bookAccountInstances.accountNo,
     })
-    .from(schema.bookAccounts)
-    .where(inArray(schema.bookAccounts.id, Array.from(accountIds)));
+    .from(schema.bookAccountInstances)
+    .where(inArray(schema.bookAccountInstances.id, Array.from(accountIds)));
 
   const accountById = new Map(
     accounts.map((account) => [account.id, account.accountNo]),
@@ -416,14 +416,14 @@ export async function getJournalLines(entryId: string) {
     lines.push({
       entryId,
       side: "debit",
-      accountKey: accountById.get(posting.debitBookAccountId) ?? "",
+      accountKey: accountById.get(posting.debitInstanceId) ?? "",
       amountMinor: posting.amountMinor,
       lineNo: posting.lineNo,
     });
     lines.push({
       entryId,
       side: "credit",
-      accountKey: accountById.get(posting.creditBookAccountId) ?? "",
+      accountKey: accountById.get(posting.creditInstanceId) ?? "",
       amountMinor: posting.amountMinor,
       lineNo: posting.lineNo,
     });

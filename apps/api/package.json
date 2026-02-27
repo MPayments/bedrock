@@ -19,6 +19,7 @@
   "dependencies": {
     "@bedrock/accounts": "workspace:*",
     "@bedrock/accounting": "workspace:*",
+    "@bedrock/accounting-reporting": "workspace:*",
     "@bedrock/auth": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/db": "workspace:*",
@@ -28,6 +29,7 @@
     "@bedrock/ledger": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/customers": "workspace:*",
+    "@bedrock/treasury": "workspace:*",
     "@bedrock/transfers": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "@hono/zod-openapi": "^1.2.2",
@@ -36,7 +38,7 @@
     "hono": "^4.12.2"
   },
   "devDependencies": {
-    "@bedrock/typescript-config": "*",
+    "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
     "typescript": "^5.8.3",
     "@bedrock/eslint-config": "workspace:*",

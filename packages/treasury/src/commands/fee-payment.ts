@@ -4,14 +4,15 @@ import { ACCOUNT_NO, OPERATION_CODE, POSTING_CODE } from "@bedrock/accounting";
 import { type Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { makePlanKey } from "@bedrock/kernel";
-import { DAY_IN_SECONDS, TransferCodes } from "@bedrock/kernel/constants";
+import {
+  DAY_IN_SECONDS,
+  SYSTEM_LEDGER_ORG_ID,
+  TransferCodes,
+} from "@bedrock/kernel/constants";
 import { InvalidStateError } from "@bedrock/kernel/errors";
 import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
 
-import {
-  SYSTEM_LEDGER_ORG_ID,
-  type TreasuryServiceContext,
-} from "../internal/context";
+import type { TreasuryServiceContext } from "../internal/context";
 import { assertInitiateFeePaymentReplayCompatible } from "../internal/fee-payment-idempotency";
 import { buildTreasuryIntent } from "../internal/ledger-operation";
 import { fetchFeePaymentOrderState } from "../internal/order-state";

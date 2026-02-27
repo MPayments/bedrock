@@ -3,7 +3,6 @@ import { eq } from "drizzle-orm";
 import { ACCOUNT_NO } from "@bedrock/accounting";
 import { type Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
-import { seedAccounting } from "@bedrock/db/seeds";
 import {
   computeDimensionsHash,
   sha256Hex,
@@ -11,7 +10,10 @@ import {
   tbTransferIdForOperation,
 } from "@bedrock/kernel";
 
-import { IdempotencyConflictError } from "../../errors";
+import {
+  AccountingNotInitializedError,
+  IdempotencyConflictError,
+} from "../../errors";
 import { OPERATION_TRANSFER_TYPE, type IntentLine } from "../../types";
 
 let accountingDefaultsKnownPresent = false;
@@ -90,7 +92,7 @@ export function computePayloadHash(input: {
   );
 }
 
-export async function ensureAccountingDefaultsSeeded(tx: Transaction) {
+export async function ensureAccountingDefaultsInitialized(tx: Transaction) {
   if (accountingDefaultsKnownPresent) return;
 
   const [existing] = await tx
@@ -104,7 +106,7 @@ export async function ensureAccountingDefaultsSeeded(tx: Transaction) {
     return;
   }
 
-  await seedAccounting(tx);
+  throw new AccountingNotInitializedError();
 }
 
 export async function acquireOperationId(input: {

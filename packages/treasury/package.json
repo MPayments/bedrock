@@ -14,16 +14,16 @@
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
     "@bedrock/currencies": "workspace:*",
-    "@bedrock/db": "*",
-    "@bedrock/fees": "*",
-    "@bedrock/kernel": "*",
-    "@bedrock/ledger": "*",
+    "@bedrock/db": "workspace:*",
+    "@bedrock/fees": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4"
   },
   "devDependencies": {
-    "@bedrock/test-utils": "*",
-    "@bedrock/typescript-config": "*",
+    "@bedrock/test-utils": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
     "@types/pg": "^8.16.0",
     "pg": "^8.18.0",
     "tigerbeetle-node": "^0.16.72",

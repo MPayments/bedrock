@@ -2,6 +2,7 @@ import { beforeAll, afterAll, afterEach } from "vitest";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { schema } from "@bedrock/db/schema";
+import { seedAccounting } from "@bedrock/db/seeds";
 import { createClient } from "tigerbeetle-node";
 
 // Test database and TigerBeetle connection
@@ -64,11 +65,13 @@ beforeAll(async () => {
   // Clean all test data at the start
   try {
     await pool.query(
-      "TRUNCATE TABLE outbox, tb_transfer_plans, ledger_postings, ledger_operations, book_accounts RESTART IDENTITY CASCADE",
+      "TRUNCATE TABLE outbox, tb_transfer_plans, postings, ledger_operations, book_account_instances RESTART IDENTITY CASCADE",
     );
   } catch (error) {
     console.error("Initial cleanup error:", error);
   }
+
+  await seedAccounting(db);
 
   console.log("Integration test environment ready");
 }, 30000);
@@ -95,9 +98,9 @@ afterEach(async () => {
       // Delete in reverse dependency order
       await pool.query("DELETE FROM outbox");
       await pool.query("DELETE FROM tb_transfer_plans");
-      await pool.query("DELETE FROM ledger_postings");
+      await pool.query("DELETE FROM postings");
       await pool.query("DELETE FROM ledger_operations");
-      await pool.query("DELETE FROM book_accounts");
+      await pool.query("DELETE FROM book_account_instances");
     } catch (error) {
       console.error("Cleanup error:", error);
       // If cleanup fails, try to continue anyway

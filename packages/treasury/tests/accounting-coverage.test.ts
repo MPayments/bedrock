@@ -4,8 +4,6 @@ import {
   ACCOUNT_NO,
   AccountingError,
   CorrespondenceRuleNotFoundError,
-  ListFinancialResultsByCounterpartyQuerySchema,
-  ListFinancialResultsByGroupQuerySchema,
   OPERATION_CODE,
   POSTING_CODE,
 } from "../../accounting/src/index";
@@ -18,6 +16,10 @@ import {
   resolveFeeReservePostingTemplate,
   resolveInLedgerFeePostingTemplate,
 } from "../../accounting/src/templates";
+import {
+  ListFinancialResultsByCounterpartyQuerySchema,
+  ListFinancialResultsByGroupQuerySchema,
+} from "../../accounting-reporting/src/index";
 
 describe("accounting template coverage", () => {
   it("builds intra-org pending transfer template", () => {
@@ -31,15 +33,11 @@ describe("accounting template coverage", () => {
       source: {
         accountId: "src-acc",
         counterpartyId: "src-cp",
-        bookOrgId: "org-1",
-        bookAccountNo: ACCOUNT_NO.BANK,
         currencyCode: "USD",
       },
       destination: {
         accountId: "dst-acc",
         counterpartyId: "dst-cp",
-        bookOrgId: "org-1",
-        bookAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
         currencyCode: "USD",
       },
     });
@@ -51,6 +49,9 @@ describe("accounting template coverage", () => {
     expect(result.lines).toHaveLength(1);
     const transfer = result.lines[0]!;
     expect(transfer.type).toBe(OPERATION_TRANSFER_TYPE.CREATE);
+    if (transfer.type !== OPERATION_TRANSFER_TYPE.CREATE) {
+      throw new Error("Expected create transfer line");
+    }
     expect(transfer.postingCode).toBe(POSTING_CODE.TRANSFER_INTRA_PENDING);
     expect(transfer.pending?.timeoutSeconds).toBe(60);
   });
@@ -65,15 +66,11 @@ describe("accounting template coverage", () => {
       source: {
         accountId: "src-acc",
         counterpartyId: "src-cp",
-        bookOrgId: "org-src",
-        bookAccountNo: ACCOUNT_NO.BANK,
         currencyCode: "USD",
       },
       destination: {
         accountId: "dst-acc",
         counterpartyId: "dst-cp",
-        bookOrgId: "org-dst",
-        bookAccountNo: ACCOUNT_NO.BANK,
         currencyCode: "USD",
       },
     });
@@ -83,10 +80,20 @@ describe("accounting template coverage", () => {
     );
     expect(result.destinationPendingRef).toBe("transfer:tr-2:destination");
     expect(result.lines).toHaveLength(2);
-    expect(result.lines[0]!.postingCode).toBe(
+    const sourceLine = result.lines[0]!;
+    const destinationLine = result.lines[1]!;
+    expect(sourceLine.type).toBe(OPERATION_TRANSFER_TYPE.CREATE);
+    expect(destinationLine.type).toBe(OPERATION_TRANSFER_TYPE.CREATE);
+    if (
+      sourceLine.type !== OPERATION_TRANSFER_TYPE.CREATE ||
+      destinationLine.type !== OPERATION_TRANSFER_TYPE.CREATE
+    ) {
+      throw new Error("Expected create transfer lines");
+    }
+    expect(sourceLine.postingCode).toBe(
       POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE,
     );
-    expect(result.lines[1]!.postingCode).toBe(
+    expect(destinationLine.postingCode).toBe(
       POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE,
     );
   });
@@ -102,9 +109,7 @@ describe("accounting template coverage", () => {
 
     expect(settle.operationCode).toBe(OPERATION_CODE.TRANSFER_SETTLE_PENDING);
     expect(settle.lines).toHaveLength(2);
-    expect(settle.lines[0]!.type).toBe(
-      OPERATION_TRANSFER_TYPE.POST_PENDING,
-    );
+    expect(settle.lines[0]!.type).toBe(OPERATION_TRANSFER_TYPE.POST_PENDING);
 
     const voided = buildTransferPendingActionTemplate({
       transferId: "tr-4",
@@ -115,9 +120,7 @@ describe("accounting template coverage", () => {
     });
 
     expect(voided.operationCode).toBe(OPERATION_CODE.TRANSFER_VOID_PENDING);
-    expect(voided.lines[0]!.type).toBe(
-      OPERATION_TRANSFER_TYPE.VOID_PENDING,
-    );
+    expect(voided.lines[0]!.type).toBe(OPERATION_TRANSFER_TYPE.VOID_PENDING);
   });
 
   it("resolves in-ledger fee posting templates for all kinds", () => {

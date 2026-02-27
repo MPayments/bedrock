@@ -10,6 +10,16 @@ export class IdempotencyConflictError extends LedgerError {
   name = "IdempotencyConflictError";
 }
 
+export class AccountingNotInitializedError extends LedgerError {
+  name = "AccountingNotInitializedError";
+
+  constructor() {
+    super(
+      "Accounting defaults are not initialized. Run `bun run --filter=@bedrock/db db:bootstrap:accounting` before committing ledger operations.",
+    );
+  }
+}
+
 export class AccountPostingValidationError extends LedgerError {
   name = "AccountPostingValidationError";
 }

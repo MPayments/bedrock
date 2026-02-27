@@ -16,15 +16,16 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/kernel": "*",
-    "@bedrock/db": "*",
+    "@bedrock/book-accounts": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
+    "@bedrock/db": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "tigerbeetle-node": "^0.16.72",
     "zod": "^4"
   },
   "devDependencies": {
-    "@bedrock/test-utils": "*",
-    "@bedrock/typescript-config": "*",
+    "@bedrock/test-utils": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
     "@types/pg": "^8.16.0",
     "pg": "^8.17.2",
     "typescript": "^5.8.3",

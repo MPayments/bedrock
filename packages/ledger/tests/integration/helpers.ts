@@ -26,9 +26,9 @@ export async function getOperation(operationId: string) {
 export async function getPostings(operationId: string) {
   return db
     .select()
-    .from(schema.ledgerPostings)
-    .where(eq(schema.ledgerPostings.operationId, operationId))
-    .orderBy(schema.ledgerPostings.lineNo);
+    .from(schema.postings)
+    .where(eq(schema.postings.operationId, operationId))
+    .orderBy(schema.postings.lineNo);
 }
 
 export async function getTbTransferPlans(operationId: string) {
@@ -46,12 +46,12 @@ export async function getBookAccount(
 ) {
   const rows = await db
     .select()
-    .from(schema.bookAccounts)
+    .from(schema.bookAccountInstances)
     .where(
       and(
-        eq(schema.bookAccounts.orgId, orgId),
-        eq(schema.bookAccounts.accountNo, accountNo),
-        eq(schema.bookAccounts.tbLedger, tbLedger),
+        eq(schema.bookAccountInstances.bookOrgId, orgId),
+        eq(schema.bookAccountInstances.accountNo, accountNo),
+        eq(schema.bookAccountInstances.tbLedger, tbLedger),
       ),
     )
     .limit(1);

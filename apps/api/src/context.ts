@@ -2,6 +2,10 @@ import {
   createAccountingService,
   type AccountingService,
 } from "@bedrock/accounting";
+import {
+  createAccountingReportingService,
+  type AccountingReportingService,
+} from "@bedrock/accounting-reporting";
 import { createAccountService, type AccountService } from "@bedrock/accounts";
 import {
   createCounterpartiesService,
@@ -16,7 +20,6 @@ import {
   type CustomersService,
 } from "@bedrock/customers";
 import { db } from "@bedrock/db/client";
-import { seedAccounting } from "@bedrock/db/seeds";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import { createConsoleLogger, type Logger } from "@bedrock/kernel";
@@ -29,6 +32,7 @@ import {
   createTransfersService,
   type TransfersService,
 } from "@bedrock/transfers";
+import { createTreasuryService, type TreasuryService } from "@bedrock/treasury";
 
 export interface Env {
   DATABASE_URL: string;
@@ -44,12 +48,14 @@ export interface AppContext {
   logger: Logger;
   accountService: AccountService;
   accountingService: AccountingService;
+  accountingReportingService: AccountingReportingService;
   counterpartiesService: CounterpartiesService;
   customersService: CustomersService;
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
   ledgerReadService: LedgerReadService;
+  treasuryService: TreasuryService;
   transfersService: TransfersService;
 }
 
@@ -57,6 +63,10 @@ export function createAppContext(env: Env): AppContext {
   const logger = createConsoleLogger({ app: "bedrock-api" });
   const accountService = createAccountService({ db, logger });
   const accountingService = createAccountingService({ db, logger });
+  const accountingReportingService = createAccountingReportingService({
+    db,
+    logger,
+  });
   const counterpartiesService = createCounterpartiesService({ db, logger });
   const customersService = createCustomersService({ db, logger });
   const currenciesService = createCurrenciesService({ db, logger });
@@ -69,6 +79,13 @@ export function createAppContext(env: Env): AppContext {
     currenciesService,
   });
   const ledgerReadService = createLedgerReadService({ db });
+  const treasuryService = createTreasuryService({
+    db,
+    ledger,
+    feesService,
+    currenciesService,
+    logger,
+  });
   const transfersService = createTransfersService({
     db,
     ledger,
@@ -76,23 +93,19 @@ export function createAppContext(env: Env): AppContext {
     logger,
   });
 
-  void seedAccounting(db).catch((error) => {
-    logger.error("Failed to seed accounting defaults", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  });
-
   return {
     env,
     logger,
     accountService,
     accountingService,
+    accountingReportingService,
     counterpartiesService,
     customersService,
     currenciesService,
     feesService,
     fxService,
     ledgerReadService,
+    treasuryService,
     transfersService,
   };
 }

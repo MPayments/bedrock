@@ -12,8 +12,6 @@ import {
 import { InvalidStateError, TransferCurrencyMismatchError } from "../errors";
 import type { TransfersServiceContext } from "./context";
 
-export const SYSTEM_LEDGER_ORG_ID = "00000000-0000-4000-8000-000000000001";
-
 export type TransferOrderRow = typeof schema.transferOrders.$inferSelect;
 export type TransferOrderProjection = TransferOrderRow & {
   currencyCode: string | null;

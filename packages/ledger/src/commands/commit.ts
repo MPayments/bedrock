@@ -4,10 +4,10 @@ import { schema } from "@bedrock/db/schema";
 import { createDimensionPolicyValidator } from "../internal/commit/dimension-policy";
 import {
   acquireOperationId,
+  ensureAccountingDefaultsInitialized,
   buildReplayTransferMaps,
   computeLinkedFlags,
   computePayloadHash,
-  ensureAccountingDefaultsSeeded,
   isReplayIncomplete,
 } from "../internal/commit/idempotency";
 import { buildPlanRows } from "../internal/commit/tb-plan-building";
@@ -23,7 +23,10 @@ export function createCommitHandler(
     intent: OperationIntent,
   ): Promise<CommitResult> {
     const validated = validateOperationIntent(intent);
-    await ensureAccountingDefaultsSeeded(tx);
+    const hasCreateLines = validated.lines.some((line) => line.type === "create");
+    if (hasCreateLines) {
+      await ensureAccountingDefaultsInitialized(tx);
+    }
     validateChainBlocks(validated.lines);
 
     const payloadHash = computePayloadHash({

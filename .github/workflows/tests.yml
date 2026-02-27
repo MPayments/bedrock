@@ -29,6 +29,12 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Check architecture boundaries
+        run: bun run check:boundaries
+
+      - name: Check workspace dependency protocol
+        run: bun run check:workspace-deps
+
       - name: Run lint
         run: bun run lint
 

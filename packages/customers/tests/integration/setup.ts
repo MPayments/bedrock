@@ -18,9 +18,14 @@ const pool = new Pool(testDbConfig);
 const db = drizzle(pool, { schema });
 
 async function cleanupCustomerTables() {
+  await pool.query("DELETE FROM transfer_events");
+  await pool.query("DELETE FROM transfer_orders");
   await pool.query("DELETE FROM settlements");
   await pool.query("DELETE FROM fee_payment_orders");
   await pool.query("DELETE FROM payment_orders");
+  await pool.query("DELETE FROM operational_account_bindings");
+  await pool.query("DELETE FROM operational_accounts");
+  await pool.query("DELETE FROM operational_account_providers");
   await pool.query("DELETE FROM counterparty_group_memberships");
   await pool.query("DELETE FROM counterparty_groups");
   await pool.query("DELETE FROM counterparties");

@@ -36,8 +36,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@bedrock/eslint-config": "*",
-    "@bedrock/typescript-config": "*",
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

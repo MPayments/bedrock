@@ -5,11 +5,11 @@ import { ACCOUNT_NO, POSTING_CODE } from "@bedrock/accounting";
 
 import {
   db,
-  randomOrgId,
-  randomIdempotencyKey,
   getOperation,
   getPostings,
   getTbTransferPlans,
+  randomIdempotencyKey,
+  randomOrgId,
 } from "./helpers";
 import { createLedgerEngine } from "../../src/engine";
 import { IdempotencyConflictError } from "../../src/errors";
@@ -22,24 +22,28 @@ describe("Engine Integration Tests", () => {
     const orgId = randomOrgId();
     const idempotencyKey = randomIdempotencyKey();
 
-    const { operationId } = await engine.createOperation({
+    const { operationId } = await engine.commitStandalone({
       source: { type: "payment", id: "pay-123" },
       operationCode: "TEST.ENGINE.CREATE",
       idempotencyKey,
       postingDate: new Date(),
-      transfers: [
+      bookOrgId: orgId,
+      lines: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: "transfer-1",
-          bookOrgId: orgId,
-          debitAccountNo: ACCOUNT_NO.BANK,
-          creditAccountNo: ACCOUNT_NO.BANK,
           postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
-          currency: "USD",
-          amount: 100000n,
-          analytics: {
-            operationalAccountId: randomUUID(),
+          debit: {
+            accountNo: ACCOUNT_NO.BANK,
+            currency: "USD",
+            dimensions: { operationalAccountId: randomUUID() },
           },
+          credit: {
+            accountNo: ACCOUNT_NO.BANK,
+            currency: "USD",
+            dimensions: { operationalAccountId: randomUUID() },
+          },
+          amountMinor: 100000n,
         },
       ],
     });
@@ -68,25 +72,29 @@ describe("Engine Integration Tests", () => {
       operationCode: "TEST.ENGINE.REPLAY",
       idempotencyKey,
       postingDate: new Date(),
-      transfers: [
+      bookOrgId: orgId,
+      lines: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE as const,
           planRef: "transfer-1",
-          bookOrgId: orgId,
-          debitAccountNo: ACCOUNT_NO.BANK,
-          creditAccountNo: ACCOUNT_NO.BANK,
           postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
-          currency: "USD",
-          amount: 200000n,
-          analytics: {
-            operationalAccountId: randomUUID(),
+          debit: {
+            accountNo: ACCOUNT_NO.BANK,
+            currency: "USD",
+            dimensions: { operationalAccountId: randomUUID() },
           },
+          credit: {
+            accountNo: ACCOUNT_NO.BANK,
+            currency: "USD",
+            dimensions: { operationalAccountId: randomUUID() },
+          },
+          amountMinor: 200000n,
         },
       ],
     };
 
-    const first = await engine.createOperation(input);
-    const second = await engine.createOperation(input);
+    const first = await engine.commitStandalone(input);
+    const second = await engine.commitStandalone(input);
 
     expect(second.operationId).toBe(first.operationId);
 
@@ -98,47 +106,55 @@ describe("Engine Integration Tests", () => {
     const orgId = randomOrgId();
     const idempotencyKey = randomIdempotencyKey();
 
-    await engine.createOperation({
+    await engine.commitStandalone({
       source: { type: "payment", id: "pay-999" },
       operationCode: "TEST.ENGINE.CONFLICT",
       idempotencyKey,
       postingDate: new Date(),
-      transfers: [
+      bookOrgId: orgId,
+      lines: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: "transfer-1",
-          bookOrgId: orgId,
-          debitAccountNo: ACCOUNT_NO.BANK,
-          creditAccountNo: ACCOUNT_NO.BANK,
           postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
-          currency: "USD",
-          amount: 100000n,
-          analytics: {
-            operationalAccountId: randomUUID(),
+          debit: {
+            accountNo: ACCOUNT_NO.BANK,
+            currency: "USD",
+            dimensions: { operationalAccountId: randomUUID() },
           },
+          credit: {
+            accountNo: ACCOUNT_NO.BANK,
+            currency: "USD",
+            dimensions: { operationalAccountId: randomUUID() },
+          },
+          amountMinor: 100000n,
         },
       ],
     });
 
     await expect(
-      engine.createOperation({
+      engine.commitStandalone({
         source: { type: "payment", id: "pay-999" },
         operationCode: "TEST.ENGINE.CONFLICT",
         idempotencyKey,
         postingDate: new Date(),
-        transfers: [
+        bookOrgId: orgId,
+        lines: [
           {
             type: OPERATION_TRANSFER_TYPE.CREATE,
             planRef: "transfer-1",
-            bookOrgId: orgId,
-            debitAccountNo: ACCOUNT_NO.BANK,
-            creditAccountNo: ACCOUNT_NO.BANK,
             postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
-            currency: "USD",
-            amount: 200000n,
-            analytics: {
-              operationalAccountId: randomUUID(),
+            debit: {
+              accountNo: ACCOUNT_NO.BANK,
+              currency: "USD",
+              dimensions: { operationalAccountId: randomUUID() },
             },
+            credit: {
+              accountNo: ACCOUNT_NO.BANK,
+              currency: "USD",
+              dimensions: { operationalAccountId: randomUUID() },
+            },
+            amountMinor: 200000n,
           },
         ],
       }),
@@ -146,12 +162,13 @@ describe("Engine Integration Tests", () => {
   });
 
   it("creates non-posting plans for post/void pending", async () => {
-    const { operationId } = await engine.createOperation({
+    const { operationId } = await engine.commitStandalone({
       source: { type: "pending", id: "pending-ops" },
       operationCode: "TEST.ENGINE.PENDING",
       idempotencyKey: randomIdempotencyKey(),
       postingDate: new Date(),
-      transfers: [
+      bookOrgId: randomOrgId(),
+      lines: [
         {
           type: OPERATION_TRANSFER_TYPE.POST_PENDING,
           planRef: "post-1",

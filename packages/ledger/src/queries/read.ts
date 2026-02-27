@@ -1,10 +1,5 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
-import {
-  ACCOUNT_NO,
-  ListAccountingOperationsQuerySchema,
-  type ListAccountingOperationsQuery,
-} from "@bedrock/accounting";
 import { schema, type LedgerOperationStatus } from "@bedrock/db/schema";
 import type { Dimensions } from "@bedrock/db/schema";
 import { isUuidLike } from "@bedrock/kernel";
@@ -14,7 +9,13 @@ import {
   resolveSortValue,
 } from "@bedrock/kernel/pagination";
 
+import {
+  ListLedgerOperationsQuerySchema,
+  type ListLedgerOperationsQuery,
+} from "./list-ledger-operations-query";
 import type { LedgerContext } from "../internal/context";
+
+const BANK_ACCOUNT_NO = "1110";
 
 const OPERATION_SORT_COLUMN_MAP = {
   createdAt: schema.ledgerOperations.createdAt,
@@ -235,7 +236,7 @@ interface LedgerOperationDetails {
 
 export interface LedgerReadQueries {
   listOperations: (
-    input?: ListAccountingOperationsQuery,
+    input?: ListLedgerOperationsQuery,
   ) => Promise<PaginatedList<LedgerOperationListRow>>;
   getOperationDetails: (
     operationId: string,
@@ -256,9 +257,9 @@ export function createLedgerReadQueries(
   const { db } = context;
 
   async function listOperations(
-    input?: ListAccountingOperationsQuery,
+    input?: ListLedgerOperationsQuery,
   ): Promise<PaginatedList<LedgerOperationListRow>> {
-    const query = ListAccountingOperationsQuerySchema.parse(input ?? {});
+    const query = ListLedgerOperationsQuerySchema.parse(input ?? {});
     const {
       limit,
       offset,
@@ -584,7 +585,7 @@ export function createLedgerReadQueries(
         FROM book_account_instances inst
         JOIN postings p ON p.debit_instance_id = inst.id
         JOIN ledger_operations lo ON lo.id = p.operation_id AND lo.status = 'posted'
-        WHERE inst.account_no = ${ACCOUNT_NO.BANK}
+        WHERE inst.account_no = ${BANK_ACCOUNT_NO}
           AND inst.dimensions->>'operationalAccountId' IN (${accountIdList})
         UNION ALL
         SELECT
@@ -594,7 +595,7 @@ export function createLedgerReadQueries(
         FROM book_account_instances inst
         JOIN postings p ON p.credit_instance_id = inst.id
         JOIN ledger_operations lo ON lo.id = p.operation_id AND lo.status = 'posted'
-        WHERE inst.account_no = ${ACCOUNT_NO.BANK}
+        WHERE inst.account_no = ${BANK_ACCOUNT_NO}
           AND inst.dimensions->>'operationalAccountId' IN (${accountIdList})
       ) t
       GROUP BY operational_account_id, currency

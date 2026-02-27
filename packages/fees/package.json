@@ -14,13 +14,13 @@
   },
   "dependencies": {
     "@bedrock/currencies": "workspace:*",
-    "@bedrock/db": "*",
-    "@bedrock/kernel": "*",
+    "@bedrock/db": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4"
   },
   "devDependencies": {
-    "@bedrock/typescript-config": "*",
+    "@bedrock/typescript-config": "workspace:*",
     "@types/pg": "^8.16.0",
     "pg": "^8.17.2",
     "typescript": "^5.8.3",

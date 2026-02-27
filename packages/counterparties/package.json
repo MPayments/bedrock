@@ -21,7 +21,7 @@
     "zod": "^4"
   },
   "devDependencies": {
-    "@bedrock/typescript-config": "*",
+    "@bedrock/typescript-config": "workspace:*",
     "typescript": "^5.8.3",
     "vitest": "^4.0.18",
     "@bedrock/eslint-config": "workspace:*",

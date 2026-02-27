@@ -4,7 +4,7 @@ import { ACCOUNT_NO, OPERATION_CODE, POSTING_CODE } from "@bedrock/accounting";
 import { type Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import { makePlanKey } from "@bedrock/kernel";
-import { TransferCodes } from "@bedrock/kernel/constants";
+import { SYSTEM_LEDGER_ORG_ID, TransferCodes } from "@bedrock/kernel/constants";
 import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
 
 import {
@@ -14,10 +14,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "../errors";
-import {
-  SYSTEM_LEDGER_ORG_ID,
-  type TreasuryServiceContext,
-} from "../internal/context";
+import type { TreasuryServiceContext } from "../internal/context";
 import { buildTreasuryIntent } from "../internal/ledger-operation";
 import { fetchOrderState } from "../internal/order-state";
 import {

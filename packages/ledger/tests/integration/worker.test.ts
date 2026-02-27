@@ -5,13 +5,13 @@ import { ACCOUNT_NO, POSTING_CODE } from "@bedrock/accounting";
 
 import {
   db,
-  tb,
-  randomOrgId,
-  randomIdempotencyKey,
   getOperation,
-  getTbTransferPlans,
   getTbAccount,
   getTbTransfer,
+  getTbTransferPlans,
+  randomIdempotencyKey,
+  randomOrgId,
+  tb,
 } from "./helpers";
 import { createLedgerEngine } from "../../src/engine";
 import { OPERATION_TRANSFER_TYPE } from "../../src/types";
@@ -22,25 +22,28 @@ describe("Worker Integration Tests", () => {
   const worker = createLedgerWorker({ db, tb });
 
   it("posts create operation to TigerBeetle", async () => {
-    const { operationId } = await engine.createOperation({
+    const { operationId } = await engine.commitStandalone({
       source: { type: "payment", id: "pay-001" },
       operationCode: "TEST.WORKER.CREATE",
       idempotencyKey: randomIdempotencyKey(),
       postingDate: new Date(),
-      transfers: [
+      bookOrgId: randomOrgId(),
+      lines: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: "transfer-1",
-          bookOrgId: randomOrgId(),
-          debitAccountNo: ACCOUNT_NO.BANK,
-          creditAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
           postingCode: POSTING_CODE.FUNDING_SETTLED,
-          currency: "USD",
-          amount: 100000n,
-          analytics: {
-            customerId: randomUUID(),
-            operationalAccountId: randomUUID(),
+          debit: {
+            accountNo: ACCOUNT_NO.BANK,
+            currency: "USD",
+            dimensions: { operationalAccountId: randomUUID() },
           },
+          credit: {
+            accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+            currency: "USD",
+            dimensions: { customerId: randomUUID() },
+          },
+          amountMinor: 100000n,
         },
       ],
     });
@@ -67,26 +70,29 @@ describe("Worker Integration Tests", () => {
   });
 
   it("posts pending create with timeout", async () => {
-    const { operationId } = await engine.createOperation({
+    const { operationId } = await engine.commitStandalone({
       source: { type: "reservation", id: "res-001" },
       operationCode: "TEST.WORKER.PENDING",
       idempotencyKey: randomIdempotencyKey(),
       postingDate: new Date(),
-      transfers: [
+      bookOrgId: randomOrgId(),
+      lines: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: "pending-1",
-          bookOrgId: randomOrgId(),
-          debitAccountNo: ACCOUNT_NO.BANK,
-          creditAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
           postingCode: POSTING_CODE.FUNDING_SETTLED,
-          currency: "USD",
-          amount: 150000n,
-          pending: { timeoutSeconds: 3600 },
-          analytics: {
-            customerId: randomUUID(),
-            operationalAccountId: randomUUID(),
+          debit: {
+            accountNo: ACCOUNT_NO.BANK,
+            currency: "USD",
+            dimensions: { operationalAccountId: randomUUID() },
           },
+          credit: {
+            accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+            currency: "USD",
+            dimensions: { customerId: randomUUID() },
+          },
+          amountMinor: 150000n,
+          pending: { timeoutSeconds: 3600 },
         },
       ],
     });
@@ -96,7 +102,7 @@ describe("Worker Integration Tests", () => {
     const plans = await getTbTransferPlans(operationId);
     const transfer = await getTbTransfer(plans[0]!.transferId);
     expect(transfer).toBeDefined();
-    expect(transfer!.timeout).toBeGreaterThan(0);
+    expect(transfer!.timeout).toBeGreaterThan(0n);
 
     const debitAccount = await getTbAccount(plans[0]!.debitTbAccountId!);
     expect(debitAccount).toBeDefined();
@@ -106,24 +112,28 @@ describe("Worker Integration Tests", () => {
   it("processes multiple operations in one batch", async () => {
     const orgId = randomOrgId();
     for (let i = 0; i < 3; i++) {
-      await engine.createOperation({
+      await engine.commitStandalone({
         source: { type: "payment", id: `pay-batch-${i}` },
         operationCode: "TEST.WORKER.BATCH",
         idempotencyKey: randomIdempotencyKey(),
         postingDate: new Date(),
-        transfers: [
+        bookOrgId: orgId,
+        lines: [
           {
             type: OPERATION_TRANSFER_TYPE.CREATE,
             planRef: `transfer-${i}`,
-            bookOrgId: orgId,
-            debitAccountNo: ACCOUNT_NO.BANK,
-            creditAccountNo: ACCOUNT_NO.BANK,
             postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
-            currency: "USD",
-            amount: 10000n,
-            analytics: {
-              operationalAccountId: randomUUID(),
+            debit: {
+              accountNo: ACCOUNT_NO.BANK,
+              currency: "USD",
+              dimensions: { operationalAccountId: randomUUID() },
             },
+            credit: {
+              accountNo: ACCOUNT_NO.BANK,
+              currency: "USD",
+              dimensions: { operationalAccountId: randomUUID() },
+            },
+            amountMinor: 10000n,
           },
         ],
       });

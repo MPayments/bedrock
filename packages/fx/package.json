@@ -14,16 +14,16 @@
   },
   "dependencies": {
     "@bedrock/currencies": "workspace:*",
-    "@bedrock/db": "*",
-    "@bedrock/fees": "*",
-    "@bedrock/kernel": "*",
+    "@bedrock/db": "workspace:*",
+    "@bedrock/fees": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "soap": "^1.6.0",
     "tlsclientwrapper": "^4.1.2",
     "zod": "^4"
   },
   "devDependencies": {
-    "@bedrock/typescript-config": "*",
+    "@bedrock/typescript-config": "workspace:*",
     "@types/pg": "^8.16.0",
     "typescript": "^5.8.3",
     "@bedrock/eslint-config": "workspace:*",

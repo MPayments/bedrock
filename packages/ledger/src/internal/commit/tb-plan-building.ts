@@ -1,85 +1,9 @@
-import type { Dimensions } from "@bedrock/accounting";
+import { ensureBookAccountInstanceTx } from "@bedrock/book-accounts";
 import { type Transaction } from "@bedrock/db";
-import { schema } from "@bedrock/db/schema";
-import {
-  computeDimensionsHash,
-  tbBookAccountInstanceIdFor,
-  tbLedgerForCurrency,
-  tbTransferIdForOperation,
-} from "@bedrock/kernel";
+import type { schema } from "@bedrock/db/schema";
+import { tbLedgerForCurrency, tbTransferIdForOperation } from "@bedrock/kernel";
 
-import {
-  OPERATION_TRANSFER_TYPE,
-  type IntentLine,
-} from "../../types";
-
-async function ensureBookAccountInstance(
-  tx: Transaction,
-  input: {
-    bookOrgId: string;
-    accountNo: string;
-    currency: string;
-    dimensions: Dimensions;
-  },
-) {
-  const dimensionsHash = computeDimensionsHash(input.dimensions);
-  const tbLedger = tbLedgerForCurrency(input.currency);
-  const expectedTbAccountId = tbBookAccountInstanceIdFor(
-    input.bookOrgId,
-    input.accountNo,
-    input.currency,
-    dimensionsHash,
-    tbLedger,
-  );
-
-  const inserted = await tx
-    .insert(schema.bookAccountInstances)
-    .values({
-      bookOrgId: input.bookOrgId,
-      accountNo: input.accountNo,
-      currency: input.currency,
-      dimensions: input.dimensions,
-      dimensionsHash,
-      tbLedger,
-      tbAccountId: expectedTbAccountId,
-    })
-    .onConflictDoUpdate({
-      target: [
-        schema.bookAccountInstances.bookOrgId,
-        schema.bookAccountInstances.accountNo,
-        schema.bookAccountInstances.currency,
-        schema.bookAccountInstances.dimensionsHash,
-      ],
-      set: {
-        tbLedger,
-        tbAccountId: expectedTbAccountId,
-        dimensions: input.dimensions,
-      },
-    })
-    .returning({
-      id: schema.bookAccountInstances.id,
-      tbLedger: schema.bookAccountInstances.tbLedger,
-      tbAccountId: schema.bookAccountInstances.tbAccountId,
-    });
-
-  const existing = inserted[0];
-  if (!existing) {
-    throw new Error(
-      `book account instance upsert failed unexpectedly for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}, hash=${dimensionsHash}`,
-    );
-  }
-
-  if (
-    existing.tbLedger !== tbLedger ||
-    existing.tbAccountId !== expectedTbAccountId
-  ) {
-    throw new Error(
-      `book_account_instance invariant mismatch for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}, hash=${dimensionsHash}`,
-    );
-  }
-
-  return existing;
-}
+import { OPERATION_TRANSFER_TYPE, type IntentLine } from "../../types";
 
 export async function buildPlanRows(input: {
   tx: Transaction;
@@ -115,13 +39,13 @@ export async function buildPlanRows(input: {
       await validateCreateLine(line);
 
       const [debitInstance, creditInstance] = await Promise.all([
-        ensureBookAccountInstance(tx, {
+        ensureBookAccountInstanceTx(tx, {
           bookOrgId,
           accountNo: line.debit.accountNo,
           currency: line.debit.currency,
           dimensions: line.debit.dimensions,
         }),
-        ensureBookAccountInstance(tx, {
+        ensureBookAccountInstanceTx(tx, {
           bookOrgId,
           accountNo: line.credit.accountNo,
           currency: line.credit.currency,

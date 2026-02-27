@@ -1,10 +1,10 @@
 import { eq, sql } from "drizzle-orm";
 
 import { ACCOUNT_NO } from "@bedrock/accounting";
+import { ensureBookAccountInstanceTx } from "@bedrock/book-accounts";
 import { schema } from "@bedrock/db/schema";
 
 import { AccountNotFoundError, AccountProviderNotFoundError } from "../errors";
-import { ensureBookAccountInstanceTx } from "../internal/book-account";
 import type { AccountServiceContext } from "../internal/context";
 import {
   UpdateAccountInputSchema,
@@ -98,12 +98,15 @@ export function createUpdateAccountHandler(context: AccountServiceContext) {
       }
 
       if (validated.postingAccountNo !== undefined) {
-        const bookAccountInstanceId = await ensureBookAccountInstanceTx(tx, {
+        const { id: bookAccountInstanceId } = await ensureBookAccountInstanceTx(
+          tx,
+          {
           bookOrgId: existing.counterpartyId,
           accountNo: validated.postingAccountNo,
           currency: currency.code,
           dimensions: {},
-        });
+          },
+        );
 
         await tx
           .insert(schema.operationalAccountBindings)

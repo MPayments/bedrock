@@ -1,17 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  db,
-  tb,
-  randomOrgId,
-  getBookAccount,
-  getTbAccount,
-} from "./helpers";
-import {
-  tbBookAccountIdFor,
+  computeDimensionsHash,
+  tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
-} from "../../src/ids";
-import { resolveTbBookAccountId } from "../../src/resolve";
+} from "@bedrock/kernel";
+
+import { getBookAccount, getTbAccount, randomOrgId, tb, db } from "./helpers";
+import { resolveTbBookAccountInstanceId } from "../../src/resolve";
 
 describe("Resolve Integration Tests", () => {
   it("creates book account mapping in DB and TigerBeetle", async () => {
@@ -20,16 +16,24 @@ describe("Resolve Integration Tests", () => {
     const currency = "USD";
     const tbLedger = tbLedgerForCurrency(currency);
 
-    const accountId = await resolveTbBookAccountId({
+    const accountId = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      orgId,
+      bookOrgId: orgId,
       accountNo,
       currency,
+      dimensions: {},
     });
+    const dimensionsHash = computeDimensionsHash({});
 
     expect(accountId).toBe(
-      tbBookAccountIdFor(orgId, accountNo, currency, tbLedger),
+      tbBookAccountInstanceIdFor(
+        orgId,
+        accountNo,
+        currency,
+        dimensionsHash,
+        tbLedger,
+      ),
     );
 
     const dbAccount = await getBookAccount(orgId, accountNo, tbLedger);
@@ -46,19 +50,21 @@ describe("Resolve Integration Tests", () => {
     const accountNo = "2110";
     const currency = "USD";
 
-    const id1 = await resolveTbBookAccountId({
+    const id1 = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      orgId,
+      bookOrgId: orgId,
       accountNo,
       currency,
+      dimensions: {},
     });
-    const id2 = await resolveTbBookAccountId({
+    const id2 = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      orgId,
+      bookOrgId: orgId,
       accountNo,
       currency,
+      dimensions: {},
     });
 
     expect(id1).toBe(id2);
@@ -69,12 +75,13 @@ describe("Resolve Integration Tests", () => {
     const accountNo = "1000";
     const currency = "USD";
 
-    const accountId = await resolveTbBookAccountId({
+    const accountId = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      orgId,
+      bookOrgId: orgId,
       accountNo,
       currency,
+      dimensions: {},
     });
 
     const account = await getTbAccount(accountId);

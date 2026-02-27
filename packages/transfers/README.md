@@ -1,40 +1,38 @@
 # @bedrock/transfers
 
-Internal transfer maker/checker domain service plus posting finalization worker.
+Application module for maker-checker transfer orders.
 
 ## Main responsibilities
 
-- Draft creation with idempotency
-- Checker approval/rejection flow
-- Ledger entry creation for approved transfers
-- Status finalization based on journal posting status
+- Draft creation and query/list APIs
+- Approval/rejection flow with maker-checker checks
+- Pending transfer settle/void commands
+- Idempotent status transitions around ledger posting lifecycle
 
 ## Service operations
 
 - `createDraft`
 - `approve`
 - `reject`
-- `markFailed`
+- `settlePending`
+- `voidPending`
+- `list`
+- `get`
 
 ## Worker behavior
 
 - `createTransfersWorker(...).processOnce(...)`
-- Selects transfers in `approved_pending_posting`
-- Reads linked journal status and finalizes to:
-  - `posted` when journal is `posted`
-  - `failed` when journal is `failed`
-- Returns count of actually processed/finalized items
+- Finalizes orders from `*_pending_posting` states using linked `ledger_operations.status`
 
 ## Exports
 
 - `createTransfersService`
 - `createTransfersWorker`
 - Validation schemas/types
-- Transfer error classes
+- Transfer domain errors
 
 ## Scripts
 
-- `npm run build`
-- `npm run dev`
-- `npm run check-types`
-- Tests run from repo root: `npm run test`
+- `bun run build`
+- `bun run dev`
+- `bun run check-types`

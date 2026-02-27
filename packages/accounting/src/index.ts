@@ -21,17 +21,11 @@ export {
 
 export {
   ACCOUNTING_OPERATIONS_LIST_CONTRACT,
-  FINANCIAL_RESULTS_COUNTERPARTY_LIST_CONTRACT,
-  FINANCIAL_RESULTS_GROUP_LIST_CONTRACT,
   ListAccountingOperationsQuerySchema,
-  ListFinancialResultsByCounterpartyQuerySchema,
-  ListFinancialResultsByGroupQuerySchema,
   accountNoSchema,
   correspondenceRuleSchema,
   replaceCorrespondenceRulesSchema,
   type ListAccountingOperationsQuery,
-  type ListFinancialResultsByCounterpartyQuery,
-  type ListFinancialResultsByGroupQuery,
   type ReplaceCorrespondenceRulesInput,
 } from "./validation";
 

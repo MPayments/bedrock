@@ -8,8 +8,8 @@ This document captures implementation specifics as they exist in the current cod
 
 Current ledger naming is operation-centric:
 
-- `ledger_operations` / `ledger_postings`
-- `createOperationTx`
+- `ledger_operations` / `postings`
+- `commit`
 - outbox kind `post_operation`
 
 Legacy terms like `journal_entries`, `journal_lines`, or `createEntryTx` are not the current implementation.
@@ -45,24 +45,24 @@ Current behavior:
 - `ledger_operations`
   - unique: `idempotency_key`
   - fields: source (`source_type`, `source_id`), operation code/version, `payload_hash`, posting status/error metadata
-- `ledger_postings`
+- `postings`
   - unique: `(operation_id, line_no)`
-  - debit/credit `book_account` references + analytics columns
+  - debit/credit `book_account_instance` references + analytics columns
 - `tb_transfer_plans`
   - unique: `(operation_id, line_no)` and global `transfer_id`
   - supports `create`, `post_pending`, `void_pending`
 - `outbox`
   - unique: `(kind, ref_id)`
   - lease and retry columns
-- `book_accounts`
-  - unique deterministic mapping by `(org_id, account_no, currency)` and `(org_id, tb_ledger, tb_account_id)`
+- `book_account_instances`
+  - unique deterministic mapping by `(book_org_id, account_no, currency, dimensions_hash)` and `(book_org_id, tb_ledger, tb_account_id)`
 
 ### Accounting schema
 
 - `chart_template_accounts`
-- `chart_template_account_analytics`
+- `chart_account_dimension_policy`
 - `correspondence_rules`
-- `operational_accounts_book_bindings`
+- `operational_account_bindings`
 
 ### Treasury schema
 
@@ -103,7 +103,21 @@ Current behavior:
   - `buildTransferPendingActionTemplate`
 - Cross-org transfer templates route via `1310 INTERCOMPANY_NET`.
 - Fee template resolvers map fee/spread/adjustment/provider-expense behaviors to posting shapes.
-- `createAccountingService` supports correspondence management, posting matrix validation, and financial-results aggregation views.
+- `createAccountingService` supports correspondence management and posting matrix validation.
+
+## `@bedrock/accounting-reporting`
+
+Key files:
+
+- `packages/accounting-reporting/src/service.ts`
+- `packages/accounting-reporting/src/validation.ts`
+
+Current behavior:
+
+- Provides financial-results aggregation views:
+  - `listFinancialResultsByCounterparty`
+  - `listFinancialResultsByGroup`
+- Owns financial-results query contracts/schemas used by API routes.
 
 ## `@bedrock/accounts`
 
@@ -111,13 +125,13 @@ Key files:
 
 - `packages/accounts/src/commands/create-account.ts`
 - `packages/accounts/src/commands/resolve-transfer-bindings.ts`
-- `packages/accounts/src/internal/book-account.ts`
+- `packages/book-accounts/src/index.ts`
 
 Current behavior:
 
 - Creates `operational_accounts` and validates provider-specific fields.
-- Requires `postingAccountNo` on account creation path and ensures/creates matching `book_account`.
-- Persists OA->book binding in `operational_accounts_book_bindings`.
+- Requires `postingAccountNo` on account creation path and ensures/creates matching `book_account_instance`.
+- Persists OA->book binding in `operational_account_bindings`.
 - `resolveTransferBindings` returns binding metadata used by transfers:
   - counterparty
   - currency
@@ -128,7 +142,7 @@ Current behavior:
 
 ### Engine
 
-`createLedgerEngine(...).createOperationTx(tx, input)`:
+`createLedgerEngine(...).commit(tx, input)`:
 
 1. Validates operation input and contiguous chain blocks.
 2. Computes deterministic `payloadHash` from operation code/version, payload, and normalized transfer lines.
@@ -139,9 +153,9 @@ Current behavior:
 - validates `correspondence_rules`
 - validates chart account policy (`posting_allowed`, `enabled`)
 - validates required analytics (account-level + posting-code-level)
-- ensures deterministic `book_accounts`
+- ensures deterministic `book_account_instances`
 
-6. Writes `ledger_postings` (for create lines).
+6. Writes `postings` (for create lines).
 7. Writes `tb_transfer_plans` (all lines).
 8. Enqueues `outbox(kind='post_operation')`.
 9. Returns `{ operationId, pendingTransferIdsByRef }`.
@@ -149,7 +163,7 @@ Current behavior:
 ### Deterministic IDs
 
 - `tbLedgerForCurrency(currency)` -> u32 hash
-- `tbBookAccountIdFor(orgId, accountNo, currency, tbLedger)` -> u128 hash
+- `tbBookAccountInstanceIdFor(bookOrgId, accountNo, currency, dimensionsHash, tbLedger)` -> u128 hash
 - `tbTransferIdForOperation(operationId, lineNo, planRef)` -> u128 hash
 
 ### TB integration and worker
@@ -167,7 +181,7 @@ Current behavior:
 
 ### Account resolution helper
 
-`resolveTbBookAccountId` ensures deterministic mapping in `book_accounts` and idempotent TB account creation.
+`resolveTbBookAccountId` ensures deterministic mapping in `book_account_instances` and idempotent TB account creation.
 
 ## `@bedrock/treasury`
 
@@ -187,7 +201,7 @@ Current behavior:
 ### Payment order lifecycle integration
 
 - Commands validate order identity/currency/amount/customer/counterparty invariants.
-- Commands call `ledger.createOperationTx` and perform CAS transitions to pending-posting states.
+- Commands call `ledger.commit` and perform CAS transitions to pending-posting states.
 - Idempotency checks are transition-aware and tied to `ledgerOperationId`.
 
 ### Worker behavior
@@ -297,15 +311,13 @@ Current composition root wires:
 - customers
 - currencies
 - FX rates
+- treasury
 - transfers
 - ledger read service
 
-Current worker entrypoints in this app:
+Application modules are mounted via `apps/api/src/modules/registry.ts`.
 
-- `worker:fx-rates`
-- `worker:transfers`
-
-Treasury service and workers exist in package code but are not currently mounted as API routes/worker entrypoints in this app.
+Worker loops are composed in `apps/workers/src/modules/registry.ts`.
 
 ### `apps/web`
 
@@ -315,6 +327,6 @@ The web app is not a default scaffold. It contains active product pages for acco
 
 - `Counterparty` is the ownership/reporting subject.
 - `OperationalAccount` is a single-currency external endpoint.
-- `OperationalAccount` is bound to a `BookAccount` via `operational_accounts_book_bindings`.
-- `BookAccount` is the internal ledger place (org + account + currency) mapped deterministically to TB.
-- `ledger.createOperationTx` is the single write gate for operation + postings + TB plan + outbox, including correspondence and analytics enforcement.
+- `OperationalAccount` is bound to a `BookAccountInstance` via `operational_account_bindings`.
+- `BookAccountInstance` is the internal ledger place (book org + account + currency + dimensions hash) mapped deterministically to TB.
+- `ledger.commit` is the single write gate for operation + postings + TB plan + outbox, including correspondence and analytics enforcement.

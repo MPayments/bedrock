@@ -1,14 +1,13 @@
 # @bedrock/treasury
 
-Treasury payment-order orchestration and finalization workers.
+Application module for payment-order orchestration on top of `@bedrock/ledger`.
 
 ## Main responsibilities
 
-- Payment order state machine transitions
-- Order-level business validation for funding/FX/payout stages
-- Ledger entry generation for each stage via `@bedrock/ledger`
-- Unified fee transfer generation via `@bedrock/fees`
-- Worker-driven finalization from `*_pending_posting` states
+- Payment order state-machine transitions
+- Funding, FX, payout, and fee-payment command handling
+- Idempotent creation of ledger operations per business event
+- Worker-based finalization from pending-posting states
 
 ## Service operations
 
@@ -17,29 +16,25 @@ Treasury payment-order orchestration and finalization workers.
 - `initiatePayout`
 - `settlePayout`
 - `voidPayout`
+- `initiateFeePayment`
+- `settleFeePayment`
+- `voidFeePayment`
 
-Each operation:
-
-- Validates input and order invariants
-- Creates one journal entry (idempotent key per operation family)
-- Performs CAS status transition on `payment_orders`
-
-## Worker
+## Workers
 
 - `createTreasuryWorker(...).processOnce(...)`
-- Finalizes order status by linked `journal_entries.status`
-- Uses row locking to avoid concurrent double-finalization
+- `createTreasuryReconciliationWorker(...).processOnce(...)`
 
 ## Exports
 
 - `createTreasuryService`
 - `createTreasuryWorker`
-- Validation schemas/types
-- Error classes
+- `createTreasuryReconciliationWorker`
+- Treasury validation schemas/types
+- Treasury domain errors
 
 ## Scripts
 
-- `npm run build`
-- `npm run dev`
-- `npm run check-types`
-- Tests run from repo root: `npm run test`, `npm run test:integration`, `npm run test:all`
+- `bun run build`
+- `bun run dev`
+- `bun run check-types`
