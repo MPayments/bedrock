@@ -55,6 +55,9 @@ function selectReturning(rows: unknown[]) {
   return {
     from: vi.fn(() => ({
       where: vi.fn(() => ({
+        for: vi.fn(() => ({
+          limit: vi.fn(async () => rows),
+        })),
         limit: vi.fn(async () => rows),
       })),
     })),
@@ -74,6 +77,9 @@ function updateReturning(rows: unknown[]) {
 function insertReturning(rows: unknown[]) {
   return {
     values: vi.fn(() => ({
+      onConflictDoUpdate: vi.fn(() => ({
+        returning: vi.fn(async () => rows),
+      })),
       onConflictDoNothing: vi.fn(() => ({
         returning: vi.fn(async () => rows),
       })),
@@ -84,7 +90,7 @@ function insertReturning(rows: unknown[]) {
 describe("createTransfersService (v2)", () => {
   let db: StubDatabase;
   let accountService: { resolveTransferBindings: ReturnType<typeof vi.fn> };
-  let ledger: { createOperationTx: ReturnType<typeof vi.fn> };
+  let ledger: { commit: ReturnType<typeof vi.fn> };
   let service: ReturnType<typeof createTransfersService>;
 
   const sourceBinding = {
@@ -118,7 +124,7 @@ describe("createTransfersService (v2)", () => {
       ]),
     };
     ledger = {
-      createOperationTx: vi.fn(async () => ({
+      commit: vi.fn(async () => ({
         operationId: "550e8400-e29b-41d4-a716-446655440777",
         entryId: "550e8400-e29b-41d4-a716-446655440777",
         pendingTransferIdsByRef: new Map<string, bigint>(),
@@ -134,7 +140,20 @@ describe("createTransfersService (v2)", () => {
   });
 
   it("creates a transfer draft from account IDs", async () => {
-    mockInsertReturns(db.insert, [{ id: TRANSFER_ID }]);
+    mockInsertReturns(db.insert, [
+      {
+        id: TRANSFER_ID,
+        sourceOperationalAccountId: SOURCE_ACCOUNT_ID,
+        destinationOperationalAccountId: DESTINATION_ACCOUNT_ID,
+        currencyId: sourceBinding.currencyId,
+        amountMinor: 1000n,
+        kind: "cross_org",
+        settlementMode: "pending",
+        timeoutSeconds: 900,
+        memo: "test",
+        makerUserId: MAKER_USER_ID,
+      },
+    ]);
 
     const transferId = await service.createDraft({
       sourceOperationalAccountId: SOURCE_ACCOUNT_ID,
@@ -170,6 +189,7 @@ describe("createTransfersService (v2)", () => {
         idempotencyKey: "draft-key",
         amountMinor: 1000n,
         makerUserId: MAKER_USER_ID,
+        settlementMode: "immediate",
       }),
     ).rejects.toThrow(TransferCurrencyMismatchError);
   });
@@ -209,7 +229,7 @@ describe("createTransfersService (v2)", () => {
       transferId: TRANSFER_ID,
       ledgerOperationId: "550e8400-e29b-41d4-a716-446655440888",
     });
-    expect(ledger.createOperationTx).not.toHaveBeenCalled();
+    expect(ledger.commit).not.toHaveBeenCalled();
   });
 
   it("checks canApprove before idempotent approve return", async () => {
@@ -268,6 +288,10 @@ describe("createTransfersService (v2)", () => {
 
   it("returns idempotent settle result on event conflict after state advance", async () => {
     const operationId = "550e8400-e29b-41d4-a716-446655440999";
+    ledger.commit.mockResolvedValueOnce({
+      operationId,
+      pendingTransferIdsByRef: new Map<string, bigint>(),
+    });
     const pendingTransfer = createTransfer({
       status: "pending",
       settlementMode: "pending",
@@ -286,6 +310,7 @@ describe("createTransfersService (v2)", () => {
           )
           .mockImplementationOnce(() => selectReturning([{ status: "posted" }])),
         insert: vi.fn(() => insertReturning([])),
+        update: vi.fn(() => updateReturning([{ id: TRANSFER_ID }])),
       };
       return fn(tx);
     });
@@ -303,17 +328,24 @@ describe("createTransfersService (v2)", () => {
       transferId: TRANSFER_ID,
       ledgerOperationId: operationId,
     });
-    expect(ledger.createOperationTx).not.toHaveBeenCalled();
+    expect(ledger.commit).toHaveBeenCalledTimes(1);
   });
 
   it("rejects voidPending when transfer is not in pending state", async () => {
-    mockSelectReturns(db._tx.select, [
-      createTransfer({
-        status: "posted",
-        settlementMode: "pending",
-        sourcePendingTransferId: 123n,
-      }),
-    ]);
+    vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+      const tx = {
+        select: vi.fn(() =>
+          selectReturning([
+            createTransfer({
+              status: "posted",
+              settlementMode: "pending",
+              sourcePendingTransferId: 123n,
+            }),
+          ]),
+        ),
+      };
+      return fn(tx);
+    });
 
     await expect(
       service.voidPending(

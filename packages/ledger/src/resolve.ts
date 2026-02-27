@@ -3,10 +3,13 @@ import { and, eq } from "drizzle-orm";
 import { type Database } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import type { Dimensions } from "@bedrock/db/schema";
-import { computeDimensionsHash } from "@bedrock/kernel";
+import {
+  computeDimensionsHash,
+  tbBookAccountInstanceIdFor,
+  tbLedgerForCurrency,
+} from "@bedrock/kernel";
 
 import { AccountMappingConflictError } from "./errors";
-import { tbBookAccountInstanceIdFor, tbLedgerForCurrency } from "./ids";
 import { makeTbAccount, tbCreateAccountsOrThrow, type TbClient } from "./tb";
 
 function accountCodeFromSeed(seed: string): number {
@@ -95,10 +98,9 @@ export async function resolveTbBookAccountInstanceId(
     );
   }
 
-  await tbCreateAccountsOrThrow(
-    p.tb,
-    [makeTbAccount(expected, tbLedger, accountCodeFromSeed(p.accountNo), 0)],
-  );
+  await tbCreateAccountsOrThrow(p.tb, [
+    makeTbAccount(expected, tbLedger, accountCodeFromSeed(p.accountNo), 0),
+  ]);
 
   return expected;
 }

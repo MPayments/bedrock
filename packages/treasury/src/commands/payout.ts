@@ -52,6 +52,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
         .select()
         .from(schema.paymentOrders)
         .where(eq(schema.paymentOrders.id, validated.orderId))
+        .for("update")
         .limit(1);
 
       if (!order) throw new NotFoundError("Order", validated.orderId);
@@ -114,7 +115,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
               amountMinor: validated.amountMinor.toString(),
               payOutCurrency: validated.payOutCurrency,
             },
-            idempotencyKey: `payout:init:${validated.railRef}`,
+            idempotencyKey: `payout:init:${validated.orderId}:${validated.railRef}`,
             postingDate: validated.occurredAt,
             bookOrgId: SYSTEM_LEDGER_ORG_ID,
             lines: [
@@ -222,6 +223,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
         .select()
         .from(schema.paymentOrders)
         .where(eq(schema.paymentOrders.id, validated.orderId))
+        .for("update")
         .limit(1);
 
       if (!order) throw new NotFoundError("Order", validated.orderId);
@@ -266,7 +268,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
             pendingTransferId: order.payoutPendingTransferId.toString(),
             payOutCurrency: validated.payOutCurrency,
           },
-          idempotencyKey: `payout:settle:${validated.railRef}`,
+          idempotencyKey: `payout:settle:${validated.orderId}:${validated.railRef}`,
           postingDate: validated.occurredAt,
           bookOrgId: SYSTEM_LEDGER_ORG_ID,
           lines: [
@@ -343,6 +345,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
         .select()
         .from(schema.paymentOrders)
         .where(eq(schema.paymentOrders.id, validated.orderId))
+        .for("update")
         .limit(1);
 
       if (!order) throw new NotFoundError("Order", validated.orderId);
@@ -387,7 +390,7 @@ export function createPayoutHandlers(context: TreasuryServiceContext) {
             pendingTransferId: order.payoutPendingTransferId.toString(),
             payOutCurrency: validated.payOutCurrency,
           },
-          idempotencyKey: `payout:void:${validated.railRef}`,
+          idempotencyKey: `payout:void:${validated.orderId}:${validated.railRef}`,
           postingDate: validated.occurredAt,
           bookOrgId: SYSTEM_LEDGER_ORG_ID,
           lines: [

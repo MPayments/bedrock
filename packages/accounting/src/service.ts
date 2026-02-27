@@ -118,18 +118,19 @@ export function createAccountingService(deps: AccountingServiceDeps) {
   }
 
   async function validatePostingMatrix() {
-    const [rules, accounts, accountDimPolicies, postingCodeDimPolicies] = await Promise.all([
-      db
-        .select()
-        .from(schema.correspondenceRules)
-        .where(eq(schema.correspondenceRules.enabled, true)),
-      db.select().from(schema.chartTemplateAccounts),
-      db.select().from(schema.chartAccountDimensionPolicy),
-      db
-        .select()
-        .from(schema.postingCodeDimensionPolicy)
-        .where(eq(schema.postingCodeDimensionPolicy.required, true)),
-    ]);
+    const [rules, accounts, accountDimPolicies, postingCodeDimPolicies] =
+      await Promise.all([
+        db
+          .select()
+          .from(schema.correspondenceRules)
+          .where(eq(schema.correspondenceRules.enabled, true)),
+        db.select().from(schema.chartTemplateAccounts),
+        db.select().from(schema.chartAccountDimensionPolicy),
+        db
+          .select()
+          .from(schema.postingCodeDimensionPolicy)
+          .where(eq(schema.postingCodeDimensionPolicy.required, true)),
+      ]);
 
     const errors: {
       code: string;
@@ -149,18 +150,21 @@ export function createAccountingService(deps: AccountingServiceDeps) {
       if (existing) {
         existing.add(row.dimensionKey);
       } else {
-        requiredAccountDimsByNo.set(
-          row.accountNo,
-          new Set([row.dimensionKey]),
-        );
+        requiredAccountDimsByNo.set(row.accountNo, new Set([row.dimensionKey]));
       }
     }
 
-    interface ScopedDim { dimensionKey: string; scope: string }
+    interface ScopedDim {
+      dimensionKey: string;
+      scope: string;
+    }
     const requiredPostingCodeDims = new Map<string, ScopedDim[]>();
     for (const row of postingCodeDimPolicies) {
       const existing = requiredPostingCodeDims.get(row.postingCode);
-      const entry = { dimensionKey: row.dimensionKey, scope: (row as any).scope ?? "line" };
+      const entry = {
+        dimensionKey: row.dimensionKey,
+        scope: (row as any).scope ?? "line",
+      };
       if (existing) {
         existing.push(entry);
       } else {
@@ -491,10 +495,16 @@ export function createAccountingService(deps: AccountingServiceDeps) {
     const attributionSql =
       input.attributionMode === "book_org"
         ? sql`p.book_org_id::text`
-        : sql`COALESCE(
-            debit_inst.dimensions->>'counterpartyId',
-            credit_inst.dimensions->>'counterpartyId'
-          )`;
+        : sql`CASE
+            WHEN debit_inst.dimensions->>'counterpartyId' IS NOT NULL
+             AND credit_inst.dimensions->>'counterpartyId' IS NOT NULL
+             AND debit_inst.dimensions->>'counterpartyId' <> credit_inst.dimensions->>'counterpartyId'
+              THEN NULL
+            ELSE COALESCE(
+              debit_inst.dimensions->>'counterpartyId',
+              credit_inst.dimensions->>'counterpartyId'
+            )
+          END`;
 
     if (input.requireNullAttribution) {
       conditions.push(sql`${attributionSql} IS NULL`);

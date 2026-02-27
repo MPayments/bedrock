@@ -66,6 +66,9 @@ describe("createTreasuryService", () => {
     return {
       from: vi.fn(() => ({
         where: vi.fn(() => ({
+          for: vi.fn(() => ({
+            limit: vi.fn(async () => rows),
+          })),
           limit: vi.fn(async () => rows),
         })),
       })),
@@ -117,13 +120,7 @@ describe("createTreasuryService", () => {
       // Setup mock for transaction
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
           update: vi.fn(() => ({
             set: vi.fn(() => ({
               where: vi.fn(() => ({
@@ -167,13 +164,7 @@ describe("createTreasuryService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
         };
         return fn(tx);
       });
@@ -246,13 +237,7 @@ describe("createTreasuryService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
           update: vi.fn(() => ({
             set: vi.fn(() => ({
               where: vi.fn(() => ({
@@ -280,13 +265,7 @@ describe("createTreasuryService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
           update: vi.fn(() => ({
             set: vi.fn(() => ({
               where: vi.fn(() => ({
@@ -312,13 +291,7 @@ describe("createTreasuryService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
         };
         return fn(tx);
       });
@@ -701,13 +674,7 @@ describe("createTreasuryService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
         };
         return fn(tx);
       });
@@ -1580,13 +1547,7 @@ describe("createTreasuryService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
           update: vi.fn(() => ({
             set: vi.fn(() => ({
               where: vi.fn(() => ({
@@ -1678,13 +1639,7 @@ describe("createTreasuryService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
         };
         return fn(tx);
       });
@@ -1792,13 +1747,7 @@ describe("createTreasuryService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
           update: vi.fn(() => ({
             set: vi.fn(() => ({
               where: vi.fn(() => ({
@@ -1836,13 +1785,7 @@ describe("createTreasuryService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
           update: vi.fn(() => ({
             set: vi.fn(() => ({
               where: vi.fn(() => ({
@@ -1928,13 +1871,7 @@ describe("createTreasuryService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
         };
         return fn(tx);
       });
@@ -1972,13 +1909,7 @@ describe("createTreasuryService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
         };
         return fn(tx);
       });
@@ -2006,13 +1937,7 @@ describe("createTreasuryService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
           update: vi.fn(() => ({
             set: vi.fn(() => ({
               where: vi.fn(() => ({
@@ -2098,13 +2023,7 @@ describe("createTreasuryService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
         const tx = {
-          select: vi.fn(() => ({
-            from: vi.fn(() => ({
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [order]),
-              })),
-            })),
-          })),
+          select: vi.fn(() => selectReturning([order])),
         };
         return fn(tx);
       });

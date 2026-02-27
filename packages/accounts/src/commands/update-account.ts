@@ -130,9 +130,7 @@ export function createUpdateAccountHandler(context: AccountServiceContext) {
             schema.operationalAccountBindings.bookAccountInstanceId,
           ),
         )
-        .where(
-          eq(schema.operationalAccountBindings.operationalAccountId, id),
-        )
+        .where(eq(schema.operationalAccountBindings.operationalAccountId, id))
         .limit(1);
 
       log.info("Account updated", { id });
