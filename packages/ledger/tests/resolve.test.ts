@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sha256Hex, stableStringify } from "@bedrock/kernel";
+import {
+  tbBookAccountInstanceIdFor,
+  tbLedgerForCurrency,
+} from "@bedrock/kernel";
 
-import { AccountMappingConflictError } from "../src/errors";
-import { tbBookAccountInstanceIdFor, tbLedgerForCurrency } from "../src/ids";
-import { resolveTbBookAccountInstanceId } from "../src/resolve";
 import { createMockTbClient, createStubDb, type StubDatabase } from "./helpers";
+import { AccountMappingConflictError } from "../src/errors";
+import { resolveTbBookAccountInstanceId } from "../src/resolve";
 
 describe("resolveTbBookAccountInstanceId", () => {
   let db: StubDatabase;
@@ -143,7 +146,9 @@ describe("resolveTbBookAccountInstanceId", () => {
       })),
     } as any);
     vi.mocked(db.insert).mockReturnValue({
-      values: vi.fn(() => ({ onConflictDoNothing: vi.fn(async () => undefined) })),
+      values: vi.fn(() => ({
+        onConflictDoNothing: vi.fn(async () => undefined),
+      })),
     } as any);
 
     await resolveTbBookAccountInstanceId({
@@ -175,7 +180,9 @@ describe("resolveTbBookAccountInstanceId", () => {
       })),
     } as any);
     vi.mocked(db.insert).mockReturnValue({
-      values: vi.fn(() => ({ onConflictDoNothing: vi.fn(async () => undefined) })),
+      values: vi.fn(() => ({
+        onConflictDoNothing: vi.fn(async () => undefined),
+      })),
     } as any);
 
     vi.mocked(tb.createAccounts).mockResolvedValue([
@@ -209,7 +216,9 @@ describe("resolveTbBookAccountInstanceId", () => {
       })),
     } as any);
     vi.mocked(db.insert).mockReturnValue({
-      values: vi.fn(() => ({ onConflictDoNothing: vi.fn(async () => undefined) })),
+      values: vi.fn(() => ({
+        onConflictDoNothing: vi.fn(async () => undefined),
+      })),
     } as any);
 
     vi.mocked(tb.createAccounts).mockResolvedValue([
@@ -240,7 +249,9 @@ describe("resolveTbBookAccountInstanceId", () => {
       })),
     } as any);
     vi.mocked(db.insert).mockReturnValue({
-      values: vi.fn(() => ({ onConflictDoNothing: vi.fn(async () => undefined) })),
+      values: vi.fn(() => ({
+        onConflictDoNothing: vi.fn(async () => undefined),
+      })),
     } as any);
 
     const usd = await resolveTbBookAccountInstanceId({

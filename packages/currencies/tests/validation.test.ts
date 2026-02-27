@@ -68,4 +68,12 @@ describe("currencies validation", () => {
             }),
         ).toThrow();
     });
+
+    it("normalizes update code to upper case", () => {
+        const parsed = UpdateCurrencyInputSchema.parse({
+            code: " eur ",
+        });
+
+        expect(parsed).toEqual({ code: "EUR" });
+    });
 });

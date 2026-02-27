@@ -65,6 +65,12 @@ export function createPendingHandlers(context: TransfersServiceContext) {
       )
       .limit(1);
 
+    if (transfer.settlementMode !== "pending") {
+      throw new InvalidStateError(
+        "settle/void is only allowed for pending settlement mode",
+      );
+    }
+
     if (existingEvent?.ledgerOperationId) {
       const existingResult = await resolveIdempotentStatusResult(
         existingEvent.ledgerOperationId,
@@ -75,24 +81,20 @@ export function createPendingHandlers(context: TransfersServiceContext) {
     }
 
     if (transfer.status !== "pending") {
-      if (
-        transfer.ledgerOperationId &&
-        idempotentStatuses.includes(transfer.status)
-      ) {
-        return {
-          transferId: transfer.id,
-          ledgerOperationId: transfer.ledgerOperationId,
-        };
+      if (idempotentStatuses.includes(transfer.status) && existingEvent) {
+        const replayOperationId =
+          existingEvent.ledgerOperationId ?? transfer.ledgerOperationId;
+        if (replayOperationId) {
+          return {
+            transferId: transfer.id,
+            ledgerOperationId: replayOperationId,
+          };
+        }
       }
       throw new InvalidStateError(
         `${eventType} allowed only from pending, got ${transfer.status}`,
         transfer.status,
         ["pending"],
-      );
-    }
-    if (transfer.settlementMode !== "pending") {
-      throw new InvalidStateError(
-        "settle/void is only allowed for pending settlement mode",
       );
     }
 

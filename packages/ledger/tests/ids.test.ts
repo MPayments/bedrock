@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { sha256Hex } from "@bedrock/kernel";
-
 import {
+  sha256Hex,
   normalizeTbId,
   TB_ID_MAX,
   TB_ID_MAX_ALLOWED,
@@ -10,7 +9,7 @@ import {
   tbLedgerForCurrency,
   tbTransferIdForOperation,
   u128FromHash,
-} from "../src/ids";
+} from "@bedrock/kernel";
 
 describe("normalizeTbId", () => {
   it("normalizes zero and negatives to 1", () => {

@@ -10,6 +10,7 @@ import {
 import {
   InvalidStateError,
   MakerCheckerViolationError,
+  NotFoundError,
   PermissionError,
   TransferCurrencyMismatchError,
 } from "../src/errors";
@@ -83,6 +84,28 @@ function insertReturning(rows: unknown[]) {
       onConflictDoNothing: vi.fn(() => ({
         returning: vi.fn(async () => rows),
       })),
+    })),
+  };
+}
+
+function selectListReturning(rows: unknown[]) {
+  return {
+    from: vi.fn(() => ({
+      where: vi.fn(() => ({
+        orderBy: vi.fn(() => ({
+          limit: vi.fn(() => ({
+            offset: vi.fn(async () => rows),
+          })),
+        })),
+      })),
+    })),
+  };
+}
+
+function selectCountReturning(rows: unknown[]) {
+  return {
+    from: vi.fn(() => ({
+      where: vi.fn(async () => rows),
     })),
   };
 }
@@ -211,6 +234,103 @@ describe("createTransfersService (v2)", () => {
     ).rejects.toThrow(MakerCheckerViolationError);
   });
 
+  it("returns not found when approving unknown transfer", async () => {
+    mockSelectReturns(db._tx.select, []);
+
+    await expect(
+      service.approve({
+        transferId: TRANSFER_ID,
+        checkerUserId: CHECKER_USER_ID,
+        occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+      }),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it("rejects approve for non-draft non-idempotent status", async () => {
+    mockSelectReturns(db._tx.select, [
+      createTransfer({
+        status: "failed",
+        ledgerOperationId: null,
+      }),
+    ]);
+
+    await expect(
+      service.approve({
+        transferId: TRANSFER_ID,
+        checkerUserId: CHECKER_USER_ID,
+        occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+      }),
+    ).rejects.toThrow(InvalidStateError);
+  });
+
+  it("allows admin override for maker/checker on approve", async () => {
+    const opId = "550e8400-e29b-41d4-a716-446655440991";
+    ledger.commit.mockResolvedValueOnce({
+      operationId: opId,
+      pendingTransferIdsByRef: new Map<string, bigint>(),
+    });
+
+    vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+      const tx = {
+        select: vi.fn(() =>
+          selectReturning([
+            createTransfer({
+              status: "draft",
+              makerUserId: CHECKER_USER_ID,
+            }),
+          ]),
+        ),
+        update: vi.fn(() => updateReturning([{ id: TRANSFER_ID }])),
+      };
+      return fn(tx);
+    });
+
+    const result = await service.approve(
+      {
+        transferId: TRANSFER_ID,
+        checkerUserId: CHECKER_USER_ID,
+        occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+      },
+      { skipMakerCheckerValidation: true },
+    );
+
+    expect(result).toEqual({
+      transferId: TRANSFER_ID,
+      ledgerOperationId: opId,
+    });
+  });
+
+  it("throws approve race error when CAS fails and state is not idempotent", async () => {
+    const opId = "550e8400-e29b-41d4-a716-446655440990";
+    ledger.commit.mockResolvedValueOnce({
+      operationId: opId,
+      pendingTransferIdsByRef: new Map<string, bigint>(),
+    });
+
+    vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+      const tx = {
+        select: vi
+          .fn()
+          .mockImplementationOnce(() =>
+            selectReturning([createTransfer({ status: "draft" })]),
+          )
+          .mockImplementationOnce(() =>
+            selectReturning([{ status: "failed", ledgerOperationId: opId }]),
+          ),
+        update: vi.fn(() => updateReturning([])),
+      };
+      return fn(tx);
+    });
+
+    await expect(
+      service.approve({
+        transferId: TRANSFER_ID,
+        checkerUserId: CHECKER_USER_ID,
+        occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+      }),
+    ).rejects.toThrow(InvalidStateError);
+  });
+
   it("returns idempotent approve response when already posted", async () => {
     mockSelectReturns(db._tx.select, [
       createTransfer({
@@ -286,6 +406,78 @@ describe("createTransfersService (v2)", () => {
     expect(result).toBe(TRANSFER_ID);
   });
 
+  it("returns not found when rejecting unknown transfer", async () => {
+    mockSelectReturns(db._tx.select, []);
+
+    await expect(
+      service.reject({
+        transferId: TRANSFER_ID,
+        checkerUserId: CHECKER_USER_ID,
+        occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+        reason: "duplicate request",
+      }),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it("allows admin override for maker/checker on reject", async () => {
+    vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+      const tx = {
+        select: vi.fn(() =>
+          selectReturning([
+            createTransfer({
+              status: "draft",
+              makerUserId: CHECKER_USER_ID,
+            }),
+          ]),
+        ),
+        update: vi.fn(() => updateReturning([{ id: TRANSFER_ID }])),
+      };
+      return fn(tx);
+    });
+
+    const result = await service.reject(
+      {
+        transferId: TRANSFER_ID,
+        checkerUserId: CHECKER_USER_ID,
+        occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+        reason: "duplicate request",
+      },
+      { skipMakerCheckerValidation: true },
+    );
+
+    expect(result).toBe(TRANSFER_ID);
+  });
+
+  it("rejects createDraft when idempotency key is reused with different payload", async () => {
+    mockInsertReturns(db.insert, [
+      {
+        id: TRANSFER_ID,
+        sourceOperationalAccountId: SOURCE_ACCOUNT_ID,
+        destinationOperationalAccountId: DESTINATION_ACCOUNT_ID,
+        currencyId: sourceBinding.currencyId,
+        amountMinor: 2000n,
+        kind: "cross_org",
+        settlementMode: "pending",
+        timeoutSeconds: 900,
+        memo: "test",
+        makerUserId: MAKER_USER_ID,
+      },
+    ]);
+
+    await expect(
+      service.createDraft({
+        sourceOperationalAccountId: SOURCE_ACCOUNT_ID,
+        destinationOperationalAccountId: DESTINATION_ACCOUNT_ID,
+        idempotencyKey: "draft-key",
+        amountMinor: 1000n,
+        makerUserId: MAKER_USER_ID,
+        settlementMode: "pending",
+        timeoutSeconds: 900,
+        memo: "test",
+      }),
+    ).rejects.toThrow(InvalidStateError);
+  });
+
   it("returns idempotent settle result on event conflict after state advance", async () => {
     const operationId = "550e8400-e29b-41d4-a716-446655440999";
     ledger.commit.mockResolvedValueOnce({
@@ -331,6 +523,46 @@ describe("createTransfersService (v2)", () => {
     expect(ledger.commit).toHaveBeenCalledTimes(1);
   });
 
+  it("returns idempotent settle result from existing matching event", async () => {
+    vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+      const tx = {
+        select: vi
+          .fn()
+          .mockImplementationOnce(() =>
+            selectReturning([
+              createTransfer({
+                status: "settle_pending_posting",
+                settlementMode: "pending",
+                ledgerOperationId: "550e8400-e29b-41d4-a716-446655440996",
+              }),
+            ]),
+          )
+          .mockImplementationOnce(() =>
+            selectReturning([
+              { ledgerOperationId: "550e8400-e29b-41d4-a716-446655440996" },
+            ]),
+          )
+          .mockImplementationOnce(() => selectReturning([{ status: "posted" }])),
+      };
+      return fn(tx);
+    });
+
+    const result = await service.settlePending(
+      {
+        transferId: TRANSFER_ID,
+        eventIdempotencyKey: "settle-event-key",
+        occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+      },
+      CHECKER_USER_ID,
+    );
+
+    expect(result).toEqual({
+      transferId: TRANSFER_ID,
+      ledgerOperationId: "550e8400-e29b-41d4-a716-446655440996",
+    });
+    expect(ledger.commit).not.toHaveBeenCalled();
+  });
+
   it("rejects voidPending when transfer is not in pending state", async () => {
     vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
       const tx = {
@@ -357,5 +589,124 @@ describe("createTransfersService (v2)", () => {
         CHECKER_USER_ID,
       ),
     ).rejects.toThrow(InvalidStateError);
+  });
+
+  it("rejects settlePending for immediate settlement transfers", async () => {
+    vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+      const tx = {
+        select: vi
+          .fn()
+          .mockImplementationOnce(() =>
+            selectReturning([
+              createTransfer({
+                status: "posted",
+                settlementMode: "immediate",
+                ledgerOperationId: "550e8400-e29b-41d4-a716-446655440998",
+              }),
+            ]),
+          )
+          .mockImplementationOnce(() => selectReturning([])),
+      };
+      return fn(tx);
+    });
+
+    await expect(
+      service.settlePending(
+        {
+          transferId: TRANSFER_ID,
+          eventIdempotencyKey: "settle-key-immediate",
+          occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+        },
+        CHECKER_USER_ID,
+      ),
+    ).rejects.toThrow(InvalidStateError);
+  });
+
+  it("rejects completed settle replay when eventIdempotencyKey differs", async () => {
+    vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+      const tx = {
+        select: vi
+          .fn()
+          .mockImplementationOnce(() =>
+            selectReturning([
+              createTransfer({
+                status: "posted",
+                settlementMode: "pending",
+                ledgerOperationId: "550e8400-e29b-41d4-a716-446655440997",
+              }),
+            ]),
+          )
+          .mockImplementationOnce(() => selectReturning([])),
+      };
+      return fn(tx);
+    });
+
+    await expect(
+      service.settlePending(
+        {
+          transferId: TRANSFER_ID,
+          eventIdempotencyKey: "different-event-key",
+          occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+        },
+        CHECKER_USER_ID,
+      ),
+    ).rejects.toThrow(InvalidStateError);
+  });
+
+  it("returns transfer projection by id", async () => {
+    vi.mocked(db.select).mockImplementationOnce(() =>
+      selectReturning([
+        {
+          ...createTransfer(),
+          currencyCode: "USD",
+          sourceCounterpartyName: "Source",
+          destinationCounterpartyName: "Destination",
+          sourceOperationalAccountLabel: "Source OA",
+          destinationOperationalAccountLabel: "Destination OA",
+        },
+      ]),
+    );
+
+    const transfer = await service.get(TRANSFER_ID);
+    expect(transfer.id).toBe(TRANSFER_ID);
+    expect(transfer.currencyCode).toBe("USD");
+  });
+
+  it("throws not found for missing transfer projection", async () => {
+    vi.mocked(db.select).mockImplementationOnce(() => selectReturning([]));
+
+    await expect(service.get(TRANSFER_ID)).rejects.toThrow(NotFoundError);
+  });
+
+  it("lists transfers with applied filters and pagination", async () => {
+    vi.mocked(db.select)
+      .mockImplementationOnce(() =>
+        selectListReturning([
+          {
+            ...createTransfer(),
+            currencyCode: "USD",
+            sourceCounterpartyName: "Source",
+            destinationCounterpartyName: "Destination",
+            sourceOperationalAccountLabel: "Source OA",
+            destinationOperationalAccountLabel: "Destination OA",
+          },
+        ]),
+      )
+      .mockImplementationOnce(() => selectCountReturning([{ total: 1 }]));
+
+    const list = await service.list({
+      limit: 10,
+      offset: 0,
+      sortBy: "updatedAt",
+      sortOrder: "asc",
+      sourceCounterpartyId: "550e8400-e29b-41d4-a716-446655440111",
+      destinationCounterpartyId: "550e8400-e29b-41d4-a716-446655440222",
+      status: ["draft"],
+      settlementMode: ["pending"],
+      kind: ["cross_org"],
+    });
+
+    expect(list.total).toBe(1);
+    expect(list.data).toHaveLength(1);
   });
 });

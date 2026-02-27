@@ -272,4 +272,34 @@ describe("createCurrenciesService", () => {
       CurrencyDeleteConflictError,
     );
   });
+
+  it("sorts by code for multi-item lists", async () => {
+    const usd = makeCurrency({ code: "USD" });
+    const eur = makeCurrency({
+      id: "00000000-0000-4000-8000-000000000102",
+      code: "EUR",
+    });
+    const jpy = makeCurrency({
+      id: "00000000-0000-4000-8000-000000000103",
+      code: "JPY",
+    });
+    const db = createStubDb();
+    db.select.mockReturnValue({
+      from: vi.fn(async () => [usd, eur, jpy]),
+    });
+
+    const service = createCurrenciesService({ db: db as any });
+    const result = await service.list({
+      sortBy: "code",
+      sortOrder: "asc",
+      limit: 10,
+      offset: 0,
+    });
+
+    expect(result.data.map((currency) => currency.code)).toEqual([
+      "EUR",
+      "JPY",
+      "USD",
+    ]);
+  });
 });

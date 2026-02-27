@@ -1309,6 +1309,83 @@ describe("createTreasuryService", () => {
       await expect(service.executeFx(validInput)).rejects.toThrow(error);
     });
 
+    it("should sort persisted route legs by idx before applying route checks", async () => {
+      const order = createMockOrder({
+        status: "funding_settled",
+        payInCurrency: "USD",
+        payInExpectedMinor: 100000n,
+        payOutCurrency: "EUR",
+        payOutAmountMinor: 85000n,
+      });
+      const quote = createFxQuote();
+      const persistedLegs = [
+        {
+          id: "leg-2",
+          quoteId: quote.id,
+          idx: 2,
+          fromCurrencyId: currencyIdFromCode("GBP"),
+          toCurrencyId: currencyIdFromCode("EUR"),
+          fromAmountMinor: 90000n,
+          toAmountMinor: 85000n,
+          rateNum: 1n,
+          rateDen: 1n,
+          sourceKind: "manual",
+          sourceRef: null,
+          asOf: validInput.occurredAt,
+          executionCounterpartyId: null,
+          createdAt: validInput.occurredAt,
+        },
+        {
+          id: "leg-1",
+          quoteId: quote.id,
+          idx: 1,
+          fromCurrencyId: currencyIdFromCode("USD"),
+          toCurrencyId: currencyIdFromCode("GBP"),
+          fromAmountMinor: 100000n,
+          toAmountMinor: 90000n,
+          rateNum: 1n,
+          rateDen: 1n,
+          sourceKind: "manual",
+          sourceRef: null,
+          asOf: validInput.occurredAt,
+          executionCounterpartyId: null,
+          createdAt: validInput.occurredAt,
+        },
+      ];
+
+      vi.mocked(db.transaction).mockImplementation(async (fn: any) => {
+        const tx = {
+          select: selectSequence([[order], [quote], persistedLegs]),
+          update: updateSequence([
+            [
+              {
+                id: quote.id,
+                status: "used",
+                usedByRef: `order:${ORDER_ID}:fx`,
+              },
+            ],
+            [{ id: ORDER_ID }],
+          ]),
+        };
+        return fn(tx);
+      });
+
+      await service.executeFx(validInput);
+
+      const memos = vi
+        .mocked(ledger.createEntryTx)
+        .mock.calls[0]![1]
+        .transfers.filter((line: any) => line.memo?.startsWith("FX leg"))
+        .map((line: any) => line.memo);
+
+      expect(memos).toEqual([
+        "FX leg 1 out",
+        "FX leg 1 in",
+        "FX leg 2 out",
+        "FX leg 2 in",
+      ]);
+    });
+
     it("should honor custom debit/credit accounts for in-ledger and reserved fee components", async () => {
       const order = createMockOrder({
         status: "funding_settled",

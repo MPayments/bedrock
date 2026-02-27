@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 
+import { tbLedgerForCurrency } from "@bedrock/kernel";
+
 vi.mock("node:crypto", () => ({
   createHash: vi.fn(() => ({
     update: vi.fn(() => ({
@@ -10,7 +12,6 @@ vi.mock("node:crypto", () => ({
 
 describe("tbLedgerForCurrency", () => {
   it("returns 1 when the computed hash maps to zero", async () => {
-    const { tbLedgerForCurrency } = await import("../src/ids");
     expect(tbLedgerForCurrency("USD")).toBe(1);
   });
 });

@@ -20,7 +20,9 @@ function computeAccountDepths(
   accounts: { accountNo: string; parentAccountNo: string | null }[],
 ): Map<string, number> {
   const parentMap = new Map<string, string | null>();
-  for (const a of accounts) parentMap.set(a.accountNo, a.parentAccountNo);
+  for (const a of accounts) {
+    parentMap.set(a.accountNo, a.parentAccountNo);
+  }
 
   const depthCache = new Map<string, number>();
   function getDepth(accountNo: string): number {
@@ -44,20 +46,19 @@ export default async function AccountingAccountsPage() {
         <CardHeader className="border-b">
           <CardTitle>План счетов</CardTitle>
           <CardDescription>
-            Глобальный план счетов (chart of accounts), иерархия и статус
-            доступности.
+            Глобальный план счетов, иерархия и статус доступности.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Account</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Kind</TableHead>
-                <TableHead>Normal side</TableHead>
-                <TableHead>Posting allowed</TableHead>
-                <TableHead>Enabled</TableHead>
+                <TableHead>Счет</TableHead>
+                <TableHead>Название</TableHead>
+                <TableHead>Тип</TableHead>
+                <TableHead>Сторона</TableHead>
+                <TableHead>Разрешено проводить операции</TableHead>
+                <TableHead>Включен</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -88,9 +89,9 @@ export default async function AccountingAccountsPage() {
                       <TableCell>{account.kind}</TableCell>
                       <TableCell>{account.normalSide}</TableCell>
                       <TableCell>
-                        {account.postingAllowed ? "yes" : "no"}
+                        {account.postingAllowed ? "Да" : "Нет"}
                       </TableCell>
-                      <TableCell>{account.enabled ? "yes" : "no"}</TableCell>
+                      <TableCell>{account.enabled ? "Да" : "Нет"}</TableCell>
                     </TableRow>
                   );
                 })

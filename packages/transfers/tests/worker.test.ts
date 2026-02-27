@@ -105,4 +105,44 @@ describe("createTransfersWorker", () => {
         expect(processed).toBe(0);
         expect(logger.error).toHaveBeenCalled();
     });
+
+    it("maps settle/void posting states to final transfer statuses", async () => {
+        const setSpy = vi.fn(() => ({
+            where: vi.fn(async () => undefined),
+        }));
+        vi.mocked(db.update).mockImplementation(() => ({ set: setSpy }) as any);
+
+        vi.mocked(db.execute).mockResolvedValue({
+            rows: [
+                {
+                    transfer_id: "t-settle",
+                    status: "settle_pending_posting",
+                    settlement_mode: "pending",
+                    ledger_entry_id: "e-settle",
+                    journal_status: "posted",
+                    journal_error: null,
+                },
+                {
+                    transfer_id: "t-void",
+                    status: "void_pending_posting",
+                    settlement_mode: "pending",
+                    ledger_entry_id: "e-void",
+                    journal_status: "posted",
+                    journal_error: null,
+                },
+            ],
+        } as any);
+
+        const processed = await worker.processOnce();
+
+        expect(processed).toBe(2);
+        expect(setSpy).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({ status: "posted" }),
+        );
+        expect(setSpy).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({ status: "voided" }),
+        );
+    });
 });

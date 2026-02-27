@@ -90,4 +90,28 @@ describe("transfers validation (v2)", () => {
 
     expect(result.reason).toBe("Operator cancelled");
   });
+
+  it("rejects non-positive amountMinor in draft input", () => {
+    expect(() =>
+      validateCreateTransferDraftInput({
+        sourceOperationalAccountId: "550e8400-e29b-41d4-a716-446655440001",
+        destinationOperationalAccountId: "550e8400-e29b-41d4-a716-446655440002",
+        idempotencyKey: "draft-key",
+        amountMinor: 0,
+        makerUserId: "550e8400-e29b-41d4-a716-446655440003",
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it("rejects non-integer amountMinor in draft input", () => {
+    expect(() =>
+      validateCreateTransferDraftInput({
+        sourceOperationalAccountId: "550e8400-e29b-41d4-a716-446655440001",
+        destinationOperationalAccountId: "550e8400-e29b-41d4-a716-446655440002",
+        idempotencyKey: "draft-key",
+        amountMinor: "1.5",
+        makerUserId: "550e8400-e29b-41d4-a716-446655440003",
+      }),
+    ).toThrow(ValidationError);
+  });
 });
