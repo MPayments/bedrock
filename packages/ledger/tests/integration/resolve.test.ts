@@ -19,7 +19,7 @@ describe("Resolve Integration Tests", () => {
     const accountId = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      bookOrgId: orgId,
+      bookId: orgId,
       accountNo,
       currency,
       dimensions: {},
@@ -53,7 +53,7 @@ describe("Resolve Integration Tests", () => {
     const id1 = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      bookOrgId: orgId,
+      bookId: orgId,
       accountNo,
       currency,
       dimensions: {},
@@ -61,7 +61,7 @@ describe("Resolve Integration Tests", () => {
     const id2 = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      bookOrgId: orgId,
+      bookId: orgId,
       accountNo,
       currency,
       dimensions: {},
@@ -78,7 +78,7 @@ describe("Resolve Integration Tests", () => {
     const accountId = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      bookOrgId: orgId,
+      bookId: orgId,
       accountNo,
       currency,
       dimensions: {},

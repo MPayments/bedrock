@@ -55,6 +55,7 @@ export const AccountProviderSchema = z.object({
 export const AccountSchema = z.object({
   id: z.uuid(),
   counterpartyId: z.uuid(),
+  bookId: z.uuid(),
   currencyId: z.uuid(),
   accountProviderId: z.uuid(),
   label: z.string(),
@@ -350,6 +351,7 @@ export type ResolveTransferBindingsInput = z.infer<typeof ResolveTransferBinding
 
 export const TransferAccountBindingSchema = z.object({
     accountId: z.uuid(),
+    bookId: z.uuid(),
     counterpartyId: z.uuid(),
     currencyId: z.uuid(),
     currencyCode: z.string(),

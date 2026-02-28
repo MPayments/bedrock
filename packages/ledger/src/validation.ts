@@ -4,7 +4,7 @@ import { OPERATION_TRANSFER_TYPE } from "./types";
 
 const uuidSchema = z.uuid({ version: "v4" });
 
-const orgIdSchema = uuidSchema;
+const bookIdSchema = uuidSchema;
 const idempotencyKeySchema = z.string().min(1).max(255);
 const sourceTypeSchema = z.string().min(1).max(100);
 const sourceIdSchema = z.string().min(1).max(255);
@@ -58,6 +58,7 @@ const baseIntentLineSchema = z.object({
 
 const createIntentLineSchema = baseIntentLineSchema.extend({
   type: z.literal(OPERATION_TRANSFER_TYPE.CREATE),
+  bookId: bookIdSchema,
   postingCode: z.string().min(1).max(128),
   debit: accountSideSchema,
   credit: accountSideSchema,
@@ -97,7 +98,6 @@ export const operationIntentSchema = z.object({
   payload: z.unknown().optional(),
   idempotencyKey: idempotencyKeySchema,
   postingDate: z.date(),
-  bookOrgId: orgIdSchema,
   lines: z.array(intentLineSchema).min(1, "lines must be a non-empty array"),
 });
 

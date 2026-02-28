@@ -46,7 +46,6 @@ export function createTestEntry(
         operationVersion: 1,
         idempotencyKey: "idem-789",
         postingDate: TEST_DATES.NOW,
-        bookOrgId: TEST_UUIDS.ORG_1,
         lines,
         ...overrides,
     };
@@ -67,6 +66,7 @@ export function createTestTransferPlan(
     return {
         type: OPERATION_TRANSFER_TYPE.CREATE,
         planRef: overrides.planRef ?? "test-plan-1",
+        bookId: overrides.bookId ?? TEST_UUIDS.ORG_1,
         postingCode: overrides.postingCode ?? "test.posting",
         debit: overrides.debit ?? {
             accountNo: debitAccountNo,

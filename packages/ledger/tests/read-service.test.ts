@@ -78,7 +78,7 @@ describe("createLedgerReadService", () => {
               lastOutboxErrorAt: null,
               createdAt: new Date("2026-01-01T00:00:00Z"),
               postingCount: 2,
-              bookOrgIds: null,
+              bookIds: null,
               currencies: null,
             },
           ]),
@@ -102,7 +102,7 @@ describe("createLedgerReadService", () => {
     expect(result.offset).toBe(0);
     expect(result.data).toHaveLength(1);
     expect(result.data[0]!.id).toBe("op-1");
-    expect(result.data[0]!.bookOrgIds).toEqual([]);
+    expect(result.data[0]!.bookIds).toEqual([]);
     expect(result.data[0]!.currencies).toEqual([]);
   });
 
@@ -127,7 +127,7 @@ describe("createLedgerReadService", () => {
     expect(result.total).toBe(0);
   });
 
-  it("supports filtering by book org and returns zero total fallback", async () => {
+  it("supports filtering by book and returns zero total fallback", async () => {
     const db = {
       select: vi
         .fn()
@@ -139,7 +139,7 @@ describe("createLedgerReadService", () => {
     const result = await service.listOperations({
       limit: 5,
       offset: 0,
-      bookOrgId: "org-1",
+      bookId: "org-1",
       sortBy: "createdAt",
       sortOrder: "desc",
     });
@@ -180,7 +180,7 @@ describe("createLedgerReadService", () => {
     expect(details).toBeNull();
   });
 
-  it("returns operation details with account and org name mapping", async () => {
+  it("returns operation details with account and book name mapping", async () => {
     const db = {
       select: vi
         .fn()
@@ -200,7 +200,7 @@ describe("createLedgerReadService", () => {
               lastOutboxErrorAt: null,
               createdAt: new Date("2026-01-01T00:00:00Z"),
               postingCount: 1,
-              bookOrgIds: ["org-1"],
+              bookIds: ["org-1"],
               currencies: ["USD"],
             },
           ]),
@@ -210,7 +210,7 @@ describe("createLedgerReadService", () => {
             {
               id: "posting-1",
               lineNo: 1,
-              bookOrgId: "org-1",
+              bookId: "org-1",
               debitInstanceId: "ba-1",
               creditInstanceId: "ba-2",
               postingCode: "PCODE",
@@ -252,7 +252,7 @@ describe("createLedgerReadService", () => {
           ]),
         )
         .mockImplementationOnce(() =>
-          makeWhereChain([{ id: "org-1", shortName: "Org One" }]),
+          makeWhereChain([{ id: "org-1", name: "Org One" }]),
         )
         .mockImplementationOnce(() =>
           makeWhereChain([{ code: "USD", precision: 2 }]),
@@ -265,7 +265,8 @@ describe("createLedgerReadService", () => {
     expect(details).not.toBeNull();
     expect(details!.operation.id).toBe("op-1");
     expect(details!.postings).toHaveLength(1);
-    expect(details!.postings[0]!.bookOrgName).toBe("Org One");
+    expect(details!.operation.bookIds).toEqual(["org-1"]);
+    expect(details!.postings[0]!.bookName).toBe("Org One");
     expect(details!.postings[0]!.debitAccountNo).toBe("1110");
     expect(details!.postings[0]!.creditAccountNo).toBe("2110");
     expect(details!.tbPlans).toHaveLength(1);
@@ -292,7 +293,7 @@ describe("createLedgerReadService", () => {
               lastOutboxErrorAt: null,
               createdAt: new Date("2026-01-01T00:00:00Z"),
               postingCount: 0,
-              bookOrgIds: null,
+              bookIds: null,
               currencies: null,
             },
           ]),
@@ -361,7 +362,7 @@ describe("createLedgerReadService", () => {
               lastOutboxErrorAt: null,
               createdAt: new Date("2026-01-01T00:00:00Z"),
               postingCount: 1,
-              bookOrgIds: ["org-1"],
+              bookIds: ["org-1"],
               currencies: ["USD"],
             },
           ]),
@@ -371,7 +372,7 @@ describe("createLedgerReadService", () => {
             {
               id: "posting-3",
               lineNo: 1,
-              bookOrgId: "org-1",
+              bookId: "org-1",
               debitInstanceId: "inst-1",
               creditInstanceId: "inst-2",
               postingCode: "TR.INTRA.IMMEDIATE",

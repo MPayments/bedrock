@@ -18,6 +18,7 @@ const SORT_COLUMN_MAP = {
 } as const;
 
 type AccountRow = OperationalAccount & {
+  bookId: string;
   postingAccountNo: string;
 };
 
@@ -78,6 +79,7 @@ export function createListOperationalAccountsHandler(
         .select({
           id: schema.operationalAccounts.id,
           counterpartyId: schema.operationalAccounts.counterpartyId,
+          bookId: schema.operationalAccountBindings.bookId,
           currencyId: schema.operationalAccounts.currencyId,
           accountProviderId: schema.operationalAccounts.accountProviderId,
           label: schema.operationalAccounts.label,
@@ -119,6 +121,7 @@ export function createListOperationalAccountsHandler(
     return {
       data: rows.map((row) => ({
         ...row,
+        bookId: row.bookId ?? row.counterpartyId,
         postingAccountNo: row.postingAccountNo ?? ACCOUNT_NO.BANK,
       })),
       total: countRows[0]?.total ?? 0,

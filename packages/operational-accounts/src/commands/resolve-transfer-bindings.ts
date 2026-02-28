@@ -24,12 +24,20 @@ export function createResolveOperationalTransferBindingsHandler(
     const rows = await db
       .select({
         accountId: schema.operationalAccounts.id,
+        bookId: schema.operationalAccountBindings.bookId,
         counterpartyId: schema.operationalAccounts.counterpartyId,
         currencyId: schema.operationalAccounts.currencyId,
         currencyCode: schema.currencies.code,
         stableKey: schema.operationalAccounts.stableKey,
       })
       .from(schema.operationalAccounts)
+      .innerJoin(
+        schema.operationalAccountBindings,
+        eq(
+          schema.operationalAccountBindings.operationalAccountId,
+          schema.operationalAccounts.id,
+        ),
+      )
       .innerJoin(
         schema.currencies,
         eq(schema.operationalAccounts.currencyId, schema.currencies.id),
@@ -49,6 +57,7 @@ export function createResolveOperationalTransferBindingsHandler(
     for (const row of rows) {
       byAccountId.set(row.accountId, {
         accountId: row.accountId,
+        bookId: row.bookId,
         counterpartyId: row.counterpartyId,
         currencyId: row.currencyId,
         currencyCode: row.currencyCode,

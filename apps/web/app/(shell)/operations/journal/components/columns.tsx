@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { Badge } from "@bedrock/ui/components/badge";
@@ -36,7 +35,7 @@ export function getColumns(): ColumnDef<OperationSummaryDto>[] {
           row.sourceType,
           row.sourceId,
           row.operationCode,
-          row.bookOrgIds.join(" "),
+          row.bookIds.join(" "),
           row.currencies.join(" "),
           row.error ?? "",
         ]
@@ -67,14 +66,14 @@ export function getColumns(): ColumnDef<OperationSummaryDto>[] {
       enableHiding: false,
     },
     {
-      id: "bookOrgId",
-      accessorFn: (row) => row.bookOrgIds.join(","),
+      id: "bookId",
+      accessorFn: (row) => row.bookIds.join(","),
       header: () => null,
       cell: () => null,
       meta: {
-        label: "ID book org",
+        label: "ID book",
         variant: "text",
-        placeholder: "UUID book org",
+        placeholder: "UUID book",
       },
       enableColumnFilter: true,
       enableSorting: false,

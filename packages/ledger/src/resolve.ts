@@ -24,7 +24,7 @@ function accountCodeFromSeed(seed: string): number {
 interface ResolveTbBookAccountInstanceParams {
   db: Database;
   tb: TbClient;
-  bookOrgId: string;
+  bookId: string;
   accountNo: string;
   currency: string;
   dimensions: Dimensions;
@@ -33,14 +33,14 @@ interface ResolveTbBookAccountInstanceParams {
 function assertAccountMapping(
   actual: bigint,
   expected: bigint,
-  bookOrgId: string,
+  bookId: string,
   key: string,
   tbLedger: number,
 ) {
   if (actual !== expected) {
     throw new AccountMappingConflictError(
-      `TB account mapping mismatch for org=${bookOrgId}, key=${key}, tbLedger=${tbLedger}`,
-      bookOrgId,
+      `TB account mapping mismatch for book=${bookId}, key=${key}, tbLedger=${tbLedger}`,
+      bookId,
       tbLedger,
       key,
       expected,
@@ -55,7 +55,7 @@ export async function resolveTbBookAccountInstanceId(
   const dimensionsHash = computeDimensionsHash(p.dimensions);
   const tbLedger = tbLedgerForCurrency(p.currency);
   const expected = tbBookAccountInstanceIdFor(
-    p.bookOrgId,
+    p.bookId,
     p.accountNo,
     p.currency,
     dimensionsHash,
@@ -67,7 +67,7 @@ export async function resolveTbBookAccountInstanceId(
     .from(schema.bookAccountInstances)
     .where(
       and(
-        eq(schema.bookAccountInstances.bookOrgId, p.bookOrgId),
+        eq(schema.bookAccountInstances.bookId, p.bookId),
         eq(schema.bookAccountInstances.accountNo, p.accountNo),
         eq(schema.bookAccountInstances.currency, p.currency),
         eq(schema.bookAccountInstances.dimensionsHash, dimensionsHash),
@@ -79,7 +79,7 @@ export async function resolveTbBookAccountInstanceId(
     await p.db
       .insert(schema.bookAccountInstances)
       .values({
-        bookOrgId: p.bookOrgId,
+        bookId: p.bookId,
         accountNo: p.accountNo,
         currency: p.currency,
         dimensions: p.dimensions,
@@ -92,7 +92,7 @@ export async function resolveTbBookAccountInstanceId(
     assertAccountMapping(
       existing.tbAccountId,
       expected,
-      p.bookOrgId,
+      p.bookId,
       p.accountNo,
       tbLedger,
     );

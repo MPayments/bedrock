@@ -1,7 +1,8 @@
 export const BPS_SCALE = 10000n;
 
 export const DAY_IN_SECONDS = 86400;
-export const SYSTEM_LEDGER_ORG_ID = "00000000-0000-4000-8000-000000000001";
+export const SYSTEM_LEDGER_BOOK_ID = "00000000-0000-4000-8000-000000000001";
+export const SYSTEM_LEDGER_ORG_ID = SYSTEM_LEDGER_BOOK_ID;
 
 /**
  * Treasury ledger transfer codes.

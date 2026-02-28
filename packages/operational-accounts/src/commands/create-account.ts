@@ -66,10 +66,10 @@ export function createCreateOperationalAccountHandler(
       const { id: bookAccountInstanceId } = await ensureBookAccountInstanceTx(
         tx,
         {
-        bookOrgId: validated.counterpartyId,
-        accountNo: validated.postingAccountNo,
-        currency: currency.code,
-        dimensions: {},
+          bookId: validated.counterpartyId,
+          accountNo: validated.postingAccountNo,
+          currency: currency.code,
+          dimensions: {},
         },
       );
 
@@ -77,11 +77,13 @@ export function createCreateOperationalAccountHandler(
         .insert(schema.operationalAccountBindings)
         .values({
           operationalAccountId: created!.id,
+          bookId: validated.counterpartyId,
           bookAccountInstanceId,
         })
         .onConflictDoUpdate({
           target: schema.operationalAccountBindings.operationalAccountId,
           set: {
+            bookId: validated.counterpartyId,
             bookAccountInstanceId,
           },
         });
@@ -90,6 +92,7 @@ export function createCreateOperationalAccountHandler(
 
       return {
         ...created!,
+        bookId: validated.counterpartyId,
         postingAccountNo: validated.postingAccountNo,
       };
     });

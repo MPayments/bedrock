@@ -21,7 +21,7 @@ interface LedgerOperationsListFilters {
   operationCode: { kind: "string"; cardinality: "multi" };
   sourceType: { kind: "string"; cardinality: "multi" };
   sourceId: { kind: "string"; cardinality: "single" };
-  bookOrgId: { kind: "string"; cardinality: "single" };
+  bookId: { kind: "string"; cardinality: "single" };
   counterpartyId: { kind: "string"; cardinality: "single" };
 }
 
@@ -53,7 +53,7 @@ const LEDGER_OPERATIONS_LIST_CONTRACT: ListQueryContract<
       kind: "string",
       cardinality: "single",
     },
-    bookOrgId: {
+    bookId: {
       kind: "string",
       cardinality: "single",
     },

@@ -40,7 +40,7 @@ export async function getTbTransferPlans(operationId: string) {
 }
 
 export async function getBookAccount(
-  orgId: string,
+  bookId: string,
   accountNo: string,
   tbLedger: number,
 ) {
@@ -49,7 +49,7 @@ export async function getBookAccount(
     .from(schema.bookAccountInstances)
     .where(
       and(
-        eq(schema.bookAccountInstances.bookOrgId, orgId),
+        eq(schema.bookAccountInstances.bookId, bookId),
         eq(schema.bookAccountInstances.accountNo, accountNo),
         eq(schema.bookAccountInstances.tbLedger, tbLedger),
       ),

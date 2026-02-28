@@ -27,11 +27,11 @@ describe("Engine Integration Tests", () => {
       operationCode: "TEST.ENGINE.CREATE",
       idempotencyKey,
       postingDate: new Date(),
-      bookOrgId: orgId,
       lines: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: "transfer-1",
+          bookId: orgId,
           postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
           debit: {
             accountNo: ACCOUNT_NO.BANK,
@@ -55,7 +55,7 @@ describe("Engine Integration Tests", () => {
 
     const postings = await getPostings(operationId);
     expect(postings).toHaveLength(1);
-    expect(postings[0]!.bookOrgId).toBe(orgId);
+    expect(postings[0]!.bookId).toBe(orgId);
     expect(postings[0]!.amountMinor).toBe(100000n);
 
     const plans = await getTbTransferPlans(operationId);
@@ -72,11 +72,11 @@ describe("Engine Integration Tests", () => {
       operationCode: "TEST.ENGINE.REPLAY",
       idempotencyKey,
       postingDate: new Date(),
-      bookOrgId: orgId,
       lines: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE as const,
           planRef: "transfer-1",
+          bookId: orgId,
           postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
           debit: {
             accountNo: ACCOUNT_NO.BANK,
@@ -111,11 +111,11 @@ describe("Engine Integration Tests", () => {
       operationCode: "TEST.ENGINE.CONFLICT",
       idempotencyKey,
       postingDate: new Date(),
-      bookOrgId: orgId,
       lines: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: "transfer-1",
+          bookId: orgId,
           postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
           debit: {
             accountNo: ACCOUNT_NO.BANK,
@@ -138,11 +138,11 @@ describe("Engine Integration Tests", () => {
         operationCode: "TEST.ENGINE.CONFLICT",
         idempotencyKey,
         postingDate: new Date(),
-        bookOrgId: orgId,
         lines: [
           {
             type: OPERATION_TRANSFER_TYPE.CREATE,
             planRef: "transfer-1",
+            bookId: orgId,
             postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
             debit: {
               accountNo: ACCOUNT_NO.BANK,
@@ -167,7 +167,6 @@ describe("Engine Integration Tests", () => {
       operationCode: "TEST.ENGINE.PENDING",
       idempotencyKey: randomIdempotencyKey(),
       postingDate: new Date(),
-      bookOrgId: randomOrgId(),
       lines: [
         {
           type: OPERATION_TRANSFER_TYPE.POST_PENDING,

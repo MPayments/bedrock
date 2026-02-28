@@ -179,15 +179,15 @@ interface LedgerOperationListRow {
   lastOutboxErrorAt: Date | null;
   createdAt: Date;
   postingCount: number;
-  bookOrgIds: string[];
+  bookIds: string[];
   currencies: string[];
 }
 
 interface LedgerOperationPostingRow {
   id: string;
   lineNo: number;
-  bookOrgId: string;
-  bookOrgName: string | null;
+  bookId: string;
+  bookName: string | null;
   debitInstanceId: string;
   debitAccountNo: string | null;
   debitDimensions: Dimensions | null;
@@ -266,7 +266,7 @@ export function createLedgerReadQueries(
       operationCode,
       sourceType,
       sourceId,
-      bookOrgId,
+      bookId,
       counterpartyId,
     } = query;
 
@@ -284,7 +284,7 @@ export function createLedgerReadQueries(
           from ${schema.postings} p
           where p.operation_id = ${schema.ledgerOperations.id}
             and (
-              p.book_org_id::text ilike ${pattern}
+              p.book_id::text ilike ${pattern}
               or p.currency ilike ${pattern}
             )
         )
@@ -308,12 +308,12 @@ export function createLedgerReadQueries(
       conditions.push(eq(schema.ledgerOperations.sourceId, sourceId));
     }
 
-    if (bookOrgId) {
+    if (bookId) {
       conditions.push(sql`exists (
         select 1
         from ${schema.postings} p
         where p.operation_id = ${schema.ledgerOperations.id}
-          and p.book_org_id = ${bookOrgId}
+          and p.book_id = ${bookId}
       )`);
     }
 
@@ -357,9 +357,9 @@ export function createLedgerReadQueries(
           lastOutboxErrorAt: schema.ledgerOperations.lastOutboxErrorAt,
           createdAt: schema.ledgerOperations.createdAt,
           postingCount: sql<number>`count(${schema.postings.id})::int`,
-          bookOrgIds: sql<
+          bookIds: sql<
             string[]
-          >`coalesce(array_agg(distinct ${schema.postings.bookOrgId}) filter (where ${schema.postings.bookOrgId} is not null), '{}')`,
+          >`coalesce(array_agg(distinct ${schema.postings.bookId}) filter (where ${schema.postings.bookId} is not null), '{}')`,
           currencies: sql<
             string[]
           >`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
@@ -396,7 +396,7 @@ export function createLedgerReadQueries(
     return {
       data: rows.map((row) => ({
         ...row,
-        bookOrgIds: row.bookOrgIds ?? [],
+        bookIds: row.bookIds ?? [],
         currencies: row.currencies ?? [],
       })),
       total: countRows[0]?.total ?? 0,
@@ -423,9 +423,9 @@ export function createLedgerReadQueries(
         lastOutboxErrorAt: schema.ledgerOperations.lastOutboxErrorAt,
         createdAt: schema.ledgerOperations.createdAt,
         postingCount: sql<number>`count(${schema.postings.id})::int`,
-        bookOrgIds: sql<
+        bookIds: sql<
           string[]
-        >`coalesce(array_agg(distinct ${schema.postings.bookOrgId}) filter (where ${schema.postings.bookOrgId} is not null), '{}')`,
+        >`coalesce(array_agg(distinct ${schema.postings.bookId}) filter (where ${schema.postings.bookId} is not null), '{}')`,
         currencies: sql<
           string[]
         >`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
@@ -483,18 +483,18 @@ export function createLedgerReadQueries(
             .where(inArray(schema.bookAccountInstances.id, instanceIds));
 
     const instanceById = new Map(instances.map((inst) => [inst.id, inst]));
-    const bookOrgIds = Array.from(new Set(postingRows.map((p) => p.bookOrgId)));
-    const orgNames =
-      bookOrgIds.length === 0
+    const bookIds = Array.from(new Set(postingRows.map((p) => p.bookId)));
+    const bookRows =
+      bookIds.length === 0
         ? []
         : await db
             .select({
-              id: schema.counterparties.id,
-              shortName: schema.counterparties.shortName,
+              id: schema.books.id,
+              name: schema.books.name,
             })
-            .from(schema.counterparties)
-            .where(inArray(schema.counterparties.id, bookOrgIds));
-    const orgNameById = new Map(orgNames.map((org) => [org.id, org.shortName]));
+            .from(schema.books)
+            .where(inArray(schema.books.id, bookIds));
+    const bookNameById = new Map(bookRows.map((book) => [book.id, book.name]));
 
     const currencyCodes = Array.from(
       new Set(postingRows.map((p) => p.currency)),
@@ -522,7 +522,7 @@ export function createLedgerReadQueries(
     return {
       operation: {
         ...operation,
-        bookOrgIds: operation.bookOrgIds ?? [],
+        bookIds: operation.bookIds ?? [],
         currencies: operation.currencies ?? [],
       },
       postings: postingRows.map((p) => {
@@ -531,8 +531,8 @@ export function createLedgerReadQueries(
         return {
           id: p.id,
           lineNo: p.lineNo,
-          bookOrgId: p.bookOrgId,
-          bookOrgName: orgNameById.get(p.bookOrgId) ?? null,
+          bookId: p.bookId,
+          bookName: bookNameById.get(p.bookId) ?? null,
           debitInstanceId: p.debitInstanceId,
           debitAccountNo: debitInst?.accountNo ?? null,
           debitDimensions: (debitInst?.dimensions as Dimensions) ?? null,

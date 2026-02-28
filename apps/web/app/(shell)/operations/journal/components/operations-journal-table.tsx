@@ -38,7 +38,7 @@ export function OperationsJournalTable({
         columnVisibility: {
           query: false,
           sourceId: false,
-          bookOrgId: false,
+          bookId: false,
         },
       }}
       getRowId={(row) => row.id}

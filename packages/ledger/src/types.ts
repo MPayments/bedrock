@@ -12,6 +12,7 @@ export type OperationTransferType =
 export interface CreateIntentLine {
   type: typeof OPERATION_TRANSFER_TYPE.CREATE;
   planRef: string;
+  bookId: string;
 
   postingCode: string;
   debit: {
@@ -82,7 +83,6 @@ export interface OperationIntent {
   payload?: unknown;
   idempotencyKey: string;
   postingDate: Date;
-  bookOrgId: string;
 
   lines: IntentLine[];
 }

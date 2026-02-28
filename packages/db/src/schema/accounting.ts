@@ -14,6 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { books } from "./books";
 import { bookAccountInstances } from "./ledger/ledger";
 import { operationalAccounts } from "./treasury/accounts";
 
@@ -187,6 +188,9 @@ export const operationalAccountBindings = pgTable(
     operationalAccountId: uuid("operational_account_id")
       .primaryKey()
       .references(() => operationalAccounts.id, { onDelete: "cascade" }),
+    bookId: uuid("book_id")
+      .notNull()
+      .references(() => books.id),
     bookAccountInstanceId: uuid("book_account_instance_id")
       .notNull()
       .references(() => bookAccountInstances.id),
@@ -199,6 +203,7 @@ export const operationalAccountBindings = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (t) => [
+    index("operational_account_binding_book_idx").on(t.bookId),
     index("operational_account_binding_instance_idx").on(
       t.bookAccountInstanceId,
     ),

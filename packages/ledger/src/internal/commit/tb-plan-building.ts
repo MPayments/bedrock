@@ -8,7 +8,6 @@ import { OPERATION_TRANSFER_TYPE, type IntentLine } from "../../types";
 export async function buildPlanRows(input: {
   tx: Transaction;
   operationId: string;
-  bookOrgId: string;
   lines: IntentLine[];
   linkedFlags: boolean[];
   validateCreateLine: (
@@ -19,8 +18,7 @@ export async function buildPlanRows(input: {
   tbPlanRows: (typeof schema.tbTransferPlans.$inferInsert)[];
   pendingTransferIdsByRef: Map<string, bigint>;
 }> {
-  const { tx, operationId, bookOrgId, lines, linkedFlags, validateCreateLine } =
-    input;
+  const { tx, operationId, lines, linkedFlags, validateCreateLine } = input;
 
   const pendingTransferIdsByRef = new Map<string, bigint>();
   const postingRows: (typeof schema.postings.$inferInsert)[] = [];
@@ -40,13 +38,13 @@ export async function buildPlanRows(input: {
 
       const [debitInstance, creditInstance] = await Promise.all([
         ensureBookAccountInstanceTx(tx, {
-          bookOrgId,
+          bookId: line.bookId,
           accountNo: line.debit.accountNo,
           currency: line.debit.currency,
           dimensions: line.debit.dimensions,
         }),
         ensureBookAccountInstanceTx(tx, {
-          bookOrgId,
+          bookId: line.bookId,
           accountNo: line.credit.accountNo,
           currency: line.credit.currency,
           dimensions: line.credit.dimensions,
@@ -56,7 +54,7 @@ export async function buildPlanRows(input: {
       postingRows.push({
         operationId,
         lineNo,
-        bookOrgId,
+        bookId: line.bookId,
         debitInstanceId: debitInstance.id,
         creditInstanceId: creditInstance.id,
         postingCode: line.postingCode,

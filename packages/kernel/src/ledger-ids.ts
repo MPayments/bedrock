@@ -39,14 +39,14 @@ export function tbLedgerForCurrency(currency: string): number {
 }
 
 export function tbBookAccountInstanceIdFor(
-  bookOrgId: string,
+  bookId: string,
   accountNo: string,
   currency: string,
   dimensionsHash: string,
   tbLedger: number,
 ): bigint {
   return u128FromHash(
-    `instance:${bookOrgId}:${accountNo}:${currency}:${dimensionsHash}:${tbLedger}`,
+    `instance:${bookId}:${accountNo}:${currency}:${dimensionsHash}:${tbLedger}`,
   );
 }
 

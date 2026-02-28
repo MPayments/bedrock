@@ -24,6 +24,7 @@ function normalizeForFingerprint(line: IntentLine) {
       return {
         type: line.type,
         planRef: line.planRef,
+        bookId: line.bookId,
         chain: line.chain ?? null,
         postingCode: line.postingCode,
         debit: {
@@ -78,7 +79,6 @@ export function computePayloadHash(input: {
   operationCode: string;
   operationVersion: number;
   payload: unknown;
-  bookOrgId: string;
   lines: IntentLine[];
 }): string {
   return sha256Hex(
@@ -86,7 +86,6 @@ export function computePayloadHash(input: {
       operationCode: input.operationCode,
       operationVersion: input.operationVersion,
       payload: input.payload ?? null,
-      bookOrgId: input.bookOrgId,
       lines: input.lines.map(normalizeForFingerprint),
     }),
   );

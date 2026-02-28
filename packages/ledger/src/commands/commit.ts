@@ -33,7 +33,6 @@ export function createCommitHandler(
       operationCode: validated.operationCode,
       operationVersion: validated.operationVersion,
       payload: validated.payload,
-      bookOrgId: validated.bookOrgId,
       lines: validated.lines,
     });
 
@@ -71,7 +70,6 @@ export function createCommitHandler(
       await buildPlanRows({
         tx,
         operationId,
-        bookOrgId: validated.bookOrgId,
         lines: validated.lines,
         linkedFlags,
         validateCreateLine,

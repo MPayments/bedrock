@@ -27,11 +27,11 @@ describe("Worker Integration Tests", () => {
       operationCode: "TEST.WORKER.CREATE",
       idempotencyKey: randomIdempotencyKey(),
       postingDate: new Date(),
-      bookOrgId: randomOrgId(),
       lines: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: "transfer-1",
+          bookId: randomOrgId(),
           postingCode: POSTING_CODE.FUNDING_SETTLED,
           debit: {
             accountNo: ACCOUNT_NO.BANK,
@@ -75,11 +75,11 @@ describe("Worker Integration Tests", () => {
       operationCode: "TEST.WORKER.PENDING",
       idempotencyKey: randomIdempotencyKey(),
       postingDate: new Date(),
-      bookOrgId: randomOrgId(),
       lines: [
         {
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: "pending-1",
+          bookId: randomOrgId(),
           postingCode: POSTING_CODE.FUNDING_SETTLED,
           debit: {
             accountNo: ACCOUNT_NO.BANK,
@@ -117,11 +117,11 @@ describe("Worker Integration Tests", () => {
         operationCode: "TEST.WORKER.BATCH",
         idempotencyKey: randomIdempotencyKey(),
         postingDate: new Date(),
-        bookOrgId: orgId,
         lines: [
           {
             type: OPERATION_TRANSFER_TYPE.CREATE,
             planRef: `transfer-${i}`,
+            bookId: orgId,
             postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
             debit: {
               accountNo: ACCOUNT_NO.BANK,

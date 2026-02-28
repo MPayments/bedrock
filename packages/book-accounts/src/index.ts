@@ -9,7 +9,7 @@ import {
 } from "@bedrock/kernel";
 
 export interface BookAccountIdentityInput {
-  bookOrgId: string;
+  bookId: string;
   accountNo: string;
   currency: string;
   dimensions: Dimensions;
@@ -31,7 +31,7 @@ export function computeBookAccountIdentity(
   const dimensionsHash = computeDimensionsHash(input.dimensions);
   const tbLedger = tbLedgerForCurrency(input.currency);
   const tbAccountId = tbBookAccountInstanceIdFor(
-    input.bookOrgId,
+    input.bookId,
     input.accountNo,
     input.currency,
     dimensionsHash,
@@ -55,7 +55,7 @@ export async function ensureBookAccountInstanceTx(
   const inserted = await tx
     .insert(schema.bookAccountInstances)
     .values({
-      bookOrgId: input.bookOrgId,
+      bookId: input.bookId,
       accountNo: input.accountNo,
       currency: input.currency,
       dimensions: input.dimensions,
@@ -88,7 +88,7 @@ export async function ensureBookAccountInstanceTx(
     .from(schema.bookAccountInstances)
     .where(
       and(
-        eq(schema.bookAccountInstances.bookOrgId, input.bookOrgId),
+        eq(schema.bookAccountInstances.bookId, input.bookId),
         eq(schema.bookAccountInstances.accountNo, input.accountNo),
         eq(schema.bookAccountInstances.currency, input.currency),
         eq(schema.bookAccountInstances.dimensionsHash, dimensionsHash),
@@ -98,13 +98,13 @@ export async function ensureBookAccountInstanceTx(
 
   if (!existing) {
     throw new Error(
-      `book account instance insert/select failed unexpectedly for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}`,
+      `book account instance insert/select failed unexpectedly for book=${input.bookId}, accountNo=${input.accountNo}, currency=${input.currency}`,
     );
   }
 
   if (existing.tbLedger !== tbLedger || existing.tbAccountId !== tbAccountId) {
     throw new Error(
-      `book_account_instance invariant mismatch for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}, hash=${dimensionsHash}`,
+      `book_account_instance invariant mismatch for book=${input.bookId}, accountNo=${input.accountNo}, currency=${input.currency}, hash=${dimensionsHash}`,
     );
   }
 

@@ -21,7 +21,7 @@ describe("accounting runtime", () => {
           currency: "USD",
           amountMinor: 1250n,
           bookRefs: {
-            bookOrgId: "00000000-0000-4000-8000-000000000001",
+            bookId: "00000000-0000-4000-8000-000000000001",
           },
           dimensions: {
             sourceOperationalAccountId: "src-op",
@@ -54,11 +54,11 @@ describe("accounting runtime", () => {
         postingCode: "TR.INTRA.IMMEDIATE",
       },
     ]);
-    expect(result.intent.bookOrgId).toBe("00000000-0000-4000-8000-000000000001");
     expect(result.intent.lines).toEqual([
       {
         type: "create",
         planRef: expect.any(String),
+        bookId: "00000000-0000-4000-8000-000000000001",
         postingCode: "TR.INTRA.IMMEDIATE",
         debit: {
           accountNo: "1110",
@@ -100,7 +100,7 @@ describe("accounting runtime", () => {
               currency: "USD",
               amountMinor: 100n,
               bookRefs: {
-                bookOrgId: "00000000-0000-4000-8000-000000000001",
+                bookId: "00000000-0000-4000-8000-000000000001",
               },
               dimensions: {
                 sourceOperationalAccountId: "src-op",

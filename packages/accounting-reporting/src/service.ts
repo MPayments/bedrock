@@ -301,7 +301,7 @@ export function createAccountingReportingService(
 
     const attributionSql =
       input.attributionMode === "book_org"
-        ? sql`p.book_org_id::text`
+        ? sql`p.book_id::text`
         : sql`CASE
             WHEN debit_inst.dimensions->>'counterpartyId' IS NOT NULL
              AND credit_inst.dimensions->>'counterpartyId' IS NOT NULL

@@ -36,6 +36,13 @@
       "when": 1772300400000,
       "tag": "0004_balances_reconciliation",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1772304000000,
+      "tag": "0005_books_book_ids",
+      "breakpoints": true
     }
   ]
 }

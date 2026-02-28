@@ -2,7 +2,7 @@ import { and, desc, eq, lte } from "drizzle-orm";
 
 import { schema } from "@bedrock/db/schema";
 import { canonicalJson, makePlanKey, sha256Hex } from "@bedrock/kernel";
-import { SYSTEM_LEDGER_ORG_ID, TransferCodes } from "@bedrock/kernel/constants";
+import { SYSTEM_LEDGER_BOOK_ID, TransferCodes } from "@bedrock/kernel/constants";
 
 import { ACCOUNT_NO, CLEARING_KIND, POSTING_CODE } from "./constants";
 import {
@@ -23,6 +23,7 @@ const OPERATION_TRANSFER_TYPE = {
 export interface CreateIntentLine {
   type: typeof OPERATION_TRANSFER_TYPE.CREATE;
   planRef: string;
+  bookId: string;
   postingCode: string;
   debit: {
     accountNo: string;
@@ -80,7 +81,6 @@ export interface OperationIntent {
   payload?: unknown;
   idempotencyKey: string;
   postingDate: Date;
-  bookOrgId: string;
   lines: IntentLine[];
 }
 
@@ -272,7 +272,7 @@ export const POSTING_TEMPLATE_KEY = {
 export type PostingTemplateKey =
   (typeof POSTING_TEMPLATE_KEY)[keyof typeof POSTING_TEMPLATE_KEY];
 
-const BOOK_REF_BOOK_ORG_ID = "bookOrgId";
+const BOOK_REF_BOOK_ID = "bookId";
 const PACK_CACHE_TTL_MS = 60_000;
 const PACK_SCOPE_TYPE_BOOK = "book";
 
@@ -308,7 +308,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
       transferCode: TransferCodes.INTERNAL_TRANSFER,
       allowModules: ["transfer"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
         "sourceOperationalAccountId",
         "destinationOperationalAccountId",
@@ -331,7 +331,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.TRANSFER_INTRA_PENDING,
       transferCode: TransferCodes.INTERNAL_TRANSFER,
       allowModules: ["transfer"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
         "sourceOperationalAccountId",
         "destinationOperationalAccountId",
@@ -355,7 +355,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE,
       transferCode: TransferCodes.INTERNAL_TRANSFER,
       allowModules: ["transfer"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
         "sourceOperationalAccountId",
         "destinationCounterpartyId",
@@ -379,7 +379,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING,
       transferCode: TransferCodes.INTERNAL_TRANSFER,
       allowModules: ["transfer"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
         "sourceOperationalAccountId",
         "destinationCounterpartyId",
@@ -404,7 +404,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE,
       transferCode: TransferCodes.INTERNAL_TRANSFER,
       allowModules: ["transfer"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
         "destinationOperationalAccountId",
         "sourceCounterpartyId",
@@ -428,7 +428,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_PENDING,
       transferCode: TransferCodes.INTERNAL_TRANSFER,
       allowModules: ["transfer"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
         "destinationOperationalAccountId",
         "sourceCounterpartyId",
@@ -452,7 +452,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       key: POSTING_TEMPLATE_KEY.TRANSFER_PENDING_SETTLE,
       lineType: OPERATION_TRANSFER_TYPE.POST_PENDING,
       allowModules: ["transfer_settle"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [],
       requiredRefs: [
         "transferDocumentId",
@@ -464,7 +464,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       key: POSTING_TEMPLATE_KEY.TRANSFER_PENDING_VOID,
       lineType: OPERATION_TRANSFER_TYPE.VOID_PENDING,
       allowModules: ["transfer_void"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [],
       requiredRefs: [
         "transferDocumentId",
@@ -477,7 +477,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY,
       transferCode: TransferCodes.EXTERNAL_FUNDING_FOUNDER_EQUITY,
       allowModules: ["external_funding"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["operationalAccountId", "counterpartyId"],
       requiredRefs: ["entryRef", "kind"],
       debit: {
@@ -498,7 +498,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY,
       transferCode: TransferCodes.EXTERNAL_FUNDING_INVESTOR_EQUITY,
       allowModules: ["external_funding"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["operationalAccountId", "counterpartyId"],
       requiredRefs: ["entryRef", "kind"],
       debit: {
@@ -519,7 +519,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
       transferCode: TransferCodes.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
       allowModules: ["external_funding"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["operationalAccountId", "counterpartyId"],
       requiredRefs: ["entryRef", "kind"],
       debit: {
@@ -540,7 +540,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.EXTERNAL_FUNDING_OPENING_BALANCE,
       transferCode: TransferCodes.EXTERNAL_FUNDING_OPENING_BALANCE,
       allowModules: ["external_funding"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["operationalAccountId"],
       requiredRefs: ["entryRef", "kind"],
       debit: {
@@ -559,7 +559,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.FUNDING_SETTLED,
       transferCode: TransferCodes.FUNDING_SETTLED,
       allowModules: ["payin_funding"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["operationalAccountId", "customerId"],
       requiredRefs: ["paymentCaseId", "railRef"],
       debit: {
@@ -580,7 +580,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.FX_PRINCIPAL,
       transferCode: TransferCodes.FX_PRINCIPAL,
       allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["customerId", "orderId"],
       requiredRefs: ["quoteRef", "chainId"],
       debit: {
@@ -601,7 +601,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.FX_LEG_OUT,
       transferCode: TransferCodes.FX_LEG_OUT,
       allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["orderId", "counterpartyId"],
       requiredRefs: ["quoteRef", "chainId", "legIndex"],
       debit: {
@@ -624,7 +624,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.FX_LEG_IN,
       transferCode: TransferCodes.FX_LEG_IN,
       allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["orderId", "counterpartyId"],
       requiredRefs: ["quoteRef", "chainId", "legIndex"],
       debit: {
@@ -647,7 +647,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.FEE_INCOME,
       transferCode: TransferCodes.FEE_INCOME,
       allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["customerId", "orderId", "feeBucket"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
       debit: {
@@ -669,7 +669,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.SPREAD_INCOME,
       transferCode: TransferCodes.SPREAD_INCOME,
       allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["customerId", "orderId", "feeBucket"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
       debit: {
@@ -691,7 +691,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
       transferCode: TransferCodes.FEE_PASS_THROUGH_RESERVE,
       allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["customerId", "orderId", "feeBucket"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
       debit: {
@@ -713,7 +713,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL,
       transferCode: TransferCodes.PROVIDER_FEE_EXPENSE_ACCRUAL,
       allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["orderId", "feeBucket", "counterpartyId"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
       debit: {
@@ -737,7 +737,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.ADJUSTMENT_CHARGE,
       transferCode: TransferCodes.ADJUSTMENT_CHARGE,
       allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["customerId", "orderId", "feeBucket"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
       debit: {
@@ -759,7 +759,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.ADJUSTMENT_REFUND,
       transferCode: TransferCodes.ADJUSTMENT_REFUND,
       allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["customerId", "orderId", "feeBucket"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
       debit: {
@@ -781,7 +781,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
       transferCode: TransferCodes.FEE_PASS_THROUGH_RESERVE,
       allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["customerId", "orderId", "feeBucket"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
       debit: {
@@ -803,7 +803,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
       transferCode: TransferCodes.FEE_PASS_THROUGH_RESERVE,
       allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["orderId", "feeBucket"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
       debit: {
@@ -826,7 +826,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.FX_PAYOUT_OBLIGATION,
       transferCode: TransferCodes.FX_PAYOUT_OBLIGATION,
       allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["orderId"],
       requiredRefs: ["quoteRef", "chainId", "payoutCounterpartyId"],
       debit: {
@@ -847,7 +847,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.PAYOUT_INITIATED,
       transferCode: TransferCodes.PAYOUT_INITIATED,
       allowModules: ["payout_initiate"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["orderId", "operationalAccountId"],
       requiredRefs: ["railRef", "payoutBankStableKey"],
       pendingMode: "required",
@@ -868,7 +868,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       key: POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_SETTLE,
       lineType: OPERATION_TRANSFER_TYPE.POST_PENDING,
       allowModules: ["payout_settle"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [],
       requiredRefs: ["orderId", "railRef"],
     }),
@@ -876,7 +876,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       key: POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_VOID,
       lineType: OPERATION_TRANSFER_TYPE.VOID_PENDING,
       allowModules: ["payout_void"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [],
       requiredRefs: ["orderId", "railRef"],
     }),
@@ -885,7 +885,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED,
       transferCode: TransferCodes.FEE_PAYMENT_INITIATED,
       allowModules: ["fee_payout_initiate"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
         "feeBucket",
         "orderId",
@@ -913,7 +913,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       key: POSTING_TEMPLATE_KEY.PAYMENT_FEE_PAYOUT_SETTLE,
       lineType: OPERATION_TRANSFER_TYPE.POST_PENDING,
       allowModules: ["fee_payout_settle"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [],
       requiredRefs: ["feePayoutInitiateDocumentId", "railRef"],
     }),
@@ -921,7 +921,7 @@ export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
       key: POSTING_TEMPLATE_KEY.PAYMENT_FEE_PAYOUT_VOID,
       lineType: OPERATION_TRANSFER_TYPE.VOID_PENDING,
       allowModules: ["fee_payout_void"],
-      requiredBookRefs: [BOOK_REF_BOOK_ORG_ID],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [],
       requiredRefs: ["feePayoutInitiateDocumentId", "railRef"],
     }),
@@ -1246,6 +1246,7 @@ function resolveCreateLine(
   return {
     type: OPERATION_TRANSFER_TYPE.CREATE,
     planRef: buildPlanRef(request),
+    bookId: request.bookRefs[BOOK_REF_BOOK_ID] ?? SYSTEM_LEDGER_BOOK_ID,
     postingCode: template.postingCode,
     debit: {
       accountNo: template.debit.accountNo,
@@ -1315,7 +1316,6 @@ async function resolvePostingPlanInternal(
   const { moduleId, plan } = input;
   const lines: IntentLine[] = [];
   const appliedTemplates: ResolvedPostingTemplate[] = [];
-  let resolvedBookOrgId: string | null = null;
 
   for (const [requestIndex, request] of plan.requests.entries()) {
     const template = compiledPack.templateLookup.get(request.templateKey);
@@ -1328,16 +1328,6 @@ async function resolvePostingPlanInternal(
     }
 
     validateRequestShape(request, template);
-
-    const requestBookOrgId = request.bookRefs[BOOK_REF_BOOK_ORG_ID];
-    if (requestBookOrgId) {
-      if (resolvedBookOrgId && resolvedBookOrgId !== requestBookOrgId) {
-        throw new AccountingPostingPlanValidationError(
-          "All requests must resolve to the same bookOrgId until multi-book ledger support is implemented",
-        );
-      }
-      resolvedBookOrgId = requestBookOrgId;
-    }
 
     const line = isCompiledCreateTemplate(template)
       ? resolveCreateLine(request, template)
@@ -1361,7 +1351,6 @@ async function resolvePostingPlanInternal(
     payload: plan.payload,
     idempotencyKey: input.idempotencyKey,
     postingDate: input.postingDate,
-    bookOrgId: resolvedBookOrgId ?? SYSTEM_LEDGER_ORG_ID,
     lines,
   };
 
@@ -1494,7 +1483,7 @@ export function createAccountingRuntime(
     bookId?: string;
     at?: Date;
   }) {
-    if (!input?.bookId) {
+    if (!db || !input?.bookId) {
       return DEFAULT_COMPILED_PACK;
     }
 
@@ -1540,7 +1529,7 @@ export function createAccountingRuntime(
       (await loadActiveCompiledPackForBook({
         bookId:
           input.bookIdContext ??
-          input.plan.requests[0]?.bookRefs[BOOK_REF_BOOK_ORG_ID],
+          input.plan.requests[0]?.bookRefs[BOOK_REF_BOOK_ID],
         at: input.at ?? input.postingDate,
       }));
     return resolvePostingPlanInternal(input, pack);

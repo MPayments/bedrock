@@ -45,7 +45,7 @@ describe("resolveTbBookAccountInstanceId", () => {
     const result = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      bookOrgId: orgId,
+      bookId: orgId,
       accountNo,
       currency,
       dimensions: {},
@@ -75,7 +75,7 @@ describe("resolveTbBookAccountInstanceId", () => {
       resolveTbBookAccountInstanceId({
         db,
         tb,
-        bookOrgId: orgId,
+        bookId: orgId,
         accountNo,
         currency,
         dimensions: {},
@@ -114,7 +114,7 @@ describe("resolveTbBookAccountInstanceId", () => {
     const result = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      bookOrgId: orgId,
+      bookId: orgId,
       accountNo,
       currency,
       dimensions: {},
@@ -123,7 +123,7 @@ describe("resolveTbBookAccountInstanceId", () => {
     expect(result).toBe(expectedId);
     expect(insertValues).toHaveBeenCalledWith(
       expect.objectContaining({
-        bookOrgId: orgId,
+        bookId: orgId,
         accountNo,
         currency,
         dimensionsHash: expect.any(String),
@@ -154,7 +154,7 @@ describe("resolveTbBookAccountInstanceId", () => {
     await resolveTbBookAccountInstanceId({
       db,
       tb,
-      bookOrgId: orgId,
+      bookId: orgId,
       accountNo,
       currency,
       dimensions: {},
@@ -193,7 +193,7 @@ describe("resolveTbBookAccountInstanceId", () => {
       resolveTbBookAccountInstanceId({
         db,
         tb,
-        bookOrgId: orgId,
+        bookId: orgId,
         accountNo,
         currency,
         dimensions: {},
@@ -229,7 +229,7 @@ describe("resolveTbBookAccountInstanceId", () => {
       resolveTbBookAccountInstanceId({
         db,
         tb,
-        bookOrgId: orgId,
+        bookId: orgId,
         accountNo,
         currency,
         dimensions: {},
@@ -257,7 +257,7 @@ describe("resolveTbBookAccountInstanceId", () => {
     const usd = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      bookOrgId: orgId,
+      bookId: orgId,
       accountNo,
       currency: "USD",
       dimensions: {},
@@ -266,7 +266,7 @@ describe("resolveTbBookAccountInstanceId", () => {
     const eur = await resolveTbBookAccountInstanceId({
       db,
       tb,
-      bookOrgId: orgId,
+      bookId: orgId,
       accountNo,
       currency: "EUR",
       dimensions: {},

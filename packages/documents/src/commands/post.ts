@@ -128,7 +128,7 @@ export function createPostHandler(context: DocumentsServiceContext) {
             },
             idempotencyKey: module.buildPostIdempotencyKey(document),
             postingDate: document.occurredAt,
-            bookIdContext: postingPlan.requests[0]?.bookRefs.bookOrgId,
+            bookIdContext: postingPlan.requests[0]?.bookRefs.bookId,
             plan: postingPlan,
           });
           const result = await ledger.commit(tx, resolved.intent);

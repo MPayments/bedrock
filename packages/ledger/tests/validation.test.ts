@@ -12,11 +12,11 @@ const validInput = {
   operationVersion: 1,
   idempotencyKey: "idem-123",
   postingDate: new Date(),
-  bookOrgId: "550e8400-e29b-41d4-a716-446655440000",
   lines: [
     {
       type: OPERATION_TRANSFER_TYPE.CREATE,
       planRef: "plan-1",
+      bookId: "550e8400-e29b-41d4-a716-446655440000",
       postingCode: "payment.settled",
       debit: {
         accountNo: "1000",

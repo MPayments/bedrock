@@ -16,6 +16,7 @@ export function createGetOperationalAccountHandler(
       .select({
         id: schema.operationalAccounts.id,
         counterpartyId: schema.operationalAccounts.counterpartyId,
+        bookId: schema.operationalAccountBindings.bookId,
         currencyId: schema.operationalAccounts.currencyId,
         accountProviderId: schema.operationalAccounts.accountProviderId,
         label: schema.operationalAccounts.label,
@@ -53,6 +54,7 @@ export function createGetOperationalAccountHandler(
 
     return {
       ...row,
+      bookId: row.bookId ?? row.counterpartyId,
       postingAccountNo: row.postingAccountNo ?? ACCOUNT_NO.BANK,
     };
   };

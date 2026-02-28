@@ -64,7 +64,7 @@ const LedgerOperationSummarySchema = z.object({
   lastOutboxErrorAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   postingCount: z.number().int(),
-  bookOrgIds: z.array(z.string()),
+  bookIds: z.array(z.string()),
   currencies: z.array(z.string()),
 });
 
@@ -77,8 +77,8 @@ const DimensionsSchema = z.record(z.string(), z.string()).nullable();
 const LedgerOperationPostingSchema = z.object({
   id: z.uuid(),
   lineNo: z.number().int(),
-  bookOrgId: z.uuid(),
-  bookOrgName: z.string().nullable(),
+  bookId: z.uuid(),
+  bookName: z.string().nullable(),
   debitInstanceId: z.uuid(),
   debitAccountNo: z.string().nullable(),
   debitDimensions: DimensionsSchema,

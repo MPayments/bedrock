@@ -11,6 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { books } from "../books";
 import { bookAccountInstances } from "./ledger";
 
 export type LedgerOperationStatus = "pending" | "posted" | "failed";
@@ -58,7 +59,9 @@ export const postings = pgTable(
       .references(() => ledgerOperations.id, { onDelete: "cascade" }),
 
     lineNo: integer("line_no").notNull(),
-    bookOrgId: uuid("book_org_id").notNull(),
+    bookId: uuid("book_id")
+      .notNull()
+      .references(() => books.id),
 
     debitInstanceId: uuid("debit_instance_id")
       .notNull()
@@ -82,6 +85,6 @@ export const postings = pgTable(
   (t) => [
     uniqueIndex("postings_op_line_uq").on(t.operationId, t.lineNo),
     index("postings_op_idx").on(t.operationId),
-    index("postings_org_currency_idx").on(t.bookOrgId, t.currency),
+    index("postings_book_currency_idx").on(t.bookId, t.currency),
   ],
 );

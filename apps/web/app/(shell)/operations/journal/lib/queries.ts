@@ -22,15 +22,15 @@ export interface OperationSummaryDto {
   lastOutboxErrorAt: string | null;
   createdAt: string;
   postingCount: number;
-  bookOrgIds: string[];
+  bookIds: string[];
   currencies: string[];
 }
 
 interface OperationPostingDto {
   id: string;
   lineNo: number;
-  bookOrgId: string;
-  bookOrgName: string | null;
+  bookId: string;
+  bookName: string | null;
   debitInstanceId: string;
   debitAccountNo: string | null;
   debitDimensions: Record<string, string> | null;

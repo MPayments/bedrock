@@ -17,6 +17,7 @@ import {
   verification,
 } from "./auth";
 import { balanceEvents, balanceHolds, balancePositions } from "./balances";
+import { books } from "./books";
 import { currencies } from "./currencies";
 import { customers } from "./customers";
 import {
@@ -62,6 +63,7 @@ export const schema = {
 
   ledgerOperations,
   postings,
+  books,
   bookAccountInstances,
 
   outbox,
@@ -111,6 +113,7 @@ export {
   type FxRateSourceSyncStatus,
 } from "./fx/rate-sources";
 export { type FxRate, type FxRateInsert } from "./fx/rates";
+export type { Book, BookInsert } from "./books";
 export type { Currency, CurrencyInsert } from "./currencies";
 export type { Customer, CustomerInsert } from "./customers";
 export type {
