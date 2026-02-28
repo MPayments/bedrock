@@ -1,4 +1,10 @@
-import { InvalidStateError, NotFoundError, ServiceError, ValidationError } from "@bedrock/kernel/errors";
+import {
+  InvalidStateError,
+  NotFoundError,
+  PermissionError,
+  ServiceError,
+  ValidationError,
+} from "@bedrock/kernel/errors";
 
 export class DocumentsError extends ServiceError {}
 
@@ -19,3 +25,13 @@ export class DocumentPostingNotRequiredError extends InvalidStateError {
 }
 
 export class DocumentGraphError extends DocumentsError {}
+
+export class DocumentPolicyDeniedError extends PermissionError {
+  constructor(
+    public readonly action: string,
+    public readonly reasonCode: string,
+    public readonly reasonMeta?: Record<string, unknown> | null,
+  ) {
+    super(`Document action denied for ${action}: ${reasonCode}`);
+  }
+}

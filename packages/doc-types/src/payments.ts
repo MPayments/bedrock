@@ -3,14 +3,9 @@ import { z } from "zod";
 
 import {
   ACCOUNT_NO,
-  CLEARING_KIND,
   OPERATION_CODE,
-  POSTING_CODE,
-  resolveAdjustmentInLedgerPostingTemplate,
-  resolveAdjustmentReservePostingTemplate,
-  resolveFeeReservePostingTemplate,
-  resolveInLedgerFeePostingTemplate,
-  resolveProviderFeeExpenseAccrualPostingTemplate,
+  POSTING_TEMPLATE_KEY,
+  type DocumentPostingPlanRequest,
 } from "@bedrock/accounting";
 import { schema, type Document } from "@bedrock/db/schema";
 import type { AdjustmentComponent, FeeComponent } from "@bedrock/fees";
@@ -23,14 +18,9 @@ import {
 } from "@bedrock/fees";
 import type { DocumentModule, DocumentModuleContext } from "@bedrock/documents";
 import { DocumentValidationError } from "@bedrock/documents";
-import { isUuidLike, makePlanKey } from "@bedrock/kernel";
-import {
-  DAY_IN_SECONDS,
-  SYSTEM_LEDGER_ORG_ID,
-  TransferCodes,
-} from "@bedrock/kernel/constants";
+import { isUuidLike } from "@bedrock/kernel";
+import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 import { InvalidStateError, NotFoundError } from "@bedrock/kernel/errors";
-import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
 
 import {
   amountMinorSchema,
@@ -39,6 +29,10 @@ import {
   parseDocumentPayload,
   serializeOccurredAt,
 } from "./internal/document-utils";
+import {
+  buildDocumentPostingPlan,
+  buildDocumentPostingRequest,
+} from "./internal/posting-plan";
 
 const metadataSchema = z.record(z.string(), z.string().max(255));
 
@@ -224,11 +218,7 @@ type FeePayoutResolvePayload = z.infer<typeof FeePayoutResolveSchema>;
 
 interface FxExecutionArtifacts {
   quoteId: string;
-  lines: Parameters<NonNullable<DocumentModule["buildIntent"]>>[1] extends never
-    ? never
-    : {
-        type: "create" | "post_pending" | "void_pending";
-      }[];
+  requests: DocumentPostingPlanRequest[];
   separateFeeComponents: Array<{
     componentId: string;
     kind: string;
@@ -858,7 +848,7 @@ async function buildFxExecutionArtifacts(params: {
   consumeQuote: boolean;
 }): Promise<{
   quoteId: string;
-  lines: any[];
+  requests: DocumentPostingPlanRequest[];
   separateFeeComponents: Array<{
     componentId: string;
     kind: string;
@@ -946,7 +936,7 @@ async function buildFxExecutionArtifacts(params: {
 
   const chain = `fx:${payload.quoteRef}`;
   const orderId = caseDocument.id;
-  const lines: any[] = [];
+  const requests: DocumentPostingPlanRequest[] = [];
   const separateFeeComponents: Array<{
     componentId: string;
     kind: string;
@@ -959,96 +949,62 @@ async function buildFxExecutionArtifacts(params: {
     payoutOperationalAccountId: string;
   }> = [];
 
-  lines.push({
-    type: OPERATION_TRANSFER_TYPE.CREATE,
-    chain,
-    planRef: makePlanKey("fx_principal", {
-      quoteRef: payload.quoteRef,
-      orderId,
+  requests.push(
+    buildDocumentPostingRequest(document, {
+      templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
       currency: payload.payInCurrency,
-      amount: payload.principalMinor,
+      amountMinor: toMinor(payload.principalMinor),
+      dimensions: {
+        customerId: payload.customerId,
+        orderId,
+      },
+      refs: {
+        quoteRef: payload.quoteRef,
+        chainId: chain,
+      },
+      memo: "FX principal",
     }),
-    postingCode: POSTING_CODE.FX_PRINCIPAL,
-    debit: {
-      accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-      currency: payload.payInCurrency,
-      dimensions: { customerId: payload.customerId },
-    },
-    credit: {
-      accountNo: ACCOUNT_NO.ORDER_RESERVE,
-      currency: payload.payInCurrency,
-      dimensions: { orderId },
-    },
-    amountMinor: toMinor(payload.principalMinor),
-    code: TransferCodes.FX_PRINCIPAL,
-    memo: "FX principal",
-  });
+  );
 
   for (const leg of routeLegs) {
     const executionCounterpartyId =
       leg.executionCounterpartyId ?? payload.branchCounterpartyId;
 
-    lines.push({
-      type: OPERATION_TRANSFER_TYPE.CREATE,
-      chain,
-      planRef: makePlanKey("fx_leg_out", {
-        quoteRef: payload.quoteRef,
-        orderId,
-        idx: leg.idx,
-        executionCounterpartyId,
-        fromCurrency: leg.fromCurrency,
-        amount: leg.fromAmountMinor.toString(),
-      }),
-      postingCode: POSTING_CODE.FX_LEG_OUT,
-      debit: {
-        accountNo: ACCOUNT_NO.ORDER_RESERVE,
+    requests.push(
+      buildDocumentPostingRequest(document, {
+        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_LEG_OUT,
         currency: leg.fromCurrency,
-        dimensions: { orderId },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.CLEARING,
-        currency: leg.fromCurrency,
+        amountMinor: leg.fromAmountMinor,
         dimensions: {
-          clearingKind: CLEARING_KIND.TREASURY_FX,
           orderId,
           counterpartyId: executionCounterpartyId,
         },
-      },
-      amountMinor: leg.fromAmountMinor,
-      code: TransferCodes.FX_LEG_OUT,
-      memo: `FX leg ${leg.idx} out`,
-    });
+        refs: {
+          quoteRef: payload.quoteRef,
+          chainId: chain,
+          legIndex: String(leg.idx),
+        },
+        memo: `FX leg ${leg.idx} out`,
+      }),
+    );
 
-    lines.push({
-      type: OPERATION_TRANSFER_TYPE.CREATE,
-      chain,
-      planRef: makePlanKey("fx_leg_in", {
-        quoteRef: payload.quoteRef,
-        orderId,
-        idx: leg.idx,
-        executionCounterpartyId,
-        toCurrency: leg.toCurrency,
-        amount: leg.toAmountMinor.toString(),
-      }),
-      postingCode: POSTING_CODE.FX_LEG_IN,
-      debit: {
-        accountNo: ACCOUNT_NO.CLEARING,
+    requests.push(
+      buildDocumentPostingRequest(document, {
+        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_LEG_IN,
         currency: leg.toCurrency,
+        amountMinor: leg.toAmountMinor,
         dimensions: {
-          clearingKind: CLEARING_KIND.TREASURY_FX,
           orderId,
           counterpartyId: executionCounterpartyId,
         },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.ORDER_RESERVE,
-        currency: leg.toCurrency,
-        dimensions: { orderId },
-      },
-      amountMinor: leg.toAmountMinor,
-      code: TransferCodes.FX_LEG_IN,
-      memo: `FX leg ${leg.idx} in`,
-    });
+        refs: {
+          quoteRef: payload.quoteRef,
+          chainId: chain,
+          legIndex: String(leg.idx),
+        },
+        memo: `FX leg ${leg.idx} in`,
+      }),
+    );
   }
 
   const quoteFeeComponents = await feesService.getQuoteFeeComponents(
@@ -1067,74 +1023,51 @@ async function buildFxExecutionArtifacts(params: {
       (component.settlementMode === "separate_payment_order"
         ? "pass_through"
         : "income");
+    const componentRefs = {
+      quoteRef: payload.quoteRef,
+      chainId: chain,
+      componentId: component.id,
+      componentIndex: String(index + 1),
+    };
+    const componentFeeBucket =
+      component.kind === "fx_spread" ? "spread" : defaults.bucket;
 
     if (accountingTreatment === "income") {
-      const posting = resolveInLedgerFeePostingTemplate(component.kind);
-      lines.push({
-        type: OPERATION_TRANSFER_TYPE.CREATE,
-        chain,
-        planRef: makePlanKey("fx_fee_component_income", {
-          quoteRef: payload.quoteRef,
-          orderId,
-          idx: index + 1,
-          componentId: component.id,
-          kind: component.kind,
+      requests.push(
+        buildDocumentPostingRequest(document, {
+          templateKey:
+            component.kind === "fx_spread"
+              ? POSTING_TEMPLATE_KEY.PAYMENT_FX_SPREAD_INCOME
+              : POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME,
           currency: component.currency,
-          amount: component.amountMinor.toString(),
-        }),
-        postingCode: posting.postingCode,
-        debit: {
-          accountNo: posting.debitAccountNo,
-          currency: component.currency,
-          dimensions: { customerId: payload.customerId },
-        },
-        credit: {
-          accountNo: posting.creditAccountNo,
-          currency: component.currency,
+          amountMinor: component.amountMinor,
           dimensions: {
+            customerId: payload.customerId,
             orderId,
-            feeBucket: posting.feeBucket ?? component.kind,
+            feeBucket: componentFeeBucket,
           },
-        },
-        amountMinor: component.amountMinor,
-        code: posting.transferCode,
-        memo: component.memo ?? defaults.memo,
-      });
+          refs: componentRefs,
+          memo: component.memo ?? defaults.memo,
+        }),
+      );
       continue;
     }
 
     if (accountingTreatment === "pass_through") {
-      const posting = resolveFeeReservePostingTemplate(defaults.bucket);
-      lines.push({
-        type: OPERATION_TRANSFER_TYPE.CREATE,
-        chain,
-        planRef: makePlanKey("fx_fee_component_pass_through", {
-          quoteRef: payload.quoteRef,
-          orderId,
-          idx: index + 1,
-          componentId: component.id,
-          kind: component.kind,
+      requests.push(
+        buildDocumentPostingRequest(document, {
+          templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
           currency: component.currency,
-          amount: component.amountMinor.toString(),
-        }),
-        postingCode: posting.postingCode,
-        debit: {
-          accountNo: posting.debitAccountNo,
-          currency: component.currency,
-          dimensions: { customerId: payload.customerId },
-        },
-        credit: {
-          accountNo: posting.creditAccountNo,
-          currency: component.currency,
+          amountMinor: component.amountMinor,
           dimensions: {
-            feeBucket: posting.feeBucket ?? defaults.bucket,
+            customerId: payload.customerId,
             orderId,
+            feeBucket: defaults.bucket,
           },
-        },
-        amountMinor: component.amountMinor,
-        code: posting.transferCode,
-        memo: component.memo ?? "Fee reserved for separate payment order",
-      });
+          refs: componentRefs,
+          memo: component.memo ?? "Fee reserved for separate payment order",
+        }),
+      );
       separateFeeComponents.push({
         componentId: component.id,
         kind: component.kind,
@@ -1149,43 +1082,20 @@ async function buildFxExecutionArtifacts(params: {
       continue;
     }
 
-    const posting = resolveProviderFeeExpenseAccrualPostingTemplate(
-      defaults.bucket,
-    );
-    lines.push({
-      type: OPERATION_TRANSFER_TYPE.CREATE,
-      chain,
-      planRef: makePlanKey("fx_fee_component_expense", {
-        quoteRef: payload.quoteRef,
-        orderId,
-        idx: index + 1,
-        componentId: component.id,
-        kind: component.kind,
+    requests.push(
+      buildDocumentPostingRequest(document, {
+        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE,
         currency: component.currency,
-        amount: component.amountMinor.toString(),
-      }),
-      postingCode: posting.postingCode,
-      debit: {
-        accountNo: posting.debitAccountNo,
-        currency: component.currency,
+        amountMinor: component.amountMinor,
         dimensions: {
-          feeBucket: posting.feeBucket ?? defaults.bucket,
+          feeBucket: defaults.bucket,
           orderId,
           counterpartyId: payload.branchCounterpartyId,
         },
-      },
-      credit: {
-        accountNo: posting.creditAccountNo,
-        currency: component.currency,
-        dimensions: {
-          feeBucket: posting.feeBucket ?? defaults.bucket,
-          orderId,
-        },
-      },
-      amountMinor: component.amountMinor,
-      code: posting.transferCode,
-      memo: component.memo ?? "Provider fee expense accrual",
-    });
+        refs: componentRefs,
+        memo: component.memo ?? "Provider fee expense accrual",
+      }),
+    );
     separateFeeComponents.push({
       componentId: component.id,
       kind: component.kind,
@@ -1206,96 +1116,70 @@ async function buildFxExecutionArtifacts(params: {
     feesService.partitionAdjustmentComponents(mergedAdjustments);
 
   for (const [index, component] of partitionedAdjustments.inLedger.entries()) {
-    const posting = resolveAdjustmentInLedgerPostingTemplate(
-      component.effect,
-      component.kind,
-    );
-    const feeBucket = posting.feeBucket ?? `adjustment:${component.kind}`;
+    const feeBucket = `adjustment:${component.kind}`;
 
-    lines.push({
-      type: OPERATION_TRANSFER_TYPE.CREATE,
-      chain,
-      planRef: makePlanKey("fx_adjustment_component", {
-        quoteRef: payload.quoteRef,
-        orderId,
-        idx: index + 1,
-        componentId: component.id,
-        kind: component.kind,
-        effect: component.effect,
+    requests.push(
+      buildDocumentPostingRequest(document, {
+        templateKey:
+          component.effect === "increase_charge"
+            ? POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_CHARGE
+            : POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND,
         currency: component.currency,
-        amount: component.amountMinor.toString(),
+        amountMinor: component.amountMinor,
+        dimensions: {
+          customerId: payload.customerId,
+          orderId,
+          feeBucket,
+        },
+        refs: {
+          quoteRef: payload.quoteRef,
+          chainId: chain,
+          componentId: component.id,
+          componentIndex: String(index + 1),
+        },
+        memo:
+          component.memo ??
+          (component.effect === "increase_charge"
+            ? "Adjustment charge"
+            : "Adjustment refund"),
       }),
-      postingCode: posting.postingCode,
-      debit: {
-        accountNo: posting.debitAccountNo,
-        currency: component.currency,
-        dimensions:
-          posting.debitAccountNo === ACCOUNT_NO.CUSTOMER_WALLET
-            ? { customerId: payload.customerId }
-            : { orderId, feeBucket },
-      },
-      credit: {
-        accountNo: posting.creditAccountNo,
-        currency: component.currency,
-        dimensions:
-          posting.creditAccountNo === ACCOUNT_NO.CUSTOMER_WALLET
-            ? { customerId: payload.customerId }
-            : { orderId, feeBucket },
-      },
-      amountMinor: component.amountMinor,
-      code: posting.transferCode,
-      memo:
-        component.memo ??
-        (component.effect === "increase_charge"
-          ? "Adjustment charge"
-          : "Adjustment refund"),
-    });
+    );
   }
 
   for (const [
     index,
     component,
   ] of partitionedAdjustments.separatePaymentOrder.entries()) {
-    const posting = resolveAdjustmentReservePostingTemplate(
-      component.effect,
-      component.kind,
-    );
-    const bucket = posting.feeBucket ?? `adjustment:${component.kind}`;
+    const bucket = `adjustment:${component.kind}`;
 
-    lines.push({
-      type: OPERATION_TRANSFER_TYPE.CREATE,
-      chain,
-      planRef: makePlanKey("fx_adjustment_reserve", {
-        quoteRef: payload.quoteRef,
-        orderId,
-        idx: index + 1,
-        componentId: component.id,
-        kind: component.kind,
-        effect: component.effect,
+    requests.push(
+      buildDocumentPostingRequest(document, {
+        templateKey:
+          component.effect === "increase_charge"
+            ? POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_CHARGE_RESERVE
+            : POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND_RESERVE,
         currency: component.currency,
-        amount: component.amountMinor.toString(),
-      }),
-      postingCode: posting.postingCode,
-      debit: {
-        accountNo: posting.debitAccountNo,
-        currency: component.currency,
+        amountMinor: component.amountMinor,
         dimensions:
-          posting.debitAccountNo === ACCOUNT_NO.CUSTOMER_WALLET
-            ? { customerId: payload.customerId }
-            : { orderId, feeBucket: bucket },
-      },
-      credit: {
-        accountNo: posting.creditAccountNo,
-        currency: component.currency,
-        dimensions: {
-          orderId,
-          feeBucket: bucket,
+          component.effect === "increase_charge"
+            ? {
+                customerId: payload.customerId,
+                orderId,
+                feeBucket: bucket,
+              }
+            : {
+                orderId,
+                feeBucket: bucket,
+              },
+        refs: {
+          quoteRef: payload.quoteRef,
+          chainId: chain,
+          componentId: component.id,
+          componentIndex: String(index + 1),
         },
-      },
-      amountMinor: component.amountMinor,
-      code: posting.transferCode,
-      memo: component.memo ?? "Adjustment reserved for separate payment order",
-    });
+        memo: component.memo ?? "Adjustment reserved for separate payment order",
+      }),
+    );
     separateFeeComponents.push({
       componentId: component.id,
       kind: `adjustment:${component.kind}`,
@@ -1309,35 +1193,26 @@ async function buildFxExecutionArtifacts(params: {
     });
   }
 
-  lines.push({
-    type: OPERATION_TRANSFER_TYPE.CREATE,
-    chain,
-    planRef: makePlanKey("fx_obligation", {
-      quoteRef: payload.quoteRef,
-      orderId,
-      payoutCounterpartyId: payload.payOutCounterpartyId,
+  requests.push(
+    buildDocumentPostingRequest(document, {
+      templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PAYOUT_OBLIGATION,
       currency: payload.payOutCurrency,
-      amount: payload.payOutAmountMinor,
+      amountMinor: toMinor(payload.payOutAmountMinor),
+      dimensions: {
+        orderId,
+      },
+      refs: {
+        quoteRef: payload.quoteRef,
+        chainId: chain,
+        payoutCounterpartyId: payload.payOutCounterpartyId,
+      },
+      memo: "Create payout obligation",
     }),
-    postingCode: POSTING_CODE.FX_PAYOUT_OBLIGATION,
-    debit: {
-      accountNo: ACCOUNT_NO.ORDER_RESERVE,
-      currency: payload.payOutCurrency,
-      dimensions: { orderId },
-    },
-    credit: {
-      accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
-      currency: payload.payOutCurrency,
-      dimensions: { orderId },
-    },
-    amountMinor: toMinor(payload.payOutAmountMinor),
-    code: TransferCodes.FX_PAYOUT_OBLIGATION,
-    memo: "Create payout obligation",
-  });
+  );
 
   return {
     quoteId: quote.id,
-    lines,
+    requests,
     separateFeeComponents,
   };
 }
@@ -1583,13 +1458,11 @@ export function createPayinFundingDocumentModule(deps: {
         ),
       ]);
     },
-    async buildIntent(_context, document) {
+    async buildPostingPlan(_context, document) {
       const payload = parsePayinFundingPayload(document);
 
-      return {
+      return buildDocumentPostingPlan({
         operationCode: OPERATION_CODE.TREASURY_FUNDING_SETTLED,
-        operationVersion: 1,
-        bookOrgId: SYSTEM_LEDGER_ORG_ID,
         payload: {
           paymentCaseId: payload.caseDocumentId,
           railRef: payload.railRef,
@@ -1601,39 +1474,25 @@ export function createPayinFundingDocumentModule(deps: {
           payInOperationalAccountId: payload.payInOperationalAccountId,
           memo: payload.memo ?? null,
         },
-        lines: [
-          {
-            type: OPERATION_TRANSFER_TYPE.CREATE,
-            planRef: makePlanKey("funding_settled", {
-              railRef: payload.railRef,
-              orderId: payload.caseDocumentId,
-              currency: payload.currency,
-              amount: payload.amountMinor,
-              branchCounterpartyId: payload.branchCounterpartyId,
-              branchBankStableKey: payload.branchBankStableKey,
-              customerId: payload.customerId,
-            }),
-            postingCode: POSTING_CODE.FUNDING_SETTLED,
-            debit: {
-              accountNo: ACCOUNT_NO.BANK,
-              currency: payload.currency,
-              dimensions: {
-                operationalAccountId: payload.payInOperationalAccountId,
-              },
-            },
-            credit: {
-              accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-              currency: payload.currency,
-              dimensions: {
-                customerId: payload.customerId,
-              },
-            },
+        requests: [
+          buildDocumentPostingRequest(document, {
+            templateKey: POSTING_TEMPLATE_KEY.PAYMENT_PAYIN_FUNDING,
+            currency: payload.currency,
             amountMinor: toMinor(payload.amountMinor),
-            code: TransferCodes.FUNDING_SETTLED,
+            dimensions: {
+              operationalAccountId: payload.payInOperationalAccountId,
+              customerId: payload.customerId,
+            },
+            refs: {
+              paymentCaseId: payload.caseDocumentId,
+              railRef: payload.railRef,
+              branchBankStableKey: payload.branchBankStableKey,
+              branchCounterpartyId: payload.branchCounterpartyId,
+            },
             memo: payload.memo ?? "Funding settled",
-          },
+          }),
         ],
-      };
+      });
     },
     async buildInitialLinks(_context, document) {
       const payload = parsePayinFundingPayload(document);
@@ -1762,7 +1621,7 @@ export function createFxExecuteDocumentModule(deps: {
         );
       }
     },
-    async buildIntent(context, document) {
+    async buildPostingPlan(context, document) {
       const payload = parseFxExecutePayload(document);
       const artifacts = await buildFxExecutionArtifacts({
         context,
@@ -1773,10 +1632,8 @@ export function createFxExecuteDocumentModule(deps: {
         consumeQuote: true,
       });
 
-      return {
+      return buildDocumentPostingPlan({
         operationCode: OPERATION_CODE.TREASURY_FX_EXECUTED,
-        operationVersion: 1,
-        bookOrgId: SYSTEM_LEDGER_ORG_ID,
         payload: {
           paymentCaseId: payload.caseDocumentId,
           quoteId: artifacts.quoteId,
@@ -1789,8 +1646,8 @@ export function createFxExecuteDocumentModule(deps: {
           payOutOperationalAccountId: payload.payOutOperationalAccountId,
           memo: payload.memo ?? null,
         },
-        lines: artifacts.lines,
-      };
+        requests: artifacts.requests,
+      });
     },
     async buildInitialLinks(_context, document) {
       const payload = parseFxExecutePayload(document);
@@ -1911,7 +1768,7 @@ function createPayoutResolveModule(params: {
           "payout_void",
         ]);
       },
-      async buildIntent(context, document) {
+      async buildPostingPlan(context, document) {
         const payload = parsePayoutResolvePayload(document);
         const dependency = await requireDependency(
           context.db,
@@ -1928,13 +1785,11 @@ function createPayoutResolveModule(params: {
           throw new InvalidStateError("Missing payout pending transfer id");
         }
 
-        return {
+        return buildDocumentPostingPlan({
           operationCode:
             params.eventType === "settle"
               ? OPERATION_CODE.TREASURY_PAYOUT_SETTLE
               : OPERATION_CODE.TREASURY_PAYOUT_VOID,
-          operationVersion: 1,
-          bookOrgId: SYSTEM_LEDGER_ORG_ID,
           payload: {
             payoutInitiateDocumentId: payload.payoutInitiateDocumentId,
             railRef: payload.railRef,
@@ -1942,25 +1797,27 @@ function createPayoutResolveModule(params: {
             payOutCurrency: payload.payOutCurrency,
             memo: payload.memo ?? null,
           },
-          lines: [
-            {
-              type:
+          requests: [
+            buildDocumentPostingRequest(document, {
+              templateKey:
                 params.eventType === "settle"
-                  ? OPERATION_TRANSFER_TYPE.POST_PENDING
-                  : OPERATION_TRANSFER_TYPE.VOID_PENDING,
-              planRef: makePlanKey(`payout_${params.eventType}`, {
-                railRef: payload.railRef,
-                orderId: (await requireParentCase(context.db, dependency.id))
-                  .id,
-                currency: payload.payOutCurrency,
-                pendingId: pendingTransferId.toString(),
-              }),
+                  ? POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_SETTLE
+                  : POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_VOID,
               currency: payload.payOutCurrency,
-              pendingId: pendingTransferId,
-              amount: 0n,
-            },
+              amountMinor: 0n,
+              dimensions: {},
+              refs: {
+                railRef: payload.railRef,
+                orderId: (await requireParentCase(context.db, dependency.id)).id,
+              },
+              pending: {
+                pendingId: pendingTransferId,
+                amountMinor: 0n,
+              },
+              memo: payload.memo ?? null,
+            }),
           ],
-        };
+        });
       },
       async buildInitialLinks(context, document) {
         const payload = parsePayoutResolvePayload(document);
@@ -2101,14 +1958,12 @@ export function createPayoutInitiateDocumentModule(deps: {
         ),
       ]);
     },
-    async buildIntent(context, document) {
+    async buildPostingPlan(context, document) {
       const payload = parsePayoutInitiatePayload(document);
       const timeoutSeconds = payload.timeoutSeconds ?? DAY_IN_SECONDS;
 
-      return {
+      return buildDocumentPostingPlan({
         operationCode: OPERATION_CODE.TREASURY_PAYOUT_INIT,
-        operationVersion: 1,
-        bookOrgId: SYSTEM_LEDGER_ORG_ID,
         payload: {
           paymentCaseId: payload.caseDocumentId,
           railRef: payload.railRef,
@@ -2118,40 +1973,27 @@ export function createPayoutInitiateDocumentModule(deps: {
           payoutOperationalAccountId: payload.payoutOperationalAccountId,
           memo: payload.memo ?? null,
         },
-        lines: [
-          {
-            type: OPERATION_TRANSFER_TYPE.CREATE,
-            planRef: makePlanKey("payout_init", {
-              railRef: payload.railRef,
-              orderId: payload.caseDocumentId,
-              currency: payload.payOutCurrency,
-              amount: payload.amountMinor,
-              payoutCounterpartyId: payload.payoutCounterpartyId,
-              payoutBankStableKey: payload.payoutBankStableKey,
-            }),
-            postingCode: POSTING_CODE.PAYOUT_INITIATED,
-            debit: {
-              accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
-              currency: payload.payOutCurrency,
-              dimensions: { orderId: payload.caseDocumentId },
-            },
-            credit: {
-              accountNo: ACCOUNT_NO.BANK,
-              currency: payload.payOutCurrency,
-              dimensions: {
-                operationalAccountId: payload.payoutOperationalAccountId,
-              },
-            },
+        requests: [
+          buildDocumentPostingRequest(document, {
+            templateKey: POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_INITIATE,
+            currency: payload.payOutCurrency,
             amountMinor: toMinor(payload.amountMinor),
-            code: TransferCodes.PAYOUT_INITIATED,
+            dimensions: {
+              orderId: payload.caseDocumentId,
+              operationalAccountId: payload.payoutOperationalAccountId,
+            },
+            refs: {
+              railRef: payload.railRef,
+              payoutBankStableKey: payload.payoutBankStableKey,
+            },
             pending: {
               timeoutSeconds,
               ref: `payout:${payload.caseDocumentId}:init`,
             },
             memo: payload.memo ?? "Payout initiated (pending)",
-          },
+          }),
         ],
-      };
+      });
     },
     async buildInitialLinks(_context, document) {
       const payload = parsePayoutInitiatePayload(document);
@@ -2276,7 +2118,7 @@ function createFeePayoutResolveModule(params: {
           "fee_payout_void",
         ]);
       },
-      async buildIntent(context, document) {
+      async buildPostingPlan(context, document) {
         const payload = parseFeePayoutResolvePayload(document);
         const dependency = await requireDependency(
           context.db,
@@ -2294,13 +2136,11 @@ function createFeePayoutResolveModule(params: {
           throw new InvalidStateError("Missing fee payout pending transfer id");
         }
 
-        return {
+        return buildDocumentPostingPlan({
           operationCode:
             params.eventType === "settle"
               ? OPERATION_CODE.TREASURY_FEE_PAYMENT_SETTLE
               : OPERATION_CODE.TREASURY_FEE_PAYMENT_VOID,
-          operationVersion: 1,
-          bookOrgId: SYSTEM_LEDGER_ORG_ID,
           payload: {
             feePayoutInitiateDocumentId: payload.feePayoutInitiateDocumentId,
             railRef: payload.railRef,
@@ -2308,25 +2148,28 @@ function createFeePayoutResolveModule(params: {
             currency: dependencyPayload.currency,
             memo: payload.memo ?? null,
           },
-          lines: [
-            {
-              type:
+          requests: [
+            buildDocumentPostingRequest(document, {
+              templateKey:
                 params.eventType === "settle"
-                  ? OPERATION_TRANSFER_TYPE.POST_PENDING
-                  : OPERATION_TRANSFER_TYPE.VOID_PENDING,
-              planRef: makePlanKey(`fee_payout_${params.eventType}`, {
+                  ? POSTING_TEMPLATE_KEY.PAYMENT_FEE_PAYOUT_SETTLE
+                  : POSTING_TEMPLATE_KEY.PAYMENT_FEE_PAYOUT_VOID,
+              currency: dependencyPayload.currency,
+              amountMinor: 0n,
+              dimensions: {},
+              refs: {
                 feePayoutInitiateDocumentId:
                   payload.feePayoutInitiateDocumentId,
                 railRef: payload.railRef,
-                pendingId: pendingTransferId.toString(),
-                currency: dependencyPayload.currency,
-              }),
-              currency: dependencyPayload.currency,
-              pendingId: pendingTransferId,
-              amount: 0n,
-            },
+              },
+              pending: {
+                pendingId: pendingTransferId,
+                amountMinor: 0n,
+              },
+              memo: payload.memo ?? null,
+            }),
           ],
-        };
+        });
       },
       async buildInitialLinks(context, document) {
         const payload = parseFeePayoutResolvePayload(document);
@@ -2487,15 +2330,13 @@ export function createFeePayoutInitiateDocumentModule(deps: {
         );
       }
     },
-    async buildIntent(context, document) {
+    async buildPostingPlan(context, document) {
       const payload = parseFeePayoutInitiatePayload(document);
       const timeoutSeconds = payload.timeoutSeconds ?? DAY_IN_SECONDS;
       const pendingRef = `fee_payment:${payload.componentId}:init`;
 
-      return {
+      return buildDocumentPostingPlan({
         operationCode: OPERATION_CODE.TREASURY_FEE_PAYMENT_INIT,
-        operationVersion: 1,
-        bookOrgId: SYSTEM_LEDGER_ORG_ID,
         payload: {
           paymentCaseId: payload.caseDocumentId,
           componentId: payload.componentId,
@@ -2508,44 +2349,29 @@ export function createFeePayoutInitiateDocumentModule(deps: {
           payoutOperationalAccountId: payload.payoutOperationalAccountId,
           memo: payload.memo ?? null,
         },
-        lines: [
-          {
-            type: OPERATION_TRANSFER_TYPE.CREATE,
-            planRef: makePlanKey("fee_payment_init", {
+        requests: [
+          buildDocumentPostingRequest(document, {
+            templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FEE_PAYOUT_INITIATE,
+            currency: payload.currency,
+            amountMinor: toMinor(payload.amountMinor),
+            dimensions: {
+              feeBucket: payload.feeBucket,
+              orderId: payload.caseDocumentId,
+              counterpartyId: payload.payoutCounterpartyId,
+              operationalAccountId: payload.payoutOperationalAccountId,
+            },
+            refs: {
               componentId: payload.componentId,
               railRef: payload.railRef,
-              currency: payload.currency,
-              amount: payload.amountMinor,
-              payoutCounterpartyId: payload.payoutCounterpartyId,
-              payoutOperationalAccountId: payload.payoutOperationalAccountId,
-            }),
-            postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED,
-            debit: {
-              accountNo: ACCOUNT_NO.FEE_CLEARING,
-              currency: payload.currency,
-              dimensions: {
-                feeBucket: payload.feeBucket,
-                orderId: payload.caseDocumentId,
-                counterpartyId: payload.payoutCounterpartyId,
-              },
             },
-            credit: {
-              accountNo: ACCOUNT_NO.BANK,
-              currency: payload.currency,
-              dimensions: {
-                operationalAccountId: payload.payoutOperationalAccountId,
-              },
-            },
-            amountMinor: toMinor(payload.amountMinor),
-            code: TransferCodes.FEE_PAYMENT_INITIATED,
             pending: {
               timeoutSeconds,
               ref: pendingRef,
             },
             memo: payload.memo ?? "Fee payment initiated (pending)",
-          },
+          }),
         ],
-      };
+      });
     },
     async buildInitialLinks(_context, document) {
       const payload = parseFeePayoutInitiatePayload(document);

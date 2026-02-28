@@ -114,7 +114,10 @@ export interface ClearingKindDimensionRule {
   mode: DimensionMode;
 }
 
-export const CLEARING_KIND_DIMENSION_RULES: Record<string, ClearingKindDimensionRule[]> = {
+export const CLEARING_KIND_DIMENSION_RULES: Record<
+  string,
+  ClearingKindDimensionRule[]
+> = {
   [CLEARING_KIND.INTERCOMPANY]: [
     { dimensionKey: DIM.counterpartyId, mode: "required" },
     { dimensionKey: DIM.orderId, mode: "forbidden" },
@@ -361,162 +364,630 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
 
 export const DEFAULT_ACCOUNT_DIMENSION_POLICIES: AccountDimensionPolicy[] = [
   // BANK: only operationalAccountId, everything else forbidden
-  { accountNo: ACCOUNT_NO.BANK, dimensionKey: DIM.operationalAccountId, mode: "required" },
+  {
+    accountNo: ACCOUNT_NO.BANK,
+    dimensionKey: DIM.operationalAccountId,
+    mode: "required",
+  },
   { accountNo: ACCOUNT_NO.BANK, dimensionKey: DIM.orderId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.BANK, dimensionKey: DIM.customerId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.BANK, dimensionKey: DIM.feeBucket, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.BANK, dimensionKey: DIM.clearingKind, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.BANK, dimensionKey: DIM.counterpartyId, mode: "forbidden" },
+  {
+    accountNo: ACCOUNT_NO.BANK,
+    dimensionKey: DIM.customerId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.BANK,
+    dimensionKey: DIM.feeBucket,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.BANK,
+    dimensionKey: DIM.clearingKind,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.BANK,
+    dimensionKey: DIM.counterpartyId,
+    mode: "forbidden",
+  },
 
   // CUSTOMER_WALLET: only customerId
-  { accountNo: ACCOUNT_NO.CUSTOMER_WALLET, dimensionKey: DIM.customerId, mode: "required" },
-  { accountNo: ACCOUNT_NO.CUSTOMER_WALLET, dimensionKey: DIM.operationalAccountId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.CUSTOMER_WALLET, dimensionKey: DIM.feeBucket, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.CUSTOMER_WALLET, dimensionKey: DIM.clearingKind, mode: "forbidden" },
+  {
+    accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+    dimensionKey: DIM.customerId,
+    mode: "required",
+  },
+  {
+    accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+    dimensionKey: DIM.operationalAccountId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+    dimensionKey: DIM.feeBucket,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+    dimensionKey: DIM.clearingKind,
+    mode: "forbidden",
+  },
 
   // CLEARING (1310): clearingKind required; conditional rules enforced in code
-  { accountNo: ACCOUNT_NO.CLEARING, dimensionKey: DIM.clearingKind, mode: "required" },
-  { accountNo: ACCOUNT_NO.CLEARING, dimensionKey: DIM.counterpartyId, mode: "optional" },
-  { accountNo: ACCOUNT_NO.CLEARING, dimensionKey: DIM.orderId, mode: "optional" },
-  { accountNo: ACCOUNT_NO.CLEARING, dimensionKey: DIM.operationalAccountId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.CLEARING, dimensionKey: DIM.feeBucket, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.CLEARING, dimensionKey: DIM.customerId, mode: "forbidden" },
+  {
+    accountNo: ACCOUNT_NO.CLEARING,
+    dimensionKey: DIM.clearingKind,
+    mode: "required",
+  },
+  {
+    accountNo: ACCOUNT_NO.CLEARING,
+    dimensionKey: DIM.counterpartyId,
+    mode: "optional",
+  },
+  {
+    accountNo: ACCOUNT_NO.CLEARING,
+    dimensionKey: DIM.orderId,
+    mode: "optional",
+  },
+  {
+    accountNo: ACCOUNT_NO.CLEARING,
+    dimensionKey: DIM.operationalAccountId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.CLEARING,
+    dimensionKey: DIM.feeBucket,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.CLEARING,
+    dimensionKey: DIM.customerId,
+    mode: "forbidden",
+  },
 
   // ORDER_RESERVE: orderId required, customerId optional
-  { accountNo: ACCOUNT_NO.ORDER_RESERVE, dimensionKey: DIM.orderId, mode: "required" },
-  { accountNo: ACCOUNT_NO.ORDER_RESERVE, dimensionKey: DIM.customerId, mode: "optional" },
-  { accountNo: ACCOUNT_NO.ORDER_RESERVE, dimensionKey: DIM.operationalAccountId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.ORDER_RESERVE, dimensionKey: DIM.feeBucket, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.ORDER_RESERVE, dimensionKey: DIM.clearingKind, mode: "forbidden" },
+  {
+    accountNo: ACCOUNT_NO.ORDER_RESERVE,
+    dimensionKey: DIM.orderId,
+    mode: "required",
+  },
+  {
+    accountNo: ACCOUNT_NO.ORDER_RESERVE,
+    dimensionKey: DIM.customerId,
+    mode: "optional",
+  },
+  {
+    accountNo: ACCOUNT_NO.ORDER_RESERVE,
+    dimensionKey: DIM.operationalAccountId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.ORDER_RESERVE,
+    dimensionKey: DIM.feeBucket,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.ORDER_RESERVE,
+    dimensionKey: DIM.clearingKind,
+    mode: "forbidden",
+  },
 
   // FEE_CLEARING: feeBucket+orderId required, counterpartyId optional
-  { accountNo: ACCOUNT_NO.FEE_CLEARING, dimensionKey: DIM.feeBucket, mode: "required" },
-  { accountNo: ACCOUNT_NO.FEE_CLEARING, dimensionKey: DIM.orderId, mode: "required" },
-  { accountNo: ACCOUNT_NO.FEE_CLEARING, dimensionKey: DIM.counterpartyId, mode: "optional" },
-  { accountNo: ACCOUNT_NO.FEE_CLEARING, dimensionKey: DIM.operationalAccountId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.FEE_CLEARING, dimensionKey: DIM.clearingKind, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.FEE_CLEARING, dimensionKey: DIM.customerId, mode: "forbidden" },
+  {
+    accountNo: ACCOUNT_NO.FEE_CLEARING,
+    dimensionKey: DIM.feeBucket,
+    mode: "required",
+  },
+  {
+    accountNo: ACCOUNT_NO.FEE_CLEARING,
+    dimensionKey: DIM.orderId,
+    mode: "required",
+  },
+  {
+    accountNo: ACCOUNT_NO.FEE_CLEARING,
+    dimensionKey: DIM.counterpartyId,
+    mode: "optional",
+  },
+  {
+    accountNo: ACCOUNT_NO.FEE_CLEARING,
+    dimensionKey: DIM.operationalAccountId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.FEE_CLEARING,
+    dimensionKey: DIM.clearingKind,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.FEE_CLEARING,
+    dimensionKey: DIM.customerId,
+    mode: "forbidden",
+  },
 
   // PAYOUT_OBLIGATION: orderId required, counterpartyId optional
-  { accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION, dimensionKey: DIM.orderId, mode: "required" },
-  { accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION, dimensionKey: DIM.counterpartyId, mode: "optional" },
-  { accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION, dimensionKey: DIM.operationalAccountId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION, dimensionKey: DIM.feeBucket, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION, dimensionKey: DIM.clearingKind, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION, dimensionKey: DIM.customerId, mode: "forbidden" },
+  {
+    accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
+    dimensionKey: DIM.orderId,
+    mode: "required",
+  },
+  {
+    accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
+    dimensionKey: DIM.counterpartyId,
+    mode: "optional",
+  },
+  {
+    accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
+    dimensionKey: DIM.operationalAccountId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
+    dimensionKey: DIM.feeBucket,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
+    dimensionKey: DIM.clearingKind,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
+    dimensionKey: DIM.customerId,
+    mode: "forbidden",
+  },
 
   // EXTERNAL FUNDING LIABILITY/EQUITY ACCOUNTS
-  { accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN, dimensionKey: DIM.counterpartyId, mode: "required" },
-  { accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN, dimensionKey: DIM.operationalAccountId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN, dimensionKey: DIM.orderId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN, dimensionKey: DIM.customerId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN, dimensionKey: DIM.feeBucket, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN, dimensionKey: DIM.clearingKind, mode: "forbidden" },
+  {
+    accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN,
+    dimensionKey: DIM.counterpartyId,
+    mode: "required",
+  },
+  {
+    accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN,
+    dimensionKey: DIM.operationalAccountId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN,
+    dimensionKey: DIM.orderId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN,
+    dimensionKey: DIM.customerId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN,
+    dimensionKey: DIM.feeBucket,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN,
+    dimensionKey: DIM.clearingKind,
+    mode: "forbidden",
+  },
 
-  { accountNo: ACCOUNT_NO.FOUNDER_EQUITY, dimensionKey: DIM.counterpartyId, mode: "required" },
-  { accountNo: ACCOUNT_NO.FOUNDER_EQUITY, dimensionKey: DIM.operationalAccountId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.FOUNDER_EQUITY, dimensionKey: DIM.orderId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.FOUNDER_EQUITY, dimensionKey: DIM.customerId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.FOUNDER_EQUITY, dimensionKey: DIM.feeBucket, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.FOUNDER_EQUITY, dimensionKey: DIM.clearingKind, mode: "forbidden" },
+  {
+    accountNo: ACCOUNT_NO.FOUNDER_EQUITY,
+    dimensionKey: DIM.counterpartyId,
+    mode: "required",
+  },
+  {
+    accountNo: ACCOUNT_NO.FOUNDER_EQUITY,
+    dimensionKey: DIM.operationalAccountId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.FOUNDER_EQUITY,
+    dimensionKey: DIM.orderId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.FOUNDER_EQUITY,
+    dimensionKey: DIM.customerId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.FOUNDER_EQUITY,
+    dimensionKey: DIM.feeBucket,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.FOUNDER_EQUITY,
+    dimensionKey: DIM.clearingKind,
+    mode: "forbidden",
+  },
 
-  { accountNo: ACCOUNT_NO.INVESTOR_EQUITY, dimensionKey: DIM.counterpartyId, mode: "required" },
-  { accountNo: ACCOUNT_NO.INVESTOR_EQUITY, dimensionKey: DIM.operationalAccountId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.INVESTOR_EQUITY, dimensionKey: DIM.orderId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.INVESTOR_EQUITY, dimensionKey: DIM.customerId, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.INVESTOR_EQUITY, dimensionKey: DIM.feeBucket, mode: "forbidden" },
-  { accountNo: ACCOUNT_NO.INVESTOR_EQUITY, dimensionKey: DIM.clearingKind, mode: "forbidden" },
+  {
+    accountNo: ACCOUNT_NO.INVESTOR_EQUITY,
+    dimensionKey: DIM.counterpartyId,
+    mode: "required",
+  },
+  {
+    accountNo: ACCOUNT_NO.INVESTOR_EQUITY,
+    dimensionKey: DIM.operationalAccountId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.INVESTOR_EQUITY,
+    dimensionKey: DIM.orderId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.INVESTOR_EQUITY,
+    dimensionKey: DIM.customerId,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.INVESTOR_EQUITY,
+    dimensionKey: DIM.feeBucket,
+    mode: "forbidden",
+  },
+  {
+    accountNo: ACCOUNT_NO.INVESTOR_EQUITY,
+    dimensionKey: DIM.clearingKind,
+    mode: "forbidden",
+  },
 
   // PROVIDER_FEE_EXPENSE: feeBucket+orderId required, counterpartyId optional
-  { accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE, dimensionKey: DIM.feeBucket, mode: "required" },
-  { accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE, dimensionKey: DIM.orderId, mode: "required" },
-  { accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE, dimensionKey: DIM.counterpartyId, mode: "optional" },
+  {
+    accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
+    dimensionKey: DIM.feeBucket,
+    mode: "required",
+  },
+  {
+    accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
+    dimensionKey: DIM.orderId,
+    mode: "required",
+  },
+  {
+    accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
+    dimensionKey: DIM.counterpartyId,
+    mode: "optional",
+  },
 ];
 
 // Side-aware: scope indicates where the dimension must appear.
 // "line" = union of debit+credit, "debit" = debit only, "credit" = credit only.
-export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicyEntry[] = [
-  // --- Transfers ---
-  { postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE, dimensionKey: DIM.operationalAccountId, required: true, scope: "line" },
-  { postingCode: POSTING_CODE.TRANSFER_INTRA_PENDING, dimensionKey: DIM.operationalAccountId, required: true, scope: "line" },
+export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicyEntry[] =
+  [
+    // --- Transfers ---
+    {
+      postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
+      dimensionKey: DIM.operationalAccountId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.TRANSFER_INTRA_PENDING,
+      dimensionKey: DIM.operationalAccountId,
+      required: true,
+      scope: "line",
+    },
 
-  // CROSS SOURCE: CLEARING(debit) → BANK(credit)
-  { postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE, dimensionKey: DIM.counterpartyId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE, dimensionKey: DIM.operationalAccountId, required: true, scope: "credit" },
-  { postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE, dimensionKey: DIM.counterpartyId, required: true, scope: "credit" },
-  { postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE, dimensionKey: DIM.operationalAccountId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING, dimensionKey: DIM.counterpartyId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING, dimensionKey: DIM.operationalAccountId, required: true, scope: "credit" },
-  { postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_PENDING, dimensionKey: DIM.counterpartyId, required: true, scope: "credit" },
-  { postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_PENDING, dimensionKey: DIM.operationalAccountId, required: true, scope: "debit" },
+    // CROSS SOURCE: CLEARING(debit) → BANK(credit)
+    {
+      postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE,
+      dimensionKey: DIM.counterpartyId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE,
+      dimensionKey: DIM.operationalAccountId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE,
+      dimensionKey: DIM.counterpartyId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE,
+      dimensionKey: DIM.operationalAccountId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING,
+      dimensionKey: DIM.counterpartyId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING,
+      dimensionKey: DIM.operationalAccountId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_PENDING,
+      dimensionKey: DIM.counterpartyId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_PENDING,
+      dimensionKey: DIM.operationalAccountId,
+      required: true,
+      scope: "debit",
+    },
 
-  // --- Funding ---
-  // BANK(debit) → CUSTOMER_WALLET(credit)
-  { postingCode: POSTING_CODE.FUNDING_SETTLED, dimensionKey: DIM.customerId, required: true, scope: "credit" },
-  { postingCode: POSTING_CODE.FUNDING_SETTLED, dimensionKey: DIM.operationalAccountId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY, dimensionKey: DIM.operationalAccountId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY, dimensionKey: DIM.counterpartyId, required: true, scope: "credit" },
-  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY, dimensionKey: DIM.operationalAccountId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY, dimensionKey: DIM.counterpartyId, required: true, scope: "credit" },
-  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN, dimensionKey: DIM.operationalAccountId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN, dimensionKey: DIM.counterpartyId, required: true, scope: "credit" },
-  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_OPENING_BALANCE, dimensionKey: DIM.operationalAccountId, required: true, scope: "debit" },
+    // --- Funding ---
+    // BANK(debit) → CUSTOMER_WALLET(credit)
+    {
+      postingCode: POSTING_CODE.FUNDING_SETTLED,
+      dimensionKey: DIM.customerId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.FUNDING_SETTLED,
+      dimensionKey: DIM.operationalAccountId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY,
+      dimensionKey: DIM.operationalAccountId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY,
+      dimensionKey: DIM.counterpartyId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY,
+      dimensionKey: DIM.operationalAccountId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY,
+      dimensionKey: DIM.counterpartyId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
+      dimensionKey: DIM.operationalAccountId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
+      dimensionKey: DIM.counterpartyId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.EXTERNAL_FUNDING_OPENING_BALANCE,
+      dimensionKey: DIM.operationalAccountId,
+      required: true,
+      scope: "debit",
+    },
 
-  // --- FX ---
-  // CW(debit) → ORDER_RESERVE(credit)
-  { postingCode: POSTING_CODE.FX_PRINCIPAL, dimensionKey: DIM.orderId, required: true, scope: "credit" },
-  { postingCode: POSTING_CODE.FX_PRINCIPAL, dimensionKey: DIM.customerId, required: true, scope: "debit" },
+    // --- FX ---
+    // CW(debit) → ORDER_RESERVE(credit)
+    {
+      postingCode: POSTING_CODE.FX_PRINCIPAL,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.FX_PRINCIPAL,
+      dimensionKey: DIM.customerId,
+      required: true,
+      scope: "debit",
+    },
 
-  // ORDER_RESERVE(debit) → CLEARING(credit)
-  { postingCode: POSTING_CODE.FX_LEG_OUT, dimensionKey: DIM.orderId, required: true, scope: "line" },
-  { postingCode: POSTING_CODE.FX_LEG_OUT, dimensionKey: DIM.counterpartyId, required: true, scope: "credit" },
-  { postingCode: POSTING_CODE.FX_LEG_OUT, dimensionKey: DIM.clearingKind, required: true, scope: "credit" },
+    // ORDER_RESERVE(debit) → CLEARING(credit)
+    {
+      postingCode: POSTING_CODE.FX_LEG_OUT,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.FX_LEG_OUT,
+      dimensionKey: DIM.counterpartyId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.FX_LEG_OUT,
+      dimensionKey: DIM.clearingKind,
+      required: true,
+      scope: "credit",
+    },
 
-  // CLEARING(debit) → ORDER_RESERVE(credit)
-  { postingCode: POSTING_CODE.FX_LEG_IN, dimensionKey: DIM.orderId, required: true, scope: "line" },
-  { postingCode: POSTING_CODE.FX_LEG_IN, dimensionKey: DIM.counterpartyId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.FX_LEG_IN, dimensionKey: DIM.clearingKind, required: true, scope: "debit" },
+    // CLEARING(debit) → ORDER_RESERVE(credit)
+    {
+      postingCode: POSTING_CODE.FX_LEG_IN,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.FX_LEG_IN,
+      dimensionKey: DIM.counterpartyId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.FX_LEG_IN,
+      dimensionKey: DIM.clearingKind,
+      required: true,
+      scope: "debit",
+    },
 
-  // ORDER_RESERVE(debit) → PAYOUT_OBLIGATION(credit)
-  { postingCode: POSTING_CODE.FX_PAYOUT_OBLIGATION, dimensionKey: DIM.orderId, required: true, scope: "line" },
+    // ORDER_RESERVE(debit) → PAYOUT_OBLIGATION(credit)
+    {
+      postingCode: POSTING_CODE.FX_PAYOUT_OBLIGATION,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
 
-  // --- Fee income (CW → revenue) ---
-  { postingCode: POSTING_CODE.FEE_INCOME, dimensionKey: DIM.orderId, required: true, scope: "line" },
-  { postingCode: POSTING_CODE.FEE_INCOME, dimensionKey: DIM.customerId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.FEE_INCOME, dimensionKey: DIM.feeBucket, required: true, scope: "line" },
+    // --- Fee income (CW → revenue) ---
+    {
+      postingCode: POSTING_CODE.FEE_INCOME,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.FEE_INCOME,
+      dimensionKey: DIM.customerId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.FEE_INCOME,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "line",
+    },
 
-  { postingCode: POSTING_CODE.SPREAD_INCOME, dimensionKey: DIM.orderId, required: true, scope: "line" },
-  { postingCode: POSTING_CODE.SPREAD_INCOME, dimensionKey: DIM.customerId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.SPREAD_INCOME, dimensionKey: DIM.feeBucket, required: true, scope: "line" },
+    {
+      postingCode: POSTING_CODE.SPREAD_INCOME,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.SPREAD_INCOME,
+      dimensionKey: DIM.customerId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.SPREAD_INCOME,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "line",
+    },
 
-  // CW/ADJ_EXPENSE → FEE_CLEARING
-  { postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE, dimensionKey: DIM.orderId, required: true, scope: "line" },
-  { postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE, dimensionKey: DIM.feeBucket, required: true, scope: "line" },
+    // CW/ADJ_EXPENSE → FEE_CLEARING
+    {
+      postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "line",
+    },
 
-  // PROVIDER_FEE_EXPENSE → FEE_CLEARING
-  { postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL, dimensionKey: DIM.orderId, required: true, scope: "line" },
-  { postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL, dimensionKey: DIM.feeBucket, required: true, scope: "line" },
-  { postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL, dimensionKey: DIM.counterpartyId, required: true, scope: "line" },
+    // PROVIDER_FEE_EXPENSE → FEE_CLEARING
+    {
+      postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL,
+      dimensionKey: DIM.counterpartyId,
+      required: true,
+      scope: "line",
+    },
 
-  // FEE_CLEARING(debit) → BANK(credit)
-  { postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED, dimensionKey: DIM.orderId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED, dimensionKey: DIM.feeBucket, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED, dimensionKey: DIM.counterpartyId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED, dimensionKey: DIM.operationalAccountId, required: true, scope: "credit" },
+    // FEE_CLEARING(debit) → BANK(credit)
+    {
+      postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED,
+      dimensionKey: DIM.counterpartyId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED,
+      dimensionKey: DIM.operationalAccountId,
+      required: true,
+      scope: "credit",
+    },
 
-  // PAYOUT_OBLIGATION(debit) → BANK(credit)
-  { postingCode: POSTING_CODE.PAYOUT_INITIATED, dimensionKey: DIM.orderId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.PAYOUT_INITIATED, dimensionKey: DIM.operationalAccountId, required: true, scope: "credit" },
+    // PAYOUT_OBLIGATION(debit) → BANK(credit)
+    {
+      postingCode: POSTING_CODE.PAYOUT_INITIATED,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.PAYOUT_INITIATED,
+      dimensionKey: DIM.operationalAccountId,
+      required: true,
+      scope: "credit",
+    },
 
-  // --- Adjustments (CW ↔ revenue/expense) ---
-  { postingCode: POSTING_CODE.ADJUSTMENT_CHARGE, dimensionKey: DIM.orderId, required: true, scope: "line" },
-  { postingCode: POSTING_CODE.ADJUSTMENT_CHARGE, dimensionKey: DIM.customerId, required: true, scope: "debit" },
-  { postingCode: POSTING_CODE.ADJUSTMENT_CHARGE, dimensionKey: DIM.feeBucket, required: true, scope: "line" },
+    // --- Adjustments (CW ↔ revenue/expense) ---
+    {
+      postingCode: POSTING_CODE.ADJUSTMENT_CHARGE,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.ADJUSTMENT_CHARGE,
+      dimensionKey: DIM.customerId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.ADJUSTMENT_CHARGE,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "line",
+    },
 
-  { postingCode: POSTING_CODE.ADJUSTMENT_REFUND, dimensionKey: DIM.orderId, required: true, scope: "line" },
-  { postingCode: POSTING_CODE.ADJUSTMENT_REFUND, dimensionKey: DIM.customerId, required: true, scope: "credit" },
-  { postingCode: POSTING_CODE.ADJUSTMENT_REFUND, dimensionKey: DIM.feeBucket, required: true, scope: "line" },
-];
+    {
+      postingCode: POSTING_CODE.ADJUSTMENT_REFUND,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.ADJUSTMENT_REFUND,
+      dimensionKey: DIM.customerId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.ADJUSTMENT_REFUND,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "line",
+    },
+  ];
 
 export const DEFAULT_GLOBAL_CORRESPONDENCE_RULES = [
   {

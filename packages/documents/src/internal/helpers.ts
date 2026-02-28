@@ -1,9 +1,9 @@
-import { randomUUID } from "node:crypto";
-
 import { and, asc, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 
 import type { Database, Transaction } from "@bedrock/db";
 import { schema, type Document, type DocumentLinkType } from "@bedrock/db/schema";
+import { canonicalJson, sha256Hex } from "@bedrock/kernel";
 import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import { DocumentGraphError, DocumentNotFoundError, DocumentRegistryError } from "../errors";
@@ -73,6 +73,8 @@ export function createDocumentInsertBase(params: {
   id?: string;
   docType: string;
   docNoPrefix: string;
+  moduleId: string;
+  moduleVersion: number;
   payloadVersion: number;
   payload: Record<string, unknown>;
   occurredAt: Date;
@@ -86,6 +88,8 @@ export function createDocumentInsertBase(params: {
     id,
     docType: params.docType,
     docNo: buildDocNo(params.docNoPrefix, id),
+    moduleId: params.moduleId,
+    moduleVersion: params.moduleVersion,
     payloadVersion: params.payloadVersion,
     payload: params.payload,
     title: "",
@@ -118,6 +122,13 @@ export function createDocumentInsertBase(params: {
     updatedAt: new Date(),
     version: 1,
   } satisfies Document;
+}
+
+export function resolveDocumentModuleIdentity(module: DocumentModule) {
+  return {
+    moduleId: module.moduleId ?? module.docType,
+    moduleVersion: module.moduleVersion ?? 1,
+  };
 }
 
 export async function lockDocument(
@@ -174,6 +185,128 @@ export async function getDocumentByCreateIdempotencyKey(
     .limit(1);
 
   return document ?? null;
+}
+
+export async function getPostingOperationId(
+  db: Queryable,
+  documentId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ operationId: schema.documentOperations.operationId })
+    .from(schema.documentOperations)
+    .where(
+      and(
+        eq(schema.documentOperations.documentId, documentId),
+        eq(schema.documentOperations.kind, "post"),
+      ),
+    )
+    .limit(1);
+
+  return row?.operationId ?? null;
+}
+
+export async function loadDocumentWithOperationId(
+  db: Queryable,
+  docType: string,
+  documentId: string,
+  storedOperationId?: string | null,
+) {
+  const document = await getDocumentOrNull(db, documentId, docType);
+  if (!document) {
+    throw new DocumentNotFoundError(documentId);
+  }
+
+  return {
+    document,
+    postingOperationId:
+      storedOperationId ?? (await getPostingOperationId(db, document.id)),
+  };
+}
+
+export function buildDefaultActionIdempotencyKey(
+  action: string,
+  payload: Record<string, unknown>,
+) {
+  return sha256Hex(canonicalJson({ action, ...payload }));
+}
+
+export function toStoredJson<T>(value: T): T {
+  return JSON.parse(canonicalJson(value)) as T;
+}
+
+export function buildDocumentEventState(document: Document) {
+  return {
+    id: document.id,
+    docType: document.docType,
+    docNo: document.docNo,
+    moduleId: document.moduleId,
+    moduleVersion: document.moduleVersion,
+    payloadVersion: document.payloadVersion,
+    title: document.title,
+    occurredAt: document.occurredAt,
+    submissionStatus: document.submissionStatus,
+    approvalStatus: document.approvalStatus,
+    postingStatus: document.postingStatus,
+    lifecycleStatus: document.lifecycleStatus,
+    amountMinor: document.amountMinor,
+    currency: document.currency,
+    memo: document.memo,
+    version: document.version,
+    postingError: document.postingError,
+    postingStartedAt: document.postingStartedAt,
+    postedAt: document.postedAt,
+    updatedAt: document.updatedAt,
+  };
+}
+
+export async function insertDocumentEvent(
+  tx: Transaction,
+  input: {
+    documentId: string;
+    eventType: string;
+    actorId?: string | null;
+    requestId?: string | null;
+    correlationId?: string | null;
+    traceId?: string | null;
+    causationId?: string | null;
+    reasonCode?: string | null;
+    reasonMeta?: Record<string, unknown> | null;
+    before?: Record<string, unknown> | null;
+    after?: Record<string, unknown> | null;
+  },
+) {
+  await tx.insert(schema.documentEvents).values({
+    documentId: input.documentId,
+    eventType: input.eventType,
+    actorId: input.actorId ?? null,
+    requestId: input.requestId ?? null,
+    correlationId: input.correlationId ?? null,
+    traceId: input.traceId ?? null,
+    causationId: input.causationId ?? null,
+    reasonCode: input.reasonCode ?? null,
+    reasonMeta: input.reasonMeta ? toStoredJson(input.reasonMeta) : null,
+    before: input.before ? toStoredJson(input.before) : null,
+    after: input.after ? toStoredJson(input.after) : null,
+  });
+}
+
+export async function getLatestPostingArtifacts(
+  tx: Queryable,
+  documentId: string,
+) {
+  const [row] = await tx
+    .select({ reasonMeta: schema.documentEvents.reasonMeta })
+    .from(schema.documentEvents)
+    .where(
+      and(
+        eq(schema.documentEvents.documentId, documentId),
+        eq(schema.documentEvents.eventType, "post"),
+      ),
+    )
+    .orderBy(desc(schema.documentEvents.createdAt))
+    .limit(1);
+
+  return (row?.reasonMeta as Record<string, unknown> | null) ?? null;
 }
 
 export function buildDocumentSearchCondition(query: string | undefined): SQL | undefined {

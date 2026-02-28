@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     projects: [
       "apps/api/vitest.config.ts",
+      "packages/accounting/vitest.config.ts",
+      "packages/balances/vitest.config.ts",
       "packages/operational-accounts/vitest.config.ts",
       "packages/db/vitest.config.ts",
       "packages/countries/vitest.config.ts",
@@ -11,6 +13,7 @@ export default defineConfig({
       "packages/customers/vitest.integration.config.ts",
       "packages/currencies/vitest.config.ts",
       "packages/documents/vitest.config.ts",
+      "packages/idempotency/vitest.config.ts",
       "packages/fees/vitest.config.ts",
       "packages/fees/vitest.integration.config.ts",
       "packages/fx/vitest.config.ts",
@@ -18,6 +21,7 @@ export default defineConfig({
       "packages/ledger/vitest.config.ts",
       "packages/ledger/vitest.integration.config.ts",
       "packages/counterparties/vitest.config.ts",
+      "packages/reconciliation/vitest.config.ts",
     ],
     exclude: ["**/node_modules/**", "**/dist/**"],
     coverage: {

@@ -2,9 +2,12 @@ import type { MiddlewareHandler } from "hono";
 
 import auth from "@bedrock/auth";
 
+import type { RequestContext } from "./request-context";
+
 export interface AuthVariables {
     user: typeof auth.$Infer.Session.user | null;
     session: typeof auth.$Infer.Session.session | null;
+    requestContext: RequestContext;
 }
 
 export const authMiddleware = (): MiddlewareHandler<{

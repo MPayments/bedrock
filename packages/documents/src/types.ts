@@ -1,28 +1,37 @@
+import type { z } from "zod";
+
+import type {
+  AccountingRuntime,
+  DocumentPostingPlan,
+} from "@bedrock/accounting";
+import type { Database, Transaction } from "@bedrock/db";
 import type {
   Document,
   DocumentApprovalStatus,
+  DocumentEvent,
   DocumentLifecycleStatus,
   DocumentLink,
   DocumentOperation,
   DocumentPostingStatus,
+  DocumentSnapshot,
   DocumentSubmissionStatus,
 } from "@bedrock/db/schema";
-import type { Database, Transaction } from "@bedrock/db";
-import type { Logger } from "@bedrock/kernel";
+import type { CorrelationContext, Logger } from "@bedrock/kernel";
 import type {
-  IntentLine,
   LedgerEngine,
   LedgerReadService,
 } from "@bedrock/ledger";
-import type { z } from "zod";
+
 
 export type {
   Document,
   DocumentApprovalStatus,
+  DocumentEvent,
   DocumentLifecycleStatus,
   DocumentLink,
   DocumentOperation,
   DocumentPostingStatus,
+  DocumentSnapshot,
   DocumentSubmissionStatus,
 };
 
@@ -49,17 +58,11 @@ export interface DocumentDraftResult {
   payload: Record<string, unknown>;
 }
 
+export type DocumentRequestContext = CorrelationContext;
+
 export interface DocumentUpdateDraftResult {
   occurredAt?: Date;
   payload: Record<string, unknown>;
-}
-
-export interface DocumentModuleIntent {
-  operationCode: string;
-  operationVersion?: number;
-  bookOrgId: string;
-  payload: Record<string, unknown>;
-  lines: IntentLine[];
 }
 
 export interface DocumentInitialLink {
@@ -74,6 +77,8 @@ export interface DocumentModule<
 > {
   docType: string;
   docNoPrefix: string;
+  moduleId?: string;
+  moduleVersion?: number;
   payloadVersion: number;
   createSchema: z.ZodType<TCreateInput>;
   updateSchema: z.ZodType<TUpdateInput>;
@@ -97,10 +102,10 @@ export interface DocumentModule<
   canReject(context: DocumentModuleContext, document: Document): Promise<void>;
   canPost(context: DocumentModuleContext, document: Document): Promise<void>;
   canCancel(context: DocumentModuleContext, document: Document): Promise<void>;
-  buildIntent?(
+  buildPostingPlan?(
     context: DocumentModuleContext,
     document: Document,
-  ): Promise<DocumentModuleIntent>;
+  ): Promise<DocumentPostingPlan>;
   buildPostIdempotencyKey(document: Document): string;
   buildInitialLinks?(
     context: DocumentModuleContext,
@@ -112,15 +117,76 @@ export interface DocumentModule<
   ): Promise<{ computed?: unknown; extra?: unknown }>;
 }
 
+export interface DocumentPolicyDecision {
+  allow: boolean;
+  reasonCode: string;
+  reasonMeta?: Record<string, unknown> | null;
+}
+
+export type DocumentApprovalMode = "not_required" | "maker_checker";
+
+export interface DocumentActionPolicyService {
+  approvalMode(input: {
+    module: DocumentModule;
+    document: Document;
+    actorUserId: string;
+    moduleContext: DocumentModuleContext;
+  }): Promise<DocumentApprovalMode>;
+  canCreate(input: {
+    module: DocumentModule;
+    actorUserId: string;
+    payload: unknown;
+    moduleContext: DocumentModuleContext;
+  }): Promise<DocumentPolicyDecision>;
+  canEdit(input: {
+    module: DocumentModule;
+    document: Document;
+    actorUserId: string;
+    moduleContext: DocumentModuleContext;
+  }): Promise<DocumentPolicyDecision>;
+  canSubmit(input: {
+    module: DocumentModule;
+    document: Document;
+    actorUserId: string;
+    moduleContext: DocumentModuleContext;
+  }): Promise<DocumentPolicyDecision>;
+  canApprove(input: {
+    module: DocumentModule;
+    document: Document;
+    actorUserId: string;
+    moduleContext: DocumentModuleContext;
+  }): Promise<DocumentPolicyDecision>;
+  canReject(input: {
+    module: DocumentModule;
+    document: Document;
+    actorUserId: string;
+    moduleContext: DocumentModuleContext;
+  }): Promise<DocumentPolicyDecision>;
+  canPost(input: {
+    module: DocumentModule;
+    document: Document;
+    actorUserId: string;
+    moduleContext: DocumentModuleContext;
+  }): Promise<DocumentPolicyDecision>;
+  canCancel(input: {
+    module: DocumentModule;
+    document: Document;
+    actorUserId: string;
+    moduleContext: DocumentModuleContext;
+  }): Promise<DocumentPolicyDecision>;
+}
+
 export interface DocumentRegistry {
   getDocumentModules(): DocumentModule[];
   getDocumentModule(docType: string): DocumentModule;
 }
 
 export interface DocumentsServiceDeps {
+  accounting: AccountingRuntime;
   db: Database;
   ledger: LedgerEngine;
   ledgerReadService: LedgerReadService;
+  policy?: DocumentActionPolicyService;
   registry: DocumentRegistry;
   logger?: Logger;
 }
@@ -134,6 +200,8 @@ export interface DocumentDetails {
   document: Document;
   postingOperationId: string | null;
   links: DocumentLink[];
+  events: DocumentEvent[];
+  snapshot: DocumentSnapshot | null;
   parent: Document | null;
   children: Document[];
   dependsOn: Document[];

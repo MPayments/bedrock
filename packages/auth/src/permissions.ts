@@ -15,6 +15,8 @@ const statements = {
     documents: ["create", "list", "get", "update", "submit", "approve", "reject", "post", "cancel"],
     transfers: ["create", "list", "approve", "reject", "settle", "void"],
     accounting: ["list", "manage_accounts", "manage_correspondence"],
+    balances: ["get", "reserve", "release", "consume"],
+    reconciliation: ["ingest", "run", "list", "explain", "adjust"],
 } as const;
 
 export type ResourcePermissions = {
@@ -33,6 +35,8 @@ export const admin = ac.newRole({
     documents: ["create", "list", "get", "update", "submit", "approve", "reject", "post", "cancel"],
     transfers: ["create", "list", "approve", "reject", "settle", "void"],
     accounting: ["list", "manage_accounts", "manage_correspondence"],
+    balances: ["get", "reserve", "release", "consume"],
+    reconciliation: ["ingest", "run", "list", "explain", "adjust"],
 });
 
 export const user = ac.newRole({
@@ -45,4 +49,6 @@ export const user = ac.newRole({
     documents: ["create", "list", "get", "update", "submit", "approve", "reject", "post", "cancel"],
     transfers: ["create", "list", "approve", "reject", "settle", "void"],
     accounting: ["list"],
+    balances: ["get", "reserve", "release", "consume"],
+    reconciliation: ["ingest", "run", "list", "explain", "adjust"],
 });

@@ -16,14 +16,17 @@ import {
   requireAuth,
   type AuthVariables,
 } from "./middleware/auth";
+import { requestContextMiddleware } from "./middleware/request-context";
 import {
   accountingRoutes,
   accountProvidersRoutes,
   accountsRoutes,
+  balancesRoutes,
   counterpartiesRoutes,
   counterpartyGroupsRoutes,
   customersRoutes,
   currenciesRoutes,
+  reconciliationRoutes,
 } from "./routes/index";
 
 const env: Env = {
@@ -96,6 +99,7 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => {
 });
 
 app.use("*", authMiddleware());
+app.use("*", requestContextMiddleware());
 app.use("/v1/*", requireAuth());
 
 // Health check
@@ -108,12 +112,14 @@ const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/accounting", accountingRoutes(ctx))
   .route("/account-providers", accountProvidersRoutes(ctx))
   .route("/accounts", accountsRoutes(ctx))
+  .route("/balances", balancesRoutes(ctx))
   .route("/counterparties", counterpartiesRoutes(ctx))
   .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
   .route(docsModule.routePath, docsModule.registerRoutes(ctx))
-  .route(fxRatesModule.routePath, fxRatesModule.registerRoutes(ctx));
+  .route(fxRatesModule.routePath, fxRatesModule.registerRoutes(ctx))
+  .route("/reconciliation", reconciliationRoutes(ctx));
 
 const _routes = app.route("/v1", v1);
 

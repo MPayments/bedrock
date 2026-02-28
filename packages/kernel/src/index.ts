@@ -1,8 +1,9 @@
 export { AppError } from "./error";
 export { createConsoleLogger, noopLogger } from "./logger";
 export type { Logger } from "./logger";
-export { stableStringify, makePlanKey } from "./canon";
+export { canonicalJson, stableStringify, makePlanKey } from "./canon";
 export { sha256Hex } from "./crypto";
+export type { CorrelationContext } from "./correlation";
 export { normalizeCurrency, isValidCurrency, parseCurrency } from "./currency";
 export type { Currency } from "./currency";
 export {

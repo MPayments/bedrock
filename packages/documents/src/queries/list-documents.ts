@@ -9,8 +9,8 @@ import {
   inArraySafe,
   resolveDocumentsSort,
 } from "../internal/helpers";
-import { ListDocumentsQuerySchema, type ListDocumentsQuery } from "../validation";
 import type { DocumentWithOperationId } from "../types";
+import { ListDocumentsQuerySchema, type ListDocumentsQuery } from "../validation";
 
 export function createListDocumentsQuery(context: DocumentsServiceContext) {
   const { db } = context;

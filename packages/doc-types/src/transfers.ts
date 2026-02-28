@@ -3,8 +3,8 @@ import { z } from "zod";
 
 import {
   ACCOUNT_NO,
-  buildTransferApproveTemplate,
-  buildTransferPendingActionTemplate,
+  OPERATION_CODE,
+  POSTING_TEMPLATE_KEY,
 } from "@bedrock/accounting";
 import { schema } from "@bedrock/db/schema";
 import type { DocumentModule } from "@bedrock/documents";
@@ -14,7 +14,6 @@ import {
 } from "@bedrock/documents";
 import {
   DAY_IN_SECONDS,
-  SYSTEM_LEDGER_ORG_ID,
 } from "@bedrock/kernel/constants";
 
 import {
@@ -24,6 +23,10 @@ import {
   parseDocumentPayload,
   serializeOccurredAt,
 } from "./internal/document-utils";
+import {
+  buildDocumentPostingPlan,
+  buildDocumentPostingRequest,
+} from "./internal/posting-plan";
 
 const TransferCreateSchema = z.object({
   sourceOperationalAccountId: z.uuid(),
@@ -232,6 +235,18 @@ export function createTransferDocumentModule(deps: {
 > {
   const { operationalAccountsService } = deps;
 
+  function resolveTransferOperationCode(payload: TransferPayload) {
+    if (payload.kind === "intra_org") {
+      return payload.settlementMode === "pending"
+        ? OPERATION_CODE.TRANSFER_APPROVE_PENDING_INTRA
+        : OPERATION_CODE.TRANSFER_APPROVE_IMMEDIATE_INTRA;
+    }
+
+    return payload.settlementMode === "pending"
+      ? OPERATION_CODE.TRANSFER_APPROVE_PENDING_CROSS
+      : OPERATION_CODE.TRANSFER_APPROVE_IMMEDIATE_CROSS;
+  }
+
   return {
     docType: "transfer",
     docNoPrefix: "TRN",
@@ -367,38 +382,98 @@ export function createTransferDocumentModule(deps: {
         );
       }
     },
-    async buildIntent(_context, document) {
+    async buildPostingPlan(_context, document) {
       const payload = parseDocumentPayload(TransferPayloadSchema, document);
-      const template = buildTransferApproveTemplate({
-        transferId: document.id,
-        kind: payload.kind,
+      const refs = {
+        transferDocumentId: document.id,
         settlementMode: payload.settlementMode,
-        amountMinor: BigInt(payload.amountMinor),
-        timeoutSeconds: payload.timeoutSeconds ?? DAY_IN_SECONDS,
-        memo: payload.memo ?? null,
-        source: {
-          accountId: payload.sourceOperationalAccountId,
-          counterpartyId: payload.sourceCounterpartyId,
-          currencyCode: payload.currency,
-        },
-        destination: {
-          accountId: payload.destinationOperationalAccountId,
-          counterpartyId: payload.destinationCounterpartyId,
-          currencyCode: payload.currency,
-        },
-      });
+      };
+      const requests =
+        payload.kind === "intra_org"
+          ? [
+              buildDocumentPostingRequest(document, {
+                templateKey:
+                  payload.settlementMode === "pending"
+                    ? POSTING_TEMPLATE_KEY.TRANSFER_INTRA_PENDING
+                    : POSTING_TEMPLATE_KEY.TRANSFER_INTRA_IMMEDIATE,
+                currency: payload.currency,
+                amountMinor: BigInt(payload.amountMinor),
+                dimensions: {
+                  sourceOperationalAccountId:
+                    payload.sourceOperationalAccountId,
+                  destinationOperationalAccountId:
+                    payload.destinationOperationalAccountId,
+                },
+                refs,
+                pending:
+                  payload.settlementMode === "pending"
+                    ? {
+                        timeoutSeconds:
+                          payload.timeoutSeconds ?? DAY_IN_SECONDS,
+                        ref: `transfer:${document.id}:source`,
+                      }
+                    : null,
+                memo: payload.memo ?? null,
+              }),
+            ]
+          : [
+              buildDocumentPostingRequest(document, {
+                templateKey:
+                  payload.settlementMode === "pending"
+                    ? POSTING_TEMPLATE_KEY.TRANSFER_CROSS_SOURCE_PENDING
+                    : POSTING_TEMPLATE_KEY.TRANSFER_CROSS_SOURCE_IMMEDIATE,
+                currency: payload.currency,
+                amountMinor: BigInt(payload.amountMinor),
+                dimensions: {
+                  sourceOperationalAccountId:
+                    payload.sourceOperationalAccountId,
+                  destinationCounterpartyId: payload.destinationCounterpartyId,
+                },
+                refs,
+                pending:
+                  payload.settlementMode === "pending"
+                    ? {
+                        timeoutSeconds:
+                          payload.timeoutSeconds ?? DAY_IN_SECONDS,
+                        ref: `transfer:${document.id}:source`,
+                      }
+                    : null,
+                memo: payload.memo ?? null,
+              }),
+              buildDocumentPostingRequest(document, {
+                templateKey:
+                  payload.settlementMode === "pending"
+                    ? POSTING_TEMPLATE_KEY.TRANSFER_CROSS_DESTINATION_PENDING
+                    : POSTING_TEMPLATE_KEY.TRANSFER_CROSS_DESTINATION_IMMEDIATE,
+                currency: payload.currency,
+                amountMinor: BigInt(payload.amountMinor),
+                dimensions: {
+                  destinationOperationalAccountId:
+                    payload.destinationOperationalAccountId,
+                  sourceCounterpartyId: payload.sourceCounterpartyId,
+                },
+                refs,
+                pending:
+                  payload.settlementMode === "pending"
+                    ? {
+                        timeoutSeconds:
+                          payload.timeoutSeconds ?? DAY_IN_SECONDS,
+                        ref: `transfer:${document.id}:destination`,
+                      }
+                    : null,
+                memo: payload.memo ?? null,
+              }),
+            ];
 
-      return {
-        operationCode: template.operationCode,
-        operationVersion: 1,
-        bookOrgId: SYSTEM_LEDGER_ORG_ID,
+      return buildDocumentPostingPlan({
+        operationCode: resolveTransferOperationCode(payload),
         payload: {
           ...payload,
           amountMinor: payload.amountMinor,
           memo: payload.memo ?? null,
         },
-        lines: template.lines,
-      };
+        requests,
+      });
     },
     buildPostIdempotencyKey(document) {
       return buildDocumentPostIdempotencyKey(document);
@@ -518,7 +593,7 @@ function createTransferResolutionModule(
 
       await ensureNoPendingResolution(context.db, dependency.id);
     },
-    async buildIntent(context, document) {
+    async buildPostingPlan(context, document) {
       const payload = parseDocumentPayload(TransferPendingActionSchema, document);
       const dependency = await getDependencyDocument(context.db, document.id);
       if (!dependency) {
@@ -536,25 +611,38 @@ function createTransferResolutionModule(
         dependency.id,
       );
 
-      const template = buildTransferPendingActionTemplate({
-        transferId: dependency.id,
-        eventIdempotencyKey: payload.eventIdempotencyKey,
-        eventType,
-        currency: transferPayload.currency,
-        pendingIds: pendingTransfers.map((item) => item.pendingId),
-      });
-
-      return {
-        operationCode: template.operationCode,
-        operationVersion: 1,
-        bookOrgId: SYSTEM_LEDGER_ORG_ID,
+      return buildDocumentPostingPlan({
+        operationCode:
+          eventType === "settle"
+            ? OPERATION_CODE.TRANSFER_SETTLE_PENDING
+            : OPERATION_CODE.TRANSFER_VOID_PENDING,
         payload: {
           transferDocumentId: dependency.id,
           eventIdempotencyKey: payload.eventIdempotencyKey,
           externalRef: payload.externalRef ?? null,
         },
-        lines: template.lines,
-      };
+        requests: pendingTransfers.map((item, index) =>
+          buildDocumentPostingRequest(document, {
+            templateKey:
+              eventType === "settle"
+                ? POSTING_TEMPLATE_KEY.TRANSFER_PENDING_SETTLE
+                : POSTING_TEMPLATE_KEY.TRANSFER_PENDING_VOID,
+            currency: transferPayload.currency,
+            amountMinor: 0n,
+            dimensions: {},
+            refs: {
+              transferDocumentId: dependency.id,
+              eventIdempotencyKey: payload.eventIdempotencyKey,
+              pendingIndex: String(index + 1),
+            },
+            pending: {
+              pendingId: item.pendingId,
+              amountMinor: 0n,
+            },
+            memo: payload.externalRef ?? null,
+          }),
+        ),
+      });
     },
     buildPostIdempotencyKey(document) {
       return buildDocumentPostIdempotencyKey(document);

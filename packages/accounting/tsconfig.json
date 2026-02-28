@@ -7,5 +7,5 @@
     "target": "ESNext",
     "moduleResolution": "Bundler"
   },
-  "include": ["src", "tests"]
+  "include": ["src"]
 }

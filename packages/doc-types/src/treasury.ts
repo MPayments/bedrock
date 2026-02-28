@@ -4,14 +4,11 @@ import { z } from "zod";
 import {
   ACCOUNT_NO,
   OPERATION_CODE,
-  POSTING_CODE,
-  type Dimensions,
+  POSTING_TEMPLATE_KEY,
 } from "@bedrock/accounting";
 import { schema } from "@bedrock/db/schema";
 import type { DocumentModule } from "@bedrock/documents";
 import { DocumentValidationError } from "@bedrock/documents";
-import { SYSTEM_LEDGER_ORG_ID, TransferCodes } from "@bedrock/kernel/constants";
-import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
 
 import {
   amountMinorSchema,
@@ -20,6 +17,10 @@ import {
   parseDocumentPayload,
   serializeOccurredAt,
 } from "./internal/document-utils";
+import {
+  buildDocumentPostingPlan,
+  buildDocumentPostingRequest,
+} from "./internal/posting-plan";
 
 const ExternalFundingPayloadSchema = z.object({
   kind: z.enum([
@@ -55,41 +56,25 @@ function normalizeExternalFundingPayload(payload: ExternalFundingPayload) {
 
 const EXTERNAL_FUNDING_BY_KIND: Record<
   ExternalFundingPayload["kind"],
-  {
-    postingCode: string;
-    creditAccountNo: string;
-    transferCode: number;
-  }
+  { templateKey: string }
 > = {
   founder_equity: {
-    postingCode: POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY,
-    creditAccountNo: ACCOUNT_NO.FOUNDER_EQUITY,
-    transferCode: TransferCodes.EXTERNAL_FUNDING_FOUNDER_EQUITY,
+    templateKey: POSTING_TEMPLATE_KEY.EXTERNAL_FUNDING_FOUNDER_EQUITY,
   },
   investor_equity: {
-    postingCode: POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY,
-    creditAccountNo: ACCOUNT_NO.INVESTOR_EQUITY,
-    transferCode: TransferCodes.EXTERNAL_FUNDING_INVESTOR_EQUITY,
+    templateKey: POSTING_TEMPLATE_KEY.EXTERNAL_FUNDING_INVESTOR_EQUITY,
   },
   shareholder_loan: {
-    postingCode: POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
-    creditAccountNo: ACCOUNT_NO.SHAREHOLDER_LOAN,
-    transferCode: TransferCodes.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
+    templateKey: POSTING_TEMPLATE_KEY.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
   },
   opening_balance: {
-    postingCode: POSTING_CODE.EXTERNAL_FUNDING_OPENING_BALANCE,
-    creditAccountNo: ACCOUNT_NO.OPENING_BALANCE_EQUITY,
-    transferCode: TransferCodes.EXTERNAL_FUNDING_OPENING_BALANCE,
+    templateKey: POSTING_TEMPLATE_KEY.EXTERNAL_FUNDING_OPENING_BALANCE,
   },
 };
 
-function buildCreditDimensions(payload: ExternalFundingPayload): Dimensions {
-  if (
-    payload.kind === "founder_equity" ||
-    payload.kind === "investor_equity" ||
-    payload.kind === "shareholder_loan"
-  ) {
-    return { counterpartyId: payload.counterpartyId! };
+function buildCreditDimensions(payload: ExternalFundingPayload) {
+  if (payload.counterpartyId) {
+    return { counterpartyId: payload.counterpartyId };
   }
 
   return {};
@@ -218,14 +203,17 @@ export function createExternalFundingDocumentModule(deps: {
         await ensureCustomerExists(payload.customerId, context.db);
       }
     },
-    async buildIntent(_context, document) {
+    async buildPostingPlan(_context, document) {
       const payload = parseDocumentPayload(ExternalFundingPayloadSchema, document);
       const config = EXTERNAL_FUNDING_BY_KIND[payload.kind];
+      const dimensions: Record<string, string> = {
+        operationalAccountId: payload.operationalAccountId,
+      };
 
-      return {
+      Object.assign(dimensions, buildCreditDimensions(payload));
+
+      return buildDocumentPostingPlan({
         operationCode: OPERATION_CODE.TREASURY_EXTERNAL_FUNDING,
-        operationVersion: 1,
-        bookOrgId: SYSTEM_LEDGER_ORG_ID,
         payload: {
           kind: payload.kind,
           entryRef: payload.entryRef,
@@ -236,29 +224,20 @@ export function createExternalFundingDocumentModule(deps: {
           customerId: payload.customerId ?? null,
           memo: payload.memo ?? null,
         },
-        lines: [
-          {
-            type: OPERATION_TRANSFER_TYPE.CREATE,
-            planRef: `external_funding:${document.id}`,
-            postingCode: config.postingCode,
-            debit: {
-              accountNo: ACCOUNT_NO.BANK,
-              currency: payload.currency,
-              dimensions: {
-                operationalAccountId: payload.operationalAccountId,
-              },
-            },
-            credit: {
-              accountNo: config.creditAccountNo,
-              currency: payload.currency,
-              dimensions: buildCreditDimensions(payload),
-            },
+        requests: [
+          buildDocumentPostingRequest(document, {
+            templateKey: config.templateKey,
+            currency: payload.currency,
             amountMinor: BigInt(payload.amountMinor),
-            code: config.transferCode,
+            dimensions,
+            refs: {
+              entryRef: payload.entryRef,
+              kind: payload.kind,
+            },
             memo: payload.memo ?? `External funding: ${payload.kind}`,
-          },
+          }),
         ],
-      };
+      });
     },
     buildPostIdempotencyKey(document) {
       return buildDocumentPostIdempotencyKey(document);

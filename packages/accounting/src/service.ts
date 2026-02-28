@@ -6,6 +6,7 @@ import {
   createAccountingServiceContext,
   type AccountingServiceDeps,
 } from "./internal/context";
+import { createAccountingRuntime } from "./runtime";
 import {
   replaceCorrespondenceRulesSchema,
   type ReplaceCorrespondenceRulesInput,
@@ -16,6 +17,7 @@ export type AccountingService = ReturnType<typeof createAccountingService>;
 export function createAccountingService(deps: AccountingServiceDeps) {
   const context = createAccountingServiceContext(deps);
   const { db } = context;
+  const runtime = createAccountingRuntime(deps);
 
   async function listTemplateAccounts() {
     return db
@@ -212,6 +214,7 @@ export function createAccountingService(deps: AccountingServiceDeps) {
   }
 
   return {
+    ...runtime,
     listTemplateAccounts,
     listCorrespondenceRules,
     replaceCorrespondenceRules,

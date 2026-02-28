@@ -3,6 +3,8 @@ import {
   boolean,
   check,
   index,
+  integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -128,6 +130,57 @@ export const correspondenceRules = pgTable(
   ],
 );
 
+export const accountingPackVersions = pgTable(
+  "accounting_pack_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    packKey: text("pack_key").notNull(),
+    version: integer("version").notNull(),
+    checksum: text("checksum").notNull(),
+    compiledJson: jsonb("compiled_json")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    compiledAt: timestamp("compiled_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [
+    uniqueIndex("accounting_pack_versions_pack_version_uq").on(
+      t.packKey,
+      t.version,
+    ),
+    uniqueIndex("accounting_pack_versions_checksum_uq").on(t.checksum),
+    index("accounting_pack_versions_pack_compiled_idx").on(t.packKey, t.compiledAt),
+  ],
+);
+
+export const accountingPackAssignments = pgTable(
+  "accounting_pack_assignments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    scopeType: text("scope_type").notNull().default("book"),
+    scopeId: text("scope_id").notNull(),
+    packChecksum: text("pack_checksum")
+      .notNull()
+      .references(() => accountingPackVersions.checksum, {
+        onDelete: "cascade",
+      }),
+    effectiveAt: timestamp("effective_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [
+    index("accounting_pack_assignments_scope_effective_idx").on(
+      t.scopeType,
+      t.scopeId,
+      t.effectiveAt,
+    ),
+  ],
+);
+
 export const operationalAccountBindings = pgTable(
   "operational_account_bindings",
   {
@@ -158,5 +211,8 @@ export type ChartAccountDimensionPolicyRow =
 export type PostingCodeDimensionPolicyRow =
   typeof postingCodeDimensionPolicy.$inferSelect;
 export type CorrespondenceRule = typeof correspondenceRules.$inferSelect;
+export type AccountingPackVersion = typeof accountingPackVersions.$inferSelect;
+export type AccountingPackAssignment =
+  typeof accountingPackAssignments.$inferSelect;
 export type OperationalAccountBinding =
   typeof operationalAccountBindings.$inferSelect;

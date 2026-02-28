@@ -17,6 +17,7 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/balances": "workspace:*",
     "@bedrock/operational-accounts": "workspace:*",
     "@bedrock/accounting": "workspace:*",
     "@bedrock/accounting-reporting": "workspace:*",
@@ -27,8 +28,10 @@
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
+    "@bedrock/idempotency": "workspace:*",
     "@bedrock/kernel": "workspace:*",
     "@bedrock/ledger": "workspace:*",
+    "@bedrock/reconciliation": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/customers": "workspace:*",
     "@hono/node-server": "^1.19.9",

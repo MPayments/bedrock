@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  check,
   index,
   integer,
   jsonb,
@@ -39,6 +40,7 @@ export type DocumentLinkType =
   | "depends_on"
   | "compensates"
   | "related";
+export type ActionReceiptStatus = "ok" | "conflict" | "error";
 
 export const documents = pgTable(
   "documents",
@@ -46,6 +48,8 @@ export const documents = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     docType: text("doc_type").notNull(),
     docNo: text("doc_no").notNull(),
+    moduleId: text("module_id").notNull().default("legacy"),
+    moduleVersion: integer("module_version").notNull().default(1),
     payloadVersion: integer("payload_version").notNull().default(1),
     payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
     title: text("title").notNull(),
@@ -122,6 +126,10 @@ export const documents = pgTable(
       t.approvalStatus,
       t.occurredAt.desc(),
     ),
+    index("documents_submission_status_occurred_idx").on(
+      t.submissionStatus,
+      t.occurredAt.desc(),
+    ),
     index("documents_lifecycle_status_occurred_idx").on(
       t.lifecycleStatus,
       t.occurredAt.desc(),
@@ -132,6 +140,51 @@ export const documents = pgTable(
     index("documents_operational_account_idx").on(t.operationalAccountId),
     index("documents_payload_gin_idx").using("gin", t.payload),
   ],
+);
+
+export const actionReceipts = pgTable(
+  "action_receipts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    scope: text("scope").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    actorId: text("actor_id"),
+    requestHash: text("request_hash").notNull(),
+    status: text("status").$type<ActionReceiptStatus>().notNull(),
+    resultJson: jsonb("result_json").$type<Record<string, unknown> | null>(),
+    errorJson: jsonb("error_json").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [
+    uniqueIndex("action_receipts_scope_key_uq").on(t.scope, t.idempotencyKey),
+    index("action_receipts_scope_created_idx").on(t.scope, t.createdAt),
+  ],
+);
+
+export const documentEvents = pgTable(
+  "document_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    eventType: text("event_type").notNull(),
+    actorId: text("actor_id"),
+    requestId: text("request_id"),
+    correlationId: text("correlation_id"),
+    traceId: text("trace_id"),
+    causationId: text("causation_id"),
+    reasonCode: text("reason_code"),
+    reasonMeta: jsonb("reason_meta").$type<Record<string, unknown> | null>(),
+    before: jsonb("before").$type<Record<string, unknown> | null>(),
+    after: jsonb("after").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [index("document_events_document_created_idx").on(t.documentId, t.createdAt)],
 );
 
 export const documentOperations = pgTable(
@@ -173,6 +226,7 @@ export const documentLinks = pgTable(
       .default(sql`now()`),
   },
   (t) => [
+    check("document_links_no_self", sql`${t.fromDocumentId} <> ${t.toDocumentId}`),
     index("document_links_from_type_idx").on(t.fromDocumentId, t.linkType),
     index("document_links_to_type_idx").on(t.toDocumentId, t.linkType),
     uniqueIndex("document_links_unique_idx").on(
@@ -184,9 +238,42 @@ export const documentLinks = pgTable(
   ],
 );
 
+export const documentSnapshots = pgTable(
+  "document_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    payloadVersion: integer("payload_version").notNull(),
+    moduleId: text("module_id").notNull(),
+    moduleVersion: integer("module_version").notNull(),
+    packChecksum: text("pack_checksum").notNull(),
+    postingPlanChecksum: text("posting_plan_checksum").notNull(),
+    journalIntentChecksum: text("journal_intent_checksum").notNull(),
+    postingPlan: jsonb("posting_plan").$type<Record<string, unknown>>().notNull(),
+    journalIntent: jsonb("journal_intent").$type<Record<string, unknown>>().notNull(),
+    resolvedTemplates: jsonb("resolved_templates").$type<unknown[] | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [
+    uniqueIndex("document_snapshots_document_uq").on(t.documentId),
+    index("document_snapshots_created_idx").on(t.createdAt),
+  ],
+);
+
 export type Document = typeof documents.$inferSelect;
 export type DocumentInsert = typeof documents.$inferInsert;
+export type ActionReceipt = typeof actionReceipts.$inferSelect;
+export type ActionReceiptInsert = typeof actionReceipts.$inferInsert;
+export type DocumentEvent = typeof documentEvents.$inferSelect;
+export type DocumentEventInsert = typeof documentEvents.$inferInsert;
 export type DocumentOperation = typeof documentOperations.$inferSelect;
 export type DocumentOperationInsert = typeof documentOperations.$inferInsert;
 export type DocumentLink = typeof documentLinks.$inferSelect;
 export type DocumentLinkInsert = typeof documentLinks.$inferInsert;
+export type DocumentSnapshot = typeof documentSnapshots.$inferSelect;
+export type DocumentSnapshotInsert = typeof documentSnapshots.$inferInsert;

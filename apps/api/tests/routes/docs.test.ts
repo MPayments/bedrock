@@ -27,6 +27,7 @@ function createDocumentsServiceStub() {
     reject: vi.fn(),
     post: vi.fn(),
     cancel: vi.fn(),
+    repost: vi.fn(),
   };
 }
 
@@ -36,6 +37,13 @@ function createTestApp() {
 
   app.use("*", async (c, next) => {
     c.set("user", { id: "user-1" } as any);
+    c.set("requestContext", {
+      requestId: "req-1",
+      correlationId: "corr-1",
+      traceId: null,
+      causationId: null,
+      idempotencyKey: "idem-1",
+    } as any);
     await next();
   });
   app.route("/", docsRoutes({ documentsService } as any));
@@ -91,6 +99,7 @@ describe("docsRoutes validation errors", () => {
         method: "PATCH",
         headers: {
           "content-type": "application/json",
+          "idempotency-key": "idem-1",
         },
         body: JSON.stringify(null),
       },
@@ -101,5 +110,36 @@ describe("docsRoutes validation errors", () => {
       error: "Validation error",
     });
     expect(documentsService.updateDraft).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when non-create mutation misses idempotency header", async () => {
+    const documentsService = createDocumentsServiceStub();
+    const app = new OpenAPIHono();
+
+    app.use("*", async (c, next) => {
+      c.set("user", { id: "user-1" } as any);
+      c.set("requestContext", {
+        requestId: "req-1",
+        correlationId: "corr-1",
+        traceId: null,
+        causationId: null,
+        idempotencyKey: null,
+      } as any);
+      await next();
+    });
+    app.route("/", docsRoutes({ documentsService } as any));
+
+    const response = await app.request(
+      "http://localhost/transfer/11111111-1111-4111-8111-111111111111/submit",
+      {
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Missing Idempotency-Key header",
+    });
+    expect(documentsService.submit).not.toHaveBeenCalled();
   });
 });

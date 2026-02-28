@@ -3,8 +3,8 @@ import { and, eq, inArray, or } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 
 import { DocumentNotFoundError } from "../errors";
-import { createModuleContext, resolveModule } from "../internal/helpers";
 import type { DocumentsServiceContext } from "../internal/context";
+import { createModuleContext, resolveModule } from "../internal/helpers";
 import type { DocumentDetails } from "../types";
 
 export function createGetDocumentDetailsQuery(
@@ -92,6 +92,18 @@ export function createGetDocumentDetailsQuery(
       .select()
       .from(schema.documentOperations)
       .where(eq(schema.documentOperations.documentId, document.id));
+    const [events, snapshot] = await Promise.all([
+      db
+        .select()
+        .from(schema.documentEvents)
+        .where(eq(schema.documentEvents.documentId, document.id)),
+      db
+        .select()
+        .from(schema.documentSnapshots)
+        .where(eq(schema.documentSnapshots.documentId, document.id))
+        .limit(1)
+        .then((rows) => rows[0] ?? null),
+    ]);
 
     const ledgerOperations = await Promise.all(
       documentOperations.map(async (operation) =>
@@ -108,6 +120,8 @@ export function createGetDocumentDetailsQuery(
       document,
       postingOperationId,
       links,
+      events,
+      snapshot,
       parent: parentIds[0] ? (relatedById.get(parentIds[0]) ?? null) : null,
       children: childIds
         .map((id) => relatedById.get(id))

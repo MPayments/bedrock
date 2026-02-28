@@ -2,6 +2,7 @@ import { createApproveHandler } from "./commands/approve";
 import { createCancelHandler } from "./commands/cancel";
 import { createCreateDraftHandler } from "./commands/create-draft";
 import { createPostHandler } from "./commands/post";
+import { createRepostHandler } from "./commands/repost";
 import { createRejectHandler } from "./commands/reject";
 import { createSubmitHandler } from "./commands/submit";
 import { createUpdateDraftHandler } from "./commands/update-draft";
@@ -22,6 +23,7 @@ export function createDocumentsService(deps: DocumentsServiceDeps) {
   const approve = createApproveHandler(context);
   const reject = createRejectHandler(context);
   const post = createPostHandler(context);
+  const repost = createRepostHandler(context);
   const cancel = createCancelHandler(context);
   const list = createListDocumentsQuery(context);
   const get = createGetDocumentQuery(context);
@@ -34,6 +36,7 @@ export function createDocumentsService(deps: DocumentsServiceDeps) {
     approve,
     reject,
     post,
+    repost,
     cancel,
     list,
     get,

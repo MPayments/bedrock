@@ -7,6 +7,10 @@ import {
   type AccountingReportingService,
 } from "@bedrock/accounting-reporting";
 import {
+  createBalancesService,
+  type BalancesService,
+} from "@bedrock/balances";
+import {
   createCounterpartiesService,
   type CounterpartiesService,
 } from "@bedrock/counterparties";
@@ -36,6 +40,10 @@ import {
   createOperationalAccountsService,
   type OperationalAccountsService,
 } from "@bedrock/operational-accounts";
+import {
+  createReconciliationService,
+  type ReconciliationService,
+} from "@bedrock/reconciliation";
 
 export interface Env {
   DATABASE_URL: string;
@@ -58,7 +66,9 @@ export interface AppContext {
   feesService: FeesService;
   fxService: FxService;
   ledgerReadService: LedgerReadService;
+  balancesService: BalancesService;
   documentsService: DocumentsService;
+  reconciliationService: ReconciliationService;
 }
 
 export function createAppContext(env: Env): AppContext {
@@ -84,16 +94,23 @@ export function createAppContext(env: Env): AppContext {
     currenciesService,
   });
   const ledgerReadService = createLedgerReadService({ db });
+  const balancesService = createBalancesService({ db, logger });
   const documentRegistry = createDocumentRegistry({
     currenciesService,
     feesService,
     operationalAccountsService,
   });
   const documentsService = createDocumentsService({
+    accounting: accountingService,
     db,
     ledger,
     ledgerReadService,
     registry: documentRegistry,
+    logger,
+  });
+  const reconciliationService = createReconciliationService({
+    db,
+    documents: documentsService,
     logger,
   });
 
@@ -106,9 +123,11 @@ export function createAppContext(env: Env): AppContext {
     counterpartiesService,
     customersService,
     currenciesService,
+    balancesService,
     documentsService,
     feesService,
     fxService,
     ledgerReadService,
+    reconciliationService,
   };
 }

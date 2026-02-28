@@ -1,6 +1,7 @@
 export { createDocumentsService } from "./service";
 export type { DocumentsService } from "./service";
 export { createDocumentsWorker } from "./worker";
+export { createDefaultDocumentActionPolicyService } from "./policy";
 export * from "./errors";
 export {
   DOCUMENT_APPROVAL_STATUSES,

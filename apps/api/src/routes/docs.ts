@@ -6,16 +6,22 @@ import {
   type DocumentWithOperationId,
   DocumentGraphError,
   DocumentNotFoundError,
+  DocumentPolicyDeniedError,
   DocumentPostingNotRequiredError,
   DocumentValidationError,
   ListDocumentsQuerySchema,
   UpdateDocumentInputSchema,
 } from "@bedrock/documents";
+import {
+  ActionReceiptConflictError,
+  ActionReceiptStoredError,
+} from "@bedrock/idempotency";
 import { InvalidStateError, PermissionError } from "@bedrock/kernel/errors";
 
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
+import type { RequestContext } from "../middleware/request-context";
 
 function resolveErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -88,7 +94,10 @@ function handleDocumentsError(c: any, error: unknown) {
   if (error instanceof DocumentNotFoundError) {
     return c.json({ error: resolveErrorMessage(error) }, 404);
   }
-  if (error instanceof PermissionError) {
+  if (
+    error instanceof PermissionError ||
+    error instanceof DocumentPolicyDeniedError
+  ) {
     return c.json({ error: resolveErrorMessage(error) }, 403);
   }
   if (
@@ -99,7 +108,9 @@ function handleDocumentsError(c: any, error: unknown) {
   }
   if (
     error instanceof InvalidStateError ||
-    error instanceof DocumentPostingNotRequiredError
+    error instanceof DocumentPostingNotRequiredError ||
+    error instanceof ActionReceiptConflictError ||
+    error instanceof ActionReceiptStoredError
   ) {
     return c.json({ error: resolveErrorMessage(error) }, 409);
   }
@@ -117,6 +128,32 @@ function queryObjectFromUrl(requestUrl: string) {
   }
 
   return query;
+}
+
+function getRequestContext(c: {
+  get: (key: "requestContext") => RequestContext | undefined;
+}) {
+  return c.get("requestContext");
+}
+
+function requireIdempotencyKey(
+  c: {
+    get: (key: "requestContext") => RequestContext | undefined;
+    json: (body: unknown, status?: number) => Response;
+  },
+) {
+  const key = getRequestContext(c)?.idempotencyKey;
+  if (!key) {
+    return {
+      ok: false as const,
+      response: c.json({ error: "Missing Idempotency-Key header" }, 400),
+    };
+  }
+
+  return {
+    ok: true as const,
+    idempotencyKey: key,
+  };
 }
 
 function toDocumentDetailsDto(details: DocumentDetailsResult) {
@@ -152,6 +189,38 @@ function toDocumentDetailsDto(details: DocumentDetailsResult) {
       kind: operation.kind,
       createdAt: operation.createdAt.toISOString(),
     })),
+    events: details.events.map((event) => ({
+      id: event.id,
+      documentId: event.documentId,
+      eventType: event.eventType,
+      actorId: event.actorId,
+      requestId: event.requestId,
+      correlationId: event.correlationId,
+      traceId: event.traceId,
+      causationId: event.causationId,
+      reasonCode: event.reasonCode,
+      reasonMeta: event.reasonMeta,
+      before: event.before,
+      after: event.after,
+      createdAt: event.createdAt.toISOString(),
+    })),
+    snapshot: details.snapshot
+      ? {
+          id: details.snapshot.id,
+          documentId: details.snapshot.documentId,
+          payload: details.snapshot.payload,
+          payloadVersion: details.snapshot.payloadVersion,
+          moduleId: details.snapshot.moduleId,
+          moduleVersion: details.snapshot.moduleVersion,
+          packChecksum: details.snapshot.packChecksum,
+          postingPlanChecksum: details.snapshot.postingPlanChecksum,
+          journalIntentChecksum: details.snapshot.journalIntentChecksum,
+          postingPlan: details.snapshot.postingPlan,
+          journalIntent: details.snapshot.journalIntent,
+          resolvedTemplates: details.snapshot.resolvedTemplates,
+          createdAt: details.snapshot.createdAt.toISOString(),
+        }
+      : null,
     ledgerOperations: details.ledgerOperations,
     computed: details.computed,
     extra: details.extra,
@@ -183,6 +252,7 @@ export function docsRoutes(ctx: AppContext) {
         createIdempotencyKey: body.createIdempotencyKey,
         payload: body.input,
         actorUserId: c.get("user")!.id,
+        requestContext: getRequestContext(c),
       });
       return c.json(toDocumentDto(result), 201);
     } catch (error) {
@@ -193,12 +263,16 @@ export function docsRoutes(ctx: AppContext) {
   app.patch("/:docType/:id", requirePermission({ documents: ["update"] }), async (c) => {
     try {
       const { docType, id } = c.req.param();
+      const idem = requireIdempotencyKey(c);
+      if (!idem.ok) return idem.response;
       const body = UpdateDocumentInputSchema.parse(await c.req.json());
       const result = await ctx.documentsService.updateDraft({
         docType,
         documentId: id,
         payload: body.input,
         actorUserId: c.get("user")!.id,
+        idempotencyKey: idem.idempotencyKey,
+        requestContext: getRequestContext(c),
       });
       return c.json(toDocumentDto(result));
     } catch (error) {
@@ -240,10 +314,14 @@ export function docsRoutes(ctx: AppContext) {
     async (c) => {
       try {
         const { docType, id } = c.req.param();
+        const idem = requireIdempotencyKey(c);
+        if (!idem.ok) return idem.response;
         const result = await ctx.documentsService.submit({
           docType,
           documentId: id,
           actorUserId: c.get("user")!.id,
+          idempotencyKey: idem.idempotencyKey,
+          requestContext: getRequestContext(c),
         });
         return c.json(toDocumentDto(result));
       } catch (error) {
@@ -258,10 +336,14 @@ export function docsRoutes(ctx: AppContext) {
     async (c) => {
       try {
         const { docType, id } = c.req.param();
+        const idem = requireIdempotencyKey(c);
+        if (!idem.ok) return idem.response;
         const result = await ctx.documentsService.approve({
           docType,
           documentId: id,
           actorUserId: c.get("user")!.id,
+          idempotencyKey: idem.idempotencyKey,
+          requestContext: getRequestContext(c),
         });
         return c.json(toDocumentDto(result));
       } catch (error) {
@@ -276,10 +358,14 @@ export function docsRoutes(ctx: AppContext) {
     async (c) => {
       try {
         const { docType, id } = c.req.param();
+        const idem = requireIdempotencyKey(c);
+        if (!idem.ok) return idem.response;
         const result = await ctx.documentsService.reject({
           docType,
           documentId: id,
           actorUserId: c.get("user")!.id,
+          idempotencyKey: idem.idempotencyKey,
+          requestContext: getRequestContext(c),
         });
         return c.json(toDocumentDto(result));
       } catch (error) {
@@ -291,10 +377,14 @@ export function docsRoutes(ctx: AppContext) {
   app.post("/:docType/:id/post", requirePermission({ documents: ["post"] }), async (c) => {
     try {
       const { docType, id } = c.req.param();
+      const idem = requireIdempotencyKey(c);
+      if (!idem.ok) return idem.response;
       const result = await ctx.documentsService.post({
         docType,
         documentId: id,
         actorUserId: c.get("user")!.id,
+        idempotencyKey: idem.idempotencyKey,
+        requestContext: getRequestContext(c),
       });
       return c.json(toDocumentDto(result));
     } catch (error) {
@@ -308,10 +398,36 @@ export function docsRoutes(ctx: AppContext) {
     async (c) => {
       try {
         const { docType, id } = c.req.param();
+        const idem = requireIdempotencyKey(c);
+        if (!idem.ok) return idem.response;
         const result = await ctx.documentsService.cancel({
           docType,
           documentId: id,
           actorUserId: c.get("user")!.id,
+          idempotencyKey: idem.idempotencyKey,
+          requestContext: getRequestContext(c),
+        });
+        return c.json(toDocumentDto(result));
+      } catch (error) {
+        return handleDocumentsError(c, error);
+      }
+    },
+  );
+
+  app.post(
+    "/:docType/:id/repost",
+    requirePermission({ documents: ["post"] }),
+    async (c) => {
+      try {
+        const { docType, id } = c.req.param();
+        const idem = requireIdempotencyKey(c);
+        if (!idem.ok) return idem.response;
+        const result = await ctx.documentsService.repost({
+          docType,
+          documentId: id,
+          actorUserId: c.get("user")!.id,
+          idempotencyKey: idem.idempotencyKey,
+          requestContext: getRequestContext(c),
         });
         return c.json(toDocumentDto(result));
       } catch (error) {

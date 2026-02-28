@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { Document } from "@bedrock/db/schema";
+import { schema, type Document } from "@bedrock/db/schema";
 import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import { createApproveHandler } from "../src/commands/approve";
@@ -13,6 +13,8 @@ function makeDocument(overrides: Partial<Document> = {}): Document {
     id: "11111111-1111-4111-8111-111111111111",
     docType: "test_document",
     docNo: "TST-11111111",
+    moduleId: "test_document",
+    moduleVersion: 1,
     payloadVersion: 1,
     payload: {},
     title: "Test document",
@@ -49,15 +51,22 @@ function makeDocument(overrides: Partial<Document> = {}): Document {
 }
 
 function createSelectChain(document: Document) {
-  return {
-    from: vi.fn(() => ({
-      where: vi.fn(() => ({
-        for: vi.fn(() => ({
+  return (table?: unknown) => ({
+    where: vi.fn(() => {
+      if (table === schema.documents) {
+        return {
+          for: vi.fn(() => ({
+            limit: vi.fn(async () => [document]),
+          })),
           limit: vi.fn(async () => [document]),
-        })),
-      })),
-    })),
-  };
+        };
+      }
+
+      return {
+        limit: vi.fn(async () => []),
+      };
+    }),
+  });
 }
 
 function createModuleStub() {
@@ -67,14 +76,16 @@ function createModuleStub() {
     canReject: vi.fn(),
     canPost: vi.fn(),
     postingRequired: true,
-    buildIntent: vi.fn(),
+    buildPostingPlan: vi.fn(),
     buildPostIdempotencyKey: vi.fn(() => "post-idem"),
   };
 }
 
 function createContext(document: Document, module: ReturnType<typeof createModuleStub>) {
   const tx = {
-    select: vi.fn(() => createSelectChain(document)),
+    select: vi.fn(() => ({
+      from: createSelectChain(document),
+    })),
     update: vi.fn(),
     insert: vi.fn(),
   };
@@ -86,20 +97,32 @@ function createContext(document: Document, module: ReturnType<typeof createModul
   const ledger = {
     commit: vi.fn(),
   };
+  const accounting = {
+    resolvePostingPlan: vi.fn(),
+  };
   const registry = {
     getDocumentModule: vi.fn(() => module),
+  };
+  const idempotency = {
+    withIdempotencyTx: vi.fn(async ({ handler }: { handler: () => Promise<unknown> }) =>
+      handler(),
+    ),
   };
 
   return {
     context: {
+      accounting,
       db,
+      idempotency,
       ledger,
       ledgerReadService: {} as any,
       registry,
       log: {} as any,
     },
     tx,
+    accounting,
     ledger,
+    idempotency,
   };
 }
 
