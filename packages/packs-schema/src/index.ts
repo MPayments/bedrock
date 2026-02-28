@@ -28,7 +28,10 @@ export const ValueBindingSchema = z.discriminatedUnion("kind", [
 ]);
 
 export const AccountSideTemplateDefinitionSchema = z.object({
-  accountNo: z.string().trim().regex(/^[0-9]{4}$/),
+  accountNo: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{4}$/),
   dimensions: z.record(z.string(), ValueBindingSchema),
 });
 

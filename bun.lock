@@ -35,6 +35,7 @@
         "@bedrock/kernel": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/operational-accounts": "workspace:*",
+        "@bedrock/pack-bedrock-core-default": "workspace:*",
         "@bedrock/reconciliation": "workspace:*",
         "@hono/node-server": "^1.19.9",
         "@hono/zod-openapi": "^1.2.2",
@@ -117,12 +118,13 @@
       "dependencies": {
         "@bedrock/db": "workspace:*",
         "@bedrock/kernel": "workspace:*",
+        "@bedrock/packs-schema": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4",
       },
       "devDependencies": {
         "@bedrock/eslint-config": "workspace:*",
-        "@bedrock/packs-schema": "workspace:*",
+        "@bedrock/pack-bedrock-core-default": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
         "eslint": "^9.31.0",
         "typescript": "^5.8.3",
@@ -521,7 +523,6 @@
       "name": "@bedrock/pack-bedrock-core-default",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/accounting": "workspace:*",
         "@bedrock/packs-schema": "workspace:*",
       },
       "devDependencies": {

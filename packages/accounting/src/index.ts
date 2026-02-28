@@ -32,14 +32,13 @@ export {
 export { AccountingError, CorrespondenceRuleNotFoundError } from "./errors";
 
 export { createAccountingService, type AccountingService } from "./service";
+export type { AccountingPackDefinition } from "@bedrock/packs-schema";
 export {
-  DEFAULT_ACCOUNTING_PACK_DEFINITION,
   POSTING_TEMPLATE_KEY,
   createAccountingRuntime,
   compilePack,
   validatePackDefinition,
   type AccountingRuntime,
-  type AccountingPackDefinition,
   type CompiledPack,
   type DocumentPostingPlan,
   type DocumentPostingPlanRequest,

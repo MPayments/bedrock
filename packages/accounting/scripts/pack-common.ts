@@ -1,8 +1,9 @@
-import { canonicalJson } from "@bedrock/kernel";
-import { db } from "@bedrock/db/client";
-import { AccountingPackDefinitionSchema } from "@bedrock/packs-schema";
-import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
+import { db } from "@bedrock/db/client";
+import { canonicalJson } from "@bedrock/kernel";
+import { AccountingPackDefinitionSchema } from "@bedrock/packs-schema";
 
 import {
   compilePack,
@@ -66,8 +67,11 @@ export async function loadRawPackDefinition(): Promise<{
   };
 }
 
-export function createPackRuntime() {
-  return createAccountingRuntime({ db });
+export function createPackRuntime(defaultPackDefinition: AccountingPackDefinition) {
+  return createAccountingRuntime({
+    db,
+    defaultPackDefinition,
+  });
 }
 
 export function renderCompiledPack(compiled: CompiledPack) {

@@ -13,7 +13,6 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/accounting": "workspace:*",
     "@bedrock/packs-schema": "workspace:*"
   },
   "devDependencies": {

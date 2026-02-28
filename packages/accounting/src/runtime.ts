@@ -2,9 +2,16 @@ import { and, desc, eq, lte } from "drizzle-orm";
 
 import { schema } from "@bedrock/db/schema";
 import { canonicalJson, makePlanKey, sha256Hex } from "@bedrock/kernel";
-import { SYSTEM_LEDGER_BOOK_ID, TransferCodes } from "@bedrock/kernel/constants";
+import { SYSTEM_LEDGER_BOOK_ID } from "@bedrock/kernel/constants";
+import type {
+  AccountingPackDefinition,
+  AccountSideTemplateDefinition,
+  CreatePostingTemplateDefinition,
+  PendingPostingTemplateDefinition,
+  RawPostingTemplateDefinition,
+  ValueBinding,
+} from "@bedrock/packs-schema";
 
-import { ACCOUNT_NO, CLEARING_KIND, POSTING_CODE } from "./constants";
 import {
   AccountingPackCompilationError,
   AccountingPackNotFoundError,
@@ -12,7 +19,7 @@ import {
   AccountingTemplateAccessError,
   UnknownPostingTemplateError,
 } from "./errors";
-import { type AccountingServiceDeps } from "./internal/context";
+import { type AccountingRuntimeDeps } from "./internal/context";
 
 const OPERATION_TRANSFER_TYPE = {
   CREATE: "create",
@@ -82,52 +89,6 @@ export interface OperationIntent {
   idempotencyKey: string;
   postingDate: Date;
   lines: IntentLine[];
-}
-
-type ValueBinding =
-  | { kind: "literal"; value: string }
-  | { kind: "dimension"; key: string }
-  | { kind: "ref"; key: string }
-  | { kind: "bookRef"; key: string };
-
-interface AccountSideTemplateDefinition {
-  accountNo: string;
-  dimensions: Record<string, ValueBinding>;
-}
-
-interface CreatePostingTemplateDefinition {
-  key: string;
-  lineType: typeof OPERATION_TRANSFER_TYPE.CREATE;
-  postingCode: string;
-  transferCode?: number;
-  allowModules: string[];
-  requiredBookRefs: string[];
-  requiredDimensions: string[];
-  requiredRefs?: string[];
-  pendingMode?: "allowed" | "required" | "forbidden";
-  debit: AccountSideTemplateDefinition;
-  credit: AccountSideTemplateDefinition;
-}
-
-interface PendingPostingTemplateDefinition {
-  key: string;
-  lineType:
-    | typeof OPERATION_TRANSFER_TYPE.POST_PENDING
-    | typeof OPERATION_TRANSFER_TYPE.VOID_PENDING;
-  allowModules: string[];
-  requiredBookRefs: string[];
-  requiredDimensions: string[];
-  requiredRefs?: string[];
-}
-
-export type RawPostingTemplateDefinition =
-  | CreatePostingTemplateDefinition
-  | PendingPostingTemplateDefinition;
-
-export interface AccountingPackDefinition {
-  packKey: string;
-  version: number;
-  templates: RawPostingTemplateDefinition[];
 }
 
 interface CompiledPackSerializable {
@@ -275,660 +236,6 @@ export type PostingTemplateKey =
 const BOOK_REF_BOOK_ID = "bookId";
 const PACK_CACHE_TTL_MS = 60_000;
 const PACK_SCOPE_TYPE_BOOK = "book";
-
-function literal(value: string): ValueBinding {
-  return { kind: "literal", value };
-}
-
-function dimension(key: string): ValueBinding {
-  return { kind: "dimension", key };
-}
-
-function createTemplate(
-  definition: Omit<CreatePostingTemplateDefinition, "lineType">,
-): CreatePostingTemplateDefinition {
-  return {
-    lineType: OPERATION_TRANSFER_TYPE.CREATE,
-    ...definition,
-  };
-}
-
-function pendingTemplate(
-  definition: PendingPostingTemplateDefinition,
-): PendingPostingTemplateDefinition {
-  return definition;
-}
-
-export const DEFAULT_ACCOUNTING_PACK_DEFINITION: AccountingPackDefinition = {
-  packKey: "bedrock-core-default",
-  version: 1,
-  templates: [
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.TRANSFER_INTRA_IMMEDIATE,
-      postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
-      transferCode: TransferCodes.INTERNAL_TRANSFER,
-      allowModules: ["transfer"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: [
-        "sourceOperationalAccountId",
-        "destinationOperationalAccountId",
-      ],
-      debit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("destinationOperationalAccountId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("sourceOperationalAccountId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.TRANSFER_INTRA_PENDING,
-      postingCode: POSTING_CODE.TRANSFER_INTRA_PENDING,
-      transferCode: TransferCodes.INTERNAL_TRANSFER,
-      allowModules: ["transfer"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: [
-        "sourceOperationalAccountId",
-        "destinationOperationalAccountId",
-      ],
-      pendingMode: "required",
-      debit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("destinationOperationalAccountId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("sourceOperationalAccountId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.TRANSFER_CROSS_SOURCE_IMMEDIATE,
-      postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE,
-      transferCode: TransferCodes.INTERNAL_TRANSFER,
-      allowModules: ["transfer"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: [
-        "sourceOperationalAccountId",
-        "destinationCounterpartyId",
-      ],
-      debit: {
-        accountNo: ACCOUNT_NO.CLEARING,
-        dimensions: {
-          clearingKind: literal(CLEARING_KIND.INTERCOMPANY),
-          counterpartyId: dimension("destinationCounterpartyId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("sourceOperationalAccountId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.TRANSFER_CROSS_SOURCE_PENDING,
-      postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING,
-      transferCode: TransferCodes.INTERNAL_TRANSFER,
-      allowModules: ["transfer"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: [
-        "sourceOperationalAccountId",
-        "destinationCounterpartyId",
-      ],
-      pendingMode: "required",
-      debit: {
-        accountNo: ACCOUNT_NO.CLEARING,
-        dimensions: {
-          clearingKind: literal(CLEARING_KIND.INTERCOMPANY),
-          counterpartyId: dimension("destinationCounterpartyId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("sourceOperationalAccountId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.TRANSFER_CROSS_DESTINATION_IMMEDIATE,
-      postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE,
-      transferCode: TransferCodes.INTERNAL_TRANSFER,
-      allowModules: ["transfer"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: [
-        "destinationOperationalAccountId",
-        "sourceCounterpartyId",
-      ],
-      debit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("destinationOperationalAccountId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.CLEARING,
-        dimensions: {
-          clearingKind: literal(CLEARING_KIND.INTERCOMPANY),
-          counterpartyId: dimension("sourceCounterpartyId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.TRANSFER_CROSS_DESTINATION_PENDING,
-      postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_PENDING,
-      transferCode: TransferCodes.INTERNAL_TRANSFER,
-      allowModules: ["transfer"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: [
-        "destinationOperationalAccountId",
-        "sourceCounterpartyId",
-      ],
-      pendingMode: "required",
-      debit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("destinationOperationalAccountId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.CLEARING,
-        dimensions: {
-          clearingKind: literal(CLEARING_KIND.INTERCOMPANY),
-          counterpartyId: dimension("sourceCounterpartyId"),
-        },
-      },
-    }),
-    pendingTemplate({
-      key: POSTING_TEMPLATE_KEY.TRANSFER_PENDING_SETTLE,
-      lineType: OPERATION_TRANSFER_TYPE.POST_PENDING,
-      allowModules: ["transfer_settle"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: [],
-      requiredRefs: [
-        "transferDocumentId",
-        "eventIdempotencyKey",
-        "pendingIndex",
-      ],
-    }),
-    pendingTemplate({
-      key: POSTING_TEMPLATE_KEY.TRANSFER_PENDING_VOID,
-      lineType: OPERATION_TRANSFER_TYPE.VOID_PENDING,
-      allowModules: ["transfer_void"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: [],
-      requiredRefs: [
-        "transferDocumentId",
-        "eventIdempotencyKey",
-        "pendingIndex",
-      ],
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.EXTERNAL_FUNDING_FOUNDER_EQUITY,
-      postingCode: POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY,
-      transferCode: TransferCodes.EXTERNAL_FUNDING_FOUNDER_EQUITY,
-      allowModules: ["external_funding"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["operationalAccountId", "counterpartyId"],
-      requiredRefs: ["entryRef", "kind"],
-      debit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("operationalAccountId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.FOUNDER_EQUITY,
-        dimensions: {
-          counterpartyId: dimension("counterpartyId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.EXTERNAL_FUNDING_INVESTOR_EQUITY,
-      postingCode: POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY,
-      transferCode: TransferCodes.EXTERNAL_FUNDING_INVESTOR_EQUITY,
-      allowModules: ["external_funding"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["operationalAccountId", "counterpartyId"],
-      requiredRefs: ["entryRef", "kind"],
-      debit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("operationalAccountId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.INVESTOR_EQUITY,
-        dimensions: {
-          counterpartyId: dimension("counterpartyId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
-      postingCode: POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
-      transferCode: TransferCodes.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
-      allowModules: ["external_funding"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["operationalAccountId", "counterpartyId"],
-      requiredRefs: ["entryRef", "kind"],
-      debit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("operationalAccountId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN,
-        dimensions: {
-          counterpartyId: dimension("counterpartyId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.EXTERNAL_FUNDING_OPENING_BALANCE,
-      postingCode: POSTING_CODE.EXTERNAL_FUNDING_OPENING_BALANCE,
-      transferCode: TransferCodes.EXTERNAL_FUNDING_OPENING_BALANCE,
-      allowModules: ["external_funding"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["operationalAccountId"],
-      requiredRefs: ["entryRef", "kind"],
-      debit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("operationalAccountId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.OPENING_BALANCE_EQUITY,
-        dimensions: {},
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_PAYIN_FUNDING,
-      postingCode: POSTING_CODE.FUNDING_SETTLED,
-      transferCode: TransferCodes.FUNDING_SETTLED,
-      allowModules: ["payin_funding"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["operationalAccountId", "customerId"],
-      requiredRefs: ["paymentCaseId", "railRef"],
-      debit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("operationalAccountId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-        dimensions: {
-          customerId: dimension("customerId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
-      postingCode: POSTING_CODE.FX_PRINCIPAL,
-      transferCode: TransferCodes.FX_PRINCIPAL,
-      allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["customerId", "orderId"],
-      requiredRefs: ["quoteRef", "chainId"],
-      debit: {
-        accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-        dimensions: {
-          customerId: dimension("customerId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.ORDER_RESERVE,
-        dimensions: {
-          orderId: dimension("orderId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_LEG_OUT,
-      postingCode: POSTING_CODE.FX_LEG_OUT,
-      transferCode: TransferCodes.FX_LEG_OUT,
-      allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["orderId", "counterpartyId"],
-      requiredRefs: ["quoteRef", "chainId", "legIndex"],
-      debit: {
-        accountNo: ACCOUNT_NO.ORDER_RESERVE,
-        dimensions: {
-          orderId: dimension("orderId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.CLEARING,
-        dimensions: {
-          clearingKind: literal(CLEARING_KIND.TREASURY_FX),
-          orderId: dimension("orderId"),
-          counterpartyId: dimension("counterpartyId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_LEG_IN,
-      postingCode: POSTING_CODE.FX_LEG_IN,
-      transferCode: TransferCodes.FX_LEG_IN,
-      allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["orderId", "counterpartyId"],
-      requiredRefs: ["quoteRef", "chainId", "legIndex"],
-      debit: {
-        accountNo: ACCOUNT_NO.CLEARING,
-        dimensions: {
-          clearingKind: literal(CLEARING_KIND.TREASURY_FX),
-          orderId: dimension("orderId"),
-          counterpartyId: dimension("counterpartyId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.ORDER_RESERVE,
-        dimensions: {
-          orderId: dimension("orderId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME,
-      postingCode: POSTING_CODE.FEE_INCOME,
-      transferCode: TransferCodes.FEE_INCOME,
-      allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["customerId", "orderId", "feeBucket"],
-      requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
-      debit: {
-        accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-        dimensions: {
-          customerId: dimension("customerId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.FEE_REVENUE,
-        dimensions: {
-          orderId: dimension("orderId"),
-          feeBucket: dimension("feeBucket"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_SPREAD_INCOME,
-      postingCode: POSTING_CODE.SPREAD_INCOME,
-      transferCode: TransferCodes.SPREAD_INCOME,
-      allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["customerId", "orderId", "feeBucket"],
-      requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
-      debit: {
-        accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-        dimensions: {
-          customerId: dimension("customerId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.SPREAD_REVENUE,
-        dimensions: {
-          orderId: dimension("orderId"),
-          feeBucket: dimension("feeBucket"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
-      postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
-      transferCode: TransferCodes.FEE_PASS_THROUGH_RESERVE,
-      allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["customerId", "orderId", "feeBucket"],
-      requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
-      debit: {
-        accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-        dimensions: {
-          customerId: dimension("customerId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.FEE_CLEARING,
-        dimensions: {
-          orderId: dimension("orderId"),
-          feeBucket: dimension("feeBucket"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE,
-      postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL,
-      transferCode: TransferCodes.PROVIDER_FEE_EXPENSE_ACCRUAL,
-      allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["orderId", "feeBucket", "counterpartyId"],
-      requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
-      debit: {
-        accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
-        dimensions: {
-          orderId: dimension("orderId"),
-          feeBucket: dimension("feeBucket"),
-          counterpartyId: dimension("counterpartyId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.FEE_CLEARING,
-        dimensions: {
-          orderId: dimension("orderId"),
-          feeBucket: dimension("feeBucket"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_CHARGE,
-      postingCode: POSTING_CODE.ADJUSTMENT_CHARGE,
-      transferCode: TransferCodes.ADJUSTMENT_CHARGE,
-      allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["customerId", "orderId", "feeBucket"],
-      requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
-      debit: {
-        accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-        dimensions: {
-          customerId: dimension("customerId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.ADJUSTMENT_REVENUE,
-        dimensions: {
-          orderId: dimension("orderId"),
-          feeBucket: dimension("feeBucket"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND,
-      postingCode: POSTING_CODE.ADJUSTMENT_REFUND,
-      transferCode: TransferCodes.ADJUSTMENT_REFUND,
-      allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["customerId", "orderId", "feeBucket"],
-      requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
-      debit: {
-        accountNo: ACCOUNT_NO.ADJUSTMENT_EXPENSE,
-        dimensions: {
-          orderId: dimension("orderId"),
-          feeBucket: dimension("feeBucket"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-        dimensions: {
-          customerId: dimension("customerId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_CHARGE_RESERVE,
-      postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
-      transferCode: TransferCodes.FEE_PASS_THROUGH_RESERVE,
-      allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["customerId", "orderId", "feeBucket"],
-      requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
-      debit: {
-        accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-        dimensions: {
-          customerId: dimension("customerId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.FEE_CLEARING,
-        dimensions: {
-          orderId: dimension("orderId"),
-          feeBucket: dimension("feeBucket"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND_RESERVE,
-      postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
-      transferCode: TransferCodes.FEE_PASS_THROUGH_RESERVE,
-      allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["orderId", "feeBucket"],
-      requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
-      debit: {
-        accountNo: ACCOUNT_NO.ADJUSTMENT_EXPENSE,
-        dimensions: {
-          orderId: dimension("orderId"),
-          feeBucket: dimension("feeBucket"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.FEE_CLEARING,
-        dimensions: {
-          orderId: dimension("orderId"),
-          feeBucket: dimension("feeBucket"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_PAYOUT_OBLIGATION,
-      postingCode: POSTING_CODE.FX_PAYOUT_OBLIGATION,
-      transferCode: TransferCodes.FX_PAYOUT_OBLIGATION,
-      allowModules: ["fx_execute"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["orderId"],
-      requiredRefs: ["quoteRef", "chainId", "payoutCounterpartyId"],
-      debit: {
-        accountNo: ACCOUNT_NO.ORDER_RESERVE,
-        dimensions: {
-          orderId: dimension("orderId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
-        dimensions: {
-          orderId: dimension("orderId"),
-        },
-      },
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_INITIATE,
-      postingCode: POSTING_CODE.PAYOUT_INITIATED,
-      transferCode: TransferCodes.PAYOUT_INITIATED,
-      allowModules: ["payout_initiate"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["orderId", "operationalAccountId"],
-      requiredRefs: ["railRef", "payoutBankStableKey"],
-      pendingMode: "required",
-      debit: {
-        accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
-        dimensions: {
-          orderId: dimension("orderId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("operationalAccountId"),
-        },
-      },
-    }),
-    pendingTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_SETTLE,
-      lineType: OPERATION_TRANSFER_TYPE.POST_PENDING,
-      allowModules: ["payout_settle"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: [],
-      requiredRefs: ["orderId", "railRef"],
-    }),
-    pendingTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_VOID,
-      lineType: OPERATION_TRANSFER_TYPE.VOID_PENDING,
-      allowModules: ["payout_void"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: [],
-      requiredRefs: ["orderId", "railRef"],
-    }),
-    createTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FEE_PAYOUT_INITIATE,
-      postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED,
-      transferCode: TransferCodes.FEE_PAYMENT_INITIATED,
-      allowModules: ["fee_payout_initiate"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: [
-        "feeBucket",
-        "orderId",
-        "counterpartyId",
-        "operationalAccountId",
-      ],
-      requiredRefs: ["componentId", "railRef"],
-      pendingMode: "required",
-      debit: {
-        accountNo: ACCOUNT_NO.FEE_CLEARING,
-        dimensions: {
-          feeBucket: dimension("feeBucket"),
-          orderId: dimension("orderId"),
-          counterpartyId: dimension("counterpartyId"),
-        },
-      },
-      credit: {
-        accountNo: ACCOUNT_NO.BANK,
-        dimensions: {
-          operationalAccountId: dimension("operationalAccountId"),
-        },
-      },
-    }),
-    pendingTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FEE_PAYOUT_SETTLE,
-      lineType: OPERATION_TRANSFER_TYPE.POST_PENDING,
-      allowModules: ["fee_payout_settle"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: [],
-      requiredRefs: ["feePayoutInitiateDocumentId", "railRef"],
-    }),
-    pendingTemplate({
-      key: POSTING_TEMPLATE_KEY.PAYMENT_FEE_PAYOUT_VOID,
-      lineType: OPERATION_TRANSFER_TYPE.VOID_PENDING,
-      allowModules: ["fee_payout_void"],
-      requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: [],
-      requiredRefs: ["feePayoutInitiateDocumentId", "railRef"],
-    }),
-  ],
-};
-
-const DEFAULT_COMPILED_PACK = compilePack(DEFAULT_ACCOUNTING_PACK_DEFINITION);
 
 interface CachedPackEntry {
   expiresAt: number;
@@ -1364,9 +671,10 @@ async function resolvePostingPlanInternal(
 }
 
 export function createAccountingRuntime(
-  deps: AccountingServiceDeps,
+  deps: AccountingRuntimeDeps,
 ): AccountingRuntime {
   const { db } = deps;
+  const defaultCompiledPack = compilePack(deps.defaultPackDefinition);
   const packCache = new Map<string, CachedPackEntry>();
 
   function readCachedPack(key: string) {
@@ -1390,17 +698,23 @@ export function createAccountingRuntime(
     });
   }
 
+  function requireDb() {
+    if (!db) {
+      throw new Error("Accounting runtime requires db for pack persistence");
+    }
+    return db;
+  }
+
   async function storeCompiledPackVersion(input: {
     definition?: AccountingPackDefinition;
     pack?: CompiledPack;
   }) {
+    const runtimeDb = requireDb();
     const compiled =
       input.pack ??
-      (input.definition
-        ? compilePack(input.definition)
-        : DEFAULT_COMPILED_PACK);
+      (input.definition ? compilePack(input.definition) : defaultCompiledPack);
 
-    await db
+    await runtimeDb
       .insert(schema.accountingPackVersions)
       .values({
         packKey: compiled.packKey,
@@ -1418,12 +732,13 @@ export function createAccountingRuntime(
   }
 
   async function loadCompiledPackByChecksum(checksum: string) {
+    const runtimeDb = requireDb();
     const cached = readCachedPack(checksum);
     if (typeof cached !== "undefined") {
       return cached;
     }
 
-    const [row] = await db
+    const [row] = await runtimeDb
       .select({
         checksum: schema.accountingPackVersions.checksum,
         compiledJson: schema.accountingPackVersions.compiledJson,
@@ -1451,6 +766,7 @@ export function createAccountingRuntime(
     effectiveAt?: Date;
     scopeType?: string;
   }) {
+    const runtimeDb = requireDb();
     const pack = await loadCompiledPackByChecksum(input.packChecksum);
     if (!pack) {
       throw new AccountingPackNotFoundError(input.packChecksum);
@@ -1459,7 +775,7 @@ export function createAccountingRuntime(
     const scopeType = input.scopeType ?? PACK_SCOPE_TYPE_BOOK;
     const effectiveAt = input.effectiveAt ?? new Date();
 
-    await db.insert(schema.accountingPackAssignments).values({
+    await runtimeDb.insert(schema.accountingPackAssignments).values({
       scopeType,
       scopeId: input.scopeId,
       packChecksum: input.packChecksum,
@@ -1484,7 +800,7 @@ export function createAccountingRuntime(
     at?: Date;
   }) {
     if (!db || !input?.bookId) {
-      return DEFAULT_COMPILED_PACK;
+      return defaultCompiledPack;
     }
 
     const at = input.at ?? new Date();
@@ -1510,8 +826,8 @@ export function createAccountingRuntime(
       .limit(1);
 
     if (!assignment) {
-      writeCachedPack(scopeCacheKey, DEFAULT_COMPILED_PACK);
-      return DEFAULT_COMPILED_PACK;
+      writeCachedPack(scopeCacheKey, defaultCompiledPack);
+      return defaultCompiledPack;
     }
 
     const pack = await loadCompiledPackByChecksum(assignment.packChecksum);
@@ -1538,7 +854,7 @@ export function createAccountingRuntime(
   return {
     compilePack,
     activatePackForScope,
-    getDefaultCompiledPack: () => DEFAULT_COMPILED_PACK,
+    getDefaultCompiledPack: () => defaultCompiledPack,
     loadActiveCompiledPackForBook,
     storeCompiledPackVersion,
     resolvePostingPlan,

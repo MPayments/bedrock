@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { rawPackDefinition } from "@bedrock/pack-bedrock-core-default";
+
 import {
   POSTING_TEMPLATE_KEY,
   createAccountingRuntime,
@@ -7,7 +9,9 @@ import {
 } from "../src/runtime";
 
 describe("accounting runtime", () => {
-  const runtime = createAccountingRuntime({} as never);
+  const runtime = createAccountingRuntime({
+    defaultPackDefinition: rawPackDefinition,
+  });
 
   it("resolves compiled transfer plan into journal intent", async () => {
     const plan: DocumentPostingPlan = {

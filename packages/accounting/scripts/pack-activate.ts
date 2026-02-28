@@ -17,7 +17,7 @@ async function main() {
   }
 
   const { packRef, definition } = await loadRawPackDefinition();
-  const runtime = createPackRuntime();
+  const runtime = createPackRuntime(definition);
   const compiled = compilePack(definition);
   await runtime.storeCompiledPackVersion({ pack: compiled });
   const assignment = await runtime.activatePackForScope({

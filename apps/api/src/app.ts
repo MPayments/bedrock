@@ -122,10 +122,11 @@ const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route(fxRatesModule.routePath, fxRatesModule.registerRoutes(ctx))
   .route("/reconciliation", reconciliationRoutes(ctx));
 
-const v2 = new OpenAPIHono<{ Variables: AuthVariables }>().route(
-  "/docs",
-  docsModule.registerRoutes(ctx),
-);
+const v2 = new OpenAPIHono<{ Variables: AuthVariables }>()
+  .route("/accounting", accountingRoutes(ctx))
+  .route("/balances", balancesRoutes(ctx))
+  .route("/docs", docsModule.registerRoutes(ctx))
+  .route("/reconciliation", reconciliationRoutes(ctx));
 
 const _routes = app.route("/v1", v1);
 app.route("/v2", v2);

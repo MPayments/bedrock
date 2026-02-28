@@ -36,6 +36,7 @@ import {
   createLedgerReadService,
   type LedgerReadService,
 } from "@bedrock/ledger";
+import { rawPackDefinition } from "@bedrock/pack-bedrock-core-default";
 import {
   createOperationalAccountsService,
   type OperationalAccountsService,
@@ -77,7 +78,11 @@ export function createAppContext(env: Env): AppContext {
     db,
     logger,
   });
-  const accountingService = createAccountingService({ db, logger });
+  const accountingService = createAccountingService({
+    db,
+    logger,
+    defaultPackDefinition: rawPackDefinition,
+  });
   const ledgerReadService = createLedgerReadService({ db });
   const accountingReportingService = createAccountingReportingService({
     db,
