@@ -1,9 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
-
 import { Badge } from "@bedrock/ui/components/badge";
-import { Button } from "@bedrock/ui/components/button";
 import {
   Accordion,
   AccordionContent,
@@ -22,8 +19,11 @@ import {
 import { formatDate } from "@/lib/format";
 
 import { SOURCE_LABELS } from "../lib/constants";
-import type { CurrencyOption, SerializedRatePair, SerializedSourceRate } from "../lib/queries";
-import { SetManualRateDialog } from "./set-manual-rate-dialog";
+import type {
+  SerializedRatePair,
+  SerializedSourceRate,
+} from "../lib/queries";
+import { FxSourceAvatar } from "./fx-source-avatar";
 
 function sourceLabel(source: string): string {
   return SOURCE_LABELS[source] ?? source;
@@ -37,7 +37,10 @@ function formatRate(rateNum: string, rateDen: string): string {
   return computeDecimalRate(rateNum, rateDen).toFixed(6);
 }
 
-function formatChange(value: number | null): { text: string; className: string } {
+function formatChange(value: number | null): {
+  text: string;
+  className: string;
+} {
   if (value === null) {
     return { text: "—", className: "text-muted-foreground" };
   }
@@ -50,7 +53,10 @@ function formatChange(value: number | null): { text: string; className: string }
   return { text: "0.0000", className: "text-muted-foreground" };
 }
 
-function formatChangePercent(value: number | null): { text: string; className: string } {
+function formatChangePercent(value: number | null): {
+  text: string;
+  className: string;
+} {
   if (value === null) {
     return { text: "—", className: "text-muted-foreground" };
   }
@@ -65,21 +71,12 @@ function formatChangePercent(value: number | null): { text: string; className: s
 
 type RatePairsListProps = {
   initialPairs: SerializedRatePair[];
-  currencies: CurrencyOption[];
 };
 
-export function RatePairsList({ initialPairs, currencies }: RatePairsListProps) {
+export function RatePairsList({ initialPairs }: RatePairsListProps) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h4 className="text-lg font-semibold">Пары валют</h4>
-        <SetManualRateDialog currencies={currencies}>
-          <Button size="sm" variant="outline">
-            <Plus className="h-4 w-4" />
-            Добавить курс
-          </Button>
-        </SetManualRateDialog>
-      </div>
+      <h4 className="text-lg font-semibold">Пары валют</h4>
 
       {initialPairs.length === 0 ? (
         <p className="text-muted-foreground text-sm py-8 text-center">
@@ -119,7 +116,11 @@ function PairSummary({ pair }: { pair: SerializedRatePair }) {
       <span className={`font-mono tabular-nums text-xs ${change.className}`}>
         {change.text}
       </span>
-      <Badge variant="secondary" className="text-xs">
+      <Badge variant="secondary" className="gap-1.5 text-xs">
+        <FxSourceAvatar
+          source={pair.bestRate.source}
+          className="size-4 after:hidden"
+        />
         {sourceLabel(pair.bestRate.source)}
       </Badge>
       <span className="text-muted-foreground text-xs ml-auto hidden sm:block">
@@ -150,15 +151,22 @@ function PairRatesTable({ rates }: { rates: SerializedSourceRate[] }) {
             return (
               <TableRow key={rate.source}>
                 <TableCell className="font-medium">
-                  {sourceLabel(rate.source)}
+                  <div className="flex items-center gap-2">
+                    <FxSourceAvatar source={rate.source} size="sm" />
+                    <span>{sourceLabel(rate.source)}</span>
+                  </div>
                 </TableCell>
                 <TableCell className="text-right font-mono tabular-nums">
                   {formatRate(rate.rateNum, rate.rateDen)}
                 </TableCell>
-                <TableCell className={`text-right font-mono tabular-nums ${change.className}`}>
+                <TableCell
+                  className={`text-right font-mono tabular-nums ${change.className}`}
+                >
                   {change.text}
                 </TableCell>
-                <TableCell className={`text-right font-mono tabular-nums ${changePercent.className}`}>
+                <TableCell
+                  className={`text-right font-mono tabular-nums ${changePercent.className}`}
+                >
                   {changePercent.text}
                 </TableCell>
                 <TableCell className="text-right text-muted-foreground">

@@ -52,6 +52,7 @@ const COUNTERPARTIES_SORTABLE_COLUMNS = [
 ] as const;
 
 interface CounterpartiesListFilters {
+  customerId: { kind: "string"; cardinality: "single" };
   shortName: { kind: "string"; cardinality: "single" };
   fullName: { kind: "string"; cardinality: "single" };
   country: { kind: "string"; cardinality: "multi" };
@@ -67,6 +68,7 @@ export const COUNTERPARTIES_LIST_CONTRACT: ListQueryContract<
   sortableColumns: COUNTERPARTIES_SORTABLE_COLUMNS,
   defaultSort: { id: "createdAt", desc: true },
   filters: {
+    customerId: { kind: "string", cardinality: "single" },
     shortName: { kind: "string", cardinality: "single" },
     fullName: { kind: "string", cardinality: "single" },
     country: { kind: "string", cardinality: "multi" },

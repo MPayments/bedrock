@@ -75,6 +75,14 @@ describe("counterparties validation", () => {
     expect(parsed.country).toEqual(["US", "DE"]);
   });
 
+  it("parses list query with customer filter", () => {
+    const parsed = ListCounterpartiesQuerySchema.parse({
+      customerId: "550e8400-e29b-41d4-a716-446655440001",
+    });
+
+    expect(parsed.customerId).toBe("550e8400-e29b-41d4-a716-446655440001");
+  });
+
   it("parses create counterparty group input", () => {
     const parsed = CreateCounterpartyGroupInputSchema.parse({
       code: "customer-vip",

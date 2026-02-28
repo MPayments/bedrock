@@ -2,45 +2,56 @@ import { Landmark } from "lucide-react";
 
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@bedrock/ui/components/card";
-import { Separator } from "@bedrock/ui/components/separator";
 
-import { FundingPageClient } from "./components/funding-page-client";
+import { DataTableSkeleton } from "@/components/data-table/skeleton";
+import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
+import { OperationsJournalTable } from "@/app/(shell)/operations/journal/components/operations-journal-table";
+import { getOperations } from "@/app/(shell)/operations/journal/lib/queries";
+import { searchParamsCache } from "@/app/(shell)/operations/journal/lib/validations";
+
+import { CreateFundingDialog } from "./components/create-funding-dialog";
 import { getExternalFundingFormOptions } from "./lib/queries";
 
-export default async function OperationsFundingPage() {
-  const formOptions = await getExternalFundingFormOptions();
+interface OperationsFundingPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function OperationsFundingPage({
+  searchParams,
+}: OperationsFundingPageProps) {
+  const parsedSearch = await searchParamsCache.parse(searchParams);
+
+  const formOptionsPromise = getExternalFundingFormOptions();
+  const fundingOperationsPromise = getOperations({
+    ...parsedSearch,
+    sourceType: ["treasury/external_funding"],
+  });
+  const formOptions = await formOptionsPromise;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <div className="bg-muted rounded-lg p-2.5">
-          <Landmark className="text-muted-foreground h-5 w-5" />
-        </div>
-        <div>
-          <h3 className="text-xl font-semibold">Внешнее пополнение</h3>
-          <p className="text-muted-foreground text-sm">
-            Ввод средств извне, депозитов клиентов и начальных остатков.
-          </p>
-        </div>
-      </div>
-      <Separator className="h-px w-full" />
-
+    <EntityListPageShell
+      icon={Landmark}
+      title="Внешнее пополнение"
+      description="Ввод средств извне, депозитов клиентов и начальных остатков."
+      actions={<CreateFundingDialog formOptions={formOptions} />}
+      fallback={
+        <DataTableSkeleton columnCount={8} rowCount={10} filterCount={4} />
+      }
+    >
       <Card className="rounded-sm">
         <CardHeader className="border-b">
-          <CardTitle>Новая операция</CardTitle>
+          <CardTitle>Журнал пополнений</CardTitle>
           <CardDescription>
-            Создает ledger operation по сценарию external funding/opening balance.
+            Отображаются операции, созданные сценарием внешнего пополнения и
+            ввода начального остатка.
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-4">
-          <FundingPageClient formOptions={formOptions} />
-        </CardContent>
       </Card>
-    </div>
+      <OperationsJournalTable promise={fundingOperationsPromise} />
+    </EntityListPageShell>
   );
 }

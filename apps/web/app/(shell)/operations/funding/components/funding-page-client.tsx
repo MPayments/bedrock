@@ -136,8 +136,15 @@ export function FundingPageClient({ formOptions }: FundingPageClientProps) {
       ) ?? null,
     [form.operationalAccountId, formOptions.accounts],
   );
+  const selectedCounterparty = useMemo(
+    () =>
+      formOptions.counterparties.find(
+        (counterparty) => counterparty.id === form.counterpartyId,
+      ) ?? null,
+    [form.counterpartyId, formOptions.counterparties],
+  );
 
-  async function handleSubmit(event: SubmitEvent) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!selectedAccount) {
@@ -239,7 +246,7 @@ export function FundingPageClient({ formOptions }: FundingPageClientProps) {
             }
           >
             <SelectTrigger id="funding-kind">
-              <SelectValue />
+              <SelectValue>{kindLabel(form.kind)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="founder_equity">
@@ -270,7 +277,11 @@ export function FundingPageClient({ formOptions }: FundingPageClientProps) {
             }
           >
             <SelectTrigger id="funding-account">
-              <SelectValue placeholder="Выберите счет" />
+              <SelectValue placeholder="Выберите счет">
+                {selectedAccount
+                  ? `${selectedAccount.label} (${selectedAccount.currencyCode})`
+                  : undefined}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {formOptions.accounts.map((account) => (
@@ -301,7 +312,9 @@ export function FundingPageClient({ formOptions }: FundingPageClientProps) {
               }
             >
               <SelectTrigger id="funding-counterparty">
-                <SelectValue placeholder="Выберите контрагента" />
+                <SelectValue placeholder="Выберите контрагента">
+                  {selectedCounterparty?.displayName}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {formOptions.counterparties.map((counterparty) => (

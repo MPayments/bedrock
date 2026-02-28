@@ -20,6 +20,7 @@ import { formatDate } from "@/lib/format";
 
 import { SOURCE_LABELS } from "../lib/constants";
 import type { SerializedSourceStatus } from "../lib/queries";
+import { FxSourceAvatar } from "./fx-source-avatar";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = {
   ok: "default",
@@ -70,9 +71,12 @@ export function RateSourcesPanel({ initialSources }: RateSourcesPanelProps) {
       {initialSources.map((source) => (
         <Card key={source.source} className="rounded-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {SOURCE_LABELS[source.source] ?? source.source}
-            </CardTitle>
+            <div className="flex min-w-0 items-center gap-2">
+              <FxSourceAvatar source={source.source} />
+              <CardTitle className="truncate text-sm font-medium">
+                {SOURCE_LABELS[source.source] ?? source.source}
+              </CardTitle>
+            </div>
             <Badge variant={STATUS_VARIANT[source.lastStatus] ?? "secondary"}>
               {STATUS_LABEL[source.lastStatus] ?? source.lastStatus}
             </Badge>

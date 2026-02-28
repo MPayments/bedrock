@@ -1,4 +1,4 @@
-import { and, asc, desc, ilike, inArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
 import { schema } from "@bedrock/db/schema";
 import { isUuidLike } from "@bedrock/kernel";
@@ -42,6 +42,7 @@ export function createListCounterpartiesHandler(
       offset,
       sortBy,
       sortOrder,
+      customerId,
       shortName,
       fullName,
       country,
@@ -57,6 +58,14 @@ export function createListCounterpartiesHandler(
       limit,
       offset,
     } satisfies PaginatedList<Counterparty>;
+
+    if (customerId) {
+      if (!isUuidLike(customerId)) {
+        return emptyResult;
+      }
+
+      conditions.push(eq(schema.counterparties.customerId, customerId));
+    }
 
     if (shortName) {
       conditions.push(ilike(schema.counterparties.shortName, `%${shortName}%`));
