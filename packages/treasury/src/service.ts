@@ -1,3 +1,4 @@
+import { createExternalFundingHandler } from "./commands/external-funding";
 import { createExecuteFxHandler } from "./commands/execute-fx";
 import { createFeePaymentHandlers } from "./commands/fee-payment";
 import { createFundingSettledHandler } from "./commands/funding";
@@ -7,17 +8,19 @@ import { createTreasuryContext, type TreasuryServiceDeps } from "./internal/cont
 export type TreasuryService = ReturnType<typeof createTreasuryService>;
 
 export function createTreasuryService(deps: TreasuryServiceDeps) {
-    const context = createTreasuryContext(deps);
+  const context = createTreasuryContext(deps);
 
-    const fundingSettled = createFundingSettledHandler(context);
-    const executeFx = createExecuteFxHandler(context);
-    const payoutHandlers = createPayoutHandlers(context);
-    const feePaymentHandlers = createFeePaymentHandlers(context);
+  const fundingSettled = createFundingSettledHandler(context);
+  const externalFunding = createExternalFundingHandler(context);
+  const executeFx = createExecuteFxHandler(context);
+  const payoutHandlers = createPayoutHandlers(context);
+  const feePaymentHandlers = createFeePaymentHandlers(context);
 
-    return {
-        fundingSettled,
-        executeFx,
-        ...payoutHandlers,
-        ...feePaymentHandlers,
-    }
+  return {
+    fundingSettled,
+    externalFunding,
+    executeFx,
+    ...payoutHandlers,
+    ...feePaymentHandlers,
+  };
 }

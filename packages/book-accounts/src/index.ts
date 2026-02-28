@@ -1,3 +1,5 @@
+import { and, eq } from "drizzle-orm";
+
 import type { Transaction } from "@bedrock/db";
 import { schema, type Dimensions } from "@bedrock/db/schema";
 import {
@@ -61,29 +63,42 @@ export async function ensureBookAccountInstanceTx(
       tbLedger,
       tbAccountId,
     })
-    .onConflictDoUpdate({
-      target: [
-        schema.bookAccountInstances.bookOrgId,
-        schema.bookAccountInstances.accountNo,
-        schema.bookAccountInstances.currency,
-        schema.bookAccountInstances.dimensionsHash,
-      ],
-      set: {
-        tbLedger,
-        tbAccountId,
-        dimensions: input.dimensions,
-      },
-    })
+    .onConflictDoNothing()
     .returning({
       id: schema.bookAccountInstances.id,
       tbLedger: schema.bookAccountInstances.tbLedger,
       tbAccountId: schema.bookAccountInstances.tbAccountId,
     });
 
-  const existing = inserted[0];
+  if (inserted[0]) {
+    return {
+      id: inserted[0].id,
+      dimensionsHash,
+      tbLedger,
+      tbAccountId,
+    };
+  }
+
+  const [existing] = await tx
+    .select({
+      id: schema.bookAccountInstances.id,
+      tbLedger: schema.bookAccountInstances.tbLedger,
+      tbAccountId: schema.bookAccountInstances.tbAccountId,
+    })
+    .from(schema.bookAccountInstances)
+    .where(
+      and(
+        eq(schema.bookAccountInstances.bookOrgId, input.bookOrgId),
+        eq(schema.bookAccountInstances.accountNo, input.accountNo),
+        eq(schema.bookAccountInstances.currency, input.currency),
+        eq(schema.bookAccountInstances.dimensionsHash, dimensionsHash),
+      ),
+    )
+    .limit(1);
+
   if (!existing) {
     throw new Error(
-      `book account instance upsert failed unexpectedly for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}`,
+      `book account instance insert/select failed unexpectedly for org=${input.bookOrgId}, accountNo=${input.accountNo}, currency=${input.currency}`,
     );
   }
 

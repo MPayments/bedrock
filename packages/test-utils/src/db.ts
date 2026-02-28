@@ -105,6 +105,9 @@ function createSelectChain(data: unknown[] = []) {
   return {
     from: vi.fn(() => ({
       where: vi.fn(() => ({
+        for: vi.fn(() => ({
+          limit: vi.fn(async () => data),
+        })),
         limit: vi.fn(async () => data),
         orderBy: vi.fn(() => ({
           limit: vi.fn(async () => data),

@@ -82,6 +82,11 @@ export const navMainItems: NavMainItem[] = [
         icon: CreditCard,
       },
       {
+        title: "Пополнения",
+        url: "/operations/funding",
+        icon: DollarSign,
+      },
+      {
         title: "Расчетные операции",
         url: "/operations/settlements",
         icon: ListChecks,

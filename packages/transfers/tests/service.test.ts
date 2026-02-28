@@ -8,6 +8,7 @@ import {
 } from "@bedrock/test-utils";
 
 import {
+  InsufficientFundsError,
   InvalidStateError,
   MakerCheckerViolationError,
   NotFoundError,
@@ -112,7 +113,9 @@ function selectCountReturning(rows: unknown[]) {
 
 describe("createTransfersService (v2)", () => {
   let db: StubDatabase;
-  let operationalAccountsService: { resolveTransferBindings: ReturnType<typeof vi.fn> };
+  let operationalAccountsService: {
+    resolveTransferBindings: ReturnType<typeof vi.fn>;
+  };
   let ledger: { commit: ReturnType<typeof vi.fn> };
   let service: ReturnType<typeof createTransfersService>;
 
@@ -140,6 +143,7 @@ describe("createTransfersService (v2)", () => {
 
   beforeEach(() => {
     db = createStubDb();
+    db._tx.execute.mockResolvedValue({ rows: [{ balance_minor: "1000000" }] });
     operationalAccountsService = {
       resolveTransferBindings: vi.fn(async () => [
         sourceBinding,
@@ -190,7 +194,9 @@ describe("createTransfersService (v2)", () => {
     });
 
     expect(transferId).toBe(TRANSFER_ID);
-    expect(operationalAccountsService.resolveTransferBindings).toHaveBeenCalledWith({
+    expect(
+      operationalAccountsService.resolveTransferBindings,
+    ).toHaveBeenCalledWith({
       accountIds: [SOURCE_ACCOUNT_ID, DESTINATION_ACCOUNT_ID],
     });
   });
@@ -280,6 +286,9 @@ describe("createTransfersService (v2)", () => {
             }),
           ]),
         ),
+        execute: vi.fn(async () => ({
+          rows: [{ balance_minor: "1000000" }],
+        })),
         update: vi.fn(() => updateReturning([{ id: TRANSFER_ID }])),
       };
       return fn(tx);
@@ -315,8 +324,14 @@ describe("createTransfersService (v2)", () => {
             selectReturning([createTransfer({ status: "draft" })]),
           )
           .mockImplementationOnce(() =>
+            selectReturning([{ id: SOURCE_ACCOUNT_ID }]),
+          )
+          .mockImplementationOnce(() =>
             selectReturning([{ status: "failed", ledgerOperationId: opId }]),
           ),
+        execute: vi.fn(async () => ({
+          rows: [{ balance_minor: "1000000" }],
+        })),
         update: vi.fn(() => updateReturning([])),
       };
       return fn(tx);
@@ -349,6 +364,27 @@ describe("createTransfersService (v2)", () => {
       transferId: TRANSFER_ID,
       ledgerOperationId: "550e8400-e29b-41d4-a716-446655440888",
     });
+    expect(ledger.commit).not.toHaveBeenCalled();
+  });
+
+  it("rejects approve when source account has insufficient funds", async () => {
+    mockSelectReturns(db._tx.select, [
+      createTransfer({
+        status: "draft",
+        amountMinor: 2000n,
+      }),
+    ]);
+    db._tx.execute.mockResolvedValue({
+      rows: [{ balance_minor: "1000" }],
+    });
+
+    await expect(
+      service.approve({
+        transferId: TRANSFER_ID,
+        checkerUserId: CHECKER_USER_ID,
+        occurredAt: new Date("2026-02-25T00:00:00.000Z"),
+      }),
+    ).rejects.toThrow(InsufficientFundsError);
     expect(ledger.commit).not.toHaveBeenCalled();
   });
 
@@ -390,7 +426,9 @@ describe("createTransfersService (v2)", () => {
         select: vi
           .fn()
           .mockImplementationOnce(() => selectReturning([draftTransfer]))
-          .mockImplementationOnce(() => selectReturning([{ status: "rejected" }])),
+          .mockImplementationOnce(() =>
+            selectReturning([{ status: "rejected" }]),
+          ),
         update: vi.fn(() => updateReturning([])),
       };
       return fn(tx);
@@ -500,7 +538,9 @@ describe("createTransfersService (v2)", () => {
           .mockImplementationOnce(() =>
             selectReturning([{ ledgerOperationId: operationId }]),
           )
-          .mockImplementationOnce(() => selectReturning([{ status: "posted" }])),
+          .mockImplementationOnce(() =>
+            selectReturning([{ status: "posted" }]),
+          ),
         insert: vi.fn(() => insertReturning([])),
         update: vi.fn(() => updateReturning([{ id: TRANSFER_ID }])),
       };
@@ -542,7 +582,9 @@ describe("createTransfersService (v2)", () => {
               { ledgerOperationId: "550e8400-e29b-41d4-a716-446655440996" },
             ]),
           )
-          .mockImplementationOnce(() => selectReturning([{ status: "posted" }])),
+          .mockImplementationOnce(() =>
+            selectReturning([{ status: "posted" }]),
+          ),
       };
       return fn(tx);
     });

@@ -5,7 +5,11 @@ export const ACCOUNT_NO = {
   CLEARING_GROUP: "1300",
   LIABILITIES: "2000",
   OPERATING_LIABILITIES: "2100",
+  SHAREHOLDER_LOAN: "2210",
   EQUITY: "3000",
+  FOUNDER_EQUITY: "3110",
+  INVESTOR_EQUITY: "3120",
+  OPENING_BALANCE_EQUITY: "3200",
   REVENUES: "4000",
   EXPENSES: "5000",
 
@@ -51,6 +55,7 @@ export const OPERATION_CODE = {
   TRANSFER_VOID_PENDING: "TRANSFER_VOID_PENDING",
 
   TREASURY_FUNDING_SETTLED: "TREASURY_FUNDING_SETTLED",
+  TREASURY_EXTERNAL_FUNDING: "TREASURY_EXTERNAL_FUNDING",
   TREASURY_FX_EXECUTED: "TREASURY_FX_EXECUTED",
   TREASURY_PAYOUT_INIT: "TREASURY_PAYOUT_INIT",
   TREASURY_PAYOUT_SETTLE: "TREASURY_PAYOUT_SETTLE",
@@ -69,6 +74,10 @@ export const POSTING_CODE = {
   TRANSFER_CROSS_DEST_PENDING: "TR.CROSS.DEST.PENDING",
 
   FUNDING_SETTLED: "TC.1001",
+  EXTERNAL_FUNDING_FOUNDER_EQUITY: "TC.9001",
+  EXTERNAL_FUNDING_INVESTOR_EQUITY: "TC.9002",
+  EXTERNAL_FUNDING_SHAREHOLDER_LOAN: "TC.9003",
+  EXTERNAL_FUNDING_OPENING_BALANCE: "TC.9005",
   FX_PRINCIPAL: "TC.2001",
   FX_PAYOUT_OBLIGATION: "TC.2005",
   FX_LEG_OUT: "TC.2009",
@@ -187,6 +196,15 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     parentAccountNo: ACCOUNT_NO.LIABILITIES,
   },
   {
+    accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN,
+    name: "Займ от учредителя/инвестора",
+    kind: "liability",
+    normalSide: "credit",
+    postingAllowed: true,
+    enabled: true,
+    parentAccountNo: ACCOUNT_NO.LIABILITIES,
+  },
+  {
     accountNo: ACCOUNT_NO.EQUITY,
     name: "Капитал",
     kind: "equity",
@@ -194,6 +212,33 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
     postingAllowed: false,
     enabled: true,
     parentAccountNo: null,
+  },
+  {
+    accountNo: ACCOUNT_NO.FOUNDER_EQUITY,
+    name: "Вклад учредителя",
+    kind: "equity",
+    normalSide: "credit",
+    postingAllowed: true,
+    enabled: true,
+    parentAccountNo: ACCOUNT_NO.EQUITY,
+  },
+  {
+    accountNo: ACCOUNT_NO.INVESTOR_EQUITY,
+    name: "Инвестиции в капитал",
+    kind: "equity",
+    normalSide: "credit",
+    postingAllowed: true,
+    enabled: true,
+    parentAccountNo: ACCOUNT_NO.EQUITY,
+  },
+  {
+    accountNo: ACCOUNT_NO.OPENING_BALANCE_EQUITY,
+    name: "Балансирующий капитал",
+    kind: "equity",
+    normalSide: "credit",
+    postingAllowed: true,
+    enabled: true,
+    parentAccountNo: ACCOUNT_NO.EQUITY,
   },
   {
     accountNo: ACCOUNT_NO.REVENUES,
@@ -360,6 +405,28 @@ export const DEFAULT_ACCOUNT_DIMENSION_POLICIES: AccountDimensionPolicy[] = [
   { accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION, dimensionKey: DIM.clearingKind, mode: "forbidden" },
   { accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION, dimensionKey: DIM.customerId, mode: "forbidden" },
 
+  // EXTERNAL FUNDING LIABILITY/EQUITY ACCOUNTS
+  { accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN, dimensionKey: DIM.counterpartyId, mode: "required" },
+  { accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN, dimensionKey: DIM.operationalAccountId, mode: "forbidden" },
+  { accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN, dimensionKey: DIM.orderId, mode: "forbidden" },
+  { accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN, dimensionKey: DIM.customerId, mode: "forbidden" },
+  { accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN, dimensionKey: DIM.feeBucket, mode: "forbidden" },
+  { accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN, dimensionKey: DIM.clearingKind, mode: "forbidden" },
+
+  { accountNo: ACCOUNT_NO.FOUNDER_EQUITY, dimensionKey: DIM.counterpartyId, mode: "required" },
+  { accountNo: ACCOUNT_NO.FOUNDER_EQUITY, dimensionKey: DIM.operationalAccountId, mode: "forbidden" },
+  { accountNo: ACCOUNT_NO.FOUNDER_EQUITY, dimensionKey: DIM.orderId, mode: "forbidden" },
+  { accountNo: ACCOUNT_NO.FOUNDER_EQUITY, dimensionKey: DIM.customerId, mode: "forbidden" },
+  { accountNo: ACCOUNT_NO.FOUNDER_EQUITY, dimensionKey: DIM.feeBucket, mode: "forbidden" },
+  { accountNo: ACCOUNT_NO.FOUNDER_EQUITY, dimensionKey: DIM.clearingKind, mode: "forbidden" },
+
+  { accountNo: ACCOUNT_NO.INVESTOR_EQUITY, dimensionKey: DIM.counterpartyId, mode: "required" },
+  { accountNo: ACCOUNT_NO.INVESTOR_EQUITY, dimensionKey: DIM.operationalAccountId, mode: "forbidden" },
+  { accountNo: ACCOUNT_NO.INVESTOR_EQUITY, dimensionKey: DIM.orderId, mode: "forbidden" },
+  { accountNo: ACCOUNT_NO.INVESTOR_EQUITY, dimensionKey: DIM.customerId, mode: "forbidden" },
+  { accountNo: ACCOUNT_NO.INVESTOR_EQUITY, dimensionKey: DIM.feeBucket, mode: "forbidden" },
+  { accountNo: ACCOUNT_NO.INVESTOR_EQUITY, dimensionKey: DIM.clearingKind, mode: "forbidden" },
+
   // PROVIDER_FEE_EXPENSE: feeBucket+orderId required, counterpartyId optional
   { accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE, dimensionKey: DIM.feeBucket, mode: "required" },
   { accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE, dimensionKey: DIM.orderId, mode: "required" },
@@ -387,6 +454,13 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
   // BANK(debit) → CUSTOMER_WALLET(credit)
   { postingCode: POSTING_CODE.FUNDING_SETTLED, dimensionKey: DIM.customerId, required: true, scope: "credit" },
   { postingCode: POSTING_CODE.FUNDING_SETTLED, dimensionKey: DIM.operationalAccountId, required: true, scope: "debit" },
+  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY, dimensionKey: DIM.operationalAccountId, required: true, scope: "debit" },
+  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY, dimensionKey: DIM.counterpartyId, required: true, scope: "credit" },
+  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY, dimensionKey: DIM.operationalAccountId, required: true, scope: "debit" },
+  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY, dimensionKey: DIM.counterpartyId, required: true, scope: "credit" },
+  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN, dimensionKey: DIM.operationalAccountId, required: true, scope: "debit" },
+  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN, dimensionKey: DIM.counterpartyId, required: true, scope: "credit" },
+  { postingCode: POSTING_CODE.EXTERNAL_FUNDING_OPENING_BALANCE, dimensionKey: DIM.operationalAccountId, required: true, scope: "debit" },
 
   // --- FX ---
   // CW(debit) → ORDER_RESERVE(credit)
@@ -479,6 +553,26 @@ export const DEFAULT_GLOBAL_CORRESPONDENCE_RULES = [
     postingCode: POSTING_CODE.FUNDING_SETTLED,
     debitAccountNo: ACCOUNT_NO.BANK,
     creditAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+  },
+  {
+    postingCode: POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY,
+    debitAccountNo: ACCOUNT_NO.BANK,
+    creditAccountNo: ACCOUNT_NO.FOUNDER_EQUITY,
+  },
+  {
+    postingCode: POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY,
+    debitAccountNo: ACCOUNT_NO.BANK,
+    creditAccountNo: ACCOUNT_NO.INVESTOR_EQUITY,
+  },
+  {
+    postingCode: POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
+    debitAccountNo: ACCOUNT_NO.BANK,
+    creditAccountNo: ACCOUNT_NO.SHAREHOLDER_LOAN,
+  },
+  {
+    postingCode: POSTING_CODE.EXTERNAL_FUNDING_OPENING_BALANCE,
+    debitAccountNo: ACCOUNT_NO.BANK,
+    creditAccountNo: ACCOUNT_NO.OPENING_BALANCE_EQUITY,
   },
   {
     postingCode: POSTING_CODE.FX_PRINCIPAL,

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 
+import { ACCOUNT_NO, OPERATION_CODE } from "@bedrock/accounting";
 import { createCurrenciesService } from "@bedrock/currencies";
 import { createFeesService } from "@bedrock/fees";
 import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
@@ -30,6 +31,103 @@ describe("Treasury Service Integration Tests", () => {
   const ledger = createLedgerEngine({ db });
   const currenciesService = createCurrenciesService({ db });
   const feesService = createFeesService({ db, currenciesService });
+
+  describe("externalFunding", () => {
+    const cases: {
+      kind:
+        | "founder_equity"
+        | "investor_equity"
+        | "shareholder_loan"
+        | "opening_balance";
+      expectedCreditAccountNo: string;
+    }[] = [
+      {
+        kind: "founder_equity",
+        expectedCreditAccountNo: ACCOUNT_NO.FOUNDER_EQUITY,
+      },
+      {
+        kind: "investor_equity",
+        expectedCreditAccountNo: ACCOUNT_NO.INVESTOR_EQUITY,
+      },
+      {
+        kind: "shareholder_loan",
+        expectedCreditAccountNo: ACCOUNT_NO.SHAREHOLDER_LOAN,
+      },
+      {
+        kind: "opening_balance",
+        expectedCreditAccountNo: ACCOUNT_NO.OPENING_BALANCE_EQUITY,
+      },
+    ];
+
+    for (const testCase of cases) {
+      it(`creates external funding operation for ${testCase.kind}`, async () => {
+        const scenario = await createTestScenario();
+        const service = createTreasuryService({
+          db,
+          ledger,
+          feesService,
+          currenciesService,
+        });
+
+        const entryRef = randomRailRef();
+        const entryId = await service.externalFunding({
+          kind: testCase.kind,
+          operationalAccountId: scenario.branchAccount.id,
+          currency: "USD",
+          amountMinor: 25000n,
+          entryRef,
+          occurredAt: new Date(),
+          counterpartyId:
+            testCase.kind === "founder_equity" ||
+            testCase.kind === "investor_equity" ||
+            testCase.kind === "shareholder_loan"
+              ? scenario.branchCounterparty.id
+              : undefined,
+        });
+
+        const entry = await getJournalEntry(entryId);
+        expect(entry).toBeDefined();
+        expect(entry!.status).toBe("pending");
+        expect(entry!.operationCode).toBe(
+          OPERATION_CODE.TREASURY_EXTERNAL_FUNDING,
+        );
+        expect(entry!.idempotencyKey).toBe(
+          `external_funding:${testCase.kind}:${entryRef}`,
+        );
+
+        const lines = await getJournalLines(entryId);
+        expect(lines).toHaveLength(2);
+
+        const debitLine = lines.find((line) => line.side === "debit");
+        const creditLine = lines.find((line) => line.side === "credit");
+        expect(debitLine).toBeDefined();
+        expect(creditLine).toBeDefined();
+        expect(debitLine!.accountKey).toBe(ACCOUNT_NO.BANK);
+        expect(creditLine!.accountKey).toBe(testCase.expectedCreditAccountNo);
+      });
+    }
+
+    it("throws CurrencyMismatchError when account currency differs", async () => {
+      const scenario = await createTestScenario();
+      const service = createTreasuryService({
+        db,
+        ledger,
+        feesService,
+        currenciesService,
+      });
+
+      await expect(
+        service.externalFunding({
+          kind: "opening_balance",
+          operationalAccountId: scenario.branchAccount.id,
+          currency: "EUR",
+          amountMinor: 10000n,
+          entryRef: randomRailRef(),
+          occurredAt: new Date(),
+        }),
+      ).rejects.toThrow(CurrencyMismatchError);
+    });
+  });
 
   describe("fundingSettled", () => {
     it("should process funding and create ledger entry", async () => {
@@ -759,5 +857,4 @@ describe("Treasury Service Integration Tests", () => {
       expect(order!.status).toBe("failed_pending_posting");
     });
   });
-
 });

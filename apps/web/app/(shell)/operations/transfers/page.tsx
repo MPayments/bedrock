@@ -10,6 +10,7 @@ import {
 } from "@bedrock/ui/components/card";
 import { Separator } from "@bedrock/ui/components/separator";
 
+import { CreateTransferDialog } from "./components/create-transfer-dialog";
 import { TransfersPageClient } from "./components/transfers-page-client";
 import { getTransferFormOptions, getTransfers } from "./lib/queries";
 import { searchParamsCache } from "./lib/validations";
@@ -62,17 +63,20 @@ export default async function OperationsTransfersPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <div className="bg-muted rounded-lg p-2.5">
-          <ArrowRightLeft className="text-muted-foreground h-5 w-5" />
+      <div className="flex w-full flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="bg-muted rounded-lg p-2.5">
+            <ArrowRightLeft className="text-muted-foreground h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="mb-1 text-xl font-semibold">Операции переводов</h3>
+            <p className="text-muted-foreground hidden text-sm md:block">
+              Черновики, approve/reject, pending settle/void и связь с ledger
+              operation.
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-xl font-semibold">Операции переводов</h3>
-          <p className="text-muted-foreground text-sm">
-            Черновики, approve/reject, pending settle/void и связь с ledger
-            operation.
-          </p>
-        </div>
+        <CreateTransferDialog formOptions={formOptions} />
       </div>
       <Separator className="h-px w-full" />
 
@@ -175,9 +179,8 @@ export default async function OperationsTransfersPage({
 
       <TransfersPageClient
         transfers={transfers.data}
-        formOptions={formOptions}
+        currencies={formOptions.currencies}
       />
-
       <div className="flex items-center justify-between">
         <p className="text-muted-foreground text-sm">
           Всего: {transfers.total}. Страница {currentPage} из {totalPages}

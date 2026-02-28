@@ -11,8 +11,8 @@
     "test": "vitest run --project db --project countries --project customers --project currencies --project fees --project fx --project ledger --project treasury --project transfers --project counterparties",
     "test:watch": "vitest --project db --project countries --project customers --project currencies --project fees --project fx --project ledger --project treasury --project transfers --project counterparties",
     "test:coverage": "vitest run --coverage --project db --project countries --project customers --project currencies --project fees --project fx --project ledger --project treasury --project transfers --project counterparties",
-    "test:integration": "vitest run --project customers:integration --project fees:integration --project fx:integration --project ledger:integration --project treasury:integration",
-    "test:integration:watch": "vitest --project customers:integration --project fees:integration --project fx:integration --project ledger:integration --project treasury:integration",
+    "test:integration": "vitest run --project customers:integration --project fees:integration --project fx:integration --project ledger:integration --project treasury:integration --project transfers:integration",
+    "test:integration:watch": "vitest --project customers:integration --project fees:integration --project fx:integration --project ledger:integration --project treasury:integration --project transfers:integration",
     "test:all": "npm run test && npm run test:integration",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "knip": "knip"

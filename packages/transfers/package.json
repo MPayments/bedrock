@@ -25,6 +25,9 @@
   "devDependencies": {
     "@bedrock/typescript-config": "workspace:*",
     "@bedrock/test-utils": "workspace:*",
+    "@types/pg": "^8.16.0",
+    "pg": "^8.18.0",
+    "tigerbeetle-node": "^0.16.72",
     "@types/node": "^24",
     "typescript": "^5.8.3",
     "@bedrock/eslint-config": "workspace:*",

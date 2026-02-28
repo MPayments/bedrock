@@ -4,6 +4,8 @@ import {
   ACCOUNT_NO,
   AccountingError,
   CorrespondenceRuleNotFoundError,
+  DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
+  DEFAULT_POSTING_CODE_DIMENSION_POLICIES,
   OPERATION_CODE,
   POSTING_CODE,
 } from "../../accounting/src/index";
@@ -169,6 +171,64 @@ describe("accounting template coverage", () => {
       "manual",
     );
     expect(reserveDecrease.debitAccountNo).toBe(ACCOUNT_NO.ADJUSTMENT_EXPENSE);
+  });
+
+  it("contains correspondence and dimension policies for external funding", () => {
+    expect(
+      DEFAULT_GLOBAL_CORRESPONDENCE_RULES.some(
+        (rule) =>
+          rule.postingCode === POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY &&
+          rule.debitAccountNo === ACCOUNT_NO.BANK &&
+          rule.creditAccountNo === ACCOUNT_NO.FOUNDER_EQUITY,
+      ),
+    ).toBe(true);
+    expect(
+      DEFAULT_GLOBAL_CORRESPONDENCE_RULES.some(
+        (rule) =>
+          rule.postingCode ===
+            POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY &&
+          rule.debitAccountNo === ACCOUNT_NO.BANK &&
+          rule.creditAccountNo === ACCOUNT_NO.INVESTOR_EQUITY,
+      ),
+    ).toBe(true);
+    expect(
+      DEFAULT_GLOBAL_CORRESPONDENCE_RULES.some(
+        (rule) =>
+          rule.postingCode ===
+            POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN &&
+          rule.debitAccountNo === ACCOUNT_NO.BANK &&
+          rule.creditAccountNo === ACCOUNT_NO.SHAREHOLDER_LOAN,
+      ),
+    ).toBe(true);
+    expect(
+      DEFAULT_GLOBAL_CORRESPONDENCE_RULES.some(
+        (rule) =>
+          rule.postingCode ===
+            POSTING_CODE.EXTERNAL_FUNDING_OPENING_BALANCE &&
+          rule.debitAccountNo === ACCOUNT_NO.BANK &&
+          rule.creditAccountNo === ACCOUNT_NO.OPENING_BALANCE_EQUITY,
+      ),
+    ).toBe(true);
+
+    expect(
+      DEFAULT_POSTING_CODE_DIMENSION_POLICIES.some(
+        (row) =>
+          row.postingCode === POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY &&
+          row.dimensionKey === "counterpartyId" &&
+          row.scope === "credit" &&
+          row.required,
+      ),
+    ).toBe(true);
+    expect(
+      DEFAULT_POSTING_CODE_DIMENSION_POLICIES.some(
+        (row) =>
+          row.postingCode ===
+            POSTING_CODE.EXTERNAL_FUNDING_OPENING_BALANCE &&
+          row.dimensionKey === "operationalAccountId" &&
+          row.scope === "debit" &&
+          row.required,
+      ),
+    ).toBe(true);
   });
 });
 

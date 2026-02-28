@@ -180,16 +180,18 @@ export async function isReplayIncomplete(input: {
   lines: IntentLine[];
 }): Promise<boolean> {
   const { tx, operationId, lines } = input;
-  const [hasAnyPlan] = await tx
-    .select({ id: schema.tbTransferPlans.id })
-    .from(schema.tbTransferPlans)
-    .where(eq(schema.tbTransferPlans.operationId, operationId))
-    .limit(1);
-  const [hasAnyPosting] = await tx
-    .select({ id: schema.postings.id })
-    .from(schema.postings)
-    .where(eq(schema.postings.operationId, operationId))
-    .limit(1);
+  const [[hasAnyPlan], [hasAnyPosting]] = await Promise.all([
+    tx
+      .select({ id: schema.tbTransferPlans.id })
+      .from(schema.tbTransferPlans)
+      .where(eq(schema.tbTransferPlans.operationId, operationId))
+      .limit(1),
+    tx
+      .select({ id: schema.postings.id })
+      .from(schema.postings)
+      .where(eq(schema.postings.operationId, operationId))
+      .limit(1),
+  ]);
 
   const shouldHavePostings = lines.some(
     (line) => line.type === OPERATION_TRANSFER_TYPE.CREATE,

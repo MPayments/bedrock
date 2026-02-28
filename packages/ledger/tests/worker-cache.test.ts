@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { OPERATION_TRANSFER_TYPE } from "../src/types";
-import { TransferFlags } from "../src/tb";
+
 import {
   createStubDb,
   createMockTbClient,
   mockDbExecuteResult,
   type StubDatabase,
 } from "./helpers";
+import { TransferFlags } from "../src/tb";
+import { OPERATION_TRANSFER_TYPE } from "../src/types";
 
 describe("createLedgerWorker account setup", () => {
   let db: StubDatabase;

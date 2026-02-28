@@ -5,6 +5,7 @@ import { AccountNotFoundError } from "@bedrock/operational-accounts";
 import {
   ApproveTransferInputSchema,
   CreateTransferDraftInputBaseSchema,
+  InsufficientFundsError,
   InvalidStateError,
   ListTransfersQuerySchema,
   MakerCheckerViolationError,
@@ -120,6 +121,9 @@ function handleTransferError(err: unknown) {
     return { status: 403 as const, body: { error: err.message } };
   }
   if (err instanceof InvalidStateError) {
+    return { status: 409 as const, body: { error: err.message } };
+  }
+  if (err instanceof InsufficientFundsError) {
     return { status: 409 as const, body: { error: err.message } };
   }
   if (

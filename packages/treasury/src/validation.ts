@@ -26,6 +26,15 @@ const nonNegativeAmountSchema = z
   .bigint()
   .min(0n, { message: "Amount must be non-negative" });
 const railRefSchema = z.string().min(1, "railRef is required").max(255);
+const entryRefSchema = z.string().min(1, "entryRef is required").max(255);
+
+export const externalFundingKindSchema = z.enum([
+  "founder_equity",
+  "investor_equity",
+  "shareholder_loan",
+  "opening_balance",
+]);
+export type ExternalFundingKind = z.infer<typeof externalFundingKindSchema>;
 
 const feeComponentInputSchema = z
   .object({
@@ -84,6 +93,43 @@ export const fundingSettledInputSchema = z.object({
 });
 
 export type FundingSettledInput = z.infer<typeof fundingSettledInputSchema>;
+
+export const externalFundingInputSchema = z
+  .object({
+    kind: externalFundingKindSchema,
+    operationalAccountId: uuidSchema,
+    currency: currencySchema,
+    amountMinor: positiveAmountSchema,
+    entryRef: entryRefSchema,
+    occurredAt: z.date(),
+    memo: z.string().max(1000).optional(),
+    counterpartyId: uuidSchema.optional(),
+    customerId: uuidSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    const requiresCounterparty =
+      value.kind === "founder_equity" ||
+      value.kind === "investor_equity" ||
+      value.kind === "shareholder_loan";
+
+    if (requiresCounterparty && !value.counterpartyId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["counterpartyId"],
+        message: "counterpartyId is required for selected funding kind",
+      });
+    }
+
+    if (!requiresCounterparty && value.counterpartyId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["counterpartyId"],
+        message: "counterpartyId is not allowed for selected funding kind",
+      });
+    }
+  });
+
+export type ExternalFundingInput = z.infer<typeof externalFundingInputSchema>;
 
 export const executeFxInputSchema = z.object({
   orderId: uuidSchema,
@@ -209,6 +255,12 @@ export function validateFundingSettledInput(
   input: unknown,
 ): FundingSettledInput {
   return validateInput(fundingSettledInputSchema, input, "fundingSettled");
+}
+
+export function validateExternalFundingInput(
+  input: unknown,
+): ExternalFundingInput {
+  return validateInput(externalFundingInputSchema, input, "externalFunding");
 }
 
 export function validateExecuteFxInput(

@@ -28,3 +28,16 @@ export class TransferCurrencyMismatchError extends TransfersError {
         super(`Cross-account transfer requires same currency. source=${sourceCurrencyId}, destination=${destinationCurrencyId}`);
     }
 }
+
+export class InsufficientFundsError extends TransfersError {
+    constructor(
+        public readonly operationalAccountId: string,
+        public readonly currency: string,
+        public readonly available: bigint,
+        public readonly required: bigint
+    ) {
+        super(
+            `Insufficient funds for operationalAccountId=${operationalAccountId}, currency=${currency}: available=${available}, required=${required}`
+        );
+    }
+}

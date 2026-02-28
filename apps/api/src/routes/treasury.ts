@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
+import { IdempotencyConflictError } from "@bedrock/ledger";
 import {
   AmountMismatchError,
   CurrencyMismatchError,
@@ -32,6 +33,23 @@ const fundingSettledBodySchema = z.object({
   amountMinor: amountMinorSchema,
   railRef: z.string().min(1).max(255),
   occurredAt: occurredAtSchema,
+});
+
+const externalFundingBodySchema = z.object({
+  kind: z.enum([
+    "founder_equity",
+    "investor_equity",
+    "shareholder_loan",
+    "opening_balance",
+  ]),
+  operationalAccountId: z.uuid(),
+  currency: z.string().min(2).max(16),
+  amountMinor: amountMinorSchema,
+  entryRef: z.string().min(1).max(255),
+  occurredAt: occurredAtSchema,
+  memo: z.string().max(1000).optional(),
+  counterpartyId: z.uuid().optional(),
+  customerId: z.uuid().optional(),
 });
 
 const executeFxFeeSchema = z.object({
@@ -136,7 +154,10 @@ function handleTreasuryError(error: unknown) {
     return { status: 404 as const, body: { error: toErrorMessage(error) } };
   }
 
-  if (error instanceof InvalidStateError) {
+  if (
+    error instanceof InvalidStateError ||
+    error instanceof IdempotencyConflictError
+  ) {
     return { status: 409 as const, body: { error: toErrorMessage(error) } };
   }
 
@@ -231,6 +252,46 @@ export function treasuryRoutes(ctx: AppContext) {
       409: {
         content: { "application/json": { schema: ErrorSchema } },
         description: "Invalid state transition",
+      },
+    },
+  });
+
+  const externalFundingRoute = createRoute({
+    middleware,
+    method: "post",
+    path: "/funding/external",
+    tags: ["Treasury"],
+    summary: "Post external funding/opening balance operation",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: externalFundingBodySchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: operationAcceptedSchema,
+          },
+        },
+        description: "External funding operation accepted",
+      },
+      400: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Validation error",
+      },
+      404: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Referenced entity not found",
+      },
+      409: {
+        content: { "application/json": { schema: ErrorSchema } },
+        description: "Idempotency conflict or invalid state transition",
       },
     },
   });
@@ -491,6 +552,17 @@ export function treasuryRoutes(ctx: AppContext) {
       try {
         const input = c.req.valid("json");
         const entryId = await ctx.treasuryService.executeFx(input);
+        return c.json({ entryId }, 200);
+      } catch (error) {
+        const handled = handleTreasuryError(error);
+        if (handled) return c.json(handled.body, handled.status);
+        throw error;
+      }
+    })
+    .openapi(externalFundingRoute, async (c) => {
+      try {
+        const input = c.req.valid("json");
+        const entryId = await ctx.treasuryService.externalFunding(input);
         return c.json({ entryId }, 200);
       } catch (error) {
         const handled = handleTreasuryError(error);

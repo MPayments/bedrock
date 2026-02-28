@@ -42,4 +42,5 @@ export {
     PermissionError,
     MakerCheckerViolationError,
     TransferCurrencyMismatchError,
+    InsufficientFundsError,
 } from "./errors";

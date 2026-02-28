@@ -13,6 +13,7 @@ export const SYSTEM_TRANSFERS_LEDGER_ORG_ID =
  * - 2xxx: FX execution operations
  * - 3xxx: Payout operations
  * - 4xxx: Internal transfer operations
+ * - 9xxx: External funding and opening balances
  */
 
 export const TransferCodes = {
@@ -57,6 +58,18 @@ export const TransferCodes = {
 
   /** Internal transfer */
   INTERNAL_TRANSFER: 4001,
+
+  /** Founder equity contribution */
+  EXTERNAL_FUNDING_FOUNDER_EQUITY: 9001,
+
+  /** Investor equity contribution */
+  EXTERNAL_FUNDING_INVESTOR_EQUITY: 9002,
+
+  /** Shareholder/investor loan funding */
+  EXTERNAL_FUNDING_SHAREHOLDER_LOAN: 9003,
+
+  /** Opening balance funding */
+  EXTERNAL_FUNDING_OPENING_BALANCE: 9005,
 } as const;
 
 export type TransferCode = (typeof TransferCodes)[keyof typeof TransferCodes];

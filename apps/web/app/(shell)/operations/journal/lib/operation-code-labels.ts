@@ -6,6 +6,7 @@ const OPERATION_CODE_LABELS: Record<string, string> = {
   TRANSFER_SETTLE_PENDING: "Проведение удержанного перевода",
   TRANSFER_VOID_PENDING: "Отмена удержанного перевода",
   TREASURY_FUNDING_SETTLED: "Зачисление фондирования",
+  TREASURY_EXTERNAL_FUNDING: "Внешнее пополнение / ввод остатка",
   TREASURY_FX_EXECUTED: "Исполнение FX-сделки",
   TREASURY_PAYOUT_INIT: "Инициация выплаты",
   TREASURY_PAYOUT_SETTLE: "Проведение выплаты",

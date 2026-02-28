@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { buildTransferApproveTemplate } from "@bedrock/accounting";
+import { ACCOUNT_NO, buildTransferApproveTemplate } from "@bedrock/accounting";
 import type { Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import {
@@ -9,7 +9,11 @@ import {
 } from "@bedrock/kernel/constants";
 import { NotFoundError, PermissionError } from "@bedrock/kernel/errors";
 
-import { InvalidStateError, MakerCheckerViolationError } from "../errors";
+import {
+  InsufficientFundsError,
+  InvalidStateError,
+  MakerCheckerViolationError,
+} from "../errors";
 import type { TransfersServiceContext } from "../internal/context";
 import { createResolveTransferBindings } from "../internal/shared";
 import type { ActionOptions, TransfersServiceResult } from "../types";
@@ -17,6 +21,56 @@ import {
   type ApproveTransferInput,
   validateApproveTransferInput,
 } from "../validation";
+
+async function lockOperationalAccount(
+  tx: Transaction,
+  operationalAccountId: string,
+) {
+  const [account] = await tx
+    .select({ id: schema.operationalAccounts.id })
+    .from(schema.operationalAccounts)
+    .where(eq(schema.operationalAccounts.id, operationalAccountId))
+    .for("update")
+    .limit(1);
+
+  if (!account) {
+    throw new NotFoundError("OperationalAccount", operationalAccountId);
+  }
+}
+
+async function getAvailableBalanceByOperationalAccount(
+  tx: Transaction,
+  operationalAccountId: string,
+  currency: string,
+): Promise<bigint> {
+  const result = await tx.execute(sql`
+    SELECT COALESCE(SUM(delta), 0)::text AS balance_minor
+    FROM (
+      SELECT p.amount_minor AS delta
+      FROM ${schema.bookAccountInstances} inst
+      JOIN ${schema.postings} p ON p.debit_instance_id = inst.id
+      JOIN ${schema.ledgerOperations} lo ON lo.id = p.operation_id
+      WHERE inst.account_no = ${ACCOUNT_NO.BANK}
+        AND inst.currency = ${currency}
+        AND inst.dimensions->>'operationalAccountId' = ${operationalAccountId}
+        AND lo.status IN ('pending', 'posted')
+
+      UNION ALL
+
+      SELECT -p.amount_minor AS delta
+      FROM ${schema.bookAccountInstances} inst
+      JOIN ${schema.postings} p ON p.credit_instance_id = inst.id
+      JOIN ${schema.ledgerOperations} lo ON lo.id = p.operation_id
+      WHERE inst.account_no = ${ACCOUNT_NO.BANK}
+        AND inst.currency = ${currency}
+        AND inst.dimensions->>'operationalAccountId' = ${operationalAccountId}
+        AND lo.status IN ('pending', 'posted')
+    ) t
+  `);
+
+  const [row] = result.rows as { balance_minor: string }[];
+  return BigInt(row?.balance_minor ?? "0");
+}
 
 export function createApproveHandler(context: TransfersServiceContext) {
   const { db, ledger, canApprove, log } = context;
@@ -79,6 +133,24 @@ export function createApproveHandler(context: TransfersServiceContext) {
         transfer.sourceOperationalAccountId,
         transfer.destinationOperationalAccountId,
       );
+
+      await lockOperationalAccount(tx, transfer.sourceOperationalAccountId);
+
+      const availableBalance = await getAvailableBalanceByOperationalAccount(
+        tx,
+        transfer.sourceOperationalAccountId,
+        sourceBinding.currencyCode,
+      );
+
+      if (availableBalance < transfer.amountMinor) {
+        throw new InsufficientFundsError(
+          transfer.sourceOperationalAccountId,
+          sourceBinding.currencyCode,
+          availableBalance,
+          transfer.amountMinor,
+        );
+      }
+
       const template = buildTransferApproveTemplate({
         transferId: transfer.id,
         kind: transfer.kind,
