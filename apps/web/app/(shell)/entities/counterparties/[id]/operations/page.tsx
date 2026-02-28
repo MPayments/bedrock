@@ -35,14 +35,14 @@ export default async function CounterpartyOperationsPage({
         <CardHeader className="border-b">
           <CardTitle>Операции контрагента</CardTitle>
           <CardDescription>
-            Проводки и операции ledger, где книга принадлежит текущему контрагенту.
+            Проводки и операции ledger, где книга принадлежит текущему
+            контрагенту.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           <p className="text-muted-foreground text-sm">
-            Отображаются операции с фильтром{" "}
-            <code>counterpartyId={id}</code> по аналитике проводок. Для полного
-            журнала откройте{" "}
+            Отображаются операции с фильтром <code>counterpartyId={id}</code> по
+            аналитике проводок. Для полного журнала откройте{" "}
             <Link href="/operations/journal" className="underline">
               глобальный журнал операций
             </Link>
@@ -53,10 +53,7 @@ export default async function CounterpartyOperationsPage({
 
       <Card className="rounded-sm">
         <CardContent className="p-0">
-          <OperationsJournalTable
-            operations={operations.data}
-            emptyMessage="Для контрагента операции не найдены"
-          />
+          <OperationsJournalTable promise={Promise.resolve(operations)} />
         </CardContent>
       </Card>
     </div>

@@ -144,6 +144,7 @@ export async function listTransferProjections(
     offset: number;
     sortBy: keyof typeof SORT_COLUMN_MAP | undefined;
     sortOrder: "asc" | "desc" | undefined;
+    query?: string;
     sourceCounterpartyId?: string;
     destinationCounterpartyId?: string;
     status?: string[];
@@ -152,6 +153,52 @@ export async function listTransferProjections(
   },
 ): Promise<PaginatedList<TransferOrderProjection>> {
   const conditions: SQL[] = [];
+  if (input.query) {
+    const pattern = `%${input.query}%`;
+
+    conditions.push(sql<boolean>`(
+      ${schema.transferOrders.id}::text ilike ${pattern}
+      or coalesce(${schema.transferOrders.memo}, '') ilike ${pattern}
+      or ${schema.transferOrders.idempotencyKey} ilike ${pattern}
+      or coalesce(${schema.transferOrders.ledgerOperationId}::text, '') ilike ${pattern}
+      or exists (
+        select 1
+        from ${schema.counterparties}
+        where ${schema.counterparties.id} = ${schema.transferOrders.sourceCounterpartyId}
+          and (
+            coalesce(${schema.counterparties.shortName}, '') ilike ${pattern}
+            or coalesce(${schema.counterparties.fullName}, '') ilike ${pattern}
+          )
+      )
+      or exists (
+        select 1
+        from ${schema.counterparties}
+        where ${schema.counterparties.id} = ${schema.transferOrders.destinationCounterpartyId}
+          and (
+            coalesce(${schema.counterparties.shortName}, '') ilike ${pattern}
+            or coalesce(${schema.counterparties.fullName}, '') ilike ${pattern}
+          )
+      )
+      or exists (
+        select 1
+        from ${schema.operationalAccounts}
+        where ${schema.operationalAccounts.id} = ${schema.transferOrders.sourceOperationalAccountId}
+          and coalesce(${schema.operationalAccounts.label}, '') ilike ${pattern}
+      )
+      or exists (
+        select 1
+        from ${schema.operationalAccounts}
+        where ${schema.operationalAccounts.id} = ${schema.transferOrders.destinationOperationalAccountId}
+          and coalesce(${schema.operationalAccounts.label}, '') ilike ${pattern}
+      )
+      or exists (
+        select 1
+        from ${schema.currencies}
+        where ${schema.currencies.id} = ${schema.transferOrders.currencyId}
+          and coalesce(${schema.currencies.code}, '') ilike ${pattern}
+      )
+    )`);
+  }
   if (input.sourceCounterpartyId) {
     conditions.push(
       eq(

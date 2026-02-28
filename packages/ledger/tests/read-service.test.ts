@@ -106,6 +106,27 @@ describe("createLedgerReadService", () => {
     expect(result.data[0]!.currencies).toEqual([]);
   });
 
+  it("supports free-text query search alongside exact filters", async () => {
+    const db = {
+      select: vi
+        .fn()
+        .mockImplementationOnce(() => makeListRowsChain([]))
+        .mockImplementationOnce(() => makeWhereChain([{ total: 0 }])),
+    } as any;
+
+    const service = createLedgerReadService({ db });
+    const result = await service.listOperations({
+      limit: 10,
+      offset: 0,
+      query: "transfer",
+      status: ["pending"],
+      sourceId: "pay-1",
+    });
+
+    expect(result.data).toEqual([]);
+    expect(result.total).toBe(0);
+  });
+
   it("supports filtering by book org and returns zero total fallback", async () => {
     const db = {
       select: vi

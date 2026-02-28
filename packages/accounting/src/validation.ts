@@ -28,6 +28,7 @@ const ACCOUNTING_OPERATIONS_SORTABLE_COLUMNS = [
 ] as const;
 
 interface AccountingOperationsListFilters {
+  query: { kind: "string"; cardinality: "single" };
   status: {
     kind: "string";
     cardinality: "multi";
@@ -47,6 +48,10 @@ export const ACCOUNTING_OPERATIONS_LIST_CONTRACT: ListQueryContract<
   sortableColumns: ACCOUNTING_OPERATIONS_SORTABLE_COLUMNS,
   defaultSort: { id: "createdAt", desc: true },
   filters: {
+    query: {
+      kind: "string",
+      cardinality: "single",
+    },
     status: {
       kind: "string",
       cardinality: "multi",

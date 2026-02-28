@@ -64,10 +64,15 @@ export default async function TransferDetailsPage({
     <div className="flex flex-col gap-4">
       <Card className="rounded-sm">
         <CardHeader className="border-b">
-          <CardTitle>Перевод {transfer.id}</CardTitle>
-          <CardDescription>
-            Детали перевода, статус и жизненный цикл approve/reject/settle/void.
-          </CardDescription>
+          <div className="flex w-full flex-wrap items-start justify-between gap-4">
+            <div>
+              <CardTitle>Перевод {transfer.id}</CardTitle>
+              <CardDescription>
+                Детали переводов.
+              </CardDescription>
+            </div>
+            <TransferActionsClient transfer={transfer} size="lg" />
+          </div>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
           <div className="grid gap-4 md:grid-cols-2">
@@ -139,15 +144,6 @@ export default async function TransferDetailsPage({
           {transfer.lastError ? (
             <div className="text-destructive text-sm">Ошибка: {transfer.lastError}</div>
           ) : null}
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-sm">
-        <CardHeader className="border-b">
-          <CardTitle>Действия</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <TransferActionsClient transfer={transfer} />
         </CardContent>
       </Card>
     </div>

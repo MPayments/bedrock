@@ -12,6 +12,7 @@ import type { TransferDto } from "../lib/queries";
 
 interface TransferActionsClientProps {
   transfer: TransferDto;
+  size?: "default" | "sm" | "lg";
 }
 
 function createIdempotencyKey(prefix: string) {
@@ -22,7 +23,10 @@ function createIdempotencyKey(prefix: string) {
   return `${prefix}:${random}`;
 }
 
-export function TransferActionsClient({ transfer }: TransferActionsClientProps) {
+export function TransferActionsClient({
+  transfer,
+  size = "sm",
+}: TransferActionsClientProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -139,11 +143,16 @@ export function TransferActionsClient({ transfer }: TransferActionsClientProps) 
   if (transfer.status === "draft") {
     return (
       <div className="flex gap-2">
-        <Button size="sm" disabled={loading} onClick={handleApprove}>
-          Approve
+        <Button size={size} disabled={loading} onClick={handleApprove}>
+          Провести
         </Button>
-        <Button size="sm" variant="outline" disabled={loading} onClick={handleReject}>
-          Reject
+        <Button
+          size={size}
+          variant="destructive"
+          disabled={loading}
+          onClick={handleReject}
+        >
+          Отклонить
         </Button>
       </div>
     );
@@ -152,19 +161,20 @@ export function TransferActionsClient({ transfer }: TransferActionsClientProps) 
   if (transfer.status === "pending") {
     return (
       <div className="flex gap-2">
-        <Button size="sm" disabled={loading} onClick={handleSettle}>
+        <Button size={size} disabled={loading} onClick={handleSettle}>
           Settle
         </Button>
-        <Button size="sm" variant="outline" disabled={loading} onClick={handleVoid}>
+        <Button
+          size={size}
+          variant="destructive"
+          disabled={loading}
+          onClick={handleVoid}
+        >
           Void
         </Button>
       </div>
     );
   }
 
-  return (
-    <p className="text-muted-foreground text-sm">
-      Для текущего статуса ручные действия недоступны.
-    </p>
-  );
+  return null;
 }

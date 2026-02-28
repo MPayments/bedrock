@@ -265,6 +265,7 @@ export function createLedgerReadQueries(
       offset,
       sortBy,
       sortOrder,
+      query: searchQuery,
       status,
       operationCode,
       sourceType,
@@ -274,6 +275,25 @@ export function createLedgerReadQueries(
     } = query;
 
     const conditions: SQL[] = [];
+    if (searchQuery) {
+      const pattern = `%${searchQuery}%`;
+
+      conditions.push(sql<boolean>`(
+        ${schema.ledgerOperations.id}::text ilike ${pattern}
+        or ${schema.ledgerOperations.sourceType} ilike ${pattern}
+        or ${schema.ledgerOperations.sourceId} ilike ${pattern}
+        or ${schema.ledgerOperations.operationCode} ilike ${pattern}
+        or exists (
+          select 1
+          from ${schema.postings} p
+          where p.operation_id = ${schema.ledgerOperations.id}
+            and (
+              p.book_org_id::text ilike ${pattern}
+              or p.currency ilike ${pattern}
+            )
+        )
+      )`);
+    }
     const statusCondition = inArraySafe(schema.ledgerOperations.status, status);
     if (statusCondition) conditions.push(statusCondition);
 

@@ -32,6 +32,7 @@ export function createReadHandlers(context: TransfersServiceContext) {
       offset: query.offset,
       sortBy: query.sortBy,
       sortOrder: query.sortOrder,
+      query: query.query,
       sourceCounterpartyId: query.sourceCounterpartyId,
       destinationCounterpartyId: query.destinationCounterpartyId,
       status: query.status,

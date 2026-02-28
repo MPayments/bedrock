@@ -12,6 +12,7 @@ const LEDGER_OPERATIONS_SORTABLE_COLUMNS = [
 ] as const;
 
 interface LedgerOperationsListFilters {
+  query: { kind: "string"; cardinality: "single" };
   status: {
     kind: "string";
     cardinality: "multi";
@@ -31,6 +32,10 @@ const LEDGER_OPERATIONS_LIST_CONTRACT: ListQueryContract<
   sortableColumns: LEDGER_OPERATIONS_SORTABLE_COLUMNS,
   defaultSort: { id: "createdAt", desc: true },
   filters: {
+    query: {
+      kind: "string",
+      cardinality: "single",
+    },
     status: {
       kind: "string",
       cardinality: "multi",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ValidationError } from "../src/errors";
 import {
+  ListTransfersQuerySchema,
   validateApproveTransferInput,
   validateCreateTransferDraftInput,
   validateSettlePendingTransferInput,
@@ -78,6 +79,20 @@ describe("transfers validation (v2)", () => {
     });
 
     expect(result.eventIdempotencyKey).toBe("settle-1");
+  });
+
+  it("parses list query with toolbar filters", () => {
+    const result = ListTransfersQuerySchema.parse({
+      query: "acme",
+      status: ["draft", "pending"],
+      kind: ["cross_org"],
+      settlementMode: ["pending"],
+    });
+
+    expect(result.query).toBe("acme");
+    expect(result.status).toEqual(["draft", "pending"]);
+    expect(result.kind).toEqual(["cross_org"]);
+    expect(result.settlementMode).toEqual(["pending"]);
   });
 
   it("validates void pending input", () => {

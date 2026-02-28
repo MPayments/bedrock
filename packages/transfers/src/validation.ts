@@ -145,6 +145,7 @@ const TRANSFERS_SORTABLE_COLUMNS = [
 ] as const;
 
 interface TransfersListFilters {
+  query: { kind: "string"; cardinality: "single" };
   sourceCounterpartyId: { kind: "string"; cardinality: "single" };
   destinationCounterpartyId: { kind: "string"; cardinality: "single" };
   status: {
@@ -181,6 +182,7 @@ export const TRANSFERS_LIST_CONTRACT: ListQueryContract<
   sortableColumns: TRANSFERS_SORTABLE_COLUMNS,
   defaultSort: { id: "createdAt", desc: true },
   filters: {
+    query: { kind: "string", cardinality: "single" },
     sourceCounterpartyId: { kind: "string", cardinality: "single" },
     destinationCounterpartyId: { kind: "string", cardinality: "single" },
     status: {
