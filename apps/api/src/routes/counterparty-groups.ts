@@ -10,6 +10,10 @@ import {
   ListCounterpartyGroupsQuerySchema,
   UpdateCounterpartyGroupInputSchema,
 } from "@bedrock/counterparties";
+import {
+  CounterpartyGroupOptionSchema,
+  CounterpartyGroupOptionsResponseSchema,
+} from "@bedrock/counterparties/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";
@@ -80,6 +84,24 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
           },
         },
         description: "Parent group or customer not found",
+      },
+    },
+  });
+
+  const optionsRoute = createRoute({
+    middleware: [requirePermission({ counterparties: ["list"] })],
+    method: "get",
+    path: "/options",
+    tags: ["Counterparty Groups"],
+    summary: "List counterparty groups for select inputs",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CounterpartyGroupOptionsResponseSchema,
+          },
+        },
+        description: "Counterparty group option list",
       },
     },
   });
@@ -200,6 +222,28 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
       const query = c.req.valid("query");
       const groups = await ctx.counterpartiesService.listGroups(query);
       return c.json(groups, 200);
+    })
+    .openapi(optionsRoute, async (c) => {
+      const groups = await ctx.counterpartiesService.listGroups({
+        includeSystem: true,
+      });
+
+      return c.json(
+        {
+          data: groups.map((group) =>
+            CounterpartyGroupOptionSchema.parse({
+              id: group.id,
+              code: group.code,
+              name: group.name,
+              parentId: group.parentId,
+              customerId: group.customerId,
+              isSystem: group.isSystem,
+              label: `${group.code} - ${group.name}`,
+            }),
+          ),
+        },
+        200,
+      );
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");

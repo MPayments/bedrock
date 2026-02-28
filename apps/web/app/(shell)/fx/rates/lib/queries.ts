@@ -1,78 +1,67 @@
-import { getServerApiClient } from "@/lib/api-client.server";
+import {
+  CurrencyOptionsResponseSchema,
+} from "@bedrock/currencies/contracts";
+import {
+  FxRatePairsResponseSchema,
+  FxRateSourceStatusesResponseSchema,
+} from "@bedrock/fx/contracts";
+import { z } from "zod";
 
-export interface SerializedSourceRate {
-  source: string;
-  rateNum: string;
-  rateDen: string;
-  asOf: string;
-  change: number | null;
-  changePercent: number | null;
-}
+import { getServerApiClient } from "@/lib/api/server-client";
+import { readOptionsList } from "@/lib/api/query";
+import { readJsonWithSchema, requestOk } from "@/lib/api/response";
 
-export interface SerializedRatePair {
-  baseCurrencyCode: string;
-  quoteCurrencyCode: string;
-  bestRate: SerializedSourceRate;
-  rates: SerializedSourceRate[];
-}
-
-export interface SerializedSourceStatus {
-  source: "cbr" | "investing";
-  ttlSeconds: number;
-  lastSyncedAt: string | null;
-  lastPublishedAt: string | null;
-  lastStatus: "idle" | "ok" | "error";
-  lastError: string | null;
-  expiresAt: string | null;
-  isExpired: boolean;
-}
-
-export interface CurrencyOption {
-  code: string;
-  name: string;
-}
+export type SerializedRatePair = z.infer<
+  typeof FxRatePairsResponseSchema.shape.data.element
+>;
+export type SerializedSourceRate = SerializedRatePair["rates"][number];
+export type SerializedSourceStatus = z.infer<
+  typeof FxRateSourceStatusesResponseSchema.shape.data.element
+>;
+export type CurrencyOption = Pick<
+  z.infer<typeof CurrencyOptionsResponseSchema.shape.data.element>,
+  "code" | "name"
+>;
 
 export async function getRatePairs(): Promise<SerializedRatePair[]> {
   const client = await getServerApiClient();
-  const res = await client.v1.fx.rates.pairs.$get();
+  const response = await requestOk(
+    await client.v1.fx.rates.pairs.$get(),
+    "Не удалось загрузить валютные пары",
+  );
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch rate pairs: ${res.status}`);
-  }
-
-  const payload = (await res.json()) as {
-    data: SerializedRatePair[];
-  };
-  return payload.data as SerializedRatePair[];
+  const payload = await readJsonWithSchema(response, FxRatePairsResponseSchema);
+  return payload.data;
 }
 
 export async function getRateSources(): Promise<SerializedSourceStatus[]> {
   const client = await getServerApiClient();
-  const res = await client.v1.fx.rates.sources.$get();
+  const response = await requestOk(
+    await client.v1.fx.rates.sources.$get(),
+    "Не удалось загрузить источники курсов",
+  );
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch rate sources: ${res.status}`);
-  }
-
-  const payload = (await res.json()) as {
-    data: SerializedSourceStatus[];
-  };
-  return payload.data as SerializedSourceStatus[];
+  const payload = await readJsonWithSchema(
+    response,
+    FxRateSourceStatusesResponseSchema,
+  );
+  return payload.data;
 }
 
 export async function getCurrencyOptions(): Promise<CurrencyOption[]> {
   const client = await getServerApiClient();
-  const res = await client.v1.currencies.$get({
-    query: { limit: 100, offset: 0 } as Record<string, unknown>,
+  const payload = await readOptionsList({
+    request: () =>
+      client.v1.currencies.options.$get(
+        {},
+        { init: { cache: "force-cache" } },
+      ),
+    schema: CurrencyOptionsResponseSchema,
+    context: "Не удалось загрузить валюты",
   });
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch currencies: ${res.status}`);
-  }
-
-  const payload = (await res.json()) as {
-    data: { code: string; name: string }[];
-  };
-
-  return payload.data.map((c) => ({ code: c.code, name: c.name }));
+  return payload.data.map((currency) => ({
+    code: currency.code,
+    name: currency.name,
+  }));
 }

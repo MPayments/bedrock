@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export {
   AccountProviderTypeSchema,
   AccountProviderSchema,
@@ -26,3 +28,17 @@ export type {
   ResolveTransferBindingsInput,
   TransferAccountBinding,
 } from "./validation";
+
+export const AccountProviderOptionSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  type: z.string(),
+  country: z.string(),
+  label: z.string(),
+});
+
+export const AccountProviderOptionsResponseSchema = z.object({
+  data: z.array(AccountProviderOptionSchema),
+});
+
+export type AccountProviderOption = z.infer<typeof AccountProviderOptionSchema>;

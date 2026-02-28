@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import { AppSidebar } from "@/components/app-sidebar";
 import { Separator } from "@bedrock/ui/components/separator";
 import {
@@ -6,17 +8,32 @@ import {
   SidebarTrigger,
 } from "@bedrock/ui/components/sidebar";
 import { EntityDraftNameProviders } from "@/app/(shell)/entities/draft-name-providers";
+import { getServerSessionSnapshot } from "@/lib/auth/session";
+import {
+  getPrimaryNavigation,
+  getSecondaryNavigation,
+} from "@/lib/navigation/config";
 
-export default function ShellLayout({
+export default async function ShellLayout({
   children,
   breadcrumb,
 }: {
   children: React.ReactNode;
   breadcrumb: React.ReactNode;
 }) {
+  const session = await getServerSessionSnapshot();
+
+  if (!session.isAuthenticated) {
+    redirect("/login");
+  }
+
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar
+        session={session}
+        items={getPrimaryNavigation(session)}
+        secondaryItems={getSecondaryNavigation(session)}
+      />
       <SidebarInset>
         <EntityDraftNameProviders>
           <header className="flex h-12 shrink-0 items-center gap-2">

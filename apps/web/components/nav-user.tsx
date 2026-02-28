@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Bell, ChevronsUpDown, LogOut } from "lucide-react";
+import { BadgeCheck, Bell, ChevronsUpDown, LogOut, Shield } from "lucide-react";
 
 import {
   Avatar,
@@ -25,6 +25,7 @@ import {
 } from "@bedrock/ui/components/sidebar";
 
 import { authClient } from "@/lib/auth-client";
+import type { UserSessionSnapshot } from "@/lib/auth/types";
 
 function getInitials(name: string) {
   return name
@@ -35,17 +36,17 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
-export function NavUser() {
+export function NavUser({ session }: { session: UserSessionSnapshot }) {
   const { isMobile } = useSidebar();
   const router = useRouter();
-  const { data: session, isPending } = authClient.useSession();
 
   async function handleSignOut() {
     await authClient.signOut();
     router.push("/login");
+    router.refresh();
   }
 
-  if (isPending || !session?.user) {
+  if (!session.user) {
     return null;
   }
 
@@ -101,6 +102,10 @@ export function NavUser() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
+              <DropdownMenuItem>
+                <Shield />
+                {session.role === "admin" ? "Администратор" : "Пользователь"}
+              </DropdownMenuItem>
               <DropdownMenuItem>
                 <BadgeCheck />
                 Профиль

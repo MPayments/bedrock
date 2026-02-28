@@ -8,16 +8,19 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint . --max-warnings 0",
-    "check-types": "tsgo --noEmit"
+    "check-types": "tsgo --noEmit",
+    "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
+    "@bedrock/accounting-reporting": "workspace:*",
     "@bedrock/api-client": "workspace:*",
     "@bedrock/countries": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/customers": "workspace:*",
     "@bedrock/documents": "workspace:*",
+    "@bedrock/fx": "workspace:*",
     "@bedrock/operational-accounts": "workspace:*",
     "@bedrock/ui": "workspace:*",
     "@hookform/resolvers": "^5.2.2",

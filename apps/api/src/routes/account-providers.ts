@@ -10,6 +10,10 @@ import {
   UpdateProviderInputSchema,
   ListProvidersQuerySchema,
 } from "@bedrock/operational-accounts";
+import {
+  AccountProviderOptionSchema,
+  AccountProviderOptionsResponseSchema,
+} from "@bedrock/operational-accounts/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";
@@ -76,6 +80,24 @@ export function accountProvidersRoutes(ctx: AppContext) {
           },
         },
         description: "Validation error",
+      },
+    },
+  });
+
+  const optionsRoute = createRoute({
+    middleware: [requirePermission({ accounts: ["list"] })],
+    method: "get",
+    path: "/options",
+    tags: ["Account Providers"],
+    summary: "List account providers for select inputs",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: AccountProviderOptionsResponseSchema,
+          },
+        },
+        description: "Account provider option list",
       },
     },
   });
@@ -196,6 +218,29 @@ export function accountProvidersRoutes(ctx: AppContext) {
       const query = c.req.valid("query");
       const result = await ctx.operationalAccountsService.listProviders(query);
       return c.json(result, 200);
+    })
+    .openapi(optionsRoute, async (c) => {
+      const result = await ctx.operationalAccountsService.listProviders({
+        limit: 500,
+        offset: 0,
+        sortBy: "name",
+        sortOrder: "asc",
+      });
+
+      return c.json(
+        {
+          data: result.data.map((provider) =>
+            AccountProviderOptionSchema.parse({
+              id: provider.id,
+              name: provider.name,
+              type: provider.type,
+              country: provider.country,
+              label: `${provider.name} - ${provider.country}`,
+            }),
+          ),
+        },
+        200,
+      );
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");

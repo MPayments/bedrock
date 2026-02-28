@@ -116,8 +116,8 @@ export const DOCUMENTS_LIST_CONTRACT: ListQueryContract<
 export const ListDocumentsQuerySchema = createListQuerySchemaFromContract(
   DOCUMENTS_LIST_CONTRACT,
 ).extend({
-  occurredAtFrom: z.string().datetime().optional(),
-  occurredAtTo: z.string().datetime().optional(),
+  occurredAtFrom: z.iso.datetime().optional(),
+  occurredAtTo: z.iso.datetime().optional(),
 });
 
 export type ListDocumentsQuery = z.infer<typeof ListDocumentsQuerySchema>;

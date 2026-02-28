@@ -1,16 +1,39 @@
 import { cache } from "react";
+import { z } from "zod";
 
-import {
-  CURRENCIES_LIST_CONTRACT,
-  CurrencySchema,
-} from "@bedrock/currencies/contracts";
+import { CURRENCIES_LIST_CONTRACT } from "@bedrock/currencies/contracts";
 
-import { getServerApiClient } from "@/lib/api-client.server";
-import { readResourceById } from "@/lib/resources/http";
+import { getServerApiClient } from "@/lib/api/server-client";
+import { createPaginatedResponseSchema } from "@/lib/api/schemas";
+import { readEntityById, readPaginatedList } from "@/lib/api/query";
 import { createResourceListQuery } from "@/lib/resources/search-params";
 
 import type { CurrenciesListResult } from "../(table)";
-import { type CurrenciesSearchParams } from "./validations";
+import type { CurrenciesSearchParams } from "./validations";
+
+const CurrencyListItemSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  code: z.string(),
+  symbol: z.string(),
+  precision: z.number().int(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+const CurrenciesListResponseSchema = createPaginatedResponseSchema(
+  CurrencyListItemSchema,
+);
+
+const CurrencyDetailsSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  code: z.string(),
+  symbol: z.string(),
+  precision: z.number().int(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
 
 function createCurrenciesListQuery(search: CurrenciesSearchParams) {
   return createResourceListQuery(CURRENCIES_LIST_CONTRACT, search);
@@ -20,43 +43,26 @@ export async function getCurrencies(
   search: CurrenciesSearchParams,
 ): Promise<CurrenciesListResult> {
   const client = await getServerApiClient();
-  const res = await client.v1.currencies.$get({
-    query: createCurrenciesListQuery(search),
+  const { data } = await readPaginatedList({
+    request: () =>
+      client.v1.currencies.$get({
+        query: createCurrenciesListQuery(search),
+      }),
+    schema: CurrenciesListResponseSchema,
+    context: "Не удалось загрузить валюты",
   });
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch currencies: ${res.status}`);
-  }
-
-  const payload = (await res.json()) as {
-    data: unknown[];
-    limit: number;
-    offset: number;
-    total: number;
-  };
-
-  return {
-    ...payload,
-    data: payload.data.map((currency: unknown) => CurrencySchema.parse(currency)),
-  };
+  return data;
 }
 
-export interface CurrencyDetails {
-  id: string;
-  name: string;
-  code: string;
-  symbol: string;
-  precision: number;
-  createdAt: string;
-  updatedAt: string;
-}
+export type CurrencyDetails = z.infer<typeof CurrencyDetailsSchema>;
 
 const getCurrencyByIdUncached = async (
   id: string,
 ): Promise<CurrencyDetails | null> => {
-  return readResourceById<CurrencyDetails>({
+  return readEntityById({
     id,
-    resourceName: "currency",
+    resourceName: "валюту",
     request: async (validId) => {
       const client = await getServerApiClient();
       return client.v1.currencies[":id"].$get(
@@ -68,6 +74,7 @@ const getCurrencyByIdUncached = async (
         },
       );
     },
+    schema: CurrencyDetailsSchema,
   });
 };
 

@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { TransfersOverviewPage } from "@/features/transfers/ui/transfers-overview-page";
 
 export default function TransfersPage() {
-  redirect("/operations");
+  return <TransfersOverviewPage />;
 }

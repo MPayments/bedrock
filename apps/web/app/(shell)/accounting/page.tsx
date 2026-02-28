@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { AccountingOverviewPage } from "@/features/accounting/ui/accounting-overview-page";
 
 export default function AccountingPage() {
-  redirect("/accounting/accounts");
+  return <AccountingOverviewPage />;
 }

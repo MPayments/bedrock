@@ -1,13 +1,66 @@
 import { cache } from "react";
+import { z } from "zod";
 
+import {
+  CounterpartyGroupOptionsResponseSchema,
+  type CounterpartyGroupOption,
+} from "@bedrock/counterparties/contracts";
+import {
+  CurrencyOptionsResponseSchema,
+} from "@bedrock/currencies/contracts";
+import {
+  AccountProviderOptionsResponseSchema,
+} from "@bedrock/operational-accounts/contracts";
 import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/counterparties/contracts";
 
-import { getServerApiClient } from "@/lib/api-client.server";
-import { readResourceById } from "@/lib/resources/http";
+import { getServerApiClient } from "@/lib/api/server-client";
+import { createPaginatedResponseSchema } from "@/lib/api/schemas";
+import { readJsonWithSchema, requestOk } from "@/lib/api/response";
+import { readEntityById, readOptionsList, readPaginatedList } from "@/lib/api/query";
 import { createResourceListQuery } from "@/lib/resources/search-params";
 
 import type { CounterpartiesListResult } from "../components/counterparties-table";
 import { type CounterpartiesSearchParams } from "./validations";
+
+const CounterpartyResponseSchema = z.object({
+  id: z.uuid(),
+  externalId: z.string().nullable(),
+  customerId: z.uuid().nullable(),
+  shortName: z.string(),
+  fullName: z.string(),
+  description: z.string().nullable(),
+  country: z.string().nullable(),
+  kind: z.enum(["legal_entity", "individual"]),
+  groupIds: z.array(z.uuid()),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+const CounterpartiesListResponseSchema = createPaginatedResponseSchema(
+  CounterpartyResponseSchema,
+);
+
+const CounterpartyAccountSchema = z.object({
+  id: z.uuid(),
+  counterpartyId: z.uuid(),
+  bookId: z.uuid(),
+  currencyId: z.uuid(),
+  accountProviderId: z.uuid(),
+  label: z.string(),
+  description: z.string().nullable(),
+  accountNo: z.string().nullable(),
+  corrAccount: z.string().nullable(),
+  address: z.string().nullable(),
+  iban: z.string().nullable(),
+  stableKey: z.string(),
+  postingAccountNo: z.string(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+const CounterpartyAccountsListResponseSchema = createPaginatedResponseSchema(
+  CounterpartyAccountSchema,
+);
 
 function createCounterpartiesListQuery(search: CounterpartiesSearchParams) {
   return createResourceListQuery(COUNTERPARTIES_LIST_CONTRACT, search);
@@ -17,52 +70,31 @@ export async function getCounterparties(
   search: CounterpartiesSearchParams,
 ): Promise<CounterpartiesListResult> {
   const client = await getServerApiClient();
-  const res = await client.v1.counterparties.$get(
-    {
-      query: createCounterpartiesListQuery(search),
-    },
-    {
-      init: { cache: "no-store" },
-    },
-  );
+  const { data } = await readPaginatedList({
+    request: () =>
+      client.v1.counterparties.$get(
+        {
+          query: createCounterpartiesListQuery(search),
+        },
+        {
+          init: { cache: "no-store" },
+        },
+      ),
+    schema: CounterpartiesListResponseSchema,
+    context: "Не удалось загрузить контрагентов",
+  });
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch counterparties: ${res.status}`);
-  }
-
-  return res.json() as Promise<CounterpartiesListResult>;
+  return data;
 }
 
-export interface CounterpartyDetails {
-  id: string;
-  externalId: string | null;
-  customerId: string | null;
-  shortName: string;
-  fullName: string;
-  description: string | null;
-  country: string | null;
-  kind: "legal_entity" | "individual";
-  groupIds: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CounterpartyGroupOption {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  parentId: string | null;
-  customerId: string | null;
-  isSystem: boolean;
-}
-
+export type CounterpartyDetails = z.infer<typeof CounterpartyResponseSchema>;
+export type { CounterpartyGroupOption };
 const getCounterpartyByIdUncached = async (
   id: string,
 ): Promise<CounterpartyDetails | null> => {
-  return readResourceById<CounterpartyDetails>({
+  return readEntityById({
     id,
-    resourceName: "counterparty",
+    resourceName: "контрагента",
     request: async (validId) => {
       const client = await getServerApiClient();
       return client.v1.counterparties[":id"].$get(
@@ -74,6 +106,7 @@ const getCounterpartyByIdUncached = async (
         },
       );
     },
+    schema: CounterpartyResponseSchema,
   });
 };
 
@@ -81,56 +114,61 @@ export const getCounterpartyById = cache(getCounterpartyByIdUncached);
 
 export async function getCounterpartyGroups(): Promise<CounterpartyGroupOption[]> {
   const client = await getServerApiClient();
-  const res = await client.v1["counterparty-groups"].$get(
-    {
-      query: {},
-    },
-    {
-      init: { cache: "no-store" },
-    },
-  );
+  const payload = await readOptionsList({
+    request: () =>
+      client.v1["counterparty-groups"].$get(
+        { query: { includeSystem: true } },
+        {
+          init: { cache: "force-cache" },
+        },
+      ),
+    schema: CounterpartyGroupOptionsResponseSchema,
+    context: "Не удалось загрузить группы контрагентов",
+  });
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch counterparty groups: ${res.status}`);
-  }
-
-  return (await res.json()) as CounterpartyGroupOption[];
+  return payload.data;
 }
 
-type CounterpartyAccountPayload = {
-  id: string;
-  counterpartyId: string;
-  currencyId: string;
-  accountProviderId: string;
-  label: string;
-  description: string | null;
-  accountNo: string | null;
-  corrAccount: string | null;
-  address: string | null;
-  iban: string | null;
-  stableKey: string;
-  postingAccountNo: string;
-  createdAt: string;
-  updatedAt: string;
-};
+export interface AccountBalance {
+  operationalAccountId: string;
+  currency: string;
+  balanceMinor: string;
+  precision: number;
+}
 
-type AccountProviderPayload = {
-  id: string;
-  name: string;
-  type: string;
-};
+const AccountBalancesResponseSchema = z.array(
+  z.object({
+    operationalAccountId: z.uuid(),
+    currency: z.string(),
+    balanceMinor: z.string(),
+    precision: z.number().int(),
+  }),
+);
 
-type CurrencyPayload = {
-  id: string;
-  code: string;
-  name: string;
-};
+export async function getAccountBalances(
+  accountIds: string[],
+): Promise<AccountBalance[]> {
+  if (accountIds.length === 0) {
+    return [];
+  }
 
-type PaginatedPayload<T> = {
-  data: T[];
-  total?: number;
-  limit?: number;
-};
+  const client = await getServerApiClient();
+  const response = await requestOk(
+    await client.v1.accounting["operational-account-balances"].$get(
+      {
+        query: {
+          accountIds: accountIds.join(","),
+        },
+      },
+      {
+        init: { cache: "no-store" },
+      },
+    ),
+    "Не удалось загрузить балансы счетов",
+  );
+
+  return readJsonWithSchema(response, AccountBalancesResponseSchema);
+}
 
 export interface CounterpartyAccount {
   id: string;
@@ -153,197 +191,71 @@ export interface CounterpartyAccount {
   currencyName: string;
 }
 
-async function listAllCounterpartyAccounts(
-  client: Awaited<ReturnType<typeof getServerApiClient>>,
-  counterpartyId: string,
-): Promise<CounterpartyAccountPayload[]> {
-  const ACCOUNTS_PAGE_SIZE = 100;
-  const accounts: CounterpartyAccountPayload[] = [];
-  let offset = 0;
-
-  while (true) {
-    const res = await client.v1.accounts.$get(
-      {
-        query: {
-          limit: ACCOUNTS_PAGE_SIZE,
-          offset,
-          counterpartyId,
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        } as Record<string, unknown>,
-      },
-      {
-        init: { cache: "no-store" },
-      },
-    );
-
-    if (!res.ok) {
-      throw new Error(`Failed to fetch accounts: ${res.status}`);
-    }
-
-    const payload = (await res.json()) as PaginatedPayload<CounterpartyAccountPayload>;
-    accounts.push(...payload.data);
-
-    if (payload.data.length === 0) {
-      break;
-    }
-
-    const limit =
-      typeof payload.limit === "number" && payload.limit > 0
-        ? payload.limit
-        : ACCOUNTS_PAGE_SIZE;
-    offset += limit;
-
-    if (typeof payload.total === "number" && offset >= payload.total) {
-      break;
-    }
-  }
-
-  return accounts;
-}
-
-async function listAllAccountProviders(
-  client: Awaited<ReturnType<typeof getServerApiClient>>,
-): Promise<AccountProviderPayload[]> {
-  const PROVIDERS_PAGE_SIZE = 100;
-  const providers: AccountProviderPayload[] = [];
-  let offset = 0;
-
-  while (true) {
-    const res = await client.v1["account-providers"].$get(
-      {
-        query: {
-          limit: PROVIDERS_PAGE_SIZE,
-          offset,
-        } as Record<string, unknown>,
-      },
-      {
-        init: { cache: "no-store" },
-      },
-    );
-
-    if (!res.ok) {
-      break;
-    }
-
-    const payload = (await res.json()) as PaginatedPayload<AccountProviderPayload>;
-    providers.push(...payload.data);
-
-    if (payload.data.length === 0) {
-      break;
-    }
-
-    const limit =
-      typeof payload.limit === "number" && payload.limit > 0
-        ? payload.limit
-        : PROVIDERS_PAGE_SIZE;
-    offset += limit;
-
-    if (typeof payload.total === "number" && offset >= payload.total) {
-      break;
-    }
-  }
-
-  return providers;
-}
-
-async function listAllCurrencies(
-  client: Awaited<ReturnType<typeof getServerApiClient>>,
-): Promise<CurrencyPayload[]> {
-  const CURRENCIES_PAGE_SIZE = 100;
-  const currencies: CurrencyPayload[] = [];
-  let offset = 0;
-
-  while (true) {
-    const res = await client.v1.currencies.$get({
-      query: {
-        limit: CURRENCIES_PAGE_SIZE,
-        offset,
-      } as Record<string, unknown>,
-    });
-
-    if (!res.ok) {
-      break;
-    }
-
-    const payload = (await res.json()) as PaginatedPayload<CurrencyPayload>;
-    currencies.push(...payload.data);
-
-    if (payload.data.length === 0) {
-      break;
-    }
-
-    const limit =
-      typeof payload.limit === "number" && payload.limit > 0
-        ? payload.limit
-        : CURRENCIES_PAGE_SIZE;
-    offset += limit;
-
-    if (typeof payload.total === "number" && offset >= payload.total) {
-      break;
-    }
-  }
-
-  return currencies;
-}
-
-export interface AccountBalance {
-  operationalAccountId: string;
-  currency: string;
-  balanceMinor: string;
-  precision: number;
-}
-
-export async function getAccountBalances(
-  accountIds: string[],
-): Promise<AccountBalance[]> {
-  if (accountIds.length === 0) return [];
-
-  const client = await getServerApiClient();
-  const res = await client.v1.accounting["operational-account-balances"].$get(
-    {
-      query: { accountIds: accountIds.join(",") },
-    },
-    { init: { cache: "no-store" } },
-  );
-
-  if (!res.ok) return [];
-
-  return (await res.json()) as AccountBalance[];
-}
-
 export async function getCounterpartyAccounts(
   counterpartyId: string,
 ): Promise<CounterpartyAccount[]> {
   const client = await getServerApiClient();
-  const accounts = await listAllCounterpartyAccounts(client, counterpartyId);
-
-  if (accounts.length === 0) {
-    return [];
-  }
-
-  const [providers, currencies] = await Promise.all([
-    listAllAccountProviders(client),
-    listAllCurrencies(client),
+  const [{ data: accounts }, providers, currencies] = await Promise.all([
+    readPaginatedList({
+      request: () =>
+        client.v1.accounts.$get(
+          {
+            query: {
+              limit: 500,
+              offset: 0,
+              counterpartyId,
+              sortBy: "createdAt",
+              sortOrder: "desc",
+            },
+          },
+          {
+            init: { cache: "no-store" },
+          },
+        ),
+      schema: CounterpartyAccountsListResponseSchema,
+      context: "Не удалось загрузить счета контрагента",
+    }),
+    readOptionsList({
+      request: () =>
+        client.v1["account-providers"].options.$get(
+          {},
+          {
+            init: { cache: "force-cache" },
+          },
+        ),
+      schema: AccountProviderOptionsResponseSchema,
+      context: "Не удалось загрузить провайдеров",
+    }),
+    readOptionsList({
+      request: () =>
+        client.v1.currencies.options.$get(
+          {},
+          {
+            init: { cache: "force-cache" },
+          },
+        ),
+      schema: CurrencyOptionsResponseSchema,
+      context: "Не удалось загрузить валюты",
+    }),
   ]);
 
   const providerById = new Map(
-    providers.map((provider) => [provider.id, provider] as const),
+    providers.data.map((provider) => [provider.id, provider]),
   );
   const currencyById = new Map(
-    currencies.map((currency) => [currency.id, currency] as const),
+    currencies.data.map((currency) => [currency.id, currency]),
   );
 
-  return accounts.map((account) => {
+  return accounts.data.map((account) => {
     const provider = providerById.get(account.accountProviderId);
     const currency = currencyById.get(account.currencyId);
 
     return {
       ...account,
-      providerName: provider?.name ?? account.accountProviderId,
+      providerName: provider?.name ?? "—",
       providerType: provider?.type ?? null,
-      currencyCode: currency?.code ?? account.currencyId,
-      currencyName: currency?.name ?? account.currencyId,
+      currencyCode: currency?.code ?? "—",
+      currencyName: currency?.name ?? "—",
     };
   });
 }

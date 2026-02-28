@@ -1,5 +1,5 @@
-import { SectionPlaceholderPage } from "@/components/section-placeholder-page";
+import { DashboardPage } from "@/features/dashboard/ui/dashboard-page";
 
 export default function Home() {
-  return <SectionPlaceholderPage title="Дашборд" />;
+  return <DashboardPage />;
 }

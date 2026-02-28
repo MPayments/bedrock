@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { TreasuryOverviewPage } from "@/features/treasury/ui/treasury-overview-page";
 
 export default function TreasuryPage() {
-  redirect("/treasury/customers");
+  return <TreasuryOverviewPage />;
 }

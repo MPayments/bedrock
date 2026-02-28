@@ -13,3 +13,10 @@ export {
 } from "./service";
 
 export type { AccountingReportingServiceDeps } from "./internal/context";
+export {
+  FinancialResultSummaryByCurrencySchema,
+  FinancialResultsByCounterpartySchema,
+  FinancialResultsByCounterpartyResponseSchema,
+  FinancialResultsByGroupSchema,
+  FinancialResultsByGroupResponseSchema,
+} from "./contracts";

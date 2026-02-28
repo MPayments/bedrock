@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { FxOverviewPage } from "@/features/fx/ui/fx-overview-page";
 
-export default function FXPage() {
-  redirect("/fx/rates");
+export default function FxPage() {
+  return <FxOverviewPage />;
 }

@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { EntitiesOverviewPage } from "@/features/entities/ui/entities-overview-page";
 
 export default function EntitiesPage() {
-  redirect("/entities/customers");
+  return <EntitiesOverviewPage />;
 }

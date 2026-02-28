@@ -1,44 +1,18 @@
-import { resolveApiErrorMessage } from "@/lib/api-error";
+import { z } from "zod";
 
-export interface HttpResponseLike {
-  ok: boolean;
-  status: number;
-  json: () => Promise<unknown>;
-}
+import { resolveApiErrorMessage } from "@/lib/api-error";
+import { readEntityById } from "@/lib/api/query";
+import {
+  parseJsonSafely,
+  type HttpResponseLike,
+} from "@/lib/api/response";
+
+export type { HttpResponseLike } from "@/lib/api/response";
 
 export function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value,
   );
-}
-
-async function parseJsonSafely(
-  response: HttpResponseLike,
-): Promise<unknown | null> {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
-}
-
-async function resolveResponseErrorMessage(
-  response: HttpResponseLike,
-  fallbackMessage: string,
-) {
-  const payload = await parseJsonSafely(response);
-  return resolveApiErrorMessage(response.status, payload, fallbackMessage);
-}
-
-function resolveUnknownErrorMessage(
-  error: unknown,
-  fallbackMessage: string,
-) {
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
-  }
-
-  return fallbackMessage;
 }
 
 type MutationResult<T> =
@@ -69,11 +43,13 @@ export async function executeMutation<T>(
     const response = await options.request();
 
     if (!response.ok) {
+      const payload = await parseJsonSafely(response);
       return {
         ok: false,
         status: response.status,
-        message: await resolveResponseErrorMessage(
-          response,
+        message: resolveApiErrorMessage(
+          response.status,
+          payload,
           options.fallbackMessage,
         ),
       };
@@ -89,7 +65,10 @@ export async function executeMutation<T>(
   } catch (error) {
     return {
       ok: false,
-      message: resolveUnknownErrorMessage(error, options.fallbackMessage),
+      message:
+        error instanceof Error && error.message.trim().length > 0
+          ? error.message
+          : options.fallbackMessage,
     };
   }
 }
@@ -109,28 +88,14 @@ export async function readResourceById<T>({
   validate,
   map,
 }: ReadResourceByIdOptions<T>): Promise<T | null> {
-  if (!isUuid(id)) {
-    return null;
-  }
+  const payload = await readEntityById({
+    id,
+    request,
+    resourceName,
+    schema: z.unknown().transform((value) => value as T),
+  });
 
-  const response = await request(id);
-
-  if (response.status === 404) {
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${resourceName}: ${response.status}`);
-  }
-
-  const payload = await parseJsonSafely(response);
-
-  if (
-    !payload ||
-    typeof payload !== "object" ||
-    !("id" in payload) ||
-    typeof payload.id !== "string"
-  ) {
+  if (!payload) {
     return null;
   }
 
@@ -142,5 +107,5 @@ export async function readResourceById<T>({
     return map(payload);
   }
 
-  return payload as T;
+  return payload;
 }

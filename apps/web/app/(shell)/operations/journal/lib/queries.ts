@@ -1,84 +1,88 @@
 import { cache } from "react";
+import { z } from "zod";
 
 import { ACCOUNTING_OPERATIONS_LIST_CONTRACT } from "@bedrock/accounting/contracts";
 
-import { getServerApiClient } from "@/lib/api-client.server";
+import { getServerApiClient } from "@/lib/api/server-client";
+import { createPaginatedResponseSchema } from "@/lib/api/schemas";
+import { readPaginatedList } from "@/lib/api/query";
+import { requestOk, readJsonWithSchema } from "@/lib/api/response";
 import { isUuid } from "@/lib/resources/http";
 import { createResourceListQuery } from "@/lib/resources/search-params";
 
 import type { OperationsSearchParams } from "./validations";
 
-export interface OperationSummaryDto {
-  id: string;
-  sourceType: string;
-  sourceId: string;
-  operationCode: string;
-  operationVersion: number;
-  postingDate: string;
-  status: "pending" | "posted" | "failed";
-  error: string | null;
-  postedAt: string | null;
-  outboxAttempts: number;
-  lastOutboxErrorAt: string | null;
-  createdAt: string;
-  postingCount: number;
-  bookIds: string[];
-  currencies: string[];
-}
+const OperationSummarySchema = z.object({
+  id: z.uuid(),
+  sourceType: z.string(),
+  sourceId: z.string(),
+  operationCode: z.string(),
+  operationVersion: z.number().int(),
+  postingDate: z.iso.datetime(),
+  status: z.enum(["pending", "posted", "failed"]),
+  error: z.string().nullable(),
+  postedAt: z.iso.datetime().nullable(),
+  outboxAttempts: z.number().int(),
+  lastOutboxErrorAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  postingCount: z.number().int(),
+  bookIds: z.array(z.string()),
+  currencies: z.array(z.string()),
+});
 
-interface OperationPostingDto {
-  id: string;
-  lineNo: number;
-  bookId: string;
-  bookName: string | null;
-  debitInstanceId: string;
-  debitAccountNo: string | null;
-  debitDimensions: Record<string, string> | null;
-  creditInstanceId: string;
-  creditAccountNo: string | null;
-  creditDimensions: Record<string, string> | null;
-  postingCode: string;
-  currency: string;
-  currencyPrecision: number;
-  amountMinor: string;
-  memo: string | null;
-  context: Record<string, string> | null;
-  createdAt: string;
-}
+const OperationPostingSchema = z.object({
+  id: z.uuid(),
+  lineNo: z.number().int(),
+  bookId: z.uuid(),
+  bookName: z.string().nullable(),
+  debitInstanceId: z.uuid(),
+  debitAccountNo: z.string().nullable(),
+  debitDimensions: z.record(z.string(), z.string()).nullable(),
+  creditInstanceId: z.uuid(),
+  creditAccountNo: z.string().nullable(),
+  creditDimensions: z.record(z.string(), z.string()).nullable(),
+  postingCode: z.string(),
+  currency: z.string(),
+  currencyPrecision: z.number().int(),
+  amountMinor: z.string(),
+  memo: z.string().nullable(),
+  context: z.record(z.string(), z.string()).nullable(),
+  createdAt: z.iso.datetime(),
+});
 
-interface OperationTbPlanDto {
-  id: string;
-  lineNo: number;
-  type: "create" | "post_pending" | "void_pending";
-  transferId: string;
-  debitTbAccountId: string | null;
-  creditTbAccountId: string | null;
-  tbLedger: number;
-  amount: string;
-  code: number;
-  pendingRef: string | null;
-  pendingId: string | null;
-  isLinked: boolean;
-  isPending: boolean;
-  timeoutSeconds: number;
-  status: "pending" | "posted" | "failed";
-  error: string | null;
-  createdAt: string;
-}
+const OperationTbPlanSchema = z.object({
+  id: z.uuid(),
+  lineNo: z.number().int(),
+  type: z.enum(["create", "post_pending", "void_pending"]),
+  transferId: z.string(),
+  debitTbAccountId: z.string().nullable(),
+  creditTbAccountId: z.string().nullable(),
+  tbLedger: z.number().int(),
+  amount: z.string(),
+  code: z.number().int(),
+  pendingRef: z.string().nullable(),
+  pendingId: z.string().nullable(),
+  isLinked: z.boolean(),
+  isPending: z.boolean(),
+  timeoutSeconds: z.number().int(),
+  status: z.enum(["pending", "posted", "failed"]),
+  error: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+});
 
-interface OperationDetailsDto {
-  operation: OperationSummaryDto;
-  postings: OperationPostingDto[];
-  tbPlans: OperationTbPlanDto[];
-  dimensionLabels: Record<string, string>;
-}
+const OperationDetailsSchema = z.object({
+  operation: OperationSummarySchema,
+  postings: z.array(OperationPostingSchema),
+  tbPlans: z.array(OperationTbPlanSchema),
+  dimensionLabels: z.record(z.string(), z.string()),
+});
 
-interface OperationsListResult {
-  data: OperationSummaryDto[];
-  total: number;
-  limit: number;
-  offset: number;
-}
+const OperationsListResponseSchema = createPaginatedResponseSchema(
+  OperationSummarySchema,
+);
+
+export type OperationSummaryDto = z.infer<typeof OperationSummarySchema>;
+export type OperationDetailsDto = z.infer<typeof OperationDetailsSchema>;
 
 function createOperationsListQuery(search: OperationsSearchParams) {
   return createResourceListQuery(ACCOUNTING_OPERATIONS_LIST_CONTRACT, search);
@@ -86,17 +90,18 @@ function createOperationsListQuery(search: OperationsSearchParams) {
 
 export async function getOperations(
   search: OperationsSearchParams,
-): Promise<OperationsListResult> {
+): Promise<z.infer<typeof OperationsListResponseSchema>> {
   const client = await getServerApiClient();
-  const res = await client.v1.accounting.operations.$get({
-    query: createOperationsListQuery(search),
+  const { data } = await readPaginatedList({
+    request: () =>
+      client.v1.accounting.operations.$get({
+        query: createOperationsListQuery(search),
+      }),
+    schema: OperationsListResponseSchema,
+    context: "Не удалось загрузить операции",
   });
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch operations: ${res.status}`);
-  }
-
-  return res.json() as Promise<OperationsListResult>;
+  return data;
 }
 
 const getOperationByIdUncached = async (
@@ -107,16 +112,17 @@ const getOperationByIdUncached = async (
   }
 
   const client = await getServerApiClient();
-  const res = await client.v1.accounting.operations[":operationId"].$get(
+  const response = await client.v1.accounting.operations[":operationId"].$get(
     { param: { operationId } },
     { init: { cache: "no-store" } },
   );
 
-  if (res.status === 404) {
+  if (response.status === 404) {
     return null;
   }
 
-  return (await res.json()) as OperationDetailsDto;
+  await requestOk(response, "Не удалось загрузить детали операции");
+  return readJsonWithSchema(response, OperationDetailsSchema);
 };
 
 export const getOperationById = cache(getOperationByIdUncached);

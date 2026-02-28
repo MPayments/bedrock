@@ -6,13 +6,21 @@ import {
   RateSourceSyncError,
   ValidationError,
 } from "@bedrock/fx";
+import {
+  FxRatePairsResponseSchema,
+  FxRateSourceSchema,
+  FxRateSourceStatusesResponseSchema,
+  FxRateSourceStatusSchema,
+  FxRateSchema,
+  FxRatePairSchema,
+  SetManualRateInputSchema,
+  SetManualRateResponseSchema,
+} from "@bedrock/fx/contracts";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
-
-const RateSourceSchema = z.enum(["cbr", "investing"]);
 
 const LatestRateQuerySchema = z.object({
   base: z.string().min(2).max(16),
@@ -29,23 +37,8 @@ const LatestRateResponseSchema = z.object({
   asOf: z.iso.datetime(),
 });
 
-const SourceStatusSchema = z.object({
-  source: RateSourceSchema,
-  ttlSeconds: z.number().int().positive(),
-  lastSyncedAt: z.iso.datetime().nullable(),
-  lastPublishedAt: z.iso.datetime().nullable(),
-  lastStatus: z.enum(["idle", "ok", "error"]),
-  lastError: z.string().nullable(),
-  expiresAt: z.iso.datetime().nullable(),
-  isExpired: z.boolean(),
-});
-
-const SourceStatusesSchema = z.object({
-  data: z.array(SourceStatusSchema),
-});
-
 const SyncRateSourceParamsSchema = z.object({
-  source: RateSourceSchema,
+  source: FxRateSourceSchema,
 });
 
 const SyncRateSourceQuerySchema = z.object({
@@ -53,45 +46,11 @@ const SyncRateSourceQuerySchema = z.object({
 });
 
 const SyncRateSourceResponseSchema = z.object({
-  source: RateSourceSchema,
+  source: FxRateSourceSchema,
   synced: z.boolean(),
   rateCount: z.number().int().nonnegative(),
   publishedAt: z.iso.datetime().nullable(),
-  status: SourceStatusSchema,
-});
-
-const SourceRateViewSchema = z.object({
-  source: z.string(),
-  rateNum: z.string(),
-  rateDen: z.string(),
-  asOf: z.iso.datetime(),
-  change: z.number().nullable(),
-  changePercent: z.number().nullable(),
-});
-
-const RatePairViewSchema = z.object({
-  baseCurrencyCode: z.string(),
-  quoteCurrencyCode: z.string(),
-  bestRate: SourceRateViewSchema,
-  rates: z.array(SourceRateViewSchema),
-});
-
-const PairsResponseSchema = z.object({
-  data: z.array(RatePairViewSchema),
-});
-
-const BigIntStringSchema = z.string().min(1).regex(/^\d+$/, "Must be a non-negative integer string");
-
-const SetManualRateBodySchema = z.object({
-  base: z.string().min(2).max(16),
-  quote: z.string().min(2).max(16),
-  rateNum: BigIntStringSchema,
-  rateDen: BigIntStringSchema,
-  asOf: z.coerce.date().optional(),
-});
-
-const SetManualRateResponseSchema = z.object({
-  ok: z.boolean(),
+  status: FxRateSourceStatusSchema,
 });
 
 export function fxRatesRoutes(ctx: AppContext) {
@@ -107,7 +66,7 @@ export function fxRatesRoutes(ctx: AppContext) {
       200: {
         content: {
           "application/json": {
-            schema: PairsResponseSchema,
+            schema: FxRatePairsResponseSchema,
           },
         },
         description: "All currency pairs with latest rates grouped by source",
@@ -125,7 +84,7 @@ export function fxRatesRoutes(ctx: AppContext) {
       body: {
         content: {
           "application/json": {
-            schema: SetManualRateBodySchema,
+            schema: SetManualRateInputSchema,
           },
         },
       },
@@ -197,7 +156,7 @@ export function fxRatesRoutes(ctx: AppContext) {
       200: {
         content: {
           "application/json": {
-            schema: SourceStatusesSchema,
+            schema: FxRateSourceStatusesResponseSchema,
           },
         },
         description: "Current source statuses",

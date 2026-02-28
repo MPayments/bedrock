@@ -11,6 +11,10 @@ import {
   UpdateCounterpartyInputSchema,
 } from "@bedrock/counterparties";
 import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+import {
+  CounterpartyOptionSchema,
+  CounterpartyOptionsResponseSchema,
+} from "@bedrock/counterparties/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";
@@ -84,6 +88,24 @@ export function counterpartiesRoutes(ctx: AppContext) {
           },
         },
         description: "Referenced group not found",
+      },
+    },
+  });
+
+  const optionsRoute = createRoute({
+    middleware: [requirePermission({ counterparties: ["list"] })],
+    method: "get",
+    path: "/options",
+    tags: ["Counterparties"],
+    summary: "List counterparties for select inputs",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CounterpartyOptionsResponseSchema,
+          },
+        },
+        description: "Counterparty option list",
       },
     },
   });
@@ -196,6 +218,27 @@ export function counterpartiesRoutes(ctx: AppContext) {
       const query = c.req.valid("query");
       const result = await ctx.counterpartiesService.list(query);
       return c.json(result, 200);
+    })
+    .openapi(optionsRoute, async (c) => {
+      const result = await ctx.counterpartiesService.list({
+        limit: 500,
+        offset: 0,
+        sortBy: "shortName",
+        sortOrder: "asc",
+      });
+
+      return c.json(
+        {
+          data: result.data.map((counterparty) =>
+            CounterpartyOptionSchema.parse({
+              id: counterparty.id,
+              shortName: counterparty.shortName,
+              label: counterparty.shortName,
+            }),
+          ),
+        },
+        200,
+      );
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");

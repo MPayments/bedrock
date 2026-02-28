@@ -1,106 +1,59 @@
-import { getServerApiClient } from "@/lib/api-client.server";
+import {
+  AccountingCorrespondenceRuleSchema,
+  AccountingTemplateAccountSchema,
+} from "@bedrock/accounting/contracts";
+import {
+  CounterpartyGroupOptionsResponseSchema,
+  CounterpartyOptionsResponseSchema,
+} from "@bedrock/counterparties/contracts";
+import {
+  FinancialResultsByCounterpartyResponseSchema,
+  FinancialResultsByGroupResponseSchema,
+} from "@bedrock/accounting-reporting/contracts";
+import { z } from "zod";
 
-interface AccountingTemplateAccount {
-  accountNo: string;
-  name: string;
-  kind: string;
-  normalSide: string;
-  postingAllowed: boolean;
-  enabled: boolean;
-  parentAccountNo: string | null;
-  createdAt: string;
-}
+import { getServerApiClient } from "@/lib/api/server-client";
+import { readOptionsList } from "@/lib/api/query";
+import { readJsonWithSchema, requestOk } from "@/lib/api/response";
 
-export interface AccountingCorrespondenceRule {
-  id: string;
-  postingCode: string;
-  debitAccountNo: string;
-  creditAccountNo: string;
-  enabled: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+const AccountingTemplateAccountResponseSchema = AccountingTemplateAccountSchema;
+const AccountingCorrespondenceRulesResponseSchema = z.array(
+  AccountingCorrespondenceRuleSchema,
+);
 
-interface AccountingOrgOption {
-  id: string;
-  shortName: string;
-}
-
-interface CounterpartyGroupOption {
-  id: string;
-  code: string;
-  name: string;
-  parentId: string | null;
-}
-
-export interface FinancialResultSummaryByCurrencyDto {
-  currency: string;
-  revenueMinor: string;
-  expenseMinor: string;
-  netMinor: string;
-}
-
-export interface FinancialResultsByCounterpartyRowDto {
-  entityType: "counterparty" | "unattributed";
-  counterpartyId: string | null;
-  counterpartyName: string | null;
-  currency: string;
-  revenueMinor: string;
-  expenseMinor: string;
-  netMinor: string;
-}
-
-export interface FinancialResultsByGroupRowDto {
-  groupId: string;
-  groupCode: string | null;
-  groupName: string | null;
-  currency: string;
-  revenueMinor: string;
-  expenseMinor: string;
-  netMinor: string;
-}
-
-export interface FinancialResultsByCounterpartyDto {
-  data: FinancialResultsByCounterpartyRowDto[];
-  total: number;
-  limit: number;
-  offset: number;
-  summaryByCurrency: FinancialResultSummaryByCurrencyDto[];
-}
-
-export interface FinancialResultsByGroupDto {
-  data: FinancialResultsByGroupRowDto[];
-  total: number;
-  limit: number;
-  offset: number;
-  summaryByCurrency: FinancialResultSummaryByCurrencyDto[];
-  unattributedByCurrency: FinancialResultSummaryByCurrencyDto[];
-}
+export type AccountingTemplateAccount = z.infer<
+  typeof AccountingTemplateAccountResponseSchema
+>;
+export type AccountingCorrespondenceRule = z.infer<
+  typeof AccountingCorrespondenceRuleSchema
+>;
+export type AccountingOrgOption = z.infer<
+  typeof CounterpartyOptionsResponseSchema.shape.data.element
+>;
+export type CounterpartyGroupOption = z.infer<
+  typeof CounterpartyGroupOptionsResponseSchema.shape.data.element
+>;
+export type FinancialResultsByCounterpartyDto = z.infer<
+  typeof FinancialResultsByCounterpartyResponseSchema
+>;
+export type FinancialResultsByGroupDto = z.infer<
+  typeof FinancialResultsByGroupResponseSchema
+>;
+export type FinancialResultSummaryByCurrencyDto = z.infer<
+  typeof FinancialResultsByCounterpartyResponseSchema.shape.summaryByCurrency.element
+>;
 
 export async function getAccountingOrgOptions(): Promise<AccountingOrgOption[]> {
   const client = await getServerApiClient();
-  const res = await client.v1.counterparties.$get(
-    {
-      query: {
-        limit: 100,
-        offset: 0,
-      } as Record<string, unknown>,
-    },
-    {
-      init: { cache: "no-store" },
-    },
-  );
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch org options: ${res.status}`);
-  }
-
-  const payload = (await res.json()) as {
-    data: {
-      id: string;
-      shortName: string;
-    }[];
-  };
+  const payload = await readOptionsList({
+    request: () =>
+      client.v1.counterparties.options.$get(
+        {},
+        { init: { cache: "force-cache" } },
+      ),
+    schema: CounterpartyOptionsResponseSchema,
+    context: "Не удалось загрузить организации",
+  });
 
   return payload.data;
 }
@@ -109,94 +62,83 @@ export async function getCounterpartyGroupOptions(): Promise<
   CounterpartyGroupOption[]
 > {
   const client = await getServerApiClient();
-  const res = await client.v1["counterparty-groups"].$get(
-    {
-      query: {
-        includeSystem: true,
-      },
-    },
-    {
-      init: { cache: "no-store" },
-    },
-  );
+  const payload = await readOptionsList({
+    request: () =>
+      client.v1["counterparty-groups"].options.$get(
+        {},
+        { init: { cache: "force-cache" } },
+      ),
+    schema: CounterpartyGroupOptionsResponseSchema,
+    context: "Не удалось загрузить группы контрагентов",
+  });
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch group options: ${res.status}`);
-  }
-
-  const payload = (await res.json()) as CounterpartyGroupOption[];
-  return payload;
+  return payload.data;
 }
 
 export async function getAccountingTemplateAccounts(): Promise<
   AccountingTemplateAccount[]
 > {
   const client = await getServerApiClient();
-  const res = await client.v1.accounting.template.accounts.$get(
-    {},
-    { init: { cache: "no-store" } },
+  const response = await requestOk(
+    await client.v1.accounting.template.accounts.$get(
+      {},
+      { init: { cache: "no-store" } },
+    ),
+    "Не удалось загрузить план счетов",
   );
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch template accounts: ${res.status}`);
-  }
-
-  return (await res.json()) as AccountingTemplateAccount[];
+  return readJsonWithSchema(response, z.array(AccountingTemplateAccountResponseSchema));
 }
 
-export async function getAccountingCorrespondenceRules(
-): Promise<AccountingCorrespondenceRule[]> {
+export async function getAccountingCorrespondenceRules(): Promise<
+  AccountingCorrespondenceRule[]
+> {
   const client = await getServerApiClient();
-  const res = await client.v1.accounting["correspondence-rules"].$get(
-    {},
-    { init: { cache: "no-store" } },
+  const response = await requestOk(
+    await client.v1.accounting["correspondence-rules"].$get(
+      {},
+      { init: { cache: "no-store" } },
+    ),
+    "Не удалось загрузить правила корреспонденции",
   );
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch correspondence rules: ${res.status}`);
-  }
-
-  return (await res.json()) as AccountingCorrespondenceRule[];
+  return readJsonWithSchema(response, AccountingCorrespondenceRulesResponseSchema);
 }
 
 export async function getFinancialResultsByCounterparty(
   query: Record<string, string | string[]>,
 ): Promise<FinancialResultsByCounterpartyDto> {
   const client = await getServerApiClient();
-  const res = await client.v1.accounting["financial-results"].counterparties.$get(
-    {
-      query,
-    },
-    {
-      init: { cache: "no-store" },
-    },
+  const response = await requestOk(
+    await client.v1.accounting["financial-results"].counterparties.$get(
+      {
+        query,
+      },
+      {
+        init: { cache: "no-store" },
+      },
+    ),
+    "Не удалось загрузить финансовый результат по контрагентам",
   );
 
-  if (!res.ok) {
-    throw new Error(
-      `Failed to fetch financial results by counterparty: ${res.status}`,
-    );
-  }
-
-  return (await res.json()) as FinancialResultsByCounterpartyDto;
+  return readJsonWithSchema(response, FinancialResultsByCounterpartyResponseSchema);
 }
 
 export async function getFinancialResultsByGroup(
   query: Record<string, string | string[]>,
 ): Promise<FinancialResultsByGroupDto> {
   const client = await getServerApiClient();
-  const res = await client.v1.accounting["financial-results"].groups.$get(
-    {
-      query,
-    },
-    {
-      init: { cache: "no-store" },
-    },
+  const response = await requestOk(
+    await client.v1.accounting["financial-results"].groups.$get(
+      {
+        query,
+      },
+      {
+        init: { cache: "no-store" },
+      },
+    ),
+    "Не удалось загрузить финансовый результат по группам",
   );
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch financial results by group: ${res.status}`);
-  }
-
-  return (await res.json()) as FinancialResultsByGroupDto;
+  return readJsonWithSchema(response, FinancialResultsByGroupResponseSchema);
 }

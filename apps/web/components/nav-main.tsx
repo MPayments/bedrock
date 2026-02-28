@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, type LucideIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 import {
   Collapsible,
@@ -29,16 +29,7 @@ import {
   useSidebar,
 } from "@bedrock/ui/components/sidebar";
 
-export type NavMainItem = {
-  title: string;
-  url: string;
-  icon?: LucideIcon;
-  items?: {
-    title: string;
-    url: string;
-    icon?: LucideIcon;
-  }[];
-};
+import type { AppNavItem } from "@/lib/navigation/config";
 
 function normalizePath(path: string) {
   if (path.length > 1 && path.endsWith("/")) {
@@ -68,14 +59,14 @@ function NavCollapsibleItem({
   item,
   pathname,
 }: {
-  item: NavMainItem;
+  item: AppNavItem;
   pathname: string;
 }) {
   const { state, isMobile } = useSidebar();
-  const subItems = item.items ?? [];
+  const subItems = item.children ?? [];
   const isActive =
-    isPathActive(pathname, item.url) ||
-    subItems.some((sub) => isPathActive(pathname, sub.url));
+    isPathActive(pathname, item.href) ||
+    subItems.some((sub) => isPathActive(pathname, sub.href));
   const [open, setOpen] = useState(isActive);
 
   // Auto-open the group when a sub-item becomes active via navigation
@@ -105,8 +96,8 @@ function NavCollapsibleItem({
             <DropdownMenuGroup>
               {subItems.map((subItem) => (
                 <DropdownMenuItem
-                  key={subItem.title}
-                  render={<Link href={subItem.url} />}
+                  key={subItem.id}
+                  render={<Link href={subItem.href} />}
                 >
                   {subItem.icon && <subItem.icon className="size-4" />}
                   <span>{subItem.title}</span>
@@ -135,10 +126,10 @@ function NavCollapsibleItem({
         <CollapsibleContent>
           <SidebarMenuSub>
             {subItems.map((subItem) => (
-              <SidebarMenuSubItem key={subItem.title}>
+              <SidebarMenuSubItem key={subItem.id}>
                 <SidebarMenuSubButton
-                  render={<Link href={subItem.url} />}
-                  isActive={isPathActive(pathname, subItem.url)}
+                  render={<Link href={subItem.href} />}
+                  isActive={isPathActive(pathname, subItem.href)}
                 >
                   {subItem.icon && <subItem.icon className="size-4" />}
                   <span>{subItem.title}</span>
@@ -152,7 +143,7 @@ function NavCollapsibleItem({
   );
 }
 
-export function NavMain({ items }: { items: NavMainItem[] }) {
+export function NavMain({ items }: { items: AppNavItem[] }) {
   const pathname = usePathname();
 
   return (
@@ -160,18 +151,18 @@ export function NavMain({ items }: { items: NavMainItem[] }) {
       <SidebarGroupLabel>Разделы</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
-          const hasSubItems = Boolean(item.items?.length);
-          const subItems = item.items ?? [];
+          const hasSubItems = Boolean(item.children?.length);
+          const subItems = item.children ?? [];
           const isActive = hasSubItems
-            ? isPathActive(pathname, item.url) ||
-              subItems.some((sub) => isPathActive(pathname, sub.url))
-            : isPathActive(pathname, item.url);
+            ? isPathActive(pathname, item.href) ||
+              subItems.some((sub) => isPathActive(pathname, sub.href))
+            : isPathActive(pathname, item.href);
 
           if (!hasSubItems) {
             return (
-              <SidebarMenuItem key={item.title}>
+              <SidebarMenuItem key={item.id}>
                 <SidebarMenuButton
-                  render={<Link href={item.url} />}
+                  render={<Link href={item.href} />}
                   isActive={isActive}
                   tooltip={item.title}
                 >
@@ -184,7 +175,7 @@ export function NavMain({ items }: { items: NavMainItem[] }) {
 
           return (
             <NavCollapsibleItem
-              key={item.title}
+              key={item.id}
               item={item}
               pathname={pathname}
             />

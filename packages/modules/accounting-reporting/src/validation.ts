@@ -155,7 +155,7 @@ const listFinancialResultsByGroupQueryBaseSchema = createListQuerySchemaFromCont
 
 export const ListFinancialResultsByCounterpartyQuerySchema =
   listFinancialResultsByCounterpartyQueryBaseSchema.superRefine((value, ctx) => {
-    if (value.from && !z.string().datetime().safeParse(value.from).success) {
+    if (value.from && !z.iso.datetime().safeParse(value.from).success) {
       ctx.addIssue({
         code: "custom",
         path: ["from"],
@@ -163,7 +163,7 @@ export const ListFinancialResultsByCounterpartyQuerySchema =
       });
     }
 
-    if (value.to && !z.string().datetime().safeParse(value.to).success) {
+    if (value.to && !z.iso.datetime().safeParse(value.to).success) {
       ctx.addIssue({
         code: "custom",
         path: ["to"],
@@ -223,7 +223,7 @@ export const ListFinancialResultsByGroupQuerySchema =
       }
     }
 
-    if (value.from && !z.string().datetime().safeParse(value.from).success) {
+    if (value.from && !z.iso.datetime().safeParse(value.from).success) {
       ctx.addIssue({
         code: "custom",
         path: ["from"],
@@ -231,7 +231,7 @@ export const ListFinancialResultsByGroupQuerySchema =
       });
     }
 
-    if (value.to && !z.string().datetime().safeParse(value.to).success) {
+    if (value.to && !z.iso.datetime().safeParse(value.to).success) {
       ctx.addIssue({
         code: "custom",
         path: ["to"],

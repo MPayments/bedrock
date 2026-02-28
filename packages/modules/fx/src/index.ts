@@ -38,6 +38,19 @@ export type {
   FxRateSourceSyncResult,
 } from "./sources";
 
+export {
+  FxRatePairSchema,
+  FxRatePairsResponseSchema,
+  FxRateSourceSchema,
+  FxRateSourceStatusSchema,
+  FxRateSourceStatusesResponseSchema,
+  SetManualRateInputSchema,
+  SetManualRateResponseSchema,
+} from "./contracts";
+export type {
+  FxRatePair,
+} from "./contracts";
+
 export type {
   RatePairView,
   SourceRateView,

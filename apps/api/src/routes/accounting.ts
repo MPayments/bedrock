@@ -2,6 +2,12 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import { replaceCorrespondenceRulesSchema } from "@bedrock/accounting";
 import {
+  AccountingCorrespondenceRuleSchema,
+  AccountingTemplateAccountSchema,
+} from "@bedrock/accounting/contracts";
+import {
+  FinancialResultsByCounterpartyResponseSchema,
+  FinancialResultsByGroupResponseSchema,
   ListFinancialResultsByCounterpartyQuerySchema,
   ListFinancialResultsByGroupQuerySchema,
 } from "@bedrock/accounting-reporting";
@@ -15,27 +21,6 @@ import { requirePermission } from "../middleware/permission";
 
 const OperationParamSchema = z.object({
   operationId: z.uuid(),
-});
-
-const TemplateAccountSchema = z.object({
-  accountNo: z.string(),
-  name: z.string(),
-  kind: z.string(),
-  normalSide: z.string(),
-  postingAllowed: z.boolean(),
-  enabled: z.boolean(),
-  parentAccountNo: z.string().nullable(),
-  createdAt: z.string().datetime(),
-});
-
-const CorrespondenceRuleSchema = z.object({
-  id: z.uuid(),
-  postingCode: z.string(),
-  debitAccountNo: z.string(),
-  creditAccountNo: z.string(),
-  enabled: z.boolean(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
 });
 
 const ValidatePostingMatrixResultSchema = z.object({
@@ -56,13 +41,13 @@ const LedgerOperationSummarySchema = z.object({
   sourceId: z.string(),
   operationCode: z.string(),
   operationVersion: z.number().int(),
-  postingDate: z.string().datetime(),
+  postingDate: z.iso.datetime(),
   status: z.enum(["pending", "posted", "failed"]),
   error: z.string().nullable(),
-  postedAt: z.string().datetime().nullable(),
+  postedAt: z.iso.datetime().nullable(),
   outboxAttempts: z.number().int(),
-  lastOutboxErrorAt: z.string().datetime().nullable(),
-  createdAt: z.string().datetime(),
+  lastOutboxErrorAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
   postingCount: z.number().int(),
   bookIds: z.array(z.string()),
   bookLabels: z.record(z.string(), z.string()),
@@ -92,7 +77,7 @@ const LedgerOperationPostingSchema = z.object({
   amountMinor: z.string(),
   memo: z.string().nullable(),
   context: z.record(z.string(), z.string()).nullable(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 });
 
 const LedgerOperationTbPlanSchema = z.object({
@@ -112,7 +97,7 @@ const LedgerOperationTbPlanSchema = z.object({
   timeoutSeconds: z.number().int(),
   status: z.enum(["pending", "posted", "failed"]),
   error: z.string().nullable(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 });
 
 const LedgerOperationDetailsSchema = z.object({
@@ -120,46 +105,6 @@ const LedgerOperationDetailsSchema = z.object({
   postings: z.array(LedgerOperationPostingSchema),
   tbPlans: z.array(LedgerOperationTbPlanSchema),
   dimensionLabels: z.record(z.string(), z.string()),
-});
-
-const FinancialResultSummaryByCurrencySchema = z.object({
-  currency: z.string(),
-  revenueMinor: z.string(),
-  expenseMinor: z.string(),
-  netMinor: z.string(),
-});
-
-const FinancialResultByCounterpartyRowSchema = z.object({
-  entityType: z.enum(["counterparty", "unattributed"]),
-  counterpartyId: z.uuid().nullable(),
-  counterpartyName: z.string().nullable(),
-  currency: z.string(),
-  revenueMinor: z.string(),
-  expenseMinor: z.string(),
-  netMinor: z.string(),
-});
-
-const FinancialResultByGroupRowSchema = z.object({
-  groupId: z.uuid(),
-  groupCode: z.string().nullable(),
-  groupName: z.string().nullable(),
-  currency: z.string(),
-  revenueMinor: z.string(),
-  expenseMinor: z.string(),
-  netMinor: z.string(),
-});
-
-const FinancialResultsByCounterpartyResponseSchema = createPaginatedListSchema(
-  FinancialResultByCounterpartyRowSchema,
-).extend({
-  summaryByCurrency: z.array(FinancialResultSummaryByCurrencySchema),
-});
-
-const FinancialResultsByGroupResponseSchema = createPaginatedListSchema(
-  FinancialResultByGroupRowSchema,
-).extend({
-  summaryByCurrency: z.array(FinancialResultSummaryByCurrencySchema),
-  unattributedByCurrency: z.array(FinancialResultSummaryByCurrencySchema),
 });
 
 export function accountingRoutes(ctx: AppContext) {
@@ -175,7 +120,7 @@ export function accountingRoutes(ctx: AppContext) {
       200: {
         content: {
           "application/json": {
-            schema: z.array(TemplateAccountSchema),
+            schema: z.array(AccountingTemplateAccountSchema),
           },
         },
         description: "Template accounts",
@@ -193,7 +138,7 @@ export function accountingRoutes(ctx: AppContext) {
       200: {
         content: {
           "application/json": {
-            schema: z.array(CorrespondenceRuleSchema),
+            schema: z.array(AccountingCorrespondenceRuleSchema),
           },
         },
         description: "Rules",
@@ -221,7 +166,7 @@ export function accountingRoutes(ctx: AppContext) {
       200: {
         content: {
           "application/json": {
-            schema: z.array(CorrespondenceRuleSchema),
+            schema: z.array(AccountingCorrespondenceRuleSchema),
           },
         },
         description: "Rules replaced",

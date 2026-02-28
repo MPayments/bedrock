@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { PaymentsOverviewPage } from "@/features/payments/ui/payments-overview-page";
 
 export default function PaymentsPage() {
-  redirect("/payments/orders");
+  return <PaymentsOverviewPage />;
 }

@@ -11,38 +11,27 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@bedrock/ui/components/sidebar";
-import { NavNotifications } from "./nav-notifications";
+import type { AppSecondaryNavItem } from "@/lib/navigation/config";
 
-export type NavSecondaryItem =
-  | {
-      kind: "link";
-      title: string;
-      url: string;
-      icon?: LucideIcon;
-    }
-  | {
-      kind: "notifications";
-      title: string;
-      icon: LucideIcon;
-    };
+import { NavNotifications } from "./nav-notifications";
 
 export function NavSecondary({
   items,
   ...props
 }: {
-  items: NavSecondaryItem[];
+  items: AppSecondaryNavItem[];
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   return (
     <SidebarGroup {...props}>
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (
-            <SidebarMenuItem key={`${item.kind}-${item.title}`}>
+            <SidebarMenuItem key={item.id}>
               {item.kind === "notifications" ? (
                 <NavNotifications icon={item.icon} title={item.title} />
               ) : (
                 <SidebarMenuButton
-                  render={<Link href={item.url} />}
+                  render={<Link href={item.href} />}
                   tooltip={item.title}
                 >
                   {item.icon && <item.icon />}

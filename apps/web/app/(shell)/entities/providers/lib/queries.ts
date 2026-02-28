@@ -1,13 +1,33 @@
 import { cache } from "react";
+import { z } from "zod";
 
 import { PROVIDERS_LIST_CONTRACT } from "@bedrock/operational-accounts/contracts";
 
-import { getServerApiClient } from "@/lib/api-client.server";
-import { readResourceById } from "@/lib/resources/http";
+import { getServerApiClient } from "@/lib/api/server-client";
+import { createPaginatedResponseSchema } from "@/lib/api/schemas";
+import { readEntityById, readPaginatedList } from "@/lib/api/query";
 import { createResourceListQuery } from "@/lib/resources/search-params";
 
 import type { ProvidersListResult } from "../(table)";
 import type { ProvidersSearchParams } from "./validations";
+
+const ProviderResponseSchema = z.object({
+  id: z.uuid(),
+  type: z.enum(["bank", "exchange", "blockchain", "custodian"]),
+  name: z.string(),
+  description: z.string().nullable(),
+  address: z.string().nullable(),
+  contact: z.string().nullable(),
+  bic: z.string().nullable(),
+  swift: z.string().nullable(),
+  country: z.string(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+const ProvidersListResponseSchema = createPaginatedResponseSchema(
+  ProviderResponseSchema,
+);
 
 function createProvidersListQuery(search: ProvidersSearchParams) {
   return createResourceListQuery(PROVIDERS_LIST_CONTRACT, search);
@@ -17,37 +37,26 @@ export async function getProviders(
   search: ProvidersSearchParams,
 ): Promise<ProvidersListResult> {
   const client = await getServerApiClient();
-  const res = await client.v1["account-providers"].$get({
-    query: createProvidersListQuery(search),
+  const { data } = await readPaginatedList({
+    request: () =>
+      client.v1["account-providers"].$get({
+        query: createProvidersListQuery(search),
+      }),
+    schema: ProvidersListResponseSchema,
+    context: "Не удалось загрузить провайдеров",
   });
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch providers: ${res.status}`);
-  }
-
-  return res.json() as Promise<ProvidersListResult>;
+  return data;
 }
 
-export interface ProviderDetails {
-  id: string;
-  type: string;
-  name: string;
-  description: string | null;
-  address: string | null;
-  contact: string | null;
-  bic: string | null;
-  swift: string | null;
-  country: string;
-  createdAt: string;
-  updatedAt: string;
-}
+export type ProviderDetails = z.infer<typeof ProviderResponseSchema>;
 
 const getProviderByIdUncached = async (
   id: string,
 ): Promise<ProviderDetails | null> => {
-  return readResourceById<ProviderDetails>({
+  return readEntityById({
     id,
-    resourceName: "provider",
+    resourceName: "провайдера",
     request: async (validId) => {
       const client = await getServerApiClient();
       return client.v1["account-providers"][":id"].$get(
@@ -55,6 +64,7 @@ const getProviderByIdUncached = async (
         { init: { cache: "no-store" } },
       );
     },
+    schema: ProviderResponseSchema,
   });
 };
 
