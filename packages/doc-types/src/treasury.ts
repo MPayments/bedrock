@@ -13,24 +13,13 @@ import { DocumentValidationError } from "@bedrock/documents";
 import { SYSTEM_LEDGER_ORG_ID, TransferCodes } from "@bedrock/kernel/constants";
 import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
 
-const amountMinorSchema = z
-  .union([z.string(), z.number().int(), z.bigint()])
-  .transform((value, ctx) => {
-    try {
-      const parsed = typeof value === "bigint" ? value : BigInt(value);
-      if (parsed <= 0n) {
-        ctx.addIssue({ code: "custom", message: "amountMinor must be positive" });
-        return z.NEVER;
-      }
-      return parsed.toString();
-    } catch {
-      ctx.addIssue({
-        code: "custom",
-        message: "amountMinor must be an integer in minor units",
-      });
-      return z.NEVER;
-    }
-  });
+import {
+  amountMinorSchema,
+  buildDocumentDraft,
+  buildDocumentPostIdempotencyKey,
+  parseDocumentPayload,
+  serializeOccurredAt,
+} from "./internal/document-utils";
 
 const ExternalFundingPayloadSchema = z.object({
   kind: z.enum([
@@ -40,7 +29,11 @@ const ExternalFundingPayloadSchema = z.object({
     "opening_balance",
   ]),
   operationalAccountId: z.uuid(),
-  currency: z.string().min(2).max(16).transform((value) => value.trim().toUpperCase()),
+  currency: z
+    .string()
+    .min(2)
+    .max(16)
+    .transform((value) => value.trim().toUpperCase()),
   amountMinor: amountMinorSchema,
   entryRef: z.string().min(1).max(255),
   occurredAt: z.coerce.date(),
@@ -50,6 +43,15 @@ const ExternalFundingPayloadSchema = z.object({
 });
 
 type ExternalFundingPayload = z.infer<typeof ExternalFundingPayloadSchema>;
+
+function normalizeExternalFundingPayload(payload: ExternalFundingPayload) {
+  return {
+    ...serializeOccurredAt(payload),
+    memo: payload.memo ?? null,
+    counterpartyId: payload.counterpartyId ?? null,
+    customerId: payload.customerId ?? null,
+  };
+}
 
 const EXTERNAL_FUNDING_BY_KIND: Record<
   ExternalFundingPayload["kind"],
@@ -93,7 +95,10 @@ function buildCreditDimensions(payload: ExternalFundingPayload): Dimensions {
   return {};
 }
 
-async function ensureCounterpartyExists(counterpartyId: string, db: Parameters<DocumentModule["canPost"]>[0]["db"]) {
+async function ensureCounterpartyExists(
+  counterpartyId: string,
+  db: Parameters<DocumentModule["canPost"]>[0]["db"],
+) {
   const [counterparty] = await db
     .select({ id: schema.counterparties.id })
     .from(schema.counterparties)
@@ -101,11 +106,16 @@ async function ensureCounterpartyExists(counterpartyId: string, db: Parameters<D
     .limit(1);
 
   if (!counterparty) {
-    throw new DocumentValidationError(`Counterparty not found: ${counterpartyId}`);
+    throw new DocumentValidationError(
+      `Counterparty not found: ${counterpartyId}`,
+    );
   }
 }
 
-async function ensureCustomerExists(customerId: string, db: Parameters<DocumentModule["canPost"]>[0]["db"]) {
+async function ensureCustomerExists(
+  customerId: string,
+  db: Parameters<DocumentModule["canPost"]>[0]["db"],
+) {
   const [customer] = await db
     .select({ id: schema.customers.id })
     .from(schema.customers)
@@ -130,46 +140,21 @@ export function createExternalFundingDocumentModule(deps: {
     payloadVersion: 1,
     createSchema: ExternalFundingPayloadSchema,
     updateSchema: ExternalFundingPayloadSchema,
-    payloadSchema: ExternalFundingPayloadSchema.transform((payload) => ({
-      ...payload,
-      memo: payload.memo ?? null,
-      counterpartyId: payload.counterpartyId ?? null,
-      customerId: payload.customerId ?? null,
-      occurredAt: payload.occurredAt.toISOString(),
-    })),
+    payloadSchema: ExternalFundingPayloadSchema.transform(
+      normalizeExternalFundingPayload,
+    ),
     postingRequired: true,
     approvalRequired() {
       return false;
     },
     async createDraft(_context, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...input,
-          memo: input.memo ?? null,
-          counterpartyId: input.counterpartyId ?? null,
-          customerId: input.customerId ?? null,
-          occurredAt: input.occurredAt.toISOString(),
-        },
-      };
+      return buildDocumentDraft(input, normalizeExternalFundingPayload(input));
     },
     async updateDraft(_context, _document, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...input,
-          memo: input.memo ?? null,
-          counterpartyId: input.counterpartyId ?? null,
-          customerId: input.customerId ?? null,
-          occurredAt: input.occurredAt.toISOString(),
-        },
-      };
+      return buildDocumentDraft(input, normalizeExternalFundingPayload(input));
     },
     deriveSummary(document) {
-      const payload = ExternalFundingPayloadSchema.parse({
-        ...document.payload,
-        occurredAt: document.occurredAt,
-      });
+      const payload = parseDocumentPayload(ExternalFundingPayloadSchema, document);
       return {
         title: `External funding: ${payload.kind}`,
         amountMinor: BigInt(payload.amountMinor),
@@ -199,10 +184,7 @@ export function createExternalFundingDocumentModule(deps: {
     async canReject() {},
     async canCancel() {},
     async canPost(context, document) {
-      const payload = ExternalFundingPayloadSchema.parse({
-        ...document.payload,
-        occurredAt: document.occurredAt,
-      });
+      const payload = parseDocumentPayload(ExternalFundingPayloadSchema, document);
 
       const [operationalAccount] = await context.db
         .select({
@@ -237,10 +219,7 @@ export function createExternalFundingDocumentModule(deps: {
       }
     },
     async buildIntent(_context, document) {
-      const payload = ExternalFundingPayloadSchema.parse({
-        ...document.payload,
-        occurredAt: document.occurredAt,
-      });
+      const payload = parseDocumentPayload(ExternalFundingPayloadSchema, document);
       const config = EXTERNAL_FUNDING_BY_KIND[payload.kind];
 
       return {
@@ -282,7 +261,7 @@ export function createExternalFundingDocumentModule(deps: {
       };
     },
     buildPostIdempotencyKey(document) {
-      return `doc:${document.id}:post:v${document.payloadVersion}`;
+      return buildDocumentPostIdempotencyKey(document);
     },
   };
 }

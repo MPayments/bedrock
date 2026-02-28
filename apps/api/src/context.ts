@@ -6,7 +6,6 @@ import {
   createAccountingReportingService,
   type AccountingReportingService,
 } from "@bedrock/accounting-reporting";
-import { createOperationalAccountsService, type OperationalAccountsService } from "@bedrock/operational-accounts";
 import {
   createCounterpartiesService,
   type CounterpartiesService,
@@ -16,17 +15,15 @@ import {
   type CurrenciesService,
 } from "@bedrock/currencies";
 import {
-  createDocumentRegistry,
-} from "@bedrock/document-registry";
-import {
-  createDocumentsService,
-  type DocumentsService,
-} from "@bedrock/documents";
-import {
   createCustomersService,
   type CustomersService,
 } from "@bedrock/customers";
 import { db } from "@bedrock/db/client";
+import { createDocumentRegistry } from "@bedrock/document-registry";
+import {
+  createDocumentsService,
+  type DocumentsService,
+} from "@bedrock/documents";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import { createConsoleLogger, type Logger } from "@bedrock/kernel";
@@ -35,6 +32,10 @@ import {
   createLedgerReadService,
   type LedgerReadService,
 } from "@bedrock/ledger";
+import {
+  createOperationalAccountsService,
+  type OperationalAccountsService,
+} from "@bedrock/operational-accounts";
 
 export interface Env {
   DATABASE_URL: string;
@@ -62,7 +63,10 @@ export interface AppContext {
 
 export function createAppContext(env: Env): AppContext {
   const logger = createConsoleLogger({ app: "bedrock-api" });
-  const operationalAccountsService = createOperationalAccountsService({ db, logger });
+  const operationalAccountsService = createOperationalAccountsService({
+    db,
+    logger,
+  });
   const accountingService = createAccountingService({ db, logger });
   const accountingReportingService = createAccountingReportingService({
     db,

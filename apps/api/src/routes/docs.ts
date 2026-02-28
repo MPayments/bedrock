@@ -21,6 +21,19 @@ function resolveErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function isZodErrorLike(
+  error: unknown,
+): error is { flatten: () => unknown; issues: unknown[] } {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "issues" in error &&
+      Array.isArray((error as { issues?: unknown[] }).issues) &&
+      "flatten" in error &&
+      typeof (error as { flatten?: unknown }).flatten === "function",
+  );
+}
+
 function toDocumentDto(input: DocumentWithOperationId) {
   const { document } = input;
   return {
@@ -63,6 +76,15 @@ function toDocumentDto(input: DocumentWithOperationId) {
 }
 
 function handleDocumentsError(c: any, error: unknown) {
+  if (isZodErrorLike(error)) {
+    return c.json(
+      {
+        error: "Validation error",
+        details: error.flatten(),
+      },
+      400,
+    );
+  }
   if (error instanceof DocumentNotFoundError) {
     return c.json({ error: resolveErrorMessage(error) }, 404);
   }
@@ -140,12 +162,16 @@ export function docsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
   app.get("/", requirePermission({ documents: ["list"] }), async (c) => {
-    const query = ListDocumentsQuerySchema.parse(queryObjectFromUrl(c.req.url));
-    const result = await ctx.documentsService.list(query);
-    return c.json({
-      ...result,
-      data: result.data.map(toDocumentDto),
-    });
+    try {
+      const query = ListDocumentsQuerySchema.parse(queryObjectFromUrl(c.req.url));
+      const result = await ctx.documentsService.list(query);
+      return c.json({
+        ...result,
+        data: result.data.map(toDocumentDto),
+      });
+    } catch (error) {
+      return handleDocumentsError(c, error);
+    }
   });
 
   app.post("/:docType", requirePermission({ documents: ["create"] }), async (c) => {

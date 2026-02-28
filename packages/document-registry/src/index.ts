@@ -8,13 +8,11 @@ import {
   createPayoutInitiateDocumentModule,
   createPayoutSettleDocumentModule,
   createPayoutVoidDocumentModule,
-} from "@bedrock/doc-payments";
-import {
   createTransferDocumentModule,
   createTransferSettleDocumentModule,
   createTransferVoidDocumentModule,
-} from "@bedrock/doc-transfers";
-import { createExternalFundingDocumentModule } from "@bedrock/doc-treasury";
+  createExternalFundingDocumentModule,
+} from "@bedrock/doc-types";
 import type { DocumentModule, DocumentRegistry } from "@bedrock/documents";
 
 export interface DocumentRegistryDeps {

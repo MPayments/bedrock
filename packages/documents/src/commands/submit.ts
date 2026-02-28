@@ -3,7 +3,12 @@ import { and, eq, sql } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 import { InvalidStateError } from "@bedrock/kernel/errors";
 
-import { createModuleContext, lockDocument, resolveModule } from "../internal/helpers";
+import {
+  assertDocumentIsActive,
+  createModuleContext,
+  lockDocument,
+  resolveModule,
+} from "../internal/helpers";
 import type { DocumentsServiceContext } from "../internal/context";
 import type { DocumentWithOperationId } from "../types";
 
@@ -25,6 +30,7 @@ export function createSubmitHandler(context: DocumentsServiceContext) {
         log,
       });
       const document = await lockDocument(tx, input.documentId, input.docType);
+      assertDocumentIsActive(document, "submitted");
 
       if (document.submissionStatus !== "draft") {
         throw new InvalidStateError("Only draft documents can be submitted");

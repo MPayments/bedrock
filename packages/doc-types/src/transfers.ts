@@ -8,27 +8,22 @@ import {
 } from "@bedrock/accounting";
 import { schema } from "@bedrock/db/schema";
 import type { DocumentModule } from "@bedrock/documents";
-import { DocumentGraphError, DocumentValidationError } from "@bedrock/documents";
-import { DAY_IN_SECONDS, SYSTEM_LEDGER_ORG_ID } from "@bedrock/kernel/constants";
+import {
+  DocumentGraphError,
+  DocumentValidationError,
+} from "@bedrock/documents";
+import {
+  DAY_IN_SECONDS,
+  SYSTEM_LEDGER_ORG_ID,
+} from "@bedrock/kernel/constants";
 
-const amountMinorSchema = z
-  .union([z.string(), z.number().int(), z.bigint()])
-  .transform((value, ctx) => {
-    try {
-      const parsed = typeof value === "bigint" ? value : BigInt(value);
-      if (parsed <= 0n) {
-        ctx.addIssue({ code: "custom", message: "amountMinor must be positive" });
-        return z.NEVER;
-      }
-      return parsed.toString();
-    } catch {
-      ctx.addIssue({
-        code: "custom",
-        message: "amountMinor must be an integer in minor units",
-      });
-      return z.NEVER;
-    }
-  });
+import {
+  amountMinorSchema,
+  buildDocumentDraft,
+  buildDocumentPostIdempotencyKey,
+  parseDocumentPayload,
+  serializeOccurredAt,
+} from "./internal/document-utils";
 
 const TransferCreateSchema = z.object({
   sourceOperationalAccountId: z.uuid(),
@@ -61,6 +56,22 @@ const TransferPendingActionSchema = z.object({
 
 type TransferPayload = z.infer<typeof TransferPayloadSchema>;
 type TransferPendingActionPayload = z.infer<typeof TransferPendingActionSchema>;
+
+function normalizeTransferPayload(payload: TransferPayload) {
+  return {
+    ...serializeOccurredAt(payload),
+    memo: payload.memo ?? null,
+  };
+}
+
+function normalizeTransferPendingActionPayload(
+  payload: TransferPendingActionPayload,
+) {
+  return {
+    ...serializeOccurredAt(payload),
+    externalRef: payload.externalRef ?? null,
+  };
+}
 
 async function getAvailableBalanceByOperationalAccount(
   db: Parameters<DocumentModule["canPost"]>[0]["db"],
@@ -205,9 +216,7 @@ async function ensureNoPendingResolution(
 
 export function createTransferDocumentModule(deps: {
   operationalAccountsService: {
-    resolveTransferBindings: (input: {
-      accountIds: string[];
-    }) => Promise<
+    resolveTransferBindings: (input: { accountIds: string[] }) => Promise<
       {
         accountId: string;
         counterpartyId: string;
@@ -229,17 +238,16 @@ export function createTransferDocumentModule(deps: {
     payloadVersion: 1,
     createSchema: TransferCreateSchema,
     updateSchema: TransferCreateSchema,
-    payloadSchema: TransferPayloadSchema.transform((payload) => ({
-      ...payload,
-      memo: payload.memo ?? null,
-      occurredAt: payload.occurredAt.toISOString(),
-    })),
+    payloadSchema: TransferPayloadSchema.transform(normalizeTransferPayload),
     postingRequired: true,
     approvalRequired() {
       return true;
     },
     async createDraft(_context, input) {
-      if (input.sourceOperationalAccountId === input.destinationOperationalAccountId) {
+      if (
+        input.sourceOperationalAccountId ===
+        input.destinationOperationalAccountId
+      ) {
         throw new DocumentValidationError(
           "sourceOperationalAccountId and destinationOperationalAccountId must be different",
         );
@@ -261,11 +269,10 @@ export function createTransferDocumentModule(deps: {
         );
       }
 
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
+      return buildDocumentDraft(
+        input,
+        normalizeTransferPayload({
           ...input,
-          memo: input.memo ?? null,
           currency: source.currencyCode,
           kind:
             source.counterpartyId === destination.counterpartyId
@@ -273,18 +280,14 @@ export function createTransferDocumentModule(deps: {
               : "cross_org",
           sourceCounterpartyId: source.counterpartyId,
           destinationCounterpartyId: destination.counterpartyId,
-          occurredAt: input.occurredAt.toISOString(),
-        },
-      };
+        }),
+      );
     },
     async updateDraft(context, _document, input) {
       return this.createDraft(context, input);
     },
     deriveSummary(document) {
-      const payload = TransferPayloadSchema.parse({
-        ...document.payload,
-        occurredAt: document.occurredAt,
-      });
+      const payload = parseDocumentPayload(TransferPayloadSchema, document);
       return {
         title: `Transfer ${payload.currency}`,
         amountMinor: BigInt(payload.amountMinor),
@@ -320,15 +323,14 @@ export function createTransferDocumentModule(deps: {
       }
     },
     async canPost(context, document) {
-      const payload = TransferPayloadSchema.parse({
-        ...document.payload,
-        occurredAt: document.occurredAt,
-      });
+      const payload = parseDocumentPayload(TransferPayloadSchema, document);
 
       await context.db
         .select({ id: schema.operationalAccounts.id })
         .from(schema.operationalAccounts)
-        .where(eq(schema.operationalAccounts.id, payload.sourceOperationalAccountId))
+        .where(
+          eq(schema.operationalAccounts.id, payload.sourceOperationalAccountId),
+        )
         .for("update")
         .limit(1);
 
@@ -366,10 +368,7 @@ export function createTransferDocumentModule(deps: {
       }
     },
     async buildIntent(_context, document) {
-      const payload = TransferPayloadSchema.parse({
-        ...document.payload,
-        occurredAt: document.occurredAt,
-      });
+      const payload = parseDocumentPayload(TransferPayloadSchema, document);
       const template = buildTransferApproveTemplate({
         transferId: document.id,
         kind: payload.kind,
@@ -402,7 +401,7 @@ export function createTransferDocumentModule(deps: {
       };
     },
     buildPostIdempotencyKey(document) {
-      return `doc:${document.id}:post:v${document.payloadVersion}`;
+      return buildDocumentPostIdempotencyKey(document);
     },
     async buildDetails(context, document) {
       const pendingTransfers = await getPendingTransferIdsForDocument(
@@ -412,7 +411,9 @@ export function createTransferDocumentModule(deps: {
 
       return {
         computed: {
-          pendingTransferIds: pendingTransfers.map((item) => item.pendingId.toString()),
+          pendingTransferIds: pendingTransfers.map((item) =>
+            item.pendingId.toString(),
+          ),
           pendingRefs: pendingTransfers
             .map((item) => item.pendingRef)
             .filter((item): item is string => Boolean(item)),
@@ -422,10 +423,9 @@ export function createTransferDocumentModule(deps: {
   };
 }
 
-function createTransferResolutionModule(eventType: "settle" | "void"): DocumentModule<
-  TransferPendingActionPayload,
-  TransferPendingActionPayload
-> {
+function createTransferResolutionModule(
+  eventType: "settle" | "void",
+): DocumentModule<TransferPendingActionPayload, TransferPendingActionPayload> {
   const docType = eventType === "settle" ? "transfer_settle" : "transfer_void";
   const docNoPrefix = eventType === "settle" ? "TRS" : "TRV";
 
@@ -435,40 +435,27 @@ function createTransferResolutionModule(eventType: "settle" | "void"): DocumentM
     payloadVersion: 1,
     createSchema: TransferPendingActionSchema,
     updateSchema: TransferPendingActionSchema,
-    payloadSchema: TransferPendingActionSchema.transform((payload) => ({
-      ...payload,
-      externalRef: payload.externalRef ?? null,
-      occurredAt: payload.occurredAt.toISOString(),
-    })),
+    payloadSchema: TransferPendingActionSchema.transform(
+      normalizeTransferPendingActionPayload,
+    ),
     postingRequired: true,
     approvalRequired() {
       return false;
     },
     async createDraft(_context, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...input,
-          externalRef: input.externalRef ?? null,
-          occurredAt: input.occurredAt.toISOString(),
-        },
-      };
+      return buildDocumentDraft(
+        input,
+        normalizeTransferPendingActionPayload(input),
+      );
     },
     async updateDraft(_context, _document, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...input,
-          externalRef: input.externalRef ?? null,
-          occurredAt: input.occurredAt.toISOString(),
-        },
-      };
+      return buildDocumentDraft(
+        input,
+        normalizeTransferPendingActionPayload(input),
+      );
     },
     deriveSummary(document) {
-      const payload = TransferPendingActionSchema.parse({
-        ...document.payload,
-        occurredAt: document.occurredAt,
-      });
+      const payload = parseDocumentPayload(TransferPendingActionSchema, document);
       return {
         title: `Transfer ${eventType}`,
         memo: payload.externalRef ?? null,
@@ -490,10 +477,7 @@ function createTransferResolutionModule(eventType: "settle" | "void"): DocumentM
     async canReject() {},
     async canCancel() {},
     async canPost(context, document) {
-      const payload = TransferPendingActionSchema.parse({
-        ...document.payload,
-        occurredAt: document.occurredAt,
-      });
+      const payload = parseDocumentPayload(TransferPendingActionSchema, document);
       const dependency = await getDependencyDocument(context.db, document.id);
       if (!dependency || dependency.id !== payload.transferDocumentId) {
         throw new DocumentGraphError(
@@ -501,16 +485,20 @@ function createTransferResolutionModule(eventType: "settle" | "void"): DocumentM
         );
       }
       if (dependency.docType !== "transfer") {
-        throw new DocumentValidationError("Dependency must point to a transfer document");
+        throw new DocumentValidationError(
+          "Dependency must point to a transfer document",
+        );
       }
       if (dependency.postingStatus !== "posted") {
-        throw new DocumentValidationError("Transfer must be posted before settle/void");
+        throw new DocumentValidationError(
+          "Transfer must be posted before settle/void",
+        );
       }
 
-      const transferPayload = TransferPayloadSchema.parse({
-        ...dependency.payload,
-        occurredAt: dependency.occurredAt,
-      });
+      const transferPayload = parseDocumentPayload(
+        TransferPayloadSchema,
+        dependency,
+      );
 
       if (transferPayload.settlementMode !== "pending") {
         throw new DocumentValidationError(
@@ -531,10 +519,7 @@ function createTransferResolutionModule(eventType: "settle" | "void"): DocumentM
       await ensureNoPendingResolution(context.db, dependency.id);
     },
     async buildIntent(context, document) {
-      const payload = TransferPendingActionSchema.parse({
-        ...document.payload,
-        occurredAt: document.occurredAt,
-      });
+      const payload = parseDocumentPayload(TransferPendingActionSchema, document);
       const dependency = await getDependencyDocument(context.db, document.id);
       if (!dependency) {
         throw new DocumentValidationError(
@@ -542,10 +527,10 @@ function createTransferResolutionModule(eventType: "settle" | "void"): DocumentM
         );
       }
 
-      const transferPayload = TransferPayloadSchema.parse({
-        ...dependency.payload,
-        occurredAt: dependency.occurredAt,
-      });
+      const transferPayload = parseDocumentPayload(
+        TransferPayloadSchema,
+        dependency,
+      );
       const pendingTransfers = await getPendingTransferIdsForDocument(
         context.db,
         dependency.id,
@@ -572,13 +557,10 @@ function createTransferResolutionModule(eventType: "settle" | "void"): DocumentM
       };
     },
     buildPostIdempotencyKey(document) {
-      return `doc:${document.id}:post:v${document.payloadVersion}`;
+      return buildDocumentPostIdempotencyKey(document);
     },
     async buildInitialLinks(_context, document) {
-      const payload = TransferPendingActionSchema.parse({
-        ...document.payload,
-        occurredAt: document.occurredAt,
-      });
+      const payload = parseDocumentPayload(TransferPendingActionSchema, document);
       return [
         {
           toDocumentId: payload.transferDocumentId,

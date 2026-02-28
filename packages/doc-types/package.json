@@ -1,5 +1,5 @@
 {
-  "name": "@bedrock/doc-treasury",
+  "name": "@bedrock/doc-types",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,8 +17,10 @@
     "@bedrock/currencies": "workspace:*",
     "@bedrock/db": "workspace:*",
     "@bedrock/documents": "workspace:*",
+    "@bedrock/fees": "workspace:*",
     "@bedrock/kernel": "workspace:*",
     "@bedrock/ledger": "workspace:*",
+    "@bedrock/operational-accounts": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.3.6"
   },

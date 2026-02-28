@@ -32,24 +32,13 @@ import {
 import { InvalidStateError, NotFoundError } from "@bedrock/kernel/errors";
 import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
 
-const amountMinorSchema = z
-  .union([z.string(), z.number().int(), z.bigint()])
-  .transform((value, ctx) => {
-    try {
-      const parsed = typeof value === "bigint" ? value : BigInt(value);
-      if (parsed <= 0n) {
-        ctx.addIssue({ code: "custom", message: "amountMinor must be positive" });
-        return z.NEVER;
-      }
-      return parsed.toString();
-    } catch {
-      ctx.addIssue({
-        code: "custom",
-        message: "amountMinor must be an integer in minor units",
-      });
-      return z.NEVER;
-    }
-  });
+import {
+  amountMinorSchema,
+  buildDocumentDraft,
+  buildDocumentPostIdempotencyKey,
+  parseDocumentPayload,
+  serializeOccurredAt,
+} from "./internal/document-utils";
 
 const metadataSchema = z.record(z.string(), z.string().max(255));
 
@@ -57,7 +46,12 @@ const feeComponentInputSchema = z
   .object({
     id: z.string().trim().min(1).max(128).optional(),
     kind: z.string().trim().min(1).max(64),
-    currency: z.string().trim().min(2).max(16).transform((value) => value.toUpperCase()),
+    currency: z
+      .string()
+      .trim()
+      .min(2)
+      .max(16)
+      .transform((value) => value.toUpperCase()),
     amountMinor: amountMinorSchema,
     settlementMode: feeSettlementModeSchema.optional(),
     accountingTreatment: feeAccountingTreatmentSchema.optional(),
@@ -67,8 +61,7 @@ const feeComponentInputSchema = z
   .transform((value) => ({
     ...value,
     id:
-      value.id ??
-      `manual:${value.kind}:${value.currency}:${value.amountMinor}`,
+      value.id ?? `manual:${value.kind}:${value.currency}:${value.amountMinor}`,
     settlementMode: value.settlementMode ?? "in_ledger",
     accountingTreatment:
       value.accountingTreatment ??
@@ -84,7 +77,12 @@ const adjustmentInputSchema = z
     id: z.string().trim().min(1).max(128).optional(),
     kind: z.string().trim().min(1).max(64),
     effect: adjustmentEffectSchema,
-    currency: z.string().trim().min(2).max(16).transform((value) => value.toUpperCase()),
+    currency: z
+      .string()
+      .trim()
+      .min(2)
+      .max(16)
+      .transform((value) => value.toUpperCase()),
     amountMinor: amountMinorSchema,
     settlementMode: feeSettlementModeSchema.optional(),
     memo: z.string().max(1000).optional(),
@@ -114,7 +112,12 @@ const PayinFundingSchema = z.object({
   branchBankStableKey: z.string().trim().min(1).max(255),
   customerId: z.uuid(),
   payInOperationalAccountId: z.uuid(),
-  currency: z.string().trim().min(2).max(16).transform((value) => value.toUpperCase()),
+  currency: z
+    .string()
+    .trim()
+    .min(2)
+    .max(16)
+    .transform((value) => value.toUpperCase()),
   amountMinor: amountMinorSchema,
   railRef: z.string().trim().min(1).max(255),
   memo: z.string().max(1000).optional(),
@@ -130,11 +133,21 @@ const FxExecuteSchema = z.object({
   payOutOperationalAccountId: z.uuid(),
   dealDirection: feeDealDirectionSchema.optional(),
   dealForm: feeDealFormSchema.optional(),
-  payInCurrency: z.string().trim().min(2).max(16).transform((value) => value.toUpperCase()),
+  payInCurrency: z
+    .string()
+    .trim()
+    .min(2)
+    .max(16)
+    .transform((value) => value.toUpperCase()),
   principalMinor: amountMinorSchema,
   fees: z.array(feeComponentInputSchema).optional().default([]),
   adjustments: z.array(adjustmentInputSchema).optional().default([]),
-  payOutCurrency: z.string().trim().min(2).max(16).transform((value) => value.toUpperCase()),
+  payOutCurrency: z
+    .string()
+    .trim()
+    .min(2)
+    .max(16)
+    .transform((value) => value.toUpperCase()),
   payOutAmountMinor: amountMinorSchema,
   quoteRef: z.string().trim().min(1).max(255),
   memo: z.string().max(1000).optional(),
@@ -147,7 +160,12 @@ const PayoutInitiateSchema = z.object({
   payoutCounterpartyId: z.uuid(),
   payoutBankStableKey: z.string().trim().min(1).max(255),
   payoutOperationalAccountId: z.uuid(),
-  payOutCurrency: z.string().trim().min(2).max(16).transform((value) => value.toUpperCase()),
+  payOutCurrency: z
+    .string()
+    .trim()
+    .min(2)
+    .max(16)
+    .transform((value) => value.toUpperCase()),
   amountMinor: amountMinorSchema,
   railRef: z.string().trim().min(1).max(255),
   timeoutSeconds: z.number().int().positive().optional(),
@@ -157,7 +175,12 @@ const PayoutInitiateSchema = z.object({
 
 const PayoutResolveSchema = z.object({
   payoutInitiateDocumentId: z.uuid(),
-  payOutCurrency: z.string().trim().min(2).max(16).transform((value) => value.toUpperCase()),
+  payOutCurrency: z
+    .string()
+    .trim()
+    .min(2)
+    .max(16)
+    .transform((value) => value.toUpperCase()),
   railRef: z.string().trim().min(1).max(255),
   memo: z.string().max(1000).optional(),
   occurredAt: z.coerce.date(),
@@ -169,7 +192,12 @@ const FeePayoutInitiateSchema = z.object({
   componentId: z.string().trim().min(1).max(128),
   feeBucket: z.string().trim().min(1).max(128),
   accountingTreatment: feeAccountingTreatmentSchema,
-  currency: z.string().trim().min(2).max(16).transform((value) => value.toUpperCase()),
+  currency: z
+    .string()
+    .trim()
+    .min(2)
+    .max(16)
+    .transform((value) => value.toUpperCase()),
   amountMinor: amountMinorSchema,
   payoutCounterpartyId: z.uuid(),
   payoutOperationalAccountId: z.uuid(),
@@ -244,60 +272,93 @@ function toMinor(value: string | bigint) {
   return typeof value === "bigint" ? value : BigInt(value);
 }
 
-function withOccurredAt<T extends { occurredAt: Date }>(payload: T) {
+function normalizePaymentCasePayload(payload: PaymentCasePayload) {
   return {
-    ...payload,
-    occurredAt: payload.occurredAt.toISOString(),
+    ...serializeOccurredAt(payload),
+    memo: payload.memo ?? null,
+    ref: payload.ref ?? null,
+    customerId: payload.customerId ?? null,
+  };
+}
+
+function normalizePayinFundingPayload(payload: PayinFundingPayload) {
+  return {
+    ...serializeOccurredAt(payload),
+    memo: payload.memo ?? null,
+  };
+}
+
+function normalizeFxExecutePayload(payload: FxExecutePayload) {
+  return {
+    ...serializeOccurredAt(payload),
+    memo: payload.memo ?? null,
+    fees: payload.fees.map((item) => ({
+      ...item,
+      memo: item.memo ?? null,
+      metadata: item.metadata ?? null,
+    })),
+    adjustments: payload.adjustments.map((item) => ({
+      ...item,
+      memo: item.memo ?? null,
+      metadata: item.metadata ?? null,
+    })),
+  };
+}
+
+function normalizePayoutInitiatePayload(payload: PayoutInitiatePayload) {
+  return {
+    ...serializeOccurredAt(payload),
+    memo: payload.memo ?? null,
+  };
+}
+
+function normalizePayoutResolvePayload(payload: PayoutResolvePayload) {
+  return {
+    ...serializeOccurredAt(payload),
+    memo: payload.memo ?? null,
+  };
+}
+
+function normalizeFeePayoutInitiatePayload(payload: FeePayoutInitiatePayload) {
+  return {
+    ...serializeOccurredAt(payload),
+    memo: payload.memo ?? null,
+  };
+}
+
+function normalizeFeePayoutResolvePayload(payload: FeePayoutResolvePayload) {
+  return {
+    ...serializeOccurredAt(payload),
+    memo: payload.memo ?? null,
   };
 }
 
 function parsePaymentCasePayload(document: Document) {
-  return PaymentCaseSchema.parse({
-    ...document.payload,
-    occurredAt: document.occurredAt,
-  });
+  return parseDocumentPayload(PaymentCaseSchema, document);
 }
 
 function parsePayinFundingPayload(document: Document) {
-  return PayinFundingSchema.parse({
-    ...document.payload,
-    occurredAt: document.occurredAt,
-  });
+  return parseDocumentPayload(PayinFundingSchema, document);
 }
 
 function parseFxExecutePayload(document: Document) {
-  return FxExecuteSchema.parse({
-    ...document.payload,
-    occurredAt: document.occurredAt,
-  });
+  return parseDocumentPayload(FxExecuteSchema, document);
 }
 
 function parsePayoutInitiatePayload(document: Document) {
-  return PayoutInitiateSchema.parse({
-    ...document.payload,
-    occurredAt: document.occurredAt,
-  });
+  return parseDocumentPayload(PayoutInitiateSchema, document);
 }
 
 function parsePayoutResolvePayload(document: Document) {
-  return PayoutResolveSchema.parse({
-    ...document.payload,
-    occurredAt: document.occurredAt,
-  });
+  return parseDocumentPayload(PayoutResolveSchema, document);
 }
 
 function parseFeePayoutInitiatePayload(document: Document) {
-  return FeePayoutInitiateSchema.parse({
-    ...document.payload,
-    occurredAt: document.occurredAt,
-  });
+  return parseDocumentPayload(FeePayoutInitiateSchema, document);
 }
 
 function parseFeePayoutResolvePayload(document: Document) {
-  return FeePayoutResolveSchema.parse({
-    ...document.payload,
-    occurredAt: document.occurredAt,
-  });
+  return parseDocumentPayload(FeePayoutResolveSchema, document);
 }
 
 function hydrateFeeComponents(payload: FxExecutePayload): FeeComponent[] {
@@ -314,7 +375,9 @@ function hydrateFeeComponents(payload: FxExecutePayload): FeeComponent[] {
   }));
 }
 
-function hydrateAdjustmentComponents(payload: FxExecutePayload): AdjustmentComponent[] {
+function hydrateAdjustmentComponents(
+  payload: FxExecutePayload,
+): AdjustmentComponent[] {
   return payload.adjustments.map((item) => ({
     id: item.id,
     kind: item.kind,
@@ -337,7 +400,12 @@ async function requireDocument(
   const [document] = await db
     .select()
     .from(schema.documents)
-    .where(and(eq(schema.documents.id, id), eq(schema.documents.docType, expectedDocType)))
+    .where(
+      and(
+        eq(schema.documents.id, id),
+        eq(schema.documents.docType, expectedDocType),
+      ),
+    )
     .limit(1);
 
   if (!document) {
@@ -368,7 +436,9 @@ async function requireParentCase(
     .limit(1);
 
   if (!row) {
-    throw new DocumentValidationError(`Parent payment_case link missing for ${documentId}`);
+    throw new DocumentValidationError(
+      `Parent payment_case link missing for ${documentId}`,
+    );
   }
 
   return row.document;
@@ -422,7 +492,9 @@ async function ensureCounterpartyExists(
     .limit(1);
 
   if (!counterparty) {
-    throw new DocumentValidationError(`Counterparty not found: ${counterpartyId}`);
+    throw new DocumentValidationError(
+      `Counterparty not found: ${counterpartyId}`,
+    );
   }
 }
 
@@ -671,8 +743,17 @@ async function consumeFxQuoteForExecution(
       usedByRef: usageRef,
       usedAt: consumedAt,
     })
-    .where(and(eq(schema.fxQuotes.id, quote.id), eq(schema.fxQuotes.status, "active")))
-    .returning({ id: schema.fxQuotes.id, status: schema.fxQuotes.status, usedByRef: schema.fxQuotes.usedByRef });
+    .where(
+      and(
+        eq(schema.fxQuotes.id, quote.id),
+        eq(schema.fxQuotes.status, "active"),
+      ),
+    )
+    .returning({
+      id: schema.fxQuotes.id,
+      status: schema.fxQuotes.status,
+      usedByRef: schema.fxQuotes.usedByRef,
+    });
 
   if (updated.length > 0) {
     return quote;
@@ -790,38 +871,62 @@ async function buildFxExecutionArtifacts(params: {
     payoutOperationalAccountId: string;
   }>;
 }> {
-  const { context, document, payload, feesService, currenciesService, consumeQuote } = params;
+  const {
+    context,
+    document,
+    payload,
+    feesService,
+    currenciesService,
+    consumeQuote,
+  } = params;
   const caseDocument = await requireParentCase(context.db, document.id);
-  const payinDocument = await requireDependency(context.db, document.id, "payin_funding");
+  const payinDocument = await requireDependency(
+    context.db,
+    document.id,
+    "payin_funding",
+  );
   ensurePosted(payinDocument, "payin_funding");
 
   const payinPayload = parsePayinFundingPayload(payinDocument);
   if (payinPayload.caseDocumentId !== payload.caseDocumentId) {
-    throw new DocumentValidationError("payin_funding case does not match fx_execute");
+    throw new DocumentValidationError(
+      "payin_funding case does not match fx_execute",
+    );
   }
   if (payinPayload.customerId !== payload.customerId) {
-    throw new DocumentValidationError("customerId does not match payin_funding");
+    throw new DocumentValidationError(
+      "customerId does not match payin_funding",
+    );
   }
   if (payinPayload.currency !== payload.payInCurrency) {
-    throw new DocumentValidationError("payInCurrency does not match payin_funding");
+    throw new DocumentValidationError(
+      "payInCurrency does not match payin_funding",
+    );
   }
   if (payinPayload.amountMinor !== payload.principalMinor) {
-    throw new DocumentValidationError("principalMinor does not match payin_funding");
+    throw new DocumentValidationError(
+      "principalMinor does not match payin_funding",
+    );
   }
 
   const quote = consumeQuote
     ? await consumeFxQuoteForExecution(context.db, currenciesService, payload)
     : await loadFxQuoteByRef(context.db, currenciesService, payload.quoteRef);
 
-  const routeLegs = await loadFxRouteLegs(context.db, currenciesService, quote.id, {
-    fromCurrency: quote.fromCurrency,
-    toCurrency: quote.toCurrency,
-    fromAmountMinor: quote.fromAmountMinor,
-    toAmountMinor: quote.toAmountMinor,
-    rateNum: quote.rateNum,
-    rateDen: quote.rateDen,
-    occurredAt: payload.occurredAt,
-  });
+  const routeLegs = await loadFxRouteLegs(
+    context.db,
+    currenciesService,
+    quote.id,
+    {
+      fromCurrency: quote.fromCurrency,
+      toCurrency: quote.toCurrency,
+      fromAmountMinor: quote.fromAmountMinor,
+      toAmountMinor: quote.toAmountMinor,
+      rateNum: quote.rateNum,
+      rateDen: quote.rateDen,
+      occurredAt: payload.occurredAt,
+    },
+  );
 
   if (routeLegs[0]!.fromCurrency !== payload.payInCurrency) {
     throw new DocumentValidationError("FX route payInCurrency mismatch");
@@ -1044,7 +1149,9 @@ async function buildFxExecutionArtifacts(params: {
       continue;
     }
 
-    const posting = resolveProviderFeeExpenseAccrualPostingTemplate(defaults.bucket);
+    const posting = resolveProviderFeeExpenseAccrualPostingTemplate(
+      defaults.bucket,
+    );
     lines.push({
       type: OPERATION_TRANSFER_TYPE.CREATE,
       chain,
@@ -1095,9 +1202,8 @@ async function buildFxExecutionArtifacts(params: {
   const mergedAdjustments = feesService.mergeAdjustmentComponents({
     manual: hydrateAdjustmentComponents(payload),
   });
-  const partitionedAdjustments = feesService.partitionAdjustmentComponents(
-    mergedAdjustments,
-  );
+  const partitionedAdjustments =
+    feesService.partitionAdjustmentComponents(mergedAdjustments);
 
   for (const [index, component] of partitionedAdjustments.inLedger.entries()) {
     const posting = resolveAdjustmentInLedgerPostingTemplate(
@@ -1146,7 +1252,10 @@ async function buildFxExecutionArtifacts(params: {
     });
   }
 
-  for (const [index, component] of partitionedAdjustments.separatePaymentOrder.entries()) {
+  for (const [
+    index,
+    component,
+  ] of partitionedAdjustments.separatePaymentOrder.entries()) {
     const posting = resolveAdjustmentReservePostingTemplate(
       component.effect,
       component.kind,
@@ -1298,7 +1407,11 @@ async function buildPaymentCaseComputed(
 
   const postedTypes = new Set(
     timeline
-      .filter((item) => item.postingStatus === "posted" || item.postingStatus === "not_required")
+      .filter(
+        (item) =>
+          item.postingStatus === "posted" ||
+          item.postingStatus === "not_required",
+      )
       .map((item) => item.docType),
   );
 
@@ -1309,7 +1422,10 @@ async function buildPaymentCaseComputed(
     nextDocTypes.push("fx_execute");
   } else if (!postedTypes.has("payout_initiate")) {
     nextDocTypes.push("payout_initiate");
-  } else if (!postedTypes.has("payout_settle") && !postedTypes.has("payout_void")) {
+  } else if (
+    !postedTypes.has("payout_settle") &&
+    !postedTypes.has("payout_void")
+  ) {
     nextDocTypes.push("payout_settle", "payout_void");
   }
 
@@ -1329,37 +1445,16 @@ export function createPaymentCaseDocumentModule(): DocumentModule<
     payloadVersion: 1,
     createSchema: PaymentCaseSchema,
     updateSchema: PaymentCaseSchema,
-    payloadSchema: PaymentCaseSchema.transform((payload) => ({
-      ...withOccurredAt(payload),
-      memo: payload.memo ?? null,
-      ref: payload.ref ?? null,
-      customerId: payload.customerId ?? null,
-    })),
+    payloadSchema: PaymentCaseSchema.transform(normalizePaymentCasePayload),
     postingRequired: false,
     approvalRequired() {
       return false;
     },
     async createDraft(_context, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...withOccurredAt(input),
-          memo: input.memo ?? null,
-          ref: input.ref ?? null,
-          customerId: input.customerId ?? null,
-        },
-      };
+      return buildDocumentDraft(input, normalizePaymentCasePayload(input));
     },
     async updateDraft(_context, _document, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...withOccurredAt(input),
-          memo: input.memo ?? null,
-          ref: input.ref ?? null,
-          customerId: input.customerId ?? null,
-        },
-      };
+      return buildDocumentDraft(input, normalizePaymentCasePayload(input));
     },
     deriveSummary(document) {
       const payload = parsePaymentCasePayload(document);
@@ -1395,7 +1490,7 @@ export function createPaymentCaseDocumentModule(): DocumentModule<
       };
     },
     buildPostIdempotencyKey(document) {
-      return `doc:${document.id}:post:v${document.payloadVersion}`;
+      return buildDocumentPostIdempotencyKey(document);
     },
   };
 }
@@ -1411,31 +1506,16 @@ export function createPayinFundingDocumentModule(deps: {
     payloadVersion: 1,
     createSchema: PayinFundingSchema,
     updateSchema: PayinFundingSchema,
-    payloadSchema: PayinFundingSchema.transform((payload) => ({
-      ...withOccurredAt(payload),
-      memo: payload.memo ?? null,
-    })),
+    payloadSchema: PayinFundingSchema.transform(normalizePayinFundingPayload),
     postingRequired: true,
     approvalRequired() {
       return false;
     },
     async createDraft(_context, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...withOccurredAt(input),
-          memo: input.memo ?? null,
-        },
-      };
+      return buildDocumentDraft(input, normalizePayinFundingPayload(input));
     },
     async updateDraft(_context, _document, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...withOccurredAt(input),
-          memo: input.memo ?? null,
-        },
-      };
+      return buildDocumentDraft(input, normalizePayinFundingPayload(input));
     },
     deriveSummary(document) {
       const payload = parsePayinFundingPayload(document);
@@ -1479,10 +1559,17 @@ export function createPayinFundingDocumentModule(deps: {
       const casePayload = parsePaymentCasePayload(caseDocument);
 
       if (caseDocument.id !== payload.caseDocumentId) {
-        throw new DocumentValidationError("Payment case link does not match payload");
+        throw new DocumentValidationError(
+          "Payment case link does not match payload",
+        );
       }
-      if (casePayload.customerId && casePayload.customerId !== payload.customerId) {
-        throw new DocumentValidationError("customerId does not match payment_case");
+      if (
+        casePayload.customerId &&
+        casePayload.customerId !== payload.customerId
+      ) {
+        throw new DocumentValidationError(
+          "customerId does not match payment_case",
+        );
       }
 
       await Promise.all([
@@ -1553,7 +1640,7 @@ export function createPayinFundingDocumentModule(deps: {
       return [{ toDocumentId: payload.caseDocumentId, linkType: "parent" }];
     },
     buildPostIdempotencyKey(document) {
-      return `doc:${document.id}:post:v${document.payloadVersion}`;
+      return buildDocumentPostIdempotencyKey(document);
     },
   };
 }
@@ -1570,61 +1657,16 @@ export function createFxExecuteDocumentModule(deps: {
     payloadVersion: 1,
     createSchema: FxExecuteSchema,
     updateSchema: FxExecuteSchema,
-    payloadSchema: FxExecuteSchema.transform((payload) => ({
-      ...withOccurredAt(payload),
-      memo: payload.memo ?? null,
-      fees: payload.fees.map((item) => ({
-        ...item,
-        memo: item.memo ?? null,
-        metadata: item.metadata ?? null,
-      })),
-      adjustments: payload.adjustments.map((item) => ({
-        ...item,
-        memo: item.memo ?? null,
-        metadata: item.metadata ?? null,
-      })),
-    })),
+    payloadSchema: FxExecuteSchema.transform(normalizeFxExecutePayload),
     postingRequired: true,
     approvalRequired() {
       return false;
     },
     async createDraft(_context, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...withOccurredAt(input),
-          memo: input.memo ?? null,
-          fees: input.fees.map((item) => ({
-            ...item,
-            memo: item.memo ?? null,
-            metadata: item.metadata ?? null,
-          })),
-          adjustments: input.adjustments.map((item) => ({
-            ...item,
-            memo: item.memo ?? null,
-            metadata: item.metadata ?? null,
-          })),
-        },
-      };
+      return buildDocumentDraft(input, normalizeFxExecutePayload(input));
     },
     async updateDraft(_context, _document, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...withOccurredAt(input),
-          memo: input.memo ?? null,
-          fees: input.fees.map((item) => ({
-            ...item,
-            memo: item.memo ?? null,
-            metadata: item.metadata ?? null,
-          })),
-          adjustments: input.adjustments.map((item) => ({
-            ...item,
-            memo: item.memo ?? null,
-            metadata: item.metadata ?? null,
-          })),
-        },
-      };
+      return buildDocumentDraft(input, normalizeFxExecutePayload(input));
     },
     deriveSummary(document) {
       const payload = parseFxExecutePayload(document);
@@ -1672,12 +1714,18 @@ export function createFxExecuteDocumentModule(deps: {
     async canCancel() {},
     async canPost(context, document) {
       const payload = parseFxExecutePayload(document);
-      const payinDocument = await requireDependency(context.db, document.id, "payin_funding");
+      const payinDocument = await requireDependency(
+        context.db,
+        document.id,
+        "payin_funding",
+      );
       const caseDocument = await requireParentCase(context.db, document.id);
       ensurePosted(payinDocument, "payin_funding");
 
       if (caseDocument.id !== payload.caseDocumentId) {
-        throw new DocumentValidationError("payment_case link does not match fx_execute payload");
+        throw new DocumentValidationError(
+          "payment_case link does not match fx_execute payload",
+        );
       }
 
       await Promise.all([
@@ -1694,16 +1742,24 @@ export function createFxExecuteDocumentModule(deps: {
 
       const payinPayload = parsePayinFundingPayload(payinDocument);
       if (payinPayload.caseDocumentId !== payload.caseDocumentId) {
-        throw new DocumentValidationError("payin_funding case does not match fx_execute");
+        throw new DocumentValidationError(
+          "payin_funding case does not match fx_execute",
+        );
       }
       if (payinPayload.customerId !== payload.customerId) {
-        throw new DocumentValidationError("customerId does not match payin_funding");
+        throw new DocumentValidationError(
+          "customerId does not match payin_funding",
+        );
       }
       if (payinPayload.currency !== payload.payInCurrency) {
-        throw new DocumentValidationError("payInCurrency does not match payin_funding");
+        throw new DocumentValidationError(
+          "payInCurrency does not match payin_funding",
+        );
       }
       if (payinPayload.amountMinor !== payload.principalMinor) {
-        throw new DocumentValidationError("principalMinor does not match payin_funding");
+        throw new DocumentValidationError(
+          "principalMinor does not match payin_funding",
+        );
       }
     },
     async buildIntent(context, document) {
@@ -1740,7 +1796,10 @@ export function createFxExecuteDocumentModule(deps: {
       const payload = parseFxExecutePayload(document);
       return [
         { toDocumentId: payload.caseDocumentId, linkType: "parent" },
-        { toDocumentId: payload.payinFundingDocumentId, linkType: "depends_on" },
+        {
+          toDocumentId: payload.payinFundingDocumentId,
+          linkType: "depends_on",
+        },
       ];
     },
     async buildDetails(context, document) {
@@ -1756,15 +1815,17 @@ export function createFxExecuteDocumentModule(deps: {
 
       return {
         computed: {
-          separateFeeComponents: artifacts.separateFeeComponents.map((item) => ({
-            ...item,
-            amountMinor: item.amountMinor.toString(),
-          })),
+          separateFeeComponents: artifacts.separateFeeComponents.map(
+            (item) => ({
+              ...item,
+              amountMinor: item.amountMinor.toString(),
+            }),
+          ),
         },
       };
     },
     buildPostIdempotencyKey(document) {
-      return `doc:${document.id}:post:v${document.payloadVersion}`;
+      return buildDocumentPostIdempotencyKey(document);
     },
   };
 }
@@ -1784,36 +1845,22 @@ function createPayoutResolveModule(params: {
       payloadVersion: 1,
       createSchema: PayoutResolveSchema,
       updateSchema: PayoutResolveSchema,
-      payloadSchema: PayoutResolveSchema.transform((payload) => ({
-        ...withOccurredAt(payload),
-        memo: payload.memo ?? null,
-      })),
+      payloadSchema: PayoutResolveSchema.transform(normalizePayoutResolvePayload),
       postingRequired: true,
       approvalRequired() {
         return false;
       },
       async createDraft(_context, input) {
-        return {
-          occurredAt: input.occurredAt,
-          payload: {
-            ...withOccurredAt(input),
-            memo: input.memo ?? null,
-          },
-        };
+        return buildDocumentDraft(input, normalizePayoutResolvePayload(input));
       },
       async updateDraft(_context, _document, input) {
-        return {
-          occurredAt: input.occurredAt,
-          payload: {
-            ...withOccurredAt(input),
-            memo: input.memo ?? null,
-          },
-        };
+        return buildDocumentDraft(input, normalizePayoutResolvePayload(input));
       },
       deriveSummary(document) {
         const payload = parsePayoutResolvePayload(document);
         return {
-          title: params.eventType === "settle" ? "Payout settled" : "Payout voided",
+          title:
+            params.eventType === "settle" ? "Payout settled" : "Payout voided",
           currency: payload.payOutCurrency,
           memo: payload.memo ?? null,
           searchText: [
@@ -1850,10 +1897,14 @@ function createPayoutResolveModule(params: {
         ensurePosted(dependency, "payout_initiate");
         const dependencyPayload = parsePayoutInitiatePayload(dependency);
         if (dependency.id !== payload.payoutInitiateDocumentId) {
-          throw new DocumentValidationError("payoutInitiateDocumentId does not match dependency");
+          throw new DocumentValidationError(
+            "payoutInitiateDocumentId does not match dependency",
+          );
         }
         if (dependencyPayload.payOutCurrency !== payload.payOutCurrency) {
-          throw new DocumentValidationError("payOutCurrency does not match payout_initiate");
+          throw new DocumentValidationError(
+            "payOutCurrency does not match payout_initiate",
+          );
         }
         await ensureNoResolutionDocument(context.db, dependency.id, [
           "payout_settle",
@@ -1899,7 +1950,8 @@ function createPayoutResolveModule(params: {
                   : OPERATION_TRANSFER_TYPE.VOID_PENDING,
               planRef: makePlanKey(`payout_${params.eventType}`, {
                 railRef: payload.railRef,
-                orderId: (await requireParentCase(context.db, dependency.id)).id,
+                orderId: (await requireParentCase(context.db, dependency.id))
+                  .id,
                 currency: payload.payOutCurrency,
                 pendingId: pendingTransferId.toString(),
               }),
@@ -1926,7 +1978,7 @@ function createPayoutResolveModule(params: {
         ];
       },
       buildPostIdempotencyKey(document) {
-        return `doc:${document.id}:post:v${document.payloadVersion}`;
+        return buildDocumentPostIdempotencyKey(document);
       },
     };
   };
@@ -1943,31 +1995,16 @@ export function createPayoutInitiateDocumentModule(deps: {
     payloadVersion: 1,
     createSchema: PayoutInitiateSchema,
     updateSchema: PayoutInitiateSchema,
-    payloadSchema: PayoutInitiateSchema.transform((payload) => ({
-      ...withOccurredAt(payload),
-      memo: payload.memo ?? null,
-    })),
+    payloadSchema: PayoutInitiateSchema.transform(normalizePayoutInitiatePayload),
     postingRequired: true,
     approvalRequired() {
       return false;
     },
     async createDraft(_context, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...withOccurredAt(input),
-          memo: input.memo ?? null,
-        },
-      };
+      return buildDocumentDraft(input, normalizePayoutInitiatePayload(input));
     },
     async updateDraft(_context, _document, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...withOccurredAt(input),
-          memo: input.memo ?? null,
-        },
-      };
+      return buildDocumentDraft(input, normalizePayoutInitiatePayload(input));
     },
     deriveSummary(document) {
       const payload = parsePayoutInitiatePayload(document);
@@ -2010,7 +2047,11 @@ export function createPayoutInitiateDocumentModule(deps: {
     async canCancel() {},
     async canPost(context, document) {
       const payload = parsePayoutInitiatePayload(document);
-      const fxDocument = await requireDependency(context.db, document.id, "fx_execute");
+      const fxDocument = await requireDependency(
+        context.db,
+        document.id,
+        "fx_execute",
+      );
       const caseDocument = await requireParentCase(context.db, document.id);
       ensurePosted(fxDocument, "fx_execute");
 
@@ -2022,21 +2063,32 @@ export function createPayoutInitiateDocumentModule(deps: {
 
       const fxPayload = parseFxExecutePayload(fxDocument);
       if (fxPayload.caseDocumentId !== payload.caseDocumentId) {
-        throw new DocumentValidationError("fx_execute case does not match payout");
+        throw new DocumentValidationError(
+          "fx_execute case does not match payout",
+        );
       }
       if (fxPayload.payOutCounterpartyId !== payload.payoutCounterpartyId) {
-        throw new DocumentValidationError("payoutCounterpartyId does not match fx_execute");
+        throw new DocumentValidationError(
+          "payoutCounterpartyId does not match fx_execute",
+        );
       }
-      if (fxPayload.payOutOperationalAccountId !== payload.payoutOperationalAccountId) {
+      if (
+        fxPayload.payOutOperationalAccountId !==
+        payload.payoutOperationalAccountId
+      ) {
         throw new DocumentValidationError(
           "payoutOperationalAccountId does not match fx_execute",
         );
       }
       if (fxPayload.payOutCurrency !== payload.payOutCurrency) {
-        throw new DocumentValidationError("payOutCurrency does not match fx_execute");
+        throw new DocumentValidationError(
+          "payOutCurrency does not match fx_execute",
+        );
       }
       if (fxPayload.payOutAmountMinor !== payload.amountMinor) {
-        throw new DocumentValidationError("amountMinor does not match fx_execute");
+        throw new DocumentValidationError(
+          "amountMinor does not match fx_execute",
+        );
       }
 
       await Promise.all([
@@ -2118,7 +2170,7 @@ export function createPayoutInitiateDocumentModule(deps: {
       };
     },
     buildPostIdempotencyKey(document) {
-      return `doc:${document.id}:post:v${document.payloadVersion}`;
+      return buildDocumentPostIdempotencyKey(document);
     },
   };
 }
@@ -2154,31 +2206,24 @@ function createFeePayoutResolveModule(params: {
       payloadVersion: 1,
       createSchema: FeePayoutResolveSchema,
       updateSchema: FeePayoutResolveSchema,
-      payloadSchema: FeePayoutResolveSchema.transform((payload) => ({
-        ...withOccurredAt(payload),
-        memo: payload.memo ?? null,
-      })),
+      payloadSchema: FeePayoutResolveSchema.transform(
+        normalizeFeePayoutResolvePayload,
+      ),
       postingRequired: true,
       approvalRequired() {
         return false;
       },
       async createDraft(_context, input) {
-        return {
-          occurredAt: input.occurredAt,
-          payload: {
-            ...withOccurredAt(input),
-            memo: input.memo ?? null,
-          },
-        };
+        return buildDocumentDraft(
+          input,
+          normalizeFeePayoutResolvePayload(input),
+        );
       },
       async updateDraft(_context, _document, input) {
-        return {
-          occurredAt: input.occurredAt,
-          payload: {
-            ...withOccurredAt(input),
-            memo: input.memo ?? null,
-          },
-        };
+        return buildDocumentDraft(
+          input,
+          normalizeFeePayoutResolvePayload(input),
+        );
       },
       deriveSummary(document) {
         const payload = parseFeePayoutResolvePayload(document);
@@ -2270,7 +2315,8 @@ function createFeePayoutResolveModule(params: {
                   ? OPERATION_TRANSFER_TYPE.POST_PENDING
                   : OPERATION_TRANSFER_TYPE.VOID_PENDING,
               planRef: makePlanKey(`fee_payout_${params.eventType}`, {
-                feePayoutInitiateDocumentId: payload.feePayoutInitiateDocumentId,
+                feePayoutInitiateDocumentId:
+                  payload.feePayoutInitiateDocumentId,
                 railRef: payload.railRef,
                 pendingId: pendingTransferId.toString(),
                 currency: dependencyPayload.currency,
@@ -2298,7 +2344,7 @@ function createFeePayoutResolveModule(params: {
         ];
       },
       buildPostIdempotencyKey(document) {
-        return `doc:${document.id}:post:v${document.payloadVersion}`;
+        return buildDocumentPostIdempotencyKey(document);
       },
     };
   };
@@ -2316,31 +2362,18 @@ export function createFeePayoutInitiateDocumentModule(deps: {
     payloadVersion: 1,
     createSchema: FeePayoutInitiateSchema,
     updateSchema: FeePayoutInitiateSchema,
-    payloadSchema: FeePayoutInitiateSchema.transform((payload) => ({
-      ...withOccurredAt(payload),
-      memo: payload.memo ?? null,
-    })),
+    payloadSchema: FeePayoutInitiateSchema.transform(
+      normalizeFeePayoutInitiatePayload,
+    ),
     postingRequired: true,
     approvalRequired() {
       return false;
     },
     async createDraft(_context, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...withOccurredAt(input),
-          memo: input.memo ?? null,
-        },
-      };
+      return buildDocumentDraft(input, normalizeFeePayoutInitiatePayload(input));
     },
     async updateDraft(_context, _document, input) {
-      return {
-        occurredAt: input.occurredAt,
-        payload: {
-          ...withOccurredAt(input),
-          memo: input.memo ?? null,
-        },
-      };
+      return buildDocumentDraft(input, normalizeFeePayoutInitiatePayload(input));
     },
     deriveSummary(document) {
       const payload = parseFeePayoutInitiatePayload(document);
@@ -2384,7 +2417,11 @@ export function createFeePayoutInitiateDocumentModule(deps: {
     async canCancel() {},
     async canPost(context, document) {
       const payload = parseFeePayoutInitiatePayload(document);
-      const fxDocument = await requireDependency(context.db, document.id, "fx_execute");
+      const fxDocument = await requireDependency(
+        context.db,
+        document.id,
+        "fx_execute",
+      );
       const caseDocument = await requireParentCase(context.db, document.id);
       ensurePosted(fxDocument, "fx_execute");
 
@@ -2396,7 +2433,9 @@ export function createFeePayoutInitiateDocumentModule(deps: {
 
       const fxPayload = parseFxExecutePayload(fxDocument);
       if (fxPayload.caseDocumentId !== payload.caseDocumentId) {
-        throw new DocumentValidationError("fx_execute case does not match fee payout");
+        throw new DocumentValidationError(
+          "fx_execute case does not match fee payout",
+        );
       }
 
       await Promise.all([
@@ -2428,7 +2467,9 @@ export function createFeePayoutInitiateDocumentModule(deps: {
       }
 
       if (component.bucket !== payload.feeBucket) {
-        throw new DocumentValidationError("feeBucket does not match fx_execute component");
+        throw new DocumentValidationError(
+          "feeBucket does not match fx_execute component",
+        );
       }
       if (component.accountingTreatment !== payload.accountingTreatment) {
         throw new DocumentValidationError(
@@ -2436,10 +2477,14 @@ export function createFeePayoutInitiateDocumentModule(deps: {
         );
       }
       if (component.currency !== payload.currency) {
-        throw new DocumentValidationError("currency does not match fx_execute component");
+        throw new DocumentValidationError(
+          "currency does not match fx_execute component",
+        );
       }
       if (component.amountMinor !== toMinor(payload.amountMinor)) {
-        throw new DocumentValidationError("amountMinor does not match fx_execute component");
+        throw new DocumentValidationError(
+          "amountMinor does not match fx_execute component",
+        );
       }
     },
     async buildIntent(context, document) {
@@ -2519,7 +2564,7 @@ export function createFeePayoutInitiateDocumentModule(deps: {
       };
     },
     buildPostIdempotencyKey(document) {
-      return `doc:${document.id}:post:v${document.payloadVersion}`;
+      return buildDocumentPostIdempotencyKey(document);
     },
   };
 }

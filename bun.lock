@@ -250,56 +250,18 @@
         "typescript": "^5.8.3",
       },
     },
-    "packages/doc-types/payments": {
-      "name": "@bedrock/doc-payments",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/accounting": "workspace:*",
-        "@bedrock/db": "workspace:*",
-        "@bedrock/documents": "workspace:*",
-        "@bedrock/fees": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
-        "@bedrock/ledger": "workspace:*",
-        "drizzle-orm": "^0.45.1",
-        "zod": "^4.3.6",
-      },
-      "devDependencies": {
-        "@bedrock/eslint-config": "workspace:*",
-        "@bedrock/typescript-config": "workspace:*",
-        "eslint": "^9.31.0",
-        "typescript": "^5.8.3",
-      },
-    },
-    "packages/doc-types/transfers": {
-      "name": "@bedrock/doc-transfers",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/accounting": "workspace:*",
-        "@bedrock/db": "workspace:*",
-        "@bedrock/documents": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
-        "@bedrock/ledger": "workspace:*",
-        "@bedrock/operational-accounts": "workspace:*",
-        "drizzle-orm": "^0.45.1",
-        "zod": "^4.3.6",
-      },
-      "devDependencies": {
-        "@bedrock/eslint-config": "workspace:*",
-        "@bedrock/typescript-config": "workspace:*",
-        "eslint": "^9.31.0",
-        "typescript": "^5.8.3",
-      },
-    },
-    "packages/doc-types/treasury": {
-      "name": "@bedrock/doc-treasury",
+    "packages/doc-types": {
+      "name": "@bedrock/doc-types",
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/db": "workspace:*",
         "@bedrock/documents": "workspace:*",
+        "@bedrock/fees": "workspace:*",
         "@bedrock/kernel": "workspace:*",
         "@bedrock/ledger": "workspace:*",
+        "@bedrock/operational-accounts": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.3.6",
       },
@@ -315,9 +277,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/currencies": "workspace:*",
-        "@bedrock/doc-payments": "workspace:*",
-        "@bedrock/doc-transfers": "workspace:*",
-        "@bedrock/doc-treasury": "workspace:*",
+        "@bedrock/doc-types": "workspace:*",
         "@bedrock/documents": "workspace:*",
         "@bedrock/operational-accounts": "workspace:*",
       },
@@ -559,11 +519,7 @@
 
     "@bedrock/db": ["@bedrock/db@workspace:packages/db"],
 
-    "@bedrock/doc-payments": ["@bedrock/doc-payments@workspace:packages/doc-types/payments"],
-
-    "@bedrock/doc-transfers": ["@bedrock/doc-transfers@workspace:packages/doc-types/transfers"],
-
-    "@bedrock/doc-treasury": ["@bedrock/doc-treasury@workspace:packages/doc-types/treasury"],
+    "@bedrock/doc-types": ["@bedrock/doc-types@workspace:packages/doc-types"],
 
     "@bedrock/document-registry": ["@bedrock/document-registry@workspace:packages/document-registry"],
 

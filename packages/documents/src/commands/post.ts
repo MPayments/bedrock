@@ -4,7 +4,12 @@ import { schema } from "@bedrock/db/schema";
 import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import { DocumentPostingNotRequiredError } from "../errors";
-import { createModuleContext, lockDocument, resolveModule } from "../internal/helpers";
+import {
+  assertDocumentIsActive,
+  createModuleContext,
+  lockDocument,
+  resolveModule,
+} from "../internal/helpers";
 import type { DocumentsServiceContext } from "../internal/context";
 import type { DocumentWithOperationId } from "../types";
 
@@ -26,6 +31,7 @@ export function createPostHandler(context: DocumentsServiceContext) {
         log,
       });
       const document = await lockDocument(tx, input.documentId, input.docType);
+      assertDocumentIsActive(document, "posted");
 
       const [existingOperation] = await tx
         .select({ operationId: schema.documentOperations.operationId })

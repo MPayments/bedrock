@@ -3,12 +3,14 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     projects: [
+      "apps/api/vitest.config.ts",
       "packages/operational-accounts/vitest.config.ts",
       "packages/db/vitest.config.ts",
       "packages/countries/vitest.config.ts",
       "packages/customers/vitest.config.ts",
       "packages/customers/vitest.integration.config.ts",
       "packages/currencies/vitest.config.ts",
+      "packages/documents/vitest.config.ts",
       "packages/fees/vitest.config.ts",
       "packages/fees/vitest.integration.config.ts",
       "packages/fx/vitest.config.ts",

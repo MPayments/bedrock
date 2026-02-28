@@ -4,6 +4,7 @@ import { and, asc, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-or
 
 import type { Database, Transaction } from "@bedrock/db";
 import { schema, type Document, type DocumentLinkType } from "@bedrock/db/schema";
+import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import { DocumentGraphError, DocumentNotFoundError, DocumentRegistryError } from "../errors";
 import type {
@@ -18,6 +19,14 @@ type Queryable = Database | Transaction;
 
 export function buildDocNo(prefix: string, documentId: string) {
   return `${prefix}-${documentId.slice(0, 8).toUpperCase()}`;
+}
+
+export function assertDocumentIsActive(document: Document, action: string) {
+  if (document.lifecycleStatus !== "active") {
+    throw new InvalidStateError(
+      `Only active documents can be ${action}`,
+    );
+  }
 }
 
 export function normalizeSearchText(value: string) {

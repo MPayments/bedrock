@@ -14,9 +14,7 @@
   },
   "dependencies": {
     "@bedrock/currencies": "workspace:*",
-    "@bedrock/doc-payments": "workspace:*",
-    "@bedrock/doc-transfers": "workspace:*",
-    "@bedrock/doc-treasury": "workspace:*",
+    "@bedrock/doc-types": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/operational-accounts": "workspace:*"
   },
