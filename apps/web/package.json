@@ -15,6 +15,7 @@
     "@bedrock/currencies": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/customers": "workspace:*",
+    "@bedrock/documents": "workspace:*",
     "@bedrock/kernel": "workspace:*",
     "@bedrock/ui": "workspace:*",
     "@bedrock/operational-accounts": "workspace:*",
@@ -32,7 +33,6 @@
     "react-dom": "^19.2.1",
     "react-hook-form": "^7.71.2",
     "server-only": "^0.0.1",
-    "@bedrock/transfers": "workspace:*",
     "zod": "^4.3.6"
   },
   "devDependencies": {

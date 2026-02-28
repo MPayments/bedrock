@@ -16,6 +16,13 @@ import {
   type CurrenciesService,
 } from "@bedrock/currencies";
 import {
+  createDocumentRegistry,
+} from "@bedrock/document-registry";
+import {
+  createDocumentsService,
+  type DocumentsService,
+} from "@bedrock/documents";
+import {
   createCustomersService,
   type CustomersService,
 } from "@bedrock/customers";
@@ -28,11 +35,6 @@ import {
   createLedgerReadService,
   type LedgerReadService,
 } from "@bedrock/ledger";
-import {
-  createTransfersService,
-  type TransfersService,
-} from "@bedrock/transfers";
-import { createTreasuryService, type TreasuryService } from "@bedrock/treasury";
 
 export interface Env {
   DATABASE_URL: string;
@@ -55,8 +57,7 @@ export interface AppContext {
   feesService: FeesService;
   fxService: FxService;
   ledgerReadService: LedgerReadService;
-  treasuryService: TreasuryService;
-  transfersService: TransfersService;
+  documentsService: DocumentsService;
 }
 
 export function createAppContext(env: Env): AppContext {
@@ -79,17 +80,16 @@ export function createAppContext(env: Env): AppContext {
     currenciesService,
   });
   const ledgerReadService = createLedgerReadService({ db });
-  const treasuryService = createTreasuryService({
-    db,
-    ledger,
-    feesService,
+  const documentRegistry = createDocumentRegistry({
     currenciesService,
-    logger,
+    feesService,
+    operationalAccountsService,
   });
-  const transfersService = createTransfersService({
+  const documentsService = createDocumentsService({
     db,
     ledger,
-    operationalAccountsService,
+    ledgerReadService,
+    registry: documentRegistry,
     logger,
   });
 
@@ -102,10 +102,9 @@ export function createAppContext(env: Env): AppContext {
     counterpartiesService,
     customersService,
     currenciesService,
+    documentsService,
     feesService,
     fxService,
     ledgerReadService,
-    treasuryService,
-    transfersService,
   };
 }

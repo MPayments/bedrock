@@ -164,12 +164,13 @@ describe("Customers service integration", () => {
     expect(memberships).toEqual([{ groupId: treasuryLeaf!.id }]);
   });
 
-  it("blocks remove when payment order references customer", async () => {
+  it("blocks remove when document references customer", async () => {
     const service = createCustomersService({ db });
     const customer = await service.create({
       displayName: "Has Orders",
       externalRef: "crm-orders",
     });
+    const createdBy = randomUUID();
 
     const [counterparty] = await db
       .insert(schema.counterparties)
@@ -184,28 +185,55 @@ describe("Customers service integration", () => {
       })
       .returning({ id: schema.counterparties.id });
 
-    const [usd] = await db
-      .select({ id: schema.currencies.id })
-      .from(schema.currencies)
-      .where(eq(schema.currencies.code, "USD"))
-      .limit(1);
+    await db.insert(schema.user).values({
+      id: createdBy,
+      name: "Integration User",
+      email: `${createdBy}@example.com`,
+      emailVerified: true,
+      role: "admin",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
-    const [eur] = await db
-      .select({ id: schema.currencies.id })
-      .from(schema.currencies)
-      .where(eq(schema.currencies.code, "EUR"))
-      .limit(1);
-
-    await db.insert(schema.paymentOrders).values({
-      customerCounterpartyId: counterparty!.id,
+    await db.insert(schema.documents).values({
+      id: randomUUID(),
+      docType: "payment_case",
+      docNo: `PAY-${randomUUID().slice(0, 8).toUpperCase()}`,
+      payloadVersion: 1,
+      payload: {
+        customerId: customer.id,
+        subject: "Customer linked payment case",
+        occurredAt: new Date().toISOString(),
+      },
+      title: "Customer linked payment case",
+      occurredAt: new Date(),
+      submissionStatus: "draft",
+      approvalStatus: "not_required",
+      postingStatus: "not_required",
+      lifecycleStatus: "active",
+      createIdempotencyKey: randomUUID(),
+      amountMinor: null,
+      currency: null,
+      memo: null,
+      counterpartyId: counterparty!.id,
       customerId: customer.id,
-      payInCurrencyId: usd!.id,
-      payInExpectedMinor: 1000n,
-      payOutCurrencyId: eur!.id,
-      payOutAmountMinor: 900n,
-      payInCounterpartyId: counterparty!.id,
-      payOutCounterpartyId: counterparty!.id,
-      idempotencyKey: randomUUID(),
+      operationalAccountId: null,
+      searchText: "customer linked payment case",
+      createdBy,
+      submittedBy: null,
+      submittedAt: null,
+      approvedBy: null,
+      approvedAt: null,
+      rejectedBy: null,
+      rejectedAt: null,
+      cancelledBy: null,
+      cancelledAt: null,
+      postingStartedAt: null,
+      postedAt: null,
+      postingError: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      version: 1,
     });
 
     await expect(service.remove(customer.id)).rejects.toThrow(
@@ -218,19 +246,17 @@ describe("Customers service integration", () => {
       .where(eq(schema.customers.id, customer.id))
       .limit(1);
 
-    const orders = await db
-      .select({ id: schema.paymentOrders.id })
-      .from(schema.paymentOrders)
+    const documents = await db
+      .select({ id: schema.documents.id })
+      .from(schema.documents)
       .where(
         and(
-          eq(schema.paymentOrders.customerId, customer.id),
-          eq(schema.paymentOrders.customerCounterpartyId, counterparty!.id),
+          eq(schema.documents.customerId, customer.id),
+          eq(schema.documents.counterpartyId, counterparty!.id),
         ),
       );
 
-    expect(usd).toBeDefined();
-    expect(eur).toBeDefined();
     expect(stillExists).toBeDefined();
-    expect(orders).toHaveLength(1);
+    expect(documents).toHaveLength(1);
   });
 });

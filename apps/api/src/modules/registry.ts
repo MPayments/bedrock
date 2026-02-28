@@ -1,5 +1,5 @@
 import type { AppContext } from "../context";
-import { fxRatesRoutes, transfersRoutes, treasuryRoutes } from "../routes";
+import { docsRoutes, fxRatesRoutes } from "../routes";
 import type { ApplicationModule } from "./types";
 
 export const fxRatesModule = {
@@ -10,18 +10,10 @@ export const fxRatesModule = {
   },
 } as const satisfies ApplicationModule<"/fx/rates">;
 
-export const transfersModule = {
-  id: "transfers",
-  routePath: "/transfers",
+export const docsModule = {
+  id: "docs",
+  routePath: "/docs",
   registerRoutes(ctx: AppContext) {
-    return transfersRoutes(ctx);
+    return docsRoutes(ctx);
   },
-} as const satisfies ApplicationModule<"/transfers">;
-
-export const treasuryModule = {
-  id: "treasury",
-  routePath: "/treasury",
-  registerRoutes(ctx: AppContext) {
-    return treasuryRoutes(ctx);
-  },
-} as const satisfies ApplicationModule<"/treasury">;
+} as const satisfies ApplicationModule<"/docs">;

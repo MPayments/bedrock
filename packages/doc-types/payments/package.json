@@ -1,0 +1,31 @@
+{
+  "name": "@bedrock/doc-payments",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsgo",
+    "dev": "tsc --watch",
+    "check-types": "tsgo --noEmit",
+    "lint": "eslint src/**/*.ts --max-warnings 0"
+  },
+  "dependencies": {
+    "@bedrock/accounting": "workspace:*",
+    "@bedrock/db": "workspace:*",
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/fees": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3"
+  }
+}

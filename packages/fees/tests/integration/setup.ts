@@ -17,12 +17,25 @@ const testDbConfig = {
 const pool = new Pool(testDbConfig);
 const db = drizzle(pool, { schema });
 
+async function deleteIfTableExists(tableName: string) {
+    const result = await pool.query<{ exists: string | null }>(
+        "select to_regclass($1) as exists",
+        [`public.${tableName}`],
+    );
+
+    if (result.rows[0]?.exists) {
+        await pool.query(`DELETE FROM ${tableName}`);
+    }
+}
+
 async function ensureTestCurrencies() {
     await seedCurrencies(db);
 }
 
 async function cleanupFeeTables() {
-    await pool.query("DELETE FROM fee_payment_orders");
+    await deleteIfTableExists("document_links");
+    await deleteIfTableExists("document_operations");
+    await deleteIfTableExists("documents");
     await pool.query("DELETE FROM fx_quote_fee_components");
     await pool.query("DELETE FROM fx_quote_legs");
     await pool.query("DELETE FROM fx_quotes");

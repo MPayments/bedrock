@@ -8,11 +8,11 @@
     "check:boundaries": "node ./scripts/check-boundaries.mjs",
     "check:workspace-deps": "node ./scripts/check-workspace-deps.mjs",
     "check-types": "turbo run check-types",
-    "test": "vitest run --project db --project countries --project customers --project currencies --project fees --project fx --project ledger --project treasury --project transfers --project counterparties",
-    "test:watch": "vitest --project db --project countries --project customers --project currencies --project fees --project fx --project ledger --project treasury --project transfers --project counterparties",
-    "test:coverage": "vitest run --coverage --project db --project countries --project customers --project currencies --project fees --project fx --project ledger --project treasury --project transfers --project counterparties",
-    "test:integration": "vitest run --project customers:integration --project fees:integration --project fx:integration --project ledger:integration --project treasury:integration --project transfers:integration",
-    "test:integration:watch": "vitest --project customers:integration --project fees:integration --project fx:integration --project ledger:integration --project treasury:integration --project transfers:integration",
+    "test": "vitest run --project db --project countries --project customers --project currencies --project fees --project fx --project ledger --project counterparties",
+    "test:watch": "vitest --project db --project countries --project customers --project currencies --project fees --project fx --project ledger --project counterparties",
+    "test:coverage": "vitest run --coverage --project db --project countries --project customers --project currencies --project fees --project fx --project ledger --project counterparties",
+    "test:integration": "vitest run --project customers:integration --project fees:integration --project fx:integration --project ledger:integration",
+    "test:integration:watch": "vitest --project customers:integration --project fees:integration --project fx:integration --project ledger:integration",
     "test:all": "npm run test && npm run test:integration",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "knip": "knip"
@@ -34,6 +34,7 @@
   "workspaces": [
     "apps/*",
     "packages/*",
-    "packages/modules/*"
+    "packages/modules/*",
+    "packages/doc-types/*"
   ]
 }

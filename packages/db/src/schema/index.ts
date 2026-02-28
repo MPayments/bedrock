@@ -16,6 +16,11 @@ import {
 } from "./auth";
 import { currencies } from "./currencies";
 import { customers } from "./customers";
+import {
+  documentLinks,
+  documentOperations,
+  documents,
+} from "./documents";
 import { fxQuoteFeeComponents } from "./fees/quote-components";
 import { feeRules } from "./fees/rules";
 import { fxQuoteLegs } from "./fx/quote-legs";
@@ -26,7 +31,6 @@ import { ledgerOperations, postings } from "./ledger/journal";
 import { bookAccountInstances } from "./ledger/ledger";
 import { outbox } from "./ledger/outbox";
 import { tbTransferPlans } from "./ledger/tb-plan";
-import { transferEvents, transferOrders } from "./transfers";
 import { operationalAccountProviders } from "./treasury/account-providers";
 import { operationalAccounts } from "./treasury/accounts";
 import {
@@ -34,9 +38,6 @@ import {
   counterpartyGroups,
   counterparties,
 } from "./treasury/counterparties";
-import { feePaymentOrders } from "./treasury/fee-payment-orders";
-import { paymentOrders, settlements } from "./treasury/orders";
-import { reconciliationExceptions } from "./treasury/reconciliation";
 
 export const schema = {
   user,
@@ -64,29 +65,19 @@ export const schema = {
   counterpartyGroups,
   counterpartyGroupMemberships,
   customers,
+  documents,
+  documentOperations,
+  documentLinks,
   operationalAccountProviders,
   operationalAccounts,
-  paymentOrders,
-  settlements,
-  reconciliationExceptions,
   fxRates,
   fxRateSources,
   fxQuotes,
   fxQuoteLegs,
   feeRules,
   fxQuoteFeeComponents,
-  feePaymentOrders,
-  transferOrders,
-  transferEvents,
   currencies,
 };
-
-export {
-  type TransferEventType,
-  type TransferKind,
-  type TransferSettlementMode,
-  type TransferStatus,
-} from "./transfers";
 export { type LedgerOperationStatus } from "./ledger/journal";
 export { type FxQuote, type FxQuoteStatus } from "./fx/quotes";
 export { type FxQuoteLeg } from "./fx/quote-legs";
@@ -96,13 +87,21 @@ export {
   type FxRateSourceSyncStatus,
 } from "./fx/rate-sources";
 export { type FxRate, type FxRateInsert } from "./fx/rates";
-export {
-  type FeePaymentOrder,
-  type FeePaymentOrderStatus,
-} from "./treasury/fee-payment-orders";
-export type { PaymentOrder } from "./treasury/orders";
 export type { Currency, CurrencyInsert } from "./currencies";
 export type { Customer, CustomerInsert } from "./customers";
+export type {
+  Document,
+  DocumentApprovalStatus,
+  DocumentInsert,
+  DocumentLifecycleStatus,
+  DocumentLink,
+  DocumentLinkInsert,
+  DocumentLinkType,
+  DocumentOperation,
+  DocumentOperationInsert,
+  DocumentPostingStatus,
+  DocumentSubmissionStatus,
+} from "./documents";
 export type {
   OperationalAccount,
   OperationalAccountInsert,

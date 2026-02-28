@@ -8,6 +8,13 @@
       "when": 1772132429304,
       "tag": "0000_giant_mandroid",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772289500000,
+      "tag": "0001_big_bang_documents",
+      "breakpoints": true
     }
   ]
 }

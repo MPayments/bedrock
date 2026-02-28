@@ -419,10 +419,20 @@ describe("createLedgerReadService", () => {
           makeWhereChain([{ id: customerId, label: "Customer A" }]),
         )
         .mockImplementationOnce(() =>
-          makeWhereChain([{ id: paymentOrderId }]),
-        )
-        .mockImplementationOnce(() =>
-          makeWhereChain([{ id: transferOrderId }]),
+          makeWhereChain([
+            {
+              id: paymentOrderId,
+              docNo: "PAY-550E8400",
+              docType: "payment_case",
+              title: "Payment case",
+            },
+            {
+              id: transferOrderId,
+              docNo: "TRN-550E8400",
+              docType: "transfer",
+              title: "Transfer USD",
+            },
+          ]),
         ),
     } as any;
 
@@ -434,10 +444,10 @@ describe("createLedgerReadService", () => {
     expect(details!.dimensionLabels[operationalAccountId]).toBe("Settlement OA");
     expect(details!.dimensionLabels[customerId]).toBe("Customer A");
     expect(details!.dimensionLabels[paymentOrderId]).toBe(
-      `payment order ${paymentOrderId}`,
+      "payment_case PAY-550E8400 · Payment case",
     );
     expect(details!.dimensionLabels[transferOrderId]).toBe(
-      `transfer order ${transferOrderId}`,
+      "transfer TRN-550E8400 · Transfer USD",
     );
   });
 

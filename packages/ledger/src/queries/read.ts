@@ -98,21 +98,17 @@ const DIMENSION_LABEL_REGISTRY: Record<string, DimensionLabelResolver> =
       if (ids.length === 0) return new Map();
 
       const labels = new Map<string, string>();
-      const paymentRows = await db
-        .select({ id: schema.paymentOrders.id })
-        .from(schema.paymentOrders)
-        .where(inArray(schema.paymentOrders.id, ids));
-      for (const r of paymentRows) labels.set(r.id, `payment order ${r.id}`);
-
-      const remaining = ids.filter((id) => !labels.has(id));
-      if (remaining.length > 0) {
-        const transferRows = await db
-          .select({ id: schema.transferOrders.id })
-          .from(schema.transferOrders)
-          .where(inArray(schema.transferOrders.id, remaining));
-        for (const r of transferRows) {
-          labels.set(r.id, `transfer order ${r.id}`);
-        }
+      const documentRows = await db
+        .select({
+          id: schema.documents.id,
+          docNo: schema.documents.docNo,
+          docType: schema.documents.docType,
+          title: schema.documents.title,
+        })
+        .from(schema.documents)
+        .where(inArray(schema.documents.id, ids));
+      for (const row of documentRows) {
+        labels.set(row.id, `${row.docType} ${row.docNo}${row.title ? ` · ${row.title}` : ""}`);
       }
 
       return labels;

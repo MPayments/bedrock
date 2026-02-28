@@ -1,13 +1,9 @@
 import { createCurrenciesService } from "@bedrock/currencies";
 import type { Database } from "@bedrock/db";
+import { createDocumentsWorker } from "@bedrock/documents";
 import { createFeesService } from "@bedrock/fees";
 import { createFxRatesWorker, createFxService } from "@bedrock/fx";
 import type { Logger } from "@bedrock/kernel";
-import { createTransfersWorker } from "@bedrock/transfers";
-import {
-  createTreasuryReconciliationWorker,
-  createTreasuryWorker,
-} from "@bedrock/treasury";
 
 import type { env } from "../env";
 
@@ -47,33 +43,13 @@ function createWorkerRegistry() {
 
 const APPLICATION_MODULES: ApplicationModule[] = [
   {
-    id: "transfers",
+    id: "documents",
     registerWorkers: (registry, deps) => {
-      const worker = createTransfersWorker({ db: deps.db, logger: deps.logger });
+      const worker = createDocumentsWorker({ db: deps.db });
       registry.register({
-        id: "transfers",
-        intervalMs: deps.env.TRANSFERS_WORKER_INTERVAL_MS,
+        id: "documents",
+        intervalMs: deps.env.LEDGER_WORKER_INTERVAL_MS,
         processOnce: () => worker.processOnce(),
-      });
-    },
-  },
-  {
-    id: "treasury",
-    registerWorkers: (registry, deps) => {
-      const worker = createTreasuryWorker({ db: deps.db });
-      const reconciliationWorker = createTreasuryReconciliationWorker({
-        db: deps.db,
-        logger: deps.logger,
-      });
-      registry.register({
-        id: "treasury",
-        intervalMs: deps.env.TREASURY_WORKER_INTERVAL_MS,
-        processOnce: () => worker.processOnce(),
-      });
-      registry.register({
-        id: "reconciliation",
-        intervalMs: deps.env.RECONCILIATION_WORKER_INTERVAL_MS,
-        processOnce: () => reconciliationWorker.processOnce(),
       });
     },
   },

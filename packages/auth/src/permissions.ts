@@ -12,6 +12,7 @@ const statements = {
     accounts: ["create", "list", "update", "delete"],
     currencies: ["create", "list", "update", "delete"],
     fx_rates: ["list", "sync"],
+    documents: ["create", "list", "get", "update", "submit", "approve", "reject", "post", "cancel"],
     transfers: ["create", "list", "approve", "reject", "settle", "void"],
     accounting: ["list", "manage_accounts", "manage_correspondence"],
 } as const;
@@ -29,6 +30,7 @@ export const admin = ac.newRole({
     accounts: ["create", "list", "update", "delete"],
     currencies: ["create", "list", "update", "delete"],
     fx_rates: ["list", "sync"],
+    documents: ["create", "list", "get", "update", "submit", "approve", "reject", "post", "cancel"],
     transfers: ["create", "list", "approve", "reject", "settle", "void"],
     accounting: ["list", "manage_accounts", "manage_correspondence"],
 });
@@ -40,6 +42,7 @@ export const user = ac.newRole({
     accounts: ["create", "list", "update", "delete"],
     currencies: ["list"],
     fx_rates: ["list"],
+    documents: ["create", "list", "get", "update", "submit", "approve", "reject", "post", "cancel"],
     transfers: ["create", "list", "approve", "reject", "settle", "void"],
     accounting: ["list"],
 });

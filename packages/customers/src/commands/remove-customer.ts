@@ -25,9 +25,9 @@ export function createRemoveCustomerHandler(context: CustomersServiceContext) {
       }
 
       const [orderReference] = await tx
-        .select({ id: schema.paymentOrders.id })
-        .from(schema.paymentOrders)
-        .where(eq(schema.paymentOrders.customerId, id))
+        .select({ id: schema.documents.id })
+        .from(schema.documents)
+        .where(eq(schema.documents.customerId, id))
         .limit(1);
 
       if (orderReference) {

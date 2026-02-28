@@ -17,12 +17,21 @@ const testDbConfig = {
 const pool = new Pool(testDbConfig);
 const db = drizzle(pool, { schema });
 
+async function deleteIfTableExists(tableName: string) {
+  const result = await pool.query<{ exists: string | null }>(
+    "select to_regclass($1) as exists",
+    [`public.${tableName}`],
+  );
+
+  if (result.rows[0]?.exists) {
+    await pool.query(`DELETE FROM ${tableName}`);
+  }
+}
+
 async function cleanupCustomerTables() {
-  await pool.query("DELETE FROM transfer_events");
-  await pool.query("DELETE FROM transfer_orders");
-  await pool.query("DELETE FROM settlements");
-  await pool.query("DELETE FROM fee_payment_orders");
-  await pool.query("DELETE FROM payment_orders");
+  await deleteIfTableExists("document_links");
+  await deleteIfTableExists("document_operations");
+  await deleteIfTableExists("documents");
   await pool.query("DELETE FROM operational_account_bindings");
   await pool.query("DELETE FROM operational_accounts");
   await pool.query("DELETE FROM operational_account_providers");

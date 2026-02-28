@@ -5,9 +5,6 @@
   "type": "module",
   "scripts": {
     "worker:ledger": "bun run src/ledger.ts",
-    "worker:transfers": "bun run src/transfers.ts",
-    "worker:treasury": "bun run src/treasury.ts",
-    "worker:reconciliation": "bun run src/reconciliation.ts",
     "worker:fx-rates": "bun run src/fx-rates.ts",
     "worker:all": "bun run src/all.ts",
     "build": "tsgo",
@@ -17,12 +14,11 @@
   "dependencies": {
     "@bedrock/currencies": "workspace:*",
     "@bedrock/db": "workspace:*",
+    "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
     "@bedrock/kernel": "workspace:*",
     "@bedrock/ledger": "workspace:*",
-    "@bedrock/transfers": "workspace:*",
-    "@bedrock/treasury": "workspace:*",
     "dotenv": "^17.3.1"
   },
   "devDependencies": {

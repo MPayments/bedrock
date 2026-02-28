@@ -8,9 +8,8 @@ import { AppError } from "@bedrock/kernel";
 
 import { createAppContext, type Env } from "./context";
 import {
+  docsModule,
   fxRatesModule,
-  transfersModule,
-  treasuryModule,
 } from "./modules/registry";
 import {
   authMiddleware,
@@ -113,9 +112,8 @@ const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
-  .route(fxRatesModule.routePath, fxRatesModule.registerRoutes(ctx))
-  .route(transfersModule.routePath, transfersModule.registerRoutes(ctx))
-  .route(treasuryModule.routePath, treasuryModule.registerRoutes(ctx));
+  .route(docsModule.routePath, docsModule.registerRoutes(ctx))
+  .route(fxRatesModule.routePath, fxRatesModule.registerRoutes(ctx));
 
 const _routes = app.route("/v1", v1);
 
