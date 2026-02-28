@@ -4,8 +4,11 @@ export default defineConfig({
   test: {
     projects: [
       "apps/api/vitest.config.ts",
+      "apps/workers/vitest.config.ts",
       "packages/accounting/vitest.config.ts",
+      "packages/accounting/vitest.integration.config.ts",
       "packages/balances/vitest.config.ts",
+      "packages/balances/vitest.integration.config.ts",
       "packages/operational-accounts/vitest.config.ts",
       "packages/db/vitest.config.ts",
       "packages/dimensions/vitest.config.ts",
@@ -23,6 +26,7 @@ export default defineConfig({
       "packages/ledger/vitest.integration.config.ts",
       "packages/counterparties/vitest.config.ts",
       "packages/reconciliation/vitest.config.ts",
+      "packages/reconciliation/vitest.integration.config.ts",
     ],
     exclude: ["**/node_modules/**", "**/dist/**"],
     coverage: {

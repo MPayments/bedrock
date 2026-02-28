@@ -236,28 +236,42 @@ async function listOperationsAfterCursorTx(
   cursor: CursorRow,
   batchSize: number,
 ): Promise<OperationRow[]> {
-  const rows = await tx.execute(sql`
-    SELECT
-      lo.id,
-      lo.source_type,
-      lo.source_id,
-      lo.operation_code,
-      lo.posted_at
-    FROM ${schema.ledgerOperations} lo
-    WHERE lo.status = 'posted'
-      AND lo.posted_at IS NOT NULL
-      AND (
-        ${cursor.lastPostedAt} IS NULL
-        OR lo.posted_at > ${cursor.lastPostedAt}
-        OR (
-          lo.posted_at = ${cursor.lastPostedAt}
-          AND ${cursor.lastOperationId} IS NOT NULL
-          AND lo.id > ${cursor.lastOperationId}
-        )
-      )
-    ORDER BY lo.posted_at ASC, lo.id ASC
-    LIMIT ${batchSize}
-  `);
+  const rows =
+    cursor.lastPostedAt === null
+      ? await tx.execute(sql`
+          SELECT
+            lo.id,
+            lo.source_type,
+            lo.source_id,
+            lo.operation_code,
+            lo.posted_at
+          FROM ${schema.ledgerOperations} lo
+          WHERE lo.status = 'posted'
+            AND lo.posted_at IS NOT NULL
+          ORDER BY lo.posted_at ASC, lo.id ASC
+          LIMIT ${batchSize}
+        `)
+      : await tx.execute(sql`
+          SELECT
+            lo.id,
+            lo.source_type,
+            lo.source_id,
+            lo.operation_code,
+            lo.posted_at
+          FROM ${schema.ledgerOperations} lo
+          WHERE lo.status = 'posted'
+            AND lo.posted_at IS NOT NULL
+            AND (
+              lo.posted_at > ${cursor.lastPostedAt}
+              OR (
+                lo.posted_at = ${cursor.lastPostedAt}
+                AND ${cursor.lastOperationId !== null}
+                AND lo.id > ${cursor.lastOperationId}
+              )
+            )
+          ORDER BY lo.posted_at ASC, lo.id ASC
+          LIMIT ${batchSize}
+        `);
 
   return ((rows.rows ?? []) as {
     id: string;
