@@ -86,11 +86,19 @@ export function createRateSourceHandlers(context: FxServiceContext) {
     };
   }
 
-  function toStatus(row: FxRateSourceRow, now: Date): FxRateSourceStatus {
+  function getFreshnessBase(row: FxRateSourceRow) {
+    if (row.source === "investing") {
+      return row.lastSyncedAt ?? row.lastPublishedAt;
+    }
+
     // CBR freshness should follow publication time, not sync time.
     // If a sync happened late in the day, anchoring TTL to lastSyncedAt
     // can keep yesterday's publication "fresh" for too long.
-    const freshnessBase = row.lastPublishedAt ?? row.lastSyncedAt;
+    return row.lastPublishedAt ?? row.lastSyncedAt;
+  }
+
+  function toStatus(row: FxRateSourceRow, now: Date): FxRateSourceStatus {
+    const freshnessBase = getFreshnessBase(row);
     const expiresAt = freshnessBase
       ? new Date(freshnessBase.getTime() + row.ttlSeconds * 1000)
       : null;

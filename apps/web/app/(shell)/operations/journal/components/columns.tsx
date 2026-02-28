@@ -81,22 +81,6 @@ export function getColumns(): ColumnDef<OperationSummaryDto>[] {
       enableHiding: false,
     },
     {
-      accessorKey: "id",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} label="Операция" />
-      ),
-      cell: ({ row }) => (
-        <Link
-          href={`/operations/journal/${row.original.id}`}
-          className="font-mono text-xs underline"
-        >
-          {row.original.id.slice(0, 8)}
-        </Link>
-      ),
-      enableSorting: false,
-      enableHiding: true,
-    },
-    {
       id: "source",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label="Источник" />
@@ -186,17 +170,6 @@ export function getColumns(): ColumnDef<OperationSummaryDto>[] {
         ) : (
           <span className="text-muted-foreground">—</span>
         ),
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      accessorKey: "createdAt",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} label="Создана" />
-      ),
-      cell: ({ row }) => (
-        <div className="text-xs">{formatDate(row.original.createdAt)}</div>
-      ),
       enableSorting: true,
       enableHiding: true,
     },

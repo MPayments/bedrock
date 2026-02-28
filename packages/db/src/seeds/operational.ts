@@ -3,6 +3,10 @@ import { eq } from "drizzle-orm";
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema";
 import { seedCurrencies } from "./currencies";
+import {
+  ensureSeedCounterpartyMembership,
+  ensureSeedCustomerGroups,
+} from "./internal/counterparty-groups";
 
 // ── Stable IDs ──────────────────────────────────────────────────────────────
 
@@ -273,7 +277,10 @@ async function upsertCustomers(db: Database | Transaction) {
   }
 }
 
-async function upsertCounterparties(db: Database | Transaction) {
+async function upsertCounterparties(
+  db: Database | Transaction,
+  customerGroupIdByCustomerId: ReadonlyMap<string, string>,
+) {
   for (const counterparty of COUNTERPARTIES) {
     const [existing] = await db
       .select({ id: schema.counterparties.id })
@@ -290,20 +297,54 @@ async function upsertCounterparties(db: Database | Transaction) {
         kind: counterparty.kind,
         country: counterparty.country,
       });
+    } else {
+      await db
+        .update(schema.counterparties)
+        .set({
+          customerId: counterparty.customerId,
+          shortName: counterparty.shortName,
+          fullName: counterparty.fullName,
+          kind: counterparty.kind,
+          country: counterparty.country,
+        })
+        .where(eq(schema.counterparties.id, counterparty.id));
+    }
+
+    if (!counterparty.customerId) {
       continue;
     }
 
-    await db
-      .update(schema.counterparties)
-      .set({
-        customerId: counterparty.customerId,
-        shortName: counterparty.shortName,
-        fullName: counterparty.fullName,
-        kind: counterparty.kind,
-        country: counterparty.country,
-      })
-      .where(eq(schema.counterparties.id, counterparty.id));
+    const customerGroupId = customerGroupIdByCustomerId.get(counterparty.customerId);
+    if (!customerGroupId) {
+      throw new Error(
+        `Customer group missing for seeded customer ${counterparty.customerId}`,
+      );
+    }
+
+    await ensureSeedCounterpartyMembership(db, counterparty.id, customerGroupId);
   }
+}
+
+async function ensureSeedCustomerGroupMap(
+  db: Database | Transaction,
+): Promise<Map<string, string>> {
+  return ensureSeedCustomerGroups(
+    db,
+    CUSTOMERS.map((customer) => ({
+      id: customer.id,
+      displayName: customer.displayName,
+    })),
+  );
+}
+
+async function upsertCounterpartiesWithCustomerGroups(db: Database | Transaction) {
+  const customerGroupIdByCustomerId = await ensureSeedCustomerGroupMap(db);
+  await upsertCounterparties(db, customerGroupIdByCustomerId);
+}
+
+async function ensureSeedCustomersAndCounterparties(db: Database | Transaction) {
+  await upsertCustomers(db);
+  await upsertCounterpartiesWithCustomerGroups(db);
 }
 
 async function upsertAccountProviders(db: Database | Transaction) {
@@ -383,8 +424,7 @@ async function upsertOperationalAccounts(
 }
 
 export async function seedCounterparties(db: Database | Transaction) {
-  await upsertCustomers(db);
-  await upsertCounterparties(db);
+  await ensureSeedCustomersAndCounterparties(db);
 
   console.log(
     `[seed:counterparties] Seeded ${COUNTERPARTIES.length} counterparties (${CUSTOMERS.length} customers ensured)`,
@@ -401,8 +441,7 @@ export async function seedAccountProviders(db: Database | Transaction) {
 
 export async function seedAccounts(db: Database | Transaction) {
   await seedCurrencies(db as Database);
-  await upsertCustomers(db);
-  await upsertCounterparties(db);
+  await ensureSeedCustomersAndCounterparties(db);
   await upsertAccountProviders(db);
 
   const currencyIdByCode = await currencyIdByCodeMap(db);
@@ -415,8 +454,7 @@ export async function seedAccounts(db: Database | Transaction) {
 
 export async function seedOperational(db: Database | Transaction) {
   await seedCurrencies(db as Database);
-  await upsertCustomers(db);
-  await upsertCounterparties(db);
+  await ensureSeedCustomersAndCounterparties(db);
   await upsertAccountProviders(db);
   const currencyIdByCode = await currencyIdByCodeMap(db);
   await upsertOperationalAccounts(db, currencyIdByCode);

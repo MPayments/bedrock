@@ -36,7 +36,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <Stone className="size-6" />
               </div>
               <div className="grid flex-1 text-left text-xl leading-tight">
-                <span className="truncate font-semibold">Bedrock Finance</span>
+                <span className="truncate font-semibold">Highrock Finance</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

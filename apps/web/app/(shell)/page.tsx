@@ -1,9 +1,5 @@
-import { Button } from "@bedrock/ui/components/button";
+import { SectionPlaceholderPage } from "@/components/section-placeholder-page";
 
 export default function Home() {
-  return (
-    <div>
-      <Button>Click me</Button>
-    </div>
-  );
+  return <SectionPlaceholderPage title="Дашборд" />;
 }

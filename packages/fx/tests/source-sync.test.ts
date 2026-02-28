@@ -163,4 +163,168 @@ describe("fx source sync", () => {
     expect(statuses[0]!.lastStatus).toBe("idle");
     expect(statuses[0]!.isExpired).toBe(true);
   });
+
+  it("treats investing freshness as last sync time", async () => {
+    const now = new Date("2026-01-02T00:00:00Z");
+    const publishedAt = new Date("2026-01-01T00:00:00Z");
+    const provider = {
+      source: "investing" as const,
+      fetchLatest: vi.fn(async () => ({
+        source: "investing" as const,
+        fetchedAt: now,
+        publishedAt,
+        rates: [
+          {
+            base: "USD",
+            quote: "EUR",
+            rateNum: 91n,
+            rateDen: 100n,
+            asOf: publishedAt,
+          },
+        ],
+      })),
+    };
+
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => []),
+            orderBy: vi.fn(async () => []),
+          })),
+        })),
+      })),
+      insert: vi.fn((table: unknown) => {
+        if (table === schema.fxRateSources) {
+          return {
+            values: vi.fn((value: any) => ({
+              onConflictDoNothing: vi.fn(() => ({
+                returning: vi.fn(async () => [
+                  createSourceStatusRow({
+                    source: value.source,
+                    ttlSeconds: value.ttlSeconds,
+                    lastSyncedAt: null,
+                    lastPublishedAt: null,
+                    lastStatus: value.lastStatus,
+                    updatedAt: new Date("2026-01-01T00:00:00Z"),
+                  }),
+                ]),
+              })),
+              onConflictDoUpdate: vi.fn(async () => undefined),
+            })),
+          };
+        }
+
+        if (table === schema.fxRates) {
+          return {
+            values: vi.fn(() => ({
+              onConflictDoUpdate: vi.fn(async () => undefined),
+            })),
+          };
+        }
+
+        throw new Error("unexpected table");
+      }),
+      execute: vi.fn(),
+    } as any;
+
+    const service = createFxService({
+      db,
+      feesService: createNoopFeesService(),
+      currenciesService: createCurrenciesService(),
+      rateSourceProviders: { investing: provider },
+    });
+
+    const result = await service.syncRatesFromSource({
+      source: "investing",
+      force: true,
+      now,
+    });
+
+    expect(result.synced).toBe(true);
+    expect(result.status.isExpired).toBe(false);
+    expect(result.status.expiresAt?.toISOString()).toBe("2026-01-02T00:05:00.000Z");
+  });
+
+  it("keeps CBR freshness anchored to publication time", async () => {
+    const now = new Date("2026-01-02T00:00:00Z");
+    const publishedAt = new Date("2025-12-31T00:00:00Z");
+    const provider = {
+      source: "cbr" as const,
+      fetchLatest: vi.fn(async () => ({
+        source: "cbr" as const,
+        fetchedAt: now,
+        publishedAt,
+        rates: [
+          {
+            base: "USD",
+            quote: "EUR",
+            rateNum: 91n,
+            rateDen: 100n,
+            asOf: publishedAt,
+          },
+        ],
+      })),
+    };
+
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => []),
+            orderBy: vi.fn(async () => []),
+          })),
+        })),
+      })),
+      insert: vi.fn((table: unknown) => {
+        if (table === schema.fxRateSources) {
+          return {
+            values: vi.fn((value: any) => ({
+              onConflictDoNothing: vi.fn(() => ({
+                returning: vi.fn(async () => [
+                  createSourceStatusRow({
+                    source: value.source,
+                    ttlSeconds: value.ttlSeconds,
+                    lastSyncedAt: null,
+                    lastPublishedAt: null,
+                    lastStatus: value.lastStatus,
+                    updatedAt: new Date("2026-01-01T00:00:00Z"),
+                  }),
+                ]),
+              })),
+              onConflictDoUpdate: vi.fn(async () => undefined),
+            })),
+          };
+        }
+
+        if (table === schema.fxRates) {
+          return {
+            values: vi.fn(() => ({
+              onConflictDoUpdate: vi.fn(async () => undefined),
+            })),
+          };
+        }
+
+        throw new Error("unexpected table");
+      }),
+      execute: vi.fn(),
+    } as any;
+
+    const service = createFxService({
+      db,
+      feesService: createNoopFeesService(),
+      currenciesService: createCurrenciesService(),
+      rateSourceProviders: { cbr: provider },
+    });
+
+    const result = await service.syncRatesFromSource({
+      source: "cbr",
+      force: true,
+      now,
+    });
+
+    expect(result.synced).toBe(true);
+    expect(result.status.isExpired).toBe(true);
+    expect(result.status.expiresAt?.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+  });
 });

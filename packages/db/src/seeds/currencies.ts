@@ -6,15 +6,10 @@ import { schema } from "../schema";
 export const CURRENCY_IDS = {
   USD: "00000000-0000-4000-8000-000000000101",
   EUR: "00000000-0000-4000-8000-000000000102",
-  GBP: "00000000-0000-4000-8000-000000000103",
   RUB: "00000000-0000-4000-8000-000000000104",
   AED: "00000000-0000-4000-8000-000000000105",
   USDT: "00000000-0000-4000-8000-000000000106",
   CNY: "00000000-0000-4000-8000-000000000107",
-  TRY: "00000000-0000-4000-8000-000000000108",
-  JPY: "00000000-0000-4000-8000-000000000109",
-  CHF: "00000000-0000-4000-8000-000000000110",
-  BTC: "00000000-0000-4000-8000-000000000111",
 } as const;
 
 export function currencyIdForCode(code: string): string {
@@ -40,13 +35,6 @@ const CURRENCY_SEEDS = [
     precision: 2,
   },
   {
-    id: CURRENCY_IDS.GBP,
-    code: "GBP",
-    name: "Pound Sterling",
-    symbol: "£",
-    precision: 2,
-  },
-  {
     id: CURRENCY_IDS.RUB,
     code: "RUB",
     name: "Russian Ruble",
@@ -68,39 +56,11 @@ const CURRENCY_SEEDS = [
     precision: 2,
   },
   {
-    id: CURRENCY_IDS.TRY,
-    code: "TRY",
-    name: "Turkish Lira",
-    symbol: "₺",
-    precision: 2,
-  },
-  {
     id: CURRENCY_IDS.USDT,
     code: "USDT",
     name: "Tether",
     symbol: "₮",
     precision: 2,
-  },
-  {
-    id: CURRENCY_IDS.JPY,
-    code: "JPY",
-    name: "Japanese Yen",
-    symbol: "¥",
-    precision: 0,
-  },
-  {
-    id: CURRENCY_IDS.CHF,
-    code: "CHF",
-    name: "Swiss Franc",
-    symbol: "CHF",
-    precision: 2,
-  },
-  {
-    id: CURRENCY_IDS.BTC,
-    code: "BTC",
-    name: "Bitcoin",
-    symbol: "₿",
-    precision: 8,
   },
 ] as const;
 
