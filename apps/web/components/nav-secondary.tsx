@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { type LucideIcon } from "lucide-react";
 
 import {
   SidebarGroup,
@@ -14,6 +13,7 @@ import {
 import type { AppSecondaryNavItem } from "@/lib/navigation/config";
 
 import { NavNotifications } from "./nav-notifications";
+import { resolveNavIcon } from "./nav-icons";
 
 export function NavSecondary({
   items,
@@ -26,22 +26,27 @@ export function NavSecondary({
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (
-            <SidebarMenuItem key={item.id}>
-              {item.kind === "notifications" ? (
-                <NavNotifications icon={item.icon} title={item.title} />
-              ) : (
-                <SidebarMenuButton
-                  render={<Link href={item.href} />}
-                  tooltip={item.title}
-                >
-                  {item.icon && <item.icon />}
-                  <span>{item.title}</span>
-                </SidebarMenuButton>
-              )}
-            </SidebarMenuItem>
+            <SecondaryNavItem key={item.id} item={item} />
           ))}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
+  );
+}
+
+function SecondaryNavItem({ item }: { item: AppSecondaryNavItem }) {
+  const Icon = resolveNavIcon(item.icon);
+
+  return (
+    <SidebarMenuItem>
+      {item.kind === "notifications" ? (
+        Icon ? <NavNotifications icon={Icon} title={item.title} /> : null
+      ) : (
+        <SidebarMenuButton render={<Link href={item.href} />} tooltip={item.title}>
+          {Icon && <Icon />}
+          <span>{item.title}</span>
+        </SidebarMenuButton>
+      )}
+    </SidebarMenuItem>
   );
 }

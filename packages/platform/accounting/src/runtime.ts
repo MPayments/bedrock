@@ -6,7 +6,6 @@ import {
 } from "@bedrock/accounting-contracts";
 import { schema } from "@bedrock/db/schema";
 import { canonicalJson, makePlanKey, sha256Hex } from "@bedrock/kernel";
-import { SYSTEM_LEDGER_BOOK_ID } from "@bedrock/kernel/constants";
 import type {
   AccountingPackDefinition,
   AccountSideTemplateDefinition,
@@ -454,6 +453,41 @@ function buildPlanRef(request: DocumentPostingPlanRequest): string {
   });
 }
 
+function readRequiredBookId(request: DocumentPostingPlanRequest): string {
+  const bookId = request.bookRefs[BOOK_REF_BOOK_ID];
+  if (!bookId) {
+    throw new AccountingPostingPlanValidationError(
+      `Posting plan requires bookRefs.${BOOK_REF_BOOK_ID}`,
+    );
+  }
+
+  return bookId;
+}
+
+function resolveBookIdContext(input: ResolvePostingPlanInput): string {
+  if (input.plan.requests.length === 0) {
+    throw new AccountingPostingPlanValidationError(
+      "Posting plan must include at least one request",
+    );
+  }
+
+  const requestBookIds = input.plan.requests.map((request) =>
+    readRequiredBookId(request),
+  );
+
+  if (input.bookIdContext) {
+    if (!requestBookIds.includes(input.bookIdContext)) {
+      throw new AccountingPostingPlanValidationError(
+        `Posting plan ${BOOK_REF_BOOK_ID} set must include bookIdContext`,
+      );
+    }
+
+    return input.bookIdContext;
+  }
+
+  return requestBookIds[0]!;
+}
+
 function validateRequestShape(
   request: DocumentPostingPlanRequest,
   template: CompiledPostingTemplate,
@@ -520,7 +554,7 @@ function resolveCreateLine(
   return {
     type: OPERATION_TRANSFER_TYPE.CREATE,
     planRef: buildPlanRef(request),
-    bookId: request.bookRefs[BOOK_REF_BOOK_ID] ?? SYSTEM_LEDGER_BOOK_ID,
+    bookId: readRequiredBookId(request),
     postingCode: template.postingCode,
     debit: {
       accountNo: template.debit.accountNo,
@@ -766,7 +800,13 @@ export function createAccountingRuntime(
     bookId?: string;
     at?: Date;
   }) {
-    if (!db || !input?.bookId) {
+    if (!input?.bookId) {
+      throw new AccountingPostingPlanValidationError(
+        `Active pack lookup requires ${BOOK_REF_BOOK_ID}`,
+      );
+    }
+
+    if (!db) {
       return defaultCompiledPack;
     }
 
@@ -807,12 +847,11 @@ export function createAccountingRuntime(
   }
 
   async function resolvePostingPlan(input: ResolvePostingPlanInput) {
+    const bookId = resolveBookIdContext(input);
     const pack =
       input.pack ??
       (await loadActiveCompiledPackForBook({
-        bookId:
-          input.bookIdContext ??
-          input.plan.requests[0]?.bookRefs[BOOK_REF_BOOK_ID],
+        bookId,
         at: input.at ?? input.postingDate,
       }));
     return resolvePostingPlanInternal(input, pack);

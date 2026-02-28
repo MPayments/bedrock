@@ -40,7 +40,7 @@ export interface WorkerHealthSnapshot {
   checkedAt: string;
   workerCount: number;
   degradedWorkers: string[];
-  workers: Array<{
+  workers: {
     name: string;
     intervalMs: number;
     state: WorkerState;
@@ -55,7 +55,7 @@ export interface WorkerHealthSnapshot {
     totalRuns: number;
     totalProcessed: number;
     totalErrors: number;
-  }>;
+  }[];
 }
 
 export interface WorkerMonitoringRegistry {
@@ -71,6 +71,12 @@ export interface WorkerMonitoringServer {
   host: string;
   port: number;
   stop: () => Promise<void>;
+}
+
+export interface WorkerMonitoringHttpResponse {
+  statusCode: number;
+  contentType: string;
+  body: string;
 }
 
 function toIsoString(value: number | null): string | null {
@@ -90,7 +96,7 @@ function toErrorMessage(error: unknown): string {
 }
 
 function escapeLabelValue(value: string): string {
-  return value.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"");
+  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
 
 function formatMetric(
@@ -225,10 +231,7 @@ export function createWorkerMonitoringRegistry(
     const lines = [
       "# HELP bedrock_workers_health Overall workers health status (1=ok, 0=degraded).",
       "# TYPE bedrock_workers_health gauge",
-      formatMetric(
-        "bedrock_workers_health",
-        snapshot.status === "ok" ? 1 : 0,
-      ),
+      formatMetric("bedrock_workers_health", snapshot.status === "ok" ? 1 : 0),
       "# HELP bedrock_worker_up Worker process availability (1=running/idle, 0=stopped).",
       "# TYPE bedrock_worker_up gauge",
       "# HELP bedrock_worker_runs_total Total worker loop iterations.",
@@ -323,6 +326,39 @@ export function createWorkerMonitoringRegistry(
   };
 }
 
+export function renderWorkerMonitoringResponse(input: {
+  url?: string | null;
+  registry: WorkerMonitoringRegistry;
+}): WorkerMonitoringHttpResponse {
+  const url = input.url ?? "/";
+
+  if (url === "/health") {
+    const snapshot = input.registry.getHealthSnapshot();
+    return {
+      statusCode: snapshot.status === "ok" ? 200 : 503,
+      contentType: "application/json; charset=utf-8",
+      body: `${JSON.stringify(snapshot)}\n`,
+    };
+  }
+
+  if (url === "/metrics") {
+    return {
+      statusCode: 200,
+      contentType: "text/plain; version=0.0.4; charset=utf-8",
+      body: input.registry.renderPrometheusMetrics(),
+    };
+  }
+
+  return {
+    statusCode: 200,
+    contentType: "application/json; charset=utf-8",
+    body: `${JSON.stringify({
+      service: "bedrock-workers",
+      endpoints: ["/health", "/metrics"],
+    })}\n`,
+  };
+}
+
 export async function startWorkerMonitoringServer(input: {
   host: string;
   port: number;
@@ -330,31 +366,13 @@ export async function startWorkerMonitoringServer(input: {
   logger?: Logger;
 }): Promise<WorkerMonitoringServer> {
   const server = createServer((req, res) => {
-    const url = req.url ?? "/";
-
-    if (url === "/health" || url === "/healthz") {
-      const snapshot = input.registry.getHealthSnapshot();
-      res.statusCode = snapshot.status === "ok" ? 200 : 503;
-      res.setHeader("content-type", "application/json; charset=utf-8");
-      res.end(`${JSON.stringify(snapshot)}\n`);
-      return;
-    }
-
-    if (url === "/metrics") {
-      res.statusCode = 200;
-      res.setHeader("content-type", "text/plain; version=0.0.4; charset=utf-8");
-      res.end(input.registry.renderPrometheusMetrics());
-      return;
-    }
-
-    res.statusCode = 200;
-    res.setHeader("content-type", "application/json; charset=utf-8");
-    res.end(
-      `${JSON.stringify({
-        service: "bedrock-workers",
-        endpoints: ["/healthz", "/metrics"],
-      })}\n`,
-    );
+    const response = renderWorkerMonitoringResponse({
+      url: req.url,
+      registry: input.registry,
+    });
+    res.statusCode = response.statusCode;
+    res.setHeader("content-type", response.contentType);
+    res.end(response.body);
   });
 
   await new Promise<void>((resolve, reject) => {

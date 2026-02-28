@@ -2,14 +2,19 @@ import { sql } from "drizzle-orm";
 
 import type { Database } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
-import { canonicalJson, noopLogger, sha256Hex, type Logger } from "@bedrock/kernel";
+import {
+  canonicalJson,
+  noopLogger,
+  sha256Hex,
+  type Logger,
+} from "@bedrock/kernel";
 
 import { createReconciliationService } from "./service";
 
 interface PendingReconciliationSource {
   source: string;
+  externalRecordIds: string[];
   latestReceivedAt: Date;
-  latestRecordId: string;
   pendingRecordCount: number;
 }
 
@@ -18,47 +23,51 @@ async function listPendingSources(
   batchSize: number,
 ): Promise<PendingReconciliationSource[]> {
   const result = await db.execute(sql`
-    WITH latest_runs AS (
+    WITH pending_records AS (
       SELECT
-        source,
-        max(created_at) AS last_run_at
-      FROM ${schema.reconciliationRuns}
-      GROUP BY source
+        er.source,
+        er.id,
+        er.received_at
+      FROM ${schema.reconciliationExternalRecords} er
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM ${schema.reconciliationMatches} rm
+        WHERE rm.external_record_id = er.id
+      )
     ),
     pending_sources AS (
       SELECT
         er.source,
+        array_agg(er.id::text ORDER BY er.received_at ASC, er.id ASC) AS external_record_ids,
         max(er.received_at) AS latest_received_at,
-        max(er.id::text) AS latest_record_id,
         count(*)::int AS pending_record_count
-      FROM ${schema.reconciliationExternalRecords} er
-      LEFT JOIN latest_runs lr
-        ON lr.source = er.source
-      WHERE lr.last_run_at IS NULL OR er.received_at > lr.last_run_at
+      FROM pending_records er
       GROUP BY er.source
     )
     SELECT
       source,
+      external_record_ids,
       latest_received_at,
-      latest_record_id,
       pending_record_count
     FROM pending_sources
     ORDER BY latest_received_at ASC, source ASC
     LIMIT ${batchSize}
   `);
 
-  return ((result.rows ?? []) as Array<{
-    source: string;
-    latest_received_at: Date | string;
-    latest_record_id: string;
-    pending_record_count: number | string;
-  }>).map((row) => ({
+  return (
+    (result.rows ?? []) as {
+      source: string;
+      external_record_ids: string[] | null;
+      latest_received_at: Date | string;
+      pending_record_count: number | string;
+    }[]
+  ).map((row) => ({
     source: row.source,
+    externalRecordIds: row.external_record_ids ?? [],
     latestReceivedAt:
       row.latest_received_at instanceof Date
         ? row.latest_received_at
         : new Date(row.latest_received_at),
-    latestRecordId: row.latest_record_id,
     pendingRecordCount:
       typeof row.pending_record_count === "number"
         ? row.pending_record_count
@@ -69,18 +78,14 @@ async function listPendingSources(
 function buildRunIdempotencyKey(input: {
   source: string;
   rulesetChecksum: string;
-  latestReceivedAt: Date;
-  latestRecordId: string;
-  pendingRecordCount: number;
+  externalRecordIds: string[];
 }) {
   return sha256Hex(
     canonicalJson({
       worker: "reconciliation",
       source: input.source,
       rulesetChecksum: input.rulesetChecksum,
-      latestReceivedAt: input.latestReceivedAt.toISOString(),
-      latestRecordId: input.latestRecordId,
-      pendingRecordCount: input.pendingRecordCount,
+      externalRecordIds: input.externalRecordIds,
     }),
   );
 }
@@ -92,7 +97,8 @@ export function createReconciliationWorker(deps: {
 }) {
   const { db } = deps;
   const rulesetChecksum = deps.rulesetChecksum ?? "core-default-v1";
-  const log = deps.logger?.child({ svc: "reconciliation-worker" }) ?? noopLogger;
+  const log =
+    deps.logger?.child({ svc: "reconciliation-worker" }) ?? noopLogger;
   const reconciliation = createReconciliationService({
     db,
     logger: deps.logger,
@@ -107,13 +113,13 @@ export function createReconciliationWorker(deps: {
       await reconciliation.runReconciliation({
         source: source.source,
         rulesetChecksum,
-        inputQuery: {},
+        inputQuery: {
+          externalRecordIds: source.externalRecordIds,
+        },
         idempotencyKey: buildRunIdempotencyKey({
           source: source.source,
           rulesetChecksum,
-          latestReceivedAt: source.latestReceivedAt,
-          latestRecordId: source.latestRecordId,
-          pendingRecordCount: source.pendingRecordCount,
+          externalRecordIds: source.externalRecordIds,
         }),
       });
       processed += 1;

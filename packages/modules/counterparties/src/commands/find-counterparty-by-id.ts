@@ -8,26 +8,28 @@ import { readMembershipIds } from "../internal/group-rules";
 import type { Counterparty } from "../validation";
 
 export function createFindCounterpartyByIdHandler(
-    context: CounterpartiesServiceContext,
+  context: CounterpartiesServiceContext,
 ) {
-    const { db } = context;
+  const { db } = context;
 
-    return async function findCounterpartyById(id: string): Promise<Counterparty> {
-        const [row] = await db
-            .select()
-            .from(schema.counterparties)
-            .where(eq(schema.counterparties.id, id))
-            .limit(1);
+  return async function findCounterpartyById(
+    id: string,
+  ): Promise<Counterparty> {
+    const [row] = await db
+      .select()
+      .from(schema.counterparties)
+      .where(eq(schema.counterparties.id, id))
+      .limit(1);
 
-        if (!row) {
-            throw new CounterpartyNotFoundError(id);
-        }
+    if (!row) {
+      throw new CounterpartyNotFoundError(id);
+    }
 
-        const groupIds = await readMembershipIds(db, id);
+    const groupIds = await readMembershipIds(db, id);
 
-        return {
-            ...row,
-            groupIds,
-        };
+    return {
+      ...row,
+      groupIds,
     };
+  };
 }

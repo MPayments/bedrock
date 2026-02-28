@@ -44,6 +44,13 @@ export interface ProjectedBalanceDelta {
   deltaAvailable: bigint;
 }
 
+function hasConsistentCursor(cursor: CursorRow) {
+  return (
+    (cursor.lastPostedAt === null && cursor.lastOperationId === null) ||
+    (cursor.lastPostedAt !== null && cursor.lastOperationId !== null)
+  );
+}
+
 function camelToSnake(value: string): string {
   return value
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
@@ -156,6 +163,28 @@ async function ensureCursorTx(tx: Transaction): Promise<CursorRow> {
     throw new Error("Balance projector cursor initialization failed");
   }
 
+  if (!hasConsistentCursor(cursor)) {
+    await tx
+      .update(schema.balanceProjectorCursors)
+      .set({
+        lastPostedAt: null,
+        lastOperationId: null,
+        updatedAt: sql`now()`,
+      })
+      .where(
+        eq(
+          schema.balanceProjectorCursors.workerKey,
+          BALANCE_PROJECTOR_WORKER_KEY,
+        ),
+      );
+
+    return {
+      workerKey: cursor.workerKey,
+      lastPostedAt: null,
+      lastOperationId: null,
+    };
+  }
+
   return cursor;
 }
 
@@ -237,7 +266,7 @@ async function listOperationsAfterCursorTx(
   batchSize: number,
 ): Promise<OperationRow[]> {
   const rows =
-    cursor.lastPostedAt === null
+    cursor.lastPostedAt === null || cursor.lastOperationId === null
       ? await tx.execute(sql`
           SELECT
             lo.id,
@@ -265,7 +294,6 @@ async function listOperationsAfterCursorTx(
               lo.posted_at > ${cursor.lastPostedAt}
               OR (
                 lo.posted_at = ${cursor.lastPostedAt}
-                AND ${cursor.lastOperationId !== null}
                 AND lo.id > ${cursor.lastOperationId}
               )
             )

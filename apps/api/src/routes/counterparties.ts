@@ -10,11 +10,11 @@ import {
   ListCounterpartiesQuerySchema,
   UpdateCounterpartyInputSchema,
 } from "@bedrock/counterparties";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import {
   CounterpartyOptionSchema,
   CounterpartyOptionsResponseSchema,
 } from "@bedrock/counterparties/contracts";
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";

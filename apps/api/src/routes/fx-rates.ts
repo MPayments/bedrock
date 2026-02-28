@@ -11,8 +11,8 @@ import {
   FxRateSourceSchema,
   FxRateSourceStatusesResponseSchema,
   FxRateSourceStatusSchema,
-  FxRateSchema,
-  FxRatePairSchema,
+  //FxRateSchema,
+  //FxRatePairSchema,
   SetManualRateInputSchema,
   SetManualRateResponseSchema,
 } from "@bedrock/fx/contracts";

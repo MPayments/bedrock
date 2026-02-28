@@ -1,27 +1,25 @@
-import {
-  ArrowRightLeft,
-  Bell,
-  BookOpen,
-  Building2,
-  Calculator,
-  ChartCandlestick,
-  CreditCard,
-  Currency,
-  Home,
-  Landmark,
-  Vault,
-  Wallet,
-  Workflow,
-  type LucideIcon,
-} from "lucide-react";
-
 import type { AppAudience, FeatureFlagMap, UserSessionSnapshot } from "@/lib/auth/types";
+
+export type AppNavIcon =
+  | "arrow-right-left"
+  | "bell"
+  | "book-open"
+  | "building-2"
+  | "calculator"
+  | "chart-candlestick"
+  | "credit-card"
+  | "currency"
+  | "home"
+  | "landmark"
+  | "vault"
+  | "wallet"
+  | "workflow";
 
 export type AppNavItem = {
   id: string;
   title: string;
   href: string;
-  icon?: LucideIcon;
+  icon?: AppNavIcon;
   audience: AppAudience;
   requiredPermissions?: string[];
   featureFlag?: string;
@@ -34,7 +32,7 @@ export type AppSecondaryNavItem =
       id: string;
       title: string;
       href: string;
-      icon?: LucideIcon;
+      icon?: AppNavIcon;
       audience: AppAudience;
       featureFlag?: string;
     }
@@ -42,7 +40,7 @@ export type AppSecondaryNavItem =
       kind: "notifications";
       id: string;
       title: string;
-      icon: LucideIcon;
+      icon: AppNavIcon;
       audience: AppAudience;
       featureFlag?: string;
     };
@@ -52,14 +50,14 @@ const navItems: AppNavItem[] = [
     id: "dashboard",
     title: "Дашборд",
     href: "/",
-    icon: Home,
+    icon: "home",
     audience: "shared",
   },
   {
     id: "payments",
     title: "Платежи",
     href: "/payments",
-    icon: CreditCard,
+    icon: "credit-card",
     audience: "shared",
     children: [
       {
@@ -80,28 +78,28 @@ const navItems: AppNavItem[] = [
     id: "transfers",
     title: "Переводы",
     href: "/transfers",
-    icon: ArrowRightLeft,
+    icon: "arrow-right-left",
     audience: "shared",
   },
   {
     id: "operations",
     title: "Операции",
     href: "/operations",
-    icon: Workflow,
+    icon: "workflow",
     audience: "shared",
     children: [
       {
         id: "operations-documents",
         title: "Документы",
         href: "/operations",
-        icon: BookOpen,
+        icon: "book-open",
         audience: "shared",
       },
       {
         id: "operations-journal",
         title: "Журнал",
         href: "/operations/journal",
-        icon: BookOpen,
+        icon: "book-open",
         audience: "shared",
       },
     ],
@@ -110,14 +108,14 @@ const navItems: AppNavItem[] = [
     id: "treasury",
     title: "Казначейство",
     href: "/treasury",
-    icon: Vault,
+    icon: "vault",
     audience: "admin",
     children: [
       {
         id: "treasury-counterparties",
         title: "Контрагенты",
         href: "/treasury/counterparties",
-        icon: Building2,
+        icon: "building-2",
         audience: "admin",
       },
     ],
@@ -126,14 +124,14 @@ const navItems: AppNavItem[] = [
     id: "fx",
     title: "FX",
     href: "/fx",
-    icon: Currency,
+    icon: "currency",
     audience: "admin",
     children: [
       {
         id: "fx-rates",
         title: "Курсы",
         href: "/fx/rates",
-        icon: ChartCandlestick,
+        icon: "chart-candlestick",
         audience: "admin",
       },
     ],
@@ -142,7 +140,7 @@ const navItems: AppNavItem[] = [
     id: "accounting",
     title: "Бухгалтерия",
     href: "/accounting",
-    icon: Calculator,
+    icon: "calculator",
     audience: "admin",
     children: [
       {
@@ -169,42 +167,42 @@ const navItems: AppNavItem[] = [
     id: "entities",
     title: "Справочники",
     href: "/entities",
-    icon: BookOpen,
+    icon: "book-open",
     audience: "admin",
     children: [
       {
         id: "entities-customers",
         title: "Клиенты",
         href: "/entities/customers",
-        icon: Building2,
+        icon: "building-2",
         audience: "admin",
       },
       {
         id: "entities-counterparties",
         title: "Контрагенты",
         href: "/entities/counterparties",
-        icon: Building2,
+        icon: "building-2",
         audience: "admin",
       },
       {
         id: "entities-providers",
         title: "Расчетные методы",
         href: "/entities/providers",
-        icon: Landmark,
+        icon: "landmark",
         audience: "admin",
       },
       {
         id: "entities-accounts",
         title: "Счета",
         href: "/entities/accounts",
-        icon: Wallet,
+        icon: "wallet",
         audience: "admin",
       },
       {
         id: "entities-currencies",
         title: "Валюты",
         href: "/entities/currencies",
-        icon: Currency,
+        icon: "currency",
         audience: "admin",
       },
     ],
@@ -216,7 +214,7 @@ const secondaryItems: AppSecondaryNavItem[] = [
     kind: "notifications",
     id: "notifications",
     title: "Уведомления",
-    icon: Bell,
+    icon: "bell",
     audience: "shared",
   },
 ];

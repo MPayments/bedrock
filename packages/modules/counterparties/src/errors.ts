@@ -3,37 +3,37 @@ import { ServiceError } from "@bedrock/kernel/errors";
 export class CounterpartyError extends ServiceError {}
 
 export class CounterpartyNotFoundError extends CounterpartyError {
-    name = "CounterpartyNotFoundError";
+  name = "CounterpartyNotFoundError";
 
-    constructor(id: string) {
-        super(`Counterparty not found: ${id}`);
-    }
+  constructor(id: string) {
+    super(`Counterparty not found: ${id}`);
+  }
 }
 
 export class CounterpartyGroupNotFoundError extends CounterpartyError {
-    name = "CounterpartyGroupNotFoundError";
+  name = "CounterpartyGroupNotFoundError";
 
-    constructor(id: string) {
-        super(`Counterparty group not found: ${id}`);
-    }
+  constructor(id: string) {
+    super(`Counterparty group not found: ${id}`);
+  }
 }
 
 export class CounterpartyGroupRuleError extends CounterpartyError {
-    name = "CounterpartyGroupRuleError";
+  name = "CounterpartyGroupRuleError";
 }
 
 export class CounterpartyCustomerNotFoundError extends CounterpartyError {
-    name = "CounterpartyCustomerNotFoundError";
+  name = "CounterpartyCustomerNotFoundError";
 
-    constructor(id: string) {
-        super(`Customer not found: ${id}`);
-    }
+  constructor(id: string) {
+    super(`Customer not found: ${id}`);
+  }
 }
 
 export class CounterpartySystemGroupDeleteError extends CounterpartyError {
-    name = "CounterpartySystemGroupDeleteError";
+  name = "CounterpartySystemGroupDeleteError";
 
-    constructor(id: string) {
-        super(`System counterparty group cannot be deleted: ${id}`);
-    }
+  constructor(id: string) {
+    super(`System counterparty group cannot be deleted: ${id}`);
+  }
 }

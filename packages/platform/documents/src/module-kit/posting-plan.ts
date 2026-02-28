@@ -3,12 +3,11 @@ import type {
   DocumentPostingPlanRequest,
 } from "@bedrock/accounting";
 import type { Document } from "@bedrock/db/schema";
-import { SYSTEM_LEDGER_BOOK_ID } from "@bedrock/kernel/constants";
 
 export function buildDocumentPostingRequest(
   document: Pick<Document, "occurredAt">,
   input: Omit<DocumentPostingPlanRequest, "bookRefs" | "effectiveAt"> & {
-    bookId?: string;
+    bookId: string;
   },
 ): DocumentPostingPlanRequest {
   return {
@@ -17,7 +16,7 @@ export function buildDocumentPostingRequest(
     currency: input.currency,
     amountMinor: input.amountMinor,
     bookRefs: {
-      bookId: input.bookId ?? SYSTEM_LEDGER_BOOK_ID,
+      bookId: input.bookId,
     },
     dimensions: input.dimensions,
     refs: input.refs ?? null,

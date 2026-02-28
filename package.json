@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev --concurrency 20",
+    "dev": "turbo run dev --concurrency 30",
     "lint": "turbo run lint",
     "check:boundaries": "node ./scripts/check-boundaries.mjs && node ./scripts/check-accounting-literals.mjs",
     "check:workspace-deps": "node ./scripts/check-workspace-deps.mjs",
@@ -26,7 +26,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "knip": "^5.85.0",
     "prettier": "^3.8.1",
-    "turbo": "^2.8.11",
+    "turbo": "^2.8.12",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },

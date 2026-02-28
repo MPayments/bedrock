@@ -15,12 +15,12 @@ export function RecentItemsCard({
 }: {
   title: string;
   description: string;
-  items: Array<{
+  items: {
     id: string;
     title: string;
     subtitle: string;
     href: string;
-  }>;
+  }[];
 }) {
   return (
     <Card className="rounded-sm">

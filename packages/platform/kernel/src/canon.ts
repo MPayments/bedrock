@@ -1,5 +1,11 @@
-function canonicalize(value: unknown): unknown {
+function canonicalize(
+  value: unknown,
+  options: { undefinedMode: "throw" | "null" },
+): unknown {
   if (typeof value === "undefined") {
+    if (options.undefinedMode === "null") {
+      return null;
+    }
     throw new TypeError("canonicalJson does not support undefined values");
   }
 
@@ -21,38 +27,43 @@ function canonicalize(value: unknown): unknown {
   }
 
   if (Array.isArray(value)) {
-    return value.map((entry) => canonicalize(entry));
+    return value.map((entry) => canonicalize(entry, options));
   }
 
   if (value instanceof Map) {
-    return canonicalize(Object.fromEntries(value.entries()));
+    return canonicalize(Object.fromEntries(value.entries()), options);
   }
 
   if (value instanceof Set) {
-    return canonicalize(Array.from(value.values()));
+    return canonicalize(Array.from(value.values()), options);
   }
 
   if (typeof value === "object") {
     const entries = Object.entries(value as Record<string, unknown>)
       .filter(([, entryValue]) => typeof entryValue !== "undefined")
       .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-      .map(([key, entryValue]) => [key, canonicalize(entryValue)] as const);
+      .map(
+        ([key, entryValue]) =>
+          [key, canonicalize(entryValue, options)] as const,
+      );
 
     return Object.fromEntries(entries);
   }
 
-  throw new TypeError(`canonicalJson does not support value of type ${typeof value}`);
+  throw new TypeError(
+    `canonicalJson does not support value of type ${typeof value}`,
+  );
 }
 
 export function canonicalJson(value: unknown): string {
-  return JSON.stringify(canonicalize(value));
+  return JSON.stringify(canonicalize(value, { undefinedMode: "throw" }));
 }
 
 /**
  * Backward-compatible alias kept for existing callers.
  */
 export function stableStringify(value: unknown): string {
-  return canonicalJson(value);
+  return JSON.stringify(canonicalize(value, { undefinedMode: "null" }));
 }
 
 export function makePlanKey(

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   bigint,
   index,
   integer,
@@ -28,10 +29,16 @@ export const balancePositions = pgTable(
     currency: text("currency").notNull(),
     ledgerBalance: bigint("ledger_balance", { mode: "bigint" })
       .notNull()
-      .default(0n),
-    available: bigint("available", { mode: "bigint" }).notNull().default(0n),
-    reserved: bigint("reserved", { mode: "bigint" }).notNull().default(0n),
-    pending: bigint("pending", { mode: "bigint" }).notNull().default(0n),
+      .default(sql`0`),
+    available: bigint("available", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    reserved: bigint("reserved", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    pending: bigint("pending", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
     version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -111,16 +118,16 @@ export const balanceEvents = pgTable(
     }),
     deltaLedgerBalance: bigint("delta_ledger_balance", { mode: "bigint" })
       .notNull()
-      .default(0n),
+      .default(sql`0`),
     deltaAvailable: bigint("delta_available", { mode: "bigint" })
       .notNull()
-      .default(0n),
+      .default(sql`0`),
     deltaReserved: bigint("delta_reserved", { mode: "bigint" })
       .notNull()
-      .default(0n),
+      .default(sql`0`),
     deltaPending: bigint("delta_pending", { mode: "bigint" })
       .notNull()
-      .default(0n),
+      .default(sql`0`),
     meta: jsonb("meta").$type<Record<string, unknown> | null>(),
     actorId: text("actor_id"),
     requestId: text("request_id"),
@@ -149,15 +156,24 @@ export const balanceEvents = pgTable(
   ],
 );
 
-export const balanceProjectorCursors = pgTable("balance_projector_cursors", {
-  workerKey: text("worker_key").primaryKey(),
-  lastPostedAt: timestamp("last_posted_at", { withTimezone: true }),
-  lastOperationId: uuid("last_operation_id"),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`)
-    .$onUpdateFn(() => new Date()),
-});
+export const balanceProjectorCursors = pgTable(
+  "balance_projector_cursors",
+  {
+    workerKey: text("worker_key").primaryKey(),
+    lastPostedAt: timestamp("last_posted_at", { withTimezone: true }),
+    lastOperationId: uuid("last_operation_id"),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [
+    check(
+      "balance_projector_cursor_pair_chk",
+      sql`(${t.lastPostedAt} IS NULL AND ${t.lastOperationId} IS NULL) OR (${t.lastPostedAt} IS NOT NULL AND ${t.lastOperationId} IS NOT NULL)`,
+    ),
+  ],
+);
 
 export type BalancePosition = typeof balancePositions.$inferSelect;
 export type BalancePositionInsert = typeof balancePositions.$inferInsert;

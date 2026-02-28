@@ -1,7 +1,7 @@
 import { inArray, sql, type SQL } from "drizzle-orm";
 
-import { createBedrockDimensionRegistry } from "@bedrock/dimensions";
 import { schema, type Dimensions } from "@bedrock/db/schema";
+import { createBedrockDimensionRegistry } from "@bedrock/dimensions";
 import {
   paginateInMemory,
   resolveSortOrder,
@@ -26,7 +26,9 @@ export type AccountingReportingService = ReturnType<
 
 type RawLedgerOperationDetails = NonNullable<
   Awaited<
-    ReturnType<AccountingReportingServiceDeps["ledgerReadService"]["getOperationDetails"]>
+    ReturnType<
+      AccountingReportingServiceDeps["ledgerReadService"]["getOperationDetails"]
+    >
   >
 >;
 
@@ -35,15 +37,15 @@ type LedgerOperationDetailsWithLabels = RawLedgerOperationDetails & {
 };
 
 type RawLedgerOperationList = Awaited<
-  ReturnType<AccountingReportingServiceDeps["ledgerReadService"]["listOperations"]>
+  ReturnType<
+    AccountingReportingServiceDeps["ledgerReadService"]["listOperations"]
+  >
 >;
 
 type LedgerOperationListWithLabels = Omit<RawLedgerOperationList, "data"> & {
-  data: Array<
-    RawLedgerOperationList["data"][number] & {
-      bookLabels: Record<string, string>;
-    }
-  >;
+  data: (RawLedgerOperationList["data"][number] & {
+    bookLabels: Record<string, string>;
+  })[];
 };
 
 type FinancialResultStatus = "pending" | "posted" | "failed";
@@ -73,8 +75,7 @@ interface FinancialResultsByCounterpartyRow {
   netMinor: bigint;
 }
 
-interface FinancialResultsByCounterpartyResult
-  extends PaginatedList<FinancialResultsByCounterpartyRow> {
+interface FinancialResultsByCounterpartyResult extends PaginatedList<FinancialResultsByCounterpartyRow> {
   summaryByCurrency: FinancialResultSummaryByCurrency[];
 }
 
@@ -88,8 +89,7 @@ interface FinancialResultsByGroupRow {
   netMinor: bigint;
 }
 
-interface FinancialResultsByGroupResult
-  extends PaginatedList<FinancialResultsByGroupRow> {
+interface FinancialResultsByGroupResult extends PaginatedList<FinancialResultsByGroupRow> {
   summaryByCurrency: FinancialResultSummaryByCurrency[];
   unattributedByCurrency: FinancialResultSummaryByCurrency[];
 }
@@ -693,8 +693,8 @@ export function createAccountingReportingService(
       db,
       records: details.postings.flatMap(
         (posting: RawLedgerOperationDetails["postings"][number]) => [
-        (posting.debitDimensions as Dimensions | null) ?? null,
-        (posting.creditDimensions as Dimensions | null) ?? null,
+          (posting.debitDimensions as Dimensions | null) ?? null,
+          (posting.creditDimensions as Dimensions | null) ?? null,
         ],
       ),
     });
@@ -710,10 +710,14 @@ export function createAccountingReportingService(
   }
 
   async function listOperationsWithLabels(
-    input?: Parameters<AccountingReportingServiceDeps["ledgerReadService"]["listOperations"]>[0],
+    input?: Parameters<
+      AccountingReportingServiceDeps["ledgerReadService"]["listOperations"]
+    >[0],
   ): Promise<LedgerOperationListWithLabels> {
     const result = await ledgerReadService.listOperations(input);
-    const bookIds = Array.from(new Set(result.data.flatMap((row) => row.bookIds)));
+    const bookIds = Array.from(
+      new Set(result.data.flatMap((row) => row.bookIds)),
+    );
     const bookRows =
       bookIds.length === 0
         ? []
@@ -731,7 +735,10 @@ export function createAccountingReportingService(
       data: result.data.map((row) => ({
         ...row,
         bookLabels: Object.fromEntries(
-          row.bookIds.map((bookId) => [bookId, bookNamesById.get(bookId) ?? bookId]),
+          row.bookIds.map((bookId) => [
+            bookId,
+            bookNamesById.get(bookId) ?? bookId,
+          ]),
         ),
       })),
     };

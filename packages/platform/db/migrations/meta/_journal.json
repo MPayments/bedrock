@@ -5,50 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1772132429304,
-      "tag": "0000_giant_mandroid",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1772289500000,
-      "tag": "0001_big_bang_documents",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1772289600000,
-      "tag": "0002_v2_core_receipts_events",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1772293200000,
-      "tag": "0003_accounting_pack_storage",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1772300400000,
-      "tag": "0004_balances_reconciliation",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1772304000000,
-      "tag": "0005_books_book_ids",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1772307600000,
-      "tag": "0006_balance_projector_and_book_fk",
+      "when": 1772314688131,
+      "tag": "0000_overjoyed_captain_britain",
       "breakpoints": true
     }
   ]

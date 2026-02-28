@@ -116,4 +116,33 @@ describe("accounting runtime", () => {
       }),
     ).rejects.toThrow(/is not allowed to use template/);
   });
+
+  it("rejects posting plans without a concrete book id", async () => {
+    await expect(
+      runtime.resolvePostingPlan({
+        moduleId: "transfer",
+        source: { type: "documents/transfer/post", id: "doc-1" },
+        idempotencyKey: "post:doc-1",
+        postingDate: new Date("2026-02-28T10:00:00.000Z"),
+        plan: {
+          operationCode: "TRANSFER_APPROVE_IMMEDIATE_INTRA",
+          operationVersion: 1,
+          payload: {},
+          requests: [
+            {
+              templateKey: POSTING_TEMPLATE_KEY.TRANSFER_INTRA_IMMEDIATE,
+              effectiveAt: new Date("2026-02-28T10:00:00.000Z"),
+              currency: "USD",
+              amountMinor: 100n,
+              bookRefs: {},
+              dimensions: {
+                sourceOperationalAccountId: "src-op",
+                destinationOperationalAccountId: "dst-op",
+              },
+            },
+          ],
+        },
+      }),
+    ).rejects.toThrow(/bookRefs\.bookId/);
+  });
 });

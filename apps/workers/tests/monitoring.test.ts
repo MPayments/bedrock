@@ -1,21 +1,11 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   createWorkerMonitoringRegistry,
-  startWorkerMonitoringServer,
-  type WorkerMonitoringServer,
+  renderWorkerMonitoringResponse,
 } from "../src/monitoring";
 
 describe("worker monitoring", () => {
-  let server: WorkerMonitoringServer | null = null;
-
-  afterEach(async () => {
-    if (server) {
-      await server.stop();
-      server = null;
-    }
-  });
-
   it("tracks worker success and failure state", () => {
     let currentTime = 1_700_000_000_000;
     const registry = createWorkerMonitoringRegistry(() => currentTime);
@@ -78,7 +68,7 @@ describe("worker monitoring", () => {
     );
   });
 
-  it("serves health and metrics endpoints", async () => {
+  it("renders health and metrics endpoint responses", () => {
     let currentTime = 1_700_000_100_000;
     const registry = createWorkerMonitoringRegistry(() => currentTime);
     const observer = registry.registerWorker({
@@ -95,17 +85,12 @@ describe("worker monitoring", () => {
       result: 1,
     });
 
-    server = await startWorkerMonitoringServer({
-      host: "127.0.0.1",
-      port: 0,
+    const healthResponse = renderWorkerMonitoringResponse({
+      url: "/health",
       registry,
     });
-
-    const healthResponse = await fetch(
-      `http://127.0.0.1:${server.port}/healthz`,
-    );
-    expect(healthResponse.status).toBe(200);
-    await expect(healthResponse.json()).resolves.toEqual(
+    expect(healthResponse.statusCode).toBe(200);
+    expect(JSON.parse(healthResponse.body)).toEqual(
       expect.objectContaining({
         status: "ok",
         workerCount: 1,
@@ -118,11 +103,12 @@ describe("worker monitoring", () => {
       }),
     );
 
-    const metricsResponse = await fetch(
-      `http://127.0.0.1:${server.port}/metrics`,
-    );
-    expect(metricsResponse.status).toBe(200);
-    await expect(metricsResponse.text()).resolves.toContain(
+    const metricsResponse = renderWorkerMonitoringResponse({
+      url: "/metrics",
+      registry,
+    });
+    expect(metricsResponse.statusCode).toBe(200);
+    expect(metricsResponse.body).toContain(
       'bedrock_worker_processed_total{worker="balances"} 1',
     );
   });

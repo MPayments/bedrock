@@ -4,10 +4,7 @@ import type { Transaction } from "@bedrock/db";
 import { schema, type ActionReceipt } from "@bedrock/db/schema";
 import { canonicalJson, sha256Hex } from "@bedrock/kernel";
 
-import {
-  ActionReceiptConflictError,
-  ActionReceiptStoredError,
-} from "./errors";
+import { ActionReceiptConflictError, ActionReceiptStoredError } from "./errors";
 import {
   createIdempotencyServiceContext,
   type IdempotencyServiceDeps,
@@ -183,7 +180,8 @@ export function createIdempotencyService(
     if (receiptResult.kind === "replay") {
       return input.loadReplayResult({
         tx: input.tx,
-        storedResult: (receiptResult.receipt.resultJson as TStoredResult | null) ?? null,
+        storedResult:
+          (receiptResult.receipt.resultJson as TStoredResult | null) ?? null,
         receipt: receiptResult.receipt,
       });
     }
@@ -203,7 +201,8 @@ export function createIdempotencyService(
       await completeActionReceiptTx({
         tx: input.tx,
         receiptId: receiptResult.receipt.id,
-        status: error instanceof ActionReceiptConflictError ? "conflict" : "error",
+        status:
+          error instanceof ActionReceiptConflictError ? "conflict" : "error",
         errorJson: (input.serializeError ?? defaultSerializeError)(error),
       });
 

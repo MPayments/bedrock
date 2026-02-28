@@ -149,59 +149,60 @@ const listFinancialResultsByCounterpartyQueryBaseSchema =
     FINANCIAL_RESULTS_COUNTERPARTY_LIST_CONTRACT,
   );
 
-const listFinancialResultsByGroupQueryBaseSchema = createListQuerySchemaFromContract(
-  FINANCIAL_RESULTS_GROUP_LIST_CONTRACT,
-);
+const listFinancialResultsByGroupQueryBaseSchema =
+  createListQuerySchemaFromContract(FINANCIAL_RESULTS_GROUP_LIST_CONTRACT);
 
 export const ListFinancialResultsByCounterpartyQuerySchema =
-  listFinancialResultsByCounterpartyQueryBaseSchema.superRefine((value, ctx) => {
-    if (value.from && !z.iso.datetime().safeParse(value.from).success) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["from"],
-        message: "from must be an ISO datetime",
-      });
-    }
-
-    if (value.to && !z.iso.datetime().safeParse(value.to).success) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["to"],
-        message: "to must be an ISO datetime",
-      });
-    }
-
-    if (value.currency) {
-      const currency = value.currency.trim().toUpperCase();
-      if (!/^[A-Z0-9_]{2,16}$/.test(currency)) {
+  listFinancialResultsByCounterpartyQueryBaseSchema.superRefine(
+    (value, ctx) => {
+      if (value.from && !z.iso.datetime().safeParse(value.from).success) {
         ctx.addIssue({
           code: "custom",
-          path: ["currency"],
-          message:
-            "currency must be 2-16 uppercase alphanumeric characters or underscores",
+          path: ["from"],
+          message: "from must be an ISO datetime",
         });
       }
-    }
 
-    if (
-      value.counterpartyId &&
-      !uuidSchema.safeParse(value.counterpartyId).success
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["counterpartyId"],
-        message: "counterpartyId must be UUID",
-      });
-    }
+      if (value.to && !z.iso.datetime().safeParse(value.to).success) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["to"],
+          message: "to must be an ISO datetime",
+        });
+      }
 
-    if (value.groupId && !uuidSchema.safeParse(value.groupId).success) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["groupId"],
-        message: "groupId must be UUID",
-      });
-    }
-  });
+      if (value.currency) {
+        const currency = value.currency.trim().toUpperCase();
+        if (!/^[A-Z0-9_]{2,16}$/.test(currency)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["currency"],
+            message:
+              "currency must be 2-16 uppercase alphanumeric characters or underscores",
+          });
+        }
+      }
+
+      if (
+        value.counterpartyId &&
+        !uuidSchema.safeParse(value.counterpartyId).success
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["counterpartyId"],
+          message: "counterpartyId must be UUID",
+        });
+      }
+
+      if (value.groupId && !uuidSchema.safeParse(value.groupId).success) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["groupId"],
+          message: "groupId must be UUID",
+        });
+      }
+    },
+  );
 
 export const ListFinancialResultsByGroupQuerySchema =
   listFinancialResultsByGroupQueryBaseSchema.superRefine((value, ctx) => {

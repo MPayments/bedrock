@@ -524,49 +524,11 @@ describe("createLedgerEngine", () => {
       expect(result.pendingTransferIdsByRef.has("pending-ref-1")).toBe(true);
     });
 
-    it("throws when correspondence rule is missing", async () => {
+    it("does not re-run accounting policy checks during ledger commit", async () => {
       const tx = createCreateTransferTx({
         ruleExists: false,
-      });
-      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
-
-      await expect(
-        engine.commitStandalone(
-          createTestEntry({
-            transfers: [createTestTransferPlan()],
-          }),
-        ),
-      ).rejects.toThrow("Correspondence rule not found");
-    });
-
-    it("throws when account is not postable", async () => {
-      const tx = createCreateTransferTx({ postingAllowed: false });
-      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
-
-      await expect(
-        engine.commitStandalone(
-          createTestEntry({
-            transfers: [createTestTransferPlan()],
-          }),
-        ),
-      ).rejects.toThrow("is not postable");
-    });
-
-    it("throws when account is disabled", async () => {
-      const tx = createCreateTransferTx({ accountEnabled: false });
-      vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
-
-      await expect(
-        engine.commitStandalone(
-          createTestEntry({
-            transfers: [createTestTransferPlan()],
-          }),
-        ),
-      ).rejects.toThrow("is disabled");
-    });
-
-    it("throws when required posting dimensions are missing", async () => {
-      const tx = createCreateTransferTx({
+        postingAllowed: false,
+        accountEnabled: false,
         requiredDimensions: ["customerId"],
       });
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
@@ -581,7 +543,12 @@ describe("createLedgerEngine", () => {
             ],
           }),
         ),
-      ).rejects.toThrow(/required by posting code/);
+      ).resolves.toEqual(
+        expect.objectContaining({
+          operationId: "op-create-1",
+          pendingTransferIdsByRef: expect.any(Map),
+        }),
+      );
     });
   });
 });

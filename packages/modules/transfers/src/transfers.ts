@@ -13,20 +13,17 @@ import {
   DocumentValidationError,
 } from "@bedrock/documents";
 import {
-  DAY_IN_SECONDS,
-} from "@bedrock/kernel/constants";
-
-import {
   amountMinorSchema,
   buildDocumentDraft,
   buildDocumentPostIdempotencyKey,
   parseDocumentPayload,
   serializeOccurredAt,
-} from "./internal/document-utils";
+} from "@bedrock/documents/module-kit";
 import {
   buildDocumentPostingPlan,
   buildDocumentPostingRequest,
-} from "./internal/posting-plan";
+} from "@bedrock/documents/module-kit";
+import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 
 const TransferCreateSchema = z.object({
   sourceOperationalAccountId: z.uuid(),
@@ -48,6 +45,8 @@ const TransferPayloadSchema = TransferCreateSchema.extend({
   kind: z.enum(["intra_org", "cross_org"]),
   sourceCounterpartyId: z.uuid(),
   destinationCounterpartyId: z.uuid(),
+  sourceBookId: z.uuid().optional(),
+  destinationBookId: z.uuid().optional(),
 });
 
 const TransferPendingActionSchema = z.object({
@@ -59,6 +58,21 @@ const TransferPendingActionSchema = z.object({
 
 type TransferPayload = z.infer<typeof TransferPayloadSchema>;
 type TransferPendingActionPayload = z.infer<typeof TransferPendingActionSchema>;
+
+interface TransferAccountBinding {
+  accountId: string;
+  bookId: string;
+  counterpartyId: string;
+  currencyId: string;
+  currencyCode: string;
+  stableKey: string;
+}
+
+interface TransferOperationalAccountsService {
+  resolveTransferBindings: (input: {
+    accountIds: string[];
+  }) => Promise<TransferAccountBinding[]>;
+}
 
 function normalizeTransferPayload(payload: TransferPayload) {
   return {
@@ -83,8 +97,7 @@ async function getAvailableBalanceByOperationalAccount(
 ): Promise<bigint> {
   const rows = await db
     .select({
-      available:
-        sql<string>`coalesce(sum(${schema.balancePositions.available}), 0)::text`,
+      available: sql<string>`coalesce(sum(${schema.balancePositions.available}), 0)::text`,
     })
     .from(schema.balancePositions)
     .where(
@@ -134,6 +147,63 @@ async function getPendingTransferIdsForDocument(
     pendingId: plan.transferId,
     pendingRef: plan.pendingRef,
   }));
+}
+
+async function resolveTransferBookIds(
+  operationalAccountsService: TransferOperationalAccountsService,
+  payload: Pick<
+    TransferPayload,
+    | "sourceOperationalAccountId"
+    | "destinationOperationalAccountId"
+    | "sourceBookId"
+    | "destinationBookId"
+  >,
+) {
+  if (payload.sourceBookId && payload.destinationBookId) {
+    return {
+      sourceBookId: payload.sourceBookId,
+      destinationBookId: payload.destinationBookId,
+    };
+  }
+
+  const [sourceBinding, destinationBinding] =
+    await operationalAccountsService.resolveTransferBindings({
+      accountIds: [
+        payload.sourceOperationalAccountId,
+        payload.destinationOperationalAccountId,
+      ],
+    });
+
+  const source = requireBinding(sourceBinding, "Source");
+  const destination = requireBinding(destinationBinding, "Destination");
+
+  return {
+    sourceBookId: source.bookId,
+    destinationBookId: destination.bookId,
+  };
+}
+
+function resolvePendingTransferBookId(input: {
+  kind: TransferPayload["kind"];
+  sourceBookId: string;
+  destinationBookId: string;
+  pendingRef?: string | null;
+}) {
+  if (input.kind === "intra_org") {
+    return input.sourceBookId;
+  }
+
+  if (input.pendingRef?.endsWith(":source")) {
+    return input.sourceBookId;
+  }
+
+  if (input.pendingRef?.endsWith(":destination")) {
+    return input.destinationBookId;
+  }
+
+  throw new DocumentValidationError(
+    `Pending transfer reference is missing routing book for ${input.pendingRef ?? "unknown ref"}`,
+  );
 }
 
 function requireBinding<T>(value: T | undefined, label: string): T {
@@ -206,17 +276,7 @@ async function ensureNoPendingResolution(
 }
 
 export function createTransferDocumentModule(deps: {
-  operationalAccountsService: {
-    resolveTransferBindings: (input: { accountIds: string[] }) => Promise<
-      {
-        accountId: string;
-        counterpartyId: string;
-        currencyId: string;
-        currencyCode: string;
-        stableKey: string;
-      }[]
-    >;
-  };
+  operationalAccountsService: TransferOperationalAccountsService;
 }): DocumentModule<
   z.infer<typeof TransferCreateSchema>,
   z.infer<typeof TransferCreateSchema>
@@ -282,6 +342,8 @@ export function createTransferDocumentModule(deps: {
             source.counterpartyId === destination.counterpartyId
               ? "intra_org"
               : "cross_org",
+          sourceBookId: source.bookId,
+          destinationBookId: destination.bookId,
           sourceCounterpartyId: source.counterpartyId,
           destinationCounterpartyId: destination.counterpartyId,
         }),
@@ -373,6 +435,10 @@ export function createTransferDocumentModule(deps: {
     },
     async buildPostingPlan(_context, document) {
       const payload = parseDocumentPayload(TransferPayloadSchema, document);
+      const { sourceBookId, destinationBookId } = await resolveTransferBookIds(
+        operationalAccountsService,
+        payload,
+      );
       const refs = {
         transferDocumentId: document.id,
         settlementMode: payload.settlementMode,
@@ -387,6 +453,7 @@ export function createTransferDocumentModule(deps: {
                     : POSTING_TEMPLATE_KEY.TRANSFER_INTRA_IMMEDIATE,
                 currency: payload.currency,
                 amountMinor: BigInt(payload.amountMinor),
+                bookId: sourceBookId,
                 dimensions: {
                   sourceOperationalAccountId:
                     payload.sourceOperationalAccountId,
@@ -413,6 +480,7 @@ export function createTransferDocumentModule(deps: {
                     : POSTING_TEMPLATE_KEY.TRANSFER_CROSS_SOURCE_IMMEDIATE,
                 currency: payload.currency,
                 amountMinor: BigInt(payload.amountMinor),
+                bookId: sourceBookId,
                 dimensions: {
                   sourceOperationalAccountId:
                     payload.sourceOperationalAccountId,
@@ -436,6 +504,7 @@ export function createTransferDocumentModule(deps: {
                     : POSTING_TEMPLATE_KEY.TRANSFER_CROSS_DESTINATION_IMMEDIATE,
                 currency: payload.currency,
                 amountMinor: BigInt(payload.amountMinor),
+                bookId: destinationBookId,
                 dimensions: {
                   destinationOperationalAccountId:
                     payload.destinationOperationalAccountId,
@@ -488,8 +557,12 @@ export function createTransferDocumentModule(deps: {
 }
 
 function createTransferResolutionModule(
+  deps: {
+    operationalAccountsService: TransferOperationalAccountsService;
+  },
   eventType: "settle" | "void",
 ): DocumentModule<TransferPendingActionPayload, TransferPendingActionPayload> {
+  const { operationalAccountsService } = deps;
   const docType = eventType === "settle" ? "transfer_settle" : "transfer_void";
   const docNoPrefix = eventType === "settle" ? "TRS" : "TRV";
 
@@ -523,7 +596,10 @@ function createTransferResolutionModule(
       );
     },
     deriveSummary(document) {
-      const payload = parseDocumentPayload(TransferPendingActionSchema, document);
+      const payload = parseDocumentPayload(
+        TransferPendingActionSchema,
+        document,
+      );
       return {
         title: `Transfer ${eventType}`,
         memo: payload.externalRef ?? null,
@@ -545,7 +621,10 @@ function createTransferResolutionModule(
     async canReject() {},
     async canCancel() {},
     async canPost(context, document) {
-      const payload = parseDocumentPayload(TransferPendingActionSchema, document);
+      const payload = parseDocumentPayload(
+        TransferPendingActionSchema,
+        document,
+      );
       const dependency = await getDependencyDocument(context.db, document.id);
       if (!dependency || dependency.id !== payload.transferDocumentId) {
         throw new DocumentGraphError(
@@ -587,7 +666,10 @@ function createTransferResolutionModule(
       await ensureNoPendingResolution(context.db, dependency.id);
     },
     async buildPostingPlan(context, document) {
-      const payload = parseDocumentPayload(TransferPendingActionSchema, document);
+      const payload = parseDocumentPayload(
+        TransferPendingActionSchema,
+        document,
+      );
       const dependency = await getDependencyDocument(context.db, document.id);
       if (!dependency) {
         throw new DocumentValidationError(
@@ -598,6 +680,10 @@ function createTransferResolutionModule(
       const transferPayload = parseDocumentPayload(
         TransferPayloadSchema,
         dependency,
+      );
+      const { sourceBookId, destinationBookId } = await resolveTransferBookIds(
+        operationalAccountsService,
+        transferPayload,
       );
       const pendingTransfers = await getPendingTransferIdsForDocument(
         context.db,
@@ -622,6 +708,12 @@ function createTransferResolutionModule(
                 : POSTING_TEMPLATE_KEY.TRANSFER_PENDING_VOID,
             currency: transferPayload.currency,
             amountMinor: 0n,
+            bookId: resolvePendingTransferBookId({
+              kind: transferPayload.kind,
+              sourceBookId,
+              destinationBookId,
+              pendingRef: item.pendingRef,
+            }),
             dimensions: {},
             refs: {
               transferDocumentId: dependency.id,
@@ -641,7 +733,10 @@ function createTransferResolutionModule(
       return buildDocumentPostIdempotencyKey(document);
     },
     async buildInitialLinks(_context, document) {
-      const payload = parseDocumentPayload(TransferPendingActionSchema, document);
+      const payload = parseDocumentPayload(
+        TransferPendingActionSchema,
+        document,
+      );
       return [
         {
           toDocumentId: payload.transferDocumentId,
@@ -652,10 +747,14 @@ function createTransferResolutionModule(
   };
 }
 
-export function createTransferSettleDocumentModule() {
-  return createTransferResolutionModule("settle");
+export function createTransferSettleDocumentModule(deps: {
+  operationalAccountsService: TransferOperationalAccountsService;
+}) {
+  return createTransferResolutionModule(deps, "settle");
 }
 
-export function createTransferVoidDocumentModule() {
-  return createTransferResolutionModule("void");
+export function createTransferVoidDocumentModule(deps: {
+  operationalAccountsService: TransferOperationalAccountsService;
+}) {
+  return createTransferResolutionModule(deps, "void");
 }

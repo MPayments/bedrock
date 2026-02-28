@@ -112,8 +112,12 @@ export function createModuleServices(
     createTransferDocumentModule({
       operationalAccountsService,
     }),
-    createTransferSettleDocumentModule(),
-    createTransferVoidDocumentModule(),
+    createTransferSettleDocumentModule({
+      operationalAccountsService,
+    }),
+    createTransferVoidDocumentModule({
+      operationalAccountsService,
+    }),
   ]);
   const documentsService = createDocumentsService({
     accounting: accountingService,

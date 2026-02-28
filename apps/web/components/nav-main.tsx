@@ -31,6 +31,8 @@ import {
 
 import type { AppNavItem } from "@/lib/navigation/config";
 
+import { resolveNavIcon } from "./nav-icons";
+
 function normalizePath(path: string) {
   if (path.length > 1 && path.endsWith("/")) {
     return path.slice(0, -1);
@@ -68,6 +70,7 @@ function NavCollapsibleItem({
     isPathActive(pathname, item.href) ||
     subItems.some((sub) => isPathActive(pathname, sub.href));
   const [open, setOpen] = useState(isActive);
+  const Icon = resolveNavIcon(item.icon);
 
   // Auto-open the group when a sub-item becomes active via navigation
   useEffect(() => {
@@ -84,7 +87,7 @@ function NavCollapsibleItem({
           <DropdownMenuTrigger
             render={<SidebarMenuButton tooltip={item.title} />}
           >
-            {item.icon && <item.icon />}
+            {Icon && <Icon />}
             <span>{item.title}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -95,13 +98,7 @@ function NavCollapsibleItem({
           >
             <DropdownMenuGroup>
               {subItems.map((subItem) => (
-                <DropdownMenuItem
-                  key={subItem.id}
-                  render={<Link href={subItem.href} />}
-                >
-                  {subItem.icon && <subItem.icon className="size-4" />}
-                  <span>{subItem.title}</span>
-                </DropdownMenuItem>
+                <NavDropdownItem key={subItem.id} item={subItem} />
               ))}
             </DropdownMenuGroup>
           </DropdownMenuContent>
@@ -119,27 +116,56 @@ function NavCollapsibleItem({
     >
       <SidebarMenuItem>
         <CollapsibleTrigger render={<SidebarMenuButton tooltip={item.title} />}>
-          {item.icon && <item.icon />}
+          {Icon && <Icon />}
           <span>{item.title}</span>
           <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarMenuSub>
             {subItems.map((subItem) => (
-              <SidebarMenuSubItem key={subItem.id}>
-                <SidebarMenuSubButton
-                  render={<Link href={subItem.href} />}
-                  isActive={isPathActive(pathname, subItem.href)}
-                >
-                  {subItem.icon && <subItem.icon className="size-4" />}
-                  <span>{subItem.title}</span>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
+              <NavSubItem
+                key={subItem.id}
+                item={subItem}
+                pathname={pathname}
+              />
             ))}
           </SidebarMenuSub>
         </CollapsibleContent>
       </SidebarMenuItem>
     </Collapsible>
+  );
+}
+
+function NavDropdownItem({ item }: { item: AppNavItem }) {
+  const Icon = resolveNavIcon(item.icon);
+
+  return (
+    <DropdownMenuItem render={<Link href={item.href} />}>
+      {Icon && <Icon className="size-4" />}
+      <span>{item.title}</span>
+    </DropdownMenuItem>
+  );
+}
+
+function NavSubItem({
+  item,
+  pathname,
+}: {
+  item: AppNavItem;
+  pathname: string;
+}) {
+  const Icon = resolveNavIcon(item.icon);
+
+  return (
+    <SidebarMenuSubItem>
+      <SidebarMenuSubButton
+        render={<Link href={item.href} />}
+        isActive={isPathActive(pathname, item.href)}
+      >
+        {Icon && <Icon className="size-4" />}
+        <span>{item.title}</span>
+      </SidebarMenuSubButton>
+    </SidebarMenuSubItem>
   );
 }
 
@@ -157,6 +183,7 @@ export function NavMain({ items }: { items: AppNavItem[] }) {
             ? isPathActive(pathname, item.href) ||
               subItems.some((sub) => isPathActive(pathname, sub.href))
             : isPathActive(pathname, item.href);
+          const Icon = resolveNavIcon(item.icon);
 
           if (!hasSubItems) {
             return (
@@ -166,7 +193,7 @@ export function NavMain({ items }: { items: AppNavItem[] }) {
                   isActive={isActive}
                   tooltip={item.title}
                 >
-                  {item.icon && <item.icon />}
+                  {Icon && <Icon />}
                   <span>{item.title}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>

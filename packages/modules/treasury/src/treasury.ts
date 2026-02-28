@@ -10,18 +10,17 @@ import {
 import { schema } from "@bedrock/db/schema";
 import type { DocumentModule } from "@bedrock/documents";
 import { DocumentValidationError } from "@bedrock/documents";
-
 import {
   amountMinorSchema,
   buildDocumentDraft,
   buildDocumentPostIdempotencyKey,
   parseDocumentPayload,
   serializeOccurredAt,
-} from "./internal/document-utils";
+} from "@bedrock/documents/module-kit";
 import {
   buildDocumentPostingPlan,
   buildDocumentPostingRequest,
-} from "./internal/posting-plan";
+} from "@bedrock/documents/module-kit";
 
 const ExternalFundingPayloadSchema = z.object({
   kind: z.enum([
@@ -113,6 +112,32 @@ async function ensureCustomerExists(
   }
 }
 
+async function requireOperationalAccountBookId(
+  db: Parameters<DocumentModule["canPost"]>[0]["db"],
+  operationalAccountId: string,
+) {
+  const [binding] = await db
+    .select({
+      bookId: schema.operationalAccountBindings.bookId,
+    })
+    .from(schema.operationalAccountBindings)
+    .where(
+      eq(
+        schema.operationalAccountBindings.operationalAccountId,
+        operationalAccountId,
+      ),
+    )
+    .limit(1);
+
+  if (!binding?.bookId) {
+    throw new DocumentValidationError(
+      `Operational account binding not found: ${operationalAccountId}`,
+    );
+  }
+
+  return binding.bookId;
+}
+
 export function createExternalFundingDocumentModule(deps: {
   currenciesService: {
     findById: (id: string) => Promise<{ code: string }>;
@@ -141,7 +166,10 @@ export function createExternalFundingDocumentModule(deps: {
       return buildDocumentDraft(input, normalizeExternalFundingPayload(input));
     },
     deriveSummary(document) {
-      const payload = parseDocumentPayload(ExternalFundingPayloadSchema, document);
+      const payload = parseDocumentPayload(
+        ExternalFundingPayloadSchema,
+        document,
+      );
       return {
         title: `External funding: ${payload.kind}`,
         amountMinor: BigInt(payload.amountMinor),
@@ -171,7 +199,10 @@ export function createExternalFundingDocumentModule(deps: {
     async canReject() {},
     async canCancel() {},
     async canPost(context, document) {
-      const payload = parseDocumentPayload(ExternalFundingPayloadSchema, document);
+      const payload = parseDocumentPayload(
+        ExternalFundingPayloadSchema,
+        document,
+      );
 
       const [operationalAccount] = await context.db
         .select({
@@ -205,9 +236,16 @@ export function createExternalFundingDocumentModule(deps: {
         await ensureCustomerExists(payload.customerId, context.db);
       }
     },
-    async buildPostingPlan(_context, document) {
-      const payload = parseDocumentPayload(ExternalFundingPayloadSchema, document);
+    async buildPostingPlan(context, document) {
+      const payload = parseDocumentPayload(
+        ExternalFundingPayloadSchema,
+        document,
+      );
       const config = EXTERNAL_FUNDING_BY_KIND[payload.kind];
+      const bookId = await requireOperationalAccountBookId(
+        context.db,
+        payload.operationalAccountId,
+      );
       const dimensions: Record<string, string> = {
         operationalAccountId: payload.operationalAccountId,
       };
@@ -231,6 +269,7 @@ export function createExternalFundingDocumentModule(deps: {
             templateKey: config.templateKey,
             currency: payload.currency,
             amountMinor: BigInt(payload.amountMinor),
+            bookId,
             dimensions,
             refs: {
               entryRef: payload.entryRef,

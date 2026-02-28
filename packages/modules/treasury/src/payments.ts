@@ -1,13 +1,26 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
+import type { DocumentPostingPlanRequest } from "@bedrock/accounting";
 import {
   DOCUMENT_MODULE_ID,
   OPERATION_CODE,
   POSTING_TEMPLATE_KEY,
 } from "@bedrock/accounting-contracts";
-import type { DocumentPostingPlanRequest } from "@bedrock/accounting";
 import { schema, type Document } from "@bedrock/db/schema";
+import type { DocumentModule, DocumentModuleContext } from "@bedrock/documents";
+import { DocumentValidationError } from "@bedrock/documents";
+import {
+  amountMinorSchema,
+  buildDocumentDraft,
+  buildDocumentPostIdempotencyKey,
+  parseDocumentPayload,
+  serializeOccurredAt,
+} from "@bedrock/documents/module-kit";
+import {
+  buildDocumentPostingPlan,
+  buildDocumentPostingRequest,
+} from "@bedrock/documents/module-kit";
 import type { AdjustmentComponent, FeeComponent } from "@bedrock/fees";
 import {
   adjustmentEffectSchema,
@@ -16,23 +29,9 @@ import {
   feeDealFormSchema,
   feeSettlementModeSchema,
 } from "@bedrock/fees";
-import type { DocumentModule, DocumentModuleContext } from "@bedrock/documents";
-import { DocumentValidationError } from "@bedrock/documents";
 import { isUuidLike } from "@bedrock/kernel";
 import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 import { InvalidStateError, NotFoundError } from "@bedrock/kernel/errors";
-
-import {
-  amountMinorSchema,
-  buildDocumentDraft,
-  buildDocumentPostIdempotencyKey,
-  parseDocumentPayload,
-  serializeOccurredAt,
-} from "./internal/document-utils";
-import {
-  buildDocumentPostingPlan,
-  buildDocumentPostingRequest,
-} from "./internal/posting-plan";
 
 const metadataSchema = z.record(z.string(), z.string().max(255));
 
@@ -219,7 +218,7 @@ type FeePayoutResolvePayload = z.infer<typeof FeePayoutResolveSchema>;
 interface FxExecutionArtifacts {
   quoteId: string;
   requests: DocumentPostingPlanRequest[];
-  separateFeeComponents: Array<{
+  separateFeeComponents: {
     componentId: string;
     kind: string;
     bucket: string;
@@ -229,7 +228,7 @@ interface FxExecutionArtifacts {
     memo: string | null;
     metadata: Record<string, string> | null;
     payoutOperationalAccountId: string;
-  }>;
+  }[];
 }
 
 interface PaymentFeesService {
@@ -533,6 +532,32 @@ async function ensureOperationalAccountCurrency(
       `currency mismatch for operational account ${operationalAccountId}: expected ${currency.code}, got ${expectedCurrency}`,
     );
   }
+}
+
+async function requireOperationalAccountBookId(
+  db: DocumentModuleContext["db"],
+  operationalAccountId: string,
+) {
+  const [binding] = await db
+    .select({
+      bookId: schema.operationalAccountBindings.bookId,
+    })
+    .from(schema.operationalAccountBindings)
+    .where(
+      eq(
+        schema.operationalAccountBindings.operationalAccountId,
+        operationalAccountId,
+      ),
+    )
+    .limit(1);
+
+  if (!binding?.bookId) {
+    throw new DocumentValidationError(
+      `Operational account binding not found: ${operationalAccountId}`,
+    );
+  }
+
+  return binding.bookId;
 }
 
 function ensurePosted(document: Document, label: string) {
@@ -936,8 +961,12 @@ async function buildFxExecutionArtifacts(params: {
 
   const chain = `fx:${payload.quoteRef}`;
   const orderId = caseDocument.id;
+  const bookId = await requireOperationalAccountBookId(
+    context.db,
+    payload.payOutOperationalAccountId,
+  );
   const requests: DocumentPostingPlanRequest[] = [];
-  const separateFeeComponents: Array<{
+  const separateFeeComponents: {
     componentId: string;
     kind: string;
     bucket: string;
@@ -947,13 +976,14 @@ async function buildFxExecutionArtifacts(params: {
     memo: string | null;
     metadata: Record<string, string> | null;
     payoutOperationalAccountId: string;
-  }> = [];
+  }[] = [];
 
   requests.push(
     buildDocumentPostingRequest(document, {
       templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
       currency: payload.payInCurrency,
       amountMinor: toMinor(payload.principalMinor),
+      bookId,
       dimensions: {
         customerId: payload.customerId,
         orderId,
@@ -975,6 +1005,7 @@ async function buildFxExecutionArtifacts(params: {
         templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_LEG_OUT,
         currency: leg.fromCurrency,
         amountMinor: leg.fromAmountMinor,
+        bookId,
         dimensions: {
           orderId,
           counterpartyId: executionCounterpartyId,
@@ -993,6 +1024,7 @@ async function buildFxExecutionArtifacts(params: {
         templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_LEG_IN,
         currency: leg.toCurrency,
         amountMinor: leg.toAmountMinor,
+        bookId,
         dimensions: {
           orderId,
           counterpartyId: executionCounterpartyId,
@@ -1041,6 +1073,7 @@ async function buildFxExecutionArtifacts(params: {
               : POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME,
           currency: component.currency,
           amountMinor: component.amountMinor,
+          bookId,
           dimensions: {
             customerId: payload.customerId,
             orderId,
@@ -1059,6 +1092,7 @@ async function buildFxExecutionArtifacts(params: {
           templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
           currency: component.currency,
           amountMinor: component.amountMinor,
+          bookId,
           dimensions: {
             customerId: payload.customerId,
             orderId,
@@ -1087,6 +1121,7 @@ async function buildFxExecutionArtifacts(params: {
         templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE,
         currency: component.currency,
         amountMinor: component.amountMinor,
+        bookId,
         dimensions: {
           feeBucket: defaults.bucket,
           orderId,
@@ -1126,6 +1161,7 @@ async function buildFxExecutionArtifacts(params: {
             : POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND,
         currency: component.currency,
         amountMinor: component.amountMinor,
+        bookId,
         dimensions: {
           customerId: payload.customerId,
           orderId,
@@ -1160,6 +1196,7 @@ async function buildFxExecutionArtifacts(params: {
             : POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND_RESERVE,
         currency: component.currency,
         amountMinor: component.amountMinor,
+        bookId,
         dimensions:
           component.effect === "increase_charge"
             ? {
@@ -1199,6 +1236,7 @@ async function buildFxExecutionArtifacts(params: {
       templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PAYOUT_OBLIGATION,
       currency: payload.payOutCurrency,
       amountMinor: toMinor(payload.payOutAmountMinor),
+      bookId,
       dimensions: {
         orderId,
       },
@@ -1461,8 +1499,12 @@ export function createPayinFundingDocumentModule(deps: {
         ),
       ]);
     },
-    async buildPostingPlan(_context, document) {
+    async buildPostingPlan(context, document) {
       const payload = parsePayinFundingPayload(document);
+      const bookId = await requireOperationalAccountBookId(
+        context.db,
+        payload.payInOperationalAccountId,
+      );
 
       return buildDocumentPostingPlan({
         operationCode: OPERATION_CODE.TREASURY_FUNDING_SETTLED,
@@ -1482,6 +1524,7 @@ export function createPayinFundingDocumentModule(deps: {
             templateKey: POSTING_TEMPLATE_KEY.PAYMENT_PAYIN_FUNDING,
             currency: payload.currency,
             amountMinor: toMinor(payload.amountMinor),
+            bookId,
             dimensions: {
               operationalAccountId: payload.payInOperationalAccountId,
               customerId: payload.customerId,
@@ -1783,6 +1826,11 @@ function createPayoutResolveModule(params: {
           document.id,
           "payout_initiate",
         );
+        const dependencyPayload = parsePayoutInitiatePayload(dependency);
+        const bookId = await requireOperationalAccountBookId(
+          context.db,
+          dependencyPayload.payoutOperationalAccountId,
+        );
         const pendingTransferIds = await loadPendingTransferIdsForDocument(
           context.db,
           dependency.id,
@@ -1813,6 +1861,7 @@ function createPayoutResolveModule(params: {
                   : POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_VOID,
               currency: payload.payOutCurrency,
               amountMinor: 0n,
+              bookId,
               dimensions: {},
               refs: {
                 railRef: payload.railRef,
@@ -1973,6 +2022,10 @@ export function createPayoutInitiateDocumentModule(deps: {
     async buildPostingPlan(context, document) {
       const payload = parsePayoutInitiatePayload(document);
       const timeoutSeconds = payload.timeoutSeconds ?? DAY_IN_SECONDS;
+      const bookId = await requireOperationalAccountBookId(
+        context.db,
+        payload.payoutOperationalAccountId,
+      );
 
       return buildDocumentPostingPlan({
         operationCode: OPERATION_CODE.TREASURY_PAYOUT_INIT,
@@ -1990,6 +2043,7 @@ export function createPayoutInitiateDocumentModule(deps: {
             templateKey: POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_INITIATE,
             currency: payload.payOutCurrency,
             amountMinor: toMinor(payload.amountMinor),
+            bookId,
             dimensions: {
               orderId: payload.caseDocumentId,
               operationalAccountId: payload.payoutOperationalAccountId,
@@ -2142,6 +2196,10 @@ function createFeePayoutResolveModule(params: {
           "fee_payout_initiate",
         );
         const dependencyPayload = parseFeePayoutInitiatePayload(dependency);
+        const bookId = await requireOperationalAccountBookId(
+          context.db,
+          dependencyPayload.payoutOperationalAccountId,
+        );
         const pendingTransferIds = await loadPendingTransferIdsForDocument(
           context.db,
           dependency.id,
@@ -2172,6 +2230,7 @@ function createFeePayoutResolveModule(params: {
                   : POSTING_TEMPLATE_KEY.PAYMENT_FEE_PAYOUT_VOID,
               currency: dependencyPayload.currency,
               amountMinor: 0n,
+              bookId,
               dimensions: {},
               refs: {
                 feePayoutInitiateDocumentId:
@@ -2357,6 +2416,10 @@ export function createFeePayoutInitiateDocumentModule(deps: {
       const payload = parseFeePayoutInitiatePayload(document);
       const timeoutSeconds = payload.timeoutSeconds ?? DAY_IN_SECONDS;
       const pendingRef = `fee_payment:${payload.componentId}:init`;
+      const bookId = await requireOperationalAccountBookId(
+        context.db,
+        payload.payoutOperationalAccountId,
+      );
 
       return buildDocumentPostingPlan({
         operationCode: OPERATION_CODE.TREASURY_FEE_PAYMENT_INIT,
@@ -2377,6 +2440,7 @@ export function createFeePayoutInitiateDocumentModule(deps: {
             templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FEE_PAYOUT_INITIATE,
             currency: payload.currency,
             amountMinor: toMinor(payload.amountMinor),
+            bookId,
             dimensions: {
               feeBucket: payload.feeBucket,
               orderId: payload.caseDocumentId,

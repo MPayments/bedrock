@@ -232,4 +232,14 @@ describe("balances projector integration", () => {
       }),
     );
   });
+
+  it("rejects inconsistent cursor rows at the database layer", async () => {
+    await expect(
+      db.insert(schema.balanceProjectorCursors).values({
+        workerKey: "ledger_posted",
+        lastPostedAt: new Date("2026-02-28T09:05:00.000Z"),
+        lastOperationId: null,
+      }),
+    ).rejects.toThrow();
+  });
 });

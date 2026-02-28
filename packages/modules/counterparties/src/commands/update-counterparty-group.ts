@@ -3,181 +3,194 @@ import { eq, sql } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 
 import {
-    CounterpartyGroupNotFoundError,
-    CounterpartyGroupRuleError,
+  CounterpartyGroupNotFoundError,
+  CounterpartyGroupRuleError,
 } from "../errors";
 import type { CounterpartiesServiceContext } from "../internal/context";
 import {
-    assertCustomerExists,
-    CUSTOMERS_ROOT_GROUP_CODE,
-    TREASURY_ROOT_GROUP_CODE,
-    resolveGroupMembershipClassification,
+  assertCustomerExists,
+  CUSTOMERS_ROOT_GROUP_CODE,
+  TREASURY_ROOT_GROUP_CODE,
+  resolveGroupMembershipClassification,
 } from "../internal/group-rules";
 import {
-    UpdateCounterpartyGroupInputSchema,
-    type CounterpartyGroup,
-    type UpdateCounterpartyGroupInput,
+  UpdateCounterpartyGroupInputSchema,
+  type CounterpartyGroup,
+  type UpdateCounterpartyGroupInput,
 } from "../validation";
 
 export function createUpdateCounterpartyGroupHandler(
-    context: CounterpartiesServiceContext,
+  context: CounterpartiesServiceContext,
 ) {
-    const { db, log } = context;
+  const { db, log } = context;
 
-    return async function updateCounterpartyGroup(
-        id: string,
-        input: UpdateCounterpartyGroupInput,
-    ): Promise<CounterpartyGroup> {
-        const validated = UpdateCounterpartyGroupInputSchema.parse(input);
+  return async function updateCounterpartyGroup(
+    id: string,
+    input: UpdateCounterpartyGroupInput,
+  ): Promise<CounterpartyGroup> {
+    const validated = UpdateCounterpartyGroupInputSchema.parse(input);
 
-        const [existing] = await db
-            .select()
-            .from(schema.counterpartyGroups)
-            .where(eq(schema.counterpartyGroups.id, id))
-            .limit(1);
+    const [existing] = await db
+      .select()
+      .from(schema.counterpartyGroups)
+      .where(eq(schema.counterpartyGroups.id, id))
+      .limit(1);
 
-        if (!existing) {
-            throw new CounterpartyGroupNotFoundError(id);
+    if (!existing) {
+      throw new CounterpartyGroupNotFoundError(id);
+    }
+
+    const isReservedRootGroup =
+      existing.code === TREASURY_ROOT_GROUP_CODE ||
+      existing.code === CUSTOMERS_ROOT_GROUP_CODE;
+    const hasRequestedChanges =
+      validated.code !== undefined ||
+      validated.name !== undefined ||
+      validated.description !== undefined ||
+      validated.parentId !== undefined ||
+      validated.customerId !== undefined;
+
+    if (isReservedRootGroup && hasRequestedChanges) {
+      throw new CounterpartyGroupRuleError(
+        "System root groups cannot be modified",
+      );
+    }
+
+    const nextParentId =
+      validated.parentId !== undefined ? validated.parentId : existing.parentId;
+    let nextCustomerId =
+      validated.customerId !== undefined
+        ? validated.customerId
+        : existing.customerId;
+
+    if (
+      validated.code &&
+      (validated.code === TREASURY_ROOT_GROUP_CODE ||
+        validated.code === CUSTOMERS_ROOT_GROUP_CODE) &&
+      !existing.isSystem
+    ) {
+      throw new CounterpartyGroupRuleError(
+        "System root group codes are reserved",
+      );
+    }
+
+    if (nextParentId) {
+      if (nextParentId === id) {
+        throw new CounterpartyGroupRuleError(
+          "Group cannot be parent of itself",
+        );
+      }
+
+      const allGroups = await db
+        .select({
+          id: schema.counterpartyGroups.id,
+          parentId: schema.counterpartyGroups.parentId,
+          customerId: schema.counterpartyGroups.customerId,
+        })
+        .from(schema.counterpartyGroups);
+      const groupMap = new Map(allGroups.map((group) => [group.id, group]));
+
+      const parent = groupMap.get(nextParentId);
+      if (!parent) {
+        throw new CounterpartyGroupNotFoundError(nextParentId);
+      }
+
+      const classification = await resolveGroupMembershipClassification(db, [
+        nextParentId,
+      ]);
+      const parentRoot =
+        classification.rootsByGroupId.get(nextParentId) ?? null;
+
+      if (parent.customerId) {
+        nextCustomerId = nextCustomerId ?? parent.customerId;
+        if (nextCustomerId !== parent.customerId) {
+          throw new CounterpartyGroupRuleError(
+            "Child group customerId must match scoped parent customerId",
+          );
+        }
+      }
+
+      if (parentRoot !== CUSTOMERS_ROOT_GROUP_CODE && nextCustomerId) {
+        throw new CounterpartyGroupRuleError(
+          "customerId is allowed only in customers tree groups",
+        );
+      }
+
+      const visited = new Set<string>();
+      let cursor = parent;
+
+      while (cursor) {
+        if (visited.has(cursor.id)) {
+          throw new CounterpartyGroupRuleError(
+            `Counterparty group hierarchy loop detected at group ${cursor.id}`,
+          );
+        }
+        visited.add(cursor.id);
+
+        if (cursor.id === id) {
+          throw new CounterpartyGroupRuleError(
+            "Group cannot become a child of its own descendant",
+          );
         }
 
-        const isReservedRootGroup = existing.code === TREASURY_ROOT_GROUP_CODE
-            || existing.code === CUSTOMERS_ROOT_GROUP_CODE;
-        const hasRequestedChanges = validated.code !== undefined
-            || validated.name !== undefined
-            || validated.description !== undefined
-            || validated.parentId !== undefined
-            || validated.customerId !== undefined;
-
-        if (isReservedRootGroup && hasRequestedChanges) {
-            throw new CounterpartyGroupRuleError(
-                "System root groups cannot be modified",
-            );
+        if (!cursor.parentId) {
+          break;
         }
 
-        const nextParentId = validated.parentId !== undefined
-            ? validated.parentId
-            : existing.parentId;
-        let nextCustomerId = validated.customerId !== undefined
-            ? validated.customerId
-            : existing.customerId;
-
-        if (
-            validated.code
-            && (validated.code === TREASURY_ROOT_GROUP_CODE || validated.code === CUSTOMERS_ROOT_GROUP_CODE)
-            && !existing.isSystem
-        ) {
-            throw new CounterpartyGroupRuleError(
-                "System root group codes are reserved",
-            );
+        const nextCursor = groupMap.get(cursor.parentId);
+        if (!nextCursor) {
+          break;
         }
+        cursor = nextCursor;
+      }
+    }
 
-        if (nextParentId) {
-            if (nextParentId === id) {
-                throw new CounterpartyGroupRuleError("Group cannot be parent of itself");
-            }
+    if (!nextParentId && nextCustomerId) {
+      throw new CounterpartyGroupRuleError(
+        "Root custom groups cannot have customerId",
+      );
+    }
 
-            const allGroups = await db
-                .select({
-                    id: schema.counterpartyGroups.id,
-                    parentId: schema.counterpartyGroups.parentId,
-                    customerId: schema.counterpartyGroups.customerId,
-                })
-                .from(schema.counterpartyGroups);
-            const groupMap = new Map(allGroups.map((group) => [group.id, group]));
+    if (
+      nextCustomerId &&
+      (validated.customerId !== undefined || validated.parentId !== undefined)
+    ) {
+      await assertCustomerExists(db, nextCustomerId);
+    }
 
-            const parent = groupMap.get(nextParentId);
-            if (!parent) {
-                throw new CounterpartyGroupNotFoundError(nextParentId);
-            }
+    const fields: Record<string, unknown> = {};
 
-            const classification = await resolveGroupMembershipClassification(
-                db,
-                [nextParentId],
-            );
-            const parentRoot = classification.rootsByGroupId.get(nextParentId) ?? null;
+    if (validated.code !== undefined) fields.code = validated.code;
+    if (validated.name !== undefined) fields.name = validated.name;
+    if (validated.description !== undefined) {
+      fields.description = validated.description;
+    }
+    if (validated.parentId !== undefined) fields.parentId = validated.parentId;
+    if (
+      validated.customerId !== undefined ||
+      validated.parentId !== undefined
+    ) {
+      fields.customerId = nextCustomerId;
+    }
 
-            if (parent.customerId) {
-                nextCustomerId = nextCustomerId ?? parent.customerId;
-                if (nextCustomerId !== parent.customerId) {
-                    throw new CounterpartyGroupRuleError(
-                        "Child group customerId must match scoped parent customerId",
-                    );
-                }
-            }
+    if (Object.keys(fields).length === 0) {
+      return existing;
+    }
 
-            if (parentRoot !== CUSTOMERS_ROOT_GROUP_CODE && nextCustomerId) {
-                throw new CounterpartyGroupRuleError(
-                    "customerId is allowed only in customers tree groups",
-                );
-            }
+    fields.updatedAt = sql`now()`;
 
-            const visited = new Set<string>();
-            let cursor = parent;
+    const [updated] = await db
+      .update(schema.counterpartyGroups)
+      .set(fields)
+      .where(eq(schema.counterpartyGroups.id, id))
+      .returning();
 
-            while (cursor) {
-                if (visited.has(cursor.id)) {
-                    throw new CounterpartyGroupRuleError(
-                        `Counterparty group hierarchy loop detected at group ${cursor.id}`,
-                    );
-                }
-                visited.add(cursor.id);
+    if (!updated) {
+      throw new CounterpartyGroupNotFoundError(id);
+    }
 
-                if (cursor.id === id) {
-                    throw new CounterpartyGroupRuleError(
-                        "Group cannot become a child of its own descendant",
-                    );
-                }
+    log.info("Counterparty group updated", { id });
 
-                if (!cursor.parentId) {
-                    break;
-                }
-
-                const nextCursor = groupMap.get(cursor.parentId);
-                if (!nextCursor) {
-                    break;
-                }
-                cursor = nextCursor;
-            }
-        }
-
-        if (!nextParentId && nextCustomerId) {
-            throw new CounterpartyGroupRuleError(
-                "Root custom groups cannot have customerId",
-            );
-        }
-
-        if (nextCustomerId && (validated.customerId !== undefined || validated.parentId !== undefined)) {
-            await assertCustomerExists(db, nextCustomerId);
-        }
-
-        const fields: Record<string, unknown> = {};
-
-        if (validated.code !== undefined) fields.code = validated.code;
-        if (validated.name !== undefined) fields.name = validated.name;
-        if (validated.description !== undefined) fields.description = validated.description;
-        if (validated.parentId !== undefined) fields.parentId = validated.parentId;
-        if (validated.customerId !== undefined || validated.parentId !== undefined) {
-            fields.customerId = nextCustomerId;
-        }
-
-        if (Object.keys(fields).length === 0) {
-            return existing;
-        }
-
-        fields.updatedAt = sql`now()`;
-
-        const [updated] = await db
-            .update(schema.counterpartyGroups)
-            .set(fields)
-            .where(eq(schema.counterpartyGroups.id, id))
-            .returning();
-
-        if (!updated) {
-            throw new CounterpartyGroupNotFoundError(id);
-        }
-
-        log.info("Counterparty group updated", { id });
-
-        return updated;
-    };
+    return updated;
+  };
 }

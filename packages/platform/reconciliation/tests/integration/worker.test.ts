@@ -166,5 +166,81 @@ describe("reconciliation worker integration", () => {
         state: "open",
       }),
     ]);
+
+    const secondMatchedOperationId = randomUUID();
+    createdOperationIds.add(secondMatchedOperationId);
+
+    await db.insert(schema.ledgerOperations).values({
+      id: secondMatchedOperationId,
+      sourceType: "integration/reconciliation",
+      sourceId: `source-${secondMatchedOperationId}`,
+      operationCode: "PAYMENT.POSTED",
+      idempotencyKey: `idem:${secondMatchedOperationId}`,
+      payloadHash: secondMatchedOperationId,
+      postingDate: new Date("2026-02-28T08:10:00.000Z"),
+      status: "posted",
+      postedAt: new Date("2026-02-28T08:15:00.000Z"),
+    });
+
+    await reconciliation.ingestExternalRecord({
+      source,
+      sourceRecordId: "matched-record-2",
+      rawPayload: { amountMinor: 300 },
+      normalizedPayload: { operationId: secondMatchedOperationId },
+      normalizationVersion: 1,
+      idempotencyKey: `ingest:${source}:matched-2`,
+    });
+
+    await expect(worker.processOnce()).resolves.toBe(1);
+    await expect(worker.processOnce()).resolves.toBe(0);
+
+    const allRuns = await db
+      .select()
+      .from(schema.reconciliationRuns)
+      .where(eq(schema.reconciliationRuns.source, source));
+
+    expect(allRuns).toHaveLength(2);
+    expect(allRuns[1]?.resultSummary).toEqual({
+      total: 1,
+      matched: 1,
+      unmatched: 0,
+      ambiguous: 0,
+    });
+
+    const allMatches = await db
+      .select({
+        runId: schema.reconciliationMatches.runId,
+        externalRecordId: schema.reconciliationMatches.externalRecordId,
+        status: schema.reconciliationMatches.status,
+      })
+      .from(schema.reconciliationMatches)
+      .innerJoin(
+        schema.reconciliationRuns,
+        eq(schema.reconciliationMatches.runId, schema.reconciliationRuns.id),
+      )
+      .where(eq(schema.reconciliationRuns.source, source));
+
+    expect(allMatches).toHaveLength(3);
+    expect(
+      allMatches.filter((match) => match.status === "unmatched"),
+    ).toHaveLength(1);
+
+    const allExceptions = await db
+      .select({
+        id: schema.reconciliationExceptions.id,
+        reasonCode: schema.reconciliationExceptions.reasonCode,
+      })
+      .from(schema.reconciliationExceptions)
+      .innerJoin(
+        schema.reconciliationRuns,
+        eq(schema.reconciliationExceptions.runId, schema.reconciliationRuns.id),
+      )
+      .where(eq(schema.reconciliationRuns.source, source));
+
+    expect(allExceptions).toEqual([
+      expect.objectContaining({
+        reasonCode: "no_match",
+      }),
+    ]);
   });
 });
