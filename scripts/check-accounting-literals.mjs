@@ -6,23 +6,28 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
 const SOURCE_ROOTS = [
-  join(ROOT, "packages", "doc-types", "src"),
-  join(ROOT, "packages", "documents", "src"),
-  join(ROOT, "packages", "ledger", "src"),
-  join(ROOT, "packages", "balances", "src"),
-  join(ROOT, "packages", "reconciliation", "src"),
-  join(ROOT, "packages", "accounting-reporting", "src"),
+  join(ROOT, "packages", "platform", "documents", "src"),
+  join(ROOT, "packages", "platform", "ledger", "src"),
+  join(ROOT, "packages", "platform", "balances", "src"),
+  join(ROOT, "packages", "platform", "reconciliation", "src"),
+  join(ROOT, "packages", "modules", "accounting-reporting", "src"),
+  join(ROOT, "packages", "modules", "transfers", "src"),
+  join(ROOT, "packages", "modules", "treasury", "src"),
   join(ROOT, "apps", "api", "src"),
   join(ROOT, "apps", "workers", "src"),
 ];
 const EXCLUDED_DIRS = new Set(["node_modules", "dist", "coverage", ".next", "tests"]);
 
 const FORBIDDEN_IMPORT_PATTERN =
-  /(?:import|export)\s+[^"'`]*\b(?:ACCOUNT_NO|POSTING_CODE|CLEARING_KIND)\b[^"'`]*from\s+["']@bedrock\/accounting["']/g;
+  /(?:import|export)\s+[^"'`]*\b(?:ACCOUNT_NO|POSTING_CODE|CLEARING_KIND|OPERATION_CODE|POSTING_TEMPLATE_KEY)\b[^"'`]*from\s+["']@bedrock\/accounting["']/g;
 const FORBIDDEN_ACCOUNT_LITERAL_PATTERN =
   /\b(?:accountNo|debitAccountNo|creditAccountNo)\s*:\s*["']\d{4}["']/g;
 const FORBIDDEN_POSTING_CODE_LITERAL_PATTERN =
   /\bpostingCode\s*:\s*["'][A-Z][A-Z0-9_]*(?:\.[A-Z0-9_]+)+["']/g;
+const FORBIDDEN_OPERATION_CODE_LITERAL_PATTERN =
+  /\boperationCode\s*:\s*["'][A-Z][A-Z0-9_]+["']/g;
+const FORBIDDEN_TEMPLATE_KEY_LITERAL_PATTERN =
+  /\btemplateKey\s*:\s*["'][a-z0-9_.]+["']/g;
 
 function* walk(dir) {
   for (const name of readdirSync(dir)) {
@@ -77,6 +82,14 @@ for (const root of SOURCE_ROOTS) {
       FORBIDDEN_POSTING_CODE_LITERAL_PATTERN,
       content,
     );
+    const forbiddenOperationCodeLiterals = collectMatches(
+      FORBIDDEN_OPERATION_CODE_LITERAL_PATTERN,
+      content,
+    );
+    const forbiddenTemplateKeyLiterals = collectMatches(
+      FORBIDDEN_TEMPLATE_KEY_LITERAL_PATTERN,
+      content,
+    );
 
     if (forbiddenImports.length > 0) {
       problems.push({
@@ -96,6 +109,20 @@ for (const root of SOURCE_ROOTS) {
       problems.push({
         file: relPath,
         reason: `hard-coded posting code literal (${forbiddenPostingCodeLiterals[0]})`,
+      });
+    }
+
+    if (forbiddenOperationCodeLiterals.length > 0) {
+      problems.push({
+        file: relPath,
+        reason: `hard-coded operation code literal (${forbiddenOperationCodeLiterals[0]})`,
+      });
+    }
+
+    if (forbiddenTemplateKeyLiterals.length > 0) {
+      problems.push({
+        file: relPath,
+        reason: `hard-coded template key literal (${forbiddenTemplateKeyLiterals[0]})`,
       });
     }
   }

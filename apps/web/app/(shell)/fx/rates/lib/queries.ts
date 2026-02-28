@@ -40,7 +40,9 @@ export async function getRatePairs(): Promise<SerializedRatePair[]> {
     throw new Error(`Failed to fetch rate pairs: ${res.status}`);
   }
 
-  const payload = await res.json();
+  const payload = (await res.json()) as {
+    data: SerializedRatePair[];
+  };
   return payload.data as SerializedRatePair[];
 }
 
@@ -52,7 +54,9 @@ export async function getRateSources(): Promise<SerializedSourceStatus[]> {
     throw new Error(`Failed to fetch rate sources: ${res.status}`);
   }
 
-  const payload = await res.json();
+  const payload = (await res.json()) as {
+    data: SerializedSourceStatus[];
+  };
   return payload.data as SerializedSourceStatus[];
 }
 

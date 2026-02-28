@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/counterparties/validation";
+import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/counterparties/contracts";
 
 import { getServerApiClient } from "@/lib/api-client.server";
 import { readResourceById } from "@/lib/resources/http";

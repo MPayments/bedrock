@@ -62,12 +62,60 @@ function getImports(content) {
   return imports;
 }
 
+function collectWorkspacePackages(root) {
+  const packages = new Map();
+  const stack = [join(root, "packages"), join(root, "apps")];
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) continue;
+
+    for (const name of readdirSync(current)) {
+      const fullPath = join(current, name);
+      const stats = statSync(fullPath);
+      if (!stats.isDirectory()) {
+        continue;
+      }
+      if (
+        name === "node_modules" ||
+        name === "dist" ||
+        name === "coverage" ||
+        name === ".next"
+      ) {
+        continue;
+      }
+
+      const packageJsonPath = join(fullPath, "package.json");
+      try {
+        const pkg = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+        if (typeof pkg.name === "string" && pkg.name.length > 0) {
+          packages.set(pkg.name, relative(root, fullPath));
+          continue;
+        }
+      } catch {}
+
+      stack.push(fullPath);
+    }
+  }
+
+  return packages;
+}
+
+const packageDirsByName = collectWorkspacePackages(ROOT);
+
 function toWorkspacePath(importPath) {
   if (importPath.startsWith("@bedrock/")) {
     const parts = importPath.split("/");
-    const packageName = parts[1];
-    if (!packageName) return null;
-    return `packages/${packageName}/src`;
+    const packageName = parts.slice(0, 2).join("/");
+    const packageDir = packageDirsByName.get(packageName);
+    if (!packageDir) return null;
+
+    const subpath = parts.slice(2).join("/");
+    if (subpath.length === 0) {
+      return `${packageDir}/src`;
+    }
+
+    return `${packageDir}/src/${subpath}.ts`;
   }
   if (importPath.startsWith("apps/")) return importPath;
   if (importPath.startsWith("packages/")) return importPath;
@@ -85,6 +133,13 @@ function buildForbiddenRule(rule) {
 const forbiddenRules = (config.forbidden ?? []).map(buildForbiddenRule);
 const violations = [];
 
+function isAllowedContractImport(fromFile, specifier) {
+  return (
+    fromFile.startsWith("packages/platform/") &&
+    specifier === "@bedrock/countries/contracts"
+  );
+}
+
 for (const root of SOURCE_ROOTS) {
   for (const filePath of listFiles(root)) {
     const relFile = relative(ROOT, filePath);
@@ -93,6 +148,30 @@ for (const root of SOURCE_ROOTS) {
 
     for (const specifier of imports) {
       if (specifier.startsWith(".") || specifier.startsWith("node:")) {
+        continue;
+      }
+
+      if (relFile.startsWith("apps/web/") && specifier.startsWith("@bedrock/")) {
+        const allowed =
+          specifier.startsWith("@bedrock/ui") ||
+          specifier === "@bedrock/countries" ||
+          specifier.startsWith("@bedrock/countries/") ||
+          specifier === "@bedrock/api-client" ||
+          specifier.startsWith("@bedrock/api-client/") ||
+          /^@bedrock\/[^/]+\/contracts$/.test(specifier);
+
+        if (!allowed) {
+          violations.push({
+            rule: "web-import-surface",
+            from: relFile,
+            to: specifier,
+            specifier,
+          });
+          continue;
+        }
+      }
+
+      if (isAllowedContractImport(relFile, specifier)) {
         continue;
       }
 

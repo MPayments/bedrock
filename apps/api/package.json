@@ -4,27 +4,26 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./client": {
-      "types": "./dist/client.d.ts",
-      "default": "./src/client.ts"
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
     }
   },
   "scripts": {
-    "build": "tsgo",
+    "build": "tsc --project tsconfig.json",
     "dev": "bun run --hot src/index.ts",
     "start": "bun run src/index.ts",
-    "check-types": "tsgo --noEmit",
+    "check-types": "tsc --noEmit --project tsconfig.json",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
     "@bedrock/balances": "workspace:*",
     "@bedrock/operational-accounts": "workspace:*",
     "@bedrock/accounting": "workspace:*",
+    "@bedrock/accounting-contracts": "workspace:*",
     "@bedrock/accounting-reporting": "workspace:*",
-    "@bedrock/auth": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/db": "workspace:*",
-    "@bedrock/document-registry": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
@@ -35,9 +34,12 @@
     "@bedrock/reconciliation": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/customers": "workspace:*",
+    "@bedrock/transfers": "workspace:*",
+    "@bedrock/treasury": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "@hono/zod-openapi": "^1.2.2",
     "@scalar/hono-api-reference": "^0.9.44",
+    "better-auth": "^1.4.18",
     "dotenv": "^17.3.1",
     "hono": "^4.12.2"
   },

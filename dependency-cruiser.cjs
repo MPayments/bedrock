@@ -1,115 +1,92 @@
-const PLATFORM_PACKAGES = [
-  "kernel",
-  "db",
-  "idempotency",
-  "books",
-  "documents",
-  "balances",
-  "reconciliation",
-  "dimensions",
-  "ledger",
-  "accounting",
-  "book-accounts",
-];
-
-const APPLICATION_PACKAGES = [
-  "doc-types",
-  "document-registry",
-  "fx",
+const FOUNDATION_MODULES = [
+  "counterparties",
+  "currencies",
+  "customers",
   "fees",
   "operational-accounts",
-  "counterparties",
-  "customers",
-  "currencies",
 ];
 
 module.exports = {
   layers: {
-    platform: `^packages/(?:${PLATFORM_PACKAGES.join("|")})(?:/|$)`,
-    application: `^packages/(?:${APPLICATION_PACKAGES.join("|")})(?:/|$)`,
-    adapter: "^apps/(?:[^/]+)(?:/|$)",
+    platform: "^packages/platform/",
+    modules: "^packages/modules/",
+    packs: "^packages/packs/",
+    sdk: "^packages/sdk/",
+    tooling: "^packages/tooling/",
+    adapter: "^apps/",
   },
   forbidden: [
     {
-      name: "platform-to-application",
-      comment: "Platform core modules must not depend on application modules.",
-      from: {
-        path: `^packages/(?:${PLATFORM_PACKAGES.join("|")})/`,
-      },
-      to: {
-        path: `^packages/(?:${APPLICATION_PACKAGES.join("|")})/`,
-      },
+      name: "platform-to-modules",
+      from: { path: "^packages/platform/" },
+      to: { path: "^packages/modules/" },
+    },
+    {
+      name: "platform-to-sdk",
+      from: { path: "^packages/platform/" },
+      to: { path: "^packages/sdk/" },
     },
     {
       name: "platform-to-adapter",
-      comment: "Platform core modules must not depend on adapters.",
-      from: {
-        path: `^packages/(?:${PLATFORM_PACKAGES.join("|")})/`,
-      },
-      to: {
-        path: "^apps/",
-      },
+      from: { path: "^packages/platform/" },
+      to: { path: "^apps/" },
     },
     {
-      name: "application-to-adapter",
-      comment: "Application modules must not depend on adapters.",
+      name: "modules-to-adapter",
+      from: { path: "^packages/modules/" },
+      to: { path: "^apps/" },
+    },
+    {
+      name: "foundation-to-modules",
       from: {
-        path: `^packages/(?:${APPLICATION_PACKAGES.join("|")})/`,
+        path: `^packages/modules/(?:${FOUNDATION_MODULES.join("|")})/`,
       },
-      to: {
-        path: "^apps/",
-      },
+      to: { path: "^packages/modules/" },
+    },
+    {
+      name: "packs-to-runtime",
+      from: { path: "^packages/packs/" },
+      to: { path: "^packages/platform/(?!accounting-contracts/)" },
+    },
+    {
+      name: "packs-to-modules",
+      from: { path: "^packages/packs/" },
+      to: { path: "^packages/modules/" },
+    },
+    {
+      name: "packs-to-sdk",
+      from: { path: "^packages/packs/" },
+      to: { path: "^packages/sdk/" },
+    },
+    {
+      name: "packs-to-adapter",
+      from: { path: "^packages/packs/" },
+      to: { path: "^apps/" },
     },
     {
       name: "ledger-to-accounting-reporting",
-      comment:
-        "@bedrock/ledger must not depend on accounting reporting/use-case query layer.",
-      from: {
-        path: "^packages/ledger/",
-      },
-      to: {
-        path: "^packages/accounting-reporting/",
-      },
+      from: { path: "^packages/platform/ledger/" },
+      to: { path: "^packages/modules/accounting-reporting/" },
     },
     {
       name: "ledger-to-dimensions",
-      comment: "@bedrock/ledger raw reads must not depend on label infra.",
-      from: {
-        path: "^packages/ledger/",
-      },
-      to: {
-        path: "^packages/dimensions/",
-      },
+      from: { path: "^packages/platform/ledger/" },
+      to: { path: "^packages/platform/dimensions/" },
     },
     {
-      name: "documents-to-application",
-      comment: "@bedrock/documents must stay domain-agnostic.",
-      from: {
-        path: "^packages/documents/",
-      },
-      to: {
-        path: `^packages/(?:${APPLICATION_PACKAGES.join("|")})/`,
-      },
+      name: "documents-to-modules",
+      from: { path: "^packages/platform/documents/" },
+      to: { path: "^packages/modules/" },
     },
     {
       name: "accounting-to-documents",
-      comment: "@bedrock/accounting runtime must not depend on documents.",
-      from: {
-        path: "^packages/accounting/",
-      },
-      to: {
-        path: "^packages/documents/",
-      },
+      from: { path: "^packages/platform/accounting/" },
+      to: { path: "^packages/platform/documents/" },
     },
     {
-      name: "accounting-to-application",
-      comment: "@bedrock/accounting runtime must not depend on domains.",
-      from: {
-        path: "^packages/accounting/",
-      },
-      to: {
-        path: `^packages/(?:${APPLICATION_PACKAGES.join("|")})/`,
-      },
+      name: "accounting-to-modules",
+      from: { path: "^packages/platform/accounting/" },
+      to: { path: "^packages/modules/" },
     },
   ],
 };

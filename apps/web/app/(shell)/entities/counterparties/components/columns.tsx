@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import type { Counterparty } from "@bedrock/counterparties/validation";
+import type { Counterparty } from "@bedrock/counterparties/contracts";
 import { Badge } from "@bedrock/ui/components/badge";
 import { Users, Vault } from "lucide-react";
 

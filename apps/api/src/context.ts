@@ -1,50 +1,19 @@
-import {
-  createAccountingService,
-  type AccountingService,
-} from "@bedrock/accounting";
-import {
-  createAccountingReportingService,
-  type AccountingReportingService,
-} from "@bedrock/accounting-reporting";
-import {
-  createBalancesService,
-  type BalancesService,
-} from "@bedrock/balances";
-import {
-  createCounterpartiesService,
-  type CounterpartiesService,
-} from "@bedrock/counterparties";
-import {
-  createCurrenciesService,
-  type CurrenciesService,
-} from "@bedrock/currencies";
-import {
-  createCustomersService,
-  type CustomersService,
-} from "@bedrock/customers";
-import { db } from "@bedrock/db/client";
-import { createDocumentRegistry } from "@bedrock/document-registry";
-import {
-  createDocumentsService,
-  type DocumentsService,
-} from "@bedrock/documents";
-import { createFeesService, type FeesService } from "@bedrock/fees";
-import { createFxService, type FxService } from "@bedrock/fx";
-import { createConsoleLogger, type Logger } from "@bedrock/kernel";
-import {
-  createLedgerEngine,
-  createLedgerReadService,
-  type LedgerReadService,
-} from "@bedrock/ledger";
-import {
-  createOperationalAccountsService,
-  type OperationalAccountsService,
-} from "@bedrock/operational-accounts";
-import { rawPackDefinition } from "@bedrock/pack-bedrock-core-default";
-import {
-  createReconciliationService,
-  type ReconciliationService,
-} from "@bedrock/reconciliation";
+import type { AccountingService } from "@bedrock/accounting";
+import type { AccountingReportingService } from "@bedrock/accounting-reporting";
+import type { BalancesService } from "@bedrock/balances";
+import type { CounterpartiesService } from "@bedrock/counterparties";
+import type { CurrenciesService } from "@bedrock/currencies";
+import type { CustomersService } from "@bedrock/customers";
+import type { DocumentsService } from "@bedrock/documents";
+import type { FeesService } from "@bedrock/fees";
+import type { FxService } from "@bedrock/fx";
+import type { Logger } from "@bedrock/kernel";
+import type { LedgerReadService } from "@bedrock/ledger";
+import type { OperationalAccountsService } from "@bedrock/operational-accounts";
+import type { ReconciliationService } from "@bedrock/reconciliation";
+
+import { createModuleServices } from "./composition/modules";
+import { createPlatformServices } from "./composition/platform";
 
 export interface Env {
   DATABASE_URL: string;
@@ -73,67 +42,23 @@ export interface AppContext {
 }
 
 export function createAppContext(env: Env): AppContext {
-  const logger = createConsoleLogger({ app: "bedrock-api" });
-  const operationalAccountsService = createOperationalAccountsService({
-    db,
-    logger,
-  });
-  const accountingService = createAccountingService({
-    db,
-    logger,
-    defaultPackDefinition: rawPackDefinition,
-  });
-  const ledgerReadService = createLedgerReadService({ db });
-  const accountingReportingService = createAccountingReportingService({
-    db,
-    ledgerReadService,
-    logger,
-  });
-  const counterpartiesService = createCounterpartiesService({ db, logger });
-  const customersService = createCustomersService({ db, logger });
-  const currenciesService = createCurrenciesService({ db, logger });
-  const ledger = createLedgerEngine({ db });
-  const feesService = createFeesService({ db, logger, currenciesService });
-  const fxService = createFxService({
-    db,
-    logger,
-    feesService,
-    currenciesService,
-  });
-  const balancesService = createBalancesService({ db, logger });
-  const documentRegistry = createDocumentRegistry({
-    currenciesService,
-    feesService,
-    operationalAccountsService,
-  });
-  const documentsService = createDocumentsService({
-    accounting: accountingService,
-    db,
-    ledger,
-    ledgerReadService,
-    registry: documentRegistry,
-    logger,
-  });
-  const reconciliationService = createReconciliationService({
-    db,
-    documents: documentsService,
-    logger,
-  });
+  const platform = createPlatformServices();
+  const modules = createModuleServices(platform);
 
   return {
     env,
-    logger,
-    operationalAccountsService,
-    accountingService,
-    accountingReportingService,
-    counterpartiesService,
-    customersService,
-    currenciesService,
-    balancesService,
-    documentsService,
-    feesService,
-    fxService,
-    ledgerReadService,
-    reconciliationService,
+    logger: platform.logger,
+    accountingService: platform.accountingService,
+    ledgerReadService: platform.ledgerReadService,
+    balancesService: platform.balancesService,
+    operationalAccountsService: modules.operationalAccountsService,
+    accountingReportingService: modules.accountingReportingService,
+    counterpartiesService: modules.counterpartiesService,
+    customersService: modules.customersService,
+    currenciesService: modules.currenciesService,
+    feesService: modules.feesService,
+    fxService: modules.fxService,
+    documentsService: modules.documentsService,
+    reconciliationService: modules.reconciliationService,
   };
 }

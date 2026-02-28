@@ -1,6 +1,6 @@
 # Implementation Details
 
-Last updated: 2026-02-26
+Last updated: 2026-02-28
 
 This document captures implementation specifics as they exist in the current codebase.
 
@@ -18,12 +18,12 @@ Legacy terms like `journal_entries`, `journal_lines`, or `createEntryTx` are not
 
 Key files:
 
-- `packages/kernel/src/error.ts`
-- `packages/kernel/src/errors.ts`
-- `packages/kernel/src/logger.ts`
-- `packages/kernel/src/canon.ts`
-- `packages/kernel/src/currency.ts`
-- `packages/kernel/src/constants.ts`
+- `packages/platform/kernel/src/error.ts`
+- `packages/platform/kernel/src/errors.ts`
+- `packages/platform/kernel/src/logger.ts`
+- `packages/platform/kernel/src/canon.ts`
+- `packages/platform/kernel/src/currency.ts`
+- `packages/platform/kernel/src/constants.ts`
 
 Current behavior:
 
@@ -91,9 +91,9 @@ Current behavior:
 
 Key files:
 
-- `packages/accounting/src/constants.ts`
-- `packages/accounting/src/templates.ts`
-- `packages/accounting/src/service.ts`
+- `packages/platform/accounting/src/constants.ts`
+- `packages/platform/accounting/src/templates.ts`
+- `packages/platform/accounting/src/service.ts`
 
 Current behavior:
 
@@ -109,8 +109,8 @@ Current behavior:
 
 Key files:
 
-- `packages/accounting-reporting/src/service.ts`
-- `packages/accounting-reporting/src/validation.ts`
+- `packages/modules/accounting-reporting/src/service.ts`
+- `packages/modules/accounting-reporting/src/validation.ts`
 
 Current behavior:
 
@@ -123,9 +123,9 @@ Current behavior:
 
 Key files:
 
-- `packages/operational-accounts/src/commands/create-account.ts`
-- `packages/operational-accounts/src/commands/resolve-transfer-bindings.ts`
-- `packages/book-accounts/src/index.ts`
+- `packages/modules/operational-accounts/src/commands/create-account.ts`
+- `packages/modules/operational-accounts/src/commands/resolve-transfer-bindings.ts`
+- `packages/platform/ledger/src/book-accounts.ts`
 
 Current behavior:
 

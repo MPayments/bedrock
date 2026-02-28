@@ -1,7 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 
-import auth from "@bedrock/auth";
-
+import auth from "../auth";
 import type { RequestContext } from "./request-context";
 
 export interface AuthVariables {

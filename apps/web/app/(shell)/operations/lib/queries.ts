@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 
-import { DOCUMENTS_LIST_CONTRACT } from "@bedrock/documents/validation";
+import { DOCUMENTS_LIST_CONTRACT } from "@bedrock/documents/contracts";
 
 import { createResourceListQuery } from "@/lib/resources/search-params";
 

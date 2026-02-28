@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import { CUSTOMERS_LIST_CONTRACT } from "@bedrock/customers/validation";
+import { CUSTOMERS_LIST_CONTRACT } from "@bedrock/customers/contracts";
 
 import { getServerApiClient } from "@/lib/api-client.server";
 import { createResourceListQuery } from "@/lib/resources/search-params";

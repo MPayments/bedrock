@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import type { Row as TanstackRow } from "@tanstack/react-table";
 import * as React from "react";
 
-import type { Currency } from "@bedrock/currencies";
+import type { Currency } from "@bedrock/currencies/contracts";
 
 import {
   EntityTableShell,

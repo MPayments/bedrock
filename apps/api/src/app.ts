@@ -3,14 +3,10 @@ import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 
-import auth from "@bedrock/auth";
 import { AppError } from "@bedrock/kernel";
 
+import auth from "./auth";
 import { createAppContext, type Env } from "./context";
-import {
-  docsModule,
-  fxRatesModule,
-} from "./modules/registry";
 import {
   authMiddleware,
   requireAuth,
@@ -18,16 +14,18 @@ import {
 } from "./middleware/auth";
 import { requestContextMiddleware } from "./middleware/request-context";
 import {
-  accountingRoutes,
-  accountProvidersRoutes,
-  accountsRoutes,
-  balancesRoutes,
-  counterpartiesRoutes,
-  counterpartyGroupsRoutes,
-  customersRoutes,
-  currenciesRoutes,
-  reconciliationRoutes,
-} from "./routes/index";
+  accountingModule,
+  accountProvidersModule,
+  accountsModule,
+  balancesModule,
+  counterpartiesModule,
+  counterpartyGroupsModule,
+  currenciesModule,
+  customersModule,
+  docsModule,
+  fxRatesModule,
+  reconciliationModule,
+} from "./modules/registry";
 
 const env: Env = {
   DATABASE_URL: process.env.DATABASE_URL!,
@@ -101,7 +99,6 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => {
 app.use("*", authMiddleware());
 app.use("*", requestContextMiddleware());
 app.use("/v1/*", requireAuth());
-app.use("/v2/*", requireAuth());
 
 // Health check
 app.get("/", (c) => {
@@ -110,26 +107,31 @@ app.get("/", (c) => {
 
 // Mount routes under /v1 — all require an authenticated session
 const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
-  .route("/accounting", accountingRoutes(ctx))
-  .route("/account-providers", accountProvidersRoutes(ctx))
-  .route("/accounts", accountsRoutes(ctx))
-  .route("/balances", balancesRoutes(ctx))
-  .route("/counterparties", counterpartiesRoutes(ctx))
-  .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
-  .route("/customers", customersRoutes(ctx))
-  .route("/currencies", currenciesRoutes(ctx))
+  .route(accountingModule.routePath, accountingModule.registerRoutes(ctx))
+  .route(
+    accountProvidersModule.routePath,
+    accountProvidersModule.registerRoutes(ctx),
+  )
+  .route(accountsModule.routePath, accountsModule.registerRoutes(ctx))
+  .route(balancesModule.routePath, balancesModule.registerRoutes(ctx))
+  .route(
+    counterpartiesModule.routePath,
+    counterpartiesModule.registerRoutes(ctx),
+  )
+  .route(
+    counterpartyGroupsModule.routePath,
+    counterpartyGroupsModule.registerRoutes(ctx),
+  )
+  .route(customersModule.routePath, customersModule.registerRoutes(ctx))
+  .route(currenciesModule.routePath, currenciesModule.registerRoutes(ctx))
   .route(docsModule.routePath, docsModule.registerRoutes(ctx))
   .route(fxRatesModule.routePath, fxRatesModule.registerRoutes(ctx))
-  .route("/reconciliation", reconciliationRoutes(ctx));
-
-const v2 = new OpenAPIHono<{ Variables: AuthVariables }>()
-  .route("/accounting", accountingRoutes(ctx))
-  .route("/balances", balancesRoutes(ctx))
-  .route("/docs", docsModule.registerRoutes(ctx))
-  .route("/reconciliation", reconciliationRoutes(ctx));
+  .route(
+    reconciliationModule.routePath,
+    reconciliationModule.registerRoutes(ctx),
+  );
 
 const _routes = app.route("/v1", v1);
-app.route("/v2", v2);
 
 const openApiInfo = {
   info: {

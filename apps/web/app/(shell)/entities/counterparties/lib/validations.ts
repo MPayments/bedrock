@@ -1,4 +1,4 @@
-import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/counterparties/validation";
+import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/counterparties/contracts";
 
 import {
   createResourceSearchParamsCache,

@@ -4,7 +4,6 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-import { parseDecimalToFraction } from "@bedrock/kernel/math";
 import { Button } from "@bedrock/ui/components/button";
 import {
   Dialog,
@@ -29,6 +28,7 @@ import {
 import { toast } from "@bedrock/ui/components/sonner";
 
 import { apiClient } from "@/lib/api-client";
+import { parseDecimalToFraction } from "@/lib/decimal";
 import { executeMutation } from "@/lib/resources/http";
 
 import type { CurrencyOption } from "../lib/queries";

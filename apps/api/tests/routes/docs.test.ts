@@ -5,7 +5,7 @@ const { userHasPermission } = vi.hoisted(() => ({
   userHasPermission: vi.fn(async () => ({ success: true })),
 }));
 
-vi.mock("@bedrock/auth", () => ({
+vi.mock("../../src/auth", () => ({
   default: {
     api: {
       userHasPermission,

@@ -1,6 +1,6 @@
 # Bedrock Monorepo Architecture
 
-Last updated: 2026-02-26
+Last updated: 2026-02-28
 
 ## Source of truth
 
@@ -69,15 +69,31 @@ Then `operational_account_id -> book_account_instance_id` is persisted.
 
 Target layering for this monorepo:
 
-1. Platform core: `@bedrock/kernel`, `@bedrock/db`, `@bedrock/book-accounts`, `@bedrock/accounting`, `@bedrock/ledger`
-2. Application modules: `@bedrock/transfers`, `@bedrock/treasury`, `@bedrock/fx`, `@bedrock/fees`, `@bedrock/accounting-reporting`
-3. Adapters: `apps/api`, `apps/workers`, `apps/web`
+1. Platform core: `@bedrock/kernel`, `@bedrock/db`, `@bedrock/idempotency`, `@bedrock/documents`, `@bedrock/accounting`, `@bedrock/accounting-contracts`, `@bedrock/ledger`, `@bedrock/balances`, `@bedrock/reconciliation`, `@bedrock/dimensions`
+2. Application modules: `@bedrock/transfers`, `@bedrock/treasury`, `@bedrock/fx`, `@bedrock/fees`, `@bedrock/accounting-reporting`, `@bedrock/operational-accounts`, `@bedrock/currencies`, `@bedrock/customers`, `@bedrock/counterparties`
+3. Packs: `@bedrock/packs-schema`, `@bedrock/pack-bedrock-core-default`
+4. SDK surfaces: `@bedrock/api-client`, `@bedrock/countries`, `@bedrock/ui`, `@bedrock/*/contracts`
+5. Adapters: `apps/api`, `apps/workers`, `apps/web`
 
 Dependency rules:
 
 - Platform core must not import application modules or adapters
-- Application modules may import platform core, but not adapters
-- Adapters compose platform core + application modules
+- Application modules may import platform core and approved lower-level contracts, but not adapters
+- Packs may import `@bedrock/packs-schema` and `@bedrock/accounting-contracts`
+- SDK packages stay client-safe and do not depend on server runtime packages
+- Adapters compose platform core + application modules + packs + SDK
+
+### Package admission rule
+
+A new workspace package is introduced only when it is one of:
+
+- a business-agnostic platform subsystem
+- a bounded business module with its own workflow/policy
+- a client-safe SDK surface
+- tooling/build/test infrastructure
+- an integration boundary that would otherwise pollute multiple packages
+
+Otherwise the code stays inside an existing package as an internal folder.
 
 ### CoA + correspondence matrix
 
@@ -101,23 +117,37 @@ Global accounting policy is enforced by:
 ### Apps
 
 - `apps/api`: Hono/OpenAPI API, current composition root
+- `apps/workers`: worker adapter and scheduling/runtime loops
 - `apps/web`: Next.js app (active product UI)
 
-### Core packages
+### Platform packages
 
-- `packages/kernel`: errors, logging, canonicalization, currency/math/pagination helpers
-- `packages/db`: Drizzle schema + DB client
-- `packages/book-accounts`: deterministic `book_account_instances` identity + upsert lifecycle
-- `packages/accounting`: CoA defaults, posting templates, correspondence and policy validation
-- `packages/accounting-reporting`: financial-results reporting queries
-- `packages/operational-accounts`: operational accounts/providers + OA->BookAccountInstance binding and transfer binding resolution
-- `packages/ledger`: operation engine, TB planning, TB worker, read service
-- `packages/treasury`: payment/FX/payout/fee-payment orchestration and reconciliation workers
-- `packages/transfers`: maker/checker transfer order service + posting finalizer worker
-- `packages/fx`: rates/quote services and FX rates worker
-- `packages/fees`: fee rules and fee component computation/persistence
-- `packages/currencies`, `packages/customers`, `packages/counterparties`: supporting domain services
-- `packages/test-utils`, `packages/ui`, config packages
+- `packages/platform/kernel`: errors, logging, canonicalization, currency/math/pagination helpers
+- `packages/platform/db`: Drizzle schema + DB client
+- `packages/platform/idempotency`: shared idempotency support
+- `packages/platform/documents`: document runtime, registry, and module-kit helpers
+- `packages/platform/accounting`: CoA defaults, posting templates, correspondence and policy validation
+- `packages/platform/accounting-contracts`: operation codes, posting template keys, and document/module ids
+- `packages/platform/ledger`: operation engine, TB planning, TB worker, read service, deterministic book-account identity helpers
+- `packages/platform/balances`: balance projection worker
+- `packages/platform/reconciliation`: reconciliation worker/runtime
+- `packages/platform/dimensions`: shared analytics/dimension helpers
+
+### Module packages
+
+- `packages/modules/accounting-reporting`: financial-results reporting queries
+- `packages/modules/operational-accounts`: operational accounts/providers + OA binding and transfer binding resolution
+- `packages/modules/transfers`: transfer document workflows
+- `packages/modules/treasury`: payment, FX, payout, fee payout, and external funding document workflows
+- `packages/modules/fx`: rates/quote services and FX rates worker
+- `packages/modules/fees`: fee rules and fee component computation/persistence
+- `packages/modules/currencies`, `packages/modules/customers`, `packages/modules/counterparties`: supporting domain services
+
+### Packs, SDK, tooling
+
+- `packages/packs/schema`, `packages/packs/bedrock-core-default`
+- `packages/sdk/api-client`, `packages/sdk/countries`, `packages/sdk/ui`
+- `packages/tooling/test-utils`, `packages/tooling/eslint-config`, `packages/tooling/typescript-config`
 
 ## Current API runtime composition
 
@@ -133,7 +163,7 @@ Global accounting policy is enforced by:
 - transfers
 - ledger read service (used by accounting routes)
 
-`apps/api` mounts application modules through `apps/api/src/modules/registry.ts`.
+`apps/api` mounts route groups through `apps/api/src/modules/registry.ts`, while service construction is split between `apps/api/src/composition/platform.ts` and `apps/api/src/composition/modules.ts`.
 
 Workers are composed through `apps/workers/src/modules/registry.ts`.
 
@@ -304,24 +334,21 @@ Cross-org templates route through `1310 INTERCOMPANY_NET`.
 ## Code anchors
 
 - Accounting model and policies:
-- `packages/db/src/schema/accounting.ts`
-- `packages/accounting/src/constants.ts`
-- `packages/accounting/src/templates.ts`
+- `packages/platform/db/src/schema/accounting.ts`
+- `packages/platform/accounting/src/contracts.ts`
+- `packages/platform/accounting/src/service.ts`
 - OA and bindings:
-- `packages/db/src/schema/treasury/accounts.ts`
-- `packages/operational-accounts/src/commands/create-account.ts`
-- `packages/operational-accounts/src/commands/resolve-transfer-bindings.ts`
+- `packages/platform/db/src/schema/treasury/accounts.ts`
+- `packages/modules/operational-accounts/src/commands/create-account.ts`
+- `packages/modules/operational-accounts/src/commands/resolve-transfer-bindings.ts`
 - Ledger engine/worker:
-- `packages/ledger/src/engine.ts`
-- `packages/ledger/src/worker.ts`
+- `packages/platform/ledger/src/engine.ts`
+- `packages/platform/ledger/src/worker.ts`
 - Treasury commands:
-- `packages/treasury/src/commands/funding.ts`
-- `packages/treasury/src/commands/execute-fx.ts`
-- `packages/treasury/src/commands/payout.ts`
-- `packages/treasury/src/commands/fee-payment.ts`
+- `packages/modules/treasury/src/payments.ts`
+- `packages/modules/treasury/src/treasury.ts`
 - Transfers:
-- `packages/transfers/src/service.ts`
-- `packages/transfers/src/worker.ts`
+- `packages/modules/transfers/src/transfers.ts`
 
 ## Diagram
 

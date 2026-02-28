@@ -1,0 +1,37 @@
+{
+  "name": "@bedrock/accounting",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contracts": "./src/contracts.ts",
+    "./validation": "./src/validation.ts"
+  },
+  "scripts": {
+    "build": "tsgo",
+    "dev": "tsc --watch",
+    "check-types": "tsgo --noEmit",
+    "lint": "eslint src/**/*.ts --max-warnings 0",
+    "pack:validate": "bun x tsx ./scripts/pack-validate.ts",
+    "pack:compile": "bun x tsx ./scripts/pack-compile.ts",
+    "pack:activate": "bun x tsx ./scripts/pack-activate.ts"
+  },
+  "dependencies": {
+    "@bedrock/accounting-contracts": "workspace:*",
+    "@bedrock/db": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
+    "@bedrock/packs-schema": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "@bedrock/pack-bedrock-core-default": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "typescript": "^5.8.3",
+    "@types/pg": "^8.15.5",
+    "@bedrock/eslint-config": "workspace:*",
+    "eslint": "^9.31.0",
+    "pg": "^8.16.3"
+  }
+}

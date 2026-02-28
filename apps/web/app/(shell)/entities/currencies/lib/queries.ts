@@ -1,6 +1,9 @@
 import { cache } from "react";
 
-import { CURRENCIES_LIST_CONTRACT, CurrencySchema } from "@bedrock/currencies";
+import {
+  CURRENCIES_LIST_CONTRACT,
+  CurrencySchema,
+} from "@bedrock/currencies/contracts";
 
 import { getServerApiClient } from "@/lib/api-client.server";
 import { readResourceById } from "@/lib/resources/http";
@@ -25,11 +28,16 @@ export async function getCurrencies(
     throw new Error(`Failed to fetch currencies: ${res.status}`);
   }
 
-  const payload = await res.json();
+  const payload = (await res.json()) as {
+    data: unknown[];
+    limit: number;
+    offset: number;
+    total: number;
+  };
 
   return {
     ...payload,
-    data: payload.data.map((currency) => CurrencySchema.parse(currency)),
+    data: payload.data.map((currency: unknown) => CurrencySchema.parse(currency)),
   };
 }
 
