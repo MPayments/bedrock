@@ -1,4 +1,5 @@
 export { createBalancesService, type BalancesService } from "./service";
+export { createBalancesProjectorWorker } from "./worker";
 export * from "./errors";
 export {
   BalanceSubjectSchema,

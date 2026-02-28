@@ -1,9 +1,11 @@
+import { createBalancesProjectorWorker } from "@bedrock/balances";
 import { createCurrenciesService } from "@bedrock/currencies";
 import type { Database } from "@bedrock/db";
 import { createDocumentsWorker } from "@bedrock/documents";
 import { createFeesService } from "@bedrock/fees";
 import { createFxRatesWorker, createFxService } from "@bedrock/fx";
 import type { Logger } from "@bedrock/kernel";
+import { createReconciliationWorker } from "@bedrock/reconciliation";
 
 import type { env } from "../env";
 
@@ -54,6 +56,21 @@ const APPLICATION_MODULES: ApplicationModule[] = [
     },
   },
   {
+    id: "balances",
+    registerWorkers: (registry, deps) => {
+      const worker = createBalancesProjectorWorker({
+        db: deps.db,
+        logger: deps.logger,
+      });
+
+      registry.register({
+        id: "balances",
+        intervalMs: deps.env.BALANCES_WORKER_INTERVAL_MS,
+        processOnce: () => worker.processOnce(),
+      });
+    },
+  },
+  {
     id: "fx-rates",
     registerWorkers: (registry, deps) => {
       const currenciesService = createCurrenciesService({
@@ -76,6 +93,21 @@ const APPLICATION_MODULES: ApplicationModule[] = [
       registry.register({
         id: "fx-rates",
         intervalMs: deps.env.FX_RATES_WORKER_INTERVAL_MS,
+        processOnce: () => worker.processOnce(),
+      });
+    },
+  },
+  {
+    id: "reconciliation",
+    registerWorkers: (registry, deps) => {
+      const worker = createReconciliationWorker({
+        db: deps.db,
+        logger: deps.logger,
+      });
+
+      registry.register({
+        id: "reconciliation",
+        intervalMs: deps.env.RECONCILIATION_WORKER_INTERVAL_MS,
         processOnce: () => worker.processOnce(),
       });
     },

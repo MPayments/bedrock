@@ -2,7 +2,6 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import {
-  ACCOUNT_NO,
   OPERATION_CODE,
   POSTING_TEMPLATE_KEY,
 } from "@bedrock/accounting";
@@ -81,33 +80,21 @@ async function getAvailableBalanceByOperationalAccount(
   operationalAccountId: string,
   currency: string,
 ): Promise<bigint> {
-  const result = await db.execute(sql`
-    SELECT COALESCE(SUM(delta), 0)::text AS balance_minor
-    FROM (
-      SELECT p.amount_minor AS delta
-      FROM ${schema.bookAccountInstances} inst
-      JOIN ${schema.postings} p ON p.debit_instance_id = inst.id
-      JOIN ${schema.ledgerOperations} lo ON lo.id = p.operation_id
-      WHERE inst.account_no = ${ACCOUNT_NO.BANK}
-        AND inst.currency = ${currency}
-        AND inst.dimensions->>'operationalAccountId' = ${operationalAccountId}
-        AND lo.status IN ('pending', 'posted')
+  const rows = await db
+    .select({
+      available:
+        sql<string>`coalesce(sum(${schema.balancePositions.available}), 0)::text`,
+    })
+    .from(schema.balancePositions)
+    .where(
+      and(
+        eq(schema.balancePositions.subjectType, "operational_account"),
+        eq(schema.balancePositions.subjectId, operationalAccountId),
+        eq(schema.balancePositions.currency, currency),
+      ),
+    );
 
-      UNION ALL
-
-      SELECT -p.amount_minor AS delta
-      FROM ${schema.bookAccountInstances} inst
-      JOIN ${schema.postings} p ON p.credit_instance_id = inst.id
-      JOIN ${schema.ledgerOperations} lo ON lo.id = p.operation_id
-      WHERE inst.account_no = ${ACCOUNT_NO.BANK}
-        AND inst.currency = ${currency}
-        AND inst.dimensions->>'operationalAccountId' = ${operationalAccountId}
-        AND lo.status IN ('pending', 'posted')
-    ) t
-  `);
-
-  const [row] = result.rows as { balance_minor: string }[];
-  return BigInt(row?.balance_minor ?? "0");
+  return BigInt(rows[0]?.available ?? "0");
 }
 
 async function getPendingTransferIdsForDocument(

@@ -65,6 +65,7 @@ const LedgerOperationSummarySchema = z.object({
   createdAt: z.string().datetime(),
   postingCount: z.number().int(),
   bookIds: z.array(z.string()),
+  bookLabels: z.record(z.string(), z.string()),
   currencies: z.array(z.string()),
 });
 
@@ -456,7 +457,8 @@ export function accountingRoutes(ctx: AppContext) {
     })
     .openapi(listOperationsRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.ledgerReadService.listOperations(query);
+      const result =
+        await ctx.accountingReportingService.listOperationsWithLabels(query);
 
       return c.json(
         {
@@ -475,7 +477,9 @@ export function accountingRoutes(ctx: AppContext) {
     .openapi(getOperationRoute, async (c) => {
       const { operationId } = c.req.valid("param");
       const details =
-        await ctx.ledgerReadService.getOperationDetails(operationId);
+        await ctx.accountingReportingService.getOperationDetailsWithLabels(
+          operationId,
+        );
 
       if (!details) {
         return c.json({ error: `Operation not found: ${operationId}` }, 404);
@@ -490,6 +494,12 @@ export function accountingRoutes(ctx: AppContext) {
             lastOutboxErrorAt:
               details.operation.lastOutboxErrorAt?.toISOString() ?? null,
             createdAt: details.operation.createdAt.toISOString(),
+            bookLabels: Object.fromEntries(
+              details.postings.map((posting) => [
+                posting.bookId,
+                posting.bookName ?? posting.bookId,
+              ]),
+            ),
           },
           postings: details.postings.map((posting) => ({
             ...posting,
@@ -553,7 +563,7 @@ export function accountingRoutes(ctx: AppContext) {
         .filter((id) => id.length > 0);
 
       const balances =
-        await ctx.ledgerReadService.getBalancesByOperationalAccountIds(accountIds);
+        await ctx.balancesService.listBalancesByOperationalAccountIds(accountIds);
 
       return c.json(
         balances.map((b) => ({

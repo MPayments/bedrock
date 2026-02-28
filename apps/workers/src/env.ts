@@ -12,6 +12,9 @@ export const env = {
   LEDGER_WORKER_INTERVAL_MS: Number(
     process.env.LEDGER_WORKER_INTERVAL_MS ?? 5_000,
   ),
+  BALANCES_WORKER_INTERVAL_MS: Number(
+    process.env.BALANCES_WORKER_INTERVAL_MS ?? 5_000,
+  ),
   TRANSFERS_WORKER_INTERVAL_MS: Number(
     process.env.TRANSFERS_WORKER_INTERVAL_MS ?? 30_000,
   ),

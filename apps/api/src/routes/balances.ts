@@ -14,11 +14,14 @@ import { ValidationError } from "@bedrock/kernel/errors";
 
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
+import {
+  getRequestContext,
+  requireIdempotencyKey,
+} from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
-import type { RequestContext } from "../middleware/request-context";
 
 const BalanceSubjectParamsSchema = z.object({
-  bookId: z.string().min(1),
+  bookId: z.uuid(),
   subjectType: z.string().min(1),
   subjectId: z.string().min(1),
   currency: z.string().min(1),
@@ -36,32 +39,6 @@ const HoldActionBodySchema = z.object({
   holdRef: z.string().min(1),
   reason: z.string().optional(),
 });
-
-function getRequestContext(c: {
-  get: (key: "requestContext") => RequestContext | undefined;
-}) {
-  return c.get("requestContext");
-}
-
-function requireIdempotencyKey(
-  c: {
-    get: (key: "requestContext") => RequestContext | undefined;
-    json: (body: unknown, status?: number) => Response;
-  },
-) {
-  const key = getRequestContext(c)?.idempotencyKey;
-  if (!key) {
-    return {
-      ok: false as const,
-      response: c.json({ error: "Missing Idempotency-Key header" }, 400),
-    };
-  }
-
-  return {
-    ok: true as const,
-    idempotencyKey: key,
-  };
-}
 
 function toBalanceSnapshotDto(input: {
   bookId: string;

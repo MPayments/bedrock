@@ -12,6 +12,7 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/balances": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/db": "workspace:*",
     "@bedrock/documents": "workspace:*",
@@ -19,6 +20,7 @@
     "@bedrock/fx": "workspace:*",
     "@bedrock/kernel": "workspace:*",
     "@bedrock/ledger": "workspace:*",
+    "@bedrock/reconciliation": "workspace:*",
     "dotenv": "^17.3.1"
   },
   "devDependencies": {

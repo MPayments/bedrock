@@ -15,7 +15,9 @@
   },
   "dependencies": {
     "@bedrock/db": "workspace:*",
+    "@bedrock/dimensions": "workspace:*",
     "@bedrock/kernel": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4"
   },

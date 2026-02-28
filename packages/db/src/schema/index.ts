@@ -16,7 +16,12 @@ import {
   userRelations,
   verification,
 } from "./auth";
-import { balanceEvents, balanceHolds, balancePositions } from "./balances";
+import {
+  balanceEvents,
+  balanceHolds,
+  balancePositions,
+  balanceProjectorCursors,
+} from "./balances";
 import { books } from "./books";
 import { currencies } from "./currencies";
 import { customers } from "./customers";
@@ -99,6 +104,7 @@ export const schema = {
   balancePositions,
   balanceHolds,
   balanceEvents,
+  balanceProjectorCursors,
   reconciliationExternalRecords,
   reconciliationRuns,
   reconciliationMatches,
@@ -121,6 +127,7 @@ export type {
   BalanceEventInsert,
   BalanceHold,
   BalanceHoldInsert,
+  BalanceProjectorCursor,
   BalanceHoldState,
   BalancePosition,
   BalancePositionInsert,

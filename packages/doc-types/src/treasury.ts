@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import {
-  ACCOUNT_NO,
   OPERATION_CODE,
   POSTING_TEMPLATE_KEY,
 } from "@bedrock/accounting";

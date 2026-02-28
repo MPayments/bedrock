@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { Transaction } from "@bedrock/db";
 import {
@@ -55,6 +55,13 @@ export interface BalanceMutationResult {
   hold: BalanceHoldSnapshot | null;
 }
 
+export interface OperationalAccountBalanceSnapshot {
+  operationalAccountId: string;
+  currency: string;
+  balanceMinor: bigint;
+  precision: number;
+}
+
 function toBalanceSnapshot(
   position: Pick<
     BalancePosition,
@@ -97,6 +104,22 @@ function toHoldSnapshot(hold: BalanceHold | null): BalanceHoldSnapshot | null {
     releasedAt: hold.releasedAt,
     consumedAt: hold.consumedAt,
   };
+}
+
+function toBigInt(value: unknown): bigint {
+  if (typeof value === "bigint") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return BigInt(value);
+  }
+
+  if (typeof value === "string") {
+    return BigInt(value);
+  }
+
+  return 0n;
 }
 
 async function ensureBalancePositionTx(
@@ -296,6 +319,56 @@ export function createBalancesService(deps: BalancesServiceDeps) {
     }
 
     return toBalanceSnapshot(position);
+  }
+
+  async function listBalancesByOperationalAccountIds(
+    accountIds: string[],
+  ): Promise<OperationalAccountBalanceSnapshot[]> {
+    const uniqueIds = Array.from(new Set(accountIds.filter(Boolean)));
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+
+    const rows = await db
+      .select({
+        operationalAccountId: schema.balancePositions.subjectId,
+        currency: schema.balancePositions.currency,
+        balanceMinor:
+          sql<string>`coalesce(sum(${schema.balancePositions.ledgerBalance}), 0)::text`,
+      })
+      .from(schema.balancePositions)
+      .where(
+        and(
+          eq(schema.balancePositions.subjectType, "operational_account"),
+          inArray(schema.balancePositions.subjectId, uniqueIds),
+        ),
+      )
+      .groupBy(
+        schema.balancePositions.subjectId,
+        schema.balancePositions.currency,
+      );
+
+    const currencyCodes = Array.from(new Set(rows.map((row) => row.currency)));
+    const currencyRows =
+      currencyCodes.length === 0
+        ? []
+        : await db
+            .select({
+              code: schema.currencies.code,
+              precision: schema.currencies.precision,
+            })
+            .from(schema.currencies)
+            .where(inArray(schema.currencies.code, currencyCodes));
+    const precisionByCode = new Map(
+      currencyRows.map((row) => [row.code, row.precision]),
+    );
+
+    return rows.map((row) => ({
+      operationalAccountId: row.operationalAccountId,
+      currency: row.currency,
+      balanceMinor: toBigInt(row.balanceMinor),
+      precision: precisionByCode.get(row.currency) ?? 2,
+    }));
   }
 
   async function reserve(input: {
@@ -573,6 +646,7 @@ export function createBalancesService(deps: BalancesServiceDeps) {
 
   return {
     getBalance,
+    listBalancesByOperationalAccountIds,
     reserve,
     release,
     consume,

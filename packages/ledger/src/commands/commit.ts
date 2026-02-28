@@ -1,10 +1,8 @@
 import type { Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 
-import { createDimensionPolicyValidator } from "../internal/commit/dimension-policy";
 import {
   acquireOperationId,
-  ensureAccountingDefaultsInitialized,
   buildReplayTransferMaps,
   computeLinkedFlags,
   computePayloadHash,
@@ -23,10 +21,6 @@ export function createCommitHandler(
     intent: OperationIntent,
   ): Promise<CommitResult> {
     const validated = validateOperationIntent(intent);
-    const hasCreateLines = validated.lines.some((line) => line.type === "create");
-    if (hasCreateLines) {
-      await ensureAccountingDefaultsInitialized(tx);
-    }
     validateChainBlocks(validated.lines);
 
     const payloadHash = computePayloadHash({
@@ -65,14 +59,12 @@ export function createCommitHandler(
     }
 
     const linkedFlags = computeLinkedFlags(validated.lines);
-    const validateCreateLine = createDimensionPolicyValidator(tx);
     const { postingRows, tbPlanRows, pendingTransferIdsByRef } =
       await buildPlanRows({
         tx,
         operationId,
         lines: validated.lines,
         linkedFlags,
-        validateCreateLine,
       });
 
     if (postingRows.length > 0) {

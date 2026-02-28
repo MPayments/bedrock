@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm";
 
-import { ACCOUNT_NO } from "@bedrock/accounting";
 import { type Transaction } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
 import {
@@ -11,12 +10,9 @@ import {
 } from "@bedrock/kernel";
 
 import {
-  AccountingNotInitializedError,
   IdempotencyConflictError,
 } from "../../errors";
 import { OPERATION_TRANSFER_TYPE, type IntentLine } from "../../types";
-
-let accountingDefaultsKnownPresent = false;
 
 function normalizeForFingerprint(line: IntentLine) {
   switch (line.type) {
@@ -89,23 +85,6 @@ export function computePayloadHash(input: {
       lines: input.lines.map(normalizeForFingerprint),
     }),
   );
-}
-
-export async function ensureAccountingDefaultsInitialized(tx: Transaction) {
-  if (accountingDefaultsKnownPresent) return;
-
-  const [existing] = await tx
-    .select({ accountNo: schema.chartTemplateAccounts.accountNo })
-    .from(schema.chartTemplateAccounts)
-    .where(eq(schema.chartTemplateAccounts.accountNo, ACCOUNT_NO.ASSETS))
-    .limit(1);
-
-  if (existing) {
-    accountingDefaultsKnownPresent = true;
-    return;
-  }
-
-  throw new AccountingNotInitializedError();
 }
 
 export async function acquireOperationId(input: {

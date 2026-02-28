@@ -21,6 +21,7 @@
     "db:seed": "bun x tsx ./src/seeds/run-all.ts",
     "db:seed:accounting": "bun x tsx ./src/seeds/run-accounting.ts",
     "db:bootstrap:accounting": "bun x tsx ./src/seeds/run-accounting.ts",
+    "db:bootstrap:v2-core": "bun x tsx ./src/seeds/run-accounting.ts",
     "db:seed:users": "bun x tsx ./src/seeds/run-users.ts",
     "db:seed:counterparties": "bun x tsx ./src/seeds/run-counterparties.ts",
     "db:seed:account-providers": "bun x tsx ./src/seeds/run-account-providers.ts",

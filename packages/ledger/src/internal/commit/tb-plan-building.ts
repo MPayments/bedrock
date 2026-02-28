@@ -10,15 +10,12 @@ export async function buildPlanRows(input: {
   operationId: string;
   lines: IntentLine[];
   linkedFlags: boolean[];
-  validateCreateLine: (
-    line: Extract<IntentLine, { type: typeof OPERATION_TRANSFER_TYPE.CREATE }>,
-  ) => Promise<void>;
 }): Promise<{
   postingRows: (typeof schema.postings.$inferInsert)[];
   tbPlanRows: (typeof schema.tbTransferPlans.$inferInsert)[];
   pendingTransferIdsByRef: Map<string, bigint>;
 }> {
-  const { tx, operationId, lines, linkedFlags, validateCreateLine } = input;
+  const { tx, operationId, lines, linkedFlags } = input;
 
   const pendingTransferIdsByRef = new Map<string, bigint>();
   const postingRows: (typeof schema.postings.$inferInsert)[] = [];
@@ -34,8 +31,6 @@ export async function buildPlanRows(input: {
     );
 
     if (line.type === OPERATION_TRANSFER_TYPE.CREATE) {
-      await validateCreateLine(line);
-
       const [debitInstance, creditInstance] = await Promise.all([
         ensureBookAccountInstanceTx(tx, {
           bookId: line.bookId,

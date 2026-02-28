@@ -1,0 +1,10 @@
+{
+  "extends": "@bedrock/typescript-config/base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
+  },
+  "include": ["src", "tests"]
+}

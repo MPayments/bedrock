@@ -8,6 +8,7 @@ export default defineConfig({
       "packages/balances/vitest.config.ts",
       "packages/operational-accounts/vitest.config.ts",
       "packages/db/vitest.config.ts",
+      "packages/dimensions/vitest.config.ts",
       "packages/countries/vitest.config.ts",
       "packages/customers/vitest.config.ts",
       "packages/customers/vitest.integration.config.ts",

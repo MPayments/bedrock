@@ -11,6 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { books } from "./books";
 import { ledgerOperations } from "./ledger/journal";
 
 export type BalanceHoldState = "active" | "released" | "consumed";
@@ -19,7 +20,9 @@ export const balancePositions = pgTable(
   "balance_positions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    bookId: text("book_id").notNull(),
+    bookId: uuid("book_id")
+      .notNull()
+      .references(() => books.id),
     subjectType: text("subject_type").notNull(),
     subjectId: text("subject_id").notNull(),
     currency: text("currency").notNull(),
@@ -58,7 +61,9 @@ export const balanceHolds = pgTable(
   "balance_holds",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    bookId: text("book_id").notNull(),
+    bookId: uuid("book_id")
+      .notNull()
+      .references(() => books.id),
     subjectType: text("subject_type").notNull(),
     subjectId: text("subject_id").notNull(),
     currency: text("currency").notNull(),
@@ -93,7 +98,9 @@ export const balanceEvents = pgTable(
   "balance_events",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    bookId: text("book_id").notNull(),
+    bookId: uuid("book_id")
+      .notNull()
+      .references(() => books.id),
     subjectType: text("subject_type").notNull(),
     subjectId: text("subject_id").notNull(),
     currency: text("currency").notNull(),
@@ -132,9 +139,25 @@ export const balanceEvents = pgTable(
       t.currency,
       t.createdAt,
     ),
-    uniqueIndex("balance_events_operation_uq").on(t.operationId),
+    uniqueIndex("balance_events_operation_subject_uq").on(
+      t.operationId,
+      t.subjectType,
+      t.subjectId,
+      t.currency,
+      t.eventType,
+    ),
   ],
 );
+
+export const balanceProjectorCursors = pgTable("balance_projector_cursors", {
+  workerKey: text("worker_key").primaryKey(),
+  lastPostedAt: timestamp("last_posted_at", { withTimezone: true }),
+  lastOperationId: uuid("last_operation_id"),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`)
+    .$onUpdateFn(() => new Date()),
+});
 
 export type BalancePosition = typeof balancePositions.$inferSelect;
 export type BalancePositionInsert = typeof balancePositions.$inferInsert;
@@ -142,3 +165,5 @@ export type BalanceHold = typeof balanceHolds.$inferSelect;
 export type BalanceHoldInsert = typeof balanceHolds.$inferInsert;
 export type BalanceEvent = typeof balanceEvents.$inferSelect;
 export type BalanceEventInsert = typeof balanceEvents.$inferInsert;
+export type BalanceProjectorCursor =
+  typeof balanceProjectorCursors.$inferSelect;

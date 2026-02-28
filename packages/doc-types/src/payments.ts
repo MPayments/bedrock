@@ -2,7 +2,6 @@ import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import {
-  ACCOUNT_NO,
   OPERATION_CODE,
   POSTING_TEMPLATE_KEY,
   type DocumentPostingPlanRequest,
@@ -849,7 +848,7 @@ async function buildFxExecutionArtifacts(params: {
 }): Promise<{
   quoteId: string;
   requests: DocumentPostingPlanRequest[];
-  separateFeeComponents: Array<{
+  separateFeeComponents: {
     componentId: string;
     kind: string;
     bucket: string;
@@ -859,7 +858,7 @@ async function buildFxExecutionArtifacts(params: {
     memo: string | null;
     metadata: Record<string, string> | null;
     payoutOperationalAccountId: string;
-  }>;
+  }[];
 }> {
   const {
     context,
@@ -1177,7 +1176,8 @@ async function buildFxExecutionArtifacts(params: {
           componentId: component.id,
           componentIndex: String(index + 1),
         },
-        memo: component.memo ?? "Adjustment reserved for separate payment order",
+        memo:
+          component.memo ?? "Adjustment reserved for separate payment order",
       }),
     );
     separateFeeComponents.push({
@@ -1702,7 +1702,9 @@ function createPayoutResolveModule(params: {
       payloadVersion: 1,
       createSchema: PayoutResolveSchema,
       updateSchema: PayoutResolveSchema,
-      payloadSchema: PayoutResolveSchema.transform(normalizePayoutResolvePayload),
+      payloadSchema: PayoutResolveSchema.transform(
+        normalizePayoutResolvePayload,
+      ),
       postingRequired: true,
       approvalRequired() {
         return false;
@@ -1808,7 +1810,8 @@ function createPayoutResolveModule(params: {
               dimensions: {},
               refs: {
                 railRef: payload.railRef,
-                orderId: (await requireParentCase(context.db, dependency.id)).id,
+                orderId: (await requireParentCase(context.db, dependency.id))
+                  .id,
               },
               pending: {
                 pendingId: pendingTransferId,
@@ -1852,7 +1855,9 @@ export function createPayoutInitiateDocumentModule(deps: {
     payloadVersion: 1,
     createSchema: PayoutInitiateSchema,
     updateSchema: PayoutInitiateSchema,
-    payloadSchema: PayoutInitiateSchema.transform(normalizePayoutInitiatePayload),
+    payloadSchema: PayoutInitiateSchema.transform(
+      normalizePayoutInitiatePayload,
+    ),
     postingRequired: true,
     approvalRequired() {
       return false;
@@ -2213,10 +2218,16 @@ export function createFeePayoutInitiateDocumentModule(deps: {
       return false;
     },
     async createDraft(_context, input) {
-      return buildDocumentDraft(input, normalizeFeePayoutInitiatePayload(input));
+      return buildDocumentDraft(
+        input,
+        normalizeFeePayoutInitiatePayload(input),
+      );
     },
     async updateDraft(_context, _document, input) {
-      return buildDocumentDraft(input, normalizeFeePayoutInitiatePayload(input));
+      return buildDocumentDraft(
+        input,
+        normalizeFeePayoutInitiatePayload(input),
+      );
     },
     deriveSummary(document) {
       const payload = parseFeePayoutInitiatePayload(document);

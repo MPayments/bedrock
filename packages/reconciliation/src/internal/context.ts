@@ -8,13 +8,13 @@ import { noopLogger, type Logger } from "@bedrock/kernel";
 
 export interface ReconciliationServiceDeps {
   db: Database;
-  documents: Pick<DocumentsService, "createDraft">;
+  documents?: Pick<DocumentsService, "createDraft">;
   logger?: Logger;
 }
 
 export interface ReconciliationServiceContext {
   db: Database;
-  documents: Pick<DocumentsService, "createDraft">;
+  documents?: Pick<DocumentsService, "createDraft">;
   idempotency: IdempotencyService;
   log: Logger;
 }

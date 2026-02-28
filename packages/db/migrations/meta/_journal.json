@@ -43,6 +43,13 @@
       "when": 1772304000000,
       "tag": "0005_books_book_ids",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1772307600000,
+      "tag": "0006_balance_projector_and_book_fk",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import type { Dimensions } from "@bedrock/accounting";
+import type { Dimensions } from "@bedrock/db/schema";
 
 export const OPERATION_TRANSFER_TYPE = {
   CREATE: "create",

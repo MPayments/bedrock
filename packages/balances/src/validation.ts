@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const BalanceSubjectSchema = z.object({
-  bookId: z.string().min(1),
+  bookId: z.uuid(),
   subjectType: z.string().min(1),
   subjectId: z.string().min(1),
   currency: z.string().min(1),

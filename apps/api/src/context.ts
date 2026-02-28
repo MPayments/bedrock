@@ -78,8 +78,10 @@ export function createAppContext(env: Env): AppContext {
     logger,
   });
   const accountingService = createAccountingService({ db, logger });
+  const ledgerReadService = createLedgerReadService({ db });
   const accountingReportingService = createAccountingReportingService({
     db,
+    ledgerReadService,
     logger,
   });
   const counterpartiesService = createCounterpartiesService({ db, logger });
@@ -93,7 +95,6 @@ export function createAppContext(env: Env): AppContext {
     feesService,
     currenciesService,
   });
-  const ledgerReadService = createLedgerReadService({ db });
   const balancesService = createBalancesService({ db, logger });
   const documentRegistry = createDocumentRegistry({
     currenciesService,

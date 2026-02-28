@@ -5,12 +5,15 @@
     "build": "turbo run build",
     "dev": "turbo run dev --concurrency 20",
     "lint": "turbo run lint",
-    "check:boundaries": "node ./scripts/check-boundaries.mjs",
+    "check:boundaries": "node ./scripts/check-boundaries.mjs && node ./scripts/check-accounting-literals.mjs",
     "check:workspace-deps": "node ./scripts/check-workspace-deps.mjs",
+    "pack:validate": "bun run --filter=@bedrock/accounting pack:validate",
+    "pack:compile": "bun run --filter=@bedrock/accounting pack:compile",
+    "pack:activate": "bun run --filter=@bedrock/accounting pack:activate",
     "check-types": "turbo run check-types",
-    "test": "vitest run --project api --project balances --project db --project countries --project customers --project currencies --project documents --project idempotency --project fees --project fx --project ledger --project counterparties --project reconciliation",
-    "test:watch": "vitest --project api --project balances --project db --project countries --project customers --project currencies --project documents --project idempotency --project fees --project fx --project ledger --project counterparties --project reconciliation",
-    "test:coverage": "vitest run --coverage --project api --project balances --project db --project countries --project customers --project currencies --project documents --project idempotency --project fees --project fx --project ledger --project counterparties --project reconciliation",
+    "test": "vitest run --project api --project balances --project db --project dimensions --project countries --project customers --project currencies --project documents --project idempotency --project fees --project fx --project ledger --project counterparties --project reconciliation",
+    "test:watch": "vitest --project api --project balances --project db --project dimensions --project countries --project customers --project currencies --project documents --project idempotency --project fees --project fx --project ledger --project counterparties --project reconciliation",
+    "test:coverage": "vitest run --coverage --project api --project balances --project db --project dimensions --project countries --project customers --project currencies --project documents --project idempotency --project fees --project fx --project ledger --project counterparties --project reconciliation",
     "test:integration": "vitest run --project customers:integration --project fees:integration --project fx:integration --project ledger:integration",
     "test:integration:watch": "vitest --project customers:integration --project fees:integration --project fx:integration --project ledger:integration",
     "test:all": "npm run test && npm run test:integration",
@@ -34,6 +37,7 @@
   "workspaces": [
     "apps/*",
     "packages/*",
+    "packages/packs/*",
     "packages/modules/*"
   ]
 }

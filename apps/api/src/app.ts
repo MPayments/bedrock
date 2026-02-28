@@ -101,6 +101,7 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => {
 app.use("*", authMiddleware());
 app.use("*", requestContextMiddleware());
 app.use("/v1/*", requireAuth());
+app.use("/v2/*", requireAuth());
 
 // Health check
 app.get("/", (c) => {
@@ -121,7 +122,13 @@ const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route(fxRatesModule.routePath, fxRatesModule.registerRoutes(ctx))
   .route("/reconciliation", reconciliationRoutes(ctx));
 
+const v2 = new OpenAPIHono<{ Variables: AuthVariables }>().route(
+  "/docs",
+  docsModule.registerRoutes(ctx),
+);
+
 const _routes = app.route("/v1", v1);
+app.route("/v2", v2);
 
 const openApiInfo = {
   info: {

@@ -1,0 +1,26 @@
+{
+  "name": "@bedrock/pack-bedrock-core-default",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsgo",
+    "dev": "tsc --watch",
+    "check-types": "tsgo --noEmit",
+    "lint": "eslint src/**/*.ts --max-warnings 0"
+  },
+  "dependencies": {
+    "@bedrock/accounting": "workspace:*",
+    "@bedrock/packs-schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3"
+  }
+}

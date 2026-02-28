@@ -1,8 +1,10 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
-import { schema, type LedgerOperationStatus } from "@bedrock/db/schema";
-import type { Dimensions } from "@bedrock/db/schema";
-import { isUuidLike } from "@bedrock/kernel";
+import {
+  schema,
+  type Dimensions,
+  type LedgerOperationStatus,
+} from "@bedrock/db/schema";
 import {
   type PaginatedList,
   resolveSortOrder,
@@ -15,8 +17,6 @@ import {
 } from "./list-ledger-operations-query";
 import type { LedgerContext } from "../internal/context";
 
-const BANK_ACCOUNT_NO = "1110";
-
 const OPERATION_SORT_COLUMN_MAP = {
   createdAt: schema.ledgerOperations.createdAt,
   postingDate: schema.ledgerOperations.postingDate,
@@ -26,143 +26,6 @@ const OPERATION_SORT_COLUMN_MAP = {
 function inArraySafe<T>(column: any, values: T[] | undefined) {
   if (!values || values.length === 0) return undefined;
   return inArray(column, values as any[]);
-}
-
-function uniqueStrings(values: string[]): string[] {
-  return Array.from(new Set(values));
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-  if (items.length <= size) return [items];
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    out.push(items.slice(i, i + size));
-  }
-  return out;
-}
-
-type DimensionLabelResolver = (deps: {
-  db: LedgerContext["db"];
-  values: string[];
-}) => Promise<Map<string, string>>;
-
-const DIMENSION_LABEL_REGISTRY: Record<string, DimensionLabelResolver> =
-  {
-    counterpartyId: async ({ db, values }) => {
-      const ids = uniqueStrings(values);
-      if (ids.length === 0) return new Map();
-
-      const rows = await db
-        .select({
-          id: schema.counterparties.id,
-          label: schema.counterparties.shortName,
-        })
-        .from(schema.counterparties)
-        .where(inArray(schema.counterparties.id, ids));
-
-      return new Map(rows.map((r) => [r.id, r.label]));
-    },
-
-    operationalAccountId: async ({ db, values }) => {
-      const ids = uniqueStrings(values);
-      if (ids.length === 0) return new Map();
-
-      const rows = await db
-        .select({
-          id: schema.operationalAccounts.id,
-          label: schema.operationalAccounts.label,
-        })
-        .from(schema.operationalAccounts)
-        .where(inArray(schema.operationalAccounts.id, ids));
-
-      return new Map(rows.map((r) => [r.id, r.label]));
-    },
-
-    customerId: async ({ db, values }) => {
-      const ids = uniqueStrings(values);
-      if (ids.length === 0) return new Map();
-
-      const rows = await db
-        .select({
-          id: schema.customers.id,
-          label: schema.customers.displayName,
-        })
-        .from(schema.customers)
-        .where(inArray(schema.customers.id, ids));
-
-      return new Map(rows.map((r) => [r.id, r.label]));
-    },
-
-    orderId: async ({ db, values }) => {
-      const ids = uniqueStrings(values).filter(isUuidLike);
-      if (ids.length === 0) return new Map();
-
-      const labels = new Map<string, string>();
-      const documentRows = await db
-        .select({
-          id: schema.documents.id,
-          docNo: schema.documents.docNo,
-          docType: schema.documents.docType,
-          title: schema.documents.title,
-        })
-        .from(schema.documents)
-        .where(inArray(schema.documents.id, ids));
-      for (const row of documentRows) {
-        labels.set(row.id, `${row.docType} ${row.docNo}${row.title ? ` · ${row.title}` : ""}`);
-      }
-
-      return labels;
-    },
-  };
-
-export async function resolveDimensionLabelsFromInstances(deps: {
-  db: LedgerContext["db"];
-  instances: { dimensions: unknown | null }[];
-  registry?: Record<string, DimensionLabelResolver>;
-  inArrayChunkSize?: number;
-}): Promise<Record<string, string>> {
-  const { db } = deps;
-  const registry = deps.registry ?? DIMENSION_LABEL_REGISTRY;
-
-  const valuesByKey = new Map<string, Set<string>>();
-
-  for (const inst of deps.instances) {
-    const dims = (inst.dimensions as Dimensions | null) ?? null;
-    if (!dims) continue;
-
-    for (const [k, v] of Object.entries(dims)) {
-      if (typeof v !== "string" || v.length === 0) continue;
-      let set = valuesByKey.get(k);
-      if (!set) {
-        set = new Set<string>();
-        valuesByKey.set(k, set);
-      }
-      set.add(v);
-    }
-  }
-
-  const dimensionLabels: Record<string, string> = {};
-  const chunkSize = Math.max(1, deps.inArrayChunkSize ?? 5_000);
-
-  for (const [dimensionKey, valueSet] of valuesByKey) {
-    const resolver = registry[dimensionKey];
-    if (!resolver) continue;
-
-    const values = Array.from(valueSet);
-    if (values.length === 0) continue;
-
-    const chunks = chunk(values, chunkSize);
-    const maps = await Promise.all(
-      chunks.map((c) => resolver({ db, values: c })),
-    );
-    for (const m of maps) {
-      for (const [value, label] of m) {
-        dimensionLabels[value] = label;
-      }
-    }
-  }
-
-  return dimensionLabels;
 }
 
 interface LedgerOperationListRow {
@@ -227,7 +90,6 @@ interface LedgerOperationDetails {
   operation: LedgerOperationListRow;
   postings: LedgerOperationPostingRow[];
   tbPlans: LedgerOperationTbPlanRow[];
-  dimensionLabels: Record<string, string>;
 }
 
 export interface LedgerReadQueries {
@@ -237,14 +99,6 @@ export interface LedgerReadQueries {
   getOperationDetails: (
     operationId: string,
   ) => Promise<LedgerOperationDetails | null>;
-  getBalancesByOperationalAccountIds: (accountIds: string[]) => Promise<
-    {
-      operationalAccountId: string;
-      currency: string;
-      balanceMinor: bigint;
-      precision: number;
-    }[]
-  >;
 }
 
 export function createLedgerReadQueries(
@@ -513,12 +367,6 @@ export function createLedgerReadQueries(
       currencyRows.map((c) => [c.code, c.precision]),
     );
 
-    const dimensionLabels = await resolveDimensionLabelsFromInstances({
-      db,
-      instances: instances.map((i) => ({ dimensions: i.dimensions })),
-      registry: DIMENSION_LABEL_REGISTRY,
-    });
-
     return {
       operation: {
         ...operation,
@@ -567,88 +415,11 @@ export function createLedgerReadQueries(
         error: plan.error,
         createdAt: plan.createdAt,
       })),
-      dimensionLabels,
     };
-  }
-
-  async function getBalancesByOperationalAccountIds(
-    accountIds: string[],
-  ): Promise<
-    {
-      operationalAccountId: string;
-      currency: string;
-      balanceMinor: bigint;
-      precision: number;
-    }[]
-  > {
-    if (accountIds.length === 0) return [];
-
-    const accountIdList = sql.join(
-      accountIds.map((id) => sql`${id}`),
-      sql`, `,
-    );
-
-    const result = await db.execute(sql`
-      SELECT
-        operational_account_id,
-        currency,
-        SUM(delta)::text AS balance_minor
-      FROM (
-        SELECT
-          inst.dimensions->>'operationalAccountId' AS operational_account_id,
-          inst.currency,
-          p.amount_minor AS delta
-        FROM book_account_instances inst
-        JOIN postings p ON p.debit_instance_id = inst.id
-        JOIN ledger_operations lo ON lo.id = p.operation_id AND lo.status = 'posted'
-        WHERE inst.account_no = ${BANK_ACCOUNT_NO}
-          AND inst.dimensions->>'operationalAccountId' IN (${accountIdList})
-        UNION ALL
-        SELECT
-          inst.dimensions->>'operationalAccountId' AS operational_account_id,
-          inst.currency,
-          -p.amount_minor AS delta
-        FROM book_account_instances inst
-        JOIN postings p ON p.credit_instance_id = inst.id
-        JOIN ledger_operations lo ON lo.id = p.operation_id AND lo.status = 'posted'
-        WHERE inst.account_no = ${BANK_ACCOUNT_NO}
-          AND inst.dimensions->>'operationalAccountId' IN (${accountIdList})
-      ) t
-      GROUP BY operational_account_id, currency
-    `);
-
-    const rows = result.rows as {
-      operational_account_id: string;
-      currency: string;
-      balance_minor: string;
-    }[];
-
-    const currencyCodes = Array.from(new Set(rows.map((r) => r.currency)));
-    const currencyRows =
-      currencyCodes.length === 0
-        ? []
-        : await db
-            .select({
-              code: schema.currencies.code,
-              precision: schema.currencies.precision,
-            })
-            .from(schema.currencies)
-            .where(inArray(schema.currencies.code, currencyCodes));
-    const precisionByCode = new Map(
-      currencyRows.map((c) => [c.code, c.precision]),
-    );
-
-    return rows.map((r) => ({
-      operationalAccountId: r.operational_account_id,
-      currency: r.currency,
-      balanceMinor: BigInt(r.balance_minor),
-      precision: precisionByCode.get(r.currency) ?? 2,
-    }));
   }
 
   return {
     listOperations,
     getOperationDetails,
-    getBalancesByOperationalAccountIds,
   };
 }

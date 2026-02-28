@@ -482,6 +482,12 @@ export function createReconciliationService(deps: ReconciliationServiceDeps) {
           documentId: String(storedResult?.documentId ?? ""),
         }),
         handler: async () => {
+          if (!documents) {
+            throw new Error(
+              "Reconciliation adjustment document creation requires documents service",
+            );
+          }
+
           const [exception] = await tx
             .select()
             .from(schema.reconciliationExceptions)
