@@ -8,6 +8,23 @@ function computeRetryAt(attemptNo: number, now: Date): Date {
   return new Date(now.getTime() + delaySeconds * 1000);
 }
 
+function readOptionalBookIdFromIntentMetadata(
+  metadata: Record<string, unknown> | null | undefined,
+): string | undefined {
+  const value = metadata?.bookId;
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+export interface StatusPollerWorkerItemContext {
+  attemptId: string;
+  intentId: string;
+  bookId?: string;
+}
+
+type StatusPollerWorkerItemGuard = (
+  input: StatusPollerWorkerItemContext,
+) => Promise<boolean> | boolean;
+
 export function createStatusPollerWorker(deps: {
   connectors: Pick<
     ConnectorsService,
@@ -17,8 +34,10 @@ export function createStatusPollerWorker(deps: {
     | "providers"
   >;
   logger?: Logger;
+  beforeAttempt?: StatusPollerWorkerItemGuard;
 }) {
   const { connectors } = deps;
+  const beforeAttempt = deps.beforeAttempt;
   const log =
     deps.logger?.child({ svc: "connectors-status-poller" }) ?? noopLogger;
 
@@ -31,6 +50,18 @@ export function createStatusPollerWorker(deps: {
       const { attempt } = item;
       if (!attempt.externalAttemptRef) {
         continue;
+      }
+      const bookId = readOptionalBookIdFromIntentMetadata(item.intent.metadata);
+
+      if (beforeAttempt) {
+        const isEnabled = await beforeAttempt({
+          attemptId: attempt.id,
+          intentId: item.intent.id,
+          bookId,
+        });
+        if (!isEnabled) {
+          continue;
+        }
       }
 
       const provider = connectors.providers[attempt.providerCode];

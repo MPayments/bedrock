@@ -57,6 +57,7 @@ Services and workers use closure factories:
 - payments
 - documents (internal runtime use)
 - reconciliation
+- module runtime governance (`@bedrock/module-runtime`)
 
 Document registry in API composition currently registers only:
 
@@ -80,6 +81,10 @@ From `apps/api/src/modules/registry.ts`, mounted route groups are:
 - `/v1/orchestration`
 - `/v1/fx/rates`
 - `/v1/reconciliation`
+- `/v1/system/modules`
+
+All modules are mounted unconditionally.
+Enable/disable behavior is enforced at request execution time through module guards.
 
 `/v1/docs` is not mounted.
 
@@ -278,12 +283,19 @@ Attempt statuses:
 - `connectors-statements`
 - `orchestration-retry`
 
+Loops are always registered. Each loop checks module enablement at execution time.
+
 ### New interval env vars used
 
 - `CONNECTORS_DISPATCH_WORKER_INTERVAL_MS`
 - `CONNECTORS_STATUS_POLLER_INTERVAL_MS`
 - `CONNECTORS_STATEMENT_INGEST_INTERVAL_MS`
 - `ORCHESTRATION_WORKER_INTERVAL_MS`
+
+Module runtime polling/listen parameters currently use in-code defaults:
+
+- epoch poll interval: `5000ms`
+- cache TTL fallback: `30000ms`
 
 Monitoring (`apps/workers/src/monitoring.ts`) tracks all loops and exposes:
 
@@ -343,6 +355,34 @@ Added scopes:
 - `connectors.markIntentTerminal`
 - `orchestration.route`
 - `orchestration.retrySchedule`
+
+## Module Runtime (`@bedrock/module-runtime`)
+
+### Core behavior
+
+- code-defined manifests are source of truth
+- strict DAG validation at startup
+- effective state precedence: `book override -> global override -> manifest default`
+- mutable module state in DB with audit trail
+- serialized updates via `pg_advisory_xact_lock`
+- epoch invalidation on state updates via `pg_notify('module_state_changed', epoch)`
+- LISTEN/NOTIFY cache invalidation with poll fallback
+
+### Storage
+
+- `platform_module_states`
+- `platform_module_events`
+- `platform_module_runtime_meta`
+
+### API
+
+- `GET /v1/system/modules`
+- `GET /v1/system/modules/:moduleId/effective`
+- `PUT /v1/system/modules/:moduleId/state`
+- `GET /v1/system/modules/events`
+- `GET /v1/system/modules/runtime`
+
+Disabled modules return `503 MODULE_DISABLED` with `Retry-After`.
 
 ## Web Payment Surface
 

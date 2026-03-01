@@ -12,13 +12,18 @@ import { createDocumentsWorker } from "@bedrock/documents";
 import { createFeesService } from "@bedrock/fees";
 import { createFxRatesWorker, createFxService } from "@bedrock/fx";
 import type { Logger } from "@bedrock/kernel";
+import type {
+  BedrockModuleId,
+  ModuleRuntimeService,
+} from "@bedrock/module-runtime";
 import {
   createOrchestrationRetryWorker,
   createOrchestrationService,
 } from "@bedrock/orchestration";
 import { createReconciliationWorker } from "@bedrock/reconciliation";
 
-import type { env } from "../env";
+import type { env as workerEnv } from "../env";
+import { isModuleEnabledForBooks } from "./runtime-guard";
 
 interface RegisteredWorker {
   id: string;
@@ -26,19 +31,18 @@ interface RegisteredWorker {
   processOnce: () => Promise<unknown>;
 }
 
-interface WorkerRegistry {
-  register: (worker: RegisteredWorker) => void;
-}
-
 interface WorkerModuleDeps {
   db: Database;
   logger: Logger;
-  env: typeof env;
+  env: typeof workerEnv;
+  moduleRuntime: ModuleRuntimeService;
 }
 
-interface ApplicationModule {
+interface WorkerComponentManifest {
   id: string;
-  registerWorkers?: (registry: WorkerRegistry, deps: WorkerModuleDeps) => void;
+  moduleId: BedrockModuleId;
+  intervalMs: (runtimeEnv: typeof workerEnv) => number;
+  createProcessOnce: (deps: WorkerModuleDeps) => () => Promise<unknown>;
 }
 
 const mockWebhookAdapter: ConnectorAdapter = {
@@ -59,8 +63,9 @@ const mockWebhookAdapter: ConnectorAdapter = {
     return {
       signatureValid: true,
       eventType: "provider_event",
-      webhookIdempotencyKey:
-        String(input.rawPayload.eventId ?? input.rawPayload.id ?? "unknown"),
+      webhookIdempotencyKey: String(
+        input.rawPayload.eventId ?? input.rawPayload.id ?? "unknown",
+      ),
       parsedPayload: input.rawPayload,
     };
   },
@@ -92,8 +97,9 @@ const mockPollingAdapter: ConnectorAdapter = {
     return {
       signatureValid: false,
       eventType: "unsupported",
-      webhookIdempotencyKey:
-        String(input.rawPayload.eventId ?? input.rawPayload.id ?? "unknown"),
+      webhookIdempotencyKey: String(
+        input.rawPayload.eventId ?? input.rawPayload.id ?? "unknown",
+      ),
       parsedPayload: input.rawPayload,
     };
   },
@@ -118,36 +124,58 @@ function createWorkerRegistry() {
   };
 }
 
-const APPLICATION_MODULES: ApplicationModule[] = [
+function createConnectorsForWorker(deps: WorkerModuleDeps) {
+  return createConnectorsService({
+    db: deps.db,
+    logger: deps.logger,
+    providers: {
+      mock_webhook: mockWebhookAdapter,
+      mock_polling: mockPollingAdapter,
+    },
+  });
+}
+
+const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
   {
     id: "documents",
-    registerWorkers: (registry, deps) => {
-      const worker = createDocumentsWorker({ db: deps.db });
-      registry.register({
-        id: "documents",
-        intervalMs: deps.env.LEDGER_WORKER_INTERVAL_MS,
-        processOnce: () => worker.processOnce(),
+    moduleId: "documents",
+    intervalMs: (runtimeEnv) => runtimeEnv.LEDGER_WORKER_INTERVAL_MS,
+    createProcessOnce: (deps) => {
+      const worker = createDocumentsWorker({
+        db: deps.db,
+        beforeDocument: ({ bookIds }) =>
+          isModuleEnabledForBooks({
+            moduleRuntime: deps.moduleRuntime,
+            moduleId: "documents",
+            bookIds,
+          }),
       });
+      return () => worker.processOnce();
     },
   },
   {
     id: "balances",
-    registerWorkers: (registry, deps) => {
+    moduleId: "balances",
+    intervalMs: (runtimeEnv) => runtimeEnv.BALANCES_WORKER_INTERVAL_MS,
+    createProcessOnce: (deps) => {
       const worker = createBalancesProjectorWorker({
         db: deps.db,
         logger: deps.logger,
+        beforeOperation: ({ bookIds }) =>
+          isModuleEnabledForBooks({
+            moduleRuntime: deps.moduleRuntime,
+            moduleId: "balances",
+            bookIds,
+          }),
       });
-
-      registry.register({
-        id: "balances",
-        intervalMs: deps.env.BALANCES_WORKER_INTERVAL_MS,
-        processOnce: () => worker.processOnce(),
-      });
+      return () => worker.processOnce();
     },
   },
   {
     id: "fx-rates",
-    registerWorkers: (registry, deps) => {
+    moduleId: "fx-rates",
+    intervalMs: (runtimeEnv) => runtimeEnv.FX_RATES_WORKER_INTERVAL_MS,
+    createProcessOnce: (deps) => {
       const currenciesService = createCurrenciesService({
         db: deps.db,
         logger: deps.logger,
@@ -163,110 +191,96 @@ const APPLICATION_MODULES: ApplicationModule[] = [
         feesService,
         currenciesService,
       });
-      const worker = createFxRatesWorker({ fxService, logger: deps.logger });
-
-      registry.register({
-        id: "fx-rates",
-        intervalMs: deps.env.FX_RATES_WORKER_INTERVAL_MS,
-        processOnce: () => worker.processOnce(),
+      const worker = createFxRatesWorker({
+        fxService,
+        logger: deps.logger,
+        beforeSourceSync: () =>
+          deps.moduleRuntime.isModuleEnabled({
+            moduleId: "fx-rates",
+          }),
       });
+      return () => worker.processOnce();
     },
   },
   {
     id: "reconciliation",
-    registerWorkers: (registry, deps) => {
+    moduleId: "reconciliation",
+    intervalMs: (runtimeEnv) => runtimeEnv.RECONCILIATION_WORKER_INTERVAL_MS,
+    createProcessOnce: (deps) => {
       const worker = createReconciliationWorker({
         db: deps.db,
         logger: deps.logger,
+        beforeSource: () =>
+          deps.moduleRuntime.isModuleEnabled({
+            moduleId: "reconciliation",
+          }),
       });
-
-      registry.register({
-        id: "reconciliation",
-        intervalMs: deps.env.RECONCILIATION_WORKER_INTERVAL_MS,
-        processOnce: () => worker.processOnce(),
-      });
+      return () => worker.processOnce();
     },
   },
   {
     id: "connectors-dispatch",
-    registerWorkers: (registry, deps) => {
-      const connectors = createConnectorsService({
-        db: deps.db,
-        logger: deps.logger,
-        providers: {
-          mock_webhook: mockWebhookAdapter,
-          mock_polling: mockPollingAdapter,
-        },
-      });
+    moduleId: "connectors",
+    intervalMs: (runtimeEnv) =>
+      runtimeEnv.CONNECTORS_DISPATCH_WORKER_INTERVAL_MS,
+    createProcessOnce: (deps) => {
+      const connectors = createConnectorsForWorker(deps);
       const worker = createAttemptDispatchWorker({
         connectors,
         logger: deps.logger,
+        beforeAttempt: ({ bookId }) =>
+          isModuleEnabledForBooks({
+            moduleRuntime: deps.moduleRuntime,
+            moduleId: "connectors",
+            bookIds: bookId ? [bookId] : undefined,
+          }),
       });
-
-      registry.register({
-        id: "connectors-dispatch",
-        intervalMs: deps.env.CONNECTORS_DISPATCH_WORKER_INTERVAL_MS,
-        processOnce: () => worker.processOnce(),
-      });
+      return () => worker.processOnce();
     },
   },
   {
     id: "connectors-poller",
-    registerWorkers: (registry, deps) => {
-      const connectors = createConnectorsService({
-        db: deps.db,
-        logger: deps.logger,
-        providers: {
-          mock_webhook: mockWebhookAdapter,
-          mock_polling: mockPollingAdapter,
-        },
-      });
+    moduleId: "connectors",
+    intervalMs: (runtimeEnv) => runtimeEnv.CONNECTORS_STATUS_POLLER_INTERVAL_MS,
+    createProcessOnce: (deps) => {
+      const connectors = createConnectorsForWorker(deps);
       const worker = createStatusPollerWorker({
         connectors,
         logger: deps.logger,
+        beforeAttempt: ({ bookId }) =>
+          isModuleEnabledForBooks({
+            moduleRuntime: deps.moduleRuntime,
+            moduleId: "connectors",
+            bookIds: bookId ? [bookId] : undefined,
+          }),
       });
-
-      registry.register({
-        id: "connectors-poller",
-        intervalMs: deps.env.CONNECTORS_STATUS_POLLER_INTERVAL_MS,
-        processOnce: () => worker.processOnce(),
-      });
+      return () => worker.processOnce();
     },
   },
   {
     id: "connectors-statements",
-    registerWorkers: (registry, deps) => {
-      const connectors = createConnectorsService({
-        db: deps.db,
-        logger: deps.logger,
-        providers: {
-          mock_webhook: mockWebhookAdapter,
-          mock_polling: mockPollingAdapter,
-        },
-      });
+    moduleId: "connectors",
+    intervalMs: (runtimeEnv) =>
+      runtimeEnv.CONNECTORS_STATEMENT_INGEST_INTERVAL_MS,
+    createProcessOnce: (deps) => {
+      const connectors = createConnectorsForWorker(deps);
       const worker = createStatementIngestWorker({
         connectors,
         logger: deps.logger,
+        beforeCursor: () =>
+          deps.moduleRuntime.isModuleEnabled({
+            moduleId: "connectors",
+          }),
       });
-
-      registry.register({
-        id: "connectors-statements",
-        intervalMs: deps.env.CONNECTORS_STATEMENT_INGEST_INTERVAL_MS,
-        processOnce: () => worker.processOnce(),
-      });
+      return () => worker.processOnce();
     },
   },
   {
     id: "orchestration-retry",
-    registerWorkers: (registry, deps) => {
-      const connectors = createConnectorsService({
-        db: deps.db,
-        logger: deps.logger,
-        providers: {
-          mock_webhook: mockWebhookAdapter,
-          mock_polling: mockPollingAdapter,
-        },
-      });
+    moduleId: "orchestration",
+    intervalMs: (runtimeEnv) => runtimeEnv.ORCHESTRATION_WORKER_INTERVAL_MS,
+    createProcessOnce: (deps) => {
+      const connectors = createConnectorsForWorker(deps);
       const orchestration = createOrchestrationService({
         db: deps.db,
         logger: deps.logger,
@@ -275,21 +289,40 @@ const APPLICATION_MODULES: ApplicationModule[] = [
         connectors,
         orchestration,
         logger: deps.logger,
+        beforeAttempt: ({ bookId }) =>
+          isModuleEnabledForBooks({
+            moduleRuntime: deps.moduleRuntime,
+            moduleId: "orchestration",
+            bookIds: bookId ? [bookId] : undefined,
+          }),
       });
-
-      registry.register({
-        id: "orchestration-retry",
-        intervalMs: deps.env.ORCHESTRATION_WORKER_INTERVAL_MS,
-        processOnce: () => worker.processOnce(),
-      });
+      return () => worker.processOnce();
     },
   },
 ];
 
 export function registerApplicationWorkers(deps: WorkerModuleDeps) {
   const { registry, workers } = createWorkerRegistry();
-  for (const module of APPLICATION_MODULES) {
-    module.registerWorkers?.(registry, deps);
+
+  for (const component of WORKER_COMPONENT_MANIFESTS) {
+    const processOnce = component.createProcessOnce(deps);
+
+    registry.register({
+      id: component.id,
+      intervalMs: component.intervalMs(deps.env),
+      processOnce: async () => {
+        const isEnabled = await deps.moduleRuntime.isModuleEnabled({
+          moduleId: component.moduleId,
+        });
+
+        if (!isEnabled) {
+          return 0;
+        }
+
+        return processOnce();
+      },
+    });
   }
+
   return workers;
 }

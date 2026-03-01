@@ -11,8 +11,75 @@ function tbAccountCodeFromId(id: bigint): number {
   return Number(id % 65535n) + 1;
 }
 
-export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
+export interface LedgerWorkerJobContext {
+  outboxId: string;
+  operationId: string;
+  attempts: number;
+  bookIds: string[];
+}
+
+type LedgerWorkerJobGuard = (
+  input: LedgerWorkerJobContext,
+) => Promise<boolean> | boolean;
+
+async function listOperationBookIds(
+  db: Database,
+  operationIds: string[],
+): Promise<Map<string, string[]>> {
+  if (operationIds.length === 0) {
+    return new Map();
+  }
+
+  const result = await db.execute(sql`
+    SELECT DISTINCT
+      operation_id::text AS operation_id,
+      book_id::text AS book_id
+    FROM ${schema.postings}
+    WHERE operation_id IN (${sql.join(operationIds.map((id) => sql`${id}::uuid`), sql`, `)})
+  `);
+  const rows = (result.rows ?? []) as {
+    operation_id: string;
+    book_id: string;
+  }[];
+
+  const byOperation = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const bucket = byOperation.get(row.operation_id) ?? new Set<string>();
+    bucket.add(row.book_id);
+    byOperation.set(row.operation_id, bucket);
+  }
+
+  return new Map(
+    [...byOperation.entries()].map(([operationId, bookIds]) => [
+      operationId,
+      [...bookIds],
+    ]),
+  );
+}
+
+async function releaseClaimedOutboxJob(input: {
+  db: Database;
+  outboxId: string;
+}) {
+  await input.db.execute(sql`
+    UPDATE ${schema.outbox}
+    SET
+      status = 'pending',
+      locked_at = NULL,
+      error = NULL,
+      available_at = now()
+    WHERE id = ${input.outboxId}
+      AND status = 'processing'
+  `);
+}
+
+export function createLedgerWorker(deps: {
+  db: Database;
+  tb: TbClient;
+  beforeJob?: LedgerWorkerJobGuard;
+}) {
   const { db, tb } = deps;
+  const beforeJob = deps.beforeJob;
 
   async function processOnce(opts?: {
     batchSize?: number;
@@ -54,7 +121,32 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
       attempts: number;
     }[];
 
+    const operationBookIds = await listOperationBookIds(
+      db,
+      jobs.map((job) => job.operation_id),
+    );
+    let processed = 0;
+
     for (const job of jobs) {
+      const bookIds = operationBookIds.get(job.operation_id) ?? [];
+      if (beforeJob) {
+        const isEnabled = await beforeJob({
+          outboxId: job.outbox_id,
+          operationId: job.operation_id,
+          attempts: job.attempts,
+          bookIds,
+        });
+        if (!isEnabled) {
+          await releaseClaimedOutboxJob({
+            db,
+            outboxId: job.outbox_id,
+          });
+          continue;
+        }
+      }
+
+      processed += 1;
+
       try {
         await postOperation(job.operation_id);
 
@@ -126,7 +218,7 @@ export function createLedgerWorker(deps: { db: Database; tb: TbClient }) {
       }
     }
 
-    return jobs.length;
+    return processed;
   }
 
   async function postOperation(operationId: string) {

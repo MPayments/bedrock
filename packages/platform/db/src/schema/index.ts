@@ -52,6 +52,11 @@ import { bookAccountInstances } from "./ledger/ledger";
 import { outbox } from "./ledger/outbox";
 import { tbTransferPlans } from "./ledger/tb-plan";
 import {
+  platformModuleEvents,
+  platformModuleRuntimeMeta,
+  platformModuleStates,
+} from "./module-runtime";
+import {
   orchestrationScopeOverrides,
   providerCorridors,
   providerFeeSchedules,
@@ -122,6 +127,9 @@ export const schema = {
   connectorReferences,
   connectorHealth,
   connectorCursors,
+  platformModuleStates,
+  platformModuleEvents,
+  platformModuleRuntimeMeta,
   routingRules,
   providerCorridors,
   providerFeeSchedules,
@@ -201,6 +209,16 @@ export type {
   DocumentSnapshotInsert,
   DocumentSubmissionStatus,
 } from "./documents";
+export type {
+  PlatformModuleEvent,
+  PlatformModuleEventInsert,
+  PlatformModuleRuntimeMeta,
+  PlatformModuleRuntimeMetaInsert,
+  PlatformModuleScopeType,
+  PlatformModuleState,
+  PlatformModuleStateInsert,
+  PlatformModuleStateRow,
+} from "./module-runtime";
 export type {
   OrchestrationScopeOverride,
   OrchestrationScopeOverrideInsert,

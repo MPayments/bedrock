@@ -19,6 +19,7 @@ Bedrock payment runtime is now built on two first-class platform layers:
 
 - `@bedrock/connectors` for provider integration runtime
 - `@bedrock/orchestration` for routing, retries, and fallback planning
+- `@bedrock/module-runtime` for plugin/module governance (state, guards, dependency policy)
 
 Hard cutover principles reflected in code:
 
@@ -133,6 +134,11 @@ Implemented by:
 Implemented by `@bedrock/reconciliation`.
 Consumes external records and matching lifecycle.
 
+### Module governance plane
+
+Implemented by `@bedrock/module-runtime`.
+Owns runtime module state (`global` + `book`), dependency validation, and execution guards.
+
 ## Payment Lifecycle
 
 Current end-to-end flow:
@@ -165,6 +171,7 @@ Authenticated route groups under `/v1`:
 - `/v1/orchestration`
 - `/v1/fx/rates`
 - `/v1/reconciliation`
+- `/v1/system/modules`
 
 Public payment runtime is now:
 
@@ -194,6 +201,9 @@ Worker loops currently running:
 - `connectors-poller`
 - `connectors-statements`
 - `orchestration-retry`
+
+Worker loops are registered at startup regardless of enabled state.
+Execution is guarded per tick by module runtime state resolution.
 
 Monitoring endpoints:
 

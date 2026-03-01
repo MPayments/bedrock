@@ -10,6 +10,7 @@ export default defineConfig({
       "packages/platform/balances/vitest.config.ts",
       "packages/platform/balances/vitest.integration.config.ts",
       "packages/platform/connectors/vitest.config.ts",
+      "packages/platform/module-runtime/vitest.config.ts",
       "packages/modules/operational-accounts/vitest.config.ts",
       "packages/platform/db/vitest.config.ts",
       "packages/platform/dimensions/vitest.config.ts",

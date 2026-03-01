@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import type { Database } from "@bedrock/db";
 import { schema } from "@bedrock/db/schema";
@@ -9,8 +9,58 @@ import {
   insertDocumentEvent,
 } from "./internal/helpers";
 
-export function createDocumentsWorker(deps: { db: Database }) {
+export interface DocumentsWorkerItemContext {
+  documentId: string;
+  operationId: string;
+  moduleId: string;
+  bookIds: string[];
+}
+
+type DocumentsWorkerItemGuard = (
+  input: DocumentsWorkerItemContext,
+) => Promise<boolean> | boolean;
+
+async function listOperationBookIds(
+  db: Database,
+  operationIds: string[],
+): Promise<Map<string, string[]>> {
+  if (operationIds.length === 0) {
+    return new Map();
+  }
+
+  const result = await db.execute(sql`
+    SELECT DISTINCT
+      operation_id::text AS operation_id,
+      book_id::text AS book_id
+    FROM ${schema.postings}
+    WHERE operation_id IN (${sql.join(operationIds.map((id) => sql`${id}::uuid`), sql`, `)})
+  `);
+  const rows = (result.rows ?? []) as {
+    operation_id: string;
+    book_id: string;
+  }[];
+
+  const byOperation = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const bucket = byOperation.get(row.operation_id) ?? new Set<string>();
+    bucket.add(row.book_id);
+    byOperation.set(row.operation_id, bucket);
+  }
+
+  return new Map(
+    [...byOperation.entries()].map(([operationId, bookIds]) => [
+      operationId,
+      [...bookIds],
+    ]),
+  );
+}
+
+export function createDocumentsWorker(deps: {
+  db: Database;
+  beforeDocument?: DocumentsWorkerItemGuard;
+}) {
   const { db } = deps;
+  const beforeDocument = deps.beforeDocument;
 
   async function processOnce(opts?: { batchSize?: number }) {
     const batchSize = opts?.batchSize ?? 50;
@@ -77,12 +127,28 @@ export function createDocumentsWorker(deps: { db: Database }) {
 
       return rows;
     });
+    const operationBookIds = await listOperationBookIds(
+      db,
+      claimed.map((row) => row.operationId),
+    );
 
     let finalized = 0;
 
     for (const row of claimed) {
       if (row.ledgerStatus !== "posted" && row.ledgerStatus !== "failed") {
         continue;
+      }
+
+      if (beforeDocument) {
+        const isEnabled = await beforeDocument({
+          documentId: row.id,
+          operationId: row.operationId,
+          moduleId: row.moduleId,
+          bookIds: operationBookIds.get(row.operationId) ?? [],
+        });
+        if (!isEnabled) {
+          continue;
+        }
       }
 
       await db.transaction(async (tx) => {

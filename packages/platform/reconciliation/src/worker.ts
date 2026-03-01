@@ -18,6 +18,15 @@ interface PendingReconciliationSource {
   pendingRecordCount: number;
 }
 
+export interface ReconciliationWorkerSourceContext {
+  source: string;
+  externalRecordIds: string[];
+}
+
+type ReconciliationWorkerSourceGuard = (
+  input: ReconciliationWorkerSourceContext,
+) => Promise<boolean> | boolean;
+
 async function listPendingSources(
   db: Database,
   batchSize: number,
@@ -94,9 +103,11 @@ export function createReconciliationWorker(deps: {
   db: Database;
   logger?: Logger;
   rulesetChecksum?: string;
+  beforeSource?: ReconciliationWorkerSourceGuard;
 }) {
   const { db } = deps;
   const rulesetChecksum = deps.rulesetChecksum ?? "core-default-v1";
+  const beforeSource = deps.beforeSource;
   const log =
     deps.logger?.child({ svc: "reconciliation-worker" }) ?? noopLogger;
   const reconciliation = createReconciliationService({
@@ -110,6 +121,16 @@ export function createReconciliationWorker(deps: {
     let processed = 0;
 
     for (const source of pendingSources) {
+      if (beforeSource) {
+        const isEnabled = await beforeSource({
+          source: source.source,
+          externalRecordIds: source.externalRecordIds,
+        });
+        if (!isEnabled) {
+          continue;
+        }
+      }
+
       await reconciliation.runReconciliation({
         source: source.source,
         rulesetChecksum,

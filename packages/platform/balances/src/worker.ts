@@ -44,6 +44,18 @@ export interface ProjectedBalanceDelta {
   deltaAvailable: bigint;
 }
 
+export interface BalancesWorkerOperationContext {
+  operationId: string;
+  sourceType: string;
+  sourceId: string;
+  operationCode: string;
+  bookIds: string[];
+}
+
+type BalancesWorkerOperationGuard = (
+  input: BalancesWorkerOperationContext,
+) => Promise<boolean> | boolean;
+
 function hasConsistentCursor(cursor: CursorRow) {
   return (
     (cursor.lastPostedAt === null && cursor.lastOperationId === null) ||
@@ -370,9 +382,11 @@ async function listProjectionPostingRowsTx(
 export function createBalancesProjectorWorker(deps: {
   db: Database;
   logger?: Logger;
+  beforeOperation?: BalancesWorkerOperationGuard;
 }) {
   const db = deps.db;
   const log = deps.logger?.child({ svc: "balances-projector" }) ?? noopLogger;
+  const beforeOperation = deps.beforeOperation;
 
   async function processOnce(opts?: { batchSize?: number }) {
     const batchSize = opts?.batchSize ?? 100;
@@ -384,6 +398,19 @@ export function createBalancesProjectorWorker(deps: {
 
       for (const operation of operations) {
         const postingRows = await listProjectionPostingRowsTx(tx, operation);
+        const bookIds = [...new Set(postingRows.map((row) => row.bookId))];
+        if (beforeOperation) {
+          const isEnabled = await beforeOperation({
+            operationId: operation.id,
+            sourceType: operation.sourceType,
+            sourceId: operation.sourceId,
+            operationCode: operation.operationCode,
+            bookIds,
+          });
+          if (!isEnabled) {
+            break;
+          }
+        }
         const deltas = buildProjectedBalanceDeltas(postingRows);
 
         for (const delta of deltas) {

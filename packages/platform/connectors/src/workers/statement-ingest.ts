@@ -3,14 +3,25 @@ import { noopLogger, type Logger } from "@bedrock/kernel";
 import { ConnectorProviderNotConfiguredError } from "../errors";
 import type { ConnectorsService } from "../service";
 
+export interface StatementIngestWorkerCursorContext {
+  providerCode: string;
+  cursorKey: string;
+}
+
+type StatementIngestWorkerCursorGuard = (
+  input: StatementIngestWorkerCursorContext,
+) => Promise<boolean> | boolean;
+
 export function createStatementIngestWorker(deps: {
   connectors: Pick<
     ConnectorsService,
     "claimStatementProviders" | "ingestStatementBatch" | "providers"
   >;
   logger?: Logger;
+  beforeCursor?: StatementIngestWorkerCursorGuard;
 }) {
   const { connectors } = deps;
+  const beforeCursor = deps.beforeCursor;
   const log =
     deps.logger?.child({ svc: "connectors-statement-ingest" }) ?? noopLogger;
 
@@ -21,6 +32,16 @@ export function createStatementIngestWorker(deps: {
     let processed = 0;
 
     for (const cursor of cursors) {
+      if (beforeCursor) {
+        const isEnabled = await beforeCursor({
+          providerCode: cursor.providerCode,
+          cursorKey: cursor.cursorKey,
+        });
+        if (!isEnabled) {
+          continue;
+        }
+      }
+
       const provider = connectors.providers[cursor.providerCode];
       if (!provider) {
         log.warn("Connector statement provider is not configured", {
@@ -66,6 +87,16 @@ export function createStatementIngestWorker(deps: {
     cursorValue?: string | null;
     range: { from: Date; to: Date };
   }) {
+    if (beforeCursor) {
+      const isEnabled = await beforeCursor({
+        providerCode: input.providerCode,
+        cursorKey: input.cursorKey ?? "default",
+      });
+      if (!isEnabled) {
+        return { inserted: 0 };
+      }
+    }
+
     const provider = connectors.providers[input.providerCode];
     if (!provider) {
       throw new ConnectorProviderNotConfiguredError(input.providerCode);

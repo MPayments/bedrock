@@ -8,6 +8,23 @@ function computeRetryAt(attemptNo: number, now: Date): Date {
   return new Date(now.getTime() + delaySeconds * 1000);
 }
 
+function readOptionalBookIdFromIntentMetadata(
+  metadata: Record<string, unknown> | null | undefined,
+): string | undefined {
+  const value = metadata?.bookId;
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+export interface AttemptDispatchWorkerItemContext {
+  attemptId: string;
+  intentId: string;
+  bookId?: string;
+}
+
+type AttemptDispatchWorkerItemGuard = (
+  input: AttemptDispatchWorkerItemContext,
+) => Promise<boolean> | boolean;
+
 export function createAttemptDispatchWorker(deps: {
   connectors: Pick<
     ConnectorsService,
@@ -17,8 +34,10 @@ export function createAttemptDispatchWorker(deps: {
     | "providers"
   >;
   logger?: Logger;
+  beforeAttempt?: AttemptDispatchWorkerItemGuard;
 }) {
   const { connectors } = deps;
+  const beforeAttempt = deps.beforeAttempt;
   const log =
     deps.logger?.child({ svc: "connectors-attempt-dispatch" }) ?? noopLogger;
 
@@ -31,6 +50,23 @@ export function createAttemptDispatchWorker(deps: {
       const { attempt, intent } = item;
       const provider = connectors.providers[attempt.providerCode];
       const now = new Date();
+      const bookId = readOptionalBookIdFromIntentMetadata(intent.metadata);
+
+      if (beforeAttempt) {
+        const isEnabled = await beforeAttempt({
+          attemptId: attempt.id,
+          intentId: intent.id,
+          bookId,
+        });
+        if (!isEnabled) {
+          await connectors.recordAttemptStatus({
+            attemptId: attempt.id,
+            status: "queued",
+            idempotencyKey: `${attempt.id}:dispatch:guard:${now.toISOString()}`,
+          });
+          continue;
+        }
+      }
 
       try {
         if (!provider) {

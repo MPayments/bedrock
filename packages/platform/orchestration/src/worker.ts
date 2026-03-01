@@ -11,6 +11,23 @@ function readBookIdFromIntentMetadata(
   return typeof value === "string" && value.length > 0 ? value : "default";
 }
 
+function readOptionalBookIdFromIntentMetadata(
+  metadata: Record<string, unknown> | null,
+): string | undefined {
+  const value = metadata?.bookId;
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+export interface OrchestrationRetryAttemptContext {
+  attemptId: string;
+  intentId: string;
+  bookId?: string;
+}
+
+type OrchestrationRetryAttemptGuard = (
+  input: OrchestrationRetryAttemptContext,
+) => Promise<boolean> | boolean;
+
 export function createOrchestrationRetryWorker(deps: {
   connectors: Pick<
     ConnectorsService,
@@ -21,8 +38,10 @@ export function createOrchestrationRetryWorker(deps: {
     "selectNextProviderForIntent" | "recordAttemptOutcome"
   >;
   logger?: Logger;
+  beforeAttempt?: OrchestrationRetryAttemptGuard;
 }) {
   const { connectors, orchestration } = deps;
+  const beforeAttempt = deps.beforeAttempt;
   const log =
     deps.logger?.child({ svc: "orchestration-retry-worker" }) ?? noopLogger;
 
@@ -48,6 +67,18 @@ export function createOrchestrationRetryWorker(deps: {
       if (intent.currentAttemptNo > attempt.attemptNo) {
         // A newer attempt is already scheduled for this intent.
         continue;
+      }
+      const bookId = readOptionalBookIdFromIntentMetadata(intent.metadata);
+
+      if (beforeAttempt) {
+        const isEnabled = await beforeAttempt({
+          attemptId: attempt.id,
+          intentId: intent.id,
+          bookId,
+        });
+        if (!isEnabled) {
+          continue;
+        }
       }
 
       try {

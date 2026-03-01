@@ -81,4 +81,33 @@ describe("createFxRatesWorker", () => {
         expect(processed).toBe(0);
         expect(logger.error).toHaveBeenCalled();
     });
+
+    it("skips source sync when per-item guard blocks source", async () => {
+        const fxService = {
+            getRateSourceStatuses: vi.fn(async () => [
+                {
+                    source: "cbr",
+                    ttlSeconds: 86400,
+                    lastSyncedAt: null,
+                    lastPublishedAt: null,
+                    lastStatus: "idle",
+                    lastError: null,
+                    expiresAt: null,
+                    isExpired: true,
+                },
+            ]),
+            syncRatesFromSource: vi.fn(async () => ({ synced: true })),
+        } as any;
+        const beforeSourceSync = vi.fn(async () => false);
+
+        const worker = createFxRatesWorker({
+            fxService,
+            beforeSourceSync,
+        });
+        const processed = await worker.processOnce();
+
+        expect(processed).toBe(0);
+        expect(beforeSourceSync).toHaveBeenCalledTimes(1);
+        expect(fxService.syncRatesFromSource).not.toHaveBeenCalled();
+    });
 });

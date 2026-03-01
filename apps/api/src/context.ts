@@ -5,13 +5,19 @@ import type { ConnectorsService } from "@bedrock/connectors";
 import type { CounterpartiesService } from "@bedrock/counterparties";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { CustomersService } from "@bedrock/customers";
+import { db } from "@bedrock/db/client";
 import type { DocumentsService } from "@bedrock/documents";
 import type { FeesService } from "@bedrock/fees";
 import type { FxService } from "@bedrock/fx";
 import type { Logger } from "@bedrock/kernel";
 import type { LedgerReadService } from "@bedrock/ledger";
-import type { OrchestrationService } from "@bedrock/orchestration";
+import {
+  BEDROCK_MODULE_MANIFESTS,
+  createModuleRuntimeService,
+  type ModuleRuntimeService,
+} from "@bedrock/module-runtime";
 import type { OperationalAccountsService } from "@bedrock/operational-accounts";
+import type { OrchestrationService } from "@bedrock/orchestration";
 import type { PaymentsService } from "@bedrock/payments";
 import type { ReconciliationService } from "@bedrock/reconciliation";
 
@@ -45,10 +51,16 @@ export interface AppContext {
   balancesService: BalancesService;
   documentsService: DocumentsService;
   reconciliationService: ReconciliationService;
+  moduleRuntime: ModuleRuntimeService;
 }
 
 export function createAppContext(env: Env): AppContext {
   const platform = createPlatformServices();
+  const moduleRuntime = createModuleRuntimeService({
+    db,
+    logger: platform.logger,
+    manifests: BEDROCK_MODULE_MANIFESTS,
+  });
   const modules = createModuleServices(platform);
 
   return {
@@ -69,5 +81,6 @@ export function createAppContext(env: Env): AppContext {
     paymentsService: modules.paymentsService,
     documentsService: modules.documentsService,
     reconciliationService: modules.reconciliationService,
+    moduleRuntime,
   };
 }
