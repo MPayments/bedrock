@@ -1,332 +1,381 @@
 # Implementation Details
 
-Last updated: 2026-02-28
+Last updated: 2026-03-01
 
-This document captures implementation specifics as they exist in the current codebase.
+## Purpose
 
-## Naming note
+This document is an implementation inventory of the current runtime.
+It reflects the post-cutover payment architecture in code now.
 
-Current ledger naming is operation-centric:
+## Runtime and Workspace Conventions
 
-- `ledger_operations` / `postings`
-- `commit`
-- outbox kind `post_operation`
+### Monorepo layout
 
-Legacy terms like `journal_entries`, `journal_lines`, or `createEntryTx` are not the current implementation.
+Root workspaces:
 
-## `@bedrock/kernel`
+- `apps/*`
+- `packages/platform/*`
+- `packages/modules/*`
+- `packages/packs/*`
+- `packages/sdk/*`
+- `packages/tooling/*`
 
-Key files:
+### Runtime model
 
-- `packages/platform/kernel/src/error.ts`
-- `packages/platform/kernel/src/errors.ts`
-- `packages/platform/kernel/src/logger.ts`
-- `packages/platform/kernel/src/canon.ts`
-- `packages/platform/kernel/src/currency.ts`
-- `packages/platform/kernel/src/constants.ts`
+- Bun is package manager and script runner
+- Node.js 24.x is application runtime
+- Turborepo coordinates build/check/test pipelines
 
-Current behavior:
+### Service pattern
 
-- `AppError` is transport-facing error with `code`.
-- `ServiceError` hierarchy (`ValidationError`, `InvalidStateError`, `NotFoundError`, etc.) is used in domain packages.
-- `stableStringify` and `makePlanKey` provide deterministic serialization/plan keys.
-- `normalizeCurrency` enforces `^[A-Z0-9_]{2,16}$`.
-- `TransferCodes` includes funding, FX, fee, payout, and internal-transfer codes (including `300x` fee family and `PAYOUT_INITIATED=3101`).
+Services and workers use closure factories:
 
-## `@bedrock/db`
+- `createXxxService(...)`
+- `createXxxWorker(...)`
+- `createXxxHandler(...)`
 
-### Client
+## API Adapter (`apps/api`)
 
-- `db = drizzle(pool, { schema })`
-- connection uses env-driven host/port/db/user/password with localhost fallbacks
+### Composition
 
-### Ledger schema
+`apps/api/src/composition/platform.ts` wires shared platform services:
 
-- `ledger_operations`
-  - unique: `idempotency_key`
-  - fields: source (`source_type`, `source_id`), operation code/version, `payload_hash`, posting status/error metadata
-- `postings`
-  - unique: `(operation_id, line_no)`
-  - debit/credit `book_account_instance` references + analytics columns
-- `tb_transfer_plans`
-  - unique: `(operation_id, line_no)` and global `transfer_id`
-  - supports `create`, `post_pending`, `void_pending`
-- `outbox`
-  - unique: `(kind, ref_id)`
-  - lease and retry columns
-- `book_account_instances`
-  - unique deterministic mapping by `(book_org_id, account_no, currency, dimensions_hash)` and `(book_org_id, tb_ledger, tb_account_id)`
+- `accountingService`
+- `balancesService`
+- `ledger` engine
+- `ledgerReadService`
+- `logger`
 
-### Accounting schema
+`apps/api/src/composition/modules.ts` wires module-level services:
 
-- `chart_template_accounts`
-- `chart_account_dimension_policy`
-- `correspondence_rules`
-- `operational_account_bindings`
+- operational accounts
+- accounting reporting
+- counterparties/customers/currencies
+- fees/fx
+- connectors
+- orchestration
+- payments
+- documents (internal runtime use)
+- reconciliation
 
-### Treasury schema
+Document registry in API composition currently registers only:
 
-- `payment_orders` with `ledger_operation_id` and `payout_pending_transfer_id`
-- `settlements`
-- `fee_payment_orders` (reserve/initiate/resolve operation links + pending transfer)
-- `reconciliation_exceptions`
-- `counterparties`, `counterparty_groups`, `counterparty_group_memberships`
-- `operational_accounts`, `operational_account_providers`
+- `payment_intent` (`createPaymentIntentDocumentModule`)
+- `payment_resolution` (`createPaymentResolutionDocumentModule`)
 
-### Transfers schema
+### Mounted `/v1` modules
 
-- `transfer_orders`
-  - statuses include `pending`, `settle_pending_posting`, `void_pending_posting`, `voided`
-  - supports pending transfer IDs for source/destination
-- `transfer_events`
-  - idempotent settle/void events
+From `apps/api/src/modules/registry.ts`, mounted route groups are:
 
-### FX and fees schema
+- `/v1/accounting`
+- `/v1/account-providers`
+- `/v1/accounts`
+- `/v1/balances`
+- `/v1/counterparties`
+- `/v1/counterparty-groups`
+- `/v1/customers`
+- `/v1/currencies`
+- `/v1/payments`
+- `/v1/connectors`
+- `/v1/orchestration`
+- `/v1/fx/rates`
+- `/v1/reconciliation`
 
-- `fx_rates`, `fx_rate_sources`
-- `fx_quotes`, `fx_quote_legs`
-- `fee_rules`, `fx_quote_fee_components`
+`/v1/docs` is not mounted.
 
-## `@bedrock/accounting`
+### Payment cutover route details
 
-Key files:
+#### `/v1/payments`
 
-- `packages/platform/accounting/src/constants.ts`
-- `packages/platform/accounting/src/templates.ts`
-- `packages/platform/accounting/src/service.ts`
+- `GET /` list payments (`kind=intent|resolution|all`, pagination)
+- `POST /` create payment intent draft
+- `GET /:id`
+- `GET /:id/details` aggregated view (document + connector intent + attempts + events)
+- `POST /:id/submit`
+- `POST /:id/approve`
+- `POST /:id/reject`
+- `POST /:id/post`
+- `POST /:id/cancel`
 
-Current behavior:
+#### `/v1/connectors`
 
-- Defines CoA account constants (`ACCOUNT_NO`), operation codes, posting codes, and required analytics by posting code.
-- Provides template builders for transfers:
-  - `buildTransferApproveTemplate`
-  - `buildTransferPendingActionTemplate`
-- Cross-org transfer templates route via `1310 INTERCOMPANY_NET`.
-- Fee template resolvers map fee/spread/adjustment/provider-expense behaviors to posting shapes.
-- `createAccountingService` supports correspondence management and posting matrix validation.
+- `GET /providers` list provider health
+- `PUT /providers/:providerCode` upsert provider health
+- `GET /attempts`
+- `GET /events`
+- `POST /providers/:providerCode/statements/ingest`
+- `POST /providers/:providerCode/webhook`
 
-## `@bedrock/accounting-reporting`
+Webhook flow:
 
-Key files:
+- adapter verifies/parses payload
+- service writes idempotent connector event mutation
+- terminal status (`succeeded`/`failed_terminal`) triggers payment resolution draft+post path
 
-- `packages/modules/accounting-reporting/src/service.ts`
-- `packages/modules/accounting-reporting/src/validation.ts`
+#### `/v1/orchestration`
 
-Current behavior:
+- routing rules CRUD (`/`)
+- corridors CRUD (`/corridors`)
+- fee schedules CRUD (`/fees`)
+- limits CRUD (`/limits`)
+- scope overrides CRUD (`/overrides`)
+- `POST /simulate` route simulation
 
-- Provides financial-results aggregation views:
-  - `listFinancialResultsByCounterparty`
-  - `listFinancialResultsByGroup`
-- Owns financial-results query contracts/schemas used by API routes.
+### Middleware and cross-cutting behavior
 
-## `@bedrock/operational-accounts`
+- all `/v1/*` requires auth session
+- permission checks are route-level (`requirePermission`)
+- request context carries correlation IDs and idempotency key
+- non-create mutating payment actions require `Idempotency-Key`
+- JSON serialization for new payment/connectors/orchestration routes uses `toJsonSafe(...)` for `bigint` and `Date`
 
-Key files:
+### Permission resources
 
-- `packages/modules/operational-accounts/src/commands/create-account.ts`
-- `packages/modules/operational-accounts/src/commands/resolve-transfer-bindings.ts`
-- `packages/platform/ledger/src/book-accounts.ts`
+Permission model includes resources:
 
-Current behavior:
+- `payments`
+- `connectors`
+- `orchestration`
 
-- Creates `operational_accounts` and validates provider-specific fields.
-- Requires `postingAccountNo` on account creation path and ensures/creates matching `book_account_instance`.
-- Persists OA->book binding in `operational_account_bindings`.
-- `resolveTransferBindings` returns binding metadata used by transfers:
-  - counterparty
-  - currency
-  - bound book account
-  - `bookOrgId` (currently counterparty-based)
+Legacy payment-surface permissions tied to old flow contracts are not used by mounted payment routes.
 
-## `@bedrock/ledger`
+## Connectors Runtime (`@bedrock/connectors`)
 
-### Engine
+### Package layout
 
-`createLedgerEngine(...).commit(tx, input)`:
+- `src/service.ts`
+- `src/internal/context.ts`
+- `src/internal/status.ts`
+- `src/validation.ts`
+- `src/errors.ts`
+- `src/commands/*`
+- `src/workers/*`
+- `src/index.ts`
 
-1. Validates operation input and contiguous chain blocks.
-2. Computes deterministic `payloadHash` from operation code/version, payload, and normalized transfer lines.
-3. Inserts `ledger_operations` idempotently.
-4. On idempotent replay, checks matching `payloadHash`.
-5. For each `create` transfer line:
+### Provider adapter contract
 
-- validates `correspondence_rules`
-- validates chart account policy (`posting_allowed`, `enabled`)
-- validates required analytics (account-level + posting-code-level)
-- ensures deterministic `book_account_instances`
+`ConnectorAdapter` methods:
 
-6. Writes `postings` (for create lines).
-7. Writes `tb_transfer_plans` (all lines).
-8. Enqueues `outbox(kind='post_operation')`.
-9. Returns `{ operationId, pendingTransferIdsByRef }`.
-
-### Deterministic IDs
-
-- `tbLedgerForCurrency(currency)` -> u32 hash
-- `tbBookAccountInstanceIdFor(bookOrgId, accountNo, currency, dimensionsHash, tbLedger)` -> u128 hash
-- `tbTransferIdForOperation(operationId, lineNo, planRef)` -> u128 hash
-
-### TB integration and worker
-
-- `tbCreateAccountsOrThrow` and `tbCreateTransfersOrThrow` treat TB `exists` as success.
-- `createLedgerWorker(...).processOnce`:
-  - claims outbox jobs with lease semantics
-  - executes posting
-  - retries retryable failures with exponential backoff
-  - marks terminal failures in outbox, tb plans, and operations
-- Posting supports:
-  - `create`
-  - `post_pending` (`amount=0` means full post via `TB_AMOUNT_MAX`)
-  - `void_pending`
-
-### Account resolution helper
-
-`resolveTbBookAccountId` ensures deterministic mapping in `book_account_instances` and idempotent TB account creation.
-
-## `@bedrock/treasury`
+- `initiate(...)`
+- `getStatus(...)`
+- `verifyAndParseWebhook(...)`
+- `fetchStatements(...)`
 
 ### Service surface
 
-`createTreasuryService` composes command handlers and currently exposes:
+Core commands exposed:
 
-- `fundingSettled`
-- `executeFx`
-- `initiatePayout`
-- `settlePayout`
-- `voidPayout`
-- `initiateFeePayment`
-- `settleFeePayment`
-- `voidFeePayment`
+- `createIntentFromDocument`
+- `enqueueAttempt`
+- `recordAttemptStatus`
+- `handleWebhookEvent`
+- `ingestStatementBatch`
+- `markIntentTerminal`
 
-### Payment order lifecycle integration
+Query/operational methods exposed:
 
-- Commands validate order identity/currency/amount/customer/counterparty invariants.
-- Commands call `ledger.commit` and perform CAS transitions to pending-posting states.
-- Idempotency checks are transition-aware and tied to `ledgerOperationId`.
+- intent/attempt/event reads
+- health reads/writes
+- worker claim helpers for dispatch/poll/statement loops
 
-### Worker behavior
+### State model
 
-`createTreasuryWorker(...).processOnce` finalizes:
+Intent statuses:
 
-- `payment_orders` pending-posting statuses based on linked `ledger_operations.status`
-- `fee_payment_orders` pending-posting statuses based on linked initiate/resolve operation status
+- `planned`
+- `in_progress`
+- `succeeded`
+- `failed`
+- `cancelled`
 
-### Reconciliation worker
+Attempt statuses:
 
-`createTreasuryReconciliationWorker(...).processOnce` scans for invariant violations (stuck pending, missing journal links, plan mismatch, settlement/order mismatch) and manages `reconciliation_exceptions` state.
+- `queued`
+- `dispatching`
+- `submitted`
+- `pending`
+- `succeeded`
+- `failed_retryable`
+- `failed_terminal`
+- `cancelled`
 
-## `@bedrock/fx`
+## Orchestration Runtime (`@bedrock/orchestration`)
 
-### Service surface
+### Package layout
 
-`createFxService` composes rates + quote handlers.
+- `src/service.ts`
+- `src/internal/context.ts`
+- `src/commands/route.ts`
+- `src/commands/config.ts`
+- `src/worker.ts`
+- `src/validation.ts`
+- `src/errors.ts`
 
-Rates:
+### Runtime behavior
 
-- `setManualRate`
-- `getLatestRate`
-- `getCrossRate`
-- `listPairs`
-- `getRateSourceStatuses`
-- `syncRatesFromSource`
-- `expireOldQuotes`
-
-Quotes:
-
-- `quote`
-- `getQuoteDetails`
-- `markQuoteUsed`
-
-### Current quote implementation
-
-- Supports `auto_cross` and `explicit_route` pricing modes.
-- Persists:
-  - quote header in `fx_quotes`
-  - route legs in `fx_quote_legs`
-  - fee snapshot in `fx_quote_fee_components` (via fees service)
-- Quote creation is idempotent by `idempotencyKey`.
-
-### Rate source behavior
-
-- Source sync/status logic is in `commands/rates/source-sync.ts`.
-- Source statuses are stored in `fx_rate_sources`.
-- Current sources include `cbr` and `investing` with source-specific TTL behavior.
-
-### Worker
-
-`createFxRatesWorker` periodically syncs configured sources and expires old quotes.
-
-## `@bedrock/fees`
-
-`createFeesService` provides:
-
-- rule upsert/query/resolve
-- FX quote fee component calculation
-- quote component persistence and retrieval
-- fee/adjustment merge and partition helpers
-- transfer-plan helper functions used by treasury execution flows
-
-## `@bedrock/transfers`
+- route planning filters by direction/corridor/currency/country/amount/risk
+- provider eligibility pruned by corridor support and limits
+- scoring includes fee/FX/SLA/health components
+- deterministic ordering:
+  - score desc
+  - rule priority
+  - provider code lexicographic
+- per-book override support through `orchestration_scope_overrides`
 
 ### Service surface
 
-`createTransfersService` currently provides:
+- `planRoute`
+- `simulateRoute`
+- `selectNextProviderForIntent`
+- `recordAttemptOutcome`
+- routing config CRUD handlers (rules/corridors/fees/limits/overrides)
 
-- `createDraft`
-- `approve`
-- `reject`
-- `settlePending`
-- `voidPending`
-- `get`
-- `list`
+## Payments Module (`@bedrock/payments`)
 
-### Behavior
+### Public exports
 
-- Maker/checker enforcement with optional authorization callback.
-- Draft creation is idempotent by `(sourceCounterpartyId, idempotencyKey)`.
-- Approve creates operation + CAS move to `approved_pending_posting`.
-- Pending settle/void use `transfer_events` for event-level idempotency.
-- Cross/intra posting templates are provided by `@bedrock/accounting` templates.
+- `createPaymentsService`
+- `createPaymentIntentDocumentModule`
+- `createPaymentResolutionDocumentModule`
+- payment payload schemas/types
 
-### Worker
+### Document types
 
-`createTransfersWorker(...).processOnce` finalizes transfer states by linked ledger status:
+`payment_intent`:
 
-- posted path:
-  - `approved_pending_posting -> posted` (immediate)
-  - `approved_pending_posting -> pending` (pending settlement mode)
-  - `settle_pending_posting -> posted`
-  - `void_pending_posting -> voided`
-- failed path:
-  - any claimable pending-posting state -> `failed`
+- direction (`payin|payout`)
+- source/destination operational accounts
+- amount/currency/corridor
+- optional provider/risk metadata
 
-## Apps
+`payment_resolution`:
 
-### `apps/api`
+- `intentDocumentId`
+- `resolutionType` (`settle|void|fail`)
+- provider event idempotency linkage
+- optional external ref
 
-Current composition root wires:
+### Service behavior
 
-- accounting/account providers/operational-accounts
-- counterparties/groups
-- customers
-- currencies
-- FX rates
-- treasury
-- transfers
-- ledger read service
+`createPaymentsService` orchestrates:
 
-Application modules are mounted via `apps/api/src/modules/registry.ts`.
+- draft/list/get/details actions for payment documents
+- workflow transitions (`submit|approve|reject|post|cancel`)
+- on `post`: connector intent creation + orchestration route + first attempt enqueue
+- resolution document creation and posting
 
-Worker loops are composed in `apps/workers/src/modules/registry.ts`.
+## Workers Adapter (`apps/workers`)
 
-### `apps/web`
+### Registered loops
 
-The web app is not a default scaffold. It contains active product pages for accounting, FX, treasury entities, operations, and transfers.
+- `ledger`
+- `documents`
+- `balances`
+- `fx-rates`
+- `reconciliation`
+- `connectors-dispatch`
+- `connectors-poller`
+- `connectors-statements`
+- `orchestration-retry`
 
-## Accounting model summary (implementation alignment)
+### New interval env vars used
 
-- `Counterparty` is the ownership/reporting subject.
-- `OperationalAccount` is a single-currency external endpoint.
-- `OperationalAccount` is bound to a `BookAccountInstance` via `operational_account_bindings`.
-- `BookAccountInstance` is the internal ledger place (book org + account + currency + dimensions hash) mapped deterministically to TB.
-- `ledger.commit` is the single write gate for operation + postings + TB plan + outbox, including correspondence and analytics enforcement.
+- `CONNECTORS_DISPATCH_WORKER_INTERVAL_MS`
+- `CONNECTORS_STATUS_POLLER_INTERVAL_MS`
+- `CONNECTORS_STATEMENT_INGEST_INTERVAL_MS`
+- `ORCHESTRATION_WORKER_INTERVAL_MS`
+
+Monitoring (`apps/workers/src/monitoring.ts`) tracks all loops and exposes:
+
+- `/health`
+- `/metrics`
+- `/`
+
+## Database Schema and Migration
+
+### New connectors tables
+
+- `connector_payment_intents`
+- `payment_attempts`
+- `connector_events`
+- `connector_references`
+- `connector_health`
+- `connector_cursors`
+
+Key invariants/indexes implemented:
+
+- unique `connector_payment_intents(document_id)`
+- unique `payment_attempts(intent_id, attempt_no)`
+- unique `connector_events(provider_code, webhook_idempotency_key)`
+- unique `connector_references(provider_code, ref_kind, ref_value)`
+- claim indexes for dispatch/polling loops in `payment_attempts`
+
+### New orchestration tables
+
+- `routing_rules`
+- `provider_corridors`
+- `provider_fee_schedules`
+- `provider_limits`
+- `orchestration_scope_overrides`
+
+### Migration artifacts
+
+- `packages/platform/db/migrations/0001_clean_slayback.sql`
+- `packages/platform/db/migrations/meta/0001_snapshot.json`
+
+### Seeds
+
+Orchestration baseline seed is implemented in:
+
+- `packages/platform/db/src/seeds/orchestration.ts`
+
+`run-all` now includes this seed step.
+
+## Idempotency Scopes
+
+Added scopes:
+
+- `connectors.createIntent`
+- `connectors.enqueueAttempt`
+- `connectors.recordAttemptStatus`
+- `connectors.handleWebhook`
+- `connectors.ingestStatements`
+- `connectors.markIntentTerminal`
+- `orchestration.route`
+- `orchestration.retrySchedule`
+
+## Web Payment Surface
+
+Payment pages now include dedicated API integration:
+
+- `apps/web/features/payments/lib/api.ts` uses `/v1/payments`
+- orders page shows `payment_intent` list
+- settlements page shows `payment_resolution` list
+- order details page shows connector intent, attempts, and provider events
+
+## Tests and Quality Gates Applied
+
+### API route tests updated
+
+Legacy docs-route test removed and replaced with:
+
+- `apps/api/tests/routes/payments.test.ts`
+- `apps/api/tests/routes/connectors.test.ts`
+- `apps/api/tests/routes/orchestration.test.ts`
+
+### Verification executed
+
+- monorepo `check-types`
+- `vitest` unit matrix (`bun run test`)
+- API build (`bun run build --filter=api`)
+
+## Removed/Inactive Legacy Payment Behavior
+
+No longer part of active payment runtime:
+
+- public `/v1/docs` payment workflow contract
+- legacy treasury payment-case route model
+- compatibility adapters/shims for old payment contracts
+- dual runtime path for payment execution
+
+Legacy packages can still exist in repository, but they are not registered in current API payment flow composition.

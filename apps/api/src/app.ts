@@ -18,12 +18,15 @@ import {
   accountProvidersModule,
   accountsModule,
   balancesModule,
+  connectorsModule,
   counterpartiesModule,
   counterpartyGroupsModule,
   currenciesModule,
   customersModule,
   docsModule,
   fxRatesModule,
+  orchestrationModule,
+  paymentsModule,
   reconciliationModule,
 } from "./modules/registry";
 
@@ -125,6 +128,12 @@ const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route(customersModule.routePath, customersModule.registerRoutes(ctx))
   .route(currenciesModule.routePath, currenciesModule.registerRoutes(ctx))
   .route(docsModule.routePath, docsModule.registerRoutes(ctx))
+  .route(paymentsModule.routePath, paymentsModule.registerRoutes(ctx))
+  .route(connectorsModule.routePath, connectorsModule.registerRoutes(ctx))
+  .route(
+    orchestrationModule.routePath,
+    orchestrationModule.registerRoutes(ctx),
+  )
   .route(fxRatesModule.routePath, fxRatesModule.registerRoutes(ctx))
   .route(
     reconciliationModule.routePath,

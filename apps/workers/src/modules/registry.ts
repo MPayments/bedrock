@@ -1,10 +1,21 @@
 import { createBalancesProjectorWorker } from "@bedrock/balances";
+import {
+  createAttemptDispatchWorker,
+  createConnectorsService,
+  createStatementIngestWorker,
+  createStatusPollerWorker,
+  type ConnectorAdapter,
+} from "@bedrock/connectors";
 import { createCurrenciesService } from "@bedrock/currencies";
 import type { Database } from "@bedrock/db";
 import { createDocumentsWorker } from "@bedrock/documents";
 import { createFeesService } from "@bedrock/fees";
 import { createFxRatesWorker, createFxService } from "@bedrock/fx";
 import type { Logger } from "@bedrock/kernel";
+import {
+  createOrchestrationRetryWorker,
+  createOrchestrationService,
+} from "@bedrock/orchestration";
 import { createReconciliationWorker } from "@bedrock/reconciliation";
 
 import type { env } from "../env";
@@ -29,6 +40,70 @@ interface ApplicationModule {
   id: string;
   registerWorkers?: (registry: WorkerRegistry, deps: WorkerModuleDeps) => void;
 }
+
+const mockWebhookAdapter: ConnectorAdapter = {
+  async initiate(input) {
+    return {
+      status: "submitted",
+      externalAttemptRef: `wh:${input.attempt.id}`,
+      responsePayload: { accepted: true },
+    };
+  },
+  async getStatus() {
+    return {
+      status: "pending",
+      responsePayload: { pending: true },
+    };
+  },
+  async verifyAndParseWebhook(input) {
+    return {
+      signatureValid: true,
+      eventType: "provider_event",
+      webhookIdempotencyKey:
+        String(input.rawPayload.eventId ?? input.rawPayload.id ?? "unknown"),
+      parsedPayload: input.rawPayload,
+    };
+  },
+  async fetchStatements() {
+    return {
+      records: [],
+      nextCursor: null,
+    };
+  },
+};
+
+const mockPollingAdapter: ConnectorAdapter = {
+  async initiate(input) {
+    return {
+      status: "pending",
+      externalAttemptRef: `poll:${input.attempt.id}`,
+      responsePayload: { accepted: true },
+    };
+  },
+  async getStatus(input) {
+    return {
+      status: input.externalAttemptRef.includes("fail")
+        ? "failed_retryable"
+        : "succeeded",
+      responsePayload: { externalAttemptRef: input.externalAttemptRef },
+    };
+  },
+  async verifyAndParseWebhook(input) {
+    return {
+      signatureValid: false,
+      eventType: "unsupported",
+      webhookIdempotencyKey:
+        String(input.rawPayload.eventId ?? input.rawPayload.id ?? "unknown"),
+      parsedPayload: input.rawPayload,
+    };
+  },
+  async fetchStatements() {
+    return {
+      records: [],
+      nextCursor: null,
+    };
+  },
+};
 
 function createWorkerRegistry() {
   const workers: RegisteredWorker[] = [];
@@ -108,6 +183,103 @@ const APPLICATION_MODULES: ApplicationModule[] = [
       registry.register({
         id: "reconciliation",
         intervalMs: deps.env.RECONCILIATION_WORKER_INTERVAL_MS,
+        processOnce: () => worker.processOnce(),
+      });
+    },
+  },
+  {
+    id: "connectors-dispatch",
+    registerWorkers: (registry, deps) => {
+      const connectors = createConnectorsService({
+        db: deps.db,
+        logger: deps.logger,
+        providers: {
+          mock_webhook: mockWebhookAdapter,
+          mock_polling: mockPollingAdapter,
+        },
+      });
+      const worker = createAttemptDispatchWorker({
+        connectors,
+        logger: deps.logger,
+      });
+
+      registry.register({
+        id: "connectors-dispatch",
+        intervalMs: deps.env.CONNECTORS_DISPATCH_WORKER_INTERVAL_MS,
+        processOnce: () => worker.processOnce(),
+      });
+    },
+  },
+  {
+    id: "connectors-poller",
+    registerWorkers: (registry, deps) => {
+      const connectors = createConnectorsService({
+        db: deps.db,
+        logger: deps.logger,
+        providers: {
+          mock_webhook: mockWebhookAdapter,
+          mock_polling: mockPollingAdapter,
+        },
+      });
+      const worker = createStatusPollerWorker({
+        connectors,
+        logger: deps.logger,
+      });
+
+      registry.register({
+        id: "connectors-poller",
+        intervalMs: deps.env.CONNECTORS_STATUS_POLLER_INTERVAL_MS,
+        processOnce: () => worker.processOnce(),
+      });
+    },
+  },
+  {
+    id: "connectors-statements",
+    registerWorkers: (registry, deps) => {
+      const connectors = createConnectorsService({
+        db: deps.db,
+        logger: deps.logger,
+        providers: {
+          mock_webhook: mockWebhookAdapter,
+          mock_polling: mockPollingAdapter,
+        },
+      });
+      const worker = createStatementIngestWorker({
+        connectors,
+        logger: deps.logger,
+      });
+
+      registry.register({
+        id: "connectors-statements",
+        intervalMs: deps.env.CONNECTORS_STATEMENT_INGEST_INTERVAL_MS,
+        processOnce: () => worker.processOnce(),
+      });
+    },
+  },
+  {
+    id: "orchestration-retry",
+    registerWorkers: (registry, deps) => {
+      const connectors = createConnectorsService({
+        db: deps.db,
+        logger: deps.logger,
+        providers: {
+          mock_webhook: mockWebhookAdapter,
+          mock_polling: mockPollingAdapter,
+        },
+      });
+      const orchestration = createOrchestrationService({
+        db: deps.db,
+        logger: deps.logger,
+      });
+      const worker = createOrchestrationRetryWorker({
+        connectors,
+        orchestration,
+        logger: deps.logger,
+      });
+
+      registry.register({
+        id: "orchestration-retry",
+        intervalMs: deps.env.ORCHESTRATION_WORKER_INTERVAL_MS,
         processOnce: () => worker.processOnce(),
       });
     },

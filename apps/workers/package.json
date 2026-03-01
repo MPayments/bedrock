@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@bedrock/balances": "workspace:*",
+    "@bedrock/connectors": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/db": "workspace:*",
     "@bedrock/documents": "workspace:*",
@@ -20,6 +21,7 @@
     "@bedrock/fx": "workspace:*",
     "@bedrock/kernel": "workspace:*",
     "@bedrock/ledger": "workspace:*",
+    "@bedrock/orchestration": "workspace:*",
     "@bedrock/reconciliation": "workspace:*",
     "dotenv": "^17.3.1"
   },

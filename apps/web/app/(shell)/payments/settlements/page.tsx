@@ -1,26 +1,18 @@
-import { searchParamsCache } from "@/app/(shell)/operations/lib/validations";
-import { FilteredDocumentsPage } from "@/features/documents/ui/filtered-documents-page";
+import { PaymentsListCard } from "@/features/payments/ui/payments-list-card";
+import { listPayments } from "@/features/payments/lib/api";
 
-const SETTLEMENT_DOC_TYPES = [
-  "payout_settle",
-  "payout_void",
-  "fee_payout_settle",
-  "fee_payout_void",
-];
-
-export default async function SettlementsPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const parsedSearch = await searchParamsCache.parse(searchParams);
+export default async function SettlementsPage() {
+  const resolutions = await listPayments({
+    kind: "resolution",
+    limit: 100,
+    offset: 0,
+  });
 
   return (
-    <FilteredDocumentsPage
-      title="Платежные расчеты"
-      description="Settlement и void документы по payout и fee payout workflows."
-      docTypes={SETTLEMENT_DOC_TYPES}
-      search={parsedSearch}
+    <PaymentsListCard
+      title="Платежные резолюшены"
+      description="Системные документы `payment_resolution` (settle/void/fail)."
+      rows={resolutions.data}
     />
   );
 }

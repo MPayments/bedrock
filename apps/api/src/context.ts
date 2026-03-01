@@ -1,6 +1,7 @@
 import type { AccountingService } from "@bedrock/accounting";
 import type { AccountingReportingService } from "@bedrock/accounting-reporting";
 import type { BalancesService } from "@bedrock/balances";
+import type { ConnectorsService } from "@bedrock/connectors";
 import type { CounterpartiesService } from "@bedrock/counterparties";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { CustomersService } from "@bedrock/customers";
@@ -9,7 +10,9 @@ import type { FeesService } from "@bedrock/fees";
 import type { FxService } from "@bedrock/fx";
 import type { Logger } from "@bedrock/kernel";
 import type { LedgerReadService } from "@bedrock/ledger";
+import type { OrchestrationService } from "@bedrock/orchestration";
 import type { OperationalAccountsService } from "@bedrock/operational-accounts";
+import type { PaymentsService } from "@bedrock/payments";
 import type { ReconciliationService } from "@bedrock/reconciliation";
 
 import { createModuleServices } from "./composition/modules";
@@ -35,6 +38,9 @@ export interface AppContext {
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
+  connectorsService: ConnectorsService;
+  orchestrationService: OrchestrationService;
+  paymentsService: PaymentsService;
   ledgerReadService: LedgerReadService;
   balancesService: BalancesService;
   documentsService: DocumentsService;
@@ -58,6 +64,9 @@ export function createAppContext(env: Env): AppContext {
     currenciesService: modules.currenciesService,
     feesService: modules.feesService,
     fxService: modules.fxService,
+    connectorsService: modules.connectorsService,
+    orchestrationService: modules.orchestrationService,
+    paymentsService: modules.paymentsService,
     documentsService: modules.documentsService,
     reconciliationService: modules.reconciliationService,
   };

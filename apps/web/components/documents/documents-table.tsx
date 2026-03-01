@@ -28,6 +28,10 @@ export function DocumentsTable({
         sorting: [{ id: "occurredAt", desc: true }],
       }}
       onRowDoubleClick={(row) => {
+        if (row.original.docType === "payment_resolution") {
+          router.push("/payments/settlements");
+          return;
+        }
         router.push(`/operations/${row.original.docType}/${row.original.id}`);
       }}
     />

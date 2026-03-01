@@ -4,12 +4,15 @@ import {
   accountProvidersRoutes,
   accountsRoutes,
   balancesRoutes,
+  connectorsRoutes,
   counterpartiesRoutes,
   counterpartyGroupsRoutes,
   customersRoutes,
   currenciesRoutes,
   docsRoutes,
   fxRatesRoutes,
+  orchestrationRoutes,
+  paymentsRoutes,
   reconciliationRoutes,
 } from "../routes";
 import type { ApplicationModule } from "./types";
@@ -93,6 +96,30 @@ export const docsModule = {
     return docsRoutes(ctx);
   },
 } as const satisfies ApplicationModule<"/docs">;
+
+export const paymentsModule = {
+  id: "payments",
+  routePath: "/payments",
+  registerRoutes(ctx: AppContext) {
+    return paymentsRoutes(ctx);
+  },
+} as const satisfies ApplicationModule<"/payments">;
+
+export const connectorsModule = {
+  id: "connectors",
+  routePath: "/connectors",
+  registerRoutes(ctx: AppContext) {
+    return connectorsRoutes(ctx);
+  },
+} as const satisfies ApplicationModule<"/connectors">;
+
+export const orchestrationModule = {
+  id: "orchestration",
+  routePath: "/orchestration",
+  registerRoutes(ctx: AppContext) {
+    return orchestrationRoutes(ctx);
+  },
+} as const satisfies ApplicationModule<"/orchestration">;
 
 export const reconciliationModule = {
   id: "reconciliation",

@@ -1,44 +1,18 @@
 import { CreditCard } from "lucide-react";
 
-import { getDocuments } from "@/app/(shell)/operations/lib/queries";
 import { RecentItemsCard } from "@/features/overview/ui/recent-items-card";
 import { SectionOverviewPage } from "@/features/overview/ui/section-overview-page";
-
-const ORDER_DOC_TYPES = [
-  "payment_case",
-  "payin_funding",
-  "payout_initiate",
-  "fee_payout_initiate",
-  "external_funding",
-  "fx_execute",
-];
-
-const SETTLEMENT_DOC_TYPES = [
-  "payout_settle",
-  "payout_void",
-  "fee_payout_settle",
-  "fee_payout_void",
-];
+import { listPayments } from "@/features/payments/lib/api";
 
 function formatCount(value: number) {
   return value.toLocaleString("ru-RU");
 }
 
 export async function PaymentsOverviewPage() {
-  const [orders, settlements, pendingApprovals, recent] = await Promise.all([
-    getDocuments({ page: 1, perPage: 1, docType: ORDER_DOC_TYPES }),
-    getDocuments({ page: 1, perPage: 1, docType: SETTLEMENT_DOC_TYPES }),
-    getDocuments({
-      page: 1,
-      perPage: 1,
-      docType: [...ORDER_DOC_TYPES, ...SETTLEMENT_DOC_TYPES],
-      approvalStatus: ["pending"],
-    }),
-    getDocuments({
-      page: 1,
-      perPage: 5,
-      docType: [...ORDER_DOC_TYPES, ...SETTLEMENT_DOC_TYPES],
-    }),
+  const [orders, settlements, recent] = await Promise.all([
+    listPayments({ kind: "intent", limit: 1, offset: 0 }),
+    listPayments({ kind: "resolution", limit: 1, offset: 0 }),
+    listPayments({ kind: "all", limit: 5, offset: 0 }),
   ]);
 
   return (
@@ -49,58 +23,61 @@ export async function PaymentsOverviewPage() {
       stats={[
         {
           id: "orders",
-          label: "Ордера",
+          label: "Интенты",
           value: formatCount(orders.total),
-          description: "Инициированные платежные документы и funding workflow.",
+          description: "Инициированные платежи (`payment_intent`).",
           href: "/payments/orders",
         },
         {
           id: "settlements",
-          label: "Расчеты",
+          label: "Резолюшены",
           value: formatCount(settlements.total),
-          description: "Settlement и void документы по платежным потокам.",
+          description: "Системные результаты (`payment_resolution`).",
           href: "/payments/settlements",
         },
         {
           id: "pending",
-          label: "Ждут согласования",
-          value: formatCount(pendingApprovals.total),
-          description: "Платежные документы в approval pending.",
-          href: "/operations",
+          label: "Последние",
+          value: formatCount(recent.data.length),
+          description: "Количество записей в оперативном срезе.",
+          href: "/payments/orders",
         },
       ]}
       links={[
         {
           id: "orders",
-          title: "Платежные ордера",
-          description: "Рабочий список документов инициирования и funding событий.",
+          title: "Платежные интенты",
+          description: "Список бизнес-интентов и их текущих статусов.",
           href: "/payments/orders",
-          cta: "Открыть ордера",
+          cta: "Открыть интенты",
         },
         {
           id: "settlements",
-          title: "Расчеты",
-          description: "Канонический список settlement/void событий по платежам.",
+          title: "Резолюшены",
+          description: "Список финальных исходов по платежам.",
           href: "/payments/settlements",
-          cta: "Открыть расчеты",
+          cta: "Открыть резолюшены",
         },
         {
-          id: "operations",
-          title: "Общий журнал",
-          description: "Переход в единый operations center для cross-check.",
-          href: "/operations",
-          cta: "Открыть журнал",
+          id: "timeline",
+          title: "Таймлайн",
+          description: "История попыток и событий доступна в карточке интента.",
+          href: "/payments/orders",
+          cta: "Открыть список",
         },
       ]}
       aside={
         <RecentItemsCard
           title="Последние платежные документы"
-          description="Быстрый доступ к активным кейсам и расчетам."
+          description="Быстрый доступ к интентам и резолюшенам."
           items={recent.data.map((document) => ({
             id: document.id,
             title: document.title,
             subtitle: `${document.docType} · ${document.docNo}`,
-            href: `/operations/${document.docType}/${document.id}`,
+            href:
+              document.docType === "payment_intent"
+                ? `/payments/orders/${document.id}`
+                : "/payments/settlements",
           }))}
         />
       }

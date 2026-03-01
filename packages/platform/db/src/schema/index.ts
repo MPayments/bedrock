@@ -23,6 +23,14 @@ import {
   balanceProjectorCursors,
 } from "./balances";
 import { books } from "./books";
+import {
+  connectorCursors,
+  connectorEvents,
+  connectorHealth,
+  connectorPaymentIntents,
+  connectorReferences,
+  paymentAttempts,
+} from "./connectors";
 import { currencies } from "./currencies";
 import { customers } from "./customers";
 import {
@@ -43,6 +51,13 @@ import { ledgerOperations, postings } from "./ledger/journal";
 import { bookAccountInstances } from "./ledger/ledger";
 import { outbox } from "./ledger/outbox";
 import { tbTransferPlans } from "./ledger/tb-plan";
+import {
+  orchestrationScopeOverrides,
+  providerCorridors,
+  providerFeeSchedules,
+  providerLimits,
+  routingRules,
+} from "./orchestration";
 import {
   reconciliationExceptions,
   reconciliationExternalRecords,
@@ -101,6 +116,17 @@ export const schema = {
   feeRules,
   fxQuoteFeeComponents,
   currencies,
+  connectorPaymentIntents,
+  paymentAttempts,
+  connectorEvents,
+  connectorReferences,
+  connectorHealth,
+  connectorCursors,
+  routingRules,
+  providerCorridors,
+  providerFeeSchedules,
+  providerLimits,
+  orchestrationScopeOverrides,
   balancePositions,
   balanceHolds,
   balanceEvents,
@@ -120,6 +146,25 @@ export {
 } from "./fx/rate-sources";
 export { type FxRate, type FxRateInsert } from "./fx/rates";
 export type { Book, BookInsert } from "./books";
+export type {
+  ConnectorCursor,
+  ConnectorCursorInsert,
+  ConnectorEvent,
+  ConnectorEventParseStatus,
+  ConnectorEventInsert,
+  ConnectorHealth,
+  ConnectorHealthStatus,
+  ConnectorHealthInsert,
+  ConnectorIntentStatus,
+  ConnectorPaymentIntent,
+  ConnectorPaymentIntentInsert,
+  ConnectorReference,
+  ConnectorReferenceInsert,
+  ConnectorDirection,
+  PaymentAttempt,
+  PaymentAttemptStatus,
+  PaymentAttemptInsert,
+} from "./connectors";
 export type { Currency, CurrencyInsert } from "./currencies";
 export type { Customer, CustomerInsert } from "./customers";
 export type {
@@ -156,6 +201,18 @@ export type {
   DocumentSnapshotInsert,
   DocumentSubmissionStatus,
 } from "./documents";
+export type {
+  OrchestrationScopeOverride,
+  OrchestrationScopeOverrideInsert,
+  ProviderCorridor,
+  ProviderCorridorInsert,
+  ProviderFeeSchedule,
+  ProviderFeeScheduleInsert,
+  ProviderLimit,
+  ProviderLimitInsert,
+  RoutingRule,
+  RoutingRuleInsert,
+} from "./orchestration";
 export type {
   ReconciliationException,
   ReconciliationExceptionInsert,

@@ -2,7 +2,11 @@ import { type ZodType } from "zod";
 
 import { resolveApiErrorMessage } from "@/lib/api-error";
 
-import { parseJsonSafely, readJsonWithSchema, type HttpResponseLike } from "./response";
+import {
+  parseJsonSafely,
+  readJsonWithSchema,
+  type HttpResponseLike,
+} from "./response";
 
 export type ApiMutationResult<T> =
   | {

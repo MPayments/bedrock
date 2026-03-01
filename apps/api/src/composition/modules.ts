@@ -3,6 +3,11 @@ import {
   type AccountingReportingService,
 } from "@bedrock/accounting-reporting";
 import {
+  createConnectorsService,
+  type ConnectorAdapter,
+  type ConnectorsService,
+} from "@bedrock/connectors";
+import {
   createCounterpartiesService,
   type CounterpartiesService,
 } from "@bedrock/counterparties";
@@ -23,30 +28,23 @@ import {
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import {
+  createOrchestrationService,
+  type OrchestrationService,
+} from "@bedrock/orchestration";
+import {
   createOperationalAccountsService,
   type OperationalAccountsService,
 } from "@bedrock/operational-accounts";
 import {
+  createPaymentIntentDocumentModule,
+  createPaymentResolutionDocumentModule,
+  createPaymentsService,
+  type PaymentsService,
+} from "@bedrock/payments";
+import {
   createReconciliationService,
   type ReconciliationService,
 } from "@bedrock/reconciliation";
-import {
-  createTransferDocumentModule,
-  createTransferSettleDocumentModule,
-  createTransferVoidDocumentModule,
-} from "@bedrock/transfers";
-import {
-  createExternalFundingDocumentModule,
-  createFeePayoutInitiateDocumentModule,
-  createFeePayoutSettleDocumentModule,
-  createFeePayoutVoidDocumentModule,
-  createFxExecuteDocumentModule,
-  createPaymentCaseDocumentModule,
-  createPayinFundingDocumentModule,
-  createPayoutInitiateDocumentModule,
-  createPayoutSettleDocumentModule,
-  createPayoutVoidDocumentModule,
-} from "@bedrock/treasury";
 
 import type { ApiPlatformServices } from "./platform";
 
@@ -58,9 +56,88 @@ export interface ApiModuleServices {
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
+  connectorsService: ConnectorsService;
+  orchestrationService: OrchestrationService;
+  paymentsService: PaymentsService;
   documentsService: DocumentsService;
   reconciliationService: ReconciliationService;
 }
+
+const mockWebhookAdapter: ConnectorAdapter = {
+  async initiate(input) {
+    return {
+      status: "submitted",
+      externalAttemptRef: `wh:${input.attempt.id}`,
+      responsePayload: { accepted: true },
+    };
+  },
+  async getStatus() {
+    return {
+      status: "pending",
+      responsePayload: { pending: true },
+    };
+  },
+  async verifyAndParseWebhook(input) {
+    return {
+      signatureValid: true,
+      eventType: "provider_event",
+      webhookIdempotencyKey:
+        String(input.rawPayload.eventId ?? input.rawPayload.id ?? "unknown"),
+      parsedPayload: input.rawPayload,
+      attemptId:
+        typeof input.rawPayload.attemptId === "string"
+          ? input.rawPayload.attemptId
+          : undefined,
+      status:
+        input.rawPayload.status === "succeeded"
+          ? "succeeded"
+          : input.rawPayload.status === "failed_terminal"
+            ? "failed_terminal"
+            : input.rawPayload.status === "failed_retryable"
+              ? "failed_retryable"
+              : "pending",
+    };
+  },
+  async fetchStatements() {
+    return {
+      records: [],
+      nextCursor: null,
+    };
+  },
+};
+
+const mockPollingAdapter: ConnectorAdapter = {
+  async initiate(input) {
+    return {
+      status: "pending",
+      externalAttemptRef: `poll:${input.attempt.id}`,
+      responsePayload: { accepted: true },
+    };
+  },
+  async getStatus(input) {
+    return {
+      status: input.externalAttemptRef.includes("fail")
+        ? "failed_retryable"
+        : "succeeded",
+      responsePayload: { externalAttemptRef: input.externalAttemptRef },
+    };
+  },
+  async verifyAndParseWebhook(input) {
+    return {
+      signatureValid: false,
+      eventType: "unsupported",
+      webhookIdempotencyKey:
+        String(input.rawPayload.eventId ?? input.rawPayload.id ?? "unknown"),
+      parsedPayload: input.rawPayload,
+    };
+  },
+  async fetchStatements() {
+    return {
+      records: [],
+      nextCursor: null,
+    };
+  },
+};
 
 export function createModuleServices(
   platform: ApiPlatformServices,
@@ -86,36 +163,23 @@ export function createModuleServices(
     feesService,
     currenciesService,
   });
+  const connectorsService = createConnectorsService({
+    db,
+    logger,
+    providers: {
+      mock_webhook: mockWebhookAdapter,
+      mock_polling: mockPollingAdapter,
+    },
+  });
+  const orchestrationService = createOrchestrationService({
+    db,
+    logger,
+  });
   const documentRegistry = createDocumentRegistry([
-    createPaymentCaseDocumentModule(),
-    createPayinFundingDocumentModule({
-      currenciesService,
-    }),
-    createFxExecuteDocumentModule({
-      currenciesService,
-      feesService,
-    }),
-    createPayoutInitiateDocumentModule({
-      currenciesService,
-    }),
-    createPayoutSettleDocumentModule(),
-    createPayoutVoidDocumentModule(),
-    createFeePayoutInitiateDocumentModule({
-      currenciesService,
-      feesService,
-    }),
-    createFeePayoutSettleDocumentModule(),
-    createFeePayoutVoidDocumentModule(),
-    createExternalFundingDocumentModule({
-      currenciesService,
-    }),
-    createTransferDocumentModule({
+    createPaymentIntentDocumentModule({
       operationalAccountsService,
     }),
-    createTransferSettleDocumentModule({
-      operationalAccountsService,
-    }),
-    createTransferVoidDocumentModule({
+    createPaymentResolutionDocumentModule({
       operationalAccountsService,
     }),
   ]);
@@ -125,6 +189,13 @@ export function createModuleServices(
     ledger,
     ledgerReadService,
     registry: documentRegistry,
+    logger,
+  });
+  const paymentsService = createPaymentsService({
+    db,
+    documents: documentsService,
+    connectors: connectorsService,
+    orchestration: orchestrationService,
     logger,
   });
   const reconciliationService = createReconciliationService({
@@ -141,6 +212,9 @@ export function createModuleServices(
     currenciesService,
     feesService,
     fxService,
+    connectorsService,
+    orchestrationService,
+    paymentsService,
     documentsService,
     reconciliationService,
   };

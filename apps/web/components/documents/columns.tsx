@@ -18,6 +18,13 @@ function badgeVariant(
   return "outline";
 }
 
+function buildDocumentHref(document: DocumentDto): string {
+  if (document.docType === "payment_resolution") {
+    return "/payments/settlements";
+  }
+  return `/operations/${document.docType}/${document.id}`;
+}
+
 export function getDocumentColumns(): ColumnDef<DocumentDto>[] {
   return [
     {
@@ -55,7 +62,7 @@ export function getDocumentColumns(): ColumnDef<DocumentDto>[] {
       cell: ({ row }) => (
         <div className="space-y-1">
           <Link
-            href={`/operations/${row.original.docType}/${row.original.id}`}
+            href={buildDocumentHref(row.original)}
             className="font-medium hover:underline"
           >
             {row.original.docNo}

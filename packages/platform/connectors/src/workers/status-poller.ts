@@ -1,0 +1,95 @@
+import { noopLogger, type Logger } from "@bedrock/kernel";
+
+import { ConnectorProviderNotConfiguredError } from "../errors";
+import type { ConnectorsService } from "../service";
+
+function computeRetryAt(attemptNo: number, now: Date): Date {
+  const delaySeconds = Math.min(3600, Math.pow(2, Math.max(1, attemptNo)));
+  return new Date(now.getTime() + delaySeconds * 1000);
+}
+
+export function createStatusPollerWorker(deps: {
+  connectors: Pick<
+    ConnectorsService,
+    | "claimPollBatch"
+    | "recordAttemptStatus"
+    | "upsertProviderHealth"
+    | "providers"
+  >;
+  logger?: Logger;
+}) {
+  const { connectors } = deps;
+  const log =
+    deps.logger?.child({ svc: "connectors-status-poller" }) ?? noopLogger;
+
+  async function processOnce(opts?: { batchSize?: number }) {
+    const batchSize = opts?.batchSize ?? 50;
+    const claimed = await connectors.claimPollBatch({ batchSize });
+    let processed = 0;
+
+    for (const item of claimed) {
+      const { attempt } = item;
+      if (!attempt.externalAttemptRef) {
+        continue;
+      }
+
+      const provider = connectors.providers[attempt.providerCode];
+      const now = new Date();
+      try {
+        if (!provider) {
+          throw new ConnectorProviderNotConfiguredError(attempt.providerCode);
+        }
+
+        const status = await provider.getStatus({
+          attemptId: attempt.id,
+          externalAttemptRef: attempt.externalAttemptRef,
+        });
+
+        await connectors.recordAttemptStatus({
+          attemptId: attempt.id,
+          status: status.status,
+          responsePayload: status.responsePayload ?? undefined,
+          error: status.error ?? undefined,
+          nextRetryAt: status.nextRetryAt ?? undefined,
+          idempotencyKey: `${attempt.id}:poll:${attempt.updatedAt.toISOString()}`,
+        });
+
+        await connectors.upsertProviderHealth({
+          providerCode: attempt.providerCode,
+          status: status.status === "failed_terminal" ? "degraded" : "up",
+          score: status.status === "failed_terminal" ? 30 : 90,
+          error: status.error ?? null,
+          successDelta: status.status === "failed_terminal" ? 0 : 1,
+          failureDelta: status.status === "failed_terminal" ? 1 : 0,
+        });
+        processed += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error("Connector polling failed", {
+          attemptId: attempt.id,
+          providerCode: attempt.providerCode,
+          error: message,
+        });
+
+        await connectors.recordAttemptStatus({
+          attemptId: attempt.id,
+          status: "failed_retryable",
+          error: message,
+          nextRetryAt: computeRetryAt(attempt.attemptNo, now),
+          idempotencyKey: `${attempt.id}:poll:error:${attempt.updatedAt.toISOString()}`,
+        });
+        await connectors.upsertProviderHealth({
+          providerCode: attempt.providerCode,
+          status: "degraded",
+          score: 20,
+          error: message,
+          failureDelta: 1,
+        });
+      }
+    }
+
+    return processed;
+  }
+
+  return { processOnce };
+}
