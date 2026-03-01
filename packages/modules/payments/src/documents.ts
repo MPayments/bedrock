@@ -1,6 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import {
+  ACCOUNTING_SOURCE_ID,
   OPERATION_CODE,
   POSTING_TEMPLATE_KEY,
 } from "@bedrock/accounting-contracts";
@@ -212,6 +213,7 @@ export function createPaymentIntentDocumentModule(deps: {
 
   return {
     moduleId: "payment_intent",
+    accountingSourceId: ACCOUNTING_SOURCE_ID.TRANSFER,
     docType: "payment_intent",
     docNoPrefix: "PMT",
     payloadVersion: 1,
@@ -432,6 +434,10 @@ export function createPaymentResolutionDocumentModule(deps: {
 
   return {
     moduleId: "payment_resolution",
+    accountingSourceIds: [
+      ACCOUNTING_SOURCE_ID.TRANSFER_SETTLE,
+      ACCOUNTING_SOURCE_ID.TRANSFER_VOID,
+    ],
     docType: "payment_resolution",
     docNoPrefix: "PMR",
     payloadVersion: 1,
@@ -606,6 +612,15 @@ export function createPaymentResolutionDocumentModule(deps: {
     },
     buildPostIdempotencyKey(document) {
       return buildDocumentPostIdempotencyKey(document);
+    },
+    resolveAccountingSourceId(_context, document) {
+      const payload = parseDocumentPayload(
+        PaymentResolutionPayloadSchema,
+        document,
+      );
+      return payload.resolutionType === "settle"
+        ? ACCOUNTING_SOURCE_ID.TRANSFER_SETTLE
+        : ACCOUNTING_SOURCE_ID.TRANSFER_VOID;
     },
   };
 }

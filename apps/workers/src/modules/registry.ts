@@ -1,4 +1,8 @@
 import { createBalancesProjectorWorker } from "@bedrock/balances";
+import type {
+  BedrockComponentId,
+  ComponentRuntimeService,
+} from "@bedrock/component-runtime";
 import {
   createAttemptDispatchWorker,
   createConnectorsService,
@@ -12,10 +16,6 @@ import { createDocumentsWorker } from "@bedrock/documents";
 import { createFeesService } from "@bedrock/fees";
 import { createFxRatesWorker, createFxService } from "@bedrock/fx";
 import type { Logger } from "@bedrock/kernel";
-import type {
-  BedrockModuleId,
-  ModuleRuntimeService,
-} from "@bedrock/module-runtime";
 import {
   createOrchestrationRetryWorker,
   createOrchestrationService,
@@ -23,7 +23,7 @@ import {
 import { createReconciliationWorker } from "@bedrock/reconciliation";
 
 import type { env as workerEnv } from "../env";
-import { isModuleEnabledForBooks } from "./runtime-guard";
+import { isComponentEnabledForBooks } from "./runtime-guard";
 
 interface RegisteredWorker {
   id: string;
@@ -35,12 +35,12 @@ interface WorkerModuleDeps {
   db: Database;
   logger: Logger;
   env: typeof workerEnv;
-  moduleRuntime: ModuleRuntimeService;
+  componentRuntime: ComponentRuntimeService;
 }
 
 interface WorkerComponentManifest {
   id: string;
-  moduleId: BedrockModuleId;
+  componentId: BedrockComponentId;
   intervalMs: (runtimeEnv: typeof workerEnv) => number;
   createProcessOnce: (deps: WorkerModuleDeps) => () => Promise<unknown>;
 }
@@ -138,15 +138,15 @@ function createConnectorsForWorker(deps: WorkerModuleDeps) {
 const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
   {
     id: "documents",
-    moduleId: "documents",
+    componentId: "documents",
     intervalMs: (runtimeEnv) => runtimeEnv.LEDGER_WORKER_INTERVAL_MS,
     createProcessOnce: (deps) => {
       const worker = createDocumentsWorker({
         db: deps.db,
         beforeDocument: ({ bookIds }) =>
-          isModuleEnabledForBooks({
-            moduleRuntime: deps.moduleRuntime,
-            moduleId: "documents",
+          isComponentEnabledForBooks({
+            componentRuntime: deps.componentRuntime,
+            componentId: "documents",
             bookIds,
           }),
       });
@@ -155,16 +155,16 @@ const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
   },
   {
     id: "balances",
-    moduleId: "balances",
+    componentId: "balances",
     intervalMs: (runtimeEnv) => runtimeEnv.BALANCES_WORKER_INTERVAL_MS,
     createProcessOnce: (deps) => {
       const worker = createBalancesProjectorWorker({
         db: deps.db,
         logger: deps.logger,
         beforeOperation: ({ bookIds }) =>
-          isModuleEnabledForBooks({
-            moduleRuntime: deps.moduleRuntime,
-            moduleId: "balances",
+          isComponentEnabledForBooks({
+            componentRuntime: deps.componentRuntime,
+            componentId: "balances",
             bookIds,
           }),
       });
@@ -173,7 +173,7 @@ const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
   },
   {
     id: "fx-rates",
-    moduleId: "fx-rates",
+    componentId: "fx-rates",
     intervalMs: (runtimeEnv) => runtimeEnv.FX_RATES_WORKER_INTERVAL_MS,
     createProcessOnce: (deps) => {
       const currenciesService = createCurrenciesService({
@@ -195,8 +195,8 @@ const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
         fxService,
         logger: deps.logger,
         beforeSourceSync: () =>
-          deps.moduleRuntime.isModuleEnabled({
-            moduleId: "fx-rates",
+          deps.componentRuntime.isComponentEnabled({
+            componentId: "fx-rates",
           }),
       });
       return () => worker.processOnce();
@@ -204,15 +204,15 @@ const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
   },
   {
     id: "reconciliation",
-    moduleId: "reconciliation",
+    componentId: "reconciliation",
     intervalMs: (runtimeEnv) => runtimeEnv.RECONCILIATION_WORKER_INTERVAL_MS,
     createProcessOnce: (deps) => {
       const worker = createReconciliationWorker({
         db: deps.db,
         logger: deps.logger,
         beforeSource: () =>
-          deps.moduleRuntime.isModuleEnabled({
-            moduleId: "reconciliation",
+          deps.componentRuntime.isComponentEnabled({
+            componentId: "reconciliation",
           }),
       });
       return () => worker.processOnce();
@@ -220,7 +220,7 @@ const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
   },
   {
     id: "connectors-dispatch",
-    moduleId: "connectors",
+    componentId: "connectors",
     intervalMs: (runtimeEnv) =>
       runtimeEnv.CONNECTORS_DISPATCH_WORKER_INTERVAL_MS,
     createProcessOnce: (deps) => {
@@ -229,9 +229,9 @@ const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
         connectors,
         logger: deps.logger,
         beforeAttempt: ({ bookId }) =>
-          isModuleEnabledForBooks({
-            moduleRuntime: deps.moduleRuntime,
-            moduleId: "connectors",
+          isComponentEnabledForBooks({
+            componentRuntime: deps.componentRuntime,
+            componentId: "connectors",
             bookIds: bookId ? [bookId] : undefined,
           }),
       });
@@ -240,7 +240,7 @@ const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
   },
   {
     id: "connectors-poller",
-    moduleId: "connectors",
+    componentId: "connectors",
     intervalMs: (runtimeEnv) => runtimeEnv.CONNECTORS_STATUS_POLLER_INTERVAL_MS,
     createProcessOnce: (deps) => {
       const connectors = createConnectorsForWorker(deps);
@@ -248,9 +248,9 @@ const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
         connectors,
         logger: deps.logger,
         beforeAttempt: ({ bookId }) =>
-          isModuleEnabledForBooks({
-            moduleRuntime: deps.moduleRuntime,
-            moduleId: "connectors",
+          isComponentEnabledForBooks({
+            componentRuntime: deps.componentRuntime,
+            componentId: "connectors",
             bookIds: bookId ? [bookId] : undefined,
           }),
       });
@@ -259,7 +259,7 @@ const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
   },
   {
     id: "connectors-statements",
-    moduleId: "connectors",
+    componentId: "connectors",
     intervalMs: (runtimeEnv) =>
       runtimeEnv.CONNECTORS_STATEMENT_INGEST_INTERVAL_MS,
     createProcessOnce: (deps) => {
@@ -268,8 +268,8 @@ const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
         connectors,
         logger: deps.logger,
         beforeCursor: () =>
-          deps.moduleRuntime.isModuleEnabled({
-            moduleId: "connectors",
+          deps.componentRuntime.isComponentEnabled({
+            componentId: "connectors",
           }),
       });
       return () => worker.processOnce();
@@ -277,7 +277,7 @@ const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
   },
   {
     id: "orchestration-retry",
-    moduleId: "orchestration",
+    componentId: "orchestration",
     intervalMs: (runtimeEnv) => runtimeEnv.ORCHESTRATION_WORKER_INTERVAL_MS,
     createProcessOnce: (deps) => {
       const connectors = createConnectorsForWorker(deps);
@@ -290,9 +290,9 @@ const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
         orchestration,
         logger: deps.logger,
         beforeAttempt: ({ bookId }) =>
-          isModuleEnabledForBooks({
-            moduleRuntime: deps.moduleRuntime,
-            moduleId: "orchestration",
+          isComponentEnabledForBooks({
+            componentRuntime: deps.componentRuntime,
+            componentId: "orchestration",
             bookIds: bookId ? [bookId] : undefined,
           }),
       });
@@ -311,8 +311,8 @@ export function registerApplicationWorkers(deps: WorkerModuleDeps) {
       id: component.id,
       intervalMs: component.intervalMs(deps.env),
       processOnce: async () => {
-        const isEnabled = await deps.moduleRuntime.isModuleEnabled({
-          moduleId: component.moduleId,
+        const isEnabled = await deps.componentRuntime.isComponentEnabled({
+          componentId: component.componentId,
         });
 
         if (!isEnabled) {

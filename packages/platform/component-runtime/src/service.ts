@@ -5,47 +5,49 @@ import { schema } from "@bedrock/db/schema";
 import { noopLogger, sha256Hex, stableStringify } from "@bedrock/kernel";
 
 import {
-  ImmutableModuleError,
+  ImmutableComponentError,
   MixedDeployError,
-  ModuleDependencyViolationError,
-  ModuleDisabledError,
-  ModuleManifestValidationError,
-  ModuleStateVersionConflictError,
-  UnknownModuleError,
+  ComponentDependencyViolationError,
+  ComponentDisabledError,
+  ComponentManifestValidationError,
+  ComponentStateVersionConflictError,
+  UnknownComponentError,
 } from "./errors";
 import {
   DEFAULT_RETRY_AFTER_SEC,
   MAX_RETRY_AFTER_SEC,
   MIN_RETRY_AFTER_SEC,
-  MODULE_SCOPE_GLOBAL_ID,
-  type EffectiveModuleState,
-  type ListModuleEventsInput,
-  type ListModulesInput,
-  type ModuleCatalogEntry,
-  type ModuleManifest,
-  type ModuleRuntimeInfo,
-  type ModuleRuntimeService,
-  type ModuleRuntimeServiceDeps,
-  type ModuleStateListInput,
-  type ModuleScopeType,
-  type ModuleState,
-  type ModuleStateEventRecord,
-  type ModuleStateRecord,
-  type ModuleStateUpdateInput,
+  COMPONENT_SCOPE_GLOBAL_ID,
+  type ComponentStatePreview,
+  type ComponentStatePreviewInput,
+  type EffectiveComponentState,
+  type ListComponentEventsInput,
+  type ListComponentsInput,
+  type ComponentCatalogEntry,
+  type ComponentManifest,
+  type ComponentRuntimeInfo,
+  type ComponentRuntimeService,
+  type ComponentRuntimeServiceDeps,
+  type ComponentStateListInput,
+  type ComponentScopeType,
+  type ComponentState,
+  type ComponentStateEventRecord,
+  type ComponentStateRecord,
+  type ComponentStateUpdateInput,
 } from "./types";
 
 const ADVISORY_LOCK_KEY = 7_020_261;
 const DEFAULT_CACHE_TTL_MS = 30_000;
 const DEFAULT_EPOCH_POLL_INTERVAL_MS = 5_000;
-const DEFAULT_LISTEN_CHANNEL = "module_state_changed";
+const DEFAULT_LISTEN_CHANNEL = "component_state_changed";
 
 interface ScopeStateContext {
-  global: Map<string, ModuleStateRecord>;
-  book: Map<string, ModuleStateRecord>;
+  global: Map<string, ComponentStateRecord>;
+  book: Map<string, ComponentStateRecord>;
 }
 
 interface EffectiveCacheEntry {
-  value: EffectiveModuleState;
+  value: EffectiveComponentState;
   epoch: bigint;
   expiresAt: number;
 }
@@ -76,9 +78,9 @@ function clampRetryAfterSec(value: number | null | undefined): number {
   );
 }
 
-function normalizeScope(scopeType: ModuleScopeType, scopeId?: string) {
+function normalizeScope(scopeType: ComponentScopeType, scopeId?: string) {
   if (scopeType === "global") {
-    return { scopeType, scopeId: MODULE_SCOPE_GLOBAL_ID };
+    return { scopeType, scopeId: COMPONENT_SCOPE_GLOBAL_ID };
   }
   if (!scopeId || scopeId.trim().length === 0) {
     throw new Error("scopeId is required for book scope");
@@ -86,34 +88,69 @@ function normalizeScope(scopeType: ModuleScopeType, scopeId?: string) {
   return { scopeType, scopeId: scopeId.trim() };
 }
 
-function normalizeManifestsForChecksum(manifests: ModuleManifest[]) {
+function normalizeManifestsForChecksum(manifests: ComponentManifest[]) {
   return [...manifests]
     .map((manifest) => ({
       ...manifest,
       dependencies: [...manifest.dependencies].sort((a, b) =>
-        a.moduleId.localeCompare(b.moduleId),
+        a.componentId.localeCompare(b.componentId),
       ),
     }))
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function validateManifests(manifests: ModuleManifest[]) {
+function validateComponentManifests(manifests: ComponentManifest[]) {
   const issues: string[] = [];
   const ids = new Set<string>();
 
   for (const manifest of manifests) {
+    if (!manifest.id.trim()) {
+      issues.push("component id must be non-empty");
+    }
     if (ids.has(manifest.id)) {
-      issues.push(`duplicate module id ${manifest.id}`);
+      issues.push(`duplicate component id ${manifest.id}`);
       continue;
     }
     ids.add(manifest.id);
+
+    if (manifest.version <= 0 || !Number.isInteger(manifest.version)) {
+      issues.push(`component ${manifest.id} must have positive integer version`);
+    }
+
+    if (manifest.scopeSupport.global !== true) {
+      issues.push(`component ${manifest.id} must support global scope`);
+    }
+
+    if (
+      manifest.capabilities.api?.version &&
+      !manifest.capabilities.api.routePath
+    ) {
+      issues.push(`component ${manifest.id} api capability must define routePath`);
+    }
+
+    if (manifest.capabilities.workers) {
+      const seenWorkerIds = new Set<string>();
+      for (const workerId of manifest.capabilities.workers) {
+        if (!workerId.trim()) {
+          issues.push(`component ${manifest.id} has empty worker capability id`);
+          continue;
+        }
+        if (seenWorkerIds.has(workerId)) {
+          issues.push(
+            `component ${manifest.id} has duplicate worker capability ${workerId}`,
+          );
+          continue;
+        }
+        seenWorkerIds.add(workerId);
+      }
+    }
   }
 
   for (const manifest of manifests) {
     for (const dependency of manifest.dependencies) {
-      if (!ids.has(dependency.moduleId)) {
+      if (!ids.has(dependency.componentId)) {
         issues.push(
-          `module ${manifest.id} depends on missing module ${dependency.moduleId}`,
+          `component ${manifest.id} depends on missing component ${dependency.componentId}`,
         );
       }
     }
@@ -123,60 +160,108 @@ function validateManifests(manifests: ModuleManifest[]) {
   for (const manifest of manifests) {
     graph.set(
       manifest.id,
-      manifest.dependencies.map((dependency) => dependency.moduleId),
+      manifest.dependencies.map((dependency) => dependency.componentId),
     );
   }
 
   const visiting = new Set<string>();
   const visited = new Set<string>();
 
-  function dfs(moduleId: string, stack: string[]) {
-    if (visiting.has(moduleId)) {
-      const cycleStart = stack.indexOf(moduleId);
-      const cycle = [...stack.slice(cycleStart), moduleId];
+  function dfs(componentId: string, stack: string[]) {
+    if (visiting.has(componentId)) {
+      const cycleStart = stack.indexOf(componentId);
+      const cycle = [...stack.slice(cycleStart), componentId];
       issues.push(`dependency cycle ${cycle.join(" -> ")}`);
       return;
     }
-    if (visited.has(moduleId)) {
+    if (visited.has(componentId)) {
       return;
     }
 
-    visiting.add(moduleId);
-    stack.push(moduleId);
+    visiting.add(componentId);
+    stack.push(componentId);
 
-    for (const dependency of graph.get(moduleId) ?? []) {
+    for (const dependency of graph.get(componentId) ?? []) {
       dfs(dependency, stack);
     }
 
     stack.pop();
-    visiting.delete(moduleId);
-    visited.add(moduleId);
+    visiting.delete(componentId);
+    visited.add(componentId);
   }
 
-  for (const moduleId of graph.keys()) {
-    dfs(moduleId, []);
+  for (const componentId of graph.keys()) {
+    dfs(componentId, []);
   }
 
   if (issues.length > 0) {
-    throw new ModuleManifestValidationError(issues);
+    throw new ComponentManifestValidationError(issues);
   }
 }
 
-function stateKey(
-  moduleId: string,
-  scopeType: ModuleScopeType,
-  scopeId: string,
-) {
-  return `${moduleId}|${scopeType}|${scopeId}`;
+function orderManifestsTopologically(
+  manifests: ComponentManifest[],
+): ComponentManifest[] {
+  const byId = new Map(manifests.map((manifest) => [manifest.id, manifest]));
+  const inDegree = new Map<string, number>();
+  const dependents = new Map<string, string[]>();
+
+  for (const manifest of manifests) {
+    inDegree.set(manifest.id, manifest.dependencies.length);
+    for (const dependency of manifest.dependencies) {
+      const next = dependents.get(dependency.componentId) ?? [];
+      next.push(manifest.id);
+      dependents.set(dependency.componentId, next);
+    }
+  }
+
+  const ready = [...inDegree.entries()]
+    .filter(([, degree]) => degree === 0)
+    .map(([componentId]) => componentId)
+    .sort((a, b) => a.localeCompare(b));
+
+  const ordered: string[] = [];
+
+  while (ready.length > 0) {
+    const nextId = ready.shift()!;
+    ordered.push(nextId);
+
+    for (const dependentId of dependents.get(nextId) ?? []) {
+      const remaining = (inDegree.get(dependentId) ?? 0) - 1;
+      inDegree.set(dependentId, remaining);
+      if (remaining === 0) {
+        ready.push(dependentId);
+      }
+    }
+
+    ready.sort((a, b) => a.localeCompare(b));
+  }
+
+  if (ordered.length !== manifests.length) {
+    throw new ComponentManifestValidationError([
+      "dependency cycle detected while ordering component manifests",
+    ]);
+  }
+
+  return ordered.map((id) => byId.get(id)!);
 }
 
-export function createModuleRuntimeService(
-  deps: ModuleRuntimeServiceDeps,
-): ModuleRuntimeService {
-  const log = deps.logger?.child({ svc: "module-runtime" }) ?? noopLogger;
+function stateKey(
+  componentId: string,
+  scopeType: ComponentScopeType,
+  scopeId: string,
+) {
+  return `${componentId}|${scopeType}|${scopeId}`;
+}
+
+export function createComponentRuntimeService(
+  deps: ComponentRuntimeServiceDeps,
+): ComponentRuntimeService {
+  const log = deps.logger?.child({ svc: "component-runtime" }) ?? noopLogger;
   const manifests = [...deps.manifests];
 
-  validateManifests(manifests);
+  validateComponentManifests(manifests);
+  const orderedManifests = orderManifestsTopologically(manifests);
 
   const manifestMap = new Map(
     manifests.map((manifest) => [manifest.id, manifest]),
@@ -212,18 +297,18 @@ export function createModuleRuntimeService(
 
   async function ensureRuntimeMeta(
     conn: DbLike = deps.db,
-  ): Promise<ModuleRuntimeInfo> {
+  ): Promise<ComponentRuntimeInfo> {
     const [existing] = await conn
       .select()
-      .from(schema.platformModuleRuntimeMeta)
-      .where(eq(schema.platformModuleRuntimeMeta.id, 1))
+      .from(schema.platformComponentRuntimeMeta)
+      .where(eq(schema.platformComponentRuntimeMeta.id, 1))
       .limit(1);
 
     let row = existing;
 
     if (!row) {
       const [created] = await conn
-        .insert(schema.platformModuleRuntimeMeta)
+        .insert(schema.platformComponentRuntimeMeta)
         .values({
           id: 1,
           stateEpoch: 1n,
@@ -234,17 +319,17 @@ export function createModuleRuntimeService(
       row = created;
     } else if (row.manifestSeenVersion < manifestSeenVersion) {
       const [updated] = await conn
-        .update(schema.platformModuleRuntimeMeta)
+        .update(schema.platformComponentRuntimeMeta)
         .set({
           manifestSeenVersion,
           updatedAt: new Date(),
         })
-        .where(eq(schema.platformModuleRuntimeMeta.id, 1))
+        .where(eq(schema.platformComponentRuntimeMeta.id, 1))
         .returning();
       row = updated;
     }
 
-    const info: ModuleRuntimeInfo = {
+    const info: ComponentRuntimeInfo = {
       stateEpoch: row!.stateEpoch,
       manifestChecksum: row!.manifestChecksum,
       manifestSeenVersion: row!.manifestSeenVersion,
@@ -277,25 +362,25 @@ export function createModuleRuntimeService(
     }
 
     const globalFilter = and(
-      eq(schema.platformModuleStates.scopeType, "global"),
-      eq(schema.platformModuleStates.scopeId, MODULE_SCOPE_GLOBAL_ID),
+      eq(schema.platformComponentStates.scopeType, "global"),
+      eq(schema.platformComponentStates.scopeId, COMPONENT_SCOPE_GLOBAL_ID),
     );
 
     const whereClause = bookId
       ? or(
           globalFilter,
           and(
-            eq(schema.platformModuleStates.scopeType, "book"),
-            eq(schema.platformModuleStates.scopeId, bookId),
+            eq(schema.platformComponentStates.scopeType, "book"),
+            eq(schema.platformComponentStates.scopeId, bookId),
           ),
         )
       : globalFilter;
 
     const rows = await deps.db
       .select()
-      .from(schema.platformModuleStates)
+      .from(schema.platformComponentStates)
       .where(whereClause)
-      .orderBy(schema.platformModuleStates.changedAt);
+      .orderBy(schema.platformComponentStates.changedAt);
 
     const context: ScopeStateContext = {
       global: new Map(),
@@ -303,9 +388,9 @@ export function createModuleRuntimeService(
     };
 
     for (const row of rows) {
-      const record: ModuleStateRecord = {
+      const record: ComponentStateRecord = {
         id: row.id,
-        moduleId: row.moduleId,
+        componentId: row.componentId,
         scopeType: row.scopeType,
         scopeId: row.scopeId,
         state: row.state,
@@ -317,9 +402,9 @@ export function createModuleRuntimeService(
       };
 
       if (row.scopeType === "global") {
-        context.global.set(row.moduleId, record);
+        context.global.set(row.componentId, record);
       } else {
-        context.book.set(row.moduleId, record);
+        context.book.set(row.componentId, record);
       }
     }
 
@@ -333,15 +418,15 @@ export function createModuleRuntimeService(
   }
 
   function getRequestedState(
-    moduleId: string,
+    componentId: string,
     context: ScopeStateContext,
   ): {
-    state: ModuleState;
+    state: ComponentState;
     source: "default" | "global" | "book";
     reason: string;
     retryAfterSec: number;
   } {
-    const bookOverride = context.book.get(moduleId);
+    const bookOverride = context.book.get(componentId);
     if (bookOverride) {
       return {
         state: bookOverride.state,
@@ -351,7 +436,7 @@ export function createModuleRuntimeService(
       };
     }
 
-    const globalOverride = context.global.get(moduleId);
+    const globalOverride = context.global.get(componentId);
     if (globalOverride) {
       return {
         state: globalOverride.state,
@@ -361,9 +446,9 @@ export function createModuleRuntimeService(
       };
     }
 
-    const manifest = manifestMap.get(moduleId);
+    const manifest = manifestMap.get(componentId);
     if (!manifest) {
-      throw new UnknownModuleError(moduleId);
+      throw new UnknownComponentError(componentId);
     }
 
     return {
@@ -377,26 +462,26 @@ export function createModuleRuntimeService(
   }
 
   function resolveEffectiveState(input: {
-    moduleId: string;
-    scopeType: ModuleScopeType;
+    componentId: string;
+    scopeType: ComponentScopeType;
     scopeId: string;
     context: ScopeStateContext;
-    memo: Map<string, EffectiveModuleState>;
-  }): EffectiveModuleState {
-    const memoKey = `${input.moduleId}|${input.scopeType}|${input.scopeId}`;
+    memo: Map<string, EffectiveComponentState>;
+  }): EffectiveComponentState {
+    const memoKey = `${input.componentId}|${input.scopeType}|${input.scopeId}`;
     const fromMemo = input.memo.get(memoKey);
     if (fromMemo) {
       return fromMemo;
     }
 
-    const manifest = manifestMap.get(input.moduleId);
+    const manifest = manifestMap.get(input.componentId);
     if (!manifest) {
-      throw new UnknownModuleError(input.moduleId);
+      throw new UnknownComponentError(input.componentId);
     }
 
-    const requested = getRequestedState(input.moduleId, input.context);
-    const base: EffectiveModuleState = {
-      moduleId: input.moduleId,
+    const requested = getRequestedState(input.componentId, input.context);
+    const base: EffectiveComponentState = {
+      componentId: input.componentId,
       state: requested.state,
       source: requested.source,
       reason: requested.reason,
@@ -405,7 +490,7 @@ export function createModuleRuntimeService(
         scopeType: input.scopeType,
         scopeId: input.scopeId,
       },
-      dependencyChain: [input.moduleId],
+      dependencyChain: [input.componentId],
       manifestVersion: manifest.version,
     };
 
@@ -417,20 +502,20 @@ export function createModuleRuntimeService(
     for (const dependency of manifest.dependencies) {
       const dependencyState = resolveEffectiveState({
         ...input,
-        moduleId: dependency.moduleId,
+        componentId: dependency.componentId,
       });
 
       if (dependencyState.state === "disabled") {
-        const disabled: EffectiveModuleState = {
+        const disabled: EffectiveComponentState = {
           ...base,
           state: "disabled",
           source: "dependency",
-          reason: `dependency ${dependency.moduleId} is disabled`,
+          reason: `dependency ${dependency.componentId} is disabled`,
           retryAfterSec: Math.max(
             base.retryAfterSec,
             dependencyState.retryAfterSec,
           ),
-          dependencyChain: [input.moduleId, ...dependencyState.dependencyChain],
+          dependencyChain: [input.componentId, ...dependencyState.dependencyChain],
         };
         input.memo.set(memoKey, disabled);
         return disabled;
@@ -441,12 +526,12 @@ export function createModuleRuntimeService(
     return base;
   }
 
-  async function getEffectiveState(input: {
-    moduleId: string;
+  async function getEffectiveComponentState(input: {
+    componentId: string;
     bookId?: string;
-  }): Promise<EffectiveModuleState> {
-    if (!manifestMap.has(input.moduleId)) {
-      throw new UnknownModuleError(input.moduleId);
+  }): Promise<EffectiveComponentState> {
+    if (!manifestMap.has(input.componentId)) {
+      throw new UnknownComponentError(input.componentId);
     }
 
     await refreshRuntimeInfo();
@@ -455,7 +540,7 @@ export function createModuleRuntimeService(
       ? normalizeScope("book", input.bookId)
       : normalizeScope("global");
 
-    const key = `${input.moduleId}|${normalizedScope.scopeType}|${normalizedScope.scopeId}`;
+    const key = `${input.componentId}|${normalizedScope.scopeType}|${normalizedScope.scopeId}`;
     const now = Date.now();
     const cached = effectiveCache.get(key);
 
@@ -465,7 +550,7 @@ export function createModuleRuntimeService(
 
     const context = await loadScopeStateContext(input.bookId);
     const resolved = resolveEffectiveState({
-      moduleId: input.moduleId,
+      componentId: input.componentId,
       scopeType: normalizedScope.scopeType,
       scopeId: normalizedScope.scopeId,
       context,
@@ -481,34 +566,34 @@ export function createModuleRuntimeService(
     return resolved;
   }
 
-  async function isModuleEnabled(input: {
-    moduleId: string;
+  async function isComponentEnabled(input: {
+    componentId: string;
     bookId?: string;
   }): Promise<boolean> {
-    const effective = await getEffectiveState(input);
+    const effective = await getEffectiveComponentState(input);
     return effective.state === "enabled";
   }
 
-  async function assertModuleEnabled(input: {
-    moduleId: string;
+  async function assertComponentEnabled(input: {
+    componentId: string;
     bookId?: string;
   }): Promise<void> {
-    const effective = await getEffectiveState(input);
+    const effective = await getEffectiveComponentState(input);
     if (effective.state === "disabled") {
-      throw new ModuleDisabledError(
-        input.moduleId,
+      throw new ComponentDisabledError(
+        input.componentId,
         effective.scope,
         effective.state,
         effective.dependencyChain,
         effective.retryAfterSec,
-        effective.reason ?? "module disabled",
+        effective.reason ?? "component disabled",
       );
     }
   }
 
-  async function listModules(
-    input: ListModulesInput = {},
-  ): Promise<ModuleCatalogEntry[]> {
+  async function listComponents(
+    input: ListComponentsInput = {},
+  ): Promise<ComponentCatalogEntry[]> {
     await refreshRuntimeInfo();
 
     const context = await loadScopeStateContext(input.bookId);
@@ -516,14 +601,12 @@ export function createModuleRuntimeService(
       ? normalizeScope("book", input.bookId)
       : normalizeScope("global");
 
-    const memo = new Map<string, EffectiveModuleState>();
+    const memo = new Map<string, EffectiveComponentState>();
 
-    return manifests
-      .slice()
-      .sort((a, b) => a.id.localeCompare(b.id))
+    return orderedManifests
       .map((manifest) => {
         const effective = resolveEffectiveState({
-          moduleId: manifest.id,
+          componentId: manifest.id,
           scopeType: scope.scopeType,
           scopeId: scope.scopeId,
           context,
@@ -535,41 +618,97 @@ export function createModuleRuntimeService(
           effective,
           globalState: context.global.get(manifest.id) ?? null,
           bookState: context.book.get(manifest.id) ?? null,
-        } satisfies ModuleCatalogEntry;
+        } satisfies ComponentCatalogEntry;
       });
   }
 
-  async function listModuleStates(input: ModuleStateListInput = {}) {
+  function cloneScopeStateContext(context: ScopeStateContext): ScopeStateContext {
+    return {
+      global: new Map(context.global),
+      book: new Map(context.book),
+    };
+  }
+
+  function resolveScopeEffectiveStates(input: {
+    scopeType: ComponentScopeType;
+    scopeId: string;
+    context: ScopeStateContext;
+  }) {
+    const memo = new Map<string, EffectiveComponentState>();
+    const states = new Map<string, EffectiveComponentState>();
+    for (const manifest of orderedManifests) {
+      states.set(
+        manifest.id,
+        resolveEffectiveState({
+          componentId: manifest.id,
+          scopeType: input.scopeType,
+          scopeId: input.scopeId,
+          context: input.context,
+          memo,
+        }),
+      );
+    }
+    return states;
+  }
+
+  function sameEffectiveState(
+    left: EffectiveComponentState,
+    right: EffectiveComponentState,
+  ) {
+    if (left.state !== right.state) {
+      return false;
+    }
+    if (left.source !== right.source) {
+      return false;
+    }
+    if ((left.reason ?? null) !== (right.reason ?? null)) {
+      return false;
+    }
+    if (left.retryAfterSec !== right.retryAfterSec) {
+      return false;
+    }
+    if (left.dependencyChain.length !== right.dependencyChain.length) {
+      return false;
+    }
+    for (let index = 0; index < left.dependencyChain.length; index += 1) {
+      if (left.dependencyChain[index] !== right.dependencyChain[index]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async function listComponentStates(input: ComponentStateListInput = {}) {
     const limit = Math.max(1, Math.min(500, input.limit ?? 100));
     const offset = Math.max(0, input.offset ?? 0);
 
     const predicates = [] as any[];
 
-    if (input.moduleId) {
-      predicates.push(eq(schema.platformModuleStates.moduleId, input.moduleId));
+    if (input.componentId) {
+      predicates.push(eq(schema.platformComponentStates.componentId, input.componentId));
     }
 
     if (input.scopeType) {
       predicates.push(
-        eq(schema.platformModuleStates.scopeType, input.scopeType),
+        eq(schema.platformComponentStates.scopeType, input.scopeType),
       );
     }
 
     if (input.scopeId) {
-      predicates.push(eq(schema.platformModuleStates.scopeId, input.scopeId));
+      predicates.push(eq(schema.platformComponentStates.scopeId, input.scopeId));
     }
 
     const rows = await deps.db
       .select()
-      .from(schema.platformModuleStates)
+      .from(schema.platformComponentStates)
       .where(predicates.length > 0 ? and(...predicates) : undefined)
-      .orderBy(desc(schema.platformModuleStates.changedAt))
+      .orderBy(desc(schema.platformComponentStates.changedAt))
       .limit(limit)
       .offset(offset);
 
     return rows.map((row) => ({
       id: row.id,
-      moduleId: row.moduleId,
+      componentId: row.componentId,
       scopeType: row.scopeType,
       scopeId: row.scopeId,
       state: row.state,
@@ -578,42 +717,42 @@ export function createModuleRuntimeService(
       version: row.version,
       changedBy: row.changedBy,
       changedAt: row.changedAt,
-    })) satisfies ModuleStateRecord[];
+    })) satisfies ComponentStateRecord[];
   }
 
-  async function listModuleEvents(
-    input: ListModuleEventsInput = {},
-  ): Promise<ModuleStateEventRecord[]> {
+  async function listComponentEvents(
+    input: ListComponentEventsInput = {},
+  ): Promise<ComponentStateEventRecord[]> {
     const limit = Math.max(1, Math.min(500, input.limit ?? 100));
     const offset = Math.max(0, input.offset ?? 0);
 
     const predicates = [] as any[];
 
-    if (input.moduleId) {
-      predicates.push(eq(schema.platformModuleEvents.moduleId, input.moduleId));
+    if (input.componentId) {
+      predicates.push(eq(schema.platformComponentEvents.componentId, input.componentId));
     }
 
     if (input.scopeType) {
       predicates.push(
-        eq(schema.platformModuleEvents.scopeType, input.scopeType),
+        eq(schema.platformComponentEvents.scopeType, input.scopeType),
       );
     }
 
     if (input.scopeId) {
-      predicates.push(eq(schema.platformModuleEvents.scopeId, input.scopeId));
+      predicates.push(eq(schema.platformComponentEvents.scopeId, input.scopeId));
     }
 
     const rows = await deps.db
       .select()
-      .from(schema.platformModuleEvents)
+      .from(schema.platformComponentEvents)
       .where(predicates.length > 0 ? and(...predicates) : undefined)
-      .orderBy(desc(schema.platformModuleEvents.changedAt))
+      .orderBy(desc(schema.platformComponentEvents.changedAt))
       .limit(limit)
       .offset(offset);
 
     return rows.map((row) => ({
       id: row.id,
-      moduleId: row.moduleId,
+      componentId: row.componentId,
       scopeType: row.scopeType,
       scopeId: row.scopeId,
       previousState: row.previousState,
@@ -631,10 +770,10 @@ export function createModuleRuntimeService(
     states: Map<
       string,
       {
-        moduleId: string;
-        scopeType: ModuleScopeType;
+        componentId: string;
+        scopeType: ComponentScopeType;
         scopeId: string;
-        state: ModuleState;
+        state: ComponentState;
       }
     >;
   }) {
@@ -646,8 +785,8 @@ export function createModuleRuntimeService(
       }
     }
 
-    const scopes: { scopeType: ModuleScopeType; scopeId: string }[] = [
-      { scopeType: "global", scopeId: MODULE_SCOPE_GLOBAL_ID },
+    const scopes: { scopeType: ComponentScopeType; scopeId: string }[] = [
+      { scopeType: "global", scopeId: COMPONENT_SCOPE_GLOBAL_ID },
       ...[...bookScopes].map((scopeId) => ({
         scopeType: "book" as const,
         scopeId,
@@ -659,7 +798,7 @@ export function createModuleRuntimeService(
         const own =
           input.states.get(stateKey(manifest.id, "book", scope.scopeId)) ??
           input.states.get(
-            stateKey(manifest.id, "global", MODULE_SCOPE_GLOBAL_ID),
+            stateKey(manifest.id, "global", COMPONENT_SCOPE_GLOBAL_ID),
           );
         const ownState =
           own?.state ?? (manifest.enabledByDefault ? "enabled" : "disabled");
@@ -671,21 +810,21 @@ export function createModuleRuntimeService(
         for (const dependency of manifest.dependencies) {
           const depStateRecord =
             input.states.get(
-              stateKey(dependency.moduleId, "book", scope.scopeId),
+              stateKey(dependency.componentId, "book", scope.scopeId),
             ) ??
             input.states.get(
-              stateKey(dependency.moduleId, "global", MODULE_SCOPE_GLOBAL_ID),
+              stateKey(dependency.componentId, "global", COMPONENT_SCOPE_GLOBAL_ID),
             );
 
-          const depManifest = manifestMap.get(dependency.moduleId);
+          const depManifest = manifestMap.get(dependency.componentId);
           const depState =
             depStateRecord?.state ??
             (depManifest?.enabledByDefault ? "enabled" : "disabled");
 
           if (depState === "disabled") {
-            throw new ModuleDependencyViolationError(
+            throw new ComponentDependencyViolationError(
               manifest.id,
-              dependency.moduleId,
+              dependency.componentId,
               {
                 scopeType: scope.scopeType,
                 scopeId: scope.scopeId,
@@ -697,13 +836,13 @@ export function createModuleRuntimeService(
     }
   }
 
-  async function updateModuleState(input: ModuleStateUpdateInput) {
-    const manifest = manifestMap.get(input.moduleId);
+  async function updateComponentState(input: ComponentStateUpdateInput) {
+    const manifest = manifestMap.get(input.componentId);
     if (!manifest) {
-      throw new UnknownModuleError(input.moduleId);
+      throw new UnknownComponentError(input.componentId);
     }
-    if (manifest.mutable === false) {
-      throw new ImmutableModuleError(input.moduleId);
+    if (manifest.mutability === "immutable") {
+      throw new ImmutableComponentError(input.componentId);
     }
 
     const normalizedScope = normalizeScope(input.scopeType, input.scopeId);
@@ -722,23 +861,23 @@ export function createModuleRuntimeService(
 
       const [current] = await tx
         .select()
-        .from(schema.platformModuleStates)
+        .from(schema.platformComponentStates)
         .where(
           and(
-            eq(schema.platformModuleStates.moduleId, input.moduleId),
+            eq(schema.platformComponentStates.componentId, input.componentId),
             eq(
-              schema.platformModuleStates.scopeType,
+              schema.platformComponentStates.scopeType,
               normalizedScope.scopeType,
             ),
-            eq(schema.platformModuleStates.scopeId, normalizedScope.scopeId),
+            eq(schema.platformComponentStates.scopeId, normalizedScope.scopeId),
           ),
         )
         .limit(1);
 
       const actualVersion = current?.version ?? 0;
       if (input.expectedVersion !== actualVersion) {
-        throw new ModuleStateVersionConflictError(
-          input.moduleId,
+        throw new ComponentStateVersionConflictError(
+          input.componentId,
           normalizedScope.scopeType,
           normalizedScope.scopeId,
           input.expectedVersion,
@@ -746,20 +885,20 @@ export function createModuleRuntimeService(
         );
       }
 
-      const allRows = await tx.select().from(schema.platformModuleStates);
+      const allRows = await tx.select().from(schema.platformComponentStates);
       const stateMap = new Map<
         string,
         {
-          moduleId: string;
-          scopeType: ModuleScopeType;
+          componentId: string;
+          scopeType: ComponentScopeType;
           scopeId: string;
-          state: ModuleState;
+          state: ComponentState;
         }
       >();
 
       for (const row of allRows) {
-        stateMap.set(stateKey(row.moduleId, row.scopeType, row.scopeId), {
-          moduleId: row.moduleId,
+        stateMap.set(stateKey(row.componentId, row.scopeType, row.scopeId), {
+          componentId: row.componentId,
           scopeType: row.scopeType,
           scopeId: row.scopeId,
           state: row.state,
@@ -768,12 +907,12 @@ export function createModuleRuntimeService(
 
       stateMap.set(
         stateKey(
-          input.moduleId,
+          input.componentId,
           normalizedScope.scopeType,
           normalizedScope.scopeId,
         ),
         {
-          moduleId: input.moduleId,
+          componentId: input.componentId,
           scopeType: normalizedScope.scopeType,
           scopeId: normalizedScope.scopeId,
           state: input.state,
@@ -783,9 +922,9 @@ export function createModuleRuntimeService(
       validateRequestedStates({ states: stateMap });
 
       const [saved] = await tx
-        .insert(schema.platformModuleStates)
+        .insert(schema.platformComponentStates)
         .values({
-          moduleId: input.moduleId,
+          componentId: input.componentId,
           scopeType: normalizedScope.scopeType,
           scopeId: normalizedScope.scopeId,
           state: input.state,
@@ -797,9 +936,9 @@ export function createModuleRuntimeService(
         })
         .onConflictDoUpdate({
           target: [
-            schema.platformModuleStates.moduleId,
-            schema.platformModuleStates.scopeType,
-            schema.platformModuleStates.scopeId,
+            schema.platformComponentStates.componentId,
+            schema.platformComponentStates.scopeType,
+            schema.platformComponentStates.scopeId,
           ],
           set: {
             state: input.state,
@@ -813,8 +952,8 @@ export function createModuleRuntimeService(
         })
         .returning();
 
-      await tx.insert(schema.platformModuleEvents).values({
-        moduleId: input.moduleId,
+      await tx.insert(schema.platformComponentEvents).values({
+        componentId: input.componentId,
         scopeType: normalizedScope.scopeType,
         scopeId: normalizedScope.scopeId,
         previousState: current?.state ?? null,
@@ -831,7 +970,7 @@ export function createModuleRuntimeService(
       });
 
       const [metaRow] = await tx
-        .insert(schema.platformModuleRuntimeMeta)
+        .insert(schema.platformComponentRuntimeMeta)
         .values({
           id: 1,
           stateEpoch: 1n,
@@ -839,21 +978,21 @@ export function createModuleRuntimeService(
           manifestSeenVersion,
         })
         .onConflictDoUpdate({
-          target: schema.platformModuleRuntimeMeta.id,
+          target: schema.platformComponentRuntimeMeta.id,
           set: {
-            stateEpoch: sql`${schema.platformModuleRuntimeMeta.stateEpoch} + 1`,
-            manifestSeenVersion: sql`GREATEST(${schema.platformModuleRuntimeMeta.manifestSeenVersion}, ${manifestSeenVersion})`,
+            stateEpoch: sql`${schema.platformComponentRuntimeMeta.stateEpoch} + 1`,
+            manifestSeenVersion: sql`GREATEST(${schema.platformComponentRuntimeMeta.manifestSeenVersion}, ${manifestSeenVersion})`,
             updatedAt: new Date(),
           },
         })
         .returning();
 
       if (!saved) {
-        throw new Error("Failed to save platform module state");
+        throw new Error("Failed to save platform component state");
       }
 
       if (!metaRow) {
-        throw new Error("Failed to update module runtime metadata");
+        throw new Error("Failed to update component runtime metadata");
       }
 
       await tx.execute(
@@ -862,7 +1001,7 @@ export function createModuleRuntimeService(
 
       return {
         id: saved.id,
-        moduleId: saved.moduleId,
+        componentId: saved.componentId,
         scopeType: saved.scopeType,
         scopeId: saved.scopeId,
         state: saved.state,
@@ -879,7 +1018,7 @@ export function createModuleRuntimeService(
 
     return {
       id: updated.id,
-      moduleId: updated.moduleId,
+      componentId: updated.componentId,
       scopeType: updated.scopeType,
       scopeId: updated.scopeId,
       state: updated.state,
@@ -888,10 +1027,124 @@ export function createModuleRuntimeService(
       version: updated.version,
       changedBy: updated.changedBy,
       changedAt: updated.changedAt,
-    } satisfies ModuleStateRecord;
+    } satisfies ComponentStateRecord;
   }
 
-  async function getRuntimeInfo(): Promise<ModuleRuntimeInfo> {
+  async function previewComponentStateUpdate(
+    input: ComponentStatePreviewInput,
+  ): Promise<ComponentStatePreview> {
+    const manifest = manifestMap.get(input.componentId);
+    if (!manifest) {
+      throw new UnknownComponentError(input.componentId);
+    }
+    if (manifest.mutability === "immutable") {
+      throw new ImmutableComponentError(input.componentId);
+    }
+
+    await refreshRuntimeInfo();
+
+    const normalizedScope = normalizeScope(input.scopeType, input.scopeId);
+    const normalizedRetryAfter = clampRetryAfterSec(input.retryAfterSec);
+    const scopedBookId =
+      normalizedScope.scopeType === "book" ? normalizedScope.scopeId : undefined;
+
+    const currentScope = await loadScopeStateContext(scopedBookId);
+    const previewScope = cloneScopeStateContext(currentScope);
+    const now = new Date();
+    const previewRecord: ComponentStateRecord = {
+      id: "__preview__",
+      componentId: input.componentId,
+      scopeType: normalizedScope.scopeType,
+      scopeId: normalizedScope.scopeId,
+      state: input.state,
+      reason: input.reason,
+      retryAfterSec: normalizedRetryAfter,
+      version: 0,
+      changedBy: "__preview__",
+      changedAt: now,
+    };
+
+    if (normalizedScope.scopeType === "global") {
+      previewScope.global.set(input.componentId, previewRecord);
+    } else {
+      previewScope.book.set(input.componentId, previewRecord);
+    }
+
+    const allRows = await deps.db.select().from(schema.platformComponentStates);
+    const stateMap = new Map<
+      string,
+      {
+        componentId: string;
+        scopeType: ComponentScopeType;
+        scopeId: string;
+        state: ComponentState;
+      }
+    >();
+    for (const row of allRows) {
+      stateMap.set(stateKey(row.componentId, row.scopeType, row.scopeId), {
+        componentId: row.componentId,
+        scopeType: row.scopeType,
+        scopeId: row.scopeId,
+        state: row.state,
+      });
+    }
+    stateMap.set(
+      stateKey(
+        input.componentId,
+        normalizedScope.scopeType,
+        normalizedScope.scopeId,
+      ),
+      {
+        componentId: input.componentId,
+        scopeType: normalizedScope.scopeType,
+        scopeId: normalizedScope.scopeId,
+        state: input.state,
+      },
+    );
+    validateRequestedStates({ states: stateMap });
+
+    const before = resolveScopeEffectiveStates({
+      scopeType: normalizedScope.scopeType,
+      scopeId: normalizedScope.scopeId,
+      context: currentScope,
+    });
+    const after = resolveScopeEffectiveStates({
+      scopeType: normalizedScope.scopeType,
+      scopeId: normalizedScope.scopeId,
+      context: previewScope,
+    });
+
+    const impacted = orderedManifests
+      .map((candidate) => {
+        const beforeState = before.get(candidate.id)!;
+        const afterState = after.get(candidate.id)!;
+        if (sameEffectiveState(beforeState, afterState)) {
+          return null;
+        }
+        return {
+          componentId: candidate.id,
+          before: beforeState,
+          after: afterState,
+        };
+      })
+      .filter((candidate): candidate is NonNullable<typeof candidate> =>
+        Boolean(candidate),
+      );
+
+    return {
+      target: {
+        componentId: input.componentId,
+        scopeType: normalizedScope.scopeType,
+        scopeId: normalizedScope.scopeId,
+        state: input.state,
+        reason: input.reason,
+        retryAfterSec: normalizedRetryAfter,
+      },
+      impacted,
+    };
+  }
+
+  async function getRuntimeInfo(): Promise<ComponentRuntimeInfo> {
     return refreshRuntimeInfo();
   }
 
@@ -905,7 +1158,7 @@ export function createModuleRuntimeService(
 
     pollTimer = setInterval(() => {
       void refreshRuntimeInfo().catch((error) => {
-        log.warn("Failed to poll module runtime epoch", {
+        log.warn("Failed to poll component runtime epoch", {
           error: error instanceof Error ? error.message : String(error),
         });
       });
@@ -942,7 +1195,7 @@ export function createModuleRuntimeService(
       await listenClient.query(`LISTEN ${listenChannel}`);
     } catch (error) {
       log.warn(
-        "Module runtime LISTEN setup failed; poll fallback remains active",
+        "Component runtime LISTEN setup failed; poll fallback remains active",
         {
           error: error instanceof Error ? error.message : String(error),
         },
@@ -984,18 +1237,19 @@ export function createModuleRuntimeService(
   }
 
   return {
-    manifests,
+    manifests: orderedManifests,
     manifestChecksum,
-    validateGraph: () => validateManifests(manifests),
+    validateGraph: () => validateComponentManifests(manifests),
     startBackgroundSync,
     stopBackgroundSync,
     getRuntimeInfo,
-    listModules,
-    getEffectiveState,
-    isModuleEnabled,
-    assertModuleEnabled,
-    updateModuleState,
-    listModuleEvents,
-    listModuleStates,
+    listComponents,
+    getEffectiveComponentState,
+    isComponentEnabled,
+    assertComponentEnabled,
+    updateComponentState,
+    previewComponentStateUpdate,
+    listComponentEvents,
+    listComponentStates,
   };
 }

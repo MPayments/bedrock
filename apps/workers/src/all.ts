@@ -4,13 +4,13 @@ import { db } from "@bedrock/db/client";
 import { createConsoleLogger } from "@bedrock/kernel";
 import { createLedgerWorker, createTbClient } from "@bedrock/ledger";
 import {
-  BEDROCK_MODULE_MANIFESTS,
-  createModuleRuntimeService,
-} from "@bedrock/module-runtime";
+  BEDROCK_COMPONENT_MANIFESTS,
+  createComponentRuntimeService,
+} from "@bedrock/component-runtime";
 
 import { env } from "./env";
 import { registerApplicationWorkers } from "./modules/registry";
-import { isModuleEnabledForBooks } from "./modules/runtime-guard";
+import { isComponentEnabledForBooks } from "./modules/runtime-guard";
 import {
   createWorkerMonitoringRegistry,
   startWorkerMonitoringServer,
@@ -18,12 +18,12 @@ import {
 import { installShutdownHandlers, runLoop } from "./run-loop";
 
 const logger = createConsoleLogger({ app: "bedrock-workers" });
-const moduleRuntime = createModuleRuntimeService({
+const componentRuntime = createComponentRuntimeService({
   db,
   logger,
-  manifests: BEDROCK_MODULE_MANIFESTS,
+  manifests: BEDROCK_COMPONENT_MANIFESTS,
 });
-await moduleRuntime.startBackgroundSync();
+await componentRuntime.startBackgroundSync();
 
 // -- Ledger (outbox -> TigerBeetle) --
 const tb = createTbClient(env.TB_CLUSTER_ID, env.TB_ADDRESS);
@@ -31,9 +31,9 @@ const ledgerWorker = createLedgerWorker({
   db,
   tb,
   beforeJob: ({ bookIds }) =>
-    isModuleEnabledForBooks({
-      moduleRuntime,
-      moduleId: "ledger",
+    isComponentEnabledForBooks({
+      componentRuntime,
+      componentId: "ledger",
       bookIds,
     }),
 });
@@ -42,7 +42,7 @@ const applicationWorkers = registerApplicationWorkers({
   db,
   logger,
   env,
-  moduleRuntime,
+  componentRuntime,
 });
 const monitoring = createWorkerMonitoringRegistry();
 const monitoringServer =
@@ -60,8 +60,8 @@ const loops = [
   runLoop(
     "ledger",
     async () => {
-      const enabled = await moduleRuntime.isModuleEnabled({
-        moduleId: "ledger",
+      const enabled = await componentRuntime.isComponentEnabled({
+        componentId: "ledger",
       });
       if (!enabled) {
         return 0;
@@ -98,11 +98,11 @@ installShutdownHandlers(() => {
   if (monitoringServer) {
     void monitoringServer.stop();
   }
-  void moduleRuntime.stopBackgroundSync();
+  void componentRuntime.stopBackgroundSync();
 });
 
 logger.info("All workers started");
 await Promise.all(loops.map((loop) => loop.promise));
 logger.info("All workers stopped");
-await moduleRuntime.stopBackgroundSync();
+await componentRuntime.stopBackgroundSync();
 process.exit(0);

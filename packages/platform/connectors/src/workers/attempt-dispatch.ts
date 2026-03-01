@@ -62,7 +62,7 @@ export function createAttemptDispatchWorker(deps: {
           await connectors.recordAttemptStatus({
             attemptId: attempt.id,
             status: "queued",
-            idempotencyKey: `${attempt.id}:dispatch:guard:${now.toISOString()}`,
+            idempotencyKey: `${attempt.id}:dispatch:guard:${attempt.attemptNo}`,
           });
           continue;
         }

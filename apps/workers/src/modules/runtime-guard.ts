@@ -1,7 +1,7 @@
 import type {
-  BedrockModuleId,
-  ModuleRuntimeService,
-} from "@bedrock/module-runtime";
+  BedrockComponentId,
+  ComponentRuntimeService,
+} from "@bedrock/component-runtime";
 
 function dedupeBookIds(bookIds: readonly string[]): string[] {
   const unique = new Set<string>();
@@ -15,22 +15,22 @@ function dedupeBookIds(bookIds: readonly string[]): string[] {
   return [...unique];
 }
 
-export async function isModuleEnabledForBooks(input: {
-  moduleRuntime: ModuleRuntimeService;
-  moduleId: BedrockModuleId;
+export async function isComponentEnabledForBooks(input: {
+  componentRuntime: ComponentRuntimeService;
+  componentId: BedrockComponentId;
   bookIds?: readonly string[];
 }): Promise<boolean> {
   const bookIds = dedupeBookIds(input.bookIds ?? []);
 
   if (bookIds.length === 0) {
-    return input.moduleRuntime.isModuleEnabled({
-      moduleId: input.moduleId,
+    return input.componentRuntime.isComponentEnabled({
+      componentId: input.componentId,
     });
   }
 
   for (const bookId of bookIds) {
-    const enabled = await input.moduleRuntime.isModuleEnabled({
-      moduleId: input.moduleId,
+    const enabled = await input.componentRuntime.isComponentEnabled({
+      componentId: input.componentId,
       bookId,
     });
     if (!enabled) {

@@ -40,7 +40,7 @@ describe("accounting runtime", () => {
     };
 
     const result = await runtime.resolvePostingPlan({
-      moduleId: "transfer",
+      accountingSourceId: "transfer",
       source: { type: "documents/transfer/post", id: "doc-1" },
       idempotencyKey: "post:doc-1",
       postingDate: new Date("2026-02-28T10:00:00.000Z"),
@@ -89,7 +89,7 @@ describe("accounting runtime", () => {
   it("rejects template usage outside its allowlist", async () => {
     await expect(
       runtime.resolvePostingPlan({
-        moduleId: "external_funding",
+        accountingSourceId: "external_funding",
         source: { type: "documents/transfer/post", id: "doc-1" },
         idempotencyKey: "post:doc-1",
         postingDate: new Date("2026-02-28T10:00:00.000Z"),
@@ -120,7 +120,7 @@ describe("accounting runtime", () => {
   it("rejects posting plans without a concrete book id", async () => {
     await expect(
       runtime.resolvePostingPlan({
-        moduleId: "transfer",
+        accountingSourceId: "transfer",
         source: { type: "documents/transfer/post", id: "doc-1" },
         idempotencyKey: "post:doc-1",
         postingDate: new Date("2026-02-28T10:00:00.000Z"),

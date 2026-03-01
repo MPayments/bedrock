@@ -13,6 +13,7 @@ import {
   getPostingOperationId,
   insertDocumentEvent,
   lockDocument,
+  resolveDocumentAccountingSourceId,
   loadDocumentWithOperationId,
   resolveModule,
 } from "../internal/helpers";
@@ -120,8 +121,14 @@ export function createPostHandler(context: DocumentsServiceContext) {
             moduleContext,
             document,
           );
+          const accountingSourceId = await resolveDocumentAccountingSourceId({
+            module,
+            moduleContext,
+            document,
+            postingPlan,
+          });
           const resolved = await accounting.resolvePostingPlan({
-            moduleId: document.moduleId,
+            accountingSourceId,
             source: {
               type: `documents/${document.docType}/post`,
               id: document.id,

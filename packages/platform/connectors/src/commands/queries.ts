@@ -239,31 +239,116 @@ export function createQueryHandlers(context: ConnectorsServiceContext) {
     });
   }
 
-  async function claimPollBatch(input?: { batchSize?: number }) {
+  async function claimPollBatch(input?: {
+    batchSize?: number;
+    workerId?: string;
+    leaseSec?: number;
+    now?: Date;
+  }) {
     const validated = ClaimPollBatchInputSchema.parse(input ?? {});
+    const now = validated.now ?? new Date();
+    const claimUntil = new Date(now.getTime() + validated.leaseSec * 1000);
+    const claimToken = `${validated.workerId}:${now.toISOString()}`;
 
-    return db
-      .select({
-        attempt: schema.paymentAttempts,
-        intent: schema.connectorPaymentIntents,
-      })
-      .from(schema.paymentAttempts)
-      .innerJoin(
-        schema.connectorPaymentIntents,
-        eq(schema.connectorPaymentIntents.id, schema.paymentAttempts.intentId),
-      )
-      .where(inArray(schema.paymentAttempts.status, ["submitted", "pending"]))
-      .orderBy(schema.paymentAttempts.updatedAt)
-      .limit(validated.batchSize);
+    return db.transaction(async (tx) => {
+      const rows = await tx
+        .select({
+          attemptId: schema.paymentAttempts.id,
+        })
+        .from(schema.paymentAttempts)
+        .where(
+          and(
+            inArray(schema.paymentAttempts.status, ["submitted", "pending"]),
+            or(
+              isNull(schema.paymentAttempts.claimUntil),
+              lte(schema.paymentAttempts.claimUntil, now),
+            ),
+          ),
+        )
+        .orderBy(schema.paymentAttempts.updatedAt, schema.paymentAttempts.id)
+        .for("update", { skipLocked: true })
+        .limit(validated.batchSize);
+
+      if (rows.length === 0) {
+        return [];
+      }
+
+      const attemptIds = rows.map((row) => row.attemptId);
+      await tx
+        .update(schema.paymentAttempts)
+        .set({
+          claimToken,
+          claimUntil,
+          updatedAt: sql`now()`,
+        })
+        .where(inArray(schema.paymentAttempts.id, attemptIds));
+
+      return tx
+        .select({
+          attempt: schema.paymentAttempts,
+          intent: schema.connectorPaymentIntents,
+        })
+        .from(schema.paymentAttempts)
+        .innerJoin(
+          schema.connectorPaymentIntents,
+          eq(schema.connectorPaymentIntents.id, schema.paymentAttempts.intentId),
+        )
+        .where(inArray(schema.paymentAttempts.id, attemptIds))
+        .orderBy(schema.paymentAttempts.updatedAt, schema.paymentAttempts.id);
+    });
   }
 
-  async function claimStatementProviders(input?: { batchSize?: number }) {
+  async function claimStatementProviders(input?: {
+    batchSize?: number;
+    workerId?: string;
+    leaseSec?: number;
+    now?: Date;
+  }) {
     const validated = ClaimStatementBatchInputSchema.parse(input ?? {});
-    return db
-      .select()
-      .from(schema.connectorCursors)
-      .orderBy(schema.connectorCursors.updatedAt)
-      .limit(validated.batchSize);
+    const now = validated.now ?? new Date();
+    const claimUntil = new Date(now.getTime() + validated.leaseSec * 1000);
+    const claimToken = `${validated.workerId}:${now.toISOString()}`;
+
+    return db.transaction(async (tx) => {
+      const rows = await tx
+        .select()
+        .from(schema.connectorCursors)
+        .where(
+          or(
+            isNull(schema.connectorCursors.claimUntil),
+            lte(schema.connectorCursors.claimUntil, now),
+          ),
+        )
+        .orderBy(
+          schema.connectorCursors.updatedAt,
+          schema.connectorCursors.providerCode,
+          schema.connectorCursors.cursorKey,
+        )
+        .for("update", { skipLocked: true })
+        .limit(validated.batchSize);
+
+      for (const row of rows) {
+        await tx
+          .update(schema.connectorCursors)
+          .set({
+            claimToken,
+            claimUntil,
+            updatedAt: sql`now()`,
+          })
+          .where(
+            and(
+              eq(schema.connectorCursors.providerCode, row.providerCode),
+              eq(schema.connectorCursors.cursorKey, row.cursorKey),
+            ),
+          );
+      }
+
+      return rows.map((row) => ({
+        ...row,
+        claimToken,
+        claimUntil,
+      }));
+    });
   }
 
   return {

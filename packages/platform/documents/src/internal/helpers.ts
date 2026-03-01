@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
+import type { DocumentPostingPlan } from "@bedrock/accounting";
 import type { Database, Transaction } from "@bedrock/db";
 import { schema, type Document, type DocumentLinkType } from "@bedrock/db/schema";
 import { canonicalJson, sha256Hex } from "@bedrock/kernel";
@@ -129,6 +130,32 @@ export function resolveDocumentModuleIdentity(module: DocumentModule) {
     moduleId: module.moduleId ?? module.docType,
     moduleVersion: module.moduleVersion ?? 1,
   };
+}
+
+export async function resolveDocumentAccountingSourceId(input: {
+  module: DocumentModule;
+  moduleContext: DocumentModuleContext;
+  document: Document;
+  postingPlan: DocumentPostingPlan;
+}) {
+  const configured =
+    (await input.module.resolveAccountingSourceId?.(
+      input.moduleContext,
+      input.document,
+      input.postingPlan,
+    )) ??
+    input.module.accountingSourceId ??
+    input.module.moduleId ??
+    input.module.docType;
+
+  const accountingSourceId = configured.trim();
+  if (accountingSourceId.length === 0) {
+    throw new InvalidStateError(
+      `Document module ${input.module.docType} resolved an empty accountingSourceId`,
+    );
+  }
+
+  return accountingSourceId;
 }
 
 export async function lockDocument(

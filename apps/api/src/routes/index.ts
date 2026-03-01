@@ -12,4 +12,4 @@ export { fxRatesRoutes } from "./fx-rates";
 export { orchestrationRoutes } from "./orchestration";
 export { paymentsRoutes } from "./payments";
 export { reconciliationRoutes } from "./reconciliation";
-export { systemModulesRoutes } from "./system-modules";
+export { systemComponentsRoutes } from "./system-components";

@@ -1,4 +1,4 @@
-export const DOCUMENT_MODULE_ID = {
+export const ACCOUNTING_SOURCE_ID = {
   TRANSFER: "transfer",
   TRANSFER_SETTLE: "transfer_settle",
   TRANSFER_VOID: "transfer_void",
@@ -14,8 +14,8 @@ export const DOCUMENT_MODULE_ID = {
   EXTERNAL_FUNDING: "external_funding",
 } as const;
 
-export type DocumentModuleId =
-  (typeof DOCUMENT_MODULE_ID)[keyof typeof DOCUMENT_MODULE_ID];
+export type AccountingSourceId =
+  (typeof ACCOUNTING_SOURCE_ID)[keyof typeof ACCOUNTING_SOURCE_ID];
 
 export const OPERATION_CODE = {
   TRANSFER_APPROVE_IMMEDIATE_INTRA: "TRANSFER_APPROVE_IMMEDIATE_INTRA",

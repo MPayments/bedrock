@@ -159,7 +159,7 @@ export interface ResolvePostingPlanResult {
 }
 
 export interface ResolvePostingPlanInput {
-  moduleId: string;
+  accountingSourceId: string;
   source: OperationIntent["source"];
   idempotencyKey: string;
   postingDate: Date;
@@ -225,7 +225,20 @@ function hydrateCompiledPack(
 ): CompiledPack {
   const packKey = String(compiledJson.packKey);
   const version = Number(compiledJson.version);
-  const templates = (compiledJson.templates ?? []) as CompiledPostingTemplate[];
+  const templates = ((compiledJson.templates ?? []) as Record<string, unknown>[])
+    .map((template) => {
+      const allowSources =
+        Array.isArray(template.allowSources) &&
+        template.allowSources.every((item) => typeof item === "string")
+          ? (template.allowSources as string[])
+          : [];
+
+      return {
+        ...template,
+        allowSources,
+      } as CompiledPostingTemplate;
+    })
+    .sort((left, right) => left.key.localeCompare(right.key));
   const serializable: CompiledPackSerializable = {
     packKey,
     version,
@@ -270,7 +283,7 @@ function normalizeTemplate(
       requiredRefs: [...(template.requiredRefs ?? [])].sort(),
       requiredBookRefs: [...template.requiredBookRefs].sort(),
       requiredDimensions: [...template.requiredDimensions].sort(),
-      allowModules: [...template.allowModules].sort(),
+      allowSources: [...template.allowSources].sort(),
       debit: {
         accountNo: template.debit.accountNo,
         dimensions: sortRecord(template.debit.dimensions),
@@ -287,7 +300,7 @@ function normalizeTemplate(
     requiredRefs: [...(template.requiredRefs ?? [])].sort(),
     requiredBookRefs: [...template.requiredBookRefs].sort(),
     requiredDimensions: [...template.requiredDimensions].sort(),
-    allowModules: [...template.allowModules].sort(),
+    allowSources: [...template.allowSources].sort(),
   };
 }
 
@@ -361,8 +374,8 @@ export function validatePackDefinition(
     }
     seen.add(template.key);
 
-    if (template.allowModules.length === 0) {
-      errors.push(`${template.key}: allowModules must be non-empty`);
+    if (template.allowSources.length === 0) {
+      errors.push(`${template.key}: allowSources must be non-empty`);
     }
     if (template.requiredBookRefs.length === 0) {
       errors.push(`${template.key}: requiredBookRefs must be non-empty`);
@@ -621,7 +634,7 @@ async function resolvePostingPlanInternal(
   input: ResolvePostingPlanInput,
   compiledPack: CompiledPack,
 ): Promise<ResolvePostingPlanResult> {
-  const { moduleId, plan } = input;
+  const { accountingSourceId, plan } = input;
   const lines: IntentLine[] = [];
   const appliedTemplates: ResolvedPostingTemplate[] = [];
 
@@ -631,8 +644,8 @@ async function resolvePostingPlanInternal(
       throw new UnknownPostingTemplateError(request.templateKey);
     }
 
-    if (!template.allowModules.includes(moduleId)) {
-      throw new AccountingTemplateAccessError(moduleId, template.key);
+    if (!template.allowSources.includes(accountingSourceId)) {
+      throw new AccountingTemplateAccessError(accountingSourceId, template.key);
     }
 
     validateRequestShape(request, template);

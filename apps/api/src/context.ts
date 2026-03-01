@@ -12,10 +12,10 @@ import type { FxService } from "@bedrock/fx";
 import type { Logger } from "@bedrock/kernel";
 import type { LedgerReadService } from "@bedrock/ledger";
 import {
-  BEDROCK_MODULE_MANIFESTS,
-  createModuleRuntimeService,
-  type ModuleRuntimeService,
-} from "@bedrock/module-runtime";
+  BEDROCK_COMPONENT_MANIFESTS,
+  createComponentRuntimeService,
+  type ComponentRuntimeService,
+} from "@bedrock/component-runtime";
 import type { OperationalAccountsService } from "@bedrock/operational-accounts";
 import type { OrchestrationService } from "@bedrock/orchestration";
 import type { PaymentsService } from "@bedrock/payments";
@@ -51,15 +51,15 @@ export interface AppContext {
   balancesService: BalancesService;
   documentsService: DocumentsService;
   reconciliationService: ReconciliationService;
-  moduleRuntime: ModuleRuntimeService;
+  componentRuntime: ComponentRuntimeService;
 }
 
 export function createAppContext(env: Env): AppContext {
   const platform = createPlatformServices();
-  const moduleRuntime = createModuleRuntimeService({
+  const componentRuntime = createComponentRuntimeService({
     db,
     logger: platform.logger,
-    manifests: BEDROCK_MODULE_MANIFESTS,
+    manifests: BEDROCK_COMPONENT_MANIFESTS,
   });
   const modules = createModuleServices(platform);
 
@@ -81,6 +81,6 @@ export function createAppContext(env: Env): AppContext {
     paymentsService: modules.paymentsService,
     documentsService: modules.documentsService,
     reconciliationService: modules.reconciliationService,
-    moduleRuntime,
+    componentRuntime,
   };
 }

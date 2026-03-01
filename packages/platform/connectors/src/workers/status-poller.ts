@@ -1,4 +1,4 @@
-import { noopLogger, type Logger } from "@bedrock/kernel";
+import { noopLogger, sha256Hex, stableStringify, type Logger } from "@bedrock/kernel";
 
 import { ConnectorProviderNotConfiguredError } from "../errors";
 import type { ConnectorsService } from "../service";
@@ -41,9 +41,22 @@ export function createStatusPollerWorker(deps: {
   const log =
     deps.logger?.child({ svc: "connectors-status-poller" }) ?? noopLogger;
 
-  async function processOnce(opts?: { batchSize?: number }) {
+  async function processOnce(opts?: {
+    batchSize?: number;
+    workerId?: string;
+    leaseSec?: number;
+    now?: Date;
+  }) {
+    const now = opts?.now ?? new Date();
     const batchSize = opts?.batchSize ?? 50;
-    const claimed = await connectors.claimPollBatch({ batchSize });
+    const workerId = opts?.workerId ?? "status-poller";
+    const leaseSec = opts?.leaseSec ?? 60;
+    const claimed = await connectors.claimPollBatch({
+      batchSize,
+      workerId,
+      leaseSec,
+      now,
+    });
     let processed = 0;
 
     for (const item of claimed) {
@@ -65,7 +78,6 @@ export function createStatusPollerWorker(deps: {
       }
 
       const provider = connectors.providers[attempt.providerCode];
-      const now = new Date();
       try {
         if (!provider) {
           throw new ConnectorProviderNotConfiguredError(attempt.providerCode);
@@ -75,6 +87,14 @@ export function createStatusPollerWorker(deps: {
           attemptId: attempt.id,
           externalAttemptRef: attempt.externalAttemptRef,
         });
+        const statusFingerprint = sha256Hex(
+          stableStringify({
+            status: status.status,
+            error: status.error ?? null,
+            responsePayload: status.responsePayload ?? null,
+            externalAttemptRef: attempt.externalAttemptRef,
+          }),
+        );
 
         await connectors.recordAttemptStatus({
           attemptId: attempt.id,
@@ -82,7 +102,7 @@ export function createStatusPollerWorker(deps: {
           responsePayload: status.responsePayload ?? undefined,
           error: status.error ?? undefined,
           nextRetryAt: status.nextRetryAt ?? undefined,
-          idempotencyKey: `${attempt.id}:poll:${attempt.updatedAt.toISOString()}`,
+          idempotencyKey: `${attempt.providerCode}:${attempt.id}:poll:${statusFingerprint}`,
         });
 
         await connectors.upsertProviderHealth({
@@ -107,7 +127,7 @@ export function createStatusPollerWorker(deps: {
           status: "failed_retryable",
           error: message,
           nextRetryAt: computeRetryAt(attempt.attemptNo, now),
-          idempotencyKey: `${attempt.id}:poll:error:${attempt.updatedAt.toISOString()}`,
+          idempotencyKey: `${attempt.providerCode}:${attempt.id}:poll:error:${sha256Hex(message)}`,
         });
         await connectors.upsertProviderHealth({
           providerCode: attempt.providerCode,

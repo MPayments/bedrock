@@ -11,17 +11,17 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export type PlatformModuleState = "enabled" | "disabled";
-export type PlatformModuleScopeType = "global" | "book";
+export type PlatformComponentState = "enabled" | "disabled";
+export type PlatformComponentScopeType = "global" | "book";
 
-export const platformModuleStates = pgTable(
-  "platform_module_states",
+export const platformComponentStates = pgTable(
+  "platform_component_states",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    moduleId: text("module_id").notNull(),
-    scopeType: text("scope_type").$type<PlatformModuleScopeType>().notNull(),
+    componentId: text("component_id").notNull(),
+    scopeType: text("scope_type").$type<PlatformComponentScopeType>().notNull(),
     scopeId: text("scope_id").notNull(),
-    state: text("state").$type<PlatformModuleState>().notNull(),
+    state: text("state").$type<PlatformComponentState>().notNull(),
     reason: text("reason").notNull(),
     retryAfterSec: integer("retry_after_sec").notNull().default(300),
     version: integer("version").notNull().default(1),
@@ -38,25 +38,25 @@ export const platformModuleStates = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (t) => [
-    uniqueIndex("platform_module_states_scope_uq").on(
-      t.moduleId,
+    uniqueIndex("platform_component_states_scope_uq").on(
+      t.componentId,
       t.scopeType,
       t.scopeId,
     ),
-    index("platform_module_states_module_idx").on(t.moduleId),
-    index("platform_module_states_scope_idx").on(t.scopeType, t.scopeId),
+    index("platform_component_states_component_idx").on(t.componentId),
+    index("platform_component_states_scope_idx").on(t.scopeType, t.scopeId),
   ],
 );
 
-export const platformModuleEvents = pgTable(
-  "platform_module_events",
+export const platformComponentEvents = pgTable(
+  "platform_component_events",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    moduleId: text("module_id").notNull(),
-    scopeType: text("scope_type").$type<PlatformModuleScopeType>().notNull(),
+    componentId: text("component_id").notNull(),
+    scopeType: text("scope_type").$type<PlatformComponentScopeType>().notNull(),
     scopeId: text("scope_id").notNull(),
-    previousState: text("previous_state").$type<PlatformModuleState>(),
-    newState: text("new_state").$type<PlatformModuleState>().notNull(),
+    previousState: text("previous_state").$type<PlatformComponentState>(),
+    newState: text("new_state").$type<PlatformComponentState>().notNull(),
     reason: text("reason").notNull(),
     retryAfterSec: integer("retry_after_sec").notNull().default(300),
     changedBy: text("changed_by").notNull(),
@@ -67,11 +67,11 @@ export const platformModuleEvents = pgTable(
     meta: jsonb("meta").$type<Record<string, unknown> | null>(),
   },
   (t) => [
-    index("platform_module_events_module_changed_idx").on(
-      t.moduleId,
+    index("platform_component_events_component_changed_idx").on(
+      t.componentId,
       t.changedAt,
     ),
-    index("platform_module_events_scope_changed_idx").on(
+    index("platform_component_events_scope_changed_idx").on(
       t.scopeType,
       t.scopeId,
       t.changedAt,
@@ -79,8 +79,8 @@ export const platformModuleEvents = pgTable(
   ],
 );
 
-export const platformModuleRuntimeMeta = pgTable(
-  "platform_module_runtime_meta",
+export const platformComponentRuntimeMeta = pgTable(
+  "platform_component_runtime_meta",
   {
     id: integer("id").primaryKey(),
     stateEpoch: bigint("state_epoch", { mode: "bigint" })
@@ -95,13 +95,13 @@ export const platformModuleRuntimeMeta = pgTable(
   },
 );
 
-export type PlatformModuleStateRow = typeof platformModuleStates.$inferSelect;
-export type PlatformModuleStateInsert =
-  typeof platformModuleStates.$inferInsert;
-export type PlatformModuleEvent = typeof platformModuleEvents.$inferSelect;
-export type PlatformModuleEventInsert =
-  typeof platformModuleEvents.$inferInsert;
-export type PlatformModuleRuntimeMeta =
-  typeof platformModuleRuntimeMeta.$inferSelect;
-export type PlatformModuleRuntimeMetaInsert =
-  typeof platformModuleRuntimeMeta.$inferInsert;
+export type PlatformComponentStateRow = typeof platformComponentStates.$inferSelect;
+export type PlatformComponentStateInsert =
+  typeof platformComponentStates.$inferInsert;
+export type PlatformComponentEvent = typeof platformComponentEvents.$inferSelect;
+export type PlatformComponentEventInsert =
+  typeof platformComponentEvents.$inferInsert;
+export type PlatformComponentRuntimeMeta =
+  typeof platformComponentRuntimeMeta.$inferSelect;
+export type PlatformComponentRuntimeMetaInsert =
+  typeof platformComponentRuntimeMeta.$inferInsert;

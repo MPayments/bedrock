@@ -3,27 +3,27 @@ import "./env";
 import { db } from "@bedrock/db/client";
 import { createLedgerWorker, createTbClient } from "@bedrock/ledger";
 import {
-  BEDROCK_MODULE_MANIFESTS,
-  createModuleRuntimeService,
-} from "@bedrock/module-runtime";
+  BEDROCK_COMPONENT_MANIFESTS,
+  createComponentRuntimeService,
+} from "@bedrock/component-runtime";
 
 import { env } from "./env";
-import { isModuleEnabledForBooks } from "./modules/runtime-guard";
+import { isComponentEnabledForBooks } from "./modules/runtime-guard";
 import { installShutdownHandlers, runLoop } from "./run-loop";
 
-const moduleRuntime = createModuleRuntimeService({
+const componentRuntime = createComponentRuntimeService({
   db,
-  manifests: BEDROCK_MODULE_MANIFESTS,
+  manifests: BEDROCK_COMPONENT_MANIFESTS,
 });
-await moduleRuntime.startBackgroundSync();
+await componentRuntime.startBackgroundSync();
 const tb = createTbClient(env.TB_CLUSTER_ID, env.TB_ADDRESS);
 const worker = createLedgerWorker({
   db,
   tb,
   beforeJob: ({ bookIds }) =>
-    isModuleEnabledForBooks({
-      moduleRuntime,
-      moduleId: "ledger",
+    isComponentEnabledForBooks({
+      componentRuntime,
+      componentId: "ledger",
       bookIds,
     }),
 });
@@ -31,7 +31,7 @@ const worker = createLedgerWorker({
 const { promise, stop } = runLoop(
   "ledger",
   async () => {
-    const enabled = await moduleRuntime.isModuleEnabled({ moduleId: "ledger" });
+    const enabled = await componentRuntime.isComponentEnabled({ componentId: "ledger" });
     if (!enabled) {
       return 0;
     }
@@ -44,8 +44,8 @@ const { promise, stop } = runLoop(
 
 installShutdownHandlers(() => {
   stop();
-  void moduleRuntime.stopBackgroundSync();
+  void componentRuntime.stopBackgroundSync();
 });
 await promise;
-await moduleRuntime.stopBackgroundSync();
+await componentRuntime.stopBackgroundSync();
 process.exit(0);

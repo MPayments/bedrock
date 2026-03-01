@@ -35,8 +35,10 @@ export class UnknownPostingTemplateError extends AccountingError {
 }
 
 export class AccountingTemplateAccessError extends AccountingError {
-  constructor(moduleId: string, templateKey: string) {
-    super(`Module ${moduleId} is not allowed to use template ${templateKey}`);
+  constructor(accountingSourceId: string, templateKey: string) {
+    super(
+      `Accounting source ${accountingSourceId} is not allowed to use template ${templateKey}`,
+    );
     this.name = "AccountingTemplateAccessError";
   }
 }

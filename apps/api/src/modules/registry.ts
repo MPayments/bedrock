@@ -1,4 +1,4 @@
-import type { BedrockModuleId } from "@bedrock/module-runtime";
+import type { BedrockComponentId } from "@bedrock/component-runtime";
 
 import type { AppContext } from "../context";
 import {
@@ -15,142 +15,142 @@ import {
   orchestrationRoutes,
   paymentsRoutes,
   reconciliationRoutes,
-  systemModulesRoutes,
+  systemComponentsRoutes,
 } from "../routes";
 import type { ApplicationModule } from "./types";
 
-export interface ApiApplicationModule<Path extends string = string>
+export interface ApiApplicationComponent<Path extends string = string>
   extends ApplicationModule<Path> {
-  id: BedrockModuleId;
+  id: BedrockComponentId;
   guarded?: boolean;
 }
 
-export const accountingModule = {
+export const accountingComponent = {
   id: "accounting",
   routePath: "/accounting",
   registerRoutes(ctx: AppContext) {
     return accountingRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/accounting">;
+} as const satisfies ApiApplicationComponent<"/accounting">;
 
-export const accountProvidersModule = {
+export const accountProvidersComponent = {
   id: "account-providers",
   routePath: "/account-providers",
   registerRoutes(ctx: AppContext) {
     return accountProvidersRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/account-providers">;
+} as const satisfies ApiApplicationComponent<"/account-providers">;
 
-export const accountsModule = {
+export const accountsComponent = {
   id: "accounts",
   routePath: "/accounts",
   registerRoutes(ctx: AppContext) {
     return accountsRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/accounts">;
+} as const satisfies ApiApplicationComponent<"/accounts">;
 
-export const balancesModule = {
+export const balancesComponent = {
   id: "balances",
   routePath: "/balances",
   registerRoutes(ctx: AppContext) {
     return balancesRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/balances">;
+} as const satisfies ApiApplicationComponent<"/balances">;
 
-export const counterpartiesModule = {
+export const counterpartiesComponent = {
   id: "counterparties",
   routePath: "/counterparties",
   registerRoutes(ctx: AppContext) {
     return counterpartiesRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/counterparties">;
+} as const satisfies ApiApplicationComponent<"/counterparties">;
 
-export const counterpartyGroupsModule = {
+export const counterpartyGroupsComponent = {
   id: "counterparty-groups",
   routePath: "/counterparty-groups",
   registerRoutes(ctx: AppContext) {
     return counterpartyGroupsRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/counterparty-groups">;
+} as const satisfies ApiApplicationComponent<"/counterparty-groups">;
 
-export const customersModule = {
+export const customersComponent = {
   id: "customers",
   routePath: "/customers",
   registerRoutes(ctx: AppContext) {
     return customersRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/customers">;
+} as const satisfies ApiApplicationComponent<"/customers">;
 
-export const currenciesModule = {
+export const currenciesComponent = {
   id: "currencies",
   routePath: "/currencies",
   registerRoutes(ctx: AppContext) {
     return currenciesRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/currencies">;
+} as const satisfies ApiApplicationComponent<"/currencies">;
 
-export const fxRatesModule = {
+export const fxRatesComponent = {
   id: "fx-rates",
   routePath: "/fx/rates",
   registerRoutes(ctx: AppContext) {
     return fxRatesRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/fx/rates">;
+} as const satisfies ApiApplicationComponent<"/fx/rates">;
 
-export const paymentsModule = {
+export const paymentsComponent = {
   id: "payments",
   routePath: "/payments",
   registerRoutes(ctx: AppContext) {
     return paymentsRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/payments">;
+} as const satisfies ApiApplicationComponent<"/payments">;
 
-export const connectorsModule = {
+export const connectorsComponent = {
   id: "connectors",
   routePath: "/connectors",
   registerRoutes(ctx: AppContext) {
     return connectorsRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/connectors">;
+} as const satisfies ApiApplicationComponent<"/connectors">;
 
-export const orchestrationModule = {
+export const orchestrationComponent = {
   id: "orchestration",
   routePath: "/orchestration",
   registerRoutes(ctx: AppContext) {
     return orchestrationRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/orchestration">;
+} as const satisfies ApiApplicationComponent<"/orchestration">;
 
-export const reconciliationModule = {
+export const reconciliationComponent = {
   id: "reconciliation",
   routePath: "/reconciliation",
   registerRoutes(ctx: AppContext) {
     return reconciliationRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/reconciliation">;
+} as const satisfies ApiApplicationComponent<"/reconciliation">;
 
-export const systemModulesModule = {
-  id: "system-modules",
-  routePath: "/system/modules",
+export const systemComponentsComponent = {
+  id: "system-components",
+  routePath: "/system/components",
   guarded: false,
   registerRoutes(ctx: AppContext) {
-    return systemModulesRoutes(ctx);
+    return systemComponentsRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/system/modules">;
+} as const satisfies ApiApplicationComponent<"/system/components">;
 
-export const API_APPLICATION_MODULES = [
-  accountingModule,
-  accountProvidersModule,
-  accountsModule,
-  balancesModule,
-  counterpartiesModule,
-  counterpartyGroupsModule,
-  customersModule,
-  currenciesModule,
-  paymentsModule,
-  connectorsModule,
-  orchestrationModule,
-  fxRatesModule,
-  reconciliationModule,
-  systemModulesModule,
+export const API_APPLICATION_COMPONENTS = [
+  accountingComponent,
+  accountProvidersComponent,
+  accountsComponent,
+  balancesComponent,
+  counterpartiesComponent,
+  counterpartyGroupsComponent,
+  customersComponent,
+  currenciesComponent,
+  paymentsComponent,
+  connectorsComponent,
+  orchestrationComponent,
+  fxRatesComponent,
+  reconciliationComponent,
+  systemComponentsComponent,
 ] as const;

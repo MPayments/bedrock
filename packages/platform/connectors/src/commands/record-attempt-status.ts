@@ -9,8 +9,11 @@ import {
 } from "../errors";
 import type { ConnectorsServiceContext } from "../internal/context";
 import {
+  canTransitionAttemptStatus,
+  canUpgradeIntentStatus,
   intentStatusFromAttemptStatus,
   isTerminalAttemptStatus,
+  isTerminalIntentStatus,
 } from "../internal/status";
 import {
   RecordAttemptStatusInputSchema,
@@ -62,6 +65,13 @@ export function createRecordAttemptStatusHandler(
             throw new PaymentAttemptNotFoundError(validated.attemptId);
           }
 
+          if (
+            !canTransitionAttemptStatus(attempt.status, validated.status) &&
+            attempt.status !== validated.status
+          ) {
+            return attempt;
+          }
+
           const [updatedAttempt] = await tx
             .update(schema.paymentAttempts)
             .set({
@@ -74,6 +84,8 @@ export function createRecordAttemptStatusHandler(
                 validated.responsePayload ?? attempt.responsePayload ?? null,
               error: validated.error ?? null,
               nextRetryAt: validated.nextRetryAt ?? null,
+              claimToken: null,
+              claimUntil: null,
               resolvedAt: isTerminalAttemptStatus(validated.status)
                 ? sql`now()`
                 : attempt.resolvedAt,
@@ -100,14 +112,26 @@ export function createRecordAttemptStatusHandler(
           }
 
           const intentStatus = intentStatusFromAttemptStatus(validated.status);
-          await tx
-            .update(schema.connectorPaymentIntents)
-            .set({
-              status: intentStatus,
-              lastError: validated.error ?? null,
-              updatedAt: sql`now()`,
-            })
-            .where(eq(schema.connectorPaymentIntents.id, intent.id));
+          const isCurrentAttempt =
+            updatedAttempt.attemptNo === intent.currentAttemptNo;
+          const canMutateIntent = isCurrentAttempt;
+          const canPromoteTerminal =
+            canMutateIntent &&
+            canUpgradeIntentStatus(intent.status, intentStatus);
+
+          if (
+            canMutateIntent &&
+            (!isTerminalIntentStatus(intent.status) || canPromoteTerminal)
+          ) {
+            await tx
+              .update(schema.connectorPaymentIntents)
+              .set({
+                status: intentStatus,
+                lastError: validated.error ?? null,
+                updatedAt: sql`now()`,
+              })
+              .where(eq(schema.connectorPaymentIntents.id, intent.id));
+          }
 
           if (updatedAttempt.externalAttemptRef) {
             await tx

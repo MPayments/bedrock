@@ -40,7 +40,7 @@ export const CreatePostingTemplateDefinitionSchema = z.object({
   lineType: z.literal("create"),
   postingCode: z.string().min(1).max(128),
   transferCode: z.number().int().nonnegative().optional(),
-  allowModules: z.array(z.string().min(1)).min(1),
+  allowSources: z.array(z.string().min(1)).min(1),
   requiredBookRefs: z.array(z.string().min(1)).min(1),
   requiredDimensions: z.array(z.string().min(1)),
   requiredRefs: z.array(z.string().min(1)).optional(),
@@ -52,7 +52,7 @@ export const CreatePostingTemplateDefinitionSchema = z.object({
 export const PendingPostingTemplateDefinitionSchema = z.object({
   key: z.string().min(1),
   lineType: z.enum(["post_pending", "void_pending"]),
-  allowModules: z.array(z.string().min(1)).min(1),
+  allowSources: z.array(z.string().min(1)).min(1),
   requiredBookRefs: z.array(z.string().min(1)).min(1),
   requiredDimensions: z.array(z.string().min(1)),
   requiredRefs: z.array(z.string().min(1)).optional(),

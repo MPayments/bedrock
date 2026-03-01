@@ -33,12 +33,12 @@ const statements = {
     "post",
     "cancel",
   ],
-  connectors: ["list", "manage", "webhook"],
+  connectors: ["list", "manage"],
   orchestration: ["list", "manage", "simulate"],
   accounting: ["list", "manage_accounts", "manage_correspondence"],
   balances: ["get", "reserve", "release", "consume"],
   reconciliation: ["ingest", "run", "list", "explain", "adjust"],
-  system_modules: ["list", "manage"],
+  system_components: ["list", "manage"],
 } as const;
 
 export type ResourcePermissions = {
@@ -75,12 +75,12 @@ export const admin = ac.newRole({
     "post",
     "cancel",
   ],
-  connectors: ["list", "manage", "webhook"],
+  connectors: ["list", "manage"],
   orchestration: ["list", "manage", "simulate"],
   accounting: ["list", "manage_accounts", "manage_correspondence"],
   balances: ["get", "reserve", "release", "consume"],
   reconciliation: ["ingest", "run", "list", "explain", "adjust"],
-  system_modules: ["list", "manage"],
+  system_components: ["list", "manage"],
 });
 
 export const user = ac.newRole({
@@ -111,10 +111,10 @@ export const user = ac.newRole({
     "post",
     "cancel",
   ],
-  connectors: ["list", "webhook"],
+  connectors: ["list"],
   orchestration: ["list", "simulate"],
   accounting: ["list"],
   balances: ["get", "reserve", "release", "consume"],
   reconciliation: ["ingest", "run", "list", "explain", "adjust"],
-  system_modules: ["list"],
+  system_components: ["list"],
 });

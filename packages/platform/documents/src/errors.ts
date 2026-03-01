@@ -26,6 +26,17 @@ export class DocumentPostingNotRequiredError extends InvalidStateError {
 
 export class DocumentGraphError extends DocumentsError {}
 
+export class DocumentAccountingSourceCoverageError extends DocumentsError {
+  constructor(
+    public readonly packChecksum: string,
+    public readonly missingSources: string[],
+  ) {
+    super(
+      `Active accounting pack ${packChecksum} is missing sources: ${missingSources.join(", ")}`,
+    );
+  }
+}
+
 export class DocumentPolicyDeniedError extends PermissionError {
   constructor(
     public readonly action: string,

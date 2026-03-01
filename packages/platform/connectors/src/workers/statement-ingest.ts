@@ -1,4 +1,4 @@
-import { noopLogger, type Logger } from "@bedrock/kernel";
+import { noopLogger, sha256Hex, stableStringify, type Logger } from "@bedrock/kernel";
 
 import { ConnectorProviderNotConfiguredError } from "../errors";
 import type { ConnectorsService } from "../service";
@@ -25,10 +25,22 @@ export function createStatementIngestWorker(deps: {
   const log =
     deps.logger?.child({ svc: "connectors-statement-ingest" }) ?? noopLogger;
 
-  async function processOnce(opts?: { batchSize?: number; now?: Date }) {
+  async function processOnce(opts?: {
+    batchSize?: number;
+    workerId?: string;
+    leaseSec?: number;
+    now?: Date;
+  }) {
     const now = opts?.now ?? new Date();
     const batchSize = opts?.batchSize ?? 20;
-    const cursors = await connectors.claimStatementProviders({ batchSize });
+    const workerId = opts?.workerId ?? "statement-ingest";
+    const leaseSec = opts?.leaseSec ?? 120;
+    const cursors = await connectors.claimStatementProviders({
+      batchSize,
+      workerId,
+      leaseSec,
+      now,
+    });
     let processed = 0;
 
     for (const cursor of cursors) {
@@ -58,13 +70,25 @@ export function createStatementIngestWorker(deps: {
           },
           cursor: cursor.cursorValue,
         });
+        const ingestFingerprint = sha256Hex(
+          stableStringify({
+            providerCode: cursor.providerCode,
+            cursorKey: cursor.cursorKey,
+            cursorValue: cursor.cursorValue ?? null,
+            nextCursor: result.nextCursor ?? null,
+            records: result.records.map((record) => ({
+              recordId: record.recordId,
+              occurredAt: record.occurredAt.toISOString(),
+            })),
+          }),
+        );
 
         const ingestResult = await connectors.ingestStatementBatch({
           providerCode: cursor.providerCode,
           cursorKey: cursor.cursorKey,
           cursorValue: result.nextCursor ?? cursor.cursorValue ?? undefined,
           records: result.records,
-          idempotencyKey: `${cursor.providerCode}:statement:${cursor.cursorKey}:${now.toISOString()}`,
+          idempotencyKey: `${cursor.providerCode}:statement:${cursor.cursorKey}:${ingestFingerprint}`,
         });
 
         processed += ingestResult.inserted;
@@ -106,12 +130,28 @@ export function createStatementIngestWorker(deps: {
       range: input.range,
       cursor: input.cursorValue,
     });
+    const manualFingerprint = sha256Hex(
+      stableStringify({
+        providerCode: input.providerCode,
+        cursorKey: input.cursorKey ?? "default",
+        cursorValue: input.cursorValue ?? null,
+        range: {
+          from: input.range.from.toISOString(),
+          to: input.range.to.toISOString(),
+        },
+        nextCursor: result.nextCursor ?? null,
+        records: result.records.map((record) => ({
+          recordId: record.recordId,
+          occurredAt: record.occurredAt.toISOString(),
+        })),
+      }),
+    );
     return connectors.ingestStatementBatch({
       providerCode: input.providerCode,
       cursorKey: input.cursorKey ?? "default",
       cursorValue: result.nextCursor ?? input.cursorValue ?? undefined,
       records: result.records,
-      idempotencyKey: `${input.providerCode}:statement:manual:${input.range.from.toISOString()}:${input.range.to.toISOString()}`,
+      idempotencyKey: `${input.providerCode}:statement:manual:${manualFingerprint}`,
     });
   }
 

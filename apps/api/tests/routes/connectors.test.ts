@@ -22,10 +22,6 @@ function createConnectorsServiceStub() {
     listAttempts: vi.fn(),
     listEvents: vi.fn(),
     ingestStatementBatch: vi.fn(),
-    handleWebhookEvent: vi.fn(),
-    getAttemptById: vi.fn(),
-    getIntentById: vi.fn(),
-    providers: {} as Record<string, unknown>,
   };
 }
 
@@ -74,23 +70,26 @@ describe("connectorsRoutes validation errors", () => {
     expect(connectorsService.listAttempts).not.toHaveBeenCalled();
   });
 
-  it("returns 404 for webhook provider that is not configured", async () => {
+  it("returns 400 for invalid manual statement ingest payload", async () => {
     const { app, connectorsService } = createTestApp();
 
-    const response = await app.request("http://localhost/providers/mock/webhook", {
+    const response = await app.request(
+      "http://localhost/providers/mock/statements/ingest",
+      {
       method: "POST",
       headers: {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        eventId: "evt-1",
+        records: [{ occurredAt: "invalid-date", payload: {} }],
       }),
-    });
+      },
+    );
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
-      error: expect.stringContaining("Connector provider not configured"),
+      error: "Validation error",
     });
-    expect(connectorsService.handleWebhookEvent).not.toHaveBeenCalled();
+    expect(connectorsService.ingestStatementBatch).not.toHaveBeenCalled();
   });
 });

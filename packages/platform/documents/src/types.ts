@@ -79,6 +79,8 @@ export interface DocumentModule<
   docNoPrefix: string;
   moduleId?: string;
   moduleVersion?: number;
+  accountingSourceId?: string;
+  accountingSourceIds?: string[];
   payloadVersion: number;
   createSchema: z.ZodType<TCreateInput>;
   updateSchema: z.ZodType<TUpdateInput>;
@@ -106,6 +108,11 @@ export interface DocumentModule<
     context: DocumentModuleContext,
     document: Document,
   ): Promise<DocumentPostingPlan>;
+  resolveAccountingSourceId?(
+    context: DocumentModuleContext,
+    document: Document,
+    postingPlan: DocumentPostingPlan,
+  ): Promise<string> | string;
   buildPostIdempotencyKey(document: Document): string;
   buildInitialLinks?(
     context: DocumentModuleContext,

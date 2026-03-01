@@ -75,6 +75,8 @@ export function createIngestStatementBatchHandler(
               ],
               set: {
                 cursorValue: validated.cursorValue ?? null,
+                claimToken: null,
+                claimUntil: null,
                 lastFetchedAt: sql`now()`,
                 updatedAt: sql`now()`,
               },

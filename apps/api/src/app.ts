@@ -3,15 +3,15 @@ import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 
-import { AppError } from "@bedrock/kernel";
 import {
-  ImmutableModuleError,
+  ComponentDependencyViolationError,
+  ComponentDisabledError,
+  ComponentStateVersionConflictError,
+  ImmutableComponentError,
   MixedDeployError,
-  ModuleDependencyViolationError,
-  ModuleDisabledError,
-  ModuleStateVersionConflictError,
-  UnknownModuleError,
-} from "@bedrock/module-runtime";
+  UnknownComponentError,
+} from "@bedrock/component-runtime";
+import { AppError } from "@bedrock/kernel";
 
 import auth from "./auth";
 import { createAppContext, type Env } from "./context";
@@ -20,24 +20,11 @@ import {
   requireAuth,
   type AuthVariables,
 } from "./middleware/auth";
-import { createModuleGuard } from "./middleware/module-guard";
+import { createComponentGuard } from "./middleware/module-guard";
 import { requestContextMiddleware } from "./middleware/request-context";
 import {
-  accountingModule,
-  accountProvidersModule,
-  accountsModule,
-  balancesModule,
-  connectorsModule,
-  counterpartiesModule,
-  counterpartyGroupsModule,
-  currenciesModule,
-  customersModule,
-  fxRatesModule,
-  orchestrationModule,
-  paymentsModule,
-  reconciliationModule,
-  systemModulesModule,
-  type ApiApplicationModule,
+  API_APPLICATION_COMPONENTS,
+  type ApiApplicationComponent,
 } from "./modules/registry";
 
 const env: Env = {
@@ -50,18 +37,26 @@ const env: Env = {
 };
 
 const ctx = createAppContext(env);
-void ctx.moduleRuntime.startBackgroundSync().catch((error: unknown) => {
-  ctx.logger.warn("Failed to start module runtime background sync", {
+void ctx.componentRuntime.startBackgroundSync().catch((error: unknown) => {
+  ctx.logger.warn("Failed to start component runtime background sync", {
     error: error instanceof Error ? error.message : String(error),
   });
 });
+void ctx.documentsService
+  .validateAccountingSourceCoverage()
+  .catch((error: unknown) => {
+    ctx.logger.error("Active accounting pack is incompatible with document sources", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    process.exitCode = 1;
+    setImmediate(() => process.exit(1));
+  });
 
 const configuredAuthOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
   .map((origin) => origin.trim())
   .filter((origin) => origin.length > 0);
 const authAllowedOriginSet = new Set(configuredAuthOrigins);
 
-// Create OpenAPIHono app with default error handler
 const app = new OpenAPIHono<{ Variables: AuthVariables }>({
   defaultHook: (result, c) => {
     if (!result.success) {
@@ -76,15 +71,14 @@ const app = new OpenAPIHono<{ Variables: AuthVariables }>({
   },
 });
 
-// Global error handler for non-validation errors
 app.onError((err, c) => {
-  if (err instanceof ModuleDisabledError) {
+  if (err instanceof ComponentDisabledError) {
     c.header("Retry-After", String(err.retryAfterSec));
     return c.json(
       {
-        error: "Module disabled",
-        code: "MODULE_DISABLED",
-        moduleId: err.moduleId,
+        error: "Component disabled",
+        code: "COMPONENT_DISABLED",
+        componentId: err.componentId,
         scope: err.scope,
         effectiveState: err.effectiveState,
         dependencyChain: err.dependencyChain,
@@ -95,8 +89,8 @@ app.onError((err, c) => {
     );
   }
 
-  if (err instanceof UnknownModuleError) {
-    return c.json({ error: err.message, code: "UNKNOWN_MODULE" }, 404);
+  if (err instanceof UnknownComponentError) {
+    return c.json({ error: err.message, code: "UNKNOWN_COMPONENT" }, 404);
   }
 
   if (err instanceof MixedDeployError) {
@@ -111,12 +105,12 @@ app.onError((err, c) => {
     );
   }
 
-  if (err instanceof ModuleStateVersionConflictError) {
+  if (err instanceof ComponentStateVersionConflictError) {
     return c.json(
       {
         error: err.message,
-        code: "MODULE_STATE_VERSION_CONFLICT",
-        moduleId: err.moduleId,
+        code: "COMPONENT_STATE_VERSION_CONFLICT",
+        componentId: err.componentId,
         scopeType: err.scopeType,
         scopeId: err.scopeId,
         expectedVersion: err.expectedVersion,
@@ -126,25 +120,25 @@ app.onError((err, c) => {
     );
   }
 
-  if (err instanceof ModuleDependencyViolationError) {
+  if (err instanceof ComponentDependencyViolationError) {
     return c.json(
       {
         error: err.message,
-        code: "MODULE_DEPENDENCY_VIOLATION",
-        moduleId: err.moduleId,
-        dependencyModuleId: err.dependencyModuleId,
+        code: "COMPONENT_DEPENDENCY_VIOLATION",
+        componentId: err.componentId,
+        dependencyComponentId: err.dependencyComponentId,
         scope: err.scope,
       },
       409,
     );
   }
 
-  if (err instanceof ImmutableModuleError) {
+  if (err instanceof ImmutableComponentError) {
     return c.json(
       {
         error: err.message,
-        code: "IMMUTABLE_MODULE",
-        moduleId: err.moduleId,
+        code: "IMMUTABLE_COMPONENT",
+        componentId: err.componentId,
       },
       409,
     );
@@ -191,106 +185,51 @@ app.use("*", authMiddleware());
 app.use("*", requestContextMiddleware());
 app.use("/v1/*", requireAuth());
 
-// Health check
 app.get("/", (c) => {
   return c.json({ status: "ok", service: "ledger-api" });
 });
 
-// Typed route surface for API client generation.
-const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
-  .route(accountingModule.routePath, accountingModule.registerRoutes(ctx))
-  .route(
-    accountProvidersModule.routePath,
-    accountProvidersModule.registerRoutes(ctx),
-  )
-  .route(accountsModule.routePath, accountsModule.registerRoutes(ctx))
-  .route(balancesModule.routePath, balancesModule.registerRoutes(ctx))
-  .route(
-    counterpartiesModule.routePath,
-    counterpartiesModule.registerRoutes(ctx),
-  )
-  .route(
-    counterpartyGroupsModule.routePath,
-    counterpartyGroupsModule.registerRoutes(ctx),
-  )
-  .route(customersModule.routePath, customersModule.registerRoutes(ctx))
-  .route(currenciesModule.routePath, currenciesModule.registerRoutes(ctx))
-  .route(paymentsModule.routePath, paymentsModule.registerRoutes(ctx))
-  .route(connectorsModule.routePath, connectorsModule.registerRoutes(ctx))
-  .route(
-    orchestrationModule.routePath,
-    orchestrationModule.registerRoutes(ctx),
-  )
-  .route(fxRatesModule.routePath, fxRatesModule.registerRoutes(ctx))
-  .route(
-    reconciliationModule.routePath,
-    reconciliationModule.registerRoutes(ctx),
-  )
-  .route(
-    systemModulesModule.routePath,
-    systemModulesModule.registerRoutes(ctx),
-  );
+function createGuardedRouter(component: ApiApplicationComponent) {
+  const guarded = new OpenAPIHono<{ Variables: AuthVariables }>();
+  if (component.guarded !== false) {
+    guarded.use("*", createComponentGuard(ctx, component.id));
+  }
+  guarded.route("/", component.registerRoutes(ctx));
+  return guarded;
+}
+
+function buildV1Router(guarded: boolean): OpenAPIHono<{ Variables: AuthVariables }> {
+  const router = new OpenAPIHono<{ Variables: AuthVariables }>();
+
+  for (const component of API_APPLICATION_COMPONENTS) {
+    router.route(
+      component.routePath,
+      guarded ? createGuardedRouter(component) : component.registerRoutes(ctx),
+    );
+  }
+
+  return router;
+}
+
+const typedV1 = buildV1Router(false);
 
 const typedRoutes = new OpenAPIHono<{ Variables: AuthVariables }>().route(
   "/v1",
   typedV1,
 );
 
-// Mount routes under /v1 — modules are always mounted; enable/disable is guarded at execution time.
-function createGuardedRouter(module: ApiApplicationModule) {
-  const guarded = new OpenAPIHono<{ Variables: AuthVariables }>();
-  if (module.guarded !== false) {
-    guarded.use("*", createModuleGuard(ctx, module.id));
-  }
-  guarded.route("/", module.registerRoutes(ctx));
-  return guarded;
-}
+const v1 = buildV1Router(true);
 
-const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
-  .route(accountingModule.routePath, createGuardedRouter(accountingModule))
-  .route(
-    accountProvidersModule.routePath,
-    createGuardedRouter(accountProvidersModule),
-  )
-  .route(accountsModule.routePath, createGuardedRouter(accountsModule))
-  .route(balancesModule.routePath, createGuardedRouter(balancesModule))
-  .route(
-    counterpartiesModule.routePath,
-    createGuardedRouter(counterpartiesModule),
-  )
-  .route(
-    counterpartyGroupsModule.routePath,
-    createGuardedRouter(counterpartyGroupsModule),
-  )
-  .route(customersModule.routePath, createGuardedRouter(customersModule))
-  .route(currenciesModule.routePath, createGuardedRouter(currenciesModule))
-  .route(paymentsModule.routePath, createGuardedRouter(paymentsModule))
-  .route(connectorsModule.routePath, createGuardedRouter(connectorsModule))
-  .route(
-    orchestrationModule.routePath,
-    createGuardedRouter(orchestrationModule),
-  )
-  .route(fxRatesModule.routePath, createGuardedRouter(fxRatesModule))
-  .route(
-    reconciliationModule.routePath,
-    createGuardedRouter(reconciliationModule),
-  )
-  .route(
-    systemModulesModule.routePath,
-    createGuardedRouter(systemModulesModule),
-  );
-
-const _routes = app.route("/v1", v1);
+app.route("/v1", v1);
 
 const openApiInfo = {
   info: {
     title: "Bedrock API",
     version: "1.0.0",
-    description: "Double-entry ledger API powered by TigerBeetle",
+    description: "Deterministic financial API",
   },
 };
 
-// OpenAPI documentation
 app.doc31("/api/open-api", (c) => ({
   openapi: "3.1.0",
   ...openApiInfo,

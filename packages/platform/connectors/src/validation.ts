@@ -102,10 +102,16 @@ export const ClaimDispatchBatchInputSchema = z.object({
 
 export const ClaimPollBatchInputSchema = z.object({
   batchSize: z.number().int().positive().max(500).default(50),
+  workerId: z.string().trim().min(1).max(128).default("status-poller"),
+  leaseSec: z.number().int().min(5).max(300).default(60),
+  now: z.date().optional(),
 });
 
 export const ClaimStatementBatchInputSchema = z.object({
   batchSize: z.number().int().positive().max(500).default(20),
+  workerId: z.string().trim().min(1).max(128).default("statement-ingest"),
+  leaseSec: z.number().int().min(5).max(300).default(120),
+  now: z.date().optional(),
 });
 
 export type CreateIntentFromDocumentInput = z.infer<

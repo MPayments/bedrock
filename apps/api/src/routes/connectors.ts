@@ -1,7 +1,5 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
-import { ConnectorProviderNotConfiguredError } from "@bedrock/connectors";
-
 import { toJsonSafe } from "../common/json";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
@@ -53,9 +51,6 @@ const ManualStatementIngestSchema = z.object({
 });
 
 function errorResponse(c: any, error: unknown) {
-  if (error instanceof ConnectorProviderNotConfiguredError) {
-    return c.json({ error: error.message }, 404);
-  }
   if (error instanceof z.ZodError) {
     return c.json({ error: "Validation error", details: error.flatten() }, 400);
   }
@@ -152,81 +147,19 @@ export function connectorsRoutes(ctx: AppContext) {
       try {
         const { providerCode } = c.req.param();
         const body = ManualStatementIngestSchema.parse(await c.req.json());
+        const recordFingerprint = body.records
+          .map((record) => record.recordId.trim())
+          .sort((left, right) => left.localeCompare(right))
+          .join(",");
         const result = await ctx.connectorsService.ingestStatementBatch({
           providerCode,
           cursorKey: body.cursorKey,
           cursorValue: body.cursorValue,
           records: body.records,
-          idempotencyKey: `${providerCode}:manual-statement:${Date.now()}`,
+          idempotencyKey: `${providerCode}:manual-statement:${body.cursorKey}:${recordFingerprint || "empty"}`,
           actorUserId: c.get("user")?.id,
         });
         return c.json(toJsonSafe(result));
-      } catch (error) {
-        return errorResponse(c, error);
-      }
-    },
-  );
-
-  app.post(
-    "/providers/:providerCode/webhook",
-    requirePermission({ connectors: ["webhook"] }),
-    async (c) => {
-      try {
-        const { providerCode } = c.req.param();
-        const provider = ctx.connectorsService.providers[providerCode];
-        if (!provider) {
-          throw new ConnectorProviderNotConfiguredError(providerCode);
-        }
-
-        const rawPayload = (await c.req.json()) as Record<string, unknown>;
-        const headers = Object.fromEntries(c.req.raw.headers.entries());
-        const parsed = await provider.verifyAndParseWebhook({
-          rawPayload,
-          headers,
-        });
-
-        const event = await ctx.connectorsService.handleWebhookEvent({
-          providerCode,
-          eventType: parsed.eventType,
-          webhookIdempotencyKey: parsed.webhookIdempotencyKey,
-          signatureValid: parsed.signatureValid,
-          rawPayload,
-          parsedPayload: parsed.parsedPayload ?? undefined,
-          intentId: parsed.intentId,
-          attemptId: parsed.attemptId,
-          status: parsed.status,
-          externalAttemptRef: parsed.externalAttemptRef ?? undefined,
-          error: parsed.error ?? undefined,
-          idempotencyKey: `${providerCode}:${parsed.webhookIdempotencyKey}`,
-          actorUserId: c.get("user")?.id,
-        });
-
-        if (
-          parsed.signatureValid &&
-          parsed.attemptId &&
-          (parsed.status === "succeeded" || parsed.status === "failed_terminal")
-        ) {
-          const attempt = await ctx.connectorsService.getAttemptById(parsed.attemptId);
-          if (attempt) {
-            const intent = await ctx.connectorsService.getIntentById(attempt.intentId);
-            if (intent) {
-              await ctx.paymentsService.createResolution({
-                payload: {
-                  intentDocumentId: intent.documentId,
-                  resolutionType:
-                    parsed.status === "succeeded" ? "settle" : "fail",
-                  eventIdempotencyKey: parsed.webhookIdempotencyKey,
-                  externalRef: parsed.externalAttemptRef ?? undefined,
-                  occurredAt: new Date(),
-                },
-                actorUserId: c.get("user")!.id,
-                idempotencyKey: `${providerCode}:${parsed.webhookIdempotencyKey}:resolution`,
-              });
-            }
-          }
-        }
-
-        return c.json(toJsonSafe(event), 202);
       } catch (error) {
         return errorResponse(c, error);
       }

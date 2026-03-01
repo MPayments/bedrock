@@ -1,6 +1,7 @@
 import { createCreateIntentFromDocumentHandler } from "./commands/create-intent-from-document";
 import { createEnqueueAttemptHandler } from "./commands/enqueue-attempt";
 import { createHandleWebhookEventHandler } from "./commands/handle-webhook-event";
+import { createIngestProviderWebhookHandler } from "./commands/ingest-provider-webhook";
 import { createIngestStatementBatchHandler } from "./commands/ingest-statement-batch";
 import { createMarkIntentTerminalHandler } from "./commands/mark-intent-terminal";
 import { createQueryHandlers } from "./commands/queries";
@@ -24,6 +25,9 @@ export function createConnectorsService(deps: ConnectorsServiceDeps) {
   const handleWebhookEvent = createHandleWebhookEventHandler(context, {
     recordAttemptStatus,
   });
+  const ingestProviderWebhook = createIngestProviderWebhookHandler(context, {
+    handleWebhookEvent,
+  });
   const ingestStatementBatch = createIngestStatementBatchHandler(context);
   const queries = createQueryHandlers(context);
 
@@ -32,6 +36,7 @@ export function createConnectorsService(deps: ConnectorsServiceDeps) {
     enqueueAttempt,
     recordAttemptStatus,
     handleWebhookEvent,
+    ingestProviderWebhook,
     ingestStatementBatch,
     markIntentTerminal,
     ...queries,

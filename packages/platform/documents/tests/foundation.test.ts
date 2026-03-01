@@ -239,6 +239,7 @@ describe("documents foundations", () => {
       list: expect.any(Function),
       get: expect.any(Function),
       getDetails: expect.any(Function),
+      validateAccountingSourceCoverage: expect.any(Function),
     });
   });
 });

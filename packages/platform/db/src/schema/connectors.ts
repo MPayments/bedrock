@@ -88,6 +88,8 @@ export const paymentAttempts = pgTable(
     > | null>(),
     error: text("error"),
     nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
+    claimToken: text("claim_token"),
+    claimUntil: timestamp("claim_until", { withTimezone: true }),
     dispatchedAt: timestamp("dispatched_at", { withTimezone: true }),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -106,6 +108,9 @@ export const paymentAttempts = pgTable(
       .where(sql`${t.status} in ('queued','failed_retryable')`),
     index("payment_attempts_poll_claim_idx")
       .on(t.status, t.updatedAt)
+      .where(sql`${t.status} in ('submitted','pending')`),
+    index("payment_attempts_poll_claim_lease_idx")
+      .on(t.status, t.claimUntil, t.updatedAt)
       .where(sql`${t.status} in ('submitted','pending')`),
     index("payment_attempts_provider_status_idx").on(t.providerCode, t.status),
   ],
@@ -203,6 +208,8 @@ export const connectorCursors = pgTable(
     providerCode: text("provider_code").notNull(),
     cursorKey: text("cursor_key").notNull(),
     cursorValue: text("cursor_value"),
+    claimToken: text("claim_token"),
+    claimUntil: timestamp("claim_until", { withTimezone: true }),
     lastFetchedAt: timestamp("last_fetched_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -214,6 +221,7 @@ export const connectorCursors = pgTable(
       name: "connector_cursors_pk",
       columns: [t.providerCode, t.cursorKey],
     }),
+    index("connector_cursors_claim_idx").on(t.claimUntil, t.updatedAt),
   ],
 );
 

@@ -24,6 +24,11 @@ import {
 } from "./balances";
 import { books } from "./books";
 import {
+  platformComponentEvents,
+  platformComponentRuntimeMeta,
+  platformComponentStates,
+} from "./component-runtime";
+import {
   connectorCursors,
   connectorEvents,
   connectorHealth,
@@ -51,11 +56,6 @@ import { ledgerOperations, postings } from "./ledger/journal";
 import { bookAccountInstances } from "./ledger/ledger";
 import { outbox } from "./ledger/outbox";
 import { tbTransferPlans } from "./ledger/tb-plan";
-import {
-  platformModuleEvents,
-  platformModuleRuntimeMeta,
-  platformModuleStates,
-} from "./module-runtime";
 import {
   orchestrationScopeOverrides,
   providerCorridors,
@@ -127,9 +127,9 @@ export const schema = {
   connectorReferences,
   connectorHealth,
   connectorCursors,
-  platformModuleStates,
-  platformModuleEvents,
-  platformModuleRuntimeMeta,
+  platformComponentStates,
+  platformComponentEvents,
+  platformComponentRuntimeMeta,
   routingRules,
   providerCorridors,
   providerFeeSchedules,
@@ -210,15 +210,15 @@ export type {
   DocumentSubmissionStatus,
 } from "./documents";
 export type {
-  PlatformModuleEvent,
-  PlatformModuleEventInsert,
-  PlatformModuleRuntimeMeta,
-  PlatformModuleRuntimeMetaInsert,
-  PlatformModuleScopeType,
-  PlatformModuleState,
-  PlatformModuleStateInsert,
-  PlatformModuleStateRow,
-} from "./module-runtime";
+  PlatformComponentEvent,
+  PlatformComponentEventInsert,
+  PlatformComponentRuntimeMeta,
+  PlatformComponentRuntimeMetaInsert,
+  PlatformComponentScopeType,
+  PlatformComponentState,
+  PlatformComponentStateInsert,
+  PlatformComponentStateRow,
+} from "./component-runtime";
 export type {
   OrchestrationScopeOverride,
   OrchestrationScopeOverrideInsert,

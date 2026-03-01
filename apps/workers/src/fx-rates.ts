@@ -6,20 +6,20 @@ import { createFeesService } from "@bedrock/fees";
 import { createFxRatesWorker, createFxService } from "@bedrock/fx";
 import { createConsoleLogger } from "@bedrock/kernel";
 import {
-  BEDROCK_MODULE_MANIFESTS,
-  createModuleRuntimeService,
-} from "@bedrock/module-runtime";
+  BEDROCK_COMPONENT_MANIFESTS,
+  createComponentRuntimeService,
+} from "@bedrock/component-runtime";
 
 import { env } from "./env";
 import { installShutdownHandlers, runLoop } from "./run-loop";
 
 const logger = createConsoleLogger({ app: "bedrock-workers", worker: "fx-rates" });
-const moduleRuntime = createModuleRuntimeService({
+const componentRuntime = createComponentRuntimeService({
   db,
   logger,
-  manifests: BEDROCK_MODULE_MANIFESTS,
+  manifests: BEDROCK_COMPONENT_MANIFESTS,
 });
-await moduleRuntime.startBackgroundSync();
+await componentRuntime.startBackgroundSync();
 const currenciesService = createCurrenciesService({ db, logger });
 const feesService = createFeesService({ db, logger, currenciesService });
 const fxService = createFxService({ db, logger, feesService, currenciesService });
@@ -27,15 +27,15 @@ const guardedWorker = createFxRatesWorker({
   fxService,
   logger,
   beforeSourceSync: () =>
-    moduleRuntime.isModuleEnabled({
-      moduleId: "fx-rates",
+    componentRuntime.isComponentEnabled({
+      componentId: "fx-rates",
     }),
 });
 
 const { promise, stop } = runLoop(
   "fx-rates",
   async () => {
-    const enabled = await moduleRuntime.isModuleEnabled({ moduleId: "fx-rates" });
+    const enabled = await componentRuntime.isComponentEnabled({ componentId: "fx-rates" });
     if (!enabled) {
       return 0;
     }
@@ -48,8 +48,8 @@ const { promise, stop } = runLoop(
 
 installShutdownHandlers(() => {
   stop();
-  void moduleRuntime.stopBackgroundSync();
+  void componentRuntime.stopBackgroundSync();
 });
 await promise;
-await moduleRuntime.stopBackgroundSync();
+await componentRuntime.stopBackgroundSync();
 process.exit(0);
