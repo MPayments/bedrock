@@ -14,6 +14,7 @@ import { ValidationError } from "@bedrock/kernel/errors";
 
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
+import { withEtag } from "../middleware/etag";
 import {
   getRequestContext,
   requireIdempotencyKey,
@@ -125,6 +126,7 @@ export function balancesRoutes(ctx: AppContext) {
   app.get(
     "/:bookId/:subjectType/:subjectId/:currency",
     requirePermission({ balances: ["get"] }),
+    withEtag((b) => b.version as number | undefined),
     async (c) => {
       try {
         const subject = BalanceSubjectParamsSchema.parse(c.req.param());

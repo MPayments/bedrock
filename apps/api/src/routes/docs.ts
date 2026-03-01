@@ -11,6 +11,7 @@ import {
 import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
+import { withEtag } from "../middleware/etag";
 import {
   getRequestContext,
   requireIdempotencyKey,
@@ -194,19 +195,28 @@ export function docsRoutes(ctx: AppContext) {
     }
   });
 
-  app.get("/:docType/:id", requirePermission({ documents: ["get"] }), async (c) => {
-    try {
-      const { docType, id } = c.req.param();
-      const result = await ctx.documentsService.get(docType, id);
-      return c.json(toDocumentDto(result));
-    } catch (error) {
-      return handleRouteError(c, error);
-    }
-  });
+  app.get(
+    "/:docType/:id",
+    requirePermission({ documents: ["get"] }),
+    withEtag((b) => b.version as number | undefined),
+    async (c) => {
+      try {
+        const { docType, id } = c.req.param();
+        const result = await ctx.documentsService.get(docType, id);
+        return c.json(toDocumentDto(result));
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    },
+  );
 
   app.get(
     "/:docType/:id/details",
     requirePermission({ documents: ["get"] }),
+    withEtag((b) => {
+      const doc = b.document as Record<string, unknown> | undefined;
+      return doc?.version as number | undefined;
+    }),
     async (c) => {
       try {
         const { docType, id } = c.req.param();

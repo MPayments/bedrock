@@ -1,6 +1,7 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 
 import type { Database, Transaction } from "@bedrock/db";
+import { pgNotify, createPgSubscriber, type PgSubscriber } from "@bedrock/db/notify";
 import { schema } from "@bedrock/db/schema";
 import { noopLogger, sha256Hex, stableStringify } from "@bedrock/kernel";
 
@@ -61,16 +62,6 @@ interface ScopeCacheEntry {
 }
 
 type DbLike = Database | Transaction;
-
-interface ListenClient {
-  query: (text: string) => Promise<unknown>;
-  on: (
-    event: "notification",
-    listener: (message: { channel: string; payload?: string | null }) => void,
-  ) => void;
-  removeAllListeners?: (event: "notification") => void;
-  release: () => void;
-}
 
 function clampRetryAfterSec(value: number | null | undefined): number {
   const candidate = Math.trunc(value ?? DEFAULT_RETRY_AFTER_SEC);
@@ -280,7 +271,7 @@ export function createComponentRuntimeService(
 
   let currentEpoch = 0n;
   let started = false;
-  let listenClient: ListenClient | null = null;
+  let subscriber: PgSubscriber | null = null;
   let pollTimer: NodeJS.Timeout | null = null;
 
   function clearCaches(nextEpoch?: bigint) {
@@ -996,9 +987,7 @@ export function createComponentRuntimeService(
         throw new Error("Failed to update component runtime metadata");
       }
 
-      await tx.execute(
-        sql`select pg_notify(${listenChannel}, ${metaRow.stateEpoch.toString()})`,
-      );
+      await pgNotify(tx, listenChannel, metaRow.stateEpoch.toString());
 
       return {
         id: saved.id,
@@ -1166,34 +1155,17 @@ export function createComponentRuntimeService(
     }, epochPollIntervalMs);
 
     try {
-      const pool = (
-        deps.db as { $client?: { connect?: () => Promise<ListenClient> } }
-      ).$client;
-      if (!pool?.connect) {
-        throw new Error("Database pool does not support LISTEN subscriptions");
-      }
-
-      listenClient = await pool.connect();
-
-      listenClient.on(
-        "notification",
-        (message: { channel: string; payload?: string | null }) => {
-          if (message.channel !== listenChannel) {
-            return;
+      subscriber = await createPgSubscriber(deps.db);
+      await subscriber.subscribe(listenChannel, (payload) => {
+        try {
+          const nextEpoch = BigInt(payload || "0");
+          if (nextEpoch > currentEpoch) {
+            clearCaches(nextEpoch);
           }
-
-          try {
-            const nextEpoch = BigInt(message.payload ?? "0");
-            if (nextEpoch > currentEpoch) {
-              clearCaches(nextEpoch);
-            }
-          } catch {
-            clearCaches();
-          }
-        },
-      );
-
-      await listenClient.query(`LISTEN ${listenChannel}`);
+        } catch {
+          clearCaches();
+        }
+      });
     } catch (error) {
       log.warn(
         "Component runtime LISTEN setup failed; poll fallback remains active",
@@ -1201,15 +1173,10 @@ export function createComponentRuntimeService(
           error: error instanceof Error ? error.message : String(error),
         },
       );
-
-      if (listenClient) {
-        try {
-          listenClient.release();
-        } catch {
-          // ignore close errors
-        }
-        listenClient = null;
+      if (subscriber) {
+        await subscriber.close();
       }
+      subscriber = null;
     }
   }
 
@@ -1221,19 +1188,9 @@ export function createComponentRuntimeService(
       pollTimer = null;
     }
 
-    if (listenClient) {
-      try {
-        await listenClient.query(`UNLISTEN ${listenChannel}`);
-      } catch {
-        // ignore unlisten errors
-      }
-      try {
-        listenClient.removeAllListeners?.("notification");
-        listenClient.release();
-      } catch {
-        // ignore close errors
-      }
-      listenClient = null;
+    if (subscriber) {
+      await subscriber.close();
+      subscriber = null;
     }
   }
 

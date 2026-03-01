@@ -1,6 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { Transaction } from "@bedrock/db";
+import { pgNotify } from "@bedrock/db/notify";
 import {
   schema,
   type BalanceHold,
@@ -200,6 +201,7 @@ async function writeBalanceEventTx(
   input: {
     subject: BalanceSubjectInput;
     eventType: string;
+    version?: number;
     holdRef?: string | null;
     deltaAvailable?: bigint;
     deltaReserved?: bigint;
@@ -228,6 +230,19 @@ async function writeBalanceEventTx(
     traceId: input.requestContext?.traceId ?? null,
     causationId: input.requestContext?.causationId ?? null,
   });
+
+  await pgNotify(
+    tx,
+    "balance_changed",
+    JSON.stringify({
+      bookId: input.subject.bookId,
+      subjectType: input.subject.subjectType,
+      subjectId: input.subject.subjectId,
+      currency: input.subject.currency,
+      version: input.version ?? null,
+      eventType: input.eventType,
+    }),
+  );
 }
 
 async function updateBalancePositionTx(
@@ -451,6 +466,7 @@ export function createBalancesService(deps: BalancesServiceDeps) {
           await writeBalanceEventTx(tx, {
             subject: validated.subject,
             eventType: "reserve",
+            version: updatedPosition.version,
             holdRef: validated.holdRef,
             deltaAvailable: -validated.amountMinor,
             deltaReserved: validated.amountMinor,
@@ -539,6 +555,7 @@ export function createBalancesService(deps: BalancesServiceDeps) {
           await writeBalanceEventTx(tx, {
             subject: validated.subject,
             eventType: "release",
+            version: updatedPosition.version,
             holdRef: validated.holdRef,
             deltaAvailable: hold.amountMinor,
             deltaReserved: -hold.amountMinor,
@@ -627,6 +644,7 @@ export function createBalancesService(deps: BalancesServiceDeps) {
           await writeBalanceEventTx(tx, {
             subject: validated.subject,
             eventType: "consume",
+            version: updatedPosition.version,
             holdRef: validated.holdRef,
             deltaReserved: -hold.amountMinor,
             deltaPending: hold.amountMinor,

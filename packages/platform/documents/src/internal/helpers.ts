@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import type { DocumentPostingPlan } from "@bedrock/accounting";
 import type { Database, Transaction } from "@bedrock/db";
+import { pgNotify } from "@bedrock/db/notify";
 import { schema, type Document, type DocumentLinkType } from "@bedrock/db/schema";
 import { canonicalJson, sha256Hex } from "@bedrock/kernel";
 import { InvalidStateError } from "@bedrock/kernel/errors";
@@ -261,6 +262,22 @@ export function toStoredJson<T>(value: T): T {
   return JSON.parse(canonicalJson(value)) as T;
 }
 
+function readRecordStringField(
+  record: Record<string, unknown> | null | undefined,
+  key: string,
+): string | null {
+  const value = record?.[key];
+  return typeof value === "string" ? value : null;
+}
+
+function readRecordIntField(
+  record: Record<string, unknown> | null | undefined,
+  key: string,
+): number | null {
+  const value = record?.[key];
+  return typeof value === "number" && Number.isInteger(value) ? value : null;
+}
+
 export function buildDocumentEventState(document: Document) {
   return {
     id: document.id,
@@ -315,6 +332,24 @@ export async function insertDocumentEvent(
     before: input.before ? toStoredJson(input.before) : null,
     after: input.after ? toStoredJson(input.after) : null,
   });
+
+  const docType =
+    readRecordStringField(input.after, "docType") ??
+    readRecordStringField(input.before, "docType");
+  const version =
+    readRecordIntField(input.after, "version") ??
+    readRecordIntField(input.before, "version");
+
+  await pgNotify(
+    tx,
+    "document_changed",
+    JSON.stringify({
+      documentId: input.documentId,
+      docType,
+      version,
+      eventType: input.eventType,
+    }),
+  );
 }
 
 export async function getLatestPostingArtifacts(
