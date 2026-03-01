@@ -1,4 +1,3 @@
-export { AppError } from "./error";
 export { createConsoleLogger, noopLogger } from "./logger";
 export type { Logger } from "./logger";
 export { canonicalJson, stableStringify, makePlanKey } from "./canon";

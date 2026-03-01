@@ -14,7 +14,6 @@ export type ComponentApiVersion = "v1";
 
 export interface ComponentDependency {
   componentId: string;
-  required: true;
   reason: string;
 }
 
@@ -44,44 +43,9 @@ export interface ComponentManifest {
   description: string;
   enabledByDefault: boolean;
   scopeSupport: ComponentScopeSupport;
-  configSchema: Record<string, unknown>;
   capabilities: ComponentCapabilities;
   dependencies: ComponentDependency[];
 }
-
-export interface ComponentRuntimeFactoryContext {
-  logger: Logger;
-}
-
-export interface RuntimeWorkerDefinition {
-  id: string;
-  intervalMs: number;
-  processOnce: () => Promise<unknown>;
-}
-
-export interface RuntimeRouteDefinition {
-  version: ComponentApiVersion;
-  routePath: string;
-  guarded?: boolean;
-  registerRoutes: () => unknown;
-}
-
-export interface ComponentRuntimeHooks {
-  onStarted?: () => Promise<void> | void;
-  onStopped?: () => Promise<void> | void;
-}
-
-export interface RuntimeComponentDefinition {
-  routes?: RuntimeRouteDefinition[];
-  workers?: RuntimeWorkerDefinition[];
-  documentModules?: unknown[];
-  hooks?: ComponentRuntimeHooks;
-}
-
-export type CreateComponentFactory<TConfig = Record<string, unknown>> = (
-  context: ComponentRuntimeFactoryContext,
-  config: TConfig,
-) => RuntimeComponentDefinition;
 
 export interface ComponentRuntimeServiceDeps {
   db: Database;
@@ -127,7 +91,6 @@ export interface ComponentRuntimeInfo {
   manifestSeenVersion: number;
   updatedAt: Date;
   checksumMatches: boolean;
-  mixedDeploy: boolean;
 }
 
 export interface EffectiveStateScope {

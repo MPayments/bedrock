@@ -11,8 +11,6 @@ import {
   MixedDeployError,
   UnknownComponentError,
 } from "@bedrock/component-runtime";
-import { AppError } from "@bedrock/kernel";
-
 import auth from "./auth";
 import { createAppContext, parseEnv } from "./context";
 import {
@@ -151,14 +149,6 @@ app.onError((err, c) => {
       },
       409,
     );
-  }
-
-  if (AppError.is(err)) {
-    ctx.logger.warn("Application error", {
-      code: err.code,
-      message: err.message,
-    });
-    return c.json({ error: err.message, code: err.code }, 500);
   }
 
   ctx.logger.error("Unexpected error", {

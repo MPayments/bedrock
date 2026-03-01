@@ -1,6 +1,5 @@
 import type { ComponentManifest } from "./types";
 
-const emptyConfigSchema: Record<string, unknown> = {};
 
 export const BEDROCK_COMPONENT_MANIFESTS = [
   {
@@ -11,7 +10,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Component runtime control plane",
     enabledByDefault: true,
     scopeSupport: { global: true, book: false },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -29,7 +28,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Idempotency kernel",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {},
     dependencies: [],
   },
@@ -41,7 +40,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Ledger execution runtime",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       workers: ["ledger"],
     },
@@ -55,7 +54,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Accounting runtime",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -65,12 +64,12 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     dependencies: [
       {
         componentId: "ledger",
-        required: true,
+
         reason: "Accounting posting is persisted through ledger operations",
       },
       {
         componentId: "idempotency",
-        required: true,
+
         reason: "Accounting writes rely on idempotent operation semantics",
       },
     ],
@@ -83,7 +82,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Accounting reporting service",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -93,7 +92,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     dependencies: [
       {
         componentId: "accounting",
-        required: true,
+
         reason: "Reporting depends on accounting data model",
       },
     ],
@@ -106,24 +105,24 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Workflow documents runtime",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       workers: ["documents"],
     },
     dependencies: [
       {
         componentId: "accounting",
-        required: true,
+
         reason: "Documents post through accounting runtime",
       },
       {
         componentId: "ledger",
-        required: true,
+
         reason: "Documents posting writes ledger operations",
       },
       {
         componentId: "idempotency",
-        required: true,
+
         reason: "Document actions use idempotent action receipts",
       },
     ],
@@ -136,7 +135,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Operational accounts component",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -153,7 +152,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Operational account provider component",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -163,7 +162,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     dependencies: [
       {
         componentId: "accounts",
-        required: true,
+
         reason: "Providers are bound to operational accounts",
       },
     ],
@@ -176,7 +175,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Counterparties component",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -193,7 +192,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Counterparty groups component",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -203,7 +202,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     dependencies: [
       {
         componentId: "counterparties",
-        required: true,
+
         reason: "Groups aggregate counterparties",
       },
     ],
@@ -216,7 +215,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Customers component",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -233,7 +232,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Currencies component",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -250,12 +249,12 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Fees runtime",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {},
     dependencies: [
       {
         componentId: "currencies",
-        required: true,
+
         reason: "Fee rules are currency-bound",
       },
     ],
@@ -268,17 +267,17 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "FX runtime",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {},
     dependencies: [
       {
         componentId: "fees",
-        required: true,
+
         reason: "FX quotes include fee components",
       },
       {
         componentId: "currencies",
-        required: true,
+
         reason: "FX pairs require currencies",
       },
     ],
@@ -291,7 +290,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "FX rates component and worker",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -302,7 +301,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     dependencies: [
       {
         componentId: "fx",
-        required: true,
+
         reason: "Rates sync is part of FX runtime",
       },
     ],
@@ -315,7 +314,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Payment provider connectors runtime",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -330,7 +329,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     dependencies: [
       {
         componentId: "idempotency",
-        required: true,
+
         reason: "Connector writes rely on deterministic idempotency receipts",
       },
     ],
@@ -343,7 +342,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Payment routing orchestration runtime",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -354,7 +353,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     dependencies: [
       {
         componentId: "connectors",
-        required: true,
+
         reason: "Routing decisions and retries depend on connector state",
       },
     ],
@@ -367,7 +366,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Payments workflow component",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -378,17 +377,17 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     dependencies: [
       {
         componentId: "documents",
-        required: true,
+
         reason: "Payments are implemented as document workflows",
       },
       {
         componentId: "connectors",
-        required: true,
+
         reason: "Posted payments create connector intents",
       },
       {
         componentId: "orchestration",
-        required: true,
+
         reason: "Posted payments require routing",
       },
     ],
@@ -401,7 +400,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Balances runtime and projector",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -412,7 +411,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     dependencies: [
       {
         componentId: "ledger",
-        required: true,
+
         reason: "Balances project from ledger events",
       },
     ],
@@ -425,7 +424,7 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     description: "Reconciliation runtime",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
-    configSchema: emptyConfigSchema,
+
     capabilities: {
       api: {
         version: "v1",
@@ -436,12 +435,12 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     dependencies: [
       {
         componentId: "documents",
-        required: true,
+
         reason: "Reconciliation uses document workflows for adjustments",
       },
       {
         componentId: "idempotency",
-        required: true,
+
         reason: "Reconciliation writes are idempotent",
       },
     ],

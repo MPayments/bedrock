@@ -174,7 +174,6 @@ export function systemComponentsRoutes(ctx: AppContext) {
         manifestChecksum: runtime.manifestChecksum,
         manifestSeenVersion: runtime.manifestSeenVersion,
         checksumMatches: runtime.checksumMatches,
-        mixedDeploy: runtime.mixedDeploy,
         updatedAt: runtime.updatedAt,
       });
     },

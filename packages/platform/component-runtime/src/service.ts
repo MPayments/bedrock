@@ -40,6 +40,8 @@ const ADVISORY_LOCK_KEY = 7_020_261;
 const DEFAULT_CACHE_TTL_MS = 30_000;
 const DEFAULT_EPOCH_POLL_INTERVAL_MS = 5_000;
 const DEFAULT_LISTEN_CHANNEL = "component_state_changed";
+const MAX_EFFECTIVE_CACHE_SIZE = 1_000;
+const MAX_SCOPE_CACHE_SIZE = 200;
 
 interface ScopeStateContext {
   global: Map<string, ComponentStateRecord>;
@@ -237,12 +239,6 @@ function orderManifestsTopologically(
     ready.sort((a, b) => a.localeCompare(b));
   }
 
-  if (ordered.length !== manifests.length) {
-    throw new ComponentManifestValidationError([
-      "dependency cycle detected while ordering component manifests",
-    ]);
-  }
-
   return ordered.map((id) => byId.get(id)!);
 }
 
@@ -335,7 +331,6 @@ export function createComponentRuntimeService(
       manifestSeenVersion: row!.manifestSeenVersion,
       updatedAt: row!.updatedAt,
       checksumMatches: row!.manifestChecksum === manifestChecksum,
-      mixedDeploy: row!.manifestChecksum !== manifestChecksum,
     };
 
     currentEpoch = info.stateEpoch;
@@ -408,6 +403,9 @@ export function createComponentRuntimeService(
       }
     }
 
+    if (scopeCache.size >= MAX_SCOPE_CACHE_SIZE) {
+      scopeCache.clear();
+    }
     scopeCache.set(scopeKeyValue, {
       value: context,
       epoch: currentEpoch,
@@ -557,6 +555,9 @@ export function createComponentRuntimeService(
       memo: new Map(),
     });
 
+    if (effectiveCache.size >= MAX_EFFECTIVE_CACHE_SIZE) {
+      effectiveCache.clear();
+    }
     effectiveCache.set(key, {
       value: resolved,
       epoch: currentEpoch,

@@ -17,7 +17,7 @@ describe("createComponentRuntimeService manifest validation", () => {
         description: "a",
         enabledByDefault: true,
         scopeSupport: { global: true, book: true },
-        configSchema: {},
+
         capabilities: {},
         dependencies: [],
       },
@@ -29,7 +29,7 @@ describe("createComponentRuntimeService manifest validation", () => {
         description: "duplicate",
         enabledByDefault: true,
         scopeSupport: { global: true, book: true },
-        configSchema: {},
+
         capabilities: {},
         dependencies: [],
       },
@@ -53,9 +53,9 @@ describe("createComponentRuntimeService manifest validation", () => {
         description: "a",
         enabledByDefault: true,
         scopeSupport: { global: true, book: true },
-        configSchema: {},
+
         capabilities: {},
-        dependencies: [{ componentId: "b", required: true, reason: "depends" }],
+        dependencies: [{ componentId: "b", reason: "depends" }],
       },
       {
         id: "b",
@@ -65,9 +65,9 @@ describe("createComponentRuntimeService manifest validation", () => {
         description: "b",
         enabledByDefault: true,
         scopeSupport: { global: true, book: true },
-        configSchema: {},
+
         capabilities: {},
-        dependencies: [{ componentId: "a", required: true, reason: "depends" }],
+        dependencies: [{ componentId: "a", reason: "depends" }],
       },
     ];
 

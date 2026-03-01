@@ -1,16 +1,16 @@
 import type { Context } from "hono";
 
 import {
+  ConnectorIntentTerminalError,
+  ConnectorMaxAttemptsExceededError,
+} from "@bedrock/connectors";
+import {
   DocumentGraphError,
   DocumentNotFoundError,
   DocumentPolicyDeniedError,
   DocumentPostingNotRequiredError,
   DocumentValidationError,
 } from "@bedrock/documents";
-import {
-  ConnectorIntentTerminalError,
-  ConnectorMaxAttemptsExceededError,
-} from "@bedrock/connectors";
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
@@ -31,11 +31,11 @@ function isZodErrorLike(
 ): error is { flatten: () => unknown; issues: unknown[] } {
   return Boolean(
     error &&
-      typeof error === "object" &&
-      "issues" in error &&
-      Array.isArray((error as { issues?: unknown[] }).issues) &&
-      "flatten" in error &&
-      typeof (error as { flatten?: unknown }).flatten === "function",
+    typeof error === "object" &&
+    "issues" in error &&
+    Array.isArray((error as { issues?: unknown[] }).issues) &&
+    "flatten" in error &&
+    typeof (error as { flatten?: unknown }).flatten === "function",
   );
 }
 
@@ -48,13 +48,13 @@ function isZodErrorLike(
  */
 export function handleRouteError(c: Context, error: unknown): Response {
   if (isZodErrorLike(error)) {
-    return c.json(
-      { error: "Validation error", details: error.flatten() },
-      400,
-    );
+    return c.json({ error: "Validation error", details: error.flatten() }, 400);
   }
 
-  if (error instanceof DocumentNotFoundError || error instanceof NotFoundError) {
+  if (
+    error instanceof DocumentNotFoundError ||
+    error instanceof NotFoundError
+  ) {
     return c.json({ error: resolveErrorMessage(error) }, 404);
   }
 

@@ -55,12 +55,6 @@ export const balancePositions = pgTable(
       t.subjectId,
       t.currency,
     ),
-    index("balance_positions_subject_idx").on(
-      t.bookId,
-      t.subjectType,
-      t.subjectId,
-      t.currency,
-    ),
   ],
 );
 
