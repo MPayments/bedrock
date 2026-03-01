@@ -1,0 +1,86 @@
+# Runbook
+
+Этот раздел - набор команд для ежедневной работы.
+
+## Базовые команды
+
+Установка зависимостей:
+
+```bash
+bun install
+```
+
+Сборка всего монорепозитория:
+
+```bash
+bun run build
+```
+
+Проверка типов:
+
+```bash
+bun run check-types
+```
+
+Линт:
+
+```bash
+bun run lint
+```
+
+Юнит-тесты:
+
+```bash
+bun run test
+```
+
+Интеграционные тесты:
+
+```bash
+bun run test:integration
+```
+
+## Команды по приложениям
+
+API:
+
+```bash
+bun run --filter=api dev
+bun run build --filter=api
+```
+
+Web:
+
+```bash
+bun run --cwd apps/web dev
+bun run --cwd apps/web build
+```
+
+Workers:
+
+```bash
+bun run --filter=workers worker:all
+```
+
+Docs:
+
+```bash
+bun run --cwd apps/docs dev
+bun run --cwd apps/docs check-types
+bun run --cwd apps/docs lint
+bun run --cwd apps/docs build
+```
+
+## База данных
+
+Миграции:
+
+```bash
+bun run --filter=@bedrock/db db:migrate
+```
+
+Полный сброс локальной БД:
+
+```bash
+bun run --filter=@bedrock/db db:nuke
+```

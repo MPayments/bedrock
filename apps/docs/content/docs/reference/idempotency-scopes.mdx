@@ -1,0 +1,45 @@
+# Идемпотентность
+
+Идемпотентность в Bedrock нужна, чтобы безопасно повторять запросы без двойного побочного эффекта.
+
+## Основные scope
+
+Connectors:
+
+- `connectors.createIntent`
+- `connectors.enqueueAttempt`
+- `connectors.recordAttemptStatus`
+- `connectors.handleWebhook`
+- `connectors.ingestStatements`
+- `connectors.markIntentTerminal`
+
+Orchestration:
+
+- `orchestration.route`
+- `orchestration.retrySchedule`
+
+## Практическое правило
+
+Для мутаций используйте стабильный ключ, который не меняется между ретраями одного и того же бизнес-действия.
+
+Пример:
+
+```text
+payment-post-<paymentId>-v1
+```
+
+Если клиент получил timeout и повторил запрос с тем же ключом, сервер не выполнит мутацию дважды.
+
+## Пример HTTP
+
+```bash
+curl -X POST http://localhost:3002/v1/payments/<id>/submit \
+  -H 'Cookie: <session-cookie>' \
+  -H 'Idempotency-Key: payment-submit-<id>-v1'
+```
+
+## Ошибки, которых стоит избегать
+
+- генерировать новый ключ при каждом ретрае
+- использовать один и тот же ключ для разных операций
+- не включать бизнес-идентификатор в ключ

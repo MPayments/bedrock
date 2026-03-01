@@ -1,5 +1,5 @@
-import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { db } from "@bedrock/db/client";
 import { canonicalJson } from "@bedrock/kernel";
@@ -12,9 +12,10 @@ import {
   type CompiledPack,
 } from "../src/index";
 
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PACK_PATH = resolve(
-  process.cwd(),
-  "../packs/bedrock-core-default/src/index.ts",
+  SCRIPT_DIR,
+  "../../../packs/bedrock-core-default/src/index.ts",
 );
 
 function readFlag(name: string): string | undefined {

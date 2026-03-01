@@ -1,12 +1,12 @@
 import "./env";
 
-import { db } from "@bedrock/db/client";
-import { createConsoleLogger } from "@bedrock/kernel";
-import { createLedgerWorker, createTbClient } from "@bedrock/ledger";
 import {
   BEDROCK_COMPONENT_MANIFESTS,
   createComponentRuntimeService,
 } from "@bedrock/component-runtime";
+import { db } from "@bedrock/db/client";
+import { createConsoleLogger } from "@bedrock/kernel";
+import { createLedgerWorker, createTbClient } from "@bedrock/ledger";
 
 import { env } from "./env";
 import { registerApplicationWorkers } from "./modules/registry";

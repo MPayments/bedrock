@@ -56,3 +56,17 @@ export class AccountingPackNotFoundError extends AccountingError {
     this.name = "AccountingPackNotFoundError";
   }
 }
+
+export class AccountingPackVersionConflictError extends AccountingError {
+  constructor(
+    packKey: string,
+    version: number,
+    existingChecksum: string,
+    nextChecksum: string,
+  ) {
+    super(
+      `Accounting pack ${packKey}@${version} already exists with checksum ${existingChecksum}; cannot replace with ${nextChecksum} because existing checksum is already assigned`,
+    );
+    this.name = "AccountingPackVersionConflictError";
+  }
+}

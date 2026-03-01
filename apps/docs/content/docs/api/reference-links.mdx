@@ -1,0 +1,27 @@
+# Ссылки на API
+
+В docs-приложении мы не встраиваем OpenAPI UI внутрь страниц, а даем прямые ссылки на API-сервис.
+
+## Локальные ссылки
+
+При запущенном `apps/api`:
+
+- Scalar UI: [http://localhost:3002/docs](http://localhost:3002/docs)
+- OpenAPI JSON: [http://localhost:3002/api/open-api](http://localhost:3002/api/open-api)
+
+## Как использовать
+
+- Scalar удобен для чтения и проверки схем вручную.
+- OpenAPI JSON удобен для генерации клиента, контрактных тестов и diff в CI.
+
+## Пример: скачать OpenAPI
+
+```bash
+curl -s http://localhost:3002/api/open-api -o openapi.json
+```
+
+## Пример: быстро проверить, что endpoint есть в схеме
+
+```bash
+cat openapi.json | rg '"/v1/payments"'
+```

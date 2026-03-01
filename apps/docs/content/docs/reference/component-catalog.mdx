@@ -1,0 +1,48 @@
+# Каталог компонентов
+
+Этот раздел помогает быстро понять, какие пакеты за что отвечают.
+
+## Приложения (`apps/*`)
+
+- `api` - HTTP API, auth, permissions, OpenAPI
+- `web` - пользовательский интерфейс
+- `workers` - асинхронные циклы обработки
+- `docs` - документация framework
+
+## Platform (`packages/platform/*`)
+
+- `accounting` - бухгалтерские правила/постинг
+- `accounting-contracts` - контракты accounting уровня
+- `balances` - витрина и актуализация балансов
+- `component-runtime` - управление состоянием компонентов
+- `connectors` - интеграция с платежными провайдерами
+- `db` - схема и доступ к БД
+- `dimensions` - справочники/измерения
+- `documents` - workflow-модель документов
+- `idempotency` - защита от повторной обработки
+- `kernel` - базовые типы, ошибки, логирование
+- `ledger` - финансовое исполнение через TigerBeetle
+- `orchestration` - маршрутизация и fallback
+- `reconciliation` - сверка внешних операций
+
+## Modules (`packages/modules/*`)
+
+- `payments`
+- `fx`
+- `fees`
+- `customers`
+- `counterparties`
+- `currencies`
+- `operational-accounts`
+- `accounting-reporting`
+
+## Packs (`packages/packs/*`)
+
+- `bedrock-core-default`
+- `schema`
+
+## SDK (`packages/sdk/*`)
+
+- `api-client`
+- `countries`
+- `ui`

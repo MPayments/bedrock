@@ -1,126 +1,77 @@
-# Turborepo + Hono starter
+# Bedrock
 
-## What's inside?
+Bedrock is a financial platform monorepo (ledger, orchestration, connectors, balances, FX, reconciliation).
 
-This Turborepo includes the following packages/apps:
+## Stack
 
-### Apps and Packages
+- Runtime: Node.js 24.x
+- Package manager: Bun
+- Monorepo: Turborepo
+- API: Hono
+- Web: Next.js
+- Docs: Nextra + Next.js (`apps/docs`)
+- Storage: PostgreSQL + TigerBeetle
 
-- `api`: a [Hono](https://hono.dev/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@bedrock/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@bedrock/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@bedrock/typescript-config`: `tsconfig.json`s used throughout the monorepo
+## Apps
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+- `apps/api` - API adapter (`http://localhost:3002`)
+- `apps/web` - Web app (`http://localhost:3001`)
+- `apps/workers` - Background loops (monitoring on `http://localhost:8081`)
+- `apps/docs` - Documentation app (`http://localhost:3003`)
 
-### Utilities
+## Local Setup
 
-This Turborepo has some additional tools already setup for you:
+Start infrastructure:
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+```bash
+docker compose -f infra/docker-compose.yml up -d
 ```
 
-You can build a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+Install dependencies:
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+```bash
+bun install
 ```
 
-### Develop
+## Run
 
-To develop all apps and packages, run the following commands:
+Run all apps:
 
-```
-cd my-turborepo
-vc link --repo # Connect your repository to Vercel
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
+```bash
+bun run dev
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+Run docs app only:
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+```bash
+bun run --cwd apps/docs dev
 ```
 
-### Remote Caching
+## Build and Quality
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+Build everything:
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
+```bash
+bun run build
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+Build docs app only:
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
+```bash
+bun run build --filter=docs
 ```
 
-## Useful Links
+Checks:
 
-Learn more about the power of Turborepo:
+```bash
+bun run lint
+bun run check-types
+bun run test
+bun run test:integration
+```
 
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+## Documentation Source of Truth
+
+Canonical documentation lives in:
+
+- `apps/docs/content/docs/**`

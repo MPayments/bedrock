@@ -18,6 +18,7 @@ import type {
 import {
   AccountingPackCompilationError,
   AccountingPackNotFoundError,
+  AccountingPackVersionConflictError,
   AccountingPostingPlanValidationError,
   AccountingTemplateAccessError,
   UnknownPostingTemplateError,
@@ -727,22 +728,92 @@ export function createAccountingRuntime(
     const compiled =
       input.pack ??
       (input.definition ? compilePack(input.definition) : defaultCompiledPack);
+    const serializedCompiled = serializeCompiledPack(compiled) as unknown as Record<
+      string,
+      unknown
+    >;
+    let replacedChecksum: string | null = null;
 
-    await runtimeDb
-      .insert(schema.accountingPackVersions)
-      .values({
-        packKey: compiled.packKey,
-        version: compiled.version,
-        checksum: compiled.checksum,
-        compiledJson: serializeCompiledPack(compiled) as unknown as Record<
-          string,
-          unknown
-        >,
-      })
-      .onConflictDoNothing();
+    const stored = await runtimeDb.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({
+          checksum: schema.accountingPackVersions.checksum,
+          compiledJson: schema.accountingPackVersions.compiledJson,
+        })
+        .from(schema.accountingPackVersions)
+        .where(
+          and(
+            eq(schema.accountingPackVersions.packKey, compiled.packKey),
+            eq(schema.accountingPackVersions.version, compiled.version),
+          ),
+        )
+        .limit(1);
 
-    writeCachedPack(compiled.checksum, compiled);
-    return compiled;
+      if (!existing) {
+        await tx.insert(schema.accountingPackVersions).values({
+          packKey: compiled.packKey,
+          version: compiled.version,
+          checksum: compiled.checksum,
+          compiledJson: serializedCompiled,
+        });
+        return compiled;
+      }
+
+      const existingPack = hydrateCompiledPack(
+        existing.compiledJson as Record<string, unknown>,
+      );
+      const checksumMatches = existing.checksum === compiled.checksum;
+      const payloadMatches = existingPack.checksum === compiled.checksum;
+
+      if (checksumMatches && payloadMatches) {
+        return existingPack;
+      }
+
+      if (!checksumMatches) {
+        const [assignment] = await tx
+          .select({ id: schema.accountingPackAssignments.id })
+          .from(schema.accountingPackAssignments)
+          .where(
+            eq(schema.accountingPackAssignments.packChecksum, existing.checksum),
+          )
+          .limit(1);
+
+        if (assignment) {
+          throw new AccountingPackVersionConflictError(
+            compiled.packKey,
+            compiled.version,
+            existing.checksum,
+            compiled.checksum,
+          );
+        }
+      }
+
+      await tx
+        .update(schema.accountingPackVersions)
+        .set({
+          checksum: compiled.checksum,
+          compiledJson: serializedCompiled,
+          compiledAt: new Date(),
+        })
+        .where(
+          and(
+            eq(schema.accountingPackVersions.packKey, compiled.packKey),
+            eq(schema.accountingPackVersions.version, compiled.version),
+          ),
+        );
+
+      if (existing.checksum !== compiled.checksum) {
+        replacedChecksum = existing.checksum;
+      }
+
+      return compiled;
+    });
+
+    if (replacedChecksum) {
+      writeCachedPack(replacedChecksum, null);
+    }
+    writeCachedPack(stored.checksum, stored);
+    return stored;
   }
 
   async function loadCompiledPackByChecksum(checksum: string) {
@@ -766,11 +837,11 @@ export function createAccountingRuntime(
       return null;
     }
 
-    const pack = hydrateCompiledPack(
-      row.compiledJson as Record<string, unknown>,
-      row.checksum,
-    );
+    const pack = hydrateCompiledPack(row.compiledJson as Record<string, unknown>);
     writeCachedPack(checksum, pack);
+    if (pack.checksum !== checksum) {
+      writeCachedPack(pack.checksum, pack);
+    }
     return pack;
   }
 

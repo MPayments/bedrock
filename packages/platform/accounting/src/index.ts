@@ -28,7 +28,11 @@ export {
   type ReplaceCorrespondenceRulesInput,
 } from "./validation";
 
-export { AccountingError, CorrespondenceRuleNotFoundError } from "./errors";
+export {
+  AccountingError,
+  AccountingPackVersionConflictError,
+  CorrespondenceRuleNotFoundError,
+} from "./errors";
 
 export { createAccountingService, type AccountingService } from "./service";
 export type { AccountingPackDefinition } from "@bedrock/packs-schema";

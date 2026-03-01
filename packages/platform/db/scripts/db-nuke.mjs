@@ -1,24 +1,48 @@
 import dotenv from "dotenv";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Client } from "pg";
 
-dotenv.config({ path: new URL("../../../.env", import.meta.url) });
+const dir = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: resolve(dir, "../../../../.env") });
+
+function parseConnectionString(connectionString) {
+    const parsed = new URL(connectionString);
+
+    return {
+        host: parsed.hostname || "localhost",
+        port: parsed.port ? Number(parsed.port) : 5432,
+        database: parsed.pathname.replace(/^\//, "") || "postgres",
+        user: decodeURIComponent(parsed.username || "postgres"),
+        password: decodeURIComponent(parsed.password || process.env.DB_PASSWORD || ""),
+        ssl: false,
+    };
+}
 
 function resolveConnectionConfig() {
-    if (process.env.DATABASE_URL) {
+    const hasExplicitDbConfig =
+        process.env.DB_HOST ||
+        process.env.DB_PORT ||
+        process.env.DB_NAME ||
+        process.env.DB_USER ||
+        typeof process.env.DB_PASSWORD === "string";
+
+    if (hasExplicitDbConfig) {
         return {
-            connectionString: process.env.DATABASE_URL,
+            host: process.env.DB_HOST ?? "localhost",
+            port: Number(process.env.DB_PORT ?? 5432),
+            database: process.env.DB_NAME ?? "postgres",
+            user: process.env.DB_USER ?? "postgres",
+            password: process.env.DB_PASSWORD ?? "",
             ssl: false,
         };
     }
 
-    return {
-        host: process.env.DB_HOST ?? "localhost",
-        port: Number(process.env.DB_PORT ?? 5432),
-        database: process.env.DB_NAME ?? "postgres",
-        user: process.env.DB_USER ?? "postgres",
-        password: process.env.DB_PASSWORD ?? "",
-        ssl: false,
-    };
+    if (process.env.DATABASE_URL) {
+        return parseConnectionString(process.env.DATABASE_URL);
+    }
+
+    return parseConnectionString("postgresql://postgres:postgres@localhost:5432/postgres");
 }
 
 const client = new Client(resolveConnectionConfig());

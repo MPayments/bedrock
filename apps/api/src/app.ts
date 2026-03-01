@@ -26,6 +26,22 @@ import {
   API_APPLICATION_COMPONENTS,
   type ApiApplicationComponent,
 } from "./modules/registry";
+import {
+  accountingRoutes,
+  accountProvidersRoutes,
+  accountsRoutes,
+  balancesRoutes,
+  connectorsRoutes,
+  counterpartiesRoutes,
+  counterpartyGroupsRoutes,
+  customersRoutes,
+  currenciesRoutes,
+  fxRatesRoutes,
+  orchestrationRoutes,
+  paymentsRoutes,
+  reconciliationRoutes,
+  systemComponentsRoutes,
+} from "./routes";
 
 const env: Env = {
   DATABASE_URL: process.env.DATABASE_URL!,
@@ -211,7 +227,56 @@ function buildV1Router(guarded: boolean): OpenAPIHono<{ Variables: AuthVariables
   return router;
 }
 
-const typedV1 = buildV1Router(false);
+const TYPED_ROUTE_PATHS = [
+  "/accounting",
+  "/account-providers",
+  "/accounts",
+  "/balances",
+  "/counterparties",
+  "/counterparty-groups",
+  "/customers",
+  "/currencies",
+  "/payments",
+  "/connectors",
+  "/orchestration",
+  "/fx/rates",
+  "/reconciliation",
+  "/system/components",
+] as const;
+
+function assertTypedRouteCoverage() {
+  const typedRoutePaths = [...TYPED_ROUTE_PATHS].sort();
+  const componentRoutePaths = API_APPLICATION_COMPONENTS.map((component) =>
+    component.routePath,
+  ).sort();
+
+  const hasMismatch =
+    typedRoutePaths.length !== componentRoutePaths.length ||
+    typedRoutePaths.some((path, index) => path !== componentRoutePaths[index]);
+  if (hasMismatch) {
+    throw new Error(
+      `Typed API route mounts are out of sync with component registry. typed=${typedRoutePaths.join(",")} components=${componentRoutePaths.join(",")}`,
+    );
+  }
+}
+
+assertTypedRouteCoverage();
+
+const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
+  .route("/accounting", accountingRoutes(ctx))
+  .route("/account-providers", accountProvidersRoutes(ctx))
+  .route("/accounts", accountsRoutes(ctx))
+  .route("/balances", balancesRoutes(ctx))
+  .route("/counterparties", counterpartiesRoutes(ctx))
+  .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
+  .route("/customers", customersRoutes(ctx))
+  .route("/currencies", currenciesRoutes(ctx))
+  .route("/payments", paymentsRoutes(ctx))
+  .route("/connectors", connectorsRoutes(ctx))
+  .route("/orchestration", orchestrationRoutes(ctx))
+  .route("/fx/rates", fxRatesRoutes(ctx))
+  .route("/reconciliation", reconciliationRoutes(ctx))
+  .route("/system/components", systemComponentsRoutes(ctx));
 
 const typedRoutes = new OpenAPIHono<{ Variables: AuthVariables }>().route(
   "/v1",

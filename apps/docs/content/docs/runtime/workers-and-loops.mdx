@@ -1,0 +1,59 @@
+# Воркеры и циклы
+
+`apps/workers` - это фоновый рантайм, который доводит систему до консистентного состояния.
+
+## Активные циклы
+
+- `ledger`
+- `documents`
+- `balances`
+- `fx-rates`
+- `reconciliation`
+- `connectors-dispatch`
+- `connectors-poller`
+- `connectors-statements`
+- `orchestration-retry`
+
+## Как это работает
+
+Каждый цикл запускается по таймеру и выполняет `processOnce()`.
+
+Упрощенно:
+
+1. взять порцию задач
+2. обработать
+3. записать состояние/метрики
+4. ждать следующий тик
+
+## Пример запуска
+
+```bash
+bun run --filter=workers worker:all
+```
+
+## Интервалы из env
+
+- `LEDGER_WORKER_INTERVAL_MS`
+- `BALANCES_WORKER_INTERVAL_MS`
+- `FX_RATES_WORKER_INTERVAL_MS`
+- `RECONCILIATION_WORKER_INTERVAL_MS`
+- `CONNECTORS_DISPATCH_WORKER_INTERVAL_MS`
+- `CONNECTORS_STATUS_POLLER_INTERVAL_MS`
+- `CONNECTORS_STATEMENT_INGEST_INTERVAL_MS`
+- `ORCHESTRATION_WORKER_INTERVAL_MS`
+
+## Мониторинг
+
+По умолчанию:
+
+- Host: `0.0.0.0`
+- Port: `8081`
+
+Проверки:
+
+```bash
+curl http://localhost:8081/health
+curl http://localhost:8081/metrics
+```
+
+`/health` показывает состояние циклов (`ok`/`degraded`), `/metrics` - Prometheus-метрики.
