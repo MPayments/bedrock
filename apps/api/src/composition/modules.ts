@@ -4,7 +4,7 @@ import {
 } from "@bedrock/accounting-reporting";
 import {
   createConnectorsService,
-  type ConnectorAdapter,
+  getMockProviders,
   type ConnectorsService,
 } from "@bedrock/connectors";
 import {
@@ -63,82 +63,6 @@ export interface ApiModuleServices {
   reconciliationService: ReconciliationService;
 }
 
-const mockWebhookAdapter: ConnectorAdapter = {
-  async initiate(input) {
-    return {
-      status: "submitted",
-      externalAttemptRef: `wh:${input.attempt.id}`,
-      responsePayload: { accepted: true },
-    };
-  },
-  async getStatus() {
-    return {
-      status: "pending",
-      responsePayload: { pending: true },
-    };
-  },
-  async verifyAndParseWebhook(input) {
-    return {
-      signatureValid: true,
-      eventType: "provider_event",
-      webhookIdempotencyKey:
-        String(input.rawPayload.eventId ?? input.rawPayload.id ?? "unknown"),
-      parsedPayload: input.rawPayload,
-      attemptId:
-        typeof input.rawPayload.attemptId === "string"
-          ? input.rawPayload.attemptId
-          : undefined,
-      status:
-        input.rawPayload.status === "succeeded"
-          ? "succeeded"
-          : input.rawPayload.status === "failed_terminal"
-            ? "failed_terminal"
-            : input.rawPayload.status === "failed_retryable"
-              ? "failed_retryable"
-              : "pending",
-    };
-  },
-  async fetchStatements() {
-    return {
-      records: [],
-      nextCursor: null,
-    };
-  },
-};
-
-const mockPollingAdapter: ConnectorAdapter = {
-  async initiate(input) {
-    return {
-      status: "pending",
-      externalAttemptRef: `poll:${input.attempt.id}`,
-      responsePayload: { accepted: true },
-    };
-  },
-  async getStatus(input) {
-    return {
-      status: input.externalAttemptRef.includes("fail")
-        ? "failed_retryable"
-        : "succeeded",
-      responsePayload: { externalAttemptRef: input.externalAttemptRef },
-    };
-  },
-  async verifyAndParseWebhook(input) {
-    return {
-      signatureValid: false,
-      eventType: "unsupported",
-      webhookIdempotencyKey:
-        String(input.rawPayload.eventId ?? input.rawPayload.id ?? "unknown"),
-      parsedPayload: input.rawPayload,
-    };
-  },
-  async fetchStatements() {
-    return {
-      records: [],
-      nextCursor: null,
-    };
-  },
-};
-
 export function createModuleServices(
   platform: ApiPlatformServices,
 ): ApiModuleServices {
@@ -166,10 +90,7 @@ export function createModuleServices(
   const connectorsService = createConnectorsService({
     db,
     logger,
-    providers: {
-      mock_webhook: mockWebhookAdapter,
-      mock_polling: mockPollingAdapter,
-    },
+    providers: getMockProviders(),
   });
   const orchestrationService = createOrchestrationService({
     db,

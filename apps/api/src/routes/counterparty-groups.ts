@@ -181,7 +181,7 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
   });
 
   const deleteRoute = createRoute({
-    // middleware: [requirePermission({ counterparties: ["delete"] })],
+    middleware: [requirePermission({ counterparties: ["delete"] })],
     method: "delete",
     path: "/{id}",
     tags: ["Counterparty Groups"],

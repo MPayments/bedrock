@@ -14,7 +14,7 @@ import {
 import { AppError } from "@bedrock/kernel";
 
 import auth from "./auth";
-import { createAppContext, type Env } from "./context";
+import { createAppContext, parseEnv } from "./context";
 import {
   authMiddleware,
   requireAuth,
@@ -43,14 +43,7 @@ import {
   systemComponentsRoutes,
 } from "./routes";
 
-const env: Env = {
-  DATABASE_URL: process.env.DATABASE_URL!,
-  TB_ADDRESS: process.env.TB_ADDRESS!,
-  TB_CLUSTER_ID: Number(process.env.TB_CLUSTER_ID!),
-  BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
-  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL!,
-  BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS!,
-};
+const env = parseEnv();
 
 const ctx = createAppContext(env);
 void ctx.componentRuntime.startBackgroundSync().catch((error: unknown) => {

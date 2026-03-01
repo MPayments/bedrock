@@ -20,17 +20,40 @@ import type { OperationalAccountsService } from "@bedrock/operational-accounts";
 import type { OrchestrationService } from "@bedrock/orchestration";
 import type { PaymentsService } from "@bedrock/payments";
 import type { ReconciliationService } from "@bedrock/reconciliation";
+import { z } from "zod";
 
 import { createModuleServices } from "./composition/modules";
 import { createPlatformServices } from "./composition/platform";
 
-export interface Env {
-  DATABASE_URL: string;
-  TB_ADDRESS: string;
-  TB_CLUSTER_ID: number;
-  BETTER_AUTH_SECRET: string;
-  BETTER_AUTH_URL: string;
-  BETTER_AUTH_TRUSTED_ORIGINS: string;
+const EnvSchema = z.object({
+  DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
+  TB_ADDRESS: z.string().min(1, "TB_ADDRESS is required"),
+  TB_CLUSTER_ID: z.coerce.number().int().nonnegative(),
+  BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
+  BETTER_AUTH_URL: z.string().url("BETTER_AUTH_URL must be a valid URL"),
+  BETTER_AUTH_TRUSTED_ORIGINS: z.string().min(1, "BETTER_AUTH_TRUSTED_ORIGINS is required"),
+});
+
+export type Env = z.infer<typeof EnvSchema>;
+
+export function parseEnv(): Env {
+  const result = EnvSchema.safeParse({
+    DATABASE_URL: process.env.DATABASE_URL,
+    TB_ADDRESS: process.env.TB_ADDRESS,
+    TB_CLUSTER_ID: process.env.TB_CLUSTER_ID,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+    BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS,
+  });
+
+  if (!result.success) {
+    const errors = result.error.issues
+      .map((i) => `  ${i.path.join(".")}: ${i.message}`)
+      .join("\n");
+    throw new Error(`Invalid environment configuration:\n${errors}`);
+  }
+
+  return result.data;
 }
 
 export interface AppContext {

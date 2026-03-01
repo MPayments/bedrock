@@ -8,7 +8,7 @@ import {
   createConnectorsService,
   createStatementIngestWorker,
   createStatusPollerWorker,
-  type ConnectorAdapter,
+  getMockProviders,
 } from "@bedrock/connectors";
 import { createCurrenciesService } from "@bedrock/currencies";
 import type { Database } from "@bedrock/db";
@@ -45,72 +45,6 @@ interface WorkerComponentManifest {
   createProcessOnce: (deps: WorkerModuleDeps) => () => Promise<unknown>;
 }
 
-const mockWebhookAdapter: ConnectorAdapter = {
-  async initiate(input) {
-    return {
-      status: "submitted",
-      externalAttemptRef: `wh:${input.attempt.id}`,
-      responsePayload: { accepted: true },
-    };
-  },
-  async getStatus() {
-    return {
-      status: "pending",
-      responsePayload: { pending: true },
-    };
-  },
-  async verifyAndParseWebhook(input) {
-    return {
-      signatureValid: true,
-      eventType: "provider_event",
-      webhookIdempotencyKey: String(
-        input.rawPayload.eventId ?? input.rawPayload.id ?? "unknown",
-      ),
-      parsedPayload: input.rawPayload,
-    };
-  },
-  async fetchStatements() {
-    return {
-      records: [],
-      nextCursor: null,
-    };
-  },
-};
-
-const mockPollingAdapter: ConnectorAdapter = {
-  async initiate(input) {
-    return {
-      status: "pending",
-      externalAttemptRef: `poll:${input.attempt.id}`,
-      responsePayload: { accepted: true },
-    };
-  },
-  async getStatus(input) {
-    return {
-      status: input.externalAttemptRef.includes("fail")
-        ? "failed_retryable"
-        : "succeeded",
-      responsePayload: { externalAttemptRef: input.externalAttemptRef },
-    };
-  },
-  async verifyAndParseWebhook(input) {
-    return {
-      signatureValid: false,
-      eventType: "unsupported",
-      webhookIdempotencyKey: String(
-        input.rawPayload.eventId ?? input.rawPayload.id ?? "unknown",
-      ),
-      parsedPayload: input.rawPayload,
-    };
-  },
-  async fetchStatements() {
-    return {
-      records: [],
-      nextCursor: null,
-    };
-  },
-};
-
 function createWorkerRegistry() {
   const workers: RegisteredWorker[] = [];
 
@@ -128,10 +62,7 @@ function createConnectorsForWorker(deps: WorkerModuleDeps) {
   return createConnectorsService({
     db: deps.db,
     logger: deps.logger,
-    providers: {
-      mock_webhook: mockWebhookAdapter,
-      mock_polling: mockPollingAdapter,
-    },
+    providers: getMockProviders(),
   });
 }
 

@@ -25,7 +25,7 @@ export const tbTransferPlans = pgTable(
 
     operationId: uuid("operation_id")
       .notNull()
-      .references(() => ledgerOperations.id, { onDelete: "cascade" }),
+      .references(() => ledgerOperations.id, { onDelete: "restrict" }),
 
     lineNo: integer("line_no").notNull(),
     type: text("type").$type<TbPlanType>().notNull().default("create"),

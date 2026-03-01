@@ -10,7 +10,10 @@ const auth = betterAuth({
     secret: process.env.BETTER_AUTH_SECRET!,
     baseURL: process.env.BETTER_AUTH_URL!,
     basePath: "/api/auth",
-    trustedOrigins: [process.env.BETTER_AUTH_TRUSTED_ORIGINS!],
+    trustedOrigins: (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter((origin) => origin.length > 0),
     trustedHeaders: ["cookie"],
     advanced: {
         crossSubDomainCookies: {
