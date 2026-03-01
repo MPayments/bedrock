@@ -1,5 +1,6 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
+import { handleRouteError } from "../common/errors";
 import { toJsonSafe } from "../common/json";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
@@ -50,16 +51,6 @@ const ManualStatementIngestSchema = z.object({
   ),
 });
 
-function errorResponse(c: any, error: unknown) {
-  if (error instanceof z.ZodError) {
-    return c.json({ error: "Validation error", details: error.flatten() }, 400);
-  }
-  if (error instanceof Error) {
-    return c.json({ error: error.message }, 400);
-  }
-  return c.json({ error: String(error) }, 400);
-}
-
 export function connectorsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
@@ -71,7 +62,7 @@ export function connectorsRoutes(ctx: AppContext) {
         const rows = await ctx.connectorsService.listProviderHealth();
         return c.json(toJsonSafe(rows));
       } catch (error) {
-        return errorResponse(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -91,7 +82,7 @@ export function connectorsRoutes(ctx: AppContext) {
         });
         return c.json(toJsonSafe(row));
       } catch (error) {
-        return errorResponse(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -113,7 +104,7 @@ export function connectorsRoutes(ctx: AppContext) {
         });
         return c.json(toJsonSafe(rows));
       } catch (error) {
-        return errorResponse(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -135,7 +126,7 @@ export function connectorsRoutes(ctx: AppContext) {
         });
         return c.json(toJsonSafe(rows));
       } catch (error) {
-        return errorResponse(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -161,7 +152,7 @@ export function connectorsRoutes(ctx: AppContext) {
         });
         return c.json(toJsonSafe(result));
       } catch (error) {
-        return errorResponse(c, error);
+        return handleRouteError(c, error);
       }
     },
   );

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/db/schema";
 
@@ -124,56 +124,44 @@ export function createOrchestrationService(
     providerCode: string;
     status: "succeeded" | "failed_retryable" | "failed_terminal";
   }) {
-    const [row] = await context.db
-      .select()
-      .from(schema.connectorHealth)
-      .where(eq(schema.connectorHealth.providerCode, input.providerCode))
-      .limit(1);
-
-    const currentScore = row?.score ?? 50;
-    const nextScore =
+    const isSuccess = input.status === "succeeded";
+    const scoreDelta =
       input.status === "succeeded"
-        ? Math.min(100, currentScore + 5)
+        ? 5
         : input.status === "failed_terminal"
-          ? Math.max(0, currentScore - 20)
-          : Math.max(0, currentScore - 5);
+          ? -20
+          : -5;
+    const now = new Date();
+    const healthStatus = isSuccess ? "up" : "degraded";
 
     const [updated] = await context.db
       .insert(schema.connectorHealth)
       .values({
         providerCode: input.providerCode,
-        status: input.status === "succeeded" ? "up" : "degraded",
-        score: nextScore,
-        successCount: input.status === "succeeded" ? 1 : 0,
-        failureCount: input.status !== "succeeded" ? 1 : 0,
-        lastCheckedAt: new Date(),
-        lastSuccessAt: input.status === "succeeded" ? new Date() : null,
-        lastFailureAt: input.status !== "succeeded" ? new Date() : null,
+        status: healthStatus,
+        score: Math.max(0, Math.min(100, 50 + scoreDelta)),
+        successCount: isSuccess ? 1 : 0,
+        failureCount: isSuccess ? 0 : 1,
+        lastCheckedAt: now,
+        lastSuccessAt: isSuccess ? now : null,
+        lastFailureAt: isSuccess ? null : now,
         lastError: null,
       })
       .onConflictDoUpdate({
         target: schema.connectorHealth.providerCode,
         set: {
-          status: input.status === "succeeded" ? "up" : "degraded",
-          score: nextScore,
-          successCount:
-            input.status === "succeeded"
-              ? row
-                ? row.successCount + 1
-                : 1
-              : (row?.successCount ?? 0),
-          failureCount:
-            input.status !== "succeeded"
-              ? row
-                ? row.failureCount + 1
-                : 1
-              : (row?.failureCount ?? 0),
-          lastCheckedAt: new Date(),
-          lastSuccessAt:
-            input.status === "succeeded" ? new Date() : row?.lastSuccessAt,
-          lastFailureAt:
-            input.status !== "succeeded" ? new Date() : row?.lastFailureAt,
-          updatedAt: new Date(),
+          status: healthStatus,
+          score: sql`LEAST(100, GREATEST(0, ${schema.connectorHealth.score} + ${scoreDelta}))`,
+          successCount: isSuccess
+            ? sql`${schema.connectorHealth.successCount} + 1`
+            : schema.connectorHealth.successCount,
+          failureCount: isSuccess
+            ? schema.connectorHealth.failureCount
+            : sql`${schema.connectorHealth.failureCount} + 1`,
+          lastCheckedAt: now,
+          lastSuccessAt: isSuccess ? now : schema.connectorHealth.lastSuccessAt,
+          lastFailureAt: isSuccess ? schema.connectorHealth.lastFailureAt : now,
+          updatedAt: now,
         },
       })
       .returning();

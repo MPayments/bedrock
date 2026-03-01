@@ -4,20 +4,11 @@ import {
   CreateDocumentInputSchema,
   type DocumentDetails as DocumentDetailsResult,
   type DocumentWithOperationId,
-  DocumentGraphError,
-  DocumentNotFoundError,
-  DocumentPolicyDeniedError,
-  DocumentPostingNotRequiredError,
-  DocumentValidationError,
   ListDocumentsQuerySchema,
   UpdateDocumentInputSchema,
 } from "@bedrock/documents";
-import {
-  ActionReceiptConflictError,
-  ActionReceiptStoredError,
-} from "@bedrock/idempotency";
-import { InvalidStateError, PermissionError } from "@bedrock/kernel/errors";
 
+import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import {
@@ -25,23 +16,6 @@ import {
   requireIdempotencyKey,
 } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
-
-function resolveErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function isZodErrorLike(
-  error: unknown,
-): error is { flatten: () => unknown; issues: unknown[] } {
-  return Boolean(
-    error &&
-      typeof error === "object" &&
-      "issues" in error &&
-      Array.isArray((error as { issues?: unknown[] }).issues) &&
-      "flatten" in error &&
-      typeof (error as { flatten?: unknown }).flatten === "function",
-  );
-}
 
 function toDocumentDto(input: DocumentWithOperationId) {
   const { document } = input;
@@ -82,43 +56,6 @@ function toDocumentDto(input: DocumentWithOperationId) {
     version: document.version,
     postingOperationId: input.postingOperationId,
   };
-}
-
-function handleDocumentsError(c: any, error: unknown) {
-  if (isZodErrorLike(error)) {
-    return c.json(
-      {
-        error: "Validation error",
-        details: error.flatten(),
-      },
-      400,
-    );
-  }
-  if (error instanceof DocumentNotFoundError) {
-    return c.json({ error: resolveErrorMessage(error) }, 404);
-  }
-  if (
-    error instanceof PermissionError ||
-    error instanceof DocumentPolicyDeniedError
-  ) {
-    return c.json({ error: resolveErrorMessage(error) }, 403);
-  }
-  if (
-    error instanceof DocumentValidationError ||
-    error instanceof DocumentGraphError
-  ) {
-    return c.json({ error: resolveErrorMessage(error) }, 400);
-  }
-  if (
-    error instanceof InvalidStateError ||
-    error instanceof DocumentPostingNotRequiredError ||
-    error instanceof ActionReceiptConflictError ||
-    error instanceof ActionReceiptStoredError
-  ) {
-    return c.json({ error: resolveErrorMessage(error) }, 409);
-  }
-
-  throw error;
 }
 
 function queryObjectFromUrl(requestUrl: string) {
@@ -216,7 +153,7 @@ export function docsRoutes(ctx: AppContext) {
         data: result.data.map(toDocumentDto),
       });
     } catch (error) {
-      return handleDocumentsError(c, error);
+      return handleRouteError(c, error);
     }
   });
 
@@ -233,7 +170,7 @@ export function docsRoutes(ctx: AppContext) {
       });
       return c.json(toDocumentDto(result), 201);
     } catch (error) {
-      return handleDocumentsError(c, error);
+      return handleRouteError(c, error);
     }
   });
 
@@ -253,7 +190,7 @@ export function docsRoutes(ctx: AppContext) {
       });
       return c.json(toDocumentDto(result));
     } catch (error) {
-      return handleDocumentsError(c, error);
+      return handleRouteError(c, error);
     }
   });
 
@@ -263,7 +200,7 @@ export function docsRoutes(ctx: AppContext) {
       const result = await ctx.documentsService.get(docType, id);
       return c.json(toDocumentDto(result));
     } catch (error) {
-      return handleDocumentsError(c, error);
+      return handleRouteError(c, error);
     }
   });
 
@@ -280,7 +217,7 @@ export function docsRoutes(ctx: AppContext) {
         );
         return c.json(toDocumentDetailsDto(details));
       } catch (error) {
-        return handleDocumentsError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -302,7 +239,7 @@ export function docsRoutes(ctx: AppContext) {
         });
         return c.json(toDocumentDto(result));
       } catch (error) {
-        return handleDocumentsError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -324,7 +261,7 @@ export function docsRoutes(ctx: AppContext) {
         });
         return c.json(toDocumentDto(result));
       } catch (error) {
-        return handleDocumentsError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -346,7 +283,7 @@ export function docsRoutes(ctx: AppContext) {
         });
         return c.json(toDocumentDto(result));
       } catch (error) {
-        return handleDocumentsError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -365,7 +302,7 @@ export function docsRoutes(ctx: AppContext) {
       });
       return c.json(toDocumentDto(result));
     } catch (error) {
-      return handleDocumentsError(c, error);
+      return handleRouteError(c, error);
     }
   });
 
@@ -386,7 +323,7 @@ export function docsRoutes(ctx: AppContext) {
         });
         return c.json(toDocumentDto(result));
       } catch (error) {
-        return handleDocumentsError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -408,7 +345,7 @@ export function docsRoutes(ctx: AppContext) {
         });
         return c.json(toDocumentDto(result));
       } catch (error) {
-        return handleDocumentsError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );

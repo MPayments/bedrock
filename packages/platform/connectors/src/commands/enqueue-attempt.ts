@@ -6,6 +6,7 @@ import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
 import {
   ConnectorIntentNotFoundError,
   ConnectorIntentTerminalError,
+  ConnectorMaxAttemptsExceededError,
 } from "../errors";
 import type { ConnectorsServiceContext } from "../internal/context";
 import { isTerminalIntentStatus } from "../internal/status";
@@ -64,6 +65,15 @@ export function createEnqueueAttemptHandler(context: ConnectorsServiceContext) {
           }
           if (isTerminalIntentStatus(intent.status)) {
             throw new ConnectorIntentTerminalError(intent.id, intent.status);
+          }
+
+          const MAX_ATTEMPTS_PER_INTENT = 10;
+          if (intent.currentAttemptNo >= MAX_ATTEMPTS_PER_INTENT) {
+            throw new ConnectorMaxAttemptsExceededError(
+              intent.id,
+              intent.currentAttemptNo,
+              MAX_ATTEMPTS_PER_INTENT,
+            );
           }
 
           const attemptNo = intent.currentAttemptNo + 1;

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/db/schema";
 
@@ -185,6 +185,9 @@ export function createQueryHandlers(context: ConnectorsServiceContext) {
     const validated = ClaimDispatchBatchInputSchema.parse(input ?? {});
     const now = validated.now ?? new Date();
 
+    const ATTEMPT_EXPIRY_HOURS = 24;
+    const expiryThreshold = new Date(now.getTime() - ATTEMPT_EXPIRY_HOURS * 3600_000);
+
     return db.transaction(async (tx) => {
       const rows = await tx
         .select({
@@ -201,6 +204,7 @@ export function createQueryHandlers(context: ConnectorsServiceContext) {
               isNull(schema.paymentAttempts.nextRetryAt),
               lte(schema.paymentAttempts.nextRetryAt, now),
             ),
+            gte(schema.paymentAttempts.createdAt, expiryThreshold),
           ),
         )
         .orderBy(schema.paymentAttempts.createdAt)

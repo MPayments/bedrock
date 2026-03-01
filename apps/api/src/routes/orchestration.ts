@@ -14,6 +14,7 @@ import {
   UpdateScopeOverrideInputSchema,
 } from "@bedrock/orchestration";
 
+import { handleRouteError } from "../common/errors";
 import { toJsonSafe } from "../common/json";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
@@ -23,16 +24,6 @@ const IdParamSchema = z.object({
   id: z.uuid(),
 });
 
-function handleError(c: any, error: unknown) {
-  if (error instanceof z.ZodError) {
-    return c.json({ error: "Validation error", details: error.flatten() }, 400);
-  }
-  if (error instanceof Error) {
-    return c.json({ error: error.message }, 400);
-  }
-  return c.json({ error: String(error) }, 400);
-}
-
 export function orchestrationRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
@@ -41,7 +32,7 @@ export function orchestrationRoutes(ctx: AppContext) {
       const rules = await ctx.orchestrationService.listRoutingRules();
       return c.json(toJsonSafe(rules));
     } catch (error) {
-      return handleError(c, error);
+      return handleRouteError(c, error);
     }
   });
 
@@ -51,7 +42,7 @@ export function orchestrationRoutes(ctx: AppContext) {
       const created = await ctx.orchestrationService.createRoutingRule(body);
       return c.json(toJsonSafe(created), 201);
     } catch (error) {
-      return handleError(c, error);
+      return handleRouteError(c, error);
     }
   });
 
@@ -65,7 +56,7 @@ export function orchestrationRoutes(ctx: AppContext) {
       });
       return c.json(toJsonSafe(updated));
     } catch (error) {
-      return handleError(c, error);
+      return handleRouteError(c, error);
     }
   });
 
@@ -75,7 +66,7 @@ export function orchestrationRoutes(ctx: AppContext) {
       const deleted = await ctx.orchestrationService.deleteRoutingRule(id);
       return c.json(toJsonSafe(deleted));
     } catch (error) {
-      return handleError(c, error);
+      return handleRouteError(c, error);
     }
   });
 
@@ -87,7 +78,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         const rows = await ctx.orchestrationService.listProviderCorridors();
         return c.json(toJsonSafe(rows));
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -101,7 +92,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         const created = await ctx.orchestrationService.createProviderCorridor(body);
         return c.json(toJsonSafe(created), 201);
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -121,7 +112,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         });
         return c.json(toJsonSafe(updated));
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -135,7 +126,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         const deleted = await ctx.orchestrationService.deleteProviderCorridor(id);
         return c.json(toJsonSafe(deleted));
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -145,7 +136,7 @@ export function orchestrationRoutes(ctx: AppContext) {
       const rows = await ctx.orchestrationService.listProviderFeeSchedules();
       return c.json(toJsonSafe(rows));
     } catch (error) {
-      return handleError(c, error);
+      return handleRouteError(c, error);
     }
   });
 
@@ -155,7 +146,7 @@ export function orchestrationRoutes(ctx: AppContext) {
       const created = await ctx.orchestrationService.createProviderFeeSchedule(body);
       return c.json(toJsonSafe(created), 201);
     } catch (error) {
-      return handleError(c, error);
+      return handleRouteError(c, error);
     }
   });
 
@@ -174,7 +165,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         });
         return c.json(toJsonSafe(updated));
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -188,7 +179,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         const deleted = await ctx.orchestrationService.deleteProviderFeeSchedule(id);
         return c.json(toJsonSafe(deleted));
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -198,7 +189,7 @@ export function orchestrationRoutes(ctx: AppContext) {
       const rows = await ctx.orchestrationService.listProviderLimits();
       return c.json(toJsonSafe(rows));
     } catch (error) {
-      return handleError(c, error);
+      return handleRouteError(c, error);
     }
   });
 
@@ -211,7 +202,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         const created = await ctx.orchestrationService.createProviderLimit(body);
         return c.json(toJsonSafe(created), 201);
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -231,7 +222,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         });
         return c.json(toJsonSafe(updated));
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -245,7 +236,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         const deleted = await ctx.orchestrationService.deleteProviderLimit(id);
         return c.json(toJsonSafe(deleted));
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -258,7 +249,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         const rows = await ctx.orchestrationService.listScopeOverrides();
         return c.json(toJsonSafe(rows));
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -272,7 +263,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         const created = await ctx.orchestrationService.createScopeOverride(body);
         return c.json(toJsonSafe(created), 201);
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -292,7 +283,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         });
         return c.json(toJsonSafe(updated));
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -306,7 +297,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         const deleted = await ctx.orchestrationService.deleteScopeOverride(id);
         return c.json(toJsonSafe(deleted));
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );
@@ -320,7 +311,7 @@ export function orchestrationRoutes(ctx: AppContext) {
         const result = await ctx.orchestrationService.simulateRoute(body);
         return c.json(toJsonSafe(result));
       } catch (error) {
-        return handleError(c, error);
+        return handleRouteError(c, error);
       }
     },
   );

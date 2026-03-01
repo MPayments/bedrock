@@ -198,6 +198,30 @@ app.get("/", (c) => {
   return c.json({ status: "ok", service: "ledger-api" });
 });
 
+app.get("/health", async (c) => {
+  const checks: Record<string, { status: string; latencyMs?: number; error?: string }> = {};
+  let healthy = true;
+
+  // PostgreSQL check
+  const pgStart = Date.now();
+  try {
+    const { db } = await import("@bedrock/db/client");
+    const { schema } = await import("@bedrock/db/schema");
+    await db.select({ id: schema.currencies.id }).from(schema.currencies).limit(1);
+    checks.postgres = { status: "up", latencyMs: Date.now() - pgStart };
+  } catch (error) {
+    healthy = false;
+    checks.postgres = {
+      status: "down",
+      latencyMs: Date.now() - pgStart,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  const status = healthy ? 200 : 503;
+  return c.json({ status: healthy ? "healthy" : "degraded", checks }, status);
+});
+
 function createGuardedRouter(component: ApiApplicationComponent) {
   const guarded = new OpenAPIHono<{ Variables: AuthVariables }>();
   if (component.guarded !== false) {

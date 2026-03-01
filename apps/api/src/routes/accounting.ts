@@ -388,12 +388,13 @@ export function accountingRoutes(ctx: AppContext) {
           200,
         );
       } catch (error) {
-        return c.json(
-          {
-            error: error instanceof Error ? error.message : String(error),
-          },
-          400,
-        );
+        if (
+          error instanceof Error &&
+          (error.name === "ValidationError" || error.name === "ZodError")
+        ) {
+          return c.json({ error: error.message }, 400);
+        }
+        throw error;
       }
     })
     .openapi(validatePostingMatrixRoute, async (c) => {
@@ -492,12 +493,13 @@ export function accountingRoutes(ctx: AppContext) {
           200,
         );
       } catch (error) {
-        return c.json(
-          {
-            error: error instanceof Error ? error.message : String(error),
-          },
-          400,
-        );
+        if (
+          error instanceof Error &&
+          (error.name === "ValidationError" || error.name === "ZodError")
+        ) {
+          return c.json({ error: error.message }, 400);
+        }
+        throw error;
       }
     })
     .openapi(getOperationalAccountBalancesRoute, async (c) => {
@@ -555,12 +557,13 @@ export function accountingRoutes(ctx: AppContext) {
           200,
         );
       } catch (error) {
-        return c.json(
-          {
-            error: error instanceof Error ? error.message : String(error),
-          },
-          400,
-        );
+        if (
+          error instanceof Error &&
+          (error.name === "ValidationError" || error.name === "ZodError")
+        ) {
+          return c.json({ error: error.message }, 400);
+        }
+        throw error;
       }
     });
 }

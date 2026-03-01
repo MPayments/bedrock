@@ -6,6 +6,8 @@ interface RunLoopOptions {
   intervalMs: number;
 }
 
+const MAX_BACKOFF_MS = 60_000;
+
 export function runLoop(
   name: string,
   processFn: () => Promise<unknown>,
@@ -24,6 +26,8 @@ export function runLoop(
     logger.info(`${name} worker started`, { intervalMs });
     observer?.onLoopStarted?.();
 
+    let consecutiveFailures = 0;
+
     while (!stopped) {
       const startedAt = Date.now();
       try {
@@ -36,15 +40,28 @@ export function runLoop(
         if (processed > 0) {
           logger.debug(`${name} worker tick`, { result });
         }
+        consecutiveFailures = 0;
       } catch (error) {
+        consecutiveFailures++;
         const durationMs = Date.now() - startedAt;
         observer?.onTickFailed?.({ durationMs, error });
         logger.error(`${name} worker tick failed`, {
           error: error instanceof Error ? error.message : String(error),
+          consecutiveFailures,
         });
       }
 
-      await sleep(intervalMs);
+      const backoffMs =
+        consecutiveFailures > 0
+          ? Math.min(
+              MAX_BACKOFF_MS,
+              intervalMs * Math.pow(2, consecutiveFailures - 1),
+            )
+          : intervalMs;
+
+      // Add jitter (up to 20% of backoff) to avoid thundering herd
+      const jitter = Math.floor(backoffMs * 0.2 * Math.random());
+      await sleep(backoffMs + jitter);
     }
 
     logger.info(`${name} worker stopped`);
@@ -59,6 +76,12 @@ function sleep(ms: number) {
 }
 
 export function installShutdownHandlers(stopFn: () => void) {
-  process.on("SIGINT", stopFn);
-  process.on("SIGTERM", stopFn);
+  let called = false;
+  const handler = () => {
+    if (called) return;
+    called = true;
+    stopFn();
+  };
+  process.on("SIGINT", handler);
+  process.on("SIGTERM", handler);
 }

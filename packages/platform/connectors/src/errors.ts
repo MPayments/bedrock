@@ -23,3 +23,11 @@ export class ConnectorIntentTerminalError extends ServiceError {
     super(`Connector intent is terminal: ${intentId} (${status})`);
   }
 }
+
+export class ConnectorMaxAttemptsExceededError extends ServiceError {
+  constructor(intentId: string, attemptNo: number, maxAttempts: number) {
+    super(
+      `Max attempts exceeded for intent ${intentId}: ${attemptNo} >= ${maxAttempts}`,
+    );
+  }
+}
