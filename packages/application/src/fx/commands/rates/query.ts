@@ -2,6 +2,7 @@ import { normalizeCurrency } from "@bedrock/kernel";
 
 import { RateNotFoundError } from "../../errors";
 import { type FxServiceContext } from "../../internal/context";
+import { getSourceOrder } from "../../internal/source-priority";
 import { type FxRateSource } from "../../sources/types";
 
 export function createRateQueryHandlers(
@@ -36,16 +37,13 @@ export function createRateQueryHandlers(
             return manualRate;
         }
 
-        await deps.ensureSourceFresh("cbr", new Date());
-        const cbrRate = await deps.getLatestRateBySource(baseCurrencyId, quoteCurrencyId, asOf, "cbr");
-        if (cbrRate) {
-            return cbrRate;
-        }
-
-        await deps.ensureSourceFresh("investing", new Date());
-        const investingRate = await deps.getLatestRateBySource(baseCurrencyId, quoteCurrencyId, asOf, "investing");
-        if (investingRate) {
-            return investingRate;
+        const sourceOrder = getSourceOrder(normalizedBase, normalizedQuote);
+        for (const source of sourceOrder) {
+            await deps.ensureSourceFresh(source, new Date());
+            const rate = await deps.getLatestRateBySource(baseCurrencyId, quoteCurrencyId, asOf, source);
+            if (rate) {
+                return rate;
+            }
         }
 
         throw new RateNotFoundError(`Rate not found for ${normalizedBase}/${normalizedQuote} asOf=${asOf.toISOString()}`);

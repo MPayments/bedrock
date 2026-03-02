@@ -319,7 +319,7 @@ function serializeSourceRate(rate: {
 }
 
 function serializeSourceStatus(status: {
-  source: "cbr" | "investing";
+  source: "cbr" | "investing" | "xe";
   ttlSeconds: number;
   lastSyncedAt: Date | null;
   lastPublishedAt: Date | null;

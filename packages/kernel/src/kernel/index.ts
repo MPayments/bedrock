@@ -8,7 +8,17 @@ export {
 export { canonicalJson, stableStringify, makePlanKey } from "./canon";
 export { sha256Hex } from "./crypto";
 export type { CorrelationContext } from "./correlation";
-export { normalizeCurrency, isValidCurrency, parseCurrency } from "./currency";
+export {
+  getDefaultPrecision,
+  getKnownCurrency,
+  isValidCurrency,
+  isZeroDecimal,
+  KNOWN_CURRENCY_CODES,
+  LIST_CURRENCIES,
+  normalizeCurrency,
+  parseCurrency,
+  ZERO_DECIMAL_CODES,
+} from "./currency";
 export type { Currency } from "./currency";
 export {
   TB_ID_MAX,

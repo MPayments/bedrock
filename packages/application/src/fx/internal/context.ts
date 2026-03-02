@@ -5,6 +5,7 @@ import { type CurrenciesService } from "@bedrock/core/currencies";
 
 import { createCbrRateSourceProvider } from "../sources/cbr";
 import { createInvestingRateSourceProvider } from "../sources/investing";
+import { createXeRateSourceProvider } from "../sources/xe";
 import { type FxRateSource, type FxRateSourceProvider } from "../sources/types";
 
 export interface FxServiceDeps {
@@ -27,6 +28,7 @@ export function createFxServiceContext(deps: FxServiceDeps): FxServiceContext {
     const defaultProviders: Record<FxRateSource, FxRateSourceProvider> = {
         cbr: createCbrRateSourceProvider(),
         investing: createInvestingRateSourceProvider(),
+        xe: createXeRateSourceProvider(),
     };
 
     return {

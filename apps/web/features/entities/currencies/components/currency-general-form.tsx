@@ -2,10 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Save, X } from "lucide-react";
+import { ChevronsUpDown, Save, X } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
+import {
+  LIST_CURRENCIES,
+  KNOWN_CURRENCY_CODES,
+  getKnownCurrency,
+  getDefaultPrecision,
+} from "@bedrock/kernel";
 import { Button } from "@bedrock/ui/components/button";
 import {
   Card,
@@ -15,6 +21,14 @@ import {
   CardTitle,
 } from "@bedrock/ui/components/card";
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@bedrock/ui/components/command";
+import {
   Field,
   FieldError,
   FieldGroup,
@@ -22,6 +36,11 @@ import {
   FieldSet,
 } from "@bedrock/ui/components/field";
 import { Input } from "@bedrock/ui/components/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@bedrock/ui/components/popover";
 import { Spinner } from "@bedrock/ui/components/spinner";
 
 import { CurrencyDeleteDialog } from "./currency-delete-dialog";
@@ -55,6 +74,7 @@ type CurrencyGeneralFormVariant = {
   submittingLabel: string;
   disableSubmitUntilDirty: boolean;
   showDelete: boolean;
+  isEditMode: boolean;
 };
 
 type CurrencyGeneralFormBaseProps = CurrencyGeneralFormProps & {
@@ -70,12 +90,16 @@ const DEFAULT_VALUES: CurrencyGeneralFormValues = {
 
 const CurrencyGeneralFormSchema = z.object({
   name: z.string().trim().min(1, "Название валюты обязательно"),
-  code: z.string().trim().min(1, "Код валюты обязателен"),
+  code: z
+    .string()
+    .trim()
+    .min(1, "Код валюты обязателен")
+    .refine(
+      (c) => KNOWN_CURRENCY_CODES.has(c.toUpperCase()),
+      "Неизвестный код валюты",
+    ),
   symbol: z.string().trim().min(1, "Символ валюты обязателен"),
-  precision: z
-    .number()
-    .int()
-    .min(0, "Точность не может быть меньше 0"),
+  precision: z.number().int().min(0, "Точность не может быть меньше 0"),
 });
 
 function resolveInitialValues(
@@ -107,6 +131,7 @@ const CREATE_GENERAL_FORM_VARIANT: CurrencyGeneralFormVariant = {
   submittingLabel: "Создание...",
   disableSubmitUntilDirty: false,
   showDelete: false,
+  isEditMode: false,
 };
 
 const EDIT_GENERAL_FORM_VARIANT: CurrencyGeneralFormVariant = {
@@ -114,6 +139,7 @@ const EDIT_GENERAL_FORM_VARIANT: CurrencyGeneralFormVariant = {
   submittingLabel: "Сохранение...",
   disableSubmitUntilDirty: true,
   showDelete: true,
+  isEditMode: true,
 };
 
 function CurrencyGeneralFormBase({
@@ -133,12 +159,14 @@ function CurrencyGeneralFormBase({
   const initialSignature = useMemo(() => valuesSignature(initial), [initial]);
   const appliedInitialSignatureRef = useRef(initialSignature);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [comboboxOpen, setComboboxOpen] = useState(false);
 
   const {
     control,
     handleSubmit,
     register,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<CurrencyGeneralFormValues>({
     resolver: zodResolver(CurrencyGeneralFormSchema),
@@ -149,6 +177,12 @@ function CurrencyGeneralFormBase({
 
   const watchedValues = useWatch({ control });
   const watchedName = watchedValues?.name ?? "";
+  const watchedCode = watchedValues?.code ?? "";
+
+  const selectedCurrency = useMemo(
+    () => (watchedCode ? getKnownCurrency(watchedCode) : undefined),
+    [watchedCode],
+  );
 
   const currentValues = useMemo(
     () =>
@@ -186,6 +220,19 @@ function CurrencyGeneralFormBase({
     reset(initial);
   }
 
+  function handleCurrencySelect(code: string) {
+    const currency = getKnownCurrency(code);
+    if (!currency) return;
+
+    setValue("code", currency.code, { shouldValidate: true });
+    setValue("name", currency.name, { shouldValidate: true });
+    setValue("symbol", currency.symbol, { shouldValidate: true });
+    setValue("precision", getDefaultPrecision(currency.code), {
+      shouldValidate: true,
+    });
+    setComboboxOpen(false);
+  }
+
   async function handleFormSubmit(values: CurrencyGeneralFormValues) {
     if (!onSubmit) return;
 
@@ -215,7 +262,9 @@ function CurrencyGeneralFormBase({
       <CardHeader className="border-b">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <CardTitle className="flex items-center">Общая информация</CardTitle>
+            <CardTitle className="flex items-center">
+              Общая информация
+            </CardTitle>
             <CardDescription>
               Просмотр и редактирование параметров валюты.
             </CardDescription>
@@ -250,7 +299,11 @@ function CurrencyGeneralFormBase({
                 onDelete={handleDelete}
                 disableDelete={deleteDisabled}
                 trigger={
-                  <Button variant="destructive" type="button" disabled={deleteDisabled} />
+                  <Button
+                    variant="destructive"
+                    type="button"
+                    disabled={deleteDisabled}
+                  />
                 }
               />
             ) : null}
@@ -265,6 +318,91 @@ function CurrencyGeneralFormBase({
           <FieldGroup>
             <FieldSet>
               <FieldGroup>
+                {variant.isEditMode ? (
+                  <Field>
+                    <FieldLabel htmlFor="currency-code">Код</FieldLabel>
+                    <Input
+                      id="currency-code"
+                      value={watchedCode}
+                      disabled
+                      readOnly
+                    />
+                  </Field>
+                ) : (
+                  <Field data-invalid={Boolean(errors.code)}>
+                    <FieldLabel>Валюта</FieldLabel>
+                    <input type="hidden" {...register("code")} />
+                    <Popover
+                      open={comboboxOpen}
+                      onOpenChange={setComboboxOpen}
+                    >
+                      <PopoverTrigger
+                        render={
+                          <button
+                            type="button"
+                            role="combobox"
+                            aria-expanded={comboboxOpen}
+                            aria-invalid={Boolean(errors.code)}
+                            className="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 flex h-8 w-full items-center justify-between rounded-lg border bg-transparent px-2.5 py-1 text-sm transition-colors focus-visible:ring-3 aria-invalid:ring-3"
+                          >
+                            {selectedCurrency ? (
+                              <span className="flex items-center gap-2 truncate">
+                                <span className="font-medium">
+                                  {selectedCurrency.code}
+                                </span>
+                                <span className="text-muted-foreground truncate">
+                                  {selectedCurrency.name}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">
+                                Выберите валюту...
+                              </span>
+                            )}
+                            <ChevronsUpDown className="text-muted-foreground ml-2 size-4 shrink-0" />
+                          </button>
+                        }
+                      />
+                      <PopoverContent
+                        className="w-72 p-0"
+                        align="start"
+                        sideOffset={4}
+                      >
+                        <Command>
+                          <CommandInput placeholder="Поиск по коду или названию..." />
+                          <CommandList>
+                            <CommandEmpty>Валюта не найдена.</CommandEmpty>
+                            <CommandGroup>
+                              {LIST_CURRENCIES.map((currency) => (
+                                <CommandItem
+                                  key={currency.code}
+                                  value={`${currency.code} ${currency.name}`}
+                                  data-checked={
+                                    watchedCode === currency.code || undefined
+                                  }
+                                  onSelect={() =>
+                                    handleCurrencySelect(currency.code)
+                                  }
+                                >
+                                  <span className="w-10 shrink-0 font-medium">
+                                    {currency.code}
+                                  </span>
+                                  <span className="text-muted-foreground truncate">
+                                    {currency.name}
+                                  </span>
+                                  <span className="text-muted-foreground ml-auto shrink-0">
+                                    {currency.symbol}
+                                  </span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FieldError errors={[errors.code]} />
+                  </Field>
+                )}
                 <Controller
                   name="name"
                   control={control}
@@ -276,6 +414,8 @@ function CurrencyGeneralFormBase({
                         id="currency-name"
                         aria-invalid={fieldState.invalid}
                         placeholder="Например: US Dollar"
+                        readOnly={!variant.isEditMode}
+                        disabled={!variant.isEditMode && !selectedCurrency}
                       />
                       {fieldState.invalid ? (
                         <FieldError errors={[fieldState.error]} />
@@ -283,16 +423,6 @@ function CurrencyGeneralFormBase({
                     </Field>
                   )}
                 />
-                <Field data-invalid={Boolean(errors.code)}>
-                  <FieldLabel htmlFor="currency-code">Код</FieldLabel>
-                  <Input
-                    {...register("code")}
-                    id="currency-code"
-                    aria-invalid={Boolean(errors.code)}
-                    placeholder="Например: USD"
-                  />
-                  <FieldError errors={[errors.code]} />
-                </Field>
                 <Field data-invalid={Boolean(errors.symbol)}>
                   <FieldLabel htmlFor="currency-symbol">Символ</FieldLabel>
                   <Input
@@ -300,11 +430,15 @@ function CurrencyGeneralFormBase({
                     id="currency-symbol"
                     aria-invalid={Boolean(errors.symbol)}
                     placeholder="Например: $"
+                    readOnly={!variant.isEditMode}
+                    disabled={!variant.isEditMode && !selectedCurrency}
                   />
                   <FieldError errors={[errors.symbol]} />
                 </Field>
                 <Field data-invalid={Boolean(errors.precision)}>
-                  <FieldLabel htmlFor="currency-precision">Точность</FieldLabel>
+                  <FieldLabel htmlFor="currency-precision">
+                    Точность
+                  </FieldLabel>
                   <Input
                     {...register("precision", { valueAsNumber: true })}
                     id="currency-precision"
@@ -338,9 +472,6 @@ export function CurrencyCreateGeneralForm(props: CurrencyGeneralFormProps) {
 
 export function CurrencyEditGeneralForm(props: CurrencyGeneralFormProps) {
   return (
-    <CurrencyGeneralFormBase
-      variant={EDIT_GENERAL_FORM_VARIANT}
-      {...props}
-    />
+    <CurrencyGeneralFormBase variant={EDIT_GENERAL_FORM_VARIANT} {...props} />
   );
 }
