@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/platform/component-runtime";
+import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/modules/component-runtime";
 import { listWorkerCatalogEntries } from "@bedrock/platform/worker-runtime";
 
 const dir = dirname(fileURLToPath(import.meta.url));

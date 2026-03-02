@@ -3,13 +3,13 @@ import { z } from "zod";
 import { db } from "@bedrock/db/client";
 import type { Logger } from "@bedrock/foundation/kernel";
 import type { AccountingReportingService } from "@bedrock/modules/accounting-reporting";
+import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/modules/component-runtime";
 import type { FeesService } from "@bedrock/modules/fees";
 import type { FxService } from "@bedrock/modules/fx";
 import type { PaymentsService } from "@bedrock/modules/payments";
 import type { AccountingService } from "@bedrock/platform/accounting";
 import type { BalancesService } from "@bedrock/platform/balances";
 import {
-  BEDROCK_COMPONENT_MANIFESTS,
   createComponentRuntimeService,
   type ComponentRuntimeService,
 } from "@bedrock/platform/component-runtime";
@@ -32,7 +32,9 @@ const EnvSchema = z.object({
   TB_CLUSTER_ID: z.coerce.number().int().nonnegative(),
   BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
   BETTER_AUTH_URL: z.string().url("BETTER_AUTH_URL must be a valid URL"),
-  BETTER_AUTH_TRUSTED_ORIGINS: z.string().min(1, "BETTER_AUTH_TRUSTED_ORIGINS is required"),
+  BETTER_AUTH_TRUSTED_ORIGINS: z
+    .string()
+    .min(1, "BETTER_AUTH_TRUSTED_ORIGINS is required"),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

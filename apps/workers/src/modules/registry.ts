@@ -1,5 +1,6 @@
 import type { Database } from "@bedrock/db/types";
 import type { Logger } from "@bedrock/foundation/kernel";
+import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/modules/component-runtime";
 import { createFeesService } from "@bedrock/modules/fees";
 import {
   createFxRatesWorkerDefinition,
@@ -8,10 +9,7 @@ import {
 import {
   createBalancesProjectorWorkerDefinition,
 } from "@bedrock/platform/balances";
-import {
-  BEDROCK_COMPONENT_MANIFESTS,
-  type ComponentRuntimeService,
-} from "@bedrock/platform/component-runtime";
+import type { ComponentRuntimeService } from "@bedrock/platform/component-runtime";
 import {
   createAttemptDispatchWorkerDefinition,
   createConnectorsService,

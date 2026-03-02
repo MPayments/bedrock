@@ -7,6 +7,7 @@
     "./accounting-reporting": "./src/accounting-reporting/index.ts",
     "./accounting-reporting/contracts": "./src/accounting-reporting/contracts.ts",
     "./accounting-reporting/validation": "./src/accounting-reporting/validation.ts",
+    "./component-runtime": "./src/component-runtime/index.ts",
     "./fees": "./src/fees/index.ts",
     "./fx": "./src/fx/index.ts",
     "./fx/contracts": "./src/fx/contracts.ts",

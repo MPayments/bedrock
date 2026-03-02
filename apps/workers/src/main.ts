@@ -5,8 +5,8 @@ import {
   createConsoleLogger,
   installShutdownHandlers,
 } from "@bedrock/foundation/kernel";
+import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/modules/component-runtime";
 import {
-  BEDROCK_COMPONENT_MANIFESTS,
   createComponentRuntimeService,
 } from "@bedrock/platform/component-runtime";
 import { createTbClient } from "@bedrock/platform/ledger";
