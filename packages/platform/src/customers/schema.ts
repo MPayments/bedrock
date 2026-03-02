@@ -18,12 +18,6 @@ export const customers = pgTable("customers", {
     .$onUpdateFn(() => new Date()),
 });
 
-export const documentsRef = pgTable("documents", {
-  id: uuid("id").primaryKey(),
-  customerId: uuid("customer_id"),
-});
-
 export const schema = {
   customers,
-  documentsRef,
 };

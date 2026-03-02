@@ -1,6 +1,6 @@
-import type { schema } from "@bedrock/db/schema/ledger";
-import type { Transaction } from "@bedrock/db/types";
+import type { Transaction } from "@bedrock/foundation/db/types";
 import { tbLedgerForCurrency, tbTransferIdForOperation } from "@bedrock/foundation/kernel";
+import type { schema } from "@bedrock/platform/ledger/schema";
 
 import { ensureBookAccountInstanceTx } from "../../book-accounts";
 import { OPERATION_TRANSFER_TYPE, type IntentLine } from "../../types";

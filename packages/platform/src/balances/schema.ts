@@ -12,7 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { schema as ledgerSchema } from "./ledger";
+import { schema as ledgerSchema } from "../ledger/schema";
 
 const { books, ledgerOperations } = ledgerSchema;
 
@@ -178,7 +178,7 @@ export type BalanceEvent = typeof balanceEvents.$inferSelect;
 export type BalanceEventInsert = typeof balanceEvents.$inferInsert;
 export type BalanceProjectorCursor =
   typeof balanceProjectorCursors.$inferSelect;
-export type { Dimensions } from "./ledger";
+export type { Dimensions } from "../ledger/schema";
 
 export const schema = {
   balancePositions,

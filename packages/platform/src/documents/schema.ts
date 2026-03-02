@@ -12,24 +12,16 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { user } from "../auth/schema";
+import { counterparties } from "../counterparties/schema";
+import { customers } from "../customers/schema";
 import {
   ledgerOperations,
   outbox,
   postings,
   tbTransferPlans,
-} from "./ledger";
-
-const authUsers = pgTable("user", { id: text("id").primaryKey() });
-const customersRef = pgTable("customers", { id: uuid("id").primaryKey() });
-const counterpartiesRef = pgTable("counterparties", {
-  id: uuid("id").primaryKey(),
-});
-const operationalAccountsRef = pgTable("operational_accounts", {
-  id: uuid("id").primaryKey(),
-});
-const ledgerOperationsRef = pgTable("ledger_operations", {
-  id: uuid("id").primaryKey(),
-});
+} from "../ledger/schema";
+import { operationalAccounts } from "../operational-accounts/schema";
 
 export type DocumentSubmissionStatus = "draft" | "submitted";
 export type DocumentApprovalStatus =
@@ -80,14 +72,14 @@ export const documents = pgTable(
     amountMinor: bigint("amount_minor", { mode: "bigint" }),
     currency: text("currency"),
     memo: text("memo"),
-    counterpartyId: uuid("counterparty_id").references(() => counterpartiesRef.id, {
+    counterpartyId: uuid("counterparty_id").references(() => counterparties.id, {
       onDelete: "set null",
     }),
-    customerId: uuid("customer_id").references(() => customersRef.id, {
+    customerId: uuid("customer_id").references(() => customers.id, {
       onDelete: "set null",
     }),
     operationalAccountId: uuid("operational_account_id").references(
-      () => operationalAccountsRef.id,
+      () => operationalAccounts.id,
       { onDelete: "set null" },
     ),
     searchText: text("search_text")
@@ -95,20 +87,20 @@ export const documents = pgTable(
       .default(""),
     createdBy: text("created_by")
       .notNull()
-      .references(() => authUsers.id),
-    submittedBy: text("submitted_by").references(() => authUsers.id, {
+      .references(() => user.id),
+    submittedBy: text("submitted_by").references(() => user.id, {
       onDelete: "set null",
     }),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
-    approvedBy: text("approved_by").references(() => authUsers.id, {
+    approvedBy: text("approved_by").references(() => user.id, {
       onDelete: "set null",
     }),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
-    rejectedBy: text("rejected_by").references(() => authUsers.id, {
+    rejectedBy: text("rejected_by").references(() => user.id, {
       onDelete: "set null",
     }),
     rejectedAt: timestamp("rejected_at", { withTimezone: true }),
-    cancelledBy: text("cancelled_by").references(() => authUsers.id, {
+    cancelledBy: text("cancelled_by").references(() => user.id, {
       onDelete: "set null",
     }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
@@ -187,7 +179,7 @@ export const documentOperations = pgTable(
       .references(() => documents.id, { onDelete: "cascade" }),
     operationId: uuid("operation_id")
       .notNull()
-      .references(() => ledgerOperationsRef.id),
+      .references(() => ledgerOperations.id),
     kind: text("kind").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

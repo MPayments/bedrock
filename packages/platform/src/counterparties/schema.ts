@@ -14,10 +14,9 @@ import {
 
 import { COUNTRY_ALPHA2_CODES } from "@bedrock/foundation/countries/contracts";
 
-export const customersRef = pgTable("customers", {
-  id: uuid("id").primaryKey(),
-  displayName: text("display_name").notNull(),
-});
+import { customers } from "../customers/schema";
+
+export const customersRef = customers;
 
 export const counterpartyKindEnum = pgEnum("counterparty_kind", [
   "legal_entity",

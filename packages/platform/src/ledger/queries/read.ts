@@ -1,16 +1,16 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
-import { schema as currenciesSchema } from "@bedrock/db/schema/currencies";
-import {
-  schema as ledgerSchema,
-  type Dimensions,
-  type LedgerOperationStatus,
-} from "@bedrock/db/schema/ledger";
 import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
 } from "@bedrock/foundation/kernel/pagination";
+import { schema as currenciesSchema } from "@bedrock/platform/currencies/schema";
+import {
+  schema as ledgerSchema,
+  type Dimensions,
+  type LedgerOperationStatus,
+} from "@bedrock/platform/ledger/schema";
 
 import {
   ListLedgerOperationsQuerySchema,

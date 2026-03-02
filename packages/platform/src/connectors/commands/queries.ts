@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/connectors";
+import { schema } from "@bedrock/platform/connectors/schema";
 
 import type { ConnectorsServiceContext } from "../internal/context";
 import {

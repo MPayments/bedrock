@@ -4,8 +4,8 @@ import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { schema } from "@bedrock/db/schema/accounting";
 import { rawPackDefinition } from "@bedrock/foundation/packs/bedrock-core-default";
+import { schema } from "@bedrock/platform/accounting/schema";
 
 import { createAccountingRuntime } from "../../../src/accounting/runtime";
 

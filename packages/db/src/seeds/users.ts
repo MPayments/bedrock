@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import type { Database } from "../client";
-import { user, account } from "../schema/auth";
+import { schema } from "../schema";
 
 export type HashPasswordFn = (password: string) => Promise<string>;
 
@@ -48,9 +48,9 @@ export async function seedUsers(db: Database, hashPassword: HashPasswordFn): Pro
 
     for (const seed of USER_SEEDS) {
         const [existing] = await db
-            .select({ id: user.id })
-            .from(user)
-            .where(eq(user.email, seed.email))
+            .select({ id: schema.user.id })
+            .from(schema.user)
+            .where(eq(schema.user.email, seed.email))
             .limit(1);
 
         if (existing) {
@@ -65,7 +65,7 @@ export async function seedUsers(db: Database, hashPassword: HashPasswordFn): Pro
         const now = new Date();
         const passwordHash = await hashPassword(seed.password);
 
-        await db.insert(user).values({
+        await db.insert(schema.user).values({
             id: seed.id,
             name: seed.name,
             email: seed.email,
@@ -75,7 +75,7 @@ export async function seedUsers(db: Database, hashPassword: HashPasswordFn): Pro
             updatedAt: now,
         });
 
-        await db.insert(account).values({
+        await db.insert(schema.account).values({
             id: seed.accountId,
             accountId: seed.id,
             providerId: "credential",

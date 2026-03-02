@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/connectors";
+import { schema } from "@bedrock/platform/connectors/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/platform/idempotency";
 
 import { ConnectorIntentNotFoundError } from "../errors";

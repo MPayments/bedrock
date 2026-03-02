@@ -1,8 +1,8 @@
-import type { Document } from "@bedrock/db/schema/documents";
 import type {
   DocumentPostingPlan,
   DocumentPostingPlanRequest,
 } from "@bedrock/platform/accounting";
+import type { Document } from "@bedrock/platform/documents/schema";
 
 export function buildDocumentPostingRequest(
   document: Pick<Document, "occurredAt">,

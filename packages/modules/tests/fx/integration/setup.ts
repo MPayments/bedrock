@@ -2,7 +2,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll } from "vitest";
 
-import { schema } from "@bedrock/db/schema/fx";
+import { schema } from "@bedrock/modules/fx/schema";
 
 import { seedCurrencies } from "../../../../db/src/seeds/index.ts";
 

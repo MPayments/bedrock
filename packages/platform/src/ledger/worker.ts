@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/ledger";
-import type { Database, Transaction } from "@bedrock/db/types";
+import type { Database, Transaction } from "@bedrock/foundation/db/types";
+import { schema } from "@bedrock/platform/ledger/schema";
 
 import type { BedrockWorker, WorkerRunContext, WorkerRunResult } from "../worker-runtime";
 import { isRetryableError } from "./errors";

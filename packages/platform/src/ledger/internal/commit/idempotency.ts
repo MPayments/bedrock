@@ -1,13 +1,13 @@
 import { eq } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/ledger";
-import type { Transaction } from "@bedrock/db/types";
+import type { Transaction } from "@bedrock/foundation/db/types";
 import {
   computeDimensionsHash,
   sha256Hex,
   stableStringify,
   tbTransferIdForOperation,
 } from "@bedrock/foundation/kernel";
+import { schema } from "@bedrock/platform/ledger/schema";
 
 import {
   IdempotencyConflictError,

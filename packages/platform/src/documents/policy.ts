@@ -1,4 +1,4 @@
-import type { Document } from "@bedrock/db/schema/documents";
+import type { Document } from "@bedrock/platform/documents/schema";
 
 import type {
   DocumentActionPolicyService,

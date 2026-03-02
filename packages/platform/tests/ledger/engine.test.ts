@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { schema } from "@bedrock/db/schema/ledger";
+import { schema } from "@bedrock/platform/ledger/schema";
 
 import {
   createSmartStubDb,

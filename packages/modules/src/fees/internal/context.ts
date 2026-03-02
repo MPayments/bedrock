@@ -1,4 +1,4 @@
-import type { Database } from "@bedrock/db/types";
+import type { Database } from "@bedrock/foundation/db/types";
 import { type Logger } from "@bedrock/foundation/kernel";
 
 import { type FeesCurrencyLookup } from "./currency-lookup";

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { schema } from "@bedrock/db/schema/fees";
+import { schema } from "@bedrock/modules/fees/schema";
 
 import { db } from "./setup";
 import { currencyIdForCode } from "../../../../db/src/seeds/index.ts";

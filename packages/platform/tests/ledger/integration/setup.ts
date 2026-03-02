@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import { createClient } from "tigerbeetle-node";
 import { beforeAll, afterAll, afterEach } from "vitest";
 
-import { schema } from "@bedrock/db/schema/ledger";
+import { schema } from "@bedrock/platform/ledger/schema";
 
 import { seedAccounting } from "../../../../db/src/seeds/index.ts";
 

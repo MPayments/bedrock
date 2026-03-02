@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { Document } from "@bedrock/db/schema/documents";
+import type { Document } from "@bedrock/platform/documents/schema";
 
 export const amountMinorSchema = z
   .union([z.string(), z.number().int(), z.bigint()])

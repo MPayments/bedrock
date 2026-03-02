@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { schema, type Document } from "@bedrock/db/schema/documents";
 import { InvalidStateError } from "@bedrock/foundation/kernel/errors";
+import { schema, type Document } from "@bedrock/platform/documents/schema";
 
 import { createApproveHandler } from "../../src/documents/commands/approve";
 import { createPostHandler } from "../../src/documents/commands/post";

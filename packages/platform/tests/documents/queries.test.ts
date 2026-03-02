@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { type Document, type DocumentEvent, type DocumentLink, type DocumentOperation, type DocumentSnapshot } from "@bedrock/db/schema/documents";
+import { type Document, type DocumentEvent, type DocumentLink, type DocumentOperation, type DocumentSnapshot } from "@bedrock/platform/documents/schema";
 
 import { DocumentNotFoundError } from "../../src/documents/errors";
 import { createGetDocumentQuery } from "../../src/documents/queries/get-document";
@@ -209,6 +209,7 @@ describe("documents queries", () => {
     });
     const links: DocumentLink[] = [
       {
+        id: "link-1",
         fromDocumentId: document.id,
         toDocumentId: parent.id,
         linkType: "parent",
@@ -216,6 +217,7 @@ describe("documents queries", () => {
         createdAt: new Date("2026-03-01T10:00:00.000Z"),
       },
       {
+        id: "link-2",
         fromDocumentId: document.id,
         toDocumentId: dependsOn.id,
         linkType: "depends_on",
@@ -223,6 +225,7 @@ describe("documents queries", () => {
         createdAt: new Date("2026-03-01T10:00:00.000Z"),
       },
       {
+        id: "link-3",
         fromDocumentId: document.id,
         toDocumentId: compensates.id,
         linkType: "compensates",
@@ -230,6 +233,7 @@ describe("documents queries", () => {
         createdAt: new Date("2026-03-01T10:00:00.000Z"),
       },
       {
+        id: "link-4",
         fromDocumentId: child.id,
         toDocumentId: document.id,
         linkType: "parent",

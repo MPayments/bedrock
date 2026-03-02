@@ -9,7 +9,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { counterparties } from "../counterparties";
+import { counterparties } from "../../counterparties/schema";
 
 export type Book = typeof books.$inferSelect;
 export type BookInsert = typeof books.$inferInsert;

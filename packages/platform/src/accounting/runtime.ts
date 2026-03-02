@@ -1,6 +1,5 @@
 import { and, desc, eq, lte } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/accounting";
 import { type PostingTemplateKey } from "@bedrock/foundation/accounting-contracts";
 import { canonicalJson, makePlanKey, sha256Hex } from "@bedrock/foundation/kernel";
 import type {
@@ -10,6 +9,7 @@ import type {
   RawPostingTemplateDefinition,
   ValueBinding,
 } from "@bedrock/foundation/packs/schema";
+import { schema } from "@bedrock/platform/accounting/schema";
 
 import {
   AccountingPackCompilationError,

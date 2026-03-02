@@ -1,9 +1,8 @@
-import { schema as currenciesSchema } from "../currencies";
-import { schema as ledgerSchema } from "../ledger";
-
 import { operationalAccountBindings } from "./account-ledger-bindings";
 import { operationalAccountProviders } from "./account-providers";
 import { operationalAccounts } from "./accounts";
+import { schema as currenciesSchema } from "../../currencies/schema";
+import { schema as ledgerSchema } from "../../ledger/schema";
 
 const { currencies } = currenciesSchema;
 const { bookAccountInstances } = ledgerSchema;

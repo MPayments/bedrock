@@ -1,5 +1,11 @@
 import type { z } from "zod";
 
+import type { Database, Transaction } from "@bedrock/foundation/db/types";
+import type { CorrelationContext, Logger } from "@bedrock/foundation/kernel";
+import type {
+  AccountingRuntime,
+  DocumentPostingPlan,
+} from "@bedrock/platform/accounting";
 import type {
   Document,
   DocumentApprovalStatus,
@@ -10,13 +16,7 @@ import type {
   DocumentPostingStatus,
   DocumentSnapshot,
   DocumentSubmissionStatus,
-} from "@bedrock/db/schema/documents";
-import type { Database, Transaction } from "@bedrock/db/types";
-import type { CorrelationContext, Logger } from "@bedrock/foundation/kernel";
-import type {
-  AccountingRuntime,
-  DocumentPostingPlan,
-} from "@bedrock/platform/accounting";
+} from "@bedrock/platform/documents/schema";
 import type {
   LedgerEngine,
   LedgerReadService,

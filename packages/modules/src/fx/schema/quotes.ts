@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { pgTable, uuid, text, timestamp, bigint, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 
-import { currencies } from "../currencies";
+import { currencies } from "@bedrock/platform/currencies/schema";
 
 export type FxQuoteStatus = "active" | "used" | "expired" | "cancelled";
 export type FxQuotePricingMode = "auto_cross" | "explicit_route";

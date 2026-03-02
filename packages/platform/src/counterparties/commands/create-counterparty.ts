@@ -1,4 +1,4 @@
-import { schema } from "@bedrock/db/schema/counterparties";
+import { schema } from "@bedrock/platform/counterparties/schema";
 
 import type { CounterpartiesServiceContext } from "../internal/context";
 import {

@@ -209,7 +209,7 @@ app.get("/health", async (c) => {
   const pgStart = Date.now();
   try {
     const { db } = await import("@bedrock/db/client");
-    const { schema } = await import("@bedrock/db/schema/currencies");
+    const { schema } = await import("@bedrock/platform/currencies/schema");
     await db
       .select({ id: schema.currencies.id })
       .from(schema.currencies)

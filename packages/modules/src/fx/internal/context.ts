@@ -1,4 +1,4 @@
-import type { Database } from "@bedrock/db/types";
+import type { Database } from "@bedrock/foundation/db/types";
 import { type Logger, noopLogger } from "@bedrock/foundation/kernel";
 import { type FeesService } from "@bedrock/modules/fees";
 import { type CurrenciesService } from "@bedrock/platform/currencies";

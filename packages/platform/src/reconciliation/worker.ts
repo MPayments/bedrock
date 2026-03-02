@@ -1,13 +1,13 @@
 import { sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/reconciliation";
-import type { Database } from "@bedrock/db/types";
+import type { Database } from "@bedrock/foundation/db/types";
 import {
   canonicalJson,
   noopLogger,
   sha256Hex,
   type Logger,
 } from "@bedrock/foundation/kernel";
+import { schema } from "@bedrock/platform/reconciliation/schema";
 
 import type { BedrockWorker, WorkerRunContext, WorkerRunResult } from "../worker-runtime";
 import { createReconciliationService } from "./service";

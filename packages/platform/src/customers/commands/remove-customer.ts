@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
 
 import {
-  documentsRef,
   schema as customersSchema,
-} from "@bedrock/db/schema/customers";
+} from "@bedrock/platform/customers/schema";
+import { schema as documentsSchema } from "@bedrock/platform/documents/schema";
 
 import { CustomerDeleteConflictError, CustomerNotFoundError } from "../errors";
 import type { CustomersServiceContext } from "../internal/context";
@@ -32,9 +32,9 @@ export function createRemoveCustomerHandler(context: CustomersServiceContext) {
       }
 
       const [orderReference] = await tx
-        .select({ id: documentsRef.id })
-        .from(documentsRef)
-        .where(eq(documentsRef.customerId, id))
+        .select({ id: documentsSchema.documents.id })
+        .from(documentsSchema.documents)
+        .where(eq(documentsSchema.documents.customerId, id))
         .limit(1);
 
       if (orderReference) {

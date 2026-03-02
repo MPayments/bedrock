@@ -8,7 +8,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { counterpartyCountryCodeEnum } from "../counterparties";
+import { counterpartyCountryCodeEnum } from "../../counterparties/schema";
 
 export const accountProviderTypeEnum = pgEnum("account_provider_type", [
   "bank",

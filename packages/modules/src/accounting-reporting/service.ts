@@ -1,15 +1,15 @@
 import { inArray, sql, type SQL } from "drizzle-orm";
 
-import { schema as accountingSchema } from "@bedrock/db/schema/accounting";
-import { schema as counterpartiesSchema } from "@bedrock/db/schema/counterparties";
-import { schema as ledgerSchema, type Dimensions } from "@bedrock/db/schema/ledger";
 import {
   paginateInMemory,
   resolveSortOrder,
   sortInMemory,
   type PaginatedList,
 } from "@bedrock/foundation/kernel/pagination";
+import { schema as accountingSchema } from "@bedrock/platform/accounting/schema";
+import { schema as counterpartiesSchema } from "@bedrock/platform/counterparties/schema";
 import { createBedrockDimensionRegistry } from "@bedrock/platform/dimensions";
+import { schema as ledgerSchema, type Dimensions } from "@bedrock/platform/ledger/schema";
 
 import {
   createAccountingReportingServiceContext,

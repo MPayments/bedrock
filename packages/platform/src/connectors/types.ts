@@ -1,6 +1,6 @@
-import type { PaymentAttemptStatus } from "@bedrock/db/schema/connectors";
-import type { Database } from "@bedrock/db/types";
+import type { Database } from "@bedrock/foundation/db/types";
 import type { CorrelationContext, Logger } from "@bedrock/foundation/kernel";
+import type { PaymentAttemptStatus } from "@bedrock/platform/connectors/schema";
 
 export interface ConnectorProviderSubmission {
   status:

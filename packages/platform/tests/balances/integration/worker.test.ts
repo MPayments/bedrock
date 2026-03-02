@@ -4,8 +4,8 @@ import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { schema } from "@bedrock/db/schema/balances";
 import { canonicalJson, sha256Hex } from "@bedrock/foundation/kernel";
+import { schema } from "@bedrock/platform/balances/schema";
 
 import { createBalancesProjectorWorkerDefinition } from "../../../src/balances/worker";
 

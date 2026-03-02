@@ -21,13 +21,16 @@ Runtime is consolidated into two workspace packages:
 
 Core dependency direction:
 
-- `@bedrock/foundation -> @bedrock/db -> @bedrock/platform -> @bedrock/modules -> apps/*`
+- `@bedrock/foundation -> @bedrock/platform -> @bedrock/modules -> apps/*`
+- `@bedrock/db` aggregates schemas from platform/modules and provides DB client/migrations/seeds.
 
 Hard rules:
 
 - No legacy runtime specifiers (`@bedrock/<domain>`) in runtime code.
-- No runtime schema exports from platform/modules.
-- DB schema ownership is only `packages/db/src/schema/**`.
+- Domain schema ownership is colocated under:
+  - `packages/platform/src/<domain>/schema.ts` or `schema/**`
+  - `packages/modules/src/<domain>/schema.ts` or `schema/**`
+- `@bedrock/db` must not own domain table declarations; it only aggregates domain schemas for client/migrations/seeds.
 
 ## Package Manager and Runtime
 
@@ -201,8 +204,9 @@ export class OrderNotFoundError extends ServiceError {
 
 - Drizzle ORM with PostgreSQL.
 - Schema uses `snake_case` column naming convention.
-- All schema/table definitions must be in `packages/db/src/schema/**` only.
-- Runtime code imports schema/types from `@bedrock/db/schema*` and `@bedrock/db/types`.
+- Runtime table definitions must be colocated in domain schema paths under platform/modules.
+- Runtime code imports schemas from `@bedrock/platform/<domain>/schema` or `@bedrock/modules/<domain>/schema`.
+- Runtime code imports shared database connection types from `@bedrock/foundation/db/types`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.
 - Migration policy is baseline-only hard cutover.
   - Mandatory sequence: `db:nuke -> db:migrate -> db:seed`.

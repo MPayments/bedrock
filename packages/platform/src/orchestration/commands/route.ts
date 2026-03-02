@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, isNull, lte, or } from "drizzle-orm";
 
-import { schema as connectorsSchema } from "@bedrock/db/schema/connectors";
-import { schema as orchestrationSchema } from "@bedrock/db/schema/orchestration";
+import { schema as connectorsSchema } from "@bedrock/platform/connectors/schema";
+import { schema as orchestrationSchema } from "@bedrock/platform/orchestration/schema";
 
 import { RouteCandidateNotFoundError } from "../errors";
 import type { OrchestrationServiceContext } from "../internal/context";

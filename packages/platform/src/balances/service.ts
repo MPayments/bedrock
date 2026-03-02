@@ -1,14 +1,14 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
+import { pgNotify } from "@bedrock/foundation/db/notify";
+import type { Transaction } from "@bedrock/foundation/db/types";
+import type { CorrelationContext } from "@bedrock/foundation/kernel";
 import {
   schema as balancesSchema,
   type BalanceHold,
   type BalancePosition,
-} from "@bedrock/db/schema/balances";
-import { schema as currenciesSchema } from "@bedrock/db/schema/currencies";
-import type { Transaction } from "@bedrock/db/types";
-import { pgNotify } from "@bedrock/foundation/db/notify";
-import type { CorrelationContext } from "@bedrock/foundation/kernel";
+} from "@bedrock/platform/balances/schema";
+import { schema as currenciesSchema } from "@bedrock/platform/currencies/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/platform/idempotency";
 
 import {

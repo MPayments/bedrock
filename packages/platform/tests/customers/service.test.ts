@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { schema as counterpartiesSchema } from "@bedrock/db/schema/counterparties";
+import { schema as counterpartiesSchema } from "@bedrock/platform/counterparties/schema";
 
 import {
   CustomerDeleteConflictError,

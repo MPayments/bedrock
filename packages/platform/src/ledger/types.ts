@@ -1,4 +1,4 @@
-import type { Dimensions } from "@bedrock/db/schema/ledger";
+import type { Dimensions } from "@bedrock/platform/ledger/schema";
 
 export const OPERATION_TRANSFER_TYPE = {
   CREATE: "create",

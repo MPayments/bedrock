@@ -1,6 +1,6 @@
 import { and, asc, eq, type SQL } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/counterparties";
+import { schema } from "@bedrock/platform/counterparties/schema";
 
 import type { CounterpartiesServiceContext } from "../internal/context";
 import { ensureSystemRootGroups } from "../internal/group-rules";

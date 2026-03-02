@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 
-import { schema, type FxQuote, type FxQuoteLeg } from "@bedrock/db/schema/fx";
-import type { Transaction } from "@bedrock/db/types";
+import type { Transaction } from "@bedrock/foundation/db/types";
 import { effectiveRateFromAmounts, mulDivFloor } from "@bedrock/foundation/kernel/math";
+import { schema, type FxQuote, type FxQuoteLeg } from "@bedrock/modules/fx/schema";
 
 import {
     NotFoundError,

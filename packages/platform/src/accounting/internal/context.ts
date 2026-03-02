@@ -1,4 +1,4 @@
-import type { Database } from "@bedrock/db/types";
+import type { Database } from "@bedrock/foundation/db/types";
 import type { Logger } from "@bedrock/foundation/kernel";
 import { noopLogger } from "@bedrock/foundation/kernel";
 import type { AccountingPackDefinition } from "@bedrock/foundation/packs/schema";

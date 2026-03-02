@@ -11,13 +11,10 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { currencies } from "../currencies";
+import { currencies } from "@bedrock/platform/currencies/schema";
 
 import { feeRules, type FeeSettlementMode } from "./rules";
-
-const fxQuotesRef = pgTable("fx_quotes", {
-  id: uuid("id").primaryKey(),
-});
+import { fxQuotes } from "../../fx/schema/quotes";
 
 export type FeeComponentSource = "rule" | "manual";
 
@@ -27,7 +24,7 @@ export const fxQuoteFeeComponents = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     quoteId: uuid("quote_id")
       .notNull()
-      .references(() => fxQuotesRef.id, { onDelete: "cascade" }),
+      .references(() => fxQuotes.id, { onDelete: "cascade" }),
     idx: integer("idx").notNull(),
 
     ruleId: uuid("rule_id").references(() => feeRules.id),

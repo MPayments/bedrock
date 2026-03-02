@@ -8,10 +8,9 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 
-import { counterparties } from "../counterparties";
-import { currencies } from "../currencies";
-
 import { operationalAccountProviders } from "./account-providers";
+import { counterparties } from "../../counterparties/schema";
+import { currencies } from "../../currencies/schema";
 
 export type OperationalAccount = typeof operationalAccounts.$inferSelect;
 export type OperationalAccountInsert = typeof operationalAccounts.$inferInsert;

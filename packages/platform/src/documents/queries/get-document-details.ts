@@ -1,6 +1,6 @@
 import { and, eq, inArray, or } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/documents";
+import { schema } from "@bedrock/platform/documents/schema";
 
 import { DocumentNotFoundError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";

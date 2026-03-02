@@ -1,4 +1,4 @@
-import type { Database } from "@bedrock/db/types";
+import type { Database } from "@bedrock/foundation/db/types";
 
 export interface LedgerDeps {
   db: Database;

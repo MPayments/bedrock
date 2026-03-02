@@ -33,10 +33,5 @@ module.exports = {
       from: { path: "^packages/platform/" },
       to: { path: "^packages/modules/" },
     },
-    {
-      name: "db-to-runtime",
-      from: { path: "^packages/db/" },
-      to: { path: "^(packages/(platform|modules)/|apps/)" },
-    },
   ],
 };

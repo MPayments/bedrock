@@ -6,20 +6,15 @@ import {
   integer,
   jsonb,
   pgEnum,
-  pgTable,
   primaryKey,
   text,
   timestamp,
   uniqueIndex,
   uuid,
+  pgTable,
 } from "drizzle-orm/pg-core";
 
-import { books } from "./ledger";
-import { bookAccountInstances } from "./ledger";
-
-const operationalAccountsRef = pgTable("operational_accounts", {
-  id: uuid("id").primaryKey(),
-});
+import { books, bookAccountInstances } from "../ledger/schema";
 
 export const chartAccountKindEnum = pgEnum("chart_account_kind", [
   "asset",
@@ -185,34 +180,6 @@ export const accountingPackAssignments = pgTable(
   ],
 );
 
-export const operationalAccountBindings = pgTable(
-  "operational_account_bindings",
-  {
-    operationalAccountId: uuid("operational_account_id")
-      .primaryKey()
-      .references(() => operationalAccountsRef.id, { onDelete: "cascade" }),
-    bookId: uuid("book_id")
-      .notNull()
-      .references(() => books.id),
-    bookAccountInstanceId: uuid("book_account_instance_id")
-      .notNull()
-      .references(() => bookAccountInstances.id),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`)
-      .$onUpdateFn(() => new Date()),
-  },
-  (t) => [
-    index("operational_account_binding_book_idx").on(t.bookId),
-    index("operational_account_binding_instance_idx").on(
-      t.bookAccountInstanceId,
-    ),
-  ],
-);
-
 export type ChartTemplateAccount = typeof chartTemplateAccounts.$inferSelect;
 export type ChartAccountDimensionPolicyRow =
   typeof chartAccountDimensionPolicy.$inferSelect;
@@ -222,11 +189,6 @@ export type CorrespondenceRule = typeof correspondenceRules.$inferSelect;
 export type AccountingPackVersion = typeof accountingPackVersions.$inferSelect;
 export type AccountingPackAssignment =
   typeof accountingPackAssignments.$inferSelect;
-export type OperationalAccountBinding =
-  typeof operationalAccountBindings.$inferSelect;
-
-export type OperationalAccountBindingInsert =
-  typeof operationalAccountBindings.$inferInsert;
 
 export const schema = {
   chartTemplateAccounts,
@@ -235,5 +197,6 @@ export const schema = {
   correspondenceRules,
   accountingPackVersions,
   accountingPackAssignments,
-  operationalAccountBindings,
+  books,
+  bookAccountInstances,
 };

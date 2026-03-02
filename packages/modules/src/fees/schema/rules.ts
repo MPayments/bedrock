@@ -11,7 +11,7 @@ import {
   jsonb,
 } from "drizzle-orm/pg-core";
 
-import { currencies } from "../currencies";
+import { currencies } from "@bedrock/platform/currencies/schema";
 
 export type FeeCalcMethod = "bps" | "fixed";
 export type FeeSettlementMode = "in_ledger" | "separate_payment_order";

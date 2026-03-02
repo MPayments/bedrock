@@ -1,12 +1,12 @@
 import { inArray } from "drizzle-orm";
 
-import { schema as counterpartiesSchema } from "@bedrock/db/schema/counterparties";
-import { schema as customersSchema } from "@bedrock/db/schema/customers";
-import { schema as documentsSchema } from "@bedrock/db/schema/documents";
-import { type Dimensions } from "@bedrock/db/schema/ledger";
-import { schema as operationalAccountsSchema } from "@bedrock/db/schema/operational-accounts";
-import type { Database } from "@bedrock/db/types";
+import type { Database } from "@bedrock/foundation/db/types";
 import { isUuidLike } from "@bedrock/foundation/kernel";
+import { schema as counterpartiesSchema } from "@bedrock/platform/counterparties/schema";
+import { schema as customersSchema } from "@bedrock/platform/customers/schema";
+import { schema as documentsSchema } from "@bedrock/platform/documents/schema";
+import { type Dimensions } from "@bedrock/platform/ledger/schema";
+import { schema as operationalAccountsSchema } from "@bedrock/platform/operational-accounts/schema";
 
 const schema = {
   ...counterpartiesSchema,

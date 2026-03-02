@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { schema } from "@bedrock/db/schema/reconciliation";
+import { schema } from "@bedrock/platform/reconciliation/schema";
 
 import { createReconciliationService } from "../../../src/reconciliation/service";
 import { createReconciliationWorkerDefinition } from "../../../src/reconciliation/worker";

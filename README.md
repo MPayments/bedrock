@@ -14,8 +14,8 @@ Bedrock is a financial platform monorepo (ledger, orchestration, connectors, bal
 Runtime import contract:
 
 - Legacy `@bedrock/<domain>` runtime specifiers are removed.
-- Runtime schema exports are removed from platform/modules.
-- Use DB schema/types from `@bedrock/db/schema*` and `@bedrock/db/types`.
+- Domain schemas are colocated under `@bedrock/platform/<domain>/schema` and `@bedrock/modules/<domain>/schema`.
+- Use DB connection types from `@bedrock/foundation/db/types`.
 
 ## Stack
 

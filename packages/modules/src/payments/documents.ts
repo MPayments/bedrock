@@ -1,7 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
 
-import { schema as documentsSchema } from "@bedrock/db/schema/documents";
-import { schema as ledgerSchema } from "@bedrock/db/schema/ledger";
 import {
   ACCOUNTING_SOURCE_ID,
   OPERATION_CODE,
@@ -23,6 +21,8 @@ import {
   buildDocumentPostingPlan,
   buildDocumentPostingRequest,
 } from "@bedrock/platform/documents/module-kit";
+import { schema as documentsSchema } from "@bedrock/platform/documents/schema";
+import { schema as ledgerSchema } from "@bedrock/platform/ledger/schema";
 
 import {
   PaymentIntentPayloadSchema,

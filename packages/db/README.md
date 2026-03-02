@@ -6,13 +6,18 @@ Drizzle-based database package for the financial core.
 
 - Shared `db` client (`packages/db/src/client.ts`)
 - Shared `Database` type
-- Canonical schema aggregator (`packages/db/src/schema/index.ts`)
+- Aggregated schema registry (`packages/db/src/schema/index.ts`)
 - Centralized migrations (`packages/db/migrations`)
 
 ## Schema ownership
 
-Table definitions are colocated in domain packages and imported via
-`@bedrock/<domain>/schema` into the central aggregator.
+Table definitions are colocated with runtime domains:
+
+- `packages/platform/src/<domain>/schema.ts` or `schema/**`
+- `packages/modules/src/<domain>/schema.ts` or `schema/**`
+
+`@bedrock/db` aggregates these domain schemas for client construction and
+migrations.
 
 ## Key design notes
 

@@ -7,22 +7,6 @@
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
     "./types": "./src/types.ts",
-    "./schema": "./src/schema/index.ts",
-    "./schema/accounting": "./src/schema/accounting.ts",
-    "./schema/balances": "./src/schema/balances.ts",
-    "./schema/component-runtime": "./src/schema/component-runtime.ts",
-    "./schema/connectors": "./src/schema/connectors.ts",
-    "./schema/counterparties": "./src/schema/counterparties.ts",
-    "./schema/currencies": "./src/schema/currencies.ts",
-    "./schema/customers": "./src/schema/customers.ts",
-    "./schema/documents": "./src/schema/documents.ts",
-    "./schema/fees": "./src/schema/fees/index.ts",
-    "./schema/fx": "./src/schema/fx/index.ts",
-    "./schema/idempotency": "./src/schema/idempotency.ts",
-    "./schema/ledger": "./src/schema/ledger/index.ts",
-    "./schema/operational-accounts": "./src/schema/operational-accounts/index.ts",
-    "./schema/orchestration": "./src/schema/orchestration.ts",
-    "./schema/reconciliation": "./src/schema/reconciliation.ts",
     "./seeds": "./src/seeds/index.ts"
   },
   "scripts": {
@@ -46,6 +30,8 @@
   },
   "dependencies": {
     "@bedrock/foundation": "workspace:*",
+    "@bedrock/modules": "workspace:*",
+    "@bedrock/platform": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "pg": "^8.17.2"
   },

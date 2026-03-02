@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
-import { schema as currenciesSchema } from "@bedrock/db/schema/currencies";
-import { schema as fxSchema } from "@bedrock/db/schema/fx";
+import { schema as fxSchema } from "@bedrock/modules/fx/schema";
+import { schema as currenciesSchema } from "@bedrock/platform/currencies/schema";
 
 import { type FxServiceContext } from "../../internal/context";
 

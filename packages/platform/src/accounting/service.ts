@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/accounting";
+import { schema } from "@bedrock/platform/accounting/schema";
 
 import {
   createAccountingServiceContext,

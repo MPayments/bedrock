@@ -1,9 +1,9 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { schema as balancesSchema, type Dimensions } from "@bedrock/db/schema/balances";
-import { schema as ledgerSchema } from "@bedrock/db/schema/ledger";
-import type { Database, Transaction } from "@bedrock/db/types";
+import type { Database, Transaction } from "@bedrock/foundation/db/types";
 import { noopLogger, type Logger } from "@bedrock/foundation/kernel";
+import { schema as balancesSchema, type Dimensions } from "@bedrock/platform/balances/schema";
+import { schema as ledgerSchema } from "@bedrock/platform/ledger/schema";
 
 import type { BedrockWorker, WorkerRunContext, WorkerRunResult } from "../worker-runtime";
 

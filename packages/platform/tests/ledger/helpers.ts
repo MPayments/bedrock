@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 
-import { schema } from "@bedrock/db/schema/ledger";
+import { schema } from "@bedrock/platform/ledger/schema";
 import {
     createStubDb,
     createStubTx,

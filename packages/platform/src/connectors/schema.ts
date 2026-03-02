@@ -13,7 +13,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { documents } from "./documents";
+import { documents } from "../documents/schema";
 
 export type ConnectorDirection = "payin" | "payout";
 export type ConnectorIntentStatus =

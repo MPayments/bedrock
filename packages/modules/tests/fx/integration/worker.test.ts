@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
-import { schema } from "@bedrock/db/schema/fx";
 import { DAY_IN_SECONDS } from "@bedrock/foundation/kernel/constants";
+import { schema } from "@bedrock/modules/fx/schema";
 import { createCurrenciesService } from "@bedrock/platform/currencies";
 
 import { db } from "./setup";

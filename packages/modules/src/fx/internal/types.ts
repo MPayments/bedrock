@@ -1,5 +1,5 @@
-import type { FxQuote, FxQuoteLeg } from "@bedrock/db/schema/fx";
 import { type FeesService } from "@bedrock/modules/fees";
+import type { FxQuote, FxQuoteLeg } from "@bedrock/modules/fx/schema";
 
 export interface ComputedLeg {
     idx: number;

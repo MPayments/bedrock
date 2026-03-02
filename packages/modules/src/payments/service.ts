@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/accounting";
-import type { Database } from "@bedrock/db/types";
+import type { Database } from "@bedrock/foundation/db/types";
 import { noopLogger, type CorrelationContext, type Logger } from "@bedrock/foundation/kernel";
 import type { ConnectorsService } from "@bedrock/platform/connectors";
 import type {
@@ -9,6 +8,7 @@ import type {
   DocumentWithOperationId,
   DocumentsService,
 } from "@bedrock/platform/documents";
+import { schema as operationalAccountsSchema } from "@bedrock/platform/operational-accounts/schema";
 import type { OrchestrationService } from "@bedrock/platform/orchestration";
 
 import {
@@ -48,11 +48,14 @@ export type PaymentsService = ReturnType<typeof createPaymentsService>;
 async function resolveSourceBookId(db: Database, sourceOperationalAccountId: string) {
   const [binding] = await db
     .select({
-      bookId: schema.operationalAccountBindings.bookId,
+      bookId: operationalAccountsSchema.operationalAccountBindings.bookId,
     })
-    .from(schema.operationalAccountBindings)
+    .from(operationalAccountsSchema.operationalAccountBindings)
     .where(
-      eq(schema.operationalAccountBindings.operationalAccountId, sourceOperationalAccountId),
+      eq(
+        operationalAccountsSchema.operationalAccountBindings.operationalAccountId,
+        sourceOperationalAccountId,
+      ),
     )
     .limit(1);
 

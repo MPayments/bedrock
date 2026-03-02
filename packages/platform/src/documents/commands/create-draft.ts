@@ -1,5 +1,5 @@
-import { schema, type Document } from "@bedrock/db/schema/documents";
-import type { Transaction } from "@bedrock/db/types";
+import type { Transaction } from "@bedrock/foundation/db/types";
+import { schema, type Document } from "@bedrock/platform/documents/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/platform/idempotency";
 
 import type { DocumentsServiceContext } from "../internal/context";

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/connectors";
+import { schema } from "@bedrock/platform/connectors/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/platform/idempotency";
 
 import type { ConnectorsServiceContext } from "../internal/context";

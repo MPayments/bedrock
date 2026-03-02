@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/operational-accounts";
 import { ensureBookAccountInstanceTx } from "@bedrock/platform/ledger";
+import { schema } from "@bedrock/platform/operational-accounts/schema";
 
 import { AccountProviderNotFoundError } from "../errors";
 import type { OperationalAccountsServiceContext } from "../internal/context";

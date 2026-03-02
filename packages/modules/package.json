@@ -9,8 +9,10 @@
     "./accounting-reporting/validation": "./src/accounting-reporting/validation.ts",
     "./component-runtime": "./src/component-runtime/index.ts",
     "./fees": "./src/fees/index.ts",
+    "./fees/schema": "./src/fees/schema/index.ts",
     "./fx": "./src/fx/index.ts",
     "./fx/contracts": "./src/fx/contracts.ts",
+    "./fx/schema": "./src/fx/schema/index.ts",
     "./payments": "./src/payments/index.ts"
   },
   "scripts": {
@@ -24,7 +26,6 @@
     "test:integration:watch": "vitest --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@bedrock/db": "workspace:*",
     "@bedrock/foundation": "workspace:*",
     "@bedrock/platform": "workspace:*",
     "drizzle-orm": "^0.45.1",

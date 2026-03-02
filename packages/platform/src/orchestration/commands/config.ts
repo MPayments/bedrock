@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/orchestration";
+import { schema } from "@bedrock/platform/orchestration/schema";
 
 import {
   ProviderCorridorNotFoundError,

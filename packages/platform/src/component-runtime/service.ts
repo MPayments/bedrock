@@ -1,13 +1,13 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema/component-runtime";
-import type { Database, Transaction } from "@bedrock/db/types";
 import {
   pgNotify,
   createPgSubscriber,
   type PgSubscriber,
 } from "@bedrock/foundation/db/notify";
+import type { Database, Transaction } from "@bedrock/foundation/db/types";
 import { noopLogger, sha256Hex, stableStringify } from "@bedrock/foundation/kernel";
+import { schema } from "@bedrock/platform/component-runtime/schema";
 
 import {
   ImmutableComponentError,

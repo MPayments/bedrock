@@ -10,8 +10,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { documents } from "./documents";
-import { ledgerOperations } from "./ledger";
+import { documents } from "../documents/schema";
+import { ledgerOperations } from "../ledger/schema";
 
 export type ReconciliationMatchStatus = "matched" | "unmatched" | "ambiguous";
 export type ReconciliationExceptionState = "open" | "resolved" | "ignored";

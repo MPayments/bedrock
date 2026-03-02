@@ -171,15 +171,14 @@ const LEGACY_SPECIFIER_PATTERNS = [
 ];
 const DB_TYPES_SPECIFIER = /^@bedrock\/db\/types(?:\/|$)/;
 const DB_RUNTIME_BLOCKED_SPECIFIER = /^@bedrock\/db(?:$|\/(?:client|seeds)(?:$|\/))/;
-const RUNTIME_SCHEMA_SPECIFIER =
-  /^@bedrock\/(?:platform|modules)\/[^/]+\/schema(?:\/|$)/;
-
 function isRuntimePackageFile(file) {
   return /^packages\/(modules|platform)\/src\/[^/]+\//.test(file);
 }
 
 function isSchemaDefinitionFile(file) {
   return (
+    /\/src\/[^/]+\/schema\.ts$/.test(file) ||
+    /\/src\/[^/]+\/schema\/.+\.ts$/.test(file) ||
     /\/src\/schema\.ts$/.test(file) ||
     /\/src\/schema\/.+\.ts$/.test(file)
   );
@@ -233,16 +232,6 @@ for (const root of SOURCE_ROOTS) {
       ) {
         violations.push({
           rule: "runtime-no-db-client",
-          from: relFile,
-          to: specifier,
-          specifier,
-        });
-        continue;
-      }
-
-      if (RUNTIME_SCHEMA_SPECIFIER.test(specifier)) {
-        violations.push({
-          rule: "runtime-schema-import",
           from: relFile,
           to: specifier,
           specifier,
