@@ -5,18 +5,18 @@ import {
   CounterpartyGroupOptionsResponseSchema,
   type CounterpartyGroupOption,
 } from "@bedrock/platform/counterparties/contracts";
-import {
-  CurrencyOptionsResponseSchema,
-} from "@bedrock/platform/currencies/contracts";
-import {
-  AccountProviderOptionsResponseSchema,
-} from "@bedrock/platform/operational-accounts/contracts";
+import { CurrencyOptionsResponseSchema } from "@bedrock/platform/currencies/contracts";
+import { AccountProviderOptionsResponseSchema } from "@bedrock/platform/operational-accounts/contracts";
 import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/platform/counterparties/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import { readJsonWithSchema, requestOk } from "@/lib/api/response";
-import { readEntityById, readOptionsList, readPaginatedList } from "@/lib/api/query";
+import {
+  readEntityById,
+  readOptionsList,
+  readPaginatedList,
+} from "@/lib/api/query";
 import { createResourceListQuery } from "@/lib/resources/search-params";
 
 import type { CounterpartiesListResult } from "../components/counterparties-table";
@@ -112,12 +112,14 @@ const getCounterpartyByIdUncached = async (
 
 export const getCounterpartyById = cache(getCounterpartyByIdUncached);
 
-export async function getCounterpartyGroups(): Promise<CounterpartyGroupOption[]> {
+export async function getCounterpartyGroups(): Promise<
+  CounterpartyGroupOption[]
+> {
   const client = await getServerApiClient();
   const payload = await readOptionsList({
     request: () =>
-      client.v1["counterparty-groups"].$get(
-        { query: { includeSystem: true } },
+      client.v1["counterparty-groups"].options.$get(
+        {},
         {
           init: { cache: "force-cache" },
         },
@@ -201,7 +203,7 @@ export async function getCounterpartyAccounts(
         client.v1.accounts.$get(
           {
             query: {
-              limit: 500,
+              limit: 200,
               offset: 0,
               counterpartyId,
               sortBy: "createdAt",

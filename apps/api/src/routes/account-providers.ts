@@ -221,7 +221,7 @@ export function accountProvidersRoutes(ctx: AppContext) {
     })
     .openapi(optionsRoute, async (c) => {
       const result = await ctx.operationalAccountsService.listProviders({
-        limit: 500,
+        limit: 200,
         offset: 0,
         sortBy: "name",
         sortOrder: "asc",

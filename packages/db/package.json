@@ -34,14 +34,14 @@
     "db:nuke": "node ./scripts/db-nuke.mjs",
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push",
-    "db:seed": "bun x tsx ./src/seeds/run-all.ts",
-    "db:seed:accounting": "bun x tsx ./src/seeds/run-accounting.ts",
-    "db:bootstrap:accounting": "bun x tsx ./src/seeds/run-accounting.ts",
-    "db:bootstrap:v2-core": "bun x tsx ./src/seeds/run-accounting.ts",
-    "db:seed:users": "bun x tsx ./src/seeds/run-users.ts",
-    "db:seed:counterparties": "bun x tsx ./src/seeds/run-counterparties.ts",
-    "db:seed:account-providers": "bun x tsx ./src/seeds/run-account-providers.ts",
-    "db:seed:accounts": "bun x tsx ./src/seeds/run-accounts.ts",
+    "db:seed": "tsx ./src/seeds/run-all.ts",
+    "db:seed:accounting": "tsx ./src/seeds/run-accounting.ts",
+    "db:bootstrap:accounting": "tsx ./src/seeds/run-accounting.ts",
+    "db:bootstrap:v2-core": "tsx ./src/seeds/run-accounting.ts",
+    "db:seed:users": "tsx ./src/seeds/run-users.ts",
+    "db:seed:counterparties": "tsx ./src/seeds/run-counterparties.ts",
+    "db:seed:account-providers": "tsx ./src/seeds/run-account-providers.ts",
+    "db:seed:accounts": "tsx ./src/seeds/run-accounts.ts",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
@@ -57,6 +57,7 @@
     "dotenv": "^17.3.1",
     "drizzle-kit": "^0.31.9",
     "eslint": "^9.31.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.8.3"
   }
 }

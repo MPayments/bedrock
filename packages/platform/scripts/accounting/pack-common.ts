@@ -15,7 +15,7 @@ import {
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PACK_PATH = resolve(
   SCRIPT_DIR,
-  "../../../foundation/pack-bedrock-core-default/src/index.ts",
+  "../../../foundation/src/packs/bedrock-core-default.ts",
 );
 
 function readFlag(name: string): string | undefined {
@@ -68,7 +68,9 @@ export async function loadRawPackDefinition(): Promise<{
   };
 }
 
-export function createPackRuntime(defaultPackDefinition: AccountingPackDefinition) {
+export function createPackRuntime(
+  defaultPackDefinition: AccountingPackDefinition,
+) {
   return createAccountingRuntime({
     db,
     defaultPackDefinition,

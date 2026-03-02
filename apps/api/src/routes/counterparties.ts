@@ -221,7 +221,7 @@ export function counterpartiesRoutes(ctx: AppContext) {
     })
     .openapi(optionsRoute, async (c) => {
       const result = await ctx.counterpartiesService.list({
-        limit: 500,
+        limit: 200,
         offset: 0,
         sortBy: "shortName",
         sortOrder: "asc",

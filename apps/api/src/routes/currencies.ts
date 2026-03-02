@@ -210,7 +210,7 @@ export function currenciesRoutes(ctx: AppContext) {
     })
     .openapi(optionsRoute, async (c) => {
       const result = await ctx.currenciesService.list({
-        limit: 500,
+        limit: 200,
         offset: 0,
         sortBy: "code",
         sortOrder: "asc",

@@ -42,9 +42,9 @@
     "test:watch": "vitest --config vitest.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:integration:watch": "vitest --config vitest.integration.config.ts",
-    "pack:validate": "bun x tsx ./scripts/accounting/pack-validate.ts",
-    "pack:compile": "bun x tsx ./scripts/accounting/pack-compile.ts",
-    "pack:activate": "bun x tsx ./scripts/accounting/pack-activate.ts"
+    "pack:validate": "tsx ./scripts/accounting/pack-validate.ts",
+    "pack:compile": "tsx ./scripts/accounting/pack-compile.ts",
+    "pack:activate": "tsx ./scripts/accounting/pack-activate.ts"
   },
   "dependencies": {
     "@bedrock/db": "workspace:*",
@@ -61,6 +61,7 @@
     "@types/pg": "^8.15.5",
     "eslint": "^9.31.0",
     "pg": "^8.16.3",
+    "tsx": "^4.21.0",
     "typescript": "^5.8.3",
     "vitest": "^4.0.18"
   }

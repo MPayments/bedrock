@@ -49,6 +49,7 @@ const ACCOUNTS = [
   ["5000", "Расходы", "expense", "debit", false, true, null],
   ["1110", "Банк", "asset", "debit", true, true, "1100"],
   ["1220", "Транзит", "asset", "debit", true, true, "1200"],
+  ["1310", "Клиринг", "active_passive", "both", true, true, "1300"],
   ["2110", "Кошелек клиента", "liability", "credit", true, true, "2100"],
   ["2120", "Клиринг комиссий", "liability", "credit", true, true, "2100"],
   [

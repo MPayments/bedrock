@@ -1,6 +1,6 @@
 import { FileText } from "lucide-react";
 
-import { getServerSessionSnapshot } from "@/lib/auth/session";
+import { requirePageAudience } from "@/lib/auth/session";
 import { getDocuments } from "@/app/(shell)/operations/lib/queries";
 import { getRateSources } from "@/app/(shell)/fx/rates/lib/queries";
 
@@ -27,7 +27,7 @@ function formatCount(value: number) {
 }
 
 export async function DashboardPage() {
-  const session = await getServerSessionSnapshot();
+  const session = await requirePageAudience("user");
   const [recentDocuments, paymentDocuments, transferDocuments, sourceStatuses] =
     await Promise.all([
       getDocuments({ page: 1, perPage: 5 }),

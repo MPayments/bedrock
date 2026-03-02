@@ -35,6 +35,7 @@ import {
   counterpartyGroupsRoutes,
   customersRoutes,
   currenciesRoutes,
+  docsRoutes,
   fxRatesRoutes,
   orchestrationRoutes,
   paymentsRoutes,
@@ -260,6 +261,7 @@ const TYPED_ROUTE_PATHS = [
   "/counterparty-groups",
   "/customers",
   "/currencies",
+  "/docs",
   "/payments",
   "/connectors",
   "/orchestration",
@@ -295,6 +297,7 @@ const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
+  .route("/docs", docsRoutes(ctx))
   .route("/payments", paymentsRoutes(ctx))
   .route("/connectors", connectorsRoutes(ctx))
   .route("/orchestration", orchestrationRoutes(ctx))

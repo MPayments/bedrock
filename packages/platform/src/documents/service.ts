@@ -34,11 +34,11 @@ export function createDocumentsService(deps: DocumentsServiceDeps) {
   const getDetails = createGetDocumentDetailsQuery(context);
 
   async function validateAccountingSourceCoverage(input?: { bookId?: string }) {
-    const compiledPack = await context.accounting.loadActiveCompiledPackForBook(
-      {
-        bookId: input?.bookId,
-      },
-    );
+    const compiledPack = input?.bookId
+      ? await context.accounting.loadActiveCompiledPackForBook({
+          bookId: input.bookId,
+        })
+      : context.accounting.getDefaultCompiledPack();
     const allowedSources = new Set<string>();
     for (const template of compiledPack.templates) {
       for (const sourceId of template.allowSources) {
