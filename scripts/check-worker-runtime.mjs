@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const manifestsPaths = [
-  path.join(repoRoot, "packages/platform/src/component-runtime/manifests.ts"),
-  path.join(repoRoot, "packages/modules/src/component-runtime/manifests.ts"),
+  path.join(repoRoot, "packages/core/src/component-runtime/manifests.ts"),
+  path.join(repoRoot, "packages/application/src/component-runtime/manifests.ts"),
 ];
 const workersPackageJsonPath = path.join(repoRoot, "apps/workers/package.json");
 const turboJsonPath = path.join(repoRoot, "turbo.json");

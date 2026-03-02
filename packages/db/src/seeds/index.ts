@@ -6,9 +6,9 @@ export {
   CUSTOMER_IDS,
   COUNTERPARTY_IDS,
   PROVIDER_IDS,
-  OA_IDS,
-  seedOperational,
+  COUNTERPARTY_ACCOUNT_IDS,
+  seedCounterpartyDomain,
   seedCounterparties,
-  seedAccountProviders,
-  seedAccounts,
-} from "./operational";
+  seedCounterpartyAccountProviders,
+  seedCounterpartyAccounts,
+} from "./counterparty-accounts";

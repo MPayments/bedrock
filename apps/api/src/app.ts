@@ -10,7 +10,7 @@ import {
   ImmutableComponentError,
   MixedDeployError,
   UnknownComponentError,
-} from "@bedrock/platform/component-runtime";
+} from "@bedrock/core/component-runtime";
 
 import auth from "./auth";
 import { createAppContext, parseEnv } from "./context";
@@ -19,16 +19,16 @@ import {
   requireAuth,
   type AuthVariables,
 } from "./middleware/auth";
-import { createComponentGuard } from "./middleware/module-guard";
+import { createComponentGuard } from "./middleware/component-guard";
 import { requestContextMiddleware } from "./middleware/request-context";
 import {
   API_APPLICATION_COMPONENTS,
   type ApiApplicationComponent,
-} from "./modules/registry";
+} from "./components/registry";
 import {
   accountingRoutes,
-  accountProvidersRoutes,
-  accountsRoutes,
+  counterpartyAccountProvidersRoutes,
+  counterpartyAccountsRoutes,
   balancesRoutes,
   connectorsRoutes,
   counterpartiesRoutes,
@@ -166,7 +166,8 @@ app.onError((err, c) => {
 app.use(
   "*",
   cors({
-    origin: (origin) => (authAllowedOriginSet.has(origin) ? origin : undefined),
+    origin: (origin: string) =>
+      (authAllowedOriginSet.has(origin) ? origin : undefined),
     allowHeaders: [
       "Content-Type",
       "Authorization",
@@ -209,7 +210,7 @@ app.get("/health", async (c) => {
   const pgStart = Date.now();
   try {
     const { db } = await import("@bedrock/db/client");
-    const { schema } = await import("@bedrock/platform/currencies/schema");
+    const { schema } = await import("@bedrock/core/currencies/schema");
     await db
       .select({ id: schema.currencies.id })
       .from(schema.currencies)
@@ -254,8 +255,8 @@ function buildV1Router(
 
 const TYPED_ROUTE_PATHS = [
   "/accounting",
-  "/account-providers",
-  "/accounts",
+  "/counterparty-account-providers",
+  "/counterparty-accounts",
   "/balances",
   "/counterparties",
   "/counterparty-groups",
@@ -290,8 +291,8 @@ assertTypedRouteCoverage();
 
 const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/accounting", accountingRoutes(ctx))
-  .route("/account-providers", accountProvidersRoutes(ctx))
-  .route("/accounts", accountsRoutes(ctx))
+  .route("/counterparty-account-providers", counterpartyAccountProvidersRoutes(ctx))
+  .route("/counterparty-accounts", counterpartyAccountsRoutes(ctx))
   .route("/balances", balancesRoutes(ctx))
   .route("/counterparties", counterpartiesRoutes(ctx))
   .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))

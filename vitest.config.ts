@@ -1,8 +1,8 @@
 import { defineConfig } from "vitest/config";
-import { moduleIntegrationProjects } from "./packages/modules/vitest.integration.config";
-import { moduleUnitProjects } from "./packages/modules/vitest.config";
-import { platformIntegrationProjects } from "./packages/platform/vitest.integration.config";
-import { platformUnitProjects } from "./packages/platform/vitest.config";
+import { applicationIntegrationProjects } from "./packages/application/vitest.integration.config";
+import { applicationUnitProjects } from "./packages/application/vitest.config";
+import { coreIntegrationProjects } from "./packages/core/vitest.integration.config";
+import { coreUnitProjects } from "./packages/core/vitest.config";
 
 export default defineConfig({
   test: {
@@ -10,11 +10,11 @@ export default defineConfig({
       "apps/api/vitest.config.ts",
       "apps/workers/vitest.config.ts",
       "packages/db/vitest.config.ts",
-      "packages/foundation/vitest.config.ts",
-      ...platformUnitProjects,
-      ...platformIntegrationProjects,
-      ...moduleUnitProjects,
-      ...moduleIntegrationProjects,
+      "packages/kernel/vitest.config.ts",
+      ...coreUnitProjects,
+      ...coreIntegrationProjects,
+      ...applicationUnitProjects,
+      ...applicationIntegrationProjects,
     ],
     exclude: ["**/node_modules/**", "**/dist/**"],
     coverage: {

@@ -42,7 +42,7 @@ export async function DashboardPage() {
     <SectionOverviewPage
       icon={FileText}
       title="Рабочий стол"
-      description="Быстрый доступ к ключевым потокам платформы, последним документам и текущей operational картине по роли."
+      description="Быстрый доступ к ключевым потокам платформы, последним документам и текущей картине по роли."
       stats={[
         {
           id: "recent-documents",

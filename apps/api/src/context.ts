@@ -1,30 +1,30 @@
 import { z } from "zod";
 
 import { db } from "@bedrock/db/client";
-import type { Logger } from "@bedrock/foundation/kernel";
-import type { AccountingReportingService } from "@bedrock/modules/accounting-reporting";
-import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/modules/component-runtime";
-import type { FeesService } from "@bedrock/modules/fees";
-import type { FxService } from "@bedrock/modules/fx";
-import type { PaymentsService } from "@bedrock/modules/payments";
-import type { AccountingService } from "@bedrock/platform/accounting";
-import type { BalancesService } from "@bedrock/platform/balances";
+import type { Logger } from "@bedrock/kernel";
+import type { AccountingReportingService } from "@bedrock/application/accounting-reporting";
+import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/application/component-runtime";
+import type { FeesService } from "@bedrock/application/fees";
+import type { FxService } from "@bedrock/application/fx";
+import type { PaymentsService } from "@bedrock/application/payments";
+import type { AccountingService } from "@bedrock/core/accounting";
+import type { BalancesService } from "@bedrock/core/balances";
 import {
   createComponentRuntimeService,
   type ComponentRuntimeService,
-} from "@bedrock/platform/component-runtime";
-import type { ConnectorsService } from "@bedrock/platform/connectors";
-import type { CounterpartiesService } from "@bedrock/platform/counterparties";
-import type { CurrenciesService } from "@bedrock/platform/currencies";
-import type { CustomersService } from "@bedrock/platform/customers";
-import type { DocumentsService } from "@bedrock/platform/documents";
-import type { LedgerReadService } from "@bedrock/platform/ledger";
-import type { OperationalAccountsService } from "@bedrock/platform/operational-accounts";
-import type { OrchestrationService } from "@bedrock/platform/orchestration";
-import type { ReconciliationService } from "@bedrock/platform/reconciliation";
+} from "@bedrock/core/component-runtime";
+import type { ConnectorsService } from "@bedrock/core/connectors";
+import type { CounterpartiesService } from "@bedrock/core/counterparties";
+import type { CurrenciesService } from "@bedrock/core/currencies";
+import type { CustomersService } from "@bedrock/core/customers";
+import type { DocumentsService } from "@bedrock/core/documents";
+import type { LedgerReadService } from "@bedrock/core/ledger";
+import type { CounterpartyAccountsService } from "@bedrock/core/counterparty-accounts";
+import type { OrchestrationService } from "@bedrock/core/orchestration";
+import type { ReconciliationService } from "@bedrock/core/reconciliation";
 
-import { createModuleServices } from "./composition/modules";
-import { createPlatformServices } from "./composition/platform";
+import { createApplicationServices } from "./composition/application";
+import { createCoreServices } from "./composition/core";
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -62,7 +62,7 @@ export function parseEnv(): Env {
 export interface AppContext {
   env: Env;
   logger: Logger;
-  operationalAccountsService: OperationalAccountsService;
+  counterpartyAccountsService: CounterpartyAccountsService;
   accountingService: AccountingService;
   accountingReportingService: AccountingReportingService;
   counterpartiesService: CounterpartiesService;
@@ -81,32 +81,32 @@ export interface AppContext {
 }
 
 export function createAppContext(env: Env): AppContext {
-  const platform = createPlatformServices();
+  const core = createCoreServices();
   const componentRuntime = createComponentRuntimeService({
     db,
-    logger: platform.logger,
+    logger: core.logger,
     manifests: BEDROCK_COMPONENT_MANIFESTS,
   });
-  const modules = createModuleServices(platform);
+  const applicationServices = createApplicationServices(core);
 
   return {
     env,
-    logger: platform.logger,
-    accountingService: platform.accountingService,
-    ledgerReadService: platform.ledgerReadService,
-    balancesService: platform.balancesService,
-    operationalAccountsService: modules.operationalAccountsService,
-    accountingReportingService: modules.accountingReportingService,
-    counterpartiesService: modules.counterpartiesService,
-    customersService: modules.customersService,
-    currenciesService: modules.currenciesService,
-    feesService: modules.feesService,
-    fxService: modules.fxService,
-    connectorsService: modules.connectorsService,
-    orchestrationService: modules.orchestrationService,
-    paymentsService: modules.paymentsService,
-    documentsService: modules.documentsService,
-    reconciliationService: modules.reconciliationService,
+    logger: core.logger,
+    accountingService: core.accountingService,
+    ledgerReadService: core.ledgerReadService,
+    balancesService: core.balancesService,
+    counterpartyAccountsService: applicationServices.counterpartyAccountsService,
+    accountingReportingService: applicationServices.accountingReportingService,
+    counterpartiesService: applicationServices.counterpartiesService,
+    customersService: applicationServices.customersService,
+    currenciesService: applicationServices.currenciesService,
+    feesService: applicationServices.feesService,
+    fxService: applicationServices.fxService,
+    connectorsService: applicationServices.connectorsService,
+    orchestrationService: applicationServices.orchestrationService,
+    paymentsService: applicationServices.paymentsService,
+    documentsService: applicationServices.documentsService,
+    reconciliationService: applicationServices.reconciliationService,
     componentRuntime,
   };
 }

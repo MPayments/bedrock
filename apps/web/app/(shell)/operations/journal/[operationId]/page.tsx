@@ -34,7 +34,7 @@ const OPERATION_STATUS: Record<string, string> = {
 };
 
 const DIMENSION_KEY: Record<string, string> = {
-  operationalAccountId: "опер. счёт",
+  counterpartyAccountId: "опер. счёт",
   counterpartyId: "контрагент",
   customerId: "клиент",
   orderId: "заявка",

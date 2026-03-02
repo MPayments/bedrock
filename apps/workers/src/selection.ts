@@ -1,5 +1,5 @@
-import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/modules/component-runtime";
-import { listWorkerCatalogEntries } from "@bedrock/platform/worker-runtime";
+import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/application/component-runtime";
+import { listWorkerCatalogEntries } from "@bedrock/core/worker-runtime";
 
 export function listAvailableWorkerIds(): string[] {
   return listWorkerCatalogEntries(BEDROCK_COMPONENT_MANIFESTS).map(

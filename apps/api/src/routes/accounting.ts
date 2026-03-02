@@ -1,18 +1,18 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { createPaginatedListSchema } from "@bedrock/foundation/kernel/pagination";
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import {
   FinancialResultsByCounterpartyResponseSchema,
   FinancialResultsByGroupResponseSchema,
   ListFinancialResultsByCounterpartyQuerySchema,
   ListFinancialResultsByGroupQuerySchema,
-} from "@bedrock/modules/accounting-reporting";
-import { replaceCorrespondenceRulesSchema } from "@bedrock/platform/accounting";
+} from "@bedrock/application/accounting-reporting";
+import { replaceCorrespondenceRulesSchema } from "@bedrock/core/accounting";
 import {
   AccountingCorrespondenceRuleSchema,
   AccountingTemplateAccountSchema,
-} from "@bedrock/platform/accounting/contracts";
-import { ListLedgerOperationsQuerySchema } from "@bedrock/platform/ledger";
+} from "@bedrock/core/accounting/contracts";
+import { ListLedgerOperationsQuerySchema } from "@bedrock/core/ledger";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";
@@ -279,15 +279,17 @@ export function accountingRoutes(ctx: AppContext) {
     },
   });
 
-  const getOperationalAccountBalancesRoute = createRoute({
+  const getCounterpartyAccountBalancesRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
-    path: "/operational-account-balances",
+    path: "/counterparty-account-balances",
     tags: ["Accounting"],
-    summary: "Get posted balances for operational accounts by their IDs",
+    summary: "Get posted balances for counterparty accounts by their IDs",
     request: {
       query: z.object({
-        accountIds: z.string().describe("Comma-separated list of operational account IDs"),
+        counterpartyAccountIds: z
+          .string()
+          .describe("Comma-separated list of counterparty account IDs"),
       }),
     },
     responses: {
@@ -296,7 +298,7 @@ export function accountingRoutes(ctx: AppContext) {
           "application/json": {
             schema: z.array(
               z.object({
-                operationalAccountId: z.string().uuid(),
+                counterpartyAccountId: z.string().uuid(),
                 currency: z.string(),
                 balanceMinor: z.string(),
                 precision: z.number().int(),
@@ -304,7 +306,7 @@ export function accountingRoutes(ctx: AppContext) {
             ),
           },
         },
-        description: "Balances per operational account and currency",
+        description: "Balances per counterparty account and currency",
       },
     },
   });
@@ -502,19 +504,21 @@ export function accountingRoutes(ctx: AppContext) {
         throw error;
       }
     })
-    .openapi(getOperationalAccountBalancesRoute, async (c) => {
-      const { accountIds: accountIdsParam } = c.req.valid("query");
-      const accountIds = accountIdsParam
+    .openapi(getCounterpartyAccountBalancesRoute, async (c) => {
+      const { counterpartyAccountIds: accountIdsParam } = c.req.valid("query");
+      const counterpartyAccountIds = accountIdsParam
         .split(",")
         .map((id) => id.trim())
         .filter((id) => id.length > 0);
 
       const balances =
-        await ctx.balancesService.listBalancesByOperationalAccountIds(accountIds);
+        await ctx.balancesService.listBalancesByCounterpartyAccountIds(
+          counterpartyAccountIds,
+        );
 
       return c.json(
         balances.map((b) => ({
-          operationalAccountId: b.operationalAccountId,
+          counterpartyAccountId: b.counterpartyAccountId,
           currency: b.currency,
           balanceMinor: b.balanceMinor.toString(),
           precision: b.precision,

@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { createPaginatedListSchema } from "@bedrock/foundation/kernel/pagination";
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import {
   CounterpartyCustomerNotFoundError,
   CounterpartyNotFoundError,
@@ -10,11 +10,11 @@ import {
   CreateCounterpartyInputSchema,
   ListCounterpartiesQuerySchema,
   UpdateCounterpartyInputSchema,
-} from "@bedrock/platform/counterparties";
+} from "@bedrock/core/counterparties";
 import {
   CounterpartyOptionSchema,
   CounterpartyOptionsResponseSchema,
-} from "@bedrock/platform/counterparties/contracts";
+} from "@bedrock/core/counterparties/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";

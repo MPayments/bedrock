@@ -9,23 +9,23 @@ const { seedCurrencies } = await import("./currencies");
 const { seedAccounting } = await import("./accounting");
 const { seedOrchestration } = await import("./orchestration");
 const { seedUsers } = await import("./users");
-const { seedOperational } = await import("./operational");
+const { seedCounterpartyDomain } = await import("./counterparty-accounts");
 
 console.log("[seed] Starting full database seed...\n");
 
-console.log("[seed] 1/4 Currencies");
+console.log("[seed] 1/5 Currencies");
 await seedCurrencies(db);
 
-console.log("[seed] 2/4 Users");
+console.log("[seed] 2/5 Users");
 await seedUsers(db, hashPassword);
 
-console.log("[seed] 3/4 Accounting (CoA, policies, correspondence rules)");
+console.log("[seed] 3/5 Accounting (CoA, policies, correspondence rules)");
 await seedAccounting(db);
 
 console.log(
-  "[seed] 4/5 Operational (customers, counterparties, providers, OAs)",
+  "[seed] 4/5 Counterparty domain (customers, counterparties, providers, counterparty accounts)",
 );
-await seedOperational(db);
+await seedCounterpartyDomain(db);
 
 console.log("[seed] 5/5 Orchestration/connectors defaults");
 await seedOrchestration(db);

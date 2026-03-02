@@ -1,6 +1,6 @@
 export { accountingRoutes } from "./accounting";
-export { accountProvidersRoutes } from "./account-providers";
-export { accountsRoutes } from "./accounts";
+export { counterpartyAccountProvidersRoutes } from "./counterparty-account-providers";
+export { counterpartyAccountsRoutes } from "./counterparty-accounts";
 export { balancesRoutes } from "./balances";
 export { connectorsRoutes } from "./connectors";
 export { counterpartiesRoutes } from "./counterparties";

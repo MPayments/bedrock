@@ -49,7 +49,7 @@ describe("navigation config", () => {
     expect(hrefs).toContain("/treasury");
     expect(hrefs).not.toContain("#");
     expect(hrefs).not.toContain("/fx/quotes");
-    expect(hrefs).not.toContain("/treasury/accounts");
+    expect(hrefs).not.toContain("/treasury/counterparty-accounts");
   });
 
   it("keeps secondary navigation available", () => {

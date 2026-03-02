@@ -6,7 +6,7 @@ import {
   type DocumentWithOperationId,
   ListDocumentsQuerySchema,
   UpdateDocumentInputSchema,
-} from "@bedrock/platform/documents";
+} from "@bedrock/core/documents";
 
 import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
@@ -38,7 +38,7 @@ function toDocumentDto(input: DocumentWithOperationId) {
     memo: document.memo,
     counterpartyId: document.counterpartyId,
     customerId: document.customerId,
-    operationalAccountId: document.operationalAccountId,
+    counterpartyAccountId: document.counterpartyAccountId,
     searchText: document.searchText,
     createdBy: document.createdBy,
     submittedBy: document.submittedBy,

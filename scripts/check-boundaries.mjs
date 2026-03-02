@@ -124,7 +124,7 @@ function toWorkspacePath(importPath) {
     const packageDir = packageDirsByName.get(packageName);
     if (!packageDir) return null;
 
-    if (packageName === "@bedrock/platform" || packageName === "@bedrock/modules") {
+    if (packageName === "@bedrock/core" || packageName === "@bedrock/application") {
       const domain = parts[2];
       if (!domain) {
         return `${packageDir}`;
@@ -161,7 +161,9 @@ function buildForbiddenRule(rule) {
 const forbiddenRules = (config.forbidden ?? []).map(buildForbiddenRule);
 const violations = [];
 const LEGACY_SPECIFIER_PATTERNS = [
-  /^@bedrock\/kernel(?:\/|$)/,
+  /^@bedrock\/foundation(?:\/|$)/,
+  /^@bedrock\/platform(?:\/|$)/,
+  /^@bedrock\/modules(?:\/|$)/,
   /^@bedrock\/accounting-contracts(?:\/|$)/,
   /^@bedrock\/countries(?:\/|$)/,
   /^@bedrock\/packs-schema(?:\/|$)/,
@@ -172,7 +174,7 @@ const LEGACY_SPECIFIER_PATTERNS = [
 const DB_TYPES_SPECIFIER = /^@bedrock\/db\/types(?:\/|$)/;
 const DB_RUNTIME_BLOCKED_SPECIFIER = /^@bedrock\/db(?:$|\/(?:client|seeds)(?:$|\/))/;
 function isRuntimePackageFile(file) {
-  return /^packages\/(modules|platform)\/src\/[^/]+\//.test(file);
+  return /^packages\/(application|core)\/src\/[^/]+\//.test(file);
 }
 
 function isSchemaDefinitionFile(file) {
@@ -186,8 +188,8 @@ function isSchemaDefinitionFile(file) {
 
 function isAllowedContractImport(fromFile, specifier) {
   return (
-    fromFile.startsWith("packages/platform/src/") &&
-    specifier === "@bedrock/foundation/countries/contracts"
+    fromFile.startsWith("packages/core/src/") &&
+    specifier === "@bedrock/kernel/countries/contracts"
   );
 }
 
@@ -214,7 +216,7 @@ for (const root of SOURCE_ROOTS) {
 
       if (
         LEGACY_SPECIFIER_PATTERNS.some((pattern) => pattern.test(specifier)) &&
-        !relFile.startsWith("packages/foundation/")
+        !relFile.startsWith("packages/kernel/")
       ) {
         violations.push({
           rule: "legacy-foundation-import",
@@ -242,11 +244,11 @@ for (const root of SOURCE_ROOTS) {
       if (relFile.startsWith("apps/web/") && specifier.startsWith("@bedrock/")) {
         const allowed =
           specifier.startsWith("@bedrock/ui") ||
-          specifier === "@bedrock/foundation/countries" ||
-          specifier === "@bedrock/foundation/countries/contracts" ||
+          specifier === "@bedrock/kernel/countries" ||
+          specifier === "@bedrock/kernel/countries/contracts" ||
           specifier === "@bedrock/api-client" ||
           specifier.startsWith("@bedrock/api-client/") ||
-          /^@bedrock\/(?:platform|modules)\/[^/]+\/contracts$/.test(specifier);
+          /^@bedrock\/(?:core|application)\/[^/]+\/contracts$/.test(specifier);
 
         if (!allowed) {
           violations.push({

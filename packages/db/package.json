@@ -24,14 +24,14 @@
     "db:bootstrap:v2-core": "tsx ./src/seeds/run-accounting.ts",
     "db:seed:users": "tsx ./src/seeds/run-users.ts",
     "db:seed:counterparties": "tsx ./src/seeds/run-counterparties.ts",
-    "db:seed:account-providers": "tsx ./src/seeds/run-account-providers.ts",
-    "db:seed:accounts": "tsx ./src/seeds/run-accounts.ts",
+    "db:seed:counterparty-account-providers": "tsx ./src/seeds/run-counterparty-account-providers.ts",
+    "db:seed:counterparty-accounts": "tsx ./src/seeds/run-counterparty-accounts.ts",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/foundation": "workspace:*",
-    "@bedrock/modules": "workspace:*",
-    "@bedrock/platform": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
+    "@bedrock/application": "workspace:*",
+    "@bedrock/core": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "pg": "^8.17.2"
   },

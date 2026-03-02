@@ -12,7 +12,7 @@ import {
   UpdateProviderLimitInputSchema,
   UpdateRoutingRuleInputSchema,
   UpdateScopeOverrideInputSchema,
-} from "@bedrock/platform/orchestration";
+} from "@bedrock/core/orchestration";
 
 import { handleRouteError } from "../common/errors";
 import { toJsonSafe } from "../common/json";

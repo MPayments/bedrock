@@ -2,7 +2,7 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import { DOCUMENTS_LIST_CONTRACT } from "@bedrock/platform/documents/contracts";
+import { DOCUMENTS_LIST_CONTRACT } from "@bedrock/core/documents/contracts";
 
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import {
@@ -39,7 +39,7 @@ export const DocumentSchema = z.object({
   memo: z.string().nullable(),
   counterpartyId: z.string().nullable(),
   customerId: z.string().nullable(),
-  operationalAccountId: z.string().nullable(),
+  counterpartyAccountId: z.string().nullable(),
   searchText: z.string(),
   createdBy: z.string(),
   submittedBy: z.string().nullable(),

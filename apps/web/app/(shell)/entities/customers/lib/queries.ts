@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { z } from "zod";
 
-import { CUSTOMERS_LIST_CONTRACT } from "@bedrock/platform/customers/contracts";
+import { CUSTOMERS_LIST_CONTRACT } from "@bedrock/core/customers/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";

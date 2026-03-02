@@ -4,10 +4,10 @@ import { z } from "zod";
 import {
   CounterpartyGroupOptionsResponseSchema,
   type CounterpartyGroupOption,
-} from "@bedrock/platform/counterparties/contracts";
-import { CurrencyOptionsResponseSchema } from "@bedrock/platform/currencies/contracts";
-import { AccountProviderOptionsResponseSchema } from "@bedrock/platform/operational-accounts/contracts";
-import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/platform/counterparties/contracts";
+} from "@bedrock/core/counterparties/contracts";
+import { CurrencyOptionsResponseSchema } from "@bedrock/core/currencies/contracts";
+import { CounterpartyAccountProviderOptionsResponseSchema } from "@bedrock/core/counterparty-accounts/contracts";
+import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/core/counterparties/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
@@ -132,7 +132,7 @@ export async function getCounterpartyGroups(): Promise<
 }
 
 export interface AccountBalance {
-  operationalAccountId: string;
+  counterpartyAccountId: string;
   currency: string;
   balanceMinor: string;
   precision: number;
@@ -140,7 +140,7 @@ export interface AccountBalance {
 
 const AccountBalancesResponseSchema = z.array(
   z.object({
-    operationalAccountId: z.uuid(),
+    counterpartyAccountId: z.uuid(),
     currency: z.string(),
     balanceMinor: z.string(),
     precision: z.number().int(),
@@ -148,18 +148,18 @@ const AccountBalancesResponseSchema = z.array(
 );
 
 export async function getAccountBalances(
-  accountIds: string[],
+  counterpartyAccountIds: string[],
 ): Promise<AccountBalance[]> {
-  if (accountIds.length === 0) {
+  if (counterpartyAccountIds.length === 0) {
     return [];
   }
 
   const client = await getServerApiClient();
   const response = await requestOk(
-    await client.v1.accounting["operational-account-balances"].$get(
+    await client.v1.accounting["counterparty-account-balances"].$get(
       {
         query: {
-          accountIds: accountIds.join(","),
+          counterpartyAccountIds: counterpartyAccountIds.join(","),
         },
       },
       {
@@ -200,7 +200,7 @@ export async function getCounterpartyAccounts(
   const [{ data: accounts }, providers, currencies] = await Promise.all([
     readPaginatedList({
       request: () =>
-        client.v1.accounts.$get(
+        client.v1["counterparty-accounts"].$get(
           {
             query: {
               limit: 200,
@@ -219,13 +219,13 @@ export async function getCounterpartyAccounts(
     }),
     readOptionsList({
       request: () =>
-        client.v1["account-providers"].options.$get(
+        client.v1["counterparty-account-providers"].options.$get(
           {},
           {
             init: { cache: "force-cache" },
           },
         ),
-      schema: AccountProviderOptionsResponseSchema,
+      schema: CounterpartyAccountProviderOptionsResponseSchema,
       context: "Не удалось загрузить провайдеров",
     }),
     readOptionsList({

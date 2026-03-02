@@ -1,6 +1,6 @@
-import { schema as feesSchema } from "@bedrock/modules/fees/schema";
-import { schema as fxSchema } from "@bedrock/modules/fx/schema";
-import { schema as accountingSchema } from "@bedrock/platform/accounting/schema";
+import { schema as feesSchema } from "@bedrock/application/fees/schema";
+import { schema as fxSchema } from "@bedrock/application/fx/schema";
+import { schema as accountingSchema } from "@bedrock/core/accounting/schema";
 import {
   account,
   accountRelations,
@@ -9,19 +9,19 @@ import {
   user,
   userRelations,
   verification,
-} from "@bedrock/platform/auth/schema";
-import { schema as balancesSchema } from "@bedrock/platform/balances/schema";
-import { schema as componentRuntimeSchema } from "@bedrock/platform/component-runtime/schema";
-import { schema as connectorsSchema } from "@bedrock/platform/connectors/schema";
-import { schema as counterpartiesSchema } from "@bedrock/platform/counterparties/schema";
-import { schema as currenciesSchema } from "@bedrock/platform/currencies/schema";
-import { schema as customersSchema } from "@bedrock/platform/customers/schema";
-import { schema as documentsSchema } from "@bedrock/platform/documents/schema";
-import { schema as idempotencySchema } from "@bedrock/platform/idempotency/schema";
-import { schema as ledgerSchema } from "@bedrock/platform/ledger/schema";
-import { schema as operationalAccountsSchema } from "@bedrock/platform/operational-accounts/schema";
-import { schema as orchestrationSchema } from "@bedrock/platform/orchestration/schema";
-import { schema as reconciliationSchema } from "@bedrock/platform/reconciliation/schema";
+} from "@bedrock/core/auth/schema";
+import { schema as balancesSchema } from "@bedrock/core/balances/schema";
+import { schema as componentRuntimeSchema } from "@bedrock/core/component-runtime/schema";
+import { schema as connectorsSchema } from "@bedrock/core/connectors/schema";
+import { schema as counterpartiesSchema } from "@bedrock/core/counterparties/schema";
+import { schema as currenciesSchema } from "@bedrock/core/currencies/schema";
+import { schema as customersSchema } from "@bedrock/core/customers/schema";
+import { schema as documentsSchema } from "@bedrock/core/documents/schema";
+import { schema as idempotencySchema } from "@bedrock/core/idempotency/schema";
+import { schema as ledgerSchema } from "@bedrock/core/ledger/schema";
+import { schema as counterpartyAccountsSchema } from "@bedrock/core/counterparty-accounts/schema";
+import { schema as orchestrationSchema } from "@bedrock/core/orchestration/schema";
+import { schema as reconciliationSchema } from "@bedrock/core/reconciliation/schema";
 
 const authSchema = {
   user,
@@ -41,7 +41,7 @@ type CombinedSchema =
   & typeof customersSchema
   & typeof documentsSchema
   & typeof idempotencySchema
-  & typeof operationalAccountsSchema
+  & typeof counterpartyAccountsSchema
   & typeof fxSchema
   & typeof feesSchema
   & typeof currenciesSchema
@@ -59,7 +59,7 @@ const schemaInternal: CombinedSchema = {
   ...customersSchema,
   ...documentsSchema,
   ...idempotencySchema,
-  ...operationalAccountsSchema,
+  ...counterpartyAccountsSchema,
   ...fxSchema,
   ...feesSchema,
   ...currenciesSchema,

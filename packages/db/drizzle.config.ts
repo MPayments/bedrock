@@ -8,10 +8,10 @@ dotenv.config({ path: resolve(dir, "../../.env") });
 
 export default defineConfig({
   schema: [
-    "../platform/src/*/schema.ts",
-    "../platform/src/*/schema/**/*.ts",
-    "../modules/src/*/schema.ts",
-    "../modules/src/*/schema/**/*.ts",
+    "../core/src/*/schema.ts",
+    "../core/src/*/schema/**/*.ts",
+    "../application/src/*/schema.ts",
+    "../application/src/*/schema/**/*.ts",
   ],
 
   out: "./migrations",

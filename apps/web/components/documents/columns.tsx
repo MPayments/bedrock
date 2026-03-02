@@ -39,7 +39,7 @@ export function getDocumentColumns(): ColumnDef<DocumentDto>[] {
           row.currency ?? "",
           row.counterpartyId ?? "",
           row.customerId ?? "",
-          row.operationalAccountId ?? "",
+          row.counterpartyAccountId ?? "",
         ]
           .filter((value) => value.length > 0)
           .join(" "),

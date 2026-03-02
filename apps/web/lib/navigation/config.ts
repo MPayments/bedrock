@@ -187,14 +187,14 @@ const navItems: AppNavItem[] = [
       {
         id: "entities-providers",
         title: "Расчетные методы",
-        href: "/entities/providers",
+        href: "/entities/counterparty-account-providers",
         icon: "landmark",
         audience: "admin",
       },
       {
         id: "entities-accounts",
         title: "Счета",
-        href: "/entities/accounts",
+        href: "/entities/counterparty-accounts",
         icon: "wallet",
         audience: "admin",
       },

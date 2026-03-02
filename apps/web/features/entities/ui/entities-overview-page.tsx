@@ -1,10 +1,10 @@
 import { BookOpen } from "lucide-react";
 
-import { getAccounts } from "@/app/(shell)/entities/accounts/lib/queries";
+import { getAccounts } from "@/app/(shell)/entities/counterparty-accounts/lib/queries";
 import { getCounterparties } from "@/app/(shell)/entities/counterparties/lib/queries";
 import { getCurrencies } from "@/app/(shell)/entities/currencies/lib/queries";
 import { getCustomers } from "@/app/(shell)/entities/customers/lib/queries";
-import { getProviders } from "@/app/(shell)/entities/providers/lib/queries";
+import { getProviders } from "@/app/(shell)/entities/counterparty-account-providers/lib/queries";
 import { SectionOverviewPage } from "@/features/overview/ui/section-overview-page";
 
 function formatCount(value: number) {
@@ -46,14 +46,14 @@ export async function EntitiesOverviewPage() {
           label: "Провайдеры",
           value: formatCount(providers.total),
           description: "Расчетные методы и внешние account providers.",
-          href: "/entities/providers",
+          href: "/entities/counterparty-account-providers",
         },
         {
-          id: "accounts",
+          id: "counterparty-accounts",
           label: "Счета",
           value: formatCount(accounts.total),
           description: "Операционные счета контрагентов у провайдеров.",
-          href: "/entities/accounts",
+          href: "/entities/counterparty-accounts",
         },
         {
           id: "currencies",
@@ -77,10 +77,10 @@ export async function EntitiesOverviewPage() {
           href: "/entities/counterparties",
         },
         {
-          id: "accounts",
+          id: "counterparty-accounts",
           title: "Счета и провайдеры",
           description: "Операционные счета и account providers в одной зоне.",
-          href: "/entities/accounts",
+          href: "/entities/counterparty-accounts",
           cta: "Открыть счета",
         },
       ]}

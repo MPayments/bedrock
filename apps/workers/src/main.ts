@@ -4,19 +4,19 @@ import { db } from "@bedrock/db/client";
 import {
   createConsoleLogger,
   installShutdownHandlers,
-} from "@bedrock/foundation/kernel";
-import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/modules/component-runtime";
+} from "@bedrock/kernel";
+import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/application/component-runtime";
 import {
   createComponentRuntimeService,
-} from "@bedrock/platform/component-runtime";
-import { createTbClient } from "@bedrock/platform/ledger";
+} from "@bedrock/core/component-runtime";
+import { createTbClient } from "@bedrock/core/ledger";
 import {
   createWorkerFleet,
   startWorkerFleet,
-} from "@bedrock/platform/worker-runtime";
+} from "@bedrock/core/worker-runtime";
 
 import { env } from "./env";
-import { createWorkerImplementations } from "./modules/registry";
+import { createWorkerImplementations } from "./components/registry";
 import { createWorkerMonitoringRegistry, startWorkerMonitoringServer } from "./monitoring";
 import { parseSelectedWorkerIds } from "./selection";
 

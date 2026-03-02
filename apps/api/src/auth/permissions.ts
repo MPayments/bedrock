@@ -9,7 +9,7 @@ const statements = {
   ...defaultStatements,
   customers: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
-  accounts: ["create", "list", "update", "delete"],
+  counterparty_accounts: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
   fx_rates: ["list", "sync"],
   documents: [
@@ -51,7 +51,7 @@ export const admin = ac.newRole({
   ...adminAc.statements,
   customers: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
-  accounts: ["create", "list", "update", "delete"],
+  counterparty_accounts: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
   fx_rates: ["list", "sync"],
   documents: [
@@ -87,7 +87,7 @@ export const user = ac.newRole({
   ...userAc.statements,
   customers: ["create", "list", "update"],
   counterparties: ["create", "list", "update"],
-  accounts: ["list"],
+  counterparty_accounts: ["list"],
   currencies: ["list"],
   fx_rates: ["list"],
   documents: ["create", "list", "get", "update", "submit"],

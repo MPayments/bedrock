@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 
-import type { Currency } from "@bedrock/platform/currencies/contracts";
+import type { Currency } from "@bedrock/core/currencies/contracts";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { formatDate } from "@/lib/format";

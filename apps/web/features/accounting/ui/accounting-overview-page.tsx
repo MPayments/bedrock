@@ -25,7 +25,7 @@ export async function AccountingOverviewPage() {
       description="Административная зона для плана счетов, корреспонденции, журнала операций и финансового результата."
       stats={[
         {
-          id: "accounts",
+          id: "counterparty-accounts",
           label: "План счетов",
           value: formatCount(accounts.length),
           description: "Глобальный chart template, доступный для posting rules.",
@@ -48,7 +48,7 @@ export async function AccountingOverviewPage() {
       ]}
       links={[
         {
-          id: "accounts",
+          id: "counterparty-accounts",
           title: "План счетов",
           description: "Просмотр иерархии глобальных template accounts.",
           href: "/accounting/accounts",

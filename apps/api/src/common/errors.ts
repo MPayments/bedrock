@@ -5,22 +5,22 @@ import {
   NotFoundError,
   PermissionError,
   ValidationError,
-} from "@bedrock/foundation/kernel/errors";
+} from "@bedrock/kernel/errors";
 import {
   ConnectorIntentTerminalError,
   ConnectorMaxAttemptsExceededError,
-} from "@bedrock/platform/connectors";
+} from "@bedrock/core/connectors";
 import {
   DocumentGraphError,
   DocumentNotFoundError,
   DocumentPolicyDeniedError,
   DocumentPostingNotRequiredError,
   DocumentValidationError,
-} from "@bedrock/platform/documents";
+} from "@bedrock/core/documents";
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
-} from "@bedrock/platform/idempotency";
+} from "@bedrock/core/idempotency";
 
 function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

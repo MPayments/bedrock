@@ -4,18 +4,18 @@ Bedrock is a financial platform monorepo (ledger, orchestration, connectors, bal
 
 ## Workspace Topology
 
-- `@bedrock/foundation` - shared kernel/primitives/packs/countries
+- `@bedrock/kernel` - shared kernel/primitives/packs/countries
 - `@bedrock/db` - Drizzle client, all DB schema/migrations/seeds/types
-- `@bedrock/platform` - core runtime domains (`@bedrock/platform/<domain>`)
-- `@bedrock/modules` - business modules (`@bedrock/modules/<domain>`)
+- `@bedrock/core` - core runtime domains (`@bedrock/core/<domain>`)
+- `@bedrock/application` - application workflows/use-cases (`@bedrock/application/<domain>`)
 - `apps/*` - API/Web/Workers composition
 - `@bedrock/sdk/*` - API client + UI kit
 
 Runtime import contract:
 
 - Legacy `@bedrock/<domain>` runtime specifiers are removed.
-- Domain schemas are colocated under `@bedrock/platform/<domain>/schema` and `@bedrock/modules/<domain>/schema`.
-- Use DB connection types from `@bedrock/foundation/db/types`.
+- Domain schemas are colocated under `@bedrock/core/<domain>/schema` and `@bedrock/application/<domain>/schema`.
+- Use DB connection types from `@bedrock/kernel/db/types`.
 
 ## Stack
 

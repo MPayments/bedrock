@@ -504,12 +504,12 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.operational_account_bindings": {
-      "name": "operational_account_bindings",
+    "public.counterparty_account_bindings": {
+      "name": "counterparty_account_bindings",
       "schema": "",
       "columns": {
-        "operational_account_id": {
-          "name": "operational_account_id",
+        "counterparty_account_id": {
+          "name": "counterparty_account_id",
           "type": "uuid",
           "primaryKey": true,
           "notNull": true
@@ -542,8 +542,8 @@
         }
       },
       "indexes": {
-        "operational_account_binding_book_idx": {
-          "name": "operational_account_binding_book_idx",
+        "counterparty_account_binding_book_idx": {
+          "name": "counterparty_account_binding_book_idx",
           "columns": [
             {
               "expression": "book_id",
@@ -557,8 +557,8 @@
           "method": "btree",
           "with": {}
         },
-        "operational_account_binding_instance_idx": {
-          "name": "operational_account_binding_instance_idx",
+        "counterparty_account_binding_instance_idx": {
+          "name": "counterparty_account_binding_instance_idx",
           "columns": [
             {
               "expression": "book_account_instance_id",
@@ -574,12 +574,12 @@
         }
       },
       "foreignKeys": {
-        "operational_account_bindings_operational_account_id_operational_accounts_id_fk": {
-          "name": "operational_account_bindings_operational_account_id_operational_accounts_id_fk",
-          "tableFrom": "operational_account_bindings",
-          "tableTo": "operational_accounts",
+        "counterparty_account_bindings_counterparty_account_id_counterparty_accounts_id_fk": {
+          "name": "counterparty_account_bindings_counterparty_account_id_counterparty_accounts_id_fk",
+          "tableFrom": "counterparty_account_bindings",
+          "tableTo": "counterparty_accounts",
           "columnsFrom": [
-            "operational_account_id"
+            "counterparty_account_id"
           ],
           "columnsTo": [
             "id"
@@ -587,9 +587,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "operational_account_bindings_book_id_books_id_fk": {
-          "name": "operational_account_bindings_book_id_books_id_fk",
-          "tableFrom": "operational_account_bindings",
+        "counterparty_account_bindings_book_id_books_id_fk": {
+          "name": "counterparty_account_bindings_book_id_books_id_fk",
+          "tableFrom": "counterparty_account_bindings",
           "tableTo": "books",
           "columnsFrom": [
             "book_id"
@@ -600,9 +600,9 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "operational_account_bindings_book_account_instance_id_book_account_instances_id_fk": {
-          "name": "operational_account_bindings_book_account_instance_id_book_account_instances_id_fk",
-          "tableFrom": "operational_account_bindings",
+        "counterparty_account_bindings_book_account_instance_id_book_account_instances_id_fk": {
+          "name": "counterparty_account_bindings_book_account_instance_id_book_account_instances_id_fk",
+          "tableFrom": "counterparty_account_bindings",
           "tableTo": "book_account_instances",
           "columnsFrom": [
             "book_account_instance_id"
@@ -1677,8 +1677,8 @@
       },
       "isRLSEnabled": false
     },
-    "public.platform_component_events": {
-      "name": "platform_component_events",
+    "public.core_component_events": {
+      "name": "core_component_events",
       "schema": "",
       "columns": {
         "id": {
@@ -1758,8 +1758,8 @@
         }
       },
       "indexes": {
-        "platform_component_events_component_changed_idx": {
-          "name": "platform_component_events_component_changed_idx",
+        "core_component_events_component_changed_idx": {
+          "name": "core_component_events_component_changed_idx",
           "columns": [
             {
               "expression": "component_id",
@@ -1779,8 +1779,8 @@
           "method": "btree",
           "with": {}
         },
-        "platform_component_events_scope_changed_idx": {
-          "name": "platform_component_events_scope_changed_idx",
+        "core_component_events_scope_changed_idx": {
+          "name": "core_component_events_scope_changed_idx",
           "columns": [
             {
               "expression": "scope_type",
@@ -1814,8 +1814,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.platform_component_runtime_meta": {
-      "name": "platform_component_runtime_meta",
+    "public.core_component_runtime_meta": {
+      "name": "core_component_runtime_meta",
       "schema": "",
       "columns": {
         "id": {
@@ -1860,8 +1860,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.platform_component_states": {
-      "name": "platform_component_states",
+    "public.core_component_states": {
+      "name": "core_component_states",
       "schema": "",
       "columns": {
         "id": {
@@ -1944,8 +1944,8 @@
         }
       },
       "indexes": {
-        "platform_component_states_scope_uq": {
-          "name": "platform_component_states_scope_uq",
+        "core_component_states_scope_uq": {
+          "name": "core_component_states_scope_uq",
           "columns": [
             {
               "expression": "component_id",
@@ -1971,8 +1971,8 @@
           "method": "btree",
           "with": {}
         },
-        "platform_component_states_component_idx": {
-          "name": "platform_component_states_component_idx",
+        "core_component_states_component_idx": {
+          "name": "core_component_states_component_idx",
           "columns": [
             {
               "expression": "component_id",
@@ -1986,8 +1986,8 @@
           "method": "btree",
           "with": {}
         },
-        "platform_component_states_scope_idx": {
-          "name": "platform_component_states_scope_idx",
+        "core_component_states_scope_idx": {
+          "name": "core_component_states_scope_idx",
           "columns": [
             {
               "expression": "scope_type",
@@ -3507,8 +3507,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "operational_account_id": {
-          "name": "operational_account_id",
+        "counterparty_account_id": {
+          "name": "counterparty_account_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -3802,11 +3802,11 @@
           "method": "btree",
           "with": {}
         },
-        "documents_operational_account_idx": {
-          "name": "documents_operational_account_idx",
+        "documents_counterparty_account_idx": {
+          "name": "documents_counterparty_account_idx",
           "columns": [
             {
-              "expression": "operational_account_id",
+              "expression": "counterparty_account_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3860,12 +3860,12 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "documents_operational_account_id_operational_accounts_id_fk": {
-          "name": "documents_operational_account_id_operational_accounts_id_fk",
+        "documents_counterparty_account_id_counterparty_accounts_id_fk": {
+          "name": "documents_counterparty_account_id_counterparty_accounts_id_fk",
           "tableFrom": "documents",
-          "tableTo": "operational_accounts",
+          "tableTo": "counterparty_accounts",
           "columnsFrom": [
-            "operational_account_id"
+            "counterparty_account_id"
           ],
           "columnsTo": [
             "id"
@@ -6753,8 +6753,8 @@
       },
       "isRLSEnabled": false
     },
-    "public.operational_account_providers": {
-      "name": "operational_account_providers",
+    "public.counterparty_account_providers": {
+      "name": "counterparty_account_providers",
       "schema": "",
       "columns": {
         "id": {
@@ -6830,8 +6830,8 @@
         }
       },
       "indexes": {
-        "operational_account_providers_name_uq": {
-          "name": "operational_account_providers_name_uq",
+        "counterparty_account_providers_name_uq": {
+          "name": "counterparty_account_providers_name_uq",
           "columns": [
             {
               "expression": "name",
@@ -6853,8 +6853,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.operational_accounts": {
-      "name": "operational_accounts",
+    "public.counterparty_accounts": {
+      "name": "counterparty_accounts",
       "schema": "",
       "columns": {
         "id": {
@@ -6940,8 +6940,8 @@
         }
       },
       "indexes": {
-        "operational_accounts_counterparty_stable_uq": {
-          "name": "operational_accounts_counterparty_stable_uq",
+        "counterparty_accounts_counterparty_stable_uq": {
+          "name": "counterparty_accounts_counterparty_stable_uq",
           "columns": [
             {
               "expression": "counterparty_id",
@@ -6961,8 +6961,8 @@
           "method": "btree",
           "with": {}
         },
-        "operational_accounts_counterparty_cur_idx": {
-          "name": "operational_accounts_counterparty_cur_idx",
+        "counterparty_accounts_counterparty_cur_idx": {
+          "name": "counterparty_accounts_counterparty_cur_idx",
           "columns": [
             {
               "expression": "counterparty_id",
@@ -6984,9 +6984,9 @@
         }
       },
       "foreignKeys": {
-        "operational_accounts_counterparty_id_counterparties_id_fk": {
-          "name": "operational_accounts_counterparty_id_counterparties_id_fk",
-          "tableFrom": "operational_accounts",
+        "counterparty_accounts_counterparty_id_counterparties_id_fk": {
+          "name": "counterparty_accounts_counterparty_id_counterparties_id_fk",
+          "tableFrom": "counterparty_accounts",
           "tableTo": "counterparties",
           "columnsFrom": [
             "counterparty_id"
@@ -6997,9 +6997,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "operational_accounts_currency_id_currencies_id_fk": {
-          "name": "operational_accounts_currency_id_currencies_id_fk",
-          "tableFrom": "operational_accounts",
+        "counterparty_accounts_currency_id_currencies_id_fk": {
+          "name": "counterparty_accounts_currency_id_currencies_id_fk",
+          "tableFrom": "counterparty_accounts",
           "tableTo": "currencies",
           "columnsFrom": [
             "currency_id"
@@ -7010,10 +7010,10 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "operational_accounts_account_provider_id_operational_account_providers_id_fk": {
-          "name": "operational_accounts_account_provider_id_operational_account_providers_id_fk",
-          "tableFrom": "operational_accounts",
-          "tableTo": "operational_account_providers",
+        "counterparty_accounts_account_provider_id_counterparty_account_providers_id_fk": {
+          "name": "counterparty_accounts_account_provider_id_counterparty_account_providers_id_fk",
+          "tableFrom": "counterparty_accounts",
+          "tableTo": "counterparty_account_providers",
           "columnsFrom": [
             "account_provider_id"
           ],

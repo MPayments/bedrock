@@ -6,21 +6,20 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
 const SOURCE_ROOTS = [
-  join(ROOT, "packages", "platform", "src", "documents"),
-  join(ROOT, "packages", "platform", "src", "ledger"),
-  join(ROOT, "packages", "platform", "src", "balances"),
-  join(ROOT, "packages", "platform", "src", "reconciliation"),
-  join(ROOT, "packages", "platform", "src", "operational-accounts"),
-  join(ROOT, "packages", "modules", "src", "accounting-reporting"),
-  join(ROOT, "packages", "modules", "src", "payments"),
-  join(ROOT, "packages", "modules", "src", "fees"),
+  join(ROOT, "packages", "core", "src", "documents"),
+  join(ROOT, "packages", "core", "src", "ledger"),
+  join(ROOT, "packages", "core", "src", "balances"),
+  join(ROOT, "packages", "core", "src", "reconciliation"),
+  join(ROOT, "packages", "application", "src", "accounting-reporting"),
+  join(ROOT, "packages", "application", "src", "payments"),
+  join(ROOT, "packages", "application", "src", "fees"),
   join(ROOT, "apps", "api", "src"),
   join(ROOT, "apps", "workers", "src"),
 ];
 const EXCLUDED_DIRS = new Set(["node_modules", "dist", "coverage", ".next", "tests"]);
 
 const FORBIDDEN_IMPORT_PATTERN =
-  /(?:import|export)\s+[^"'`]*\b(?:ACCOUNT_NO|POSTING_CODE|CLEARING_KIND|OPERATION_CODE|POSTING_TEMPLATE_KEY)\b[^"'`]*from\s+["']@bedrock\/accounting["']/g;
+  /(?:import|export)\s+[^"'`]*\b(?:ACCOUNT_NO|POSTING_CODE|CLEARING_KIND|OPERATION_CODE|POSTING_TEMPLATE_KEY)\b[^"'`]*from\s+["']@bedrock\/core\/accounting["']/g;
 const FORBIDDEN_ACCOUNT_LITERAL_PATTERN =
   /\b(?:accountNo|debitAccountNo|creditAccountNo)\s*:\s*["']\d{4}["']/g;
 const FORBIDDEN_POSTING_CODE_LITERAL_PATTERN =

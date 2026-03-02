@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 
-import { type Logger } from "@bedrock/foundation/kernel";
+import { type Logger } from "@bedrock/kernel";
 
 type WorkerState = "created" | "idle" | "running" | "stopped";
 type HealthStatus = "ok" | "degraded";

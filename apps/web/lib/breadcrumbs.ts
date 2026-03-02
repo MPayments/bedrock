@@ -62,13 +62,13 @@ const segmentMap: Record<string, SegmentConfig> = {
   },
   providers: {
     label: "Расчетные методы",
-    href: "/entities/providers",
+    href: "/entities/counterparty-account-providers",
     icon: "landmark",
   },
   create: { label: "Создать" },
   accounts: {
     label: "Счета",
-    href: "/entities/accounts",
+    href: "/entities/counterparty-accounts",
     icon: "wallet",
   },
   operations: { label: "Операции" },
