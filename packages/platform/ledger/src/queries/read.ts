@@ -1,21 +1,27 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
-import {
-  schema,
-  type Dimensions,
-  type LedgerOperationStatus,
-} from "@bedrock/db/schema";
+import { schema as currenciesSchema } from "@bedrock/currencies/schema";
 import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/foundation/kernel/pagination";
+import {
+  schema as ledgerSchema,
+  type Dimensions,
+  type LedgerOperationStatus,
+} from "@bedrock/ledger/schema";
 
 import {
   ListLedgerOperationsQuerySchema,
   type ListLedgerOperationsQuery,
 } from "./list-ledger-operations-query";
 import type { LedgerContext } from "../internal/context";
+
+const schema = {
+  ...ledgerSchema,
+  ...currenciesSchema,
+};
 
 const OPERATION_SORT_COLUMN_MAP = {
   createdAt: schema.ledgerOperations.createdAt,

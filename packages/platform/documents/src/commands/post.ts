@@ -1,8 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/documents/schema";
+import { InvalidStateError } from "@bedrock/foundation/kernel/errors";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
-import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import { DocumentPostingNotRequiredError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";

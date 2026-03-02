@@ -1,6 +1,6 @@
-import { ServiceError } from "@bedrock/kernel/errors";
+import { ServiceError } from "@bedrock/foundation/kernel/errors";
 
-export { ValidationError } from "@bedrock/kernel/errors";
+export { ValidationError } from "@bedrock/foundation/kernel/errors";
 
 export class AccountError extends ServiceError {}
 

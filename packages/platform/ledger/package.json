@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./worker": "./src/worker.ts",
-    "./tb": "./src/tb.ts"
+    "./tb": "./src/tb.ts",
+    "./schema": "./src/schema/index.ts"
   },
   "scripts": {
     "build": "tsgo",
@@ -15,11 +16,12 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/db": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "tigerbeetle-node": "^0.16.72",
-    "zod": "^4"
+    "zod": "^4",
+    "@bedrock/currencies": "workspace:*",
+    "@bedrock/foundation": "workspace:*",
+    "@bedrock/counterparties": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/test-utils": "workspace:*",

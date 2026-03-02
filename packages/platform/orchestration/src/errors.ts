@@ -1,4 +1,4 @@
-import { NotFoundError, ServiceError } from "@bedrock/kernel/errors";
+import { NotFoundError, ServiceError } from "@bedrock/foundation/kernel/errors";
 
 export class RoutingRuleNotFoundError extends NotFoundError {
   constructor(id: string) {

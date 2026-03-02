@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./db": "./src/db.ts",
+    "./foundation/db": "./src/foundation/db.ts",
     "./fixtures": "./src/fixtures.ts"
   },
   "scripts": {
@@ -14,8 +14,8 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/db": "workspace:*",
-    "drizzle-orm": "^0.44.2"
+    "drizzle-orm": "^0.44.2",
+    "@bedrock/foundation": "workspace:*"
   },
   "peerDependencies": {
     "vitest": "^4.0.0"

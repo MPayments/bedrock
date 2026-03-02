@@ -1,6 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema";
+import { schema as connectorsSchema } from "@bedrock/connectors/schema";
+import { schema as orchestrationSchema } from "@bedrock/orchestration/schema";
 
 import {
   createConfigHandlers,
@@ -15,6 +16,11 @@ import {
   type OrchestrationServiceDeps,
 } from "./internal/context";
 import { type PlanRouteInput } from "./validation";
+
+const schema = {
+  ...orchestrationSchema,
+  ...connectorsSchema,
+};
 
 export interface OrchestrationService extends OrchestrationConfigHandlers {
   planRoute: (input: PlanRouteInput) => Promise<PlanRouteResult>;

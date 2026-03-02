@@ -7,14 +7,14 @@ import {
   type BalancesService,
 } from "@bedrock/balances";
 import { db } from "@bedrock/db/client";
-import { createConsoleLogger, type Logger } from "@bedrock/kernel";
+import { createConsoleLogger, type Logger } from "@bedrock/foundation/kernel";
+import { rawPackDefinition } from "@bedrock/foundation/packs/bedrock-core-default";
 import {
   createLedgerEngine,
   createLedgerReadService,
   type LedgerEngine,
   type LedgerReadService,
 } from "@bedrock/ledger";
-import { rawPackDefinition } from "@bedrock/pack-bedrock-core-default";
 
 export interface ApiPlatformServices {
   logger: Logger;

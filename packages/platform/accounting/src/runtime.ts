@@ -3,9 +3,9 @@ import { and, desc, eq, lte } from "drizzle-orm";
 import {
   POSTING_TEMPLATE_KEY,
   type PostingTemplateKey,
-} from "@bedrock/accounting-contracts";
-import { schema } from "@bedrock/db/schema";
-import { canonicalJson, makePlanKey, sha256Hex } from "@bedrock/kernel";
+} from "@bedrock/foundation/accounting-contracts";
+import { schema } from "@bedrock/accounting/schema";
+import { canonicalJson, makePlanKey, sha256Hex } from "@bedrock/foundation/kernel";
 import type {
   AccountingPackDefinition,
   AccountSideTemplateDefinition,
@@ -13,7 +13,7 @@ import type {
   PendingPostingTemplateDefinition,
   RawPostingTemplateDefinition,
   ValueBinding,
-} from "@bedrock/packs-schema";
+} from "@bedrock/foundation/packs/schema";
 
 import {
   AccountingPackCompilationError,

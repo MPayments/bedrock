@@ -1,9 +1,15 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/db";
-import { schema } from "@bedrock/db/schema";
+import type { Transaction } from "@bedrock/foundation/db-types";
+import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
+import { schema as customersSchema } from "@bedrock/customers/schema";
 
 import { CustomerInvariantError } from "../errors";
+
+const schema = {
+  ...customersSchema,
+  ...counterpartiesSchema,
+};
 
 interface GroupNode {
   id: string;

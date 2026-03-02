@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { sha256Hex, stableStringify } from "@bedrock/kernel";
+import { sha256Hex, stableStringify } from "@bedrock/foundation/kernel";
 import {
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
-} from "@bedrock/kernel";
+} from "@bedrock/foundation/kernel";
 
 import { createMockTbClient, createStubDb, type StubDatabase } from "./helpers";
 import { AccountMappingConflictError } from "../src/errors";

@@ -9,11 +9,10 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { vi, type Mock } from "vitest";
 
-import type { Database } from "@bedrock/db";
-import { schema } from "@bedrock/db/schema";
+import type { Database } from "@bedrock/foundation/db-types";
 
 // Type for the mock database from drizzle.mock()
-export type MockDatabase = ReturnType<typeof drizzle.mock<typeof schema>>;
+export type MockDatabase = ReturnType<typeof drizzle.mock>;
 
 /**
  * Create a type-safe mock database using Drizzle's mock driver.
@@ -25,7 +24,7 @@ export type MockDatabase = ReturnType<typeof drizzle.mock<typeof schema>>;
  * expect(db.select).toHaveBeenCalled();
  */
 export function createMockDb(): MockDatabase {
-  const db = drizzle.mock({ schema });
+  const db = drizzle.mock();
 
   // Spy on methods for assertions (cast to any to avoid TypeScript issues with method names)
   const dbAny = db as any;

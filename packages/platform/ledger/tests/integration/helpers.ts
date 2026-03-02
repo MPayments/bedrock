@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/ledger/schema";
 
 import { db, tb } from "./setup";
 

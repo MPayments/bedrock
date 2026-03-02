@@ -2,7 +2,7 @@ import type {
   DocumentPostingPlan,
   DocumentPostingPlanRequest,
 } from "@bedrock/accounting";
-import type { Document } from "@bedrock/db/schema";
+import type { Document } from "@bedrock/documents/schema";
 
 export function buildDocumentPostingRequest(
   document: Pick<Document, "occurredAt">,

@@ -1,8 +1,8 @@
+import { noopLogger, type Logger } from "@bedrock/foundation/kernel";
 import {
   createIdempotencyService,
   type IdempotencyService,
 } from "@bedrock/idempotency";
-import { noopLogger, type Logger } from "@bedrock/kernel";
 
 import { createDefaultDocumentActionPolicyService } from "../policy";
 import type { DocumentsServiceDeps } from "../types";

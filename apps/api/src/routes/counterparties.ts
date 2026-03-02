@@ -14,7 +14,7 @@ import {
   CounterpartyOptionSchema,
   CounterpartyOptionsResponseSchema,
 } from "@bedrock/counterparties/contracts";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+import { createPaginatedListSchema } from "@bedrock/foundation/kernel/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";

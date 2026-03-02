@@ -1,6 +1,6 @@
 import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/fees/schema";
 
 import { type FeesServiceContext } from "../internal/context";
 import { calculateBpsAmount } from "../internal/math";

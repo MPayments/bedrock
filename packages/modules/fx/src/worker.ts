@@ -1,4 +1,4 @@
-import { type Logger } from "@bedrock/kernel";
+import { type Logger } from "@bedrock/foundation/kernel";
 
 import { type FxService } from "./service";
 import { type FxRateSource } from "./sources";

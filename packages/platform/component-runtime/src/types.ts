@@ -1,5 +1,5 @@
-import type { Database } from "@bedrock/db";
-import type { Logger } from "@bedrock/kernel";
+import type { Database } from "@bedrock/foundation/db-types";
+import type { Logger } from "@bedrock/foundation/kernel";
 
 export const COMPONENT_SCOPE_GLOBAL_ID = "__global__";
 export const DEFAULT_RETRY_AFTER_SEC = 300;

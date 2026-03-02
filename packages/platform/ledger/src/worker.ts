@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/db";
-import { schema } from "@bedrock/db/schema";
+import type { Database, Transaction } from "@bedrock/foundation/db-types";
+import { schema } from "@bedrock/ledger/schema";
 
 import { isRetryableError } from "./errors";
 import { makeTbAccount, makeTbTransfer, tbCreateAccountsOrThrow, tbCreateTransfersOrThrow, TransferFlags, TB_AMOUNT_MAX, type TbClient } from "./tb";

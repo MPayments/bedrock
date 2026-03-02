@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/fx/schema";
 
 import { type FxServiceContext } from "../internal/context";
 import { createListPairsHandler } from "./rates/list-pairs";

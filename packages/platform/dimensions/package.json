@@ -13,9 +13,13 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/db": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
-    "drizzle-orm": "^0.45.1"
+    "drizzle-orm": "^0.45.1",
+    "@bedrock/foundation": "workspace:*",
+    "@bedrock/counterparties": "workspace:*",
+    "@bedrock/customers": "workspace:*",
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/operational-accounts": "workspace:*",
+    "@bedrock/ledger": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",

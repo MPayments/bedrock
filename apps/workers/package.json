@@ -19,12 +19,12 @@
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/component-runtime": "workspace:*",
     "@bedrock/orchestration": "workspace:*",
     "@bedrock/reconciliation": "workspace:*",
-    "dotenv": "^17.3.1"
+    "dotenv": "^17.3.1",
+    "@bedrock/foundation": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/typescript-config": "workspace:*",

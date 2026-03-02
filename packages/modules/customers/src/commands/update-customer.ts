@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema";
+import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
+import { schema as customersSchema } from "@bedrock/customers/schema";
 
 import { CustomerNotFoundError } from "../errors";
 import type { CustomersServiceContext } from "../internal/context";
@@ -10,6 +11,11 @@ import {
     type Customer,
     type UpdateCustomerInput,
 } from "../validation";
+
+const schema = {
+    ...customersSchema,
+    ...counterpartiesSchema,
+};
 
 export function createUpdateCustomerHandler(
     context: CustomersServiceContext,

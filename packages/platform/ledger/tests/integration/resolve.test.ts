@@ -4,7 +4,7 @@ import {
   computeDimensionsHash,
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
-} from "@bedrock/kernel";
+} from "@bedrock/foundation/kernel";
 
 import { getBookAccount, getTbAccount, randomOrgId, tb, db } from "./helpers";
 import { resolveTbBookAccountInstanceId } from "../../src/resolve";

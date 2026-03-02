@@ -12,15 +12,15 @@ import {
   DocumentValidationError,
 } from "@bedrock/documents";
 import {
-  ActionReceiptConflictError,
-  ActionReceiptStoredError,
-} from "@bedrock/idempotency";
-import {
   InvalidStateError,
   NotFoundError,
   PermissionError,
   ValidationError,
-} from "@bedrock/kernel/errors";
+} from "@bedrock/foundation/kernel/errors";
+import {
+  ActionReceiptConflictError,
+  ActionReceiptStoredError,
+} from "@bedrock/idempotency";
 
 function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

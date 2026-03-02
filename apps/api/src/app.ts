@@ -11,6 +11,7 @@ import {
   MixedDeployError,
   UnknownComponentError,
 } from "@bedrock/component-runtime";
+
 import auth from "./auth";
 import { createAppContext, parseEnv } from "./context";
 import {
@@ -52,9 +53,12 @@ void ctx.componentRuntime.startBackgroundSync().catch((error: unknown) => {
 void ctx.documentsService
   .validateAccountingSourceCoverage()
   .catch((error: unknown) => {
-    ctx.logger.error("Active accounting pack is incompatible with document sources", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    ctx.logger.error(
+      "Active accounting pack is incompatible with document sources",
+      {
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
     process.exitCode = 1;
     setImmediate(() => process.exit(1));
   });
@@ -162,7 +166,12 @@ app.use(
   "*",
   cors({
     origin: (origin) => (authAllowedOriginSet.has(origin) ? origin : undefined),
-    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "X-Book-Id"],
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Idempotency-Key",
+      "X-Book-Id",
+    ],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["set-cookie", "Retry-After"],
     credentials: true,
@@ -189,15 +198,21 @@ app.get("/", (c) => {
 });
 
 app.get("/health", async (c) => {
-  const checks: Record<string, { status: string; latencyMs?: number; error?: string }> = {};
+  const checks: Record<
+    string,
+    { status: string; latencyMs?: number; error?: string }
+  > = {};
   let healthy = true;
 
   // PostgreSQL check
   const pgStart = Date.now();
   try {
     const { db } = await import("@bedrock/db/client");
-    const { schema } = await import("@bedrock/db/schema");
-    await db.select({ id: schema.currencies.id }).from(schema.currencies).limit(1);
+    const { schema } = await import("@bedrock/currencies/schema");
+    await db
+      .select({ id: schema.currencies.id })
+      .from(schema.currencies)
+      .limit(1);
     checks.postgres = { status: "up", latencyMs: Date.now() - pgStart };
   } catch (error) {
     healthy = false;
@@ -221,7 +236,9 @@ function createGuardedRouter(component: ApiApplicationComponent) {
   return guarded;
 }
 
-function buildV1Router(guarded: boolean): OpenAPIHono<{ Variables: AuthVariables }> {
+function buildV1Router(
+  guarded: boolean,
+): OpenAPIHono<{ Variables: AuthVariables }> {
   const router = new OpenAPIHono<{ Variables: AuthVariables }>();
 
   for (const component of API_APPLICATION_COMPONENTS) {
@@ -253,8 +270,8 @@ const TYPED_ROUTE_PATHS = [
 
 function assertTypedRouteCoverage() {
   const typedRoutePaths = [...TYPED_ROUTE_PATHS].sort();
-  const componentRoutePaths = API_APPLICATION_COMPONENTS.map((component) =>
-    component.routePath,
+  const componentRoutePaths = API_APPLICATION_COMPONENTS.map(
+    (component) => component.routePath,
   ).sort();
 
   const hasMismatch =

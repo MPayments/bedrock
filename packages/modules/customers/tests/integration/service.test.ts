@@ -2,7 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/customers/schema";
 
 import { db } from "./setup";
 import {

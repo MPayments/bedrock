@@ -5,8 +5,8 @@ import { eq, inArray } from "drizzle-orm";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { schema } from "@bedrock/db/schema";
-import { rawPackDefinition } from "@bedrock/pack-bedrock-core-default";
+import { schema } from "@bedrock/accounting/schema";
+import { rawPackDefinition } from "@bedrock/foundation/packs/bedrock-core-default";
 
 import { createAccountingRuntime } from "../../src/runtime";
 

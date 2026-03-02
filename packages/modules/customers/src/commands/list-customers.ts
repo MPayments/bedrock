@@ -1,11 +1,11 @@
 import { and, asc, desc, ilike, sql, type SQL } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/customers/schema";
 import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/foundation/kernel/pagination";
 
 import type { CustomersServiceContext } from "../internal/context";
 import {

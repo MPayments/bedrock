@@ -4,7 +4,7 @@ import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
 } from "@bedrock/idempotency";
-import { ValidationError } from "@bedrock/kernel/errors";
+import { ValidationError } from "@bedrock/foundation/kernel/errors";
 import {
   ExternalRecordConflictError,
   ReconciliationExceptionNotFoundError,

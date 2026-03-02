@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { schema, type Document } from "@bedrock/db/schema";
-import { InvalidStateError } from "@bedrock/kernel/errors";
+import { schema, type Document } from "@bedrock/documents/schema";
+import { InvalidStateError } from "@bedrock/foundation/kernel/errors";
 
 import { createCancelHandler } from "../src/commands/cancel";
 import { createCreateDraftHandler } from "../src/commands/create-draft";

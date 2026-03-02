@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts"
   },
   "scripts": {
     "build": "tsgo",
@@ -13,9 +14,8 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/db": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
-    "drizzle-orm": "^0.45.1"
+    "drizzle-orm": "^0.45.1",
+    "@bedrock/foundation": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",

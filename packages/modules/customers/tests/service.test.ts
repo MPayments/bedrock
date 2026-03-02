@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/customers/schema";
+import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
 
 import {
   CustomerDeleteConflictError,
@@ -282,7 +283,10 @@ describe("createCustomersService", () => {
     await service.remove(customer.id);
 
     expect(tx.delete).toHaveBeenCalledTimes(3);
-    expect(tx.delete).toHaveBeenNthCalledWith(2, schema.counterpartyGroups);
+    expect(tx.delete).toHaveBeenNthCalledWith(
+      2,
+      counterpartiesSchema.counterpartyGroups,
+    );
     expect(tx.update).toHaveBeenCalledTimes(1);
   });
 

@@ -3,7 +3,7 @@ import type { z } from "zod";
 import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/foundation/kernel/pagination";
 
 const LEDGER_OPERATIONS_SORTABLE_COLUMNS = [
   "createdAt",

@@ -1,7 +1,7 @@
 import { and, count, eq, gte, lte } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema";
-import type { PaginatedList } from "@bedrock/kernel/pagination";
+import { schema } from "@bedrock/documents/schema";
+import type { PaginatedList } from "@bedrock/foundation/kernel/pagination";
 
 import type { DocumentsServiceContext } from "../internal/context";
 import {

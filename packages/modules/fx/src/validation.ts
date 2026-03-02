@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
-import { normalizeCurrency, isValidCurrency } from "@bedrock/kernel";
-import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
-import { ValidationError } from "@bedrock/kernel/errors";
+import { normalizeCurrency, isValidCurrency } from "@bedrock/foundation/kernel";
+import { DAY_IN_SECONDS } from "@bedrock/foundation/kernel/constants";
+import { ValidationError } from "@bedrock/foundation/kernel/errors";
 
 const uuidSchema = z.uuid({ version: "v4" });
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 
-import { tbLedgerForCurrency } from "@bedrock/kernel";
+import { tbLedgerForCurrency } from "@bedrock/foundation/kernel";
 
 vi.mock("node:crypto", () => ({
   createHash: vi.fn(() => ({

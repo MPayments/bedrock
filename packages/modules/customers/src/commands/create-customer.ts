@@ -1,4 +1,4 @@
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/customers/schema";
 
 import type { CustomersServiceContext } from "../internal/context";
 import { ensureCustomerGroupForCustomer } from "../internal/group-rules";

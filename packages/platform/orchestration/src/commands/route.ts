@@ -1,10 +1,16 @@
 import { and, desc, eq, gte, isNull, lte, or } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema";
+import { schema as connectorsSchema } from "@bedrock/connectors/schema";
+import { schema as orchestrationSchema } from "@bedrock/orchestration/schema";
 
 import { RouteCandidateNotFoundError } from "../errors";
 import type { OrchestrationServiceContext } from "../internal/context";
 import { PlanRouteInputSchema, type PlanRouteInput } from "../validation";
+
+const schema = {
+  ...orchestrationSchema,
+  ...connectorsSchema,
+};
 
 export interface RouteCandidate {
   providerCode: string;

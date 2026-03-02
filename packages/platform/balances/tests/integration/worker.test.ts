@@ -1,12 +1,11 @@
-import { randomUUID } from "node:crypto";
-
-import { drizzle } from "drizzle-orm/node-postgres";
 import { desc, eq, inArray } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { schema } from "@bedrock/db/schema";
-import { canonicalJson, sha256Hex } from "@bedrock/kernel";
+import { schema } from "@bedrock/balances/schema";
+import { canonicalJson, sha256Hex } from "@bedrock/foundation/kernel";
 
 import { createBalancesProjectorWorker } from "../../src/worker";
 

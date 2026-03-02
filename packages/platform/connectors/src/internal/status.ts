@@ -1,7 +1,7 @@
 import type {
   ConnectorIntentStatus,
   PaymentAttemptStatus,
-} from "@bedrock/db/schema";
+} from "@bedrock/connectors/schema";
 
 export function isTerminalAttemptStatus(status: PaymentAttemptStatus): boolean {
   return (

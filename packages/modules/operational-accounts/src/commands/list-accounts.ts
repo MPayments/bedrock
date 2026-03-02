@@ -1,13 +1,13 @@
 import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
 import { ACCOUNT_NO } from "@bedrock/accounting";
-import { schema } from "@bedrock/db/schema";
-import type { OperationalAccount } from "@bedrock/db/schema";
+import { schema } from "@bedrock/operational-accounts/schema";
+import type { OperationalAccount } from "@bedrock/operational-accounts/schema";
 import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/foundation/kernel/pagination";
 
 import type { OperationalAccountsServiceContext } from "../internal/context";
 import { ListAccountsQuerySchema, type ListAccountsQuery } from "../validation";

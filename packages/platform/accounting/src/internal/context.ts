@@ -1,7 +1,7 @@
-import type { Database } from "@bedrock/db";
-import type { Logger } from "@bedrock/kernel";
-import { noopLogger } from "@bedrock/kernel";
-import type { AccountingPackDefinition } from "@bedrock/packs-schema";
+import type { Database } from "@bedrock/foundation/db-types";
+import type { Logger } from "@bedrock/foundation/kernel";
+import { noopLogger } from "@bedrock/foundation/kernel";
+import type { AccountingPackDefinition } from "@bedrock/foundation/packs/schema";
 
 export interface AccountingRuntimeDeps {
   db?: Database;

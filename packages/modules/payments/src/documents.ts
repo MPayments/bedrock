@@ -4,13 +4,14 @@ import {
   ACCOUNTING_SOURCE_ID,
   OPERATION_CODE,
   POSTING_TEMPLATE_KEY,
-} from "@bedrock/accounting-contracts";
-import { schema } from "@bedrock/db/schema";
+} from "@bedrock/foundation/accounting-contracts";
 import type { DocumentModule } from "@bedrock/documents";
 import {
   DocumentGraphError,
   DocumentValidationError,
 } from "@bedrock/documents";
+import { schema as documentsSchema } from "@bedrock/documents/schema";
+import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import {
   buildDocumentDraft,
   buildDocumentPostIdempotencyKey,
@@ -21,7 +22,7 @@ import {
   buildDocumentPostingPlan,
   buildDocumentPostingRequest,
 } from "@bedrock/documents/module-kit";
-import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
+import { DAY_IN_SECONDS } from "@bedrock/foundation/kernel/constants";
 
 import {
   PaymentIntentPayloadSchema,
@@ -29,6 +30,11 @@ import {
   type PaymentIntentPayload,
   type PaymentResolutionPayload,
 } from "./validation";
+
+const schema = {
+  ...documentsSchema,
+  ...ledgerSchema,
+};
 
 interface PaymentBinding {
   accountId: string;
@@ -223,9 +229,7 @@ export function createPaymentIntentDocumentModule(deps: {
       normalizePaymentIntentPayload,
     ),
     postingRequired: true,
-    approvalRequired() {
-      return false;
-    },
+    approvalRequired: () => false,
     async createDraft(_context, input) {
       return buildDocumentDraft(input, normalizePaymentIntentPayload(input));
     },

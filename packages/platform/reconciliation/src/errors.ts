@@ -1,4 +1,4 @@
-import { NotFoundError, ServiceError, ValidationError } from "@bedrock/kernel/errors";
+import { NotFoundError, ServiceError, ValidationError } from "@bedrock/foundation/kernel/errors";
 
 export class ReconciliationError extends ServiceError {}
 

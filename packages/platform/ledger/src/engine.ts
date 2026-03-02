@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/db";
+import type { Transaction } from "@bedrock/foundation/db-types";
 
 import { createCommitHandler } from "./commands/commit";
 import { createLedgerContext, type LedgerDeps } from "./internal/context";

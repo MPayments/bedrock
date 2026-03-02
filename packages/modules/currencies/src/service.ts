@@ -1,11 +1,11 @@
 import { eq } from "drizzle-orm";
 
-import { schema, type Currency, type CurrencyInsert } from "@bedrock/db/schema";
+import { schema, type Currency, type CurrencyInsert } from "@bedrock/currencies/schema";
 import {
     paginateInMemory,
     sortInMemory,
     type PaginatedList,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/foundation/kernel/pagination";
 
 import {
     CurrencyDeleteConflictError,

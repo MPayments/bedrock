@@ -11,7 +11,7 @@ import {
   ListFinancialResultsByCounterpartyQuerySchema,
   ListFinancialResultsByGroupQuerySchema,
 } from "@bedrock/accounting-reporting";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+import { createPaginatedListSchema } from "@bedrock/foundation/kernel/pagination";
 import { ListLedgerOperationsQuerySchema } from "@bedrock/ledger";
 
 import { ErrorSchema } from "../common";

@@ -9,7 +9,7 @@ import { db } from "@bedrock/db/client";
 import type { DocumentsService } from "@bedrock/documents";
 import type { FeesService } from "@bedrock/fees";
 import type { FxService } from "@bedrock/fx";
-import type { Logger } from "@bedrock/kernel";
+import type { Logger } from "@bedrock/foundation/kernel";
 import type { LedgerReadService } from "@bedrock/ledger";
 import {
   BEDROCK_COMPONENT_MANIFESTS,

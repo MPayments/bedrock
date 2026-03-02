@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { schema } from "@bedrock/db/schema";
-import { ValidationError } from "@bedrock/kernel/errors";
+import { schema } from "@bedrock/fx/schema";
+import { ValidationError } from "@bedrock/foundation/kernel/errors";
 
 import { createManualRateHandlers } from "../src/commands/rates/manual-rates";
 

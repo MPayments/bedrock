@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import { createCurrenciesService } from "@bedrock/currencies";
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/fx/schema";
 
 import { db } from "./setup";
 import { createFxService } from "../../src/service";

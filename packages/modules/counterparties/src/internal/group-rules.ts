@@ -1,7 +1,10 @@
 import { and, eq, inArray } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/db";
-import { schema } from "@bedrock/db/schema";
+import type { Database, Transaction } from "@bedrock/foundation/db-types";
+import {
+  customersRef,
+  schema as counterpartiesSchema,
+} from "@bedrock/counterparties/schema";
 
 import {
   CounterpartyCustomerNotFoundError,
@@ -9,6 +12,11 @@ import {
   CounterpartyGroupRuleError,
 } from "../errors";
 import type { CounterpartyGroupRootCode } from "../validation";
+
+const schema = {
+  ...counterpartiesSchema,
+  customers: customersRef,
+};
 
 interface GroupNode {
   id: string;

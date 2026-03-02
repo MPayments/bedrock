@@ -8,7 +8,7 @@ import {
   ListCustomersQuerySchema,
   UpdateCustomerInputSchema,
 } from "@bedrock/customers";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+import { createPaginatedListSchema } from "@bedrock/foundation/kernel/pagination";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";

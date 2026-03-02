@@ -1,5 +1,5 @@
-import { type Database } from "@bedrock/db";
-import { type Logger, noopLogger } from "@bedrock/kernel";
+import type { Database } from "@bedrock/foundation/db-types";
+import { type Logger, noopLogger } from "@bedrock/foundation/kernel";
 
 export interface CounterpartiesServiceDeps {
   db: Database;

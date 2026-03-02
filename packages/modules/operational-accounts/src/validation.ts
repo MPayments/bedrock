@@ -1,11 +1,11 @@
 import { z } from "zod";
 
 import { ACCOUNT_NO } from "@bedrock/accounting";
-import { COUNTRY_ALPHA2_SET } from "@bedrock/countries";
+import { COUNTRY_ALPHA2_SET } from "@bedrock/foundation/countries";
 import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/foundation/kernel/pagination";
 
 import { ValidationError } from "./errors";
 

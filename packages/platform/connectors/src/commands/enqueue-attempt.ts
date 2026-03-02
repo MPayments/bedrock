@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/connectors/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
 
 import {

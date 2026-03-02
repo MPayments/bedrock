@@ -1,13 +1,15 @@
 import { inArray, sql, type SQL } from "drizzle-orm";
 
-import { schema, type Dimensions } from "@bedrock/db/schema";
+import { schema as accountingSchema } from "@bedrock/accounting/schema";
+import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
 import { createBedrockDimensionRegistry } from "@bedrock/dimensions";
+import { schema as ledgerSchema, type Dimensions } from "@bedrock/ledger/schema";
 import {
   paginateInMemory,
   resolveSortOrder,
   sortInMemory,
   type PaginatedList,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/foundation/kernel/pagination";
 
 import {
   createAccountingReportingServiceContext,
@@ -19,6 +21,12 @@ import {
   type ListFinancialResultsByCounterpartyQuery,
   type ListFinancialResultsByGroupQuery,
 } from "./validation";
+
+const schema = {
+  ...accountingSchema,
+  ...counterpartiesSchema,
+  ...ledgerSchema,
+};
 
 export type AccountingReportingService = ReturnType<
   typeof createAccountingReportingService

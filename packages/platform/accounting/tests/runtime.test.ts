@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { POSTING_TEMPLATE_KEY } from "@bedrock/accounting-contracts";
-import { rawPackDefinition } from "@bedrock/pack-bedrock-core-default";
+import { POSTING_TEMPLATE_KEY } from "@bedrock/foundation/accounting-contracts";
+import { rawPackDefinition } from "@bedrock/foundation/packs/bedrock-core-default";
 
 import {
   createAccountingRuntime,

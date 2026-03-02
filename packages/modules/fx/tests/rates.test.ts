@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/fx/schema";
 
 import { RateSourceStaleError } from "../src/errors";
 import { createFxService } from "../src/service";

@@ -5,7 +5,7 @@ import { eq, inArray } from "drizzle-orm";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/reconciliation/schema";
 
 import { createReconciliationService } from "../../src/service";
 import { createReconciliationWorker } from "../../src/worker";

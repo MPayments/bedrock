@@ -2,9 +2,9 @@ import { and, desc, eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import { createCurrenciesService } from "@bedrock/currencies";
-import { currencyIdForCode } from "@bedrock/db/seeds";
-import { schema } from "@bedrock/db/schema";
-import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
+import { currencyIdForCode } from "../../../../db/src/seeds/index.ts";
+import { schema } from "@bedrock/fx/schema";
+import { DAY_IN_SECONDS } from "@bedrock/foundation/kernel/constants";
 
 import { RateSourceStaleError } from "../../src/errors";
 import { createFxService } from "../../src/service";

@@ -1,4 +1,4 @@
-import { noopLogger, type Logger } from "@bedrock/kernel";
+import { noopLogger, type Logger } from "@bedrock/foundation/kernel";
 
 import type { ConnectorsService } from "@bedrock/connectors";
 

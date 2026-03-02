@@ -1,14 +1,15 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/db";
-import { pgNotify } from "@bedrock/db/notify";
+import type { Transaction } from "@bedrock/foundation/db-types";
+import { pgNotify } from "@bedrock/foundation/db/notify";
 import {
-  schema,
+  schema as balancesSchema,
   type BalanceHold,
   type BalancePosition,
-} from "@bedrock/db/schema";
+} from "@bedrock/balances/schema";
+import { schema as currenciesSchema } from "@bedrock/currencies/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
-import type { CorrelationContext } from "@bedrock/kernel";
+import type { CorrelationContext } from "@bedrock/foundation/kernel";
 
 import {
   BalanceHoldConflictError,
@@ -27,6 +28,11 @@ import {
   validateReserveBalanceInput,
   type BalanceSubjectInput,
 } from "./validation";
+
+const schema = {
+  ...balancesSchema,
+  ...currenciesSchema,
+};
 
 export interface BalanceSnapshot {
   bookId: string;

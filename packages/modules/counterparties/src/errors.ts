@@ -1,4 +1,4 @@
-import { ServiceError } from "@bedrock/kernel/errors";
+import { ServiceError } from "@bedrock/foundation/kernel/errors";
 
 export class CounterpartyError extends ServiceError {}
 

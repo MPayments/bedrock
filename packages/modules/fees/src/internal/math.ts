@@ -1,4 +1,4 @@
-import { BPS_SCALE } from "@bedrock/kernel/constants";
+import { BPS_SCALE } from "@bedrock/foundation/kernel/constants";
 
 import { FeeValidationError } from "../errors";
 

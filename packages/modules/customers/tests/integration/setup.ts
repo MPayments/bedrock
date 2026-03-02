@@ -2,8 +2,8 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll } from "vitest";
 
-import { schema } from "@bedrock/db/schema";
-import { seedCurrencies } from "@bedrock/db/seeds";
+import { schema } from "@bedrock/customers/schema";
+import { seedCurrencies } from "../../../../db/src/seeds/index.ts";
 
 const testDbConfig = {
   host: process.env.DB_HOST || "localhost",

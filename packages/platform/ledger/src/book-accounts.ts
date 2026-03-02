@@ -1,12 +1,12 @@
 import { and, eq } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/db";
-import { schema, type Dimensions } from "@bedrock/db/schema";
+import type { Transaction } from "@bedrock/foundation/db-types";
 import {
   computeDimensionsHash,
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
-} from "@bedrock/kernel";
+} from "@bedrock/foundation/kernel";
+import { schema, type Dimensions } from "@bedrock/ledger/schema";
 
 export interface BookAccountIdentityInput {
   bookId: string;

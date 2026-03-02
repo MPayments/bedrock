@@ -11,11 +11,11 @@ import {
   getMockProviders,
 } from "@bedrock/connectors";
 import { createCurrenciesService } from "@bedrock/currencies";
-import type { Database } from "@bedrock/db";
+import type { Database } from "@bedrock/foundation/db-types";
 import { createDocumentsWorker } from "@bedrock/documents";
 import { createFeesService } from "@bedrock/fees";
 import { createFxRatesWorker, createFxService } from "@bedrock/fx";
-import type { Logger } from "@bedrock/kernel";
+import type { Logger } from "@bedrock/foundation/kernel";
 import {
   createOrchestrationRetryWorker,
   createOrchestrationService,

@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema";
-import { currencyIdForCode } from "@bedrock/db/seeds";
+import { schema } from "@bedrock/fees/schema";
+import { currencyIdForCode } from "../../../../db/src/seeds/index.ts";
 
 import { db } from "./setup";
 import { createFeesService } from "../../src/service";

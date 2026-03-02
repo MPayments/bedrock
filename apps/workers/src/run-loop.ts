@@ -1,4 +1,4 @@
-import { createConsoleLogger } from "@bedrock/kernel";
+import { createConsoleLogger } from "@bedrock/foundation/kernel";
 
 import type { RunLoopObserver } from "./monitoring";
 

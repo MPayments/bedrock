@@ -3,7 +3,7 @@ import z from "zod";
 import {
     createListQuerySchemaFromContract,
     type ListQueryContract,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/foundation/kernel/pagination";
 
 export const CurrencySchema = z.object({
     id: z.uuid(),

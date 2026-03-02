@@ -1,8 +1,14 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/db";
-import { schema, type Dimensions } from "@bedrock/db/schema";
-import { noopLogger, type Logger } from "@bedrock/kernel";
+import type { Database, Transaction } from "@bedrock/foundation/db-types";
+import { schema as balancesSchema, type Dimensions } from "@bedrock/balances/schema";
+import { schema as ledgerSchema } from "@bedrock/ledger/schema";
+import { noopLogger, type Logger } from "@bedrock/foundation/kernel";
+
+const schema = {
+  ...balancesSchema,
+  ...ledgerSchema,
+};
 
 const BALANCE_PROJECTOR_WORKER_KEY = "ledger_posted";
 const BALANCE_EVENT_TYPE = "ledger_posted";

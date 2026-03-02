@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { ACCOUNT_NO } from "@bedrock/accounting";
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/operational-accounts/schema";
 
 import { AccountNotFoundError } from "../errors";
 import type { OperationalAccountsServiceContext } from "../internal/context";

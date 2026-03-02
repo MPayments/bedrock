@@ -9,7 +9,7 @@ import {
   tbLedgerForCurrency,
   tbTransferIdForOperation,
   u128FromHash,
-} from "@bedrock/kernel";
+} from "@bedrock/foundation/kernel";
 
 describe("normalizeTbId", () => {
   it("normalizes zero and negatives to 1", () => {

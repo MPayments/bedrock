@@ -4,7 +4,7 @@ import { createCurrenciesService } from "@bedrock/currencies";
 import { db } from "@bedrock/db/client";
 import { createFeesService } from "@bedrock/fees";
 import { createFxRatesWorker, createFxService } from "@bedrock/fx";
-import { createConsoleLogger } from "@bedrock/kernel";
+import { createConsoleLogger } from "@bedrock/foundation/kernel";
 import {
   BEDROCK_COMPONENT_MANIFESTS,
   createComponentRuntimeService,

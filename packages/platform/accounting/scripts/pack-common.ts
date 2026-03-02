@@ -1,9 +1,9 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { db } from "@bedrock/db/client";
-import { canonicalJson } from "@bedrock/kernel";
-import { AccountingPackDefinitionSchema } from "@bedrock/packs-schema";
+import { db } from "../../../db/src/client.ts";
+import { canonicalJson } from "@bedrock/foundation/kernel";
+import { AccountingPackDefinitionSchema } from "@bedrock/foundation/packs/schema";
 
 import {
   compilePack,
@@ -15,7 +15,7 @@ import {
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PACK_PATH = resolve(
   SCRIPT_DIR,
-  "../../../packs/bedrock-core-default/src/index.ts",
+  "../../../foundation/pack-bedrock-core-default/src/index.ts",
 );
 
 function readFlag(name: string): string | undefined {

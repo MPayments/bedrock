@@ -1,4 +1,4 @@
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/operational-accounts/schema";
 
 import type { OperationalAccountsServiceContext } from "../internal/context";
 import {

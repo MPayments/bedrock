@@ -1,0 +1,61 @@
+{
+  "name": "@bedrock/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./schema": "./src/schema/index.ts",
+    "./seeds": "./src/seeds/index.ts",
+    "./notify": "./src/pg-notify.ts"
+  },
+  "scripts": {
+    "build": "tsgo",
+    "dev": "tsc --watch",
+    "check-types": "tsgo --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:nuke": "node ./scripts/db-nuke.mjs",
+    "db:studio": "drizzle-kit studio",
+    "db:push": "drizzle-kit push",
+    "db:seed": "bun x tsx ./src/seeds/run-all.ts",
+    "db:seed:accounting": "bun x tsx ./src/seeds/run-accounting.ts",
+    "db:bootstrap:accounting": "bun x tsx ./src/seeds/run-accounting.ts",
+    "db:bootstrap:v2-core": "bun x tsx ./src/seeds/run-accounting.ts",
+    "db:seed:users": "bun x tsx ./src/seeds/run-users.ts",
+    "db:seed:counterparties": "bun x tsx ./src/seeds/run-counterparties.ts",
+    "db:seed:account-providers": "bun x tsx ./src/seeds/run-account-providers.ts",
+    "db:seed:accounts": "bun x tsx ./src/seeds/run-accounts.ts",
+    "lint": "eslint src/**/*.ts --max-warnings 0"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.1",
+    "pg": "^8.17.2",
+    "@bedrock/accounting": "workspace:*",
+    "@bedrock/balances": "workspace:*",
+    "@bedrock/component-runtime": "workspace:*",
+    "@bedrock/connectors": "workspace:*",
+    "@bedrock/counterparties": "workspace:*",
+    "@bedrock/currencies": "workspace:*",
+    "@bedrock/customers": "workspace:*",
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/fees": "workspace:*",
+    "@bedrock/fx": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
+    "@bedrock/operational-accounts": "workspace:*",
+    "@bedrock/orchestration": "workspace:*",
+    "@bedrock/reconciliation": "workspace:*",
+    "@bedrock/idempotency": "workspace:*"
+  },
+  "devDependencies": {
+    "@bedrock/typescript-config": "workspace:*",
+    "better-auth": "*",
+    "@types/pg": "^8.16.0",
+    "dotenv": "^17.3.1",
+    "drizzle-kit": "^0.31.9",
+    "typescript": "^5.8.3",
+    "@bedrock/eslint-config": "workspace:*",
+    "eslint": "^9.31.0"
+  }
+}

@@ -1,8 +1,14 @@
 import { sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/db/schema";
+import { schema as currenciesSchema } from "@bedrock/currencies/schema";
+import { schema as fxSchema } from "@bedrock/fx/schema";
 
 import { type FxServiceContext } from "../../internal/context";
+
+const schema = {
+    ...fxSchema,
+    ...currenciesSchema,
+};
 
 export interface SourceRateView {
     source: string;

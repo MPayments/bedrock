@@ -19,13 +19,13 @@ import {
   createCustomersService,
   type CustomersService,
 } from "@bedrock/customers";
-import { db } from "@bedrock/db/client";
 import {
   createDocumentRegistry,
   createDocumentsService,
   type DocumentsService,
 } from "@bedrock/documents";
 import { createFeesService, type FeesService } from "@bedrock/fees";
+import { db } from "@bedrock/db/client";
 import { createFxService, type FxService } from "@bedrock/fx";
 import {
   createOperationalAccountsService,

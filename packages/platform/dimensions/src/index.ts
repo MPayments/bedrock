@@ -1,8 +1,19 @@
 import { inArray } from "drizzle-orm";
 
-import type { Database } from "@bedrock/db";
-import { schema, type Dimensions } from "@bedrock/db/schema";
-import { isUuidLike } from "@bedrock/kernel";
+import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
+import { schema as customersSchema } from "@bedrock/customers/schema";
+import { schema as documentsSchema } from "@bedrock/documents/schema";
+import type { Database } from "@bedrock/foundation/db-types";
+import { isUuidLike } from "@bedrock/foundation/kernel";
+import { type Dimensions } from "@bedrock/ledger/schema";
+import { schema as operationalAccountsSchema } from "@bedrock/operational-accounts/schema";
+
+const schema = {
+  ...counterpartiesSchema,
+  ...customersSchema,
+  ...documentsSchema,
+  ...operationalAccountsSchema,
+};
 
 export type DimensionLabelResolver = (input: {
   db: Database;

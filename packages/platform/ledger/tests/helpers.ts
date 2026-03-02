@@ -8,7 +8,7 @@ import {
     type StubDatabase,
     type StubTransaction,
 } from "@bedrock/test-utils";
-import { schema } from "@bedrock/db/schema";
+import { schema } from "@bedrock/ledger/schema";
 
 import type { TbClient } from "../src/tb";
 import type { OperationIntent, CreateIntentLine } from "../src/types";

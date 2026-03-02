@@ -1,4 +1,4 @@
-import { noopLogger, sha256Hex, stableStringify, type Logger } from "@bedrock/kernel";
+import { noopLogger, sha256Hex, stableStringify, type Logger } from "@bedrock/foundation/kernel";
 
 import { ConnectorProviderNotConfiguredError } from "../errors";
 import type { ConnectorsService } from "../service";

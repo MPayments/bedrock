@@ -35,7 +35,7 @@ export {
 } from "./errors";
 
 export { createAccountingService, type AccountingService } from "./service";
-export type { AccountingPackDefinition } from "@bedrock/packs-schema";
+export type { AccountingPackDefinition } from "@bedrock/foundation/packs/schema";
 export {
   createAccountingRuntime,
   compilePack,

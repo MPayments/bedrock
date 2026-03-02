@@ -9,7 +9,18 @@ const config = require("../dependency-cruiser.cjs");
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
-const SOURCE_ROOTS = [join(ROOT, "packages"), join(ROOT, "apps")];
+const SOURCE_ROOTS = [
+  join(ROOT, "packages"),
+  join(ROOT, "apps"),
+  join(ROOT, "scripts"),
+  join(ROOT, "infra"),
+].filter((candidate) => {
+  try {
+    return statSync(candidate).isDirectory();
+  } catch {
+    return false;
+  }
+});
 const IMPORT_PATTERNS = [
   /\bimport\s+(?:[^"'()]*?\s+from\s+)?["']([^"']+)["']/g,
   /\bexport\s+[^"'()]*?\s+from\s+["']([^"']+)["']/g,
@@ -43,6 +54,9 @@ function listFiles(root) {
         fullPath.endsWith(".mts") ||
         fullPath.endsWith(".cts")
       ) {
+        if (/\.d\.(ts|tsx|mts|cts)$/.test(fullPath)) {
+          continue;
+        }
         out.push(fullPath);
       }
     }
@@ -132,11 +146,37 @@ function buildForbiddenRule(rule) {
 
 const forbiddenRules = (config.forbidden ?? []).map(buildForbiddenRule);
 const violations = [];
+const LEGACY_SPECIFIER_PATTERNS = [
+  /^@bedrock\/kernel(?:\/|$)/,
+  /^@bedrock\/accounting-contracts(?:\/|$)/,
+  /^@bedrock\/countries(?:\/|$)/,
+  /^@bedrock\/packs-schema(?:\/|$)/,
+  /^@bedrock\/pack-bedrock-core-default(?:\/|$)/,
+  /^@bedrock\/db-contracts(?:\/|$)/,
+  /^@bedrock\/foundation\/db-contracts(?:\/|$)/,
+];
+const FOUNDATION_DB_TYPES_SPECIFIER =
+  /^@bedrock\/foundation\/db-types(?:\/|$)/;
+const FOUNDATION_DB_RUNTIME_BLOCKED_SPECIFIER =
+  /^@bedrock\/db(?:$|\/(?:client|schema|seeds|notify)(?:$|\/))/;
+const DOMAIN_SCHEMA_SPECIFIER = /^@bedrock\/[^/]+\/schema(?:\/|$)/;
+const DOMAIN_SCHEMA_PUBLIC_SPECIFIER = /^@bedrock\/[^/]+\/schema$/;
+
+function isRuntimePackageFile(file) {
+  return /^packages\/(modules|platform)\/[^/]+\/src\//.test(file);
+}
+
+function isSchemaDefinitionFile(file) {
+  return (
+    /\/src\/schema\.ts$/.test(file) ||
+    /\/src\/schema\/.+\.ts$/.test(file)
+  );
+}
 
 function isAllowedContractImport(fromFile, specifier) {
   return (
     fromFile.startsWith("packages/platform/") &&
-    specifier === "@bedrock/countries/contracts"
+    specifier === "@bedrock/foundation/countries/contracts"
   );
 }
 
@@ -144,6 +184,16 @@ for (const root of SOURCE_ROOTS) {
   for (const filePath of listFiles(root)) {
     const relFile = relative(ROOT, filePath);
     const content = readFileSync(filePath, "utf8");
+
+    if (content.includes("pgTable(") && !isSchemaDefinitionFile(relFile)) {
+      violations.push({
+        rule: "pgtable-outside-schema",
+        from: relFile,
+        to: relFile,
+        specifier: "pgTable(",
+      });
+    }
+
     const imports = getImports(content);
 
     for (const specifier of imports) {
@@ -151,11 +201,65 @@ for (const root of SOURCE_ROOTS) {
         continue;
       }
 
+      if (
+        LEGACY_SPECIFIER_PATTERNS.some((pattern) => pattern.test(specifier)) &&
+        !relFile.startsWith("packages/foundation/")
+      ) {
+        violations.push({
+          rule: "legacy-foundation-import",
+          from: relFile,
+          to: specifier,
+          specifier,
+        });
+        continue;
+      }
+
+      if (
+        (specifier === "@bedrock/db/schema" ||
+          specifier === "@bedrock/foundation/db/schema") &&
+        !relFile.startsWith("packages/db/")
+      ) {
+        violations.push({
+          rule: "ban-central-schema-import",
+          from: relFile,
+          to: specifier,
+          specifier,
+        });
+        continue;
+      }
+
+      if (
+        isRuntimePackageFile(relFile) &&
+        FOUNDATION_DB_RUNTIME_BLOCKED_SPECIFIER.test(specifier) &&
+        !FOUNDATION_DB_TYPES_SPECIFIER.test(specifier)
+      ) {
+        violations.push({
+          rule: "runtime-no-foundation-db",
+          from: relFile,
+          to: specifier,
+          specifier,
+        });
+        continue;
+      }
+
+      if (
+        DOMAIN_SCHEMA_SPECIFIER.test(specifier) &&
+        !DOMAIN_SCHEMA_PUBLIC_SPECIFIER.test(specifier)
+      ) {
+        violations.push({
+          rule: "schema-internal-import",
+          from: relFile,
+          to: specifier,
+          specifier,
+        });
+        continue;
+      }
+
       if (relFile.startsWith("apps/web/") && specifier.startsWith("@bedrock/")) {
         const allowed =
           specifier.startsWith("@bedrock/ui") ||
-          specifier === "@bedrock/countries" ||
-          specifier.startsWith("@bedrock/countries/") ||
+          specifier === "@bedrock/foundation/countries" ||
+          specifier === "@bedrock/foundation/countries/contracts" ||
           specifier === "@bedrock/api-client" ||
           specifier.startsWith("@bedrock/api-client/") ||
           /^@bedrock\/[^/]+\/contracts$/.test(specifier);

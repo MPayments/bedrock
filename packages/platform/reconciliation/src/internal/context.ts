@@ -1,10 +1,10 @@
-import type { Database } from "@bedrock/db";
+import type { Database } from "@bedrock/foundation/db-types";
 import type { DocumentsService } from "@bedrock/documents";
 import {
   createIdempotencyService,
   type IdempotencyService,
 } from "@bedrock/idempotency";
-import { noopLogger, type Logger } from "@bedrock/kernel";
+import { noopLogger, type Logger } from "@bedrock/foundation/kernel";
 
 export interface ReconciliationServiceDeps {
   db: Database;

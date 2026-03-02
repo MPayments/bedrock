@@ -5,7 +5,7 @@ import {
   createComponentRuntimeService,
 } from "@bedrock/component-runtime";
 import { db } from "@bedrock/db/client";
-import { createConsoleLogger } from "@bedrock/kernel";
+import { createConsoleLogger } from "@bedrock/foundation/kernel";
 import { createLedgerWorker, createTbClient } from "@bedrock/ledger";
 
 import { env } from "./env";
