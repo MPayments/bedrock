@@ -1,15 +1,15 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/foundation/db-types";
-import { pgNotify } from "@bedrock/foundation/db/notify";
 import {
   schema as balancesSchema,
   type BalanceHold,
   type BalancePosition,
 } from "@bedrock/balances/schema";
 import { schema as currenciesSchema } from "@bedrock/currencies/schema";
-import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
+import { pgNotify } from "@bedrock/foundation/db/notify";
+import type { Transaction } from "@bedrock/foundation/db/types";
 import type { CorrelationContext } from "@bedrock/foundation/kernel";
+import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
 
 import {
   BalanceHoldConflictError,
@@ -403,7 +403,7 @@ export function createBalancesService(deps: BalancesServiceDeps) {
   }): Promise<BalanceMutationResult> {
     const validated = validateReserveBalanceInput(input);
 
-    return db.transaction(async (tx) =>
+    return db.transaction(async (tx: Transaction) =>
       idempotency.withIdempotencyTx({
         tx,
         scope: IDEMPOTENCY_SCOPE.BALANCES_RESERVE,
@@ -500,7 +500,7 @@ export function createBalancesService(deps: BalancesServiceDeps) {
   }): Promise<BalanceMutationResult> {
     const validated = validateReleaseBalanceInput(input);
 
-    return db.transaction(async (tx) =>
+    return db.transaction(async (tx: Transaction) =>
       idempotency.withIdempotencyTx({
         tx,
         scope: IDEMPOTENCY_SCOPE.BALANCES_RELEASE,
@@ -589,7 +589,7 @@ export function createBalancesService(deps: BalancesServiceDeps) {
   }): Promise<BalanceMutationResult> {
     const validated = validateConsumeBalanceInput(input);
 
-    return db.transaction(async (tx) =>
+    return db.transaction(async (tx: Transaction) =>
       idempotency.withIdempotencyTx({
         tx,
         scope: IDEMPOTENCY_SCOPE.BALANCES_CONSUME,

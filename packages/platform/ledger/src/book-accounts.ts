@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/foundation/db-types";
+import type { Transaction } from "@bedrock/foundation/db/types";
 import {
   computeDimensionsHash,
   tbBookAccountInstanceIdFor,

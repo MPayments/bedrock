@@ -1,4 +1,4 @@
-import type { Database } from "@bedrock/foundation/db-types";
+import type { Database } from "@bedrock/foundation/db/types";
 import { noopLogger, type Logger } from "@bedrock/foundation/kernel";
 
 export interface OrchestrationServiceDeps {

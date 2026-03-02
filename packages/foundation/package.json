@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     "./db/notify": "./src/db/notify.ts",
-    "./db-types": "./src/db-types.ts",
+    "./db/types": "./src/db/types.ts",
     "./kernel": "./src/kernel/index.ts",
     "./kernel/errors": "./src/kernel/errors.ts",
     "./kernel/pagination": "./src/kernel/pagination.ts",

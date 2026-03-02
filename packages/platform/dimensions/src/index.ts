@@ -3,7 +3,7 @@ import { inArray } from "drizzle-orm";
 import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
 import { schema as customersSchema } from "@bedrock/customers/schema";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
-import type { Database } from "@bedrock/foundation/db-types";
+import type { Database } from "@bedrock/foundation/db/types";
 import { isUuidLike } from "@bedrock/foundation/kernel";
 import { type Dimensions } from "@bedrock/ledger/schema";
 import { schema as operationalAccountsSchema } from "@bedrock/operational-accounts/schema";

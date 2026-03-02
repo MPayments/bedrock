@@ -1,6 +1,6 @@
 import { type CurrenciesService } from "@bedrock/currencies";
-import type { Database } from "@bedrock/foundation/db-types";
 import { type FeesService } from "@bedrock/fees";
+import type { Database } from "@bedrock/foundation/db/types";
 import { type Logger, noopLogger } from "@bedrock/foundation/kernel";
 
 import { createCbrRateSourceProvider } from "../sources/cbr";

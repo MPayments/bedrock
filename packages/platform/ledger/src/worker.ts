@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/foundation/db-types";
+import type { Database, Transaction } from "@bedrock/foundation/db/types";
 import { schema } from "@bedrock/ledger/schema";
 
 import { isRetryableError } from "./errors";

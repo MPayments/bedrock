@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import type { DocumentPostingPlan } from "@bedrock/accounting";
 import { schema, type Document, type DocumentLinkType } from "@bedrock/documents/schema";
 import { pgNotify } from "@bedrock/foundation/db/notify";
-import type { Database, Transaction } from "@bedrock/foundation/db-types";
+import type { Database, Transaction } from "@bedrock/foundation/db/types";
 import { canonicalJson, sha256Hex } from "@bedrock/foundation/kernel";
 import { InvalidStateError } from "@bedrock/foundation/kernel/errors";
 

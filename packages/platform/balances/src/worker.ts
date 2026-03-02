@@ -1,9 +1,9 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/foundation/db-types";
 import { schema as balancesSchema, type Dimensions } from "@bedrock/balances/schema";
-import { schema as ledgerSchema } from "@bedrock/ledger/schema";
+import type { Database, Transaction } from "@bedrock/foundation/db/types";
 import { noopLogger, type Logger } from "@bedrock/foundation/kernel";
+import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 
 const schema = {
   ...balancesSchema,

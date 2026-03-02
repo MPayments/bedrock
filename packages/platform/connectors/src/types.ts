@@ -1,5 +1,5 @@
-import type { Database } from "@bedrock/foundation/db-types";
 import type { PaymentAttemptStatus } from "@bedrock/connectors/schema";
+import type { Database } from "@bedrock/foundation/db/types";
 import type { CorrelationContext, Logger } from "@bedrock/foundation/kernel";
 
 export interface ConnectorProviderSubmission {

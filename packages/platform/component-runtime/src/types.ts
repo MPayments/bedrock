@@ -1,4 +1,4 @@
-import type { Database } from "@bedrock/foundation/db-types";
+import type { Database } from "@bedrock/foundation/db/types";
 import type { Logger } from "@bedrock/foundation/kernel";
 
 export const COMPONENT_SCOPE_GLOBAL_ID = "__global__";

@@ -7,8 +7,7 @@
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
     "./schema": "./src/schema/index.ts",
-    "./seeds": "./src/seeds/index.ts",
-    "./notify": "./src/pg-notify.ts"
+    "./seeds": "./src/seeds/index.ts"
   },
   "scripts": {
     "build": "tsgo",

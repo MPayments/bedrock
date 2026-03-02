@@ -1,13 +1,13 @@
 import { and, eq } from "drizzle-orm";
 
-import type { Database } from "@bedrock/foundation/db-types";
-import { schema } from "@bedrock/ledger/schema";
-import type { Dimensions } from "@bedrock/ledger/schema";
+import type { Database } from "@bedrock/foundation/db/types";
 import {
   computeDimensionsHash,
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
 } from "@bedrock/foundation/kernel";
+import { schema } from "@bedrock/ledger/schema";
+import type { Dimensions } from "@bedrock/ledger/schema";
 
 import { AccountMappingConflictError } from "./errors";
 import { makeTbAccount, tbCreateAccountsOrThrow, type TbClient } from "./tb";

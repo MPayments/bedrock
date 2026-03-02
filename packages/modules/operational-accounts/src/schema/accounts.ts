@@ -8,9 +8,10 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 
-import { operationalAccountProviders } from "./account-providers";
 import { counterparties } from "@bedrock/counterparties/schema";
 import { currencies } from "@bedrock/currencies/schema";
+
+import { operationalAccountProviders } from "./account-providers";
 
 export type OperationalAccount = typeof operationalAccounts.$inferSelect;
 export type OperationalAccountInsert = typeof operationalAccounts.$inferInsert;

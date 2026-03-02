@@ -2,12 +2,12 @@ import { eq } from "drizzle-orm";
 
 import { schema } from "@bedrock/accounting/schema";
 import type { ConnectorsService } from "@bedrock/connectors";
-import type { Database } from "@bedrock/foundation/db-types";
 import type {
   DocumentDetails,
   DocumentWithOperationId,
   DocumentsService,
 } from "@bedrock/documents";
+import type { Database } from "@bedrock/foundation/db/types";
 import { noopLogger, type CorrelationContext, type Logger } from "@bedrock/foundation/kernel";
 import type { OrchestrationService } from "@bedrock/orchestration";
 

@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 
-import type { Database } from "../db-types";
+import type { Database } from "./db-types";
 
 interface PgNotifyConnection {
   execute?: (
@@ -18,7 +18,7 @@ function assertChannelName(channel: string): string {
 }
 
 function quoteIdentifier(identifier: string): string {
-  return `"${identifier.replaceAll("\"", "\"\"")}"`;
+  return `"${identifier.replaceAll('"', '""')}"`;
 }
 
 export function pgNotify(

@@ -4,7 +4,6 @@ import type {
   AccountingRuntime,
   DocumentPostingPlan,
 } from "@bedrock/accounting";
-import type { Database, Transaction } from "@bedrock/foundation/db-types";
 import type {
   Document,
   DocumentApprovalStatus,
@@ -16,6 +15,7 @@ import type {
   DocumentSnapshot,
   DocumentSubmissionStatus,
 } from "@bedrock/documents/schema";
+import type { Database, Transaction } from "@bedrock/foundation/db/types";
 import type { CorrelationContext, Logger } from "@bedrock/foundation/kernel";
 import type {
   LedgerEngine,

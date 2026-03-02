@@ -1,8 +1,8 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/foundation/db-types";
 import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
 import { schema as customersSchema } from "@bedrock/customers/schema";
+import type { Transaction } from "@bedrock/foundation/db/types";
 
 import { CustomerInvariantError } from "../errors";
 

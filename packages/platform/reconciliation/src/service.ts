@@ -1,20 +1,20 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/foundation/db-types";
+import { schema as documentsSchema } from "@bedrock/documents/schema";
+import type { Database, Transaction } from "@bedrock/foundation/db/types";
+import {
+  canonicalJson,
+  sha256Hex,
+  type CorrelationContext,
+} from "@bedrock/foundation/kernel";
+import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
+import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import {
   schema as reconciliationSchema,
   type ReconciliationException,
   type ReconciliationExternalRecord,
   type ReconciliationMatchStatus,
 } from "@bedrock/reconciliation/schema";
-import { schema as documentsSchema } from "@bedrock/documents/schema";
-import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
-import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import {
-  canonicalJson,
-  sha256Hex,
-  type CorrelationContext,
-} from "@bedrock/foundation/kernel";
 
 import {
   ExternalRecordConflictError,

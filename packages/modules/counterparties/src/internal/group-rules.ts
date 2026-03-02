@@ -1,10 +1,10 @@
 import { and, eq, inArray } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/foundation/db-types";
 import {
   customersRef,
   schema as counterpartiesSchema,
 } from "@bedrock/counterparties/schema";
+import type { Database, Transaction } from "@bedrock/foundation/db/types";
 
 import {
   CounterpartyCustomerNotFoundError,

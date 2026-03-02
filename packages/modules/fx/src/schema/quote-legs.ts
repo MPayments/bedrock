@@ -1,9 +1,10 @@
 import { sql } from "drizzle-orm";
 import { bigint, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
-import { fxQuotes } from "./quotes";
-import { currencies } from "@bedrock/currencies/schema";
 import { counterparties } from "@bedrock/counterparties/schema";
+import { currencies } from "@bedrock/currencies/schema";
+
+import { fxQuotes } from "./quotes";
 
 export type FxQuoteLegSourceKind = "cb" | "bank" | "manual" | "derived" | "market";
 

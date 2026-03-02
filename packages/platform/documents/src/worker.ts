@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import type { Database } from "@bedrock/foundation/db-types";
 import { schema } from "@bedrock/documents/schema";
+import type { Database } from "@bedrock/foundation/db/types";
 
 import {
   buildDocumentEventState,
