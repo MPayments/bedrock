@@ -22,17 +22,16 @@
     "./documents": "./src/documents/index.ts",
     "./documents/contracts": "./src/documents/contracts.ts",
     "./documents/module-kit": "./src/documents/module-kit/index.ts",
-    "./documents/worker": "./src/documents/worker.ts",
     "./documents/validation": "./src/documents/validation.ts",
     "./idempotency": "./src/idempotency/index.ts",
     "./ledger": "./src/ledger/index.ts",
-    "./ledger/worker": "./src/ledger/worker.ts",
     "./ledger/tb": "./src/ledger/tb.ts",
     "./operational-accounts": "./src/operational-accounts/index.ts",
     "./operational-accounts/contracts": "./src/operational-accounts/contracts.ts",
     "./operational-accounts/validation": "./src/operational-accounts/validation.ts",
     "./orchestration": "./src/orchestration/index.ts",
-    "./reconciliation": "./src/reconciliation/index.ts"
+    "./reconciliation": "./src/reconciliation/index.ts",
+    "./worker-runtime": "./src/worker-runtime/index.ts"
   },
   "scripts": {
     "build": "tsgo --project tsconfig.json",

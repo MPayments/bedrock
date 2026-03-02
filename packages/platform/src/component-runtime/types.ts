@@ -28,9 +28,16 @@ export interface ComponentApiCapability {
   guarded?: boolean;
 }
 
+export interface ComponentWorkerCapability {
+  id: string;
+  envKey: string;
+  defaultIntervalMs: number;
+  description: string;
+}
+
 export interface ComponentCapabilities {
   api?: ComponentApiCapability;
-  workers?: readonly string[];
+  workers?: readonly ComponentWorkerCapability[];
   documentModules?: readonly string[];
   hooks?: readonly string[];
 }

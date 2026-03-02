@@ -1,8 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createAttemptDispatchWorker } from "../../../src/connectors/workers/attempt-dispatch";
-import { createStatementIngestWorker } from "../../../src/connectors/workers/statement-ingest";
-import { createStatusPollerWorker } from "../../../src/connectors/workers/status-poller";
+import { createAttemptDispatchWorkerDefinition } from "../../../src/connectors/workers/attempt-dispatch";
+import { createStatementIngestWorkerDefinition } from "../../../src/connectors/workers/statement-ingest";
+import { createStatusPollerWorkerDefinition } from "../../../src/connectors/workers/status-poller";
+
+async function runWorkerOnce(
+  worker:
+    | ReturnType<typeof createAttemptDispatchWorkerDefinition>
+    | ReturnType<typeof createStatusPollerWorkerDefinition>
+    | ReturnType<typeof createStatementIngestWorkerDefinition>,
+) {
+  const result = await worker.runOnce({
+    now: new Date("2026-03-01T00:00:00Z"),
+    signal: new AbortController().signal,
+  });
+  return result.processed;
+}
 
 describe("connectors workers per-item guard", () => {
   it("requeues dispatch item when guard blocks attempt", async () => {
@@ -43,8 +56,8 @@ describe("connectors workers per-item guard", () => {
     } as any;
 
     const beforeAttempt = vi.fn(async () => false);
-    const worker = createAttemptDispatchWorker({ connectors, beforeAttempt });
-    const processed = await worker.processOnce();
+    const worker = createAttemptDispatchWorkerDefinition({ connectors, beforeAttempt });
+    const processed = await runWorkerOnce(worker);
 
     expect(processed).toBe(0);
     expect(beforeAttempt).toHaveBeenCalledTimes(1);
@@ -87,8 +100,8 @@ describe("connectors workers per-item guard", () => {
     } as any;
 
     const beforeAttempt = vi.fn(async () => false);
-    const worker = createStatusPollerWorker({ connectors, beforeAttempt });
-    const processed = await worker.processOnce();
+    const worker = createStatusPollerWorkerDefinition({ connectors, beforeAttempt });
+    const processed = await runWorkerOnce(worker);
 
     expect(processed).toBe(0);
     expect(beforeAttempt).toHaveBeenCalledTimes(1);
@@ -118,8 +131,8 @@ describe("connectors workers per-item guard", () => {
     } as any;
 
     const beforeCursor = vi.fn(async () => false);
-    const worker = createStatementIngestWorker({ connectors, beforeCursor });
-    const processed = await worker.processOnce();
+    const worker = createStatementIngestWorkerDefinition({ connectors, beforeCursor });
+    const processed = await runWorkerOnce(worker);
 
     expect(processed).toBe(0);
     expect(beforeCursor).toHaveBeenCalledTimes(1);
@@ -141,7 +154,7 @@ describe("connectors workers per-item guard", () => {
       },
     } as any;
     const beforeCursor = vi.fn(async () => false);
-    const worker = createStatementIngestWorker({ connectors, beforeCursor });
+    const worker = createStatementIngestWorkerDefinition({ connectors, beforeCursor });
 
     const result = await worker.processProviderOnce({
       providerCode: "mock",

@@ -1,5 +1,10 @@
 import { noopLogger, type Logger } from "@bedrock/foundation/kernel";
 
+import type {
+  BedrockWorker,
+  WorkerRunContext,
+  WorkerRunResult,
+} from "../../worker-runtime";
 import { ConnectorProviderNotConfiguredError } from "../errors";
 import type { ConnectorsService } from "../service";
 
@@ -25,7 +30,10 @@ type AttemptDispatchWorkerItemGuard = (
   input: AttemptDispatchWorkerItemContext,
 ) => Promise<boolean> | boolean;
 
-export function createAttemptDispatchWorker(deps: {
+export function createAttemptDispatchWorkerDefinition(deps: {
+  id?: string;
+  componentId?: string;
+  intervalMs?: number;
   connectors: Pick<
     ConnectorsService,
     | "claimDispatchBatch"
@@ -35,21 +43,21 @@ export function createAttemptDispatchWorker(deps: {
   >;
   logger?: Logger;
   beforeAttempt?: AttemptDispatchWorkerItemGuard;
-}) {
+  batchSize?: number;
+}): BedrockWorker {
   const { connectors } = deps;
   const beforeAttempt = deps.beforeAttempt;
   const log =
     deps.logger?.child({ svc: "connectors-attempt-dispatch" }) ?? noopLogger;
+  const batchSize = deps.batchSize ?? 50;
 
-  async function processOnce(opts?: { batchSize?: number }) {
-    const batchSize = opts?.batchSize ?? 50;
+  async function runPass(now: Date) {
     const claimed = await connectors.claimDispatchBatch({ batchSize });
     let processed = 0;
 
     for (const item of claimed) {
       const { attempt, intent } = item;
       const provider = connectors.providers[attempt.providerCode];
-      const now = new Date();
       const bookId = readOptionalBookIdFromIntentMetadata(intent.metadata);
 
       if (beforeAttempt) {
@@ -141,5 +149,15 @@ export function createAttemptDispatchWorker(deps: {
     return processed;
   }
 
-  return { processOnce };
+  async function runOnce(ctx: WorkerRunContext): Promise<WorkerRunResult> {
+    const processed = await runPass(ctx.now);
+    return { processed };
+  }
+
+  return {
+    id: deps.id ?? "connectors-dispatch",
+    componentId: deps.componentId ?? "connectors",
+    intervalMs: deps.intervalMs ?? 5_000,
+    runOnce,
+  };
 }

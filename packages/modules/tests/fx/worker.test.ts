@@ -1,8 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createFxRatesWorker } from "../../src/fx/worker";
+import { createFxRatesWorkerDefinition } from "../../src/fx/worker";
 
-describe("createFxRatesWorker", () => {
+async function runWorkerOnce(
+    worker: ReturnType<typeof createFxRatesWorkerDefinition>,
+    now: Date = new Date("2026-02-19T00:00:00Z"),
+) {
+    const result = await worker.runOnce({
+        now,
+        signal: new AbortController().signal,
+    });
+    return result.processed;
+}
+
+describe("createFxRatesWorkerDefinition", () => {
     it("skips non-expired sources", async () => {
         const fxService = {
             getRateSourceStatuses: vi.fn(async () => [
@@ -20,8 +31,11 @@ describe("createFxRatesWorker", () => {
             syncRatesFromSource: vi.fn(async () => ({ synced: true })),
         } as any;
 
-        const worker = createFxRatesWorker({ fxService });
-        const processed = await worker.processOnce({ now: new Date("2026-02-19T12:00:00Z") });
+        const worker = createFxRatesWorkerDefinition({ fxService });
+        const processed = await runWorkerOnce(
+            worker,
+            new Date("2026-02-19T12:00:00Z"),
+        );
 
         expect(processed).toBe(0);
         expect(fxService.syncRatesFromSource).not.toHaveBeenCalled();
@@ -44,8 +58,11 @@ describe("createFxRatesWorker", () => {
             syncRatesFromSource: vi.fn(async () => ({ synced: true })),
         } as any;
 
-        const worker = createFxRatesWorker({ fxService });
-        const processed = await worker.processOnce({ now: new Date("2026-02-19T00:00:00Z") });
+        const worker = createFxRatesWorkerDefinition({ fxService });
+        const processed = await runWorkerOnce(
+            worker,
+            new Date("2026-02-19T00:00:00Z"),
+        );
 
         expect(processed).toBe(1);
         expect(fxService.syncRatesFromSource).toHaveBeenCalledWith({
@@ -75,8 +92,8 @@ describe("createFxRatesWorker", () => {
             }),
         } as any;
 
-        const worker = createFxRatesWorker({ fxService, logger });
-        const processed = await worker.processOnce();
+        const worker = createFxRatesWorkerDefinition({ fxService, logger });
+        const processed = await runWorkerOnce(worker);
 
         expect(processed).toBe(0);
         expect(logger.error).toHaveBeenCalled();
@@ -100,11 +117,11 @@ describe("createFxRatesWorker", () => {
         } as any;
         const beforeSourceSync = vi.fn(async () => false);
 
-        const worker = createFxRatesWorker({
+        const worker = createFxRatesWorkerDefinition({
             fxService,
             beforeSourceSync,
         });
-        const processed = await worker.processOnce();
+        const processed = await runWorkerOnce(worker);
 
         expect(processed).toBe(0);
         expect(beforeSourceSync).toHaveBeenCalledTimes(1);

@@ -3,9 +3,9 @@ export {
   type ConnectorsService,
   type ConnectorsServiceContext,
 } from "./service";
-export { createAttemptDispatchWorker } from "./workers/attempt-dispatch";
-export { createStatusPollerWorker } from "./workers/status-poller";
-export { createStatementIngestWorker } from "./workers/statement-ingest";
+export { createAttemptDispatchWorkerDefinition } from "./workers/attempt-dispatch";
+export { createStatusPollerWorkerDefinition } from "./workers/status-poller";
+export { createStatementIngestWorkerDefinition } from "./workers/statement-ingest";
 export * from "./errors";
 export * from "./validation";
 export { getMockProviders } from "./mock-adapters";

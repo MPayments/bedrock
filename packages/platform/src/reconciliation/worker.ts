@@ -9,6 +9,7 @@ import {
   type Logger,
 } from "@bedrock/foundation/kernel";
 
+import type { BedrockWorker, WorkerRunContext, WorkerRunResult } from "../worker-runtime";
 import { createReconciliationService } from "./service";
 
 interface PendingReconciliationSource {
@@ -99,24 +100,28 @@ function buildRunIdempotencyKey(input: {
   );
 }
 
-export function createReconciliationWorker(deps: {
+export function createReconciliationWorkerDefinition(deps: {
+  id?: string;
+  componentId?: string;
+  intervalMs?: number;
   db: Database;
   logger?: Logger;
   rulesetChecksum?: string;
   beforeSource?: ReconciliationWorkerSourceGuard;
-}) {
+  batchSize?: number;
+}): BedrockWorker {
   const { db } = deps;
   const rulesetChecksum = deps.rulesetChecksum ?? "core-default-v1";
   const beforeSource = deps.beforeSource;
   const log =
     deps.logger?.child({ svc: "reconciliation-worker" }) ?? noopLogger;
+  const batchSize = deps.batchSize ?? 25;
   const reconciliation = createReconciliationService({
     db,
     logger: deps.logger,
   });
 
-  async function processOnce(opts?: { batchSize?: number }) {
-    const batchSize = opts?.batchSize ?? 25;
+  async function runPass() {
     const pendingSources = await listPendingSources(db, batchSize);
     let processed = 0;
 
@@ -156,7 +161,15 @@ export function createReconciliationWorker(deps: {
     return processed;
   }
 
+  async function runOnce(_ctx: WorkerRunContext): Promise<WorkerRunResult> {
+    const processed = await runPass();
+    return { processed };
+  }
+
   return {
-    processOnce,
+    id: deps.id ?? "reconciliation",
+    componentId: deps.componentId ?? "reconciliation",
+    intervalMs: deps.intervalMs ?? 60_000,
+    runOnce,
   };
 }

@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema/documents";
 import type { Database } from "@bedrock/db/types";
 
+import type { BedrockWorker, WorkerRunContext, WorkerRunResult } from "../worker-runtime";
 import {
   buildDocumentEventState,
   getLatestPostingArtifacts,
@@ -55,16 +56,19 @@ async function listOperationBookIds(
   );
 }
 
-export function createDocumentsWorker(deps: {
+export function createDocumentsWorkerDefinition(deps: {
+  id?: string;
+  componentId?: string;
+  intervalMs?: number;
   db: Database;
   beforeDocument?: DocumentsWorkerItemGuard;
-}) {
+  batchSize?: number;
+}): BedrockWorker {
   const { db } = deps;
   const beforeDocument = deps.beforeDocument;
+  const batchSize = deps.batchSize ?? 50;
 
-  async function processOnce(opts?: { batchSize?: number }) {
-    const batchSize = opts?.batchSize ?? 50;
-
+  async function runPass() {
     const claimed = await db.transaction(async (tx) => {
       const rows = await tx
         .select({
@@ -262,7 +266,15 @@ export function createDocumentsWorker(deps: {
     return finalized;
   }
 
+  async function runOnce(_ctx: WorkerRunContext): Promise<WorkerRunResult> {
+    const processed = await runPass();
+    return { processed };
+  }
+
   return {
-    processOnce,
+    id: deps.id ?? "documents",
+    componentId: deps.componentId ?? "documents",
+    intervalMs: deps.intervalMs ?? 5_000,
+    runOnce,
   };
 }

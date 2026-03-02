@@ -3,24 +3,35 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createStubDb, createMockTbClient, mockDbExecuteResult, type StubDatabase } from "./helpers";
 import { PostingError } from "../../src/ledger/errors";
 import { OPERATION_TRANSFER_TYPE } from "../../src/ledger/types";
-import { createLedgerWorker } from "../../src/ledger/worker";
+import { createLedgerWorkerDefinition } from "../../src/ledger/worker";
 
-describe("createLedgerWorker", () => {
+async function runWorkerOnce(
+  worker: ReturnType<typeof createLedgerWorkerDefinition>,
+  now: Date = new Date("2026-03-01T00:00:00Z"),
+) {
+  const result = await worker.runOnce({
+    now,
+    signal: new AbortController().signal,
+  });
+  return result.processed;
+}
+
+describe("createLedgerWorkerDefinition", () => {
   let db: StubDatabase;
   let tb: ReturnType<typeof createMockTbClient>;
-  let worker: ReturnType<typeof createLedgerWorker>;
+  let worker: ReturnType<typeof createLedgerWorkerDefinition>;
 
   beforeEach(() => {
     db = createStubDb();
     tb = createMockTbClient();
-    worker = createLedgerWorker({ db, tb });
+    worker = createLedgerWorkerDefinition({ db, tb });
   });
 
-  describe("processOnce", () => {
+  describe("runOnce", () => {
     it("should return 0 when no jobs available", async () => {
       vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-      const processed = await worker.processOnce();
+      const processed = await runWorkerOnce(worker);
 
       expect(processed).toBe(0);
     });
@@ -48,7 +59,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(tb.createTransfers).mockResolvedValue([]);
 
-      const processed = await worker.processOnce();
+      const processed = await runWorkerOnce(worker);
 
       expect(processed).toBe(1);
     });
@@ -73,7 +84,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(tb.createTransfers).mockResolvedValue([]);
 
-      const processed = await worker.processOnce();
+      const processed = await runWorkerOnce(worker);
 
       expect(processed).toBe(2);
     });
@@ -100,7 +111,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(tb.createTransfers).mockResolvedValue([]);
 
-      await worker.processOnce();
+      await runWorkerOnce(worker);
 
       // Should have called execute for claim and transaction for updates
       expect(db.execute).toHaveBeenCalled();
@@ -130,7 +141,7 @@ describe("createLedgerWorker", () => {
         }))
       } as any);
 
-      await worker.processOnce();
+      await runWorkerOnce(worker);
 
       // Should have updated outbox to retry
       expect(db.execute).toHaveBeenCalled();
@@ -158,7 +169,8 @@ describe("createLedgerWorker", () => {
         }))
       } as any);
 
-      await worker.processOnce({ maxAttempts: 25 });
+      worker = createLedgerWorkerDefinition({ db, tb, maxAttempts: 25 });
+      await runWorkerOnce(worker);
 
       // Should have marked as failed
       expect(db.execute).toHaveBeenCalled();
@@ -169,7 +181,8 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-      await worker.processOnce({ batchSize });
+      worker = createLedgerWorkerDefinition({ db, tb, batchSize });
+      await runWorkerOnce(worker);
 
       // Verify LIMIT was set correctly in query
       expect(db.execute).toHaveBeenCalled();
@@ -180,7 +193,8 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-      await worker.processOnce({ maxAttempts });
+      worker = createLedgerWorkerDefinition({ db, tb, maxAttempts });
+      await runWorkerOnce(worker);
 
       expect(db.execute).toHaveBeenCalled();
     });
@@ -190,7 +204,8 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-      await worker.processOnce({ leaseSeconds });
+      worker = createLedgerWorkerDefinition({ db, tb, leaseSeconds });
+      await runWorkerOnce(worker);
 
       expect(db.execute).toHaveBeenCalled();
     });
@@ -198,7 +213,8 @@ describe("createLedgerWorker", () => {
     it("should handle processing jobs with expired leases", async () => {
       vi.mocked(db.execute).mockResolvedValue(mockDbExecuteResult([]));
 
-      await worker.processOnce({ leaseSeconds: 600 });
+      worker = createLedgerWorkerDefinition({ db, tb, leaseSeconds: 600 });
+      await runWorkerOnce(worker);
 
       expect(db.execute).toHaveBeenCalled();
     });
@@ -267,7 +283,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(tb.createTransfers).mockResolvedValue([]);
 
-      await worker.processOnce();
+      await runWorkerOnce(worker);
 
       const transferCall = vi.mocked(tb.createTransfers).mock.calls[0];
       expect(transferCall).toBeDefined();
@@ -321,7 +337,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(tb.createTransfers).mockResolvedValue([]);
 
-      await worker.processOnce();
+      await runWorkerOnce(worker);
 
       const transferCall = vi.mocked(tb.createTransfers).mock.calls[0];
       expect(transferCall).toBeDefined();
@@ -373,7 +389,7 @@ describe("createLedgerWorker", () => {
         }))
       } as any);
 
-      await worker.processOnce();
+      await runWorkerOnce(worker);
 
       expect(tb.createTransfers).not.toHaveBeenCalled();
       expect(db.transaction).toHaveBeenCalled();
@@ -425,7 +441,7 @@ describe("createLedgerWorker", () => {
 
       vi.mocked(tb.createTransfers).mockResolvedValue([]);
 
-      await worker.processOnce();
+      await runWorkerOnce(worker);
 
       expect(tb.createTransfers).toHaveBeenCalled();
     });
@@ -477,7 +493,7 @@ describe("createLedgerWorker", () => {
         }))
       } as any);
 
-      await worker.processOnce();
+      await runWorkerOnce(worker);
 
       // Should have marked job for retry
       expect(db.execute).toHaveBeenCalled();
@@ -527,7 +543,7 @@ describe("createLedgerWorker", () => {
         }))
       } as any);
 
-      await worker.processOnce();
+      await runWorkerOnce(worker);
 
       // Should have caught error and retried
       expect(db.execute).toHaveBeenCalled();

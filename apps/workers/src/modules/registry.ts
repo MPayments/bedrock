@@ -1,60 +1,82 @@
 import type { Database } from "@bedrock/db/types";
 import type { Logger } from "@bedrock/foundation/kernel";
 import { createFeesService } from "@bedrock/modules/fees";
-import { createFxRatesWorker, createFxService } from "@bedrock/modules/fx";
-import { createBalancesProjectorWorker } from "@bedrock/platform/balances";
-import type {
-  BedrockComponentId,
-  ComponentRuntimeService,
+import {
+  createFxRatesWorkerDefinition,
+  createFxService,
+} from "@bedrock/modules/fx";
+import {
+  createBalancesProjectorWorkerDefinition,
+} from "@bedrock/platform/balances";
+import {
+  BEDROCK_COMPONENT_MANIFESTS,
+  type ComponentRuntimeService,
 } from "@bedrock/platform/component-runtime";
 import {
-  createAttemptDispatchWorker,
+  createAttemptDispatchWorkerDefinition,
   createConnectorsService,
-  createStatementIngestWorker,
-  createStatusPollerWorker,
+  createStatementIngestWorkerDefinition,
+  createStatusPollerWorkerDefinition,
   getMockProviders,
 } from "@bedrock/platform/connectors";
 import { createCurrenciesService } from "@bedrock/platform/currencies";
-import { createDocumentsWorker } from "@bedrock/platform/documents";
+import { createDocumentsWorkerDefinition } from "@bedrock/platform/documents";
 import {
-  createOrchestrationRetryWorker,
+  createLedgerWorkerDefinition,
+  type TbClient,
+} from "@bedrock/platform/ledger";
+import {
+  createOrchestrationRetryWorkerDefinition,
   createOrchestrationService,
 } from "@bedrock/platform/orchestration";
-import { createReconciliationWorker } from "@bedrock/platform/reconciliation";
+import { createReconciliationWorkerDefinition } from "@bedrock/platform/reconciliation";
+import {
+  listWorkerCatalogEntries,
+  type BedrockWorker,
+  type WorkerCatalogEntry,
+} from "@bedrock/platform/worker-runtime";
 
-import type { env as workerEnv } from "../env";
+import type { WorkerEnv } from "../env";
 import { isComponentEnabledForBooks } from "./runtime-guard";
-
-interface RegisteredWorker {
-  id: string;
-  intervalMs: number;
-  processOnce: () => Promise<unknown>;
-}
 
 interface WorkerModuleDeps {
   db: Database;
   logger: Logger;
-  env: typeof workerEnv;
+  env: WorkerEnv;
+  tb: TbClient;
   componentRuntime: ComponentRuntimeService;
 }
 
-interface WorkerComponentManifest {
-  id: string;
-  componentId: BedrockComponentId;
-  intervalMs: (runtimeEnv: typeof workerEnv) => number;
-  createProcessOnce: (deps: WorkerModuleDeps) => () => Promise<unknown>;
+const workerCatalogById = new Map<string, WorkerCatalogEntry>(
+  listWorkerCatalogEntries(BEDROCK_COMPONENT_MANIFESTS).map((entry) => [
+    entry.id,
+    entry,
+  ]),
+);
+
+function requireWorkerCatalogEntry(workerId: string): WorkerCatalogEntry {
+  const entry = workerCatalogById.get(workerId);
+  if (!entry) {
+    throw new Error(`Missing worker catalog entry for ${workerId}`);
+  }
+  return entry;
 }
 
-function createWorkerRegistry() {
-  const workers: RegisteredWorker[] = [];
+function createWorkerMetadata(
+  workerId: string,
+  env: WorkerEnv,
+): Pick<BedrockWorker, "id" | "componentId" | "intervalMs"> {
+  const entry = requireWorkerCatalogEntry(workerId);
+  const intervalMs = env.WORKER_INTERVALS[workerId] ?? entry.defaultIntervalMs;
+
+  if (!Number.isInteger(intervalMs) || intervalMs <= 0) {
+    throw new Error(`Invalid interval for worker ${workerId}: ${intervalMs}`);
+  }
 
   return {
-    registry: {
-      register(worker: RegisteredWorker) {
-        workers.push(worker);
-      },
-    },
-    workers,
+    id: workerId,
+    componentId: entry.componentId,
+    intervalMs,
   };
 }
 
@@ -66,194 +88,143 @@ function createConnectorsForWorker(deps: WorkerModuleDeps) {
   });
 }
 
-const WORKER_COMPONENT_MANIFESTS: WorkerComponentManifest[] = [
-  {
-    id: "documents",
-    componentId: "documents",
-    intervalMs: (runtimeEnv) => runtimeEnv.LEDGER_WORKER_INTERVAL_MS,
-    createProcessOnce: (deps) => {
-      const worker = createDocumentsWorker({
-        db: deps.db,
-        beforeDocument: ({ bookIds }) =>
-          isComponentEnabledForBooks({
-            componentRuntime: deps.componentRuntime,
-            componentId: "documents",
-            bookIds,
-          }),
-      });
-      return () => worker.processOnce();
-    },
-  },
-  {
-    id: "balances",
-    componentId: "balances",
-    intervalMs: (runtimeEnv) => runtimeEnv.BALANCES_WORKER_INTERVAL_MS,
-    createProcessOnce: (deps) => {
-      const worker = createBalancesProjectorWorker({
-        db: deps.db,
-        logger: deps.logger,
-        beforeOperation: ({ bookIds }) =>
-          isComponentEnabledForBooks({
-            componentRuntime: deps.componentRuntime,
-            componentId: "balances",
-            bookIds,
-          }),
-      });
-      return () => worker.processOnce();
-    },
-  },
-  {
-    id: "fx-rates",
-    componentId: "fx-rates",
-    intervalMs: (runtimeEnv) => runtimeEnv.FX_RATES_WORKER_INTERVAL_MS,
-    createProcessOnce: (deps) => {
-      const currenciesService = createCurrenciesService({
-        db: deps.db,
-        logger: deps.logger,
-      });
-      const feesService = createFeesService({
-        db: deps.db,
-        logger: deps.logger,
-        currenciesService,
-      });
-      const fxService = createFxService({
-        db: deps.db,
-        logger: deps.logger,
-        feesService,
-        currenciesService,
-      });
-      const worker = createFxRatesWorker({
-        fxService,
-        logger: deps.logger,
-        beforeSourceSync: () =>
-          deps.componentRuntime.isComponentEnabled({
-            componentId: "fx-rates",
-          }),
-      });
-      return () => worker.processOnce();
-    },
-  },
-  {
-    id: "reconciliation",
-    componentId: "reconciliation",
-    intervalMs: (runtimeEnv) => runtimeEnv.RECONCILIATION_WORKER_INTERVAL_MS,
-    createProcessOnce: (deps) => {
-      const worker = createReconciliationWorker({
-        db: deps.db,
-        logger: deps.logger,
-        beforeSource: () =>
-          deps.componentRuntime.isComponentEnabled({
-            componentId: "reconciliation",
-          }),
-      });
-      return () => worker.processOnce();
-    },
-  },
-  {
-    id: "connectors-dispatch",
-    componentId: "connectors",
-    intervalMs: (runtimeEnv) =>
-      runtimeEnv.CONNECTORS_DISPATCH_WORKER_INTERVAL_MS,
-    createProcessOnce: (deps) => {
-      const connectors = createConnectorsForWorker(deps);
-      const worker = createAttemptDispatchWorker({
-        connectors,
-        logger: deps.logger,
-        beforeAttempt: ({ bookId }) =>
-          isComponentEnabledForBooks({
-            componentRuntime: deps.componentRuntime,
-            componentId: "connectors",
-            bookIds: bookId ? [bookId] : undefined,
-          }),
-      });
-      return () => worker.processOnce();
-    },
-  },
-  {
-    id: "connectors-poller",
-    componentId: "connectors",
-    intervalMs: (runtimeEnv) => runtimeEnv.CONNECTORS_STATUS_POLLER_INTERVAL_MS,
-    createProcessOnce: (deps) => {
-      const connectors = createConnectorsForWorker(deps);
-      const worker = createStatusPollerWorker({
-        connectors,
-        logger: deps.logger,
-        beforeAttempt: ({ bookId }) =>
-          isComponentEnabledForBooks({
-            componentRuntime: deps.componentRuntime,
-            componentId: "connectors",
-            bookIds: bookId ? [bookId] : undefined,
-          }),
-      });
-      return () => worker.processOnce();
-    },
-  },
-  {
-    id: "connectors-statements",
-    componentId: "connectors",
-    intervalMs: (runtimeEnv) =>
-      runtimeEnv.CONNECTORS_STATEMENT_INGEST_INTERVAL_MS,
-    createProcessOnce: (deps) => {
-      const connectors = createConnectorsForWorker(deps);
-      const worker = createStatementIngestWorker({
-        connectors,
-        logger: deps.logger,
-        beforeCursor: () =>
-          deps.componentRuntime.isComponentEnabled({
-            componentId: "connectors",
-          }),
-      });
-      return () => worker.processOnce();
-    },
-  },
-  {
-    id: "orchestration-retry",
-    componentId: "orchestration",
-    intervalMs: (runtimeEnv) => runtimeEnv.ORCHESTRATION_WORKER_INTERVAL_MS,
-    createProcessOnce: (deps) => {
-      const connectors = createConnectorsForWorker(deps);
-      const orchestration = createOrchestrationService({
-        db: deps.db,
-        logger: deps.logger,
-      });
-      const worker = createOrchestrationRetryWorker({
-        connectors,
-        orchestration,
-        logger: deps.logger,
-        beforeAttempt: ({ bookId }) =>
-          isComponentEnabledForBooks({
-            componentRuntime: deps.componentRuntime,
-            componentId: "orchestration",
-            bookIds: bookId ? [bookId] : undefined,
-          }),
-      });
-      return () => worker.processOnce();
-    },
-  },
-];
+export function createWorkerImplementations(
+  deps: WorkerModuleDeps,
+): Record<string, BedrockWorker> {
+  const ledger = createLedgerWorkerDefinition({
+    ...createWorkerMetadata("ledger", deps.env),
+    db: deps.db,
+    tb: deps.tb,
+    beforeJob: ({ bookIds }) =>
+      isComponentEnabledForBooks({
+        componentRuntime: deps.componentRuntime,
+        componentId: "ledger",
+        bookIds,
+      }),
+  });
 
-export function registerApplicationWorkers(deps: WorkerModuleDeps) {
-  const { registry, workers } = createWorkerRegistry();
+  const documents = createDocumentsWorkerDefinition({
+    ...createWorkerMetadata("documents", deps.env),
+    db: deps.db,
+    beforeDocument: ({ bookIds }) =>
+      isComponentEnabledForBooks({
+        componentRuntime: deps.componentRuntime,
+        componentId: "documents",
+        bookIds,
+      }),
+  });
 
-  for (const component of WORKER_COMPONENT_MANIFESTS) {
-    const processOnce = component.createProcessOnce(deps);
+  const balances = createBalancesProjectorWorkerDefinition({
+    ...createWorkerMetadata("balances", deps.env),
+    db: deps.db,
+    logger: deps.logger,
+    beforeOperation: ({ bookIds }) =>
+      isComponentEnabledForBooks({
+        componentRuntime: deps.componentRuntime,
+        componentId: "balances",
+        bookIds,
+      }),
+  });
 
-    registry.register({
-      id: component.id,
-      intervalMs: component.intervalMs(deps.env),
-      processOnce: async () => {
-        const isEnabled = await deps.componentRuntime.isComponentEnabled({
-          componentId: component.componentId,
-        });
+  const currenciesService = createCurrenciesService({
+    db: deps.db,
+    logger: deps.logger,
+  });
+  const feesService = createFeesService({
+    db: deps.db,
+    logger: deps.logger,
+    currenciesService,
+  });
+  const fxService = createFxService({
+    db: deps.db,
+    logger: deps.logger,
+    feesService,
+    currenciesService,
+  });
+  const fxRates = createFxRatesWorkerDefinition({
+    ...createWorkerMetadata("fx-rates", deps.env),
+    fxService,
+    logger: deps.logger,
+    beforeSourceSync: () =>
+      deps.componentRuntime.isComponentEnabled({
+        componentId: "fx-rates",
+      }),
+  });
 
-        if (!isEnabled) {
-          return 0;
-        }
+  const reconciliation = createReconciliationWorkerDefinition({
+    ...createWorkerMetadata("reconciliation", deps.env),
+    db: deps.db,
+    logger: deps.logger,
+    beforeSource: () =>
+      deps.componentRuntime.isComponentEnabled({
+        componentId: "reconciliation",
+      }),
+  });
 
-        return processOnce();
-      },
-    });
-  }
+  const dispatchConnectors = createConnectorsForWorker(deps);
+  const connectorsDispatch = createAttemptDispatchWorkerDefinition({
+    ...createWorkerMetadata("connectors-dispatch", deps.env),
+    connectors: dispatchConnectors,
+    logger: deps.logger,
+    beforeAttempt: ({ bookId }) =>
+      isComponentEnabledForBooks({
+        componentRuntime: deps.componentRuntime,
+        componentId: "connectors",
+        bookIds: bookId ? [bookId] : undefined,
+      }),
+  });
 
-  return workers;
+  const pollerConnectors = createConnectorsForWorker(deps);
+  const connectorsPoller = createStatusPollerWorkerDefinition({
+    ...createWorkerMetadata("connectors-poller", deps.env),
+    connectors: pollerConnectors,
+    logger: deps.logger,
+    beforeAttempt: ({ bookId }) =>
+      isComponentEnabledForBooks({
+        componentRuntime: deps.componentRuntime,
+        componentId: "connectors",
+        bookIds: bookId ? [bookId] : undefined,
+      }),
+  });
+
+  const statementsConnectors = createConnectorsForWorker(deps);
+  const connectorsStatements = createStatementIngestWorkerDefinition({
+    ...createWorkerMetadata("connectors-statements", deps.env),
+    connectors: statementsConnectors,
+    logger: deps.logger,
+    beforeCursor: () =>
+      deps.componentRuntime.isComponentEnabled({
+        componentId: "connectors",
+      }),
+  });
+
+  const orchestrationConnectors = createConnectorsForWorker(deps);
+  const orchestrationService = createOrchestrationService({
+    db: deps.db,
+    logger: deps.logger,
+  });
+  const orchestrationRetry = createOrchestrationRetryWorkerDefinition({
+    ...createWorkerMetadata("orchestration-retry", deps.env),
+    connectors: orchestrationConnectors,
+    orchestration: orchestrationService,
+    logger: deps.logger,
+    beforeAttempt: ({ bookId }) =>
+      isComponentEnabledForBooks({
+        componentRuntime: deps.componentRuntime,
+        componentId: "orchestration",
+        bookIds: bookId ? [bookId] : undefined,
+      }),
+  });
+
+  return {
+    [ledger.id]: ledger,
+    [documents.id]: documents,
+    [balances.id]: balances,
+    [fxRates.id]: fxRates,
+    [reconciliation.id]: reconciliation,
+    [connectorsDispatch.id]: connectorsDispatch,
+    [connectorsPoller.id]: connectorsPoller,
+    [connectorsStatements.id]: connectorsStatements,
+    [orchestrationRetry.id]: orchestrationRetry,
+  };
 }

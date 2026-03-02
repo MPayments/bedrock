@@ -1,7 +1,7 @@
 export { createDocumentsService } from "./service";
 export type { DocumentsService } from "./service";
 export { createDocumentRegistry } from "./create-document-registry";
-export { createDocumentsWorker } from "./worker";
+export { createDocumentsWorkerDefinition } from "./worker";
 export { createDefaultDocumentActionPolicyService } from "./policy";
 export * from "./errors";
 export {

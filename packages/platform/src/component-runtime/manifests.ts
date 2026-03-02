@@ -1,6 +1,5 @@
 import type { ComponentManifest } from "./types";
 
-
 export const BEDROCK_COMPONENT_MANIFESTS = [
   {
     id: "system-components",
@@ -42,7 +41,14 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     scopeSupport: { global: true, book: true },
 
     capabilities: {
-      workers: ["ledger"],
+      workers: [
+        {
+          id: "ledger",
+          envKey: "LEDGER_WORKER_INTERVAL_MS",
+          defaultIntervalMs: 5_000,
+          description: "Posts pending ledger operations to TigerBeetle.",
+        },
+      ],
     },
     dependencies: [],
   },
@@ -107,7 +113,14 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
     scopeSupport: { global: true, book: true },
 
     capabilities: {
-      workers: ["documents"],
+      workers: [
+        {
+          id: "documents",
+          envKey: "DOCUMENTS_WORKER_INTERVAL_MS",
+          defaultIntervalMs: 5_000,
+          description: "Finalizes document posting states from ledger results.",
+        },
+      ],
     },
     dependencies: [
       {
@@ -296,7 +309,14 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
         version: "v1",
         routePath: "/fx/rates",
       },
-      workers: ["fx-rates"],
+      workers: [
+        {
+          id: "fx-rates",
+          envKey: "FX_RATES_WORKER_INTERVAL_MS",
+          defaultIntervalMs: 60_000,
+          description: "Refreshes stale FX rate sources.",
+        },
+      ],
     },
     dependencies: [
       {
@@ -321,9 +341,25 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
         routePath: "/connectors",
       },
       workers: [
-        "connectors-dispatch",
-        "connectors-poller",
-        "connectors-statements",
+        {
+          id: "connectors-dispatch",
+          envKey: "CONNECTORS_DISPATCH_WORKER_INTERVAL_MS",
+          defaultIntervalMs: 5_000,
+          description: "Dispatches queued connector attempts to providers.",
+        },
+        {
+          id: "connectors-poller",
+          envKey: "CONNECTORS_STATUS_POLLER_INTERVAL_MS",
+          defaultIntervalMs: 10_000,
+          description:
+            "Polls provider statuses for pending connector attempts.",
+        },
+        {
+          id: "connectors-statements",
+          envKey: "CONNECTORS_STATEMENT_INGEST_INTERVAL_MS",
+          defaultIntervalMs: 60_000,
+          description: "Ingests provider statements via connector cursors.",
+        },
       ],
     },
     dependencies: [
@@ -348,7 +384,14 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
         version: "v1",
         routePath: "/orchestration",
       },
-      workers: ["orchestration-retry"],
+      workers: [
+        {
+          id: "orchestration-retry",
+          envKey: "ORCHESTRATION_WORKER_INTERVAL_MS",
+          defaultIntervalMs: 5_000,
+          description: "Schedules retry/fallback attempts for failed routing.",
+        },
+      ],
     },
     dependencies: [
       {
@@ -406,7 +449,14 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
         version: "v1",
         routePath: "/balances",
       },
-      workers: ["balances"],
+      workers: [
+        {
+          id: "balances",
+          envKey: "BALANCES_WORKER_INTERVAL_MS",
+          defaultIntervalMs: 5_000,
+          description: "Projects posted ledger entries into balance positions.",
+        },
+      ],
     },
     dependencies: [
       {
@@ -430,7 +480,15 @@ export const BEDROCK_COMPONENT_MANIFESTS = [
         version: "v1",
         routePath: "/reconciliation",
       },
-      workers: ["reconciliation"],
+      workers: [
+        {
+          id: "reconciliation",
+          envKey: "RECONCILIATION_WORKER_INTERVAL_MS",
+          defaultIntervalMs: 60_000,
+          description:
+            "Runs reconciliation batches for pending external records.",
+        },
+      ],
     },
     dependencies: [
       {

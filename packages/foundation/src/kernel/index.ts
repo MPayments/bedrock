@@ -1,5 +1,10 @@
 export { createConsoleLogger, noopLogger } from "./logger";
 export type { Logger } from "./logger";
+export {
+  installShutdownHandlers,
+  runWorkerLoop,
+  type WorkerLoopObserver,
+} from "./worker-loop";
 export { canonicalJson, stableStringify, makePlanKey } from "./canon";
 export { sha256Hex } from "./crypto";
 export type { CorrelationContext } from "./correlation";

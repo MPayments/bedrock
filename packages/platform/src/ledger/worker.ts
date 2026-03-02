@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema/ledger";
 import type { Database, Transaction } from "@bedrock/db/types";
 
+import type { BedrockWorker, WorkerRunContext, WorkerRunResult } from "../worker-runtime";
 import { isRetryableError } from "./errors";
 import { makeTbAccount, makeTbTransfer, tbCreateAccountsOrThrow, tbCreateTransfersOrThrow, TransferFlags, TB_AMOUNT_MAX, type TbClient } from "./tb";
 import { OPERATION_TRANSFER_TYPE } from "./types";
@@ -21,6 +22,12 @@ export interface LedgerWorkerJobContext {
 type LedgerWorkerJobGuard = (
   input: LedgerWorkerJobContext,
 ) => Promise<boolean> | boolean;
+
+interface LedgerWorkerDefinitionConfig {
+  batchSize?: number;
+  maxAttempts?: number;
+  leaseSeconds?: number;
+}
 
 async function listOperationBookIds(
   db: Database,
@@ -73,23 +80,21 @@ async function releaseClaimedOutboxJob(input: {
   `);
 }
 
-export function createLedgerWorker(deps: {
+export function createLedgerWorkerDefinition(deps: {
+  id?: string;
+  componentId?: string;
+  intervalMs?: number;
   db: Database;
   tb: TbClient;
   beforeJob?: LedgerWorkerJobGuard;
-}) {
+} & LedgerWorkerDefinitionConfig): BedrockWorker {
   const { db, tb } = deps;
   const beforeJob = deps.beforeJob;
+  const batchSize = deps.batchSize ?? 50;
+  const maxAttempts = deps.maxAttempts ?? 25;
+  const leaseSeconds = deps.leaseSeconds ?? 600;
 
-  async function processOnce(opts?: {
-    batchSize?: number;
-    maxAttempts?: number;
-    leaseSeconds?: number;
-  }) {
-    const batchSize = opts?.batchSize ?? 50;
-    const maxAttempts = opts?.maxAttempts ?? 25;
-    const leaseSeconds = opts?.leaseSeconds ?? 600;
-
+  async function runPass() {
     const claimed = await db.execute(sql`
       WITH c AS (
         SELECT id
@@ -343,7 +348,15 @@ export function createLedgerWorker(deps: {
     });
   }
 
+  async function runOnce(_ctx: WorkerRunContext): Promise<WorkerRunResult> {
+    const processed = await runPass();
+    return { processed };
+  }
+
   return {
-    processOnce,
+    id: deps.id ?? "ledger",
+    componentId: deps.componentId ?? "ledger",
+    intervalMs: deps.intervalMs ?? 5_000,
+    runOnce,
   };
 }

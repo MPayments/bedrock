@@ -5,6 +5,8 @@ import { schema as ledgerSchema } from "@bedrock/db/schema/ledger";
 import type { Database, Transaction } from "@bedrock/db/types";
 import { noopLogger, type Logger } from "@bedrock/foundation/kernel";
 
+import type { BedrockWorker, WorkerRunContext, WorkerRunResult } from "../worker-runtime";
+
 const schema = {
   ...balancesSchema,
   ...ledgerSchema,
@@ -385,18 +387,21 @@ async function listProjectionPostingRowsTx(
   }));
 }
 
-export function createBalancesProjectorWorker(deps: {
+export function createBalancesProjectorWorkerDefinition(deps: {
+  id?: string;
+  componentId?: string;
+  intervalMs?: number;
   db: Database;
   logger?: Logger;
   beforeOperation?: BalancesWorkerOperationGuard;
-}) {
+  batchSize?: number;
+}): BedrockWorker {
   const db = deps.db;
   const log = deps.logger?.child({ svc: "balances-projector" }) ?? noopLogger;
   const beforeOperation = deps.beforeOperation;
+  const batchSize = deps.batchSize ?? 100;
 
-  async function processOnce(opts?: { batchSize?: number }) {
-    const batchSize = opts?.batchSize ?? 100;
-
+  async function runPass() {
     return db.transaction(async (tx) => {
       const cursor = await ensureCursorTx(tx);
       const operations = await listOperationsAfterCursorTx(tx, cursor, batchSize);
@@ -458,7 +463,15 @@ export function createBalancesProjectorWorker(deps: {
     });
   }
 
+  async function runOnce(_ctx: WorkerRunContext): Promise<WorkerRunResult> {
+    const processed = await runPass();
+    return { processed };
+  }
+
   return {
-    processOnce,
+    id: deps.id ?? "balances",
+    componentId: deps.componentId ?? "balances",
+    intervalMs: deps.intervalMs ?? 5_000,
+    runOnce,
   };
 }

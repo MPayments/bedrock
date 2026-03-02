@@ -62,6 +62,21 @@ Run docs app only:
 bun run --cwd apps/docs dev
 ```
 
+Run workers:
+
+```bash
+bun run --cwd apps/workers worker:all
+bun run --cwd apps/workers worker:ledger
+bun run --cwd apps/workers worker:documents
+bun run --cwd apps/workers worker:balances
+bun run --cwd apps/workers worker:fx-rates
+bun run --cwd apps/workers worker:reconciliation
+bun run --cwd apps/workers worker:connectors-dispatch
+bun run --cwd apps/workers worker:connectors-poller
+bun run --cwd apps/workers worker:connectors-statements
+bun run --cwd apps/workers worker:orchestration-retry
+```
+
 ## Build and Quality
 
 Build everything:

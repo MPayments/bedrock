@@ -89,6 +89,14 @@ function normalizeManifestsForChecksum(manifests: ComponentManifest[]) {
   return [...manifests]
     .map((manifest) => ({
       ...manifest,
+      capabilities: {
+        ...manifest.capabilities,
+        workers: manifest.capabilities.workers
+          ? [...manifest.capabilities.workers].sort((left, right) =>
+              left.id.localeCompare(right.id),
+            )
+          : undefined,
+      },
       dependencies: [...manifest.dependencies].sort((a, b) =>
         a.componentId.localeCompare(b.componentId),
       ),
@@ -99,6 +107,8 @@ function normalizeManifestsForChecksum(manifests: ComponentManifest[]) {
 function validateComponentManifests(manifests: ComponentManifest[]) {
   const issues: string[] = [];
   const ids = new Set<string>();
+  const globalWorkerIds = new Set<string>();
+  const globalWorkerEnvKeys = new Set<string>();
 
   for (const manifest of manifests) {
     if (!manifest.id.trim()) {
@@ -127,18 +137,54 @@ function validateComponentManifests(manifests: ComponentManifest[]) {
 
     if (manifest.capabilities.workers) {
       const seenWorkerIds = new Set<string>();
-      for (const workerId of manifest.capabilities.workers) {
-        if (!workerId.trim()) {
+      const seenWorkerEnvKeys = new Set<string>();
+      for (const worker of manifest.capabilities.workers) {
+        if (!worker.id.trim()) {
           issues.push(`component ${manifest.id} has empty worker capability id`);
           continue;
         }
-        if (seenWorkerIds.has(workerId)) {
+        if (!worker.envKey.trim()) {
           issues.push(
-            `component ${manifest.id} has duplicate worker capability ${workerId}`,
+            `component ${manifest.id} has worker ${worker.id} with empty envKey`,
           );
           continue;
         }
-        seenWorkerIds.add(workerId);
+        if (!Number.isInteger(worker.defaultIntervalMs) || worker.defaultIntervalMs <= 0) {
+          issues.push(
+            `component ${manifest.id} worker ${worker.id} must have positive integer defaultIntervalMs`,
+          );
+        }
+        if (!worker.description.trim()) {
+          issues.push(
+            `component ${manifest.id} worker ${worker.id} must have non-empty description`,
+          );
+        }
+        if (seenWorkerIds.has(worker.id)) {
+          issues.push(
+            `component ${manifest.id} has duplicate worker capability ${worker.id}`,
+          );
+          continue;
+        }
+        if (seenWorkerEnvKeys.has(worker.envKey)) {
+          issues.push(
+            `component ${manifest.id} has duplicate worker envKey ${worker.envKey}`,
+          );
+          continue;
+        }
+        seenWorkerIds.add(worker.id);
+        seenWorkerEnvKeys.add(worker.envKey);
+
+        if (globalWorkerIds.has(worker.id)) {
+          issues.push(`duplicate worker capability id ${worker.id}`);
+        } else {
+          globalWorkerIds.add(worker.id);
+        }
+
+        if (globalWorkerEnvKeys.has(worker.envKey)) {
+          issues.push(`duplicate worker envKey ${worker.envKey}`);
+        } else {
+          globalWorkerEnvKeys.add(worker.envKey);
+        }
       }
     }
   }

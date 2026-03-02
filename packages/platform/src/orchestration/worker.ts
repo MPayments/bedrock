@@ -1,6 +1,7 @@
 import { noopLogger, type Logger } from "@bedrock/foundation/kernel";
 import type { ConnectorsService } from "@bedrock/platform/connectors";
 
+import type { BedrockWorker, WorkerRunContext, WorkerRunResult } from "../worker-runtime";
 import type { OrchestrationService } from "./service";
 
 function readBookIdFromIntentMetadata(
@@ -27,7 +28,10 @@ type OrchestrationRetryAttemptGuard = (
   input: OrchestrationRetryAttemptContext,
 ) => Promise<boolean> | boolean;
 
-export function createOrchestrationRetryWorker(deps: {
+export function createOrchestrationRetryWorkerDefinition(deps: {
+  id?: string;
+  componentId?: string;
+  intervalMs?: number;
   connectors: Pick<
     ConnectorsService,
     "listAttempts" | "getIntentById" | "enqueueAttempt"
@@ -38,15 +42,15 @@ export function createOrchestrationRetryWorker(deps: {
   >;
   logger?: Logger;
   beforeAttempt?: OrchestrationRetryAttemptGuard;
-}) {
+  batchSize?: number;
+}): BedrockWorker {
   const { connectors, orchestration } = deps;
   const beforeAttempt = deps.beforeAttempt;
   const log =
     deps.logger?.child({ svc: "orchestration-retry-worker" }) ?? noopLogger;
+  const batchSize = deps.batchSize ?? 25;
 
-  async function processOnce(opts?: { batchSize?: number; now?: Date }) {
-    const now = opts?.now ?? new Date();
-    const batchSize = opts?.batchSize ?? 25;
+  async function runPass(now: Date) {
     const attempts = await connectors.listAttempts({
       status: "failed_retryable",
       limit: batchSize,
@@ -114,7 +118,15 @@ export function createOrchestrationRetryWorker(deps: {
     return processed;
   }
 
+  async function runOnce(ctx: WorkerRunContext): Promise<WorkerRunResult> {
+    const processed = await runPass(ctx.now);
+    return { processed };
+  }
+
   return {
-    processOnce,
+    id: deps.id ?? "orchestration-retry",
+    componentId: deps.componentId ?? "orchestration",
+    intervalMs: deps.intervalMs ?? 5_000,
+    runOnce,
   };
 }

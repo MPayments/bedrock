@@ -6,6 +6,7 @@
     "dev": "turbo run dev --concurrency 30",
     "lint": "turbo run lint",
     "check:boundaries": "node ./scripts/check-boundaries.mjs && node ./scripts/check-accounting-literals.mjs && node ./scripts/check-deprecated-imports.mjs",
+    "check:worker-runtime": "node ./scripts/check-worker-runtime.mjs",
     "check:workspace-deps": "node ./scripts/check-workspace-deps.mjs",
     "pack:validate": "bun run --filter=@bedrock/platform pack:validate",
     "pack:compile": "bun run --filter=@bedrock/platform pack:compile",

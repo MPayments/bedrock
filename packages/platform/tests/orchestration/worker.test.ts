@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createOrchestrationRetryWorker } from "../../src/orchestration/worker";
+import { createOrchestrationRetryWorkerDefinition } from "../../src/orchestration/worker";
 
-describe("createOrchestrationRetryWorker per-item guard", () => {
+describe("createOrchestrationRetryWorkerDefinition per-item guard", () => {
   it("skips retry scheduling when guard blocks attempt", async () => {
     const connectors = {
       listAttempts: vi.fn(async () => [
@@ -35,12 +35,16 @@ describe("createOrchestrationRetryWorker per-item guard", () => {
     } as any;
     const beforeAttempt = vi.fn(async () => false);
 
-    const worker = createOrchestrationRetryWorker({
+    const worker = createOrchestrationRetryWorkerDefinition({
       connectors,
       orchestration,
       beforeAttempt,
     });
-    const processed = await worker.processOnce();
+    const result = await worker.runOnce({
+      now: new Date("2026-03-01T00:00:00Z"),
+      signal: new AbortController().signal,
+    });
+    const processed = result.processed;
 
     expect(processed).toBe(0);
     expect(beforeAttempt).toHaveBeenCalledTimes(1);

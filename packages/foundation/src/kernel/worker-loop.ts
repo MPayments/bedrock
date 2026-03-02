@@ -1,21 +1,35 @@
-import { createConsoleLogger } from "@bedrock/foundation/kernel";
+import { createConsoleLogger } from "./logger";
 
-import type { RunLoopObserver } from "./monitoring";
+export interface WorkerLoopObserver {
+  onLoopStarted?: () => void;
+  onTickStarted?: () => void;
+  onTickSucceeded?: (input: {
+    durationMs: number;
+    processed: number;
+    result: unknown;
+  }) => void;
+  onTickFailed?: (input: { durationMs: number; error: unknown }) => void;
+  onLoopStopped?: () => void;
+}
 
-interface RunLoopOptions {
+interface WorkerLoopOptions {
   intervalMs: number;
+  observer?: WorkerLoopObserver;
 }
 
 const MAX_BACKOFF_MS = 60_000;
 
-export function runLoop(
-  name: string,
-  processFn: () => Promise<unknown>,
-  options: RunLoopOptions,
-  observer?: RunLoopObserver,
-): { promise: Promise<void>; stop: () => void } {
-  const logger = createConsoleLogger({ app: "bedrock-workers", worker: name });
-  const { intervalMs } = options;
+export function runWorkerLoop(input: {
+  appName: string;
+  workerName: string;
+  processFn: () => Promise<unknown>;
+  options: WorkerLoopOptions;
+}): { promise: Promise<void>; stop: () => void } {
+  const logger = createConsoleLogger({
+    app: input.appName,
+    worker: input.workerName,
+  });
+  const { intervalMs, observer } = input.options;
   let stopped = false;
 
   function stop() {
@@ -23,7 +37,7 @@ export function runLoop(
   }
 
   async function loop() {
-    logger.info(`${name} worker started`, { intervalMs });
+    logger.info(`${input.workerName} worker started`, { intervalMs });
     observer?.onLoopStarted?.();
 
     let consecutiveFailures = 0;
@@ -32,20 +46,20 @@ export function runLoop(
       const startedAt = Date.now();
       try {
         observer?.onTickStarted?.();
-        const result = await processFn();
+        const result = await input.processFn();
         const processed =
           typeof result === "number" ? result : result != null ? 1 : 0;
         const durationMs = Date.now() - startedAt;
         observer?.onTickSucceeded?.({ durationMs, processed, result });
         if (processed > 0) {
-          logger.debug(`${name} worker tick`, { result });
+          logger.debug(`${input.workerName} worker tick`, { result });
         }
         consecutiveFailures = 0;
       } catch (error) {
-        consecutiveFailures++;
+        consecutiveFailures += 1;
         const durationMs = Date.now() - startedAt;
         observer?.onTickFailed?.({ durationMs, error });
-        logger.error(`${name} worker tick failed`, {
+        logger.error(`${input.workerName} worker tick failed`, {
           error: error instanceof Error ? error.message : String(error),
           consecutiveFailures,
         });
@@ -59,12 +73,12 @@ export function runLoop(
             )
           : intervalMs;
 
-      // Add jitter (up to 20% of backoff) to avoid thundering herd
+      // Add jitter (up to 20% of backoff) to avoid thundering herd.
       const jitter = Math.floor(backoffMs * 0.2 * Math.random());
       await sleep(backoffMs + jitter);
     }
 
-    logger.info(`${name} worker stopped`);
+    logger.info(`${input.workerName} worker stopped`);
     observer?.onLoopStopped?.();
   }
 
@@ -82,6 +96,7 @@ export function installShutdownHandlers(stopFn: () => void) {
     called = true;
     stopFn();
   };
+
   process.on("SIGINT", handler);
   process.on("SIGTERM", handler);
 }

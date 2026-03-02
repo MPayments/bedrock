@@ -1,5 +1,6 @@
 import { noopLogger, sha256Hex, stableStringify, type Logger } from "@bedrock/foundation/kernel";
 
+import type { BedrockWorker, WorkerRunContext, WorkerRunResult } from "../../worker-runtime";
 import { ConnectorProviderNotConfiguredError } from "../errors";
 import type { ConnectorsService } from "../service";
 
@@ -12,29 +13,36 @@ type StatementIngestWorkerCursorGuard = (
   input: StatementIngestWorkerCursorContext,
 ) => Promise<boolean> | boolean;
 
-export function createStatementIngestWorker(deps: {
+export function createStatementIngestWorkerDefinition(deps: {
+  id?: string;
+  componentId?: string;
+  intervalMs?: number;
   connectors: Pick<
     ConnectorsService,
     "claimStatementProviders" | "ingestStatementBatch" | "providers"
   >;
   logger?: Logger;
   beforeCursor?: StatementIngestWorkerCursorGuard;
-}) {
+  batchSize?: number;
+  workerId?: string;
+  leaseSec?: number;
+}): BedrockWorker & {
+  processProviderOnce: (input: {
+    providerCode: string;
+    cursorKey?: string;
+    cursorValue?: string | null;
+    range: { from: Date; to: Date };
+  }) => Promise<{ inserted: number }>;
+} {
   const { connectors } = deps;
   const beforeCursor = deps.beforeCursor;
   const log =
     deps.logger?.child({ svc: "connectors-statement-ingest" }) ?? noopLogger;
+  const batchSize = deps.batchSize ?? 20;
+  const workerId = deps.workerId ?? "statement-ingest";
+  const leaseSec = deps.leaseSec ?? 120;
 
-  async function processOnce(opts?: {
-    batchSize?: number;
-    workerId?: string;
-    leaseSec?: number;
-    now?: Date;
-  }) {
-    const now = opts?.now ?? new Date();
-    const batchSize = opts?.batchSize ?? 20;
-    const workerId = opts?.workerId ?? "statement-ingest";
-    const leaseSec = opts?.leaseSec ?? 120;
+  async function runPass(now: Date) {
     const cursors = await connectors.claimStatementProviders({
       batchSize,
       workerId,
@@ -155,5 +163,16 @@ export function createStatementIngestWorker(deps: {
     });
   }
 
-  return { processOnce, processProviderOnce };
+  async function runOnce(ctx: WorkerRunContext): Promise<WorkerRunResult> {
+    const processed = await runPass(ctx.now);
+    return { processed };
+  }
+
+  return {
+    id: deps.id ?? "connectors-statements",
+    componentId: deps.componentId ?? "connectors",
+    intervalMs: deps.intervalMs ?? 60_000,
+    runOnce,
+    processProviderOnce,
+  };
 }

@@ -7,7 +7,17 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { schema } from "@bedrock/db/schema/balances";
 import { canonicalJson, sha256Hex } from "@bedrock/foundation/kernel";
 
-import { createBalancesProjectorWorker } from "../../../src/balances/worker";
+import { createBalancesProjectorWorkerDefinition } from "../../../src/balances/worker";
+
+async function runWorkerOnce(
+  worker: ReturnType<typeof createBalancesProjectorWorkerDefinition>,
+) {
+  const result = await worker.runOnce({
+    now: new Date("2026-03-01T00:00:00Z"),
+    signal: new AbortController().signal,
+  });
+  return result.processed;
+}
 
 const pool = new Pool({
   host: process.env.DB_HOST || "localhost",
@@ -177,10 +187,10 @@ describe("balances projector integration", () => {
       });
     }
 
-    const worker = createBalancesProjectorWorker({ db });
+    const worker = createBalancesProjectorWorkerDefinition({ db });
 
-    await expect(worker.processOnce()).resolves.toBe(1);
-    await expect(worker.processOnce()).resolves.toBe(0);
+    await expect(runWorkerOnce(worker)).resolves.toBe(1);
+    await expect(runWorkerOnce(worker)).resolves.toBe(0);
 
     const positions = await db
       .select({

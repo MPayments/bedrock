@@ -7,7 +7,18 @@ import { createCurrenciesService } from "@bedrock/platform/currencies";
 
 import { db } from "./setup";
 import { createFxService } from "../../../src/fx/service";
-import { createFxRatesWorker } from "../../../src/fx/worker";
+import { createFxRatesWorkerDefinition } from "../../../src/fx/worker";
+
+async function runWorkerOnce(
+    worker: ReturnType<typeof createFxRatesWorkerDefinition>,
+    now: Date,
+) {
+    const result = await worker.runOnce({
+        now,
+        signal: new AbortController().signal,
+    });
+    return result.processed;
+}
 
 function createNoopFeesService() {
     return {
@@ -58,7 +69,7 @@ function createInvestingProvider(publishedAt: Date) {
 }
 
 describe("FX worker integration", () => {
-    it("syncs expired sources in processOnce()", async () => {
+    it("syncs expired sources in runOnce()", async () => {
         const now = new Date("2026-02-19T12:00:00.000Z");
         const provider = createProvider(new Date("2026-02-19T00:00:00.000Z"));
         const investingProvider = {
@@ -77,9 +88,9 @@ describe("FX worker integration", () => {
                 investing: investingProvider,
             },
         });
-        const worker = createFxRatesWorker({ fxService });
+        const worker = createFxRatesWorkerDefinition({ fxService });
 
-        const processed = await worker.processOnce({ now });
+        const processed = await runWorkerOnce(worker, now);
         expect(processed).toBe(1);
         expect(provider.fetchLatest).toHaveBeenCalledTimes(1);
         expect(investingProvider.fetchLatest).toHaveBeenCalledTimes(1);
@@ -96,7 +107,7 @@ describe("FX worker integration", () => {
         expect(status!.lastSyncedAt?.toISOString()).toBe(now.toISOString());
     });
 
-    it("skips sources with non-expired TTL in processOnce()", async () => {
+    it("skips sources with non-expired TTL in runOnce()", async () => {
         const initialNow = new Date("2026-02-19T12:00:00.000Z");
         const workerNow = new Date("2026-02-19T12:04:00.000Z");
         const provider = createProvider(initialNow);
@@ -111,7 +122,7 @@ describe("FX worker integration", () => {
                 investing: investingProvider,
             },
         });
-        const worker = createFxRatesWorker({ fxService });
+        const worker = createFxRatesWorkerDefinition({ fxService });
 
         await fxService.syncRatesFromSource({
             source: "cbr",
@@ -126,7 +137,7 @@ describe("FX worker integration", () => {
         provider.fetchLatest.mockClear();
         investingProvider.fetchLatest.mockClear();
 
-        const processed = await worker.processOnce({ now: workerNow });
+        const processed = await runWorkerOnce(worker, workerNow);
         expect(processed).toBe(0);
         expect(provider.fetchLatest).not.toHaveBeenCalled();
         expect(investingProvider.fetchLatest).not.toHaveBeenCalled();

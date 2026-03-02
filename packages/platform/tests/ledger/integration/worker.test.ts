@@ -15,11 +15,22 @@ import {
 } from "./helpers";
 import { createLedgerEngine } from "../../../src/ledger/engine";
 import { OPERATION_TRANSFER_TYPE } from "../../../src/ledger/types";
-import { createLedgerWorker } from "../../../src/ledger/worker";
+import { createLedgerWorkerDefinition } from "../../../src/ledger/worker";
+
+async function runWorkerOnce(
+  worker: ReturnType<typeof createLedgerWorkerDefinition>,
+  now: Date = new Date("2026-03-01T00:00:00Z"),
+) {
+  const result = await worker.runOnce({
+    now,
+    signal: new AbortController().signal,
+  });
+  return result.processed;
+}
 
 describe("Worker Integration Tests", () => {
   const engine = createLedgerEngine({ db });
-  const worker = createLedgerWorker({ db, tb });
+  const worker = createLedgerWorkerDefinition({ db, tb });
 
   it("posts create operation to TigerBeetle", async () => {
     const { operationId } = await engine.commitStandalone({
@@ -48,7 +59,7 @@ describe("Worker Integration Tests", () => {
       ],
     });
 
-    const processed = await worker.processOnce();
+    const processed = await runWorkerOnce(worker);
     expect(processed).toBe(1);
 
     const operation = await getOperation(operationId);
@@ -97,7 +108,7 @@ describe("Worker Integration Tests", () => {
       ],
     });
 
-    await worker.processOnce();
+    await runWorkerOnce(worker);
 
     const plans = await getTbTransferPlans(operationId);
     const transfer = await getTbTransfer(plans[0]!.transferId);
@@ -139,7 +150,8 @@ describe("Worker Integration Tests", () => {
       });
     }
 
-    const processed = await worker.processOnce({ batchSize: 10 });
+    const batchWorker = createLedgerWorkerDefinition({ db, tb, batchSize: 10 });
+    const processed = await runWorkerOnce(batchWorker);
     expect(processed).toBe(3);
   });
 });

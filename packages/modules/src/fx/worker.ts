@@ -1,4 +1,9 @@
 import { type Logger } from "@bedrock/foundation/kernel";
+import type {
+    BedrockWorker,
+    WorkerRunContext,
+    WorkerRunResult,
+} from "@bedrock/platform/worker-runtime";
 
 import { type FxService } from "./service";
 import { type FxRateSource } from "./sources";
@@ -11,16 +16,18 @@ type FxRatesWorkerSourceGuard = (
     input: FxRatesWorkerSourceContext,
 ) => Promise<boolean> | boolean;
 
-export function createFxRatesWorker(deps: {
+export function createFxRatesWorkerDefinition(deps: {
+    id?: string;
+    componentId?: string;
+    intervalMs?: number;
     fxService: FxService;
     logger?: Logger;
     beforeSourceSync?: FxRatesWorkerSourceGuard;
-}) {
+}): BedrockWorker {
     const { fxService, logger } = deps;
     const beforeSourceSync = deps.beforeSourceSync;
 
-    async function processOnce(opts?: { now?: Date }) {
-        const now = opts?.now ?? new Date();
+    async function runPass(now: Date) {
         const statuses = await fxService.getRateSourceStatuses(now);
 
         let processed = 0;
@@ -53,7 +60,15 @@ export function createFxRatesWorker(deps: {
         return processed;
     }
 
+    async function runOnce(ctx: WorkerRunContext): Promise<WorkerRunResult> {
+        const processed = await runPass(ctx.now);
+        return { processed };
+    }
+
     return {
-        processOnce,
+        id: deps.id ?? "fx-rates",
+        componentId: deps.componentId ?? "fx-rates",
+        intervalMs: deps.intervalMs ?? 60_000,
+        runOnce,
     };
 }

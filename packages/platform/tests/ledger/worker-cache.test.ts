@@ -8,18 +8,27 @@ import {
 } from "./helpers";
 import { TransferFlags } from "../../src/ledger/tb";
 import { OPERATION_TRANSFER_TYPE } from "../../src/ledger/types";
-import type { createLedgerWorker as createLedgerWorkerFactory } from "../../src/ledger/worker";
+import type { createLedgerWorkerDefinition as createLedgerWorkerDefinitionFactory } from "../../src/ledger/worker";
 
-describe("createLedgerWorker account setup", () => {
+async function runWorkerOnce(
+  worker: ReturnType<typeof createLedgerWorkerDefinitionFactory>,
+) {
+  await worker.runOnce({
+    now: new Date("2026-03-01T00:00:00Z"),
+    signal: new AbortController().signal,
+  });
+}
+
+describe("createLedgerWorkerDefinition account setup", () => {
   let db: StubDatabase;
   let tb: ReturnType<typeof createMockTbClient>;
-  let worker: ReturnType<typeof createLedgerWorkerFactory>;
+  let worker: ReturnType<typeof createLedgerWorkerDefinitionFactory>;
 
   beforeEach(async () => {
     db = createStubDb();
     tb = createMockTbClient();
-    const { createLedgerWorker } = await import("../../src/ledger/worker");
-    worker = createLedgerWorker({ db, tb });
+    const { createLedgerWorkerDefinition } = await import("../../src/ledger/worker");
+    worker = createLedgerWorkerDefinition({ db, tb });
   });
 
   it("creates unique TB accounts once and posts linked pending transfers", async () => {
@@ -76,7 +85,7 @@ describe("createLedgerWorker account setup", () => {
       })),
     } as any);
 
-    await worker.processOnce();
+    await runWorkerOnce(worker);
 
     const accountCall = vi.mocked(tb.createAccounts).mock.calls[0];
     expect(accountCall).toBeDefined();

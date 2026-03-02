@@ -7,7 +7,17 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { schema } from "@bedrock/db/schema/reconciliation";
 
 import { createReconciliationService } from "../../../src/reconciliation/service";
-import { createReconciliationWorker } from "../../../src/reconciliation/worker";
+import { createReconciliationWorkerDefinition } from "../../../src/reconciliation/worker";
+
+async function runWorkerOnce(
+  worker: ReturnType<typeof createReconciliationWorkerDefinition>,
+) {
+  const result = await worker.runOnce({
+    now: new Date("2026-03-01T00:00:00Z"),
+    signal: new AbortController().signal,
+  });
+  return result.processed;
+}
 
 const pool = new Pool({
   host: process.env.DB_HOST || "localhost",
@@ -115,13 +125,13 @@ describe("reconciliation worker integration", () => {
       idempotencyKey: `ingest:${source}:unmatched`,
     });
 
-    const worker = createReconciliationWorker({
+    const worker = createReconciliationWorkerDefinition({
       db,
       rulesetChecksum: "core-default-v1",
     });
 
-    await expect(worker.processOnce()).resolves.toBe(1);
-    await expect(worker.processOnce()).resolves.toBe(0);
+    await expect(runWorkerOnce(worker)).resolves.toBe(1);
+    await expect(runWorkerOnce(worker)).resolves.toBe(0);
 
     const runs = await db
       .select()
@@ -190,8 +200,8 @@ describe("reconciliation worker integration", () => {
       idempotencyKey: `ingest:${source}:matched-2`,
     });
 
-    await expect(worker.processOnce()).resolves.toBe(1);
-    await expect(worker.processOnce()).resolves.toBe(0);
+    await expect(runWorkerOnce(worker)).resolves.toBe(1);
+    await expect(runWorkerOnce(worker)).resolves.toBe(0);
 
     const allRuns = await db
       .select()

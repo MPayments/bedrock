@@ -1,5 +1,6 @@
 import { noopLogger, sha256Hex, stableStringify, type Logger } from "@bedrock/foundation/kernel";
 
+import type { BedrockWorker, WorkerRunContext, WorkerRunResult } from "../../worker-runtime";
 import { ConnectorProviderNotConfiguredError } from "../errors";
 import type { ConnectorsService } from "../service";
 
@@ -25,7 +26,10 @@ type StatusPollerWorkerItemGuard = (
   input: StatusPollerWorkerItemContext,
 ) => Promise<boolean> | boolean;
 
-export function createStatusPollerWorker(deps: {
+export function createStatusPollerWorkerDefinition(deps: {
+  id?: string;
+  componentId?: string;
+  intervalMs?: number;
   connectors: Pick<
     ConnectorsService,
     | "claimPollBatch"
@@ -35,22 +39,19 @@ export function createStatusPollerWorker(deps: {
   >;
   logger?: Logger;
   beforeAttempt?: StatusPollerWorkerItemGuard;
-}) {
+  batchSize?: number;
+  workerId?: string;
+  leaseSec?: number;
+}): BedrockWorker {
   const { connectors } = deps;
   const beforeAttempt = deps.beforeAttempt;
   const log =
     deps.logger?.child({ svc: "connectors-status-poller" }) ?? noopLogger;
+  const batchSize = deps.batchSize ?? 50;
+  const workerId = deps.workerId ?? "status-poller";
+  const leaseSec = deps.leaseSec ?? 60;
 
-  async function processOnce(opts?: {
-    batchSize?: number;
-    workerId?: string;
-    leaseSec?: number;
-    now?: Date;
-  }) {
-    const now = opts?.now ?? new Date();
-    const batchSize = opts?.batchSize ?? 50;
-    const workerId = opts?.workerId ?? "status-poller";
-    const leaseSec = opts?.leaseSec ?? 60;
+  async function runPass(now: Date) {
     const claimed = await connectors.claimPollBatch({
       batchSize,
       workerId,
@@ -142,5 +143,15 @@ export function createStatusPollerWorker(deps: {
     return processed;
   }
 
-  return { processOnce };
+  async function runOnce(ctx: WorkerRunContext): Promise<WorkerRunResult> {
+    const processed = await runPass(ctx.now);
+    return { processed };
+  }
+
+  return {
+    id: deps.id ?? "connectors-poller",
+    componentId: deps.componentId ?? "connectors",
+    intervalMs: deps.intervalMs ?? 10_000,
+    runOnce,
+  };
 }
