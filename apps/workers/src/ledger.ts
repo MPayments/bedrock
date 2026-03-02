@@ -1,11 +1,11 @@
 import "./env";
 
 import { db } from "@bedrock/db/client";
-import { createLedgerWorker, createTbClient } from "@bedrock/ledger";
+import { createLedgerWorker, createTbClient } from "@bedrock/platform/ledger";
 import {
   BEDROCK_COMPONENT_MANIFESTS,
   createComponentRuntimeService,
-} from "@bedrock/component-runtime";
+} from "@bedrock/platform/component-runtime";
 
 import { env } from "./env";
 import { isComponentEnabledForBooks } from "./modules/runtime-guard";

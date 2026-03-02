@@ -12,6 +12,23 @@ infra/       — Docker Compose (PostgreSQL, TigerBeetle)
 
 Stack: TypeScript 5.8, Hono, Next.js, Drizzle ORM, PostgreSQL, TigerBeetle, Zod, Vitest, Pino.
 
+## Workspace Topology
+
+Runtime is consolidated into two workspace packages:
+
+- `@bedrock/platform` (core domains)
+- `@bedrock/modules` (business modules)
+
+Core dependency direction:
+
+- `@bedrock/foundation -> @bedrock/db -> @bedrock/platform -> @bedrock/modules -> apps/*`
+
+Hard rules:
+
+- No legacy runtime specifiers (`@bedrock/<domain>`) in runtime code.
+- No runtime schema exports from platform/modules.
+- DB schema ownership is only `packages/db/src/schema/**`.
+
 ## Package Manager and Runtime
 
 - **Bun** is the package manager. Use `bun install`, `bun add`, `bun run`.
@@ -120,17 +137,23 @@ export function createXxxService(deps: XxxServiceDeps) {
 
 ## Package Structure
 
-Every domain package follows this layout:
+Runtime domain code lives under consolidated folders:
+
+- `packages/platform/src/<domain>/**`
+- `packages/modules/src/<domain>/**`
+- `packages/platform/tests/<domain>/**`
+- `packages/modules/tests/<domain>/**`
+
+Within each domain folder, follow this layout:
 
 | File / Directory | Purpose |
 |---|---|
-| `src/index.ts` | Public exports (service factory, types, errors, validation schemas) |
-| `src/service.ts` | Service factory function |
-| `src/errors.ts` | Custom error classes extending `ServiceError` from `@bedrock/kernel/errors` |
-| `src/validation.ts` | Zod schemas, derived types via `z.infer`, validator helpers |
-| `src/internal/context.ts` | `Deps` / `Context` types and context factory |
-| `src/commands/` | Command handlers (when the service is large) |
-| `tests/` | Unit and integration tests |
+| `index.ts` | Public exports (service factory, types, errors, validation schemas) |
+| `service.ts` | Service factory function |
+| `errors.ts` | Custom error classes extending `ServiceError` from `@bedrock/kernel/errors` |
+| `validation.ts` | Zod schemas, derived types via `z.infer`, validator helpers |
+| `internal/context.ts` | `Deps` / `Context` types and context factory |
+| `commands/` | Command handlers (when the service is large) |
 
 ## Code Conventions
 
@@ -178,13 +201,19 @@ export class OrderNotFoundError extends ServiceError {
 
 - Drizzle ORM with PostgreSQL.
 - Schema uses `snake_case` column naming convention.
+- All schema/table definitions must be in `packages/db/src/schema/**` only.
+- Runtime code imports schema/types from `@bedrock/db/schema*` and `@bedrock/db/types`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.
+- Migration policy is baseline-only hard cutover.
+  - Mandatory sequence: `db:nuke -> db:migrate -> db:seed`.
+  - Legacy migration history/state is unsupported.
 
 ### Testing
 
 - Vitest with globals enabled.
 - Test utilities and fixtures from `@bedrock/test-utils`.
-- Unit tests in `tests/*.test.ts`, integration tests in `tests/integration/*.test.ts`.
+- Unit tests in `packages/{platform,modules}/tests/<domain>/*.test.ts`.
+- Integration tests in `packages/{platform,modules}/tests/<domain>/integration/*.test.ts`.
 
 ## API Routes
 

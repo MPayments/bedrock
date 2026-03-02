@@ -1,26 +1,26 @@
-import { createBalancesProjectorWorker } from "@bedrock/balances";
+import type { Database } from "@bedrock/db/types";
+import type { Logger } from "@bedrock/foundation/kernel";
+import { createFeesService } from "@bedrock/modules/fees";
+import { createFxRatesWorker, createFxService } from "@bedrock/modules/fx";
+import { createBalancesProjectorWorker } from "@bedrock/platform/balances";
 import type {
   BedrockComponentId,
   ComponentRuntimeService,
-} from "@bedrock/component-runtime";
+} from "@bedrock/platform/component-runtime";
 import {
   createAttemptDispatchWorker,
   createConnectorsService,
   createStatementIngestWorker,
   createStatusPollerWorker,
   getMockProviders,
-} from "@bedrock/connectors";
-import { createCurrenciesService } from "@bedrock/currencies";
-import { createDocumentsWorker } from "@bedrock/documents";
-import { createFeesService } from "@bedrock/fees";
-import type { Database } from "@bedrock/foundation/db/types";
-import type { Logger } from "@bedrock/foundation/kernel";
-import { createFxRatesWorker, createFxService } from "@bedrock/fx";
+} from "@bedrock/platform/connectors";
+import { createCurrenciesService } from "@bedrock/platform/currencies";
+import { createDocumentsWorker } from "@bedrock/platform/documents";
 import {
   createOrchestrationRetryWorker,
   createOrchestrationService,
-} from "@bedrock/orchestration";
-import { createReconciliationWorker } from "@bedrock/reconciliation";
+} from "@bedrock/platform/orchestration";
+import { createReconciliationWorker } from "@bedrock/platform/reconciliation";
 
 import type { env as workerEnv } from "../env";
 import { isComponentEnabledForBooks } from "./runtime-guard";

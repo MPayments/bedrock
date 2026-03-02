@@ -1,16 +1,16 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
+import { ValidationError } from "@bedrock/foundation/kernel/errors";
 import {
   BalanceHoldNotFoundError,
   BalanceHoldStateError,
   BalanceSubjectSchema,
   InsufficientAvailableBalanceError,
-} from "@bedrock/balances";
+} from "@bedrock/platform/balances";
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
-} from "@bedrock/idempotency";
-import { ValidationError } from "@bedrock/foundation/kernel/errors";
+} from "@bedrock/platform/idempotency";
 
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";

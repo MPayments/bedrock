@@ -1,50 +1,50 @@
+import { db } from "@bedrock/db/client";
 import {
   createAccountingReportingService,
   type AccountingReportingService,
-} from "@bedrock/accounting-reporting";
-import {
-  createConnectorsService,
-  getMockProviders,
-  type ConnectorsService,
-} from "@bedrock/connectors";
-import {
-  createCounterpartiesService,
-  type CounterpartiesService,
-} from "@bedrock/counterparties";
-import {
-  createCurrenciesService,
-  type CurrenciesService,
-} from "@bedrock/currencies";
-import {
-  createCustomersService,
-  type CustomersService,
-} from "@bedrock/customers";
-import {
-  createDocumentRegistry,
-  createDocumentsService,
-  type DocumentsService,
-} from "@bedrock/documents";
-import { createFeesService, type FeesService } from "@bedrock/fees";
-import { db } from "@bedrock/db/client";
-import { createFxService, type FxService } from "@bedrock/fx";
-import {
-  createOperationalAccountsService,
-  type OperationalAccountsService,
-} from "@bedrock/operational-accounts";
-import {
-  createOrchestrationService,
-  type OrchestrationService,
-} from "@bedrock/orchestration";
+} from "@bedrock/modules/accounting-reporting";
+import { createFeesService, type FeesService } from "@bedrock/modules/fees";
+import { createFxService, type FxService } from "@bedrock/modules/fx";
 import {
   createPaymentIntentDocumentModule,
   createPaymentResolutionDocumentModule,
   createPaymentsService,
   type PaymentsService,
-} from "@bedrock/payments";
+} from "@bedrock/modules/payments";
+import {
+  createConnectorsService,
+  getMockProviders,
+  type ConnectorsService,
+} from "@bedrock/platform/connectors";
+import {
+  createCounterpartiesService,
+  type CounterpartiesService,
+} from "@bedrock/platform/counterparties";
+import {
+  createCurrenciesService,
+  type CurrenciesService,
+} from "@bedrock/platform/currencies";
+import {
+  createCustomersService,
+  type CustomersService,
+} from "@bedrock/platform/customers";
+import {
+  createDocumentRegistry,
+  createDocumentsService,
+  type DocumentsService,
+} from "@bedrock/platform/documents";
+import {
+  createOperationalAccountsService,
+  type OperationalAccountsService,
+} from "@bedrock/platform/operational-accounts";
+import {
+  createOrchestrationService,
+  type OrchestrationService,
+} from "@bedrock/platform/orchestration";
 import {
   createReconciliationService,
   type ReconciliationService,
-} from "@bedrock/reconciliation";
+} from "@bedrock/platform/reconciliation";
 
 import type { ApiPlatformServices } from "./platform";
 

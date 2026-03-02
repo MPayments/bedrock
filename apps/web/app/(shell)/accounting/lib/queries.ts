@@ -1,15 +1,15 @@
 import {
   AccountingCorrespondenceRuleSchema,
   AccountingTemplateAccountSchema,
-} from "@bedrock/accounting/contracts";
+} from "@bedrock/platform/accounting/contracts";
 import {
   CounterpartyGroupOptionsResponseSchema,
   CounterpartyOptionsResponseSchema,
-} from "@bedrock/counterparties/contracts";
+} from "@bedrock/platform/counterparties/contracts";
 import {
   FinancialResultsByCounterpartyResponseSchema,
   FinancialResultsByGroupResponseSchema,
-} from "@bedrock/accounting-reporting/contracts";
+} from "@bedrock/modules/accounting-reporting/contracts";
 import { z } from "zod";
 
 import { getServerApiClient } from "@/lib/api/server-client";

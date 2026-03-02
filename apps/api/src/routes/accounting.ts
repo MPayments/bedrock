@@ -1,18 +1,18 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { replaceCorrespondenceRulesSchema } from "@bedrock/accounting";
-import {
-  AccountingCorrespondenceRuleSchema,
-  AccountingTemplateAccountSchema,
-} from "@bedrock/accounting/contracts";
+import { createPaginatedListSchema } from "@bedrock/foundation/kernel/pagination";
 import {
   FinancialResultsByCounterpartyResponseSchema,
   FinancialResultsByGroupResponseSchema,
   ListFinancialResultsByCounterpartyQuerySchema,
   ListFinancialResultsByGroupQuerySchema,
-} from "@bedrock/accounting-reporting";
-import { createPaginatedListSchema } from "@bedrock/foundation/kernel/pagination";
-import { ListLedgerOperationsQuerySchema } from "@bedrock/ledger";
+} from "@bedrock/modules/accounting-reporting";
+import { replaceCorrespondenceRulesSchema } from "@bedrock/platform/accounting";
+import {
+  AccountingCorrespondenceRuleSchema,
+  AccountingTemplateAccountSchema,
+} from "@bedrock/platform/accounting/contracts";
+import { ListLedgerOperationsQuerySchema } from "@bedrock/platform/ledger";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";

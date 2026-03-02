@@ -1,5 +1,6 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 
+import { createPaginatedListSchema } from "@bedrock/foundation/kernel/pagination";
 import {
   CurrencyDeleteConflictError,
   CurrencySchema,
@@ -7,12 +8,11 @@ import {
   CreateCurrencyInputSchema,
   UpdateCurrencyInputSchema,
   CurrencyNotFoundError,
-} from "@bedrock/currencies";
+} from "@bedrock/platform/currencies";
 import {
   CurrencyOptionSchema,
   CurrencyOptionsResponseSchema,
-} from "@bedrock/currencies/contracts";
-import { createPaginatedListSchema } from "@bedrock/foundation/kernel/pagination";
+} from "@bedrock/platform/currencies/contracts";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";

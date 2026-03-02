@@ -1,36 +1,20 @@
 import { defineConfig } from "vitest/config";
+import { moduleIntegrationProjects } from "./packages/modules/vitest.integration.config";
+import { moduleUnitProjects } from "./packages/modules/vitest.config";
+import { platformIntegrationProjects } from "./packages/platform/vitest.integration.config";
+import { platformUnitProjects } from "./packages/platform/vitest.config";
 
 export default defineConfig({
   test: {
     projects: [
       "apps/api/vitest.config.ts",
       "apps/workers/vitest.config.ts",
-      "packages/platform/accounting/vitest.config.ts",
-      "packages/platform/accounting/vitest.integration.config.ts",
-      "packages/platform/balances/vitest.config.ts",
-      "packages/platform/balances/vitest.integration.config.ts",
-      "packages/platform/connectors/vitest.config.ts",
-      "packages/platform/component-runtime/vitest.config.ts",
-      "packages/modules/operational-accounts/vitest.config.ts",
       "packages/db/vitest.config.ts",
-      "packages/platform/dimensions/vitest.config.ts",
       "packages/foundation/vitest.config.ts",
-      "packages/modules/customers/vitest.config.ts",
-      "packages/modules/customers/vitest.integration.config.ts",
-      "packages/modules/currencies/vitest.config.ts",
-      "packages/platform/documents/vitest.config.ts",
-      "packages/platform/idempotency/vitest.config.ts",
-      "packages/platform/orchestration/vitest.config.ts",
-      "packages/modules/payments/vitest.config.ts",
-      "packages/modules/fees/vitest.config.ts",
-      "packages/modules/fees/vitest.integration.config.ts",
-      "packages/modules/fx/vitest.config.ts",
-      "packages/modules/fx/vitest.integration.config.ts",
-      "packages/platform/ledger/vitest.config.ts",
-      "packages/platform/ledger/vitest.integration.config.ts",
-      "packages/modules/counterparties/vitest.config.ts",
-      "packages/platform/reconciliation/vitest.config.ts",
-      "packages/platform/reconciliation/vitest.integration.config.ts",
+      ...platformUnitProjects,
+      ...platformIntegrationProjects,
+      ...moduleUnitProjects,
+      ...moduleIntegrationProjects,
     ],
     exclude: ["**/node_modules/**", "**/dist/**"],
     coverage: {

@@ -124,6 +124,20 @@ function toWorkspacePath(importPath) {
     const packageDir = packageDirsByName.get(packageName);
     if (!packageDir) return null;
 
+    if (packageName === "@bedrock/platform" || packageName === "@bedrock/modules") {
+      const domain = parts[2];
+      if (!domain) {
+        return `${packageDir}`;
+      }
+
+      const subpath = parts.slice(3).join("/");
+      if (subpath.length === 0) {
+        return `${packageDir}/src/${domain}`;
+      }
+
+      return `${packageDir}/src/${domain}/${subpath}.ts`;
+    }
+
     const subpath = parts.slice(2).join("/");
     if (subpath.length === 0) {
       return `${packageDir}/src`;
@@ -155,15 +169,13 @@ const LEGACY_SPECIFIER_PATTERNS = [
   /^@bedrock\/db-contracts(?:\/|$)/,
   /^@bedrock\/foundation\/db-contracts(?:\/|$)/,
 ];
-const FOUNDATION_DB_TYPES_SPECIFIER =
-  /^@bedrock\/foundation\/db-types(?:\/|$)/;
-const FOUNDATION_DB_RUNTIME_BLOCKED_SPECIFIER =
-  /^@bedrock\/db(?:$|\/(?:client|schema|seeds|notify)(?:$|\/))/;
-const DOMAIN_SCHEMA_SPECIFIER = /^@bedrock\/[^/]+\/schema(?:\/|$)/;
-const DOMAIN_SCHEMA_PUBLIC_SPECIFIER = /^@bedrock\/[^/]+\/schema$/;
+const DB_TYPES_SPECIFIER = /^@bedrock\/db\/types(?:\/|$)/;
+const DB_RUNTIME_BLOCKED_SPECIFIER = /^@bedrock\/db(?:$|\/(?:client|seeds)(?:$|\/))/;
+const RUNTIME_SCHEMA_SPECIFIER =
+  /^@bedrock\/(?:platform|modules)\/[^/]+\/schema(?:\/|$)/;
 
 function isRuntimePackageFile(file) {
-  return /^packages\/(modules|platform)\/[^/]+\/src\//.test(file);
+  return /^packages\/(modules|platform)\/src\/[^/]+\//.test(file);
 }
 
 function isSchemaDefinitionFile(file) {
@@ -175,7 +187,7 @@ function isSchemaDefinitionFile(file) {
 
 function isAllowedContractImport(fromFile, specifier) {
   return (
-    fromFile.startsWith("packages/platform/") &&
+    fromFile.startsWith("packages/platform/src/") &&
     specifier === "@bedrock/foundation/countries/contracts"
   );
 }
@@ -215,26 +227,12 @@ for (const root of SOURCE_ROOTS) {
       }
 
       if (
-        (specifier === "@bedrock/db/schema" ||
-          specifier === "@bedrock/foundation/db/schema") &&
-        !relFile.startsWith("packages/db/")
-      ) {
-        violations.push({
-          rule: "ban-central-schema-import",
-          from: relFile,
-          to: specifier,
-          specifier,
-        });
-        continue;
-      }
-
-      if (
         isRuntimePackageFile(relFile) &&
-        FOUNDATION_DB_RUNTIME_BLOCKED_SPECIFIER.test(specifier) &&
-        !FOUNDATION_DB_TYPES_SPECIFIER.test(specifier)
+        DB_RUNTIME_BLOCKED_SPECIFIER.test(specifier) &&
+        !DB_TYPES_SPECIFIER.test(specifier)
       ) {
         violations.push({
-          rule: "runtime-no-foundation-db",
+          rule: "runtime-no-db-client",
           from: relFile,
           to: specifier,
           specifier,
@@ -242,12 +240,9 @@ for (const root of SOURCE_ROOTS) {
         continue;
       }
 
-      if (
-        DOMAIN_SCHEMA_SPECIFIER.test(specifier) &&
-        !DOMAIN_SCHEMA_PUBLIC_SPECIFIER.test(specifier)
-      ) {
+      if (RUNTIME_SCHEMA_SPECIFIER.test(specifier)) {
         violations.push({
-          rule: "schema-internal-import",
+          rule: "runtime-schema-import",
           from: relFile,
           to: specifier,
           specifier,
@@ -262,7 +257,7 @@ for (const root of SOURCE_ROOTS) {
           specifier === "@bedrock/foundation/countries/contracts" ||
           specifier === "@bedrock/api-client" ||
           specifier.startsWith("@bedrock/api-client/") ||
-          /^@bedrock\/[^/]+\/contracts$/.test(specifier);
+          /^@bedrock\/(?:platform|modules)\/[^/]+\/contracts$/.test(specifier);
 
         if (!allowed) {
           violations.push({

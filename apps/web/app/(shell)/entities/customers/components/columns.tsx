@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import type { Customer } from "@bedrock/customers/contracts";
+import type { Customer } from "@bedrock/platform/customers/contracts";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { formatDate } from "@/lib/format";

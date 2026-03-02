@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 
-import type { BedrockComponentId } from "@bedrock/component-runtime";
+import type { BedrockComponentId } from "@bedrock/platform/component-runtime";
 
 import type { AppContext } from "../context";
 import type { AuthVariables } from "./auth";

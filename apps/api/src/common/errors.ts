@@ -1,26 +1,26 @@
 import type { Context } from "hono";
 
 import {
-  ConnectorIntentTerminalError,
-  ConnectorMaxAttemptsExceededError,
-} from "@bedrock/connectors";
-import {
-  DocumentGraphError,
-  DocumentNotFoundError,
-  DocumentPolicyDeniedError,
-  DocumentPostingNotRequiredError,
-  DocumentValidationError,
-} from "@bedrock/documents";
-import {
   InvalidStateError,
   NotFoundError,
   PermissionError,
   ValidationError,
 } from "@bedrock/foundation/kernel/errors";
 import {
+  ConnectorIntentTerminalError,
+  ConnectorMaxAttemptsExceededError,
+} from "@bedrock/platform/connectors";
+import {
+  DocumentGraphError,
+  DocumentNotFoundError,
+  DocumentPolicyDeniedError,
+  DocumentPostingNotRequiredError,
+  DocumentValidationError,
+} from "@bedrock/platform/documents";
+import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
-} from "@bedrock/idempotency";
+} from "@bedrock/platform/idempotency";
 
 function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

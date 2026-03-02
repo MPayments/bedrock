@@ -10,7 +10,7 @@ import {
   ImmutableComponentError,
   MixedDeployError,
   UnknownComponentError,
-} from "@bedrock/component-runtime";
+} from "@bedrock/platform/component-runtime";
 
 import auth from "./auth";
 import { createAppContext, parseEnv } from "./context";
@@ -208,7 +208,7 @@ app.get("/health", async (c) => {
   const pgStart = Date.now();
   try {
     const { db } = await import("@bedrock/db/client");
-    const { schema } = await import("@bedrock/currencies/schema");
+    const { schema } = await import("@bedrock/db/schema/currencies");
     await db
       .select({ id: schema.currencies.id })
       .from(schema.currencies)

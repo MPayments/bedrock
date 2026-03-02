@@ -2,6 +2,21 @@
 
 Bedrock is a financial platform monorepo (ledger, orchestration, connectors, balances, FX, reconciliation).
 
+## Workspace Topology
+
+- `@bedrock/foundation` - shared kernel/primitives/packs/countries
+- `@bedrock/db` - Drizzle client, all DB schema/migrations/seeds/types
+- `@bedrock/platform` - core runtime domains (`@bedrock/platform/<domain>`)
+- `@bedrock/modules` - business modules (`@bedrock/modules/<domain>`)
+- `apps/*` - API/Web/Workers composition
+- `@bedrock/sdk/*` - API client + UI kit
+
+Runtime import contract:
+
+- Legacy `@bedrock/<domain>` runtime specifiers are removed.
+- Runtime schema exports are removed from platform/modules.
+- Use DB schema/types from `@bedrock/db/schema*` and `@bedrock/db/types`.
+
 ## Stack
 
 - Runtime: Node.js 24.x
@@ -68,6 +83,16 @@ bun run lint
 bun run check-types
 bun run test
 bun run test:integration
+```
+
+## DB Cutover Sequence
+
+This repo now uses a baseline-only migration chain. Legacy DB states are unsupported.
+
+```bash
+bun run --filter=@bedrock/db db:nuke
+bun run --filter=@bedrock/db db:migrate
+bun run --filter=@bedrock/db db:seed
 ```
 
 ## Documentation Source of Truth

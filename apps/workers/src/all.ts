@@ -3,10 +3,10 @@ import "./env";
 import {
   BEDROCK_COMPONENT_MANIFESTS,
   createComponentRuntimeService,
-} from "@bedrock/component-runtime";
+} from "@bedrock/platform/component-runtime";
 import { db } from "@bedrock/db/client";
 import { createConsoleLogger } from "@bedrock/foundation/kernel";
-import { createLedgerWorker, createTbClient } from "@bedrock/ledger";
+import { createLedgerWorker, createTbClient } from "@bedrock/platform/ledger";
 
 import { env } from "./env";
 import { registerApplicationWorkers } from "./modules/registry";

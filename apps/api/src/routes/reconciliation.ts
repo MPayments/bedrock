@@ -1,17 +1,17 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
+import { ValidationError } from "@bedrock/foundation/kernel/errors";
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
-} from "@bedrock/idempotency";
-import { ValidationError } from "@bedrock/foundation/kernel/errors";
+} from "@bedrock/platform/idempotency";
 import {
   ExternalRecordConflictError,
   ReconciliationExceptionNotFoundError,
   ReconciliationExternalRecordInputSchema,
   ReconciliationMatchNotFoundError,
   RunReconciliationInputSchema,
-} from "@bedrock/reconciliation";
+} from "@bedrock/platform/reconciliation";
 
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";

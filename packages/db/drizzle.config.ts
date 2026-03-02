@@ -7,11 +7,7 @@ const dir = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(dir, "../../.env") });
 
 export default defineConfig({
-  schema: [
-    "./src/schema/auth.ts",
-    "../modules/*/src/schema/index.ts",
-    "../platform/*/src/schema/index.ts",
-  ],
+  schema: ["./src/schema/**/*.ts"],
 
   out: "./migrations",
   dialect: "postgresql",

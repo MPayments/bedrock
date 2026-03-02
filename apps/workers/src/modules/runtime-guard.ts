@@ -1,7 +1,7 @@
 import type {
   BedrockComponentId,
   ComponentRuntimeService,
-} from "@bedrock/component-runtime";
+} from "@bedrock/platform/component-runtime";
 
 function dedupeBookIds(bookIds: readonly string[]): string[] {
   const unique = new Set<string>();

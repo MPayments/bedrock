@@ -1,25 +1,25 @@
-import type { AccountingService } from "@bedrock/accounting";
-import type { AccountingReportingService } from "@bedrock/accounting-reporting";
-import type { BalancesService } from "@bedrock/balances";
-import type { ConnectorsService } from "@bedrock/connectors";
-import type { CounterpartiesService } from "@bedrock/counterparties";
-import type { CurrenciesService } from "@bedrock/currencies";
-import type { CustomersService } from "@bedrock/customers";
+import type { AccountingService } from "@bedrock/platform/accounting";
+import type { AccountingReportingService } from "@bedrock/modules/accounting-reporting";
+import type { BalancesService } from "@bedrock/platform/balances";
+import type { ConnectorsService } from "@bedrock/platform/connectors";
+import type { CounterpartiesService } from "@bedrock/platform/counterparties";
+import type { CurrenciesService } from "@bedrock/platform/currencies";
+import type { CustomersService } from "@bedrock/platform/customers";
 import { db } from "@bedrock/db/client";
-import type { DocumentsService } from "@bedrock/documents";
-import type { FeesService } from "@bedrock/fees";
-import type { FxService } from "@bedrock/fx";
+import type { DocumentsService } from "@bedrock/platform/documents";
+import type { FeesService } from "@bedrock/modules/fees";
+import type { FxService } from "@bedrock/modules/fx";
 import type { Logger } from "@bedrock/foundation/kernel";
-import type { LedgerReadService } from "@bedrock/ledger";
+import type { LedgerReadService } from "@bedrock/platform/ledger";
 import {
   BEDROCK_COMPONENT_MANIFESTS,
   createComponentRuntimeService,
   type ComponentRuntimeService,
-} from "@bedrock/component-runtime";
-import type { OperationalAccountsService } from "@bedrock/operational-accounts";
-import type { OrchestrationService } from "@bedrock/orchestration";
-import type { PaymentsService } from "@bedrock/payments";
-import type { ReconciliationService } from "@bedrock/reconciliation";
+} from "@bedrock/platform/component-runtime";
+import type { OperationalAccountsService } from "@bedrock/platform/operational-accounts";
+import type { OrchestrationService } from "@bedrock/platform/orchestration";
+import type { PaymentsService } from "@bedrock/modules/payments";
+import type { ReconciliationService } from "@bedrock/platform/reconciliation";
 import { z } from "zod";
 
 import { createModuleServices } from "./composition/modules";

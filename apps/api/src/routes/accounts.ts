@@ -9,7 +9,7 @@ import {
   CreateAccountInputSchema,
   UpdateAccountInputSchema,
   ListAccountsQuerySchema,
-} from "@bedrock/operational-accounts";
+} from "@bedrock/platform/operational-accounts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";

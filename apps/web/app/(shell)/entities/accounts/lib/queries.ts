@@ -3,16 +3,16 @@ import { z } from "zod";
 
 import {
   CounterpartyOptionsResponseSchema,
-} from "@bedrock/counterparties/contracts";
+} from "@bedrock/platform/counterparties/contracts";
 import {
   ACCOUNTS_LIST_CONTRACT,
-} from "@bedrock/operational-accounts/contracts";
+} from "@bedrock/platform/operational-accounts/contracts";
 import {
   CurrencyOptionsResponseSchema,
-} from "@bedrock/currencies/contracts";
+} from "@bedrock/platform/currencies/contracts";
 import {
   AccountProviderOptionsResponseSchema,
-} from "@bedrock/operational-accounts/contracts";
+} from "@bedrock/platform/operational-accounts/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";

@@ -1,4 +1,4 @@
-import type { BedrockComponentId } from "@bedrock/component-runtime";
+import type { BedrockComponentId } from "@bedrock/platform/component-runtime";
 
 import type { AppContext } from "../context";
 import {

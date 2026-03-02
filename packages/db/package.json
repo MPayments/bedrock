@@ -6,7 +6,23 @@
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
+    "./types": "./src/types.ts",
     "./schema": "./src/schema/index.ts",
+    "./schema/accounting": "./src/schema/accounting.ts",
+    "./schema/balances": "./src/schema/balances.ts",
+    "./schema/component-runtime": "./src/schema/component-runtime.ts",
+    "./schema/connectors": "./src/schema/connectors.ts",
+    "./schema/counterparties": "./src/schema/counterparties.ts",
+    "./schema/currencies": "./src/schema/currencies.ts",
+    "./schema/customers": "./src/schema/customers.ts",
+    "./schema/documents": "./src/schema/documents.ts",
+    "./schema/fees": "./src/schema/fees/index.ts",
+    "./schema/fx": "./src/schema/fx/index.ts",
+    "./schema/idempotency": "./src/schema/idempotency.ts",
+    "./schema/ledger": "./src/schema/ledger/index.ts",
+    "./schema/operational-accounts": "./src/schema/operational-accounts/index.ts",
+    "./schema/orchestration": "./src/schema/orchestration.ts",
+    "./schema/reconciliation": "./src/schema/reconciliation.ts",
     "./seeds": "./src/seeds/index.ts"
   },
   "scripts": {
@@ -29,32 +45,18 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/foundation": "workspace:*",
     "drizzle-orm": "^0.45.1",
-    "pg": "^8.17.2",
-    "@bedrock/accounting": "workspace:*",
-    "@bedrock/balances": "workspace:*",
-    "@bedrock/component-runtime": "workspace:*",
-    "@bedrock/connectors": "workspace:*",
-    "@bedrock/counterparties": "workspace:*",
-    "@bedrock/currencies": "workspace:*",
-    "@bedrock/customers": "workspace:*",
-    "@bedrock/documents": "workspace:*",
-    "@bedrock/fees": "workspace:*",
-    "@bedrock/fx": "workspace:*",
-    "@bedrock/ledger": "workspace:*",
-    "@bedrock/operational-accounts": "workspace:*",
-    "@bedrock/orchestration": "workspace:*",
-    "@bedrock/reconciliation": "workspace:*",
-    "@bedrock/idempotency": "workspace:*"
+    "pg": "^8.17.2"
   },
   "devDependencies": {
+    "@bedrock/eslint-config": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
-    "better-auth": "*",
     "@types/pg": "^8.16.0",
+    "better-auth": "*",
     "dotenv": "^17.3.1",
     "drizzle-kit": "^0.31.9",
-    "typescript": "^5.8.3",
-    "@bedrock/eslint-config": "workspace:*",
-    "eslint": "^9.31.0"
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3"
   }
 }

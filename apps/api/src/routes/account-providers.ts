@@ -9,11 +9,11 @@ import {
   CreateProviderInputSchema,
   UpdateProviderInputSchema,
   ListProvidersQuerySchema,
-} from "@bedrock/operational-accounts";
+} from "@bedrock/platform/operational-accounts";
 import {
   AccountProviderOptionSchema,
   AccountProviderOptionsResponseSchema,
-} from "@bedrock/operational-accounts/contracts";
+} from "@bedrock/platform/operational-accounts/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";

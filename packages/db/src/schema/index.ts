@@ -1,11 +1,19 @@
-
 import {
   schema as accountingSchema,
   type AccountingPackAssignment,
   type AccountingPackVersion,
   type OperationalAccountBinding,
   type OperationalAccountBindingInsert,
-} from "@bedrock/accounting/schema";
+} from "./accounting";
+import {
+  account,
+  accountRelations,
+  session,
+  sessionRelations,
+  user,
+  userRelations,
+  verification,
+} from "./auth";
 import {
   schema as balancesSchema,
   type BalanceEvent,
@@ -16,7 +24,7 @@ import {
   type BalancePosition,
   type BalancePositionInsert,
   type BalanceProjectorCursor,
-} from "@bedrock/balances/schema";
+} from "./balances";
 import {
   schema as componentRuntimeSchema,
   type PlatformComponentEvent,
@@ -27,7 +35,7 @@ import {
   type PlatformComponentState,
   type PlatformComponentStateInsert,
   type PlatformComponentStateRow,
-} from "@bedrock/component-runtime/schema";
+} from "./component-runtime";
 import {
   schema as connectorsSchema,
   type ConnectorCursor,
@@ -47,18 +55,18 @@ import {
   type PaymentAttempt,
   type PaymentAttemptInsert,
   type PaymentAttemptStatus,
-} from "@bedrock/connectors/schema";
-import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
+} from "./connectors";
+import { schema as counterpartiesSchema } from "./counterparties";
 import {
   currencies,
   type Currency,
   type CurrencyInsert,
-} from "@bedrock/currencies/schema";
+} from "./currencies";
 import {
   customers,
   type Customer,
   type CustomerInsert,
-} from "@bedrock/customers/schema";
+} from "./customers";
 import {
   schema as documentsSchema,
   type Document,
@@ -76,8 +84,8 @@ import {
   type DocumentSnapshot,
   type DocumentSnapshotInsert,
   type DocumentSubmissionStatus,
-} from "@bedrock/documents/schema";
-import { schema as feesSchema } from "@bedrock/fees/schema";
+} from "./documents";
+import { schema as feesSchema } from "./fees";
 import {
   schema as fxSchema,
   type FxQuote,
@@ -88,25 +96,25 @@ import {
   type FxRateSource,
   type FxRateSourceRow,
   type FxRateSourceSyncStatus,
-} from "@bedrock/fx/schema";
+} from "./fx";
 import {
   schema as idempotencySchema,
   type ActionReceipt,
   type ActionReceiptInsert,
   type ActionReceiptStatus,
-} from "@bedrock/idempotency/schema";
+} from "./idempotency";
 import {
   schema as ledgerSchema,
   type Dimensions,
   type LedgerOperationStatus,
-} from "@bedrock/ledger/schema";
+} from "./ledger";
 import {
   schema as operationalAccountsSchema,
   type OperationalAccount,
   type OperationalAccountInsert,
   type OperationalAccountProvider,
   type OperationalAccountProviderInsert,
-} from "@bedrock/operational-accounts/schema";
+} from "./operational-accounts";
 import {
   schema as orchestrationSchema,
   type OrchestrationScopeOverride,
@@ -119,7 +127,7 @@ import {
   type ProviderLimitInsert,
   type RoutingRule,
   type RoutingRuleInsert,
-} from "@bedrock/orchestration/schema";
+} from "./orchestration";
 import {
   schema as reconciliationSchema,
   type ReconciliationException,
@@ -132,17 +140,7 @@ import {
   type ReconciliationMatchStatus,
   type ReconciliationRun,
   type ReconciliationRunInsert,
-} from "@bedrock/reconciliation/schema";
-
-import {
-  account,
-  accountRelations,
-  session,
-  sessionRelations,
-  user,
-  userRelations,
-  verification,
-} from "./auth";
+} from "./reconciliation";
 
 const authSchema = {
   user,

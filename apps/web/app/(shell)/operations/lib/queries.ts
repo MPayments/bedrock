@@ -2,7 +2,7 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import { DOCUMENTS_LIST_CONTRACT } from "@bedrock/documents/contracts";
+import { DOCUMENTS_LIST_CONTRACT } from "@bedrock/platform/documents/contracts";
 
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import {

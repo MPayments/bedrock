@@ -1,5 +1,5 @@
+import type { AppType } from "api/types";
 import { hc } from "hono/client";
-import type { AppType } from "../../../../apps/api/dist/types";
 export type Client = ReturnType<typeof hc<AppType>>;
 export interface CreateClientOptions {
     headers?: Record<string, string>;

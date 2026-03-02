@@ -1,7 +1,8 @@
-import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
 import { schema } from "./schema/index";
+import type { Database } from "./types";
 
 const pool = new Pool({
   host: process.env.DB_HOST ?? "localhost",
@@ -12,7 +13,6 @@ const pool = new Pool({
   ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: true } : false,
 });
 
-export const db: NodePgDatabase<typeof schema> = drizzle(pool, { schema });
+export const db: Database = drizzle(pool, { schema });
 
-export type Database = typeof db;
-export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
+export type { Database, Transaction } from "./types";

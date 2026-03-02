@@ -12,25 +12,17 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/balances": "workspace:*",
-    "@bedrock/connectors": "workspace:*",
-    "@bedrock/currencies": "workspace:*",
     "@bedrock/db": "workspace:*",
-    "@bedrock/documents": "workspace:*",
-    "@bedrock/fees": "workspace:*",
-    "@bedrock/fx": "workspace:*",
-    "@bedrock/ledger": "workspace:*",
-    "@bedrock/component-runtime": "workspace:*",
-    "@bedrock/orchestration": "workspace:*",
-    "@bedrock/reconciliation": "workspace:*",
-    "dotenv": "^17.3.1",
-    "@bedrock/foundation": "workspace:*"
+    "@bedrock/foundation": "workspace:*",
+    "@bedrock/modules": "workspace:*",
+    "@bedrock/platform": "workspace:*",
+    "dotenv": "^17.3.1"
   },
   "devDependencies": {
-    "@bedrock/typescript-config": "workspace:*",
     "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
-    "typescript": "^5.8.3",
-    "eslint": "^9.31.0"
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3"
   }
 }

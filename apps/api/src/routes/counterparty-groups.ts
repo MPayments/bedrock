@@ -9,11 +9,11 @@ import {
   CreateCounterpartyGroupInputSchema,
   ListCounterpartyGroupsQuerySchema,
   UpdateCounterpartyGroupInputSchema,
-} from "@bedrock/counterparties";
+} from "@bedrock/platform/counterparties";
 import {
   CounterpartyGroupOptionSchema,
   CounterpartyGroupOptionsResponseSchema,
-} from "@bedrock/counterparties/contracts";
+} from "@bedrock/platform/counterparties/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";

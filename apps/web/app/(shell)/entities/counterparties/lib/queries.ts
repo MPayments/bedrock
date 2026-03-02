@@ -4,14 +4,14 @@ import { z } from "zod";
 import {
   CounterpartyGroupOptionsResponseSchema,
   type CounterpartyGroupOption,
-} from "@bedrock/counterparties/contracts";
+} from "@bedrock/platform/counterparties/contracts";
 import {
   CurrencyOptionsResponseSchema,
-} from "@bedrock/currencies/contracts";
+} from "@bedrock/platform/currencies/contracts";
 import {
   AccountProviderOptionsResponseSchema,
-} from "@bedrock/operational-accounts/contracts";
-import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/counterparties/contracts";
+} from "@bedrock/platform/operational-accounts/contracts";
+import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/platform/counterparties/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";

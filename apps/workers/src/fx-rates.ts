@@ -1,14 +1,14 @@
 import "./env";
 
-import { createCurrenciesService } from "@bedrock/currencies";
+import { createCurrenciesService } from "@bedrock/platform/currencies";
 import { db } from "@bedrock/db/client";
-import { createFeesService } from "@bedrock/fees";
-import { createFxRatesWorker, createFxService } from "@bedrock/fx";
+import { createFeesService } from "@bedrock/modules/fees";
+import { createFxRatesWorker, createFxService } from "@bedrock/modules/fx";
 import { createConsoleLogger } from "@bedrock/foundation/kernel";
 import {
   BEDROCK_COMPONENT_MANIFESTS,
   createComponentRuntimeService,
-} from "@bedrock/component-runtime";
+} from "@bedrock/platform/component-runtime";
 
 import { env } from "./env";
 import { installShutdownHandlers, runLoop } from "./run-loop";

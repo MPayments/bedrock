@@ -1,6 +1,6 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
-import { PaymentIntentPayloadSchema } from "@bedrock/payments";
+import { PaymentIntentPayloadSchema } from "@bedrock/modules/payments";
 
 import { handleRouteError } from "../common/errors";
 import { toJsonSafe } from "../common/json";

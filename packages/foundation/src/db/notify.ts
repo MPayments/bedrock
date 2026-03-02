@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 
-import type { Database } from "./db-types";
+import type { Database } from "./types";
 
 interface PgNotifyConnection {
   execute?: (

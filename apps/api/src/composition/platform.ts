@@ -1,20 +1,20 @@
-import {
-  createAccountingService,
-  type AccountingService,
-} from "@bedrock/accounting";
-import {
-  createBalancesService,
-  type BalancesService,
-} from "@bedrock/balances";
 import { db } from "@bedrock/db/client";
 import { createConsoleLogger, type Logger } from "@bedrock/foundation/kernel";
 import { rawPackDefinition } from "@bedrock/foundation/packs/bedrock-core-default";
+import {
+  createAccountingService,
+  type AccountingService,
+} from "@bedrock/platform/accounting";
+import {
+  createBalancesService,
+  type BalancesService,
+} from "@bedrock/platform/balances";
 import {
   createLedgerEngine,
   createLedgerReadService,
   type LedgerEngine,
   type LedgerReadService,
-} from "@bedrock/ledger";
+} from "@bedrock/platform/ledger";
 
 export interface ApiPlatformServices {
   logger: Logger;

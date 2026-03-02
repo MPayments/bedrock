@@ -1,4 +1,4 @@
-import { CURRENCIES_LIST_CONTRACT } from "@bedrock/currencies/contracts";
+import { CURRENCIES_LIST_CONTRACT } from "@bedrock/platform/currencies/contracts";
 
 import {
   createResourceSearchParamsCache,

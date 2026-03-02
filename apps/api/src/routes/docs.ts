@@ -6,7 +6,7 @@ import {
   type DocumentWithOperationId,
   ListDocumentsQuerySchema,
   UpdateDocumentInputSchema,
-} from "@bedrock/documents";
+} from "@bedrock/platform/documents";
 
 import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
