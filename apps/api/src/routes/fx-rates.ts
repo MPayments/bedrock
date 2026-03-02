@@ -12,7 +12,7 @@ import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
-const RateSourceSchema = z.enum(["cbr", "investing"]);
+const RateSourceSchema = z.enum(["cbr", "investing", "xe"]);
 
 const LatestRateQuerySchema = z.object({
   base: z.string().min(2).max(16),
@@ -360,7 +360,7 @@ function serializeSourceRate(rate: {
 }
 
 function serializeSourceStatus(status: {
-  source: "cbr" | "investing";
+  source: "cbr" | "investing" | "xe";
   ttlSeconds: number;
   lastSyncedAt: Date | null;
   lastPublishedAt: Date | null;

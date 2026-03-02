@@ -3,6 +3,8 @@ import { sql } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 
 import { type FxServiceContext } from "../../internal/context";
+import { getSourceOrder } from "../../internal/source-priority";
+import { type FxRateSource } from "../../sources/types";
 
 export interface SourceRateView {
     source: string;
@@ -18,20 +20,6 @@ export interface RatePairView {
     quoteCurrencyCode: string;
     bestRate: SourceRateView;
     rates: SourceRateView[];
-}
-
-const SOURCE_PRIORITY: Record<string, number> = {
-    manual: 1,
-    cbr: 2,
-    investing: 3,
-};
-
-function sourcePriority(source: string): number {
-    const p = SOURCE_PRIORITY[source];
-    if (p === undefined) {
-        throw new Error(`Unknown FX rate source: ${source}`);
-    }
-    return p;
 }
 
 function computeRate(num: bigint, den: bigint): number {
@@ -137,7 +125,12 @@ export function createListPairsHandler(context: FxServiceContext) {
                 });
             }
 
-            rates.sort((a, b) => sourcePriority(a.source) - sourcePriority(b.source));
+            const order = getSourceOrder(baseCode!, quoteCode!);
+            rates.sort((a, b) => {
+                if (a.source === "manual") return -1;
+                if (b.source === "manual") return 1;
+                return order.indexOf(a.source as FxRateSource) - order.indexOf(b.source as FxRateSource);
+            });
 
             result.push({
                 baseCurrencyCode: baseCode!,

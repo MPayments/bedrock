@@ -18,7 +18,7 @@ const positiveAmountSchema = z.bigint().positive({ message: "Amount must be posi
 const idempotencyKeySchema = z.string().min(1, "idempotencyKey is required").max(255);
 const positiveBigintSchema = z.bigint().positive({ message: "Value must be positive" });
 const positiveIntegerSchema = z.number().int().positive({ message: "Value must be positive" });
-const rateSourceSchema = z.enum(["cbr", "investing"]);
+const rateSourceSchema = z.enum(["cbr", "investing", "xe"]);
 
 const quoteLegSourceKindSchema = z.enum(["cb", "bank", "manual", "derived", "market"]);
 
@@ -54,7 +54,7 @@ const setManualRateInputSchema = z.object({
         .string()
         .min(1)
         .max(100)
-        .refine((source) => !["cbr", "investing"].includes(source.toLowerCase()), "source 'cbr' and 'investing' are reserved for external provider sync")
+        .refine((source) => !["cbr", "investing", "xe"].includes(source.toLowerCase()), "source 'cbr', 'investing' and 'xe' are reserved for external provider sync")
         .optional(),
 }).refine(
     (data) => data.base !== data.quote,

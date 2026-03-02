@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
-export type FxRateSource = "cbr" | "investing";
+export type FxRateSource = "cbr" | "investing" | "xe";
 export type FxRateSourceSyncStatus = "idle" | "ok" | "error";
 export type FxRateSourceRow = typeof fxRateSources.$inferSelect;
 

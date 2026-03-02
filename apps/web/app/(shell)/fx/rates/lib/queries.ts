@@ -17,7 +17,7 @@ export interface SerializedRatePair {
 }
 
 export interface SerializedSourceStatus {
-  source: "cbr" | "investing";
+  source: "cbr" | "investing" | "xe";
   ttlSeconds: number;
   lastSyncedAt: string | null;
   lastPublishedAt: string | null;
