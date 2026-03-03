@@ -1,5 +1,5 @@
-import { EditProviderFormClient } from "../components/edit-provider-form-client";
-import { getProviderById } from "../lib/queries";
+import { EditProviderFormClient } from "@/features/entities/counterparty-account-providers/components/edit-provider-form-client";
+import { getProviderById } from "@/features/entities/counterparty-account-providers/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 interface ProviderPageProps {

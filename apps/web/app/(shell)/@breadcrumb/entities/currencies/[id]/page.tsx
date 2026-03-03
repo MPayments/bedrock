@@ -1,4 +1,4 @@
-import { getCurrencyById } from "@/app/(shell)/entities/currencies/lib/queries";
+import { getCurrencyById } from "@/features/entities/currencies/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 import { EditCurrencyBreadcrumb } from "./edit-currency-breadcrumb";

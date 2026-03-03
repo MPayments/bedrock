@@ -18,7 +18,7 @@ import {
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";
 
-import type { AccountingCorrespondenceRule } from "../../lib/queries";
+import type { AccountingCorrespondenceRule } from "@/features/accounting/lib/queries";
 
 interface AccountingCorrespondencePageClientProps {
   rules: AccountingCorrespondenceRule[];

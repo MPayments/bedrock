@@ -1,5 +1,5 @@
-import { CounterpartyEditForm } from "../components/organization-edit-form";
-import { getCounterpartyById, getCounterpartyGroups } from "../lib/queries";
+import { CounterpartyEditForm } from "@/features/entities/counterparties/components/organization-edit-form";
+import { getCounterpartyById, getCounterpartyGroups } from "@/features/entities/counterparties/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 interface CounterpartyPageProps {

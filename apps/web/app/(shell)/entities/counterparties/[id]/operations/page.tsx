@@ -8,9 +8,9 @@ import {
   CardTitle,
 } from "@bedrock/ui/components/card";
 
-import { OperationsJournalTable } from "@/app/(shell)/operations/journal/components/operations-journal-table";
-import { getOperations } from "@/app/(shell)/operations/journal/lib/queries";
-import { searchParamsCache } from "@/app/(shell)/operations/journal/lib/validations";
+import { OperationsJournalTable } from "@/features/operations/journal/components/operations-journal-table";
+import { getOperations } from "@/features/operations/journal/lib/queries";
+import { searchParamsCache } from "@/features/operations/journal/lib/validations";
 
 interface CounterpartyOperationsPageProps {
   params: Promise<{ id: string }>;

@@ -18,10 +18,9 @@ import {
 } from "@bedrock/ui/components/table";
 
 import { formatAmount, formatDate } from "@/lib/format";
-
-import { getOperationById } from "../lib/queries";
-import { getOperationCodeLabel } from "../lib/operation-code-labels";
-import { getPostingCodeLabel } from "../lib/posting-code-labels";
+import { getOperationById } from "@/features/operations/journal/lib/queries";
+import { getOperationCodeLabel } from "@/features/operations/journal/lib/operation-code-labels";
+import { getPostingCodeLabel } from "@/features/operations/journal/lib/posting-code-labels";
 
 interface OperationDetailsPageProps {
   params: Promise<{ operationId: string }>;
@@ -234,7 +233,10 @@ export default async function OperationDetailsPage({
                         </div>
                       </TableCell>
                       <TableCell className="text-xs">
-                        <span className="font-mono text-muted-foreground" title={posting.postingCode}>
+                        <span
+                          className="font-mono text-muted-foreground"
+                          title={posting.postingCode}
+                        >
                           {getPostingCodeLabel(posting.postingCode)}
                         </span>
                       </TableCell>

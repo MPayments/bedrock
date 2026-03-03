@@ -1,8 +1,8 @@
-import { getAccountById } from "@/app/(shell)/entities/counterparty-accounts/lib/queries";
-import { getCounterpartyById } from "@/app/(shell)/entities/counterparties/lib/queries";
-import { getCurrencyById } from "@/app/(shell)/entities/currencies/lib/queries";
-import { getCustomerById } from "@/app/(shell)/entities/customers/lib/queries";
-import { getProviderById } from "@/app/(shell)/entities/counterparty-account-providers/lib/queries";
+import { getAccountById } from "@/features/entities/counterparty-accounts/lib/queries";
+import { getCounterpartyById } from "@/features/entities/counterparties/lib/queries";
+import { getCurrencyById } from "@/features/entities/currencies/lib/queries";
+import { getCustomerById } from "@/features/entities/customers/lib/queries";
+import { getProviderById } from "@/features/entities/counterparty-account-providers/lib/queries";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import { resolveBreadcrumbItems } from "@/lib/breadcrumbs";
 

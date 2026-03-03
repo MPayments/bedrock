@@ -1,15 +1,15 @@
 import { notFound } from "next/navigation";
 
-import { CounterpartyEditForm } from "@/app/(shell)/entities/counterparties/components/organization-edit-form";
+import { CounterpartyEditForm } from "@/features/entities/counterparties/components/organization-edit-form";
 import {
   filterGroupsByRootCode,
   findSystemRootGroupByCode,
   getRootCodeByGroupId,
-} from "@/app/(shell)/entities/counterparties/lib/group-scope";
+} from "@/features/entities/counterparties/lib/group-scope";
 import {
   getCounterpartyById,
   getCounterpartyGroups,
-} from "@/app/(shell)/entities/counterparties/lib/queries";
+} from "@/features/entities/counterparties/lib/queries";
 
 interface CounterpartyPageProps {
   params: Promise<{ id: string }>;

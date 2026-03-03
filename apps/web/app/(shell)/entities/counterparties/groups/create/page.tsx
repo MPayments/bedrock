@@ -2,8 +2,8 @@ import { Building2 } from "lucide-react";
 
 import { Separator } from "@bedrock/ui/components/separator";
 
-import { CreateCounterpartyGroupFormClient } from "./create-counterparty-group-form-client";
-import { getCounterpartyGroups } from "../../lib/queries";
+import { CreateCounterpartyGroupFormClient } from "@/features/entities/counterparties/components/create-counterparty-group-form-client";
+import { getCounterpartyGroups } from "@/features/entities/counterparties/lib/queries";
 
 export default async function CreateCounterpartyGroupPage() {
   let groupOptions: Awaited<ReturnType<typeof getCounterpartyGroups>> = [];

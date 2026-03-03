@@ -16,9 +16,9 @@ import {
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 
-import { CounterpartiesTable } from "./components/counterparties-table";
-import { getCounterparties, getCounterpartyGroups } from "./lib/queries";
-import { searchParamsCache } from "./lib/validations";
+import { CounterpartiesTable } from "@/features/entities/counterparties/components/counterparties-table";
+import { getCounterparties, getCounterpartyGroups } from "@/features/entities/counterparties/lib/queries";
+import { searchParamsCache } from "@/features/entities/counterparties/lib/validations";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

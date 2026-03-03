@@ -1,5 +1,5 @@
-import { CreateAccountFormClient } from "../components/create-account-form-client";
-import { getAccountFormOptions } from "../lib/queries";
+import { CreateAccountFormClient } from "@/features/entities/counterparty-accounts/components/create-account-form-client";
+import { getAccountFormOptions } from "@/features/entities/counterparty-accounts/lib/queries";
 
 interface CreateAccountPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

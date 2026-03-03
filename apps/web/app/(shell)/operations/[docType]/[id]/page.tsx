@@ -12,8 +12,7 @@ import { Badge } from "@bedrock/ui/components/badge";
 import { Separator } from "@bedrock/ui/components/separator";
 
 import { formatDate } from "@/lib/format";
-
-import { getDocumentDetails } from "../../lib/queries";
+import { getDocumentDetails } from "@/features/operations/documents/lib/queries";
 
 interface PageProps {
   params: Promise<{ docType: string; id: string }>;

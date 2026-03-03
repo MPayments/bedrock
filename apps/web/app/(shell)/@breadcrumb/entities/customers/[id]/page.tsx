@@ -1,4 +1,4 @@
-import { getCustomerById } from "@/app/(shell)/entities/customers/lib/queries";
+import { getCustomerById } from "@/features/entities/customers/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 import { EditCustomerBreadcrumb } from "./edit-customer-breadcrumb";

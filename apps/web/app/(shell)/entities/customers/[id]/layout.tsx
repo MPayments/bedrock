@@ -1,5 +1,5 @@
-import { CustomerEditWorkspaceLayout } from "../components/customer-edit-workspace-layout";
-import { getCustomerById } from "../lib/queries";
+import { CustomerEditWorkspaceLayout } from "@/features/entities/customers/components/customer-edit-workspace-layout";
+import { getCustomerById } from "@/features/entities/customers/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 export default async function CustomerLayout({

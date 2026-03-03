@@ -1,5 +1,5 @@
-import { CurrencyEditWorkspaceLayout } from "../components/currency-edit-workspace-layout";
-import { getCurrencyById } from "../lib/queries";
+import { CurrencyEditWorkspaceLayout } from "@/features/entities/currencies/components/currency-edit-workspace-layout";
+import { getCurrencyById } from "@/features/entities/currencies/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 export default async function CurrencyLayout({

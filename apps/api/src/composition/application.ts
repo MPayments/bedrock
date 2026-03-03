@@ -1,4 +1,3 @@
-import { db } from "@bedrock/db/client";
 import {
   createAccountingReportingService,
   type AccountingReportingService,
@@ -21,6 +20,10 @@ import {
   type CounterpartiesService,
 } from "@bedrock/core/counterparties";
 import {
+  createCounterpartyAccountsService,
+  type CounterpartyAccountsService,
+} from "@bedrock/core/counterparty-accounts";
+import {
   createCurrenciesService,
   type CurrenciesService,
 } from "@bedrock/core/currencies";
@@ -34,10 +37,6 @@ import {
   type DocumentsService,
 } from "@bedrock/core/documents";
 import {
-  createCounterpartyAccountsService,
-  type CounterpartyAccountsService,
-} from "@bedrock/core/counterparty-accounts";
-import {
   createOrchestrationService,
   type OrchestrationService,
 } from "@bedrock/core/orchestration";
@@ -45,6 +44,7 @@ import {
   createReconciliationService,
   type ReconciliationService,
 } from "@bedrock/core/reconciliation";
+import { db } from "@bedrock/db/client";
 
 import type { ApiCoreServices } from "./core";
 

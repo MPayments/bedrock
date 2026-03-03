@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 
-import { AccountWorkspaceLayout } from "../components/account-workspace-layout";
-import { useAccountDraftName } from "../lib/create-draft-name-context";
+import { AccountWorkspaceLayout } from "@/features/entities/counterparty-accounts/components/account-workspace-layout";
+import { useAccountDraftName } from "@/features/entities/counterparty-accounts/lib/create-draft-name-context";
 
 export default function CreateAccountLayout({
   children,

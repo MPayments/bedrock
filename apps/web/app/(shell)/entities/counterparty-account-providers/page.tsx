@@ -6,9 +6,9 @@ import { Button } from "@bedrock/ui/components/button";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 
-import { ProvidersTable } from "./(table)";
-import { getProviders } from "./lib/queries";
-import { searchParamsCache } from "./lib/validations";
+import { ProvidersTable } from "@/features/entities/counterparty-account-providers/components/table";
+import { getProviders } from "@/features/entities/counterparty-account-providers/lib/queries";
+import { searchParamsCache } from "@/features/entities/counterparty-account-providers/lib/validations";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

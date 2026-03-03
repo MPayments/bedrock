@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 
-import { CurrencyWorkspaceLayout } from "../components/currency-workspace-layout";
-import { useCurrencyDraftName } from "../lib/create-draft-name-context";
+import { CurrencyWorkspaceLayout } from "@/features/entities/currencies/components/currency-workspace-layout";
+import { useCurrencyDraftName } from "@/features/entities/currencies/lib/create-draft-name-context";
 
 export default function CreateCurrencyLayout({
   children,

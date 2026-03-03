@@ -7,7 +7,7 @@ import {
 } from "@bedrock/ui/components/card";
 
 import { AccountingCorrespondencePageClient } from "./components/accounting-correspondence-page-client";
-import { getAccountingCorrespondenceRules } from "../lib/queries";
+import { getAccountingCorrespondenceRules } from "@/features/accounting/lib/queries";
 
 export default async function AccountingCorrespondencePage() {
   const rules = await getAccountingCorrespondenceRules();

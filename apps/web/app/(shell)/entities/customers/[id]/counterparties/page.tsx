@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 
-import { CounterpartiesTable } from "@/app/(shell)/entities/counterparties/components/counterparties-table";
+import { CounterpartiesTable } from "@/features/entities/counterparties/components/counterparties-table";
 import {
   getCounterparties,
   getCounterpartyGroups,
-} from "@/app/(shell)/entities/counterparties/lib/queries";
-import { searchParamsCache } from "@/app/(shell)/entities/counterparties/lib/validations";
+} from "@/features/entities/counterparties/lib/queries";
+import { searchParamsCache } from "@/features/entities/counterparties/lib/validations";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 
 interface CustomerCounterpartiesPageProps {

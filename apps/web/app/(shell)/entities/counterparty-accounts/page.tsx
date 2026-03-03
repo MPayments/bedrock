@@ -6,9 +6,9 @@ import { Button } from "@bedrock/ui/components/button";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 
-import { AccountsTable } from "./(table)";
-import { getAccountCurrencyFilterOptions, getAccounts } from "./lib/queries";
-import { searchParamsCache } from "./lib/validations";
+import { AccountsTable } from "@/features/entities/counterparty-accounts/components/table";
+import { getAccountCurrencyFilterOptions, getAccounts } from "@/features/entities/counterparty-accounts/lib/queries";
+import { searchParamsCache } from "@/features/entities/counterparty-accounts/lib/validations";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

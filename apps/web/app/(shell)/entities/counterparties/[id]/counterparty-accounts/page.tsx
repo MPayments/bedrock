@@ -37,7 +37,7 @@ import {
   getAccountBalances,
   type CounterpartyAccount,
   type AccountBalance,
-} from "@/app/(shell)/entities/counterparties/lib/queries";
+} from "@/features/entities/counterparties/lib/queries";
 import { formatAmount, formatDate } from "@/lib/format";
 
 interface CounterpartyAccountsPageProps {

@@ -1,5 +1,5 @@
-import { ProviderEditWorkspaceLayout } from "../components/provider-edit-workspace-layout";
-import { getProviderById } from "../lib/queries";
+import { ProviderEditWorkspaceLayout } from "@/features/entities/counterparty-account-providers/components/provider-edit-workspace-layout";
+import { getProviderById } from "@/features/entities/counterparty-account-providers/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 export default async function ProviderLayout({

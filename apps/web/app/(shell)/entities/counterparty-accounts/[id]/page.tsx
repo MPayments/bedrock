@@ -1,5 +1,5 @@
-import { EditAccountFormClient } from "../components/edit-account-form-client";
-import { getAccountById, getAccountFormOptions } from "../lib/queries";
+import { EditAccountFormClient } from "@/features/entities/counterparty-accounts/components/edit-account-form-client";
+import { getAccountById, getAccountFormOptions } from "@/features/entities/counterparty-accounts/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 interface AccountPageProps {

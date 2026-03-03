@@ -24,7 +24,7 @@ import {
   type FinancialResultSummaryByCurrencyDto,
   type FinancialResultsByCounterpartyDto,
   type FinancialResultsByGroupDto,
-} from "../lib/queries";
+} from "@/features/accounting/lib/queries";
 
 interface AccountingFinancialResultsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

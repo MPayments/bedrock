@@ -1,9 +1,9 @@
-import { CreateCounterpartyFormClient } from "@/app/(shell)/entities/counterparties/create/create-counterparty-form-client";
+import { CreateCounterpartyFormClient } from "@/features/entities/counterparties/components/create-counterparty-form-client";
 import {
   filterGroupsByRootCode,
   findSystemRootGroupByCode,
-} from "@/app/(shell)/entities/counterparties/lib/group-scope";
-import { getCounterpartyGroups } from "@/app/(shell)/entities/counterparties/lib/queries";
+} from "@/features/entities/counterparties/lib/group-scope";
+import { getCounterpartyGroups } from "@/features/entities/counterparties/lib/queries";
 
 export default async function TreasuryCreateCounterpartyPage() {
   try {

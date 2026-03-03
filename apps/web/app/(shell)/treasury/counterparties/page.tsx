@@ -3,16 +3,16 @@ import { Building2, Plus } from "lucide-react";
 
 import { Button } from "@bedrock/ui/components/button";
 
-import { TreasuryCounterpartiesTable } from "@/app/(shell)/entities/counterparties/components/counterparties-table";
+import { TreasuryCounterpartiesTable } from "@/features/entities/counterparties/components/counterparties-table";
 import {
   filterGroupsByRootCode,
   findSystemRootGroupByCode,
-} from "@/app/(shell)/entities/counterparties/lib/group-scope";
+} from "@/features/entities/counterparties/lib/group-scope";
 import {
   getCounterparties,
   getCounterpartyGroups,
-} from "@/app/(shell)/entities/counterparties/lib/queries";
-import { searchParamsCache } from "@/app/(shell)/entities/counterparties/lib/validations";
+} from "@/features/entities/counterparties/lib/queries";
+import { searchParamsCache } from "@/features/entities/counterparties/lib/validations";
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 

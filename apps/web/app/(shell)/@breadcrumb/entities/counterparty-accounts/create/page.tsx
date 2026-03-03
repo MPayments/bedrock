@@ -1,6 +1,6 @@
 "use client";
 
-import { useAccountDraftName } from "@/app/(shell)/entities/counterparty-accounts/lib/create-draft-name-context";
+import { useAccountDraftName } from "@/features/entities/counterparty-accounts/lib/create-draft-name-context";
 import { EntityCreateBreadcrumb } from "@/components/entities/entity-breadcrumb";
 
 export default function CreateAccountBreadcrumbPage() {

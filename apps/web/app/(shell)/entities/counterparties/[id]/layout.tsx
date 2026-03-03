@@ -1,5 +1,5 @@
-import { CounterpartyEditWorkspaceLayout } from "../components/counterparty-edit-workspace-layout";
-import { getCounterpartyById } from "../lib/queries";
+import { CounterpartyEditWorkspaceLayout } from "@/features/entities/counterparties/components/counterparty-edit-workspace-layout";
+import { getCounterpartyById } from "@/features/entities/counterparties/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 export default async function CounterpartyLayout({

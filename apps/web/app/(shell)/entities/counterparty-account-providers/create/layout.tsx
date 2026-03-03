@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 
-import { ProviderWorkspaceLayout } from "../components/provider-workspace-layout";
-import { useProviderDraftName } from "../lib/create-draft-name-context";
+import { ProviderWorkspaceLayout } from "@/features/entities/counterparty-account-providers/components/provider-workspace-layout";
+import { useProviderDraftName } from "@/features/entities/counterparty-account-providers/lib/create-draft-name-context";
 
 export default function CreateProviderLayout({
   children,

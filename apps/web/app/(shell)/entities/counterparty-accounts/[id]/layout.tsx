@@ -1,5 +1,5 @@
-import { AccountEditWorkspaceLayout } from "../components/account-edit-workspace-layout";
-import { getAccountById } from "../lib/queries";
+import { AccountEditWorkspaceLayout } from "@/features/entities/counterparty-accounts/components/account-edit-workspace-layout";
+import { getAccountById } from "@/features/entities/counterparty-accounts/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 export default async function AccountLayout({

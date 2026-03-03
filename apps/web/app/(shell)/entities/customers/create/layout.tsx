@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 
-import { CustomerWorkspaceLayout } from "../components/customer-workspace-layout";
-import { useCustomerDraftName } from "../lib/create-draft-name-context";
+import { CustomerWorkspaceLayout } from "@/features/entities/customers/components/customer-workspace-layout";
+import { useCustomerDraftName } from "@/features/entities/customers/lib/create-draft-name-context";
 
 export default function CreateCustomerLayout({
   children,

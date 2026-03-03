@@ -2,10 +2,9 @@ import { FileText } from "lucide-react";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
-import { DocumentsTable } from "@/components/documents/documents-table";
-
-import { getDocuments } from "./lib/queries";
-import { searchParamsCache } from "./lib/validations";
+import { DocumentsTable } from "@/features/documents/components/documents-table";
+import { getDocuments } from "@/features/operations/documents/lib/queries";
+import { searchParamsCache } from "@/features/operations/documents/lib/validations";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -20,7 +19,9 @@ export default async function OperationsPage({ searchParams }: PageProps) {
       icon={FileText}
       title="Документы"
       description="Единый журнал документов, статусов и связанных ledger операций."
-      fallback={<DataTableSkeleton columnCount={7} rowCount={10} filterCount={5} />}
+      fallback={
+        <DataTableSkeleton columnCount={7} rowCount={10} filterCount={5} />
+      }
     >
       <DocumentsTable promise={documentsPromise} />
     </EntityListPageShell>

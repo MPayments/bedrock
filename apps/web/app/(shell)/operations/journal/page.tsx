@@ -2,10 +2,9 @@ import { BookOpen } from "lucide-react";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
-
-import { OperationsJournalTable } from "./components/operations-journal-table";
-import { getOperations } from "./lib/queries";
-import { searchParamsCache } from "./lib/validations";
+import { OperationsJournalTable } from "@/features/operations/journal/components/operations-journal-table";
+import { getOperations } from "@/features/operations/journal/lib/queries";
+import { searchParamsCache } from "@/features/operations/journal/lib/validations";
 
 interface OperationsJournalPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

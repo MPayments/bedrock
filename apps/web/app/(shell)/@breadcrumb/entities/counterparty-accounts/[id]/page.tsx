@@ -1,4 +1,4 @@
-import { getAccountById } from "@/app/(shell)/entities/counterparty-accounts/lib/queries";
+import { getAccountById } from "@/features/entities/counterparty-accounts/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 import { EditAccountBreadcrumb } from "./edit-account-breadcrumb";

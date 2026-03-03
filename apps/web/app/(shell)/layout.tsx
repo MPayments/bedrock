@@ -7,7 +7,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@bedrock/ui/components/sidebar";
-import { EntityDraftNameProviders } from "@/app/(shell)/entities/draft-name-providers";
+import { EntityDraftNameProviders } from "@/features/entities/shared/entity-draft-name-providers";
 import { getServerSessionSnapshot } from "@/lib/auth/session";
 import {
   getPrimaryNavigation,

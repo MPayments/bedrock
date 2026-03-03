@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
-import { CounterpartyEditWorkspaceLayout } from "@/app/(shell)/entities/counterparties/components/counterparty-edit-workspace-layout";
-import { getCounterpartyById } from "@/app/(shell)/entities/counterparties/lib/queries";
+import { CounterpartyEditWorkspaceLayout } from "@/features/entities/counterparties/components/counterparty-edit-workspace-layout";
+import { getCounterpartyById } from "@/features/entities/counterparties/lib/queries";
 
 export default async function TreasuryCounterpartyLayout({
   children,

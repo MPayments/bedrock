@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 
-import { CounterpartyWorkspaceLayout } from "../components/organization-workspace-layout";
-import { useCounterpartyDraftName } from "../lib/create-draft-name-context";
+import { CounterpartyWorkspaceLayout } from "@/features/entities/counterparties/components/organization-workspace-layout";
+import { useCounterpartyDraftName } from "@/features/entities/counterparties/lib/create-draft-name-context";
 
 export default function CreateCounterpartyLayout({
   children,

@@ -1,4 +1,4 @@
-import { getProviderById } from "@/app/(shell)/entities/counterparty-account-providers/lib/queries";
+import { getProviderById } from "@/features/entities/counterparty-account-providers/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 import { EditProviderBreadcrumb } from "./edit-provider-breadcrumb";

@@ -4,11 +4,14 @@ import { Separator } from "@bedrock/ui/components/separator";
 import { Skeleton } from "@bedrock/ui/components/skeleton";
 
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
-
-import { CreateManualRateDialog } from "./components/create-manual-rate-dialog";
-import { RateSourcesPanel } from "./components/rate-sources-panel";
-import { RatePairsList } from "./components/rate-pairs-list";
-import { getCurrencyOptions, getRatePairs, getRateSources } from "./lib/queries";
+import { CreateManualRateDialog } from "@/features/fx/rates/components/create-manual-rate-dialog";
+import { RatePairsList } from "@/features/fx/rates/components/rate-pairs-list";
+import { RateSourcesPanel } from "@/features/fx/rates/components/rate-sources-panel";
+import {
+  getCurrencyOptions,
+  getRatePairs,
+  getRateSources,
+} from "@/features/fx/rates/lib/queries";
 
 export default async function RatesPage() {
   const currencies = await getCurrencyOptions();

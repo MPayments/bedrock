@@ -1,6 +1,6 @@
 "use client";
 
-import { useProviderDraftName } from "@/app/(shell)/entities/counterparty-account-providers/lib/create-draft-name-context";
+import { useProviderDraftName } from "@/features/entities/counterparty-account-providers/lib/create-draft-name-context";
 import { EntityEditBreadcrumb } from "@/components/entities/entity-breadcrumb";
 
 type EditProviderBreadcrumbProps = {

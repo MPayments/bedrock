@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@bedrock/ui/components/table";
 
-import { getAccountingTemplateAccounts } from "../lib/queries";
+import { getAccountingTemplateAccounts } from "@/features/accounting/lib/queries";
 
 function computeAccountDepths(
   accounts: { accountNo: string; parentAccountNo: string | null }[],
