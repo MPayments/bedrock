@@ -81,8 +81,12 @@ const DEFAULT_PAIR_MAPPINGS: PairMapping[] = [
   { pairId: "1", base: "EUR", quote: "USD" },
   { pairId: "1604", base: "EUR", quote: "AED" },
   { pairId: "1691", base: "EUR", quote: "RUB" },
+  { pairId: "1623", base: "EUR", quote: "CNY" },
+  { pairId: "66", base: "EUR", quote: "TRY" },
   { pairId: "152", base: "USD", quote: "AED" },
   { pairId: "2186", base: "USD", quote: "RUB" },
+  { pairId: "2111", base: "USD", quote: "CNY" },
+  { pairId: "18", base: "USD", quote: "TRY" },
   { pairId: "9298", base: "AED", quote: "RUB" },
 ];
 
