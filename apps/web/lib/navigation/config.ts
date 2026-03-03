@@ -152,7 +152,7 @@ const navItems: AppNavItem[] = [
         id: "entities-customers",
         title: "Клиенты",
         href: "/entities/customers",
-        icon: "building-2",
+        icon: "handshake",
         audience: "admin",
       },
       {

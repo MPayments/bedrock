@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Users } from "lucide-react";
+import { Handshake, Plus } from "lucide-react";
 
 import { Button } from "@bedrock/ui/components/button";
 
@@ -20,7 +20,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
 
   return (
     <EntityListPageShell
-      icon={Users}
+      icon={Handshake}
       title="Клиенты"
       description="Управление клиентами и связанной контрагентской привязкой."
       actions={
@@ -33,7 +33,9 @@ export default async function CustomersPage({ searchParams }: PageProps) {
           <span className="hidden md:block">Добавить</span>
         </Button>
       }
-      fallback={<DataTableSkeleton columnCount={4} rowCount={10} filterCount={2} />}
+      fallback={
+        <DataTableSkeleton columnCount={4} rowCount={10} filterCount={2} />
+      }
     >
       <CustomersTable promise={promise} />
     </EntityListPageShell>

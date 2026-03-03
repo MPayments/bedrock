@@ -18,7 +18,7 @@ export function EditCustomerBreadcrumb({
     <EntityEditBreadcrumb
       entityLabel="Клиенты"
       entityHref="/entities/customers"
-      entityIcon="users"
+      entityIcon="handshake"
       currentLabel={meta.getEditLabel(customerId, initialLabel)}
       currentHref={`/entities/customers/${customerId}`}
     />

@@ -6,7 +6,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 2,
     kind: "control",
     mutability: "immutable",
-    description: "Component runtime control plane",
+    description: "Панель управления runtime-компонентами",
     enabledByDefault: true,
     scopeSupport: { global: true, book: false },
 
@@ -24,7 +24,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "kernel",
     mutability: "immutable",
-    description: "Idempotency kernel",
+    description: "Ядро идемпотентности",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -36,7 +36,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "kernel",
     mutability: "immutable",
-    description: "Ledger execution runtime",
+    description: "Рантайм исполнения ledger",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -46,7 +46,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
           id: "ledger",
           envKey: "LEDGER_WORKER_INTERVAL_MS",
           defaultIntervalMs: 5_000,
-          description: "Posts pending ledger operations to TigerBeetle.",
+          description: "Проводит отложенные операции ledger в TigerBeetle.",
         },
       ],
     },
@@ -57,7 +57,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "kernel",
     mutability: "immutable",
-    description: "Accounting runtime",
+    description: "Рантайм бухгалтерии",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -71,12 +71,12 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
       {
         componentId: "ledger",
 
-        reason: "Accounting posting is persisted through ledger operations",
+        reason: "Проведение бухгалтерии сохраняется через операции ledger",
       },
       {
         componentId: "idempotency",
 
-        reason: "Accounting writes rely on idempotent operation semantics",
+        reason: "Записи бухгалтерии опираются на идемпотентную семантику операций",
       },
     ],
   },
@@ -85,7 +85,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "kernel",
     mutability: "immutable",
-    description: "Workflow documents runtime",
+    description: "Рантайм документооборота",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -95,14 +95,14 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
           id: "documents",
           envKey: "DOCUMENTS_WORKER_INTERVAL_MS",
           defaultIntervalMs: 5_000,
-          description: "Finalizes document posting states from ledger results.",
+          description: "Завершает статусы проведения документов по результатам ledger.",
         },
         {
           id: "documents-period-close",
           envKey: "DOCUMENTS_PERIOD_CLOSE_WORKER_INTERVAL_MS",
           defaultIntervalMs: 60_000,
           description:
-            "Generates monthly period_close documents and closes counterparty periods.",
+            "Генерирует ежемесячные документы period_close и закрывает периоды контрагентов.",
         },
       ],
     },
@@ -110,17 +110,17 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
       {
         componentId: "accounting",
 
-        reason: "Documents post through accounting runtime",
+        reason: "Проведение документов выполняется через runtime бухгалтерии",
       },
       {
         componentId: "ledger",
 
-        reason: "Documents posting writes ledger operations",
+        reason: "Проведение документов записывает операции ledger",
       },
       {
         componentId: "idempotency",
 
-        reason: "Document actions use idempotent action receipts",
+        reason: "Действия с документами используют идемпотентные квитанции действий",
       },
     ],
   },
@@ -129,7 +129,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Counterparty accounts component",
+    description: "Компонент счетов контрагентов",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -146,7 +146,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Counterparty account providers component",
+    description: "Компонент провайдеров счетов контрагентов",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -160,7 +160,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
       {
         componentId: "counterparty-accounts",
 
-        reason: "Providers are bound to counterparty accounts",
+        reason: "Провайдеры привязаны к счетам контрагентов",
       },
     ],
   },
@@ -169,7 +169,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Counterparties component",
+    description: "Компонент контрагентов",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -186,7 +186,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Counterparty groups component",
+    description: "Компонент групп контрагентов",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -200,7 +200,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
       {
         componentId: "counterparties",
 
-        reason: "Groups aggregate counterparties",
+        reason: "Группы агрегируют контрагентов",
       },
     ],
   },
@@ -209,7 +209,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Customers component",
+    description: "Компонент клиентов",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -226,7 +226,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Currencies component",
+    description: "Компонент валют",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -243,7 +243,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "integration",
     mutability: "mutable",
-    description: "Payment provider connectors runtime",
+    description: "Рантайм коннекторов платежных провайдеров",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -257,20 +257,20 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
           id: "connectors-dispatch",
           envKey: "CONNECTORS_DISPATCH_WORKER_INTERVAL_MS",
           defaultIntervalMs: 5_000,
-          description: "Dispatches queued connector attempts to providers.",
+          description: "Отправляет поставщикам попытки коннекторов из очереди.",
         },
         {
           id: "connectors-poller",
           envKey: "CONNECTORS_STATUS_POLLER_INTERVAL_MS",
           defaultIntervalMs: 10_000,
           description:
-            "Polls provider statuses for pending connector attempts.",
+            "Опрашивает статусы провайдеров для ожидающих попыток коннекторов.",
         },
         {
           id: "connectors-statements",
           envKey: "CONNECTORS_STATEMENT_INGEST_INTERVAL_MS",
           defaultIntervalMs: 60_000,
-          description: "Ingests provider statements via connector cursors.",
+          description: "Загружает выписки провайдеров через курсоры коннекторов.",
         },
       ],
     },
@@ -278,7 +278,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
       {
         componentId: "idempotency",
 
-        reason: "Connector writes rely on deterministic idempotency receipts",
+        reason: "Записи коннекторов опираются на детерминированные квитанции идемпотентности",
       },
     ],
   },
@@ -287,7 +287,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Payment routing orchestration runtime",
+    description: "Рантайм оркестрации маршрутизации платежей",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -301,7 +301,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
           id: "orchestration-retry",
           envKey: "ORCHESTRATION_WORKER_INTERVAL_MS",
           defaultIntervalMs: 5_000,
-          description: "Schedules retry/fallback attempts for failed routing.",
+          description: "Планирует retry/fallback попытки для неуспешной маршрутизации.",
         },
       ],
     },
@@ -309,7 +309,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
       {
         componentId: "connectors",
 
-        reason: "Routing decisions and retries depend on connector state",
+        reason: "Решения маршрутизации и retry зависят от состояния коннекторов",
       },
     ],
   },
@@ -318,7 +318,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Balances runtime and projector",
+    description: "Рантайм и проектор балансов",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -332,7 +332,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
           id: "balances",
           envKey: "BALANCES_WORKER_INTERVAL_MS",
           defaultIntervalMs: 5_000,
-          description: "Projects posted ledger entries into balance positions.",
+          description: "Проецирует проведенные записи ledger в балансовые позиции.",
         },
       ],
     },
@@ -340,7 +340,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
       {
         componentId: "ledger",
 
-        reason: "Balances project from ledger events",
+        reason: "Баланс формируется из событий ledger",
       },
     ],
   },
@@ -349,7 +349,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Reconciliation runtime",
+    description: "Рантайм сверки",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -364,7 +364,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
           envKey: "RECONCILIATION_WORKER_INTERVAL_MS",
           defaultIntervalMs: 60_000,
           description:
-            "Runs reconciliation batches for pending external records.",
+            "Запускает батчи сверки для ожидающих внешних записей.",
         },
       ],
     },
@@ -372,12 +372,12 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
       {
         componentId: "documents",
 
-        reason: "Reconciliation uses document workflows for adjustments",
+        reason: "Сверка использует document workflow для корректировок",
       },
       {
         componentId: "idempotency",
 
-        reason: "Reconciliation writes are idempotent",
+        reason: "Записи сверки идемпотентны",
       },
     ],
   },

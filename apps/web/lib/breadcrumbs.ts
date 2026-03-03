@@ -41,7 +41,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   customers: {
     label: "Клиенты",
     href: "/entities/customers",
-    icon: "users",
+    icon: "handshake",
   },
   counterparties: {
     label: "Контрагенты",

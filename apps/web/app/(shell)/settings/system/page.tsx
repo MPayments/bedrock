@@ -23,14 +23,14 @@ const enabledComponents = BEDROCK_CORE_COMPONENT_MANIFESTS.filter(
 function getAdditionalInfo(component: (typeof enabledComponents)[number]) {
   const info: string[] = [];
 
-  info.push(`kind: ${component.kind}`);
-  info.push(`mutability: ${component.mutability}`);
+  info.push(`тип: ${component.kind}`);
+  info.push(`изменяемость: ${component.mutability}`);
 
   const scopes = [
     component.scopeSupport.global ? "global" : null,
     component.scopeSupport.book ? "book" : null,
   ].filter((scope): scope is string => scope !== null);
-  info.push(`scope: ${scopes.join("/")}`);
+  info.push(`контур: ${scopes.join("/")}`);
 
   const apiCapabilities =
     "api" in component.capabilities ? component.capabilities.api : undefined;
@@ -44,12 +44,12 @@ function getAdditionalInfo(component: (typeof enabledComponents)[number]) {
       ? component.capabilities.workers
       : undefined;
   if (workers?.length) {
-    info.push(`workers: ${workers.length}`);
+    info.push(`воркеры: ${workers.length}`);
   }
 
   if (component.dependencies.length) {
     info.push(
-      `depends on: ${component.dependencies.map((entry) => entry.componentId).join(", ")}`,
+      `зависит от: ${component.dependencies.map((entry) => entry.componentId).join(", ")}`,
     );
   }
 
@@ -63,7 +63,7 @@ export default function SettingsSystemPage() {
         <CardHeader className="border-b">
           <CardTitle>Включенные компоненты</CardTitle>
           <CardDescription>
-            Версии и техническая информация по компонентам platform runtime.
+            Версии и техническая информация по компонентам runtime-платформы.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -89,7 +89,7 @@ export default function SettingsSystemPage() {
                     <Badge variant="outline">v{component.version}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge>enabled</Badge>
+                    <Badge>включен</Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {getAdditionalInfo(component)}

@@ -16,6 +16,7 @@ import {
   Vault,
   Wallet,
   Workflow,
+  Handshake,
   type LucideIcon,
 } from "lucide-react";
 
@@ -37,6 +38,7 @@ const appIconMap = {
   wallet: Wallet,
   workflow: Workflow,
   cpu: Cpu,
+  handshake: Handshake,
 } satisfies Record<string, LucideIcon>;
 
 export type AppIconName = keyof typeof appIconMap;
