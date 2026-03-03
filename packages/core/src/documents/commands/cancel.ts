@@ -1,8 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { InvalidStateError } from "@bedrock/kernel/errors";
 import { schema } from "@bedrock/core/documents/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/core/idempotency";
+import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import type { DocumentsServiceContext } from "../internal/context";
 import {
@@ -18,6 +18,10 @@ import {
   enforceDocumentPolicy,
   persistDocumentPolicyDenial,
 } from "../internal/policy";
+import {
+  assertCounterpartyPeriodsOpen,
+  collectDocumentCounterpartyIds,
+} from "../period-locks";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 
 export function createCancelHandler(context: DocumentsServiceContext) {
@@ -83,6 +87,16 @@ export function createCancelHandler(context: DocumentsServiceContext) {
               "Only active documents in unposted or failed status can be cancelled",
             );
           }
+          const counterpartyIds = collectDocumentCounterpartyIds({
+            documentCounterpartyId: document.counterpartyId,
+            payload: document.payload,
+          });
+          await assertCounterpartyPeriodsOpen({
+            db: tx,
+            occurredAt: document.occurredAt,
+            counterpartyIds,
+            docType: input.docType,
+          });
 
           await module.canCancel(moduleContext, document);
           await enforceDocumentPolicy({

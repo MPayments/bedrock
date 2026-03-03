@@ -3,7 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { InvalidStateError } from "@bedrock/kernel/errors";
 import { schema, type Document } from "@bedrock/core/documents/schema";
 
-import { DocumentGraphError, DocumentPolicyDeniedError, DocumentRegistryError } from "../../src/documents/errors";
+import {
+  DocumentGraphError,
+  DocumentPolicyDeniedError,
+  DocumentRegistryError,
+} from "../../src/documents/errors";
 import {
   assertDocumentIsActive,
   buildDefaultActionIdempotencyKey,
@@ -162,6 +166,9 @@ describe("document helpers", () => {
 
     expect(resolveModule(registry as any, module.docType)).toBe(module);
     expect(() => resolveModule(registry as any, "missing")).toThrow(
+      DocumentRegistryError,
+    );
+    expect(() => resolveModule(registry as any, "transfer")).toThrow(
       DocumentRegistryError,
     );
   });

@@ -18,6 +18,12 @@ export class DocumentValidationError extends ValidationError {}
 
 export class DocumentRegistryError extends DocumentsError {}
 
+export class DocumentSystemOnlyTypeError extends DocumentValidationError {
+  constructor(public readonly docType: string) {
+    super(`Document type "${docType}" is system-only and cannot be mutated via public API`);
+  }
+}
+
 export class DocumentPostingNotRequiredError extends InvalidStateError {
   constructor(documentId: string, docType: string) {
     super(`Document ${documentId} (${docType}) does not support posting`);

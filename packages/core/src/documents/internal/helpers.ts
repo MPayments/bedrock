@@ -8,7 +8,11 @@ import { InvalidStateError } from "@bedrock/kernel/errors";
 import type { DocumentPostingPlan } from "@bedrock/core/accounting";
 import { schema, type Document, type DocumentLinkType } from "@bedrock/core/documents/schema";
 
-import { DocumentGraphError, DocumentNotFoundError, DocumentRegistryError } from "../errors";
+import {
+  DocumentGraphError,
+  DocumentNotFoundError,
+  DocumentRegistryError,
+} from "../errors";
 import type {
   DocumentInitialLink,
   DocumentModule,
@@ -62,6 +66,17 @@ export function resolveModule(
       `Document module is not registered for docType=${docType}`,
       error,
     );
+  }
+}
+
+export function resolveModuleOrNull(
+  registry: DocumentRegistry,
+  docType: string,
+): DocumentModule | null {
+  try {
+    return registry.getDocumentModule(docType);
+  } catch {
+    return null;
   }
 }
 

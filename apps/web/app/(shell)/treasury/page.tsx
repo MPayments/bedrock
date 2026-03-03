@@ -13,7 +13,7 @@ const TREASURY_DOC_TYPES = [
   "fee_payout_initiate",
   "fee_payout_settle",
   "fee_payout_void",
-  "external_funding",
+  "capital_funding",
   "fx_execute",
 ];
 

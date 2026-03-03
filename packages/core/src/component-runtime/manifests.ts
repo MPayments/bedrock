@@ -97,6 +97,13 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
           defaultIntervalMs: 5_000,
           description: "Finalizes document posting states from ledger results.",
         },
+        {
+          id: "documents-period-close",
+          envKey: "DOCUMENTS_PERIOD_CLOSE_WORKER_INTERVAL_MS",
+          defaultIntervalMs: 60_000,
+          description:
+            "Generates monthly period_close documents and closes counterparty periods.",
+        },
       ],
     },
     dependencies: [

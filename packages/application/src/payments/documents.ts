@@ -1,11 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
 
-import {
-  ACCOUNTING_SOURCE_ID,
-  OPERATION_CODE,
-  POSTING_TEMPLATE_KEY,
-} from "@bedrock/kernel/accounting-contracts";
-import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 import type { DocumentModule } from "@bedrock/core/documents";
 import {
   DocumentGraphError,
@@ -23,6 +17,12 @@ import {
 } from "@bedrock/core/documents/module-kit";
 import { schema as documentsSchema } from "@bedrock/core/documents/schema";
 import { schema as ledgerSchema } from "@bedrock/core/ledger/schema";
+import {
+  ACCOUNTING_SOURCE_ID,
+  OPERATION_CODE,
+  POSTING_TEMPLATE_KEY,
+} from "@bedrock/kernel/accounting-contracts";
+import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 
 import {
   PaymentIntentPayloadSchema,
@@ -219,7 +219,7 @@ export function createPaymentIntentDocumentModule(deps: {
 
   return {
     moduleId: "payment_intent",
-    accountingSourceId: ACCOUNTING_SOURCE_ID.TRANSFER,
+    accountingSourceId: ACCOUNTING_SOURCE_ID.PAYMENT_CASE,
     docType: "payment_intent",
     docNoPrefix: "PMT",
     payloadVersion: 1,
@@ -263,7 +263,10 @@ export function createPaymentIntentDocumentModule(deps: {
       };
     },
     async canCreate(_context, input) {
-      const bindings = await resolveBindings(counterpartyAccountsService, input);
+      const bindings = await resolveBindings(
+        counterpartyAccountsService,
+        input,
+      );
       if (
         bindings.source.currencyCode !== input.currency ||
         bindings.destination.currencyCode !== input.currency
@@ -323,7 +326,8 @@ export function createPaymentIntentDocumentModule(deps: {
               amountMinor: payload.amountMinor,
               bookId: sourceBookId,
               dimensions: {
-                sourceCounterpartyAccountId: payload.sourceCounterpartyAccountId,
+                sourceCounterpartyAccountId:
+                  payload.sourceCounterpartyAccountId,
                 destinationCounterpartyAccountId:
                   payload.destinationCounterpartyAccountId,
                 sourceCounterpartyId: bindings.source.counterpartyId,
@@ -332,7 +336,8 @@ export function createPaymentIntentDocumentModule(deps: {
                 corridor: payload.corridor,
               },
               refs: {
-                sourceCounterpartyAccountId: payload.sourceCounterpartyAccountId,
+                sourceCounterpartyAccountId:
+                  payload.sourceCounterpartyAccountId,
                 destinationCounterpartyAccountId:
                   payload.destinationCounterpartyAccountId,
                 direction: payload.direction,
@@ -438,10 +443,7 @@ export function createPaymentResolutionDocumentModule(deps: {
 
   return {
     moduleId: "payment_resolution",
-    accountingSourceIds: [
-      ACCOUNTING_SOURCE_ID.TRANSFER_SETTLE,
-      ACCOUNTING_SOURCE_ID.TRANSFER_VOID,
-    ],
+    accountingSourceId: ACCOUNTING_SOURCE_ID.PAYMENT_CASE,
     docType: "payment_resolution",
     docNoPrefix: "PMR",
     payloadVersion: 1,
@@ -618,13 +620,8 @@ export function createPaymentResolutionDocumentModule(deps: {
       return buildDocumentPostIdempotencyKey(document);
     },
     resolveAccountingSourceId(_context, document) {
-      const payload = parseDocumentPayload(
-        PaymentResolutionPayloadSchema,
-        document,
-      );
-      return payload.resolutionType === "settle"
-        ? ACCOUNTING_SOURCE_ID.TRANSFER_SETTLE
-        : ACCOUNTING_SOURCE_ID.TRANSFER_VOID;
+      parseDocumentPayload(PaymentResolutionPayloadSchema, document);
+      return ACCOUNTING_SOURCE_ID.PAYMENT_CASE;
     },
   };
 }

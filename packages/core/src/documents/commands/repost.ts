@@ -1,8 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { InvalidStateError } from "@bedrock/kernel/errors";
 import { schema } from "@bedrock/core/documents/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/core/idempotency";
+import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import type { DocumentsServiceContext } from "../internal/context";
 import {
@@ -14,6 +14,10 @@ import {
   lockDocument,
   resolveModule,
 } from "../internal/helpers";
+import {
+  assertCounterpartyPeriodsOpen,
+  collectDocumentCounterpartyIds,
+} from "../period-locks";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 
 export function createRepostHandler(context: DocumentsServiceContext) {
@@ -78,6 +82,16 @@ export function createRepostHandler(context: DocumentsServiceContext) {
           if (document.postingStatus !== "failed") {
             throw new InvalidStateError("Only failed documents can be reposted");
           }
+          const counterpartyIds = collectDocumentCounterpartyIds({
+            documentCounterpartyId: document.counterpartyId,
+            payload: document.payload,
+          });
+          await assertCounterpartyPeriodsOpen({
+            db: tx,
+            occurredAt: document.occurredAt,
+            counterpartyIds,
+            docType: input.docType,
+          });
 
           const operationId = await getPostingOperationId(tx, document.id);
           if (!operationId) {

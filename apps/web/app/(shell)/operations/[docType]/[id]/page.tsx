@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 import {
   Card,
@@ -45,13 +45,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export default async function OperationDocumentPage({ params }: PageProps) {
   const { docType, id } = await params;
-
-  if (docType === "payment_resolution") {
-    redirect("/payments/settlements");
-  }
-  if (docType !== "payment_intent") {
-    notFound();
-  }
 
   const details = await getDocumentDetails(docType, id);
 

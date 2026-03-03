@@ -2,8 +2,21 @@ export { createDocumentsService } from "./service";
 export type { DocumentsService } from "./service";
 export { createDocumentRegistry } from "./create-document-registry";
 export { createDocumentsWorkerDefinition } from "./worker";
+export { createPeriodCloseWorkerDefinition } from "./period-close-worker";
 export { createDefaultDocumentActionPolicyService } from "./policy";
 export * from "./errors";
+export {
+  SYSTEM_ONLY_DOCUMENT_TYPES,
+  isSystemOnlyDocumentType,
+} from "./doc-type-rules";
+export {
+  assertCounterpartyPeriodsOpen,
+  closeCounterpartyPeriod,
+  collectDocumentCounterpartyIds,
+  getPreviousCalendarMonthRange,
+  isCounterpartyPeriodClosed,
+  reopenCounterpartyPeriod,
+} from "./period-locks";
 export {
   DOCUMENT_APPROVAL_STATUSES,
   DOCUMENT_LIFECYCLE_STATUSES,

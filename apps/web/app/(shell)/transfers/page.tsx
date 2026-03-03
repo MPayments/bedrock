@@ -7,7 +7,11 @@ import { getDocuments } from "@/features/operations/documents/lib/queries";
 import { RecentItemsCard } from "@/features/overview/ui/recent-items-card";
 import { SectionOverviewPage } from "@/features/overview/ui/section-overview-page";
 
-const TRANSFER_DOC_TYPES = ["transfer", "transfer_settle", "transfer_void"];
+const TRANSFER_DOC_TYPES = [
+  "transfer_intra",
+  "transfer_intercompany",
+  "transfer_resolution",
+];
 
 function formatCount(value: number) {
   return value.toLocaleString("ru-RU");
@@ -30,13 +34,13 @@ export default async function TransfersOverviewPage() {
       <SectionOverviewPage
         icon={ArrowRightLeft}
         title="Переводы"
-        description="Transfer workflow с draft, approve, settle и void стадиями на одной странице."
+        description="Intra/intercompany переводы и документы разрешения (settle/void/fail)."
         stats={[
           {
             id: "total",
-            label: "Всего transfer-документов",
+            label: "Всего transfer-документов IFRS",
             value: formatCount(total.total),
-            description: "Базовые переводы и связанные settlement/void события.",
+            description: "Переводы между счетами и документы разрешения transfer lifecycle.",
           },
           {
             id: "pending",
@@ -65,7 +69,7 @@ export default async function TransfersOverviewPage() {
         aside={
           <RecentItemsCard
             title="Последние transfer-документы"
-            description="Свежие документы transfer workflow."
+            description="Свежие transfer_intra / transfer_intercompany / transfer_resolution."
             items={recent.data.map((document) => ({
               id: document.id,
               title: document.title,
@@ -91,7 +95,7 @@ async function TransferDocumentsSection() {
     <EntityListPageShell
       icon={ArrowRightLeft}
       title="Transfer workflow"
-      description="Единый список transfer, settle и void документов."
+      description="Единый список intra/intercompany переводов и transfer resolution."
       fallback={<DataTableSkeleton columnCount={7} rowCount={10} filterCount={4} />}
     >
       <DocumentsTable promise={documentsPromise} />

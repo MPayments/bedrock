@@ -113,7 +113,10 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.TRANSFER_INTRA_IMMEDIATE,
       postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
       transferCode: TRANSFER_CODE.INTERNAL_TRANSFER,
-      allowSources: [ACCOUNTING_SOURCE_ID.TRANSFER],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.TRANSFER_INTRA,
+        ACCOUNTING_SOURCE_ID.PAYMENT_CASE,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
         "sourceCounterpartyAccountId",
@@ -136,7 +139,10 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.TRANSFER_INTRA_PENDING,
       postingCode: POSTING_CODE.TRANSFER_INTRA_PENDING,
       transferCode: TRANSFER_CODE.INTERNAL_TRANSFER,
-      allowSources: [ACCOUNTING_SOURCE_ID.TRANSFER],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.TRANSFER_INTRA,
+        ACCOUNTING_SOURCE_ID.PAYMENT_CASE,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
         "sourceCounterpartyAccountId",
@@ -160,7 +166,10 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.TRANSFER_CROSS_SOURCE_IMMEDIATE,
       postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE,
       transferCode: TRANSFER_CODE.INTERNAL_TRANSFER,
-      allowSources: [ACCOUNTING_SOURCE_ID.TRANSFER],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.TRANSFER_INTERCOMPANY,
+        ACCOUNTING_SOURCE_ID.PAYMENT_CASE,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
         "sourceCounterpartyAccountId",
@@ -184,7 +193,10 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.TRANSFER_CROSS_SOURCE_PENDING,
       postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING,
       transferCode: TRANSFER_CODE.INTERNAL_TRANSFER,
-      allowSources: [ACCOUNTING_SOURCE_ID.TRANSFER],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.TRANSFER_INTERCOMPANY,
+        ACCOUNTING_SOURCE_ID.PAYMENT_CASE,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
         "sourceCounterpartyAccountId",
@@ -209,7 +221,10 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.TRANSFER_CROSS_DESTINATION_IMMEDIATE,
       postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE,
       transferCode: TRANSFER_CODE.INTERNAL_TRANSFER,
-      allowSources: [ACCOUNTING_SOURCE_ID.TRANSFER],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.TRANSFER_INTERCOMPANY,
+        ACCOUNTING_SOURCE_ID.PAYMENT_CASE,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
         "destinationCounterpartyAccountId",
@@ -233,7 +248,10 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.TRANSFER_CROSS_DESTINATION_PENDING,
       postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_PENDING,
       transferCode: TRANSFER_CODE.INTERNAL_TRANSFER,
-      allowSources: [ACCOUNTING_SOURCE_ID.TRANSFER],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.TRANSFER_INTERCOMPANY,
+        ACCOUNTING_SOURCE_ID.PAYMENT_CASE,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
         "destinationCounterpartyAccountId",
@@ -257,7 +275,10 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
     pendingTemplate({
       key: POSTING_TEMPLATE_KEY.TRANSFER_PENDING_SETTLE,
       lineType: "post_pending",
-      allowSources: [ACCOUNTING_SOURCE_ID.TRANSFER_SETTLE],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.TRANSFER_RESOLUTION_SETTLE,
+        ACCOUNTING_SOURCE_ID.PAYMENT_CASE,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [],
       requiredRefs: [
@@ -269,7 +290,10 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
     pendingTemplate({
       key: POSTING_TEMPLATE_KEY.TRANSFER_PENDING_VOID,
       lineType: "void_pending",
-      allowSources: [ACCOUNTING_SOURCE_ID.TRANSFER_VOID],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.TRANSFER_RESOLUTION_VOID,
+        ACCOUNTING_SOURCE_ID.PAYMENT_CASE,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [],
       requiredRefs: [
@@ -282,7 +306,7 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.EXTERNAL_FUNDING_FOUNDER_EQUITY,
       postingCode: POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY,
       transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY,
-      allowSources: [ACCOUNTING_SOURCE_ID.EXTERNAL_FUNDING],
+      allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["counterpartyAccountId", "counterpartyId"],
       requiredRefs: ["entryRef", "kind"],
@@ -303,7 +327,7 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.EXTERNAL_FUNDING_INVESTOR_EQUITY,
       postingCode: POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY,
       transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY,
-      allowSources: [ACCOUNTING_SOURCE_ID.EXTERNAL_FUNDING],
+      allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["counterpartyAccountId", "counterpartyId"],
       requiredRefs: ["entryRef", "kind"],
@@ -324,7 +348,7 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
       postingCode: POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
       transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
-      allowSources: [ACCOUNTING_SOURCE_ID.EXTERNAL_FUNDING],
+      allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["counterpartyAccountId", "counterpartyId"],
       requiredRefs: ["entryRef", "kind"],
@@ -345,7 +369,89 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.EXTERNAL_FUNDING_OPENING_BALANCE,
       postingCode: POSTING_CODE.EXTERNAL_FUNDING_OPENING_BALANCE,
       transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_OPENING_BALANCE,
-      allowSources: [ACCOUNTING_SOURCE_ID.EXTERNAL_FUNDING],
+      allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
+      requiredDimensions: ["counterpartyAccountId"],
+      requiredRefs: ["entryRef", "kind"],
+      debit: {
+        accountNo: ACCOUNT_NO.BANK,
+        dimensions: {
+          counterpartyAccountId: dimension("counterpartyAccountId"),
+        },
+      },
+      credit: {
+        accountNo: ACCOUNT_NO.OPENING_BALANCE_EQUITY,
+        dimensions: {},
+      },
+    }),
+    createTemplate({
+      key: POSTING_TEMPLATE_KEY.CAPITAL_FUNDING_FOUNDER_EQUITY,
+      postingCode: POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY,
+      transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY,
+      allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
+      requiredDimensions: ["counterpartyAccountId", "counterpartyId"],
+      requiredRefs: ["entryRef", "kind"],
+      debit: {
+        accountNo: ACCOUNT_NO.BANK,
+        dimensions: {
+          counterpartyAccountId: dimension("counterpartyAccountId"),
+        },
+      },
+      credit: {
+        accountNo: ACCOUNT_NO.FOUNDER_EQUITY,
+        dimensions: {
+          counterpartyId: dimension("counterpartyId"),
+        },
+      },
+    }),
+    createTemplate({
+      key: POSTING_TEMPLATE_KEY.CAPITAL_FUNDING_INVESTOR_EQUITY,
+      postingCode: POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY,
+      transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY,
+      allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
+      requiredDimensions: ["counterpartyAccountId", "counterpartyId"],
+      requiredRefs: ["entryRef", "kind"],
+      debit: {
+        accountNo: ACCOUNT_NO.BANK,
+        dimensions: {
+          counterpartyAccountId: dimension("counterpartyAccountId"),
+        },
+      },
+      credit: {
+        accountNo: ACCOUNT_NO.INVESTOR_EQUITY,
+        dimensions: {
+          counterpartyId: dimension("counterpartyId"),
+        },
+      },
+    }),
+    createTemplate({
+      key: POSTING_TEMPLATE_KEY.CAPITAL_FUNDING_SHAREHOLDER_LOAN,
+      postingCode: POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
+      transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
+      allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
+      requiredDimensions: ["counterpartyAccountId", "counterpartyId"],
+      requiredRefs: ["entryRef", "kind"],
+      debit: {
+        accountNo: ACCOUNT_NO.BANK,
+        dimensions: {
+          counterpartyAccountId: dimension("counterpartyAccountId"),
+        },
+      },
+      credit: {
+        accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN,
+        dimensions: {
+          counterpartyId: dimension("counterpartyId"),
+        },
+      },
+    }),
+    createTemplate({
+      key: POSTING_TEMPLATE_KEY.CAPITAL_FUNDING_OPENING_BALANCE,
+      postingCode: POSTING_CODE.EXTERNAL_FUNDING_OPENING_BALANCE,
+      transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_OPENING_BALANCE,
+      allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["counterpartyAccountId"],
       requiredRefs: ["entryRef", "kind"],

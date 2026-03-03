@@ -33,6 +33,7 @@ describe("worker selection", () => {
       expect.arrayContaining([
         "ledger",
         "documents",
+        "documents-period-close",
         "balances",
         "fx-rates",
         "reconciliation",

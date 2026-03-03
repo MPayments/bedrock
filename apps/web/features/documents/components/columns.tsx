@@ -19,9 +19,6 @@ function badgeVariant(
 }
 
 function buildDocumentHref(document: DocumentDto): string {
-  if (document.docType === "payment_resolution") {
-    return "/payments/settlements";
-  }
   return `/operations/${document.docType}/${document.id}`;
 }
 

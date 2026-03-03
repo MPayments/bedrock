@@ -1,8 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { InvalidStateError } from "@bedrock/kernel/errors";
 import { schema } from "@bedrock/core/documents/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/core/idempotency";
+import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import { DocumentPostingNotRequiredError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";
@@ -21,6 +21,10 @@ import {
   enforceDocumentPolicy,
   persistDocumentPolicyDenial,
 } from "../internal/policy";
+import {
+  assertCounterpartyPeriodsOpen,
+  collectDocumentCounterpartyIds,
+} from "../period-locks";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 
 export function createPostHandler(context: DocumentsServiceContext) {
@@ -105,6 +109,16 @@ export function createPostHandler(context: DocumentsServiceContext) {
           if (!module.buildPostingPlan) {
             throw new DocumentPostingNotRequiredError(document.id, document.docType);
           }
+          const counterpartyIds = collectDocumentCounterpartyIds({
+            documentCounterpartyId: document.counterpartyId,
+            payload: document.payload,
+          });
+          await assertCounterpartyPeriodsOpen({
+            db: tx,
+            occurredAt: document.occurredAt,
+            counterpartyIds,
+            docType: input.docType,
+          });
 
           await module.canPost(moduleContext, document);
           await enforceDocumentPolicy({

@@ -1,8 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { InvalidStateError } from "@bedrock/kernel/errors";
 import { schema } from "@bedrock/core/documents/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/core/idempotency";
+import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import type { DocumentsServiceContext } from "../internal/context";
 import {
@@ -19,6 +19,10 @@ import {
   enforceDocumentPolicy,
   persistDocumentPolicyDenial,
 } from "../internal/policy";
+import {
+  assertCounterpartyPeriodsOpen,
+  collectDocumentCounterpartyIds,
+} from "../period-locks";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 
 export function createSubmitHandler(context: DocumentsServiceContext) {
@@ -80,6 +84,16 @@ export function createSubmitHandler(context: DocumentsServiceContext) {
           if (document.submissionStatus !== "draft") {
             throw new InvalidStateError("Only draft documents can be submitted");
           }
+          const counterpartyIds = collectDocumentCounterpartyIds({
+            documentCounterpartyId: document.counterpartyId,
+            payload: document.payload,
+          });
+          await assertCounterpartyPeriodsOpen({
+            db: tx,
+            occurredAt: document.occurredAt,
+            counterpartyIds,
+            docType: input.docType,
+          });
 
           await module.canSubmit(moduleContext, document);
           await enforceDocumentPolicy({

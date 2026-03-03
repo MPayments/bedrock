@@ -10,7 +10,14 @@ describe("bedrock component manifest composition", () => {
     const ids = new Set(BEDROCK_APPLICATION_COMPONENT_MANIFESTS.map((manifest) => manifest.id));
 
     expect(ids).toEqual(
-      new Set(["accounting-reporting", "fees", "fx", "fx-rates", "payments"]),
+      new Set([
+        "accounting-reporting",
+        "fees",
+        "fx",
+        "fx-rates",
+        "ifrs-documents",
+        "payments",
+      ]),
     );
   });
 

@@ -13,6 +13,7 @@
     "./fx": "./src/fx/index.ts",
     "./fx/contracts": "./src/fx/contracts.ts",
     "./fx/schema": "./src/fx/schema/index.ts",
+    "./ifrs-documents": "./src/ifrs-documents/index.ts",
     "./payments": "./src/payments/index.ts"
   },
   "scripts": {

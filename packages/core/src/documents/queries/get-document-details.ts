@@ -4,7 +4,7 @@ import { schema } from "@bedrock/core/documents/schema";
 
 import { DocumentNotFoundError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";
-import { createModuleContext, resolveModule } from "../internal/helpers";
+import { createModuleContext, resolveModuleOrNull } from "../internal/helpers";
 import type { DocumentDetails } from "../types";
 
 export function createGetDocumentDetailsQuery(
@@ -32,13 +32,15 @@ export function createGetDocumentDetailsQuery(
       throw new DocumentNotFoundError(documentId);
     }
 
-    const module = resolveModule(registry, docType);
-    const moduleContext = createModuleContext({
-      db,
-      actorUserId,
-      now: new Date(),
-      log,
-    });
+    const module = resolveModuleOrNull(registry, docType);
+    const moduleContext = module
+      ? createModuleContext({
+          db,
+          actorUserId,
+          now: new Date(),
+          log,
+        })
+      : null;
 
     const links = await db
       .select()
@@ -111,7 +113,10 @@ export function createGetDocumentDetailsQuery(
       ),
     );
 
-    const details = await module.buildDetails?.(moduleContext, document);
+    const details =
+      module && moduleContext
+        ? await module.buildDetails?.(moduleContext, document)
+        : undefined;
     const postingOperationId =
       documentOperations.find((operation) => operation.kind === "post")
         ?.operationId ?? null;

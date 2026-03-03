@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { InvalidStateError } from "@bedrock/kernel/errors";
 import { schema, type Document } from "@bedrock/core/documents/schema";
+import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import { createCancelHandler } from "../../src/documents/commands/cancel";
 import { createCreateDraftHandler } from "../../src/documents/commands/create-draft";
@@ -106,6 +106,7 @@ function createContext(options: {
   insertDocumentResult?: Document;
   updateDocumentResult?: Document;
   postingOperationId?: string | null;
+  periodClosed?: boolean;
 }) {
   const module = options.module ?? createModuleStub();
   const selectRows = [...(options.selectRows ?? [])];
@@ -131,8 +132,17 @@ function createContext(options: {
 
   const tx = {
     select: vi.fn(() => ({
-      from: vi.fn(() => ({
+      from: vi.fn((table: unknown) => ({
         where: vi.fn(() => {
+          if (table === schema.accountingPeriodLocks) {
+            const locks = options.periodClosed ? [{ id: "lock-1" }] : [];
+            return {
+              limit: vi.fn(async () => locks),
+              for: vi.fn(() => ({
+                limit: vi.fn(async () => locks),
+              })),
+            };
+          }
           const rows = selectRows.shift() ?? [];
           return {
             limit: vi.fn(async () => rows),
@@ -285,6 +295,28 @@ describe("documents command flows", () => {
     expect(result.document.payload).toEqual({ memo: "updated" });
     expect(result.document.approvalStatus).toBe("pending");
     expect(result.document.title).toBe("updated");
+  });
+
+  it("blocks updates when the document period is closed", async () => {
+    const document = makeDocument({
+      counterpartyId: "cp-closed",
+      payload: { counterpartyId: "cp-closed" },
+    });
+    const { context } = createContext({
+      document,
+      selectRows: [[document]],
+      periodClosed: true,
+    });
+    const handler = createUpdateDraftHandler(context as any);
+
+    await expect(
+      handler({
+        docType: document.docType,
+        documentId: document.id,
+        payload: { memo: "updated" },
+        actorUserId: "maker-1",
+      }),
+    ).rejects.toThrow("is closed for counterparty");
   });
 
   it("cancels active unposted documents", async () => {

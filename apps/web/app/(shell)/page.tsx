@@ -16,11 +16,15 @@ const PAYMENT_DOC_TYPES = [
   "fee_payout_initiate",
   "fee_payout_settle",
   "fee_payout_void",
-  "external_funding",
+  "capital_funding",
   "fx_execute",
 ];
 
-const TRANSFER_DOC_TYPES = ["transfer", "transfer_settle", "transfer_void"];
+const TRANSFER_DOC_TYPES = [
+  "transfer_intra",
+  "transfer_intercompany",
+  "transfer_resolution",
+];
 
 function formatCount(value: number) {
   return value.toLocaleString("ru-RU");
@@ -62,7 +66,8 @@ export default async function DashboardPage() {
           id: "transfers",
           label: "Переводы",
           value: formatCount(transferDocuments.total),
-          description: "Переводы, сеттлы и void-события transfer workflow.",
+          description:
+            "Внутренние/межкомпанейские переводы и документы transfer_resolution.",
           href: "/transfers",
         },
         {

@@ -7,6 +7,7 @@ const MODULE_COMPONENT_IDS = new Set([
   "fees",
   "fx",
   "fx-rates",
+  "ifrs-documents",
   "payments",
 ]);
 
@@ -26,6 +27,7 @@ describe("core component manifest ownership", () => {
       expect.arrayContaining([
         "ledger",
         "documents",
+        "documents-period-close",
         "balances",
         "reconciliation",
         "connectors-dispatch",

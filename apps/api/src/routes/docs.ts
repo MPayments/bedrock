@@ -5,7 +5,9 @@ import {
   type DocumentDetails as DocumentDetailsResult,
   type DocumentWithOperationId,
   ListDocumentsQuerySchema,
+  DocumentSystemOnlyTypeError,
   UpdateDocumentInputSchema,
+  isSystemOnlyDocumentType,
 } from "@bedrock/core/documents";
 
 import { handleRouteError } from "../common/errors";
@@ -145,6 +147,23 @@ function toDocumentDetailsDto(details: DocumentDetailsResult) {
 export function docsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
+  function assertPublicMutationAllowed(input: {
+    docType: string;
+    action: "create" | "update" | "submit" | "approve" | "reject" | "post" | "cancel" | "repost";
+    role: string | null | undefined;
+  }) {
+    if (
+      input.docType === "period_reopen" &&
+      input.action === "create" &&
+      input.role === "admin"
+    ) {
+      return;
+    }
+    if (isSystemOnlyDocumentType(input.docType)) {
+      throw new DocumentSystemOnlyTypeError(input.docType);
+    }
+  }
+
   app.get("/", requirePermission({ documents: ["list"] }), async (c) => {
     try {
       const query = ListDocumentsQuerySchema.parse(queryObjectFromUrl(c.req.url));
@@ -161,6 +180,11 @@ export function docsRoutes(ctx: AppContext) {
   app.post("/:docType", requirePermission({ documents: ["create"] }), async (c) => {
     try {
       const { docType } = c.req.param();
+      assertPublicMutationAllowed({
+        docType,
+        action: "create",
+        role: c.get("user")?.role,
+      });
       const body = CreateDocumentInputSchema.parse(await c.req.json());
       const result = await ctx.documentsService.createDraft({
         docType,
@@ -178,6 +202,11 @@ export function docsRoutes(ctx: AppContext) {
   app.patch("/:docType/:id", requirePermission({ documents: ["update"] }), async (c) => {
     try {
       const { docType, id } = c.req.param();
+      assertPublicMutationAllowed({
+        docType,
+        action: "update",
+        role: c.get("user")?.role,
+      });
       const idem = requireIdempotencyKey(c);
       if (!idem.ok) return idem.response;
       const body = UpdateDocumentInputSchema.parse(await c.req.json());
@@ -238,6 +267,11 @@ export function docsRoutes(ctx: AppContext) {
     async (c) => {
       try {
         const { docType, id } = c.req.param();
+        assertPublicMutationAllowed({
+          docType,
+          action: "submit",
+          role: c.get("user")?.role,
+        });
         const idem = requireIdempotencyKey(c);
         if (!idem.ok) return idem.response;
         const result = await ctx.documentsService.submit({
@@ -260,6 +294,11 @@ export function docsRoutes(ctx: AppContext) {
     async (c) => {
       try {
         const { docType, id } = c.req.param();
+        assertPublicMutationAllowed({
+          docType,
+          action: "approve",
+          role: c.get("user")?.role,
+        });
         const idem = requireIdempotencyKey(c);
         if (!idem.ok) return idem.response;
         const result = await ctx.documentsService.approve({
@@ -282,6 +321,11 @@ export function docsRoutes(ctx: AppContext) {
     async (c) => {
       try {
         const { docType, id } = c.req.param();
+        assertPublicMutationAllowed({
+          docType,
+          action: "reject",
+          role: c.get("user")?.role,
+        });
         const idem = requireIdempotencyKey(c);
         if (!idem.ok) return idem.response;
         const result = await ctx.documentsService.reject({
@@ -301,6 +345,11 @@ export function docsRoutes(ctx: AppContext) {
   app.post("/:docType/:id/post", requirePermission({ documents: ["post"] }), async (c) => {
     try {
       const { docType, id } = c.req.param();
+      assertPublicMutationAllowed({
+        docType,
+        action: "post",
+        role: c.get("user")?.role,
+      });
       const idem = requireIdempotencyKey(c);
       if (!idem.ok) return idem.response;
       const result = await ctx.documentsService.post({
@@ -322,6 +371,11 @@ export function docsRoutes(ctx: AppContext) {
     async (c) => {
       try {
         const { docType, id } = c.req.param();
+        assertPublicMutationAllowed({
+          docType,
+          action: "cancel",
+          role: c.get("user")?.role,
+        });
         const idem = requireIdempotencyKey(c);
         if (!idem.ok) return idem.response;
         const result = await ctx.documentsService.cancel({
@@ -344,6 +398,11 @@ export function docsRoutes(ctx: AppContext) {
     async (c) => {
       try {
         const { docType, id } = c.req.param();
+        assertPublicMutationAllowed({
+          docType,
+          action: "repost",
+          role: c.get("user")?.role,
+        });
         const idem = requireIdempotencyKey(c);
         if (!idem.ok) return idem.response;
         const result = await ctx.documentsService.repost({

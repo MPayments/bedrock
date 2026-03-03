@@ -1,12 +1,6 @@
 import type { Context } from "hono";
 
 import {
-  InvalidStateError,
-  NotFoundError,
-  PermissionError,
-  ValidationError,
-} from "@bedrock/kernel/errors";
-import {
   ConnectorIntentTerminalError,
   ConnectorMaxAttemptsExceededError,
 } from "@bedrock/core/connectors";
@@ -15,12 +9,19 @@ import {
   DocumentNotFoundError,
   DocumentPolicyDeniedError,
   DocumentPostingNotRequiredError,
+  DocumentSystemOnlyTypeError,
   DocumentValidationError,
 } from "@bedrock/core/documents";
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
 } from "@bedrock/core/idempotency";
+import {
+  InvalidStateError,
+  NotFoundError,
+  PermissionError,
+  ValidationError,
+} from "@bedrock/kernel/errors";
 
 function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -81,6 +82,7 @@ export function handleRouteError(c: Context, error: unknown): Response {
   }
 
   if (
+    error instanceof DocumentSystemOnlyTypeError ||
     error instanceof InvalidStateError ||
     error instanceof DocumentPostingNotRequiredError ||
     error instanceof ActionReceiptConflictError ||

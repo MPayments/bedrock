@@ -4,6 +4,7 @@ import {
 } from "@bedrock/application/accounting-reporting";
 import { createFeesService, type FeesService } from "@bedrock/application/fees";
 import { createFxService, type FxService } from "@bedrock/application/fx";
+import { createIfrsDocumentModules } from "@bedrock/application/ifrs-documents";
 import {
   createPaymentIntentDocumentModule,
   createPaymentResolutionDocumentModule,
@@ -97,6 +98,9 @@ export function createApplicationServices(
     logger,
   });
   const documentRegistry = createDocumentRegistry([
+    ...createIfrsDocumentModules({
+      counterpartyAccountsService,
+    }),
     createPaymentIntentDocumentModule({
       counterpartyAccountsService,
     }),

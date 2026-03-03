@@ -1,5 +1,3 @@
-import type { Database } from "@bedrock/kernel/db/types";
-import type { Logger } from "@bedrock/kernel";
 import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/application/component-runtime";
 import { createFeesService } from "@bedrock/application/fees";
 import {
@@ -18,7 +16,10 @@ import {
   getMockProviders,
 } from "@bedrock/core/connectors";
 import { createCurrenciesService } from "@bedrock/core/currencies";
-import { createDocumentsWorkerDefinition } from "@bedrock/core/documents";
+import {
+  createDocumentsWorkerDefinition,
+  createPeriodCloseWorkerDefinition,
+} from "@bedrock/core/documents";
 import {
   createLedgerWorkerDefinition,
   type TbClient,
@@ -33,6 +34,8 @@ import {
   type BedrockWorker,
   type WorkerCatalogEntry,
 } from "@bedrock/core/worker-runtime";
+import type { Logger } from "@bedrock/kernel";
+import type { Database } from "@bedrock/kernel/db/types";
 
 import type { WorkerEnv } from "../env";
 import { isComponentEnabledForBooks } from "./runtime-guard";
@@ -109,6 +112,15 @@ export function createWorkerImplementations(
         componentRuntime: deps.componentRuntime,
         componentId: "documents",
         bookIds,
+      }),
+  });
+  const documentsPeriodClose = createPeriodCloseWorkerDefinition({
+    ...createWorkerMetadata("documents-period-close", deps.env),
+    db: deps.db,
+    logger: deps.logger,
+    beforeCounterparty: () =>
+      deps.componentRuntime.isComponentEnabled({
+        componentId: "documents",
       }),
   });
 
@@ -217,6 +229,7 @@ export function createWorkerImplementations(
   return {
     [ledger.id]: ledger,
     [documents.id]: documents,
+    [documentsPeriodClose.id]: documentsPeriodClose,
     [balances.id]: balances,
     [fxRates.id]: fxRates,
     [reconciliation.id]: reconciliation,

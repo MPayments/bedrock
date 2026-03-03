@@ -1,7 +1,9 @@
-import type { Transaction } from "@bedrock/kernel/db/types";
 import { schema, type Document } from "@bedrock/core/documents/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/core/idempotency";
+import type { Transaction } from "@bedrock/kernel/db/types";
 
+import { isSystemOnlyDocumentType } from "../doc-type-rules";
+import { DocumentValidationError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";
 import {
   buildDocumentEventState,
@@ -19,8 +21,38 @@ import {
   enforceDocumentPolicy,
   persistDocumentPolicyDenial,
 } from "../internal/policy";
+import {
+  assertCounterpartyPeriodsOpen,
+  closeCounterpartyPeriod,
+  collectDocumentCounterpartyIds,
+  reopenCounterpartyPeriod,
+} from "../period-locks";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 import { validateInput } from "../validation";
+
+function readPayloadString(
+  payload: Record<string, unknown>,
+  key: string,
+): string | null {
+  const value = payload[key];
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function readPayloadDate(
+  payload: Record<string, unknown>,
+  key: string,
+  fallback: Date,
+): Date {
+  const raw = payload[key];
+  if (typeof raw === "string" || raw instanceof Date) {
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.valueOf())) {
+      return parsed;
+    }
+  }
+
+  return fallback;
+}
 
 export function createCreateDraftHandler(context: DocumentsServiceContext) {
   const { db, idempotency, log, policy, registry } = context;
@@ -140,6 +172,19 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                 : "not_required",
             };
             const summary = buildSummary(module.deriveSummary(transient));
+            const counterpartyIds = collectDocumentCounterpartyIds({
+              summaryCounterpartyId: summary.counterpartyId,
+              payload,
+            });
+
+            if (!isSystemOnlyDocumentType(input.docType)) {
+              await assertCounterpartyPeriodsOpen({
+                db: tx,
+                occurredAt: draft.occurredAt,
+                counterpartyIds,
+                docType: input.docType,
+              });
+            }
 
             const values = {
               ...transient,
@@ -170,6 +215,38 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
             );
             if (links && links.length > 0) {
               await insertInitialLinks(tx, document, links);
+            }
+
+            if (document.docType === "period_close") {
+              const counterpartyId = readPayloadString(payload, "counterpartyId");
+              if (!counterpartyId) {
+                throw new DocumentValidationError(
+                  "period_close payload requires counterpartyId",
+                );
+              }
+              await closeCounterpartyPeriod({
+                db: tx,
+                counterpartyId,
+                periodStart: readPayloadDate(payload, "periodStart", document.occurredAt),
+                periodEnd: readPayloadDate(payload, "periodEnd", document.occurredAt),
+                closedBy: input.actorUserId,
+                closeReason: readPayloadString(payload, "closeReason"),
+                lockedByDocumentId: document.id,
+              });
+            } else if (document.docType === "period_reopen") {
+              const counterpartyId = readPayloadString(payload, "counterpartyId");
+              if (!counterpartyId) {
+                throw new DocumentValidationError(
+                  "period_reopen payload requires counterpartyId",
+                );
+              }
+              await reopenCounterpartyPeriod({
+                db: tx,
+                counterpartyId,
+                periodStart: readPayloadDate(payload, "periodStart", document.occurredAt),
+                reopenedBy: input.actorUserId,
+                reopenReason: readPayloadString(payload, "reopenReason"),
+              });
             }
 
             await insertDocumentEvent(tx, {

@@ -1,7 +1,8 @@
 export const ACCOUNTING_SOURCE_ID = {
-  TRANSFER: "transfer",
-  TRANSFER_SETTLE: "transfer_settle",
-  TRANSFER_VOID: "transfer_void",
+  TRANSFER_INTRA: "transfer_intra",
+  TRANSFER_INTERCOMPANY: "transfer_intercompany",
+  TRANSFER_RESOLUTION_SETTLE: "transfer_resolution_settle",
+  TRANSFER_RESOLUTION_VOID: "transfer_resolution_void",
   PAYMENT_CASE: "payment_case",
   PAYIN_FUNDING: "payin_funding",
   FX_EXECUTE: "fx_execute",
@@ -11,7 +12,7 @@ export const ACCOUNTING_SOURCE_ID = {
   FEE_PAYOUT_INITIATE: "fee_payout_initiate",
   FEE_PAYOUT_SETTLE: "fee_payout_settle",
   FEE_PAYOUT_VOID: "fee_payout_void",
-  EXTERNAL_FUNDING: "external_funding",
+  CAPITAL_FUNDING: "capital_funding",
 } as const;
 
 export type AccountingSourceId =
@@ -33,6 +34,7 @@ export const OPERATION_CODE = {
   TREASURY_FEE_PAYMENT_INIT: "TREASURY_FEE_PAYMENT_INIT",
   TREASURY_FEE_PAYMENT_SETTLE: "TREASURY_FEE_PAYMENT_SETTLE",
   TREASURY_FEE_PAYMENT_VOID: "TREASURY_FEE_PAYMENT_VOID",
+  TREASURY_CAPITAL_FUNDING: "TREASURY_CAPITAL_FUNDING",
 } as const;
 
 export type OperationCode =
@@ -51,6 +53,10 @@ export const POSTING_TEMPLATE_KEY = {
   EXTERNAL_FUNDING_INVESTOR_EQUITY: "external_funding.investor_equity",
   EXTERNAL_FUNDING_SHAREHOLDER_LOAN: "external_funding.shareholder_loan",
   EXTERNAL_FUNDING_OPENING_BALANCE: "external_funding.opening_balance",
+  CAPITAL_FUNDING_FOUNDER_EQUITY: "capital_funding.founder_equity",
+  CAPITAL_FUNDING_INVESTOR_EQUITY: "capital_funding.investor_equity",
+  CAPITAL_FUNDING_SHAREHOLDER_LOAN: "capital_funding.shareholder_loan",
+  CAPITAL_FUNDING_OPENING_BALANCE: "capital_funding.opening_balance",
   PAYMENT_PAYIN_FUNDING: "payment.payin_funding",
   PAYMENT_FX_PRINCIPAL: "payment.fx.principal",
   PAYMENT_FX_LEG_OUT: "payment.fx.leg_out",

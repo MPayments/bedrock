@@ -19,6 +19,10 @@ import {
   enforceDocumentPolicy,
   persistDocumentPolicyDenial,
 } from "../internal/policy";
+import {
+  assertCounterpartyPeriodsOpen,
+  collectDocumentCounterpartyIds,
+} from "../period-locks";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 import { validateInput } from "../validation";
 
@@ -93,6 +97,16 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
                 "Only active draft documents can be updated",
               );
             }
+            const counterpartyIds = collectDocumentCounterpartyIds({
+              documentCounterpartyId: document.counterpartyId,
+              payload: document.payload,
+            });
+            await assertCounterpartyPeriodsOpen({
+              db: tx,
+              occurredAt: document.occurredAt,
+              counterpartyIds,
+              docType: input.docType,
+            });
 
             await module.canEdit(moduleContext, document);
             await enforceDocumentPolicy({
