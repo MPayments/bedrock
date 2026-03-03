@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import type { Database } from "@bedrock/kernel/db/types";
 import { noopLogger, type CorrelationContext, type Logger } from "@bedrock/kernel";
 import type { ConnectorsService } from "@bedrock/core/connectors";
+import { AccountBindingNotFoundError } from "@bedrock/core/counterparty-accounts";
 import type {
   DocumentDetails,
   DocumentWithOperationId,
@@ -60,9 +61,7 @@ async function resolveSourceBookId(db: Database, sourceCounterpartyAccountId: st
     .limit(1);
 
   if (!binding?.bookId) {
-    throw new Error(
-      `Counterparty account binding not found: ${sourceCounterpartyAccountId}`,
-    );
+    throw new AccountBindingNotFoundError(sourceCounterpartyAccountId);
   }
   return binding.bookId;
 }

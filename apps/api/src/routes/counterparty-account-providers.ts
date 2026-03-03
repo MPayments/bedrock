@@ -1,6 +1,5 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import {
   CounterpartyAccountProviderSchema,
   AccountProviderNotFoundError,
@@ -14,6 +13,7 @@ import {
   CounterpartyAccountProviderOptionSchema,
   CounterpartyAccountProviderOptionsResponseSchema,
 } from "@bedrock/core/counterparty-accounts/contracts";
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";

@@ -4,6 +4,7 @@ import { ensureBookAccountInstanceTx } from "@bedrock/core/ledger";
 import { schema } from "@bedrock/core/counterparty-accounts/schema";
 
 import { AccountProviderNotFoundError } from "../errors";
+import { ensureCounterpartyDefaultBookIdTx } from "../internal/books";
 import type { CounterpartyAccountsServiceContext } from "../internal/context";
 import {
   CreateAccountInputSchema,
@@ -63,27 +64,28 @@ export function createCreateCounterpartyAccountHandler(
         throw new Error(`Currency not found: ${validated.currencyId}`);
       }
 
-      const { id: bookAccountInstanceId } = await ensureBookAccountInstanceTx(
+      const bookId = await ensureCounterpartyDefaultBookIdTx(
         tx,
-        {
-          bookId: validated.counterpartyId,
-          accountNo: validated.postingAccountNo,
-          currency: currency.code,
-          dimensions: {},
-        },
+        validated.counterpartyId,
       );
+      const { id: bookAccountInstanceId } = await ensureBookAccountInstanceTx(tx, {
+        bookId,
+        accountNo: validated.postingAccountNo,
+        currency: currency.code,
+        dimensions: {},
+      });
 
       await tx
         .insert(schema.counterpartyAccountBindings)
         .values({
           counterpartyAccountId: created!.id,
-          bookId: validated.counterpartyId,
+          bookId,
           bookAccountInstanceId,
         })
         .onConflictDoUpdate({
           target: schema.counterpartyAccountBindings.counterpartyAccountId,
           set: {
-            bookId: validated.counterpartyId,
+            bookId,
             bookAccountInstanceId,
           },
         });
@@ -92,7 +94,7 @@ export function createCreateCounterpartyAccountHandler(
 
       return {
         ...created!,
-        bookId: validated.counterpartyId,
+        bookId,
         postingAccountNo: validated.postingAccountNo,
       };
     });

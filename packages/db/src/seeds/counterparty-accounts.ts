@@ -1,4 +1,11 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+
+import {
+  computeDimensionsHash,
+  tbBookAccountInstanceIdFor,
+  tbLedgerForCurrency,
+} from "@bedrock/kernel";
+import { ACCOUNT_NO } from "@bedrock/core/accounting";
 
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema";
@@ -423,6 +430,161 @@ async function upsertCounterpartyAccounts(
   }
 }
 
+function counterpartyDefaultBookCode(counterpartyId: string) {
+  return `counterparty-default:${counterpartyId}`;
+}
+
+function counterpartyDefaultBookName(counterpartyId: string) {
+  return `Counterparty ${counterpartyId} default book`;
+}
+
+async function ensureDefaultBooks(
+  db: Database | Transaction,
+): Promise<Map<string, string>> {
+  const counterpartyIds = Array.from(
+    new Set(COUNTERPARTY_ACCOUNTS.map((account) => account.counterpartyId)),
+  );
+  const out = new Map<string, string>();
+
+  for (const counterpartyId of counterpartyIds) {
+    const [defaultBook] = await db
+      .select({ id: schema.books.id })
+      .from(schema.books)
+      .where(
+        and(
+          eq(schema.books.counterpartyId, counterpartyId),
+          eq(schema.books.isDefault, true),
+        ),
+      )
+      .limit(1);
+
+    if (defaultBook) {
+      out.set(counterpartyId, defaultBook.id);
+      continue;
+    }
+
+    const [existingBook] = await db
+      .select({ id: schema.books.id })
+      .from(schema.books)
+      .where(eq(schema.books.counterpartyId, counterpartyId))
+      .limit(1);
+
+    if (existingBook) {
+      out.set(counterpartyId, existingBook.id);
+      continue;
+    }
+
+    const code = counterpartyDefaultBookCode(counterpartyId);
+    const [createdBook] = await db
+      .insert(schema.books)
+      .values({
+        counterpartyId,
+        code,
+        name: counterpartyDefaultBookName(counterpartyId),
+        isDefault: true,
+      })
+      .onConflictDoNothing({
+        target: schema.books.code,
+      })
+      .returning({ id: schema.books.id });
+
+    if (createdBook) {
+      out.set(counterpartyId, createdBook.id);
+      continue;
+    }
+
+    const [byCode] = await db
+      .select({ id: schema.books.id })
+      .from(schema.books)
+      .where(eq(schema.books.code, code))
+      .limit(1);
+
+    if (!byCode) {
+      throw new Error(
+        `Failed to create or fetch default book for counterparty ${counterpartyId}`,
+      );
+    }
+
+    out.set(counterpartyId, byCode.id);
+  }
+
+  return out;
+}
+
+async function upsertCounterpartyAccountBindings(
+  db: Database | Transaction,
+  counterpartyBookIdByCounterpartyId: ReadonlyMap<string, string>,
+) {
+  for (const counterpartyAccount of COUNTERPARTY_ACCOUNTS) {
+    const bookId = counterpartyBookIdByCounterpartyId.get(
+      counterpartyAccount.counterpartyId,
+    );
+    if (!bookId) {
+      throw new Error(
+        `Book not found for counterparty ${counterpartyAccount.counterpartyId}`,
+      );
+    }
+
+    const dimensions = { counterpartyAccountId: counterpartyAccount.id };
+    const dimensionsHash = computeDimensionsHash(dimensions);
+    const tbLedger = tbLedgerForCurrency(counterpartyAccount.currencyCode);
+    const tbAccountId = tbBookAccountInstanceIdFor(
+      bookId,
+      ACCOUNT_NO.BANK,
+      counterpartyAccount.currencyCode,
+      dimensionsHash,
+      tbLedger,
+    );
+
+    const [instance] = await db
+      .insert(schema.bookAccountInstances)
+      .values({
+        bookId,
+        accountNo: ACCOUNT_NO.BANK,
+        currency: counterpartyAccount.currencyCode,
+        dimensions,
+        dimensionsHash,
+        tbLedger,
+        tbAccountId,
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.bookAccountInstances.bookId,
+          schema.bookAccountInstances.accountNo,
+          schema.bookAccountInstances.currency,
+          schema.bookAccountInstances.dimensionsHash,
+        ],
+        set: {
+          tbLedger,
+          tbAccountId,
+          dimensions,
+        },
+      })
+      .returning({ id: schema.bookAccountInstances.id });
+
+    if (!instance) {
+      throw new Error(
+        `Failed to upsert book account instance for counterparty account ${counterpartyAccount.id}`,
+      );
+    }
+
+    await db
+      .insert(schema.counterpartyAccountBindings)
+      .values({
+        counterpartyAccountId: counterpartyAccount.id,
+        bookId,
+        bookAccountInstanceId: instance.id,
+      })
+      .onConflictDoUpdate({
+        target: schema.counterpartyAccountBindings.counterpartyAccountId,
+        set: {
+          bookId,
+          bookAccountInstanceId: instance.id,
+        },
+      });
+  }
+}
+
 export async function seedCounterparties(db: Database | Transaction) {
   await ensureSeedCustomersAndCounterparties(db);
 
@@ -448,6 +610,8 @@ export async function seedCounterpartyAccounts(db: Database | Transaction) {
 
   const currencyIdByCode = await currencyIdByCodeMap(db);
   await upsertCounterpartyAccounts(db, currencyIdByCode);
+  const counterpartyBookIdByCounterpartyId = await ensureDefaultBooks(db);
+  await upsertCounterpartyAccountBindings(db, counterpartyBookIdByCounterpartyId);
 
   console.log(
     `[seed:counterparty-accounts] Seeded ${COUNTERPARTY_ACCOUNTS.length} counterparty accounts`,
@@ -460,6 +624,8 @@ export async function seedCounterpartyDomain(db: Database | Transaction) {
   await upsertAccountProviders(db);
   const currencyIdByCode = await currencyIdByCodeMap(db);
   await upsertCounterpartyAccounts(db, currencyIdByCode);
+  const counterpartyBookIdByCounterpartyId = await ensureDefaultBooks(db);
+  await upsertCounterpartyAccountBindings(db, counterpartyBookIdByCounterpartyId);
 
   console.log(
     `[seed:counterparty-domain] Completed (${COUNTERPARTIES.length} counterparties, ${PROVIDERS.length} counterparty account providers, ${COUNTERPARTY_ACCOUNTS.length} counterparty accounts)`,

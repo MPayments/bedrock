@@ -12,6 +12,16 @@ export class AccountNotFoundError extends AccountError {
   }
 }
 
+export class AccountBindingNotFoundError extends AccountError {
+  name = "AccountBindingNotFoundError";
+
+  constructor(accountId: string) {
+    // The account exists, but required ledger binding is missing.
+    // This is treated as an internal integrity failure, not a 404.
+    super(`Counterparty account binding not found: ${accountId}`);
+  }
+}
+
 export class AccountProviderNotFoundError extends AccountError {
   name = "AccountProviderNotFoundError";
 

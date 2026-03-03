@@ -1,15 +1,16 @@
 import { inArray, sql, type SQL } from "drizzle-orm";
 
+import { schema as accountingSchema } from "@bedrock/core/accounting/schema";
+import { schema as counterpartiesSchema } from "@bedrock/core/counterparties/schema";
+import { createBedrockDimensionRegistry } from "@bedrock/core/dimensions";
+import { schema as ledgerSchema, type Dimensions } from "@bedrock/core/ledger/schema";
+import { ValidationError } from "@bedrock/kernel/errors";
 import {
   paginateInMemory,
   resolveSortOrder,
   sortInMemory,
   type PaginatedList,
 } from "@bedrock/kernel/pagination";
-import { schema as accountingSchema } from "@bedrock/core/accounting/schema";
-import { schema as counterpartiesSchema } from "@bedrock/core/counterparties/schema";
-import { createBedrockDimensionRegistry } from "@bedrock/core/dimensions";
-import { schema as ledgerSchema, type Dimensions } from "@bedrock/core/ledger/schema";
 
 import {
   createAccountingReportingServiceContext,
@@ -112,7 +113,7 @@ function parseOptionalIsoDate(
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
-    throw new Error(`${field} must be a valid ISO datetime`);
+    throw new ValidationError(`${field} must be a valid ISO datetime`);
   }
 
   return parsed;
@@ -446,7 +447,7 @@ export function createAccountingReportingService(
     const currency = normalizeCurrency(query.currency);
 
     if (from && to && from > to) {
-      throw new Error("from must be earlier than or equal to to");
+      throw new ValidationError("from must be earlier than or equal to to");
     }
 
     let allowedCounterpartyIds: string[] | undefined;
@@ -548,7 +549,7 @@ export function createAccountingReportingService(
     const groupIds = Array.from(new Set(query.groupId ?? []));
 
     if (from && to && from > to) {
-      throw new Error("from must be earlier than or equal to to");
+      throw new ValidationError("from must be earlier than or equal to to");
     }
 
     const membershipRows = await resolveGroupMemberRows(

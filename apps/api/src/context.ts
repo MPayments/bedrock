@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { db } from "@bedrock/db/client";
-import type { Logger } from "@bedrock/kernel";
 import type { AccountingReportingService } from "@bedrock/application/accounting-reporting";
 import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/application/component-runtime";
 import type { FeesService } from "@bedrock/application/fees";
@@ -15,13 +13,15 @@ import {
 } from "@bedrock/core/component-runtime";
 import type { ConnectorsService } from "@bedrock/core/connectors";
 import type { CounterpartiesService } from "@bedrock/core/counterparties";
+import type { CounterpartyAccountsService } from "@bedrock/core/counterparty-accounts";
 import type { CurrenciesService } from "@bedrock/core/currencies";
 import type { CustomersService } from "@bedrock/core/customers";
 import type { DocumentsService } from "@bedrock/core/documents";
 import type { LedgerReadService } from "@bedrock/core/ledger";
-import type { CounterpartyAccountsService } from "@bedrock/core/counterparty-accounts";
 import type { OrchestrationService } from "@bedrock/core/orchestration";
 import type { ReconciliationService } from "@bedrock/core/reconciliation";
+import { db } from "@bedrock/db/client";
+import type { Logger } from "@bedrock/kernel";
 
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";

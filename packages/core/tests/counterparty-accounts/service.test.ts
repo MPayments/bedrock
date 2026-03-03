@@ -8,13 +8,29 @@ const ledgerMocks = vi.hoisted(() => {
   };
 });
 
+const booksMocks = vi.hoisted(() => {
+  return {
+    ensureCounterpartyDefaultBookIdTx: vi.fn(
+      async () => "00000000-0000-4000-8000-000000000701",
+    ),
+  };
+});
+
 vi.mock("@bedrock/core/ledger", () => {
   return {
     ensureBookAccountInstanceTx: ledgerMocks.ensureBookAccountInstanceTx,
   };
 });
 
+vi.mock("../../src/counterparty-accounts/internal/books", () => {
+  return {
+    ensureCounterpartyDefaultBookIdTx:
+      booksMocks.ensureCounterpartyDefaultBookIdTx,
+  };
+});
+
 import {
+  AccountBindingNotFoundError,
   AccountNotFoundError,
   AccountProviderNotFoundError,
   AccountProviderInUseError,
@@ -47,6 +63,7 @@ function makeAccount(overrides: Record<string, unknown> = {}) {
   return {
     id: "00000000-0000-4000-8000-000000000401",
     counterpartyId: "00000000-0000-4000-8000-000000000501",
+    bookId: "00000000-0000-4000-8000-000000000701",
     currencyId: "00000000-0000-4000-8000-000000000601",
     accountProviderId: "00000000-0000-4000-8000-000000000301",
     label: "Основной счёт",
@@ -56,6 +73,7 @@ function makeAccount(overrides: Record<string, unknown> = {}) {
     address: null,
     iban: null,
     stableKey: "main-rub",
+    postingAccountNo: "1110",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     ...overrides,
@@ -426,7 +444,7 @@ describe("accounts", () => {
 
     expect(result).toMatchObject({
       ...account,
-      bookId: account.counterpartyId,
+      bookId: account.bookId,
       postingAccountNo: expect.any(String),
     });
     expect(tx.insert).toHaveBeenCalledTimes(2);
@@ -530,9 +548,20 @@ describe("accounts", () => {
 
     expect(result).toMatchObject({
       ...account,
-      bookId: account.counterpartyId,
+      bookId: account.bookId,
       postingAccountNo: expect.any(String),
     });
+  });
+
+  it("throws AccountBindingNotFoundError when account binding is missing", async () => {
+    const account = makeAccount({ bookId: null, postingAccountNo: null });
+    const db = createStubDb();
+    db.select.mockReturnValue(selectSingleRow([account]));
+
+    const service = createCounterpartyAccountsService({ db: db as any });
+    await expect(service.getAccount(account.id)).rejects.toThrow(
+      AccountBindingNotFoundError,
+    );
   });
 
   it("throws AccountNotFoundError for missing account", async () => {
@@ -551,7 +580,7 @@ describe("accounts", () => {
     const existing = makeAccount();
     const updated = makeAccount({ label: "Новый счёт" });
     const currency = { code: "RUB" };
-    const binding = { postingAccountNo: "1110" };
+    const binding = { bookId: existing.bookId, postingAccountNo: "1110" };
     const db = createStubDb();
     const tx = {
       select: vi
@@ -575,7 +604,7 @@ describe("accounts", () => {
 
     expect(result).toMatchObject({
       ...updated,
-      bookId: existing.counterpartyId,
+      bookId: existing.bookId,
       postingAccountNo: binding.postingAccountNo,
     });
     expect(tx.update).toHaveBeenCalledTimes(1);
@@ -585,7 +614,7 @@ describe("accounts", () => {
     const provider = makeProvider();
     const existing = makeAccount();
     const currency = { code: "RUB" };
-    const binding = { postingAccountNo: "1110" };
+    const binding = { bookId: existing.bookId, postingAccountNo: "1110" };
     const db = createStubDb();
     const tx = {
       select: vi
@@ -607,7 +636,7 @@ describe("accounts", () => {
 
     expect(result).toMatchObject({
       ...existing,
-      bookId: existing.counterpartyId,
+      bookId: existing.bookId,
       postingAccountNo: binding.postingAccountNo,
     });
     expect(tx.update).not.toHaveBeenCalled();
@@ -727,12 +756,12 @@ describe("accounts", () => {
       data: [
         expect.objectContaining({
           ...a1,
-          bookId: a1.counterpartyId,
+          bookId: a1.bookId,
           postingAccountNo: expect.any(String),
         }),
         expect.objectContaining({
           ...a2,
-          bookId: a2.counterpartyId,
+          bookId: a2.bookId,
           postingAccountNo: expect.any(String),
         }),
       ],
@@ -778,7 +807,7 @@ describe("accounts", () => {
     expect(page.data).toEqual([
       expect.objectContaining({
         ...account,
-        bookId: account.counterpartyId,
+        bookId: account.bookId,
         postingAccountNo: expect.any(String),
       }),
     ]);

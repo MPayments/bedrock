@@ -31,6 +31,7 @@ export type {
 
 export {
   AccountError,
+  AccountBindingNotFoundError,
   AccountNotFoundError,
   AccountProviderNotFoundError,
   AccountProviderInUseError,

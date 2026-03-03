@@ -1,10 +1,14 @@
 import { eq, sql } from "drizzle-orm";
 
-import { ACCOUNT_NO } from "@bedrock/core/accounting";
 import { ensureBookAccountInstanceTx } from "@bedrock/core/ledger";
 import { schema } from "@bedrock/core/counterparty-accounts/schema";
 
-import { AccountNotFoundError, AccountProviderNotFoundError } from "../errors";
+import {
+  AccountBindingNotFoundError,
+  AccountNotFoundError,
+  AccountProviderNotFoundError,
+} from "../errors";
+import { ensureCounterpartyDefaultBookIdTx } from "../internal/books";
 import type { CounterpartyAccountsServiceContext } from "../internal/context";
 import {
   UpdateAccountInputSchema,
@@ -100,10 +104,14 @@ export function createUpdateCounterpartyAccountHandler(
       }
 
       if (validated.postingAccountNo !== undefined) {
+        const bookId = await ensureCounterpartyDefaultBookIdTx(
+          tx,
+          existing.counterpartyId,
+        );
         const { id: bookAccountInstanceId } = await ensureBookAccountInstanceTx(
           tx,
           {
-            bookId: existing.counterpartyId,
+            bookId,
             accountNo: validated.postingAccountNo,
             currency: currency.code,
             dimensions: {},
@@ -114,13 +122,13 @@ export function createUpdateCounterpartyAccountHandler(
           .insert(schema.counterpartyAccountBindings)
           .values({
             counterpartyAccountId: id,
-            bookId: existing.counterpartyId,
+            bookId,
             bookAccountInstanceId,
           })
           .onConflictDoUpdate({
             target: schema.counterpartyAccountBindings.counterpartyAccountId,
             set: {
-              bookId: existing.counterpartyId,
+              bookId,
               bookAccountInstanceId,
               updatedAt: sql`now()`,
             },
@@ -128,7 +136,10 @@ export function createUpdateCounterpartyAccountHandler(
       }
 
       const [binding] = await tx
-        .select({ postingAccountNo: schema.bookAccountInstances.accountNo })
+        .select({
+          bookId: schema.counterpartyAccountBindings.bookId,
+          postingAccountNo: schema.bookAccountInstances.accountNo,
+        })
         .from(schema.counterpartyAccountBindings)
         .innerJoin(
           schema.bookAccountInstances,
@@ -140,12 +151,16 @@ export function createUpdateCounterpartyAccountHandler(
         .where(eq(schema.counterpartyAccountBindings.counterpartyAccountId, id))
         .limit(1);
 
+      if (!binding?.postingAccountNo) {
+        throw new AccountBindingNotFoundError(id);
+      }
+
       log.info("Account updated", { id });
 
       return {
         ...updatedAccount,
-        bookId: existing.counterpartyId,
-        postingAccountNo: binding?.postingAccountNo ?? ACCOUNT_NO.BANK,
+        bookId: binding.bookId,
+        postingAccountNo: binding.postingAccountNo,
       };
     });
   };

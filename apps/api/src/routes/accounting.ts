@@ -1,6 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import {
   FinancialResultsByCounterpartyResponseSchema,
   FinancialResultsByGroupResponseSchema,
@@ -13,6 +12,8 @@ import {
   AccountingTemplateAccountSchema,
 } from "@bedrock/core/accounting/contracts";
 import { ListLedgerOperationsQuerySchema } from "@bedrock/core/ledger";
+import { ValidationError } from "@bedrock/kernel/errors";
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";
@@ -390,12 +391,10 @@ export function accountingRoutes(ctx: AppContext) {
           200,
         );
       } catch (error) {
-        if (
-          error instanceof Error &&
-          (error.name === "ValidationError" || error.name === "ZodError")
-        ) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
           return c.json({ error: error.message }, 400);
         }
+
         throw error;
       }
     })
@@ -495,12 +494,10 @@ export function accountingRoutes(ctx: AppContext) {
           200,
         );
       } catch (error) {
-        if (
-          error instanceof Error &&
-          (error.name === "ValidationError" || error.name === "ZodError")
-        ) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
           return c.json({ error: error.message }, 400);
         }
+
         throw error;
       }
     })
@@ -561,12 +558,10 @@ export function accountingRoutes(ctx: AppContext) {
           200,
         );
       } catch (error) {
-        if (
-          error instanceof Error &&
-          (error.name === "ValidationError" || error.name === "ZodError")
-        ) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
           return c.json({ error: error.message }, 400);
         }
+
         throw error;
       }
     });

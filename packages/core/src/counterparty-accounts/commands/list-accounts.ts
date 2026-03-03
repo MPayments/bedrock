@@ -5,10 +5,10 @@ import {
   resolveSortOrder,
   resolveSortValue,
 } from "@bedrock/kernel/pagination";
-import { ACCOUNT_NO } from "@bedrock/core/accounting";
 import { schema } from "@bedrock/core/counterparty-accounts/schema";
 import type { CounterpartyAccount } from "@bedrock/core/counterparty-accounts/schema";
 
+import { AccountBindingNotFoundError } from "../errors";
 import type { CounterpartyAccountsServiceContext } from "../internal/context";
 import { ListAccountsQuerySchema, type ListAccountsQuery } from "../validation";
 
@@ -118,15 +118,18 @@ export function createListCounterpartyAccountsHandler(
         .where(where),
     ]);
 
-    return {
-      data: rows.map((row) => ({
+    const data = rows.map((row) => {
+      if (!row.bookId || !row.postingAccountNo) {
+        throw new AccountBindingNotFoundError(row.id);
+      }
+
+      return {
         ...row,
-        bookId: row.bookId ?? row.counterpartyId,
-        postingAccountNo: row.postingAccountNo ?? ACCOUNT_NO.BANK,
-      })),
-      total: countRows[0]?.total ?? 0,
-      limit,
-      offset,
-    };
+        bookId: row.bookId,
+        postingAccountNo: row.postingAccountNo,
+      };
+    });
+
+    return { data, total: countRows[0]?.total ?? 0, limit, offset };
   };
 }

@@ -1,9 +1,8 @@
 import { eq } from "drizzle-orm";
 
-import { ACCOUNT_NO } from "@bedrock/core/accounting";
 import { schema } from "@bedrock/core/counterparty-accounts/schema";
 
-import { AccountNotFoundError } from "../errors";
+import { AccountBindingNotFoundError, AccountNotFoundError } from "../errors";
 import type { CounterpartyAccountsServiceContext } from "../internal/context";
 
 export function createGetCounterpartyAccountHandler(
@@ -52,10 +51,14 @@ export function createGetCounterpartyAccountHandler(
       throw new AccountNotFoundError(id);
     }
 
+    if (!row.bookId || !row.postingAccountNo) {
+      throw new AccountBindingNotFoundError(id);
+    }
+
     return {
       ...row,
-      bookId: row.bookId ?? row.counterpartyId,
-      postingAccountNo: row.postingAccountNo ?? ACCOUNT_NO.BANK,
+      bookId: row.bookId,
+      postingAccountNo: row.postingAccountNo,
     };
   };
 }
