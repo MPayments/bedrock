@@ -14,8 +14,8 @@ import {
 import auth from "../auth";
 import { minorToAmountString, normalizeMoneyFields } from "../common/amount";
 import { handleRouteError } from "../common/errors";
-import { jsonOk } from "../common/response";
 import { toJsonSafe } from "../common/json";
+import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { withEtag } from "../middleware/etag";
@@ -48,20 +48,20 @@ const DOCUMENT_ACTION_TO_PUBLIC_ACTION = {
 type DocumentPermissionAction =
   (typeof DOCUMENT_ACTION_TO_PERMISSION)[DocumentAction];
 
-type DocumentMutationServiceInput = {
+interface DocumentMutationServiceInput {
   docType: string;
   documentId: string;
   actorUserId: string;
   idempotencyKey: string;
   requestContext: ReturnType<typeof getRequestContext>;
-};
+}
 
-type DocumentMutationConfig = {
+interface DocumentMutationConfig {
   path: string;
   permission: DocumentPermissionAction;
   action: "submit" | "approve" | "reject" | "post" | "cancel" | "repost";
   serviceCall: (input: DocumentMutationServiceInput) => Promise<DocumentWithOperationId>;
-};
+}
 
 function toDocumentDto(input: DocumentWithOperationId) {
   const { document } = input;

@@ -5,17 +5,17 @@ import { serializeOccurredAt } from "@bedrock/core/documents/module-kit";
 import { schema as documentsSchema } from "@bedrock/core/documents/schema";
 import { schema as ledgerSchema } from "@bedrock/core/ledger/schema";
 
+import type {
+  CounterpartyAccountBinding,
+  CounterpartyAccountsService,
+  IfrsDocumentDb,
+} from "./types";
 import {
   type TransferIntercompanyInput,
   type TransferIntercompanyPayload,
   type TransferIntraInput,
   type TransferIntraPayload,
 } from "../../validation";
-import type {
-  CounterpartyAccountBinding,
-  CounterpartyAccountsService,
-  IfrsDocumentDb,
-} from "./types";
 
 const TRANSFER_DOC_TYPES = ["transfer_intra", "transfer_intercompany"] as const;
 const schema = {

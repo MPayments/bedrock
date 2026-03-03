@@ -6,11 +6,11 @@ import {
   serializeOccurredAt,
 } from "@bedrock/core/documents/module-kit";
 
-import type { IfrsDocumentType } from "../../metadata";
 import {
   firstString,
   toAmountMinor,
 } from "./summary";
+import type { IfrsDocumentType } from "../../metadata";
 
 export function createSimpleIfrsDocumentModule<TPayload extends { occurredAt: Date }>(
   input: {

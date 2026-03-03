@@ -10,13 +10,13 @@ import { createIntercompanyInterestAccrualDocumentModule } from "./intercompany-
 import { createIntercompanyInterestSettlementDocumentModule } from "./intercompany-interest-settlement";
 import { createIntercompanyLoanDrawdownDocumentModule } from "./intercompany-loan-drawdown";
 import { createIntercompanyLoanRepaymentDocumentModule } from "./intercompany-loan-repayment";
+import type { IfrsModuleDeps } from "./internal/types";
 import { createPeriodCloseDocumentModule } from "./period-close";
 import { createPeriodReopenDocumentModule } from "./period-reopen";
 import { createRevaluationAdjustmentDocumentModule } from "./revaluation-adjustment";
 import { createTransferIntercompanyDocumentModule } from "./transfer-intercompany";
 import { createTransferIntraDocumentModule } from "./transfer-intra";
 import { createTransferResolutionDocumentModule } from "./transfer-resolution";
-import type { IfrsModuleDeps } from "./internal/types";
 
 export function createIfrsDocumentModules(deps: IfrsModuleDeps): DocumentModule[] {
   return [
