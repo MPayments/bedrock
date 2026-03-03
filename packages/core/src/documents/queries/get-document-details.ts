@@ -5,6 +5,7 @@ import { schema } from "@bedrock/core/documents/schema";
 import { DocumentNotFoundError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";
 import { createModuleContext, resolveModuleOrNull } from "../internal/helpers";
+import { resolveDocumentAllowedActions } from "../state-machine";
 import type { DocumentDetails } from "../types";
 
 export function createGetDocumentDetailsQuery(
@@ -113,17 +114,40 @@ export function createGetDocumentDetailsQuery(
       ),
     );
 
-    const details =
-      module && moduleContext
-        ? await module.buildDetails?.(moduleContext, document)
-        : undefined;
+    let details:
+      | {
+          computed?: unknown;
+          extra?: unknown;
+        }
+      | undefined;
+    if (module && moduleContext && module.buildDetails) {
+      try {
+        details = await module.buildDetails(moduleContext, document);
+      } catch (error) {
+        log.warn("documents get details: failed to build module details", {
+          docType,
+          documentId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
     const postingOperationId =
       documentOperations.find((operation) => operation.kind === "post")
         ?.operationId ?? null;
+    const allowedActions = module
+      ? resolveDocumentAllowedActions({
+          document,
+          module: {
+            postingRequired: module.postingRequired,
+            allowDirectPostFromDraft: module.allowDirectPostFromDraft,
+          },
+        })
+      : [];
 
     return {
       document,
       postingOperationId,
+      allowedActions,
       links,
       events,
       snapshot,

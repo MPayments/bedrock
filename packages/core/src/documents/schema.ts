@@ -37,9 +37,7 @@ export type DocumentPostingStatus =
   | "failed";
 export type DocumentLifecycleStatus =
   | "active"
-  | "cancelled"
-  | "voided"
-  | "archived";
+  | "cancelled";
 export type DocumentLinkType =
   | "parent"
   | "depends_on"
@@ -118,6 +116,38 @@ export const documents = pgTable(
     version: integer("version").notNull().default(1),
   },
   (t) => [
+    check(
+      "documents_submission_status_chk",
+      sql`${t.submissionStatus} in ('draft', 'submitted')`,
+    ),
+    check(
+      "documents_approval_status_chk",
+      sql`${t.approvalStatus} in ('not_required', 'pending', 'approved', 'rejected')`,
+    ),
+    check(
+      "documents_posting_status_chk",
+      sql`${t.postingStatus} in ('not_required', 'unposted', 'posting', 'posted', 'failed')`,
+    ),
+    check(
+      "documents_lifecycle_status_chk",
+      sql`${t.lifecycleStatus} in ('active', 'cancelled')`,
+    ),
+    check(
+      "documents_submit_fields_chk",
+      sql`(${t.submissionStatus} = 'draft' and ${t.submittedBy} is null and ${t.submittedAt} is null) or (${t.submissionStatus} = 'submitted' and ${t.submittedAt} is not null)`,
+    ),
+    check(
+      "documents_posting_requires_submission_chk",
+      sql`${t.postingStatus} in ('not_required', 'unposted', 'failed') or ${t.submissionStatus} = 'submitted'`,
+    ),
+    check(
+      "documents_posting_requires_approval_chk",
+      sql`${t.postingStatus} in ('not_required', 'unposted', 'failed') or ${t.approvalStatus} in ('not_required', 'approved')`,
+    ),
+    check(
+      "documents_cancelled_posting_status_chk",
+      sql`${t.lifecycleStatus} = 'active' or ${t.postingStatus} in ('unposted', 'failed')`,
+    ),
     uniqueIndex("documents_doc_no_uq").on(t.docNo),
     uniqueIndex("documents_doc_type_create_idem_uq")
       .on(t.docType, t.createIdempotencyKey)

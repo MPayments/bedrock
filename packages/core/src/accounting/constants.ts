@@ -145,7 +145,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
   },
   {
     accountNo: ACCOUNT_NO.CLEARING_GROUP,
-    name: "Клиринг (группа)",
+    name: "Внутригрупповые расчеты",
     kind: "active_passive",
     normalSide: "both",
     postingAllowed: false,
@@ -289,7 +289,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
   },
   {
     accountNo: ACCOUNT_NO.ORDER_RESERVE,
-    name: "ORDER_RESERVE",
+    name: "Резерв по ордерам",
     kind: "liability",
     normalSide: "credit",
     postingAllowed: true,
@@ -334,7 +334,7 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
   },
   {
     accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
-    name: "PROVIDER_FEE_EXPENSE",
+    name: "Расход по комиссии провайдера",
     kind: "expense",
     normalSide: "debit",
     postingAllowed: true,

@@ -3,12 +3,13 @@
 import { useRouter } from "next/navigation";
 
 import { EntityTableShell } from "@/components/entities/entity-table-shell";
-import type { DocumentDto } from "@/features/operations/documents/lib/queries";
+import type { DocumentDto } from "@/features/operations/documents/lib/schemas";
 
 import { getDocumentColumns } from "./columns";
 
 export function DocumentsTable({
   promise,
+  routeBasePath,
 }: {
   promise: Promise<{
     data: DocumentDto[];
@@ -16,19 +17,23 @@ export function DocumentsTable({
     limit: number;
     offset: number;
   }>;
+  routeBasePath?: string;
 }) {
   const router = useRouter();
+  const resolvedRouteBasePath = routeBasePath ?? "/operations";
 
   return (
     <EntityTableShell
       promise={promise}
-      columns={getDocumentColumns()}
+      columns={getDocumentColumns({ routeBasePath: resolvedRouteBasePath })}
       getRowId={(row) => row.id}
       initialState={{
         sorting: [{ id: "occurredAt", desc: true }],
       }}
       onRowDoubleClick={(row) => {
-        router.push(`/operations/${row.original.docType}/${row.original.id}`);
+        router.push(
+          `${resolvedRouteBasePath}/${row.original.docType}/${row.original.id}`,
+        );
       }}
     />
   );

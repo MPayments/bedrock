@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { amountMinorSchema } from "@bedrock/core/documents/module-kit";
+import {
+  amountMinorSchema,
+  amountValueSchema,
+  toMinorAmountString,
+} from "@bedrock/core/documents/module-kit";
 
 const currencyCodeSchema = z
   .string()
@@ -16,7 +20,38 @@ const baseOccurredAtSchema = z.object({
   occurredAt: z.coerce.date(),
 });
 
-export const TransferIntraInputSchema = baseOccurredAtSchema.extend({
+function withAmountMinor<TInput extends { amount: string; currency: string }>(
+  input: TInput,
+  ctx: z.RefinementCtx,
+) {
+  try {
+    const amountMinor = toMinorAmountString(input.amount, input.currency, {
+      requirePositive: true,
+    });
+    const { amount: _amount, ...rest } = input;
+    return {
+      ...rest,
+      amountMinor,
+    };
+  } catch (error) {
+    ctx.addIssue({
+      code: "custom",
+      message: error instanceof Error ? error.message : "amount is invalid",
+    });
+    return z.NEVER;
+  }
+}
+
+const transferInputBaseSchema = baseOccurredAtSchema.extend({
+  sourceCounterpartyAccountId: z.uuid(),
+  destinationCounterpartyAccountId: z.uuid(),
+  amount: amountValueSchema,
+  currency: currencyCodeSchema,
+  timeoutSeconds: z.number().int().positive().max(7 * 24 * 60 * 60).optional(),
+  memo: memoSchema,
+});
+
+const transferPayloadBaseSchema = baseOccurredAtSchema.extend({
   sourceCounterpartyAccountId: z.uuid(),
   destinationCounterpartyAccountId: z.uuid(),
   amountMinor: amountMinorSchema,
@@ -25,9 +60,13 @@ export const TransferIntraInputSchema = baseOccurredAtSchema.extend({
   memo: memoSchema,
 });
 
+export const TransferIntraInputSchema = transferInputBaseSchema.transform(
+  (input, ctx) => withAmountMinor(input, ctx),
+);
+
 export const TransferIntercompanyInputSchema = TransferIntraInputSchema;
 
-export const TransferIntraPayloadSchema = TransferIntraInputSchema.extend({
+export const TransferIntraPayloadSchema = transferPayloadBaseSchema.extend({
   sourceCounterpartyId: z.uuid(),
   destinationCounterpartyId: z.uuid(),
 });
@@ -51,7 +90,21 @@ export const CapitalFundingKindSchema = z.enum([
   "opening_balance",
 ]);
 
-export const CapitalFundingInputSchema = baseOccurredAtSchema.extend({
+const capitalFundingInputBaseSchema = baseOccurredAtSchema.extend({
+  kind: CapitalFundingKindSchema,
+  entryRef: z.string().trim().min(1).max(255),
+  counterpartyId: z.uuid(),
+  counterpartyAccountId: z.uuid(),
+  amount: amountValueSchema,
+  currency: currencyCodeSchema,
+  memo: memoSchema,
+});
+
+export const CapitalFundingInputSchema = capitalFundingInputBaseSchema.transform(
+  (input, ctx) => withAmountMinor(input, ctx),
+);
+
+export const CapitalFundingPayloadSchema = baseOccurredAtSchema.extend({
   kind: CapitalFundingKindSchema,
   entryRef: z.string().trim().min(1).max(255),
   counterpartyId: z.uuid(),
@@ -61,9 +114,16 @@ export const CapitalFundingInputSchema = baseOccurredAtSchema.extend({
   memo: memoSchema,
 });
 
-export const CapitalFundingPayloadSchema = CapitalFundingInputSchema;
+const intercompanyLoanInputBaseSchema = baseOccurredAtSchema.extend({
+  debtorCounterpartyId: z.uuid(),
+  creditorCounterpartyId: z.uuid(),
+  amount: amountValueSchema,
+  currency: currencyCodeSchema,
+  reference: referenceSchema,
+  memo: memoSchema,
+});
 
-export const IntercompanyLoanDrawdownSchema = baseOccurredAtSchema.extend({
+const intercompanyLoanPayloadBaseSchema = baseOccurredAtSchema.extend({
   debtorCounterpartyId: z.uuid(),
   creditorCounterpartyId: z.uuid(),
   amountMinor: amountMinorSchema,
@@ -72,19 +132,57 @@ export const IntercompanyLoanDrawdownSchema = baseOccurredAtSchema.extend({
   memo: memoSchema,
 });
 
-export const IntercompanyLoanRepaymentSchema =
-  IntercompanyLoanDrawdownSchema;
+export const IntercompanyLoanDrawdownInputSchema =
+  intercompanyLoanInputBaseSchema.transform((input, ctx) =>
+    withAmountMinor(input, ctx),
+  );
 
-export const IntercompanyInterestAccrualSchema =
-  IntercompanyLoanDrawdownSchema.extend({
+export const IntercompanyLoanDrawdownSchema = intercompanyLoanPayloadBaseSchema;
+
+export const IntercompanyLoanRepaymentInputSchema =
+  IntercompanyLoanDrawdownInputSchema;
+
+export const IntercompanyLoanRepaymentSchema = IntercompanyLoanDrawdownSchema;
+
+const intercompanyInterestAccrualInputBaseSchema =
+  intercompanyLoanInputBaseSchema.extend({
     accrualPeriodMonth: z
       .string()
       .regex(/^\d{4}-\d{2}$/)
       .optional(),
   });
 
+export const IntercompanyInterestAccrualInputSchema =
+  intercompanyInterestAccrualInputBaseSchema.transform((input, ctx) =>
+    withAmountMinor(input, ctx),
+  );
+
+export const IntercompanyInterestAccrualSchema =
+  intercompanyLoanPayloadBaseSchema.extend({
+    accrualPeriodMonth: z
+      .string()
+      .regex(/^\d{4}-\d{2}$/)
+      .optional(),
+  });
+
+export const IntercompanyInterestSettlementInputSchema =
+  IntercompanyLoanDrawdownInputSchema;
+
 export const IntercompanyInterestSettlementSchema =
   IntercompanyLoanDrawdownSchema;
+
+const equityContributionInputBaseSchema = baseOccurredAtSchema.extend({
+  counterpartyId: z.uuid(),
+  investorCounterpartyId: z.uuid().optional(),
+  amount: amountValueSchema,
+  currency: currencyCodeSchema,
+  reference: referenceSchema,
+  memo: memoSchema,
+});
+
+export const EquityContributionInputSchema = equityContributionInputBaseSchema.transform(
+  (input, ctx) => withAmountMinor(input, ctx),
+);
 
 export const EquityContributionSchema = baseOccurredAtSchema.extend({
   counterpartyId: z.uuid(),
@@ -95,9 +193,19 @@ export const EquityContributionSchema = baseOccurredAtSchema.extend({
   memo: memoSchema,
 });
 
+export const EquityDistributionInputSchema = EquityContributionInputSchema;
+
 export const EquityDistributionSchema = EquityContributionSchema;
 
-const adjustmentSchema = baseOccurredAtSchema.extend({
+const adjustmentInputBaseSchema = baseOccurredAtSchema.extend({
+  counterpartyId: z.uuid(),
+  amount: amountValueSchema,
+  currency: currencyCodeSchema,
+  reference: referenceSchema,
+  memo: memoSchema,
+});
+
+const adjustmentPayloadBaseSchema = baseOccurredAtSchema.extend({
   counterpartyId: z.uuid(),
   amountMinor: amountMinorSchema,
   currency: currencyCodeSchema,
@@ -105,10 +213,18 @@ const adjustmentSchema = baseOccurredAtSchema.extend({
   memo: memoSchema,
 });
 
-export const AccrualAdjustmentSchema = adjustmentSchema;
-export const RevaluationAdjustmentSchema = adjustmentSchema;
-export const ImpairmentAdjustmentSchema = adjustmentSchema;
-export const ClosingReclassSchema = adjustmentSchema;
+export const AccrualAdjustmentInputSchema = adjustmentInputBaseSchema.transform(
+  (input, ctx) => withAmountMinor(input, ctx),
+);
+
+export const RevaluationAdjustmentInputSchema = AccrualAdjustmentInputSchema;
+export const ImpairmentAdjustmentInputSchema = AccrualAdjustmentInputSchema;
+export const ClosingReclassInputSchema = AccrualAdjustmentInputSchema;
+
+export const AccrualAdjustmentSchema = adjustmentPayloadBaseSchema;
+export const RevaluationAdjustmentSchema = adjustmentPayloadBaseSchema;
+export const ImpairmentAdjustmentSchema = adjustmentPayloadBaseSchema;
+export const ClosingReclassSchema = adjustmentPayloadBaseSchema;
 
 const periodBoundarySchema = z.coerce.date();
 

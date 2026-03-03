@@ -6,6 +6,7 @@ import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import type { DocumentsServiceContext } from "../internal/context";
 import {
+  buildDocumentWithOperationId,
   buildDefaultActionIdempotencyKey,
   buildDocumentEventState,
   getPostingOperationId,
@@ -18,6 +19,7 @@ import {
   assertCounterpartyPeriodsOpen,
   collectDocumentCounterpartyIds,
 } from "../period-locks";
+import { isDocumentActionAllowed } from "../state-machine";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 
 export function createRepostHandler(context: DocumentsServiceContext) {
@@ -30,7 +32,7 @@ export function createRepostHandler(context: DocumentsServiceContext) {
     idempotencyKey?: string;
     requestContext?: DocumentRequestContext;
   }): Promise<DocumentWithOperationId> {
-    resolveModule(registry, input.docType);
+    const module = resolveModule(registry, input.docType);
     const idempotencyKey =
       input.idempotencyKey ??
       buildDefaultActionIdempotencyKey("documents.repost", {
@@ -73,13 +75,20 @@ export function createRepostHandler(context: DocumentsServiceContext) {
             typeof storedResult?.postingOperationId === "string"
               ? storedResult.postingOperationId
               : null,
+            registry,
           ),
         handler: async () => {
           const document = await lockDocument(tx, input.documentId, input.docType);
-          if (document.lifecycleStatus !== "active") {
-            throw new InvalidStateError("Only active documents can be reposted");
-          }
-          if (document.postingStatus !== "failed") {
+          if (
+            !isDocumentActionAllowed({
+              action: "repost",
+              document,
+              module: {
+                postingRequired: module.postingRequired,
+                allowDirectPostFromDraft: module.allowDirectPostFromDraft,
+              },
+            })
+          ) {
             throw new InvalidStateError("Only failed documents can be reposted");
           }
           const counterpartyIds = collectDocumentCounterpartyIds({
@@ -165,10 +174,11 @@ export function createRepostHandler(context: DocumentsServiceContext) {
             },
           });
 
-          return {
+          return buildDocumentWithOperationId({
+            registry,
             document: stored!,
             postingOperationId: operationId,
-          };
+          });
         },
       });
     });

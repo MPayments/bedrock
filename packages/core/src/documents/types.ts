@@ -1,7 +1,5 @@
 import type { z } from "zod";
 
-import type { Database, Transaction } from "@bedrock/kernel/db/types";
-import type { CorrelationContext, Logger } from "@bedrock/kernel";
 import type {
   AccountingRuntime,
   DocumentPostingPlan,
@@ -21,6 +19,10 @@ import type {
   LedgerEngine,
   LedgerReadService,
 } from "@bedrock/core/ledger";
+import type { CorrelationContext, Logger } from "@bedrock/kernel";
+import type { Database, Transaction } from "@bedrock/kernel/db/types";
+
+import type { DocumentAction } from "./state-machine";
 
 
 export type {
@@ -86,6 +88,7 @@ export interface DocumentModule<
   updateSchema: z.ZodType<TUpdateInput>;
   payloadSchema: z.ZodType<Record<string, unknown>>;
   postingRequired: boolean;
+  allowDirectPostFromDraft?: boolean;
   approvalRequired(doc: Document): boolean;
   createDraft(
     context: DocumentModuleContext,
@@ -201,11 +204,13 @@ export interface DocumentsServiceDeps {
 export interface DocumentWithOperationId {
   document: Document;
   postingOperationId: string | null;
+  allowedActions: DocumentAction[];
 }
 
 export interface DocumentDetails {
   document: Document;
   postingOperationId: string | null;
+  allowedActions: DocumentAction[];
   links: DocumentLink[];
   events: DocumentEvent[];
   snapshot: DocumentSnapshot | null;

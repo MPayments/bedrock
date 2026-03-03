@@ -3,6 +3,10 @@ import { getCounterpartyById } from "@/features/entities/counterparties/lib/quer
 import { getCurrencyById } from "@/features/entities/currencies/lib/queries";
 import { getCustomerById } from "@/features/entities/customers/lib/queries";
 import { getProviderById } from "@/features/entities/counterparty-account-providers/lib/queries";
+import {
+  getDocumentTypeLabel,
+  isKnownDocumentType,
+} from "@/features/documents/lib/doc-types";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import { resolveBreadcrumbItems } from "@/lib/breadcrumbs";
 
@@ -70,6 +74,30 @@ const dynamicResolvers = {
     getLabel: (account) => account.label,
     getId: (account) => account.id,
   }),
+  documents: async ({ segment }: { segment: string }) => {
+    if (!isKnownDocumentType(segment)) {
+      return null;
+    }
+
+    return {
+      label: getDocumentTypeLabel(segment),
+      href: `/documents/${segment}`,
+    };
+  },
+  create: async ({ segment, segments }: { segment: string; segments: string[] }) => {
+    if (
+      segments.length >= 3 &&
+      segments[0] === "documents" &&
+      isKnownDocumentType(segment)
+    ) {
+      return {
+        label: getDocumentTypeLabel(segment),
+        href: `/documents/create/${segment}`,
+      };
+    }
+
+    return null;
+  },
 };
 
 interface BreadcrumbSegmentsPageProps {

@@ -13,12 +13,14 @@ import {
   DocumentNotFoundError,
   DocumentRegistryError,
 } from "../errors";
+import { resolveDocumentAllowedActions } from "../state-machine";
 import type {
   DocumentInitialLink,
   DocumentModule,
   DocumentModuleContext,
   DocumentRegistry,
   DocumentSummaryFields,
+  DocumentWithOperationId,
 } from "../types";
 
 type Queryable = Database | Transaction;
@@ -84,6 +86,41 @@ export function createModuleContext(
   deps: Pick<DocumentModuleContext, "actorUserId" | "db" | "log" | "now">,
 ): DocumentModuleContext {
   return deps;
+}
+
+export function resolveDocumentAllowedActionsForDocument(input: {
+  registry?: DocumentRegistry;
+  document: Document;
+}) {
+  const module = input.registry
+    ? resolveModuleOrNull(input.registry, input.document.docType)
+    : null;
+  if (!module) {
+    return [];
+  }
+
+  return resolveDocumentAllowedActions({
+    document: input.document,
+    module: {
+      postingRequired: module.postingRequired,
+      allowDirectPostFromDraft: module.allowDirectPostFromDraft,
+    },
+  });
+}
+
+export function buildDocumentWithOperationId(input: {
+  registry?: DocumentRegistry;
+  document: Document;
+  postingOperationId: string | null;
+}): DocumentWithOperationId {
+  return {
+    document: input.document,
+    postingOperationId: input.postingOperationId,
+    allowedActions: resolveDocumentAllowedActionsForDocument({
+      registry: input.registry,
+      document: input.document,
+    }),
+  };
 }
 
 export function createDocumentInsertBase(params: {
@@ -253,17 +290,19 @@ export async function loadDocumentWithOperationId(
   docType: string,
   documentId: string,
   storedOperationId?: string | null,
+  registry?: DocumentRegistry,
 ) {
   const document = await getDocumentOrNull(db, documentId, docType);
   if (!document) {
     throw new DocumentNotFoundError(documentId);
   }
 
-  return {
+  return buildDocumentWithOperationId({
+    registry,
     document,
     postingOperationId:
       storedOperationId ?? (await getPostingOperationId(db, document.id)),
-  };
+  });
 }
 
 export function buildDefaultActionIdempotencyKey(

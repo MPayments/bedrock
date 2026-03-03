@@ -8,6 +8,7 @@ import { DocumentPostingNotRequiredError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";
 import {
   assertDocumentIsActive,
+  buildDocumentWithOperationId,
   buildDocumentEventState,
   createModuleContext,
   getPostingOperationId,
@@ -25,6 +26,7 @@ import {
   assertCounterpartyPeriodsOpen,
   collectDocumentCounterpartyIds,
 } from "../period-locks";
+import { isDocumentActionAllowed } from "../state-machine";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 
 export function createPostHandler(context: DocumentsServiceContext) {
@@ -81,74 +83,133 @@ export function createPostHandler(context: DocumentsServiceContext) {
             typeof storedResult?.postingOperationId === "string"
               ? storedResult.postingOperationId
               : null,
+            registry,
           ),
         handler: async () => {
           const existingOperationId = await getPostingOperationId(tx, document.id);
           if (existingOperationId) {
-            return {
+            return buildDocumentWithOperationId({
+              registry,
               document,
               postingOperationId: existingOperationId,
-            };
+            });
           }
 
-          if (!module.postingRequired || document.postingStatus === "not_required") {
-            throw new DocumentPostingNotRequiredError(document.id, document.docType);
-          }
-          if (document.submissionStatus !== "submitted") {
-            throw new InvalidStateError("Document must be submitted before posting");
-          }
+          let postingDocument = document;
+
           if (
-            document.approvalStatus !== "approved" &&
-            document.approvalStatus !== "not_required"
+            module.allowDirectPostFromDraft &&
+            postingDocument.submissionStatus === "draft"
           ) {
-            throw new InvalidStateError("Document must be approved before posting");
+            await module.canSubmit(moduleContext, postingDocument);
+            await enforceDocumentPolicy({
+              policy,
+              action: "submit",
+              module,
+              actorUserId: input.actorUserId,
+              moduleContext,
+              document: postingDocument,
+              requestContext: input.requestContext,
+            });
+
+            const beforeSubmit = buildDocumentEventState(postingDocument);
+            const [submitted] = await tx
+              .update(schema.documents)
+              .set({
+                submissionStatus: "submitted",
+                submittedBy: input.actorUserId,
+                submittedAt: sql`now()`,
+                updatedAt: sql`now()`,
+                version: sql`${schema.documents.version} + 1`,
+              })
+              .where(
+                and(
+                  eq(schema.documents.id, postingDocument.id),
+                  eq(schema.documents.docType, input.docType),
+                ),
+              )
+              .returning();
+
+            if (!submitted) {
+              throw new InvalidStateError("Failed to submit document before posting");
+            }
+
+            await insertDocumentEvent(tx, {
+              documentId: postingDocument.id,
+              eventType: "submit",
+              actorId: input.actorUserId,
+              requestId: input.requestContext?.requestId,
+              correlationId: input.requestContext?.correlationId,
+              traceId: input.requestContext?.traceId,
+              causationId: input.requestContext?.causationId,
+              before: beforeSubmit,
+              after: buildDocumentEventState(submitted),
+            });
+
+            postingDocument = submitted;
           }
-          if (document.postingStatus !== "unposted") {
+
+          if (
+            !isDocumentActionAllowed({
+              action: "post",
+              document: postingDocument,
+              module: {
+                postingRequired: module.postingRequired,
+                allowDirectPostFromDraft: module.allowDirectPostFromDraft,
+              },
+            })
+          ) {
+            if (
+              !module.postingRequired ||
+              postingDocument.postingStatus === "not_required"
+            ) {
+              throw new DocumentPostingNotRequiredError(document.id, document.docType);
+            }
             throw new InvalidStateError("Document is not ready for posting");
           }
           if (!module.buildPostingPlan) {
             throw new DocumentPostingNotRequiredError(document.id, document.docType);
           }
           const counterpartyIds = collectDocumentCounterpartyIds({
-            documentCounterpartyId: document.counterpartyId,
-            payload: document.payload,
+            documentCounterpartyId: postingDocument.counterpartyId,
+            payload: postingDocument.payload,
           });
           await assertCounterpartyPeriodsOpen({
             db: tx,
-            occurredAt: document.occurredAt,
+            occurredAt: postingDocument.occurredAt,
             counterpartyIds,
             docType: input.docType,
           });
 
-          await module.canPost(moduleContext, document);
+          await module.canPost(moduleContext, postingDocument);
           await enforceDocumentPolicy({
             policy,
             action: "post",
             module,
             actorUserId: input.actorUserId,
             moduleContext,
-            document,
+            document: postingDocument,
             requestContext: input.requestContext,
           });
 
           const postingPlan = await module.buildPostingPlan(
             moduleContext,
-            document,
+            postingDocument,
           );
           const accountingSourceId = await resolveDocumentAccountingSourceId({
             module,
             moduleContext,
-            document,
+            document: postingDocument,
             postingPlan,
           });
           const resolved = await accounting.resolvePostingPlan({
             accountingSourceId,
             source: {
-              type: `documents/${document.docType}/post`,
-              id: document.id,
+              type: `documents/${postingDocument.docType}/post`,
+              id: postingDocument.id,
             },
-            idempotencyKey: module.buildPostIdempotencyKey(document),
-            postingDate: document.occurredAt,
+            idempotencyKey: module.buildPostIdempotencyKey(postingDocument),
+            postingDate: postingDocument.occurredAt,
             bookIdContext: postingPlan.requests[0]?.bookRefs.bookId,
             plan: postingPlan,
           });
@@ -157,13 +218,13 @@ export function createPostHandler(context: DocumentsServiceContext) {
           await tx
             .insert(schema.documentOperations)
             .values({
-              documentId: document.id,
+              documentId: postingDocument.id,
               operationId: result.operationId,
               kind: "post",
             })
             .onConflictDoNothing();
 
-          const before = buildDocumentEventState(document);
+          const before = buildDocumentEventState(postingDocument);
           const [stored] = await tx
             .update(schema.documents)
             .set({
@@ -182,7 +243,7 @@ export function createPostHandler(context: DocumentsServiceContext) {
             .returning();
 
           await insertDocumentEvent(tx, {
-            documentId: document.id,
+            documentId: postingDocument.id,
             eventType: "post",
             actorId: input.actorUserId,
             requestId: input.requestContext?.requestId,
@@ -202,10 +263,11 @@ export function createPostHandler(context: DocumentsServiceContext) {
             },
           });
 
-          return {
+          return buildDocumentWithOperationId({
+            registry,
             document: stored!,
             postingOperationId: result.operationId,
-          };
+          });
         },
       });
       });

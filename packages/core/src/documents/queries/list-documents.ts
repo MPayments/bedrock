@@ -5,6 +5,7 @@ import { schema } from "@bedrock/core/documents/schema";
 
 import type { DocumentsServiceContext } from "../internal/context";
 import {
+  buildDocumentWithOperationId,
   buildDocumentSearchCondition,
   inArraySafe,
   resolveDocumentsSort,
@@ -13,7 +14,7 @@ import type { DocumentWithOperationId } from "../types";
 import { ListDocumentsQuerySchema, type ListDocumentsQuery } from "../validation";
 
 export function createListDocumentsQuery(context: DocumentsServiceContext) {
-  const { db } = context;
+  const { db, registry } = context;
 
   return async function listDocuments(
     input?: ListDocumentsQuery,
@@ -64,10 +65,13 @@ export function createListDocumentsQuery(context: DocumentsServiceContext) {
       .where(where);
 
     return {
-      data: rows.map((row) => ({
-        document: row.document,
-        postingOperationId: row.postingOperationId ?? null,
-      })),
+      data: rows.map((row) =>
+        buildDocumentWithOperationId({
+          registry,
+          document: row.document,
+          postingOperationId: row.postingOperationId ?? null,
+        }),
+      ),
       total: totalRow?.value ?? 0,
       limit: query.limit,
       offset: query.offset,

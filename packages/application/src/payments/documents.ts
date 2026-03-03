@@ -25,6 +25,7 @@ import {
 import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 
 import {
+  PaymentIntentInputSchema,
   PaymentIntentPayloadSchema,
   PaymentResolutionPayloadSchema,
   type PaymentIntentPayload,
@@ -47,6 +48,30 @@ interface PaymentCounterpartyAccountsService {
   resolveTransferBindings: (input: {
     accountIds: string[];
   }) => Promise<PaymentBinding[]>;
+}
+
+function resolvePaymentDirectionLabel(
+  direction: PaymentIntentPayload["direction"],
+) {
+  switch (direction) {
+    case "payin":
+      return "Входящий";
+    case "payout":
+      return "Исходящий";
+  }
+}
+
+function resolvePaymentResolutionLabel(
+  resolutionType: PaymentResolutionPayload["resolutionType"],
+) {
+  switch (resolutionType) {
+    case "settle":
+      return "Исполнение";
+    case "void":
+      return "Аннулирование";
+    case "fail":
+      return "Ошибка";
+  }
 }
 
 function normalizePaymentIntentPayload(payload: PaymentIntentPayload) {
@@ -223,8 +248,8 @@ export function createPaymentIntentDocumentModule(deps: {
     docType: "payment_intent",
     docNoPrefix: "PMT",
     payloadVersion: 1,
-    createSchema: PaymentIntentPayloadSchema,
-    updateSchema: PaymentIntentPayloadSchema,
+    createSchema: PaymentIntentInputSchema,
+    updateSchema: PaymentIntentInputSchema,
     payloadSchema: PaymentIntentPayloadSchema.transform(
       normalizePaymentIntentPayload,
     ),
@@ -242,7 +267,7 @@ export function createPaymentIntentDocumentModule(deps: {
         document,
       );
       return {
-        title: `Payment ${payload.direction} ${payload.currency}`,
+        title: `Платеж ${resolvePaymentDirectionLabel(payload.direction)} ${payload.currency}`,
         amountMinor: payload.amountMinor,
         currency: payload.currency,
         memo: payload.memo ?? null,
@@ -474,7 +499,7 @@ export function createPaymentResolutionDocumentModule(deps: {
         document,
       );
       return {
-        title: `Payment resolution: ${payload.resolutionType}`,
+        title: `Результат платежа: ${resolvePaymentResolutionLabel(payload.resolutionType)}`,
         memo: payload.externalRef ?? null,
         searchText: [
           document.docNo,

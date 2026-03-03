@@ -182,4 +182,29 @@ describe("documents workflow lifecycle guards", () => {
     expect(tx.update).not.toHaveBeenCalled();
     expect(ledger.commit).not.toHaveBeenCalled();
   });
+
+  it("blocks explicit submit for modules that require direct post from draft", async () => {
+    const document = makeDocument({
+      lifecycleStatus: "active",
+      submissionStatus: "draft",
+      postingStatus: "unposted",
+    });
+    const module = {
+      ...createModuleStub(),
+      allowDirectPostFromDraft: true,
+    };
+    const { context, tx } = createContext(document, module);
+    const handler = createSubmitHandler(context as any);
+
+    await expect(
+      handler({
+        docType: document.docType,
+        documentId: document.id,
+        actorUserId: "maker-1",
+      }),
+    ).rejects.toThrow("Submit action is disabled for this document type; use post");
+
+    expect(module.canSubmit).not.toHaveBeenCalled();
+    expect(tx.update).not.toHaveBeenCalled();
+  });
 });

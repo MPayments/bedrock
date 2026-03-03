@@ -86,6 +86,29 @@ const navItems: AppNavItem[] = [
     audience: "shared",
   },
   {
+    id: "documents",
+    title: "Документы",
+    href: "/documents",
+    icon: "book-open",
+    audience: "shared",
+    children: [
+      {
+        id: "documents-all",
+        title: "Общий список",
+        href: "/documents",
+        icon: "book-open",
+        audience: "shared",
+      },
+      {
+        id: "documents-create",
+        title: "Создать",
+        href: "/documents/create",
+        icon: "book-open",
+        audience: "shared",
+      },
+    ],
+  },
+  {
     id: "operations",
     title: "Операции",
     href: "/operations",

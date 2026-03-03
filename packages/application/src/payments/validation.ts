@@ -1,14 +1,18 @@
 import { z } from "zod";
 
-export const amountMinorSchema = z
+import {
+  amountValueSchema,
+  toMinorAmountString,
+} from "@bedrock/core/documents/module-kit";
+
+const amountMinorSchema = z
   .union([z.bigint(), z.string().regex(/^-?\d+$/), z.number().int()])
   .transform((value) => BigInt(value));
 
-export const PaymentIntentPayloadSchema = z.object({
+const paymentIntentBaseShape = {
   direction: z.enum(["payin", "payout"]),
   sourceCounterpartyAccountId: z.uuid(),
   destinationCounterpartyAccountId: z.uuid(),
-  amountMinor: amountMinorSchema,
   currency: z
     .string()
     .trim()
@@ -23,6 +27,33 @@ export const PaymentIntentPayloadSchema = z.object({
   timeoutSeconds: z.number().int().positive().max(7 * 24 * 60 * 60).optional(),
   memo: z.string().max(1000).optional(),
   occurredAt: z.coerce.date(),
+} as const;
+
+export const PaymentIntentInputSchema = z
+  .object({
+    ...paymentIntentBaseShape,
+    amount: amountValueSchema,
+  })
+  .transform((input, ctx) => {
+    try {
+      const amountMinor = BigInt(toMinorAmountString(input.amount, input.currency));
+      const { amount: _amount, ...rest } = input;
+      return {
+        ...rest,
+        amountMinor,
+      };
+    } catch (error) {
+      ctx.addIssue({
+        code: "custom",
+        message: error instanceof Error ? error.message : "amount is invalid",
+      });
+      return z.NEVER;
+    }
+  });
+
+export const PaymentIntentPayloadSchema = z.object({
+  ...paymentIntentBaseShape,
+  amountMinor: amountMinorSchema,
 });
 
 export const PaymentResolutionPayloadSchema = z.object({
@@ -34,6 +65,7 @@ export const PaymentResolutionPayloadSchema = z.object({
 });
 
 export type PaymentIntentPayload = z.infer<typeof PaymentIntentPayloadSchema>;
+export type PaymentIntentInput = z.infer<typeof PaymentIntentInputSchema>;
 export type PaymentResolutionPayload = z.infer<
   typeof PaymentResolutionPayloadSchema
 >;

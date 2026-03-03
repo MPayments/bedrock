@@ -14,6 +14,7 @@
     "./fx/contracts": "./src/fx/contracts.ts",
     "./fx/schema": "./src/fx/schema/index.ts",
     "./ifrs-documents": "./src/ifrs-documents/index.ts",
+    "./ifrs-documents/validation": "./src/ifrs-documents/validation.ts",
     "./payments": "./src/payments/index.ts"
   },
   "scripts": {

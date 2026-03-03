@@ -6,6 +6,7 @@ import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import { createCancelHandler } from "../../src/documents/commands/cancel";
 import { createCreateDraftHandler } from "../../src/documents/commands/create-draft";
+import { createPostHandler } from "../../src/documents/commands/post";
 import { createRepostHandler } from "../../src/documents/commands/repost";
 import { createUpdateDraftHandler } from "../../src/documents/commands/update-draft";
 import type { DocumentModule } from "../../src/documents/types";
@@ -357,6 +358,67 @@ describe("documents command flows", () => {
 
     expect(result.postingOperationId).toBe("op-1");
     expect(result.document.postingStatus).toBe("posting");
+  });
+
+  it("posts draft documents directly when module allows direct post from draft", async () => {
+    const document = makeDocument({
+      submissionStatus: "draft",
+      approvalStatus: "not_required",
+      postingStatus: "unposted",
+    });
+    const module = createModuleStub({
+      allowDirectPostFromDraft: true,
+      accountingSourceId: "test_document",
+      async buildPostingPlan() {
+        return {
+          operationCode: "TRANSFER_INTRA_APPROVE_PENDING",
+          operationVersion: 1,
+          payload: {},
+          requests: [
+            {
+              templateKey: "TRANSFER_INTRA_PENDING",
+              effectiveAt: document.occurredAt,
+              currency: "USD",
+              amountMinor: 100n,
+              bookRefs: { bookId: "book-1" },
+              dimensions: { counterpartyId: "cp-1" },
+              refs: null,
+              pending: null,
+              memo: null,
+            },
+          ],
+        } as any;
+      },
+    });
+    const { context, eventRows } = createContext({
+      document,
+      module,
+      selectRows: [[document], []],
+    });
+    context.accounting.resolvePostingPlan.mockResolvedValue({
+      intent: {},
+      packChecksum: "pack-checksum",
+      postingPlanChecksum: "posting-plan-checksum",
+      journalIntentChecksum: "journal-intent-checksum",
+      appliedTemplates: [],
+    });
+    context.ledger.commit.mockResolvedValue({
+      operationId: "op-direct-post",
+    });
+    const handler = createPostHandler(context as any);
+
+    const result = await handler({
+      docType: document.docType,
+      documentId: document.id,
+      actorUserId: "maker-1",
+    });
+
+    expect(result.postingOperationId).toBe("op-direct-post");
+    expect(context.policy.canSubmit).toHaveBeenCalledTimes(1);
+    expect(context.policy.canPost).toHaveBeenCalledTimes(1);
+    expect(eventRows.map((event) => event.eventType)).toEqual(
+      expect.arrayContaining(["submit", "post"]),
+    );
   });
 
   it("rejects repost when there is no posting operation to restart", async () => {

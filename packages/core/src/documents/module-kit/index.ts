@@ -1,9 +1,11 @@
 export {
+  amountValueSchema,
   amountMinorSchema,
   buildDocumentDraft,
   buildDocumentPostIdempotencyKey,
   parseDocumentPayload,
   serializeOccurredAt,
+  toMinorAmountString,
 } from "./document-utils";
 export {
   buildDocumentPostingPlan,

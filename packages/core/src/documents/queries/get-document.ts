@@ -4,10 +4,11 @@ import { schema } from "@bedrock/core/documents/schema";
 
 import { DocumentNotFoundError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";
+import { buildDocumentWithOperationId } from "../internal/helpers";
 import type { DocumentWithOperationId } from "../types";
 
 export function createGetDocumentQuery(context: DocumentsServiceContext) {
-  const { db } = context;
+  const { db, registry } = context;
 
   return async function getDocument(
     docType: string,
@@ -35,9 +36,10 @@ export function createGetDocumentQuery(context: DocumentsServiceContext) {
       throw new DocumentNotFoundError(documentId);
     }
 
-    return {
+    return buildDocumentWithOperationId({
+      registry,
       document: row.document,
       postingOperationId: row.postingOperationId ?? null,
-    };
+    });
   };
 }

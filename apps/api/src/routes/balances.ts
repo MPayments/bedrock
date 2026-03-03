@@ -30,7 +30,7 @@ const BalanceSubjectParamsSchema = z.object({
 
 const ReserveBalanceBodySchema = z.object({
   subject: BalanceSubjectSchema,
-  amountMinor: z.string().min(1),
+  amount: z.string().min(1),
   holdRef: z.string().min(1),
   reason: z.string().optional(),
 });
@@ -148,7 +148,7 @@ export function balancesRoutes(ctx: AppContext) {
         const body = ReserveBalanceBodySchema.parse(await c.req.json());
         const result = await ctx.balancesService.reserve({
           subject: body.subject,
-          amountMinor: BigInt(body.amountMinor),
+          amount: body.amount,
           holdRef: body.holdRef,
           reason: body.reason,
           actorId: c.get("user")!.id,

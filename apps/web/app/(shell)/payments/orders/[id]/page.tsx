@@ -17,8 +17,14 @@ import {
   TableRow,
 } from "@bedrock/ui/components/table";
 
+import {
+  getApprovalStatusLabel,
+  getLifecycleStatusLabel,
+  getPostingStatusLabel,
+  getSubmissionStatusLabel,
+} from "@/features/documents/lib/status-labels";
 import { getPaymentDetails } from "@/features/payments/lib/api";
-import { formatDate } from "@/lib/format";
+import { formatAmountByCurrency, formatDate } from "@/lib/format";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -47,7 +53,12 @@ export default async function PaymentIntentDetailsPage({ params }: PageProps) {
             </div>
             <div>
               <span className="text-muted-foreground">Сумма:</span>{" "}
-              {details.document.amountMinor ?? "—"}{" "}
+              {details.document.amountMinor
+                ? formatAmountByCurrency(
+                    details.document.amountMinor,
+                    details.document.currency,
+                  )
+                : "—"}{" "}
               {details.document.currency ?? ""}
             </div>
             <div>
@@ -56,10 +67,18 @@ export default async function PaymentIntentDetailsPage({ params }: PageProps) {
             </div>
           </div>
           <div className="flex flex-wrap content-start gap-2">
-            <Badge variant="outline">{details.document.submissionStatus}</Badge>
-            <Badge variant="outline">{details.document.approvalStatus}</Badge>
-            <Badge variant="outline">{details.document.postingStatus}</Badge>
-            <Badge variant="outline">{details.document.lifecycleStatus}</Badge>
+            <Badge variant="outline">
+              {getSubmissionStatusLabel(details.document.submissionStatus)}
+            </Badge>
+            <Badge variant="outline">
+              {getApprovalStatusLabel(details.document.approvalStatus)}
+            </Badge>
+            <Badge variant="outline">
+              {getPostingStatusLabel(details.document.postingStatus)}
+            </Badge>
+            <Badge variant="outline">
+              {getLifecycleStatusLabel(details.document.lifecycleStatus)}
+            </Badge>
           </div>
         </CardContent>
       </Card>

@@ -7,6 +7,7 @@ import { InvalidStateError } from "@bedrock/kernel/errors";
 import type { DocumentsServiceContext } from "../internal/context";
 import {
   assertDocumentIsActive,
+  buildDocumentWithOperationId,
   buildDefaultActionIdempotencyKey,
   buildDocumentEventState,
   createModuleContext,
@@ -23,6 +24,7 @@ import {
   assertCounterpartyPeriodsOpen,
   collectDocumentCounterpartyIds,
 } from "../period-locks";
+import { isDocumentActionAllowed } from "../state-machine";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 
 export function createSubmitHandler(context: DocumentsServiceContext) {
@@ -76,12 +78,30 @@ export function createSubmitHandler(context: DocumentsServiceContext) {
             input.docType,
             String(storedResult?.documentId ?? input.documentId),
             null,
+            registry,
           ),
         handler: async () => {
           const document = await lockDocument(tx, input.documentId, input.docType);
           assertDocumentIsActive(document, "submitted");
 
-          if (document.submissionStatus !== "draft") {
+          const canSubmit = isDocumentActionAllowed({
+            action: "submit",
+            document,
+            module: {
+              postingRequired: module.postingRequired,
+              allowDirectPostFromDraft: module.allowDirectPostFromDraft,
+            },
+          });
+          if (!canSubmit) {
+            if (
+              module.allowDirectPostFromDraft &&
+              document.submissionStatus === "draft" &&
+              document.lifecycleStatus === "active"
+            ) {
+              throw new InvalidStateError(
+                "Submit action is disabled for this document type; use post",
+              );
+            }
             throw new InvalidStateError("Only draft documents can be submitted");
           }
           const counterpartyIds = collectDocumentCounterpartyIds({
@@ -136,7 +156,11 @@ export function createSubmitHandler(context: DocumentsServiceContext) {
             after: buildDocumentEventState(stored!),
           });
 
-          return { document: stored!, postingOperationId: null };
+          return buildDocumentWithOperationId({
+            registry,
+            document: stored!,
+            postingOperationId: null,
+          });
         },
       });
       });

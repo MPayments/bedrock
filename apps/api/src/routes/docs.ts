@@ -11,6 +11,7 @@ import {
 } from "@bedrock/core/documents";
 
 import { handleRouteError } from "../common/errors";
+import { toJsonSafe } from "../common/json";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { withEtag } from "../middleware/etag";
@@ -27,7 +28,7 @@ function toDocumentDto(input: DocumentWithOperationId) {
     docType: document.docType,
     docNo: document.docNo,
     payloadVersion: document.payloadVersion,
-    payload: document.payload,
+    payload: toJsonSafe(document.payload),
     title: document.title,
     occurredAt: document.occurredAt.toISOString(),
     submissionStatus: document.submissionStatus,
@@ -58,6 +59,7 @@ function toDocumentDto(input: DocumentWithOperationId) {
     updatedAt: document.updatedAt.toISOString(),
     version: document.version,
     postingOperationId: input.postingOperationId,
+    allowedActions: input.allowedActions,
   };
 }
 
@@ -74,10 +76,11 @@ function queryObjectFromUrl(requestUrl: string) {
 }
 
 function toDocumentDetailsDto(details: DocumentDetailsResult) {
-  return {
+  return toJsonSafe({
     document: toDocumentDto({
       document: details.document,
       postingOperationId: details.postingOperationId,
+      allowedActions: details.allowedActions,
     }),
     links: details.links.map((link) => ({
       id: link.id,
@@ -88,16 +91,20 @@ function toDocumentDetailsDto(details: DocumentDetailsResult) {
       createdAt: link.createdAt.toISOString(),
     })),
     parent: details.parent
-      ? toDocumentDto({ document: details.parent, postingOperationId: null })
+      ? toDocumentDto({
+          document: details.parent,
+          postingOperationId: null,
+          allowedActions: [],
+        })
       : null,
     children: details.children.map((document) =>
-      toDocumentDto({ document, postingOperationId: null }),
+      toDocumentDto({ document, postingOperationId: null, allowedActions: [] }),
     ),
     dependsOn: details.dependsOn.map((document) =>
-      toDocumentDto({ document, postingOperationId: null }),
+      toDocumentDto({ document, postingOperationId: null, allowedActions: [] }),
     ),
     compensates: details.compensates.map((document) =>
-      toDocumentDto({ document, postingOperationId: null }),
+      toDocumentDto({ document, postingOperationId: null, allowedActions: [] }),
     ),
     documentOperations: details.documentOperations.map((operation) => ({
       id: operation.id,
@@ -141,7 +148,7 @@ function toDocumentDetailsDto(details: DocumentDetailsResult) {
     ledgerOperations: details.ledgerOperations,
     computed: details.computed,
     extra: details.extra,
-  };
+  });
 }
 
 export function docsRoutes(ctx: AppContext) {

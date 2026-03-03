@@ -43,6 +43,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   fx: { label: "FX", icon: "currency" },
   payments: { label: "Платежи", icon: "credit-card" },
   transfers: { label: "Переводы", icon: "arrow-right-left" },
+  documents: { label: "Документы", icon: "book-open" },
   accounting: { label: "Бухгалтерия", icon: "book-open" },
   entities: { label: "Справочники", icon: "book-open" },
 
@@ -66,6 +67,7 @@ const segmentMap: Record<string, SegmentConfig> = {
     icon: "landmark",
   },
   create: { label: "Создать" },
+  type: { label: "Тип" },
   accounts: {
     label: "Счета",
     href: "/entities/counterparty-accounts",

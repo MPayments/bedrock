@@ -7,6 +7,7 @@ import { DocumentValidationError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";
 import {
   buildDocumentEventState,
+  buildDocumentWithOperationId,
   buildSummary,
   createDocumentInsertBase,
   createModuleContext,
@@ -110,10 +111,11 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
               throw new Error("Document replay is missing for createDraft");
             }
 
-            return {
+            return buildDocumentWithOperationId({
+              registry,
               document: replay,
               postingOperationId: null,
-            };
+            });
           },
           handler: async () => {
             const replay = await getDocumentByCreateIdempotencyKey(
@@ -127,6 +129,7 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                 input.docType,
                 replay.id,
                 null,
+                registry,
               );
             }
 
@@ -261,7 +264,11 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
               after: buildDocumentEventState(document),
             });
 
-            return { document, postingOperationId: null };
+            return buildDocumentWithOperationId({
+              registry,
+              document,
+              postingOperationId: null,
+            });
           },
         });
       });

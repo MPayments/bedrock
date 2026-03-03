@@ -7,6 +7,7 @@ import { IDEMPOTENCY_SCOPE } from "@bedrock/core/idempotency";
 import type { DocumentsServiceContext } from "../internal/context";
 import {
   assertDocumentIsActive,
+  buildDocumentWithOperationId,
   buildDefaultActionIdempotencyKey,
   buildDocumentEventState,
   createModuleContext,
@@ -19,6 +20,7 @@ import {
   enforceDocumentPolicy,
   persistDocumentPolicyDenial,
 } from "../internal/policy";
+import { isDocumentActionAllowed } from "../state-machine";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 
 export function createRejectHandler(context: DocumentsServiceContext) {
@@ -72,14 +74,21 @@ export function createRejectHandler(context: DocumentsServiceContext) {
             input.docType,
             String(storedResult?.documentId ?? input.documentId),
             null,
+            registry,
           ),
         handler: async () => {
           const document = await lockDocument(tx, input.documentId, input.docType);
           assertDocumentIsActive(document, "rejected");
 
           if (
-            document.submissionStatus !== "submitted" ||
-            document.approvalStatus !== "pending"
+            !isDocumentActionAllowed({
+              action: "reject",
+              document,
+              module: {
+                postingRequired: module.postingRequired,
+                allowDirectPostFromDraft: module.allowDirectPostFromDraft,
+              },
+            })
           ) {
             throw new InvalidStateError("Document is not awaiting approval");
           }
@@ -125,7 +134,11 @@ export function createRejectHandler(context: DocumentsServiceContext) {
             after: buildDocumentEventState(stored!),
           });
 
-          return { document: stored!, postingOperationId: null };
+          return buildDocumentWithOperationId({
+            registry,
+            document: stored!,
+            postingOperationId: null,
+          });
         },
       });
       });

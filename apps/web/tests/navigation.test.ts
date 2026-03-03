@@ -32,6 +32,7 @@ describe("navigation config", () => {
       "/",
       "/payments",
       "/transfers",
+      "/documents",
       "/operations",
     ]);
   });

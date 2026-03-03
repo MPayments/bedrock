@@ -61,12 +61,20 @@ const ACCOUNTS = [
     true,
     "2100",
   ],
-  ["2140", "ORDER_RESERVE", "liability", "credit", true, true, "2100"],
+  ["2140", "Резерв по ордерам", "liability", "credit", true, true, "2100"],
   ["4110", "Доход от комиссий", "revenue", "credit", true, true, "4000"],
   ["4120", "Доход от спреда", "revenue", "credit", true, true, "4000"],
   ["4130", "Доход от корректировок", "revenue", "credit", true, true, "4000"],
   ["5110", "Расход по корректировкам", "expense", "debit", true, true, "5000"],
-  ["5120", "PROVIDER_FEE_EXPENSE", "expense", "debit", true, true, "5000"],
+  [
+    "5120",
+    "Расход по комиссии провайдера",
+    "expense",
+    "debit",
+    true,
+    true,
+    "5000",
+  ],
 ] as const;
 
 const RULES = [

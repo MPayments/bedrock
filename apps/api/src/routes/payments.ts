@@ -1,6 +1,6 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
-import { PaymentIntentPayloadSchema } from "@bedrock/application/payments";
+import { PaymentIntentInputSchema } from "@bedrock/application/payments";
 
 import { handleRouteError } from "../common/errors";
 import { toJsonSafe } from "../common/json";
@@ -46,7 +46,7 @@ export function paymentsRoutes(ctx: AppContext) {
     try {
       const body = CreatePaymentInputSchema.parse(await c.req.json());
       const result = await ctx.paymentsService.createDraft({
-        payload: PaymentIntentPayloadSchema.parse(body.input),
+        payload: PaymentIntentInputSchema.parse(body.input),
         createIdempotencyKey: body.createIdempotencyKey,
         actorUserId: c.get("user")!.id,
         requestContext: getRequestContext(c),

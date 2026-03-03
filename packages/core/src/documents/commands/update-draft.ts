@@ -6,6 +6,7 @@ import { IDEMPOTENCY_SCOPE } from "@bedrock/core/idempotency";
 import { DocumentValidationError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";
 import {
+  buildDocumentWithOperationId,
   buildDefaultActionIdempotencyKey,
   buildDocumentEventState,
   buildSummary,
@@ -23,6 +24,7 @@ import {
   assertCounterpartyPeriodsOpen,
   collectDocumentCounterpartyIds,
 } from "../period-locks";
+import { isDocumentActionAllowed } from "../state-machine";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 import { validateInput } from "../validation";
 
@@ -85,13 +87,20 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
               input.docType,
               String(storedResult?.documentId ?? input.documentId),
               null,
+              registry,
             ),
           handler: async () => {
             const document = await lockDocument(tx, input.documentId, input.docType);
 
             if (
-              document.submissionStatus !== "draft" ||
-              document.lifecycleStatus !== "active"
+              !isDocumentActionAllowed({
+                action: "edit",
+                document,
+                module: {
+                  postingRequired: module.postingRequired,
+                  allowDirectPostFromDraft: module.allowDirectPostFromDraft,
+                },
+              })
             ) {
               throw new DocumentValidationError(
                 "Only active draft documents can be updated",
@@ -180,7 +189,11 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
               after: buildDocumentEventState(stored!),
             });
 
-            return { document: stored!, postingOperationId: null };
+            return buildDocumentWithOperationId({
+              registry,
+              document: stored!,
+              postingOperationId: null,
+            });
           },
         });
       });

@@ -1,10 +1,5 @@
 import "./env";
 
-import { db } from "@bedrock/db/client";
-import {
-  createConsoleLogger,
-  installShutdownHandlers,
-} from "@bedrock/kernel";
 import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/application/component-runtime";
 import {
   createComponentRuntimeService,
@@ -14,9 +9,14 @@ import {
   createWorkerFleet,
   startWorkerFleet,
 } from "@bedrock/core/worker-runtime";
+import { db } from "@bedrock/db/client";
+import {
+  createConsoleLogger,
+  installShutdownHandlers,
+} from "@bedrock/kernel";
 
-import { env } from "./env";
 import { createWorkerImplementations } from "./components/registry";
+import { env } from "./env";
 import { createWorkerMonitoringRegistry, startWorkerMonitoringServer } from "./monitoring";
 import { parseSelectedWorkerIds } from "./selection";
 

@@ -6,8 +6,14 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@bedrock/ui/components/badge";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
+import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
+import {
+  getApprovalStatusLabel,
+  getLifecycleStatusLabel,
+  getPostingStatusLabel,
+} from "@/features/documents/lib/status-labels";
+import type { DocumentDto } from "@/features/operations/documents/lib/schemas";
 import { formatDate } from "@/lib/format";
-import type { DocumentDto } from "@/features/operations/documents/lib/queries";
 
 function badgeVariant(
   value: string,
@@ -18,11 +24,18 @@ function badgeVariant(
   return "outline";
 }
 
-function buildDocumentHref(document: DocumentDto): string {
-  return `/operations/${document.docType}/${document.id}`;
+function buildDocumentHref(
+  routeBasePath: string,
+  document: DocumentDto,
+): string {
+  return `${routeBasePath}/${document.docType}/${document.id}`;
 }
 
-export function getDocumentColumns(): ColumnDef<DocumentDto>[] {
+export function getDocumentColumns(options?: {
+  routeBasePath?: string;
+}): ColumnDef<DocumentDto>[] {
+  const routeBasePath = options?.routeBasePath ?? "/operations";
+
   return [
     {
       id: "query",
@@ -59,7 +72,7 @@ export function getDocumentColumns(): ColumnDef<DocumentDto>[] {
       cell: ({ row }) => (
         <div className="space-y-1">
           <Link
-            href={buildDocumentHref(row.original)}
+            href={buildDocumentHref(routeBasePath, row.original)}
             className="font-medium hover:underline"
           >
             {row.original.docNo}
@@ -74,7 +87,14 @@ export function getDocumentColumns(): ColumnDef<DocumentDto>[] {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label="Тип" />
       ),
-      cell: ({ row }) => <Badge variant="outline">{row.original.docType}</Badge>,
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <Badge variant="outline">{getDocumentTypeLabel(row.original.docType)}</Badge>
+          <div className="text-muted-foreground font-mono text-xs">
+            {row.original.docType}
+          </div>
+        </div>
+      ),
       meta: {
         label: "Тип",
         variant: "multiSelect",
@@ -98,7 +118,7 @@ export function getDocumentColumns(): ColumnDef<DocumentDto>[] {
       ),
       cell: ({ row }) => (
         <Badge variant={badgeVariant(row.original.approvalStatus)}>
-          {row.original.approvalStatus}
+          {getApprovalStatusLabel(row.original.approvalStatus)}
         </Badge>
       ),
       meta: {
@@ -121,7 +141,7 @@ export function getDocumentColumns(): ColumnDef<DocumentDto>[] {
       ),
       cell: ({ row }) => (
         <Badge variant={badgeVariant(row.original.postingStatus)}>
-          {row.original.postingStatus}
+          {getPostingStatusLabel(row.original.postingStatus)}
         </Badge>
       ),
       meta: {
@@ -141,21 +161,19 @@ export function getDocumentColumns(): ColumnDef<DocumentDto>[] {
     {
       accessorKey: "lifecycleStatus",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label="Lifecycle" />
+        <DataTableColumnHeader column={column} label="Жизненный цикл" />
       ),
       cell: ({ row }) => (
         <Badge variant={badgeVariant(row.original.lifecycleStatus)}>
-          {row.original.lifecycleStatus}
+          {getLifecycleStatusLabel(row.original.lifecycleStatus)}
         </Badge>
       ),
       meta: {
-        label: "Lifecycle",
+        label: "Жизненный цикл",
         variant: "multiSelect",
         options: [
           { label: "Активен", value: "active" },
           { label: "Отменен", value: "cancelled" },
-          { label: "Voided", value: "voided" },
-          { label: "Archived", value: "archived" },
         ],
       },
       enableColumnFilter: true,
@@ -164,7 +182,7 @@ export function getDocumentColumns(): ColumnDef<DocumentDto>[] {
     {
       accessorKey: "postingOperationId",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label="Ledger" />
+        <DataTableColumnHeader column={column} label="Журнал" />
       ),
       cell: ({ row }) =>
         row.original.postingOperationId ? (

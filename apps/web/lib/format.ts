@@ -30,6 +30,30 @@ export function formatAmount(amountMinor: string | number, precision: number): s
   return `${sign}${major.toLocaleString("ru-RU")},${fraction}`;
 }
 
+export function getCurrencyPrecisionByCode(currencyCode: string | null | undefined): number {
+  const normalized = currencyCode?.trim().toUpperCase() ?? "";
+  if (normalized.length === 0) {
+    return 2;
+  }
+
+  try {
+    const options = new Intl.NumberFormat("en", {
+      style: "currency",
+      currency: normalized,
+    }).resolvedOptions();
+    return Math.max(0, Math.trunc(options.maximumFractionDigits ?? 2));
+  } catch {
+    return 2;
+  }
+}
+
+export function formatAmountByCurrency(
+  amountMinor: string | number,
+  currencyCode: string | null | undefined,
+): string {
+  return formatAmount(amountMinor, getCurrencyPrecisionByCode(currencyCode));
+}
+
 export function formatDate(date: Date | string | number | undefined) {
   if (!date) return "";
 

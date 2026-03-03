@@ -118,6 +118,7 @@ describe("documents queries", () => {
     ).resolves.toEqual({
       document,
       postingOperationId: "op-1",
+      allowedActions: [],
     });
   });
 
@@ -182,7 +183,7 @@ describe("documents queries", () => {
     });
 
     expect(result).toEqual({
-      data: [{ document, postingOperationId: null }],
+      data: [{ document, postingOperationId: null, allowedActions: [] }],
       total: 1,
       limit: 5,
       offset: 10,
@@ -343,10 +344,82 @@ describe("documents queries", () => {
     expect(result.dependsOn.map((item) => item.id)).toEqual([dependsOn.id]);
     expect(result.compensates.map((item) => item.id)).toEqual([compensates.id]);
     expect(result.postingOperationId).toBe("op-1");
+    expect(result.allowedActions).toEqual(["edit", "submit", "cancel"]);
     expect(result.events).toEqual(events);
     expect(result.snapshot).toEqual(snapshot);
     expect(result.ledgerOperations).toEqual([{ id: "op-1", status: "posted" }]);
     expect(result.computed).toEqual({ label: "computed" });
     expect(result.extra).toEqual({ source: "module" });
+  });
+
+  it("returns base details when module details builder fails", async () => {
+    const document = makeDocument();
+    const db = {
+      select: vi
+        .fn()
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [document]),
+            })),
+          })),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            where: vi.fn(async () => []),
+          })),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            where: vi.fn(async () => []),
+          })),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            where: vi.fn(async () => []),
+          })),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => []),
+            })),
+          })),
+        }),
+    };
+    const ledgerReadService = {
+      getOperationDetails: vi.fn(),
+    };
+    const warn = vi.fn();
+    const registry = {
+      getDocumentModule: vi.fn(() => ({
+        ...createModuleStub(),
+        buildDetails: vi.fn(async () => {
+          throw new Error("details boom");
+        }),
+      })),
+    };
+
+    const getDetails = createGetDocumentDetailsQuery({
+      db,
+      ledgerReadService,
+      log: { warn } as any,
+      registry,
+    } as any);
+
+    const result = await getDetails(document.docType, document.id, "checker-1");
+
+    expect(result.document.id).toBe(document.id);
+    expect(result.allowedActions).toEqual(["edit", "submit", "cancel"]);
+    expect(result.computed).toBeUndefined();
+    expect(result.extra).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(
+      "documents get details: failed to build module details",
+      expect.objectContaining({
+        docType: document.docType,
+        documentId: document.id,
+        error: "details boom",
+      }),
+    );
   });
 });

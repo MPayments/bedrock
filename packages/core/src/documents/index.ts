@@ -18,6 +18,12 @@ export {
   reopenCounterpartyPeriod,
 } from "./period-locks";
 export {
+  DOCUMENT_ACTIONS,
+  isDocumentActionAllowed,
+  resolveDocumentAllowedActions,
+} from "./state-machine";
+export type { DocumentAction } from "./state-machine";
+export {
   DOCUMENT_APPROVAL_STATUSES,
   DOCUMENT_LIFECYCLE_STATUSES,
   DOCUMENT_POSTING_STATUSES,

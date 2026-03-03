@@ -6,6 +6,7 @@ import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import type { DocumentsServiceContext } from "../internal/context";
 import {
+  buildDocumentWithOperationId,
   buildDefaultActionIdempotencyKey,
   buildDocumentEventState,
   createModuleContext,
@@ -22,6 +23,7 @@ import {
   assertCounterpartyPeriodsOpen,
   collectDocumentCounterpartyIds,
 } from "../period-locks";
+import { isDocumentActionAllowed } from "../state-machine";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 
 export function createCancelHandler(context: DocumentsServiceContext) {
@@ -75,13 +77,20 @@ export function createCancelHandler(context: DocumentsServiceContext) {
             input.docType,
             String(storedResult?.documentId ?? input.documentId),
             null,
+            registry,
           ),
         handler: async () => {
           const document = await lockDocument(tx, input.documentId, input.docType);
 
           if (
-            document.lifecycleStatus !== "active" ||
-            !["unposted", "failed"].includes(document.postingStatus)
+            !isDocumentActionAllowed({
+              action: "cancel",
+              document,
+              module: {
+                postingRequired: module.postingRequired,
+                allowDirectPostFromDraft: module.allowDirectPostFromDraft,
+              },
+            })
           ) {
             throw new InvalidStateError(
               "Only active documents in unposted or failed status can be cancelled",
@@ -139,7 +148,11 @@ export function createCancelHandler(context: DocumentsServiceContext) {
             after: buildDocumentEventState(stored!),
           });
 
-          return { document: stored!, postingOperationId: null };
+          return buildDocumentWithOperationId({
+            registry,
+            document: stored!,
+            postingOperationId: null,
+          });
         },
       });
       });

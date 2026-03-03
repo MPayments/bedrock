@@ -16,6 +16,38 @@ import {
 
 import { getAccountingTemplateAccounts } from "@/features/accounting/lib/queries";
 
+const ACCOUNT_NAME_OVERRIDES: Record<string, string> = {
+  "2140": "Резерв по ордерам",
+  "5120": "Расход по комиссии провайдера",
+};
+
+const ACCOUNT_KIND_LABELS: Record<string, string> = {
+  asset: "Актив",
+  liability: "Обязательство",
+  equity: "Капитал",
+  revenue: "Доход",
+  expense: "Расход",
+  active_passive: "Активно-пассивный",
+};
+
+const NORMAL_SIDE_LABELS: Record<string, string> = {
+  debit: "Дебет",
+  credit: "Кредит",
+  both: "Обе",
+};
+
+function formatAccountName(accountNo: string, name: string): string {
+  return ACCOUNT_NAME_OVERRIDES[accountNo] ?? name;
+}
+
+function formatAccountKind(kind: string): string {
+  return ACCOUNT_KIND_LABELS[kind] ?? kind;
+}
+
+function formatNormalSide(normalSide: string): string {
+  return NORMAL_SIDE_LABELS[normalSide] ?? normalSide;
+}
+
 function computeAccountDepths(
   accounts: { accountNo: string; parentAccountNo: string | null }[],
 ): Map<string, number> {
@@ -84,10 +116,12 @@ export default async function AccountingAccountsPage() {
                         {account.accountNo}
                       </TableCell>
                       <TableCell className={isGroup ? "font-semibold" : ""}>
-                        {account.name}
+                        {formatAccountName(account.accountNo, account.name)}
                       </TableCell>
-                      <TableCell>{account.kind}</TableCell>
-                      <TableCell>{account.normalSide}</TableCell>
+                      <TableCell>{formatAccountKind(account.kind)}</TableCell>
+                      <TableCell>
+                        {formatNormalSide(account.normalSide)}
+                      </TableCell>
                       <TableCell>
                         {account.postingAllowed ? "Да" : "Нет"}
                       </TableCell>

@@ -21,19 +21,29 @@ import {
 } from "@bedrock/kernel/accounting-contracts";
 
 import {
+  AccrualAdjustmentInputSchema,
   AccrualAdjustmentSchema,
   CapitalFundingInputSchema,
   CapitalFundingPayloadSchema,
+  ClosingReclassInputSchema,
   ClosingReclassSchema,
+  EquityContributionInputSchema,
   EquityContributionSchema,
+  EquityDistributionInputSchema,
   EquityDistributionSchema,
+  ImpairmentAdjustmentInputSchema,
   ImpairmentAdjustmentSchema,
+  IntercompanyInterestAccrualInputSchema,
   IntercompanyInterestAccrualSchema,
+  IntercompanyInterestSettlementInputSchema,
   IntercompanyInterestSettlementSchema,
+  IntercompanyLoanDrawdownInputSchema,
   IntercompanyLoanDrawdownSchema,
+  IntercompanyLoanRepaymentInputSchema,
   IntercompanyLoanRepaymentSchema,
   PeriodCloseSchema,
   PeriodReopenSchema,
+  RevaluationAdjustmentInputSchema,
   RevaluationAdjustmentSchema,
   TransferIntercompanyInputSchema,
   TransferIntercompanyPayloadSchema,
@@ -265,6 +275,7 @@ function createSimpleIfrsDocumentModule<TPayload extends { occurredAt: Date }>(i
     updateSchema: input.updateSchema,
     payloadSchema: input.payloadSchema,
     postingRequired: false,
+    allowDirectPostFromDraft: true,
     approvalRequired: () => false,
     async createDraft(_context, payload) {
       return buildDocumentDraft(payload, serializeOccurredAt(payload));
@@ -331,6 +342,7 @@ export function createTransferIntraDocumentModule(deps: {
     updateSchema: TransferIntraInputSchema,
     payloadSchema: TransferIntraPayloadSchema,
     postingRequired: true,
+    allowDirectPostFromDraft: true,
     approvalRequired: () => false,
     async createDraft(_context, input) {
       const bindings = await resolveTransferBindings(counterpartyAccountsService, input);
@@ -356,7 +368,7 @@ export function createTransferIntraDocumentModule(deps: {
       const payload = parseDocumentPayload(TransferIntraPayloadSchema, document);
 
       return {
-        title: "Intra-counterparty transfer",
+        title: "Внутренний перевод",
         amountMinor: BigInt(payload.amountMinor),
         currency: payload.currency,
         memo: payload.memo ?? null,
@@ -474,6 +486,7 @@ export function createTransferIntercompanyDocumentModule(deps: {
     updateSchema: TransferIntercompanyInputSchema,
     payloadSchema: TransferIntercompanyPayloadSchema,
     postingRequired: true,
+    allowDirectPostFromDraft: true,
     approvalRequired: () => false,
     async createDraft(_context, input) {
       const bindings = await resolveTransferBindings(counterpartyAccountsService, input);
@@ -499,7 +512,7 @@ export function createTransferIntercompanyDocumentModule(deps: {
       const payload = parseDocumentPayload(TransferIntercompanyPayloadSchema, document);
 
       return {
-        title: "Intercompany transfer",
+        title: "Межкорпоративный перевод",
         amountMinor: BigInt(payload.amountMinor),
         currency: payload.currency,
         memo: payload.memo ?? null,
@@ -634,6 +647,7 @@ export function createTransferResolutionDocumentModule(deps: {
     updateSchema: TransferResolutionInputSchema,
     payloadSchema: TransferResolutionPayloadSchema,
     postingRequired: true,
+    allowDirectPostFromDraft: true,
     approvalRequired: () => false,
     async createDraft(_context, input) {
       return buildDocumentDraft(input, {
@@ -651,7 +665,7 @@ export function createTransferResolutionDocumentModule(deps: {
       const payload = parseDocumentPayload(TransferResolutionPayloadSchema, document);
 
       return {
-        title: `Transfer resolution (${payload.resolutionType})`,
+        title: resolveTransferResolutionTitle(payload.resolutionType),
         searchText: [
           document.docNo,
           document.docType,
@@ -780,6 +794,36 @@ function resolveFundingTemplateKey(kind: CapitalFundingInput["kind"]) {
   }
 }
 
+function resolveTransferResolutionTitle(
+  resolutionType: "settle" | "void" | "fail",
+) {
+  if (resolutionType === "settle") {
+    return "Разрешение перевода (исполнение)";
+  }
+
+  if (resolutionType === "void") {
+    return "Разрешение перевода (аннулирование)";
+  }
+
+  return "Разрешение перевода (ошибка)";
+}
+
+function resolveCapitalFundingTitle(kind: CapitalFundingInput["kind"]) {
+  if (kind === "founder_equity") {
+    return "Капитальное финансирование (вклад учредителя)";
+  }
+
+  if (kind === "investor_equity") {
+    return "Капитальное финансирование (вклад инвестора)";
+  }
+
+  if (kind === "shareholder_loan") {
+    return "Капитальное финансирование (заем акционера)";
+  }
+
+  return "Капитальное финансирование (входящий остаток)";
+}
+
 export function createCapitalFundingDocumentModule(deps: {
   counterpartyAccountsService: CounterpartyAccountsService;
 }): DocumentModule<CapitalFundingInput, CapitalFundingInput> {
@@ -795,6 +839,7 @@ export function createCapitalFundingDocumentModule(deps: {
     updateSchema: CapitalFundingInputSchema,
     payloadSchema: CapitalFundingPayloadSchema,
     postingRequired: true,
+    allowDirectPostFromDraft: true,
     approvalRequired: () => false,
     async createDraft(_context, input) {
       return buildDocumentDraft(input, {
@@ -812,7 +857,7 @@ export function createCapitalFundingDocumentModule(deps: {
       const payload = parseDocumentPayload(CapitalFundingPayloadSchema, document);
 
       return {
-        title: `Capital funding (${payload.kind})`,
+        title: resolveCapitalFundingTitle(payload.kind),
         amountMinor: BigInt(payload.amountMinor),
         currency: payload.currency,
         memo: payload.memo ?? null,
@@ -924,87 +969,87 @@ export function createIfrsDocumentModules(deps: {
     createSimpleIfrsDocumentModule({
       docType: "intercompany_loan_drawdown",
       docNoPrefix: "ILD",
-      title: "Intercompany loan drawdown",
-      createSchema: IntercompanyLoanDrawdownSchema,
-      updateSchema: IntercompanyLoanDrawdownSchema,
+      title: "Выдача межкорпоративного займа",
+      createSchema: IntercompanyLoanDrawdownInputSchema,
+      updateSchema: IntercompanyLoanDrawdownInputSchema,
       payloadSchema: IntercompanyLoanDrawdownSchema,
     }),
     createSimpleIfrsDocumentModule({
       docType: "intercompany_loan_repayment",
       docNoPrefix: "ILR",
-      title: "Intercompany loan repayment",
-      createSchema: IntercompanyLoanRepaymentSchema,
-      updateSchema: IntercompanyLoanRepaymentSchema,
+      title: "Погашение межкорпоративного займа",
+      createSchema: IntercompanyLoanRepaymentInputSchema,
+      updateSchema: IntercompanyLoanRepaymentInputSchema,
       payloadSchema: IntercompanyLoanRepaymentSchema,
     }),
     createSimpleIfrsDocumentModule({
       docType: "intercompany_interest_accrual",
       docNoPrefix: "IIA",
-      title: "Intercompany interest accrual",
-      createSchema: IntercompanyInterestAccrualSchema,
-      updateSchema: IntercompanyInterestAccrualSchema,
+      title: "Начисление межкорпоративных процентов",
+      createSchema: IntercompanyInterestAccrualInputSchema,
+      updateSchema: IntercompanyInterestAccrualInputSchema,
       payloadSchema: IntercompanyInterestAccrualSchema,
     }),
     createSimpleIfrsDocumentModule({
       docType: "intercompany_interest_settlement",
       docNoPrefix: "IIS",
-      title: "Intercompany interest settlement",
-      createSchema: IntercompanyInterestSettlementSchema,
-      updateSchema: IntercompanyInterestSettlementSchema,
+      title: "Расчет по межкорпоративным процентам",
+      createSchema: IntercompanyInterestSettlementInputSchema,
+      updateSchema: IntercompanyInterestSettlementInputSchema,
       payloadSchema: IntercompanyInterestSettlementSchema,
     }),
     createSimpleIfrsDocumentModule({
       docType: "equity_contribution",
       docNoPrefix: "ECO",
-      title: "Equity contribution",
-      createSchema: EquityContributionSchema,
-      updateSchema: EquityContributionSchema,
+      title: "Вклад в капитал",
+      createSchema: EquityContributionInputSchema,
+      updateSchema: EquityContributionInputSchema,
       payloadSchema: EquityContributionSchema,
     }),
     createSimpleIfrsDocumentModule({
       docType: "equity_distribution",
       docNoPrefix: "EDI",
-      title: "Equity distribution",
-      createSchema: EquityDistributionSchema,
-      updateSchema: EquityDistributionSchema,
+      title: "Распределение капитала",
+      createSchema: EquityDistributionInputSchema,
+      updateSchema: EquityDistributionInputSchema,
       payloadSchema: EquityDistributionSchema,
     }),
     createSimpleIfrsDocumentModule({
       docType: "accrual_adjustment",
       docNoPrefix: "AAC",
-      title: "Accrual adjustment",
-      createSchema: AccrualAdjustmentSchema,
-      updateSchema: AccrualAdjustmentSchema,
+      title: "Корректировка начислений",
+      createSchema: AccrualAdjustmentInputSchema,
+      updateSchema: AccrualAdjustmentInputSchema,
       payloadSchema: AccrualAdjustmentSchema,
     }),
     createSimpleIfrsDocumentModule({
       docType: "revaluation_adjustment",
       docNoPrefix: "ARV",
-      title: "Revaluation adjustment",
-      createSchema: RevaluationAdjustmentSchema,
-      updateSchema: RevaluationAdjustmentSchema,
+      title: "Корректировка переоценки",
+      createSchema: RevaluationAdjustmentInputSchema,
+      updateSchema: RevaluationAdjustmentInputSchema,
       payloadSchema: RevaluationAdjustmentSchema,
     }),
     createSimpleIfrsDocumentModule({
       docType: "impairment_adjustment",
       docNoPrefix: "AIM",
-      title: "Impairment adjustment",
-      createSchema: ImpairmentAdjustmentSchema,
-      updateSchema: ImpairmentAdjustmentSchema,
+      title: "Корректировка обесценения",
+      createSchema: ImpairmentAdjustmentInputSchema,
+      updateSchema: ImpairmentAdjustmentInputSchema,
       payloadSchema: ImpairmentAdjustmentSchema,
     }),
     createSimpleIfrsDocumentModule({
       docType: "closing_reclass",
       docNoPrefix: "ACR",
-      title: "Closing reclass",
-      createSchema: ClosingReclassSchema,
-      updateSchema: ClosingReclassSchema,
+      title: "Закрывающая реклассификация",
+      createSchema: ClosingReclassInputSchema,
+      updateSchema: ClosingReclassInputSchema,
       payloadSchema: ClosingReclassSchema,
     }),
     createSimpleIfrsDocumentModule({
       docType: "period_close",
       docNoPrefix: "PCL",
-      title: "Period close",
+      title: "Закрытие периода",
       createSchema: PeriodCloseSchema,
       updateSchema: PeriodCloseSchema,
       payloadSchema: PeriodCloseSchema,
@@ -1012,7 +1057,7 @@ export function createIfrsDocumentModules(deps: {
     createSimpleIfrsDocumentModule({
       docType: "period_reopen",
       docNoPrefix: "PRN",
-      title: "Period reopen",
+      title: "Переоткрытие периода",
       createSchema: PeriodReopenSchema,
       updateSchema: PeriodReopenSchema,
       payloadSchema: PeriodReopenSchema,

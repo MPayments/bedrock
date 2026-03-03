@@ -24,8 +24,6 @@ export const DOCUMENT_POSTING_STATUSES = [
 export const DOCUMENT_LIFECYCLE_STATUSES = [
   "active",
   "cancelled",
-  "voided",
-  "archived",
 ] as const;
 
 export const CreateDocumentInputSchema = z.object({

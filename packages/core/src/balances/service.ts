@@ -394,7 +394,8 @@ export function createBalancesService(deps: BalancesServiceDeps) {
 
   async function reserve(input: {
     subject: BalanceSubjectInput;
-    amountMinor: bigint;
+    amount?: string | number | bigint;
+    amountMinor?: bigint;
     holdRef: string;
     reason?: string;
     actorId?: string;
