@@ -1,4 +1,4 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
+import { OpenAPIHono, z } from "@hono/zod-openapi";
 
 import {
   CreateDocumentInputSchema,
@@ -9,6 +9,7 @@ import {
   UpdateDocumentInputSchema,
   isSystemOnlyDocumentType,
 } from "@bedrock/core/documents";
+import { ListLedgerOperationsQuerySchema } from "@bedrock/core/ledger";
 
 import auth from "../auth";
 import { handleRouteError } from "../common/errors";
@@ -18,12 +19,14 @@ import type { AuthVariables } from "../middleware/auth";
 import { withEtag } from "../middleware/etag";
 import { getRequestContext } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
+import { mapOperationDetailsDto } from "./accounting/mappers";
 import {
   queryObjectFromUrl,
   toDocumentDetailsDto,
   toDocumentDto,
 } from "./internal/document-dto";
 import { registerIdempotentMutationRoute } from "./internal/register-idempotent-mutation-route";
+
 const DOCUMENT_ACTION_TO_PERMISSION = {
   edit: "update",
   submit: "submit",
@@ -52,6 +55,10 @@ interface DocumentMutationConfig {
   permission: DocumentPermissionAction;
   action: DocumentTransitionAction;
 }
+
+const OperationParamSchema = z.object({
+  operationId: z.uuid(),
+});
 
 export function documentsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -181,6 +188,54 @@ export function documentsRoutes(ctx: AppContext) {
       handleError: handleRouteError,
     });
   }
+
+  app.get("/journal", requirePermission({ accounting: ["list"] }), async (c) => {
+    try {
+      const query = ListLedgerOperationsQuerySchema.parse(
+        queryObjectFromUrl(c.req.url),
+      );
+      const result =
+        await ctx.accountingReportingService.listOperationsWithLabels(query);
+
+      return c.json(
+        {
+          ...result,
+          data: result.data.map((row) => ({
+            ...row,
+            postingDate: row.postingDate.toISOString(),
+            postedAt: row.postedAt?.toISOString() ?? null,
+            lastOutboxErrorAt: row.lastOutboxErrorAt?.toISOString() ?? null,
+            createdAt: row.createdAt.toISOString(),
+          })),
+        },
+        200,
+      );
+    } catch (error) {
+      return handleRouteError(c, error);
+    }
+  });
+
+  app.get(
+    "/journal/:operationId",
+    requirePermission({ accounting: ["list"] }),
+    async (c) => {
+      try {
+        const { operationId } = OperationParamSchema.parse(c.req.param());
+        const details =
+          await ctx.accountingReportingService.getOperationDetailsWithLabels(
+            operationId,
+          );
+
+        if (!details) {
+          return c.json({ error: `Operation not found: ${operationId}` }, 404);
+        }
+
+        return c.json(mapOperationDetailsDto(details), 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    },
+  );
 
   app.get("/", requirePermission({ documents: ["list"] }), async (c) => {
     try {

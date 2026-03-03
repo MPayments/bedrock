@@ -134,9 +134,9 @@ const navItems: AppNavItem[] = [
         audience: "admin",
       },
       {
-        id: "accounting-financial-results",
-        title: "Финрез",
-        href: "/accounting/financial-results",
+        id: "accounting-reports",
+        title: "Отчеты",
+        href: "/accounting/reports",
         audience: "admin",
       },
     ],

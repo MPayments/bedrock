@@ -1,11 +1,10 @@
 import { cache } from "react";
+import { headers } from "next/headers";
 import { z } from "zod";
 
 import { ACCOUNTING_OPERATIONS_LIST_CONTRACT } from "@bedrock/core/accounting/contracts";
 
-import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
-import { readPaginatedList } from "@/lib/api/query";
 import { requestOk, readJsonWithSchema } from "@/lib/api/response";
 import { isUuid } from "@/lib/resources/http";
 import { createResourceListQuery } from "@/lib/resources/search-params";
@@ -84,6 +83,19 @@ const OperationsListResponseSchema = createPaginatedResponseSchema(
 export type OperationSummaryDto = z.infer<typeof OperationSummarySchema>;
 export type OperationDetailsDto = z.infer<typeof OperationDetailsSchema>;
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
+
+async function fetchApi(path: string) {
+  const requestHeaders = await headers();
+
+  return fetch(`${API_URL}${path}`, {
+    headers: {
+      cookie: requestHeaders.get("cookie") ?? "",
+    },
+    cache: "no-store",
+  });
+}
+
 function createOperationsListQuery(search: OperationsSearchParams) {
   return createResourceListQuery(ACCOUNTING_OPERATIONS_LIST_CONTRACT, search);
 }
@@ -91,17 +103,29 @@ function createOperationsListQuery(search: OperationsSearchParams) {
 export async function getOperations(
   search: OperationsSearchParams,
 ): Promise<z.infer<typeof OperationsListResponseSchema>> {
-  const client = await getServerApiClient();
-  const { data } = await readPaginatedList({
-    request: () =>
-      client.v1.accounting.operations.$get({
-        query: createOperationsListQuery(search),
-      }),
-    schema: OperationsListResponseSchema,
-    context: "Не удалось загрузить операции",
-  });
+  const query = new URLSearchParams();
 
-  return data;
+  for (const [key, value] of Object.entries(createOperationsListQuery(search))) {
+    if (value === undefined || value === null) {
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        query.append(key, String(item));
+      }
+      continue;
+    }
+
+    query.set(key, String(value));
+  }
+
+  const response = await requestOk(
+    await fetchApi(`/v1/documents/journal?${query.toString()}`),
+    "Не удалось загрузить операции",
+  );
+
+  return readJsonWithSchema(response, OperationsListResponseSchema);
 }
 
 const getOperationByIdUncached = async (
@@ -111,11 +135,7 @@ const getOperationByIdUncached = async (
     return null;
   }
 
-  const client = await getServerApiClient();
-  const response = await client.v1.accounting.operations[":operationId"].$get(
-    { param: { operationId } },
-    { init: { cache: "no-store" } },
-  );
+  const response = await fetchApi(`/v1/documents/journal/${operationId}`);
 
   if (response.status === 404) {
     return null;

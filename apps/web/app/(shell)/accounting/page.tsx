@@ -22,7 +22,7 @@ export default async function AccountingOverviewPage() {
     <SectionOverviewPage
       icon={Calculator}
       title="Бухгалтерия"
-      description="Административная зона для плана счетов, корреспонденции, журнала операций и финансового результата."
+      description="Административная зона для плана счетов, корреспонденции, журнала операций и отчетности."
       stats={[
         {
           id: "counterparty-accounts",
@@ -60,10 +60,10 @@ export default async function AccountingOverviewPage() {
           href: "/accounting/correspondence",
         },
         {
-          id: "financial-results",
-          title: "Финансовый результат",
-          description: "Отчет по контрагентам и группам без перехода через alias.",
-          href: "/accounting/financial-results",
+          id: "reports",
+          title: "Отчетность v2",
+          description: "Trial Balance, GL, FS, Liquidity, FX, Fee Revenue, Close Package.",
+          href: "/accounting/reports",
         },
       ]}
     />

@@ -1,6 +1,6 @@
-import type { Database } from "@bedrock/kernel/db/types";
-import { noopLogger, type Logger } from "@bedrock/kernel";
 import type { LedgerReadService } from "@bedrock/core/ledger";
+import { noopLogger, type Logger } from "@bedrock/kernel";
+import type { Database } from "@bedrock/kernel/db/types";
 
 export interface AccountingReportingServiceDeps {
   db: Database;

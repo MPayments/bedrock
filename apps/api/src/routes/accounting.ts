@@ -1,34 +1,48 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
-  FinancialResultsByCounterpartyResponseSchema,
-  FinancialResultsByGroupResponseSchema,
-  ListFinancialResultsByCounterpartyQuerySchema,
-  ListFinancialResultsByGroupQuerySchema,
+  BalanceSheetQuerySchema,
+  BalanceSheetResponseSchema,
+  CashFlowQuerySchema,
+  CashFlowResponseSchema,
+  ClosePackageQuerySchema,
+  ClosePackageResponseSchema,
+  FeeRevenueQuerySchema,
+  FeeRevenueResponseSchema,
+  FxRevaluationQuerySchema,
+  FxRevaluationResponseSchema,
+  GeneralLedgerQuerySchema,
+  GeneralLedgerResponseSchema,
+  IncomeStatementQuerySchema,
+  IncomeStatementResponseSchema,
+  LiquidityQuerySchema,
+  LiquidityResponseSchema,
+  TrialBalanceQuerySchema,
+  TrialBalanceResponseSchema,
 } from "@bedrock/application/accounting-reporting";
 import { replaceCorrespondenceRulesSchema } from "@bedrock/core/accounting";
 import {
   AccountingCorrespondenceRuleSchema,
   AccountingTemplateAccountSchema,
 } from "@bedrock/core/accounting/contracts";
-import { ListLedgerOperationsQuerySchema } from "@bedrock/core/ledger";
 import { ValidationError } from "@bedrock/kernel/errors";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 import {
+  mapBalanceSheetDto,
+  mapCashFlowDto,
+  mapClosePackageDto,
   mapCounterpartyBalanceDto,
-  mapFinancialResultRowDto,
-  mapFinancialSummaryDto,
-  mapOperationDetailsDto,
+  mapFeeRevenueDto,
+  mapFxRevaluationDto,
+  mapGeneralLedgerDto,
+  mapIncomeStatementDto,
+  mapLiquidityDto,
+  mapTrialBalanceDto,
 } from "./accounting/mappers";
-
-const OperationParamSchema = z.object({
-  operationId: z.uuid(),
-});
 
 const ValidatePostingMatrixResultSchema = z.object({
   ok: z.boolean(),
@@ -42,77 +56,91 @@ const ValidatePostingMatrixResultSchema = z.object({
   ),
 });
 
-const LedgerOperationSummarySchema = z.object({
-  id: z.uuid(),
-  sourceType: z.string(),
-  sourceId: z.string(),
-  operationCode: z.string(),
-  operationVersion: z.number().int(),
-  postingDate: z.iso.datetime(),
-  status: z.enum(["pending", "posted", "failed"]),
-  error: z.string().nullable(),
-  postedAt: z.iso.datetime().nullable(),
-  outboxAttempts: z.number().int(),
-  lastOutboxErrorAt: z.iso.datetime().nullable(),
-  createdAt: z.iso.datetime(),
-  postingCount: z.number().int(),
-  bookIds: z.array(z.string()),
-  bookLabels: z.record(z.string(), z.string()),
-  currencies: z.array(z.string()),
-});
+function asCsvCell(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
 
-const PaginatedLedgerOperationsSchema = createPaginatedListSchema(
-  LedgerOperationSummarySchema,
-);
+  const rendered = typeof value === "string" ? value : String(value);
+  if (!/[",\n\r]/.test(rendered)) {
+    return rendered;
+  }
 
-const DimensionsSchema = z.record(z.string(), z.string()).nullable();
+  return `"${rendered.replaceAll("\"", "\"\"")}"`;
+}
 
-const LedgerOperationPostingSchema = z.object({
-  id: z.uuid(),
-  lineNo: z.number().int(),
-  bookId: z.uuid(),
-  bookName: z.string().nullable(),
-  debitInstanceId: z.uuid(),
-  debitAccountNo: z.string().nullable(),
-  debitDimensions: DimensionsSchema,
-  creditInstanceId: z.uuid(),
-  creditAccountNo: z.string().nullable(),
-  creditDimensions: DimensionsSchema,
-  postingCode: z.string(),
-  currency: z.string(),
-  currencyPrecision: z.number().int(),
-  amount: z.string(),
-  memo: z.string().nullable(),
-  context: z.record(z.string(), z.string()).nullable(),
-  createdAt: z.iso.datetime(),
-});
+function toCsvContent(headers: string[], rows: Record<string, unknown>[]): string {
+  const head = headers.join(",");
+  const body = rows.map((row) => headers.map((key) => asCsvCell(row[key])).join(","));
+  return [head, ...body].join("\n");
+}
 
-const LedgerOperationTbPlanSchema = z.object({
-  id: z.uuid(),
-  lineNo: z.number().int(),
-  type: z.enum(["create", "post_pending", "void_pending"]),
-  transferId: z.string(),
-  debitTbAccountId: z.string().nullable(),
-  creditTbAccountId: z.string().nullable(),
-  tbLedger: z.number().int(),
-  amount: z.string(),
-  code: z.number().int(),
-  pendingRef: z.string().nullable(),
-  pendingId: z.string().nullable(),
-  isLinked: z.boolean(),
-  isPending: z.boolean(),
-  timeoutSeconds: z.number().int(),
-  status: z.enum(["pending", "posted", "failed"]),
-  error: z.string().nullable(),
-  createdAt: z.iso.datetime(),
-});
+interface PaginatedPayload<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
 
-const LedgerOperationDetailsSchema = z.object({
-  operation: LedgerOperationSummarySchema,
-  postings: z.array(LedgerOperationPostingSchema),
-  tbPlans: z.array(LedgerOperationTbPlanSchema),
-  dimensionLabels: z.record(z.string(), z.string()),
-});
+async function readAllPages<T>(
+  firstPage: PaginatedPayload<T>,
+  loadPage: (input: { limit: number; offset: number }) => Promise<PaginatedPayload<T>>,
+): Promise<T[]> {
+  const rows: T[] = [...firstPage.data];
+  let offset = firstPage.offset + firstPage.data.length;
+  const pageSize = firstPage.limit;
+
+  while (true) {
+    if (rows.length >= firstPage.total) {
+      break;
+    }
+
+    const page = await loadPage({ limit: pageSize, offset });
+    if (page.data.length === 0) {
+      break;
+    }
+
+    rows.push(...page.data);
+    offset += page.data.length;
+  }
+
+  return rows;
+}
+
+function toReportCsvResponse(
+  c: { body: (body: string, status: number, headers: Record<string, string>) => Response },
+  input: {
+    filename: string;
+    headers: string[];
+    rows: Record<string, unknown>[];
+  },
+) {
+  return c.body(toCsvContent(input.headers, input.rows), 200, {
+    "Content-Type": "text/csv; charset=utf-8",
+    "Content-Disposition": `attachment; filename="${input.filename}"`,
+  });
+}
+
+function logReportMetrics(
+  ctx: AppContext,
+  input: {
+    reportKey: string;
+    startedAt: number;
+    rowCount: number;
+    scopeType?: string;
+    attributionMode?: string;
+    resolvedCounterpartyCount?: number;
+  },
+) {
+  ctx.logger.info("Accounting report generated", {
+    reportKey: input.reportKey,
+    scopeType: input.scopeType ?? "n/a",
+    attributionMode: input.attributionMode ?? "n/a",
+    resolvedCounterpartyCount: input.resolvedCounterpartyCount ?? 0,
+    durationMs: Date.now() - input.startedAt,
+    rowCount: input.rowCount,
+  });
+}
 
 export function accountingRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -207,85 +235,6 @@ export function accountingRoutes(ctx: AppContext) {
     },
   });
 
-  const listOperationsRoute = createRoute({
-    middleware: [requirePermission({ accounting: ["list"] })],
-    method: "get",
-    path: "/operations",
-    tags: ["Accounting"],
-    summary: "List accounting operations journal",
-    request: {
-      query: ListLedgerOperationsQuerySchema,
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: PaginatedLedgerOperationsSchema,
-          },
-        },
-        description: "Paginated operations list",
-      },
-    },
-  });
-
-  const getOperationRoute = createRoute({
-    middleware: [requirePermission({ accounting: ["list"] })],
-    method: "get",
-    path: "/operations/{operationId}",
-    tags: ["Accounting"],
-    summary: "Get accounting operation details",
-    request: {
-      params: OperationParamSchema,
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: LedgerOperationDetailsSchema,
-          },
-        },
-        description: "Operation details",
-      },
-      404: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Operation not found",
-      },
-    },
-  });
-
-  const listFinancialResultsByCounterpartyRoute = createRoute({
-    middleware: [requirePermission({ accounting: ["list"] })],
-    method: "get",
-    path: "/financial-results/counterparties",
-    tags: ["Accounting"],
-    summary: "List financial results by counterparty attribution",
-    request: {
-      query: ListFinancialResultsByCounterpartyQuerySchema,
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: FinancialResultsByCounterpartyResponseSchema,
-          },
-        },
-        description: "Paginated financial result rows by counterparty",
-      },
-      400: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Validation error",
-      },
-    },
-  });
-
   const getCounterpartyAccountBalancesRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
@@ -318,23 +267,516 @@ export function accountingRoutes(ctx: AppContext) {
     },
   });
 
-  const listFinancialResultsByGroupRoute = createRoute({
+  const listTrialBalanceRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
-    path: "/financial-results/groups",
+    path: "/reports/trial-balance",
     tags: ["Accounting"],
-    summary: "List financial results by group attribution",
+    summary: "Trial balance (opening, movements, closing)",
     request: {
-      query: ListFinancialResultsByGroupQuerySchema,
+      query: TrialBalanceQuerySchema,
     },
     responses: {
       200: {
         content: {
           "application/json": {
-            schema: FinancialResultsByGroupResponseSchema,
+            schema: TrialBalanceResponseSchema,
           },
         },
-        description: "Paginated financial result rows by groups",
+        description: "Trial balance report",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const exportTrialBalanceRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/trial-balance/export",
+    tags: ["Accounting"],
+    summary: "Export trial balance to CSV",
+    request: {
+      query: TrialBalanceQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "text/csv": {
+            schema: z.string(),
+          },
+        },
+        description: "CSV export",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const listGeneralLedgerRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/general-ledger",
+    tags: ["Accounting"],
+    summary: "General ledger account statement",
+    request: {
+      query: GeneralLedgerQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: GeneralLedgerResponseSchema,
+          },
+        },
+        description: "General ledger report",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const exportGeneralLedgerRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/general-ledger/export",
+    tags: ["Accounting"],
+    summary: "Export general ledger to CSV",
+    request: {
+      query: GeneralLedgerQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "text/csv": {
+            schema: z.string(),
+          },
+        },
+        description: "CSV export",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const listBalanceSheetRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/balance-sheet",
+    tags: ["Accounting"],
+    summary: "Balance sheet (as-of)",
+    request: {
+      query: BalanceSheetQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: BalanceSheetResponseSchema,
+          },
+        },
+        description: "Balance sheet report",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const exportBalanceSheetRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/balance-sheet/export",
+    tags: ["Accounting"],
+    summary: "Export balance sheet to CSV",
+    request: {
+      query: BalanceSheetQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "text/csv": {
+            schema: z.string(),
+          },
+        },
+        description: "CSV export",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const listIncomeStatementRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/income-statement",
+    tags: ["Accounting"],
+    summary: "Income statement (P&L)",
+    request: {
+      query: IncomeStatementQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: IncomeStatementResponseSchema,
+          },
+        },
+        description: "Income statement report",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const exportIncomeStatementRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/income-statement/export",
+    tags: ["Accounting"],
+    summary: "Export income statement to CSV",
+    request: {
+      query: IncomeStatementQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "text/csv": {
+            schema: z.string(),
+          },
+        },
+        description: "CSV export",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const listCashFlowRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/cash-flow",
+    tags: ["Accounting"],
+    summary: "Cash flow (direct/indirect)",
+    request: {
+      query: CashFlowQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CashFlowResponseSchema,
+          },
+        },
+        description: "Cash flow report",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const exportCashFlowRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/cash-flow/export",
+    tags: ["Accounting"],
+    summary: "Export cash flow report to CSV",
+    request: {
+      query: CashFlowQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "text/csv": {
+            schema: z.string(),
+          },
+        },
+        description: "CSV export",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const listLiquidityRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/liquidity",
+    tags: ["Accounting"],
+    summary: "Liquidity position by book/entity/currency",
+    request: {
+      query: LiquidityQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: LiquidityResponseSchema,
+          },
+        },
+        description: "Liquidity report",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const exportLiquidityRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/liquidity/export",
+    tags: ["Accounting"],
+    summary: "Export liquidity report to CSV",
+    request: {
+      query: LiquidityQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "text/csv": {
+            schema: z.string(),
+          },
+        },
+        description: "CSV export",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const listFxRevaluationRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/fx-revaluation",
+    tags: ["Accounting"],
+    summary: "FX revaluation (realized/unrealized)",
+    request: {
+      query: FxRevaluationQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: FxRevaluationResponseSchema,
+          },
+        },
+        description: "FX revaluation report",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const exportFxRevaluationRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/fx-revaluation/export",
+    tags: ["Accounting"],
+    summary: "Export FX revaluation report to CSV",
+    request: {
+      query: FxRevaluationQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "text/csv": {
+            schema: z.string(),
+          },
+        },
+        description: "CSV export",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const listFeeRevenueRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/fee-revenue",
+    tags: ["Accounting"],
+    summary: "Fee revenue breakdown",
+    request: {
+      query: FeeRevenueQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: FeeRevenueResponseSchema,
+          },
+        },
+        description: "Fee revenue report",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const exportFeeRevenueRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/fee-revenue/export",
+    tags: ["Accounting"],
+    summary: "Export fee revenue report to CSV",
+    request: {
+      query: FeeRevenueQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "text/csv": {
+            schema: z.string(),
+          },
+        },
+        description: "CSV export",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const getClosePackageRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/close-package",
+    tags: ["Accounting"],
+    summary: "Close package snapshot for counterparty and period",
+    request: {
+      query: ClosePackageQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: ClosePackageResponseSchema,
+          },
+        },
+        description: "Close package",
+      },
+      400: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Validation error",
+      },
+    },
+  });
+
+  const exportClosePackageRoute = createRoute({
+    middleware: [requirePermission({ accounting: ["list"] })],
+    method: "get",
+    path: "/reports/close-package/export",
+    tags: ["Accounting"],
+    summary: "Export close package report to CSV",
+    request: {
+      query: ClosePackageQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "text/csv": {
+            schema: z.string(),
+          },
+        },
+        description: "CSV export",
       },
       400: {
         content: {
@@ -408,64 +850,6 @@ export function accountingRoutes(ctx: AppContext) {
       const result = await ctx.accountingService.validatePostingMatrix();
       return c.json(result, 200);
     })
-    .openapi(listOperationsRoute, async (c) => {
-      const query = c.req.valid("query");
-      const result =
-        await ctx.accountingReportingService.listOperationsWithLabels(query);
-
-      return c.json(
-        {
-          ...result,
-          data: result.data.map((row) => ({
-            ...row,
-            postingDate: row.postingDate.toISOString(),
-            postedAt: row.postedAt?.toISOString() ?? null,
-            lastOutboxErrorAt: row.lastOutboxErrorAt?.toISOString() ?? null,
-            createdAt: row.createdAt.toISOString(),
-          })),
-        },
-        200,
-      );
-    })
-    .openapi(getOperationRoute, async (c) => {
-      const { operationId } = c.req.valid("param");
-      const details =
-        await ctx.accountingReportingService.getOperationDetailsWithLabels(
-          operationId,
-        );
-
-      if (!details) {
-        return c.json({ error: `Operation not found: ${operationId}` }, 404);
-      }
-
-      return c.json(mapOperationDetailsDto(details), 200);
-    })
-    .openapi(listFinancialResultsByCounterpartyRoute, async (c) => {
-      try {
-        const query = c.req.valid("query");
-        const result =
-          await ctx.accountingReportingService.listFinancialResultsByCounterparty(
-            query,
-          );
-
-        return c.json(
-          {
-            ...result,
-            data: result.data.map(mapFinancialResultRowDto),
-            summaryByCurrency: result.summaryByCurrency.map(
-              mapFinancialSummaryDto,
-            ),
-          },
-          200,
-        );
-      } catch (error) {
-        if (error instanceof ValidationError || error instanceof z.ZodError) {
-          return c.json({ error: error.message }, 400);
-        }
-
-        throw error;
-      }
-    })
     .openapi(getCounterpartyAccountBalancesRoute, async (c) => {
       const { counterpartyAccountIds: accountIdsParam } = c.req.valid("query");
       const counterpartyAccountIds = accountIdsParam
@@ -483,27 +867,654 @@ export function accountingRoutes(ctx: AppContext) {
         200,
       );
     })
-    .openapi(listFinancialResultsByGroupRoute, async (c) => {
+    .openapi(listTrialBalanceRoute, async (c) => {
       try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result = await ctx.accountingReportingService.listTrialBalance(query);
+        const payload = mapTrialBalanceDto(result);
+
+        logReportMetrics(ctx, {
+          reportKey: "trial-balance",
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return c.json(payload, 200);
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(exportTrialBalanceRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const firstPage = await ctx.accountingReportingService.listTrialBalance({
+          ...query,
+          limit: 200,
+          offset: 0,
+        });
+        const rows = await readAllPages(firstPage, ({ limit, offset }) =>
+          ctx.accountingReportingService.listTrialBalance({
+            ...query,
+            limit,
+            offset,
+          }),
+        );
+
+        const mappedRows = mapTrialBalanceDto({
+          ...firstPage,
+          data: rows,
+        }).data;
+
+        logReportMetrics(ctx, {
+          reportKey: "trial-balance",
+          startedAt,
+          rowCount: mappedRows.length,
+          scopeType: firstPage.scopeMeta.scopeType,
+          attributionMode: firstPage.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: firstPage.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return toReportCsvResponse(c, {
+          filename: "trial-balance.csv",
+          headers: [
+            "accountNo",
+            "accountName",
+            "accountKind",
+            "currency",
+            "openingDebit",
+            "openingCredit",
+            "periodDebit",
+            "periodCredit",
+            "closingDebit",
+            "closingCredit",
+          ],
+          rows: mappedRows,
+        });
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(listGeneralLedgerRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result = await ctx.accountingReportingService.listGeneralLedger(query);
+        const payload = mapGeneralLedgerDto(result);
+
+        logReportMetrics(ctx, {
+          reportKey: "general-ledger",
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return c.json(payload, 200);
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(exportGeneralLedgerRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const firstPage = await ctx.accountingReportingService.listGeneralLedger({
+          ...query,
+          limit: 200,
+          offset: 0,
+        });
+        const rows = await readAllPages(firstPage, ({ limit, offset }) =>
+          ctx.accountingReportingService.listGeneralLedger({
+            ...query,
+            limit,
+            offset,
+          }),
+        );
+
+        const mappedRows = mapGeneralLedgerDto({
+          ...firstPage,
+          data: rows,
+        }).data;
+
+        logReportMetrics(ctx, {
+          reportKey: "general-ledger",
+          startedAt,
+          rowCount: mappedRows.length,
+          scopeType: firstPage.scopeMeta.scopeType,
+          attributionMode: firstPage.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: firstPage.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return toReportCsvResponse(c, {
+          filename: "general-ledger.csv",
+          headers: [
+            "operationId",
+            "lineNo",
+            "postingDate",
+            "bookId",
+            "bookLabel",
+            "accountNo",
+            "currency",
+            "postingCode",
+            "counterpartyId",
+            "debit",
+            "credit",
+            "runningBalance",
+          ],
+          rows: mappedRows,
+        });
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(listBalanceSheetRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result = await ctx.accountingReportingService.listBalanceSheet(query);
+        const payload = mapBalanceSheetDto(result);
+
+        logReportMetrics(ctx, {
+          reportKey: "balance-sheet",
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return c.json(payload, 200);
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(exportBalanceSheetRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result = await ctx.accountingReportingService.listBalanceSheet(query);
+        const payload = mapBalanceSheetDto(result);
+
+        logReportMetrics(ctx, {
+          reportKey: "balance-sheet",
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return toReportCsvResponse(c, {
+          filename: "balance-sheet.csv",
+          headers: ["section", "lineCode", "lineLabel", "currency", "amount"],
+          rows: payload.data,
+        });
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(listIncomeStatementRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result = await ctx.accountingReportingService.listIncomeStatement(query);
+        const payload = mapIncomeStatementDto(result);
+
+        logReportMetrics(ctx, {
+          reportKey: "income-statement",
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return c.json(payload, 200);
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(exportIncomeStatementRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result = await ctx.accountingReportingService.listIncomeStatement(query);
+        const payload = mapIncomeStatementDto(result);
+
+        logReportMetrics(ctx, {
+          reportKey: "income-statement",
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return toReportCsvResponse(c, {
+          filename: "income-statement.csv",
+          headers: ["section", "lineCode", "lineLabel", "currency", "amount"],
+          rows: payload.data,
+        });
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(listCashFlowRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result = await ctx.accountingReportingService.listCashFlow(query);
+        const payload = mapCashFlowDto(result);
+
+        logReportMetrics(ctx, {
+          reportKey: "cash-flow",
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return c.json(payload, 200);
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(exportCashFlowRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result = await ctx.accountingReportingService.listCashFlow(query);
+        const payload = mapCashFlowDto(result);
+
+        logReportMetrics(ctx, {
+          reportKey: "cash-flow",
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return toReportCsvResponse(c, {
+          filename: "cash-flow.csv",
+          headers: ["section", "lineCode", "lineLabel", "currency", "amount"],
+          rows: payload.data,
+        });
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(listLiquidityRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result = await ctx.accountingReportingService.listLiquidity(query);
+        const payload = mapLiquidityDto(result);
+
+        logReportMetrics(ctx, {
+          reportKey: "liquidity",
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return c.json(payload, 200);
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(exportLiquidityRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const firstPage = await ctx.accountingReportingService.listLiquidity({
+          ...query,
+          limit: 200,
+          offset: 0,
+        });
+        const rows = await readAllPages(firstPage, ({ limit, offset }) =>
+          ctx.accountingReportingService.listLiquidity({
+            ...query,
+            limit,
+            offset,
+          }),
+        );
+        const mappedRows = mapLiquidityDto({
+          ...firstPage,
+          data: rows,
+        }).data;
+
+        logReportMetrics(ctx, {
+          reportKey: "liquidity",
+          startedAt,
+          rowCount: mappedRows.length,
+          scopeType: firstPage.scopeMeta.scopeType,
+          attributionMode: firstPage.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: firstPage.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return toReportCsvResponse(c, {
+          filename: "liquidity.csv",
+          headers: [
+            "bookId",
+            "bookLabel",
+            "counterpartyId",
+            "counterpartyName",
+            "currency",
+            "ledgerBalance",
+            "available",
+            "reserved",
+            "pending",
+          ],
+          rows: mappedRows,
+        });
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(listFxRevaluationRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result = await ctx.accountingReportingService.listFxRevaluation(query);
+        const payload = mapFxRevaluationDto(result);
+
+        logReportMetrics(ctx, {
+          reportKey: "fx-revaluation",
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return c.json(payload, 200);
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(exportFxRevaluationRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result = await ctx.accountingReportingService.listFxRevaluation(query);
+        const payload = mapFxRevaluationDto(result);
+
+        logReportMetrics(ctx, {
+          reportKey: "fx-revaluation",
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return toReportCsvResponse(c, {
+          filename: "fx-revaluation.csv",
+          headers: ["bucket", "currency", "revenue", "expense", "net"],
+          rows: payload.data,
+        });
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(listFeeRevenueRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
         const query = c.req.valid("query");
         const result =
-          await ctx.accountingReportingService.listFinancialResultsByGroup(
-            query,
-          );
+          await ctx.accountingReportingService.listFeeRevenueBreakdown(query);
+        const payload = mapFeeRevenueDto(result);
 
-        return c.json(
-          {
-            ...result,
-            data: result.data.map(mapFinancialResultRowDto),
-            summaryByCurrency: result.summaryByCurrency.map(
-              mapFinancialSummaryDto,
-            ),
-            unattributedByCurrency: result.unattributedByCurrency.map(
-              mapFinancialSummaryDto,
-            ),
-          },
-          200,
+        logReportMetrics(ctx, {
+          reportKey: "fee-revenue",
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return c.json(payload, 200);
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(exportFeeRevenueRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const firstPage = await ctx.accountingReportingService.listFeeRevenueBreakdown({
+          ...query,
+          limit: 200,
+          offset: 0,
+        });
+        const rows = await readAllPages(firstPage, ({ limit, offset }) =>
+          ctx.accountingReportingService.listFeeRevenueBreakdown({
+            ...query,
+            limit,
+            offset,
+          }),
         );
+        const mappedRows = mapFeeRevenueDto({
+          ...firstPage,
+          data: rows,
+        }).data;
+
+        logReportMetrics(ctx, {
+          reportKey: "fee-revenue",
+          startedAt,
+          rowCount: mappedRows.length,
+          scopeType: firstPage.scopeMeta.scopeType,
+          attributionMode: firstPage.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: firstPage.scopeMeta.resolvedCounterpartyIdsCount,
+        });
+
+        return toReportCsvResponse(c, {
+          filename: "fee-revenue.csv",
+          headers: [
+            "product",
+            "channel",
+            "counterpartyId",
+            "counterpartyName",
+            "currency",
+            "feeRevenue",
+            "spreadRevenue",
+            "providerFeeExpense",
+            "net",
+          ],
+          rows: mappedRows,
+        });
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(getClosePackageRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result = await ctx.accountingReportingService.listClosePackage(query);
+        const payload = mapClosePackageDto(result);
+
+        logReportMetrics(ctx, {
+          reportKey: "close-package",
+          startedAt,
+          rowCount:
+            payload.trialBalanceSummaryByCurrency.length +
+            payload.incomeStatementSummaryByCurrency.length +
+            payload.cashFlowSummaryByCurrency.length +
+            payload.adjustments.length +
+            payload.auditEvents.length,
+          scopeType: "counterparty",
+          attributionMode: "analytic_counterparty",
+          resolvedCounterpartyCount: 1,
+        });
+
+        return c.json(payload, 200);
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof z.ZodError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(exportClosePackageRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result = await ctx.accountingReportingService.listClosePackage(query);
+        const payload = mapClosePackageDto(result);
+
+        const rows: Record<string, unknown>[] = [
+          ...payload.trialBalanceSummaryByCurrency.map((item) => ({
+            section: "trial_balance_summary",
+            currency: item.currency,
+            openingDebit: item.openingDebit,
+            openingCredit: item.openingCredit,
+            periodDebit: item.periodDebit,
+            periodCredit: item.periodCredit,
+            closingDebit: item.closingDebit,
+            closingCredit: item.closingCredit,
+          })),
+          ...payload.incomeStatementSummaryByCurrency.map((item) => ({
+            section: "income_statement_summary",
+            currency: item.currency,
+            revenue: item.revenue,
+            expense: item.expense,
+            net: item.net,
+          })),
+          ...payload.cashFlowSummaryByCurrency.map((item) => ({
+            section: "cash_flow_summary",
+            currency: item.currency,
+            netCashFlow: item.netCashFlow,
+          })),
+          ...payload.adjustments.map((item) => ({
+            section: "adjustment",
+            documentId: item.documentId,
+            docType: item.docType,
+            docNo: item.docNo,
+            occurredAt: item.occurredAt,
+            title: item.title,
+          })),
+          ...payload.auditEvents.map((item) => ({
+            section: "audit_event",
+            id: item.id,
+            eventType: item.eventType,
+            actorId: item.actorId,
+            createdAt: item.createdAt,
+          })),
+        ];
+
+        logReportMetrics(ctx, {
+          reportKey: "close-package",
+          startedAt,
+          rowCount: rows.length,
+          scopeType: "counterparty",
+          attributionMode: "analytic_counterparty",
+          resolvedCounterpartyCount: 1,
+        });
+
+        return toReportCsvResponse(c, {
+          filename: "close-package.csv",
+          headers: [
+            "section",
+            "currency",
+            "openingDebit",
+            "openingCredit",
+            "periodDebit",
+            "periodCredit",
+            "closingDebit",
+            "closingCredit",
+            "revenue",
+            "expense",
+            "net",
+            "netCashFlow",
+            "documentId",
+            "docType",
+            "docNo",
+            "occurredAt",
+            "title",
+            "id",
+            "eventType",
+            "actorId",
+            "createdAt",
+          ],
+          rows,
+        });
       } catch (error) {
         if (error instanceof ValidationError || error instanceof z.ZodError) {
           return c.json({ error: error.message }, 400);

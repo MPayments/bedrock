@@ -1,5 +1,6 @@
 import { schema as feesSchema } from "@bedrock/application/fees/schema";
 import { schema as fxSchema } from "@bedrock/application/fx/schema";
+import { schema as accountingReportingSchema } from "@bedrock/application/accounting-reporting/schema";
 import { schema as accountingSchema } from "@bedrock/core/accounting/schema";
 import {
   account,
@@ -37,6 +38,7 @@ type CombinedSchema =
   & typeof authSchema
   & typeof ledgerSchema
   & typeof accountingSchema
+  & typeof accountingReportingSchema
   & typeof counterpartiesSchema
   & typeof customersSchema
   & typeof documentsSchema
@@ -55,6 +57,7 @@ const schemaInternal: CombinedSchema = {
   ...authSchema,
   ...ledgerSchema,
   ...accountingSchema,
+  ...accountingReportingSchema,
   ...counterpartiesSchema,
   ...customersSchema,
   ...documentsSchema,
