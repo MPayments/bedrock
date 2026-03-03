@@ -158,9 +158,20 @@ export function createUpdateCounterpartyAccountHandler(
       log.info("Account updated", { id });
 
       return {
-        ...updatedAccount,
+        id: updatedAccount.id,
+        counterpartyId: updatedAccount.counterpartyId,
         bookId: binding.bookId,
+        currencyId: updatedAccount.currencyId,
+        accountProviderId: updatedAccount.accountProviderId,
+        label: updatedAccount.label,
+        description: updatedAccount.description,
+        accountNo: updatedAccount.accountNo,
+        corrAccount: updatedAccount.corrAccount,
+        address: updatedAccount.address,
+        iban: updatedAccount.iban,
         postingAccountNo: binding.postingAccountNo,
+        createdAt: updatedAccount.createdAt,
+        updatedAt: updatedAccount.updatedAt,
       };
     });
   };

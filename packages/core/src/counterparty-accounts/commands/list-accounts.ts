@@ -6,7 +6,6 @@ import {
   resolveSortValue,
 } from "@bedrock/kernel/pagination";
 import { schema } from "@bedrock/core/counterparty-accounts/schema";
-import type { CounterpartyAccount } from "@bedrock/core/counterparty-accounts/schema";
 
 import { AccountBindingNotFoundError } from "../errors";
 import type { CounterpartyAccountsServiceContext } from "../internal/context";
@@ -17,9 +16,21 @@ const SORT_COLUMN_MAP = {
   createdAt: schema.counterpartyAccounts.createdAt,
 } as const;
 
-type AccountRow = CounterpartyAccount & {
+type AccountRow = {
+  id: string;
+  counterpartyId: string;
   bookId: string;
+  currencyId: string;
+  accountProviderId: string;
+  label: string;
+  description: string | null;
+  accountNo: string | null;
+  corrAccount: string | null;
+  address: string | null;
+  iban: string | null;
   postingAccountNo: string;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export function createListCounterpartyAccountsHandler(
@@ -88,7 +99,6 @@ export function createListCounterpartyAccountsHandler(
           corrAccount: schema.counterpartyAccounts.corrAccount,
           address: schema.counterpartyAccounts.address,
           iban: schema.counterpartyAccounts.iban,
-          stableKey: schema.counterpartyAccounts.stableKey,
           postingAccountNo: schema.bookAccountInstances.accountNo,
           createdAt: schema.counterpartyAccounts.createdAt,
           updatedAt: schema.counterpartyAccounts.updatedAt,
@@ -124,9 +134,20 @@ export function createListCounterpartyAccountsHandler(
       }
 
       return {
-        ...row,
+        id: row.id,
+        counterpartyId: row.counterpartyId,
         bookId: row.bookId,
+        currencyId: row.currencyId,
+        accountProviderId: row.accountProviderId,
+        label: row.label,
+        description: row.description,
+        accountNo: row.accountNo,
+        corrAccount: row.corrAccount,
+        address: row.address,
+        iban: row.iban,
         postingAccountNo: row.postingAccountNo,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
       };
     });
 

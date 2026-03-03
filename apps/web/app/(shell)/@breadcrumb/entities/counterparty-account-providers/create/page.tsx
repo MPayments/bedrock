@@ -8,7 +8,7 @@ export default function CreateProviderBreadcrumbPage() {
 
   return (
     <EntityCreateBreadcrumb
-      entityLabel="Расчетные методы"
+      entityLabel="Провайдеры счетов"
       entityHref="/entities/counterparty-account-providers"
       entityIcon="landmark"
       currentLabel={state.createLabel}

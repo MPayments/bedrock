@@ -16,7 +16,7 @@ export function EditProviderBreadcrumb({
 
   return (
     <EntityEditBreadcrumb
-      entityLabel="Расчетные методы"
+      entityLabel="Провайдеры счетов"
       entityHref="/entities/counterparty-account-providers"
       entityIcon="landmark"
       currentLabel={meta.getEditLabel(providerId, initialLabel)}

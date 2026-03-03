@@ -47,7 +47,6 @@ import { formatDate } from "@/lib/format";
 export type AccountGeneralFormValues = {
   label: string;
   description: string;
-  stableKey: string;
   counterpartyId: string;
   currencyId: string;
   accountProviderId: string;
@@ -83,7 +82,6 @@ type AccountGeneralFormVariant = {
   submittingLabel: string;
   disableSubmitUntilDirty: boolean;
   showDelete: boolean;
-  showStableKey: boolean;
   usePlaceholderDates: boolean;
 };
 
@@ -94,7 +92,6 @@ type AccountGeneralFormBaseProps = AccountGeneralFormProps & {
 const DEFAULT_VALUES: AccountGeneralFormValues = {
   label: "",
   description: "",
-  stableKey: "",
   counterpartyId: "",
   currencyId: "",
   accountProviderId: "",
@@ -168,7 +165,6 @@ function createAccountFormSchema(providers: AccountFormOptions["providers"]) {
     .object({
       label: z.string().trim().min(1, "Название счёта обязательно"),
       description: z.string(),
-      stableKey: z.string().trim(),
       counterpartyId: z.string().trim().min(1, "Контрагент обязателен"),
       currencyId: z.string().trim().min(1, "Валюта обязательна"),
       accountProviderId: z.string().trim().min(1, "Провайдер обязателен"),
@@ -225,7 +221,6 @@ function normalizeValues(
   return {
     label: values.label.trim(),
     description: values.description.trim(),
-    stableKey: values.stableKey.trim(),
     counterpartyId: values.counterpartyId.trim(),
     currencyId: values.currencyId.trim(),
     accountProviderId: values.accountProviderId.trim(),
@@ -240,7 +235,6 @@ function valuesSignature(values: AccountGeneralFormValues) {
   return [
     values.label,
     values.description,
-    values.stableKey,
     values.counterpartyId,
     values.currencyId,
     values.accountProviderId,
@@ -256,7 +250,6 @@ const CREATE_VARIANT: AccountGeneralFormVariant = {
   submittingLabel: "Создание...",
   disableSubmitUntilDirty: false,
   showDelete: false,
-  showStableKey: true,
   usePlaceholderDates: true,
 };
 
@@ -265,7 +258,6 @@ const EDIT_VARIANT: AccountGeneralFormVariant = {
   submittingLabel: "Сохранение...",
   disableSubmitUntilDirty: true,
   showDelete: true,
-  showStableKey: false,
   usePlaceholderDates: false,
 };
 
@@ -352,7 +344,6 @@ function AccountGeneralFormBase({
       normalizeValues({
         label: watchedValues?.label ?? "",
         description: watchedValues?.description ?? "",
-        stableKey: watchedValues?.stableKey ?? "",
         counterpartyId: watchedValues?.counterpartyId ?? "",
         currencyId: watchedValues?.currencyId ?? "",
         accountProviderId: watchedValues?.accountProviderId ?? "",
@@ -512,23 +503,6 @@ function AccountGeneralFormBase({
                       </Field>
                     )}
                   />
-                  {variant.showStableKey ? (
-                    <Field data-invalid={Boolean(errors.stableKey)}>
-                      <FieldLabel htmlFor="account-stable-key">
-                        Стабильный ключ
-                      </FieldLabel>
-                      <FieldDescription>
-                        Уникальный ключ в рамках контрагента
-                      </FieldDescription>
-                      <Input
-                        {...register("stableKey")}
-                        id="account-stable-key"
-                        aria-invalid={Boolean(errors.stableKey)}
-                        placeholder="main-usd"
-                      />
-                      <FieldError errors={[errors.stableKey]} />
-                    </Field>
-                  ) : null}
                 </div>
 
                 <div className="grid md:grid-cols-3 gap-4">

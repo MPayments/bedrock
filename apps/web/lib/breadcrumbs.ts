@@ -61,7 +61,7 @@ const segmentMap: Record<string, SegmentConfig> = {
     icon: "dollar-sign",
   },
   providers: {
-    label: "Расчетные методы",
+    label: "Провайдеры счетов",
     href: "/entities/counterparty-account-providers",
     icon: "landmark",
   },

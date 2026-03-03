@@ -1,4 +1,8 @@
-import type { AppAudience, FeatureFlagMap, UserSessionSnapshot } from "@/lib/auth/types";
+import type {
+  AppAudience,
+  FeatureFlagMap,
+  UserSessionSnapshot,
+} from "@/lib/auth/types";
 
 export type AppNavIcon =
   | "arrow-right-left"
@@ -186,7 +190,7 @@ const navItems: AppNavItem[] = [
       },
       {
         id: "entities-providers",
-        title: "Расчетные методы",
+        title: "Провайдеры счетов",
         href: "/entities/counterparty-account-providers",
         icon: "landmark",
         audience: "admin",
@@ -249,7 +253,9 @@ function filterNavChildren(
   return (children ?? []).filter((item) => isItemVisible(item, session));
 }
 
-export function getPrimaryNavigation(session: UserSessionSnapshot): AppNavItem[] {
+export function getPrimaryNavigation(
+  session: UserSessionSnapshot,
+): AppNavItem[] {
   return navItems
     .filter((item) => isItemVisible(item, session))
     .map((item) => ({

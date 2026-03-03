@@ -63,14 +63,6 @@ export function getColumns(
       enableHiding: true,
     },
     {
-      accessorKey: "stableKey",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} label="Стабильный ключ" />
-      ),
-      enableSorting: false,
-      enableHiding: true,
-    },
-    {
       accessorKey: "createdAt",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label="Дата создания" />

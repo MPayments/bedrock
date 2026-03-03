@@ -34,7 +34,6 @@ const AccountResponseSchema = z.object({
   corrAccount: z.string().nullable(),
   address: z.string().nullable(),
   iban: z.string().nullable(),
-  stableKey: z.string(),
   postingAccountNo: z.string(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),

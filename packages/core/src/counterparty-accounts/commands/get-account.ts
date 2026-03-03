@@ -24,7 +24,6 @@ export function createGetCounterpartyAccountHandler(
         corrAccount: schema.counterpartyAccounts.corrAccount,
         address: schema.counterpartyAccounts.address,
         iban: schema.counterpartyAccounts.iban,
-        stableKey: schema.counterpartyAccounts.stableKey,
         postingAccountNo: schema.bookAccountInstances.accountNo,
         createdAt: schema.counterpartyAccounts.createdAt,
         updatedAt: schema.counterpartyAccounts.updatedAt,
@@ -56,9 +55,20 @@ export function createGetCounterpartyAccountHandler(
     }
 
     return {
-      ...row,
+      id: row.id,
+      counterpartyId: row.counterpartyId,
       bookId: row.bookId,
+      currencyId: row.currencyId,
+      accountProviderId: row.accountProviderId,
+      label: row.label,
+      description: row.description,
+      accountNo: row.accountNo,
+      corrAccount: row.corrAccount,
+      address: row.address,
+      iban: row.iban,
       postingAccountNo: row.postingAccountNo,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     };
   };
 }

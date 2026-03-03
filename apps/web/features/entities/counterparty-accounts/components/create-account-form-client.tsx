@@ -26,7 +26,6 @@ type CreateAccountFormClientProps = {
 const INITIAL_VALUES: AccountGeneralFormValues = {
   label: "",
   description: "",
-  stableKey: "",
   counterpartyId: "",
   currencyId: "",
   accountProviderId: "",
@@ -59,7 +58,6 @@ export function CreateAccountFormClient({
           json: {
             label: values.label,
             description: values.description || null,
-            stableKey: values.stableKey,
             counterpartyId: values.counterpartyId,
             currencyId: values.currencyId,
             accountProviderId: values.accountProviderId,

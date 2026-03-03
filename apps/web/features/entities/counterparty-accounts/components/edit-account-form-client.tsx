@@ -18,7 +18,6 @@ function toFormValues(account: AccountDetails): AccountGeneralFormValues {
   return {
     label: account.label,
     description: account.description ?? "",
-    stableKey: account.stableKey,
     counterpartyId: account.counterpartyId,
     currencyId: account.currencyId,
     accountProviderId: account.accountProviderId,

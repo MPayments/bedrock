@@ -80,6 +80,13 @@ function makeAccount(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function withoutStableKey<T extends { stableKey?: string }>(
+  value: T,
+): Omit<T, "stableKey"> {
+  const { stableKey: _stableKey, ...rest } = value;
+  return rest;
+}
+
 // ---------------------------------------------------------------------------
 // Chain builders for Drizzle query mocking
 // ---------------------------------------------------------------------------
@@ -415,7 +422,8 @@ describe("accounts", () => {
       select: vi
         .fn()
         .mockReturnValueOnce(selectSingleRow([provider]))
-        .mockReturnValueOnce(selectSingleRow([currency])),
+        .mockReturnValueOnce(selectSingleRow([currency]))
+        .mockReturnValueOnce(selectWhereTerminal([])),
       insert: vi
         .fn()
         .mockReturnValueOnce(insertReturning([account]))
@@ -437,13 +445,12 @@ describe("accounts", () => {
       currencyId: account.currencyId,
       accountProviderId: account.accountProviderId,
       label: account.label,
-      stableKey: account.stableKey,
       accountNo: account.accountNo,
       corrAccount: account.corrAccount,
     });
 
     expect(result).toMatchObject({
-      ...account,
+      ...withoutStableKey(account),
       bookId: account.bookId,
       postingAccountNo: expect.any(String),
     });
@@ -470,7 +477,6 @@ describe("accounts", () => {
         currencyId: "00000000-0000-4000-8000-000000000601",
         accountProviderId: "00000000-0000-4000-8000-000000000999",
         label: "Test",
-        stableKey: "test",
       }),
     ).rejects.toThrow(AccountProviderNotFoundError);
   });
@@ -498,7 +504,6 @@ describe("accounts", () => {
         currencyId: "00000000-0000-4000-8000-000000000601",
         accountProviderId: provider.id as string,
         label: "Test",
-        stableKey: "test",
       }),
     ).rejects.toThrow(ValidationError);
     expect(tx.insert).not.toHaveBeenCalled();
@@ -533,7 +538,6 @@ describe("accounts", () => {
         currencyId: "00000000-0000-4000-8000-000000000601",
         accountProviderId: provider.id as string,
         label: "Test",
-        stableKey: "test",
       }),
     ).rejects.toThrow(ValidationError);
   });
@@ -547,7 +551,7 @@ describe("accounts", () => {
     const result = await service.getAccount(account.id);
 
     expect(result).toMatchObject({
-      ...account,
+      ...withoutStableKey(account),
       bookId: account.bookId,
       postingAccountNo: expect.any(String),
     });
@@ -603,7 +607,7 @@ describe("accounts", () => {
     });
 
     expect(result).toMatchObject({
-      ...updated,
+      ...withoutStableKey(updated),
       bookId: existing.bookId,
       postingAccountNo: binding.postingAccountNo,
     });
@@ -635,7 +639,7 @@ describe("accounts", () => {
     const result = await service.updateAccount(existing.id, {});
 
     expect(result).toMatchObject({
-      ...existing,
+      ...withoutStableKey(existing),
       bookId: existing.bookId,
       postingAccountNo: binding.postingAccountNo,
     });
@@ -755,12 +759,12 @@ describe("accounts", () => {
     expect(page).toEqual({
       data: [
         expect.objectContaining({
-          ...a1,
+          ...withoutStableKey(a1),
           bookId: a1.bookId,
           postingAccountNo: expect.any(String),
         }),
         expect.objectContaining({
-          ...a2,
+          ...withoutStableKey(a2),
           bookId: a2.bookId,
           postingAccountNo: expect.any(String),
         }),
@@ -806,7 +810,7 @@ describe("accounts", () => {
 
     expect(page.data).toEqual([
       expect.objectContaining({
-        ...account,
+        ...withoutStableKey(account),
         bookId: account.bookId,
         postingAccountNo: expect.any(String),
       }),

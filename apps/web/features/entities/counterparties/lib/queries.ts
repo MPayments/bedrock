@@ -52,7 +52,6 @@ const CounterpartyAccountSchema = z.object({
   corrAccount: z.string().nullable(),
   address: z.string().nullable(),
   iban: z.string().nullable(),
-  stableKey: z.string(),
   postingAccountNo: z.string(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
@@ -183,7 +182,6 @@ export interface CounterpartyAccount {
   corrAccount: string | null;
   address: string | null;
   iban: string | null;
-  stableKey: string;
   postingAccountNo: string;
   createdAt: string;
   updatedAt: string;

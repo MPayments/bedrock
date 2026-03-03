@@ -353,13 +353,11 @@ describe("CreateAccountInputSchema", () => {
       accountProviderId: "550e8400-e29b-41d4-a716-446655440003",
       label: "Main Account",
       description: "Primary account",
-      stableKey: "main-usd",
       accountNo: "40817810099910004312",
     });
 
     expect(parsed.label).toBe("Main Account");
     expect(parsed.description).toBe("Primary account");
-    expect(parsed.stableKey).toBe("main-usd");
     expect(parsed.accountNo).toBe("40817810099910004312");
   });
 
@@ -370,19 +368,6 @@ describe("CreateAccountInputSchema", () => {
         currencyId: "550e8400-e29b-41d4-a716-446655440002",
         accountProviderId: "550e8400-e29b-41d4-a716-446655440003",
         label: "",
-        stableKey: "main-usd",
-      }),
-    ).toThrow();
-  });
-
-  it("rejects missing stableKey", () => {
-    expect(() =>
-      CreateAccountInputSchema.parse({
-        counterpartyId: "550e8400-e29b-41d4-a716-446655440001",
-        currencyId: "550e8400-e29b-41d4-a716-446655440002",
-        accountProviderId: "550e8400-e29b-41d4-a716-446655440003",
-        label: "Main Account",
-        stableKey: "",
       }),
     ).toThrow();
   });

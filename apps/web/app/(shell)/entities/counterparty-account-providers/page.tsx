@@ -21,7 +21,7 @@ export default async function ProvidersPage({ searchParams }: PageProps) {
   return (
     <EntityListPageShell
       icon={Landmark}
-      title="Расчетные методы"
+      title="Провайдеры счетов"
       description="Провайдеры счетов: банки, биржи, блокчейн-кастодианы."
       actions={
         <Button

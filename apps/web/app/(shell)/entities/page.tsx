@@ -45,7 +45,7 @@ export default async function EntitiesOverviewPage() {
           id: "providers",
           label: "Провайдеры",
           value: formatCount(providers.total),
-          description: "Расчетные методы и внешние account providers.",
+          description: "Провайдеры счетов и внешние account providers.",
           href: "/entities/counterparty-account-providers",
         },
         {

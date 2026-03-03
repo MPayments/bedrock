@@ -212,7 +212,6 @@ export default async function CounterpartyAccountsPage({
                             <TableHead>Валюта</TableHead>
                             <TableHead className="text-right">Баланс</TableHead>
                             <TableHead>Реквизиты</TableHead>
-                            <TableHead>Стабильный ключ</TableHead>
                             <TableHead className="text-right">
                               Дата создания
                             </TableHead>
@@ -269,7 +268,6 @@ export default async function CounterpartyAccountsPage({
                                 <TableCell className="text-xs">
                                   {resolveRequisites(account)}
                                 </TableCell>
-                                <TableCell>{account.stableKey}</TableCell>
                                 <TableCell className="text-right text-xs">
                                   {formatDate(account.createdAt)}
                                 </TableCell>
