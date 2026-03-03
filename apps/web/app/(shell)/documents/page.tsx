@@ -84,19 +84,19 @@ export default async function DocumentsPage() {
             cta: "Создать",
           },
           {
-            id: "operations",
-            title: "Открыть старый operations view",
+            id: "all",
+            title: "Общий список",
             description:
-              "Сверить с текущим operations-дashboard при миграции UX.",
-            href: "/operations",
-            cta: "Открыть operations",
+              "Перейти к полному списку документов с текущими фильтрами.",
+            href: "/documents",
+            cta: "Открыть список",
           },
           {
             id: "journal",
             title: "Журнал проводок",
             description:
               "Переход к ledger operations, привязанным к posting lifecycle.",
-            href: "/operations/journal",
+            href: "/documents/journal",
             cta: "Открыть журнал",
           },
         ]}

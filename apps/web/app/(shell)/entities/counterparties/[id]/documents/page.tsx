@@ -12,15 +12,15 @@ import { OperationsJournalTable } from "@/features/operations/journal/components
 import { getOperations } from "@/features/operations/journal/lib/queries";
 import { searchParamsCache } from "@/features/operations/journal/lib/validations";
 
-interface CounterpartyOperationsPageProps {
+interface CounterpartyDocumentsPageProps {
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function CounterpartyOperationsPage({
+export default async function CounterpartyDocumentsPage({
   params,
   searchParams,
-}: CounterpartyOperationsPageProps) {
+}: CounterpartyDocumentsPageProps) {
   const { id } = await params;
   const parsedSearch = await searchParamsCache.parse(searchParams);
 
@@ -33,17 +33,18 @@ export default async function CounterpartyOperationsPage({
     <div className="flex flex-col gap-4">
       <Card className="rounded-sm">
         <CardHeader className="border-b">
-          <CardTitle>Операции контрагента</CardTitle>
+          <CardTitle>Документы контрагента</CardTitle>
           <CardDescription>
-            Проводки и операции ledger, где книга принадлежит текущему
-            контрагенту.
+            Документы и связанные проводки ledger, где книга принадлежит
+            текущему контрагенту.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           <p className="text-muted-foreground text-sm">
-            Отображаются операции с фильтром <code>counterpartyId={id}</code> по
-            аналитике проводок. Для полного журнала откройте{" "}
-            <Link href="/operations/journal" className="underline">
+            Отображаются документы и операции с фильтром{" "}
+            <code>counterpartyId={id}</code> по аналитике проводок. Для полного
+            журнала откройте{" "}
+            <Link href="/documents/journal" className="underline">
               глобальный журнал операций
             </Link>
             .

@@ -24,7 +24,7 @@ export function OperationsJournalTable({
 
   const handleRowDoubleClick = React.useCallback(
     (row: TanstackRow<OperationSummaryDto>) => {
-      router.push(`/operations/journal/${row.original.id}`);
+      router.push(`/documents/journal/${row.original.id}`);
     },
     [router],
   );

@@ -20,7 +20,7 @@ export function DocumentsTable({
   routeBasePath?: string;
 }) {
   const router = useRouter();
-  const resolvedRouteBasePath = routeBasePath ?? "/operations";
+  const resolvedRouteBasePath = routeBasePath ?? "/documents";
 
   return (
     <EntityTableShell

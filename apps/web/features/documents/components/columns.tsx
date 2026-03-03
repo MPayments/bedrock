@@ -34,7 +34,7 @@ function buildDocumentHref(
 export function getDocumentColumns(options?: {
   routeBasePath?: string;
 }): ColumnDef<DocumentDto>[] {
-  const routeBasePath = options?.routeBasePath ?? "/operations";
+  const routeBasePath = options?.routeBasePath ?? "/documents";
 
   return [
     {
@@ -77,7 +77,9 @@ export function getDocumentColumns(options?: {
           >
             {row.original.docNo}
           </Link>
-          <div className="text-muted-foreground text-xs">{row.original.title}</div>
+          <div className="text-muted-foreground text-xs">
+            {row.original.title}
+          </div>
         </div>
       ),
       enableSorting: false,
@@ -89,7 +91,9 @@ export function getDocumentColumns(options?: {
       ),
       cell: ({ row }) => (
         <div className="space-y-1">
-          <Badge variant="outline">{getDocumentTypeLabel(row.original.docType)}</Badge>
+          <Badge variant="outline">
+            {getDocumentTypeLabel(row.original.docType)}
+          </Badge>
           <div className="text-muted-foreground font-mono text-xs">
             {row.original.docType}
           </div>
@@ -187,7 +191,7 @@ export function getDocumentColumns(options?: {
       cell: ({ row }) =>
         row.original.postingOperationId ? (
           <Link
-            href={`/operations/journal/${row.original.postingOperationId}`}
+            href={`/documents/journal/${row.original.postingOperationId}`}
             className="font-mono text-xs hover:underline"
           >
             {row.original.postingOperationId.slice(0, 8)}

@@ -20,7 +20,7 @@ export default function CreateCounterpartyLayout({
     <CounterpartyWorkspaceLayout
       title={state.createLabel}
       subtitle="Карточка контрагента"
-      disabledTabs={["accounts", "operations"]}
+      disabledTabs={["accounts", "documents"]}
     >
       {children}
     </CounterpartyWorkspaceLayout>

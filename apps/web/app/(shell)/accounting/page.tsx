@@ -43,7 +43,7 @@ export default async function AccountingOverviewPage() {
           label: "Ledger operations",
           value: formatCount(operations.total),
           description: "Операции бухгалтерского журнала с деталями postings и TB plans.",
-          href: "/operations/journal",
+          href: "/documents/journal",
         },
       ]}
       links={[

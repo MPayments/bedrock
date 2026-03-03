@@ -37,8 +37,8 @@ export default async function DashboardPage() {
           id: "recent-documents",
           label: "Документы в работе",
           value: formatCount(recentDocuments.total),
-          description: "Общий объем документов в едином журнале операций.",
-          href: "/operations",
+          description: "Общий объем документов в едином списке.",
+          href: "/documents",
         },
         {
           id: "transfers",
@@ -91,11 +91,11 @@ export default async function DashboardPage() {
                 cta: "Открыть переводы",
               },
               {
-                id: "operations",
-                title: "Операции",
-                description: "Проверить статусы документов и ledger links.",
-                href: "/operations",
-                cta: "Открыть журнал",
+                id: "documents",
+                title: "Документы",
+                description: "Проверить статусы документов и связанные ссылки.",
+                href: "/documents",
+                cta: "Открыть документы",
               },
             ]
       }
@@ -107,7 +107,7 @@ export default async function DashboardPage() {
             id: document.id,
             title: document.title,
             subtitle: `${document.docType} · ${document.docNo}`,
-            href: `/operations/${document.docType}/${document.id}`,
+            href: `/documents/${document.docType}/${document.id}`,
           }))}
         />
       }

@@ -40,28 +40,30 @@ export default async function TransfersOverviewPage() {
             id: "total",
             label: "Всего transfer-документов IFRS",
             value: formatCount(total.total),
-            description: "Переводы между счетами и документы разрешения transfer lifecycle.",
+            description:
+              "Переводы между счетами и документы разрешения transfer lifecycle.",
           },
           {
             id: "pending",
             label: "Ожидают проведения",
             value: formatCount(pending.total),
             description: "Документы, еще не завершившие posting lifecycle.",
-            href: "/operations",
+            href: "/documents",
           },
         ]}
         links={[
           {
-            id: "operations",
-            title: "Открыть details",
-            description: "Провалиться в document details и ledger links.",
-            href: "/operations",
-            cta: "Открыть операции",
+            id: "journal",
+            title: "Журнал проводок",
+            description: "Проверить связанные ledger операции и их статусы.",
+            href: "/documents/journal",
+            cta: "Открыть журнал",
           },
           {
             id: "documents",
             title: "Документы",
-            description: "Открыть общий журнал документов и проверить связанный контекст.",
+            description:
+              "Открыть общий журнал документов и проверить связанный контекст.",
             href: "/documents",
             cta: "Открыть документы",
           },
@@ -74,7 +76,7 @@ export default async function TransfersOverviewPage() {
               id: document.id,
               title: document.title,
               subtitle: `${document.docType} · ${document.docNo}`,
-              href: `/operations/${document.docType}/${document.id}`,
+              href: `/documents/${document.docType}/${document.id}`,
             }))}
           />
         }
@@ -96,7 +98,9 @@ async function TransferDocumentsSection() {
       icon={ArrowRightLeft}
       title="Transfer workflow"
       description="Единый список intra/intercompany переводов и transfer resolution."
-      fallback={<DataTableSkeleton columnCount={7} rowCount={10} filterCount={4} />}
+      fallback={
+        <DataTableSkeleton columnCount={7} rowCount={10} filterCount={4} />
+      }
     >
       <DocumentsTable promise={documentsPromise} />
     </EntityListPageShell>

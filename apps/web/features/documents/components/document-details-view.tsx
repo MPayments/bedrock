@@ -40,10 +40,14 @@ function StatusBadges({
 }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Badge variant="outline">{getSubmissionStatusLabel(submissionStatus)}</Badge>
+      <Badge variant="outline">
+        {getSubmissionStatusLabel(submissionStatus)}
+      </Badge>
       <Badge variant="outline">{getApprovalStatusLabel(approvalStatus)}</Badge>
       <Badge variant="outline">{getPostingStatusLabel(postingStatus)}</Badge>
-      <Badge variant="outline">{getLifecycleStatusLabel(lifecycleStatus)}</Badge>
+      <Badge variant="outline">
+        {getLifecycleStatusLabel(lifecycleStatus)}
+      </Badge>
     </div>
   );
 }
@@ -115,7 +119,7 @@ export function DocumentDetailsView({
               <div>
                 <span className="text-muted-foreground">Журнал:</span>{" "}
                 <Link
-                  href={`/operations/journal/${document.postingOperationId}`}
+                  href={`/documents/journal/${document.postingOperationId}`}
                   className="font-mono hover:underline"
                 >
                   {document.postingOperationId}
@@ -145,7 +149,9 @@ export function DocumentDetailsView({
             ) : null}
             {document.postingError ? (
               <div className="text-destructive">
-                <span className="text-muted-foreground">Ошибка проведения:</span>{" "}
+                <span className="text-muted-foreground">
+                  Ошибка проведения:
+                </span>{" "}
                 {document.postingError}
               </div>
             ) : null}
@@ -169,7 +175,9 @@ export function DocumentDetailsView({
           </CardHeader>
           <CardContent className="space-y-4 py-6">
             {timeline.length === 0 ? (
-              <div className="text-muted-foreground text-sm">Этапы еще не созданы.</div>
+              <div className="text-muted-foreground text-sm">
+                Этапы еще не созданы.
+              </div>
             ) : (
               timeline.map((item) => {
                 if (!isRecord(item)) {
@@ -179,7 +187,8 @@ export function DocumentDetailsView({
                 const itemId = typeof item.id === "string" ? item.id : "";
                 const itemDocType =
                   typeof item.docType === "string" ? item.docType : "document";
-                const itemDocNo = typeof item.docNo === "string" ? item.docNo : itemId;
+                const itemDocNo =
+                  typeof item.docNo === "string" ? item.docNo : itemId;
                 const itemPostingStatus =
                   typeof item.postingStatus === "string"
                     ? item.postingStatus
@@ -229,11 +238,16 @@ export function DocumentDetailsView({
                 }
 
                 return (
-                  <div key={`${String(item.componentId ?? index)}`} className="rounded-sm border p-3 text-sm">
-                    <div className="font-medium">{String(item.componentId ?? "компонент")}</div>
+                  <div
+                    key={`${String(item.componentId ?? index)}`}
+                    className="rounded-sm border p-3 text-sm"
+                  >
+                    <div className="font-medium">
+                      {String(item.componentId ?? "компонент")}
+                    </div>
                     <div className="text-muted-foreground">
-                      {String(item.kind ?? "")} / {String(item.currency ?? "")} /{" "}
-                      {String(item.amount ?? "")}
+                      {String(item.kind ?? "")} / {String(item.currency ?? "")}{" "}
+                      / {String(item.amount ?? "")}
                     </div>
                   </div>
                 );
@@ -274,7 +288,9 @@ export function DocumentDetailsView({
         <CardContent className="space-y-4 py-6 text-sm">
           {details.parent ? (
             <div>
-              <div className="text-muted-foreground mb-2">Родительский документ</div>
+              <div className="text-muted-foreground mb-2">
+                Родительский документ
+              </div>
               <Link
                 href={buildDocumentHref(documentBasePath, details.parent)}
                 className="hover:underline"
@@ -301,7 +317,9 @@ export function DocumentDetailsView({
           ) : null}
           {details.children.length > 0 ? (
             <div>
-              <div className="text-muted-foreground mb-2">Дочерние документы</div>
+              <div className="text-muted-foreground mb-2">
+                Дочерние документы
+              </div>
               <div className="flex flex-col gap-2">
                 {details.children.map((item) => (
                   <Link
@@ -340,21 +358,27 @@ export function DocumentDetailsView({
         </CardHeader>
         <CardContent className="space-y-4 py-6">
           {details.documentOperations.length === 0 ? (
-            <div className="text-muted-foreground text-sm">Нет связанных операций.</div>
+            <div className="text-muted-foreground text-sm">
+              Нет связанных операций.
+            </div>
           ) : (
             details.documentOperations.map((operation, index) => (
               <div key={operation.id} className="space-y-2">
                 {index > 0 ? <Separator /> : null}
                 <div className="text-sm">
                   <Link
-                    href={`/operations/journal/${operation.operationId}`}
+                    href={`/documents/journal/${operation.operationId}`}
                     className="font-mono hover:underline"
                   >
                     {operation.operationId}
                   </Link>
                 </div>
                 <pre className="bg-muted overflow-x-auto rounded-sm p-4 text-xs">
-                  {JSON.stringify(details.ledgerOperations[index] ?? null, null, 2)}
+                  {JSON.stringify(
+                    details.ledgerOperations[index] ?? null,
+                    null,
+                    2,
+                  )}
                 </pre>
               </div>
             ))

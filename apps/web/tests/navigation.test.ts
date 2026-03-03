@@ -32,7 +32,6 @@ describe("navigation config", () => {
       "/",
       "/transfers",
       "/documents",
-      "/operations",
     ]);
   });
 
@@ -44,9 +43,11 @@ describe("navigation config", () => {
     ]);
 
     expect(hrefs).toContain("/accounting");
+    expect(hrefs).toContain("/documents/journal");
     expect(hrefs).toContain("/entities");
     expect(hrefs).toContain("/fx");
     expect(hrefs).toContain("/treasury");
+    expect(hrefs).not.toContain("/operations");
     expect(hrefs).not.toContain("#");
     expect(hrefs).not.toContain("/fx/quotes");
     expect(hrefs).not.toContain("/treasury/counterparty-accounts");

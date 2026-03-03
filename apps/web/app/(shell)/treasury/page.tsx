@@ -37,15 +37,17 @@ export default async function TreasuryOverviewPage() {
           id: "counterparties",
           label: "Контрагенты",
           value: formatCount(counterparties.total),
-          description: "Контрагентская база, используемая в treasury workflows.",
+          description:
+            "Контрагентская база, используемая в treasury workflows.",
           href: "/treasury/counterparties",
         },
         {
           id: "documents",
           label: "Treasury-документы",
           value: formatCount(treasuryDocuments.total),
-          description: "Документы funding, payout и FX execute в едином журнале.",
-          href: "/operations",
+          description:
+            "Документы funding, payout и FX execute в едином журнале.",
+          href: "/documents",
         },
       ]}
       links={[
@@ -56,10 +58,11 @@ export default async function TreasuryOverviewPage() {
           href: "/treasury/counterparties",
         },
         {
-          id: "operations",
+          id: "journal",
           title: "Журнал операций",
-          description: "Просмотр статусов и деталей казначейских документов в общем потоке.",
-          href: "/operations",
+          description:
+            "Просмотр статусов и деталей казначейских документов в общем потоке.",
+          href: "/documents/journal",
         },
       ]}
     />
