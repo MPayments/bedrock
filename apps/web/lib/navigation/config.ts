@@ -58,27 +58,6 @@ const navItems: AppNavItem[] = [
     audience: "shared",
   },
   {
-    id: "payments",
-    title: "Платежи",
-    href: "/payments",
-    icon: "credit-card",
-    audience: "shared",
-    children: [
-      {
-        id: "payments-orders",
-        title: "Ордера",
-        href: "/payments/orders",
-        audience: "shared",
-      },
-      {
-        id: "payments-settlements",
-        title: "Расчеты",
-        href: "/payments/settlements",
-        audience: "shared",
-      },
-    ],
-  },
-  {
     id: "transfers",
     title: "Переводы",
     href: "/transfers",

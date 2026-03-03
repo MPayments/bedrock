@@ -30,7 +30,6 @@ describe("navigation config", () => {
 
     expect(items.map((item) => item.href)).toEqual([
       "/",
-      "/payments",
       "/transfers",
       "/documents",
       "/operations",

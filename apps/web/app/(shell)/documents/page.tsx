@@ -28,7 +28,6 @@ function formatCount(value: number) {
 
 function groupTitle(family: string): string {
   if (family === "transfers") return "Transfers";
-  if (family === "payments") return "Payments";
   return "IFRS";
 }
 

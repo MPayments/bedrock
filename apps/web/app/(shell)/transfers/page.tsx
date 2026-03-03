@@ -59,11 +59,11 @@ export default async function TransfersOverviewPage() {
             cta: "Открыть операции",
           },
           {
-            id: "payments",
-            title: "Связанные платежи",
-            description: "Сопоставить transfer workflow с платежными событиями.",
-            href: "/payments",
-            cta: "Открыть платежи",
+            id: "documents",
+            title: "Документы",
+            description: "Открыть общий журнал документов и проверить связанный контекст.",
+            href: "/documents",
+            cta: "Открыть документы",
           },
         ]}
         aside={

@@ -31,21 +31,21 @@ export default async function TreasuryOverviewPage() {
     <SectionOverviewPage
       icon={Vault}
       title="Казначейство"
-      description="Административный обзор казначейских потоков, контрагентов и платежных документов."
+      description="Административный обзор казначейских потоков, контрагентов и связанных документов."
       stats={[
         {
           id: "counterparties",
           label: "Контрагенты",
           value: formatCount(counterparties.total),
-          description: "Контрагентская база, используемая в treasury и payments flows.",
+          description: "Контрагентская база, используемая в treasury workflows.",
           href: "/treasury/counterparties",
         },
         {
           id: "documents",
           label: "Treasury-документы",
           value: formatCount(treasuryDocuments.total),
-          description: "Payment case, funding, payout и FX execute документы.",
-          href: "/payments",
+          description: "Документы funding, payout и FX execute в едином журнале.",
+          href: "/operations",
         },
       ]}
       links={[
@@ -56,10 +56,10 @@ export default async function TreasuryOverviewPage() {
           href: "/treasury/counterparties",
         },
         {
-          id: "payments",
-          title: "Платежный workspace",
-          description: "Канонические order/settlement витрины для treasury workflows.",
-          href: "/payments",
+          id: "operations",
+          title: "Журнал операций",
+          description: "Просмотр статусов и деталей казначейских документов в общем потоке.",
+          href: "/operations",
         },
       ]}
     />

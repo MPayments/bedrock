@@ -7,19 +7,6 @@ import { getRateSources } from "@/features/fx/rates/lib/queries";
 import { SectionOverviewPage } from "@/features/overview/ui/section-overview-page";
 import { RecentItemsCard } from "@/features/overview/ui/recent-items-card";
 
-const PAYMENT_DOC_TYPES = [
-  "payment_case",
-  "payin_funding",
-  "payout_initiate",
-  "payout_settle",
-  "payout_void",
-  "fee_payout_initiate",
-  "fee_payout_settle",
-  "fee_payout_void",
-  "capital_funding",
-  "fx_execute",
-];
-
 const TRANSFER_DOC_TYPES = [
   "transfer_intra",
   "transfer_intercompany",
@@ -32,13 +19,11 @@ function formatCount(value: number) {
 
 export default async function DashboardPage() {
   const session = await requirePageAudience("user");
-  const [recentDocuments, paymentDocuments, transferDocuments, sourceStatuses] =
-    await Promise.all([
-      getDocuments({ page: 1, perPage: 5 }),
-      getDocuments({ page: 1, perPage: 1, docType: PAYMENT_DOC_TYPES }),
-      getDocuments({ page: 1, perPage: 1, docType: TRANSFER_DOC_TYPES }),
-      session.role === "admin" ? getRateSources() : Promise.resolve([]),
-    ]);
+  const [recentDocuments, transferDocuments, sourceStatuses] = await Promise.all([
+    getDocuments({ page: 1, perPage: 5 }),
+    getDocuments({ page: 1, perPage: 1, docType: TRANSFER_DOC_TYPES }),
+    session.role === "admin" ? getRateSources() : Promise.resolve([]),
+  ]);
 
   const staleSources = sourceStatuses.filter((source) => source.isExpired).length;
 
@@ -54,13 +39,6 @@ export default async function DashboardPage() {
           value: formatCount(recentDocuments.total),
           description: "Общий объем документов в едином журнале операций.",
           href: "/operations",
-        },
-        {
-          id: "payments",
-          label: "Платежные документы",
-          value: formatCount(paymentDocuments.total),
-          description: "Платежи и treasury документы на всех стадиях обработки.",
-          href: "/payments",
         },
         {
           id: "transfers",
@@ -90,13 +68,6 @@ export default async function DashboardPage() {
         session.role === "admin"
           ? [
               {
-                id: "payments",
-                title: "Платежный workspace",
-                description: "Order и settlement витрины без перехода через alias-страницы.",
-                href: "/payments",
-                cta: "Открыть платежи",
-              },
-              {
                 id: "entities",
                 title: "Справочники",
                 description: "Клиенты, контрагенты, провайдеры, счета и валюты.",
@@ -112,13 +83,6 @@ export default async function DashboardPage() {
               },
             ]
           : [
-              {
-                id: "payments",
-                title: "Платежи",
-                description: "Открыть платежные ордера и расчеты.",
-                href: "/payments",
-                cta: "Открыть платежи",
-              },
               {
                 id: "transfers",
                 title: "Переводы",

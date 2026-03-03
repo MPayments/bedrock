@@ -41,7 +41,6 @@ type ResolveBreadcrumbItemsOptions = {
 const segmentMap: Record<string, SegmentConfig> = {
   treasury: { label: "Казначейство", icon: "landmark" },
   fx: { label: "FX", icon: "currency" },
-  payments: { label: "Платежи", icon: "credit-card" },
   transfers: { label: "Переводы", icon: "arrow-right-left" },
   documents: { label: "Документы", icon: "book-open" },
   accounting: { label: "Бухгалтерия", icon: "book-open" },
