@@ -17,18 +17,18 @@ import {
   TableRow,
 } from "@bedrock/ui/components/table";
 
-import { formatDate } from "@/lib/format";
+import { formatAmountByCurrency, formatDate } from "@/lib/format";
 
 import type { PaymentDocumentDto } from "../lib/api";
 
-function formatMinorAmount(document: PaymentDocumentDto) {
-  if (!document.amountMinor) {
+function formatAmount(document: PaymentDocumentDto) {
+  if (!document.amount) {
     return "—";
   }
   if (!document.currency) {
-    return document.amountMinor;
+    return document.amount;
   }
-  return `${document.amountMinor} ${document.currency}`;
+  return `${formatAmountByCurrency(document.amount, document.currency)} ${document.currency}`;
 }
 
 export function PaymentsListCard({
@@ -83,7 +83,7 @@ export function PaymentsListCard({
                     <div className="text-muted-foreground mt-1 text-xs">{row.title}</div>
                   </TableCell>
                   <TableCell>{row.docType}</TableCell>
-                  <TableCell>{formatMinorAmount(row)}</TableCell>
+                  <TableCell>{formatAmount(row)}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       <Badge variant="outline">{row.submissionStatus}</Badge>

@@ -1,57 +1,39 @@
-export function formatAmount(amountMinor: string | number, precision: number): string {
-  const normalizedPrecision = Number.isFinite(precision)
-    ? Math.max(0, Math.trunc(precision))
-    : 0;
+export function formatMajorAmount(amount: string | number | bigint): string {
+  const normalized = String(amount).trim().replace(",", ".");
+  const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(normalized);
+  if (!match) {
+    return String(amount);
+  }
 
-  let minor: bigint;
+  const [, signRaw = "", integerRaw = "", fractionRaw = ""] = match;
+  const normalizedInteger = integerRaw.replace(/^0+(?=\d)/, "");
+
+  let integerPart: string;
   try {
-    minor =
-      typeof amountMinor === "string"
-        ? BigInt(amountMinor)
-        : BigInt(Math.trunc(amountMinor));
+    integerPart = BigInt(
+      normalizedInteger.length > 0 ? normalizedInteger : "0",
+    ).toLocaleString("ru-RU");
   } catch {
-    return String(amountMinor);
+    integerPart = normalizedInteger.length > 0 ? normalizedInteger : "0";
   }
 
-  const negative = minor < 0n;
-  const absoluteMinor = negative ? -minor : minor;
-  const sign = negative ? "-" : "";
-
-  if (normalizedPrecision === 0) {
-    return `${sign}${absoluteMinor.toLocaleString("ru-RU")}`;
+  if (fractionRaw.length === 0) {
+    return `${signRaw}${integerPart}`;
   }
 
-  const divisor = 10n ** BigInt(normalizedPrecision);
-  const major = absoluteMinor / divisor;
-  const fraction = (absoluteMinor % divisor)
-    .toString()
-    .padStart(normalizedPrecision, "0");
-
-  return `${sign}${major.toLocaleString("ru-RU")},${fraction}`;
-}
-
-export function getCurrencyPrecisionByCode(currencyCode: string | null | undefined): number {
-  const normalized = currencyCode?.trim().toUpperCase() ?? "";
-  if (normalized.length === 0) {
-    return 2;
+  const fractionPart = fractionRaw.replace(/0+$/, "");
+  if (fractionPart.length === 0) {
+    return `${signRaw}${integerPart}`;
   }
 
-  try {
-    const options = new Intl.NumberFormat("en", {
-      style: "currency",
-      currency: normalized,
-    }).resolvedOptions();
-    return Math.max(0, Math.trunc(options.maximumFractionDigits ?? 2));
-  } catch {
-    return 2;
-  }
+  return `${signRaw}${integerPart},${fractionPart}`;
 }
 
 export function formatAmountByCurrency(
-  amountMinor: string | number,
-  currencyCode: string | null | undefined,
+  amount: string | number | bigint,
+  _currencyCode: string | null | undefined,
 ): string {
-  return formatAmount(amountMinor, getCurrencyPrecisionByCode(currencyCode));
+  return formatMajorAmount(amount);
 }
 
 export function formatDate(date: Date | string | number | undefined) {

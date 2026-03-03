@@ -44,7 +44,7 @@ const OperationPostingSchema = z.object({
   postingCode: z.string(),
   currency: z.string(),
   currencyPrecision: z.number().int(),
-  amountMinor: z.string(),
+  amount: z.string(),
   memo: z.string().nullable(),
   context: z.record(z.string(), z.string()).nullable(),
   createdAt: z.iso.datetime(),

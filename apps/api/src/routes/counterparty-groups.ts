@@ -15,6 +15,7 @@ import {
   CounterpartyGroupOptionsResponseSchema,
 } from "@bedrock/core/counterparties/contracts";
 
+import { buildOptionsResponse } from "../common/options";
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
@@ -229,19 +230,17 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
       });
 
       return c.json(
-        {
-          data: groups.map((group) =>
-            CounterpartyGroupOptionSchema.parse({
-              id: group.id,
-              code: group.code,
-              name: group.name,
-              parentId: group.parentId,
-              customerId: group.customerId,
-              isSystem: group.isSystem,
-              label: `${group.code} - ${group.name}`,
-            }),
-          ),
-        },
+        buildOptionsResponse(groups, (group) =>
+          CounterpartyGroupOptionSchema.parse({
+            id: group.id,
+            code: group.code,
+            name: group.name,
+            parentId: group.parentId,
+            customerId: group.customerId,
+            isSystem: group.isSystem,
+            label: `${group.code} - ${group.name}`,
+          }),
+        ),
         200,
       );
     })

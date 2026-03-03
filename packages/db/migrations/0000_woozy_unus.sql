@@ -411,8 +411,8 @@ ALTER TABLE "documents" ADD CONSTRAINT "documents_approval_status_chk" CHECK ("d
 ALTER TABLE "documents" ADD CONSTRAINT "documents_posting_status_chk" CHECK ("documents"."posting_status" in ('not_required', 'unposted', 'posting', 'posted', 'failed'));--> statement-breakpoint
 ALTER TABLE "documents" ADD CONSTRAINT "documents_lifecycle_status_chk" CHECK ("documents"."lifecycle_status" in ('active', 'cancelled'));--> statement-breakpoint
 ALTER TABLE "documents" ADD CONSTRAINT "documents_submit_fields_chk" CHECK ((("documents"."submission_status" = 'draft' and "documents"."submitted_by" is null and "documents"."submitted_at" is null) or ("documents"."submission_status" = 'submitted' and "documents"."submitted_at" is not null)));--> statement-breakpoint
-ALTER TABLE "documents" ADD CONSTRAINT "documents_posting_requires_submission_chk" CHECK (("documents"."posting_status" in ('not_required', 'unposted', 'failed') or "documents"."submission_status" = 'submitted'));--> statement-breakpoint
-ALTER TABLE "documents" ADD CONSTRAINT "documents_posting_requires_approval_chk" CHECK (("documents"."posting_status" in ('not_required', 'unposted', 'failed') or "documents"."approval_status" in ('not_required', 'approved')));--> statement-breakpoint
+ALTER TABLE "documents" ADD CONSTRAINT "documents_posting_requires_submission_chk" CHECK (("documents"."posting_status" in ('not_required', 'unposted') or "documents"."submission_status" = 'submitted'));--> statement-breakpoint
+ALTER TABLE "documents" ADD CONSTRAINT "documents_posting_requires_approval_chk" CHECK (("documents"."posting_status" in ('not_required', 'unposted') or "documents"."approval_status" in ('not_required', 'approved')));--> statement-breakpoint
 ALTER TABLE "documents" ADD CONSTRAINT "documents_cancelled_posting_status_chk" CHECK (("documents"."lifecycle_status" = 'active' or "documents"."posting_status" in ('unposted', 'failed')));--> statement-breakpoint
 CREATE TABLE "document_events" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,

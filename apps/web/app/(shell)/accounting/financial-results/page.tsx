@@ -25,6 +25,7 @@ import {
   type FinancialResultsByCounterpartyDto,
   type FinancialResultsByGroupDto,
 } from "@/features/accounting/lib/queries";
+import { formatAmountByCurrency } from "@/lib/format";
 
 interface AccountingFinancialResultsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -50,14 +51,6 @@ function getMultiParam(
     .flatMap((item) => item.split(","))
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
-}
-
-function formatMinor(value: string) {
-  try {
-    return BigInt(value).toLocaleString("ru-RU");
-  } catch {
-    return value;
-  }
 }
 
 function buildPageHref(
@@ -111,9 +104,15 @@ function SummaryTable({
           summary.map((row) => (
             <TableRow key={row.currency}>
               <TableCell>{row.currency}</TableCell>
-              <TableCell className="text-right">{formatMinor(row.revenueMinor)}</TableCell>
-              <TableCell className="text-right">{formatMinor(row.expenseMinor)}</TableCell>
-              <TableCell className="text-right">{formatMinor(row.netMinor)}</TableCell>
+              <TableCell className="text-right">
+                {formatAmountByCurrency(row.revenue, row.currency)}
+              </TableCell>
+              <TableCell className="text-right">
+                {formatAmountByCurrency(row.expense, row.currency)}
+              </TableCell>
+              <TableCell className="text-right">
+                {formatAmountByCurrency(row.net, row.currency)}
+              </TableCell>
             </TableRow>
           ))
         )}
@@ -448,9 +447,15 @@ export default async function AccountingFinancialResultsPage({
                       <TableRow key={`${row.counterpartyId ?? "unattributed"}:${row.currency}`}>
                         <TableCell>{row.counterpartyName ?? "Unattributed"}</TableCell>
                         <TableCell>{row.currency}</TableCell>
-                        <TableCell className="text-right">{formatMinor(row.revenueMinor)}</TableCell>
-                        <TableCell className="text-right">{formatMinor(row.expenseMinor)}</TableCell>
-                        <TableCell className="text-right">{formatMinor(row.netMinor)}</TableCell>
+                        <TableCell className="text-right">
+                          {formatAmountByCurrency(row.revenue, row.currency)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatAmountByCurrency(row.expense, row.currency)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatAmountByCurrency(row.net, row.currency)}
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -496,9 +501,15 @@ export default async function AccountingFinancialResultsPage({
                       <TableRow key={`${row.groupId}:${row.currency}`}>
                         <TableCell>{row.groupName ?? row.groupId}</TableCell>
                         <TableCell>{row.currency}</TableCell>
-                        <TableCell className="text-right">{formatMinor(row.revenueMinor)}</TableCell>
-                        <TableCell className="text-right">{formatMinor(row.expenseMinor)}</TableCell>
-                        <TableCell className="text-right">{formatMinor(row.netMinor)}</TableCell>
+                        <TableCell className="text-right">
+                          {formatAmountByCurrency(row.revenue, row.currency)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatAmountByCurrency(row.expense, row.currency)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatAmountByCurrency(row.net, row.currency)}
+                        </TableCell>
                       </TableRow>
                     ))
                   )}

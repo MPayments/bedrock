@@ -38,7 +38,7 @@ import {
   type CounterpartyAccount,
   type AccountBalance,
 } from "@/features/entities/counterparties/lib/queries";
-import { formatAmount, formatDate } from "@/lib/format";
+import { formatAmountByCurrency, formatDate } from "@/lib/format";
 
 interface CounterpartyAccountsPageProps {
   params: Promise<{ id: string }>;
@@ -165,22 +165,6 @@ export default async function CounterpartyAccountsPage({
           ) : (
             <Accordion multiple defaultValue={defaultOpenProviders}>
               {providerRows.map(([provider, providerAccounts]) => {
-                const totalByCurrency = providerAccounts.reduce<
-                  Record<string, { balanceMinor: bigint; precision: number }>
-                >((acc, account) => {
-                  const accountBalances = balanceMap.get(account.id) ?? [];
-                  for (const b of accountBalances) {
-                    const cur = b.currency;
-                    const existing = acc[cur];
-                    acc[cur] = {
-                      balanceMinor:
-                        (existing?.balanceMinor ?? 0n) + BigInt(b.balanceMinor),
-                      precision: b.precision,
-                    };
-                  }
-                  return acc;
-                }, {});
-
                 return (
                   <AccordionItem key={provider} value={provider}>
                     <AccordionTrigger className="px-4 hover:no-underline">
@@ -190,16 +174,21 @@ export default async function CounterpartyAccountsPage({
                           {providerAccounts.length}{" "}
                           {getAccountsWord(providerAccounts.length)}
                         </span>
-                        {Object.entries(totalByCurrency)
-                          .sort(([a], [b]) => a.localeCompare(b))
-                          .map(([currency, { balanceMinor, precision }]) => (
+                        {Array.from(
+                          new Set(
+                            providerAccounts.flatMap((account) =>
+                              (balanceMap.get(account.id) ?? []).map((b) => b.currency),
+                            ),
+                          ),
+                        )
+                          .sort((a, b) => a.localeCompare(b))
+                          .map((currency) => (
                             <Badge
                               key={currency}
                               variant="secondary"
                               className="h-5 px-2 font-mono"
                             >
-                              {currency}{" "}
-                              {formatAmount(balanceMinor.toString(), precision)}
+                              {currency}
                             </Badge>
                           ))}
                       </div>
@@ -253,10 +242,7 @@ export default async function CounterpartyAccountsPage({
                                             key={b.currency}
                                             className="font-mono text-sm"
                                           >
-                                            {formatAmount(
-                                              b.balanceMinor,
-                                              b.precision,
-                                            )}{" "}
+                                            {formatAmountByCurrency(b.balance, b.currency)}{" "}
                                             <span className="text-muted-foreground">
                                               {b.currency}
                                             </span>

@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@bedrock/ui/components/table";
 
-import { formatAmount, formatDate } from "@/lib/format";
+import { formatAmountByCurrency, formatDate } from "@/lib/format";
 import { getOperationById } from "@/features/operations/journal/lib/queries";
 import { getOperationCodeLabel } from "@/features/operations/journal/lib/operation-code-labels";
 import { getPostingCodeLabel } from "@/features/operations/journal/lib/posting-code-labels";
@@ -195,9 +195,9 @@ export default async function OperationDetailsPage({
                 </TableRow>
               ) : (
                 details.postings.map((posting) => {
-                  const amountFormatted = formatAmount(
-                    posting.amountMinor,
-                    posting.currencyPrecision,
+                  const amountFormatted = formatAmountByCurrency(
+                    posting.amount,
+                    posting.currency,
                   );
                   return (
                     <TableRow key={posting.id} className="align-top">

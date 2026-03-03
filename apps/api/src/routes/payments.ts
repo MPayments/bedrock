@@ -3,12 +3,12 @@ import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { PaymentIntentInputSchema } from "@bedrock/application/payments";
 
 import { handleRouteError } from "../common/errors";
-import { toJsonSafe } from "../common/json";
+import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import {
   getRequestContext,
-  requireIdempotencyKey,
+  withRequiredIdempotency,
 } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
 
@@ -23,8 +23,43 @@ const ListPaymentsQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
+type PaymentActionContext = Parameters<typeof handleRouteError>[0];
+
+type PaymentMutationInput = {
+  documentId: string;
+  actorUserId: string;
+  idempotencyKey: string;
+  requestContext: ReturnType<typeof getRequestContext>;
+};
+
+type PaymentMutationMethod = (input: PaymentMutationInput) => Promise<unknown>;
+
 export function paymentsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+
+  async function runPaymentAction(
+    c: PaymentActionContext,
+    serviceMethod: PaymentMutationMethod,
+  ) {
+    try {
+      const id = c.req.param("id");
+      const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+        serviceMethod({
+          documentId: id,
+          actorUserId: (c.get("user") as { id: string }).id,
+          idempotencyKey,
+          requestContext: getRequestContext(c),
+        }),
+      );
+      if (result instanceof Response) {
+        return result;
+      }
+
+      return jsonOk(c, result, 200, { normalizeMoney: true });
+    } catch (error) {
+      return handleRouteError(c, error);
+    }
+  }
 
   app.get("/", requirePermission({ payments: ["list"] }), async (c) => {
     try {
@@ -36,7 +71,7 @@ export function paymentsRoutes(ctx: AppContext) {
         limit: query.limit,
         offset: query.offset,
       });
-      return c.json(toJsonSafe(result));
+      return jsonOk(c, result, 200, { normalizeMoney: true });
     } catch (error) {
       return handleRouteError(c, error);
     }
@@ -51,7 +86,7 @@ export function paymentsRoutes(ctx: AppContext) {
         actorUserId: c.get("user")!.id,
         requestContext: getRequestContext(c),
       });
-      return c.json(toJsonSafe(result), 201);
+      return jsonOk(c, result, 201, { normalizeMoney: true });
     } catch (error) {
       return handleRouteError(c, error);
     }
@@ -61,7 +96,7 @@ export function paymentsRoutes(ctx: AppContext) {
     try {
       const { id } = c.req.param();
       const result = await ctx.paymentsService.get(id);
-      return c.json(toJsonSafe(result));
+      return jsonOk(c, result, 200, { normalizeMoney: true });
     } catch (error) {
       return handleRouteError(c, error);
     }
@@ -74,7 +109,7 @@ export function paymentsRoutes(ctx: AppContext) {
       try {
         const { id } = c.req.param();
         const result = await ctx.paymentsService.getDetails(id, c.get("user")!.id);
-        return c.json(toJsonSafe(result));
+        return jsonOk(c, result, 200, { normalizeMoney: true });
       } catch (error) {
         return handleRouteError(c, error);
       }
@@ -84,102 +119,31 @@ export function paymentsRoutes(ctx: AppContext) {
   app.post(
     "/:id/submit",
     requirePermission({ payments: ["submit"] }),
-    async (c) => {
-      try {
-        const idem = requireIdempotencyKey(c);
-        if (!idem.ok) return idem.response;
-        const { id } = c.req.param();
-        const result = await ctx.paymentsService.submit({
-          documentId: id,
-          actorUserId: c.get("user")!.id,
-          idempotencyKey: idem.idempotencyKey,
-          requestContext: getRequestContext(c),
-        });
-        return c.json(toJsonSafe(result));
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    },
+    async (c) => runPaymentAction(c, ctx.paymentsService.submit),
   );
 
   app.post(
     "/:id/approve",
     requirePermission({ payments: ["approve"] }),
-    async (c) => {
-      try {
-        const idem = requireIdempotencyKey(c);
-        if (!idem.ok) return idem.response;
-        const { id } = c.req.param();
-        const result = await ctx.paymentsService.approve({
-          documentId: id,
-          actorUserId: c.get("user")!.id,
-          idempotencyKey: idem.idempotencyKey,
-          requestContext: getRequestContext(c),
-        });
-        return c.json(toJsonSafe(result));
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    },
+    async (c) => runPaymentAction(c, ctx.paymentsService.approve),
   );
 
   app.post(
     "/:id/reject",
     requirePermission({ payments: ["reject"] }),
-    async (c) => {
-      try {
-        const idem = requireIdempotencyKey(c);
-        if (!idem.ok) return idem.response;
-        const { id } = c.req.param();
-        const result = await ctx.paymentsService.reject({
-          documentId: id,
-          actorUserId: c.get("user")!.id,
-          idempotencyKey: idem.idempotencyKey,
-          requestContext: getRequestContext(c),
-        });
-        return c.json(toJsonSafe(result));
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    },
+    async (c) => runPaymentAction(c, ctx.paymentsService.reject),
   );
 
-  app.post("/:id/post", requirePermission({ payments: ["post"] }), async (c) => {
-    try {
-      const idem = requireIdempotencyKey(c);
-      if (!idem.ok) return idem.response;
-      const { id } = c.req.param();
-      const result = await ctx.paymentsService.post({
-        documentId: id,
-        actorUserId: c.get("user")!.id,
-        idempotencyKey: idem.idempotencyKey,
-        requestContext: getRequestContext(c),
-      });
-      return c.json(toJsonSafe(result));
-    } catch (error) {
-      return handleRouteError(c, error);
-    }
-  });
+  app.post(
+    "/:id/post",
+    requirePermission({ payments: ["post"] }),
+    async (c) => runPaymentAction(c, ctx.paymentsService.post),
+  );
 
   app.post(
     "/:id/cancel",
     requirePermission({ payments: ["cancel"] }),
-    async (c) => {
-      try {
-        const idem = requireIdempotencyKey(c);
-        if (!idem.ok) return idem.response;
-        const { id } = c.req.param();
-        const result = await ctx.paymentsService.cancel({
-          documentId: id,
-          actorUserId: c.get("user")!.id,
-          idempotencyKey: idem.idempotencyKey,
-          requestContext: getRequestContext(c),
-        });
-        return c.json(toJsonSafe(result));
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    },
+    async (c) => runPaymentAction(c, ctx.paymentsService.cancel),
   );
 
   return app;

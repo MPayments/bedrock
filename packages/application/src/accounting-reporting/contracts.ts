@@ -16,9 +16,9 @@ export {
 
 export const FinancialResultSummaryByCurrencySchema = z.object({
   currency: z.string(),
-  revenueMinor: z.string(),
-  expenseMinor: z.string(),
-  netMinor: z.string(),
+  revenue: z.string(),
+  expense: z.string(),
+  net: z.string(),
 });
 
 export const FinancialResultsByCounterpartySchema = z.object({
@@ -26,9 +26,9 @@ export const FinancialResultsByCounterpartySchema = z.object({
   counterpartyId: z.uuid().nullable(),
   counterpartyName: z.string().nullable(),
   currency: z.string(),
-  revenueMinor: z.string(),
-  expenseMinor: z.string(),
-  netMinor: z.string(),
+  revenue: z.string(),
+  expense: z.string(),
+  net: z.string(),
 });
 
 export const FinancialResultsByGroupSchema = z.object({
@@ -36,9 +36,9 @@ export const FinancialResultsByGroupSchema = z.object({
   groupCode: z.string().nullable(),
   groupName: z.string().nullable(),
   currency: z.string(),
-  revenueMinor: z.string(),
-  expenseMinor: z.string(),
-  netMinor: z.string(),
+  revenue: z.string(),
+  expense: z.string(),
+  net: z.string(),
 });
 
 export const FinancialResultsByCounterpartyResponseSchema = z.object({

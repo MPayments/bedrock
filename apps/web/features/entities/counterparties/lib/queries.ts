@@ -133,7 +133,7 @@ export async function getCounterpartyGroups(): Promise<
 export interface AccountBalance {
   counterpartyAccountId: string;
   currency: string;
-  balanceMinor: string;
+  balance: string;
   precision: number;
 }
 
@@ -141,7 +141,7 @@ const AccountBalancesResponseSchema = z.array(
   z.object({
     counterpartyAccountId: z.uuid(),
     currency: z.string(),
-    balanceMinor: z.string(),
+    balance: z.string(),
     precision: z.number().int(),
   }),
 );

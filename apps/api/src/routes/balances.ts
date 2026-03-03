@@ -1,6 +1,5 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
-import { ValidationError } from "@bedrock/kernel/errors";
 import {
   BalanceHoldNotFoundError,
   BalanceHoldStateError,
@@ -11,13 +10,16 @@ import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
 } from "@bedrock/core/idempotency";
+import { ValidationError } from "@bedrock/kernel/errors";
 
+import { minorToAmountString } from "../common/amount";
+import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { withEtag } from "../middleware/etag";
 import {
   getRequestContext,
-  requireIdempotencyKey,
+  withRequiredIdempotency,
 } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
 
@@ -54,10 +56,18 @@ function toBalanceSnapshotDto(input: {
 }) {
   return {
     ...input,
-    ledgerBalance: input.ledgerBalance.toString(),
-    available: input.available.toString(),
-    reserved: input.reserved.toString(),
-    pending: input.pending.toString(),
+    ledgerBalance: minorToAmountString(input.ledgerBalance, {
+      currency: input.currency,
+    }),
+    available: minorToAmountString(input.available, {
+      currency: input.currency,
+    }),
+    reserved: minorToAmountString(input.reserved, {
+      currency: input.currency,
+    }),
+    pending: minorToAmountString(input.pending, {
+      currency: input.currency,
+    }),
   };
 }
 
@@ -87,13 +97,18 @@ function toMutationResultDto(input: {
   return {
     balance: toBalanceSnapshotDto(input.balance),
     hold: input.hold
-      ? {
-          ...input.hold,
-          amountMinor: input.hold.amountMinor.toString(),
-          createdAt: input.hold.createdAt.toISOString(),
-          releasedAt: input.hold.releasedAt?.toISOString() ?? null,
-          consumedAt: input.hold.consumedAt?.toISOString() ?? null,
-        }
+      ? (() => {
+          const { amountMinor, ...restHold } = input.hold;
+          return {
+            ...restHold,
+            amount: minorToAmountString(amountMinor, {
+              currency: input.balance.currency,
+            }),
+            createdAt: input.hold.createdAt.toISOString(),
+            releasedAt: input.hold.releasedAt?.toISOString() ?? null,
+            consumedAt: input.hold.consumedAt?.toISOString() ?? null,
+          };
+        })()
       : null,
   };
 }
@@ -131,7 +146,7 @@ export function balancesRoutes(ctx: AppContext) {
       try {
         const subject = BalanceSubjectParamsSchema.parse(c.req.param());
         const result = await ctx.balancesService.getBalance(subject);
-        return c.json(toBalanceSnapshotDto(result));
+        return jsonOk(c, toBalanceSnapshotDto(result));
       } catch (error) {
         return handleBalancesError(c, error);
       }
@@ -143,19 +158,20 @@ export function balancesRoutes(ctx: AppContext) {
     requirePermission({ balances: ["reserve"] }),
     async (c) => {
       try {
-        const idem = requireIdempotencyKey(c);
-        if (!idem.ok) return idem.response;
         const body = ReserveBalanceBodySchema.parse(await c.req.json());
-        const result = await ctx.balancesService.reserve({
-          subject: body.subject,
-          amount: body.amount,
-          holdRef: body.holdRef,
-          reason: body.reason,
-          actorId: c.get("user")!.id,
-          idempotencyKey: idem.idempotencyKey,
-          requestContext: getRequestContext(c),
-        });
-        return c.json(toMutationResultDto(result));
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.balancesService.reserve({
+            subject: body.subject,
+            amount: body.amount,
+            holdRef: body.holdRef,
+            reason: body.reason,
+            actorId: c.get("user")!.id,
+            idempotencyKey,
+            requestContext: getRequestContext(c),
+          }),
+        );
+        if (result instanceof Response) return result;
+        return jsonOk(c, toMutationResultDto(result));
       } catch (error) {
         return handleBalancesError(c, error);
       }
@@ -167,18 +183,19 @@ export function balancesRoutes(ctx: AppContext) {
     requirePermission({ balances: ["release"] }),
     async (c) => {
       try {
-        const idem = requireIdempotencyKey(c);
-        if (!idem.ok) return idem.response;
         const body = HoldActionBodySchema.parse(await c.req.json());
-        const result = await ctx.balancesService.release({
-          subject: body.subject,
-          holdRef: body.holdRef,
-          reason: body.reason,
-          actorId: c.get("user")!.id,
-          idempotencyKey: idem.idempotencyKey,
-          requestContext: getRequestContext(c),
-        });
-        return c.json(toMutationResultDto(result));
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.balancesService.release({
+            subject: body.subject,
+            holdRef: body.holdRef,
+            reason: body.reason,
+            actorId: c.get("user")!.id,
+            idempotencyKey,
+            requestContext: getRequestContext(c),
+          }),
+        );
+        if (result instanceof Response) return result;
+        return jsonOk(c, toMutationResultDto(result));
       } catch (error) {
         return handleBalancesError(c, error);
       }
@@ -190,18 +207,19 @@ export function balancesRoutes(ctx: AppContext) {
     requirePermission({ balances: ["consume"] }),
     async (c) => {
       try {
-        const idem = requireIdempotencyKey(c);
-        if (!idem.ok) return idem.response;
         const body = HoldActionBodySchema.parse(await c.req.json());
-        const result = await ctx.balancesService.consume({
-          subject: body.subject,
-          holdRef: body.holdRef,
-          reason: body.reason,
-          actorId: c.get("user")!.id,
-          idempotencyKey: idem.idempotencyKey,
-          requestContext: getRequestContext(c),
-        });
-        return c.json(toMutationResultDto(result));
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.balancesService.consume({
+            subject: body.subject,
+            holdRef: body.holdRef,
+            reason: body.reason,
+            actorId: c.get("user")!.id,
+            idempotencyKey,
+            requestContext: getRequestContext(c),
+          }),
+        );
+        if (result instanceof Response) return result;
+        return jsonOk(c, toMutationResultDto(result));
       } catch (error) {
         return handleBalancesError(c, error);
       }

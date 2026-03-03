@@ -14,7 +14,7 @@ import {
   insertDocumentEvent,
   lockDocument,
   loadDocumentWithOperationId,
-  resolveModule,
+  resolveModuleForDocument,
 } from "../internal/helpers";
 import {
   enforceDocumentPolicy,
@@ -39,19 +39,17 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
     idempotencyKey?: string;
     requestContext?: DocumentRequestContext;
   }): Promise<DocumentWithOperationId> {
-    const module = resolveModule(registry, input.docType);
-    const validatedUpdateInput = validateInput(
-      module.updateSchema,
-      input.payload,
-      `${input.docType}.update`,
-    );
+    const idempotencyPayload =
+      typeof input.payload === "object" && input.payload !== null
+        ? (input.payload as Record<string, unknown>)
+        : { value: input.payload };
     const idempotencyKey =
       input.idempotencyKey ??
       buildDefaultActionIdempotencyKey("documents.updateDraft", {
         docType: input.docType,
         documentId: input.documentId,
         actorUserId: input.actorUserId,
-        payload: validatedUpdateInput as Record<string, unknown>,
+        payload: idempotencyPayload,
       });
 
     try {
@@ -71,7 +69,7 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
             docType: input.docType,
             documentId: input.documentId,
             actorUserId: input.actorUserId,
-            payload: validatedUpdateInput,
+            payload: idempotencyPayload,
           },
           actorId: input.actorUserId,
           serializeResult: (result: DocumentWithOperationId) => ({
@@ -91,6 +89,12 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
             ),
           handler: async () => {
             const document = await lockDocument(tx, input.documentId, input.docType);
+            const module = resolveModuleForDocument(registry, document);
+            const validatedUpdateInput = validateInput(
+              module.updateSchema,
+              input.payload,
+              `${input.docType}.update`,
+            );
 
             if (
               !isDocumentActionAllowed({
@@ -106,14 +110,14 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
                 "Only active draft documents can be updated",
               );
             }
-            const counterpartyIds = collectDocumentCounterpartyIds({
+            const currentCounterpartyIds = collectDocumentCounterpartyIds({
               documentCounterpartyId: document.counterpartyId,
               payload: document.payload,
             });
             await assertCounterpartyPeriodsOpen({
               db: tx,
               occurredAt: document.occurredAt,
-              counterpartyIds,
+              counterpartyIds: currentCounterpartyIds,
               docType: input.docType,
             });
 
@@ -139,11 +143,12 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
               updated.payload,
               `${input.docType}.payload`,
             );
+            const nextOccurredAt = updated.occurredAt ?? document.occurredAt;
 
             const next = {
               ...document,
               payload,
-              occurredAt: updated.occurredAt ?? document.occurredAt,
+              occurredAt: nextOccurredAt,
             };
             const approvalStatus = module.approvalRequired(next)
               ? "pending"
@@ -151,12 +156,23 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
             const summary = buildSummary(
               module.deriveSummary({ ...next, approvalStatus }),
             );
+            const nextCounterpartyIds = collectDocumentCounterpartyIds({
+              documentCounterpartyId: summary.counterpartyId,
+              summaryCounterpartyId: summary.counterpartyId,
+              payload,
+            });
+            await assertCounterpartyPeriodsOpen({
+              db: tx,
+              occurredAt: nextOccurredAt,
+              counterpartyIds: nextCounterpartyIds,
+              docType: input.docType,
+            });
 
             const [stored] = await tx
               .update(schema.documents)
               .set({
                 payload,
-                occurredAt: updated.occurredAt ?? document.occurredAt,
+                occurredAt: nextOccurredAt,
                 approvalStatus,
                 title: summary.title,
                 amountMinor: summary.amountMinor,

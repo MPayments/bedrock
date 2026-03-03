@@ -60,7 +60,7 @@ export async function createDocumentDraft(input: {
 
   return executeApiMutation({
     request: () =>
-      fetch(buildDocumentUrl(`/v1/docs/${encodeURIComponent(input.docType)}`), {
+      fetch(buildDocumentUrl(`/v1/documents/${encodeURIComponent(input.docType)}`), {
         method: "POST",
         credentials: "include",
         headers: mutationHeaders(),
@@ -85,7 +85,7 @@ export async function updateDocumentDraft(input: {
     request: () =>
       fetch(
         buildDocumentUrl(
-          `/v1/docs/${encodeURIComponent(input.docType)}/${encodeURIComponent(input.documentId)}`,
+          `/v1/documents/${encodeURIComponent(input.docType)}/${encodeURIComponent(input.documentId)}`,
         ),
         {
           method: "PATCH",
@@ -110,7 +110,7 @@ async function mutateDocumentAction(input: {
     request: () =>
       fetch(
         buildDocumentUrl(
-          `/v1/docs/${encodeURIComponent(input.docType)}/${encodeURIComponent(input.documentId)}/${input.action}`,
+          `/v1/documents/${encodeURIComponent(input.docType)}/${encodeURIComponent(input.documentId)}/${input.action}`,
         ),
         {
           method: "POST",

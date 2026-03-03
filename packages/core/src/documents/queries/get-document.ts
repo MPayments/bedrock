@@ -4,15 +4,19 @@ import { schema } from "@bedrock/core/documents/schema";
 
 import { DocumentNotFoundError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";
-import { buildDocumentWithOperationId } from "../internal/helpers";
+import {
+  buildDocumentWithOperationId,
+  resolveDocumentAllowedActionsForActor,
+} from "../internal/helpers";
 import type { DocumentWithOperationId } from "../types";
 
 export function createGetDocumentQuery(context: DocumentsServiceContext) {
-  const { db, registry } = context;
+  const { db, log, policy, registry } = context;
 
   return async function getDocument(
     docType: string,
     documentId: string,
+    actorUserId?: string,
   ): Promise<DocumentWithOperationId> {
     const [row] = await db
       .select({
@@ -36,10 +40,26 @@ export function createGetDocumentQuery(context: DocumentsServiceContext) {
       throw new DocumentNotFoundError(documentId);
     }
 
-    return buildDocumentWithOperationId({
+    const result = buildDocumentWithOperationId({
       registry,
       document: row.document,
       postingOperationId: row.postingOperationId ?? null,
     });
+
+    if (!actorUserId) {
+      return result;
+    }
+
+    return {
+      ...result,
+      allowedActions: await resolveDocumentAllowedActionsForActor({
+        registry,
+        policy,
+        db,
+        log,
+        actorUserId,
+        document: row.document,
+      }),
+    };
   };
 }

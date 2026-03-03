@@ -14,7 +14,7 @@ import {
   insertDocumentEvent,
   lockDocument,
   loadDocumentWithOperationId,
-  resolveModule,
+  resolveModuleForDocument,
 } from "../internal/helpers";
 import {
   enforceDocumentPolicy,
@@ -37,7 +37,6 @@ export function createSubmitHandler(context: DocumentsServiceContext) {
     idempotencyKey?: string;
     requestContext?: DocumentRequestContext;
   }): Promise<DocumentWithOperationId> {
-    const module = resolveModule(registry, input.docType);
     const idempotencyKey =
       input.idempotencyKey ??
       buildDefaultActionIdempotencyKey("documents.submit", {
@@ -82,6 +81,7 @@ export function createSubmitHandler(context: DocumentsServiceContext) {
           ),
         handler: async () => {
           const document = await lockDocument(tx, input.documentId, input.docType);
+          const module = resolveModuleForDocument(registry, document);
           assertDocumentIsActive(document, "submitted");
 
           const canSubmit = isDocumentActionAllowed({

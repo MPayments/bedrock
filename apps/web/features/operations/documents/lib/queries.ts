@@ -64,7 +64,7 @@ export async function getDocuments(
   }
 
   const response = await requestOk(
-    await fetchApi(`/v1/docs?${query.toString()}`),
+    await fetchApi(`/v1/documents?${query.toString()}`),
     "Не удалось загрузить документы",
   );
 
@@ -75,7 +75,7 @@ const getDocumentUncached = async (
   docType: string,
   id: string,
 ): Promise<DocumentDto | null> => {
-  const response = await fetchApi(`/v1/docs/${docType}/${id}`);
+  const response = await fetchApi(`/v1/documents/${docType}/${id}`);
 
   if (response.status === 404) {
     return null;
@@ -89,7 +89,7 @@ const getDocumentDetailsUncached = async (
   docType: string,
   id: string,
 ): Promise<DocumentDetailsDto | null> => {
-  const response = await fetchApi(`/v1/docs/${docType}/${id}/details`);
+  const response = await fetchApi(`/v1/documents/${docType}/${id}/details`);
 
   if (response.status === 404) {
     return null;

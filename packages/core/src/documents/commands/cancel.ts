@@ -13,7 +13,7 @@ import {
   insertDocumentEvent,
   lockDocument,
   loadDocumentWithOperationId,
-  resolveModule,
+  resolveModuleForDocument,
 } from "../internal/helpers";
 import {
   enforceDocumentPolicy,
@@ -36,7 +36,6 @@ export function createCancelHandler(context: DocumentsServiceContext) {
     idempotencyKey?: string;
     requestContext?: DocumentRequestContext;
   }): Promise<DocumentWithOperationId> {
-    const module = resolveModule(registry, input.docType);
     const idempotencyKey =
       input.idempotencyKey ??
       buildDefaultActionIdempotencyKey("documents.cancel", {
@@ -81,6 +80,7 @@ export function createCancelHandler(context: DocumentsServiceContext) {
           ),
         handler: async () => {
           const document = await lockDocument(tx, input.documentId, input.docType);
+          const module = resolveModuleForDocument(registry, document);
 
           if (
             !isDocumentActionAllowed({

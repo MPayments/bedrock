@@ -138,11 +138,11 @@ export const documents = pgTable(
     ),
     check(
       "documents_posting_requires_submission_chk",
-      sql`${t.postingStatus} in ('not_required', 'unposted', 'failed') or ${t.submissionStatus} = 'submitted'`,
+      sql`${t.postingStatus} in ('not_required', 'unposted') or ${t.submissionStatus} = 'submitted'`,
     ),
     check(
       "documents_posting_requires_approval_chk",
-      sql`${t.postingStatus} in ('not_required', 'unposted', 'failed') or ${t.approvalStatus} in ('not_required', 'approved')`,
+      sql`${t.postingStatus} in ('not_required', 'unposted') or ${t.approvalStatus} in ('not_required', 'approved')`,
     ),
     check(
       "documents_cancelled_posting_status_chk",

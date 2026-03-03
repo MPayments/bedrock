@@ -16,7 +16,7 @@ import {
   lockDocument,
   resolveDocumentAccountingSourceId,
   loadDocumentWithOperationId,
-  resolveModule,
+  resolveModuleForDocument,
 } from "../internal/helpers";
 import {
   enforceDocumentPolicy,
@@ -39,8 +39,6 @@ export function createPostHandler(context: DocumentsServiceContext) {
     idempotencyKey?: string;
     requestContext?: DocumentRequestContext;
   }): Promise<DocumentWithOperationId> {
-    const module = resolveModule(registry, input.docType);
-
     try {
       return await db.transaction(async (tx) => {
       const moduleContext = createModuleContext({
@@ -50,6 +48,7 @@ export function createPostHandler(context: DocumentsServiceContext) {
         log,
       });
       const document = await lockDocument(tx, input.documentId, input.docType);
+      const module = resolveModuleForDocument(registry, document);
       assertDocumentIsActive(document, "posted");
       const postIdempotencyKey =
         input.idempotencyKey ?? module.buildPostIdempotencyKey(document);

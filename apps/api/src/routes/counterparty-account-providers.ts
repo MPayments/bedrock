@@ -15,6 +15,7 @@ import {
 } from "@bedrock/core/counterparty-accounts/contracts";
 import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 
+import { buildOptionsResponse } from "../common/options";
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
@@ -228,17 +229,15 @@ export function counterpartyAccountProvidersRoutes(ctx: AppContext) {
       });
 
       return c.json(
-        {
-          data: result.data.map((provider) =>
-            CounterpartyAccountProviderOptionSchema.parse({
-              id: provider.id,
-              name: provider.name,
-              type: provider.type,
-              country: provider.country,
-              label: `${provider.name} - ${provider.country}`,
-            }),
-          ),
-        },
+        buildOptionsResponse(result, (provider) =>
+          CounterpartyAccountProviderOptionSchema.parse({
+            id: provider.id,
+            name: provider.name,
+            type: provider.type,
+            country: provider.country,
+            label: `${provider.name} - ${provider.country}`,
+          }),
+        ),
         200,
       );
     })

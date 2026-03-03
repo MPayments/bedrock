@@ -24,7 +24,7 @@ export const DocumentSchema = z.object({
     z.enum(["edit", "submit", "approve", "reject", "post", "cancel", "repost"]),
   ),
   createIdempotencyKey: z.string().nullable(),
-  amountMinor: z.string().nullable(),
+  amount: z.string().nullable(),
   currency: z.string().nullable(),
   memo: z.string().nullable(),
   counterpartyId: z.string().nullable(),

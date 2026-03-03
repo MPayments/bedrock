@@ -7,6 +7,12 @@ export {
 } from "./documents";
 
 export {
+  IFRS_DOCUMENT_METADATA,
+  IFRS_DOCUMENT_TYPE_ORDER,
+  type IfrsDocumentType,
+} from "./metadata";
+
+export {
   AccrualAdjustmentInputSchema,
   AccrualAdjustmentSchema,
   CapitalFundingInputSchema,

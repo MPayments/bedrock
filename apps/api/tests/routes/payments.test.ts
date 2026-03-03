@@ -104,4 +104,41 @@ describe("paymentsRoutes validation errors", () => {
     });
     expect(paymentsService.submit).not.toHaveBeenCalled();
   });
+
+  it("returns normalized amount fields for list responses", async () => {
+    const { app, paymentsService } = createTestApp();
+    paymentsService.list.mockResolvedValue({
+      data: [
+        {
+          id: "payment-1",
+          amountMinor: "1250",
+          currency: "USD",
+        },
+      ],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    });
+
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      data: [
+        {
+          id: "payment-1",
+          amount: "12.5",
+          currency: "USD",
+        },
+      ],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    });
+    expect(paymentsService.list).toHaveBeenCalledWith({
+      kind: "intent",
+      limit: 50,
+      offset: 0,
+    });
+  });
 });

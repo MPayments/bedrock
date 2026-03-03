@@ -8,16 +8,18 @@ import {
   buildDocumentWithOperationId,
   buildDocumentSearchCondition,
   inArraySafe,
+  resolveDocumentAllowedActionsForActor,
   resolveDocumentsSort,
 } from "../internal/helpers";
 import type { DocumentWithOperationId } from "../types";
 import { ListDocumentsQuerySchema, type ListDocumentsQuery } from "../validation";
 
 export function createListDocumentsQuery(context: DocumentsServiceContext) {
-  const { db, registry } = context;
+  const { db, log, policy, registry } = context;
 
   return async function listDocuments(
     input?: ListDocumentsQuery,
+    actorUserId?: string,
   ): Promise<PaginatedList<DocumentWithOperationId>> {
     const query = ListDocumentsQuerySchema.parse(input ?? {});
     const conditions = [
@@ -64,14 +66,38 @@ export function createListDocumentsQuery(context: DocumentsServiceContext) {
       .from(schema.documents)
       .where(where);
 
+    const data = actorUserId
+      ? await Promise.all(
+          rows.map(async (row) => {
+            const base = buildDocumentWithOperationId({
+              registry,
+              document: row.document,
+              postingOperationId: row.postingOperationId ?? null,
+            });
+
+            return {
+              ...base,
+              allowedActions: await resolveDocumentAllowedActionsForActor({
+                registry,
+                policy,
+                db,
+                log,
+                actorUserId,
+                document: row.document,
+              }),
+            };
+          }),
+        )
+      : rows.map((row) =>
+          buildDocumentWithOperationId({
+            registry,
+            document: row.document,
+            postingOperationId: row.postingOperationId ?? null,
+          }),
+        );
+
     return {
-      data: rows.map((row) =>
-        buildDocumentWithOperationId({
-          registry,
-          document: row.document,
-          postingOperationId: row.postingOperationId ?? null,
-        }),
-      ),
+      data,
       total: totalRow?.value ?? 0,
       limit: query.limit,
       offset: query.offset,

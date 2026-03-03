@@ -16,6 +16,7 @@ import {
   CounterpartyOptionsResponseSchema,
 } from "@bedrock/core/counterparties/contracts";
 
+import { buildOptionsResponse } from "../common/options";
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
@@ -228,15 +229,13 @@ export function counterpartiesRoutes(ctx: AppContext) {
       });
 
       return c.json(
-        {
-          data: result.data.map((counterparty) =>
-            CounterpartyOptionSchema.parse({
-              id: counterparty.id,
-              shortName: counterparty.shortName,
-              label: counterparty.shortName,
-            }),
-          ),
-        },
+        buildOptionsResponse(result, (counterparty) =>
+          CounterpartyOptionSchema.parse({
+            id: counterparty.id,
+            shortName: counterparty.shortName,
+            label: counterparty.shortName,
+          }),
+        ),
         200,
       );
     })

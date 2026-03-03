@@ -130,10 +130,10 @@ export function DocumentDetailsView({
                 {document.currency}
               </div>
             ) : null}
-            {document.amountMinor ? (
+            {document.amount ? (
               <div>
                 <span className="text-muted-foreground">Сумма:</span>{" "}
-                {formatAmountByCurrency(document.amountMinor, document.currency)}{" "}
+                {formatAmountByCurrency(document.amount, document.currency)}{" "}
                 {document.currency ?? ""}
               </div>
             ) : null}
@@ -233,7 +233,7 @@ export function DocumentDetailsView({
                     <div className="font-medium">{String(item.componentId ?? "компонент")}</div>
                     <div className="text-muted-foreground">
                       {String(item.kind ?? "")} / {String(item.currency ?? "")} /{" "}
-                      {String(item.amountMinor ?? "")}
+                      {String(item.amount ?? "")}
                     </div>
                   </div>
                 );

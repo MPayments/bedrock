@@ -19,6 +19,12 @@ import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
+import {
+  mapCounterpartyBalanceDto,
+  mapFinancialResultRowDto,
+  mapFinancialSummaryDto,
+  mapOperationDetailsDto,
+} from "./accounting/mappers";
 
 const OperationParamSchema = z.object({
   operationId: z.uuid(),
@@ -75,7 +81,7 @@ const LedgerOperationPostingSchema = z.object({
   postingCode: z.string(),
   currency: z.string(),
   currencyPrecision: z.number().int(),
-  amountMinor: z.string(),
+  amount: z.string(),
   memo: z.string().nullable(),
   context: z.record(z.string(), z.string()).nullable(),
   createdAt: z.iso.datetime(),
@@ -301,7 +307,7 @@ export function accountingRoutes(ctx: AppContext) {
               z.object({
                 counterpartyAccountId: z.string().uuid(),
                 currency: z.string(),
-                balanceMinor: z.string(),
+                balance: z.string(),
                 precision: z.number().int(),
               }),
             ),
@@ -432,40 +438,7 @@ export function accountingRoutes(ctx: AppContext) {
         return c.json({ error: `Operation not found: ${operationId}` }, 404);
       }
 
-      return c.json(
-        {
-          operation: {
-            ...details.operation,
-            postingDate: details.operation.postingDate.toISOString(),
-            postedAt: details.operation.postedAt?.toISOString() ?? null,
-            lastOutboxErrorAt:
-              details.operation.lastOutboxErrorAt?.toISOString() ?? null,
-            createdAt: details.operation.createdAt.toISOString(),
-            bookLabels: Object.fromEntries(
-              details.postings.map((posting) => [
-                posting.bookId,
-                posting.bookName ?? posting.bookId,
-              ]),
-            ),
-          },
-          postings: details.postings.map((posting) => ({
-            ...posting,
-            amountMinor: posting.amountMinor.toString(),
-            createdAt: posting.createdAt.toISOString(),
-          })),
-          tbPlans: details.tbPlans.map((plan) => ({
-            ...plan,
-            transferId: plan.transferId.toString(),
-            debitTbAccountId: plan.debitTbAccountId?.toString() ?? null,
-            creditTbAccountId: plan.creditTbAccountId?.toString() ?? null,
-            amount: plan.amount.toString(),
-            pendingId: plan.pendingId?.toString() ?? null,
-            createdAt: plan.createdAt.toISOString(),
-          })),
-          dimensionLabels: details.dimensionLabels,
-        },
-        200,
-      );
+      return c.json(mapOperationDetailsDto(details), 200);
     })
     .openapi(listFinancialResultsByCounterpartyRoute, async (c) => {
       try {
@@ -478,18 +451,10 @@ export function accountingRoutes(ctx: AppContext) {
         return c.json(
           {
             ...result,
-            data: result.data.map((row) => ({
-              ...row,
-              revenueMinor: row.revenueMinor.toString(),
-              expenseMinor: row.expenseMinor.toString(),
-              netMinor: row.netMinor.toString(),
-            })),
-            summaryByCurrency: result.summaryByCurrency.map((row) => ({
-              ...row,
-              revenueMinor: row.revenueMinor.toString(),
-              expenseMinor: row.expenseMinor.toString(),
-              netMinor: row.netMinor.toString(),
-            })),
+            data: result.data.map(mapFinancialResultRowDto),
+            summaryByCurrency: result.summaryByCurrency.map(
+              mapFinancialSummaryDto,
+            ),
           },
           200,
         );
@@ -514,12 +479,7 @@ export function accountingRoutes(ctx: AppContext) {
         );
 
       return c.json(
-        balances.map((b) => ({
-          counterpartyAccountId: b.counterpartyAccountId,
-          currency: b.currency,
-          balanceMinor: b.balanceMinor.toString(),
-          precision: b.precision,
-        })),
+        balances.map(mapCounterpartyBalanceDto),
         200,
       );
     })
@@ -534,25 +494,12 @@ export function accountingRoutes(ctx: AppContext) {
         return c.json(
           {
             ...result,
-            data: result.data.map((row) => ({
-              ...row,
-              revenueMinor: row.revenueMinor.toString(),
-              expenseMinor: row.expenseMinor.toString(),
-              netMinor: row.netMinor.toString(),
-            })),
-            summaryByCurrency: result.summaryByCurrency.map((row) => ({
-              ...row,
-              revenueMinor: row.revenueMinor.toString(),
-              expenseMinor: row.expenseMinor.toString(),
-              netMinor: row.netMinor.toString(),
-            })),
+            data: result.data.map(mapFinancialResultRowDto),
+            summaryByCurrency: result.summaryByCurrency.map(
+              mapFinancialSummaryDto,
+            ),
             unattributedByCurrency: result.unattributedByCurrency.map(
-              (row) => ({
-                ...row,
-                revenueMinor: row.revenueMinor.toString(),
-                expenseMinor: row.expenseMinor.toString(),
-                netMinor: row.netMinor.toString(),
-              }),
+              mapFinancialSummaryDto,
             ),
           },
           200,

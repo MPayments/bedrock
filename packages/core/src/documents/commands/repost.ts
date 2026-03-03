@@ -13,7 +13,7 @@ import {
   insertDocumentEvent,
   loadDocumentWithOperationId,
   lockDocument,
-  resolveModule,
+  resolveModuleForDocument,
 } from "../internal/helpers";
 import {
   assertCounterpartyPeriodsOpen,
@@ -32,7 +32,6 @@ export function createRepostHandler(context: DocumentsServiceContext) {
     idempotencyKey?: string;
     requestContext?: DocumentRequestContext;
   }): Promise<DocumentWithOperationId> {
-    const module = resolveModule(registry, input.docType);
     const idempotencyKey =
       input.idempotencyKey ??
       buildDefaultActionIdempotencyKey("documents.repost", {
@@ -79,6 +78,7 @@ export function createRepostHandler(context: DocumentsServiceContext) {
           ),
         handler: async () => {
           const document = await lockDocument(tx, input.documentId, input.docType);
+          const module = resolveModuleForDocument(registry, document);
           if (
             !isDocumentActionAllowed({
               action: "repost",

@@ -4,8 +4,11 @@ import { schema } from "@bedrock/core/documents/schema";
 
 import { DocumentNotFoundError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";
-import { createModuleContext, resolveModuleOrNull } from "../internal/helpers";
-import { resolveDocumentAllowedActions } from "../state-machine";
+import {
+  createModuleContext,
+  resolveDocumentAllowedActionsForActor,
+  resolveModuleForDocument,
+} from "../internal/helpers";
 import type { DocumentDetails } from "../types";
 
 export function createGetDocumentDetailsQuery(
@@ -33,7 +36,19 @@ export function createGetDocumentDetailsQuery(
       throw new DocumentNotFoundError(documentId);
     }
 
-    const module = resolveModuleOrNull(registry, docType);
+    let module = null;
+    try {
+      module = resolveModuleForDocument(registry, document);
+    } catch (error) {
+      log.warn("documents get details: module resolution failed", {
+        docType,
+        documentId,
+        moduleId: document.moduleId,
+        moduleVersion: document.moduleVersion,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     const moduleContext = module
       ? createModuleContext({
           db,
@@ -134,15 +149,14 @@ export function createGetDocumentDetailsQuery(
     const postingOperationId =
       documentOperations.find((operation) => operation.kind === "post")
         ?.operationId ?? null;
-    const allowedActions = module
-      ? resolveDocumentAllowedActions({
-          document,
-          module: {
-            postingRequired: module.postingRequired,
-            allowDirectPostFromDraft: module.allowDirectPostFromDraft,
-          },
-        })
-      : [];
+    const allowedActions = await resolveDocumentAllowedActionsForActor({
+      registry,
+      policy: context.policy,
+      db,
+      actorUserId,
+      log,
+      document,
+    });
 
     return {
       document,

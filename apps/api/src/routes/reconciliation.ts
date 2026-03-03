@@ -13,11 +13,12 @@ import {
   RunReconciliationInputSchema,
 } from "@bedrock/core/reconciliation";
 
+import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import {
   getRequestContext,
-  requireIdempotencyKey,
+  withRequiredIdempotency,
 } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
 
@@ -106,18 +107,19 @@ export function reconciliationRoutes(ctx: AppContext) {
     requirePermission({ reconciliation: ["ingest"] }),
     async (c) => {
       try {
-        const idem = requireIdempotencyKey(c);
-        if (!idem.ok) return idem.response;
         const body = ReconciliationExternalRecordInputSchema.parse(
           await c.req.json(),
         );
-        const result = await ctx.reconciliationService.ingestExternalRecord({
-          ...body,
-          actorUserId: c.get("user")!.id,
-          idempotencyKey: idem.idempotencyKey,
-          requestContext: getRequestContext(c),
-        });
-        return c.json(toExternalRecordDto(result), 201);
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.reconciliationService.ingestExternalRecord({
+            ...body,
+            actorUserId: c.get("user")!.id,
+            idempotencyKey,
+            requestContext: getRequestContext(c),
+          }),
+        );
+        if (result instanceof Response) return result;
+        return jsonOk(c, toExternalRecordDto(result), 201);
       } catch (error) {
         return handleReconciliationError(c, error);
       }
@@ -126,20 +128,21 @@ export function reconciliationRoutes(ctx: AppContext) {
 
   app.post("/runs", requirePermission({ reconciliation: ["run"] }), async (c) => {
     try {
-      const idem = requireIdempotencyKey(c);
-      if (!idem.ok) return idem.response;
       const body = RunReconciliationInputSchema.pick({
         source: true,
         rulesetChecksum: true,
         inputQuery: true,
       }).parse(await c.req.json());
-      const result = await ctx.reconciliationService.runReconciliation({
-        ...body,
-        actorUserId: c.get("user")!.id,
-        idempotencyKey: idem.idempotencyKey,
-        requestContext: getRequestContext(c),
-      });
-      return c.json(toRunDto(result));
+      const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+        ctx.reconciliationService.runReconciliation({
+          ...body,
+          actorUserId: c.get("user")!.id,
+          idempotencyKey,
+          requestContext: getRequestContext(c),
+        }),
+      );
+      if (result instanceof Response) return result;
+      return jsonOk(c, toRunDto(result));
     } catch (error) {
       return handleReconciliationError(c, error);
     }
@@ -154,7 +157,8 @@ export function reconciliationRoutes(ctx: AppContext) {
           Object.fromEntries(new URL(c.req.url).searchParams.entries()),
         );
         const result = await ctx.reconciliationService.listExceptions(query);
-        return c.json(
+        return jsonOk(
+          c,
           result.map((row) => ({
             exception: {
               ...row.exception,
@@ -178,7 +182,7 @@ export function reconciliationRoutes(ctx: AppContext) {
       try {
         const { matchId } = MatchIdParamSchema.parse(c.req.param());
         const result = await ctx.reconciliationService.explainMatch(matchId);
-        return c.json(result);
+        return jsonOk(c, result);
       } catch (error) {
         return handleReconciliationError(c, error);
       }
@@ -190,21 +194,21 @@ export function reconciliationRoutes(ctx: AppContext) {
     requirePermission({ reconciliation: ["adjust"] }),
     async (c) => {
       try {
-        const idem = requireIdempotencyKey(c);
-        if (!idem.ok) return idem.response;
         const { exceptionId } = ExceptionIdParamSchema.parse(c.req.param());
         const body = AdjustmentDocumentBodySchema.parse(await c.req.json());
-        const result =
-          await ctx.reconciliationService.createAdjustmentDocument({
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.reconciliationService.createAdjustmentDocument({
             exceptionId,
             docType: body.docType,
             payload: body.payload,
             createIdempotencyKey: body.createIdempotencyKey,
             actorUserId: c.get("user")!.id,
-            idempotencyKey: idem.idempotencyKey,
+            idempotencyKey,
             requestContext: getRequestContext(c),
-          });
-        return c.json(result);
+          }),
+        );
+        if (result instanceof Response) return result;
+        return jsonOk(c, result);
       } catch (error) {
         return handleReconciliationError(c, error);
       }

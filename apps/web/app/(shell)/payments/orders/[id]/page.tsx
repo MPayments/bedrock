@@ -53,9 +53,9 @@ export default async function PaymentIntentDetailsPage({ params }: PageProps) {
             </div>
             <div>
               <span className="text-muted-foreground">Сумма:</span>{" "}
-              {details.document.amountMinor
+              {details.document.amount
                 ? formatAmountByCurrency(
-                    details.document.amountMinor,
+                    details.document.amount,
                     details.document.currency,
                   )
                 : "—"}{" "}

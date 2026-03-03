@@ -11,7 +11,7 @@ import {
   counterpartyGroupsRoutes,
   customersRoutes,
   currenciesRoutes,
-  docsRoutes,
+  documentsRoutes,
   fxRatesRoutes,
   orchestrationRoutes,
   paymentsRoutes,
@@ -90,13 +90,13 @@ export const currenciesComponent = {
   },
 } as const satisfies ApiApplicationComponent<"/currencies">;
 
-export const docsComponent = {
+export const documentsComponent = {
   id: "documents",
-  routePath: "/docs",
+  routePath: "/documents",
   registerRoutes(ctx: AppContext) {
-    return docsRoutes(ctx);
+    return documentsRoutes(ctx);
   },
-} as const satisfies ApiApplicationComponent<"/docs">;
+} as const satisfies ApiApplicationComponent<"/documents">;
 
 export const fxRatesComponent = {
   id: "fx-rates",
@@ -156,7 +156,7 @@ export const API_APPLICATION_COMPONENTS = [
   counterpartyGroupsComponent,
   customersComponent,
   currenciesComponent,
-  docsComponent,
+  documentsComponent,
   paymentsComponent,
   connectorsComponent,
   orchestrationComponent,

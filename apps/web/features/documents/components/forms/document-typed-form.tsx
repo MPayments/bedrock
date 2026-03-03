@@ -559,7 +559,7 @@ export function DocumentTypedForm({
                   );
                 }
 
-                if (field.kind === "amountMinor") {
+                if (field.kind === "amount") {
                   return (
                     <Field key={field.name} data-invalid={Boolean(errorMessage)}>
                       <FieldLabel htmlFor={`document-field-${field.name}`}>

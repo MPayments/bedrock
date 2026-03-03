@@ -58,7 +58,7 @@ export default async function DocumentsPage() {
             id: "total",
             label: "Всего документов",
             value: formatCount(total.total),
-            description: "Все типы документов, доступные через /v1/docs.",
+            description: "Все типы документов, доступные через /v1/documents.",
             href: "/documents",
           },
           {

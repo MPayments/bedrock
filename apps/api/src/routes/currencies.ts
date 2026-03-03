@@ -14,6 +14,7 @@ import {
   CurrencyOptionsResponseSchema,
 } from "@bedrock/core/currencies/contracts";
 
+import { buildOptionsResponse } from "../common/options";
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
@@ -217,16 +218,14 @@ export function currenciesRoutes(ctx: AppContext) {
       });
 
       return c.json(
-        {
-          data: result.data.map((currency) =>
-            CurrencyOptionSchema.parse({
-              id: currency.id,
-              code: currency.code,
-              name: currency.name,
-              label: `${currency.code} - ${currency.name}`,
-            }),
-          ),
-        },
+        buildOptionsResponse(result, (currency) =>
+          CurrencyOptionSchema.parse({
+            id: currency.id,
+            code: currency.code,
+            name: currency.name,
+            label: `${currency.code} - ${currency.name}`,
+          }),
+        ),
         200,
       );
     })
