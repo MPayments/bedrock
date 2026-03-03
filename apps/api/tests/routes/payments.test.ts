@@ -21,11 +21,7 @@ function createPaymentsServiceStub() {
     createDraft: vi.fn(),
     get: vi.fn(),
     getDetails: vi.fn(),
-    submit: vi.fn(),
-    approve: vi.fn(),
-    reject: vi.fn(),
-    post: vi.fn(),
-    cancel: vi.fn(),
+    transitionIntent: vi.fn(),
   };
 }
 
@@ -102,7 +98,35 @@ describe("paymentsRoutes validation errors", () => {
     await expect(response.json()).resolves.toEqual({
       error: "Missing Idempotency-Key header",
     });
-    expect(paymentsService.submit).not.toHaveBeenCalled();
+    expect(paymentsService.transitionIntent).not.toHaveBeenCalled();
+  });
+
+  it("maps mutation endpoints to transitionIntent action", async () => {
+    const { app, paymentsService } = createTestApp("idem-1");
+    paymentsService.transitionIntent.mockResolvedValue({
+      ok: true,
+    });
+
+    const documentId = "11111111-1111-4111-8111-111111111111";
+    const actions = ["submit", "approve", "reject", "post", "cancel"] as const;
+
+    for (const action of actions) {
+      const response = await app.request(`http://localhost/${documentId}/${action}`, {
+        method: "POST",
+      });
+
+      expect(response.status).toBe(200);
+      expect(paymentsService.transitionIntent).toHaveBeenCalledWith({
+        action,
+        documentId,
+        actorUserId: "user-1",
+        idempotencyKey: "idem-1",
+        requestContext: expect.objectContaining({
+          requestId: "req-1",
+          correlationId: "corr-1",
+        }),
+      });
+    }
   });
 
   it("returns normalized amount fields for list responses", async () => {

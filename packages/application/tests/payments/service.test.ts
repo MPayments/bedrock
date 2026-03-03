@@ -8,11 +8,7 @@ function createDeps() {
     list: vi.fn(async () => []),
     get: vi.fn(),
     getDetails: vi.fn(),
-    submit: vi.fn(),
-    approve: vi.fn(),
-    reject: vi.fn(),
-    post: vi.fn(),
-    cancel: vi.fn(),
+    transition: vi.fn(),
   } as const;
 
   const connectors = {

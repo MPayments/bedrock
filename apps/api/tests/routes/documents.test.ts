@@ -68,12 +68,7 @@ function createDocumentsServiceStub() {
     updateDraft: vi.fn(),
     get: vi.fn(),
     getDetails: vi.fn(),
-    submit: vi.fn(),
-    approve: vi.fn(),
-    reject: vi.fn(),
-    post: vi.fn(),
-    cancel: vi.fn(),
-    repost: vi.fn(),
+    transition: vi.fn(),
   };
 }
 
@@ -119,30 +114,17 @@ describe("documentsRoutes mutation actions", () => {
       });
     }
 
-    expect(documentsService.submit).not.toHaveBeenCalled();
-    expect(documentsService.approve).not.toHaveBeenCalled();
-    expect(documentsService.reject).not.toHaveBeenCalled();
-    expect(documentsService.post).not.toHaveBeenCalled();
-    expect(documentsService.cancel).not.toHaveBeenCalled();
-    expect(documentsService.repost).not.toHaveBeenCalled();
+    expect(documentsService.transition).not.toHaveBeenCalled();
   });
 
   it("routes each mutation action to corresponding documents service call", async () => {
     const { app, documentsService } = createTestApp("idem-1");
     const documentId = "33333333-3333-4333-8333-333333333333";
     const expectedResult = createDocumentWithOperation();
-    const actionToMethod = {
-      submit: "submit",
-      approve: "approve",
-      reject: "reject",
-      post: "post",
-      cancel: "cancel",
-      repost: "repost",
-    } as const;
+    const actions = ["submit", "approve", "reject", "post", "cancel", "repost"] as const;
 
-    for (const [action, method] of Object.entries(actionToMethod)) {
-      const serviceMock = documentsService[method];
-      serviceMock.mockResolvedValueOnce(expectedResult);
+    for (const action of actions) {
+      documentsService.transition.mockResolvedValueOnce(expectedResult);
 
       const response = await app.request(
         `http://localhost/transfer_intra/${documentId}/${action}`,
@@ -150,7 +132,8 @@ describe("documentsRoutes mutation actions", () => {
       );
 
       expect(response.status).toBe(200);
-      expect(serviceMock).toHaveBeenCalledWith({
+      expect(documentsService.transition).toHaveBeenCalledWith({
+        action,
         docType: "transfer_intra",
         documentId,
         actorUserId: "user-1",

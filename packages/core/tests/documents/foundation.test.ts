@@ -230,12 +230,7 @@ describe("documents foundations", () => {
     expect(service).toEqual({
       createDraft: expect.any(Function),
       updateDraft: expect.any(Function),
-      submit: expect.any(Function),
-      approve: expect.any(Function),
-      reject: expect.any(Function),
-      post: expect.any(Function),
-      repost: expect.any(Function),
-      cancel: expect.any(Function),
+      transition: expect.any(Function),
       list: expect.any(Function),
       get: expect.any(Function),
       getDetails: expect.any(Function),

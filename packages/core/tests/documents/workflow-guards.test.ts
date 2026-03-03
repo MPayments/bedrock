@@ -3,10 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { InvalidStateError } from "@bedrock/kernel/errors";
 import { schema, type Document } from "@bedrock/core/documents/schema";
 
-import { createApproveHandler } from "../../src/documents/commands/approve";
-import { createPostHandler } from "../../src/documents/commands/post";
-import { createRejectHandler } from "../../src/documents/commands/reject";
-import { createSubmitHandler } from "../../src/documents/commands/submit";
+import { createTransitionHandler } from "../../src/documents/commands/transition";
 
 function makeDocument(overrides: Partial<Document> = {}): Document {
   return {
@@ -130,13 +127,13 @@ describe("documents workflow lifecycle guards", () => {
   it.each([
     {
       name: "submit",
-      build: createSubmitHandler,
+      action: "submit",
       document: makeDocument({ lifecycleStatus: "cancelled", submissionStatus: "draft" }),
       moduleMethod: "canSubmit",
     },
     {
       name: "approve",
-      build: createApproveHandler,
+      action: "approve",
       document: makeDocument({
         lifecycleStatus: "cancelled",
         submissionStatus: "submitted",
@@ -146,7 +143,7 @@ describe("documents workflow lifecycle guards", () => {
     },
     {
       name: "reject",
-      build: createRejectHandler,
+      action: "reject",
       document: makeDocument({
         lifecycleStatus: "cancelled",
         submissionStatus: "submitted",
@@ -156,7 +153,7 @@ describe("documents workflow lifecycle guards", () => {
     },
     {
       name: "post",
-      build: createPostHandler,
+      action: "post",
       document: makeDocument({
         lifecycleStatus: "cancelled",
         submissionStatus: "submitted",
@@ -165,13 +162,14 @@ describe("documents workflow lifecycle guards", () => {
       }),
       moduleMethod: "canPost",
     },
-  ])("prevents $name on cancelled documents", async ({ build, document, moduleMethod }) => {
+  ])("prevents $name on cancelled documents", async ({ action, document, moduleMethod }) => {
     const module = createModuleStub();
     const { context, tx, ledger } = createContext(document, module);
-    const handler = build(context as any);
+    const transition = createTransitionHandler(context as any);
 
     await expect(
-      handler({
+      transition({
+        action,
         docType: document.docType,
         documentId: document.id,
         actorUserId: "checker-1",
@@ -194,10 +192,11 @@ describe("documents workflow lifecycle guards", () => {
       allowDirectPostFromDraft: true,
     };
     const { context, tx } = createContext(document, module);
-    const handler = createSubmitHandler(context as any);
+    const transition = createTransitionHandler(context as any);
 
     await expect(
-      handler({
+      transition({
+        action: "submit",
         docType: document.docType,
         documentId: document.id,
         actorUserId: "maker-1",

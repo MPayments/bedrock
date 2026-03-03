@@ -3,28 +3,27 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   CreateDocumentInputSchema,
   type DocumentAction,
-  type DocumentDetails as DocumentDetailsResult,
-  type DocumentWithOperationId,
-  ListDocumentsQuerySchema,
+  type DocumentTransitionAction,
   DocumentSystemOnlyTypeError,
+  ListDocumentsQuerySchema,
   UpdateDocumentInputSchema,
   isSystemOnlyDocumentType,
 } from "@bedrock/core/documents";
 
 import auth from "../auth";
-import { minorToAmountString, normalizeMoneyFields } from "../common/amount";
 import { handleRouteError } from "../common/errors";
-import { toJsonSafe } from "../common/json";
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { withEtag } from "../middleware/etag";
-import {
-  getRequestContext,
-  withRequiredIdempotency,
-} from "../middleware/idempotency";
+import { getRequestContext } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
-
+import {
+  queryObjectFromUrl,
+  toDocumentDetailsDto,
+  toDocumentDto,
+} from "./internal/document-dto";
+import { registerIdempotentMutationRoute } from "./internal/register-idempotent-mutation-route";
 const DOCUMENT_ACTION_TO_PERMISSION = {
   edit: "update",
   submit: "submit",
@@ -48,168 +47,10 @@ const DOCUMENT_ACTION_TO_PUBLIC_ACTION = {
 type DocumentPermissionAction =
   (typeof DOCUMENT_ACTION_TO_PERMISSION)[DocumentAction];
 
-interface DocumentMutationServiceInput {
-  docType: string;
-  documentId: string;
-  actorUserId: string;
-  idempotencyKey: string;
-  requestContext: ReturnType<typeof getRequestContext>;
-}
-
 interface DocumentMutationConfig {
   path: string;
   permission: DocumentPermissionAction;
-  action: "submit" | "approve" | "reject" | "post" | "cancel" | "repost";
-  serviceCall: (input: DocumentMutationServiceInput) => Promise<DocumentWithOperationId>;
-}
-
-function toDocumentDto(input: DocumentWithOperationId) {
-  const { document } = input;
-  return {
-    id: document.id,
-    docType: document.docType,
-    docNo: document.docNo,
-    payloadVersion: document.payloadVersion,
-    payload: toJsonSafe(normalizeMoneyFields(document.payload)),
-    title: document.title,
-    occurredAt: document.occurredAt.toISOString(),
-    submissionStatus: document.submissionStatus,
-    approvalStatus: document.approvalStatus,
-    postingStatus: document.postingStatus,
-    lifecycleStatus: document.lifecycleStatus,
-    createIdempotencyKey: document.createIdempotencyKey,
-    amount:
-      document.amountMinor == null
-        ? null
-        : minorToAmountString(document.amountMinor, {
-            currency: document.currency,
-          }),
-    currency: document.currency,
-    memo: document.memo,
-    counterpartyId: document.counterpartyId,
-    customerId: document.customerId,
-    counterpartyAccountId: document.counterpartyAccountId,
-    searchText: document.searchText,
-    createdBy: document.createdBy,
-    submittedBy: document.submittedBy,
-    submittedAt: document.submittedAt?.toISOString() ?? null,
-    approvedBy: document.approvedBy,
-    approvedAt: document.approvedAt?.toISOString() ?? null,
-    rejectedBy: document.rejectedBy,
-    rejectedAt: document.rejectedAt?.toISOString() ?? null,
-    cancelledBy: document.cancelledBy,
-    cancelledAt: document.cancelledAt?.toISOString() ?? null,
-    postingStartedAt: document.postingStartedAt?.toISOString() ?? null,
-    postedAt: document.postedAt?.toISOString() ?? null,
-    postingError: document.postingError,
-    createdAt: document.createdAt.toISOString(),
-    updatedAt: document.updatedAt.toISOString(),
-    version: document.version,
-    postingOperationId: input.postingOperationId,
-    allowedActions: input.allowedActions,
-  };
-}
-
-function queryObjectFromUrl(requestUrl: string) {
-  const params = new URL(requestUrl).searchParams;
-  const query: Record<string, string | string[]> = {};
-
-  for (const key of new Set(params.keys())) {
-    const values = params.getAll(key);
-    query[key] = values.length > 1 ? values : (values[0] ?? "");
-  }
-
-  return query;
-}
-
-function toDocumentDetailsDto(details: DocumentDetailsResult) {
-  return toJsonSafe(
-    normalizeMoneyFields({
-      document: toDocumentDto({
-        document: details.document,
-        postingOperationId: details.postingOperationId,
-        allowedActions: details.allowedActions,
-      }),
-      links: details.links.map((link) => ({
-        id: link.id,
-        fromDocumentId: link.fromDocumentId,
-        toDocumentId: link.toDocumentId,
-        linkType: link.linkType,
-        role: link.role,
-        createdAt: link.createdAt.toISOString(),
-      })),
-      parent: details.parent
-        ? toDocumentDto({
-            document: details.parent,
-            postingOperationId: null,
-            allowedActions: [],
-          })
-        : null,
-      children: details.children.map((document) =>
-        toDocumentDto({
-          document,
-          postingOperationId: null,
-          allowedActions: [],
-        }),
-      ),
-      dependsOn: details.dependsOn.map((document) =>
-        toDocumentDto({
-          document,
-          postingOperationId: null,
-          allowedActions: [],
-        }),
-      ),
-      compensates: details.compensates.map((document) =>
-        toDocumentDto({
-          document,
-          postingOperationId: null,
-          allowedActions: [],
-        }),
-      ),
-      documentOperations: details.documentOperations.map((operation) => ({
-        id: operation.id,
-        documentId: operation.documentId,
-        operationId: operation.operationId,
-        kind: operation.kind,
-        createdAt: operation.createdAt.toISOString(),
-      })),
-      events: details.events.map((event) => ({
-        id: event.id,
-        documentId: event.documentId,
-        eventType: event.eventType,
-        actorId: event.actorId,
-        requestId: event.requestId,
-        correlationId: event.correlationId,
-        traceId: event.traceId,
-        causationId: event.causationId,
-        reasonCode: event.reasonCode,
-        reasonMeta: event.reasonMeta,
-        before: event.before,
-        after: event.after,
-        createdAt: event.createdAt.toISOString(),
-      })),
-      snapshot: details.snapshot
-        ? {
-            id: details.snapshot.id,
-            documentId: details.snapshot.documentId,
-            payload: details.snapshot.payload,
-            payloadVersion: details.snapshot.payloadVersion,
-            moduleId: details.snapshot.moduleId,
-            moduleVersion: details.snapshot.moduleVersion,
-            packChecksum: details.snapshot.packChecksum,
-            postingPlanChecksum: details.snapshot.postingPlanChecksum,
-            journalIntentChecksum: details.snapshot.journalIntentChecksum,
-            postingPlan: details.snapshot.postingPlan,
-            journalIntent: details.snapshot.journalIntent,
-            resolvedTemplates: details.snapshot.resolvedTemplates,
-            createdAt: details.snapshot.createdAt.toISOString(),
-          }
-        : null,
-      ledgerOperations: details.ledgerOperations,
-      computed: details.computed,
-      extra: details.extra,
-    }),
-  );
+  action: DocumentTransitionAction;
 }
 
 export function documentsRoutes(ctx: AppContext) {
@@ -235,6 +76,7 @@ export function documentsRoutes(ctx: AppContext) {
     ) {
       return;
     }
+
     if (isSystemOnlyDocumentType(input.docType)) {
       throw new DocumentSystemOnlyTypeError(input.docType);
     }
@@ -291,57 +133,72 @@ export function documentsRoutes(ctx: AppContext) {
     });
   }
 
+  function withPublicAllowedActions<
+    TResource extends {
+      document: { docType: string };
+      allowedActions: DocumentAction[];
+    },
+  >(input: {
+    resource: TResource;
+    role: string | null | undefined;
+    actionPermissions: Map<DocumentPermissionAction, boolean>;
+  }): TResource {
+    return {
+      ...input.resource,
+      allowedActions: filterAllowedDocumentActions({
+        docType: input.resource.document.docType,
+        role: input.role,
+        allowedActions: input.resource.allowedActions,
+        actionPermissions: input.actionPermissions,
+      }),
+    };
+  }
+
   function registerDocumentMutationAction(config: DocumentMutationConfig) {
-    app.post(
-      config.path,
-      requirePermission({ documents: [config.permission] }),
-      async (c) => {
-        try {
-          const docType = c.req.param("docType")!;
-          const id = c.req.param("id")!;
-          assertPublicMutationAllowed({
-            docType,
-            action: config.action,
-            role: c.get("user")?.role,
-          });
-          const result = await withRequiredIdempotency(c, (idempotencyKey) =>
-            config.serviceCall({
-              docType,
-              documentId: id,
-              actorUserId: c.get("user")!.id,
-              idempotencyKey,
-              requestContext: getRequestContext(c),
-            }),
-          );
-          if (result instanceof Response) return result;
-          return jsonOk(c, toDocumentDto(result));
-        } catch (error) {
-          return handleRouteError(c, error);
-        }
+    registerIdempotentMutationRoute({
+      app,
+      path: config.path,
+      permission: { documents: [config.permission] },
+      handle: async ({ c, actorUserId, idempotencyKey, requestContext }) => {
+        const docType = c.req.param("docType")!;
+        const id = c.req.param("id")!;
+        assertPublicMutationAllowed({
+          docType,
+          action: config.action,
+          role: c.get("user")?.role,
+        });
+
+        return ctx.documentsService.transition({
+          action: config.action,
+          docType,
+          documentId: id,
+          actorUserId,
+          idempotencyKey,
+          requestContext,
+        });
       },
-    );
+      respond: (c, result) => jsonOk(c, toDocumentDto(result)),
+      handleError: handleRouteError,
+    });
   }
 
   app.get("/", requirePermission({ documents: ["list"] }), async (c) => {
     try {
       const user = c.get("user")!;
-      const query = ListDocumentsQuerySchema.parse(
-        queryObjectFromUrl(c.req.url),
-      );
+      const query = ListDocumentsQuerySchema.parse(queryObjectFromUrl(c.req.url));
       const actionPermissions = await resolveDocumentActionPermissions(user.id);
       const result = await ctx.documentsService.list(query, user.id);
+
       return c.json({
         ...result,
         data: result.data.map((item) =>
-          toDocumentDto({
-            ...item,
-            allowedActions: filterAllowedDocumentActions({
-              docType: item.document.docType,
+          toDocumentDto(
+            withPublicAllowedActions({
+              resource: item,
               role: user.role,
-              allowedActions: item.allowedActions,
               actionPermissions,
             }),
-          }),
+          ),
         ),
       });
     } catch (error) {
@@ -375,35 +232,33 @@ export function documentsRoutes(ctx: AppContext) {
     },
   );
 
-  app.patch(
-    "/:docType/:id",
-    requirePermission({ documents: ["update"] }),
-    async (c) => {
-      try {
-        const { docType, id } = c.req.param();
-        assertPublicMutationAllowed({
-          docType,
-          action: "update",
-          role: c.get("user")?.role,
-        });
-        const body = UpdateDocumentInputSchema.parse(await c.req.json());
-        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
-          ctx.documentsService.updateDraft({
-            docType,
-            documentId: id,
-            payload: body.input,
-            actorUserId: c.get("user")!.id,
-            idempotencyKey,
-            requestContext: getRequestContext(c),
-          }),
-        );
-        if (result instanceof Response) return result;
-        return jsonOk(c, toDocumentDto(result));
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
+  registerIdempotentMutationRoute({
+    app,
+    method: "patch",
+    path: "/:docType/:id",
+    permission: { documents: ["update"] },
+    parseBody: async (c) => UpdateDocumentInputSchema.parse(await c.req.json()),
+    handle: async ({ c, body, actorUserId, idempotencyKey, requestContext }) => {
+      const docType = c.req.param("docType")!;
+      const id = c.req.param("id")!;
+      assertPublicMutationAllowed({
+        docType,
+        action: "update",
+        role: c.get("user")?.role,
+      });
+
+      return ctx.documentsService.updateDraft({
+        docType,
+        documentId: id,
+        payload: body.input,
+        actorUserId,
+        idempotencyKey,
+        requestContext,
+      });
     },
-  );
+    respond: (c, result) => jsonOk(c, toDocumentDto(result)),
+    handleError: handleRouteError,
+  });
 
   app.get(
     "/:docType/:id",
@@ -413,20 +268,18 @@ export function documentsRoutes(ctx: AppContext) {
       try {
         const user = c.get("user")!;
         const { docType, id } = c.req.param();
-        const actionPermissions = await resolveDocumentActionPermissions(
-          user.id,
-        );
+        const actionPermissions = await resolveDocumentActionPermissions(user.id);
         const result = await ctx.documentsService.get(docType, id, user.id);
-        const filtered = {
-          ...result,
-          allowedActions: filterAllowedDocumentActions({
-            docType: result.document.docType,
-            role: user.role,
-            allowedActions: result.allowedActions,
-            actionPermissions,
-          }),
-        };
-        return c.json(toDocumentDto(filtered));
+
+        return c.json(
+          toDocumentDto(
+            withPublicAllowedActions({
+              resource: result,
+              role: user.role,
+              actionPermissions,
+            }),
+          ),
+        );
       } catch (error) {
         return handleRouteError(c, error);
       }
@@ -444,24 +297,18 @@ export function documentsRoutes(ctx: AppContext) {
       try {
         const user = c.get("user")!;
         const { docType, id } = c.req.param();
-        const details = await ctx.documentsService.getDetails(
-          docType,
-          id,
-          user.id,
+        const details = await ctx.documentsService.getDetails(docType, id, user.id);
+        const actionPermissions = await resolveDocumentActionPermissions(user.id);
+
+        return c.json(
+          toDocumentDetailsDto(
+            withPublicAllowedActions({
+              resource: details,
+              role: user.role,
+              actionPermissions,
+            }),
+          ),
         );
-        const actionPermissions = await resolveDocumentActionPermissions(
-          user.id,
-        );
-        const filtered = {
-          ...details,
-          allowedActions: filterAllowedDocumentActions({
-            docType: details.document.docType,
-            role: user.role,
-            allowedActions: details.allowedActions,
-            actionPermissions,
-          }),
-        };
-        return c.json(toDocumentDetailsDto(filtered));
       } catch (error) {
         return handleRouteError(c, error);
       }
@@ -472,37 +319,31 @@ export function documentsRoutes(ctx: AppContext) {
     path: "/:docType/:id/submit",
     permission: "submit",
     action: "submit",
-    serviceCall: ctx.documentsService.submit,
   });
   registerDocumentMutationAction({
     path: "/:docType/:id/approve",
     permission: "approve",
     action: "approve",
-    serviceCall: ctx.documentsService.approve,
   });
   registerDocumentMutationAction({
     path: "/:docType/:id/reject",
     permission: "reject",
     action: "reject",
-    serviceCall: ctx.documentsService.reject,
   });
   registerDocumentMutationAction({
     path: "/:docType/:id/post",
     permission: "post",
     action: "post",
-    serviceCall: ctx.documentsService.post,
   });
   registerDocumentMutationAction({
     path: "/:docType/:id/cancel",
     permission: "cancel",
     action: "cancel",
-    serviceCall: ctx.documentsService.cancel,
   });
   registerDocumentMutationAction({
     path: "/:docType/:id/repost",
     permission: "post",
     action: "repost",
-    serviceCall: ctx.documentsService.repost,
   });
 
   return app;

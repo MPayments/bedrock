@@ -1,22 +1,19 @@
-import { eq } from "drizzle-orm";
-
 import type { Database } from "@bedrock/kernel/db/types";
 import { noopLogger, type CorrelationContext, type Logger } from "@bedrock/kernel";
 import type { ConnectorsService } from "@bedrock/core/connectors";
-import { AccountBindingNotFoundError } from "@bedrock/core/counterparty-accounts";
 import type {
   DocumentDetails,
+  DocumentTransitionAction,
   DocumentWithOperationId,
   DocumentsService,
 } from "@bedrock/core/documents";
-import { schema as counterpartyAccountsSchema } from "@bedrock/core/counterparty-accounts/schema";
 import type { OrchestrationService } from "@bedrock/core/orchestration";
 
 import {
-  PaymentIntentPayloadSchema,
-  type PaymentIntentPayload,
-  type PaymentResolutionPayload,
-} from "./validation";
+  postPaymentIntentWithConnectorFlow,
+  type PaymentIntentPostResult,
+} from "./internal/post-intent";
+import { type PaymentIntentPayload, type PaymentResolutionPayload } from "./validation";
 
 export interface PaymentsServiceDeps {
   db: Database;
@@ -26,11 +23,7 @@ export interface PaymentsServiceDeps {
     | "list"
     | "get"
     | "getDetails"
-    | "submit"
-    | "approve"
-    | "reject"
-    | "post"
-    | "cancel"
+    | "transition"
   >;
   connectors: Pick<
     ConnectorsService,
@@ -46,25 +39,7 @@ export interface PaymentsServiceDeps {
 
 export type PaymentsService = ReturnType<typeof createPaymentsService>;
 
-async function resolveSourceBookId(db: Database, sourceCounterpartyAccountId: string) {
-  const [binding] = await db
-    .select({
-      bookId: counterpartyAccountsSchema.counterpartyAccountBindings.bookId,
-    })
-    .from(counterpartyAccountsSchema.counterpartyAccountBindings)
-    .where(
-      eq(
-        counterpartyAccountsSchema.counterpartyAccountBindings.counterpartyAccountId,
-        sourceCounterpartyAccountId,
-      ),
-    )
-    .limit(1);
-
-  if (!binding?.bookId) {
-    throw new AccountBindingNotFoundError(sourceCounterpartyAccountId);
-  }
-  return binding.bookId;
-}
+type PaymentIntentTransitionAction = Exclude<DocumentTransitionAction, "repost">;
 
 export function createPaymentsService(deps: PaymentsServiceDeps) {
   const { db, documents, connectors, orchestration } = deps;
@@ -135,13 +110,15 @@ export function createPaymentsService(deps: PaymentsServiceDeps) {
     };
   }
 
-  async function submit(input: {
+  async function forwardIntentTransition(input: {
+    action: PaymentIntentTransitionAction;
     documentId: string;
     actorUserId: string;
     idempotencyKey: string;
     requestContext?: CorrelationContext;
   }) {
-    return documents.submit({
+    return documents.transition({
+      action: input.action,
       docType: "payment_intent",
       documentId: input.documentId,
       actorUserId: input.actorUserId,
@@ -150,127 +127,33 @@ export function createPaymentsService(deps: PaymentsServiceDeps) {
     });
   }
 
-  async function approve(input: {
+  async function transitionIntent(input: {
+    action: PaymentIntentTransitionAction;
     documentId: string;
     actorUserId: string;
     idempotencyKey: string;
     requestContext?: CorrelationContext;
-  }) {
-    return documents.approve({
-      docType: "payment_intent",
-      documentId: input.documentId,
-      actorUserId: input.actorUserId,
-      idempotencyKey: input.idempotencyKey,
-      requestContext: input.requestContext,
-    });
-  }
+  }): Promise<DocumentWithOperationId | PaymentIntentPostResult> {
+    if (input.action !== "post") {
+      return forwardIntentTransition(input);
+    }
 
-  async function reject(input: {
-    documentId: string;
-    actorUserId: string;
-    idempotencyKey: string;
-    requestContext?: CorrelationContext;
-  }) {
-    return documents.reject({
-      docType: "payment_intent",
-      documentId: input.documentId,
-      actorUserId: input.actorUserId,
-      idempotencyKey: input.idempotencyKey,
-      requestContext: input.requestContext,
-    });
-  }
-
-  async function cancel(input: {
-    documentId: string;
-    actorUserId: string;
-    idempotencyKey: string;
-    requestContext?: CorrelationContext;
-  }) {
-    return documents.cancel({
-      docType: "payment_intent",
-      documentId: input.documentId,
-      actorUserId: input.actorUserId,
-      idempotencyKey: input.idempotencyKey,
-      requestContext: input.requestContext,
-    });
-  }
-
-  async function post(input: {
-    documentId: string;
-    actorUserId: string;
-    idempotencyKey: string;
-    requestContext?: CorrelationContext;
-  }): Promise<{
-    document: DocumentWithOperationId["document"];
-    postingOperationId: string | null;
-    connectorIntentId: string;
-    firstAttemptId: string;
-    firstProviderCode: string;
-  }> {
-    const posted = await documents.post({
-      docType: "payment_intent",
-      documentId: input.documentId,
-      actorUserId: input.actorUserId,
-      idempotencyKey: input.idempotencyKey,
-      requestContext: input.requestContext,
+    const posted = await forwardIntentTransition({
+      ...input,
+      action: "post",
     });
 
-    const payload = PaymentIntentPayloadSchema.parse(posted.document.payload);
-    const bookId = await resolveSourceBookId(db, payload.sourceCounterpartyAccountId);
-
-    const connectorIntent = await connectors.createIntentFromDocument({
-      documentId: posted.document.id,
-      docType: posted.document.docType,
-      direction: payload.direction,
-      amountMinor: payload.amountMinor,
-      currency: payload.currency,
-      corridor: payload.corridor,
-      providerConstraint: payload.providerConstraint ?? undefined,
-      metadata: {
-        bookId,
-        sourceCounterpartyAccountId: payload.sourceCounterpartyAccountId,
-        destinationCounterpartyAccountId: payload.destinationCounterpartyAccountId,
+    return postPaymentIntentWithConnectorFlow({
+      deps: {
+        db,
+        connectors,
+        orchestration,
+        log,
       },
-      idempotencyKey: `${input.idempotencyKey}:connector-intent`,
+      posted,
       actorUserId: input.actorUserId,
+      idempotencyKey: input.idempotencyKey,
     });
-
-    const plan = await orchestration.selectNextProviderForIntent({
-      intentId: connectorIntent.id,
-      bookId,
-      riskScore: payload.riskScore,
-      countryFrom: payload.countryFrom,
-      countryTo: payload.countryTo,
-    });
-
-    const firstAttempt = await connectors.enqueueAttempt({
-      intentId: connectorIntent.id,
-      providerCode: plan.selected.providerCode,
-      providerRoute: plan.selected.degradationOrder[0] ?? payload.corridor,
-      requestPayload: {
-        paymentIntentDocumentId: posted.document.id,
-        amountMinor: payload.amountMinor.toString(),
-        currency: payload.currency,
-        direction: payload.direction,
-      },
-      idempotencyKey: `${input.idempotencyKey}:attempt:1`,
-      actorUserId: input.actorUserId,
-    });
-
-    log.info("Payment posted and routed", {
-      documentId: posted.document.id,
-      connectorIntentId: connectorIntent.id,
-      providerCode: plan.selected.providerCode,
-      attemptId: firstAttempt.id,
-    });
-
-    return {
-      document: posted.document,
-      postingOperationId: posted.postingOperationId,
-      connectorIntentId: connectorIntent.id,
-      firstAttemptId: firstAttempt.id,
-      firstProviderCode: plan.selected.providerCode,
-    };
   }
 
   async function createResolution(input: {
@@ -286,14 +169,16 @@ export function createPaymentsService(deps: PaymentsServiceDeps) {
       actorUserId: input.actorUserId,
       requestContext: input.requestContext,
     });
-    await documents.submit({
+    await documents.transition({
+      action: "submit",
       docType: "payment_resolution",
       documentId: draft.document.id,
       actorUserId: input.actorUserId,
       idempotencyKey: `${input.idempotencyKey}:submit`,
       requestContext: input.requestContext,
     });
-    return documents.post({
+    return documents.transition({
+      action: "post",
       docType: "payment_resolution",
       documentId: draft.document.id,
       actorUserId: input.actorUserId,
@@ -307,11 +192,7 @@ export function createPaymentsService(deps: PaymentsServiceDeps) {
     list,
     get,
     getDetails,
-    submit,
-    approve,
-    reject,
-    cancel,
-    post,
+    transitionIntent,
     createResolution,
   };
 }

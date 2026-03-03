@@ -6,11 +6,9 @@ import { handleRouteError } from "../common/errors";
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
-import {
-  getRequestContext,
-  withRequiredIdempotency,
-} from "../middleware/idempotency";
+import { getRequestContext } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
+import { registerIdempotentMutationRoute } from "./internal/register-idempotent-mutation-route";
 
 const CreatePaymentInputSchema = z.object({
   createIdempotencyKey: z.string().trim().min(1).max(255),
@@ -23,42 +21,37 @@ const ListPaymentsQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
-type PaymentActionContext = Parameters<typeof handleRouteError>[0];
+type PaymentMutationAction =
+  | "submit"
+  | "approve"
+  | "reject"
+  | "post"
+  | "cancel";
 
-type PaymentMutationInput = {
-  documentId: string;
-  actorUserId: string;
-  idempotencyKey: string;
-  requestContext: ReturnType<typeof getRequestContext>;
-};
-
-type PaymentMutationMethod = (input: PaymentMutationInput) => Promise<unknown>;
-
+interface PaymentMutationConfig {
+  path: string;
+  permission: PaymentMutationAction;
+  action: PaymentMutationAction;
+}
 export function paymentsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
-  async function runPaymentAction(
-    c: PaymentActionContext,
-    serviceMethod: PaymentMutationMethod,
-  ) {
-    try {
-      const id = c.req.param("id");
-      const result = await withRequiredIdempotency(c, (idempotencyKey) =>
-        serviceMethod({
-          documentId: id,
-          actorUserId: (c.get("user") as { id: string }).id,
+  function registerPaymentMutationAction(config: PaymentMutationConfig) {
+    registerIdempotentMutationRoute({
+      app,
+      path: config.path,
+      permission: { payments: [config.permission] },
+      handle: async ({ c, actorUserId, idempotencyKey, requestContext }) =>
+        ctx.paymentsService.transitionIntent({
+          action: config.action,
+          documentId: c.req.param("id"),
+          actorUserId,
           idempotencyKey,
-          requestContext: getRequestContext(c),
+          requestContext,
         }),
-      );
-      if (result instanceof Response) {
-        return result;
-      }
-
-      return jsonOk(c, result, 200, { normalizeMoney: true });
-    } catch (error) {
-      return handleRouteError(c, error);
-    }
+      jsonOptions: { normalizeMoney: true },
+      handleError: handleRouteError,
+    });
   }
 
   app.get("/", requirePermission({ payments: ["list"] }), async (c) => {
@@ -116,35 +109,31 @@ export function paymentsRoutes(ctx: AppContext) {
     },
   );
 
-  app.post(
-    "/:id/submit",
-    requirePermission({ payments: ["submit"] }),
-    async (c) => runPaymentAction(c, ctx.paymentsService.submit),
-  );
-
-  app.post(
-    "/:id/approve",
-    requirePermission({ payments: ["approve"] }),
-    async (c) => runPaymentAction(c, ctx.paymentsService.approve),
-  );
-
-  app.post(
-    "/:id/reject",
-    requirePermission({ payments: ["reject"] }),
-    async (c) => runPaymentAction(c, ctx.paymentsService.reject),
-  );
-
-  app.post(
-    "/:id/post",
-    requirePermission({ payments: ["post"] }),
-    async (c) => runPaymentAction(c, ctx.paymentsService.post),
-  );
-
-  app.post(
-    "/:id/cancel",
-    requirePermission({ payments: ["cancel"] }),
-    async (c) => runPaymentAction(c, ctx.paymentsService.cancel),
-  );
+  registerPaymentMutationAction({
+    path: "/:id/submit",
+    permission: "submit",
+    action: "submit",
+  });
+  registerPaymentMutationAction({
+    path: "/:id/approve",
+    permission: "approve",
+    action: "approve",
+  });
+  registerPaymentMutationAction({
+    path: "/:id/reject",
+    permission: "reject",
+    action: "reject",
+  });
+  registerPaymentMutationAction({
+    path: "/:id/post",
+    permission: "post",
+    action: "post",
+  });
+  registerPaymentMutationAction({
+    path: "/:id/cancel",
+    permission: "cancel",
+    action: "cancel",
+  });
 
   return app;
 }

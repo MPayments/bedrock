@@ -1,10 +1,5 @@
-import { createApproveHandler } from "./commands/approve";
-import { createCancelHandler } from "./commands/cancel";
 import { createCreateDraftHandler } from "./commands/create-draft";
-import { createPostHandler } from "./commands/post";
-import { createRejectHandler } from "./commands/reject";
-import { createRepostHandler } from "./commands/repost";
-import { createSubmitHandler } from "./commands/submit";
+import { createTransitionHandler } from "./commands/transition";
 import { createUpdateDraftHandler } from "./commands/update-draft";
 import { DocumentAccountingSourceCoverageError } from "./errors";
 import {
@@ -23,12 +18,7 @@ export function createDocumentsService(deps: DocumentsServiceDeps) {
 
   const createDraft = createCreateDraftHandler(context);
   const updateDraft = createUpdateDraftHandler(context);
-  const submit = createSubmitHandler(context);
-  const approve = createApproveHandler(context);
-  const reject = createRejectHandler(context);
-  const post = createPostHandler(context);
-  const repost = createRepostHandler(context);
-  const cancel = createCancelHandler(context);
+  const transition = createTransitionHandler(context);
   const list = createListDocumentsQuery(context);
   const get = createGetDocumentQuery(context);
   const getDetails = createGetDocumentDetailsQuery(context);
@@ -77,12 +67,7 @@ export function createDocumentsService(deps: DocumentsServiceDeps) {
   return {
     createDraft,
     updateDraft,
-    submit,
-    approve,
-    reject,
-    post,
-    repost,
-    cancel,
+    transition,
     list,
     get,
     getDetails,

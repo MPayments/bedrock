@@ -62,6 +62,23 @@ export interface DocumentDraftResult {
 
 export type DocumentRequestContext = CorrelationContext;
 
+export type DocumentTransitionAction =
+  | "submit"
+  | "approve"
+  | "reject"
+  | "post"
+  | "cancel"
+  | "repost";
+
+export interface DocumentTransitionInput {
+  action: DocumentTransitionAction;
+  docType: string;
+  documentId: string;
+  actorUserId: string;
+  idempotencyKey?: string;
+  requestContext?: DocumentRequestContext;
+}
+
 export interface DocumentUpdateDraftResult {
   occurredAt?: Date;
   payload: Record<string, unknown>;

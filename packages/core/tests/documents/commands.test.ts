@@ -4,10 +4,8 @@ import { z } from "zod";
 import { schema, type Document } from "@bedrock/core/documents/schema";
 import { InvalidStateError } from "@bedrock/kernel/errors";
 
-import { createCancelHandler } from "../../src/documents/commands/cancel";
 import { createCreateDraftHandler } from "../../src/documents/commands/create-draft";
-import { createPostHandler } from "../../src/documents/commands/post";
-import { createRepostHandler } from "../../src/documents/commands/repost";
+import { createTransitionHandler } from "../../src/documents/commands/transition";
 import { createUpdateDraftHandler } from "../../src/documents/commands/update-draft";
 import type { DocumentModule } from "../../src/documents/types";
 
@@ -328,9 +326,10 @@ describe("documents command flows", () => {
       document,
       selectRows: [[document]],
     });
-    const handler = createCancelHandler(context as any);
+    const transition = createTransitionHandler(context as any);
 
-    const result = await handler({
+    const result = await transition({
+      action: "cancel",
       docType: document.docType,
       documentId: document.id,
       actorUserId: "maker-1",
@@ -348,9 +347,10 @@ describe("documents command flows", () => {
       document,
       selectRows: [[document], [{ operationId: "op-1" }]],
     });
-    const handler = createRepostHandler(context as any);
+    const transition = createTransitionHandler(context as any);
 
-    const result = await handler({
+    const result = await transition({
+      action: "repost",
       docType: document.docType,
       documentId: document.id,
       actorUserId: "operator-1",
@@ -405,9 +405,10 @@ describe("documents command flows", () => {
     context.ledger.commit.mockResolvedValue({
       operationId: "op-direct-post",
     });
-    const handler = createPostHandler(context as any);
+    const transition = createTransitionHandler(context as any);
 
-    const result = await handler({
+    const result = await transition({
+      action: "post",
       docType: document.docType,
       documentId: document.id,
       actorUserId: "maker-1",
@@ -429,10 +430,11 @@ describe("documents command flows", () => {
       document,
       selectRows: [[document], []],
     });
-    const handler = createRepostHandler(context as any);
+    const transition = createTransitionHandler(context as any);
 
     await expect(
-      handler({
+      transition({
+        action: "repost",
         docType: document.docType,
         documentId: document.id,
         actorUserId: "operator-1",
