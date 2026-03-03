@@ -74,4 +74,24 @@ describe("payments service", () => {
       sortOrder: "desc",
     });
   });
+
+  it("does not invoke connector flow when post transition is rejected", async () => {
+    const deps = createDeps();
+    const service = createPaymentsService(deps);
+    deps.documents.transition.mockRejectedValueOnce(
+      new Error("Document is not ready for posting"),
+    );
+
+    await expect(
+      service.transitionIntent({
+        action: "post",
+        documentId: "11111111-1111-4111-8111-111111111111",
+        actorUserId: "user-1",
+        idempotencyKey: "post-idem-1",
+      }),
+    ).rejects.toThrow("Document is not ready for posting");
+
+    expect(deps.connectors.createIntentFromDocument).not.toHaveBeenCalled();
+    expect(deps.connectors.enqueueAttempt).not.toHaveBeenCalled();
+  });
 });

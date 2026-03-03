@@ -1,5 +1,3 @@
-import type { Database } from "@bedrock/kernel/db/types";
-import { noopLogger, type CorrelationContext, type Logger } from "@bedrock/kernel";
 import type { ConnectorsService } from "@bedrock/core/connectors";
 import type {
   DocumentDetails,
@@ -8,6 +6,8 @@ import type {
   DocumentsService,
 } from "@bedrock/core/documents";
 import type { OrchestrationService } from "@bedrock/core/orchestration";
+import { noopLogger, type CorrelationContext, type Logger } from "@bedrock/kernel";
+import type { Database } from "@bedrock/kernel/db/types";
 
 import {
   postPaymentIntentWithConnectorFlow,
@@ -152,7 +152,6 @@ export function createPaymentsService(deps: PaymentsServiceDeps) {
       },
       posted,
       actorUserId: input.actorUserId,
-      idempotencyKey: input.idempotencyKey,
     });
   }
 

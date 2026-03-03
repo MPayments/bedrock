@@ -13,6 +13,12 @@ import {
   resolveDocumentAccountingSourceId,
 } from "./helpers";
 import { enforceDocumentPolicy } from "./policy";
+import type {
+  DocumentTransitionEvent,
+  DocumentTransitionExecutionContext,
+  DocumentTransitionExecutionResult,
+  DocumentTransitionSpecs,
+} from "../commands/transition-runtime";
 import {
   assertCounterpartyPeriodsOpen,
   collectDocumentCounterpartyIds,
@@ -22,12 +28,6 @@ import type {
   DocumentTransitionAction,
   DocumentTransitionInput,
 } from "../types";
-import type {
-  DocumentTransitionEvent,
-  DocumentTransitionExecutionContext,
-  DocumentTransitionExecutionResult,
-  DocumentTransitionSpecs,
-} from "../commands/transition-runtime";
 
 function buildActionIdempotencyKey(
   action: DocumentTransitionAction,
@@ -403,18 +403,6 @@ async function runRepost(context: DocumentTransitionExecutionContext) {
 async function runPost(context: DocumentTransitionExecutionContext) {
   assertDocumentIsActive(context.document, "posted");
 
-  const existingOperationId = await getPostingOperationId(
-    context.tx,
-    context.document.id,
-  );
-  if (existingOperationId) {
-    return {
-      document: context.document,
-      postingOperationId: existingOperationId,
-      events: [],
-    } satisfies DocumentTransitionExecutionResult;
-  }
-
   const events: DocumentTransitionEvent[] = [];
   let postingDocument = context.document;
 
@@ -493,6 +481,16 @@ async function runPost(context: DocumentTransitionExecutionContext) {
     throw new DocumentPostingNotRequiredError(
       context.document.id,
       context.document.docType,
+    );
+  }
+
+  const existingOperationId = await getPostingOperationId(
+    context.tx,
+    postingDocument.id,
+  );
+  if (existingOperationId) {
+    throw new InvalidStateError(
+      "Document already has a posting operation",
     );
   }
 

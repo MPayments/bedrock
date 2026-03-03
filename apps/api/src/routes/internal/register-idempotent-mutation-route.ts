@@ -15,9 +15,9 @@ type MutationContext = Context<{ Variables: AuthVariables }>;
 
 type MutationMethod = "post" | "patch";
 
-type MutationJsonOptions = {
+interface MutationJsonOptions {
   normalizeMoney?: boolean;
-};
+}
 
 interface RegisterIdempotentMutationRouteConfig<TBody, TResult> {
   app: OpenAPIHono<{ Variables: AuthVariables }>;
@@ -38,9 +38,10 @@ interface RegisterIdempotentMutationRouteConfig<TBody, TResult> {
   handleError?: (c: MutationContext, error: unknown) => Response;
 }
 
-export function registerIdempotentMutationRoute<TBody = void, TResult = unknown>(
-  config: RegisterIdempotentMutationRouteConfig<TBody, TResult>,
-) {
+export function registerIdempotentMutationRoute<
+  TBody = void,
+  TResult = unknown,
+>(config: RegisterIdempotentMutationRouteConfig<TBody, TResult>) {
   const method = config.method ?? "post";
   const register =
     method === "patch"
@@ -76,8 +77,11 @@ export function registerIdempotentMutationRoute<TBody = void, TResult = unknown>
 
         return jsonOk(c, result, config.status ?? 200, config.jsonOptions);
       } catch (error) {
-        const routeErrorHandler = config.handleError ?? handleRouteError;
-        return routeErrorHandler(c as any, error);
+        if (config.handleError) {
+          return config.handleError(c, error);
+        }
+
+        return handleRouteError(c, error);
       }
     },
   );

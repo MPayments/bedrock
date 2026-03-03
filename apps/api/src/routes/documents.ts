@@ -185,7 +185,9 @@ export function documentsRoutes(ctx: AppContext) {
   app.get("/", requirePermission({ documents: ["list"] }), async (c) => {
     try {
       const user = c.get("user")!;
-      const query = ListDocumentsQuerySchema.parse(queryObjectFromUrl(c.req.url));
+      const query = ListDocumentsQuerySchema.parse(
+        queryObjectFromUrl(c.req.url),
+      );
       const actionPermissions = await resolveDocumentActionPermissions(user.id);
       const result = await ctx.documentsService.list(query, user.id);
 
@@ -238,7 +240,13 @@ export function documentsRoutes(ctx: AppContext) {
     path: "/:docType/:id",
     permission: { documents: ["update"] },
     parseBody: async (c) => UpdateDocumentInputSchema.parse(await c.req.json()),
-    handle: async ({ c, body, actorUserId, idempotencyKey, requestContext }) => {
+    handle: async ({
+      c,
+      body,
+      actorUserId,
+      idempotencyKey,
+      requestContext,
+    }) => {
       const docType = c.req.param("docType")!;
       const id = c.req.param("id")!;
       assertPublicMutationAllowed({
@@ -268,7 +276,9 @@ export function documentsRoutes(ctx: AppContext) {
       try {
         const user = c.get("user")!;
         const { docType, id } = c.req.param();
-        const actionPermissions = await resolveDocumentActionPermissions(user.id);
+        const actionPermissions = await resolveDocumentActionPermissions(
+          user.id,
+        );
         const result = await ctx.documentsService.get(docType, id, user.id);
 
         return c.json(
@@ -297,8 +307,14 @@ export function documentsRoutes(ctx: AppContext) {
       try {
         const user = c.get("user")!;
         const { docType, id } = c.req.param();
-        const details = await ctx.documentsService.getDetails(docType, id, user.id);
-        const actionPermissions = await resolveDocumentActionPermissions(user.id);
+        const details = await ctx.documentsService.getDetails(
+          docType,
+          id,
+          user.id,
+        );
+        const actionPermissions = await resolveDocumentActionPermissions(
+          user.id,
+        );
 
         return c.json(
           toDocumentDetailsDto(

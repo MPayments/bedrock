@@ -422,6 +422,31 @@ describe("documents command flows", () => {
     );
   });
 
+  it("rejects post retries when the document is already posting", async () => {
+    const document = makeDocument({
+      submissionStatus: "submitted",
+      approvalStatus: "approved",
+      postingStatus: "posting",
+    });
+    const { context } = createContext({
+      document,
+      selectRows: [[document], [{ operationId: "op-existing" }]],
+    });
+    const transition = createTransitionHandler(context as any);
+
+    await expect(
+      transition({
+        action: "post",
+        docType: document.docType,
+        documentId: document.id,
+        actorUserId: "maker-1",
+      }),
+    ).rejects.toThrow("Document is not ready for posting");
+
+    expect(context.accounting.resolvePostingPlan).not.toHaveBeenCalled();
+    expect(context.ledger.commit).not.toHaveBeenCalled();
+  });
+
   it("rejects repost when there is no posting operation to restart", async () => {
     const document = makeDocument({
       postingStatus: "failed",

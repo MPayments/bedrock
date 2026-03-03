@@ -53,8 +53,8 @@ export async function postPaymentIntentWithConnectorFlow(input: {
   deps: PostPaymentIntentDeps;
   posted: DocumentWithOperationId;
   actorUserId: string;
-  idempotencyKey: string;
 }): Promise<PaymentIntentPostResult> {
+  const postScopeKey = `payment-intent-post:${input.posted.document.id}`;
   const payload = PaymentIntentPayloadSchema.parse(input.posted.document.payload);
   const bookId = await resolveSourceBookId(
     input.deps.db,
@@ -74,7 +74,7 @@ export async function postPaymentIntentWithConnectorFlow(input: {
       sourceCounterpartyAccountId: payload.sourceCounterpartyAccountId,
       destinationCounterpartyAccountId: payload.destinationCounterpartyAccountId,
     },
-    idempotencyKey: `${input.idempotencyKey}:connector-intent`,
+    idempotencyKey: `${postScopeKey}:connector-intent`,
     actorUserId: input.actorUserId,
   });
 
@@ -96,7 +96,7 @@ export async function postPaymentIntentWithConnectorFlow(input: {
       currency: payload.currency,
       direction: payload.direction,
     },
-    idempotencyKey: `${input.idempotencyKey}:attempt:1`,
+    idempotencyKey: `${postScopeKey}:attempt:1`,
     actorUserId: input.actorUserId,
   });
 
