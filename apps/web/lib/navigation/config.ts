@@ -3,21 +3,9 @@ import type {
   FeatureFlagMap,
   UserSessionSnapshot,
 } from "@/lib/auth/types";
+import type { AppIconName } from "@/lib/icons";
 
-export type AppNavIcon =
-  | "arrow-right-left"
-  | "bell"
-  | "book-open"
-  | "building-2"
-  | "calculator"
-  | "chart-candlestick"
-  | "credit-card"
-  | "currency"
-  | "home"
-  | "landmark"
-  | "vault"
-  | "wallet"
-  | "workflow";
+export type AppNavIcon = AppIconName;
 
 export type AppNavItem = {
   id: string;
@@ -194,6 +182,29 @@ const navItems: AppNavItem[] = [
         href: "/entities/currencies",
         icon: "currency",
         audience: "admin",
+      },
+    ],
+  },
+  {
+    id: "settings",
+    title: "Настройки",
+    href: "/settings",
+    icon: "settings",
+    audience: "shared",
+    children: [
+      {
+        id: "settings-system",
+        title: "Система",
+        href: "/settings/system",
+        icon: "cpu",
+        audience: "shared",
+      },
+      {
+        id: "settings-profile",
+        title: "Профиль",
+        href: "/settings/profile",
+        icon: "settings",
+        audience: "shared",
       },
     ],
   },

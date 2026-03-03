@@ -5,19 +5,21 @@ import {
   Building2,
   Calculator,
   ChartCandlestick,
+  Cpu,
   CreditCard,
   Currency,
+  DollarSign,
   Home,
   Landmark,
+  Settings,
+  Users,
   Vault,
   Wallet,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
 
-import type { AppNavIcon } from "@/lib/navigation/config";
-
-const navIconMap: Record<AppNavIcon, LucideIcon> = {
+const appIconMap = {
   "arrow-right-left": ArrowRightLeft,
   bell: Bell,
   "book-open": BookOpen,
@@ -26,17 +28,23 @@ const navIconMap: Record<AppNavIcon, LucideIcon> = {
   "chart-candlestick": ChartCandlestick,
   "credit-card": CreditCard,
   currency: Currency,
+  "dollar-sign": DollarSign,
   home: Home,
   landmark: Landmark,
+  settings: Settings,
+  users: Users,
   vault: Vault,
   wallet: Wallet,
   workflow: Workflow,
-};
+  cpu: Cpu,
+} satisfies Record<string, LucideIcon>;
 
-export function resolveNavIcon(icon?: AppNavIcon): LucideIcon | undefined {
+export type AppIconName = keyof typeof appIconMap;
+
+export function resolveAppIcon(icon?: AppIconName): LucideIcon | undefined {
   if (!icon) {
     return undefined;
   }
 
-  return navIconMap[icon];
+  return appIconMap[icon];
 }

@@ -11,9 +11,8 @@ import {
   SidebarMenuItem,
 } from "@bedrock/ui/components/sidebar";
 import type { AppSecondaryNavItem } from "@/lib/navigation/config";
-
+import { resolveAppIcon } from "@/lib/icons";
 import { NavNotifications } from "./nav-notifications";
-import { resolveNavIcon } from "./nav-icons";
 
 export function NavSecondary({
   items,
@@ -35,7 +34,7 @@ export function NavSecondary({
 }
 
 function SecondaryNavItem({ item }: { item: AppSecondaryNavItem }) {
-  const Icon = resolveNavIcon(item.icon);
+  const Icon = resolveAppIcon(item.icon);
 
   return (
     <SidebarMenuItem>

@@ -7,7 +7,9 @@ import {
 
 describe("bedrock component manifest composition", () => {
   it("includes module component manifests", () => {
-    const ids = new Set(BEDROCK_APPLICATION_COMPONENT_MANIFESTS.map((manifest) => manifest.id));
+    const ids = new Set(
+      BEDROCK_APPLICATION_COMPONENT_MANIFESTS.map((manifest) => manifest.id),
+    );
 
     expect(ids).toEqual(
       new Set([
@@ -22,7 +24,9 @@ describe("bedrock component manifest composition", () => {
   });
 
   it("builds a unique composed manifest catalog", () => {
-    const componentIds = BEDROCK_COMPONENT_MANIFESTS.map((manifest) => manifest.id);
+    const componentIds = BEDROCK_COMPONENT_MANIFESTS.map(
+      (manifest) => manifest.id,
+    );
     expect(new Set(componentIds).size).toBe(componentIds.length);
 
     const workers = BEDROCK_COMPONENT_MANIFESTS.flatMap((manifest) =>

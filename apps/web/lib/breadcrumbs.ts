@@ -1,15 +1,6 @@
-export type BreadcrumbIconName =
-  | "home"
-  | "landmark"
-  | "currency"
-  | "credit-card"
-  | "arrow-right-left"
-  | "building-2"
-  | "users"
-  | "book-open"
-  | "dollar-sign"
-  | "chart-candlestick"
-  | "wallet";
+import type { AppIconName } from "@/lib/icons";
+
+export type BreadcrumbIconName = AppIconName;
 
 export type BreadcrumbItem = {
   label: string;
@@ -43,6 +34,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   fx: { label: "FX", icon: "currency" },
   transfers: { label: "Переводы", icon: "arrow-right-left" },
   documents: { label: "Документы", icon: "book-open" },
+  settings: { label: "Настройки", icon: "settings" },
   accounting: { label: "Бухгалтерия", icon: "book-open" },
   entities: { label: "Справочники", icon: "book-open" },
 
@@ -74,6 +66,8 @@ const segmentMap: Record<string, SegmentConfig> = {
   },
   operations: { label: "Операции" },
   journal: { label: "Журнал операций" },
+  system: { label: "Система", icon: "cpu" },
+  profile: { label: "Профиль" },
   correspondence: { label: "Корреспонденция" },
   "financial-results": { label: "Финрез" },
   rates: { label: "Курсы", icon: "chart-candlestick" },
@@ -91,10 +85,7 @@ function decodeSegment(segment: string) {
   }
 }
 
-function getCounterpartiesListHref(
-  segments: string[],
-  index: number,
-): string {
+function getCounterpartiesListHref(segments: string[], index: number): string {
   const parentSegments = segments.slice(0, index);
   if (parentSegments.includes("treasury")) {
     return "/treasury/counterparties";

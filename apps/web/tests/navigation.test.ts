@@ -32,6 +32,7 @@ describe("navigation config", () => {
       "/",
       "/transfers",
       "/documents",
+      "/settings",
     ]);
   });
 
@@ -46,6 +47,9 @@ describe("navigation config", () => {
     expect(hrefs).toContain("/documents/journal");
     expect(hrefs).toContain("/entities");
     expect(hrefs).toContain("/fx");
+    expect(hrefs).toContain("/settings");
+    expect(hrefs).toContain("/settings/system");
+    expect(hrefs).toContain("/settings/profile");
     expect(hrefs).toContain("/treasury");
     expect(hrefs).not.toContain("/operations");
     expect(hrefs).not.toContain("#");

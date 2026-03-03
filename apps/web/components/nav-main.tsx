@@ -30,8 +30,8 @@ import {
 } from "@bedrock/ui/components/sidebar";
 
 import type { AppNavItem } from "@/lib/navigation/config";
+import { resolveAppIcon } from "@/lib/icons";
 
-import { resolveNavIcon } from "./nav-icons";
 
 function normalizePath(path: string) {
   if (path.length > 1 && path.endsWith("/")) {
@@ -70,7 +70,7 @@ function NavCollapsibleItem({
     isPathActive(pathname, item.href) ||
     subItems.some((sub) => isPathActive(pathname, sub.href));
   const [open, setOpen] = useState(isActive);
-  const Icon = resolveNavIcon(item.icon);
+  const Icon = resolveAppIcon(item.icon);
 
   // Auto-open the group when a sub-item becomes active via navigation
   useEffect(() => {
@@ -137,7 +137,7 @@ function NavCollapsibleItem({
 }
 
 function NavDropdownItem({ item }: { item: AppNavItem }) {
-  const Icon = resolveNavIcon(item.icon);
+  const Icon = resolveAppIcon(item.icon);
 
   return (
     <DropdownMenuItem render={<Link href={item.href} />}>
@@ -154,7 +154,7 @@ function NavSubItem({
   item: AppNavItem;
   pathname: string;
 }) {
-  const Icon = resolveNavIcon(item.icon);
+  const Icon = resolveAppIcon(item.icon);
 
   return (
     <SidebarMenuSubItem>
@@ -183,7 +183,7 @@ export function NavMain({ items }: { items: AppNavItem[] }) {
             ? isPathActive(pathname, item.href) ||
               subItems.some((sub) => isPathActive(pathname, sub.href))
             : isPathActive(pathname, item.href);
-          const Icon = resolveNavIcon(item.icon);
+          const Icon = resolveAppIcon(item.icon);
 
           if (!hasSubItems) {
             return (
