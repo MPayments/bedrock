@@ -8,13 +8,6 @@ import {
   createBalancesProjectorWorkerDefinition,
 } from "@bedrock/core/balances";
 import type { ComponentRuntimeService } from "@bedrock/core/component-runtime";
-import {
-  createAttemptDispatchWorkerDefinition,
-  createConnectorsService,
-  createStatementIngestWorkerDefinition,
-  createStatusPollerWorkerDefinition,
-  getMockProviders,
-} from "@bedrock/core/connectors";
 import { createCurrenciesService } from "@bedrock/core/currencies";
 import {
   createDocumentsWorkerDefinition,
@@ -24,10 +17,6 @@ import {
   createLedgerWorkerDefinition,
   type TbClient,
 } from "@bedrock/core/ledger";
-import {
-  createOrchestrationRetryWorkerDefinition,
-  createOrchestrationService,
-} from "@bedrock/core/orchestration";
 import { createReconciliationWorkerDefinition } from "@bedrock/core/reconciliation";
 import {
   listWorkerCatalogEntries,
@@ -79,14 +68,6 @@ function createWorkerMetadata(
     componentId: entry.componentId,
     intervalMs,
   };
-}
-
-function createConnectorsForWorker(deps: WorkerComponentDeps) {
-  return createConnectorsService({
-    db: deps.db,
-    logger: deps.logger,
-    providers: getMockProviders(),
-  });
 }
 
 export function createWorkerImplementations(
@@ -171,61 +152,6 @@ export function createWorkerImplementations(
       }),
   });
 
-  const dispatchConnectors = createConnectorsForWorker(deps);
-  const connectorsDispatch = createAttemptDispatchWorkerDefinition({
-    ...createWorkerMetadata("connectors-dispatch", deps.env),
-    connectors: dispatchConnectors,
-    logger: deps.logger,
-    beforeAttempt: ({ bookId }) =>
-      isComponentEnabledForBooks({
-        componentRuntime: deps.componentRuntime,
-        componentId: "connectors",
-        bookIds: bookId ? [bookId] : undefined,
-      }),
-  });
-
-  const pollerConnectors = createConnectorsForWorker(deps);
-  const connectorsPoller = createStatusPollerWorkerDefinition({
-    ...createWorkerMetadata("connectors-poller", deps.env),
-    connectors: pollerConnectors,
-    logger: deps.logger,
-    beforeAttempt: ({ bookId }) =>
-      isComponentEnabledForBooks({
-        componentRuntime: deps.componentRuntime,
-        componentId: "connectors",
-        bookIds: bookId ? [bookId] : undefined,
-      }),
-  });
-
-  const statementsConnectors = createConnectorsForWorker(deps);
-  const connectorsStatements = createStatementIngestWorkerDefinition({
-    ...createWorkerMetadata("connectors-statements", deps.env),
-    connectors: statementsConnectors,
-    logger: deps.logger,
-    beforeCursor: () =>
-      deps.componentRuntime.isComponentEnabled({
-        componentId: "connectors",
-      }),
-  });
-
-  const orchestrationConnectors = createConnectorsForWorker(deps);
-  const orchestrationService = createOrchestrationService({
-    db: deps.db,
-    logger: deps.logger,
-  });
-  const orchestrationRetry = createOrchestrationRetryWorkerDefinition({
-    ...createWorkerMetadata("orchestration-retry", deps.env),
-    connectors: orchestrationConnectors,
-    orchestration: orchestrationService,
-    logger: deps.logger,
-    beforeAttempt: ({ bookId }) =>
-      isComponentEnabledForBooks({
-        componentRuntime: deps.componentRuntime,
-        componentId: "orchestration",
-        bookIds: bookId ? [bookId] : undefined,
-      }),
-  });
-
   return {
     [ledger.id]: ledger,
     [documents.id]: documents,
@@ -233,9 +159,5 @@ export function createWorkerImplementations(
     [balances.id]: balances,
     [fxRates.id]: fxRates,
     [reconciliation.id]: reconciliation,
-    [connectorsDispatch.id]: connectorsDispatch,
-    [connectorsPoller.id]: connectorsPoller,
-    [connectorsStatements.id]: connectorsStatements,
-    [orchestrationRetry.id]: orchestrationRetry,
   };
 }

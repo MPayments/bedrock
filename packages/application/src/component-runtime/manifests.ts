@@ -163,16 +163,6 @@ export const BEDROCK_APPLICATION_COMPONENT_MANIFESTS = [
 
         reason: "Payments are implemented as document workflows",
       },
-      {
-        componentId: "connectors",
-
-        reason: "Posted payments create connector intents",
-      },
-      {
-        componentId: "orchestration",
-
-        reason: "Posted payments require routing",
-      },
     ],
   },
 ] as const satisfies ComponentManifest[];

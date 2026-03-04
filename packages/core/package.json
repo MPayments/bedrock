@@ -13,8 +13,6 @@
     "./balances/schema": "./src/balances/schema.ts",
     "./component-runtime": "./src/component-runtime/index.ts",
     "./component-runtime/schema": "./src/component-runtime/schema.ts",
-    "./connectors": "./src/connectors/index.ts",
-    "./connectors/schema": "./src/connectors/schema.ts",
     "./counterparties": "./src/counterparties/index.ts",
     "./counterparties/contracts": "./src/counterparties/contracts.ts",
     "./counterparties/schema": "./src/counterparties/schema.ts",
@@ -42,8 +40,6 @@
     "./counterparty-accounts/contracts": "./src/counterparty-accounts/contracts.ts",
     "./counterparty-accounts/schema": "./src/counterparty-accounts/schema/index.ts",
     "./counterparty-accounts/validation": "./src/counterparty-accounts/validation.ts",
-    "./orchestration": "./src/orchestration/index.ts",
-    "./orchestration/schema": "./src/orchestration/schema.ts",
     "./reconciliation": "./src/reconciliation/index.ts",
     "./reconciliation/schema": "./src/reconciliation/schema.ts",
     "./worker-runtime": "./src/worker-runtime/index.ts"

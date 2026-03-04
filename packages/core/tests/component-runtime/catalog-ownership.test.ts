@@ -30,10 +30,6 @@ describe("core component manifest ownership", () => {
         "documents-period-close",
         "balances",
         "reconciliation",
-        "connectors-dispatch",
-        "connectors-poller",
-        "connectors-statements",
-        "orchestration-retry",
       ]),
     );
   });

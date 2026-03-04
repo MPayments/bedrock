@@ -12,11 +12,6 @@ import {
   type PaymentsService,
 } from "@bedrock/application/payments";
 import {
-  createConnectorsService,
-  getMockProviders,
-  type ConnectorsService,
-} from "@bedrock/core/connectors";
-import {
   createCounterpartiesService,
   type CounterpartiesService,
 } from "@bedrock/core/counterparties";
@@ -38,10 +33,6 @@ import {
   type DocumentsService,
 } from "@bedrock/core/documents";
 import {
-  createOrchestrationService,
-  type OrchestrationService,
-} from "@bedrock/core/orchestration";
-import {
   createReconciliationService,
   type ReconciliationService,
 } from "@bedrock/core/reconciliation";
@@ -57,8 +48,6 @@ export interface ApiApplicationServices {
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
-  connectorsService: ConnectorsService;
-  orchestrationService: OrchestrationService;
   paymentsService: PaymentsService;
   documentsService: DocumentsService;
   reconciliationService: ReconciliationService;
@@ -88,15 +77,6 @@ export function createApplicationServices(
     feesService,
     currenciesService,
   });
-  const connectorsService = createConnectorsService({
-    db,
-    logger,
-    providers: getMockProviders(),
-  });
-  const orchestrationService = createOrchestrationService({
-    db,
-    logger,
-  });
   const documentRegistry = createDocumentRegistry([
     ...createIfrsDocumentModules({
       counterpartyAccountsService,
@@ -117,10 +97,7 @@ export function createApplicationServices(
     logger,
   });
   const paymentsService = createPaymentsService({
-    db,
     documents: documentsService,
-    connectors: connectorsService,
-    orchestration: orchestrationService,
     logger,
   });
   const reconciliationService = createReconciliationService({
@@ -137,8 +114,6 @@ export function createApplicationServices(
     currenciesService,
     feesService,
     fxService,
-    connectorsService,
-    orchestrationService,
     paymentsService,
     documentsService,
     reconciliationService,

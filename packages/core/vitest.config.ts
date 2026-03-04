@@ -40,15 +40,6 @@ export const coreUnitProjects = [
   }),
   coreProject({
     test: {
-      name: "connectors",
-      globals: true,
-      environment: "node",
-      include: ["tests/connectors/**/*.test.ts"],
-      exclude: NODE_EXCLUDE,
-    },
-  }),
-  coreProject({
-    test: {
       name: "counterparties",
       globals: true,
       environment: "node",
@@ -119,15 +110,6 @@ export const coreUnitProjects = [
       globals: true,
       environment: "node",
       include: ["tests/counterparty-accounts/**/*.test.ts"],
-      exclude: NODE_EXCLUDE,
-    },
-  }),
-  coreProject({
-    test: {
-      name: "orchestration",
-      globals: true,
-      environment: "node",
-      include: ["tests/orchestration/**/*.test.ts"],
       exclude: NODE_EXCLUDE,
     },
   }),

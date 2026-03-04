@@ -1,6 +1,6 @@
 # Bedrock
 
-Bedrock is a financial platform monorepo (ledger, orchestration, connectors, balances, FX, reconciliation).
+Bedrock is a financial platform monorepo (ledger, balances, FX, reconciliation).
 
 ## Workspace Topology
 
@@ -71,10 +71,6 @@ bun run --cwd apps/workers worker:documents
 bun run --cwd apps/workers worker:balances
 bun run --cwd apps/workers worker:fx-rates
 bun run --cwd apps/workers worker:reconciliation
-bun run --cwd apps/workers worker:connectors-dispatch
-bun run --cwd apps/workers worker:connectors-poller
-bun run --cwd apps/workers worker:connectors-statements
-bun run --cwd apps/workers worker:orchestration-retry
 ```
 
 ## Build and Quality

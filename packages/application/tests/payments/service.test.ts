@@ -11,23 +11,8 @@ function createDeps() {
     transition: vi.fn(),
   } as const;
 
-  const connectors = {
-    createIntentFromDocument: vi.fn(),
-    getIntentByDocumentId: vi.fn(),
-    listAttempts: vi.fn(),
-    listEvents: vi.fn(),
-    enqueueAttempt: vi.fn(),
-  } as const;
-
-  const orchestration = {
-    selectNextProviderForIntent: vi.fn(),
-  } as const;
-
   return {
-    db: {} as any,
     documents,
-    connectors,
-    orchestration,
   };
 }
 
@@ -75,7 +60,7 @@ describe("payments service", () => {
     });
   });
 
-  it("does not invoke connector flow when post transition is rejected", async () => {
+  it("does not perform extra side effects when post transition is rejected", async () => {
     const deps = createDeps();
     const service = createPaymentsService(deps);
     deps.documents.transition.mockRejectedValueOnce(
@@ -90,8 +75,5 @@ describe("payments service", () => {
         idempotencyKey: "post-idem-1",
       }),
     ).rejects.toThrow("Document is not ready for posting");
-
-    expect(deps.connectors.createIntentFromDocument).not.toHaveBeenCalled();
-    expect(deps.connectors.enqueueAttempt).not.toHaveBeenCalled();
   });
 });

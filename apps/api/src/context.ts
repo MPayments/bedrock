@@ -11,7 +11,6 @@ import {
   createComponentRuntimeService,
   type ComponentRuntimeService,
 } from "@bedrock/core/component-runtime";
-import type { ConnectorsService } from "@bedrock/core/connectors";
 import type { CounterpartiesService } from "@bedrock/core/counterparties";
 import { assertInternalLedgerInvariants } from "@bedrock/core/counterparties";
 import type { CounterpartyAccountsService } from "@bedrock/core/counterparty-accounts";
@@ -19,7 +18,6 @@ import type { CurrenciesService } from "@bedrock/core/currencies";
 import type { CustomersService } from "@bedrock/core/customers";
 import type { DocumentsService } from "@bedrock/core/documents";
 import type { LedgerReadService } from "@bedrock/core/ledger";
-import type { OrchestrationService } from "@bedrock/core/orchestration";
 import type { ReconciliationService } from "@bedrock/core/reconciliation";
 import { db } from "@bedrock/db/client";
 import type { Logger } from "@bedrock/kernel";
@@ -71,8 +69,6 @@ export interface AppContext {
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
-  connectorsService: ConnectorsService;
-  orchestrationService: OrchestrationService;
   paymentsService: PaymentsService;
   ledgerReadService: LedgerReadService;
   balancesService: BalancesService;
@@ -104,8 +100,6 @@ export function createAppContext(env: Env): AppContext {
     currenciesService: applicationServices.currenciesService,
     feesService: applicationServices.feesService,
     fxService: applicationServices.fxService,
-    connectorsService: applicationServices.connectorsService,
-    orchestrationService: applicationServices.orchestrationService,
     paymentsService: applicationServices.paymentsService,
     documentsService: applicationServices.documentsService,
     reconciliationService: applicationServices.reconciliationService,

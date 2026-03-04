@@ -8,14 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@bedrock/ui/components/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@bedrock/ui/components/table";
 
 import {
   getApprovalStatusLabel,
@@ -85,121 +77,12 @@ export default async function PaymentIntentDetailsPage({ params }: PageProps) {
 
       <Card className="rounded-sm">
         <CardHeader className="border-b">
-          <CardTitle>Connector intent</CardTitle>
+          <CardTitle>Workflow details</CardTitle>
         </CardHeader>
         <CardContent className="py-6 text-sm">
-          {details.connectorIntent ? (
-            <div className="grid gap-2 md:grid-cols-2">
-              <div>
-                <span className="text-muted-foreground">ID:</span>{" "}
-                {details.connectorIntent.id}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Статус:</span>{" "}
-                {details.connectorIntent.status}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Направление:</span>{" "}
-                {details.connectorIntent.direction}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Коридор:</span>{" "}
-                {details.connectorIntent.corridor ?? "—"}
-              </div>
-            </div>
-          ) : (
-            <div className="text-muted-foreground">
-              Connector intent еще не создан.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-sm">
-        <CardHeader className="border-b">
-          <CardTitle>Попытки провайдера</CardTitle>
-        </CardHeader>
-        <CardContent className="py-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>Provider</TableHead>
-                <TableHead>Route</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>External ref</TableHead>
-                <TableHead>Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {details.attempts.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-muted-foreground h-12 text-center"
-                  >
-                    Попыток пока нет.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                details.attempts.map((attempt) => (
-                  <TableRow key={attempt.id}>
-                    <TableCell>{attempt.attemptNo}</TableCell>
-                    <TableCell>{attempt.providerCode}</TableCell>
-                    <TableCell>{attempt.providerRoute ?? "—"}</TableCell>
-                    <TableCell>{attempt.status}</TableCell>
-                    <TableCell>{attempt.externalAttemptRef ?? "—"}</TableCell>
-                    <TableCell>{formatDate(attempt.updatedAt)}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-sm">
-        <CardHeader className="border-b">
-          <CardTitle>События провайдера</CardTitle>
-        </CardHeader>
-        <CardContent className="py-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Provider</TableHead>
-                <TableHead>Event</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Signature</TableHead>
-                <TableHead>Error</TableHead>
-                <TableHead>Received</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {details.events.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-muted-foreground h-12 text-center"
-                  >
-                    Событий пока нет.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                details.events.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell>{event.providerCode}</TableCell>
-                    <TableCell>{event.eventType}</TableCell>
-                    <TableCell>{event.status ?? event.parseStatus ?? "—"}</TableCell>
-                    <TableCell>
-                      {event.signatureValid ? "valid" : "invalid"}
-                    </TableCell>
-                    <TableCell>{event.error ?? "—"}</TableCell>
-                    <TableCell>{formatDate(event.receivedAt)}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <div className="text-muted-foreground">
+            Provider execution is currently disabled for this flow.
+          </div>
         </CardContent>
       </Card>
     </div>

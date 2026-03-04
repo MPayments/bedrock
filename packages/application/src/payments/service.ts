@@ -1,22 +1,14 @@
-import type { ConnectorsService } from "@bedrock/core/connectors";
 import type {
   DocumentDetails,
   DocumentTransitionAction,
   DocumentWithOperationId,
   DocumentsService,
 } from "@bedrock/core/documents";
-import type { OrchestrationService } from "@bedrock/core/orchestration";
-import { noopLogger, type CorrelationContext, type Logger } from "@bedrock/kernel";
-import type { Database } from "@bedrock/kernel/db/types";
+import type { CorrelationContext, Logger } from "@bedrock/kernel";
 
-import {
-  postPaymentIntentWithConnectorFlow,
-  type PaymentIntentPostResult,
-} from "./internal/post-intent";
 import { type PaymentIntentPayload, type PaymentResolutionPayload } from "./validation";
 
 export interface PaymentsServiceDeps {
-  db: Database;
   documents: Pick<
     DocumentsService,
     | "createDraft"
@@ -25,15 +17,6 @@ export interface PaymentsServiceDeps {
     | "getDetails"
     | "transition"
   >;
-  connectors: Pick<
-    ConnectorsService,
-    | "createIntentFromDocument"
-    | "getIntentByDocumentId"
-    | "listAttempts"
-    | "listEvents"
-    | "enqueueAttempt"
-  >;
-  orchestration: Pick<OrchestrationService, "selectNextProviderForIntent">;
   logger?: Logger;
 }
 
@@ -42,8 +25,7 @@ export type PaymentsService = ReturnType<typeof createPaymentsService>;
 type PaymentIntentTransitionAction = Exclude<DocumentTransitionAction, "repost">;
 
 export function createPaymentsService(deps: PaymentsServiceDeps) {
-  const { db, documents, connectors, orchestration } = deps;
-  const log = deps.logger?.child({ svc: "payments" }) ?? noopLogger;
+  const { documents } = deps;
 
   async function createDraft(input: {
     payload: PaymentIntentPayload;
@@ -88,25 +70,18 @@ export function createPaymentsService(deps: PaymentsServiceDeps) {
   async function getDetails(documentId: string, actorUserId: string): Promise<{
     document: DocumentDetails["document"];
     details: DocumentDetails;
-    connectorIntent: Awaited<ReturnType<ConnectorsService["getIntentByDocumentId"]>>;
-    attempts: Awaited<ReturnType<ConnectorsService["listAttempts"]>>;
-    events: Awaited<ReturnType<ConnectorsService["listEvents"]>>;
+    connectorIntent: null;
+    attempts: [];
+    events: [];
   }> {
     const details = await documents.getDetails("payment_intent", documentId, actorUserId);
-    const connectorIntent = await connectors.getIntentByDocumentId(documentId);
-    const attempts = connectorIntent
-      ? await connectors.listAttempts({ intentId: connectorIntent.id })
-      : [];
-    const events = connectorIntent
-      ? await connectors.listEvents({ intentId: connectorIntent.id })
-      : [];
 
     return {
       document: details.document,
       details,
-      connectorIntent,
-      attempts,
-      events,
+      connectorIntent: null,
+      attempts: [],
+      events: [],
     };
   }
 
@@ -133,26 +108,8 @@ export function createPaymentsService(deps: PaymentsServiceDeps) {
     actorUserId: string;
     idempotencyKey: string;
     requestContext?: CorrelationContext;
-  }): Promise<DocumentWithOperationId | PaymentIntentPostResult> {
-    if (input.action !== "post") {
-      return forwardIntentTransition(input);
-    }
-
-    const posted = await forwardIntentTransition({
-      ...input,
-      action: "post",
-    });
-
-    return postPaymentIntentWithConnectorFlow({
-      deps: {
-        db,
-        connectors,
-        orchestration,
-        log,
-      },
-      posted,
-      actorUserId: input.actorUserId,
-    });
+  }): Promise<DocumentWithOperationId> {
+    return forwardIntentTransition(input);
   }
 
   async function createResolution(input: {

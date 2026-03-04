@@ -24,61 +24,14 @@ const PaymentDocumentSchema = z
   })
   .passthrough();
 
-const PaymentAttemptSchema = z
-  .object({
-    id: z.string(),
-    attemptNo: z.number().int(),
-    providerCode: z.string(),
-    providerRoute: z.string().nullable(),
-    status: z.string(),
-    externalAttemptRef: z.string().nullable(),
-    nextRetryAt: z.string().nullable(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
-  })
-  .passthrough();
-
-const PaymentEventSchema = z
-  .object({
-    id: z.string(),
-    providerCode: z.string(),
-    eventType: z.string(),
-    signatureValid: z.boolean(),
-    webhookIdempotencyKey: z.string(),
-    status: z.string().nullable().optional(),
-    parseStatus: z.string().nullable().optional(),
-    error: z.string().nullable(),
-    receivedAt: z.string(),
-  })
-  .passthrough();
-
-const ConnectorIntentSchema = z
-  .object({
-    id: z.string(),
-    status: z.string(),
-    direction: z.string(),
-    amount: z.string(),
-    currency: z.string(),
-    corridor: z.string().nullable(),
-    providerConstraint: z.string().nullable(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
-  })
-  .passthrough();
-
 const PaymentListSchema = createPaginatedResponseSchema(PaymentDocumentSchema);
 
 const PaymentDetailsSchema = z.object({
   document: PaymentDocumentSchema,
   details: z.unknown(),
-  connectorIntent: ConnectorIntentSchema.nullable(),
-  attempts: z.array(PaymentAttemptSchema),
-  events: z.array(PaymentEventSchema),
 });
 
 export type PaymentDocumentDto = z.infer<typeof PaymentDocumentSchema>;
-export type PaymentAttemptDto = z.infer<typeof PaymentAttemptSchema>;
-export type PaymentEventDto = z.infer<typeof PaymentEventSchema>;
 export type PaymentDetailsDto = z.infer<typeof PaymentDetailsSchema>;
 
 async function fetchApi(path: string) {

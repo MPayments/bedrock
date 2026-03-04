@@ -1,10 +1,6 @@
 import type { Context } from "hono";
 
 import {
-  ConnectorIntentTerminalError,
-  ConnectorMaxAttemptsExceededError,
-} from "@bedrock/core/connectors";
-import {
   DocumentGraphError,
   DocumentNotFoundError,
   DocumentPolicyDeniedError,
@@ -72,13 +68,6 @@ export function handleRouteError(c: Context, error: unknown): Response {
     error instanceof ValidationError
   ) {
     return c.json({ error: resolveErrorMessage(error) }, 400);
-  }
-
-  if (
-    error instanceof ConnectorIntentTerminalError ||
-    error instanceof ConnectorMaxAttemptsExceededError
-  ) {
-    return c.json({ error: resolveErrorMessage(error) }, 409);
   }
 
   if (

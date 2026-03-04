@@ -37,10 +37,6 @@ describe("worker selection", () => {
         "balances",
         "fx-rates",
         "reconciliation",
-        "connectors-dispatch",
-        "connectors-poller",
-        "connectors-statements",
-        "orchestration-retry",
       ]),
     );
   });

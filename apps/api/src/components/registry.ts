@@ -6,14 +6,12 @@ import {
   counterpartyAccountProvidersRoutes,
   counterpartyAccountsRoutes,
   balancesRoutes,
-  connectorsRoutes,
   counterpartiesRoutes,
   counterpartyGroupsRoutes,
   customersRoutes,
   currenciesRoutes,
   documentsRoutes,
   fxRatesRoutes,
-  orchestrationRoutes,
   paymentsRoutes,
   reconciliationRoutes,
   systemComponentsRoutes,
@@ -114,22 +112,6 @@ export const paymentsComponent = {
   },
 } as const satisfies ApiApplicationComponent<"/payments">;
 
-export const connectorsComponent = {
-  id: "connectors",
-  routePath: "/connectors",
-  registerRoutes(ctx: AppContext) {
-    return connectorsRoutes(ctx);
-  },
-} as const satisfies ApiApplicationComponent<"/connectors">;
-
-export const orchestrationComponent = {
-  id: "orchestration",
-  routePath: "/orchestration",
-  registerRoutes(ctx: AppContext) {
-    return orchestrationRoutes(ctx);
-  },
-} as const satisfies ApiApplicationComponent<"/orchestration">;
-
 export const reconciliationComponent = {
   id: "reconciliation",
   routePath: "/reconciliation",
@@ -158,8 +140,6 @@ export const API_APPLICATION_COMPONENTS = [
   currenciesComponent,
   documentsComponent,
   paymentsComponent,
-  connectorsComponent,
-  orchestrationComponent,
   fxRatesComponent,
   reconciliationComponent,
   systemComponentsComponent,
