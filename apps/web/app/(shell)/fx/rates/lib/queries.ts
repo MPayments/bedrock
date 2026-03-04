@@ -56,6 +56,30 @@ export async function getRateSources(): Promise<SerializedSourceStatus[]> {
   return payload.data as SerializedSourceStatus[];
 }
 
+export interface SerializedRateHistoryPoint {
+  source: string;
+  rateNum: string;
+  rateDen: string;
+  asOf: string;
+}
+
+export async function getRateHistory(
+  base: string,
+  quote: string,
+): Promise<SerializedRateHistoryPoint[]> {
+  const client = await getServerApiClient();
+  const res = await client.v1.fx.rates.history.$get({
+    query: { base, quote, limit: 500 },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch rate history: ${res.status}`);
+  }
+
+  const payload = await res.json();
+  return payload.data as SerializedRateHistoryPoint[];
+}
+
 export async function getCurrencyOptions(): Promise<CurrencyOption[]> {
   const client = await getServerApiClient();
   const res = await client.v1.currencies.$get({

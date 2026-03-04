@@ -80,6 +80,23 @@ const PairsResponseSchema = z.object({
   data: z.array(RatePairViewSchema),
 });
 
+const RateHistoryQuerySchema = z.object({
+  base: z.string().min(2).max(16),
+  quote: z.string().min(2).max(16),
+  limit: z.coerce.number().int().min(1).max(1000).optional(),
+});
+
+const RateHistoryPointSchema = z.object({
+  source: z.string(),
+  rateNum: z.string(),
+  rateDen: z.string(),
+  asOf: z.iso.datetime(),
+});
+
+const RateHistoryResponseSchema = z.object({
+  data: z.array(RateHistoryPointSchema),
+});
+
 const BigIntStringSchema = z.string().min(1).regex(/^\d+$/, "Must be a non-negative integer string");
 
 const SetManualRateBodySchema = z.object({
@@ -235,7 +252,47 @@ export function fxRatesRoutes(ctx: AppContext) {
     },
   });
 
+  const rateHistoryRoute = createRoute({
+    middleware: [requirePermission({ fx_rates: ["list"] })],
+    method: "get",
+    path: "/history",
+    tags: ["FX"],
+    summary: "Get rate history for a currency pair",
+    request: {
+      query: RateHistoryQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: RateHistoryResponseSchema,
+          },
+        },
+        description: "Rate history for the pair",
+      },
+    },
+  });
+
   return app
+    .openapi(rateHistoryRoute, async (c) => {
+      const { base, quote, limit } = c.req.valid("query");
+      const points = await ctx.fxService.getRateHistory({
+        base,
+        quote,
+        limit,
+      });
+      return c.json(
+        {
+          data: points.map((p) => ({
+            source: p.source,
+            rateNum: p.rateNum.toString(),
+            rateDen: p.rateDen.toString(),
+            asOf: p.asOf.toISOString(),
+          })),
+        },
+        200,
+      );
+    })
     .openapi(pairsRoute, async (c) => {
       const pairs = await ctx.fxService.listPairs();
       return c.json(

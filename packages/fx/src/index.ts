@@ -42,3 +42,7 @@ export type {
   RatePairView,
   SourceRateView,
 } from "./commands/rates/list-pairs";
+
+export type {
+  RateHistoryPoint,
+} from "./commands/rates/rate-history";
