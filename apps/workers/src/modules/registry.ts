@@ -1,4 +1,4 @@
-import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/application/component-runtime";
+import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
 import { createFeesService } from "@bedrock/application/fees";
 import {
   createFxRatesWorkerDefinition,
@@ -7,7 +7,7 @@ import {
 import {
   createBalancesProjectorWorkerDefinition,
 } from "@bedrock/core/balances";
-import type { ComponentRuntimeService } from "@bedrock/core/component-runtime";
+import type { ModuleRuntimeService } from "@bedrock/core/module-runtime";
 import { createCurrenciesService } from "@bedrock/core/currencies";
 import {
   createDocumentsWorkerDefinition,
@@ -27,18 +27,18 @@ import type { Logger } from "@bedrock/kernel";
 import type { Database } from "@bedrock/kernel/db/types";
 
 import type { WorkerEnv } from "../env";
-import { isComponentEnabledForBooks } from "./runtime-guard";
+import { isModuleEnabledForBooks } from "./runtime-guard";
 
-interface WorkerComponentDeps {
+interface WorkerModuleDeps {
   db: Database;
   logger: Logger;
   env: WorkerEnv;
   tb: TbClient;
-  componentRuntime: ComponentRuntimeService;
+  moduleRuntime: ModuleRuntimeService;
 }
 
 const workerCatalogById = new Map<string, WorkerCatalogEntry>(
-  listWorkerCatalogEntries(BEDROCK_COMPONENT_MANIFESTS).map((entry) => [
+  listWorkerCatalogEntries(BEDROCK_MODULE_MANIFESTS).map((entry) => [
     entry.id,
     entry,
   ]),
@@ -55,7 +55,7 @@ function requireWorkerCatalogEntry(workerId: string): WorkerCatalogEntry {
 function createWorkerMetadata(
   workerId: string,
   env: WorkerEnv,
-): Pick<BedrockWorker, "id" | "componentId" | "intervalMs"> {
+): Pick<BedrockWorker, "id" | "moduleId" | "intervalMs"> {
   const entry = requireWorkerCatalogEntry(workerId);
   const intervalMs = env.WORKER_INTERVALS[workerId] ?? entry.defaultIntervalMs;
 
@@ -65,22 +65,22 @@ function createWorkerMetadata(
 
   return {
     id: workerId,
-    componentId: entry.componentId,
+    moduleId: entry.moduleId,
     intervalMs,
   };
 }
 
 export function createWorkerImplementations(
-  deps: WorkerComponentDeps,
+  deps: WorkerModuleDeps,
 ): Record<string, BedrockWorker> {
   const ledger = createLedgerWorkerDefinition({
     ...createWorkerMetadata("ledger", deps.env),
     db: deps.db,
     tb: deps.tb,
     beforeJob: ({ bookIds }) =>
-      isComponentEnabledForBooks({
-        componentRuntime: deps.componentRuntime,
-        componentId: "ledger",
+      isModuleEnabledForBooks({
+        moduleRuntime: deps.moduleRuntime,
+        moduleId: "ledger",
         bookIds,
       }),
   });
@@ -89,9 +89,9 @@ export function createWorkerImplementations(
     ...createWorkerMetadata("documents", deps.env),
     db: deps.db,
     beforeDocument: ({ bookIds }) =>
-      isComponentEnabledForBooks({
-        componentRuntime: deps.componentRuntime,
-        componentId: "documents",
+      isModuleEnabledForBooks({
+        moduleRuntime: deps.moduleRuntime,
+        moduleId: "documents",
         bookIds,
       }),
   });
@@ -100,8 +100,8 @@ export function createWorkerImplementations(
     db: deps.db,
     logger: deps.logger,
     beforeCounterparty: () =>
-      deps.componentRuntime.isComponentEnabled({
-        componentId: "documents",
+      deps.moduleRuntime.isModuleEnabled({
+        moduleId: "documents",
       }),
   });
 
@@ -110,9 +110,9 @@ export function createWorkerImplementations(
     db: deps.db,
     logger: deps.logger,
     beforeOperation: ({ bookIds }) =>
-      isComponentEnabledForBooks({
-        componentRuntime: deps.componentRuntime,
-        componentId: "balances",
+      isModuleEnabledForBooks({
+        moduleRuntime: deps.moduleRuntime,
+        moduleId: "balances",
         bookIds,
       }),
   });
@@ -137,8 +137,8 @@ export function createWorkerImplementations(
     fxService,
     logger: deps.logger,
     beforeSourceSync: () =>
-      deps.componentRuntime.isComponentEnabled({
-        componentId: "fx-rates",
+      deps.moduleRuntime.isModuleEnabled({
+        moduleId: "fx-rates",
       }),
   });
 
@@ -147,8 +147,8 @@ export function createWorkerImplementations(
     db: deps.db,
     logger: deps.logger,
     beforeSource: () =>
-      deps.componentRuntime.isComponentEnabled({
-        componentId: "reconciliation",
+      deps.moduleRuntime.isModuleEnabled({
+        moduleId: "reconciliation",
       }),
   });
 

@@ -36,7 +36,7 @@ const statements = {
   accounting: ["list", "manage_accounts", "manage_correspondence"],
   balances: ["get", "reserve", "release", "consume"],
   reconciliation: ["ingest", "run", "list", "explain", "adjust"],
-  system_components: ["list", "manage"],
+  system_modules: ["list", "manage"],
 } as const;
 
 export type ResourcePermissions = {
@@ -76,7 +76,7 @@ export const admin = ac.newRole({
   accounting: ["list", "manage_accounts", "manage_correspondence"],
   balances: ["get", "reserve", "release", "consume"],
   reconciliation: ["ingest", "run", "list", "explain", "adjust"],
-  system_components: ["list", "manage"],
+  system_modules: ["list", "manage"],
 });
 
 export const user = ac.newRole({
@@ -91,5 +91,5 @@ export const user = ac.newRole({
   accounting: ["list"],
   balances: ["get"],
   reconciliation: ["list", "explain"],
-  system_components: ["list"],
+  system_modules: ["list"],
 });

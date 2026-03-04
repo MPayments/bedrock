@@ -58,7 +58,7 @@ async function listOperationBookIds(
 
 export function createDocumentsWorkerDefinition(deps: {
   id?: string;
-  componentId?: string;
+  moduleId?: string;
   intervalMs?: number;
   db: Database;
   beforeDocument?: DocumentsWorkerItemGuard;
@@ -273,7 +273,7 @@ export function createDocumentsWorkerDefinition(deps: {
 
   return {
     id: deps.id ?? "documents",
-    componentId: deps.componentId ?? "documents",
+    moduleId: deps.moduleId ?? "documents",
     intervalMs: deps.intervalMs ?? 5_000,
     runOnce,
   };

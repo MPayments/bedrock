@@ -8,7 +8,7 @@
     "./accounting-reporting/contracts": "./src/accounting-reporting/contracts.ts",
     "./accounting-reporting/schema": "./src/accounting-reporting/schema/index.ts",
     "./accounting-reporting/validation": "./src/accounting-reporting/validation.ts",
-    "./component-runtime": "./src/component-runtime/index.ts",
+    "./module-runtime": "./src/module-runtime/index.ts",
     "./fees": "./src/fees/index.ts",
     "./fees/schema": "./src/fees/schema/index.ts",
     "./fx": "./src/fx/index.ts",

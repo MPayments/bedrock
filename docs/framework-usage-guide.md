@@ -80,10 +80,10 @@ const feesService = createFeesService({ db, logger, currenciesService });
 const fxService = createFxService({ db, logger, feesService, currenciesService });
 ```
 
-### Компонентный guard на API-роутах
-`component-runtime` проверяет, включен ли компонент перед исполнением route:
-- [`apps/api/src/middleware/component-guard.ts`](../apps/api/src/middleware/component-guard.ts)
-- [`apps/api/src/routes/system-components.ts`](../apps/api/src/routes/system-components.ts)
+### Модульный guard на API-роутах
+`module-runtime` проверяет, включен ли модуль перед исполнением route:
+- [`apps/api/src/middleware/module-guard.ts`](../apps/api/src/middleware/module-guard.ts)
+- [`apps/api/src/routes/system-modules.ts`](../apps/api/src/routes/system-modules.ts)
 
 ## 4. Как запускаются и выбираются воркеры
 
@@ -91,7 +91,7 @@ const fxService = createFxService({ db, logger, feesService, currenciesService }
 - [`apps/workers/src/main.ts`](../apps/workers/src/main.ts)
 
 Где создаются реализации:
-- [`apps/workers/src/components/registry.ts`](../apps/workers/src/components/registry.ts)
+- [`apps/workers/src/modules/registry.ts`](../apps/workers/src/modules/registry.ts)
 
 Где выбираются worker ids:
 - [`apps/workers/src/selection.ts`](../apps/workers/src/selection.ts)
@@ -117,8 +117,8 @@ bun run --cwd apps/workers worker:orchestration-retry
 ### Как настраиваются интервалы
 Значения берутся из env-переменных capability-манифестов (`WORKER_INTERVALS`):
 - [`apps/workers/src/env.ts`](../apps/workers/src/env.ts)
-- [`packages/core/src/component-runtime/manifests.ts`](../packages/core/src/component-runtime/manifests.ts)
-- [`packages/application/src/component-runtime/manifests.ts`](../packages/application/src/component-runtime/manifests.ts)
+- [`packages/core/src/module-runtime/manifests.ts`](../packages/core/src/module-runtime/manifests.ts)
+- [`packages/application/src/module-runtime/manifests.ts`](../packages/application/src/module-runtime/manifests.ts)
 
 ## 5. Как добавить новый домен в `packages`
 
@@ -162,7 +162,7 @@ bun run --cwd apps/workers worker:orchestration-retry
 
 ### Шаг 6. Подключить домен в app composition
 - API composition: [`apps/api/src/composition/application.ts`](../apps/api/src/composition/application.ts)
-- Workers composition (если нужен фон): [`apps/workers/src/components/registry.ts`](../apps/workers/src/components/registry.ts)
+- Workers composition (если нужен фон): [`apps/workers/src/modules/registry.ts`](../apps/workers/src/modules/registry.ts)
 
 ### Шаг 7. Добавить проверки и тесты
 - unit: `packages/{core,application}/tests/<domain>/**/*.test.ts`

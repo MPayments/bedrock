@@ -9,7 +9,7 @@
 - Транзакционные паттерны
 - Валидация и ошибки
 - Владение схемами БД и агрегация
-- Внутренности `component-runtime`
+- Внутренности `module-runtime`
 - Контракт worker fleet
 - Anti-patterns и ограничения
 
@@ -100,7 +100,7 @@
 Примеры:
 - [`packages/kernel/src/kernel/errors.ts`](../packages/kernel/src/kernel/errors.ts)
 - [`packages/core/src/accounting/errors.ts`](../packages/core/src/accounting/errors.ts)
-- [`packages/core/src/component-runtime/errors.ts`](../packages/core/src/component-runtime/errors.ts)
+- [`packages/core/src/module-runtime/errors.ts`](../packages/core/src/module-runtime/errors.ts)
 
 ## Владение схемами БД и агрегация
 
@@ -120,29 +120,29 @@ Runtime-таблицы принадлежат доменам:
 - домен владеет моделью таблиц
 - db-пакет владеет инфраструктурой подключения и миграционным контуром
 
-## Внутренности `component-runtime`
+## Внутренности `module-runtime`
 
-Главный сервис: [`packages/core/src/component-runtime/service.ts`](../packages/core/src/component-runtime/service.ts)
+Главный сервис: [`packages/core/src/module-runtime/service.ts`](../packages/core/src/module-runtime/service.ts)
 
 ### 1. Валидация графа манифестов
 При старте:
-- проверка уникальности `component.id`
+- проверка уникальности `module.id`
 - проверка worker capability IDs/env keys
 - проверка, что все dependencies существуют
 - детекция dependency cycles
 
 ### 2. Вычисление effective state
-Алгоритм для компонента в scope:
+Алгоритм для модуля в scope:
 1. берется requested state (`book override` -> `global override` -> `default`)
 2. проверяются зависимости рекурсивно
-3. если зависимость `disabled`, компонент получает `source: "dependency"`
+3. если зависимость `disabled`, модуль получает `source: "dependency"`
 
 Поддерживаемые scope:
 - `global`
 - `book`
 
 ### 3. Оптимистичная конкуренция + сериализация обновлений
-`updateComponentState(...)` использует:
+`updateModuleState(...)` использует:
 - `expectedVersion` check (optimistic lock)
 - `pg_advisory_xact_lock(...)` для сериализации state-change транзакций
 - запись event + увеличение `state_epoch`
@@ -152,7 +152,7 @@ Runtime-таблицы принадлежат доменам:
 - invalidation по `state_epoch`
 - `LISTEN/NOTIFY` канал + poll fallback
 
-Это обеспечивает согласованность API и worker-решений по включенности компонентов.
+Это обеспечивает согласованность API и worker-решений по включенности модулей.
 
 ## Контракт worker fleet
 
@@ -168,7 +168,7 @@ Runtime-таблицы принадлежат доменам:
 
 `startWorkerFleet(...)`:
 - запускает циклы через `runWorkerLoop` из kernel
-- перед каждым pass проверяет `componentRuntime.isComponentEnabled(...)`
+- перед каждым pass проверяет `moduleRuntime.isModuleEnabled(...)`
 - поддерживает graceful stop через `AbortController`
 
 ## Anti-patterns и ограничения

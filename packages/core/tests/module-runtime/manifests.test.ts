@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  createComponentRuntimeService,
-  ComponentManifestValidationError,
-  type ComponentManifest,
-} from "../../src/component-runtime";
+  createModuleRuntimeService,
+  ModuleManifestValidationError,
+  type ModuleManifest,
+} from "../../src/module-runtime";
 
-describe("createComponentRuntimeService manifest validation", () => {
-  const baseManifest: ComponentManifest = {
+describe("createModuleRuntimeService manifest validation", () => {
+  const baseManifest: ModuleManifest = {
     id: "a",
     version: 1,
     kind: "domain",
@@ -19,8 +19,8 @@ describe("createComponentRuntimeService manifest validation", () => {
     dependencies: [],
   };
 
-  it("throws for duplicate component ids", () => {
-    const manifests: ComponentManifest[] = [
+  it("throws for duplicate module ids", () => {
+    const manifests: ModuleManifest[] = [
       baseManifest,
       {
         ...baseManifest,
@@ -29,39 +29,39 @@ describe("createComponentRuntimeService manifest validation", () => {
     ];
 
     expect(() =>
-      createComponentRuntimeService({
+      createModuleRuntimeService({
         db: {} as any,
         manifests,
       }),
-    ).toThrow(ComponentManifestValidationError);
+    ).toThrow(ModuleManifestValidationError);
   });
 
   it("throws for cyclic dependencies", () => {
-    const manifests: ComponentManifest[] = [
+    const manifests: ModuleManifest[] = [
       {
         ...baseManifest,
         capabilities: {},
-        dependencies: [{ componentId: "b", reason: "depends" }],
+        dependencies: [{ moduleId: "b", reason: "depends" }],
       },
       {
         ...baseManifest,
         id: "b",
         description: "b",
         capabilities: {},
-        dependencies: [{ componentId: "a", reason: "depends" }],
+        dependencies: [{ moduleId: "a", reason: "depends" }],
       },
     ];
 
     expect(() =>
-      createComponentRuntimeService({
+      createModuleRuntimeService({
         db: {} as any,
         manifests,
       }),
-    ).toThrow(ComponentManifestValidationError);
+    ).toThrow(ModuleManifestValidationError);
   });
 
-  it("throws for duplicate worker ids across components", () => {
-    const manifests: ComponentManifest[] = [
+  it("throws for duplicate worker ids across modules", () => {
+    const manifests: ModuleManifest[] = [
       {
         ...baseManifest,
         id: "comp-1",
@@ -93,15 +93,15 @@ describe("createComponentRuntimeService manifest validation", () => {
     ];
 
     expect(() =>
-      createComponentRuntimeService({
+      createModuleRuntimeService({
         db: {} as any,
         manifests,
       }),
-    ).toThrow(ComponentManifestValidationError);
+    ).toThrow(ModuleManifestValidationError);
   });
 
-  it("throws for duplicate worker env keys across components", () => {
-    const manifests: ComponentManifest[] = [
+  it("throws for duplicate worker env keys across modules", () => {
+    const manifests: ModuleManifest[] = [
       {
         ...baseManifest,
         id: "comp-1",
@@ -133,10 +133,10 @@ describe("createComponentRuntimeService manifest validation", () => {
     ];
 
     expect(() =>
-      createComponentRuntimeService({
+      createModuleRuntimeService({
         db: {} as any,
         manifests,
       }),
-    ).toThrow(ComponentManifestValidationError);
+    ).toThrow(ModuleManifestValidationError);
   });
 });

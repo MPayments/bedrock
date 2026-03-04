@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1772457329873,
-      "tag": "0000_woozy_unus",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1772533464162,
-      "tag": "0001_useful_gravity",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1772563268717,
-      "tag": "0002_concerned_morph",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1772570400000,
-      "tag": "0003_internal_ledger_boundary",
+      "when": 1772660043743,
+      "tag": "0000_sparkling_stryfe",
       "breakpoints": true
     }
   ]

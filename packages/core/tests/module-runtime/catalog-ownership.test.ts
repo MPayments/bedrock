@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { BEDROCK_CORE_COMPONENT_MANIFESTS } from "../../src/component-runtime";
+import { BEDROCK_CORE_MODULE_MANIFESTS } from "../../src/module-runtime";
 
-const MODULE_COMPONENT_IDS = new Set([
+const APPLICATION_MODULE_IDS = new Set([
   "accounting-reporting",
   "fees",
   "fx",
@@ -11,15 +11,15 @@ const MODULE_COMPONENT_IDS = new Set([
   "payments",
 ]);
 
-describe("core component manifest ownership", () => {
-  it("does not include module-owned component manifests", () => {
-    for (const manifest of BEDROCK_CORE_COMPONENT_MANIFESTS) {
-      expect(MODULE_COMPONENT_IDS.has(manifest.id)).toBe(false);
+describe("core module manifest ownership", () => {
+  it("does not include application module manifests", () => {
+    for (const manifest of BEDROCK_CORE_MODULE_MANIFESTS) {
+      expect(APPLICATION_MODULE_IDS.has(manifest.id)).toBe(false);
     }
   });
 
   it("includes expected core worker ids", () => {
-    const workerIds = BEDROCK_CORE_COMPONENT_MANIFESTS.flatMap(
+    const workerIds = BEDROCK_CORE_MODULE_MANIFESTS.flatMap(
       (manifest) => manifest.capabilities.workers?.map((worker) => worker.id) ?? [],
     );
 

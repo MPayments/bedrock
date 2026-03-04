@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  BEDROCK_COMPONENT_MANIFESTS,
-  BEDROCK_APPLICATION_COMPONENT_MANIFESTS,
-} from "../../src/component-runtime";
+  BEDROCK_MODULE_MANIFESTS,
+  BEDROCK_APPLICATION_MODULE_MANIFESTS,
+} from "../../src/module-runtime";
 
-describe("bedrock component manifest composition", () => {
-  it("includes module component manifests", () => {
+describe("bedrock module manifest composition", () => {
+  it("includes application module manifests", () => {
     const ids = new Set(
-      BEDROCK_APPLICATION_COMPONENT_MANIFESTS.map((manifest) => manifest.id),
+      BEDROCK_APPLICATION_MODULE_MANIFESTS.map((manifest) => manifest.id),
     );
 
     expect(ids).toEqual(
@@ -24,12 +24,12 @@ describe("bedrock component manifest composition", () => {
   });
 
   it("builds a unique composed manifest catalog", () => {
-    const componentIds = BEDROCK_COMPONENT_MANIFESTS.map(
+    const moduleIds = BEDROCK_MODULE_MANIFESTS.map(
       (manifest) => manifest.id,
     );
-    expect(new Set(componentIds).size).toBe(componentIds.length);
+    expect(new Set(moduleIds).size).toBe(moduleIds.length);
 
-    const workers = BEDROCK_COMPONENT_MANIFESTS.flatMap((manifest) =>
+    const workers = BEDROCK_MODULE_MANIFESTS.flatMap((manifest) =>
       (manifest.capabilities.workers ?? []).map((worker) => ({
         workerId: worker.id,
         envKey: worker.envKey,

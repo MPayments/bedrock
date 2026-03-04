@@ -1,12 +1,12 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
-import type { ComponentCatalogEntry } from "@bedrock/core/component-runtime";
+import type { ModuleCatalogEntry } from "@bedrock/core/module-runtime";
 
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
-const UpdateComponentStateSchema = z
+const UpdateModuleStateSchema = z
   .object({
     scopeType: z.enum(["global", "book"]),
     scopeId: z.string().uuid().optional(),
@@ -25,7 +25,7 @@ const UpdateComponentStateSchema = z
     }
   });
 
-const PreviewComponentStateSchema = z
+const PreviewModuleStateSchema = z
   .object({
     scopeType: z.enum(["global", "book"]),
     scopeId: z.string().uuid().optional(),
@@ -43,17 +43,17 @@ const PreviewComponentStateSchema = z
     }
   });
 
-export function systemComponentsRoutes(ctx: AppContext) {
+export function systemModulesRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
   app.get(
     "/",
-    requirePermission({ system_components: ["list"] }),
+    requirePermission({ system_modules: ["list"] }),
     async (c) => {
       const bookId = c.req.query("bookId") || undefined;
-      const components = await ctx.componentRuntime.listComponents({ bookId });
+      const modules = await ctx.moduleRuntime.listModules({ bookId });
       return c.json({
-        data: components.map((entry: ComponentCatalogEntry) => ({
+        data: modules.map((entry: ModuleCatalogEntry) => ({
           manifest: entry.manifest,
           effective: entry.effective,
           globalState: entry.globalState,
@@ -64,13 +64,13 @@ export function systemComponentsRoutes(ctx: AppContext) {
   );
 
   app.get(
-    "/:componentId/effective",
-    requirePermission({ system_components: ["list"] }),
+    "/:moduleId/effective",
+    requirePermission({ system_modules: ["list"] }),
     async (c) => {
-      const componentId = c.req.param("componentId");
+      const moduleId = c.req.param("moduleId");
       const bookId = c.req.query("bookId") || undefined;
-      const effective = await ctx.componentRuntime.getEffectiveComponentState({
-        componentId,
+      const effective = await ctx.moduleRuntime.getEffectiveModuleState({
+        moduleId,
         bookId,
       });
       return c.json(effective);
@@ -78,11 +78,11 @@ export function systemComponentsRoutes(ctx: AppContext) {
   );
 
   app.put(
-    "/:componentId/state",
-    requirePermission({ system_components: ["manage"] }),
+    "/:moduleId/state",
+    requirePermission({ system_modules: ["manage"] }),
     async (c) => {
-      const componentId = c.req.param("componentId");
-      const parsed = UpdateComponentStateSchema.safeParse(await c.req.json());
+      const moduleId = c.req.param("moduleId");
+      const parsed = UpdateModuleStateSchema.safeParse(await c.req.json());
       if (!parsed.success) {
         return c.json(
           {
@@ -94,8 +94,8 @@ export function systemComponentsRoutes(ctx: AppContext) {
       }
 
       const requestContext = c.get("requestContext");
-      const updated = await ctx.componentRuntime.updateComponentState({
-        componentId,
+      const updated = await ctx.moduleRuntime.updateModuleState({
+        moduleId,
         scopeType: parsed.data.scopeType,
         scopeId: parsed.data.scopeId,
         state: parsed.data.state,
@@ -111,11 +111,11 @@ export function systemComponentsRoutes(ctx: AppContext) {
   );
 
   app.post(
-    "/:componentId/state/dry-run",
-    requirePermission({ system_components: ["manage"] }),
+    "/:moduleId/state/dry-run",
+    requirePermission({ system_modules: ["manage"] }),
     async (c) => {
-      const componentId = c.req.param("componentId");
-      const parsed = PreviewComponentStateSchema.safeParse(await c.req.json());
+      const moduleId = c.req.param("moduleId");
+      const parsed = PreviewModuleStateSchema.safeParse(await c.req.json());
       if (!parsed.success) {
         return c.json(
           {
@@ -126,8 +126,8 @@ export function systemComponentsRoutes(ctx: AppContext) {
         );
       }
 
-      const preview = await ctx.componentRuntime.previewComponentStateUpdate({
-        componentId,
+      const preview = await ctx.moduleRuntime.previewModuleStateUpdate({
+        moduleId,
         scopeType: parsed.data.scopeType,
         scopeId: parsed.data.scopeId,
         state: parsed.data.state,
@@ -140,19 +140,19 @@ export function systemComponentsRoutes(ctx: AppContext) {
 
   app.get(
     "/events",
-    requirePermission({ system_components: ["list"] }),
+    requirePermission({ system_modules: ["list"] }),
     async (c) => {
       const limit = Number(c.req.query("limit") ?? "100");
       const offset = Number(c.req.query("offset") ?? "0");
-      const componentId = c.req.query("componentId") || undefined;
+      const moduleId = c.req.query("moduleId") || undefined;
       const scopeType = c.req.query("scopeType") as
         | "global"
         | "book"
         | undefined;
       const scopeId = c.req.query("scopeId") || undefined;
 
-      const events = await ctx.componentRuntime.listComponentEvents({
-        componentId,
+      const events = await ctx.moduleRuntime.listModuleEvents({
+        moduleId,
         scopeType,
         scopeId,
         limit,
@@ -165,9 +165,9 @@ export function systemComponentsRoutes(ctx: AppContext) {
 
   app.get(
     "/runtime",
-    requirePermission({ system_components: ["list"] }),
+    requirePermission({ system_modules: ["list"] }),
     async (c) => {
-      const runtime = await ctx.componentRuntime.getRuntimeInfo();
+      const runtime = await ctx.moduleRuntime.getRuntimeInfo();
 
       return c.json({
         stateEpoch: runtime.stateEpoch.toString(),

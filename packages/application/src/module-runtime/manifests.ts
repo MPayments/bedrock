@@ -1,9 +1,9 @@
 import {
-  BEDROCK_CORE_COMPONENT_MANIFESTS,
-  type ComponentManifest,
-} from "@bedrock/core/component-runtime";
+  BEDROCK_CORE_MODULE_MANIFESTS,
+  type ModuleManifest,
+} from "@bedrock/core/module-runtime";
 
-export const BEDROCK_APPLICATION_COMPONENT_MANIFESTS = [
+export const BEDROCK_APPLICATION_MODULE_MANIFESTS = [
   {
     id: "accounting-reporting",
     version: 1,
@@ -21,7 +21,7 @@ export const BEDROCK_APPLICATION_COMPONENT_MANIFESTS = [
     },
     dependencies: [
       {
-        componentId: "accounting",
+        moduleId: "accounting",
 
         reason: "Reporting depends on accounting data model",
       },
@@ -39,7 +39,7 @@ export const BEDROCK_APPLICATION_COMPONENT_MANIFESTS = [
     capabilities: {},
     dependencies: [
       {
-        componentId: "currencies",
+        moduleId: "currencies",
 
         reason: "Fee rules are currency-bound",
       },
@@ -57,12 +57,12 @@ export const BEDROCK_APPLICATION_COMPONENT_MANIFESTS = [
     capabilities: {},
     dependencies: [
       {
-        componentId: "fees",
+        moduleId: "fees",
 
         reason: "FX quotes include fee components",
       },
       {
-        componentId: "currencies",
+        moduleId: "currencies",
 
         reason: "FX pairs require currencies",
       },
@@ -73,7 +73,7 @@ export const BEDROCK_APPLICATION_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "FX rates component and worker",
+    description: "FX rates module and worker",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -93,7 +93,7 @@ export const BEDROCK_APPLICATION_COMPONENT_MANIFESTS = [
     },
     dependencies: [
       {
-        componentId: "fx",
+        moduleId: "fx",
 
         reason: "Rates sync is part of FX runtime",
       },
@@ -130,12 +130,12 @@ export const BEDROCK_APPLICATION_COMPONENT_MANIFESTS = [
     },
     dependencies: [
       {
-        componentId: "documents",
+        moduleId: "documents",
 
         reason: "IFRS workflows are executed through the documents runtime",
       },
       {
-        componentId: "counterparty-accounts",
+        moduleId: "counterparty-accounts",
 
         reason: "Transfer and funding modules resolve counterparty account bindings",
       },
@@ -146,7 +146,7 @@ export const BEDROCK_APPLICATION_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Payments workflow component",
+    description: "Payments workflow module",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -159,20 +159,20 @@ export const BEDROCK_APPLICATION_COMPONENT_MANIFESTS = [
     },
     dependencies: [
       {
-        componentId: "documents",
+        moduleId: "documents",
 
         reason: "Payments are implemented as document workflows",
       },
     ],
   },
-] as const satisfies ComponentManifest[];
+] as const satisfies ModuleManifest[];
 
-export const BEDROCK_COMPONENT_MANIFESTS = [
-  ...BEDROCK_CORE_COMPONENT_MANIFESTS,
-  ...BEDROCK_APPLICATION_COMPONENT_MANIFESTS,
-] as const satisfies ComponentManifest[];
+export const BEDROCK_MODULE_MANIFESTS = [
+  ...BEDROCK_CORE_MODULE_MANIFESTS,
+  ...BEDROCK_APPLICATION_MODULE_MANIFESTS,
+] as const satisfies ModuleManifest[];
 
-export type BedrockApplicationComponentId =
-  (typeof BEDROCK_APPLICATION_COMPONENT_MANIFESTS)[number]["id"];
-export type BedrockComponentId =
-  (typeof BEDROCK_COMPONENT_MANIFESTS)[number]["id"];
+export type BedrockApplicationModuleId =
+  (typeof BEDROCK_APPLICATION_MODULE_MANIFESTS)[number]["id"];
+export type BedrockModuleId =
+  (typeof BEDROCK_MODULE_MANIFESTS)[number]["id"];

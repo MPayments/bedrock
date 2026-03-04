@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { schema } from "../src/schema";
 
 describe("db schema exports", () => {
-  it("includes component runtime tables", () => {
-    expect(schema.coreComponentStates).toBeDefined();
-    expect(schema.coreComponentEvents).toBeDefined();
-    expect(schema.coreComponentRuntimeMeta).toBeDefined();
+  it("includes module runtime tables", () => {
+    expect(schema.coreModuleStates).toBeDefined();
+    expect(schema.coreModuleEvents).toBeDefined();
+    expect(schema.coreModuleRuntimeMeta).toBeDefined();
   });
 });

@@ -1,16 +1,16 @@
 import { z } from "zod";
 
 import type { AccountingReportingService } from "@bedrock/application/accounting-reporting";
-import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/application/component-runtime";
+import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
 import type { FeesService } from "@bedrock/application/fees";
 import type { FxService } from "@bedrock/application/fx";
 import type { PaymentsService } from "@bedrock/application/payments";
 import type { AccountingService } from "@bedrock/core/accounting";
 import type { BalancesService } from "@bedrock/core/balances";
 import {
-  createComponentRuntimeService,
-  type ComponentRuntimeService,
-} from "@bedrock/core/component-runtime";
+  createModuleRuntimeService,
+  type ModuleRuntimeService,
+} from "@bedrock/core/module-runtime";
 import type { CounterpartiesService } from "@bedrock/core/counterparties";
 import { assertInternalLedgerInvariants } from "@bedrock/core/counterparties";
 import type { CounterpartyAccountsService } from "@bedrock/core/counterparty-accounts";
@@ -74,16 +74,16 @@ export interface AppContext {
   balancesService: BalancesService;
   documentsService: DocumentsService;
   reconciliationService: ReconciliationService;
-  componentRuntime: ComponentRuntimeService;
+  moduleRuntime: ModuleRuntimeService;
   assertInternalLedgerInvariants: () => Promise<void>;
 }
 
 export function createAppContext(env: Env): AppContext {
   const core = createCoreServices();
-  const componentRuntime = createComponentRuntimeService({
+  const moduleRuntime = createModuleRuntimeService({
     db,
     logger: core.logger,
-    manifests: BEDROCK_COMPONENT_MANIFESTS,
+    manifests: BEDROCK_MODULE_MANIFESTS,
   });
   const applicationServices = createApplicationServices(core);
 
@@ -103,7 +103,7 @@ export function createAppContext(env: Env): AppContext {
     paymentsService: applicationServices.paymentsService,
     documentsService: applicationServices.documentsService,
     reconciliationService: applicationServices.reconciliationService,
-    componentRuntime,
+    moduleRuntime,
     assertInternalLedgerInvariants: () => assertInternalLedgerInvariants(db),
   };
 }

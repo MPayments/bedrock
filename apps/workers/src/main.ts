@@ -1,9 +1,9 @@
 import "./env";
 
-import { BEDROCK_COMPONENT_MANIFESTS } from "@bedrock/application/component-runtime";
+import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
 import {
-  createComponentRuntimeService,
-} from "@bedrock/core/component-runtime";
+  createModuleRuntimeService,
+} from "@bedrock/core/module-runtime";
 import { createTbClient } from "@bedrock/core/ledger";
 import {
   createWorkerFleet,
@@ -15,18 +15,18 @@ import {
   installShutdownHandlers,
 } from "@bedrock/kernel";
 
-import { createWorkerImplementations } from "./components/registry";
+import { createWorkerImplementations } from "./modules/registry";
 import { env } from "./env";
 import { createWorkerMonitoringRegistry, startWorkerMonitoringServer } from "./monitoring";
 import { parseSelectedWorkerIds } from "./selection";
 
 const logger = createConsoleLogger({ app: "bedrock-workers" });
-const componentRuntime = createComponentRuntimeService({
+const moduleRuntime = createModuleRuntimeService({
   db,
   logger,
-  manifests: BEDROCK_COMPONENT_MANIFESTS,
+  manifests: BEDROCK_MODULE_MANIFESTS,
 });
-await componentRuntime.startBackgroundSync();
+await moduleRuntime.startBackgroundSync();
 
 const tb = createTbClient(env.TB_CLUSTER_ID, env.TB_ADDRESS);
 const workerImplementations = createWorkerImplementations({
@@ -34,11 +34,11 @@ const workerImplementations = createWorkerImplementations({
   logger,
   env,
   tb,
-  componentRuntime,
+  moduleRuntime,
 });
 const selectedWorkerIds = parseSelectedWorkerIds(process.argv.slice(2));
 const workers = createWorkerFleet({
-  manifests: BEDROCK_COMPONENT_MANIFESTS,
+  manifests: BEDROCK_MODULE_MANIFESTS,
   workerImplementations,
   selectedWorkerIds,
 });
@@ -56,7 +56,7 @@ const monitoringServer =
 const fleet = startWorkerFleet({
   appName: "bedrock-workers",
   workers,
-  componentRuntime,
+  moduleRuntime,
   createObserver: (worker) =>
     monitoring.registerWorker({
       name: worker.id,
@@ -69,7 +69,7 @@ installShutdownHandlers(() => {
   if (monitoringServer) {
     void monitoringServer.stop();
   }
-  void componentRuntime.stopBackgroundSync();
+  void moduleRuntime.stopBackgroundSync();
 });
 
 logger.info("Workers started", {
@@ -77,5 +77,5 @@ logger.info("Workers started", {
 });
 await fleet.promise;
 logger.info("Workers stopped");
-await componentRuntime.stopBackgroundSync();
+await moduleRuntime.stopBackgroundSync();
 process.exit(0);

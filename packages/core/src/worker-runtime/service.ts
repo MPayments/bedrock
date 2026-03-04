@@ -17,7 +17,7 @@ function listWorkerCatalogEntries(
     for (const capability of manifest.capabilities.workers ?? []) {
       entries.push({
         id: capability.id,
-        componentId: manifest.id,
+        moduleId: manifest.id,
         envKey: capability.envKey,
         defaultIntervalMs: capability.defaultIntervalMs,
         description: capability.description,
@@ -68,9 +68,9 @@ export function createWorkerFleet(
       );
     }
 
-    if (worker.componentId !== entry.componentId) {
+    if (worker.moduleId !== entry.moduleId) {
       throw new Error(
-        `Worker implementation component mismatch for ${workerId}: expected ${entry.componentId}, got ${worker.componentId}`,
+        `Worker implementation module mismatch for ${workerId}: expected ${entry.moduleId}, got ${worker.moduleId}`,
       );
     }
   }
@@ -109,8 +109,8 @@ export function startWorkerFleet(
       appName: input.appName,
       workerName: worker.id,
       processFn: async () => {
-        const enabled = await input.componentRuntime.isComponentEnabled({
-          componentId: worker.componentId,
+        const enabled = await input.moduleRuntime.isModuleEnabled({
+          moduleId: worker.moduleId,
         });
         if (!enabled) {
           return 0;

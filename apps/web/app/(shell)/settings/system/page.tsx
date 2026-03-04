@@ -1,12 +1,12 @@
-import { BEDROCK_CORE_COMPONENT_MANIFESTS } from "@bedrock/core/component-runtime";
-import { Badge } from "@bedrock/ui/components/badge";
+import { BEDROCK_CORE_MODULE_MANIFESTS } from "@bedrock/core/module-runtime/contracts";
+import { Badge } from "@bedrock/ui/modules/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/ui/modules/card";
 import {
   Table,
   TableBody,
@@ -14,42 +14,42 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@bedrock/ui/components/table";
+} from "@bedrock/ui/modules/table";
 
-const enabledComponents = BEDROCK_CORE_COMPONENT_MANIFESTS.filter(
-  (component) => component.enabledByDefault,
+const enabledModules = BEDROCK_CORE_MODULE_MANIFESTS.filter(
+  (module) => module.enabledByDefault,
 );
 
-function getAdditionalInfo(component: (typeof enabledComponents)[number]) {
+function getAdditionalInfo(module: (typeof enabledModules)[number]) {
   const info: string[] = [];
 
-  info.push(`тип: ${component.kind}`);
-  info.push(`изменяемость: ${component.mutability}`);
+  info.push(`тип: ${module.kind}`);
+  info.push(`изменяемость: ${module.mutability}`);
 
   const scopes = [
-    component.scopeSupport.global ? "global" : null,
-    component.scopeSupport.book ? "book" : null,
+    module.scopeSupport.global ? "global" : null,
+    module.scopeSupport.book ? "book" : null,
   ].filter((scope): scope is string => scope !== null);
   info.push(`контур: ${scopes.join("/")}`);
 
   const apiCapabilities =
-    "api" in component.capabilities ? component.capabilities.api : undefined;
+    "api" in module.capabilities ? module.capabilities.api : undefined;
   if (apiCapabilities) {
     const apiVersion = apiCapabilities.version ?? "v1";
     info.push(`api: ${apiVersion} ${apiCapabilities.routePath}`);
   }
 
   const workers =
-    "workers" in component.capabilities
-      ? component.capabilities.workers
+    "workers" in module.capabilities
+      ? module.capabilities.workers
       : undefined;
   if (workers?.length) {
     info.push(`воркеры: ${workers.length}`);
   }
 
-  if (component.dependencies.length) {
+  if (module.dependencies.length) {
     info.push(
-      `зависит от: ${component.dependencies.map((entry) => entry.componentId).join(", ")}`,
+      `зависит от: ${module.dependencies.map((entry) => entry.moduleId).join(", ")}`,
     );
   }
 
@@ -59,40 +59,40 @@ function getAdditionalInfo(component: (typeof enabledComponents)[number]) {
 export default function SettingsSystemPage() {
   return (
     <div className="flex flex-col gap-6">
-      <Card className="rounded-sm">
+        <Card className="rounded-sm">
         <CardHeader className="border-b">
-          <CardTitle>Включенные компоненты</CardTitle>
+          <CardTitle>Включенные модули</CardTitle>
           <CardDescription>
-            Версии и техническая информация по компонентам runtime-платформы.
+            Версии и техническая информация по модулям runtime-платформы.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Компонент</TableHead>
+                <TableHead>Модуль</TableHead>
                 <TableHead className="w-28">Версия</TableHead>
                 <TableHead className="w-32">Состояние</TableHead>
                 <TableHead>Дополнительная информация</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {enabledComponents.map((component) => (
-                <TableRow key={component.id} className="align-top">
+              {enabledModules.map((module) => (
+                <TableRow key={module.id} className="align-top">
                   <TableCell>
-                    <div className="font-medium">{component.id}</div>
+                    <div className="font-medium">{module.id}</div>
                     <div className="text-muted-foreground text-xs">
-                      {component.description}
+                      {module.description}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">v{component.version}</Badge>
+                    <Badge variant="outline">v{module.version}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge>включен</Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
-                    {getAdditionalInfo(component)}
+                    {getAdditionalInfo(module)}
                   </TableCell>
                 </TableRow>
               ))}

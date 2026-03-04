@@ -389,7 +389,7 @@ async function listProjectionPostingRowsTx(
 
 export function createBalancesProjectorWorkerDefinition(deps: {
   id?: string;
-  componentId?: string;
+  moduleId?: string;
   intervalMs?: number;
   db: Database;
   logger?: Logger;
@@ -470,7 +470,7 @@ export function createBalancesProjectorWorkerDefinition(deps: {
 
   return {
     id: deps.id ?? "balances",
-    componentId: deps.componentId ?? "balances",
+    moduleId: deps.moduleId ?? "balances",
     intervalMs: deps.intervalMs ?? 5_000,
     runOnce,
   };

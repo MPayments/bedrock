@@ -135,7 +135,9 @@ export const accountingPackVersions = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     packKey: text("pack_key").notNull(),
     version: integer("version").notNull(),
-    checksum: text("checksum").notNull(),
+    checksum: text("checksum")
+      .notNull()
+      .unique("accounting_pack_versions_checksum_uq"),
     compiledJson: jsonb("compiled_json")
       .$type<Record<string, unknown>>()
       .notNull(),
@@ -148,7 +150,6 @@ export const accountingPackVersions = pgTable(
       t.packKey,
       t.version,
     ),
-    uniqueIndex("accounting_pack_versions_checksum_uq").on(t.checksum),
     index("accounting_pack_versions_pack_compiled_idx").on(t.packKey, t.compiledAt),
   ],
 );

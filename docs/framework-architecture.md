@@ -6,7 +6,7 @@
 - Слои и зоны ответственности
 - Границы зависимостей и архитектурные контракты
 - Потоки данных в рантайме
-- Компонентная модель (`component-runtime`)
+- Модульная модель (`module-runtime`)
 - Каталог воркеров
 - Карта точек входа по коду
 
@@ -79,34 +79,34 @@
 - [`packages/core/src/documents/worker.ts`](../packages/core/src/documents/worker.ts)
 - [`packages/core/src/balances/worker.ts`](../packages/core/src/balances/worker.ts)
 
-## Компонентная модель (`component-runtime`)
+## Модульная модель (`module-runtime`)
 
-Компоненты описываются манифестами и объединяются в общий каталог:
-- core manifests: [`packages/core/src/component-runtime/manifests.ts`](../packages/core/src/component-runtime/manifests.ts)
-- application manifests: [`packages/application/src/component-runtime/manifests.ts`](../packages/application/src/component-runtime/manifests.ts)
+Модули описываются манифестами и объединяются в общий каталог:
+- core manifests: [`packages/core/src/module-runtime/manifests.ts`](../packages/core/src/module-runtime/manifests.ts)
+- application manifests: [`packages/application/src/module-runtime/manifests.ts`](../packages/application/src/module-runtime/manifests.ts)
 
-`ComponentManifest` определяет:
+`ModuleManifest` определяет:
 - `id`, `kind`, `mutability`, `enabledByDefault`
 - `scopeSupport` (`global`, `book`)
 - `capabilities` (`api`, `workers`, `documentModules`)
-- `dependencies` (граф зависимостей компонентов)
+- `dependencies` (граф зависимостей модулей)
 
-`createComponentRuntimeService(...)`:
+`createModuleRuntimeService(...)`:
 - валидирует манифесты и циклы зависимостей
 - вычисляет `effective state` с учетом `default/global/book/dependency`
 - ведет `stateEpoch`, `events`, preview/dry-run
 - использует `LISTEN/NOTIFY` + poll fallback для синхронизации кэша
 
-Источник: [`packages/core/src/component-runtime/service.ts`](../packages/core/src/component-runtime/service.ts)
+Источник: [`packages/core/src/module-runtime/service.ts`](../packages/core/src/module-runtime/service.ts)
 
 ## Каталог воркеров
 
 Воркеры декларируются в манифестах и собираются через worker fleet:
 - каталог/контракт: [`packages/core/src/worker-runtime/service.ts`](../packages/core/src/worker-runtime/service.ts)
-- реализация в приложении: [`apps/workers/src/components/registry.ts`](../apps/workers/src/components/registry.ts)
+- реализация в приложении: [`apps/workers/src/modules/registry.ts`](../apps/workers/src/modules/registry.ts)
 - запуск флита: [`apps/workers/src/main.ts`](../apps/workers/src/main.ts)
 
-| Worker ID | Component ID | Env key | Interval по умолчанию |
+| Worker ID | Module ID | Env key | Interval по умолчанию |
 |---|---|---|---|
 | `ledger` | `ledger` | `LEDGER_WORKER_INTERVAL_MS` | `5000` |
 | `documents` | `documents` | `DOCUMENTS_WORKER_INTERVAL_MS` | `5000` |
@@ -152,7 +152,7 @@ flowchart LR
 
 ### Композиция приложений
 - API context/composition: [`apps/api/src/context.ts`](../apps/api/src/context.ts), [`apps/api/src/composition/core.ts`](../apps/api/src/composition/core.ts), [`apps/api/src/composition/application.ts`](../apps/api/src/composition/application.ts)
-- Workers runtime: [`apps/workers/src/main.ts`](../apps/workers/src/main.ts), [`apps/workers/src/components/registry.ts`](../apps/workers/src/components/registry.ts)
+- Workers runtime: [`apps/workers/src/main.ts`](../apps/workers/src/main.ts), [`apps/workers/src/modules/registry.ts`](../apps/workers/src/modules/registry.ts)
 
 ### Архитектурные проверки
 - [`scripts/check-boundaries.mjs`](../scripts/check-boundaries.mjs)

@@ -11,17 +11,17 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export type CoreComponentState = "enabled" | "disabled";
-export type CoreComponentScopeType = "global" | "book";
+export type CoreModuleState = "enabled" | "disabled";
+export type CoreModuleScopeType = "global" | "book";
 
-export const coreComponentStates = pgTable(
-  "core_component_states",
+export const coreModuleStates = pgTable(
+  "core_module_states",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    componentId: text("component_id").notNull(),
-    scopeType: text("scope_type").$type<CoreComponentScopeType>().notNull(),
+    moduleId: text("module_id").notNull(),
+    scopeType: text("scope_type").$type<CoreModuleScopeType>().notNull(),
     scopeId: text("scope_id").notNull(),
-    state: text("state").$type<CoreComponentState>().notNull(),
+    state: text("state").$type<CoreModuleState>().notNull(),
     reason: text("reason").notNull(),
     retryAfterSec: integer("retry_after_sec").notNull().default(300),
     version: integer("version").notNull().default(1),
@@ -38,25 +38,25 @@ export const coreComponentStates = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (t) => [
-    uniqueIndex("core_component_states_scope_uq").on(
-      t.componentId,
+    uniqueIndex("core_module_states_scope_uq").on(
+      t.moduleId,
       t.scopeType,
       t.scopeId,
     ),
-    index("core_component_states_component_idx").on(t.componentId),
-    index("core_component_states_scope_idx").on(t.scopeType, t.scopeId),
+    index("core_module_states_module_idx").on(t.moduleId),
+    index("core_module_states_scope_idx").on(t.scopeType, t.scopeId),
   ],
 );
 
-export const coreComponentEvents = pgTable(
-  "core_component_events",
+export const coreModuleEvents = pgTable(
+  "core_module_events",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    componentId: text("component_id").notNull(),
-    scopeType: text("scope_type").$type<CoreComponentScopeType>().notNull(),
+    moduleId: text("module_id").notNull(),
+    scopeType: text("scope_type").$type<CoreModuleScopeType>().notNull(),
     scopeId: text("scope_id").notNull(),
-    previousState: text("previous_state").$type<CoreComponentState>(),
-    newState: text("new_state").$type<CoreComponentState>().notNull(),
+    previousState: text("previous_state").$type<CoreModuleState>(),
+    newState: text("new_state").$type<CoreModuleState>().notNull(),
     reason: text("reason").notNull(),
     retryAfterSec: integer("retry_after_sec").notNull().default(300),
     changedBy: text("changed_by").notNull(),
@@ -67,11 +67,11 @@ export const coreComponentEvents = pgTable(
     meta: jsonb("meta").$type<Record<string, unknown> | null>(),
   },
   (t) => [
-    index("core_component_events_component_changed_idx").on(
-      t.componentId,
+    index("core_module_events_module_changed_idx").on(
+      t.moduleId,
       t.changedAt,
     ),
-    index("core_component_events_scope_changed_idx").on(
+    index("core_module_events_scope_changed_idx").on(
       t.scopeType,
       t.scopeId,
       t.changedAt,
@@ -79,8 +79,8 @@ export const coreComponentEvents = pgTable(
   ],
 );
 
-export const coreComponentRuntimeMeta = pgTable(
-  "core_component_runtime_meta",
+export const coreModuleRuntimeMeta = pgTable(
+  "core_module_runtime_meta",
   {
     id: integer("id").primaryKey(),
     stateEpoch: bigint("state_epoch", { mode: "bigint" })
@@ -95,19 +95,19 @@ export const coreComponentRuntimeMeta = pgTable(
   },
 );
 
-export type CoreComponentStateRow = typeof coreComponentStates.$inferSelect;
-export type CoreComponentStateInsert =
-  typeof coreComponentStates.$inferInsert;
-export type CoreComponentEvent = typeof coreComponentEvents.$inferSelect;
-export type CoreComponentEventInsert =
-  typeof coreComponentEvents.$inferInsert;
-export type CoreComponentRuntimeMeta =
-  typeof coreComponentRuntimeMeta.$inferSelect;
-export type CoreComponentRuntimeMetaInsert =
-  typeof coreComponentRuntimeMeta.$inferInsert;
+export type CoreModuleStateRow = typeof coreModuleStates.$inferSelect;
+export type CoreModuleStateInsert =
+  typeof coreModuleStates.$inferInsert;
+export type CoreModuleEvent = typeof coreModuleEvents.$inferSelect;
+export type CoreModuleEventInsert =
+  typeof coreModuleEvents.$inferInsert;
+export type CoreModuleRuntimeMeta =
+  typeof coreModuleRuntimeMeta.$inferSelect;
+export type CoreModuleRuntimeMetaInsert =
+  typeof coreModuleRuntimeMeta.$inferInsert;
 
 export const schema = {
-  coreComponentStates,
-  coreComponentEvents,
-  coreComponentRuntimeMeta,
+  coreModuleStates,
+  coreModuleEvents,
+  coreModuleRuntimeMeta,
 };

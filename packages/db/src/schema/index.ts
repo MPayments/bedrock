@@ -12,7 +12,7 @@ import {
   verification,
 } from "@bedrock/core/auth/schema";
 import { schema as balancesSchema } from "@bedrock/core/balances/schema";
-import { schema as componentRuntimeSchema } from "@bedrock/core/component-runtime/schema";
+import { schema as moduleRuntimeSchema } from "@bedrock/core/module-runtime/schema";
 import { schema as counterpartiesSchema } from "@bedrock/core/counterparties/schema";
 import { schema as currenciesSchema } from "@bedrock/core/currencies/schema";
 import { schema as customersSchema } from "@bedrock/core/customers/schema";
@@ -45,7 +45,7 @@ type CombinedSchema =
   & typeof fxSchema
   & typeof feesSchema
   & typeof currenciesSchema
-  & typeof componentRuntimeSchema
+  & typeof moduleRuntimeSchema
   & typeof balancesSchema
   & typeof reconciliationSchema;
 
@@ -62,7 +62,7 @@ const schemaInternal: CombinedSchema = {
   ...fxSchema,
   ...feesSchema,
   ...currenciesSchema,
-  ...componentRuntimeSchema,
+  ...moduleRuntimeSchema,
   ...balancesSchema,
   ...reconciliationSchema,
 };

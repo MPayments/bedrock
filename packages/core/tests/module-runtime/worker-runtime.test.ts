@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { ComponentManifest } from "../../src/component-runtime";
+import type { ModuleManifest } from "../../src/module-runtime";
 import { createWorkerFleet } from "../../src/worker-runtime";
 
-function createManifest(id: string, workerId: string, envKey: string): ComponentManifest {
+function createManifest(id: string, workerId: string, envKey: string): ModuleManifest {
   return {
     id,
     version: 1,
@@ -47,13 +47,13 @@ describe("createWorkerFleet", () => {
         workerImplementations: {
           "worker-a": {
             id: "worker-a",
-            componentId: "comp-a",
+            moduleId: "comp-a",
             intervalMs: 1_000,
             runOnce: async () => ({ processed: 0 }),
           },
           "worker-extra": {
             id: "worker-extra",
-            componentId: "comp-a",
+            moduleId: "comp-a",
             intervalMs: 1_000,
             runOnce: async () => ({ processed: 0 }),
           },
@@ -71,7 +71,7 @@ describe("createWorkerFleet", () => {
         workerImplementations: {
           "worker-a": {
             id: "worker-a",
-            componentId: "comp-a",
+            moduleId: "comp-a",
             intervalMs: 1_000,
             runOnce: async () => ({ processed: 0 }),
           },
@@ -88,7 +88,7 @@ describe("createWorkerFleet", () => {
       workerImplementations: {
         "worker-a": {
           id: "worker-a",
-          componentId: "comp-a",
+          moduleId: "comp-a",
           intervalMs: 1_000,
           runOnce: async () => ({ processed: 0 }),
         },

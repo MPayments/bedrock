@@ -1,19 +1,19 @@
 import type { MiddlewareHandler } from "hono";
 
-import type { BedrockComponentId } from "@bedrock/application/component-runtime";
+import type { BedrockModuleId } from "@bedrock/application/module-runtime";
 
 import type { AppContext } from "../context";
 import type { AuthVariables } from "./auth";
 
-export function createComponentGuard(
+export function createModuleGuard(
   ctx: AppContext,
-  componentId: BedrockComponentId,
+  moduleId: BedrockModuleId,
 ): MiddlewareHandler<{ Variables: AuthVariables }> {
   return async (c, next) => {
     const bookId = c.req.query("bookId") || undefined;
 
-    const effective = await ctx.componentRuntime.getEffectiveComponentState({
-      componentId,
+    const effective = await ctx.moduleRuntime.getEffectiveModuleState({
+      moduleId,
       bookId,
     });
 
@@ -21,9 +21,9 @@ export function createComponentGuard(
       c.header("Retry-After", String(effective.retryAfterSec));
       return c.json(
         {
-          error: "Component disabled",
-          code: "COMPONENT_DISABLED",
-          componentId,
+          error: "Module disabled",
+          code: "MODULE_DISABLED",
+          moduleId,
           scope: effective.scope,
           effectiveState: effective.state,
           dependencyChain: effective.dependencyChain,

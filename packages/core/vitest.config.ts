@@ -31,10 +31,10 @@ export const coreUnitProjects = [
   }),
   coreProject({
     test: {
-      name: "component-runtime",
+      name: "module-runtime",
       globals: true,
       environment: "node",
-      include: ["tests/component-runtime/**/*.test.ts"],
+      include: ["tests/module-runtime/**/*.test.ts"],
       exclude: NODE_EXCLUDE,
     },
   }),

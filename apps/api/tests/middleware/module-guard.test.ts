@@ -1,13 +1,13 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { describe, expect, it, vi } from "vitest";
 
-import { createComponentGuard } from "../../src/middleware/component-guard";
+import { createModuleGuard } from "../../src/middleware/module-guard";
 
 function createContextStub(disabled: boolean) {
   return {
-    componentRuntime: {
-      getEffectiveComponentState: vi.fn(async () => ({
-        componentId: "payments",
+    moduleRuntime: {
+      getEffectiveModuleState: vi.fn(async () => ({
+        moduleId: "payments",
         state: disabled ? "disabled" : "enabled",
         source: disabled ? "global" : "default",
         reason: disabled ? "maintenance" : "enabled by default",
@@ -20,10 +20,10 @@ function createContextStub(disabled: boolean) {
   } as any;
 }
 
-describe("createComponentGuard", () => {
-  it("returns 503 with Retry-After when component is disabled", async () => {
+describe("createModuleGuard", () => {
+  it("returns 503 with Retry-After when module is disabled", async () => {
     const app = new OpenAPIHono();
-    app.use("*", createComponentGuard(createContextStub(true), "payments"));
+    app.use("*", createModuleGuard(createContextStub(true), "payments"));
     app.get("/", (c) => c.json({ ok: true }));
 
     const response = await app.request("http://localhost/");
@@ -31,15 +31,15 @@ describe("createComponentGuard", () => {
     expect(response.status).toBe(503);
     expect(response.headers.get("Retry-After")).toBe("120");
     await expect(response.json()).resolves.toMatchObject({
-      code: "COMPONENT_DISABLED",
-      componentId: "payments",
+      code: "MODULE_DISABLED",
+      moduleId: "payments",
       retryAfterSec: 120,
     });
   });
 
-  it("allows request when component is enabled", async () => {
+  it("allows request when module is enabled", async () => {
     const app = new OpenAPIHono();
-    app.use("*", createComponentGuard(createContextStub(false), "payments"));
+    app.use("*", createModuleGuard(createContextStub(false), "payments"));
     app.get("/", (c) => c.json({ ok: true }));
 
     const response = await app.request("http://localhost/");

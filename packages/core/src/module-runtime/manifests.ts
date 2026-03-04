@@ -1,19 +1,19 @@
-import type { ComponentManifest } from "./types";
+import type { ModuleManifest } from "./types";
 
-export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
+export const BEDROCK_CORE_MODULE_MANIFESTS = [
   {
-    id: "system-components",
+    id: "system-modules",
     version: 2,
     kind: "control",
     mutability: "immutable",
-    description: "Панель управления runtime-компонентами",
+    description: "Панель управления runtime-модулями",
     enabledByDefault: true,
     scopeSupport: { global: true, book: false },
 
     capabilities: {
       api: {
         version: "v1",
-        routePath: "/system/components",
+        routePath: "/system/modules",
         guarded: false,
       },
     },
@@ -69,12 +69,12 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     },
     dependencies: [
       {
-        componentId: "ledger",
+        moduleId: "ledger",
 
         reason: "Проведение бухгалтерии сохраняется через операции ledger",
       },
       {
-        componentId: "idempotency",
+        moduleId: "idempotency",
 
         reason: "Записи бухгалтерии опираются на идемпотентную семантику операций",
       },
@@ -108,17 +108,17 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     },
     dependencies: [
       {
-        componentId: "accounting",
+        moduleId: "accounting",
 
         reason: "Проведение документов выполняется через runtime бухгалтерии",
       },
       {
-        componentId: "ledger",
+        moduleId: "ledger",
 
         reason: "Проведение документов записывает операции ledger",
       },
       {
-        componentId: "idempotency",
+        moduleId: "idempotency",
 
         reason: "Действия с документами используют идемпотентные квитанции действий",
       },
@@ -129,7 +129,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Компонент счетов контрагентов",
+    description: "Модуль счетов контрагентов",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -146,7 +146,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Компонент провайдеров счетов контрагентов",
+    description: "Модуль провайдеров счетов контрагентов",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -158,7 +158,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     },
     dependencies: [
       {
-        componentId: "counterparty-accounts",
+        moduleId: "counterparty-accounts",
 
         reason: "Провайдеры привязаны к счетам контрагентов",
       },
@@ -169,7 +169,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Компонент контрагентов",
+    description: "Модуль контрагентов",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -186,7 +186,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Компонент групп контрагентов",
+    description: "Модуль групп контрагентов",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -198,7 +198,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     },
     dependencies: [
       {
-        componentId: "counterparties",
+        moduleId: "counterparties",
 
         reason: "Группы агрегируют контрагентов",
       },
@@ -209,7 +209,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Компонент клиентов",
+    description: "Модуль клиентов",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -226,7 +226,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     version: 1,
     kind: "domain",
     mutability: "mutable",
-    description: "Компонент валют",
+    description: "Модуль валют",
     enabledByDefault: true,
     scopeSupport: { global: true, book: true },
 
@@ -263,7 +263,7 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     },
     dependencies: [
       {
-        componentId: "ledger",
+        moduleId: "ledger",
 
         reason: "Баланс формируется из событий ledger",
       },
@@ -295,18 +295,18 @@ export const BEDROCK_CORE_COMPONENT_MANIFESTS = [
     },
     dependencies: [
       {
-        componentId: "documents",
+        moduleId: "documents",
 
         reason: "Сверка использует document workflow для корректировок",
       },
       {
-        componentId: "idempotency",
+        moduleId: "idempotency",
 
         reason: "Записи сверки идемпотентны",
       },
     ],
   },
-] as const satisfies ComponentManifest[];
+] as const satisfies ModuleManifest[];
 
-export type BedrockCoreComponentId =
-  (typeof BEDROCK_CORE_COMPONENT_MANIFESTS)[number]["id"];
+export type BedrockCoreModuleId =
+  (typeof BEDROCK_CORE_MODULE_MANIFESTS)[number]["id"];

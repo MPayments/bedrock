@@ -4,26 +4,26 @@ import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 
 import {
-  ComponentDependencyViolationError,
-  ComponentDisabledError,
-  ComponentStateVersionConflictError,
-  ImmutableComponentError,
+  ModuleDependencyViolationError,
+  ModuleDisabledError,
+  ModuleStateVersionConflictError,
+  ImmutableModuleError,
   MixedDeployError,
-  UnknownComponentError,
-} from "@bedrock/core/component-runtime";
+  UnknownModuleError,
+} from "@bedrock/core/module-runtime";
 
 import auth from "./auth";
 import {
-  API_APPLICATION_COMPONENTS,
-  type ApiApplicationComponent,
-} from "./components/registry";
+  API_APPLICATION_MODULES,
+  type ApiApplicationModule,
+} from "./modules/registry";
 import { createAppContext, parseEnv } from "./context";
 import {
   authMiddleware,
   requireAuth,
   type AuthVariables,
 } from "./middleware/auth";
-import { createComponentGuard } from "./middleware/component-guard";
+import { createModuleGuard } from "./middleware/module-guard";
 import { requestContextMiddleware } from "./middleware/request-context";
 import {
   accountingRoutes,
@@ -38,14 +38,14 @@ import {
   fxRatesRoutes,
   paymentsRoutes,
   reconciliationRoutes,
-  systemComponentsRoutes,
+  systemModulesRoutes,
 } from "./routes";
 
 const env = parseEnv();
 
 const ctx = createAppContext(env);
-void ctx.componentRuntime.startBackgroundSync().catch((error: unknown) => {
-  ctx.logger.warn("Failed to start component runtime background sync", {
+void ctx.moduleRuntime.startBackgroundSync().catch((error: unknown) => {
+  ctx.logger.warn("Failed to start module runtime background sync", {
     error: error instanceof Error ? error.message : String(error),
   });
 });
@@ -89,13 +89,13 @@ const app = new OpenAPIHono<{ Variables: AuthVariables }>({
 });
 
 app.onError((err, c) => {
-  if (err instanceof ComponentDisabledError) {
+  if (err instanceof ModuleDisabledError) {
     c.header("Retry-After", String(err.retryAfterSec));
     return c.json(
       {
-        error: "Component disabled",
-        code: "COMPONENT_DISABLED",
-        componentId: err.componentId,
+        error: "Module disabled",
+        code: "MODULE_DISABLED",
+        moduleId: err.moduleId,
         scope: err.scope,
         effectiveState: err.effectiveState,
         dependencyChain: err.dependencyChain,
@@ -106,8 +106,8 @@ app.onError((err, c) => {
     );
   }
 
-  if (err instanceof UnknownComponentError) {
-    return c.json({ error: err.message, code: "UNKNOWN_COMPONENT" }, 404);
+  if (err instanceof UnknownModuleError) {
+    return c.json({ error: err.message, code: "UNKNOWN_MODULE" }, 404);
   }
 
   if (err instanceof MixedDeployError) {
@@ -122,12 +122,12 @@ app.onError((err, c) => {
     );
   }
 
-  if (err instanceof ComponentStateVersionConflictError) {
+  if (err instanceof ModuleStateVersionConflictError) {
     return c.json(
       {
         error: err.message,
-        code: "COMPONENT_STATE_VERSION_CONFLICT",
-        componentId: err.componentId,
+        code: "MODULE_STATE_VERSION_CONFLICT",
+        moduleId: err.moduleId,
         scopeType: err.scopeType,
         scopeId: err.scopeId,
         expectedVersion: err.expectedVersion,
@@ -137,25 +137,25 @@ app.onError((err, c) => {
     );
   }
 
-  if (err instanceof ComponentDependencyViolationError) {
+  if (err instanceof ModuleDependencyViolationError) {
     return c.json(
       {
         error: err.message,
-        code: "COMPONENT_DEPENDENCY_VIOLATION",
-        componentId: err.componentId,
-        dependencyComponentId: err.dependencyComponentId,
+        code: "MODULE_DEPENDENCY_VIOLATION",
+        moduleId: err.moduleId,
+        dependencyModuleId: err.dependencyModuleId,
         scope: err.scope,
       },
       409,
     );
   }
 
-  if (err instanceof ImmutableComponentError) {
+  if (err instanceof ImmutableModuleError) {
     return c.json(
       {
         error: err.message,
-        code: "IMMUTABLE_COMPONENT",
-        componentId: err.componentId,
+        code: "IMMUTABLE_MODULE",
+        moduleId: err.moduleId,
       },
       409,
     );
@@ -234,12 +234,12 @@ app.get("/health", async (c) => {
   return c.json({ status: healthy ? "healthy" : "degraded", checks }, status);
 });
 
-function createGuardedRouter(component: ApiApplicationComponent) {
+function createGuardedRouter(module: ApiApplicationModule) {
   const guarded = new OpenAPIHono<{ Variables: AuthVariables }>();
-  if (component.guarded !== false) {
-    guarded.use("*", createComponentGuard(ctx, component.id));
+  if (module.guarded !== false) {
+    guarded.use("*", createModuleGuard(ctx, module.id));
   }
-  guarded.route("/", component.registerRoutes(ctx));
+  guarded.route("/", module.registerRoutes(ctx));
   return guarded;
 }
 
@@ -248,10 +248,10 @@ function buildV1Router(
 ): OpenAPIHono<{ Variables: AuthVariables }> {
   const router = new OpenAPIHono<{ Variables: AuthVariables }>();
 
-  for (const component of API_APPLICATION_COMPONENTS) {
+  for (const module of API_APPLICATION_MODULES) {
     router.route(
-      component.routePath,
-      guarded ? createGuardedRouter(component) : component.registerRoutes(ctx),
+      module.routePath,
+      guarded ? createGuardedRouter(module) : module.registerRoutes(ctx),
     );
   }
 
@@ -271,21 +271,21 @@ const TYPED_ROUTE_PATHS = [
   "/payments",
   "/fx/rates",
   "/reconciliation",
-  "/system/components",
+  "/system/modules",
 ] as const;
 
 function assertTypedRouteCoverage() {
   const typedRoutePaths = [...TYPED_ROUTE_PATHS].sort();
-  const componentRoutePaths = API_APPLICATION_COMPONENTS.map(
-    (component) => component.routePath,
+  const moduleRoutePaths = API_APPLICATION_MODULES.map(
+    (module) => module.routePath,
   ).sort();
 
   const hasMismatch =
-    typedRoutePaths.length !== componentRoutePaths.length ||
-    typedRoutePaths.some((path, index) => path !== componentRoutePaths[index]);
+    typedRoutePaths.length !== moduleRoutePaths.length ||
+    typedRoutePaths.some((path, index) => path !== moduleRoutePaths[index]);
   if (hasMismatch) {
     throw new Error(
-      `Typed API route mounts are out of sync with component registry. typed=${typedRoutePaths.join(",")} components=${componentRoutePaths.join(",")}`,
+      `Typed API route mounts are out of sync with module registry. typed=${typedRoutePaths.join(",")} modules=${moduleRoutePaths.join(",")}`,
     );
   }
 }
@@ -308,7 +308,7 @@ const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/payments", paymentsRoutes(ctx))
   .route("/fx/rates", fxRatesRoutes(ctx))
   .route("/reconciliation", reconciliationRoutes(ctx))
-  .route("/system/components", systemComponentsRoutes(ctx));
+  .route("/system/modules", systemModulesRoutes(ctx));
 
 const typedRoutes = new OpenAPIHono<{ Variables: AuthVariables }>().route(
   "/v1",
