@@ -10,6 +10,7 @@ import type {
   ValueBinding,
 } from "@bedrock/kernel/packs/schema";
 import { schema } from "@bedrock/core/accounting/schema";
+import { assertBooksBelongToInternalLedgerCounterparties } from "@bedrock/core/counterparties";
 
 import {
   AccountingPackCompilationError,
@@ -928,6 +929,17 @@ export function createAccountingRuntime(
 
   async function resolvePostingPlan(input: ResolvePostingPlanInput) {
     const bookId = resolveBookIdContext(input);
+
+    if (db) {
+      const requestBookIds = Array.from(
+        new Set(input.plan.requests.map((request) => readRequiredBookId(request))),
+      );
+      await assertBooksBelongToInternalLedgerCounterparties({
+        db,
+        bookIds: requestBookIds,
+      });
+    }
+
     const pack =
       input.pack ??
       (await loadActiveCompiledPackForBook({

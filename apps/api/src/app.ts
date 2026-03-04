@@ -13,6 +13,10 @@ import {
 } from "@bedrock/core/component-runtime";
 
 import auth from "./auth";
+import {
+  API_APPLICATION_COMPONENTS,
+  type ApiApplicationComponent,
+} from "./components/registry";
 import { createAppContext, parseEnv } from "./context";
 import {
   authMiddleware,
@@ -21,10 +25,6 @@ import {
 } from "./middleware/auth";
 import { createComponentGuard } from "./middleware/component-guard";
 import { requestContextMiddleware } from "./middleware/request-context";
-import {
-  API_APPLICATION_COMPONENTS,
-  type ApiApplicationComponent,
-} from "./components/registry";
 import {
   accountingRoutes,
   counterpartyAccountProvidersRoutes,
@@ -63,6 +63,13 @@ void ctx.documentsService
     process.exitCode = 1;
     setImmediate(() => process.exit(1));
   });
+void ctx.assertInternalLedgerInvariants().catch((error: unknown) => {
+  ctx.logger.error("Internal ledger invariants check failed", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+  process.exitCode = 1;
+  setImmediate(() => process.exit(1));
+});
 
 const configuredAuthOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
   .map((origin) => origin.trim())
@@ -167,7 +174,7 @@ app.use(
   "*",
   cors({
     origin: (origin: string) =>
-      (authAllowedOriginSet.has(origin) ? origin : undefined),
+      authAllowedOriginSet.has(origin) ? origin : undefined,
     allowHeaders: [
       "Content-Type",
       "Authorization",
@@ -291,7 +298,10 @@ assertTypedRouteCoverage();
 
 const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/accounting", accountingRoutes(ctx))
-  .route("/counterparty-account-providers", counterpartyAccountProvidersRoutes(ctx))
+  .route(
+    "/counterparty-account-providers",
+    counterpartyAccountProvidersRoutes(ctx),
+  )
   .route("/counterparty-accounts", counterpartyAccountsRoutes(ctx))
   .route("/balances", balancesRoutes(ctx))
   .route("/counterparties", counterpartiesRoutes(ctx))

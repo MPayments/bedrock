@@ -14,6 +14,7 @@ import {
   readMembershipMap,
   replaceMemberships,
   resolveGroupMembershipClassification,
+  TREASURY_INTERNAL_LEDGER_GROUP_CODE,
   TREASURY_ROOT_GROUP_CODE,
   withoutRootGroups,
 } from "../../src/counterparties/internal/group-rules";
@@ -168,16 +169,25 @@ describe("group-rules internals", () => {
       insert: vi.fn(() => ({
         values: vi.fn(() => ({
           onConflictDoNothing: vi.fn(async () => undefined),
+          onConflictDoUpdate: vi.fn(async () => undefined),
         })),
       })),
-      select: vi.fn(() => ({
-        from: vi.fn(() => ({
-          where: vi.fn(async () => [
-            { id: "root-t", code: TREASURY_ROOT_GROUP_CODE },
-            { id: "root-c", code: CUSTOMERS_ROOT_GROUP_CODE },
-          ]),
+      select: vi.fn()
+        .mockImplementationOnce(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(async () => [
+              { id: "root-t", code: TREASURY_ROOT_GROUP_CODE },
+              { id: "root-c", code: CUSTOMERS_ROOT_GROUP_CODE },
+            ]),
+          })),
+        }))
+        .mockImplementationOnce(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [{ id: "treasury-internal-ledger-group" }]),
+            })),
+          })),
         })),
-      })),
     } as any;
 
     const roots = await ensureSystemRootGroups(tx);
@@ -185,8 +195,9 @@ describe("group-rules internals", () => {
     expect(roots).toEqual({
       treasuryGroupId: "root-t",
       customersGroupId: "root-c",
+      treasuryInternalLedgerGroupId: "treasury-internal-ledger-group",
     });
-    expect(tx.insert).toHaveBeenCalledTimes(2);
+    expect(tx.insert).toHaveBeenCalledTimes(3);
   });
 
   it("throws when system roots are unavailable", async () => {
@@ -213,6 +224,7 @@ describe("group-rules internals", () => {
       insert: vi.fn(() => ({
         values: vi.fn(() => ({
           onConflictDoNothing: vi.fn(async () => undefined),
+          onConflictDoUpdate: vi.fn(async () => undefined),
         })),
       })),
       select: vi.fn()
@@ -222,6 +234,13 @@ describe("group-rules internals", () => {
               { id: "root-t", code: TREASURY_ROOT_GROUP_CODE },
               { id: "root-c", code: CUSTOMERS_ROOT_GROUP_CODE },
             ]),
+          })),
+        }))
+        .mockImplementationOnce(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [{ id: TREASURY_INTERNAL_LEDGER_GROUP_CODE }]),
+            })),
           })),
         }))
         .mockImplementationOnce(() => ({
@@ -242,6 +261,7 @@ describe("group-rules internals", () => {
       insert: vi.fn(() => ({
         values: vi.fn(() => ({
           onConflictDoNothing: vi.fn(async () => undefined),
+          onConflictDoUpdate: vi.fn(async () => undefined),
         })),
       })),
       select: vi.fn()
@@ -251,6 +271,13 @@ describe("group-rules internals", () => {
               { id: "root-t", code: TREASURY_ROOT_GROUP_CODE },
               { id: "root-c", code: CUSTOMERS_ROOT_GROUP_CODE },
             ]),
+          })),
+        }))
+        .mockImplementationOnce(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [{ id: TREASURY_INTERNAL_LEDGER_GROUP_CODE }]),
+            })),
           })),
         }))
         .mockImplementationOnce(() => ({
@@ -278,7 +305,7 @@ describe("group-rules internals", () => {
 
     const result = await ensureCustomerGroupForCustomer(tx, "cust-1");
     expect(result).toBe("cust-group-new");
-    expect(tx.insert).toHaveBeenCalledTimes(3);
+    expect(tx.insert).toHaveBeenCalledTimes(4);
   });
 
   it("throws when customer is missing while ensuring customer group", async () => {
@@ -286,6 +313,7 @@ describe("group-rules internals", () => {
       insert: vi.fn(() => ({
         values: vi.fn(() => ({
           onConflictDoNothing: vi.fn(async () => undefined),
+          onConflictDoUpdate: vi.fn(async () => undefined),
         })),
       })),
       select: vi.fn()
@@ -295,6 +323,13 @@ describe("group-rules internals", () => {
               { id: "root-t", code: TREASURY_ROOT_GROUP_CODE },
               { id: "root-c", code: CUSTOMERS_ROOT_GROUP_CODE },
             ]),
+          })),
+        }))
+        .mockImplementationOnce(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [{ id: TREASURY_INTERNAL_LEDGER_GROUP_CODE }]),
+            })),
           })),
         }))
         .mockImplementationOnce(() => ({
@@ -323,6 +358,7 @@ describe("group-rules internals", () => {
       insert: vi.fn(() => ({
         values: vi.fn(() => ({
           onConflictDoNothing: vi.fn(async () => undefined),
+          onConflictDoUpdate: vi.fn(async () => undefined),
         })),
       })),
       select: vi.fn()
@@ -332,6 +368,13 @@ describe("group-rules internals", () => {
               { id: "root-t", code: TREASURY_ROOT_GROUP_CODE },
               { id: "root-c", code: CUSTOMERS_ROOT_GROUP_CODE },
             ]),
+          })),
+        }))
+        .mockImplementationOnce(() => ({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [{ id: TREASURY_INTERNAL_LEDGER_GROUP_CODE }]),
+            })),
           })),
         }))
         .mockImplementationOnce(() => ({

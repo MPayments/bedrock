@@ -63,6 +63,7 @@ function makeAccount(overrides: Record<string, unknown> = {}) {
   return {
     id: "00000000-0000-4000-8000-000000000401",
     counterpartyId: "00000000-0000-4000-8000-000000000501",
+    ledgerEntityCounterpartyId: "00000000-0000-4000-8000-000000000510",
     bookId: "00000000-0000-4000-8000-000000000701",
     currencyId: "00000000-0000-4000-8000-000000000601",
     accountProviderId: "00000000-0000-4000-8000-000000000301",
@@ -442,6 +443,7 @@ describe("accounts", () => {
     const service = createCounterpartyAccountsService({ db: db as any });
     const result = await service.createAccount({
       counterpartyId: account.counterpartyId,
+      ledgerEntityCounterpartyId: account.ledgerEntityCounterpartyId,
       currencyId: account.currencyId,
       accountProviderId: account.accountProviderId,
       label: account.label,
@@ -474,6 +476,7 @@ describe("accounts", () => {
     await expect(
       service.createAccount({
         counterpartyId: "00000000-0000-4000-8000-000000000501",
+        ledgerEntityCounterpartyId: "00000000-0000-4000-8000-000000000510",
         currencyId: "00000000-0000-4000-8000-000000000601",
         accountProviderId: "00000000-0000-4000-8000-000000000999",
         label: "Test",
@@ -501,6 +504,7 @@ describe("accounts", () => {
     await expect(
       service.createAccount({
         counterpartyId: "00000000-0000-4000-8000-000000000501",
+        ledgerEntityCounterpartyId: "00000000-0000-4000-8000-000000000510",
         currencyId: "00000000-0000-4000-8000-000000000601",
         accountProviderId: provider.id as string,
         label: "Test",
@@ -535,6 +539,7 @@ describe("accounts", () => {
     await expect(
       service.createAccount({
         counterpartyId: "00000000-0000-4000-8000-000000000501",
+        ledgerEntityCounterpartyId: "00000000-0000-4000-8000-000000000510",
         currencyId: "00000000-0000-4000-8000-000000000601",
         accountProviderId: provider.id as string,
         label: "Test",
@@ -592,6 +597,7 @@ describe("accounts", () => {
         .mockReturnValueOnce(selectSingleRow([existing]))
         .mockReturnValueOnce(selectSingleRow([provider]))
         .mockReturnValueOnce(selectSingleRow([currency]))
+        .mockReturnValueOnce(selectSingleRow([binding]))
         .mockReturnValueOnce(selectSingleRow([binding])),
       update: vi.fn().mockReturnValueOnce(updateReturning([updated])),
       insert: vi.fn(),
@@ -603,6 +609,7 @@ describe("accounts", () => {
 
     const service = createCounterpartyAccountsService({ db: db as any });
     const result = await service.updateAccount(existing.id, {
+      ledgerEntityCounterpartyId: existing.ledgerEntityCounterpartyId,
       label: "Новый счёт",
     });
 
@@ -626,6 +633,7 @@ describe("accounts", () => {
         .mockReturnValueOnce(selectSingleRow([existing]))
         .mockReturnValueOnce(selectSingleRow([provider]))
         .mockReturnValueOnce(selectSingleRow([currency]))
+        .mockReturnValueOnce(selectSingleRow([binding]))
         .mockReturnValueOnce(selectSingleRow([binding])),
       update: vi.fn(),
       insert: vi.fn(),
@@ -636,7 +644,9 @@ describe("accounts", () => {
     );
 
     const service = createCounterpartyAccountsService({ db: db as any });
-    const result = await service.updateAccount(existing.id, {});
+    const result = await service.updateAccount(existing.id, {
+      ledgerEntityCounterpartyId: existing.ledgerEntityCounterpartyId,
+    });
 
     expect(result).toMatchObject({
       ...withoutStableKey(existing),
@@ -661,7 +671,10 @@ describe("accounts", () => {
     const service = createCounterpartyAccountsService({ db: db as any });
 
     await expect(
-      service.updateAccount("missing-id", { label: "Nope" }),
+      service.updateAccount("missing-id", {
+        ledgerEntityCounterpartyId: "00000000-0000-4000-8000-000000000510",
+        label: "Nope",
+      }),
     ).rejects.toThrow(AccountNotFoundError);
   });
 
@@ -684,7 +697,10 @@ describe("accounts", () => {
     const service = createCounterpartyAccountsService({ db: db as any });
 
     await expect(
-      service.updateAccount(existing.id, { label: "Test" }),
+      service.updateAccount(existing.id, {
+        ledgerEntityCounterpartyId: existing.ledgerEntityCounterpartyId,
+        label: "Test",
+      }),
     ).rejects.toThrow(AccountProviderNotFoundError);
   });
 
@@ -709,7 +725,10 @@ describe("accounts", () => {
 
     // Setting accountNo to null on a bank account should fail
     await expect(
-      service.updateAccount(existing.id, { accountNo: null }),
+      service.updateAccount(existing.id, {
+        ledgerEntityCounterpartyId: existing.ledgerEntityCounterpartyId,
+        accountNo: null,
+      }),
     ).rejects.toThrow(ValidationError);
     expect(tx.update).not.toHaveBeenCalled();
   });

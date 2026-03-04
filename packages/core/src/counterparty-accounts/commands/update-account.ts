@@ -74,8 +74,39 @@ export function createUpdateCounterpartyAccountHandler(
         throw new Error(`Currency not found: ${existing.currencyId}`);
       }
 
+      const ledgerEntityBookId = await ensureCounterpartyDefaultBookIdTx(
+        tx,
+        validated.ledgerEntityCounterpartyId,
+      );
+
+      const [existingBinding] = await tx
+        .select({
+          bookId: schema.counterpartyAccountBindings.bookId,
+          postingAccountNo: schema.bookAccountInstances.accountNo,
+        })
+        .from(schema.counterpartyAccountBindings)
+        .innerJoin(
+          schema.bookAccountInstances,
+          eq(
+            schema.bookAccountInstances.id,
+            schema.counterpartyAccountBindings.bookAccountInstanceId,
+          ),
+        )
+        .where(eq(schema.counterpartyAccountBindings.counterpartyAccountId, id))
+        .limit(1);
+
+      if (!existingBinding?.postingAccountNo) {
+        throw new AccountBindingNotFoundError(id);
+      }
+
       const fields: Record<string, unknown> = {};
 
+      if (
+        validated.ledgerEntityCounterpartyId !==
+        existing.ledgerEntityCounterpartyId
+      ) {
+        fields.ledgerEntityCounterpartyId = validated.ledgerEntityCounterpartyId;
+      }
       if (validated.label !== undefined) fields.label = validated.label;
       if (validated.description !== undefined) {
         fields.description = validated.description;
@@ -103,16 +134,19 @@ export function createUpdateCounterpartyAccountHandler(
         updatedAccount = updated!;
       }
 
-      if (validated.postingAccountNo !== undefined) {
-        const bookId = await ensureCounterpartyDefaultBookIdTx(
-          tx,
-          existing.counterpartyId,
-        );
+      const targetPostingAccountNo =
+        validated.postingAccountNo ?? existingBinding.postingAccountNo;
+      const shouldRebindLedgerBinding =
+        validated.postingAccountNo !== undefined ||
+        validated.ledgerEntityCounterpartyId !==
+          existing.ledgerEntityCounterpartyId;
+
+      if (shouldRebindLedgerBinding) {
         const { id: bookAccountInstanceId } = await ensureBookAccountInstanceTx(
           tx,
           {
-            bookId,
-            accountNo: validated.postingAccountNo,
+            bookId: ledgerEntityBookId,
+            accountNo: targetPostingAccountNo,
             currency: currency.code,
             dimensions: {},
           },
@@ -122,13 +156,13 @@ export function createUpdateCounterpartyAccountHandler(
           .insert(schema.counterpartyAccountBindings)
           .values({
             counterpartyAccountId: id,
-            bookId,
+            bookId: ledgerEntityBookId,
             bookAccountInstanceId,
           })
           .onConflictDoUpdate({
             target: schema.counterpartyAccountBindings.counterpartyAccountId,
             set: {
-              bookId,
+              bookId: ledgerEntityBookId,
               bookAccountInstanceId,
               updatedAt: sql`now()`,
             },
@@ -160,6 +194,7 @@ export function createUpdateCounterpartyAccountHandler(
       return {
         id: updatedAccount.id,
         counterpartyId: updatedAccount.counterpartyId,
+        ledgerEntityCounterpartyId: updatedAccount.ledgerEntityCounterpartyId,
         bookId: binding.bookId,
         currencyId: updatedAccount.currencyId,
         accountProviderId: updatedAccount.accountProviderId,

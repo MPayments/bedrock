@@ -10,6 +10,7 @@ import type { CounterpartiesServiceContext } from "../internal/context";
 import {
   assertCustomerExists,
   CUSTOMERS_ROOT_GROUP_CODE,
+  TREASURY_INTERNAL_LEDGER_GROUP_CODE,
   TREASURY_ROOT_GROUP_CODE,
   resolveGroupMembershipClassification,
 } from "../internal/group-rules";
@@ -42,7 +43,8 @@ export function createUpdateCounterpartyGroupHandler(
 
     const isReservedRootGroup =
       existing.code === TREASURY_ROOT_GROUP_CODE ||
-      existing.code === CUSTOMERS_ROOT_GROUP_CODE;
+      existing.code === CUSTOMERS_ROOT_GROUP_CODE ||
+      existing.code === TREASURY_INTERNAL_LEDGER_GROUP_CODE;
     const hasRequestedChanges =
       validated.code !== undefined ||
       validated.name !== undefined ||
@@ -66,7 +68,8 @@ export function createUpdateCounterpartyGroupHandler(
     if (
       validated.code &&
       (validated.code === TREASURY_ROOT_GROUP_CODE ||
-        validated.code === CUSTOMERS_ROOT_GROUP_CODE) &&
+        validated.code === CUSTOMERS_ROOT_GROUP_CODE ||
+        validated.code === TREASURY_INTERNAL_LEDGER_GROUP_CODE) &&
       !existing.isSystem
     ) {
       throw new CounterpartyGroupRuleError(

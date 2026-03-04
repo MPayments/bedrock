@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
@@ -37,6 +37,83 @@ const pool = new Pool({
 const db = drizzle(pool, { schema });
 const createdBookIds = new Set<string>();
 const createdOperationIds = new Set<string>();
+const INTERNAL_LEDGER_GROUP_CODE = "treasury_internal_entities";
+const TREASURY_ROOT_GROUP_CODE = "treasury";
+const TEST_INTERNAL_COUNTERPARTY_ID = "00000000-0000-4000-8000-00000000f201";
+const ISOLATED_CURSOR_POSTED_AT = new Date("2099-01-01T00:00:00.000Z");
+const ISOLATED_CURSOR_OPERATION_ID = "00000000-0000-0000-0000-000000000000";
+
+async function resolveInternalLedgerCounterpartyId(): Promise<string> {
+  await pool.query(
+    `
+      INSERT INTO counterparty_groups (code, name, description, parent_id, customer_id, is_system)
+      VALUES ($1, 'Treasury', 'System root for treasury counterparties', NULL, NULL, true)
+      ON CONFLICT (code) DO UPDATE
+      SET name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          parent_id = NULL,
+          customer_id = NULL,
+          is_system = true
+    `,
+    [TREASURY_ROOT_GROUP_CODE],
+  );
+
+  const rootResult = await pool.query<{ id: string }>(
+    "SELECT id::text AS id FROM counterparty_groups WHERE code = $1 LIMIT 1",
+    [TREASURY_ROOT_GROUP_CODE],
+  );
+  const treasuryRootGroupId = rootResult.rows[0]?.id;
+  if (!treasuryRootGroupId) {
+    throw new Error("Failed to resolve treasury root group for integration test");
+  }
+
+  await pool.query(
+    `
+      INSERT INTO counterparty_groups (code, name, description, parent_id, customer_id, is_system)
+      VALUES ($1, 'Treasury Internal Ledger Entities', 'Integration test internal entities', $2::uuid, NULL, true)
+      ON CONFLICT (code) DO UPDATE
+      SET name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          parent_id = EXCLUDED.parent_id,
+          customer_id = NULL,
+          is_system = true
+    `,
+    [INTERNAL_LEDGER_GROUP_CODE, treasuryRootGroupId],
+  );
+
+  const internalGroupResult = await pool.query<{ id: string }>(
+    "SELECT id::text AS id FROM counterparty_groups WHERE code = $1 LIMIT 1",
+    [INTERNAL_LEDGER_GROUP_CODE],
+  );
+  const internalGroupId = internalGroupResult.rows[0]?.id;
+  if (!internalGroupId) {
+    throw new Error("Failed to resolve treasury internal ledger group for integration test");
+  }
+
+  await pool.query(
+    `
+      INSERT INTO counterparties (id, short_name, full_name, kind, country)
+      VALUES ($1::uuid, 'Integration Internal Entity', 'Integration Internal Entity', 'legal_entity', 'US')
+      ON CONFLICT (id) DO UPDATE
+      SET short_name = EXCLUDED.short_name,
+          full_name = EXCLUDED.full_name,
+          kind = EXCLUDED.kind,
+          country = EXCLUDED.country
+    `,
+    [TEST_INTERNAL_COUNTERPARTY_ID],
+  );
+
+  await pool.query(
+    `
+      INSERT INTO counterparty_group_memberships (counterparty_id, group_id)
+      VALUES ($1::uuid, $2::uuid)
+      ON CONFLICT (counterparty_id, group_id) DO NOTHING
+    `,
+    [TEST_INTERNAL_COUNTERPARTY_ID, internalGroupId],
+  );
+
+  return TEST_INTERNAL_COUNTERPARTY_ID;
+}
 
 async function cleanupRows() {
   const operationIds = Array.from(createdOperationIds);
@@ -98,27 +175,15 @@ describe("balances projector integration", () => {
     const operationId = randomUUID();
     const debitInstanceId = randomUUID();
     const creditInstanceId = randomUUID();
-    const [latestPostedOperation] = await db
-      .select({
-        id: schema.ledgerOperations.id,
-        postedAt: schema.ledgerOperations.postedAt,
-      })
-      .from(schema.ledgerOperations)
-      .where(eq(schema.ledgerOperations.status, "posted"))
-      .orderBy(
-        desc(schema.ledgerOperations.postedAt),
-        desc(schema.ledgerOperations.id),
-      )
-      .limit(1);
-    const postedAt = latestPostedOperation?.postedAt
-      ? new Date(latestPostedOperation.postedAt.getTime() + 1_000)
-      : new Date("2026-02-28T09:05:00.000Z");
+    const internalCounterpartyId = await resolveInternalLedgerCounterpartyId();
+    const postedAt = ISOLATED_CURSOR_POSTED_AT;
 
     createdBookIds.add(bookId);
     createdOperationIds.add(operationId);
 
     await db.insert(schema.books).values({
       id: bookId,
+      counterpartyId: internalCounterpartyId,
       code: `it-balances-${bookId}`,
       name: "Integration Balances Book",
       isDefault: false,
@@ -155,6 +220,21 @@ describe("balances projector integration", () => {
       },
     ]);
 
+    await db
+      .insert(schema.balanceProjectorCursors)
+      .values({
+        workerKey: "ledger_posted",
+        lastPostedAt: postedAt,
+        lastOperationId: ISOLATED_CURSOR_OPERATION_ID,
+      })
+      .onConflictDoUpdate({
+        target: schema.balanceProjectorCursors.workerKey,
+        set: {
+          lastPostedAt: postedAt,
+          lastOperationId: ISOLATED_CURSOR_OPERATION_ID,
+        },
+      });
+
     await db.insert(schema.ledgerOperations).values({
       id: operationId,
       sourceType: "integration/balances",
@@ -178,20 +258,6 @@ describe("balances projector integration", () => {
       amountMinor: 125n,
       memo: "integration projection",
     });
-
-    if (latestPostedOperation?.postedAt) {
-      await db.insert(schema.balanceProjectorCursors).values({
-        workerKey: "ledger_posted",
-        lastPostedAt: latestPostedOperation.postedAt,
-        lastOperationId: latestPostedOperation.id,
-      }).onConflictDoUpdate({
-        target: schema.balanceProjectorCursors.workerKey,
-        set: {
-          lastPostedAt: latestPostedOperation.postedAt,
-          lastOperationId: latestPostedOperation.id,
-        },
-      });
-    }
 
     const worker = createBalancesProjectorWorkerDefinition({ db });
 

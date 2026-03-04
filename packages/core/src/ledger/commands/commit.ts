@@ -1,5 +1,6 @@
 import type { Transaction } from "@bedrock/kernel/db/types";
 import { schema } from "@bedrock/core/ledger/schema";
+import { assertBooksBelongToInternalLedgerCounterparties } from "@bedrock/core/counterparties";
 
 import {
   acquireOperationId,
@@ -10,7 +11,11 @@ import {
 } from "../internal/commit/idempotency";
 import { buildPlanRows } from "../internal/commit/tb-plan-building";
 import type { LedgerContext } from "../internal/context";
-import { type CommitResult, type OperationIntent } from "../types";
+import {
+  OPERATION_TRANSFER_TYPE,
+  type CommitResult,
+  type OperationIntent,
+} from "../types";
 import { validateChainBlocks, validateOperationIntent } from "../validation";
 
 export function createCommitHandler(
@@ -22,6 +27,18 @@ export function createCommitHandler(
   ): Promise<CommitResult> {
     const validated = validateOperationIntent(intent);
     validateChainBlocks(validated.lines);
+
+    const createLineBookIds = Array.from(
+      new Set(
+        validated.lines
+          .filter((line) => line.type === OPERATION_TRANSFER_TYPE.CREATE)
+          .map((line) => line.bookId),
+      ),
+    );
+    await assertBooksBelongToInternalLedgerCounterparties({
+      db: tx,
+      bookIds: createLineBookIds,
+    });
 
     const payloadHash = computePayloadHash({
       operationCode: validated.operationCode,

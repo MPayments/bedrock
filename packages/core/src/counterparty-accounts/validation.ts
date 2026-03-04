@@ -55,6 +55,7 @@ export const CounterpartyAccountProviderSchema = z.object({
 export const CounterpartyAccountSchema = z.object({
   id: z.uuid(),
   counterpartyId: z.uuid(),
+  ledgerEntityCounterpartyId: z.uuid(),
   bookId: z.uuid(),
   currencyId: z.uuid(),
   accountProviderId: z.uuid(),
@@ -234,6 +235,7 @@ export type ListProvidersQuery = z.infer<typeof ListProvidersQuerySchema>;
 
 export const CreateAccountInputSchema = z.object({
   counterpartyId: z.uuid(),
+  ledgerEntityCounterpartyId: z.uuid(),
   currencyId: z.uuid(),
   accountProviderId: z.uuid(),
   label: z.string().min(1, "label is required").max(255),
@@ -251,6 +253,7 @@ export type CreateAccountInput = z.infer<typeof CreateAccountInputSchema>;
 // ---------------------------------------------------------------------------
 
 export const UpdateAccountInputSchema = z.object({
+  ledgerEntityCounterpartyId: z.uuid(),
   label: z.string().min(1).max(255).optional(),
   description: z.string().nullable().optional(),
   accountNo: z.string().max(64).nullable().optional(),
@@ -351,6 +354,7 @@ export const CounterpartyAccountBindingSchema = z.object({
     accountId: z.uuid(),
     bookId: z.uuid(),
     counterpartyId: z.uuid(),
+    ledgerEntityCounterpartyId: z.uuid(),
     currencyId: z.uuid(),
     currencyCode: z.string(),
     stableKey: z.string(),

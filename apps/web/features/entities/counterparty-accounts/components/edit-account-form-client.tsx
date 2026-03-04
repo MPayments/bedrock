@@ -19,6 +19,7 @@ function toFormValues(account: AccountDetails): AccountGeneralFormValues {
     label: account.label,
     description: account.description ?? "",
     counterpartyId: account.counterpartyId,
+    ledgerEntityCounterpartyId: account.ledgerEntityCounterpartyId,
     currencyId: account.currencyId,
     accountProviderId: account.accountProviderId,
     accountNo: account.accountNo ?? "",
@@ -61,6 +62,7 @@ export function EditAccountFormClient({ account, options }: EditAccountFormClien
         apiClient.v1["counterparty-accounts"][":id"].$patch({
           param: { id: account.id },
           json: {
+            ledgerEntityCounterpartyId: values.ledgerEntityCounterpartyId,
             label: values.label,
             description: values.description || null,
             accountNo: values.accountNo || null,

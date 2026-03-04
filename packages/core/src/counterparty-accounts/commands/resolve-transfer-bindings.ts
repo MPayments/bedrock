@@ -26,6 +26,8 @@ export function createResolveCounterpartyAccountBindingsHandler(
         accountId: schema.counterpartyAccounts.id,
         bookId: schema.counterpartyAccountBindings.bookId,
         counterpartyId: schema.counterpartyAccounts.counterpartyId,
+        ledgerEntityCounterpartyId:
+          schema.counterpartyAccounts.ledgerEntityCounterpartyId,
         currencyId: schema.counterpartyAccounts.currencyId,
         currencyCode: schema.currencies.code,
         stableKey: schema.counterpartyAccounts.stableKey,
@@ -59,6 +61,7 @@ export function createResolveCounterpartyAccountBindingsHandler(
         accountId: row.accountId,
         bookId: row.bookId,
         counterpartyId: row.counterpartyId,
+        ledgerEntityCounterpartyId: row.ledgerEntityCounterpartyId,
         currencyId: row.currencyId,
         currencyCode: row.currencyCode,
         stableKey: row.stableKey,

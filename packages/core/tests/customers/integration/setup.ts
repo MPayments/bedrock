@@ -32,14 +32,64 @@ async function deleteIfTableExists(tableName: string) {
 async function cleanupCustomerTables() {
   await deleteIfTableExists("document_links");
   await deleteIfTableExists("document_operations");
-  await deleteIfTableExists("documents");
-  await pool.query("DELETE FROM counterparty_account_bindings");
-  await pool.query("DELETE FROM counterparty_accounts");
-  await pool.query("DELETE FROM counterparty_account_providers");
-  await pool.query("DELETE FROM counterparty_group_memberships");
-  await pool.query("DELETE FROM counterparty_groups");
-  await pool.query("DELETE FROM counterparties");
-  await pool.query("DELETE FROM customers");
+  await pool.query(`
+    DELETE FROM documents
+    WHERE customer_id IS NOT NULL
+      OR counterparty_id IN (
+        SELECT id
+        FROM counterparties
+        WHERE customer_id IS NOT NULL
+           OR external_id LIKE 'cp-%'
+      )
+  `);
+  await pool.query(`
+    DELETE FROM counterparty_account_bindings
+    WHERE counterparty_account_id IN (
+      SELECT id
+      FROM counterparty_accounts
+      WHERE counterparty_id IN (
+        SELECT id
+        FROM counterparties
+        WHERE customer_id IS NOT NULL
+           OR external_id LIKE 'cp-%'
+      )
+    )
+  `);
+  await pool.query(`
+    DELETE FROM counterparty_accounts
+    WHERE counterparty_id IN (
+      SELECT id
+      FROM counterparties
+      WHERE customer_id IS NOT NULL
+         OR external_id LIKE 'cp-%'
+    )
+  `);
+  await pool.query(`
+    DELETE FROM counterparty_group_memberships
+    WHERE counterparty_id IN (
+      SELECT id
+      FROM counterparties
+      WHERE customer_id IS NOT NULL
+         OR external_id LIKE 'cp-%'
+    )
+       OR group_id IN (
+         SELECT id
+         FROM counterparty_groups
+         WHERE code LIKE 'customer:%'
+            OR code LIKE 'treasury-leaf-%'
+       )
+  `);
+  await pool.query(`
+    DELETE FROM counterparty_groups
+    WHERE code LIKE 'customer:%'
+       OR code LIKE 'treasury-leaf-%'
+  `);
+  await pool.query(`
+    DELETE FROM counterparties
+    WHERE customer_id IS NOT NULL
+       OR external_id LIKE 'cp-%'
+  `);
+  await pool.query("DELETE FROM customers WHERE external_ref LIKE 'crm-%'");
 }
 
 beforeAll(async () => {
@@ -51,11 +101,7 @@ beforeAll(async () => {
 }, 30000);
 
 afterEach(async () => {
-  try {
-    await cleanupCustomerTables();
-  } catch (error) {
-    console.error("Customers integration cleanup error:", error);
-  }
+  await cleanupCustomerTables();
 });
 
 afterAll(async () => {

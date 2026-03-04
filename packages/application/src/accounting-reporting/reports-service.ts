@@ -2,6 +2,10 @@ import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import { schema as accountingSchema } from "@bedrock/core/accounting/schema";
 import { schema as balancesSchema } from "@bedrock/core/balances/schema";
+import {
+  isInternalLedgerCounterparty,
+  listInternalLedgerCounterparties,
+} from "@bedrock/core/counterparties";
 import { schema as counterpartiesSchema } from "@bedrock/core/counterparties/schema";
 import { schema as counterpartyAccountsSchema } from "@bedrock/core/counterparty-accounts/schema";
 import { schema as documentsSchema } from "@bedrock/core/documents/schema";
@@ -52,7 +56,7 @@ const schema = {
 
 type FinancialResultStatus = "pending" | "posted" | "failed";
 
-interface ReportScopeMeta {
+export interface ReportScopeMeta {
   scopeType: ReportScopeType;
   requestedCounterpartyIds: string[];
   requestedGroupIds: string[];
@@ -90,7 +94,7 @@ interface ScopedPosting {
   channel: string | null;
 }
 
-interface TrialBalanceRow {
+export interface TrialBalanceRow {
   accountNo: string;
   accountName: string | null;
   accountKind: string | null;
@@ -103,7 +107,7 @@ interface TrialBalanceRow {
   closingCreditMinor: bigint;
 }
 
-interface TrialBalanceSummaryByCurrency {
+export interface TrialBalanceSummaryByCurrency {
   currency: string;
   openingDebitMinor: bigint;
   openingCreditMinor: bigint;
@@ -113,7 +117,7 @@ interface TrialBalanceSummaryByCurrency {
   closingCreditMinor: bigint;
 }
 
-interface GeneralLedgerEntry {
+export interface GeneralLedgerEntry {
   operationId: string;
   lineNo: number;
   postingDate: Date;
@@ -128,13 +132,13 @@ interface GeneralLedgerEntry {
   runningBalanceMinor: bigint;
 }
 
-interface GeneralLedgerBalance {
+export interface GeneralLedgerBalance {
   accountNo: string;
   currency: string;
   balanceMinor: bigint;
 }
 
-interface BalanceSheetRow {
+export interface BalanceSheetRow {
   section: string;
   lineCode: string;
   lineLabel: string;
@@ -142,7 +146,7 @@ interface BalanceSheetRow {
   amountMinor: bigint;
 }
 
-interface BalanceSheetCheck {
+export interface BalanceSheetCheck {
   currency: string;
   assetsMinor: bigint;
   liabilitiesMinor: bigint;
@@ -150,7 +154,7 @@ interface BalanceSheetCheck {
   imbalanceMinor: bigint;
 }
 
-interface IncomeStatementRow {
+export interface IncomeStatementRow {
   section: string;
   lineCode: string;
   lineLabel: string;
@@ -158,14 +162,14 @@ interface IncomeStatementRow {
   amountMinor: bigint;
 }
 
-interface IncomeStatementSummaryByCurrency {
+export interface IncomeStatementSummaryByCurrency {
   currency: string;
   revenueMinor: bigint;
   expenseMinor: bigint;
   netMinor: bigint;
 }
 
-interface CashFlowRow {
+export interface CashFlowRow {
   section: string;
   lineCode: string;
   lineLabel: string;
@@ -173,12 +177,12 @@ interface CashFlowRow {
   amountMinor: bigint;
 }
 
-interface CashFlowSummaryByCurrency {
+export interface CashFlowSummaryByCurrency {
   currency: string;
   netCashFlowMinor: bigint;
 }
 
-interface LiquidityRow {
+export interface LiquidityRow {
   bookId: string;
   bookLabel: string;
   counterpartyId: string | null;
@@ -190,7 +194,7 @@ interface LiquidityRow {
   pendingMinor: bigint;
 }
 
-interface FxRevaluationRow {
+export interface FxRevaluationRow {
   bucket: "realized" | "unrealized";
   currency: string;
   revenueMinor: bigint;
@@ -198,14 +202,14 @@ interface FxRevaluationRow {
   netMinor: bigint;
 }
 
-interface FxRevaluationSummaryByCurrency {
+export interface FxRevaluationSummaryByCurrency {
   currency: string;
   realizedNetMinor: bigint;
   unrealizedNetMinor: bigint;
   totalNetMinor: bigint;
 }
 
-interface FeeRevenueRow {
+export interface FeeRevenueRow {
   product: string;
   channel: string;
   counterpartyId: string | null;
@@ -217,7 +221,7 @@ interface FeeRevenueRow {
   netMinor: bigint;
 }
 
-interface FeeRevenueSummaryByCurrency {
+export interface FeeRevenueSummaryByCurrency {
   currency: string;
   feeRevenueMinor: bigint;
   spreadRevenueMinor: bigint;
@@ -225,7 +229,7 @@ interface FeeRevenueSummaryByCurrency {
   netMinor: bigint;
 }
 
-interface ClosePackageAdjustment {
+export interface ClosePackageAdjustment {
   documentId: string;
   docType: string;
   docNo: string;
@@ -233,14 +237,14 @@ interface ClosePackageAdjustment {
   title: string;
 }
 
-interface ClosePackageAuditEvent {
+export interface ClosePackageAuditEvent {
   id: string;
   eventType: string;
   actorId: string | null;
   createdAt: Date;
 }
 
-interface ClosePackageResult {
+export interface ClosePackageResult {
   id: string;
   counterpartyId: string;
   periodStart: Date;
@@ -356,6 +360,11 @@ export function createAccountingReportsService(deps: {
   db: AccountingReportingServiceDeps["db"];
 }) {
   const { db } = deps;
+
+  async function listInternalLedgerCounterpartyIds(): Promise<string[]> {
+    const rows = await listInternalLedgerCounterparties(db);
+    return rows.map((row) => row.id);
+  }
 
   async function resolveGroupMemberRows(
     groupIds: string[],
@@ -490,6 +499,22 @@ export function createAccountingReportsService(deps: {
             .from(schema.books)
             .where(inArray(schema.books.id, bookIds));
 
+    const internalCounterpartyIdSet = new Set(
+      await listInternalLedgerCounterpartyIds(),
+    );
+    const invalidBookIds = bookRows
+      .filter(
+        (row) =>
+          !row.counterpartyId ||
+          !internalCounterpartyIdSet.has(row.counterpartyId),
+      )
+      .map((row) => row.id);
+    if (invalidBookIds.length > 0) {
+      throw new ValidationError(
+        `book scope can include only internal-ledger books: ${invalidBookIds.join(", ")}`,
+      );
+    }
+
     return {
       scopeType: input.scopeType,
       requestedCounterpartyIds,
@@ -610,6 +635,12 @@ export function createAccountingReportsService(deps: {
       return [];
     }
 
+    const internalLedgerCounterpartyIds =
+      input.attributionMode === "book_org"
+        ? await listInternalLedgerCounterpartyIds()
+        : [];
+    const internalLedgerCounterpartyIdSet = new Set(internalLedgerCounterpartyIds);
+
     const analyticAttributionSql = sql`CASE
       WHEN debit_inst.dimensions->>'counterpartyId' IS NOT NULL
        AND credit_inst.dimensions->>'counterpartyId' IS NOT NULL
@@ -663,13 +694,31 @@ export function createAccountingReportsService(deps: {
           )})`,
         );
       } else {
+        const bookScopedCounterpartyIds = input.scope.resolvedCounterpartyIds.filter((id) =>
+          internalLedgerCounterpartyIdSet.has(id),
+        );
+        if (bookScopedCounterpartyIds.length === 0) {
+          return [];
+        }
         conditions.push(
           sql`b.counterparty_id IN (${sql.join(
-            input.scope.resolvedCounterpartyIds.map((id) => sql`${id}`),
+            bookScopedCounterpartyIds.map((id) => sql`${id}`),
             sql`, `,
           )})`,
         );
       }
+    }
+
+    if (input.attributionMode === "book_org") {
+      if (internalLedgerCounterpartyIds.length === 0) {
+        return [];
+      }
+      conditions.push(
+        sql`b.counterparty_id IN (${sql.join(
+          internalLedgerCounterpartyIds.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
+      );
     }
 
     if (input.attributionMode === "analytic_counterparty" && !input.includeUnattributed) {
@@ -1590,9 +1639,60 @@ export function createAccountingReportsService(deps: {
     }
 
     if (scope.scopeType === "counterparty" || scope.scopeType === "group") {
+      if (query.attributionMode === "book_org") {
+        const internalCounterpartyIdSet = new Set(
+          await listInternalLedgerCounterpartyIds(),
+        );
+        const bookScopedCounterpartyIds = scope.resolvedCounterpartyIds.filter((id) =>
+          internalCounterpartyIdSet.has(id),
+        );
+        if (bookScopedCounterpartyIds.length === 0) {
+          return {
+            data: [],
+            total: 0,
+            limit,
+            offset,
+            scopeMeta: buildScopeMeta({
+              scope,
+              attributionMode: query.attributionMode,
+              hasUnattributedData: false,
+            }),
+          };
+        }
+        conditions.push(
+          sql`${schema.books.counterpartyId} IN (${sql.join(
+            bookScopedCounterpartyIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`,
+        );
+      } else {
+        conditions.push(
+          sql`${schema.counterpartyAccounts.counterpartyId} IN (${sql.join(
+            scope.resolvedCounterpartyIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`,
+        );
+      }
+    }
+
+    if (scope.scopeType === "all" && query.attributionMode === "book_org") {
+      const internalCounterpartyIds = await listInternalLedgerCounterpartyIds();
+      if (internalCounterpartyIds.length === 0) {
+        return {
+          data: [],
+          total: 0,
+          limit,
+          offset,
+          scopeMeta: buildScopeMeta({
+            scope,
+            attributionMode: query.attributionMode,
+            hasUnattributedData: false,
+          }),
+        };
+      }
       conditions.push(
-        sql`${schema.counterpartyAccounts.counterpartyId} IN (${sql.join(
-          scope.resolvedCounterpartyIds.map((id) => sql`${id}`),
+        sql`${schema.books.counterpartyId} IN (${sql.join(
+          internalCounterpartyIds.map((id) => sql`${id}`),
           sql`, `,
         )})`,
       );
@@ -1921,6 +2021,16 @@ export function createAccountingReportsService(deps: {
   ): Promise<ClosePackageResult> {
     const query = ClosePackageQuerySchema.parse(input ?? {});
     const periodStart = normalizeMonthStart(new Date(query.periodStart));
+
+    const isInternalCounterparty = await isInternalLedgerCounterparty({
+      db,
+      counterpartyId: query.counterpartyId,
+    });
+    if (!isInternalCounterparty) {
+      throw new ValidationError(
+        `Close package is available only for internal ledger counterparties: ${query.counterpartyId}`,
+      );
+    }
 
     const existingRows = await db
       .select()

@@ -5,20 +5,20 @@ import { schema } from "../../schema";
 
 const TREASURY_ROOT_GROUP_CODE = "treasury";
 const CUSTOMERS_ROOT_GROUP_CODE = "customers";
+export const TREASURY_INTERNAL_LEDGER_GROUP_CODE = "treasury_internal_entities";
 
 interface SeedCustomer {
   id: string;
   displayName: string;
 }
 
-export async function ensureSeedCustomerGroups(
+export async function ensureSeedSystemGroups(
   db: Database | Transaction,
-  customers: readonly SeedCustomer[],
-): Promise<Map<string, string>> {
-  const customerGroupCodes = customers.map(
-    (customer) => `customer:${customer.id}`,
-  );
-
+): Promise<{
+  treasuryGroupId: string;
+  customersGroupId: string;
+  treasuryInternalLedgerGroupId: string;
+}> {
   await db
     .insert(schema.counterpartyGroups)
     .values({
@@ -61,17 +61,78 @@ export async function ensureSeedCustomerGroups(
       },
     });
 
-  const [customersRootGroup] = await db
+  const roots = await db
+    .select({
+      id: schema.counterpartyGroups.id,
+      code: schema.counterpartyGroups.code,
+    })
+    .from(schema.counterpartyGroups)
+    .where(
+      inArray(schema.counterpartyGroups.code, [
+        TREASURY_ROOT_GROUP_CODE,
+        CUSTOMERS_ROOT_GROUP_CODE,
+      ]),
+    );
+
+  const treasuryGroupId = roots.find(
+    (group) => group.code === TREASURY_ROOT_GROUP_CODE,
+  )?.id;
+  const customersGroupId = roots.find(
+    (group) => group.code === CUSTOMERS_ROOT_GROUP_CODE,
+  )?.id;
+  if (!treasuryGroupId || !customersGroupId) {
+    throw new Error("System root groups are not available after seeding");
+  }
+
+  await db
+    .insert(schema.counterpartyGroups)
+    .values({
+      code: TREASURY_INTERNAL_LEDGER_GROUP_CODE,
+      name: "Treasury Internal Ledger Entities",
+      description: "System subtree for internal ledger-owning entities",
+      parentId: treasuryGroupId,
+      customerId: null,
+      isSystem: true,
+    })
+    .onConflictDoUpdate({
+      target: schema.counterpartyGroups.code,
+      set: {
+        name: "Treasury Internal Ledger Entities",
+        description: "System subtree for internal ledger-owning entities",
+        parentId: treasuryGroupId,
+        customerId: null,
+        isSystem: true,
+      },
+    });
+
+  const [treasuryInternalLedgerGroup] = await db
     .select({ id: schema.counterpartyGroups.id })
     .from(schema.counterpartyGroups)
-    .where(eq(schema.counterpartyGroups.code, CUSTOMERS_ROOT_GROUP_CODE))
+    .where(
+      eq(schema.counterpartyGroups.code, TREASURY_INTERNAL_LEDGER_GROUP_CODE),
+    )
     .limit(1);
-
-  if (!customersRootGroup) {
+  if (!treasuryInternalLedgerGroup) {
     throw new Error(
-      "Customers root counterparty group is not available after seeding",
+      "Treasury internal ledger group is not available after seeding",
     );
   }
+
+  return {
+    treasuryGroupId,
+    customersGroupId,
+    treasuryInternalLedgerGroupId: treasuryInternalLedgerGroup.id,
+  };
+}
+
+export async function ensureSeedCustomerGroups(
+  db: Database | Transaction,
+  customers: readonly SeedCustomer[],
+): Promise<Map<string, string>> {
+  const customerGroupCodes = customers.map(
+    (customer) => `customer:${customer.id}`,
+  );
+  const { customersGroupId } = await ensureSeedSystemGroups(db);
 
   for (const customer of customers) {
     await db
@@ -80,7 +141,7 @@ export async function ensureSeedCustomerGroups(
         code: `customer:${customer.id}`,
         name: `Customer ${customer.displayName}`,
         description: "Auto-created customer group",
-        parentId: customersRootGroup.id,
+        parentId: customersGroupId,
         customerId: customer.id,
         isSystem: false,
       })
@@ -89,7 +150,7 @@ export async function ensureSeedCustomerGroups(
         set: {
           name: `Customer ${customer.displayName}`,
           description: "Auto-created customer group",
-          parentId: customersRootGroup.id,
+          parentId: customersGroupId,
           customerId: customer.id,
           isSystem: false,
         },

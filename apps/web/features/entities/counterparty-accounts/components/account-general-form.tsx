@@ -48,6 +48,7 @@ export type AccountGeneralFormValues = {
   label: string;
   description: string;
   counterpartyId: string;
+  ledgerEntityCounterpartyId: string;
   currencyId: string;
   accountProviderId: string;
   accountNo: string;
@@ -93,6 +94,7 @@ const DEFAULT_VALUES: AccountGeneralFormValues = {
   label: "",
   description: "",
   counterpartyId: "",
+  ledgerEntityCounterpartyId: "",
   currencyId: "",
   accountProviderId: "",
   accountNo: "",
@@ -166,6 +168,10 @@ function createAccountFormSchema(providers: AccountFormOptions["providers"]) {
       label: z.string().trim().min(1, "Название счёта обязательно"),
       description: z.string(),
       counterpartyId: z.string().trim().min(1, "Контрагент обязателен"),
+      ledgerEntityCounterpartyId: z
+        .string()
+        .trim()
+        .min(1, "Балансовая компания обязательна"),
       currencyId: z.string().trim().min(1, "Валюта обязательна"),
       accountProviderId: z.string().trim().min(1, "Провайдер обязателен"),
       accountNo: z.string(),
@@ -222,6 +228,7 @@ function normalizeValues(
     label: values.label.trim(),
     description: values.description.trim(),
     counterpartyId: values.counterpartyId.trim(),
+    ledgerEntityCounterpartyId: values.ledgerEntityCounterpartyId.trim(),
     currencyId: values.currencyId.trim(),
     accountProviderId: values.accountProviderId.trim(),
     accountNo: values.accountNo.trim(),
@@ -236,6 +243,7 @@ function valuesSignature(values: AccountGeneralFormValues) {
     values.label,
     values.description,
     values.counterpartyId,
+    values.ledgerEntityCounterpartyId,
     values.currencyId,
     values.accountProviderId,
     values.accountNo,
@@ -283,6 +291,7 @@ function AccountGeneralFormBase({
   const appliedInitialSignatureRef = useRef(initialSignature);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [counterpartyPickerOpen, setCounterpartyPickerOpen] = useState(false);
+  const [ledgerEntityPickerOpen, setLedgerEntityPickerOpen] = useState(false);
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
   const [providerPickerOpen, setProviderPickerOpen] = useState(false);
 
@@ -345,6 +354,8 @@ function AccountGeneralFormBase({
         label: watchedValues?.label ?? "",
         description: watchedValues?.description ?? "",
         counterpartyId: watchedValues?.counterpartyId ?? "",
+        ledgerEntityCounterpartyId:
+          watchedValues?.ledgerEntityCounterpartyId ?? "",
         currencyId: watchedValues?.currencyId ?? "",
         accountProviderId: watchedValues?.accountProviderId ?? "",
         accountNo: watchedValues?.accountNo ?? "",
@@ -505,7 +516,7 @@ function AccountGeneralFormBase({
                   />
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-4">
+                <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
                   <Controller
                     name="counterpartyId"
                     control={control}
@@ -556,6 +567,73 @@ function AccountGeneralFormBase({
                                         onSelect={() => {
                                           field.onChange(option.id);
                                           setCounterpartyPickerOpen(false);
+                                        }}
+                                      >
+                                        {option.label}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          {fieldState.invalid ? (
+                            <FieldError errors={[fieldState.error]} />
+                          ) : null}
+                        </Field>
+                      );
+                    }}
+                  />
+                  <Controller
+                    name="ledgerEntityCounterpartyId"
+                    control={control}
+                    render={({ field, fieldState }) => {
+                      const selected = options.ledgerEntities.find(
+                        (o) => o.id === field.value,
+                      );
+                      return (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel htmlFor="account-ledger-entity-id">
+                            Балансовая компания
+                          </FieldLabel>
+                          <Popover
+                            open={ledgerEntityPickerOpen}
+                            onOpenChange={setLedgerEntityPickerOpen}
+                          >
+                            <PopoverTrigger
+                              render={
+                                <Button
+                                  id="account-ledger-entity-id"
+                                  type="button"
+                                  variant="outline"
+                                  className="w-full justify-between font-normal"
+                                  aria-invalid={fieldState.invalid}
+                                  disabled={lockRelations}
+                                />
+                              }
+                            >
+                              <span className="truncate">
+                                {selected?.label ?? "Выберите балансовую компанию"}
+                              </span>
+                              <ChevronDown className="text-muted-foreground size-4" />
+                            </PopoverTrigger>
+                            <PopoverContent
+                              align="start"
+                              className="w-(--anchor-width) p-0"
+                            >
+                              <Command>
+                                <CommandInput placeholder="Поиск балансовой компании..." />
+                                <CommandList className="max-h-64">
+                                  <CommandEmpty>Не найдено</CommandEmpty>
+                                  <CommandGroup>
+                                    {options.ledgerEntities.map((option) => (
+                                      <CommandItem
+                                        key={option.id}
+                                        value={option.label}
+                                        data-checked={field.value === option.id}
+                                        onSelect={() => {
+                                          field.onChange(option.id);
+                                          setLedgerEntityPickerOpen(false);
                                         }}
                                       >
                                         {option.label}

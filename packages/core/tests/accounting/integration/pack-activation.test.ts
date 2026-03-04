@@ -20,6 +20,81 @@ const pool = new Pool({
 
 const db = drizzle(pool, { schema });
 const createdBookIds = new Set<string>();
+const INTERNAL_LEDGER_GROUP_CODE = "treasury_internal_entities";
+const TREASURY_ROOT_GROUP_CODE = "treasury";
+const TEST_INTERNAL_COUNTERPARTY_ID = "00000000-0000-4000-8000-00000000f202";
+
+async function resolveInternalLedgerCounterpartyId(): Promise<string> {
+  await pool.query(
+    `
+      INSERT INTO counterparty_groups (code, name, description, parent_id, customer_id, is_system)
+      VALUES ($1, 'Treasury', 'System root for treasury counterparties', NULL, NULL, true)
+      ON CONFLICT (code) DO UPDATE
+      SET name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          parent_id = NULL,
+          customer_id = NULL,
+          is_system = true
+    `,
+    [TREASURY_ROOT_GROUP_CODE],
+  );
+
+  const rootResult = await pool.query<{ id: string }>(
+    "SELECT id::text AS id FROM counterparty_groups WHERE code = $1 LIMIT 1",
+    [TREASURY_ROOT_GROUP_CODE],
+  );
+  const treasuryRootGroupId = rootResult.rows[0]?.id;
+  if (!treasuryRootGroupId) {
+    throw new Error("Failed to resolve treasury root group for integration test");
+  }
+
+  await pool.query(
+    `
+      INSERT INTO counterparty_groups (code, name, description, parent_id, customer_id, is_system)
+      VALUES ($1, 'Treasury Internal Ledger Entities', 'Integration test internal entities', $2::uuid, NULL, true)
+      ON CONFLICT (code) DO UPDATE
+      SET name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          parent_id = EXCLUDED.parent_id,
+          customer_id = NULL,
+          is_system = true
+    `,
+    [INTERNAL_LEDGER_GROUP_CODE, treasuryRootGroupId],
+  );
+
+  const internalGroupResult = await pool.query<{ id: string }>(
+    "SELECT id::text AS id FROM counterparty_groups WHERE code = $1 LIMIT 1",
+    [INTERNAL_LEDGER_GROUP_CODE],
+  );
+  const internalGroupId = internalGroupResult.rows[0]?.id;
+  if (!internalGroupId) {
+    throw new Error("Failed to resolve treasury internal ledger group for integration test");
+  }
+
+  await pool.query(
+    `
+      INSERT INTO counterparties (id, short_name, full_name, kind, country)
+      VALUES ($1::uuid, 'Integration Internal Entity', 'Integration Internal Entity', 'legal_entity', 'US')
+      ON CONFLICT (id) DO UPDATE
+      SET short_name = EXCLUDED.short_name,
+          full_name = EXCLUDED.full_name,
+          kind = EXCLUDED.kind,
+          country = EXCLUDED.country
+    `,
+    [TEST_INTERNAL_COUNTERPARTY_ID],
+  );
+
+  await pool.query(
+    `
+      INSERT INTO counterparty_group_memberships (counterparty_id, group_id)
+      VALUES ($1::uuid, $2::uuid)
+      ON CONFLICT (counterparty_id, group_id) DO NOTHING
+    `,
+    [TEST_INTERNAL_COUNTERPARTY_ID, internalGroupId],
+  );
+
+  return TEST_INTERNAL_COUNTERPARTY_ID;
+}
 
 async function cleanupCreatedBooks() {
   const bookIds = Array.from(createdBookIds);
@@ -54,10 +129,12 @@ describe("accounting pack activation integration", () => {
       defaultPackDefinition: rawPackDefinition,
     });
     const bookId = randomUUID();
+    const internalCounterpartyId = await resolveInternalLedgerCounterpartyId();
     createdBookIds.add(bookId);
 
     await db.insert(schema.books).values({
       id: bookId,
+      counterpartyId: internalCounterpartyId,
       code: `it-pack-${bookId}`,
       name: "Integration Pack Book",
       isDefault: false,

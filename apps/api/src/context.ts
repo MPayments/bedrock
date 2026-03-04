@@ -13,6 +13,7 @@ import {
 } from "@bedrock/core/component-runtime";
 import type { ConnectorsService } from "@bedrock/core/connectors";
 import type { CounterpartiesService } from "@bedrock/core/counterparties";
+import { assertInternalLedgerInvariants } from "@bedrock/core/counterparties";
 import type { CounterpartyAccountsService } from "@bedrock/core/counterparty-accounts";
 import type { CurrenciesService } from "@bedrock/core/currencies";
 import type { CustomersService } from "@bedrock/core/customers";
@@ -78,6 +79,7 @@ export interface AppContext {
   documentsService: DocumentsService;
   reconciliationService: ReconciliationService;
   componentRuntime: ComponentRuntimeService;
+  assertInternalLedgerInvariants: () => Promise<void>;
 }
 
 export function createAppContext(env: Env): AppContext {
@@ -108,5 +110,6 @@ export function createAppContext(env: Env): AppContext {
     documentsService: applicationServices.documentsService,
     reconciliationService: applicationServices.reconciliationService,
     componentRuntime,
+    assertInternalLedgerInvariants: () => assertInternalLedgerInvariants(db),
   };
 }

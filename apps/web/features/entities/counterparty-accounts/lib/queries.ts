@@ -25,6 +25,7 @@ import type { AccountsSearchParams } from "./validations";
 const AccountResponseSchema = z.object({
   id: z.uuid(),
   counterpartyId: z.uuid(),
+  ledgerEntityCounterpartyId: z.uuid(),
   bookId: z.uuid(),
   currencyId: z.uuid(),
   accountProviderId: z.uuid(),
@@ -120,13 +121,14 @@ export type RelationOption = { id: string; label: string };
 
 export type AccountFormOptions = {
   counterparties: RelationOption[];
+  ledgerEntities: RelationOption[];
   currencies: RelationOption[];
   providers: (RelationOption & { type: string; country: string })[];
 };
 
 export async function getAccountFormOptions(): Promise<AccountFormOptions> {
   const client = await getServerApiClient();
-  const [counterparties, currencies, providers] = await Promise.all([
+  const [counterparties, ledgerEntities, currencies, providers] = await Promise.all([
     readOptionsList({
       request: () =>
         client.v1.counterparties.options.$get(
@@ -135,6 +137,15 @@ export async function getAccountFormOptions(): Promise<AccountFormOptions> {
         ),
       schema: CounterpartyOptionsResponseSchema,
       context: "Не удалось загрузить контрагентов",
+    }),
+    readOptionsList({
+      request: () =>
+        client.v1.counterparties["internal-ledger-entities"].$get(
+          {},
+          { init: { cache: "force-cache" } },
+        ),
+      schema: CounterpartyOptionsResponseSchema,
+      context: "Не удалось загрузить балансовые компании",
     }),
     readOptionsList({
       request: () =>
@@ -158,6 +169,10 @@ export async function getAccountFormOptions(): Promise<AccountFormOptions> {
 
   return {
     counterparties: counterparties.data.map((item) => ({
+      id: item.id,
+      label: item.label,
+    })),
+    ledgerEntities: ledgerEntities.data.map((item) => ({
       id: item.id,
       label: item.label,
     })),

@@ -19,6 +19,7 @@ const SORT_COLUMN_MAP = {
 type AccountRow = {
   id: string;
   counterpartyId: string;
+  ledgerEntityCounterpartyId: string;
   bookId: string;
   currencyId: string;
   accountProviderId: string;
@@ -90,6 +91,8 @@ export function createListCounterpartyAccountsHandler(
         .select({
           id: schema.counterpartyAccounts.id,
           counterpartyId: schema.counterpartyAccounts.counterpartyId,
+          ledgerEntityCounterpartyId:
+            schema.counterpartyAccounts.ledgerEntityCounterpartyId,
           bookId: schema.counterpartyAccountBindings.bookId,
           currencyId: schema.counterpartyAccounts.currencyId,
           accountProviderId: schema.counterpartyAccounts.accountProviderId,
@@ -136,6 +139,7 @@ export function createListCounterpartyAccountsHandler(
       return {
         id: row.id,
         counterpartyId: row.counterpartyId,
+        ledgerEntityCounterpartyId: row.ledgerEntityCounterpartyId,
         bookId: row.bookId,
         currencyId: row.currencyId,
         accountProviderId: row.accountProviderId,

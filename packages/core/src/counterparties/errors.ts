@@ -37,3 +37,15 @@ export class CounterpartySystemGroupDeleteError extends CounterpartyError {
     super(`System counterparty group cannot be deleted: ${id}`);
   }
 }
+
+export class CounterpartyNotInternalLedgerEntityError extends CounterpartyError {
+  name = "CounterpartyNotInternalLedgerEntityError";
+
+  constructor(counterpartyId: string) {
+    super(`Counterparty is not an internal ledger entity: ${counterpartyId}`);
+  }
+}
+
+export class InternalLedgerInvariantViolationError extends CounterpartyError {
+  name = "InternalLedgerInvariantViolationError";
+}

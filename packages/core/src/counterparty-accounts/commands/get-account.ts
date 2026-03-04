@@ -15,6 +15,8 @@ export function createGetCounterpartyAccountHandler(
       .select({
         id: schema.counterpartyAccounts.id,
         counterpartyId: schema.counterpartyAccounts.counterpartyId,
+        ledgerEntityCounterpartyId:
+          schema.counterpartyAccounts.ledgerEntityCounterpartyId,
         bookId: schema.counterpartyAccountBindings.bookId,
         currencyId: schema.counterpartyAccounts.currencyId,
         accountProviderId: schema.counterpartyAccounts.accountProviderId,
@@ -57,6 +59,7 @@ export function createGetCounterpartyAccountHandler(
     return {
       id: row.id,
       counterpartyId: row.counterpartyId,
+      ledgerEntityCounterpartyId: row.ledgerEntityCounterpartyId,
       bookId: row.bookId,
       currencyId: row.currencyId,
       accountProviderId: row.accountProviderId,

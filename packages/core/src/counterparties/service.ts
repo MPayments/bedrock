@@ -1,6 +1,7 @@
 import { createCreateCounterpartyHandler } from "./commands/create-counterparty";
 import { createCreateCounterpartyGroupHandler } from "./commands/create-counterparty-group";
 import { createFindCounterpartyByIdHandler } from "./commands/find-counterparty-by-id";
+import { createListInternalLedgerCounterpartiesHandler } from "./commands/list-internal-ledger-counterparties";
 import { createListCounterpartiesHandler } from "./commands/list-counterparties";
 import { createListCounterpartyGroupsHandler } from "./commands/list-counterparty-groups";
 import { createRemoveCounterpartyHandler } from "./commands/remove-counterparty";
@@ -20,6 +21,8 @@ export function createCounterpartiesService(deps: CounterpartiesServiceDeps) {
   const context = createCounterpartiesServiceContext(deps);
 
   const list = createListCounterpartiesHandler(context);
+  const listInternalLedgerEntities =
+    createListInternalLedgerCounterpartiesHandler(context);
   const findById = createFindCounterpartyByIdHandler(context);
   const create = createCreateCounterpartyHandler(context);
   const update = createUpdateCounterpartyHandler(context);
@@ -32,6 +35,7 @@ export function createCounterpartiesService(deps: CounterpartiesServiceDeps) {
 
   return {
     list,
+    listInternalLedgerEntities,
     findById,
     create,
     update,

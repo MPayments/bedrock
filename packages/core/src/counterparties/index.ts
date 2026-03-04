@@ -2,6 +2,14 @@
 export { createCounterpartiesService } from "./service";
 export type { CounterpartiesService } from "./service";
 
+export {
+  assertBooksBelongToInternalLedgerCounterparties,
+  assertInternalLedgerCounterparty,
+  assertInternalLedgerInvariants,
+  isInternalLedgerCounterparty,
+  listInternalLedgerCounterparties,
+} from "./internal-ledger";
+
 // Validation
 export {
   CounterpartyKindSchema,
@@ -38,4 +46,12 @@ export {
   CounterpartyGroupRuleError,
   CounterpartyCustomerNotFoundError,
   CounterpartySystemGroupDeleteError,
+  CounterpartyNotInternalLedgerEntityError,
+  InternalLedgerInvariantViolationError,
 } from "./errors";
+
+export {
+  CUSTOMERS_ROOT_GROUP_CODE,
+  TREASURY_INTERNAL_LEDGER_GROUP_CODE,
+  TREASURY_ROOT_GROUP_CODE,
+} from "./internal/group-rules";

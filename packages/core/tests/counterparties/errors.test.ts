@@ -5,8 +5,10 @@ import {
   CounterpartyError,
   CounterpartyGroupNotFoundError,
   CounterpartyGroupRuleError,
+  CounterpartyNotInternalLedgerEntityError,
   CounterpartyNotFoundError,
   CounterpartySystemGroupDeleteError,
+  InternalLedgerInvariantViolationError,
 } from "../../src/counterparties/errors";
 
 describe("counterparties errors", () => {
@@ -45,5 +47,19 @@ describe("counterparties errors", () => {
     expect(error.message).toContain(
       "System counterparty group cannot be deleted: grp-system",
     );
+  });
+
+  it("constructs CounterpartyNotInternalLedgerEntityError", () => {
+    const error = new CounterpartyNotInternalLedgerEntityError("cp-1");
+    expect(error.name).toBe("CounterpartyNotInternalLedgerEntityError");
+    expect(error.message).toContain(
+      "Counterparty is not an internal ledger entity: cp-1",
+    );
+  });
+
+  it("constructs InternalLedgerInvariantViolationError", () => {
+    const error = new InternalLedgerInvariantViolationError("broken invariant");
+    expect(error.name).toBe("InternalLedgerInvariantViolationError");
+    expect(error.message).toBe("broken invariant");
   });
 });

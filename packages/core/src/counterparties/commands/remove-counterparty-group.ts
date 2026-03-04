@@ -9,6 +9,7 @@ import {
 import type { CounterpartiesServiceContext } from "../internal/context";
 import {
   CUSTOMERS_ROOT_GROUP_CODE,
+  TREASURY_INTERNAL_LEDGER_GROUP_CODE,
   TREASURY_ROOT_GROUP_CODE,
 } from "../internal/group-rules";
 
@@ -32,7 +33,8 @@ export function createRemoveCounterpartyGroupHandler(
       if (
         group.isSystem ||
         group.code === TREASURY_ROOT_GROUP_CODE ||
-        group.code === CUSTOMERS_ROOT_GROUP_CODE
+        group.code === CUSTOMERS_ROOT_GROUP_CODE ||
+        group.code === TREASURY_INTERNAL_LEDGER_GROUP_CODE
       ) {
         throw new CounterpartySystemGroupDeleteError(id);
       }

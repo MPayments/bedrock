@@ -122,8 +122,9 @@ describe("Worker Integration Tests", () => {
 
   it("processes multiple operations in one batch", async () => {
     const orgId = randomOrgId();
+    const operationIds: string[] = [];
     for (let i = 0; i < 3; i++) {
-      await engine.commitStandalone({
+      const { operationId } = await engine.commitStandalone({
         source: { type: "payment", id: `pay-batch-${i}` },
         operationCode: "TEST.WORKER.BATCH",
         idempotencyKey: randomIdempotencyKey(),
@@ -148,10 +149,25 @@ describe("Worker Integration Tests", () => {
           },
         ],
       });
+      operationIds.push(operationId);
     }
 
     const batchWorker = createLedgerWorkerDefinition({ db, tb, batchSize: 10 });
     const processed = await runWorkerOnce(batchWorker);
     expect(processed).toBe(3);
+
+    for (const operationId of operationIds) {
+      const operation = await getOperation(operationId);
+      expect(operation).toBeDefined();
+      expect(operation!.status).toBe("posted");
+
+      const plans = await getTbTransferPlans(operationId);
+      expect(plans).toHaveLength(1);
+      expect(plans[0]!.status).toBe("posted");
+
+      const transfer = await getTbTransfer(plans[0]!.transferId);
+      expect(transfer).toBeDefined();
+      expect(transfer!.amount).toBe(10000n);
+    }
   });
 });

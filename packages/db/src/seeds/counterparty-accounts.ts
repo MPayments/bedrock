@@ -13,6 +13,7 @@ import { seedCurrencies } from "./currencies";
 import {
   ensureSeedCounterpartyMembership,
   ensureSeedCustomerGroups,
+  ensureSeedSystemGroups,
 } from "./internal/counterparty-groups";
 
 // ── Stable IDs ──────────────────────────────────────────────────────────────
@@ -31,6 +32,8 @@ export const COUNTERPARTY_IDS = {
   UMBRELLA_GROUP: "00000000-0000-4000-8000-000000000304",
   OWN_ENTITY: "00000000-0000-4000-8000-000000000310",
 } as const;
+
+const INTERNAL_LEDGER_COUNTERPARTY_IDS = [COUNTERPARTY_IDS.OWN_ENTITY] as const;
 
 export const PROVIDER_IDS = {
   MAIN_BANK: "00000000-0000-4000-8000-000000000401",
@@ -150,6 +153,7 @@ const COUNTERPARTY_ACCOUNTS = [
   {
     id: COUNTERPARTY_ACCOUNT_IDS.OWN_USD,
     counterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
+    ledgerEntityCounterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
     currencyCode: "USD",
     accountProviderId: PROVIDER_IDS.MAIN_BANK,
     label: "Own USD (Main Bank)",
@@ -159,6 +163,7 @@ const COUNTERPARTY_ACCOUNTS = [
   {
     id: COUNTERPARTY_ACCOUNT_IDS.OWN_EUR,
     counterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
+    ledgerEntityCounterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
     currencyCode: "EUR",
     accountProviderId: PROVIDER_IDS.MAIN_BANK,
     label: "Own EUR (Main Bank)",
@@ -168,6 +173,7 @@ const COUNTERPARTY_ACCOUNTS = [
   {
     id: COUNTERPARTY_ACCOUNT_IDS.ACME_USD,
     counterpartyId: COUNTERPARTY_IDS.ACME_LLC,
+    ledgerEntityCounterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
     currencyCode: "USD",
     accountProviderId: PROVIDER_IDS.MAIN_BANK,
     label: "Acme USD",
@@ -177,6 +183,7 @@ const COUNTERPARTY_ACCOUNTS = [
   {
     id: COUNTERPARTY_ACCOUNT_IDS.ACME_EUR,
     counterpartyId: COUNTERPARTY_IDS.ACME_LLC,
+    ledgerEntityCounterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
     currencyCode: "EUR",
     accountProviderId: PROVIDER_IDS.MAIN_BANK,
     label: "Acme EUR",
@@ -186,6 +193,7 @@ const COUNTERPARTY_ACCOUNTS = [
   {
     id: COUNTERPARTY_ACCOUNT_IDS.GLOBEX_USD,
     counterpartyId: COUNTERPARTY_IDS.GLOBEX_CORP,
+    ledgerEntityCounterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
     currencyCode: "USD",
     accountProviderId: PROVIDER_IDS.MAIN_BANK,
     label: "Globex USD",
@@ -195,6 +203,7 @@ const COUNTERPARTY_ACCOUNTS = [
   {
     id: COUNTERPARTY_ACCOUNT_IDS.EXCHANGE_USDT,
     counterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
+    ledgerEntityCounterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
     currencyCode: "USDT",
     accountProviderId: PROVIDER_IDS.CRYPTO_EXCHANGE,
     label: "Own USDT (Exchange)",
@@ -203,6 +212,7 @@ const COUNTERPARTY_ACCOUNTS = [
   {
     id: COUNTERPARTY_ACCOUNT_IDS.OWN_CNY,
     counterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
+    ledgerEntityCounterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
     currencyCode: "CNY",
     accountProviderId: PROVIDER_IDS.ALT_BANK,
     label: "Own CNY (Alt Bank)",
@@ -212,6 +222,7 @@ const COUNTERPARTY_ACCOUNTS = [
   {
     id: COUNTERPARTY_ACCOUNT_IDS.OWN_JPY,
     counterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
+    ledgerEntityCounterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
     currencyCode: "JPY",
     accountProviderId: PROVIDER_IDS.ALT_BANK,
     label: "Own JPY (Alt Bank)",
@@ -221,6 +232,7 @@ const COUNTERPARTY_ACCOUNTS = [
   {
     id: COUNTERPARTY_ACCOUNT_IDS.INITECH_GBP,
     counterpartyId: COUNTERPARTY_IDS.INITECH_LTD,
+    ledgerEntityCounterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
     currencyCode: "GBP",
     accountProviderId: PROVIDER_IDS.ALT_BANK,
     label: "Initech GBP",
@@ -230,6 +242,7 @@ const COUNTERPARTY_ACCOUNTS = [
   {
     id: COUNTERPARTY_ACCOUNT_IDS.UMBRELLA_AED,
     counterpartyId: COUNTERPARTY_IDS.UMBRELLA_GROUP,
+    ledgerEntityCounterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
     currencyCode: "AED",
     accountProviderId: PROVIDER_IDS.MAIN_BANK,
     label: "Umbrella AED",
@@ -239,6 +252,7 @@ const COUNTERPARTY_ACCOUNTS = [
   {
     id: COUNTERPARTY_ACCOUNT_IDS.UMBRELLA_USDT,
     counterpartyId: COUNTERPARTY_IDS.UMBRELLA_GROUP,
+    ledgerEntityCounterpartyId: COUNTERPARTY_IDS.OWN_ENTITY,
     currencyCode: "USDT",
     accountProviderId: PROVIDER_IDS.PAYMENT_GATEWAY,
     label: "Umbrella USDT",
@@ -349,9 +363,24 @@ async function upsertCounterpartiesWithCustomerGroups(db: Database | Transaction
   await upsertCounterparties(db, customerGroupIdByCustomerId);
 }
 
+async function ensureInternalLedgerCounterpartyMemberships(
+  db: Database | Transaction,
+) {
+  const { treasuryInternalLedgerGroupId } = await ensureSeedSystemGroups(db);
+
+  for (const counterpartyId of INTERNAL_LEDGER_COUNTERPARTY_IDS) {
+    await ensureSeedCounterpartyMembership(
+      db,
+      counterpartyId,
+      treasuryInternalLedgerGroupId,
+    );
+  }
+}
+
 async function ensureSeedCustomersAndCounterparties(db: Database | Transaction) {
   await upsertCustomers(db);
   await upsertCounterpartiesWithCustomerGroups(db);
+  await ensureInternalLedgerCounterpartyMemberships(db);
 }
 
 async function upsertAccountProviders(db: Database | Transaction) {
@@ -407,6 +436,7 @@ async function upsertCounterpartyAccounts(
       await db.insert(schema.counterpartyAccounts).values({
         id: counterpartyAccount.id,
         counterpartyId: counterpartyAccount.counterpartyId,
+        ledgerEntityCounterpartyId: counterpartyAccount.ledgerEntityCounterpartyId,
         currencyId,
         accountProviderId: counterpartyAccount.accountProviderId,
         label: counterpartyAccount.label,
@@ -420,6 +450,7 @@ async function upsertCounterpartyAccounts(
       .update(schema.counterpartyAccounts)
       .set({
         counterpartyId: counterpartyAccount.counterpartyId,
+        ledgerEntityCounterpartyId: counterpartyAccount.ledgerEntityCounterpartyId,
         currencyId,
         accountProviderId: counterpartyAccount.accountProviderId,
         label: counterpartyAccount.label,
@@ -441,9 +472,7 @@ function counterpartyDefaultBookName(counterpartyId: string) {
 async function ensureDefaultBooks(
   db: Database | Transaction,
 ): Promise<Map<string, string>> {
-  const counterpartyIds = Array.from(
-    new Set(COUNTERPARTY_ACCOUNTS.map((account) => account.counterpartyId)),
-  );
+  const counterpartyIds = Array.from(INTERNAL_LEDGER_COUNTERPARTY_IDS);
   const out = new Map<string, string>();
 
   for (const counterpartyId of counterpartyIds) {
@@ -460,17 +489,6 @@ async function ensureDefaultBooks(
 
     if (defaultBook) {
       out.set(counterpartyId, defaultBook.id);
-      continue;
-    }
-
-    const [existingBook] = await db
-      .select({ id: schema.books.id })
-      .from(schema.books)
-      .where(eq(schema.books.counterpartyId, counterpartyId))
-      .limit(1);
-
-    if (existingBook) {
-      out.set(counterpartyId, existingBook.id);
       continue;
     }
 
@@ -513,15 +531,15 @@ async function ensureDefaultBooks(
 
 async function upsertCounterpartyAccountBindings(
   db: Database | Transaction,
-  counterpartyBookIdByCounterpartyId: ReadonlyMap<string, string>,
+  defaultBookIdByInternalCounterpartyId: ReadonlyMap<string, string>,
 ) {
   for (const counterpartyAccount of COUNTERPARTY_ACCOUNTS) {
-    const bookId = counterpartyBookIdByCounterpartyId.get(
-      counterpartyAccount.counterpartyId,
+    const bookId = defaultBookIdByInternalCounterpartyId.get(
+      counterpartyAccount.ledgerEntityCounterpartyId,
     );
     if (!bookId) {
       throw new Error(
-        `Book not found for counterparty ${counterpartyAccount.counterpartyId}`,
+        `Book not found for internal ledger counterparty ${counterpartyAccount.ledgerEntityCounterpartyId}`,
       );
     }
 

@@ -349,6 +349,7 @@ describe("CreateAccountInputSchema", () => {
   it("parses valid account input", () => {
     const parsed = CreateAccountInputSchema.parse({
       counterpartyId: "550e8400-e29b-41d4-a716-446655440001",
+      ledgerEntityCounterpartyId: "550e8400-e29b-41d4-a716-446655440010",
       currencyId: "550e8400-e29b-41d4-a716-446655440002",
       accountProviderId: "550e8400-e29b-41d4-a716-446655440003",
       label: "Main Account",
@@ -365,6 +366,7 @@ describe("CreateAccountInputSchema", () => {
     expect(() =>
       CreateAccountInputSchema.parse({
         counterpartyId: "550e8400-e29b-41d4-a716-446655440001",
+        ledgerEntityCounterpartyId: "550e8400-e29b-41d4-a716-446655440010",
         currencyId: "550e8400-e29b-41d4-a716-446655440002",
         accountProviderId: "550e8400-e29b-41d4-a716-446655440003",
         label: "",
@@ -379,17 +381,20 @@ describe("CreateAccountInputSchema", () => {
 
 describe("UpdateAccountInputSchema", () => {
   it("parses partial update with label", () => {
-    const parsed = UpdateAccountInputSchema.parse({ label: "New Label" });
+    const parsed = UpdateAccountInputSchema.parse({
+      ledgerEntityCounterpartyId: "550e8400-e29b-41d4-a716-446655440010",
+      label: "New Label",
+    });
     expect(parsed.label).toBe("New Label");
   });
 
-  it("parses empty object", () => {
-    const parsed = UpdateAccountInputSchema.parse({});
-    expect(parsed.label).toBeUndefined();
+  it("rejects payload without ledgerEntityCounterpartyId", () => {
+    expect(() => UpdateAccountInputSchema.parse({ label: "No Ledger Entity" })).toThrow();
   });
 
   it("allows nullable optional fields", () => {
     const parsed = UpdateAccountInputSchema.parse({
+      ledgerEntityCounterpartyId: "550e8400-e29b-41d4-a716-446655440010",
       description: null,
       accountNo: null,
       corrAccount: null,

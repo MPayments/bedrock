@@ -35,6 +35,7 @@ export interface GroupMembershipClassification {
 
 export const TREASURY_ROOT_GROUP_CODE = "treasury";
 export const CUSTOMERS_ROOT_GROUP_CODE = "customers";
+export const TREASURY_INTERNAL_LEDGER_GROUP_CODE = "treasury_internal_entities";
 
 function dedupeIds(ids: string[]): string[] {
   return Array.from(new Set(ids));
@@ -189,6 +190,7 @@ export function enforceCustomerLinkRules(
 export async function ensureSystemRootGroups(tx: Transaction): Promise<{
   treasuryGroupId: string;
   customersGroupId: string;
+  treasuryInternalLedgerGroupId: string;
 }> {
   const defs = [
     {
@@ -247,9 +249,45 @@ export async function ensureSystemRootGroups(tx: Transaction): Promise<{
     );
   }
 
+  await tx
+    .insert(schema.counterpartyGroups)
+    .values({
+      code: TREASURY_INTERNAL_LEDGER_GROUP_CODE,
+      name: "Treasury Internal Ledger Entities",
+      description: "System subtree for internal ledger-owning entities",
+      parentId: treasuryGroupId,
+      customerId: null,
+      isSystem: true,
+    })
+    .onConflictDoUpdate({
+      target: schema.counterpartyGroups.code,
+      set: {
+        name: "Treasury Internal Ledger Entities",
+        description: "System subtree for internal ledger-owning entities",
+        parentId: treasuryGroupId,
+        customerId: null,
+        isSystem: true,
+      },
+    });
+
+  const [treasuryInternalLedgerGroup] = await tx
+    .select({
+      id: schema.counterpartyGroups.id,
+    })
+    .from(schema.counterpartyGroups)
+    .where(eq(schema.counterpartyGroups.code, TREASURY_INTERNAL_LEDGER_GROUP_CODE))
+    .limit(1);
+
+  if (!treasuryInternalLedgerGroup) {
+    throw new CounterpartyGroupRuleError(
+      "Treasury internal ledger group is not available",
+    );
+  }
+
   return {
     treasuryGroupId,
     customersGroupId,
+    treasuryInternalLedgerGroupId: treasuryInternalLedgerGroup.id,
   };
 }
 

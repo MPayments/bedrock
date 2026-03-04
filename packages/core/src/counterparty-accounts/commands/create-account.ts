@@ -119,6 +119,7 @@ export function createCreateCounterpartyAccountHandler(
         .insert(schema.counterpartyAccounts)
         .values({
           counterpartyId: validated.counterpartyId,
+          ledgerEntityCounterpartyId: validated.ledgerEntityCounterpartyId,
           currencyId: validated.currencyId,
           accountProviderId: validated.accountProviderId,
           label: validated.label,
@@ -133,7 +134,7 @@ export function createCreateCounterpartyAccountHandler(
 
       const bookId = await ensureCounterpartyDefaultBookIdTx(
         tx,
-        validated.counterpartyId,
+        validated.ledgerEntityCounterpartyId,
       );
       const { id: bookAccountInstanceId } = await ensureBookAccountInstanceTx(
         tx,
@@ -165,6 +166,7 @@ export function createCreateCounterpartyAccountHandler(
       return {
         id: created!.id,
         counterpartyId: created!.counterpartyId,
+        ledgerEntityCounterpartyId: created!.ledgerEntityCounterpartyId,
         bookId,
         currencyId: created!.currencyId,
         accountProviderId: created!.accountProviderId,

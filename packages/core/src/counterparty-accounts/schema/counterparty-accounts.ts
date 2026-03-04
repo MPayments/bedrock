@@ -22,6 +22,9 @@ export const counterpartyAccounts = pgTable(
     counterpartyId: uuid("counterparty_id")
       .notNull()
       .references(() => counterparties.id, { onDelete: "cascade" }),
+    ledgerEntityCounterpartyId: uuid("ledger_entity_counterparty_id")
+      .notNull()
+      .references(() => counterparties.id),
 
     currencyId: uuid("currency_id")
       .notNull()
@@ -56,6 +59,9 @@ export const counterpartyAccounts = pgTable(
     index("counterparty_accounts_counterparty_cur_idx").on(
       t.counterpartyId,
       t.currencyId,
+    ),
+    index("counterparty_accounts_ledger_entity_idx").on(
+      t.ledgerEntityCounterpartyId,
     ),
   ],
 );
