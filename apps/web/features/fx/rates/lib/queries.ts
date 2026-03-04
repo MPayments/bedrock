@@ -2,6 +2,7 @@ import {
   CurrencyOptionsResponseSchema,
 } from "@bedrock/core/currencies/contracts";
 import {
+  FxRateHistoryResponseSchema,
   FxRatePairsResponseSchema,
   FxRateSourceStatusesResponseSchema,
 } from "@bedrock/application/fx/contracts";
@@ -17,6 +18,9 @@ export type SerializedRatePair = z.infer<
 export type SerializedSourceRate = SerializedRatePair["rates"][number];
 export type SerializedSourceStatus = z.infer<
   typeof FxRateSourceStatusesResponseSchema.shape.data.element
+>;
+export type SerializedRateHistoryPoint = z.infer<
+  typeof FxRateHistoryResponseSchema.shape.data.element
 >;
 export type CurrencyOption = Pick<
   z.infer<typeof CurrencyOptionsResponseSchema.shape.data.element>,
@@ -44,6 +48,25 @@ export async function getRateSources(): Promise<SerializedSourceStatus[]> {
   const payload = await readJsonWithSchema(
     response,
     FxRateSourceStatusesResponseSchema,
+  );
+  return payload.data;
+}
+
+export async function getRateHistory(
+  base: string,
+  quote: string,
+): Promise<SerializedRateHistoryPoint[]> {
+  const client = await getServerApiClient();
+  const response = await requestOk(
+    await client.v1.fx.rates.history.$get({
+      query: { base, quote, limit: 500 },
+    }),
+    "Не удалось загрузить историю курсов",
+  );
+
+  const payload = await readJsonWithSchema(
+    response,
+    FxRateHistoryResponseSchema,
   );
   return payload.data;
 }

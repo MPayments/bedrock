@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const FxRateSourceSchema = z.enum(["cbr", "investing"]);
+export const FxRateSourceSchema = z.enum(["cbr", "investing", "xe"]);
 
 export const FxRateSchema = z.object({
   source: z.string(),
@@ -20,6 +20,17 @@ export const FxRatePairSchema = z.object({
 
 export const FxRatePairsResponseSchema = z.object({
   data: z.array(FxRatePairSchema),
+});
+
+export const FxRateHistoryPointSchema = z.object({
+  source: z.string(),
+  rateNum: z.string(),
+  rateDen: z.string(),
+  asOf: z.iso.datetime(),
+});
+
+export const FxRateHistoryResponseSchema = z.object({
+  data: z.array(FxRateHistoryPointSchema),
 });
 
 export const FxRateSourceStatusSchema = z.object({
@@ -50,5 +61,6 @@ export const SetManualRateResponseSchema = z.object({
 });
 
 export type FxRatePair = z.infer<typeof FxRatePairSchema>;
+export type FxRateHistoryPoint = z.infer<typeof FxRateHistoryPointSchema>;
 export type FxRateSourceStatus = z.infer<typeof FxRateSourceStatusSchema>;
 export type SetManualRateInput = z.infer<typeof SetManualRateInputSchema>;

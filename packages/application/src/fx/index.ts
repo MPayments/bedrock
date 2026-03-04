@@ -39,6 +39,8 @@ export type {
 } from "./sources";
 
 export {
+  FxRateHistoryPointSchema,
+  FxRateHistoryResponseSchema,
   FxRatePairSchema,
   FxRatePairsResponseSchema,
   FxRateSourceSchema,
@@ -48,6 +50,7 @@ export {
   SetManualRateResponseSchema,
 } from "./contracts";
 export type {
+  FxRateHistoryPoint,
   FxRatePair,
 } from "./contracts";
 
@@ -55,3 +58,7 @@ export type {
   RatePairView,
   SourceRateView,
 } from "./commands/rates/list-pairs";
+
+export type {
+  RateHistoryPoint,
+} from "./commands/rates/rate-history";

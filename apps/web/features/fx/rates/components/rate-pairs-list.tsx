@@ -1,5 +1,9 @@
 "use client";
 
+import Link from "next/link";
+import { ChartLine } from "lucide-react";
+
+import { Button } from "@bedrock/ui/components/button";
 import { Badge } from "@bedrock/ui/components/badge";
 import {
   Accordion,
@@ -93,7 +97,23 @@ export function RatePairsList({ initialPairs }: RatePairsListProps) {
                 <PairSummary pair={pair} />
               </AccordionTrigger>
               <AccordionContent>
-                <PairRatesTable rates={pair.rates} />
+                <div className="flex flex-col gap-3">
+                  <PairRatesTable rates={pair.rates} />
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      render={
+                        <Link
+                          href={`/fx/rates/${pair.baseCurrencyCode}-${pair.quoteCurrencyCode}`}
+                        />
+                      }
+                    >
+                      <ChartLine className="h-4 w-4" />
+                      История курсов
+                    </Button>
+                  </div>
+                </div>
               </AccordionContent>
             </AccordionItem>
           ))}

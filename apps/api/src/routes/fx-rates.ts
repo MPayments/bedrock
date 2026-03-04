@@ -7,6 +7,7 @@ import {
   ValidationError,
 } from "@bedrock/application/fx";
 import {
+  FxRateHistoryResponseSchema,
   FxRatePairsResponseSchema,
   FxRateSourceSchema,
   FxRateSourceStatusesResponseSchema,
@@ -51,6 +52,12 @@ const SyncRateSourceResponseSchema = z.object({
   rateCount: z.number().int().nonnegative(),
   publishedAt: z.iso.datetime().nullable(),
   status: FxRateSourceStatusSchema,
+});
+
+const RateHistoryQuerySchema = z.object({
+  base: z.string().min(2).max(16),
+  quote: z.string().min(2).max(16),
+  limit: z.coerce.number().int().min(1).max(1000).optional(),
 });
 
 export function fxRatesRoutes(ctx: AppContext) {
@@ -194,7 +201,47 @@ export function fxRatesRoutes(ctx: AppContext) {
     },
   });
 
+  const rateHistoryRoute = createRoute({
+    middleware: [requirePermission({ fx_rates: ["list"] })],
+    method: "get",
+    path: "/history",
+    tags: ["FX"],
+    summary: "Get rate history for a currency pair",
+    request: {
+      query: RateHistoryQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: FxRateHistoryResponseSchema,
+          },
+        },
+        description: "Rate history for the pair",
+      },
+    },
+  });
+
   return app
+    .openapi(rateHistoryRoute, async (c) => {
+      const { base, quote, limit } = c.req.valid("query");
+      const points = await ctx.fxService.getRateHistory({
+        base,
+        quote,
+        limit,
+      });
+      return c.json(
+        {
+          data: points.map((p) => ({
+            source: p.source,
+            rateNum: p.rateNum.toString(),
+            rateDen: p.rateDen.toString(),
+            asOf: p.asOf.toISOString(),
+          })),
+        },
+        200,
+      );
+    })
     .openapi(pairsRoute, async (c) => {
       const pairs = await ctx.fxService.listPairs();
       return c.json(
