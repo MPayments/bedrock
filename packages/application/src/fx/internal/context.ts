@@ -5,8 +5,8 @@ import { type CurrenciesService } from "@bedrock/core/currencies";
 
 import { createCbrRateSourceProvider } from "../sources/cbr";
 import { createInvestingRateSourceProvider } from "../sources/investing";
-import { createXeRateSourceProvider } from "../sources/xe";
 import { type FxRateSource, type FxRateSourceProvider } from "../sources/types";
+import { createXeRateSourceProvider } from "../sources/xe";
 
 export interface FxServiceDeps {
     db: Database;

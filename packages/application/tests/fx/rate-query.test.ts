@@ -21,7 +21,7 @@ function createHarness() {
     const sourceRates = new Map<string, RateRow>();
 
     const pairKey = (baseId: string, quoteId: string) => `${baseId}|${quoteId}`;
-    const sourcePairKey = (source: "cbr" | "investing", baseId: string, quoteId: string) => `${source}|${pairKey(baseId, quoteId)}`;
+    const sourcePairKey = (source: "cbr" | "investing" | "xe", baseId: string, quoteId: string) => `${source}|${pairKey(baseId, quoteId)}`;
 
     const currenciesService = {
         findByCode: vi.fn(async (code: string) => {
@@ -35,7 +35,7 @@ function createHarness() {
     const deps = {
         ensureSourceFresh: vi.fn(async () => undefined),
         getLatestManualRate: vi.fn(async (baseId: string, quoteId: string) => manualRates.get(pairKey(baseId, quoteId))),
-        getLatestRateBySource: vi.fn(async (baseId: string, quoteId: string, _asOf: Date, source: "cbr" | "investing") => sourceRates.get(sourcePairKey(source, baseId, quoteId))),
+        getLatestRateBySource: vi.fn(async (baseId: string, quoteId: string, _asOf: Date, source: "cbr" | "investing" | "xe") => sourceRates.get(sourcePairKey(source, baseId, quoteId))),
     };
 
     const handlers = createRateQueryHandlers({ currenciesService } as any, deps);
@@ -49,7 +49,7 @@ function createHarness() {
             const quoteId = byCode.get(quote)!.id;
             manualRates.set(pairKey(baseId, quoteId), row);
         },
-        setSourceRate(source: "cbr" | "investing", base: "USD" | "EUR" | "RUB", quote: "USD" | "EUR" | "RUB", row: RateRow) {
+        setSourceRate(source: "cbr" | "investing" | "xe", base: "USD" | "EUR" | "RUB", quote: "USD" | "EUR" | "RUB", row: RateRow) {
             const baseId = byCode.get(base)!.id;
             const quoteId = byCode.get(quote)!.id;
             sourceRates.set(sourcePairKey(source, baseId, quoteId), row);
@@ -103,7 +103,8 @@ describe("rate query handlers", () => {
         expect(rate.source).toBe("investing");
         expect(rate.rateNum).toBe(91n);
         expect(h.deps.ensureSourceFresh).toHaveBeenNthCalledWith(1, "cbr", expect.any(Date));
-        expect(h.deps.ensureSourceFresh).toHaveBeenNthCalledWith(2, "investing", expect.any(Date));
+        expect(h.deps.ensureSourceFresh).toHaveBeenNthCalledWith(2, "xe", expect.any(Date));
+        expect(h.deps.ensureSourceFresh).toHaveBeenNthCalledWith(3, "investing", expect.any(Date));
     });
 
     it("throws RateNotFoundError when no direct rate exists", async () => {
@@ -113,7 +114,8 @@ describe("rate query handlers", () => {
             .rejects
             .toThrow(RateNotFoundError);
         expect(h.deps.ensureSourceFresh).toHaveBeenNthCalledWith(1, "cbr", expect.any(Date));
-        expect(h.deps.ensureSourceFresh).toHaveBeenNthCalledWith(2, "investing", expect.any(Date));
+        expect(h.deps.ensureSourceFresh).toHaveBeenNthCalledWith(2, "xe", expect.any(Date));
+        expect(h.deps.ensureSourceFresh).toHaveBeenNthCalledWith(3, "investing", expect.any(Date));
     });
 
     it("returns identity rate for same currency", async () => {
