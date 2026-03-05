@@ -10,17 +10,17 @@ import type {
   BedrockWorker,
   WorkerRunContext,
   WorkerRunResult,
-} from "../worker-runtime";
+} from "../../worker-runtime";
 import {
   buildDocNo,
   buildDocumentEventState,
   insertDocumentEvent,
-} from "./internal/helpers";
+} from "../internal/helpers";
 import {
   closeCounterpartyPeriod,
   getPreviousCalendarMonthRange,
-} from "./period-locks";
-import { schema } from "./schema";
+} from "../period-locks";
+import { schema } from "../schema";
 
 function formatPeriodLabel(periodStart: Date): string {
   return periodStart.toISOString().slice(0, 7);

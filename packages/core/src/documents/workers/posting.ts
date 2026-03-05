@@ -3,12 +3,16 @@ import { and, eq, sql } from "drizzle-orm";
 import { schema } from "@bedrock/core/documents/schema";
 import type { Database } from "@bedrock/kernel/db/types";
 
-import type { BedrockWorker, WorkerRunContext, WorkerRunResult } from "../worker-runtime";
+import type {
+  BedrockWorker,
+  WorkerRunContext,
+  WorkerRunResult,
+} from "../../worker-runtime";
 import {
   buildDocumentEventState,
   getLatestPostingArtifacts,
   insertDocumentEvent,
-} from "./internal/helpers";
+} from "../internal/helpers";
 
 export interface DocumentsWorkerItemContext {
   documentId: string;

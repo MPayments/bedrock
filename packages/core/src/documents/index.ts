@@ -1,8 +1,10 @@
 export { createDocumentsService } from "./service";
 export type { DocumentsService } from "./service";
 export { createDocumentRegistry } from "./create-document-registry";
-export { createDocumentsWorkerDefinition } from "./worker";
-export { createPeriodCloseWorkerDefinition } from "./period-close-worker";
+export {
+  createDocumentsWorkerDefinition,
+  createPeriodCloseWorkerDefinition,
+} from "./workers";
 export { createDefaultDocumentActionPolicyService } from "./policy";
 export * from "./errors";
 export {
