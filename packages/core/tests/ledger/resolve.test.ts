@@ -7,8 +7,8 @@ import {
 } from "@bedrock/kernel";
 
 import { createMockTbClient, createStubDb, type StubDatabase } from "./helpers";
+import { resolveTbBookAccountInstanceId } from "./test-resolve";
 import { AccountMappingConflictError } from "../../src/ledger/errors";
-import { resolveTbBookAccountInstanceId } from "../../src/ledger/resolve";
 
 describe("resolveTbBookAccountInstanceId", () => {
   let db: StubDatabase;

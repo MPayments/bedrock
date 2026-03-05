@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import type { Document } from "@bedrock/core/documents/schema";
 
+import { toMinorAmountString } from "../../ledger/amount-utils";
+
 export const amountMinorSchema = z
   .union([z.string(), z.number().int(), z.bigint()])
   .transform((value, ctx) => {
@@ -24,27 +26,6 @@ export const amountMinorSchema = z
       return z.NEVER;
     }
   });
-
-function resolveCurrencyPrecision(currencyCode: unknown): number {
-  if (typeof currencyCode !== "string") {
-    return 2;
-  }
-
-  const normalized = currencyCode.trim().toUpperCase();
-  if (normalized.length === 0) {
-    return 2;
-  }
-
-  try {
-    const options = new Intl.NumberFormat("en", {
-      style: "currency",
-      currency: normalized,
-    }).resolvedOptions();
-    return Math.max(0, Math.trunc(options.maximumFractionDigits ?? 2));
-  } catch {
-    return 2;
-  }
-}
 
 function normalizeAmountValue(value: unknown): string {
   if (typeof value === "bigint") {
@@ -92,45 +73,7 @@ export const amountValueSchema = z.union([z.string(), z.number(), z.bigint()]).t
   },
 );
 
-export function toMinorAmountString(
-  amountValue: unknown,
-  currencyCode: unknown,
-  options?: { requirePositive?: boolean },
-): string {
-  const normalized = normalizeAmountValue(amountValue).replace(",", ".");
-  const match = amountInputPattern.exec(normalized);
-  if (!match) {
-    throw new Error("amount must be a number, e.g. 1000.50");
-  }
-
-  const [, signRaw = "", integerRaw = "", fractionRaw = ""] = match;
-  const precision = resolveCurrencyPrecision(currencyCode);
-
-  if (fractionRaw.length > precision) {
-    const currency =
-      typeof currencyCode === "string" ? currencyCode.trim().toUpperCase() : "";
-    throw new Error(
-      `amount has too many fraction digits for ${
-        currency.length > 0 ? currency : "selected currency"
-      }: max ${precision}`,
-    );
-  }
-
-  const fractionPart = fractionRaw.padEnd(precision, "0");
-  const normalizedInteger = integerRaw.replace(/^0+(?=\d)/, "");
-  const minorDigits = `${normalizedInteger}${fractionPart}`.replace(/^0+(?=\d)/, "");
-  let minorAmount = BigInt(minorDigits.length > 0 ? minorDigits : "0");
-
-  if (signRaw === "-" && minorAmount !== 0n) {
-    minorAmount = -minorAmount;
-  }
-
-  if (options?.requirePositive && minorAmount <= 0n) {
-    throw new Error("amount must be positive");
-  }
-
-  return minorAmount.toString();
-}
+export { toMinorAmountString };
 
 export function serializeOccurredAt<T extends { occurredAt: Date }>(payload: T) {
   return {

@@ -1,16 +1,12 @@
 import { z } from "zod";
 
 import type { AccountingReportingService } from "@bedrock/application/accounting-reporting";
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
 import type { FeesService } from "@bedrock/application/fees";
 import type { FxService } from "@bedrock/application/fx";
+import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
 import type { PaymentsService } from "@bedrock/application/payments";
 import type { AccountingService } from "@bedrock/core/accounting";
 import type { BalancesService } from "@bedrock/core/balances";
-import {
-  createModuleRuntimeService,
-  type ModuleRuntimeService,
-} from "@bedrock/core/module-runtime";
 import type { CounterpartiesService } from "@bedrock/core/counterparties";
 import { assertInternalLedgerInvariants } from "@bedrock/core/counterparties";
 import type { CounterpartyAccountsService } from "@bedrock/core/counterparty-accounts";
@@ -18,6 +14,10 @@ import type { CurrenciesService } from "@bedrock/core/currencies";
 import type { CustomersService } from "@bedrock/core/customers";
 import type { DocumentsService } from "@bedrock/core/documents";
 import type { LedgerReadService } from "@bedrock/core/ledger";
+import {
+  createModuleRuntimeService,
+  type ModuleRuntimeService,
+} from "@bedrock/core/module-runtime";
 import type { ReconciliationService } from "@bedrock/core/reconciliation";
 import { db } from "@bedrock/db/client";
 import type { Logger } from "@bedrock/kernel";

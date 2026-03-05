@@ -1,8 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import { pgNotify } from "@bedrock/kernel/db/notify";
-import type { Transaction } from "@bedrock/kernel/db/types";
-import type { CorrelationContext } from "@bedrock/kernel";
 import {
   schema as balancesSchema,
   type BalanceHold,
@@ -10,6 +7,9 @@ import {
 } from "@bedrock/core/balances/schema";
 import { schema as currenciesSchema } from "@bedrock/core/currencies/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/core/idempotency";
+import type { CorrelationContext } from "@bedrock/kernel";
+import { pgNotify } from "@bedrock/kernel/db/notify";
+import type { Transaction } from "@bedrock/kernel/db/types";
 
 import {
   BalanceHoldConflictError,
@@ -354,8 +354,7 @@ export function createBalancesService(deps: BalancesServiceDeps) {
       .select({
         counterpartyAccountId: schema.balancePositions.subjectId,
         currency: schema.balancePositions.currency,
-        balanceMinor:
-          sql<string>`coalesce(sum(${schema.balancePositions.ledgerBalance}), 0)::text`,
+        balanceMinor: sql<string>`coalesce(sum(${schema.balancePositions.ledgerBalance}), 0)::text`,
       })
       .from(schema.balancePositions)
       .where(

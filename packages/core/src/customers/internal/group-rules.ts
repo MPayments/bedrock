@@ -1,15 +1,17 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/kernel/db/types";
 import { schema as counterpartiesSchema } from "@bedrock/core/counterparties/schema";
-import { schema as customersSchema } from "@bedrock/core/customers/schema";
+import type { Transaction } from "@bedrock/kernel/db/types";
+
+import {
+  CUSTOMERS_ROOT_GROUP_CODE,
+  dedupeIds,
+  ensureCounterpartyRootGroups,
+} from "../../counterparties/internal/shared-group-rules";
 
 import { CustomerInvariantError } from "../errors";
 
-const schema = {
-  ...customersSchema,
-  ...counterpartiesSchema,
-};
+const schema = counterpartiesSchema;
 
 interface GroupNode {
   id: string;
@@ -17,72 +19,14 @@ interface GroupNode {
   code: string;
 }
 
-const TREASURY_ROOT_GROUP_CODE = "treasury";
-const CUSTOMERS_ROOT_GROUP_CODE = "customers";
-
 async function ensureSystemRootGroups(tx: Transaction): Promise<{
   treasuryGroupId: string;
   customersGroupId: string;
 }> {
-  const defs = [
-    {
-      code: TREASURY_ROOT_GROUP_CODE,
-      name: "Treasury",
-      description: "System root for treasury counterparties",
-      isSystem: true,
-    },
-    {
-      code: CUSTOMERS_ROOT_GROUP_CODE,
-      name: "Customers",
-      description: "System root for customer counterparties",
-      isSystem: false,
-    },
-  ] as const;
-
-  for (const def of defs) {
-    await tx
-      .insert(schema.counterpartyGroups)
-      .values({
-        code: def.code,
-        name: def.name,
-        description: def.description,
-        parentId: null,
-        customerId: null,
-        isSystem: def.isSystem,
-      })
-      .onConflictDoNothing({
-        target: schema.counterpartyGroups.code,
-      });
-  }
-
-  const roots = await tx
-    .select({
-      id: schema.counterpartyGroups.id,
-      code: schema.counterpartyGroups.code,
-    })
-    .from(schema.counterpartyGroups)
-    .where(
-      inArray(schema.counterpartyGroups.code, [
-        TREASURY_ROOT_GROUP_CODE,
-        CUSTOMERS_ROOT_GROUP_CODE,
-      ]),
-    );
-
-  const treasuryGroupId = roots.find(
-    (group) => group.code === TREASURY_ROOT_GROUP_CODE,
-  )?.id;
-  const customersGroupId = roots.find(
-    (group) => group.code === CUSTOMERS_ROOT_GROUP_CODE,
-  )?.id;
-
-  if (!treasuryGroupId || !customersGroupId) {
-    throw new CustomerInvariantError("System root groups are not available");
-  }
-
-  return {
-    treasuryGroupId,
-    customersGroupId,
-  };
+  return ensureCounterpartyRootGroups(
+    tx,
+    () => new CustomerInvariantError("System root groups are not available"),
+  );
 }
 
 export async function ensureCustomerGroupForCustomer(
@@ -214,15 +158,13 @@ export async function detachCounterpartiesFromCustomerTree(
       );
 
     const groupMap = await loadGroupMap(tx);
-    const removableGroupIds = Array.from(
-      new Set(
-        memberships
-          .filter((membership) => {
-            const rootCode = resolveRootCode(groupMap, membership.groupId);
-            return rootCode === CUSTOMERS_ROOT_GROUP_CODE;
-          })
-          .map((membership) => membership.groupId),
-      ),
+    const removableGroupIds = dedupeIds(
+      memberships
+        .filter((membership) => {
+          const rootCode = resolveRootCode(groupMap, membership.groupId);
+          return rootCode === CUSTOMERS_ROOT_GROUP_CODE;
+        })
+        .map((membership) => membership.groupId),
     );
 
     if (removableGroupIds.length > 0) {

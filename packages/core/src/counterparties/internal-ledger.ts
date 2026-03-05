@@ -6,14 +6,13 @@ import {
   CounterpartyNotInternalLedgerEntityError,
   InternalLedgerInvariantViolationError,
 } from "./errors";
-import { TREASURY_INTERNAL_LEDGER_GROUP_CODE } from "./internal/group-rules";
+import {
+  dedupeIds,
+  TREASURY_INTERNAL_LEDGER_GROUP_CODE,
+} from "./internal/shared-group-rules";
 import { schema } from "./schema";
 
 type DbLike = Database | Transaction;
-
-function dedupeIds(ids: string[]) {
-  return Array.from(new Set(ids));
-}
 
 export async function listInternalLedgerCounterparties(db: DbLike): Promise<
   {

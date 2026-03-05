@@ -7,7 +7,7 @@ import {
 } from "@bedrock/kernel";
 
 import { getBookAccount, getTbAccount, randomOrgId, tb, db } from "./helpers";
-import { resolveTbBookAccountInstanceId } from "../../../src/ledger/resolve";
+import { resolveTbBookAccountInstanceId } from "../test-resolve";
 
 describe("Resolve Integration Tests", () => {
   it("creates book account mapping in DB and TigerBeetle", async () => {

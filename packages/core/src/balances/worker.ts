@@ -1,11 +1,18 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/kernel/db/types";
-import { noopLogger, type Logger } from "@bedrock/kernel";
-import { schema as balancesSchema, type Dimensions } from "@bedrock/core/balances/schema";
+import {
+  schema as balancesSchema,
+  type Dimensions,
+} from "@bedrock/core/balances/schema";
 import { schema as ledgerSchema } from "@bedrock/core/ledger/schema";
+import { noopLogger, type Logger } from "@bedrock/kernel";
+import type { Database, Transaction } from "@bedrock/kernel/db/types";
 
-import type { BedrockWorker, WorkerRunContext, WorkerRunResult } from "../worker-runtime";
+import type {
+  BedrockWorker,
+  WorkerRunContext,
+  WorkerRunResult,
+} from "../worker-runtime";
 
 const schema = {
   ...balancesSchema,
@@ -87,7 +94,11 @@ export function projectBalanceSubjects(
 
   const subjects: { subjectType: string; subjectId: string }[] = [];
   for (const [key, value] of Object.entries(dimensions)) {
-    if (!key.endsWith("Id") || typeof value !== "string" || value.length === 0) {
+    if (
+      !key.endsWith("Id") ||
+      typeof value !== "string" ||
+      value.length === 0
+    ) {
       continue;
     }
 
@@ -217,10 +228,7 @@ async function ensureBalancePositionTx(
     currency: string;
   },
 ) {
-  await tx
-    .insert(schema.balancePositions)
-    .values(input)
-    .onConflictDoNothing();
+  await tx.insert(schema.balancePositions).values(input).onConflictDoNothing();
 }
 
 async function applyProjectedDeltaTx(
@@ -321,13 +329,15 @@ async function listOperationsAfterCursorTx(
           LIMIT ${batchSize}
         `);
 
-  return ((rows.rows ?? []) as {
-    id: string;
-    source_type: string;
-    source_id: string;
-    operation_code: string;
-    posted_at: Date | string;
-  }[]).map((row) => ({
+  return (
+    (rows.rows ?? []) as {
+      id: string;
+      source_type: string;
+      source_id: string;
+      operation_code: string;
+      posted_at: Date | string;
+    }[]
+  ).map((row) => ({
     id: row.id,
     sourceType: row.source_type,
     sourceId: row.source_id,
@@ -360,16 +370,18 @@ async function listProjectionPostingRowsTx(
     ORDER BY p.line_no ASC
   `);
 
-  return ((rows.rows ?? []) as {
-    operation_id: string;
-    line_no: number;
-    book_id: string;
-    currency: string;
-    amount_minor: string | bigint;
-    posting_code: string;
-    debit_dimensions: Dimensions | null;
-    credit_dimensions: Dimensions | null;
-  }[]).map((row) => ({
+  return (
+    (rows.rows ?? []) as {
+      operation_id: string;
+      line_no: number;
+      book_id: string;
+      currency: string;
+      amount_minor: string | bigint;
+      posting_code: string;
+      debit_dimensions: Dimensions | null;
+      credit_dimensions: Dimensions | null;
+    }[]
+  ).map((row) => ({
     operationId: row.operation_id,
     sourceType: operation.sourceType,
     sourceId: operation.sourceId,
@@ -387,7 +399,7 @@ async function listProjectionPostingRowsTx(
   }));
 }
 
-export function createBalancesProjectorWorkerDefinition(deps: {
+interface BalancesProjectorWorkerDefinitionDeps {
   id?: string;
   moduleId?: string;
   intervalMs?: number;
@@ -395,7 +407,11 @@ export function createBalancesProjectorWorkerDefinition(deps: {
   logger?: Logger;
   beforeOperation?: BalancesWorkerOperationGuard;
   batchSize?: number;
-}): BedrockWorker {
+}
+
+export function createBalancesProjectorWorkerDefinition(
+  deps: BalancesProjectorWorkerDefinitionDeps,
+): BedrockWorker {
   const db = deps.db;
   const log = deps.logger?.child({ svc: "balances-projector" }) ?? noopLogger;
   const beforeOperation = deps.beforeOperation;
@@ -404,7 +420,11 @@ export function createBalancesProjectorWorkerDefinition(deps: {
   async function runPass() {
     return db.transaction(async (tx) => {
       const cursor = await ensureCursorTx(tx);
-      const operations = await listOperationsAfterCursorTx(tx, cursor, batchSize);
+      const operations = await listOperationsAfterCursorTx(
+        tx,
+        cursor,
+        batchSize,
+      );
       let processed = 0;
 
       for (const operation of operations) {

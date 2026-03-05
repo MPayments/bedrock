@@ -5,6 +5,8 @@ import {
   type ListQueryContract,
 } from "@bedrock/kernel/pagination";
 
+import { LEDGER_OPERATIONS_LIST_CONTRACT } from "../ledger/queries/operations-list-contract";
+
 export const accountNoSchema = z
   .string()
   .trim()
@@ -21,64 +23,10 @@ export const replaceCorrespondenceRulesSchema = z.object({
   rules: z.array(correspondenceRuleSchema),
 });
 
-const ACCOUNTING_OPERATIONS_SORTABLE_COLUMNS = [
-  "createdAt",
-  "postingDate",
-  "postedAt",
-] as const;
-
-interface AccountingOperationsListFilters {
-  query: { kind: "string"; cardinality: "single" };
-  status: {
-    kind: "string";
-    cardinality: "multi";
-    enumValues: readonly ["pending", "posted", "failed"];
-  };
-  operationCode: { kind: "string"; cardinality: "multi" };
-  sourceType: { kind: "string"; cardinality: "multi" };
-  sourceId: { kind: "string"; cardinality: "single" };
-  bookId: { kind: "string"; cardinality: "single" };
-  counterpartyId: { kind: "string"; cardinality: "single" };
-}
-
 export const ACCOUNTING_OPERATIONS_LIST_CONTRACT: ListQueryContract<
-  typeof ACCOUNTING_OPERATIONS_SORTABLE_COLUMNS,
-  AccountingOperationsListFilters
-> = {
-  sortableColumns: ACCOUNTING_OPERATIONS_SORTABLE_COLUMNS,
-  defaultSort: { id: "createdAt", desc: true },
-  filters: {
-    query: {
-      kind: "string",
-      cardinality: "single",
-    },
-    status: {
-      kind: "string",
-      cardinality: "multi",
-      enumValues: ["pending", "posted", "failed"],
-    },
-    operationCode: {
-      kind: "string",
-      cardinality: "multi",
-    },
-    sourceType: {
-      kind: "string",
-      cardinality: "multi",
-    },
-    sourceId: {
-      kind: "string",
-      cardinality: "single",
-    },
-    bookId: {
-      kind: "string",
-      cardinality: "single",
-    },
-    counterpartyId: {
-      kind: "string",
-      cardinality: "single",
-    },
-  },
-};
+  (typeof LEDGER_OPERATIONS_LIST_CONTRACT)["sortableColumns"],
+  (typeof LEDGER_OPERATIONS_LIST_CONTRACT)["filters"]
+> = LEDGER_OPERATIONS_LIST_CONTRACT;
 
 export const ListAccountingOperationsQuerySchema =
   createListQuerySchemaFromContract(ACCOUNTING_OPERATIONS_LIST_CONTRACT);

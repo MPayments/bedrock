@@ -12,6 +12,19 @@ import {
   CounterpartyGroupRuleError,
 } from "../errors";
 import type { CounterpartyGroupRootCode } from "../validation";
+import {
+  CUSTOMERS_ROOT_GROUP_CODE,
+  dedupeIds,
+  ensureCounterpartyRootGroups,
+  ensureTreasuryInternalLedgerGroup,
+  TREASURY_ROOT_GROUP_CODE,
+} from "./shared-group-rules";
+
+export {
+  CUSTOMERS_ROOT_GROUP_CODE,
+  TREASURY_INTERNAL_LEDGER_GROUP_CODE,
+  TREASURY_ROOT_GROUP_CODE,
+} from "./shared-group-rules";
 
 const schema = {
   ...counterpartiesSchema,
@@ -31,14 +44,6 @@ export interface GroupMembershipClassification {
   hasTreasury: boolean;
   hasCustomers: boolean;
   customerScopedIds: Set<string>;
-}
-
-export const TREASURY_ROOT_GROUP_CODE = "treasury";
-export const CUSTOMERS_ROOT_GROUP_CODE = "customers";
-export const TREASURY_INTERNAL_LEDGER_GROUP_CODE = "treasury_internal_entities";
-
-function dedupeIds(ids: string[]): string[] {
-  return Array.from(new Set(ids));
 }
 
 async function loadGroupMap(db: Database | Transaction) {
@@ -192,102 +197,24 @@ export async function ensureSystemRootGroups(tx: Transaction): Promise<{
   customersGroupId: string;
   treasuryInternalLedgerGroupId: string;
 }> {
-  const defs = [
-    {
-      code: TREASURY_ROOT_GROUP_CODE,
-      name: "Treasury",
-      description: "System root for treasury counterparties",
-      isSystem: true,
-    },
-    {
-      code: CUSTOMERS_ROOT_GROUP_CODE,
-      name: "Customers",
-      description: "System root for customer counterparties",
-      isSystem: false,
-    },
-  ] as const;
-
-  for (const def of defs) {
-    await tx
-      .insert(schema.counterpartyGroups)
-      .values({
-        code: def.code,
-        name: def.name,
-        description: def.description,
-        parentId: null,
-        customerId: null,
-        isSystem: def.isSystem,
-      })
-      .onConflictDoNothing({
-        target: schema.counterpartyGroups.code,
-      });
-  }
-
-  const roots = await tx
-    .select({
-      id: schema.counterpartyGroups.id,
-      code: schema.counterpartyGroups.code,
-    })
-    .from(schema.counterpartyGroups)
-    .where(
-      inArray(schema.counterpartyGroups.code, [
-        TREASURY_ROOT_GROUP_CODE,
-        CUSTOMERS_ROOT_GROUP_CODE,
-      ]),
-    );
-
-  const treasuryGroupId = roots.find(
-    (group) => group.code === TREASURY_ROOT_GROUP_CODE,
-  )?.id;
-  const customersGroupId = roots.find(
-    (group) => group.code === CUSTOMERS_ROOT_GROUP_CODE,
-  )?.id;
-
-  if (!treasuryGroupId || !customersGroupId) {
-    throw new CounterpartyGroupRuleError(
-      "System root groups are not available",
-    );
-  }
-
-  await tx
-    .insert(schema.counterpartyGroups)
-    .values({
-      code: TREASURY_INTERNAL_LEDGER_GROUP_CODE,
-      name: "Treasury Internal Ledger Entities",
-      description: "System subtree for internal ledger-owning entities",
-      parentId: treasuryGroupId,
-      customerId: null,
-      isSystem: true,
-    })
-    .onConflictDoUpdate({
-      target: schema.counterpartyGroups.code,
-      set: {
-        name: "Treasury Internal Ledger Entities",
-        description: "System subtree for internal ledger-owning entities",
-        parentId: treasuryGroupId,
-        customerId: null,
-        isSystem: true,
-      },
-    });
-
-  const [treasuryInternalLedgerGroup] = await tx
-    .select({
-      id: schema.counterpartyGroups.id,
-    })
-    .from(schema.counterpartyGroups)
-    .where(eq(schema.counterpartyGroups.code, TREASURY_INTERNAL_LEDGER_GROUP_CODE))
-    .limit(1);
-
-  if (!treasuryInternalLedgerGroup) {
-    throw new CounterpartyGroupRuleError(
-      "Treasury internal ledger group is not available",
-    );
-  }
+  const { treasuryGroupId, customersGroupId } = await ensureCounterpartyRootGroups(
+    tx,
+    () =>
+      new CounterpartyGroupRuleError("System root groups are not available"),
+  );
+  const treasuryInternalLedgerGroupId = await ensureTreasuryInternalLedgerGroup({
+    tx,
+    treasuryGroupId,
+    onMissingGroup: () =>
+      new CounterpartyGroupRuleError(
+        "Treasury internal ledger group is not available",
+      ),
+  });
 
   return {
     treasuryGroupId,
     customersGroupId,
-    treasuryInternalLedgerGroupId: treasuryInternalLedgerGroup.id,
+    treasuryInternalLedgerGroupId,
   };
 }
 

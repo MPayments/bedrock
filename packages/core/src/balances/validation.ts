@@ -1,70 +1,13 @@
 import { z } from "zod";
 
+import { toMinorAmountString } from "../ledger/amount-utils";
+
 export const BalanceSubjectSchema = z.object({
   bookId: z.uuid(),
   subjectType: z.string().min(1),
   subjectId: z.string().min(1),
   currency: z.string().min(1),
 });
-
-function resolveCurrencyPrecision(currencyCode: string): number {
-  const normalized = currencyCode.trim().toUpperCase();
-  if (normalized.length === 0) {
-    return 2;
-  }
-
-  try {
-    const options = new Intl.NumberFormat("en", {
-      style: "currency",
-      currency: normalized,
-    }).resolvedOptions();
-    return Math.max(0, Math.trunc(options.maximumFractionDigits ?? 2));
-  } catch {
-    return 2;
-  }
-}
-
-function toMinorAmountString(amountValue: unknown, currencyCode: string): string {
-  let normalizedAmount: string;
-
-  if (typeof amountValue === "bigint") {
-    normalizedAmount = amountValue.toString();
-  } else if (typeof amountValue === "number") {
-    if (!Number.isFinite(amountValue)) {
-      throw new Error("amount must be a finite number");
-    }
-    normalizedAmount = String(amountValue);
-  } else if (typeof amountValue === "string") {
-    normalizedAmount = amountValue.trim().replace(",", ".");
-  } else {
-    throw new Error("amount must be a string, number, or bigint");
-  }
-
-  const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(normalizedAmount);
-  if (!match) {
-    throw new Error("amount must be a number, e.g. 1000.50");
-  }
-
-  const [, signRaw = "", integerRaw = "", fractionRaw = ""] = match;
-  const precision = resolveCurrencyPrecision(currencyCode);
-
-  if (fractionRaw.length > precision) {
-    throw new Error(
-      `amount has too many fraction digits for ${currencyCode.toUpperCase()}: max ${precision}`,
-    );
-  }
-
-  const fractionPart = fractionRaw.padEnd(precision, "0");
-  const normalizedInteger = integerRaw.replace(/^0+(?=\d)/, "");
-  const minorDigits = `${normalizedInteger}${fractionPart}`.replace(/^0+(?=\d)/, "");
-  let minorAmount = BigInt(minorDigits.length > 0 ? minorDigits : "0");
-
-  if (signRaw === "-" && minorAmount !== 0n) {
-    minorAmount = -minorAmount;
-  }
-
-  return minorAmount.toString();
-}
 
 const ReserveBalanceInputRawSchema = z
   .object({

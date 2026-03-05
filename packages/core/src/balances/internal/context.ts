@@ -1,9 +1,9 @@
-import type { Database } from "@bedrock/kernel/db/types";
-import { noopLogger, type Logger } from "@bedrock/kernel";
 import {
   createIdempotencyService,
   type IdempotencyService,
 } from "@bedrock/core/idempotency";
+import { noopLogger, type Logger } from "@bedrock/kernel";
+import type { Database } from "@bedrock/kernel/db/types";
 
 export interface BalancesServiceDeps {
   db: Database;
