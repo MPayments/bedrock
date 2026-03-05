@@ -7,7 +7,7 @@ import {
 
 describe("ifrs metadata", () => {
   it("defines all IFRS doc types with required fields", () => {
-    expect(IFRS_DOCUMENT_TYPE_ORDER).toHaveLength(16);
+    expect(IFRS_DOCUMENT_TYPE_ORDER).toHaveLength(6);
 
     for (const docType of IFRS_DOCUMENT_TYPE_ORDER) {
       const metadata = IFRS_DOCUMENT_METADATA[docType];

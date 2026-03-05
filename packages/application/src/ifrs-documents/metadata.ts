@@ -1,4 +1,4 @@
-export const IFRS_DOCUMENT_TYPE_ORDER = [
+const IFRS_ALL_DOCUMENT_TYPES = [
   "transfer_intra",
   "transfer_intercompany",
   "transfer_resolution",
@@ -17,7 +17,16 @@ export const IFRS_DOCUMENT_TYPE_ORDER = [
   "period_reopen",
 ] as const;
 
-export type IfrsDocumentType = (typeof IFRS_DOCUMENT_TYPE_ORDER)[number];
+export type IfrsDocumentType = (typeof IFRS_ALL_DOCUMENT_TYPES)[number];
+
+export const IFRS_DOCUMENT_TYPE_ORDER = [
+  "transfer_intra",
+  "transfer_intercompany",
+  "transfer_resolution",
+  "capital_funding",
+  "period_close",
+  "period_reopen",
+] as const satisfies readonly IfrsDocumentType[];
 
 export type IfrsDocumentFamily = "transfers" | "ifrs";
 

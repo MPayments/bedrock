@@ -1,12 +1,12 @@
 import { BEDROCK_CORE_MODULE_MANIFESTS } from "@bedrock/core/module-runtime/contracts";
-import { Badge } from "@bedrock/ui/modules/badge";
+import { Badge } from "@bedrock/ui/components/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/modules/card";
+} from "@bedrock/ui/components/card";
 import {
   Table,
   TableBody,
@@ -14,7 +14,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@bedrock/ui/modules/table";
+} from "@bedrock/ui/components/table";
 
 const enabledModules = BEDROCK_CORE_MODULE_MANIFESTS.filter(
   (module) => module.enabledByDefault,
