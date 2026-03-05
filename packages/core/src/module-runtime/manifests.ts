@@ -7,7 +7,6 @@ import { CUSTOMERS_MODULE_MANIFEST } from "../customers/manifest";
 import { DOCUMENTS_MODULE_MANIFEST } from "../documents/manifest";
 import { IDEMPOTENCY_MODULE_MANIFEST } from "../idempotency/manifest";
 import { LEDGER_MODULE_MANIFEST } from "../ledger/manifest";
-import { RECONCILIATION_MODULE_MANIFEST } from "../reconciliation/manifest";
 
 import { SYSTEM_MODULES_MANIFEST } from "./system-modules.manifest";
 import type { ModuleManifest } from "./types";
@@ -23,7 +22,6 @@ export const BEDROCK_CORE_MODULE_MANIFESTS = [
   CUSTOMERS_MODULE_MANIFEST,
   CURRENCIES_MODULE_MANIFEST,
   BALANCES_MODULE_MANIFEST,
-  RECONCILIATION_MODULE_MANIFEST,
 ] as const satisfies ModuleManifest[];
 
 export type BedrockCoreModuleId =

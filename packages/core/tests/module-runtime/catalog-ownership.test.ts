@@ -29,7 +29,6 @@ describe("core module manifest ownership", () => {
         "documents",
         "documents-period-close",
         "balances",
-        "reconciliation",
       ]),
     );
   });

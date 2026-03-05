@@ -35,7 +35,6 @@ const statements = {
   ],
   accounting: ["list", "manage_accounts", "manage_correspondence"],
   balances: ["get", "reserve", "release", "consume"],
-  reconciliation: ["ingest", "run", "list", "explain", "adjust"],
   system_modules: ["list", "manage"],
 } as const;
 
@@ -75,7 +74,6 @@ export const admin = ac.newRole({
   ],
   accounting: ["list", "manage_accounts", "manage_correspondence"],
   balances: ["get", "reserve", "release", "consume"],
-  reconciliation: ["ingest", "run", "list", "explain", "adjust"],
   system_modules: ["list", "manage"],
 });
 
@@ -90,6 +88,5 @@ export const user = ac.newRole({
   payments: ["create", "list", "get", "submit"],
   accounting: ["list"],
   balances: ["get"],
-  reconciliation: ["list", "explain"],
   system_modules: ["list"],
 });

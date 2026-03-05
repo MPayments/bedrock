@@ -32,10 +32,6 @@ import {
   createDocumentsService,
   type DocumentsService,
 } from "@bedrock/core/documents";
-import {
-  createReconciliationService,
-  type ReconciliationService,
-} from "@bedrock/core/reconciliation";
 import { db } from "@bedrock/db/client";
 
 import type { ApiCoreServices } from "./core";
@@ -50,7 +46,6 @@ export interface ApiApplicationServices {
   fxService: FxService;
   paymentsService: PaymentsService;
   documentsService: DocumentsService;
-  reconciliationService: ReconciliationService;
 }
 
 export function createApplicationServices(
@@ -100,11 +95,6 @@ export function createApplicationServices(
     documents: documentsService,
     logger,
   });
-  const reconciliationService = createReconciliationService({
-    db,
-    documents: documentsService,
-    logger,
-  });
 
   return {
     counterpartyAccountsService,
@@ -116,6 +106,5 @@ export function createApplicationServices(
     fxService,
     paymentsService,
     documentsService,
-    reconciliationService,
   };
 }

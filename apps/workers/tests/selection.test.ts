@@ -36,7 +36,6 @@ describe("worker selection", () => {
         "documents-period-close",
         "balances",
         "fx-rates",
-        "reconciliation",
       ]),
     );
   });

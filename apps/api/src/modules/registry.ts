@@ -13,7 +13,6 @@ import {
   documentsRoutes,
   fxRatesRoutes,
   paymentsRoutes,
-  reconciliationRoutes,
   systemModulesRoutes,
 } from "../routes";
 import type { ApiApplicationModuleDefinition } from "./types";
@@ -112,14 +111,6 @@ export const paymentsModule = {
   },
 } as const satisfies ApiApplicationModule<"/payments">;
 
-export const reconciliationModule = {
-  id: "reconciliation",
-  routePath: "/reconciliation",
-  registerRoutes(ctx: AppContext) {
-    return reconciliationRoutes(ctx);
-  },
-} as const satisfies ApiApplicationModule<"/reconciliation">;
-
 export const systemModulesModule = {
   id: "system-modules",
   routePath: "/system/modules",
@@ -141,6 +132,5 @@ export const API_APPLICATION_MODULES = [
   documentsModule,
   paymentsModule,
   fxRatesModule,
-  reconciliationModule,
   systemModulesModule,
 ] as const;

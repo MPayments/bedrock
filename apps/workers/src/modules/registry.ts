@@ -17,7 +17,6 @@ import {
   createLedgerWorkerDefinition,
   type TbClient,
 } from "@bedrock/core/ledger";
-import { createReconciliationWorkerDefinition } from "@bedrock/core/reconciliation";
 import {
   listWorkerCatalogEntries,
   type BedrockWorker,
@@ -142,22 +141,11 @@ export function createWorkerImplementations(
       }),
   });
 
-  const reconciliation = createReconciliationWorkerDefinition({
-    ...createWorkerMetadata("reconciliation", deps.env),
-    db: deps.db,
-    logger: deps.logger,
-    beforeSource: () =>
-      deps.moduleRuntime.isModuleEnabled({
-        moduleId: "reconciliation",
-      }),
-  });
-
   return {
     [ledger.id]: ledger,
     [documents.id]: documents,
     [documentsPeriodClose.id]: documentsPeriodClose,
     [balances.id]: balances,
     [fxRates.id]: fxRates,
-    [reconciliation.id]: reconciliation,
   };
 }

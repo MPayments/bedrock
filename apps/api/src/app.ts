@@ -37,7 +37,6 @@ import {
   documentsRoutes,
   fxRatesRoutes,
   paymentsRoutes,
-  reconciliationRoutes,
   systemModulesRoutes,
 } from "./routes";
 
@@ -270,7 +269,6 @@ const TYPED_ROUTE_PATHS = [
   "/documents",
   "/payments",
   "/fx/rates",
-  "/reconciliation",
   "/system/modules",
 ] as const;
 
@@ -307,7 +305,6 @@ const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/documents", documentsRoutes(ctx))
   .route("/payments", paymentsRoutes(ctx))
   .route("/fx/rates", fxRatesRoutes(ctx))
-  .route("/reconciliation", reconciliationRoutes(ctx))
   .route("/system/modules", systemModulesRoutes(ctx));
 
 const typedRoutes = new OpenAPIHono<{ Variables: AuthVariables }>().route(

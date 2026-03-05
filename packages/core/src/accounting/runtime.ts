@@ -1,7 +1,9 @@
 import { and, desc, eq, lte } from "drizzle-orm";
 
-import { type PostingTemplateKey } from "@bedrock/kernel/accounting-contracts";
+import { schema } from "@bedrock/core/accounting/schema";
+import { assertBooksBelongToInternalLedgerCounterparties } from "@bedrock/core/counterparties";
 import { canonicalJson, makePlanKey, sha256Hex } from "@bedrock/kernel";
+import { type PostingTemplateKey } from "@bedrock/kernel/accounting-contracts";
 import type {
   AccountingPackDefinition,
   CreatePostingTemplateDefinition,
@@ -9,8 +11,6 @@ import type {
   RawPostingTemplateDefinition,
   ValueBinding,
 } from "@bedrock/kernel/packs/schema";
-import { schema } from "@bedrock/core/accounting/schema";
-import { assertBooksBelongToInternalLedgerCounterparties } from "@bedrock/core/counterparties";
 
 import {
   AccountingPackCompilationError,

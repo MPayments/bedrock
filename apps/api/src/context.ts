@@ -18,7 +18,6 @@ import {
   createModuleRuntimeService,
   type ModuleRuntimeService,
 } from "@bedrock/core/module-runtime";
-import type { ReconciliationService } from "@bedrock/core/reconciliation";
 import { db } from "@bedrock/db/client";
 import type { Logger } from "@bedrock/kernel";
 
@@ -73,7 +72,6 @@ export interface AppContext {
   ledgerReadService: LedgerReadService;
   balancesService: BalancesService;
   documentsService: DocumentsService;
-  reconciliationService: ReconciliationService;
   moduleRuntime: ModuleRuntimeService;
   assertInternalLedgerInvariants: () => Promise<void>;
 }
@@ -102,7 +100,6 @@ export function createAppContext(env: Env): AppContext {
     fxService: applicationServices.fxService,
     paymentsService: applicationServices.paymentsService,
     documentsService: applicationServices.documentsService,
-    reconciliationService: applicationServices.reconciliationService,
     moduleRuntime,
     assertInternalLedgerInvariants: () => assertInternalLedgerInvariants(db),
   };
