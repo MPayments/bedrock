@@ -3,10 +3,10 @@ import { sql } from "drizzle-orm";
 import { schema } from "@bedrock/db/schema";
 
 import { type FxServiceContext } from "../internal/context";
-import { createGetRateHistoryHandler } from "./rates/rate-history";
 import { createListPairsHandler } from "./rates/list-pairs";
 import { createManualRateHandlers } from "./rates/manual-rates";
 import { createRateQueryHandlers } from "./rates/query";
+import { createGetRateHistoryHandler } from "./rates/rate-history";
 import { createRateSourceHandlers } from "./rates/source-sync";
 
 export function createRateHandlers(context: FxServiceContext) {

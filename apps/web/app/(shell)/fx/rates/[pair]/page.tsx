@@ -8,8 +8,6 @@ import { Skeleton } from "@bedrock/ui/components/skeleton";
 import {
   getRateHistory,
   getRatePairs,
-  type SerializedRateHistoryPoint,
-  type SerializedRatePair,
 } from "../lib/queries";
 import { RatePairView } from "./components/rate-pair-view";
 
