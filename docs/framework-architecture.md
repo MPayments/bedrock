@@ -16,8 +16,8 @@
 |---|---|---|
 | Kernel | `@bedrock/kernel` | Общие примитивы: логгер, ошибки, worker loop, утилиты canonical/hash, DB-типы, контракты стран/паков |
 | DB | `@bedrock/db` | Единый Drizzle-клиент, агрегированный schema registry, миграции, сиды |
-| Core runtime | `@bedrock/core` | Базовые домены платформы: ledger, accounting, documents, connectors, orchestration, balances и др. |
-| Application runtime | `@bedrock/application` | Прикладные use-case/воркфлоу: `fx`, `fees`, `payments`, `ifrs-documents`, `accounting-reporting` |
+| Core runtime | `@bedrock/core` | Базовые домены платформы: `ledger`, `accounting`, `documents`, `balances`, `counterparties`, `customers`, `currencies` и др. |
+| Application runtime | `@bedrock/application` | Прикладные use-case/воркфлоу: `fx`, `fees`, `payments`, `ifrs-documents` + accounting-reporting сервисы под модулем `accounting` |
 | Adapters | `apps/api`, `apps/workers`, `apps/web` | Транспорт/композиция: HTTP API, воркер-флит, UI |
 
 Ключевая зависимость по слоям: `kernel -> core -> application -> apps`.
@@ -58,7 +58,7 @@
 1. HTTP-запрос попадает в Hono route (например, `payments`, `accounting`, `documents`).
 2. Route использует сервисы из `AppContext`.
 3. Сервисы `@bedrock/core`/`@bedrock/application` выполняют валидацию, бизнес-логику и транзакции в Postgres через Drizzle.
-4. Асинхронные этапы (ledger posting, projections, reconciliation, connectors) обрабатываются воркерами.
+4. Асинхронные этапы (ledger posting, documents finalization, balance projections, fx rates sync) обрабатываются воркерами.
 
 Источники:
 - [`apps/api/src/app.ts`](../apps/api/src/app.ts)
@@ -112,12 +112,9 @@
 | `documents` | `documents` | `DOCUMENTS_WORKER_INTERVAL_MS` | `5000` |
 | `documents-period-close` | `documents` | `DOCUMENTS_PERIOD_CLOSE_WORKER_INTERVAL_MS` | `60000` |
 | `balances` | `balances` | `BALANCES_WORKER_INTERVAL_MS` | `5000` |
-| `reconciliation` | `reconciliation` | `RECONCILIATION_WORKER_INTERVAL_MS` | `60000` |
-| `connectors-dispatch` | `connectors` | `CONNECTORS_DISPATCH_WORKER_INTERVAL_MS` | `5000` |
-| `connectors-poller` | `connectors` | `CONNECTORS_STATUS_POLLER_INTERVAL_MS` | `10000` |
-| `connectors-statements` | `connectors` | `CONNECTORS_STATEMENT_INGEST_INTERVAL_MS` | `60000` |
-| `orchestration-retry` | `orchestration` | `ORCHESTRATION_WORKER_INTERVAL_MS` | `5000` |
 | `fx-rates` | `fx-rates` | `FX_RATES_WORKER_INTERVAL_MS` | `60000` |
+
+`reconciliation` сохранен как dormant-модуль и не включается в активный воркер-каталог.
 
 ## Единая диаграмма зависимостей
 

@@ -26,11 +26,7 @@ export function createCreateCustomerHandler(context: CustomersServiceContext) {
         })
         .returning();
 
-      await ensureCustomerGroupForCustomer(
-        tx,
-        createdCustomer!.id,
-        createdCustomer!.displayName,
-      );
+      await ensureCustomerGroupForCustomer(tx, createdCustomer!.id);
 
       log.info("Customer created", {
         id: createdCustomer!.id,

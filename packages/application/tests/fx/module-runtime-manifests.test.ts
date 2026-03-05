@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { DORMANT_MODULE_IDS } from "@bedrock/core/module-runtime";
+
 import {
   BEDROCK_MODULE_MANIFESTS,
   BEDROCK_APPLICATION_MODULE_MANIFESTS,
@@ -13,7 +15,6 @@ describe("bedrock module manifest composition", () => {
 
     expect(ids).toEqual(
       new Set([
-        "accounting-reporting",
         "fees",
         "fx",
         "fx-rates",
@@ -21,6 +22,15 @@ describe("bedrock module manifest composition", () => {
         "payments",
       ]),
     );
+  });
+
+  it("does not expose dormant or merged submodule module IDs", () => {
+    const moduleIds = BEDROCK_MODULE_MANIFESTS.map((manifest) => manifest.id);
+
+    expect(moduleIds).not.toContain("accounting-reporting");
+    for (const dormantModuleId of DORMANT_MODULE_IDS) {
+      expect(moduleIds).not.toContain(dormantModuleId);
+    }
   });
 
   it("builds a unique composed manifest catalog", () => {

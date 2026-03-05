@@ -1,3 +1,5 @@
+import { SYSTEM_MODULES_MANIFEST } from "./system-modules.manifest";
+import type { ModuleManifest } from "./types";
 import { ACCOUNTING_MODULE_MANIFEST } from "../accounting/manifest";
 import { BALANCES_MODULE_MANIFEST } from "../balances/manifest";
 import { COUNTERPARTIES_MODULE_MANIFESTS } from "../counterparties/manifest";
@@ -8,8 +10,8 @@ import { DOCUMENTS_MODULE_MANIFEST } from "../documents/manifest";
 import { IDEMPOTENCY_MODULE_MANIFEST } from "../idempotency/manifest";
 import { LEDGER_MODULE_MANIFEST } from "../ledger/manifest";
 
-import { SYSTEM_MODULES_MANIFEST } from "./system-modules.manifest";
-import type { ModuleManifest } from "./types";
+export const DORMANT_MODULE_IDS = ["reconciliation"] as const;
+export type DormantModuleId = (typeof DORMANT_MODULE_IDS)[number];
 
 export const BEDROCK_CORE_MODULE_MANIFESTS = [
   SYSTEM_MODULES_MANIFEST,

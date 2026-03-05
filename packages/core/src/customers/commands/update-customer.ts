@@ -66,7 +66,7 @@ export function createUpdateCustomerHandler(
                 && validated.displayName !== existing.displayName;
 
             if (displayNameChanged) {
-                await ensureCustomerGroupForCustomer(tx, id, row.displayName);
+                await ensureCustomerGroupForCustomer(tx, id);
 
                 await tx
                     .update(schema.counterpartyGroups)

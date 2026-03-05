@@ -3,131 +3,60 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { schema as counterpartiesSchema } from "@bedrock/core/counterparties/schema";
 import type { Transaction } from "@bedrock/kernel/db/types";
 
+import { resolveGroupMembershipClassification } from "../../counterparties/internal/group-rules";
 import {
-  CUSTOMERS_ROOT_GROUP_CODE,
   dedupeIds,
-  ensureCounterpartyRootGroups,
+  ensureCustomerGroupForCustomer as ensureCustomerGroupForCustomerShared,
+  listCounterpartyGroupSubtreeIds,
 } from "../../counterparties/internal/shared-group-rules";
-
 import { CustomerInvariantError } from "../errors";
 
 const schema = counterpartiesSchema;
 
-interface GroupNode {
-  id: string;
-  parentId: string | null;
-  code: string;
-}
-
-async function ensureSystemRootGroups(tx: Transaction): Promise<{
-  treasuryGroupId: string;
-  customersGroupId: string;
-}> {
-  return ensureCounterpartyRootGroups(
-    tx,
-    () => new CustomerInvariantError("System root groups are not available"),
-  );
-}
-
 export async function ensureCustomerGroupForCustomer(
   tx: Transaction,
   customerId: string,
-  displayName: string,
 ): Promise<string> {
-  const { customersGroupId } = await ensureSystemRootGroups(tx);
-  const code = `customer:${customerId}`;
-
-  await tx
-    .insert(schema.counterpartyGroups)
-    .values({
-      code,
-      name: displayName,
-      description: "Auto-created customer group",
-      parentId: customersGroupId,
-      customerId,
-      isSystem: false,
-    })
-    .onConflictDoNothing({
-      target: schema.counterpartyGroups.code,
-    });
-
-  const [group] = await tx
-    .select({
-      id: schema.counterpartyGroups.id,
-    })
-    .from(schema.counterpartyGroups)
-    .where(eq(schema.counterpartyGroups.code, code))
-    .limit(1);
-
-  if (!group) {
-    throw new CustomerInvariantError(
-      `Failed to ensure customer group for customer ${customerId}`,
-    );
-  }
-
-  return group.id;
+  return ensureCustomerGroupForCustomerShared({
+    tx,
+    customerId,
+    onMissingCustomer: () =>
+      new CustomerInvariantError(`Customer not found: ${customerId}`),
+    onMissingGroup: () =>
+      new CustomerInvariantError(
+        `Failed to ensure customer group for customer ${customerId}`,
+      ),
+    buildGroupName: (displayName) => displayName,
+  });
 }
 
 export async function removeCustomerGroupForCustomer(
   tx: Transaction,
   customerId: string,
 ): Promise<void> {
-  await tx
-    .delete(schema.counterpartyGroups)
-    .where(eq(schema.counterpartyGroups.code, `customer:${customerId}`));
-}
-
-async function loadGroupMap(tx: Transaction) {
-  const rows = await tx
+  const [rootCustomerGroup] = await tx
     .select({
       id: schema.counterpartyGroups.id,
-      parentId: schema.counterpartyGroups.parentId,
-      code: schema.counterpartyGroups.code,
     })
-    .from(schema.counterpartyGroups);
+    .from(schema.counterpartyGroups)
+    .where(eq(schema.counterpartyGroups.code, `customer:${customerId}`))
+    .limit(1);
 
-  return new Map<string, GroupNode>(
-    rows.map((row) => [
-      row.id,
-      {
-        id: row.id,
-        parentId: row.parentId,
-        code: row.code,
-      },
-    ]),
-  );
-}
-
-function resolveRootCode(
-  groupMap: Map<string, GroupNode>,
-  groupId: string,
-): string | null {
-  const visited = new Set<string>();
-  let cursor = groupMap.get(groupId);
-
-  while (cursor) {
-    if (visited.has(cursor.id)) {
-      throw new CustomerInvariantError(
-        `Counterparty group hierarchy loop detected at group ${cursor.id}`,
-      );
-    }
-    visited.add(cursor.id);
-
-    if (!cursor.parentId) {
-      return cursor.code;
-    }
-
-    const parent = groupMap.get(cursor.parentId);
-    if (!parent) {
-      throw new CustomerInvariantError(
-        `Counterparty group parent not found for ${cursor.id}`,
-      );
-    }
-
-    cursor = parent;
+  if (!rootCustomerGroup) {
+    return;
   }
 
-  return null;
+  const subtreeGroupIds = await listCounterpartyGroupSubtreeIds(
+    tx,
+    rootCustomerGroup.id,
+  );
+  if (subtreeGroupIds.length === 0) {
+    return;
+  }
+
+  await tx
+    .delete(schema.counterpartyGroups)
+    .where(inArray(schema.counterpartyGroups.id, subtreeGroupIds));
 }
 
 export async function detachCounterpartiesFromCustomerTree(
@@ -157,12 +86,15 @@ export async function detachCounterpartiesFromCustomerTree(
         ),
       );
 
-    const groupMap = await loadGroupMap(tx);
+    const classification = await resolveGroupMembershipClassification(
+      tx,
+      memberships.map((membership) => membership.groupId),
+    );
     const removableGroupIds = dedupeIds(
       memberships
         .filter((membership) => {
-          const rootCode = resolveRootCode(groupMap, membership.groupId);
-          return rootCode === CUSTOMERS_ROOT_GROUP_CODE;
+          const rootCode = classification.rootsByGroupId.get(membership.groupId);
+          return rootCode === "customers";
         })
         .map((membership) => membership.groupId),
     );

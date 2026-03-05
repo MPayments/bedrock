@@ -23,6 +23,8 @@ const schema = {
   ...ledgerSchema,
 };
 
+export { resolvePendingTransferBookId } from "@bedrock/core/documents/module-kit";
+
 export function normalizeTransferPayload(
   input: TransferIntraInput | TransferIntercompanyInput,
   bindings: {
@@ -73,28 +75,6 @@ export function ensureTransferCurrencies(input: {
       `Currency mismatch: payload=${input.payloadCurrency}, source=${input.sourceCurrency}, destination=${input.destinationCurrency}`,
     );
   }
-}
-
-export function resolvePendingTransferBookId(input: {
-  sourceBookId: string;
-  destinationBookId: string;
-  pendingRef?: string | null;
-}) {
-  if (input.sourceBookId === input.destinationBookId) {
-    return input.sourceBookId;
-  }
-
-  if (input.pendingRef?.endsWith(":source")) {
-    return input.sourceBookId;
-  }
-
-  if (input.pendingRef?.endsWith(":destination")) {
-    return input.destinationBookId;
-  }
-
-  throw new DocumentValidationError(
-    `Pending transfer reference is ambiguous: ${input.pendingRef ?? "n/a"}`,
-  );
 }
 
 export async function resolveTransferDependencyDocument(

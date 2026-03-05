@@ -155,7 +155,7 @@ describe("createCustomersService", () => {
     });
 
     expect(created).toEqual(customer);
-    expect(tx.insert).toHaveBeenCalledTimes(4);
+    expect(tx.insert).toHaveBeenCalledTimes(3);
   });
 
   it("updates customer and refreshes the customer group when name changes", async () => {
@@ -209,7 +209,7 @@ describe("createCustomersService", () => {
     expect(tx.update).toHaveBeenCalledTimes(2);
   });
 
-  it("removes customer and detaches counterparties from customer tree", async () => {
+  it("removes customer, detaches counterparties, and deletes customer group subtree", async () => {
     const customer = makeCustomer();
     const db = createStubDb();
     const tx = {
@@ -222,7 +222,7 @@ describe("createCustomersService", () => {
           selectWhereRows([
             {
               counterpartyId: "counterparty-1",
-              groupId: "customer-leaf",
+              groupId: "customer-child",
             },
             {
               counterpartyId: "counterparty-1",
@@ -234,24 +234,44 @@ describe("createCustomersService", () => {
           selectFromRows([
             {
               id: "customers-root",
-              parentId: null,
               code: "customers",
+              parentId: null,
+              customerId: null,
             },
             {
-              id: "customer-leaf",
-              parentId: "customers-root",
+              id: "customer-group",
               code: "customer:00000000-0000-4000-8000-000000000201",
+              parentId: "customers-root",
+              customerId: "00000000-0000-4000-8000-000000000201",
+            },
+            {
+              id: "customer-child",
+              parentId: "customers-root",
+              code: "customer:child",
+              customerId: "00000000-0000-4000-8000-000000000201",
             },
             {
               id: "treasury-root",
-              parentId: null,
               code: "treasury",
+              parentId: null,
+              customerId: null,
             },
             {
               id: "treasury-leaf",
               parentId: "treasury-root",
               code: "treasury:ops",
+              customerId: null,
             },
+          ]),
+        )
+        .mockReturnValueOnce(
+          selectWhereLimitRows([{ id: "customer-group" }]),
+        )
+        .mockReturnValueOnce(
+          selectFromRows([
+            { id: "customers-root", parentId: null },
+            { id: "customer-group", parentId: "customers-root" },
+            { id: "customer-child", parentId: "customer-group" },
           ]),
         ),
       delete: vi

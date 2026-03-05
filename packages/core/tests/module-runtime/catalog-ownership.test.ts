@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { BEDROCK_CORE_MODULE_MANIFESTS } from "../../src/module-runtime";
 
 const APPLICATION_MODULE_IDS = new Set([
-  "accounting-reporting",
   "fees",
   "fx",
   "fx-rates",

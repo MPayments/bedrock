@@ -11,3 +11,4 @@ export {
   buildDocumentPostingPlan,
   buildDocumentPostingRequest,
 } from "./posting-plan";
+export { resolvePendingTransferBookId } from "./transfer-utils";

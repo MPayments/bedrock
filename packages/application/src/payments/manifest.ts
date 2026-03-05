@@ -20,5 +20,9 @@ export const PAYMENTS_MODULE_MANIFEST = {
       moduleId: "documents",
       reason: "Payments are implemented as document workflows",
     },
+    {
+      moduleId: "counterparty-accounts",
+      reason: "Payments resolve transfer bindings via counterparty account mappings",
+    },
   ],
 } as const satisfies ModuleManifest;

@@ -9,5 +9,6 @@ Per-item guard outcomes are intentionally worker-specific:
 | `ledger` | `release` |
 | `fx-rates` | `skip` |
 | `documents` | `skip` |
-| `reconciliation` | `skip` |
 | `balances` | `stop_batch` |
+
+`reconciliation` currently remains dormant and is intentionally excluded from the active worker fleet.

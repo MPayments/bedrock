@@ -67,7 +67,7 @@ bun run check:workspace-deps
 
 Композиция идет в два шага:
 1. Core-сервисы (`accounting`, `ledger`, `balances`) — [`apps/api/src/composition/core.ts`](../apps/api/src/composition/core.ts)
-2. Application/core домены верхнего уровня (`fx`, `fees`, `payments`, `documents`, `connectors`, `orchestration` и т.д.) — [`apps/api/src/composition/application.ts`](../apps/api/src/composition/application.ts)
+2. Application/core домены верхнего уровня (`fx`, `fees`, `payments`, `documents`) — [`apps/api/src/composition/application.ts`](../apps/api/src/composition/application.ts)
 
 Главный контекст API:
 - [`apps/api/src/context.ts`](../apps/api/src/context.ts)
@@ -105,14 +105,12 @@ bun run --cwd apps/workers worker:all
 ```bash
 bun run --cwd apps/workers worker:ledger
 bun run --cwd apps/workers worker:documents
+bun run --cwd apps/workers worker:documents-period-close
 bun run --cwd apps/workers worker:balances
 bun run --cwd apps/workers worker:fx-rates
-bun run --cwd apps/workers worker:reconciliation
-bun run --cwd apps/workers worker:connectors-dispatch
-bun run --cwd apps/workers worker:connectors-poller
-bun run --cwd apps/workers worker:connectors-statements
-bun run --cwd apps/workers worker:orchestration-retry
 ```
+
+`reconciliation` остается в кодовой базе как dormant-модуль и не входит в активный воркер-каталог.
 
 ### Как настраиваются интервалы
 Значения берутся из env-переменных capability-манифестов (`WORKER_INTERVALS`):

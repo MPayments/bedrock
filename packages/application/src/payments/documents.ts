@@ -9,6 +9,7 @@ import {
   buildDocumentDraft,
   buildDocumentPostIdempotencyKey,
   parseDocumentPayload,
+  resolvePendingTransferBookId,
   serializeOccurredAt,
 } from "@bedrock/core/documents/module-kit";
 import {
@@ -216,25 +217,6 @@ async function ensureNoPendingResolution(
       `Payment intent ${intentDocumentId} already has a pending resolution`,
     );
   }
-}
-
-function resolvePendingTransferBookId(input: {
-  sourceBookId: string;
-  destinationBookId: string;
-  pendingRef?: string | null;
-}) {
-  if (input.sourceBookId === input.destinationBookId) {
-    return input.sourceBookId;
-  }
-  if (input.pendingRef?.endsWith(":source")) {
-    return input.sourceBookId;
-  }
-  if (input.pendingRef?.endsWith(":destination")) {
-    return input.destinationBookId;
-  }
-  throw new DocumentValidationError(
-    `Pending transfer reference is missing routing book for ${input.pendingRef ?? "unknown ref"}`,
-  );
 }
 
 export function createPaymentIntentDocumentModule(deps: {
@@ -613,6 +595,8 @@ export function createPaymentResolutionDocumentModule(deps: {
               sourceBookId: bindings.source.bookId,
               destinationBookId: bindings.destination.bookId,
               pendingRef: item.pendingRef,
+              buildAmbiguousPendingRefMessage: (pendingRef) =>
+                `Pending transfer reference is missing routing book for ${pendingRef ?? "unknown ref"}`,
             }),
             dimensions: {},
             refs: {

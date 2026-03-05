@@ -1,10 +1,10 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/kernel/db/types";
 import {
   customersRef,
   schema as counterpartiesSchema,
 } from "@bedrock/core/counterparties/schema";
+import type { Database, Transaction } from "@bedrock/kernel/db/types";
 
 import {
   CounterpartyCustomerNotFoundError,
@@ -16,6 +16,7 @@ import {
   CUSTOMERS_ROOT_GROUP_CODE,
   dedupeIds,
   ensureCounterpartyRootGroups,
+  ensureCustomerGroupForCustomer as ensureCustomerGroupForCustomerShared,
   ensureTreasuryInternalLedgerGroup,
   TREASURY_ROOT_GROUP_CODE,
 } from "./shared-group-rules";
@@ -222,64 +223,16 @@ export async function ensureCustomerGroupForCustomer(
   tx: Transaction,
   customerId: string,
 ): Promise<string> {
-  const { customersGroupId } = await ensureSystemRootGroups(tx);
-
-  const [existing] = await tx
-    .select({ id: schema.counterpartyGroups.id })
-    .from(schema.counterpartyGroups)
-    .where(
-      and(
-        eq(schema.counterpartyGroups.parentId, customersGroupId),
-        eq(schema.counterpartyGroups.customerId, customerId),
+  return ensureCustomerGroupForCustomerShared({
+    tx,
+    customerId,
+    onMissingCustomer: () => new CounterpartyCustomerNotFoundError(customerId),
+    onMissingGroup: () =>
+      new CounterpartyGroupRuleError(
+        `Failed to ensure customer group for customer ${customerId}`,
       ),
-    )
-    .limit(1);
-
-  if (existing) {
-    return existing.id;
-  }
-
-  const [customer] = await tx
-    .select({
-      displayName: schema.customers.displayName,
-    })
-    .from(schema.customers)
-    .where(eq(schema.customers.id, customerId))
-    .limit(1);
-
-  if (!customer) {
-    throw new CounterpartyCustomerNotFoundError(customerId);
-  }
-
-  await tx
-    .insert(schema.counterpartyGroups)
-    .values({
-      code: `customer:${customerId}`,
-      name: customer.displayName
-        ? `Customer ${customer.displayName}`
-        : `Customer ${customerId}`,
-      description: "Auto-created customer group",
-      parentId: customersGroupId,
-      customerId,
-      isSystem: false,
-    })
-    .onConflictDoNothing({
-      target: schema.counterpartyGroups.code,
-    });
-
-  const [created] = await tx
-    .select({ id: schema.counterpartyGroups.id })
-    .from(schema.counterpartyGroups)
-    .where(eq(schema.counterpartyGroups.code, `customer:${customerId}`))
-    .limit(1);
-
-  if (!created) {
-    throw new CounterpartyGroupRuleError(
-      `Failed to ensure customer group for customer ${customerId}`,
-    );
-  }
-
-  return created.id;
+    buildGroupName: (displayName) => displayName,
+  });
 }
 
 export async function assertCustomerExists(

@@ -96,7 +96,7 @@ describe("Customers service integration", () => {
     expect(group!.name).toBe("New Name");
   });
 
-  it("removes customer and detaches counterparties from customer tree only", async () => {
+  it("removes customer and deletes customer-scoped group subtree", async () => {
     const service = createCustomersService({ db });
     const customer = await service.create({
       displayName: "Detach Me",
@@ -120,6 +120,18 @@ describe("Customers service integration", () => {
       .from(schema.counterpartyGroups)
       .where(eq(schema.counterpartyGroups.code, `customer:${customer.id}`))
       .limit(1);
+
+    const [customerLeaf] = await db
+      .insert(schema.counterpartyGroups)
+      .values({
+        code: uniq("customer-leaf"),
+        name: "Customer Leaf",
+        description: "Integration test node",
+        parentId: customerGroup!.id,
+        customerId: customer.id,
+        isSystem: false,
+      })
+      .returning({ id: schema.counterpartyGroups.id });
 
     const [treasuryLeaf] = await db
       .insert(schema.counterpartyGroups)
@@ -149,7 +161,7 @@ describe("Customers service integration", () => {
     await db.insert(schema.counterpartyGroupMemberships).values([
       {
         counterpartyId: counterparty!.id,
-        groupId: customerGroup!.id,
+        groupId: customerLeaf!.id,
       },
       {
         counterpartyId: counterparty!.id,
@@ -181,11 +193,22 @@ describe("Customers service integration", () => {
         ),
       );
 
+    const customerTreeGroups = await db
+      .select({ id: schema.counterpartyGroups.id })
+      .from(schema.counterpartyGroups)
+      .where(
+        inArray(schema.counterpartyGroups.id, [
+          customerGroup!.id,
+          customerLeaf!.id,
+        ]),
+      );
+
     expect(customersRoot).toBeDefined();
     expect(removedCustomer).toBeUndefined();
     expect(detachedCounterparty).toBeDefined();
     expect(detachedCounterparty!.customerId).toBeNull();
     expect(memberships).toEqual([{ groupId: treasuryLeaf!.id }]);
+    expect(customerTreeGroups).toEqual([]);
   });
 
   it("blocks remove when document references customer", async () => {

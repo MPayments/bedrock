@@ -14,7 +14,6 @@ import {
   readMembershipMap,
   replaceMemberships,
   resolveGroupMembershipClassification,
-  TREASURY_INTERNAL_LEDGER_GROUP_CODE,
   TREASURY_ROOT_GROUP_CODE,
   withoutRootGroups,
 } from "../../src/counterparties/internal/group-rules";
@@ -239,13 +238,6 @@ describe("group-rules internals", () => {
         .mockImplementationOnce(() => ({
           from: vi.fn(() => ({
             where: vi.fn(() => ({
-              limit: vi.fn(async () => [{ id: TREASURY_INTERNAL_LEDGER_GROUP_CODE }]),
-            })),
-          })),
-        }))
-        .mockImplementationOnce(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
               limit: vi.fn(async () => [{ id: "cust-group-existing" }]),
             })),
           })),
@@ -276,13 +268,6 @@ describe("group-rules internals", () => {
         .mockImplementationOnce(() => ({
           from: vi.fn(() => ({
             where: vi.fn(() => ({
-              limit: vi.fn(async () => [{ id: TREASURY_INTERNAL_LEDGER_GROUP_CODE }]),
-            })),
-          })),
-        }))
-        .mockImplementationOnce(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
               limit: vi.fn(async () => []),
             })),
           })),
@@ -305,7 +290,7 @@ describe("group-rules internals", () => {
 
     const result = await ensureCustomerGroupForCustomer(tx, "cust-1");
     expect(result).toBe("cust-group-new");
-    expect(tx.insert).toHaveBeenCalledTimes(4);
+    expect(tx.insert).toHaveBeenCalledTimes(3);
   });
 
   it("throws when customer is missing while ensuring customer group", async () => {
@@ -323,13 +308,6 @@ describe("group-rules internals", () => {
               { id: "root-t", code: TREASURY_ROOT_GROUP_CODE },
               { id: "root-c", code: CUSTOMERS_ROOT_GROUP_CODE },
             ]),
-          })),
-        }))
-        .mockImplementationOnce(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [{ id: TREASURY_INTERNAL_LEDGER_GROUP_CODE }]),
-            })),
           })),
         }))
         .mockImplementationOnce(() => ({
@@ -368,13 +346,6 @@ describe("group-rules internals", () => {
               { id: "root-t", code: TREASURY_ROOT_GROUP_CODE },
               { id: "root-c", code: CUSTOMERS_ROOT_GROUP_CODE },
             ]),
-          })),
-        }))
-        .mockImplementationOnce(() => ({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [{ id: TREASURY_INTERNAL_LEDGER_GROUP_CODE }]),
-            })),
           })),
         }))
         .mockImplementationOnce(() => ({
