@@ -72,7 +72,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   },
   operations: { label: "Операции" },
 
-  rates: { label: "Курсы", icon: "chart-candlestick" },
+  rates: { label: "Курсы", href: "/fx/rates", icon: "chart-candlestick" },
   quotes: { label: "Котировки" },
 
   orders: { label: "Ордера" },

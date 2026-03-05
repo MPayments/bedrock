@@ -23,10 +23,6 @@ export async function proxy(request: NextRequest) {
     if (!res.ok) {
       return redirectToLogin(request, pathname);
     }
-    const body = await res.json();
-    if (!body?.session) {
-      return redirectToLogin(request, pathname);
-    }
   } catch {
     return redirectToLogin(request, pathname);
   }

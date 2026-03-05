@@ -66,10 +66,11 @@ export interface SerializedRateHistoryPoint {
 export async function getRateHistory(
   base: string,
   quote: string,
+  from?: string,
 ): Promise<SerializedRateHistoryPoint[]> {
   const client = await getServerApiClient();
   const res = await client.v1.fx.rates.history.$get({
-    query: { base, quote, limit: 500 },
+    query: { base, quote, limit: 500, ...(from ? { from } : {}) },
   });
 
   if (!res.ok) {

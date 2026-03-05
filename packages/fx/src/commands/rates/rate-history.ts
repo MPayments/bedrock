@@ -15,13 +15,14 @@ export interface GetRateHistoryInput {
     base: string;
     quote: string;
     limit?: number;
+    from?: Date;
 }
 
 export function createGetRateHistoryHandler(context: FxServiceContext) {
     const { db } = context;
 
     async function getRateHistory(input: GetRateHistoryInput): Promise<RateHistoryPoint[]> {
-        const { base, quote, limit = 100 } = input;
+        const { base, quote, limit = 100, from } = input;
         const fr = schema.fxRates;
         const curr = schema.currencies;
 
@@ -41,6 +42,7 @@ export function createGetRateHistoryHandler(context: FxServiceContext) {
             JOIN ${curr} qc ON qc.id = r.quote_currency_id
             WHERE bc.code = ${base.trim().toUpperCase()}
               AND qc.code = ${quote.trim().toUpperCase()}
+              AND (${from ?? null}::timestamptz IS NULL OR r.as_of >= ${from ?? null}::timestamptz)
             ORDER BY r.as_of ASC
             LIMIT ${limit}
         `);
