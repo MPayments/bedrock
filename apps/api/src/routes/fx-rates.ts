@@ -58,6 +58,7 @@ const RateHistoryQuerySchema = z.object({
   base: z.string().min(2).max(16),
   quote: z.string().min(2).max(16),
   limit: z.coerce.number().int().min(1).max(1000).optional(),
+  from: z.coerce.date().optional(),
 });
 
 export function fxRatesRoutes(ctx: AppContext) {
@@ -224,11 +225,12 @@ export function fxRatesRoutes(ctx: AppContext) {
 
   return app
     .openapi(rateHistoryRoute, async (c) => {
-      const { base, quote, limit } = c.req.valid("query");
+      const { base, quote, limit, from } = c.req.valid("query");
       const points = await ctx.fxService.getRateHistory({
         base,
         quote,
         limit,
+        from,
       });
       return c.json(
         {

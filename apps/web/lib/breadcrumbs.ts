@@ -79,7 +79,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   "fx-revaluation": { label: "Переоценка валюты" },
   "fee-revenue": { label: "Комиссионные доходы" },
   "close-package": { label: "Пакет закрытия" },
-  rates: { label: "Курсы", icon: "chart-candlestick" },
+  rates: { label: "Курсы", href: "/fx/rates", icon: "chart-candlestick" },
   quotes: { label: "Котировки" },
 
   orders: { label: "Ордера" },

@@ -1,98 +1,58 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { usePathname, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import { Plus } from "lucide-react";
 
 import { Badge } from "@bedrock/ui/components/badge";
+import { Button } from "@bedrock/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@bedrock/ui/components/card";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@bedrock/ui/components/chart";
 import {
   Tabs,
   TabsList,
   TabsTrigger,
 } from "@bedrock/ui/components/tabs";
+import { Skeleton } from "@bedrock/ui/components/skeleton";
 
 import { formatDate } from "@/lib/format";
-import { SOURCE_LABELS } from "@/features/fx/rates/lib/constants";
+import {
+  computeDecimalRate,
+  formatChange,
+  formatChangePercent,
+  formatRate,
+  formatShortDate,
+  sourceLabel,
+} from "@/features/fx/rates/lib/format";
 import type {
   SerializedRateHistoryPoint,
   SerializedRatePair,
   SerializedSourceRate,
 } from "@/features/fx/rates/lib/queries";
 
-function sourceLabel(source: string): string {
-  return SOURCE_LABELS[source] ?? source;
-}
+import type { ChartDataPoint, TimeRangeKey } from "./rate-chart";
+import { SetPairManualRateDialog } from "./set-pair-manual-rate-dialog";
 
-function computeDecimalRate(rateNum: string, rateDen: string): number {
-  return Number(rateNum) / Number(rateDen);
-}
-
-function formatRate(rateNum: string, rateDen: string): string {
-  return computeDecimalRate(rateNum, rateDen).toFixed(6);
-}
-
-function formatShortDate(iso: string): string {
-  const d = new Date(iso);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  return `${day}.${month}`;
-}
-
-function formatChange(value: number | null): {
-  text: string;
-  className: string;
-} {
-  if (value === null) return { text: "—", className: "text-muted-foreground" };
-  if (value > 0)
-    return { text: `+${value.toFixed(4)}`, className: "text-green-600" };
-  if (value < 0)
-    return { text: value.toFixed(4), className: "text-red-600" };
-  return { text: "0.0000", className: "text-muted-foreground" };
-}
-
-function formatChangePercent(value: number | null): {
-  text: string;
-  className: string;
-} {
-  if (value === null) return { text: "—", className: "text-muted-foreground" };
-  if (value > 0)
-    return { text: `+${value.toFixed(2)}%`, className: "text-green-600" };
-  if (value < 0)
-    return { text: `${value.toFixed(2)}%`, className: "text-red-600" };
-  return { text: "0.00%", className: "text-muted-foreground" };
-}
-
-type ChartDataPoint = {
-  date: string;
-  dateLabel: string;
-  rate: number;
-};
-
-const SOURCE_COLORS: Record<string, string> = {
-  cbr: "hsl(220, 70%, 50%)",
-  investing: "hsl(160, 60%, 45%)",
-  xe: "hsl(280, 65%, 55%)",
-  manual: "hsl(30, 80%, 55%)",
-};
+const RateChart = dynamic(
+  () => import("./rate-chart").then((m) => m.RateChart),
+  { ssr: false, loading: () => <Skeleton className="h-[350px] rounded-md" /> },
+);
 
 type RatePairViewProps = {
   pair: SerializedRatePair;
   history: SerializedRateHistoryPoint[];
+  timeRange: TimeRangeKey;
 };
 
-export function RatePairView({ pair, history }: RatePairViewProps) {
+export function RatePairView({ pair, history, timeRange }: RatePairViewProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+
   const availableSources = useMemo(() => {
     const sources = new Set<string>();
     for (const point of history) sources.add(point.source);
@@ -106,18 +66,20 @@ export function RatePairView({ pair, history }: RatePairViewProps) {
 
   const chartDataBySource = useMemo(() => {
     const map = new Map<string, ChartDataPoint[]>();
-    for (const source of availableSources) {
-      const points = history
-        .filter((p) => p.source === source)
-        .map((p) => ({
-          date: p.asOf,
-          dateLabel: formatShortDate(p.asOf),
-          rate: computeDecimalRate(p.rateNum, p.rateDen),
-        }));
-      map.set(source, points);
+    for (const p of history) {
+      let points = map.get(p.source);
+      if (!points) {
+        points = [];
+        map.set(p.source, points);
+      }
+      points.push({
+        date: p.asOf,
+        dateLabel: formatShortDate(p.asOf),
+        rate: computeDecimalRate(p.rateNum, p.rateDen),
+      });
     }
     return map;
-  }, [history, availableSources]);
+  }, [history]);
 
   const currentRateBySource = useMemo(() => {
     const map = new Map<string, SerializedSourceRate>();
@@ -128,36 +90,50 @@ export function RatePairView({ pair, history }: RatePairViewProps) {
   }, [pair.rates]);
 
   const activeChartData = chartDataBySource.get(activeSource) ?? [];
+
   const activeCurrentRate = currentRateBySource.get(activeSource);
 
-  const chartConfig: ChartConfig = {
-    rate: {
-      label: "Курс",
-      color: SOURCE_COLORS[activeSource] ?? "hsl(220, 70%, 50%)",
-    },
-  };
+  function handleTimeRangeChange(range: TimeRangeKey) {
+    const params = new URLSearchParams();
+    if (range !== "ALL") params.set("range", range);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <Tabs
-        value={activeSource}
-        onValueChange={setActiveSource}
-        className="w-full p-1 block"
-      >
-        <TabsList className="gap-2">
-          {availableSources.map((source) => (
-            <TabsTrigger key={source} value={source}>
-              {sourceLabel(source)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <div className="flex items-center justify-between gap-2">
+        <Tabs
+          value={activeSource}
+          onValueChange={setActiveSource}
+          className="p-1 block"
+        >
+          <TabsList className="gap-2">
+            {availableSources.map((source) => (
+              <TabsTrigger key={source} value={source}>
+                {sourceLabel(source)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
-      {activeCurrentRate && <RateCurrentSummary rate={activeCurrentRate} />}
+        <SetPairManualRateDialog
+          base={pair.baseCurrencyCode}
+          quote={pair.quoteCurrencyCode}
+        >
+          <Button variant="outline" size="sm">
+            <Plus className="h-4 w-4" />
+            Ручной курс
+          </Button>
+        </SetPairManualRateDialog>
+      </div>
+
+      {activeCurrentRate ? <RateCurrentSummary rate={activeCurrentRate} /> : null}
       <RateChart
         data={activeChartData}
-        config={chartConfig}
         source={activeSource}
+        timeRange={timeRange}
+        onTimeRangeChange={handleTimeRangeChange}
       />
     </div>
   );
@@ -184,7 +160,7 @@ function RateCurrentSummary({ rate }: { rate: SerializedSourceRate }) {
           <CardDescription>Изменение</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-2 items-center">
             <span
               className={`text-2xl font-bold font-mono tabular-nums ${change.className}`}
             >
@@ -216,91 +192,5 @@ function RateCurrentSummary({ rate }: { rate: SerializedSourceRate }) {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function RateChart({
-  data,
-  config,
-  source,
-}: {
-  data: ChartDataPoint[];
-  config: ChartConfig;
-  source: string;
-}) {
-  if (data.length === 0) {
-    return (
-      <Card className="rounded-sm">
-        <CardContent className="flex items-center justify-center py-16">
-          <p className="text-muted-foreground text-sm">
-            Нет исторических данных для источника{" "}
-            <span className="font-medium">{sourceLabel(source)}</span>.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="rounded-sm">
-      <CardHeader>
-        <CardTitle>История курса</CardTitle>
-        <CardDescription>
-          Источник: {sourceLabel(source)} &middot; {data.length} точек
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={config} className="h-[350px] w-full">
-          <LineChart
-            data={data}
-            margin={{ top: 5, right: 10, left: 10, bottom: 0 }}
-          >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="dateLabel"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-            />
-            <YAxis
-              domain={["auto", "auto"]}
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              tickFormatter={(v: number) => v.toFixed(2)}
-            />
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(_, payload) => {
-                    const point = payload?.[0]?.payload as
-                      | ChartDataPoint
-                      | undefined;
-                    if (!point) return "";
-                    return formatDate(point.date);
-                  }}
-                  formatter={(value) => {
-                    const num = value as number;
-                    return (
-                      <span className="font-mono tabular-nums">
-                        {num.toFixed(6)}
-                      </span>
-                    );
-                  }}
-                />
-              }
-            />
-            <Line
-              dataKey="rate"
-              type="monotone"
-              stroke="var(--color-rate)"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4 }}
-            />
-          </LineChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
   );
 }

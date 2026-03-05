@@ -55,11 +55,12 @@ export async function getRateSources(): Promise<SerializedSourceStatus[]> {
 export async function getRateHistory(
   base: string,
   quote: string,
+  from?: string,
 ): Promise<SerializedRateHistoryPoint[]> {
   const client = await getServerApiClient();
   const response = await requestOk(
     await client.v1.fx.rates.history.$get({
-      query: { base, quote, limit: 500 },
+      query: { base, quote, limit: 500, ...(from ? { from } : {}) },
     }),
     "Не удалось загрузить историю курсов",
   );

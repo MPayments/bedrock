@@ -11,8 +11,29 @@ import {
 } from "@/features/fx/rates/lib/queries";
 import { RatePairView } from "./components/rate-pair-view";
 
+const RANGE_DAYS: Record<string, number | undefined> = {
+  "1D": 1,
+  "1W": 7,
+  "1M": 30,
+  "6M": 180,
+  "1Y": 365,
+  ALL: undefined,
+};
+
+type TimeRangeKey = "1D" | "1W" | "1M" | "6M" | "1Y" | "ALL";
+
+function rangeToFromDate(range: string | undefined): string | undefined {
+  if (!range || !(range in RANGE_DAYS)) return undefined;
+  const days = RANGE_DAYS[range];
+  if (days == null) return undefined;
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString();
+}
+
 interface RatePairPageProps {
   params: Promise<{ pair: string }>;
+  searchParams: Promise<{ range?: string }>;
 }
 
 function parsePairParam(pair: string): { base: string; quote: string } | null {
@@ -22,12 +43,19 @@ function parsePairParam(pair: string): { base: string; quote: string } | null {
   return { base: parts[0].toUpperCase(), quote: parts[1].toUpperCase() };
 }
 
-export default async function RatePairPage({ params }: RatePairPageProps) {
+export default async function RatePairPage({
+  params,
+  searchParams,
+}: RatePairPageProps) {
   const { pair } = await params;
+  const { range } = await searchParams;
   const parsed = parsePairParam(pair);
   if (!parsed) notFound();
 
   const { base, quote } = parsed;
+  const timeRange: TimeRangeKey =
+    range && range in RANGE_DAYS ? (range as TimeRangeKey) : "ALL";
+  const from = rangeToFromDate(timeRange);
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,7 +76,7 @@ export default async function RatePairPage({ params }: RatePairPageProps) {
       <Separator className="h-px w-full" />
 
       <Suspense fallback={<PairViewSkeleton />}>
-        <PairViewLoader base={base} quote={quote} />
+        <PairViewLoader base={base} quote={quote} from={from} timeRange={timeRange} />
       </Suspense>
     </div>
   );
@@ -57,12 +85,16 @@ export default async function RatePairPage({ params }: RatePairPageProps) {
 async function PairViewLoader({
   base,
   quote,
+  from,
+  timeRange,
 }: {
   base: string;
   quote: string;
+  from: string | undefined;
+  timeRange: TimeRangeKey;
 }) {
   const [history, allPairs] = await Promise.all([
-    getRateHistory(base, quote),
+    getRateHistory(base, quote, from),
     getRatePairs(),
   ]);
 
@@ -76,6 +108,7 @@ async function PairViewLoader({
     <RatePairView
       pair={currentPair}
       history={history}
+      timeRange={timeRange}
     />
   );
 }

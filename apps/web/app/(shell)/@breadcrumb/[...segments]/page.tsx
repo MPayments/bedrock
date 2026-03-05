@@ -38,7 +38,21 @@ function createResourceSegmentResolver<TEntity>(
   };
 }
 
+function resolvePairSegment({ segment }: { segment: string }) {
+  const parts = segment.split("-");
+  if (parts.length === 2 && parts[0] && parts[1]) {
+    const base = parts[0].toUpperCase();
+    const quote = parts[1].toUpperCase();
+    return {
+      label: `${base} / ${quote}`,
+      href: `/fx/rates/${base}-${quote}`,
+    };
+  }
+  return null;
+}
+
 const dynamicResolvers = {
+  rates: resolvePairSegment,
   counterparties: createResourceSegmentResolver({
     singularLabel: "Контрагент",
     hrefPrefix: "/entities/counterparties",

@@ -22,57 +22,17 @@ import {
 
 import { formatDate } from "@/lib/format";
 
-import { SOURCE_LABELS } from "../lib/constants";
+import {
+  formatChange,
+  formatChangePercent,
+  formatRate,
+  sourceLabel,
+} from "../lib/format";
 import type {
   SerializedRatePair,
   SerializedSourceRate,
 } from "../lib/queries";
 import { FxSourceAvatar } from "./fx-source-avatar";
-
-function sourceLabel(source: string): string {
-  return SOURCE_LABELS[source] ?? source;
-}
-
-function computeDecimalRate(rateNum: string, rateDen: string): number {
-  return Number(rateNum) / Number(rateDen);
-}
-
-function formatRate(rateNum: string, rateDen: string): string {
-  return computeDecimalRate(rateNum, rateDen).toFixed(6);
-}
-
-function formatChange(value: number | null): {
-  text: string;
-  className: string;
-} {
-  if (value === null) {
-    return { text: "—", className: "text-muted-foreground" };
-  }
-  if (value > 0) {
-    return { text: `+${value.toFixed(4)}`, className: "text-green-600" };
-  }
-  if (value < 0) {
-    return { text: value.toFixed(4), className: "text-red-600" };
-  }
-  return { text: "0.0000", className: "text-muted-foreground" };
-}
-
-function formatChangePercent(value: number | null): {
-  text: string;
-  className: string;
-} {
-  if (value === null) {
-    return { text: "—", className: "text-muted-foreground" };
-  }
-  if (value > 0) {
-    return { text: `+${value.toFixed(2)}%`, className: "text-green-600" };
-  }
-  if (value < 0) {
-    return { text: `${value.toFixed(2)}%`, className: "text-red-600" };
-  }
-  return { text: "0.00%", className: "text-muted-foreground" };
-}
-
 type RatePairsListProps = {
   initialPairs: SerializedRatePair[];
 };
@@ -103,6 +63,7 @@ export function RatePairsList({ initialPairs }: RatePairsListProps) {
                     <Button
                       variant="outline"
                       size="sm"
+                      nativeButton={false}
                       render={
                         <Link
                           href={`/fx/rates/${pair.baseCurrencyCode}-${pair.quoteCurrencyCode}`}
