@@ -13,7 +13,9 @@ export default function CreateCustomerLayout({
   const { state, actions } = useCustomerDraftName();
 
   useEffect(() => {
-    actions.resetCreateName();
+    return () => {
+      actions.resetCreateName();
+    };
   }, [actions]);
 
   return (

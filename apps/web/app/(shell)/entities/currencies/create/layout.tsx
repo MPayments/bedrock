@@ -13,7 +13,9 @@ export default function CreateCurrencyLayout({
   const { state, actions } = useCurrencyDraftName();
 
   useEffect(() => {
-    actions.resetCreateName();
+    return () => {
+      actions.resetCreateName();
+    };
   }, [actions]);
 
   return (

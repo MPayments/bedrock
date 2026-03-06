@@ -429,6 +429,20 @@ export function DocumentTypedForm({
     }
   }, [accountCurrencyCodeById, derivedFields, setValue, watchedValues]);
 
+  const submitDisabled =
+    disabled ||
+    submitting ||
+    (mode === "edit" && (!documentId || !isDirty));
+  const resetDisabled = disabled || submitting || !isDirty;
+
+  useEffect(() => {
+    onActionStateChange?.({
+      submitting,
+      submitDisabled,
+      resetDisabled,
+    });
+  }, [onActionStateChange, resetDisabled, submitDisabled, submitting]);
+
   if (!definition) {
     return (
       <div className="text-sm text-muted-foreground">
@@ -516,20 +530,6 @@ export function DocumentTypedForm({
     onSuccess?.(mutationResult.data);
     reset(values);
   }
-
-  const submitDisabled =
-    disabled ||
-    submitting ||
-    (mode === "edit" && (!documentId || !isDirty));
-  const resetDisabled = disabled || submitting || !isDirty;
-
-  useEffect(() => {
-    onActionStateChange?.({
-      submitting,
-      submitDisabled,
-      resetDisabled,
-    });
-  }, [onActionStateChange, resetDisabled, submitDisabled, submitting]);
 
   function handleReset() {
     reset(defaultValues);

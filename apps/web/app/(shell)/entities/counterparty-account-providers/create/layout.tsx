@@ -13,7 +13,9 @@ export default function CreateProviderLayout({
   const { state, actions } = useProviderDraftName();
 
   useEffect(() => {
-    actions.resetCreateName();
+    return () => {
+      actions.resetCreateName();
+    };
   }, [actions]);
 
   return (

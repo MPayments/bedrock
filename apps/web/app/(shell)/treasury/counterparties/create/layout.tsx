@@ -13,7 +13,9 @@ export default function TreasuryCreateCounterpartyLayout({
   const { state, actions } = useCounterpartyDraftName();
 
   useEffect(() => {
-    actions.resetCreateName();
+    return () => {
+      actions.resetCreateName();
+    };
   }, [actions]);
 
   return (

@@ -13,7 +13,9 @@ export default function CreateAccountLayout({
   const { state, actions } = useAccountDraftName();
 
   useEffect(() => {
-    actions.resetCreateName();
+    return () => {
+      actions.resetCreateName();
+    };
   }, [actions]);
 
   return (
