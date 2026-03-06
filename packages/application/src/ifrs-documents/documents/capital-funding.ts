@@ -53,6 +53,13 @@ function resolveCapitalFundingTitle(kind: CapitalFundingInput["kind"]) {
   return "Капитальное финансирование (входящий остаток)";
 }
 
+function resolveCapitalFundingEntryRef(input: {
+  document: { docNo: string };
+  payload: { entryRef?: string };
+}) {
+  return input.payload.entryRef ?? input.document.docNo;
+}
+
 export function createCapitalFundingDocumentModule(
   deps: IfrsModuleDeps,
 ): DocumentModule<CapitalFundingInput, CapitalFundingInput> {
@@ -151,6 +158,7 @@ export function createCapitalFundingDocumentModule(
       const [binding] = await counterpartyAccountsService.resolveTransferBindings({
         accountIds: [payload.counterpartyAccountId],
       });
+      const entryRef = resolveCapitalFundingEntryRef({ document, payload });
 
       if (!binding) {
         throw new DocumentValidationError("Counterparty account binding is missing");
@@ -160,6 +168,7 @@ export function createCapitalFundingDocumentModule(
         operationCode: OPERATION_CODE.TREASURY_CAPITAL_FUNDING,
         payload: {
           ...payload,
+          entryRef,
           memo: payload.memo ?? null,
         },
         requests: [
@@ -173,7 +182,7 @@ export function createCapitalFundingDocumentModule(
               counterpartyAccountId: payload.counterpartyAccountId,
             },
             refs: {
-              entryRef: payload.entryRef,
+              entryRef,
               kind: payload.kind,
             },
             memo: payload.memo ?? null,

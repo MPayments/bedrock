@@ -9,6 +9,7 @@ import {
   optionalString,
   parseSchema,
   readString,
+  TWO_COLUMN_SM_COLUMNS,
   toOccurredAtIso,
 } from "../shared";
 
@@ -47,13 +48,43 @@ export function createTransferIntercompanyDefinition(): DocumentFormDefinition {
             counterpartyField: "destinationCounterpartyId",
           },
         ],
+        layout: {
+          rows: [
+            {
+              columns: TWO_COLUMN_SM_COLUMNS,
+              fields: ["sourceCounterpartyId", "destinationCounterpartyId"],
+            },
+            {
+              columns: TWO_COLUMN_SM_COLUMNS,
+              fields: [
+                "sourceCounterpartyAccountId",
+                "destinationCounterpartyAccountId",
+              ],
+            },
+            {
+              fields: ["occurredAt"],
+            },
+          ],
+        },
       },
       {
         id: "amount",
         title: "Сумма",
         fields: [
           { kind: "amount", name: "amount", label: "Сумма" },
-          { kind: "currency", name: "currency", label: "Валюта" },
+          {
+            kind: "currency",
+            name: "currency",
+            label: "Валюта",
+            hidden: true,
+            deriveFrom: {
+              kind: "accountCurrency",
+              accountFieldNames: [
+                "sourceCounterpartyAccountId",
+                "destinationCounterpartyAccountId",
+              ],
+            },
+          },
           {
             kind: "number",
             name: "timeoutSeconds",
@@ -65,6 +96,19 @@ export function createTransferIntercompanyDefinition(): DocumentFormDefinition {
           },
           { kind: "textarea", name: "memo", label: "Комментарий", rows: 3 },
         ],
+        layout: {
+          rows: [
+            {
+              fields: ["amount"],
+            },
+            {
+              fields: ["timeoutSeconds"],
+            },
+            {
+              fields: ["memo"],
+            },
+          ],
+        },
       },
     ],
     defaultValues: getDefaultTransferValues,

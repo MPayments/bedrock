@@ -9,6 +9,7 @@ import {
   optionalString,
   parseSchema,
   readString,
+  TWO_COLUMN_SM_COLUMNS,
   toOccurredAtIso,
 } from "../shared";
 
@@ -44,13 +45,42 @@ export function createTransferIntraDefinition(): DocumentFormDefinition {
             counterpartyField: "sourceCounterpartyId",
           },
         ],
+        layout: {
+          rows: [
+            {
+              fields: ["sourceCounterpartyId"],
+            },
+            {
+              columns: TWO_COLUMN_SM_COLUMNS,
+              fields: [
+                "sourceCounterpartyAccountId",
+                "destinationCounterpartyAccountId",
+              ],
+            },
+            {
+              fields: ["occurredAt"],
+            },
+          ],
+        },
       },
       {
         id: "amount",
         title: "Сумма",
         fields: [
           { kind: "amount", name: "amount", label: "Сумма" },
-          { kind: "currency", name: "currency", label: "Валюта" },
+          {
+            kind: "currency",
+            name: "currency",
+            label: "Валюта",
+            hidden: true,
+            deriveFrom: {
+              kind: "accountCurrency",
+              accountFieldNames: [
+                "sourceCounterpartyAccountId",
+                "destinationCounterpartyAccountId",
+              ],
+            },
+          },
           {
             kind: "number",
             name: "timeoutSeconds",
@@ -62,6 +92,19 @@ export function createTransferIntraDefinition(): DocumentFormDefinition {
           },
           { kind: "textarea", name: "memo", label: "Комментарий", rows: 3 },
         ],
+        layout: {
+          rows: [
+            {
+              fields: ["amount"],
+            },
+            {
+              fields: ["timeoutSeconds"],
+            },
+            {
+              fields: ["memo"],
+            },
+          ],
+        },
       },
     ],
     defaultValues: getDefaultTransferValues,

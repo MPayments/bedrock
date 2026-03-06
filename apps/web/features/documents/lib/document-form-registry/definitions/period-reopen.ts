@@ -8,6 +8,7 @@ import {
   optionalString,
   parseSchema,
   readString,
+  TWO_COLUMN_SM_COLUMNS,
   toOccurredAtIso,
 } from "../shared";
 
@@ -34,6 +35,23 @@ export function createPeriodReopenDefinition(): DocumentFormDefinition {
             rows: 3,
           },
         ],
+        layout: {
+          rows: [
+            {
+              fields: ["counterpartyId"],
+            },
+            {
+              columns: TWO_COLUMN_SM_COLUMNS,
+              fields: ["periodStart", "periodEnd"],
+            },
+            {
+              fields: ["occurredAt"],
+            },
+            {
+              fields: ["reopenReason"],
+            },
+          ],
+        },
       },
     ],
     defaultValues() {

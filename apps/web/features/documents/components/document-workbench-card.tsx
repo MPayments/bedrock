@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Save, X } from "lucide-react";
 
 import { Button } from "@bedrock/ui/components/button";
 import {
@@ -11,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@bedrock/ui/components/card";
+import { Spinner } from "@bedrock/ui/components/spinner";
 import { toast } from "@bedrock/ui/components/sonner";
 
 import type { UserRole } from "@/lib/auth/types";
@@ -26,7 +28,10 @@ import {
   voidDocument,
 } from "@/features/operations/documents/lib/mutations";
 
-import { DocumentTypedForm } from "./forms/document-typed-form";
+import {
+  DocumentTypedForm,
+  type DocumentTypedFormActionState,
+} from "./forms/document-typed-form";
 
 type DocumentWorkbenchCardProps = {
   docType: string;
@@ -47,6 +52,12 @@ export function DocumentWorkbenchCard({
 }: DocumentWorkbenchCardProps) {
   const router = useRouter();
   const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [formActionState, setFormActionState] =
+    useState<DocumentTypedFormActionState>({
+      submitting: false,
+      submitDisabled: true,
+      resetDisabled: true,
+    });
 
   const definition = useMemo(
     () => getDocumentFormDefinitionForRole({ docType, role: userRole }),
@@ -62,6 +73,7 @@ export function DocumentWorkbenchCard({
   const canRepost = allowedActions.includes("repost");
 
   const hasBlockingMutation = Boolean(activeAction);
+  const formId = `document-edit-form-${documentId}`;
 
   async function runAction(input: {
     actionId: string;
@@ -86,12 +98,43 @@ export function DocumentWorkbenchCard({
   return (
     <Card className="rounded-sm">
       <CardHeader className="border-b">
-        <CardTitle>Редактирование и действия</CardTitle>
-        <CardDescription>
-          {definition
-            ? `Типизированная форма редактирования ${getDocumentTypeLabel(docType)} и действия документа.`
-            : "Для этого типа документа типизированная форма редактирования недоступна. Доступны только действия документа."}
-        </CardDescription>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle>Редактирование и действия</CardTitle>
+            <CardDescription>
+              {definition
+                ? `Типизированная форма редактирования ${getDocumentTypeLabel(docType)} и действия документа.`
+                : "Для этого типа документа типизированная форма редактирования недоступна. Доступны только действия документа."}
+            </CardDescription>
+          </div>
+          {definition ? (
+            <div className="flex items-center gap-2">
+              <Button
+                type="submit"
+                form={formId}
+                disabled={formActionState.submitDisabled}
+              >
+                {formActionState.submitting ? (
+                  <Spinner className="size-4" />
+                ) : (
+                  <Save className="size-4" />
+                )}
+                {formActionState.submitting
+                  ? "Сохранение..."
+                  : "Сохранить черновик"}
+              </Button>
+              <Button
+                variant="outline"
+                type="reset"
+                form={formId}
+                disabled={formActionState.resetDisabled}
+              >
+                <X className="size-4" />
+                Отменить
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent className="space-y-6 py-6">
         {definition ? (
@@ -105,6 +148,9 @@ export function DocumentWorkbenchCard({
             disabled={!canEditDraft || hasBlockingMutation}
             submitLabel="Сохранить черновик"
             submittingLabel="Сохранение..."
+            formId={formId}
+            actionsPlacement="external"
+            onActionStateChange={setFormActionState}
             onSuccess={() => {
               router.refresh();
             }}

@@ -33,7 +33,7 @@ export default async function DocumentCreateByTypePage({ params }: PageProps) {
     <EntityListPageShell
       icon={FilePlus2}
       title={`Создать ${getDocumentTypeLabel(docType)}`}
-      description="Отдельная typed-форма создания документа."
+      description="Форма создания документа."
       fallback={null}
     >
       <DocumentCreateTypedFormClient

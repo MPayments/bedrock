@@ -51,6 +51,28 @@ export function createTransferResolutionDefinition(): DocumentFormDefinition {
           },
           { kind: "textarea", name: "memo", label: "Комментарий", rows: 3 },
         ],
+        layout: {
+          rows: [
+            {
+              fields: ["transferDocumentId"],
+            },
+            {
+              fields: ["resolutionType"],
+            },
+            {
+              fields: ["eventIdempotencyKey"],
+            },
+            {
+              fields: ["pendingIndex"],
+            },
+            {
+              fields: ["occurredAt"],
+            },
+            {
+              fields: ["memo"],
+            },
+          ],
+        },
       },
     ],
     defaultValues() {

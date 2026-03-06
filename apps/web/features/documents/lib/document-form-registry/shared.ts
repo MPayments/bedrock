@@ -17,6 +17,8 @@ import {
 import type {
   DocumentFormDefinition,
   DocumentFormFieldOption,
+  DocumentFormResponsiveCount,
+  DocumentFormSectionLayout,
   DocumentFormValues,
 } from "./types";
 
@@ -190,6 +192,27 @@ export const CAPITAL_FUNDING_KIND_OPTIONS: DocumentFormFieldOption[] = [
   { value: "opening_balance", label: "Входящий остаток" },
 ];
 
+export const TWO_COLUMN_SM_COLUMNS = {
+  base: 1,
+  sm: 2,
+} satisfies DocumentFormResponsiveCount;
+
+export function createAmountSectionLayout(
+  textareaFieldName = "memo",
+): DocumentFormSectionLayout {
+  return {
+    rows: [
+      {
+        columns: TWO_COLUMN_SM_COLUMNS,
+        fields: ["amount", "currency"],
+      },
+      {
+        fields: [textareaFieldName],
+      },
+    ],
+  };
+}
+
 export function getDefaultTransferValues() {
   return {
     occurredAt: nowDateTimeLocal(),
@@ -238,6 +261,20 @@ export function createLoanLikeDefinition(input: {
           },
           { kind: "text", name: "reference", label: "Референс" },
         ],
+        layout: {
+          rows: [
+            {
+              columns: TWO_COLUMN_SM_COLUMNS,
+              fields: ["debtorCounterpartyId", "creditorCounterpartyId"],
+            },
+            {
+              fields: ["reference"],
+            },
+            {
+              fields: ["occurredAt"],
+            },
+          ],
+        },
       },
       {
         id: "amount",
@@ -247,6 +284,7 @@ export function createLoanLikeDefinition(input: {
           { kind: "currency", name: "currency", label: "Валюта" },
           { kind: "textarea", name: "memo", label: "Комментарий", rows: 3 },
         ],
+        layout: createAmountSectionLayout(),
       },
     ],
     defaultValues() {
@@ -313,6 +351,20 @@ export function createEquityDefinition(input: {
           },
           { kind: "text", name: "reference", label: "Референс" },
         ],
+        layout: {
+          rows: [
+            {
+              columns: TWO_COLUMN_SM_COLUMNS,
+              fields: ["counterpartyId", "investorCounterpartyId"],
+            },
+            {
+              fields: ["reference"],
+            },
+            {
+              fields: ["occurredAt"],
+            },
+          ],
+        },
       },
       {
         id: "amount",
@@ -322,6 +374,7 @@ export function createEquityDefinition(input: {
           { kind: "currency", name: "currency", label: "Валюта" },
           { kind: "textarea", name: "memo", label: "Комментарий", rows: 3 },
         ],
+        layout: createAmountSectionLayout(),
       },
     ],
     defaultValues() {
@@ -387,6 +440,19 @@ export function createAdjustmentDefinition(input: {
           { kind: "counterparty", name: "counterpartyId", label: "Контрагент" },
           { kind: "text", name: "reference", label: "Референс" },
         ],
+        layout: {
+          rows: [
+            {
+              fields: ["counterpartyId"],
+            },
+            {
+              fields: ["reference"],
+            },
+            {
+              fields: ["occurredAt"],
+            },
+          ],
+        },
       },
       {
         id: "amount",
@@ -396,6 +462,7 @@ export function createAdjustmentDefinition(input: {
           { kind: "currency", name: "currency", label: "Валюта" },
           { kind: "textarea", name: "memo", label: "Комментарий", rows: 3 },
         ],
+        layout: createAmountSectionLayout(),
       },
     ],
     defaultValues() {

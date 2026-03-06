@@ -12,6 +12,11 @@ type DocumentFormFieldBase = {
   label: string;
   description?: string;
   placeholder?: string;
+  hidden?: boolean;
+  deriveFrom?: {
+    kind: "accountCurrency";
+    accountFieldNames: string[];
+  };
 };
 
 type DocumentFormFieldInput =
@@ -41,11 +46,34 @@ type DocumentFormFieldInput =
 
 export type DocumentFormField = DocumentFormFieldInput;
 
+export type DocumentFormBreakpoint = "base" | "sm" | "md" | "lg";
+
+export type DocumentFormResponsiveCount = Partial<
+  Record<DocumentFormBreakpoint, 1 | 2 | 3 | 4>
+>;
+
+export type DocumentFormRowField =
+  | string
+  | {
+      name: string;
+      span?: DocumentFormResponsiveCount;
+    };
+
+export type DocumentFormRow = {
+  fields: DocumentFormRowField[];
+  columns?: DocumentFormResponsiveCount;
+};
+
+export type DocumentFormSectionLayout = {
+  rows: DocumentFormRow[];
+};
+
 export type DocumentFormSection = {
   id: string;
   title: string;
   description?: string;
   fields: DocumentFormField[];
+  layout?: DocumentFormSectionLayout;
 };
 
 export type DocumentFormValues = Record<string, unknown>;

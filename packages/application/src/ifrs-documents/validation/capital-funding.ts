@@ -19,7 +19,7 @@ export const CapitalFundingKindSchema = z.enum([
 
 const capitalFundingInputBaseSchema = baseOccurredAtSchema.extend({
   kind: CapitalFundingKindSchema,
-  entryRef: z.string().trim().min(1).max(255),
+  entryRef: z.string().trim().min(1).max(255).optional(),
   counterpartyId: z.uuid(),
   counterpartyAccountId: z.uuid(),
   amount: amountValueInputSchema,
@@ -33,7 +33,7 @@ export const CapitalFundingInputSchema = capitalFundingInputBaseSchema.transform
 
 export const CapitalFundingPayloadSchema = baseOccurredAtSchema.extend({
   kind: CapitalFundingKindSchema,
-  entryRef: z.string().trim().min(1).max(255),
+  entryRef: z.string().trim().min(1).max(255).optional(),
   counterpartyId: z.uuid(),
   counterpartyAccountId: z.uuid(),
   amountMinor: amountMinorSchema,

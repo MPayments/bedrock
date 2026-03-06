@@ -2,12 +2,14 @@ import { IntercompanyInterestAccrualInputSchema } from "@bedrock/application/ifr
 
 import type { DocumentFormDefinition } from "../types";
 import {
+  createAmountSectionLayout,
   isoToDateTimeLocal,
   normalizeMajorAmountInput,
   nowDateTimeLocal,
   optionalString,
   parseSchema,
   readString,
+  TWO_COLUMN_SM_COLUMNS,
   toOccurredAtIso,
 } from "../shared";
 
@@ -40,6 +42,23 @@ export function createIntercompanyInterestAccrualDefinition(): DocumentFormDefin
           },
           { kind: "text", name: "reference", label: "Референс" },
         ],
+        layout: {
+          rows: [
+            {
+              columns: TWO_COLUMN_SM_COLUMNS,
+              fields: ["debtorCounterpartyId", "creditorCounterpartyId"],
+            },
+            {
+              fields: ["accrualPeriodMonth"],
+            },
+            {
+              fields: ["reference"],
+            },
+            {
+              fields: ["occurredAt"],
+            },
+          ],
+        },
       },
       {
         id: "amount",
@@ -49,6 +68,7 @@ export function createIntercompanyInterestAccrualDefinition(): DocumentFormDefin
           { kind: "currency", name: "currency", label: "Валюта" },
           { kind: "textarea", name: "memo", label: "Комментарий", rows: 3 },
         ],
+        layout: createAmountSectionLayout(),
       },
     ],
     defaultValues() {

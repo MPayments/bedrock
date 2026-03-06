@@ -30,7 +30,6 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
             label: "Тип финансирования",
             options: CAPITAL_FUNDING_KIND_OPTIONS,
           },
-          { kind: "text", name: "entryRef", label: "Ссылка на запись" },
           { kind: "counterparty", name: "counterpartyId", label: "Контрагент" },
           {
             kind: "account",
@@ -39,22 +38,56 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
             counterpartyField: "counterpartyId",
           },
         ],
+        layout: {
+          rows: [
+            {
+              fields: ["kind"],
+            },
+            {
+              fields: ["counterpartyId"],
+            },
+            {
+              fields: ["counterpartyAccountId"],
+            },
+            {
+              fields: ["occurredAt"],
+            },
+          ],
+        },
       },
       {
         id: "amount",
         title: "Сумма",
         fields: [
           { kind: "amount", name: "amount", label: "Сумма" },
-          { kind: "currency", name: "currency", label: "Валюта" },
+          {
+            kind: "currency",
+            name: "currency",
+            label: "Валюта",
+            hidden: true,
+            deriveFrom: {
+              kind: "accountCurrency",
+              accountFieldNames: ["counterpartyAccountId"],
+            },
+          },
           { kind: "textarea", name: "memo", label: "Комментарий", rows: 3 },
         ],
+        layout: {
+          rows: [
+            {
+              fields: ["amount"],
+            },
+            {
+              fields: ["memo"],
+            },
+          ],
+        },
       },
     ],
     defaultValues() {
       return {
         occurredAt: nowDateTimeLocal(),
         kind: "founder_equity",
-        entryRef: "",
         counterpartyId: "",
         counterpartyAccountId: "",
         amount: "",
@@ -66,7 +99,6 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
       return {
         occurredAt: isoToDateTimeLocal(payload.occurredAt),
         kind: readString(payload.kind) || "founder_equity",
-        entryRef: readString(payload.entryRef),
         counterpartyId: readString(payload.counterpartyId),
         counterpartyAccountId: readString(payload.counterpartyAccountId),
         amount: normalizeMajorAmountInput(payload.amount, payload.currency),
@@ -78,7 +110,6 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
       return parseSchema(CapitalFundingInputSchema, {
         occurredAt: toOccurredAtIso(values.occurredAt),
         kind: readString(values.kind).trim(),
-        entryRef: readString(values.entryRef).trim(),
         counterpartyId: readString(values.counterpartyId).trim(),
         counterpartyAccountId: readString(values.counterpartyAccountId).trim(),
         amount: normalizeMajorAmountInput(values.amount, values.currency),

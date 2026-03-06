@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Save, X } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { ZodError } from "zod";
@@ -11,9 +11,17 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
+  FieldLegend,
+  FieldSeparator,
   FieldSet,
 } from "@bedrock/ui/components/field";
 import { Input } from "@bedrock/ui/components/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@bedrock/ui/components/input-group";
 import {
   Select,
   SelectContent,
@@ -24,6 +32,7 @@ import {
 import { Spinner } from "@bedrock/ui/components/spinner";
 import { Textarea } from "@bedrock/ui/components/textarea";
 import { toast } from "@bedrock/ui/components/sonner";
+import { cn } from "@bedrock/ui/lib/utils";
 
 import type { UserRole } from "@/lib/auth/types";
 import { isUuid } from "@/lib/resources/http";
@@ -33,8 +42,11 @@ import {
 } from "@/features/documents/lib/account-options";
 import {
   getDocumentFormDefinitionForRole,
+  type DocumentFormBreakpoint,
   type DocumentFormField,
+  type DocumentFormResponsiveCount,
 } from "@/features/documents/lib/document-form-registry";
+import { resolveDocumentFormSectionRows } from "@/features/documents/lib/document-form-registry/layout";
 import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
 import {
   createDocumentDraft,
@@ -55,6 +67,15 @@ type DocumentTypedFormProps = {
   submitLabel?: string;
   submittingLabel?: string;
   onSuccess?: (result: DocumentMutationDto) => void;
+  formId?: string;
+  actionsPlacement?: "footer" | "external";
+  onActionStateChange?: (state: DocumentTypedFormActionState) => void;
+};
+
+export type DocumentTypedFormActionState = {
+  submitting: boolean;
+  submitDisabled: boolean;
+  resetDisabled: boolean;
 };
 
 function fieldErrorMessage(
@@ -85,6 +106,115 @@ function readValueAsString(input: unknown): string {
   return "";
 }
 
+function findSelectedLabel(
+  value: unknown,
+  options: Array<{ value: string; label: string }>,
+): string | undefined {
+  const normalizedValue = readValueAsString(value).trim();
+  if (!normalizedValue) {
+    return undefined;
+  }
+
+  return options.find((option) => option.value === normalizedValue)?.label;
+}
+
+const RESPONSIVE_BREAKPOINTS: DocumentFormBreakpoint[] = [
+  "base",
+  "sm",
+  "md",
+  "lg",
+];
+
+const GRID_COLUMN_CLASS_NAMES: Record<
+  DocumentFormBreakpoint,
+  Record<1 | 2 | 3 | 4, string>
+> = {
+  base: {
+    1: "grid-cols-1",
+    2: "grid-cols-2",
+    3: "grid-cols-3",
+    4: "grid-cols-4",
+  },
+  sm: {
+    1: "sm:grid-cols-1",
+    2: "sm:grid-cols-2",
+    3: "sm:grid-cols-3",
+    4: "sm:grid-cols-4",
+  },
+  md: {
+    1: "md:grid-cols-1",
+    2: "md:grid-cols-2",
+    3: "md:grid-cols-3",
+    4: "md:grid-cols-4",
+  },
+  lg: {
+    1: "lg:grid-cols-1",
+    2: "lg:grid-cols-2",
+    3: "lg:grid-cols-3",
+    4: "lg:grid-cols-4",
+  },
+};
+
+const GRID_SPAN_CLASS_NAMES: Record<
+  DocumentFormBreakpoint,
+  Record<1 | 2 | 3 | 4, string>
+> = {
+  base: {
+    1: "col-span-1",
+    2: "col-span-2",
+    3: "col-span-3",
+    4: "col-span-4",
+  },
+  sm: {
+    1: "sm:col-span-1",
+    2: "sm:col-span-2",
+    3: "sm:col-span-3",
+    4: "sm:col-span-4",
+  },
+  md: {
+    1: "md:col-span-1",
+    2: "md:col-span-2",
+    3: "md:col-span-3",
+    4: "md:col-span-4",
+  },
+  lg: {
+    1: "lg:col-span-1",
+    2: "lg:col-span-2",
+    3: "lg:col-span-3",
+    4: "lg:col-span-4",
+  },
+};
+
+function getResponsiveGridClassName(columns?: DocumentFormResponsiveCount): string {
+  const resolvedColumns: DocumentFormResponsiveCount = {
+    base: 1,
+    ...columns,
+  };
+
+  return cn(
+    "grid gap-4",
+    ...RESPONSIVE_BREAKPOINTS.flatMap((breakpoint) => {
+      const columnCount = resolvedColumns[breakpoint];
+      return columnCount ? [GRID_COLUMN_CLASS_NAMES[breakpoint][columnCount]] : [];
+    }),
+  );
+}
+
+function getResponsiveGridItemClassName(
+  span?: DocumentFormResponsiveCount,
+): string | undefined {
+  if (!span) {
+    return undefined;
+  }
+
+  return cn(
+    ...RESPONSIVE_BREAKPOINTS.flatMap((breakpoint) => {
+      const columnSpan = span[breakpoint];
+      return columnSpan ? [GRID_SPAN_CLASS_NAMES[breakpoint][columnSpan]] : [];
+    }),
+  );
+}
+
 export function DocumentTypedForm({
   mode,
   docType,
@@ -96,7 +226,12 @@ export function DocumentTypedForm({
   submitLabel = mode === "create" ? "Создать документ" : "Сохранить черновик",
   submittingLabel = mode === "create" ? "Создание..." : "Сохранение...",
   onSuccess,
+  formId,
+  actionsPlacement = "footer",
+  onActionStateChange,
 }: DocumentTypedFormProps) {
+  const generatedFormId = useId();
+  const resolvedFormId = formId ?? generatedFormId;
   const definition = useMemo(
     () => getDocumentFormDefinitionForRole({ docType, role: userRole }),
     [docType, userRole],
@@ -154,6 +289,49 @@ export function DocumentTypedForm({
     () => new Map(options.currencies.map((currency) => [currency.id, currency.label])),
     [options.currencies],
   );
+  const currencyCodeById = useMemo(
+    () => new Map(options.currencies.map((currency) => [currency.id, currency.code])),
+    [options.currencies],
+  );
+  const currencySelectOptions = useMemo(
+    () =>
+      options.currencies.map((currency) => ({
+        value: currency.code,
+        label: currency.label,
+      })),
+    [options.currencies],
+  );
+  const counterpartySelectOptions = useMemo(
+    () =>
+      options.counterparties.map((counterparty) => ({
+        value: counterparty.id,
+        label: counterparty.label,
+      })),
+    [options.counterparties],
+  );
+  const accountCurrencyCodeById = useMemo(() => {
+    const next = new Map<string, string>();
+
+    for (const accountOptions of accountsByCounterpartyId.values()) {
+      for (const option of accountOptions) {
+        const currencyCode = currencyCodeById.get(option.currencyId);
+        if (currencyCode) {
+          next.set(option.id, currencyCode);
+        }
+      }
+    }
+
+    return next;
+  }, [accountsByCounterpartyId, currencyCodeById]);
+  const derivedFields = useMemo(() => {
+    if (!definition) {
+      return [] as DocumentFormField[];
+    }
+
+    return definition.sections
+      .flatMap((section) => section.fields)
+      .filter((field) => field.deriveFrom?.kind === "accountCurrency");
+  }, [definition]);
 
   useEffect(() => {
     reset(defaultValues);
@@ -213,6 +391,43 @@ export function DocumentTypedForm({
         });
     }
   }, [accountFields, accountsByCounterpartyId, currencyLabelById, definition, watchedValues]);
+
+  useEffect(() => {
+    for (const field of derivedFields) {
+      if (field.deriveFrom?.kind !== "accountCurrency") {
+        continue;
+      }
+
+      const selectedAccountIds = field.deriveFrom.accountFieldNames
+        .map((accountFieldName) =>
+          readValueAsString(watchedValues?.[accountFieldName]).trim(),
+        )
+        .filter((accountId) => accountId.length > 0);
+
+      if (selectedAccountIds.length === 0) {
+        if (readValueAsString(watchedValues?.[field.name]).trim().length > 0) {
+          setValue(field.name, "", { shouldDirty: false });
+        }
+        continue;
+      }
+
+      const resolvedCurrencyCodes = selectedAccountIds
+        .map((accountId) => accountCurrencyCodeById.get(accountId))
+        .filter((currencyCode): currencyCode is string => Boolean(currencyCode));
+
+      if (resolvedCurrencyCodes.length !== selectedAccountIds.length) {
+        continue;
+      }
+
+      const derivedCurrencyCode = resolvedCurrencyCodes[0] ?? "";
+      if (
+        derivedCurrencyCode.length > 0 &&
+        readValueAsString(watchedValues?.[field.name]).trim() !== derivedCurrencyCode
+      ) {
+        setValue(field.name, derivedCurrencyCode, { shouldDirty: false });
+      }
+    }
+  }, [accountCurrencyCodeById, derivedFields, setValue, watchedValues]);
 
   if (!definition) {
     return (
@@ -308,346 +523,489 @@ export function DocumentTypedForm({
     (mode === "edit" && (!documentId || !isDirty));
   const resetDisabled = disabled || submitting || !isDirty;
 
+  useEffect(() => {
+    onActionStateChange?.({
+      submitting,
+      submitDisabled,
+      resetDisabled,
+    });
+  }, [onActionStateChange, resetDisabled, submitDisabled, submitting]);
+
+  function handleReset() {
+    reset(defaultValues);
+  }
+
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+    <form
+      id={resolvedFormId}
+      onSubmit={handleSubmit(handleFormSubmit)}
+      onReset={(event) => {
+        event.preventDefault();
+        handleReset();
+      }}
+      className="space-y-6"
+    >
       <FieldGroup>
-        {definition.sections.map((section) => (
-          <FieldSet key={section.id}>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">{section.title}</p>
+        {definition.sections.map((section, sectionIndex) => {
+          const sectionRows = resolveDocumentFormSectionRows(section);
+          const hiddenSectionCurrencyField = section.fields.find(
+            (field) => field.kind === "currency" && field.hidden,
+          );
+          const hiddenSectionCurrencyCode = hiddenSectionCurrencyField
+            ? readValueAsString(watchedValues?.[hiddenSectionCurrencyField.name])
+                .trim()
+                .toUpperCase()
+            : "";
+
+          return (
+            <Fragment key={section.id}>
+              {sectionIndex > 0 ? <FieldSeparator /> : null}
+              <FieldSet>
+              <FieldLegend>{section.title}</FieldLegend>
               {section.description ? (
-                <p className="text-muted-foreground text-sm">{section.description}</p>
+                <FieldDescription>{section.description}</FieldDescription>
               ) : null}
-            </div>
-            <FieldGroup>
-              {section.fields.map((field) => {
-                const errorMessage = fieldErrorMessage(
-                  errors as Record<string, { message?: unknown } | undefined>,
-                  field.name,
-                );
+              <FieldGroup>
+                  {sectionRows.map((row, rowIndex) => {
+                    const visibleRowFields = row.fields.filter(
+                      ({ field }) => !field.hidden,
+                    );
 
-                if (field.kind === "textarea") {
-                  return (
-                    <Field key={field.name} data-invalid={Boolean(errorMessage)}>
-                      <FieldLabel htmlFor={`document-field-${field.name}`}>
-                        {field.label}
-                      </FieldLabel>
-                      {field.description ? (
-                        <FieldDescription>{field.description}</FieldDescription>
-                      ) : null}
-                      <Textarea
-                        id={`document-field-${field.name}`}
-                        rows={field.rows ?? 3}
-                        placeholder={field.placeholder}
-                        disabled={disabled || submitting}
-                        {...register(field.name)}
-                      />
-                      {errorMessage ? (
-                        <p className="text-sm text-destructive">{errorMessage}</p>
-                      ) : null}
-                    </Field>
-                  );
-                }
+                    if (visibleRowFields.length === 0) {
+                      return null;
+                    }
 
-                if (field.kind === "enum") {
-                  return (
-                    <Field key={field.name} data-invalid={Boolean(errorMessage)}>
-                      <FieldLabel htmlFor={`document-field-${field.name}`}>
-                        {field.label}
-                      </FieldLabel>
-                      {field.description ? (
-                        <FieldDescription>{field.description}</FieldDescription>
-                      ) : null}
-                      <Controller
-                        control={control}
-                        name={field.name}
-                        render={({ field: controlledField }) => (
-                          <Select
-                            value={readValueAsString(controlledField.value)}
-                            disabled={disabled || submitting}
-                            onValueChange={(value) => controlledField.onChange(value)}
-                          >
-                            <SelectTrigger id={`document-field-${field.name}`}>
-                              <SelectValue placeholder="Выберите значение" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {field.options.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errorMessage ? (
-                        <p className="text-sm text-destructive">{errorMessage}</p>
-                      ) : null}
-                    </Field>
-                  );
-                }
+                    return (
+                      <div
+                        key={`${section.id}-row-${rowIndex}`}
+                        className={getResponsiveGridClassName(row.columns)}
+                      >
+                        {visibleRowFields.map(({ field, span }) => {
+                        const errorMessage = fieldErrorMessage(
+                          errors as Record<string, { message?: unknown } | undefined>,
+                          field.name,
+                        );
+                        const fieldClassName = getResponsiveGridItemClassName(span);
 
-                if (field.kind === "currency") {
-                  return (
-                    <Field key={field.name} data-invalid={Boolean(errorMessage)}>
-                      <FieldLabel htmlFor={`document-field-${field.name}`}>
-                        {field.label}
-                      </FieldLabel>
-                      {field.description ? (
-                        <FieldDescription>{field.description}</FieldDescription>
-                      ) : null}
-                      <Controller
-                        control={control}
-                        name={field.name}
-                        render={({ field: controlledField }) => (
-                          <Select
-                            value={readValueAsString(controlledField.value)}
-                            disabled={disabled || submitting}
-                            onValueChange={(value) => controlledField.onChange(value)}
-                          >
-                            <SelectTrigger id={`document-field-${field.name}`}>
-                              <SelectValue placeholder="Выберите валюту" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {options.currencies.map((option) => (
-                                <SelectItem key={option.id} value={option.code}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errorMessage ? (
-                        <p className="text-sm text-destructive">{errorMessage}</p>
-                      ) : null}
-                    </Field>
-                  );
-                }
-
-                if (field.kind === "counterparty") {
-                  return (
-                    <Field key={field.name} data-invalid={Boolean(errorMessage)}>
-                      <FieldLabel htmlFor={`document-field-${field.name}`}>
-                        {field.label}
-                      </FieldLabel>
-                      {field.description ? (
-                        <FieldDescription>{field.description}</FieldDescription>
-                      ) : null}
-                      <Controller
-                        control={control}
-                        name={field.name}
-                        render={({ field: controlledField }) => (
-                          <Select
-                            value={readValueAsString(controlledField.value)}
-                            disabled={disabled || submitting}
-                            onValueChange={(value) => {
-                              controlledField.onChange(value);
-                              resetDependentAccountFields(field.name);
-                            }}
-                          >
-                            <SelectTrigger id={`document-field-${field.name}`}>
-                              <SelectValue placeholder="Выберите контрагента" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {options.counterparties.map((option) => (
-                                <SelectItem key={option.id} value={option.id}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errorMessage ? (
-                        <p className="text-sm text-destructive">{errorMessage}</p>
-                      ) : null}
-                    </Field>
-                  );
-                }
-
-                if (field.kind === "account") {
-                  const counterpartyId = readValueAsString(
-                    watchedValues?.[field.counterpartyField],
-                  ).trim();
-                  const accountOptions = isUuid(counterpartyId)
-                    ? (accountsByCounterpartyId.get(counterpartyId) ?? [])
-                    : [];
-                  const isLoading = loadingCounterpartyIds.has(counterpartyId);
-                  const hasCounterparty = isUuid(counterpartyId);
-
-                  return (
-                    <Field key={field.name} data-invalid={Boolean(errorMessage)}>
-                      <FieldLabel htmlFor={`document-field-${field.name}`}>
-                        {field.label}
-                      </FieldLabel>
-                      {field.description ? (
-                        <FieldDescription>{field.description}</FieldDescription>
-                      ) : null}
-                      <Controller
-                        control={control}
-                        name={field.name}
-                        render={({ field: controlledField }) => (
-                          <Select
-                            value={readValueAsString(controlledField.value)}
-                            disabled={
-                              disabled ||
-                              submitting ||
-                              !hasCounterparty ||
-                              isLoading ||
-                              accountOptions.length === 0
-                            }
-                            onValueChange={(value) => controlledField.onChange(value)}
-                          >
-                            <SelectTrigger id={`document-field-${field.name}`}>
-                              <SelectValue
-                                placeholder={
-                                  !hasCounterparty
-                                    ? "Сначала выберите контрагента"
-                                    : isLoading
-                                      ? "Загрузка счетов..."
-                                      : "Выберите счет"
-                                }
+                        if (field.kind === "textarea") {
+                          return (
+                            <Field
+                              key={field.name}
+                              className={fieldClassName}
+                              data-invalid={Boolean(errorMessage)}
+                            >
+                              <FieldLabel htmlFor={`document-field-${field.name}`}>
+                                {field.label}
+                              </FieldLabel>
+                              {field.description ? (
+                                <FieldDescription>{field.description}</FieldDescription>
+                              ) : null}
+                              <Textarea
+                                id={`document-field-${field.name}`}
+                                rows={field.rows ?? 3}
+                                placeholder={field.placeholder}
+                                disabled={disabled || submitting}
+                                {...register(field.name)}
                               />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {accountOptions.map((option) => (
-                                <SelectItem key={option.id} value={option.id}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errorMessage ? (
-                        <p className="text-sm text-destructive">{errorMessage}</p>
-                      ) : null}
-                    </Field>
-                  );
-                }
+                              {errorMessage ? (
+                                <p className="text-sm text-destructive">{errorMessage}</p>
+                              ) : null}
+                            </Field>
+                          );
+                        }
 
-                if (field.kind === "number") {
-                  return (
-                    <Field key={field.name} data-invalid={Boolean(errorMessage)}>
-                      <FieldLabel htmlFor={`document-field-${field.name}`}>
-                        {field.label}
-                      </FieldLabel>
-                      {field.description ? (
-                        <FieldDescription>{field.description}</FieldDescription>
-                      ) : null}
-                      <Controller
-                        control={control}
-                        name={field.name}
-                        render={({ field: controlledField }) => (
-                          <Input
-                            id={`document-field-${field.name}`}
-                            type="number"
-                            min={field.min}
-                            step={field.step ?? 1}
-                            value={readValueAsString(controlledField.value)}
-                            placeholder={field.placeholder}
-                            disabled={disabled || submitting}
-                            onChange={(event) => controlledField.onChange(event.target.value)}
-                          />
-                        )}
-                      />
-                      {errorMessage ? (
-                        <p className="text-sm text-destructive">{errorMessage}</p>
-                      ) : null}
-                    </Field>
-                  );
-                }
+                        if (field.kind === "enum") {
+                          return (
+                            <Field
+                              key={field.name}
+                              className={fieldClassName}
+                              data-invalid={Boolean(errorMessage)}
+                            >
+                              <FieldLabel htmlFor={`document-field-${field.name}`}>
+                                {field.label}
+                              </FieldLabel>
+                              {field.description ? (
+                                <FieldDescription>{field.description}</FieldDescription>
+                              ) : null}
+                              <Controller
+                                control={control}
+                                name={field.name}
+                                render={({ field: controlledField }) => (
+                                  <Select
+                                    value={readValueAsString(controlledField.value)}
+                                    disabled={disabled || submitting}
+                                    onValueChange={(value) => controlledField.onChange(value)}
+                                  >
+                                    <SelectTrigger id={`document-field-${field.name}`}>
+                                      <SelectValue placeholder="Выберите значение">
+                                        {findSelectedLabel(
+                                          controlledField.value,
+                                          field.options,
+                                        )}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {field.options.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {option.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              />
+                              {errorMessage ? (
+                                <p className="text-sm text-destructive">{errorMessage}</p>
+                              ) : null}
+                            </Field>
+                          );
+                        }
 
-                if (field.kind === "amount") {
-                  return (
-                    <Field key={field.name} data-invalid={Boolean(errorMessage)}>
-                      <FieldLabel htmlFor={`document-field-${field.name}`}>
-                        {field.label}
-                      </FieldLabel>
-                      {field.description ? (
-                        <FieldDescription>{field.description}</FieldDescription>
-                      ) : (
-                        <FieldDescription>
-                          Введите сумму в основных единицах, например `1000.50`.
-                        </FieldDescription>
-                      )}
-                      <Controller
-                        control={control}
-                        name={field.name}
-                        render={({ field: controlledField }) => (
-                          <Input
-                            id={`document-field-${field.name}`}
-                            type="text"
-                            inputMode="decimal"
-                            value={readValueAsString(controlledField.value)}
-                            placeholder={field.placeholder ?? "0.00"}
-                            disabled={disabled || submitting}
-                            onChange={(event) =>
-                              controlledField.onChange(event.target.value)
-                            }
-                          />
-                        )}
-                      />
-                      {errorMessage ? (
-                        <p className="text-sm text-destructive">{errorMessage}</p>
-                      ) : null}
-                    </Field>
-                  );
-                }
+                        if (field.kind === "currency") {
+                          return (
+                            <Field
+                              key={field.name}
+                              className={fieldClassName}
+                              data-invalid={Boolean(errorMessage)}
+                            >
+                              <FieldLabel htmlFor={`document-field-${field.name}`}>
+                                {field.label}
+                              </FieldLabel>
+                              {field.description ? (
+                                <FieldDescription>{field.description}</FieldDescription>
+                              ) : null}
+                              <Controller
+                                control={control}
+                                name={field.name}
+                                render={({ field: controlledField }) => (
+                                  <Select
+                                    value={readValueAsString(controlledField.value)}
+                                    disabled={disabled || submitting}
+                                    onValueChange={(value) => controlledField.onChange(value)}
+                                  >
+                                    <SelectTrigger id={`document-field-${field.name}`}>
+                                      <SelectValue placeholder="Выберите валюту">
+                                        {findSelectedLabel(
+                                          controlledField.value,
+                                          currencySelectOptions,
+                                        )}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {options.currencies.map((option) => (
+                                        <SelectItem key={option.id} value={option.code}>
+                                          {option.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              />
+                              {errorMessage ? (
+                                <p className="text-sm text-destructive">{errorMessage}</p>
+                              ) : null}
+                            </Field>
+                          );
+                        }
 
-                const inputType =
-                  field.kind === "datetime"
-                    ? "datetime-local"
-                    : field.kind === "date"
-                      ? "date"
-                      : field.kind === "month"
-                        ? "month"
-                        : "text";
+                        if (field.kind === "counterparty") {
+                          return (
+                            <Field
+                              key={field.name}
+                              className={fieldClassName}
+                              data-invalid={Boolean(errorMessage)}
+                            >
+                              <FieldLabel htmlFor={`document-field-${field.name}`}>
+                                {field.label}
+                              </FieldLabel>
+                              {field.description ? (
+                                <FieldDescription>{field.description}</FieldDescription>
+                              ) : null}
+                              <Controller
+                                control={control}
+                                name={field.name}
+                                render={({ field: controlledField }) => (
+                                  <Select
+                                    value={readValueAsString(controlledField.value)}
+                                    disabled={disabled || submitting}
+                                    onValueChange={(value) => {
+                                      controlledField.onChange(value);
+                                      resetDependentAccountFields(field.name);
+                                    }}
+                                  >
+                                    <SelectTrigger id={`document-field-${field.name}`}>
+                                      <SelectValue placeholder="Выберите контрагента">
+                                        {findSelectedLabel(
+                                          controlledField.value,
+                                          counterpartySelectOptions,
+                                        )}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {options.counterparties.map((option) => (
+                                        <SelectItem key={option.id} value={option.id}>
+                                          {option.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              />
+                              {errorMessage ? (
+                                <p className="text-sm text-destructive">{errorMessage}</p>
+                              ) : null}
+                            </Field>
+                          );
+                        }
 
-                return (
-                  <Field key={field.name} data-invalid={Boolean(errorMessage)}>
-                    <FieldLabel htmlFor={`document-field-${field.name}`}>
-                      {field.label}
-                    </FieldLabel>
-                    {field.description ? (
-                      <FieldDescription>{field.description}</FieldDescription>
-                    ) : null}
-                    <Input
-                      id={`document-field-${field.name}`}
-                      type={inputType}
-                      placeholder={field.placeholder}
-                      disabled={disabled || submitting}
-                      {...register(field.name)}
-                    />
-                    {errorMessage ? (
-                      <p className="text-sm text-destructive">{errorMessage}</p>
-                    ) : null}
-                  </Field>
-                );
-              })}
-            </FieldGroup>
-          </FieldSet>
-        ))}
+                        if (field.kind === "account") {
+                          const counterpartyId = readValueAsString(
+                            watchedValues?.[field.counterpartyField],
+                          ).trim();
+                          const accountOptions = isUuid(counterpartyId)
+                            ? (accountsByCounterpartyId.get(counterpartyId) ?? [])
+                            : [];
+                          const isLoading = loadingCounterpartyIds.has(counterpartyId);
+                          const hasCounterparty = isUuid(counterpartyId);
+                          const accountSelectOptions = accountOptions.map((option) => ({
+                            value: option.id,
+                            label: option.label,
+                          }));
+
+                          return (
+                            <Field
+                              key={field.name}
+                              className={fieldClassName}
+                              data-invalid={Boolean(errorMessage)}
+                            >
+                              <FieldLabel htmlFor={`document-field-${field.name}`}>
+                                {field.label}
+                              </FieldLabel>
+                              {field.description ? (
+                                <FieldDescription>{field.description}</FieldDescription>
+                              ) : null}
+                              <Controller
+                                control={control}
+                                name={field.name}
+                                render={({ field: controlledField }) => (
+                                  <Select
+                                    value={readValueAsString(controlledField.value)}
+                                    disabled={
+                                      disabled ||
+                                      submitting ||
+                                      !hasCounterparty ||
+                                      isLoading ||
+                                      accountOptions.length === 0
+                                    }
+                                    onValueChange={(value) =>
+                                      controlledField.onChange(value)
+                                    }
+                                  >
+                                    <SelectTrigger id={`document-field-${field.name}`}>
+                                      <SelectValue
+                                        placeholder={
+                                          !hasCounterparty
+                                            ? "Сначала выберите контрагента"
+                                            : isLoading
+                                              ? "Загрузка счетов..."
+                                              : "Выберите счет"
+                                        }
+                                      >
+                                        {findSelectedLabel(
+                                          controlledField.value,
+                                          accountSelectOptions,
+                                        )}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {accountOptions.map((option) => (
+                                        <SelectItem key={option.id} value={option.id}>
+                                          {option.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              />
+                              {errorMessage ? (
+                                <p className="text-sm text-destructive">{errorMessage}</p>
+                              ) : null}
+                            </Field>
+                          );
+                        }
+
+                        if (field.kind === "number") {
+                          return (
+                            <Field
+                              key={field.name}
+                              className={fieldClassName}
+                              data-invalid={Boolean(errorMessage)}
+                            >
+                              <FieldLabel htmlFor={`document-field-${field.name}`}>
+                                {field.label}
+                              </FieldLabel>
+                              {field.description ? (
+                                <FieldDescription>{field.description}</FieldDescription>
+                              ) : null}
+                              <Controller
+                                control={control}
+                                name={field.name}
+                                render={({ field: controlledField }) => (
+                                  <Input
+                                    id={`document-field-${field.name}`}
+                                    type="number"
+                                    min={field.min}
+                                    step={field.step ?? 1}
+                                    value={readValueAsString(controlledField.value)}
+                                    placeholder={field.placeholder}
+                                    disabled={disabled || submitting}
+                                    onChange={(event) =>
+                                      controlledField.onChange(event.target.value)
+                                    }
+                                  />
+                                )}
+                              />
+                              {errorMessage ? (
+                                <p className="text-sm text-destructive">{errorMessage}</p>
+                              ) : null}
+                            </Field>
+                          );
+                        }
+
+                        if (field.kind === "amount") {
+                          const showDerivedCurrencyAddon = Boolean(
+                            hiddenSectionCurrencyField,
+                          );
+
+                          return (
+                            <Field
+                              key={field.name}
+                              className={fieldClassName}
+                              data-invalid={Boolean(errorMessage)}
+                            >
+                              <FieldLabel htmlFor={`document-field-${field.name}`}>
+                                {field.label}
+                              </FieldLabel>
+                              {field.description ? (
+                                <FieldDescription>{field.description}</FieldDescription>
+                              ) : (
+                                <FieldDescription>
+                                  Введите сумму в основных единицах, например `1000.50`.
+                                </FieldDescription>
+                              )}
+                              <Controller
+                                control={control}
+                                name={field.name}
+                                render={({ field: controlledField }) => (
+                                  showDerivedCurrencyAddon ? (
+                                    <InputGroup>
+                                      <InputGroupInput
+                                        id={`document-field-${field.name}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={readValueAsString(controlledField.value)}
+                                        placeholder={field.placeholder ?? "0.00"}
+                                        disabled={disabled || submitting}
+                                        aria-invalid={Boolean(errorMessage)}
+                                        onChange={(event) =>
+                                          controlledField.onChange(event.target.value)
+                                        }
+                                      />
+                                      <InputGroupAddon align="inline-end">
+                                        <InputGroupText>
+                                          {hiddenSectionCurrencyCode || "..."}
+                                        </InputGroupText>
+                                      </InputGroupAddon>
+                                    </InputGroup>
+                                  ) : (
+                                    <Input
+                                      id={`document-field-${field.name}`}
+                                      type="text"
+                                      inputMode="decimal"
+                                      value={readValueAsString(controlledField.value)}
+                                      placeholder={field.placeholder ?? "0.00"}
+                                      disabled={disabled || submitting}
+                                      onChange={(event) =>
+                                        controlledField.onChange(event.target.value)
+                                      }
+                                    />
+                                  )
+                                )}
+                              />
+                              {errorMessage ? (
+                                <p className="text-sm text-destructive">{errorMessage}</p>
+                              ) : null}
+                            </Field>
+                          );
+                        }
+
+                        const inputType =
+                          field.kind === "datetime"
+                            ? "datetime-local"
+                            : field.kind === "date"
+                              ? "date"
+                              : field.kind === "month"
+                                ? "month"
+                                : "text";
+
+                        return (
+                          <Field
+                            key={field.name}
+                            className={fieldClassName}
+                            data-invalid={Boolean(errorMessage)}
+                          >
+                            <FieldLabel htmlFor={`document-field-${field.name}`}>
+                              {field.label}
+                            </FieldLabel>
+                            {field.description ? (
+                              <FieldDescription>{field.description}</FieldDescription>
+                            ) : null}
+                            <Input
+                              id={`document-field-${field.name}`}
+                              type={inputType}
+                              placeholder={field.placeholder}
+                              disabled={disabled || submitting}
+                              {...register(field.name)}
+                            />
+                            {errorMessage ? (
+                              <p className="text-sm text-destructive">{errorMessage}</p>
+                            ) : null}
+                          </Field>
+                        );
+                      })}
+                    </div>
+                    );
+                  })}
+                </FieldGroup>
+              </FieldSet>
+            </Fragment>
+          );
+        })}
       </FieldGroup>
 
       {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={submitDisabled}>
-          {submitting ? <Spinner className="size-4" /> : <Save className="size-4" />}
-          {submitting ? submittingLabel : submitLabel}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={resetDisabled}
-          onClick={() => reset(defaultValues)}
-        >
-          <X className="size-4" />
-          Отменить
-        </Button>
-      </div>
+      {actionsPlacement === "footer" ? (
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={submitDisabled}>
+            {submitting ? (
+              <Spinner className="size-4" />
+            ) : (
+              <Save className="size-4" />
+            )}
+            {submitting ? submittingLabel : submitLabel}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={resetDisabled}
+            onClick={handleReset}
+          >
+            <X className="size-4" />
+            Отменить
+          </Button>
+        </div>
+      ) : null}
     </form>
   );
 }

@@ -1,6 +1,18 @@
 import "@bedrock/ui/globals.css";
 import { Providers } from "@/components/providers";
+import { Geist_Mono, Geist } from "next/font/google";
 
+const geist = Geist({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-geist",
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-geist-mono",
+});
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -9,15 +21,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
+        className={`${geist.variable} ${geistMono.variable} antialiased`}
         style={
           {
-            "--font-sans":
-              '"SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-            "--font-geist-mono":
-              '"SF Mono", "JetBrains Mono", "Fira Code", monospace',
+            "--font-sans": "var(--font-geist)",
           } as React.CSSProperties
         }
-        className="antialiased"
       >
         <Providers>{children}</Providers>
       </body>

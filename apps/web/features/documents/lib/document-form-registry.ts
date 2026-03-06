@@ -5,10 +5,15 @@ import { DOCUMENT_FORM_DEFINITIONS } from "./document-form-registry/definitions"
 import type { DocumentFormDefinition } from "./document-form-registry/types";
 
 export type {
+  DocumentFormBreakpoint,
   DocumentFormDefinition,
   DocumentFormField,
   DocumentFormFieldOption,
+  DocumentFormResponsiveCount,
+  DocumentFormRow,
+  DocumentFormRowField,
   DocumentFormSection,
+  DocumentFormSectionLayout,
   DocumentFormValues,
 } from "./document-form-registry/types";
 
