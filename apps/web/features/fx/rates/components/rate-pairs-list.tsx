@@ -146,13 +146,13 @@ function PairSummary({ pair }: { pair: SerializedRatePair }) {
       <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
         <div className="flex flex-col">
           <span className="text-muted-foreground text-xs">Лучший курс</span>
-          <span className="font-mono text-2xl font-bold tabular-nums">
+          <span className="font-mono text-xl font-bold tabular-nums">
             {rate}
           </span>
         </div>
         <div className="flex flex-col">
           <span className="text-muted-foreground text-xs">Изменение</span>
-          <span className={`font-mono tabular-nums text-sm ${change.className}`}>
+          <span className={`font-mono tabular-nums  text-xl  ${change.className}`}>
             {change.text}
           </span>
         </div>

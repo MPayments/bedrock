@@ -149,7 +149,7 @@ function RateCurrentSummary({
           <CardDescription>Текущий курс</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="text-2xl font-bold font-mono tabular-nums">
+          <div className="text-xl font-bold font-mono tabular-nums">
             <span>1</span> <span>{baseCurrencySymbol}</span> ={" "}
             <span>{formattedRate}</span> <span>{quoteCurrencySymbol}</span>
           </div>
@@ -162,14 +162,14 @@ function RateCurrentSummary({
         <CardContent>
           <div className="flex gap-2 items-center">
             <span
-              className={`text-2xl font-bold font-mono tabular-nums ${change.className}`}
+              className={`text-xl font-bold font-mono tabular-nums ${change.className}`}
             >
               {change.text}
             </span>
             <Badge
               variant={
                 rate.changePercent !== null && rate.changePercent > 0
-                  ? "default"
+                  ? "success"
                   : rate.changePercent !== null && rate.changePercent < 0
                     ? "destructive"
                     : "secondary"
@@ -186,7 +186,7 @@ function RateCurrentSummary({
           <CardDescription>Дата обновления</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold tabular-nums">
+          <div className="text-xl font-bold tabular-nums">
             {formatDate(rate.asOf)}
           </div>
         </CardContent>
