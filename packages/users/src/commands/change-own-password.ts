@@ -1,5 +1,5 @@
-import { and, eq } from "drizzle-orm";
 import { hashPassword, verifyPassword } from "better-auth/crypto";
+import { and, eq } from "drizzle-orm";
 
 import { schema } from "@bedrock/db/schema";
 

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Dices, Eye, EyeOff } from "lucide-react";
-import type { UseFormRegisterReturn, UseFormSetValue } from "react-hook-form";
+import type { FieldValues, UseFormRegisterReturn, UseFormSetValue } from "react-hook-form";
 
 import { Input } from "@bedrock/ui/components/input";
 import { Button } from "@bedrock/ui/components/button";
@@ -19,7 +19,7 @@ type PasswordFieldWithGeneratorProps = {
   id: string;
   fieldName: string;
   registration: UseFormRegisterReturn;
-  setValue: UseFormSetValue<any>;
+  setValue: UseFormSetValue<FieldValues>;
   invalid?: boolean;
   placeholder?: string;
 };

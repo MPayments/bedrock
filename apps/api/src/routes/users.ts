@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import {
     UserNotFoundError,
     UserEmailConflictError,
@@ -9,18 +10,17 @@ import {
     ChangePasswordInputSchema,
     BanUserInputSchema,
 } from "@bedrock/users";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";
-import type { AuthVariables } from "../middleware/auth";
-import { requirePermission } from "../middleware/permission";
 import {
     SerializedUserSchema,
     SerializedUserWithLastSessionSchema,
     serializeUser,
     serializeUserWithSession,
 } from "./users-serialization";
+import type { AuthVariables } from "../middleware/auth";
+import { requirePermission } from "../middleware/permission";
 
 const PaginatedUsersSchema = createPaginatedListSchema(SerializedUserSchema);
 
