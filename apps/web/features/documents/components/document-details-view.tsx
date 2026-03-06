@@ -25,6 +25,7 @@ import {
   type DocumentDto,
 } from "@/features/operations/documents/lib/schemas";
 
+import { DocumentActionButtons } from "./document-action-buttons";
 import { DocumentWorkbenchCard } from "./document-workbench-card";
 
 function StatusBadges({
@@ -38,16 +39,74 @@ function StatusBadges({
   postingStatus: string;
   lifecycleStatus: string;
 }) {
+  function getStatusBadgeVariant(
+    status: string,
+  ): "default" | "secondary" | "destructive" | "outline" | "success" {
+    if (
+      status === "approved" ||
+      status === "posted" ||
+      status === "active"
+    ) {
+      return "success";
+    }
+
+    if (
+      status === "submitted" ||
+      status === "pending" ||
+      status === "posting"
+    ) {
+      return "default";
+    }
+
+    if (
+      status === "draft" ||
+      status === "not_required" ||
+      status === "unposted"
+    ) {
+      return "secondary";
+    }
+
+    if (
+      status === "rejected" ||
+      status === "failed" ||
+      status === "cancelled"
+    ) {
+      return "destructive";
+    }
+
+    return "outline";
+  }
+
+  const items = [
+    {
+      label: "Статус",
+      value: getSubmissionStatusLabel(submissionStatus),
+      variant: getStatusBadgeVariant(submissionStatus),
+    },
+    {
+      label: "Согласование",
+      value: getApprovalStatusLabel(approvalStatus),
+      variant: getStatusBadgeVariant(approvalStatus),
+    },
+    {
+      label: "Учет",
+      value: getPostingStatusLabel(postingStatus),
+      variant: getStatusBadgeVariant(postingStatus),
+    },
+    {
+      label: "Жизненный цикл",
+      value: getLifecycleStatusLabel(lifecycleStatus),
+      variant: getStatusBadgeVariant(lifecycleStatus),
+    },
+  ];
+
   return (
     <div className="flex flex-wrap gap-2">
-      <Badge variant="outline">
-        {getSubmissionStatusLabel(submissionStatus)}
-      </Badge>
-      <Badge variant="outline">{getApprovalStatusLabel(approvalStatus)}</Badge>
-      <Badge variant="outline">{getPostingStatusLabel(postingStatus)}</Badge>
-      <Badge variant="outline">
-        {getLifecycleStatusLabel(lifecycleStatus)}
-      </Badge>
+      {items.map((item) => (
+        <Badge key={item.label} variant={item.variant}>
+          {item.label}: {item.value}
+        </Badge>
+      ))}
     </div>
   );
 }
@@ -96,6 +155,11 @@ export function DocumentDetailsView({
                 lifecycleStatus={document.lifecycleStatus}
               />
             </div>
+            <DocumentActionButtons
+              docType={document.docType}
+              documentId={document.id}
+              allowedActions={document.allowedActions}
+            />
           </div>
         </CardHeader>
         <CardContent className="grid gap-6 py-6 md:grid-cols-2">
