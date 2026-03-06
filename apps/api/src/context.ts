@@ -12,6 +12,7 @@ import { db } from "@bedrock/db/client";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import { createConsoleLogger, type Logger } from "@bedrock/kernel";
+import { createUsersService, type UsersService } from "@bedrock/users";
 
 export interface Env {
     DATABASE_URL: string;
@@ -31,6 +32,7 @@ export interface AppContext {
     currenciesService: CurrenciesService;
     feesService: FeesService;
     fxService: FxService;
+    usersService: UsersService;
 }
 
 export function createAppContext(env: Env): AppContext {
@@ -41,6 +43,7 @@ export function createAppContext(env: Env): AppContext {
     const currenciesService = createCurrenciesService({ db, logger });
     const feesService = createFeesService({ db, logger, currenciesService });
     const fxService = createFxService({ db, logger, feesService, currenciesService });
+    const usersService = createUsersService({ db, logger });
 
     return {
         env,
@@ -51,5 +54,6 @@ export function createAppContext(env: Env): AppContext {
         currenciesService,
         feesService,
         fxService,
+        usersService,
     };
 }

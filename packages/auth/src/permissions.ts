@@ -12,6 +12,7 @@ const statements = {
     accounts: ["create", "list", "update", "delete"],
     currencies: ["create", "list", "update", "delete"],
     fx_rates: ["list", "sync"],
+    users: ["create", "list", "update", "delete"],
 } as const;
 
 export type ResourcePermissions = {
@@ -27,6 +28,7 @@ export const admin = ac.newRole({
     accounts: ["create", "list", "update", "delete"],
     currencies: ["create", "list", "update", "delete"],
     fx_rates: ["list", "sync"],
+    users: ["create", "list", "update", "delete"],
 });
 
 export const user = ac.newRole({
@@ -36,4 +38,5 @@ export const user = ac.newRole({
     accounts: ["create", "list", "update", "delete"],
     currencies: ["list"],
     fx_rates: ["list"],
+    users: [],
 });

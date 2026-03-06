@@ -1,6 +1,7 @@
 {
   "extends": "@bedrock/typescript-config/nextjs.json",
   "compilerOptions": {
+    "declaration": false,
     "paths": {
       "*": ["./*"],
       "@/*": ["./*"],

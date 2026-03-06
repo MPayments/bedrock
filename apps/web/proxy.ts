@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
-const PUBLIC_PATHS = new Set(["/login"]);
+const PUBLIC_PATHS = new Set(["/login", "/two-factor"]);
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 
 export async function proxy(request: NextRequest) {

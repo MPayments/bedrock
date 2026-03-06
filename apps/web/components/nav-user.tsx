@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BadgeCheck, Bell, ChevronsUpDown, LogOut } from "lucide-react";
 
@@ -101,7 +102,7 @@ export function NavUser() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem render={<Link href="/profile" />}>
                 <BadgeCheck />
                 Профиль
               </DropdownMenuItem>

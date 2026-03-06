@@ -116,7 +116,7 @@ export const navMainItems: NavMainItem[] = [
   },
   {
     title: "Пользователи",
-    url: "#",
+    url: "/users",
     icon: Users,
   },
   {

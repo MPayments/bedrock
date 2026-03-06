@@ -19,6 +19,7 @@
     "@bedrock/customers": "workspace:*",
     "@bedrock/kernel": "workspace:*",
     "@bedrock/ui": "workspace:*",
+    "@bedrock/users": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "@tanstack/react-table": "^8.21.3",
     "api": "workspace:*",
@@ -33,7 +34,10 @@
     "react-hook-form": "^7.71.2",
     "recharts": "2.15.4",
     "server-only": "^0.0.1",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "@better-fetch/fetch": "^1.1.21",
+    "nanostores": "^1.1.1",
+    "qrcode.react": "^4.2.0"
   },
   "devDependencies": {
     "@bedrock/eslint-config": "*",

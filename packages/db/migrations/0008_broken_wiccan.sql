@@ -1,0 +1,1 @@
+CREATE INDEX "two_factor_userId_idx" ON "two_factor" USING btree ("user_id");

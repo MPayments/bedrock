@@ -1,4 +1,4 @@
-import { user, account, session, verification, userRelations, sessionRelations, accountRelations } from "./auth";
+import { user, account, session, verification, twoFactor, userRelations, sessionRelations, accountRelations } from "./auth";
 import { currencies } from "./currencies";
 import { customers } from "./customers";
 import { fxQuoteFeeComponents } from "./fees/quote-components";
@@ -25,6 +25,7 @@ export const schema = {
   account,
   session,
   verification,
+  twoFactor,
   userRelations,
   sessionRelations,
   accountRelations,

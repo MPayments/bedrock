@@ -27,6 +27,7 @@
     "@bedrock/kernel": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/customers": "workspace:*",
+    "@bedrock/users": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "@hono/zod-openapi": "^1.2.2",
     "@scalar/hono-api-reference": "^0.9.44",

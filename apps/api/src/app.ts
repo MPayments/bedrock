@@ -20,6 +20,8 @@ import {
   customersRoutes,
   currenciesRoutes,
   fxRatesRoutes,
+  profileRoutes,
+  usersRoutes,
 } from "./routes/index";
 
 const env: Env = {
@@ -107,7 +109,9 @@ const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
-  .route("/fx/rates", fxRatesRoutes(ctx));
+  .route("/fx/rates", fxRatesRoutes(ctx))
+  .route("/users", usersRoutes(ctx))
+  .route("/me", profileRoutes(ctx));
 
 const _routes = app.route("/v1", v1);
 
