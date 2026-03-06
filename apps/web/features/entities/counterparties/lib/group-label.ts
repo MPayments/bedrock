@@ -3,6 +3,14 @@ const GROUP_PRESENTATION_BY_KEY = {
     label: "Казначейство",
     icon: "vault",
   },
+  treasury_internal_entities: {
+    label: "Балансовые компании",
+    icon: "vault",
+  },
+  "treasury internal ledger entities": {
+    label: "Балансовые компании",
+    icon: "vault",
+  },
   customers: {
     label: "Клиенты",
     icon: "users",

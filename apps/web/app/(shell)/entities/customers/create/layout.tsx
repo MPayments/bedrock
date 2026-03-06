@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 
 import { CustomerWorkspaceLayout } from "@/features/entities/customers/components/customer-workspace-layout";
 import { useCustomerDraftName } from "@/features/entities/customers/lib/create-draft-name-context";
@@ -12,10 +12,8 @@ export default function CreateCustomerLayout({
 }) {
   const { state, actions } = useCustomerDraftName();
 
-  useEffect(() => {
-    return () => {
-      actions.resetCreateName();
-    };
+  useLayoutEffect(() => {
+    actions.resetCreateName();
   }, [actions]);
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 
 import { CurrencyWorkspaceLayout } from "@/features/entities/currencies/components/currency-workspace-layout";
 import { useCurrencyDraftName } from "@/features/entities/currencies/lib/create-draft-name-context";
@@ -12,10 +12,8 @@ export default function CreateCurrencyLayout({
 }) {
   const { state, actions } = useCurrencyDraftName();
 
-  useEffect(() => {
-    return () => {
-      actions.resetCreateName();
-    };
+  useLayoutEffect(() => {
+    actions.resetCreateName();
   }, [actions]);
 
   return (

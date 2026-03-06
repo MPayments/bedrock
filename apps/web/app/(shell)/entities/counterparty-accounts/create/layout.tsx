@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 
 import { AccountWorkspaceLayout } from "@/features/entities/counterparty-accounts/components/account-workspace-layout";
 import { useAccountDraftName } from "@/features/entities/counterparty-accounts/lib/create-draft-name-context";
@@ -12,10 +12,8 @@ export default function CreateAccountLayout({
 }) {
   const { state, actions } = useAccountDraftName();
 
-  useEffect(() => {
-    return () => {
-      actions.resetCreateName();
-    };
+  useLayoutEffect(() => {
+    actions.resetCreateName();
   }, [actions]);
 
   return (

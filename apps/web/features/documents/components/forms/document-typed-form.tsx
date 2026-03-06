@@ -430,10 +430,11 @@ export function DocumentTypedForm({
   }, [accountCurrencyCodeById, derivedFields, setValue, watchedValues]);
 
   const submitDisabled =
+    !definition ||
     disabled ||
     submitting ||
     (mode === "edit" && (!documentId || !isDirty));
-  const resetDisabled = disabled || submitting || !isDirty;
+  const resetDisabled = !definition || disabled || submitting || !isDirty;
 
   useEffect(() => {
     onActionStateChange?.({

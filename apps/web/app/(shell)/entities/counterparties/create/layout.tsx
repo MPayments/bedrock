@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 
 import { CounterpartyWorkspaceLayout } from "@/features/entities/counterparties/components/organization-workspace-layout";
 import { useCounterpartyDraftName } from "@/features/entities/counterparties/lib/create-draft-name-context";
@@ -12,10 +12,8 @@ export default function CreateCounterpartyLayout({
 }) {
   const { state, actions } = useCounterpartyDraftName();
 
-  useEffect(() => {
-    return () => {
-      actions.resetCreateName();
-    };
+  useLayoutEffect(() => {
+    actions.resetCreateName();
   }, [actions]);
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 
 import { ProviderWorkspaceLayout } from "@/features/entities/counterparty-account-providers/components/provider-workspace-layout";
 import { useProviderDraftName } from "@/features/entities/counterparty-account-providers/lib/create-draft-name-context";
@@ -12,10 +12,8 @@ export default function CreateProviderLayout({
 }) {
   const { state, actions } = useProviderDraftName();
 
-  useEffect(() => {
-    return () => {
-      actions.resetCreateName();
-    };
+  useLayoutEffect(() => {
+    actions.resetCreateName();
   }, [actions]);
 
   return (
