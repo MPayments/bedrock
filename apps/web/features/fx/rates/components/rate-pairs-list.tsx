@@ -1,16 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ChartLine } from "lucide-react";
+import { ChartLine, ChevronDown, ChevronUp } from "lucide-react";
 
 import { Button } from "@bedrock/ui/components/button";
 import { Badge } from "@bedrock/ui/components/badge";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@bedrock/ui/components/accordion";
+  Card,
+  CardContent,
+} from "@bedrock/ui/components/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@bedrock/ui/components/collapsible";
 import {
   Table,
   TableBody,
@@ -47,40 +51,73 @@ export function RatePairsList({ initialPairs }: RatePairsListProps) {
           Нет данных о курсах. Синхронизируйте источники.
         </p>
       ) : (
-        <Accordion>
+        <div className="flex flex-col gap-3">
           {initialPairs.map((pair) => (
-            <AccordionItem
+            <RatePairItem
               key={`${pair.baseCurrencyCode}-${pair.quoteCurrencyCode}`}
-              value={`${pair.baseCurrencyCode}-${pair.quoteCurrencyCode}`}
-            >
-              <AccordionTrigger>
-                <PairSummary pair={pair} />
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="flex flex-col gap-3">
-                  <PairRatesTable rates={pair.rates} />
-                  <div className="flex justify-end">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      nativeButton={false}
-                      render={
-                        <Link
-                          href={`/fx/rates/${pair.baseCurrencyCode}-${pair.quoteCurrencyCode}`}
-                        />
-                      }
-                    >
-                      <ChartLine className="h-4 w-4" />
-                      История курсов
-                    </Button>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
+              pair={pair}
+            />
           ))}
-        </Accordion>
+        </div>
       )}
     </div>
+  );
+}
+
+function RatePairItem({ pair }: { pair: SerializedRatePair }) {
+  const [open, setOpen] = useState(false);
+  const pairHref = `/fx/rates/${pair.baseCurrencyCode}-${pair.quoteCurrencyCode}`;
+
+  return (
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="group/collapsible"
+    >
+      <Card className="rounded-sm">
+        <CardContent className="flex flex-col gap-4 pt-0">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <PairSummary pair={pair} />
+
+            <div className="flex flex-col gap-2 sm:min-w-[200px] sm:items-end">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full sm:w-auto"
+                nativeButton={false}
+                render={<Link href={pairHref} />}
+              >
+                <ChartLine className="h-4 w-4" />
+                История курсов
+              </Button>
+
+              <CollapsibleTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto"
+                  />
+                }
+              >
+                {open ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+                {open ? "Скрыть источники" : "Показать источники"}
+              </CollapsibleTrigger>
+            </div>
+          </div>
+
+          <CollapsibleContent>
+            <div className="border-t pt-4">
+              <PairRatesTable rates={pair.rates} />
+            </div>
+          </CollapsibleContent>
+        </CardContent>
+      </Card>
+    </Collapsible>
   );
 }
 
@@ -89,24 +126,37 @@ function PairSummary({ pair }: { pair: SerializedRatePair }) {
   const change = formatChange(pair.bestRate.change);
 
   return (
-    <div className="flex flex-1 items-center gap-4 pr-2">
-      <span className="font-semibold min-w-[100px]">
-        {pair.baseCurrencyCode} / {pair.quoteCurrencyCode}
-      </span>
-      <span className="font-mono tabular-nums">{rate}</span>
-      <span className={`font-mono tabular-nums text-xs ${change.className}`}>
-        {change.text}
-      </span>
-      <Badge variant="secondary" className="gap-1.5 text-xs">
-        <FxSourceAvatar
-          source={pair.bestRate.source}
-          className="size-4 after:hidden"
-        />
-        {sourceLabel(pair.bestRate.source)}
-      </Badge>
-      <span className="text-muted-foreground text-xs ml-auto hidden sm:block">
-        {formatDate(pair.bestRate.asOf)}
-      </span>
+    <div className="flex min-w-0 flex-1 flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="rounded-md bg-muted px-2.5 py-1 font-semibold">
+          {pair.baseCurrencyCode} / {pair.quoteCurrencyCode}
+        </span>
+        <Badge variant="secondary" className="gap-1.5 text-xs">
+          <FxSourceAvatar
+            source={pair.bestRate.source}
+            className="size-4 after:hidden"
+          />
+          {sourceLabel(pair.bestRate.source)}
+        </Badge>
+        <span className="text-muted-foreground text-xs">
+          Обновлено {formatDate(pair.bestRate.asOf)}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+        <div className="flex flex-col">
+          <span className="text-muted-foreground text-xs">Лучший курс</span>
+          <span className="font-mono text-2xl font-bold tabular-nums">
+            {rate}
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-muted-foreground text-xs">Изменение</span>
+          <span className={`font-mono tabular-nums text-sm ${change.className}`}>
+            {change.text}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

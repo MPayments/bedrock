@@ -82,7 +82,7 @@ export function UserPasswordForm({ userId }: UserPasswordFormProps) {
   }
 
   return (
-    <Card className="w-full rounded-sm">
+    <Card className="h-full w-full rounded-sm">
       <CardHeader className="border-b">
         <div className="space-y-1">
           <CardTitle className="flex items-center gap-2">

@@ -13,6 +13,7 @@ import { SOURCE_LABELS } from "../lib/constants";
 const SOURCE_LOGO_BY_ID: Partial<Record<string, string>> = {
   cbr: "/images/cbr.png",
   investing: "/images/investing.png",
+  xe: "/images/xe.png",
 };
 
 const SOURCE_ICON_BY_ID: Partial<Record<string, typeof Stone>> = {

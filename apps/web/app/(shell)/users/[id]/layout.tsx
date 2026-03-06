@@ -32,7 +32,7 @@ export default async function UserLayout({
             </p>
           </div>
         </div>
-        <UserStatusBadge banned={user.banned} />
+        <UserStatusBadge banned={user.banned} showActive={false} />
       </div>
       <Separator className="h-px w-full" />
       {children}

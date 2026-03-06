@@ -3,26 +3,21 @@
 import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Plus } from "lucide-react";
 
 import { Badge } from "@bedrock/ui/components/badge";
-import { Button } from "@bedrock/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
 } from "@bedrock/ui/components/card";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@bedrock/ui/components/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@bedrock/ui/components/tabs";
 import { Skeleton } from "@bedrock/ui/components/skeleton";
 
 import { formatDate } from "@/lib/format";
 import {
   computeDecimalRate,
+  currencySymbol,
   formatChange,
   formatChangePercent,
   formatRate,
@@ -36,7 +31,6 @@ import type {
 } from "@/features/fx/rates/lib/queries";
 
 import type { ChartDataPoint, TimeRangeKey } from "./rate-chart";
-import { SetPairManualRateDialog } from "./set-pair-manual-rate-dialog";
 
 const RateChart = dynamic(
   () => import("./rate-chart").then((m) => m.RateChart),
@@ -102,33 +96,27 @@ export function RatePairView({ pair, history, timeRange }: RatePairViewProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <Tabs
-          value={activeSource}
-          onValueChange={setActiveSource}
-          className="p-1 block"
-        >
-          <TabsList className="gap-2">
-            {availableSources.map((source) => (
-              <TabsTrigger key={source} value={source}>
-                {sourceLabel(source)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      <Tabs
+        value={activeSource}
+        onValueChange={setActiveSource}
+        className="block p-1"
+      >
+        <TabsList className="gap-2">
+          {availableSources.map((source) => (
+            <TabsTrigger key={source} value={source}>
+              {sourceLabel(source)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
-        <SetPairManualRateDialog
-          base={pair.baseCurrencyCode}
-          quote={pair.quoteCurrencyCode}
-        >
-          <Button variant="outline" size="sm">
-            <Plus className="h-4 w-4" />
-            Ручной курс
-          </Button>
-        </SetPairManualRateDialog>
-      </div>
-
-      {activeCurrentRate ? <RateCurrentSummary rate={activeCurrentRate} /> : null}
+      {activeCurrentRate ? (
+        <RateCurrentSummary
+          rate={activeCurrentRate}
+          baseCurrencyCode={pair.baseCurrencyCode}
+          quoteCurrencyCode={pair.quoteCurrencyCode}
+        />
+      ) : null}
       <RateChart
         data={activeChartData}
         source={activeSource}
@@ -139,9 +127,20 @@ export function RatePairView({ pair, history, timeRange }: RatePairViewProps) {
   );
 }
 
-function RateCurrentSummary({ rate }: { rate: SerializedSourceRate }) {
+function RateCurrentSummary({
+  rate,
+  baseCurrencyCode,
+  quoteCurrencyCode,
+}: {
+  rate: SerializedSourceRate;
+  baseCurrencyCode: string;
+  quoteCurrencyCode: string;
+}) {
   const change = formatChange(rate.change);
   const changePercent = formatChangePercent(rate.changePercent);
+  const formattedRate = formatRate(rate.rateNum, rate.rateDen);
+  const baseCurrencySymbol = currencySymbol(baseCurrencyCode);
+  const quoteCurrencySymbol = currencySymbol(quoteCurrencyCode);
 
   return (
     <div className="grid gap-4 sm:grid-cols-3">
@@ -149,9 +148,10 @@ function RateCurrentSummary({ rate }: { rate: SerializedSourceRate }) {
         <CardHeader className="pb-2">
           <CardDescription>Текущий курс</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <div className="text-2xl font-bold font-mono tabular-nums">
-            {formatRate(rate.rateNum, rate.rateDen)}
+            <span>1</span> <span>{baseCurrencySymbol}</span> ={" "}
+            <span>{formattedRate}</span> <span>{quoteCurrencySymbol}</span>
           </div>
         </CardContent>
       </Card>
@@ -160,7 +160,7 @@ function RateCurrentSummary({ rate }: { rate: SerializedSourceRate }) {
           <CardDescription>Изменение</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-baseline gap-2 items-center">
+          <div className="flex gap-2 items-center">
             <span
               className={`text-2xl font-bold font-mono tabular-nums ${change.className}`}
             >
@@ -174,7 +174,7 @@ function RateCurrentSummary({ rate }: { rate: SerializedSourceRate }) {
                     ? "destructive"
                     : "secondary"
               }
-              className="text-xs"
+              className="text-xs font-mono tabular-nums"
             >
               {changePercent.text}
             </Badge>

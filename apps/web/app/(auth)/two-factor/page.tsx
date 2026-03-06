@@ -20,6 +20,7 @@ import {
 import { Input } from "@bedrock/ui/components/input";
 
 import { authClient } from "@/lib/auth-client";
+import { TotpCodeInput } from "@/components/totp-code-input";
 
 export default function TwoFactorPage() {
     return (
@@ -78,20 +79,31 @@ function TwoFactorForm() {
                                 <FieldLabel htmlFor="otp-code">
                                     {useBackupCode ? "Резервный код" : "Код подтверждения"}
                                 </FieldLabel>
-                                <Input
-                                    id="otp-code"
-                                    type="text"
-                                    inputMode={useBackupCode ? "text" : "numeric"}
-                                    autoComplete="one-time-code"
-                                    pattern={useBackupCode ? undefined : "[0-9]*"}
-                                    maxLength={useBackupCode ? 20 : 6}
-                                    placeholder={useBackupCode ? "XXXX-XXXX" : "000000"}
-                                    required
-                                    value={code}
-                                    onChange={(e) => setCode(e.target.value)}
-                                    disabled={isPending}
-                                    autoFocus
-                                />
+                                {useBackupCode ? (
+                                    <Input
+                                        id="otp-code"
+                                        type="text"
+                                        inputMode="text"
+                                        autoComplete="one-time-code"
+                                        maxLength={20}
+                                        placeholder="XXXXX-XXXXX"
+                                        required
+                                        value={code}
+                                        onChange={(e) => setCode(e.target.value)}
+                                        disabled={isPending}
+                                        autoFocus
+                                    />
+                                ) : (
+                                    <TotpCodeInput
+                                        id="otp-code"
+                                        value={code}
+                                        onChange={setCode}
+                                        disabled={isPending}
+                                        invalid={Boolean(error)}
+                                        autoFocus
+                                        centered
+                                    />
+                                )}
                             </Field>
                             {error ? (
                                 <p className="text-destructive text-center text-sm">

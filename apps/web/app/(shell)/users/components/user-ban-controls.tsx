@@ -127,7 +127,7 @@ export function UserBanControls({ user }: UserBanControlsProps) {
   const isBanned = user.banned === true;
 
   return (
-    <Card className="w-full rounded-sm">
+    <Card className="h-full w-full rounded-sm">
       <CardHeader className="border-b">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
@@ -142,9 +142,9 @@ export function UserBanControls({ user }: UserBanControlsProps) {
           <UserStatusBadge banned={user.banned} />
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col">
         {isBanned ? (
-          <div className="space-y-4">
+          <div className="flex h-full flex-col gap-4">
             {user.banReason && (
               <div>
                 <p className="text-muted-foreground text-sm font-medium">
@@ -161,108 +161,112 @@ export function UserBanControls({ user }: UserBanControlsProps) {
                 <p className="text-sm">{formatDate(user.banExpires)}</p>
               </div>
             )}
-            <Dialog>
+            <div className="mt-auto flex items-end">
+              <Dialog>
+                <DialogTrigger
+                  render={
+                    <Button variant="outline" disabled={submitting} />
+                  }
+                >
+                  {submitting ? (
+                    <Spinner className="size-4" />
+                  ) : (
+                    <ShieldCheck className="size-4" />
+                  )}
+                  Разблокировать
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Разблокировать пользователя?</DialogTitle>
+                    <DialogDescription>
+                      Пользователь {user.name} ({user.email}) будет
+                      разблокирован и получит доступ к системе.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      disabled={submitting}
+                      onClick={handleUnban}
+                    >
+                      {submitting ? (
+                        <Spinner className="size-4" />
+                      ) : (
+                        <ShieldCheck className="size-4" />
+                      )}
+                      Разблокировать
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-auto flex items-end">
+            <Dialog open={banDialogOpen} onOpenChange={setBanDialogOpen}>
               <DialogTrigger
                 render={
-                  <Button variant="outline" disabled={submitting} />
+                  <Button variant="destructive" disabled={submitting} />
                 }
               >
-                {submitting ? (
-                  <Spinner className="size-4" />
-                ) : (
-                  <ShieldCheck className="size-4" />
-                )}
-                Разблокировать
+                <Ban className="size-4" />
+                Заблокировать
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Разблокировать пользователя?</DialogTitle>
-                  <DialogDescription>
-                    Пользователь {user.name} ({user.email}) будет
-                    разблокирован и получит доступ к системе.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    disabled={submitting}
-                    onClick={handleUnban}
-                  >
-                    {submitting ? (
-                      <Spinner className="size-4" />
-                    ) : (
-                      <ShieldCheck className="size-4" />
-                    )}
-                    Разблокировать
-                  </Button>
-                </DialogFooter>
+                <form onSubmit={handleSubmit(handleBan)}>
+                  <DialogHeader>
+                    <DialogTitle>Заблокировать пользователя?</DialogTitle>
+                    <DialogDescription>
+                      Пользователь {user.name} ({user.email}) будет
+                      заблокирован. Все активные сессии будут завершены.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <FieldGroup>
+                      <Field data-invalid={Boolean(errors.banReason)}>
+                        <FieldLabel htmlFor="ban-reason">
+                          Причина блокировки
+                        </FieldLabel>
+                        <Textarea
+                          {...register("banReason")}
+                          id="ban-reason"
+                          rows={2}
+                          placeholder="Необязательно"
+                        />
+                        <FieldError errors={[errors.banReason]} />
+                      </Field>
+                      <Field data-invalid={Boolean(errors.banExpires)}>
+                        <FieldLabel htmlFor="ban-expires">
+                          Заблокировать до
+                        </FieldLabel>
+                        <Input
+                          {...register("banExpires")}
+                          id="ban-expires"
+                          type="datetime-local"
+                          placeholder="Без ограничения срока"
+                        />
+                        <FieldError errors={[errors.banExpires]} />
+                      </Field>
+                    </FieldGroup>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      type="submit"
+                      variant="destructive"
+                      disabled={submitting}
+                    >
+                      {submitting ? (
+                        <Spinner className="size-4" />
+                      ) : (
+                        <Ban className="size-4" />
+                      )}
+                      Заблокировать
+                    </Button>
+                  </DialogFooter>
+                </form>
               </DialogContent>
             </Dialog>
           </div>
-        ) : (
-          <Dialog open={banDialogOpen} onOpenChange={setBanDialogOpen}>
-            <DialogTrigger
-              render={
-                <Button variant="destructive" disabled={submitting} />
-              }
-            >
-              <Ban className="size-4" />
-              Заблокировать
-            </DialogTrigger>
-            <DialogContent>
-              <form onSubmit={handleSubmit(handleBan)}>
-                <DialogHeader>
-                  <DialogTitle>Заблокировать пользователя?</DialogTitle>
-                  <DialogDescription>
-                    Пользователь {user.name} ({user.email}) будет
-                    заблокирован. Все активные сессии будут завершены.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <FieldGroup>
-                    <Field data-invalid={Boolean(errors.banReason)}>
-                      <FieldLabel htmlFor="ban-reason">
-                        Причина блокировки
-                      </FieldLabel>
-                      <Textarea
-                        {...register("banReason")}
-                        id="ban-reason"
-                        rows={2}
-                        placeholder="Необязательно"
-                      />
-                      <FieldError errors={[errors.banReason]} />
-                    </Field>
-                    <Field data-invalid={Boolean(errors.banExpires)}>
-                      <FieldLabel htmlFor="ban-expires">
-                        Заблокировать до
-                      </FieldLabel>
-                      <Input
-                        {...register("banExpires")}
-                        id="ban-expires"
-                        type="datetime-local"
-                        placeholder="Без ограничения срока"
-                      />
-                      <FieldError errors={[errors.banExpires]} />
-                    </Field>
-                  </FieldGroup>
-                </div>
-                <DialogFooter>
-                  <Button
-                    type="submit"
-                    variant="destructive"
-                    disabled={submitting}
-                  >
-                    {submitting ? (
-                      <Spinner className="size-4" />
-                    ) : (
-                      <Ban className="size-4" />
-                    )}
-                    Заблокировать
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
         )}
       </CardContent>
     </Card>

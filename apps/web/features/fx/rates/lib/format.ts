@@ -4,6 +4,24 @@ export function sourceLabel(source: string): string {
   return SOURCE_LABELS[source] ?? source;
 }
 
+export function currencySymbol(code: string): string {
+  try {
+    const currencyPart = new Intl.NumberFormat("ru-RU", {
+      style: "currency",
+      currency: code,
+      currencyDisplay: "narrowSymbol",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })
+      .formatToParts(1)
+      .find((part) => part.type === "currency");
+
+    return currencyPart?.value ?? code;
+  } catch {
+    return code;
+  }
+}
+
 export function computeDecimalRate(rateNum: string, rateDen: string): number {
   return Number(rateNum) / Number(rateDen);
 }

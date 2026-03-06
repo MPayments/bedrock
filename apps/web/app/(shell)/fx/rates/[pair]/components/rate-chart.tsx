@@ -47,6 +47,12 @@ const CHART_CONFIG: ChartConfig = {
   },
 };
 
+const CHART_NUMBER_TICK_PROPS = {
+  fontFamily:
+    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace",
+  fontSize: 12,
+};
+
 export function RateChart({
   data,
   source,
@@ -127,6 +133,7 @@ export function RateChart({
               axisLine={false}
               tickMargin={8}
               width={yAxisWidth}
+              tick={CHART_NUMBER_TICK_PROPS}
               tickFormatter={(v: number) => v.toFixed(tickDecimals)}
             />
             <ChartTooltip

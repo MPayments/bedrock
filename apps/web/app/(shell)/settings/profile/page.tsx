@@ -26,8 +26,12 @@ export default async function SettingsProfilePage() {
       <Separator className="h-px w-full" />
       <div className="flex flex-col gap-6">
         <ProfileGeneralForm profile={profile} />
-        <ProfilePasswordForm />
-        <ProfileTwoFactorSection twoFactorEnabled={profile.twoFactorEnabled} />
+        <div className="grid gap-6 md:grid-cols-2">
+          <ProfilePasswordForm />
+          <ProfileTwoFactorSection
+            twoFactorEnabled={profile.twoFactorEnabled}
+          />
+        </div>
       </div>
     </div>
   );

@@ -80,7 +80,7 @@ export function ProfilePasswordForm() {
     }
 
     return (
-        <Card className="w-full rounded-sm">
+        <Card className="h-full w-full rounded-sm">
             <CardHeader className="border-b">
                 <div className="space-y-1">
                     <CardTitle className="flex items-center gap-2">
@@ -92,9 +92,12 @@ export function ProfilePasswordForm() {
                     </CardDescription>
                 </div>
             </CardHeader>
-            <CardContent>
-                <form onSubmit={handleSubmit(onSubmit)}>
-                    <FieldGroup>
+            <CardContent className="flex flex-1 flex-col">
+                <form
+                    onSubmit={handleSubmit(onSubmit)}
+                    className="flex h-full flex-col"
+                >
+                    <FieldGroup className="flex h-full flex-col">
                         <div className="grid gap-4 md:grid-cols-2">
                             <Field
                                 data-invalid={Boolean(errors.currentPassword)}
@@ -131,7 +134,10 @@ export function ProfilePasswordForm() {
                                 <FieldError errors={[errors.newPassword]} />
                             </Field>
                         </div>
-                        <div>
+                        {error && (
+                            <p className="text-destructive text-sm">{error}</p>
+                        )}
+                        <div className="mt-auto flex items-end">
                             <Button type="submit" disabled={submitting}>
                                 {submitting ? (
                                     <Spinner className="size-4" />
@@ -143,9 +149,6 @@ export function ProfilePasswordForm() {
                                     : "Сменить пароль"}
                             </Button>
                         </div>
-                        {error && (
-                            <p className="text-destructive text-sm">{error}</p>
-                        )}
                     </FieldGroup>
                 </form>
             </CardContent>

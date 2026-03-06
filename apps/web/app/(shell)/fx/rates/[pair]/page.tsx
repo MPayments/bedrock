@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ChartCandlestick } from "lucide-react";
+import { ChartCandlestick, Plus } from "lucide-react";
 
+import { Button } from "@bedrock/ui/components/button";
 import { Separator } from "@bedrock/ui/components/separator";
 import { Skeleton } from "@bedrock/ui/components/skeleton";
 
@@ -9,6 +10,7 @@ import {
   getRateHistory,
   getRatePairs,
 } from "@/features/fx/rates/lib/queries";
+import { SetPairManualRateDialog } from "./components/set-pair-manual-rate-dialog";
 import { RatePairView } from "./components/rate-pair-view";
 
 const RANGE_DAYS: Record<string, number | undefined> = {
@@ -59,18 +61,26 @@ export default async function RatePairPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-start gap-3">
-        <div className="bg-muted rounded-lg p-2.5">
-          <ChartCandlestick className="text-muted-foreground h-5 w-5" />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="bg-muted rounded-lg p-2.5">
+            <ChartCandlestick className="text-muted-foreground h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="mb-1 text-xl font-semibold">
+              {base} / {quote}
+            </h3>
+            <p className="text-muted-foreground hidden text-sm md:block">
+              История курсов валютной пары по источникам.
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="mb-1 text-xl font-semibold">
-            {base} / {quote}
-          </h3>
-          <p className="text-muted-foreground hidden text-sm md:block">
-            История курсов валютной пары по источникам.
-          </p>
-        </div>
+        <SetPairManualRateDialog base={base} quote={quote}>
+          <Button size="lg" className="w-full sm:w-auto">
+            <Plus className="h-4 w-4" />
+            Ручной курс
+          </Button>
+        </SetPairManualRateDialog>
       </div>
 
       <Separator className="h-px w-full" />

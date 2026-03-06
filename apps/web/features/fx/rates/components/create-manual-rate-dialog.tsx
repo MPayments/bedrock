@@ -18,7 +18,7 @@ export function CreateManualRateDialog({
     <SetManualRateDialog currencies={currencies}>
       <Button size="lg">
         <Plus className="h-4 w-4" />
-        <span className="hidden md:block">Добавить курс</span>
+        <span className="hidden md:block">Ручной курс</span>
       </Button>
     </SetManualRateDialog>
   );
