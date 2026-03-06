@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
   weight: ["400", "500", "600", "700"],
   variable: "--font-geist-mono",
 });
+
 export default function RootLayout({
   children,
 }: Readonly<{

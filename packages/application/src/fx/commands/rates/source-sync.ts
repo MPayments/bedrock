@@ -65,7 +65,7 @@ export function createRateSourceHandlers(context: FxServiceContext) {
   }
 
   function getFreshnessBase(row: FxRateSourceRow) {
-    if (row.source === "investing") {
+    if (row.source === "investing" || row.source === "xe") {
       return row.lastSyncedAt ?? row.lastPublishedAt;
     }
 
