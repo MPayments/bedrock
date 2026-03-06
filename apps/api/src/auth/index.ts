@@ -1,12 +1,17 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin as adminPlugin, openAPI as openApiPlugin } from "better-auth/plugins";
+import {
+    admin as adminPlugin,
+    openAPI as openApiPlugin,
+    twoFactor,
+} from "better-auth/plugins";
 
 import { db } from "@bedrock/db";
 
 import { ac, admin, user } from "./permissions";
 
 const auth = betterAuth({
+    appName: "Bedrock Finance",
     secret: process.env.BETTER_AUTH_SECRET!,
     baseURL: process.env.BETTER_AUTH_URL!,
     basePath: "/api/auth",
@@ -34,6 +39,10 @@ const auth = betterAuth({
                 admin,
                 user,
             },
+        }),
+        twoFactor({
+            issuer: "Bedrock Finance",
+            skipVerificationOnEnable: false,
         }),
     ],
 });

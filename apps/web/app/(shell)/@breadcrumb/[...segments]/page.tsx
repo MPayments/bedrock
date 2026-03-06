@@ -7,6 +7,7 @@ import {
   getDocumentTypeLabel,
   isKnownDocumentType,
 } from "@/features/documents/lib/doc-types";
+import { getUserById } from "@/app/(shell)/users/lib/queries";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import { resolveBreadcrumbItems } from "@/lib/breadcrumbs";
 
@@ -43,11 +44,13 @@ function resolvePairSegment({ segment }: { segment: string }) {
   if (parts.length === 2 && parts[0] && parts[1]) {
     const base = parts[0].toUpperCase();
     const quote = parts[1].toUpperCase();
+
     return {
       label: `${base} / ${quote}`,
       href: `/fx/rates/${base}-${quote}`,
     };
   }
+
   return null;
 }
 
@@ -98,7 +101,13 @@ const dynamicResolvers = {
       href: `/documents/${segment}`,
     };
   },
-  create: async ({ segment, segments }: { segment: string; segments: string[] }) => {
+  create: async ({
+    segment,
+    segments,
+  }: {
+    segment: string;
+    segments: string[];
+  }) => {
     if (
       segments.length >= 3 &&
       segments[0] === "documents" &&
@@ -112,6 +121,13 @@ const dynamicResolvers = {
 
     return null;
   },
+  users: createResourceSegmentResolver({
+    singularLabel: "Пользователь",
+    hrefPrefix: "/users",
+    getById: getUserById,
+    getLabel: (user) => user.name,
+    getId: (user) => user.id,
+  }),
 };
 
 interface BreadcrumbSegmentsPageProps {

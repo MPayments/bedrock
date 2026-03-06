@@ -44,6 +44,16 @@ export default function LoginPage() {
 
       const params = new URLSearchParams(window.location.search);
       const redirectTo = params.get("redirect") ?? "/";
+
+      if (
+        result.data &&
+        "twoFactorRedirect" in result.data &&
+        result.data.twoFactorRedirect
+      ) {
+        router.push(`/two-factor?redirect=${encodeURIComponent(redirectTo)}`);
+        return;
+      }
+
       router.push(redirectTo);
       router.refresh();
     });

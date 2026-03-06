@@ -12,6 +12,10 @@ import {
   type LedgerEngine,
   type LedgerReadService,
 } from "@bedrock/core/ledger";
+import {
+  createUsersService,
+  type UsersService,
+} from "@bedrock/core/users";
 import { db } from "@bedrock/db/client";
 import { createConsoleLogger, type Logger } from "@bedrock/kernel";
 import { rawPackDefinition } from "@bedrock/kernel/packs/bedrock-core-default";
@@ -22,6 +26,7 @@ export interface ApiCoreServices {
   balancesService: BalancesService;
   ledger: LedgerEngine;
   ledgerReadService: LedgerReadService;
+  usersService: UsersService;
 }
 
 export function createCoreServices(): ApiCoreServices {
@@ -34,6 +39,7 @@ export function createCoreServices(): ApiCoreServices {
   const ledger = createLedgerEngine({ db });
   const ledgerReadService = createLedgerReadService({ db });
   const balancesService = createBalancesService({ db, logger });
+  const usersService = createUsersService({ db, logger });
 
   return {
     logger,
@@ -41,5 +47,6 @@ export function createCoreServices(): ApiCoreServices {
     balancesService,
     ledger,
     ledgerReadService,
+    usersService,
   };
 }

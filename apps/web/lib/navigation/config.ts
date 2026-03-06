@@ -186,6 +186,13 @@ const navItems: AppNavItem[] = [
     ],
   },
   {
+    id: "users",
+    title: "Пользователи",
+    href: "/users",
+    icon: "users",
+    audience: "admin",
+  },
+  {
     id: "settings",
     title: "Настройки",
     href: "/settings",

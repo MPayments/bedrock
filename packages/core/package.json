@@ -43,6 +43,8 @@
     "./counterparty-accounts/validation": "./src/counterparty-accounts/validation.ts",
     "./reconciliation": "./src/reconciliation/index.ts",
     "./reconciliation/schema": "./src/reconciliation/schema.ts",
+    "./users": "./src/users/index.ts",
+    "./users/validation": "./src/users/validation.ts",
     "./worker-runtime": "./src/worker-runtime/index.ts"
   },
   "scripts": {
@@ -60,6 +62,7 @@
   },
   "dependencies": {
     "@bedrock/kernel": "workspace:*",
+    "better-auth": "^1.4.18",
     "drizzle-orm": "^0.45.1",
     "tigerbeetle-node": "^0.16.72",
     "zod": "^4.1.11"

@@ -37,6 +37,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   settings: { label: "Настройки", icon: "settings" },
   accounting: { label: "Бухгалтерия", icon: "book-open" },
   entities: { label: "Справочники", icon: "book-open" },
+  users: { label: "Пользователи", href: "/users", icon: "users" },
 
   customers: {
     label: "Клиенты",
@@ -67,7 +68,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   operations: { label: "Операции" },
   journal: { label: "Журнал операций" },
   system: { label: "Система", icon: "cpu" },
-  profile: { label: "Профиль" },
+  profile: { label: "Профиль", href: "/settings/profile" },
   correspondence: { label: "Корреспонденция" },
   reports: { label: "Отчеты" },
   "trial-balance": { label: "ОСВ" },

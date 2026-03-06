@@ -51,6 +51,7 @@ describe("navigation config", () => {
     expect(hrefs).toContain("/settings/system");
     expect(hrefs).toContain("/settings/profile");
     expect(hrefs).toContain("/treasury");
+    expect(hrefs).toContain("/users");
     expect(hrefs).not.toContain("/operations");
     expect(hrefs).not.toContain("#");
     expect(hrefs).not.toContain("/fx/quotes");

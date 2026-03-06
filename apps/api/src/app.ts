@@ -37,7 +37,9 @@ import {
   documentsRoutes,
   fxRatesRoutes,
   paymentsRoutes,
+  profileRoutes,
   systemModulesRoutes,
+  usersRoutes,
 } from "./routes";
 
 const env = parseEnv();
@@ -254,6 +256,9 @@ function buildV1Router(
     );
   }
 
+  router.route("/users", usersRoutes(ctx));
+  router.route("/me", profileRoutes(ctx));
+
   return router;
 }
 
@@ -305,7 +310,9 @@ const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/documents", documentsRoutes(ctx))
   .route("/payments", paymentsRoutes(ctx))
   .route("/fx/rates", fxRatesRoutes(ctx))
-  .route("/system/modules", systemModulesRoutes(ctx));
+  .route("/system/modules", systemModulesRoutes(ctx))
+  .route("/users", usersRoutes(ctx))
+  .route("/me", profileRoutes(ctx));
 
 const typedRoutes = new OpenAPIHono<{ Variables: AuthVariables }>().route(
   "/v1",

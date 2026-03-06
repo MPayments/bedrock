@@ -18,6 +18,7 @@ import {
   createModuleRuntimeService,
   type ModuleRuntimeService,
 } from "@bedrock/core/module-runtime";
+import type { UsersService } from "@bedrock/core/users";
 import { db } from "@bedrock/db/client";
 import type { Logger } from "@bedrock/kernel";
 
@@ -49,7 +50,7 @@ export function parseEnv(): Env {
 
   if (!result.success) {
     const errors = result.error.issues
-      .map((i) => `  ${i.path.join(".")}: ${i.message}`)
+      .map((issue) => `  ${issue.path.join(".")}: ${issue.message}`)
       .join("\n");
     throw new Error(`Invalid environment configuration:\n${errors}`);
   }
@@ -69,6 +70,7 @@ export interface AppContext {
   feesService: FeesService;
   fxService: FxService;
   paymentsService: PaymentsService;
+  usersService: UsersService;
   ledgerReadService: LedgerReadService;
   balancesService: BalancesService;
   documentsService: DocumentsService;
@@ -99,6 +101,7 @@ export function createAppContext(env: Env): AppContext {
     feesService: applicationServices.feesService,
     fxService: applicationServices.fxService,
     paymentsService: applicationServices.paymentsService,
+    usersService: core.usersService,
     documentsService: applicationServices.documentsService,
     moduleRuntime,
     assertInternalLedgerInvariants: () => assertInternalLedgerInvariants(db),

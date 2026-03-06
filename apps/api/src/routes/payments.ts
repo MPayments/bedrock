@@ -41,14 +41,20 @@ export function paymentsRoutes(ctx: AppContext) {
       app,
       path: config.path,
       permission: { payments: [config.permission] },
-      handle: async ({ c, actorUserId, idempotencyKey, requestContext }) =>
-        ctx.paymentsService.transitionIntent({
+      handle: async ({ c, actorUserId, idempotencyKey, requestContext }) => {
+        const documentId = c.req.param("id");
+        if (!documentId) {
+          throw new Error("Payment id is required");
+        }
+
+        return ctx.paymentsService.transitionIntent({
           action: config.action,
-          documentId: c.req.param("id"),
+          documentId,
           actorUserId,
           idempotencyKey,
           requestContext,
-        }),
+        });
+      },
       jsonOptions: { normalizeMoney: true },
       handleError: handleRouteError,
     });

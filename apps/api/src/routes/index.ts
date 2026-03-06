@@ -9,4 +9,6 @@ export { currenciesRoutes } from "./currencies";
 export { documentsRoutes } from "./documents";
 export { fxRatesRoutes } from "./fx-rates";
 export { paymentsRoutes } from "./payments";
+export { profileRoutes } from "./profile";
 export { systemModulesRoutes } from "./system-modules";
+export { usersRoutes } from "./users";

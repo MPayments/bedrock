@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BadgeCheck, Bell, ChevronsUpDown, LogOut, Shield } from "lucide-react";
 
@@ -106,7 +107,7 @@ export function NavUser({ session }: { session: UserSessionSnapshot }) {
                 <Shield />
                 {session.role === "admin" ? "Администратор" : "Пользователь"}
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem render={<Link href="/settings/profile" />}>
                 <BadgeCheck />
                 Профиль
               </DropdownMenuItem>
