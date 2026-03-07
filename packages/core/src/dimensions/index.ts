@@ -3,16 +3,18 @@ import { inArray } from "drizzle-orm";
 import type { Database } from "@bedrock/kernel/db/types";
 import { isUuidLike } from "@bedrock/kernel";
 import { schema as counterpartiesSchema } from "@bedrock/core/counterparties/schema";
+import { schema as counterpartyRequisitesSchema } from "@bedrock/core/counterparty-requisites/schema";
 import { schema as customersSchema } from "@bedrock/core/customers/schema";
 import { schema as documentsSchema } from "@bedrock/core/documents/schema";
 import { type Dimensions } from "@bedrock/core/ledger/schema";
-import { schema as counterpartyAccountsSchema } from "@bedrock/core/counterparty-accounts/schema";
+import { schema as organizationRequisitesSchema } from "@bedrock/core/organization-requisites/schema";
 
 const schema = {
   ...counterpartiesSchema,
+  ...counterpartyRequisitesSchema,
   ...customersSchema,
   ...documentsSchema,
-  ...counterpartyAccountsSchema,
+  ...organizationRequisitesSchema,
 };
 
 export type DimensionLabelResolver = (input: {
@@ -185,13 +187,24 @@ export function createBedrockDimensionRegistry(): DimensionRegistry {
     {
       key: "counterpartyAccountId",
       resolveLabels: async ({ db, values }) => {
-        const rows = await db
-          .select({
-            id: schema.counterpartyAccounts.id,
-            label: schema.counterpartyAccounts.label,
-          })
-          .from(schema.counterpartyAccounts)
-          .where(inArray(schema.counterpartyAccounts.id, uniqueStrings(values)));
+        const ids = uniqueStrings(values);
+        const [counterpartyRows, organizationRows] = await Promise.all([
+          db
+            .select({
+              id: schema.counterpartyRequisites.id,
+              label: schema.counterpartyRequisites.label,
+            })
+            .from(schema.counterpartyRequisites)
+            .where(inArray(schema.counterpartyRequisites.id, ids)),
+          db
+            .select({
+              id: schema.organizationRequisites.id,
+              label: schema.organizationRequisites.label,
+            })
+            .from(schema.organizationRequisites)
+            .where(inArray(schema.organizationRequisites.id, ids)),
+        ]);
+        const rows = [...counterpartyRows, ...organizationRows];
 
         return new Map(rows.map((row) => [row.id, row.label]));
       },

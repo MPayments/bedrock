@@ -28,21 +28,24 @@ export function createTransferIntraDefinition(): DocumentFormDefinition {
           {
             kind: "counterparty",
             name: "sourceCounterpartyId",
-            label: "Контрагент",
+            label: "Организация",
+            optionsSource: "organizations",
             description:
-              "Счета источника и назначения должны принадлежать одному контрагенту.",
+              "Реквизиты источника и назначения должны принадлежать одной организации.",
           },
           {
             kind: "account",
             name: "sourceCounterpartyAccountId",
-            label: "Счет источник",
+            label: "Реквизит источник",
             counterpartyField: "sourceCounterpartyId",
+            optionsSource: "organizationRequisites",
           },
           {
             kind: "account",
             name: "destinationCounterpartyAccountId",
-            label: "Счет назначение",
+            label: "Реквизит назначение",
             counterpartyField: "sourceCounterpartyId",
+            optionsSource: "organizationRequisites",
           },
         ],
         layout: {

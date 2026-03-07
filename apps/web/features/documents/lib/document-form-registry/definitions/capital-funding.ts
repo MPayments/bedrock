@@ -32,10 +32,17 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
           },
           { kind: "counterparty", name: "counterpartyId", label: "Контрагент" },
           {
+            kind: "counterparty",
+            name: "organizationId",
+            label: "Организация",
+            optionsSource: "organizations",
+          },
+          {
             kind: "account",
             name: "counterpartyAccountId",
-            label: "Счет контрагента",
-            counterpartyField: "counterpartyId",
+            label: "Реквизит организации",
+            counterpartyField: "organizationId",
+            optionsSource: "organizationRequisites",
           },
         ],
         layout: {
@@ -44,7 +51,10 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
               fields: ["kind"],
             },
             {
-              fields: ["counterpartyId", "counterpartyAccountId"],
+              fields: ["counterpartyId", "organizationId"],
+            },
+            {
+              fields: ["counterpartyAccountId"],
             },
             {
               fields: ["occurredAt"],
@@ -86,6 +96,7 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
         occurredAt: nowDateTimeLocal(),
         kind: "founder_equity",
         counterpartyId: "",
+        organizationId: "",
         counterpartyAccountId: "",
         amount: "",
         currency: "",
@@ -97,6 +108,7 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
         occurredAt: isoToDateTimeLocal(payload.occurredAt),
         kind: readString(payload.kind) || "founder_equity",
         counterpartyId: readString(payload.counterpartyId),
+        organizationId: readString(payload.organizationId),
         counterpartyAccountId: readString(payload.counterpartyAccountId),
         amount: normalizeMajorAmountInput(payload.amount, payload.currency),
         currency: readString(payload.currency),
@@ -108,6 +120,7 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
         occurredAt: toOccurredAtIso(values.occurredAt),
         kind: readString(values.kind).trim(),
         counterpartyId: readString(values.counterpartyId).trim(),
+        organizationId: optionalString(values.organizationId),
         counterpartyAccountId: readString(values.counterpartyAccountId).trim(),
         amount: normalizeMajorAmountInput(values.amount, values.currency),
         currency: readString(values.currency).trim(),

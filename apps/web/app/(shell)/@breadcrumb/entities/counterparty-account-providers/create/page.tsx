@@ -1,18 +1,3 @@
-"use client";
-
-import { useProviderDraftName } from "@/features/entities/counterparty-account-providers/lib/create-draft-name-context";
-import { EntityCreateBreadcrumb } from "@/components/entities/entity-breadcrumb";
-
-export default function CreateProviderBreadcrumbPage() {
-  const { state } = useProviderDraftName();
-
-  return (
-    <EntityCreateBreadcrumb
-      entityLabel="Провайдеры счетов"
-      entityHref="/entities/counterparty-account-providers"
-      entityIcon="landmark"
-      currentLabel={state.createLabel}
-      currentHref="/entities/counterparty-account-providers/create"
-    />
-  );
+export default function LegacyCounterpartyAccountProvidersCreateBreadcrumbPage() {
+  return null;
 }

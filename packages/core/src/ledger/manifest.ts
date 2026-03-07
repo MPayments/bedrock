@@ -5,7 +5,7 @@ export const LEDGER_MODULE_MANIFEST = {
   version: 1,
   kind: "kernel",
   mutability: "immutable",
-  description: "Рантайм исполнения ledger",
+  description: "Ядро учета ledger",
   enabledByDefault: true,
   scopeSupport: { global: true, book: true },
   capabilities: {

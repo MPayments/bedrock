@@ -35,7 +35,6 @@ import {
   mapBalanceSheetDto,
   mapCashFlowDto,
   mapClosePackageDto,
-  mapCounterpartyBalanceDto,
   mapFeeRevenueDto,
   mapFxRevaluationDto,
   mapGeneralLedgerDto,
@@ -231,38 +230,6 @@ export function accountingRoutes(ctx: AppContext) {
           },
         },
         description: "Validation result",
-      },
-    },
-  });
-
-  const getCounterpartyAccountBalancesRoute = createRoute({
-    middleware: [requirePermission({ accounting: ["list"] })],
-    method: "get",
-    path: "/counterparty-account-balances",
-    tags: ["Accounting"],
-    summary: "Get posted balances for counterparty accounts by their IDs",
-    request: {
-      query: z.object({
-        counterpartyAccountIds: z
-          .string()
-          .describe("Comma-separated list of counterparty account IDs"),
-      }),
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: z.array(
-              z.object({
-                counterpartyAccountId: z.string().uuid(),
-                currency: z.string(),
-                balance: z.string(),
-                precision: z.number().int(),
-              }),
-            ),
-          },
-        },
-        description: "Balances per counterparty account and currency",
       },
     },
   });
@@ -849,23 +816,6 @@ export function accountingRoutes(ctx: AppContext) {
     .openapi(validatePostingMatrixRoute, async (c) => {
       const result = await ctx.accountingService.validatePostingMatrix();
       return c.json(result, 200);
-    })
-    .openapi(getCounterpartyAccountBalancesRoute, async (c) => {
-      const { counterpartyAccountIds: accountIdsParam } = c.req.valid("query");
-      const counterpartyAccountIds = accountIdsParam
-        .split(",")
-        .map((id) => id.trim())
-        .filter((id) => id.length > 0);
-
-      const balances =
-        await ctx.balancesService.listBalancesByCounterpartyAccountIds(
-          counterpartyAccountIds,
-        );
-
-      return c.json(
-        balances.map(mapCounterpartyBalanceDto),
-        200,
-      );
     })
     .openapi(listTrialBalanceRoute, async (c) => {
       try {

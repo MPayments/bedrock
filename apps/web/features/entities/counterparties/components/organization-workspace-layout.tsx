@@ -28,14 +28,14 @@ export function CounterpartyWorkspaceLayout({
   const isTabDisabled = (tab: CounterpartyWorkspaceTab) =>
     disabledTabs.includes(tab);
 
-  const currentTab = pathname.endsWith("/counterparty-accounts")
+  const currentTab = pathname.endsWith("/counterparty-requisites")
     ? "accounts"
     : pathname.endsWith("/documents")
       ? "documents"
       : "general";
 
   const basePath = pathname
-    .replace(/\/counterparty-accounts(?:\/.*)?$/, "")
+    .replace(/\/counterparty-requisites(?:\/.*)?$/, "")
     .replace(/\/documents(?:\/.*)?$/, "");
 
   const tabs: EntityWorkspaceTab[] = [
@@ -47,10 +47,10 @@ export function CounterpartyWorkspaceLayout({
       disabled: isTabDisabled("general"),
     },
     {
-      id: "counterparty-accounts",
-      label: "Счета",
+      id: "accounts",
+      label: "Реквизиты",
       icon: Wallet,
-      href: `${basePath}/counterparty-accounts`,
+      href: `${basePath}/counterparty-requisites`,
       disabled: isTabDisabled("accounts"),
     },
     {

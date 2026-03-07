@@ -1,10 +1,10 @@
 import { BookOpen } from "lucide-react";
 
-import { getAccounts } from "@/features/entities/counterparty-accounts/lib/queries";
 import { getCounterparties } from "@/features/entities/counterparties/lib/queries";
+import { getCounterpartyRequisites } from "@/features/entities/counterparty-requisites/lib/queries";
 import { getCurrencies } from "@/features/entities/currencies/lib/queries";
 import { getCustomers } from "@/features/entities/customers/lib/queries";
-import { getProviders } from "@/features/entities/counterparty-account-providers/lib/queries";
+import { getOrganizationRequisites } from "@/features/entities/organization-requisites/lib/queries";
 import { SectionOverviewPage } from "@/features/overview/ui/section-overview-page";
 
 function formatCount(value: number) {
@@ -12,12 +12,18 @@ function formatCount(value: number) {
 }
 
 export default async function EntitiesOverviewPage() {
-  const [customers, counterparties, providers, accounts, currencies] =
+  const [
+    customers,
+    counterparties,
+    counterpartyRequisites,
+    organizationRequisites,
+    currencies,
+  ] =
     await Promise.all([
       getCustomers({ page: 1, perPage: 1 }),
       getCounterparties({ page: 1, perPage: 1 }),
-      getProviders({ page: 1, perPage: 1 }),
-      getAccounts({ page: 1, perPage: 1 }),
+      getCounterpartyRequisites({ page: 1, perPage: 1 }),
+      getOrganizationRequisites({ page: 1, perPage: 1 }),
       getCurrencies({ page: 1, perPage: 1 }),
     ]);
 
@@ -25,7 +31,7 @@ export default async function EntitiesOverviewPage() {
     <SectionOverviewPage
       icon={BookOpen}
       title="Справочники"
-      description="Каталог master-data модулей для клиентов, контрагентов, провайдеров, счетов и валют."
+      description="Каталог master-data модулей для клиентов, контрагентов, реквизитов и валют."
       stats={[
         {
           id: "customers",
@@ -42,18 +48,18 @@ export default async function EntitiesOverviewPage() {
           href: "/entities/counterparties",
         },
         {
-          id: "providers",
-          label: "Провайдеры",
-          value: formatCount(providers.total),
-          description: "Провайдеры счетов и внешние account providers.",
-          href: "/entities/counterparty-account-providers",
+          id: "counterparty-requisites",
+          label: "Реквизиты контрагентов",
+          value: formatCount(counterpartyRequisites.total),
+          description: "Внешние реквизиты без бухгалтерской привязки.",
+          href: "/entities/counterparty-requisites",
         },
         {
-          id: "counterparty-accounts",
-          label: "Счета",
-          value: formatCount(accounts.total),
-          description: "Операционные счета контрагентов у провайдеров.",
-          href: "/entities/counterparty-accounts",
+          id: "organization-requisites",
+          label: "Реквизиты организаций",
+          value: formatCount(organizationRequisites.total),
+          description: "Внутренние расчётные реквизиты организаций.",
+          href: "/entities/organization-requisites",
         },
         {
           id: "currencies",
@@ -77,11 +83,18 @@ export default async function EntitiesOverviewPage() {
           href: "/entities/counterparties",
         },
         {
-          id: "counterparty-accounts",
-          title: "Счета и провайдеры",
-          description: "Операционные счета и account providers в одной зоне.",
-          href: "/entities/counterparty-accounts",
-          cta: "Открыть счета",
+          id: "counterparty-requisites",
+          title: "Реквизиты контрагентов",
+          description: "Каталог пользовательских реквизитов для внешних контрагентов.",
+          href: "/entities/counterparty-requisites",
+          cta: "Открыть реквизиты",
+        },
+        {
+          id: "organization-requisites",
+          title: "Реквизиты организаций",
+          description: "Внутренние реквизиты своих компаний с отдельной accounting binding.",
+          href: "/entities/organization-requisites",
+          cta: "Открыть реквизиты",
         },
       ]}
     />

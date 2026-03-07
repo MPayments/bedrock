@@ -29,7 +29,7 @@ import type { IfrsModuleDeps } from "./internal/types";
 export function createTransferIntercompanyDocumentModule(
   deps: IfrsModuleDeps,
 ): DocumentModule<TransferIntercompanyInput, TransferIntercompanyInput> {
-  const { counterpartyAccountsService } = deps;
+  const { organizationRequisitesService } = deps;
 
   return {
     moduleId: "transfer_intercompany",
@@ -44,20 +44,26 @@ export function createTransferIntercompanyDocumentModule(
     allowDirectPostFromDraft: true,
     approvalRequired: () => false,
     async createDraft(_context, input) {
-      const bindings = await resolveTransferBindings(counterpartyAccountsService, input);
-      if (bindings.source.counterpartyId === bindings.destination.counterpartyId) {
+      const bindings = await resolveTransferBindings(
+        organizationRequisitesService,
+        input,
+      );
+      if (bindings.source.organizationId === bindings.destination.organizationId) {
         throw new DocumentValidationError(
-          "transfer_intercompany requires source and destination from different counterparties",
+          "transfer_intercompany requires source and destination from different organizations",
         );
       }
 
       return buildDocumentDraft(input, normalizeTransferPayload(input, bindings));
     },
     async updateDraft(_context, _document, input) {
-      const bindings = await resolveTransferBindings(counterpartyAccountsService, input);
-      if (bindings.source.counterpartyId === bindings.destination.counterpartyId) {
+      const bindings = await resolveTransferBindings(
+        organizationRequisitesService,
+        input,
+      );
+      if (bindings.source.organizationId === bindings.destination.organizationId) {
         throw new DocumentValidationError(
-          "transfer_intercompany requires source and destination from different counterparties",
+          "transfer_intercompany requires source and destination from different organizations",
         );
       }
 
@@ -87,15 +93,18 @@ export function createTransferIntercompanyDocumentModule(
       };
     },
     async canCreate(_context, input) {
-      const bindings = await resolveTransferBindings(counterpartyAccountsService, input);
+      const bindings = await resolveTransferBindings(
+        organizationRequisitesService,
+        input,
+      );
       ensureTransferCurrencies({
         payloadCurrency: input.currency,
         sourceCurrency: bindings.source.currencyCode,
         destinationCurrency: bindings.destination.currencyCode,
       });
-      if (bindings.source.counterpartyId === bindings.destination.counterpartyId) {
+      if (bindings.source.organizationId === bindings.destination.organizationId) {
         throw new DocumentValidationError(
-          "transfer_intercompany requires accounts from different counterparties",
+          "transfer_intercompany requires requisites from different organizations",
         );
       }
     },
@@ -106,21 +115,27 @@ export function createTransferIntercompanyDocumentModule(
     async canCancel() {},
     async canPost(_context, document) {
       const payload = parseDocumentPayload(TransferIntercompanyPayloadSchema, document);
-      const bindings = await resolveTransferBindings(counterpartyAccountsService, payload);
+      const bindings = await resolveTransferBindings(
+        organizationRequisitesService,
+        payload,
+      );
       ensureTransferCurrencies({
         payloadCurrency: payload.currency,
         sourceCurrency: bindings.source.currencyCode,
         destinationCurrency: bindings.destination.currencyCode,
       });
-      if (bindings.source.counterpartyId === bindings.destination.counterpartyId) {
+      if (bindings.source.organizationId === bindings.destination.organizationId) {
         throw new DocumentValidationError(
-          "transfer_intercompany requires accounts from different counterparties",
+          "transfer_intercompany requires requisites from different organizations",
         );
       }
     },
     async buildPostingPlan(_context, document) {
       const payload = parseDocumentPayload(TransferIntercompanyPayloadSchema, document);
-      const bindings = await resolveTransferBindings(counterpartyAccountsService, payload);
+      const bindings = await resolveTransferBindings(
+        organizationRequisitesService,
+        payload,
+      );
       const isPending = Boolean(payload.timeoutSeconds);
 
       const sourceTemplateKey = isPending

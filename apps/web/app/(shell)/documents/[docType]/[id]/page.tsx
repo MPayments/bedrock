@@ -16,6 +16,7 @@ export default async function DocumentsDetailsPage({ params }: PageProps) {
     getDocumentDetails(docType, id),
     getDocumentFormOptions().catch(() => ({
       counterparties: [],
+      organizations: [],
       currencies: [],
     })),
   ]);

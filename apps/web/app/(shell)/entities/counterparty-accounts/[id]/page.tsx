@@ -1,19 +1,26 @@
-import { EditAccountFormClient } from "@/features/entities/counterparty-accounts/components/edit-account-form-client";
-import { getAccountById, getAccountFormOptions } from "@/features/entities/counterparty-accounts/lib/queries";
-import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
+import { redirect } from "next/navigation";
+
+import { getCounterpartyRequisiteById } from "@/features/entities/counterparty-requisites/lib/queries";
+import { getOrganizationRequisiteById } from "@/features/entities/organization-requisites/lib/queries";
 
 interface AccountPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function AccountPage({ params }: AccountPageProps) {
-  const [{ entity: account }, options] = await Promise.all([
-    loadResourceByIdParamOrNotFound({
-      params,
-      getById: getAccountById,
-    }),
-    getAccountFormOptions(),
+export default async function LegacyAccountPage({ params }: AccountPageProps) {
+  const { id } = await params;
+  const [counterpartyRequisite, organizationRequisite] = await Promise.all([
+    getCounterpartyRequisiteById(id),
+    getOrganizationRequisiteById(id),
   ]);
 
-  return <EditAccountFormClient account={account} options={options} />;
+  if (counterpartyRequisite) {
+    redirect(`/entities/counterparty-requisites/${counterpartyRequisite.id}`);
+  }
+
+  if (organizationRequisite) {
+    redirect(`/entities/organization-requisites/${organizationRequisite.id}`);
+  }
+
+  redirect("/entities/counterparty-requisites");
 }

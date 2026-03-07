@@ -1,8 +1,8 @@
-import { getAccountById } from "@/features/entities/counterparty-accounts/lib/queries";
 import { getCounterpartyById } from "@/features/entities/counterparties/lib/queries";
+import { getCounterpartyRequisiteById } from "@/features/entities/counterparty-requisites/lib/queries";
 import { getCurrencyById } from "@/features/entities/currencies/lib/queries";
 import { getCustomerById } from "@/features/entities/customers/lib/queries";
-import { getProviderById } from "@/features/entities/counterparty-account-providers/lib/queries";
+import { getOrganizationRequisiteById } from "@/features/entities/organization-requisites/lib/queries";
 import {
   getDocumentTypeLabel,
   isKnownDocumentType,
@@ -77,19 +77,19 @@ const dynamicResolvers = {
     getLabel: (currency) => currency.name,
     getId: (currency) => currency.id,
   }),
-  providers: createResourceSegmentResolver({
-    singularLabel: "Провайдер",
-    hrefPrefix: "/entities/counterparty-account-providers",
-    getById: getProviderById,
-    getLabel: (provider) => provider.name,
-    getId: (provider) => provider.id,
+  "counterparty-requisites": createResourceSegmentResolver({
+    singularLabel: "Реквизит контрагента",
+    hrefPrefix: "/entities/counterparty-requisites",
+    getById: getCounterpartyRequisiteById,
+    getLabel: (requisite) => requisite.label,
+    getId: (requisite) => requisite.id,
   }),
-  accounts: createResourceSegmentResolver({
-    singularLabel: "Счёт",
-    hrefPrefix: "/entities/counterparty-accounts",
-    getById: getAccountById,
-    getLabel: (account) => account.label,
-    getId: (account) => account.id,
+  "organization-requisites": createResourceSegmentResolver({
+    singularLabel: "Реквизит организации",
+    hrefPrefix: "/entities/organization-requisites",
+    getById: getOrganizationRequisiteById,
+    getLabel: (requisite) => requisite.label,
+    getId: (requisite) => requisite.id,
   }),
   documents: async ({ segment }: { segment: string }) => {
     if (!isKnownDocumentType(segment)) {

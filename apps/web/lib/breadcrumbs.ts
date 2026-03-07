@@ -53,18 +53,19 @@ const segmentMap: Record<string, SegmentConfig> = {
     href: "/entities/currencies",
     icon: "dollar-sign",
   },
-  providers: {
-    label: "Провайдеры счетов",
-    href: "/entities/counterparty-account-providers",
+  "counterparty-requisites": {
+    label: "Реквизиты контрагентов",
+    href: "/entities/counterparty-requisites",
+    icon: "wallet",
+  },
+  "organization-requisites": {
+    label: "Реквизиты организаций",
+    href: "/entities/organization-requisites",
     icon: "landmark",
   },
   create: { label: "Создать" },
   type: { label: "Тип" },
-  accounts: {
-    label: "Счета",
-    href: "/entities/counterparty-accounts",
-    icon: "wallet",
-  },
+  accounts: { label: "Реквизиты", icon: "wallet" },
   operations: { label: "Операции" },
   journal: { label: "Журнал операций" },
   system: { label: "Система", icon: "cpu" },
@@ -140,6 +141,7 @@ export async function resolveBreadcrumbItems(
         if (segment === "accounts" && segments.includes("accounting")) {
           return {
             ...config,
+            label: "Счета",
             href: "/accounting/accounts",
           };
         }

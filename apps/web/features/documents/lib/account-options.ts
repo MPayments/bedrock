@@ -4,55 +4,75 @@ import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 
-const CounterpartyAccountListItemSchema = z.object({
+const RequisiteListItemSchema = z.object({
   id: z.uuid(),
   currencyId: z.uuid(),
   label: z.string(),
   accountNo: z.string().nullable(),
   iban: z.string().nullable(),
+  address: z.string().nullable().optional(),
+  accountRef: z.string().nullable().optional(),
 });
 
-const CounterpartyAccountsResponseSchema = createPaginatedResponseSchema(
-  CounterpartyAccountListItemSchema,
+const RequisitesResponseSchema = createPaginatedResponseSchema(
+  RequisiteListItemSchema,
 );
 
-export type CounterpartyAccountOption = {
+export type RequisiteOption = {
   id: string;
   label: string;
   currencyId: string;
 };
 
-export async function fetchCounterpartyAccountOptions(input: {
-  counterpartyId: string;
+function resolveQueryKey(ownerType: "counterparty" | "organization") {
+  return ownerType === "organization" ? "organizationId" : "counterpartyId";
+}
+
+function resolveEndpoint(ownerType: "counterparty" | "organization") {
+  return ownerType === "organization"
+    ? "organization-requisites"
+    : "counterparty-requisites";
+}
+
+function buildRequisiteIdentity(item: z.infer<typeof RequisiteListItemSchema>) {
+  return item.accountNo ?? item.iban ?? item.accountRef ?? item.address ?? item.id;
+}
+
+export async function fetchRequisiteOptions(input: {
+  ownerId: string;
+  ownerType: "counterparty" | "organization";
   currencyLabelById: Map<string, string>;
-}): Promise<CounterpartyAccountOption[]> {
+}): Promise<RequisiteOption[]> {
   const query = new URLSearchParams({
     limit: "200",
     offset: "0",
-    counterpartyId: input.counterpartyId,
+    [resolveQueryKey(input.ownerType)]: input.ownerId,
     sortBy: "createdAt",
     sortOrder: "desc",
   });
 
-  const response = await fetch(`${API_URL}/v1/counterparty-accounts?${query.toString()}`, {
-    credentials: "include",
-    cache: "no-store",
-  });
+  const response = await fetch(
+    `${API_URL}/v1/${resolveEndpoint(input.ownerType)}?${query.toString()}`,
+    {
+      credentials: "include",
+      cache: "no-store",
+    },
+  );
 
   if (!response.ok) {
-    throw new Error("Не удалось загрузить счета контрагента");
+    throw new Error("Не удалось загрузить реквизиты");
   }
 
-  const payload = CounterpartyAccountsResponseSchema.parse(await response.json());
+  const payload = RequisitesResponseSchema.parse(await response.json());
 
   return payload.data.map((item) => {
     const currencyLabel = input.currencyLabelById.get(item.currencyId) ?? "";
-    const accountIdentity = item.accountNo ?? item.iban ?? item.id;
+    const identity = buildRequisiteIdentity(item);
 
     return {
       id: item.id,
       currencyId: item.currencyId,
-      label: `${item.label} · ${accountIdentity}${currencyLabel ? ` · ${currencyLabel}` : ""}`,
+      label: `${item.label} · ${identity}${currencyLabel ? ` · ${currencyLabel}` : ""}`,
     };
   });
 }

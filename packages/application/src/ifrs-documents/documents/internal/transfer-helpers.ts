@@ -6,8 +6,8 @@ import { schema as documentsSchema } from "@bedrock/core/documents/schema";
 import { schema as ledgerSchema } from "@bedrock/core/ledger/schema";
 
 import type {
-  CounterpartyAccountBinding,
-  CounterpartyAccountsService,
+  OrganizationRequisiteBinding,
+  OrganizationRequisitesService,
   IfrsDocumentDb,
 } from "./types";
 import {
@@ -28,35 +28,37 @@ export { resolvePendingTransferBookId } from "@bedrock/core/documents/module-kit
 export function normalizeTransferPayload(
   input: TransferIntraInput | TransferIntercompanyInput,
   bindings: {
-    source: CounterpartyAccountBinding;
-    destination: CounterpartyAccountBinding;
+    source: OrganizationRequisiteBinding;
+    destination: OrganizationRequisiteBinding;
   },
 ): TransferIntraPayload | TransferIntercompanyPayload {
   return {
     ...serializeOccurredAt(input),
-    sourceCounterpartyId: bindings.source.counterpartyId,
-    destinationCounterpartyId: bindings.destination.counterpartyId,
+    sourceCounterpartyId: bindings.source.organizationId,
+    destinationCounterpartyId: bindings.destination.organizationId,
     memo: input.memo,
   };
 }
 
 export async function resolveTransferBindings(
-  counterpartyAccountsService: CounterpartyAccountsService,
+  organizationRequisitesService: OrganizationRequisitesService,
   input: {
     sourceCounterpartyAccountId: string;
     destinationCounterpartyAccountId: string;
   },
 ) {
   const [source, destination] =
-    await counterpartyAccountsService.resolveTransferBindings({
-      accountIds: [
+    await organizationRequisitesService.resolveBindings({
+      requisiteIds: [
         input.sourceCounterpartyAccountId,
         input.destinationCounterpartyAccountId,
       ],
     });
 
   if (!source || !destination) {
-    throw new DocumentValidationError("Counterparty account binding is missing");
+    throw new DocumentValidationError(
+      "Organization requisite binding is missing",
+    );
   }
 
   return { source, destination };

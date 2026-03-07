@@ -155,7 +155,7 @@ export function getColumns(
       id: "groupIds",
       accessorFn: (row) => row.groupIds.length,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label="Группы" />
+        <DataTableColumnHeader column={column} label="Группы"/>
       ),
       meta: {
         label: "Группы",

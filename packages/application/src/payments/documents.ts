@@ -39,15 +39,15 @@ const schema = {
 };
 
 interface PaymentBinding {
-  accountId: string;
+  requisiteId: string;
   bookId: string;
-  counterpartyId: string;
+  organizationId: string;
   currencyCode: string;
 }
 
-interface PaymentCounterpartyAccountsService {
-  resolveTransferBindings: (input: {
-    accountIds: string[];
+interface PaymentOrganizationRequisitesService {
+  resolveBindings: (input: {
+    requisiteIds: string[];
   }) => Promise<PaymentBinding[]>;
 }
 
@@ -102,15 +102,15 @@ function requireBinding<T>(value: T | undefined, label: string): T {
 }
 
 async function resolveBindings(
-  counterpartyAccountsService: PaymentCounterpartyAccountsService,
+  organizationRequisitesService: PaymentOrganizationRequisitesService,
   payload: Pick<
     PaymentIntentPayload,
     "sourceCounterpartyAccountId" | "destinationCounterpartyAccountId"
   >,
 ) {
   const [sourceBinding, destinationBinding] =
-    await counterpartyAccountsService.resolveTransferBindings({
-      accountIds: [
+    await organizationRequisitesService.resolveBindings({
+      requisiteIds: [
         payload.sourceCounterpartyAccountId,
         payload.destinationCounterpartyAccountId,
       ],
@@ -220,9 +220,9 @@ async function ensureNoPendingResolution(
 }
 
 export function createPaymentIntentDocumentModule(deps: {
-  counterpartyAccountsService: PaymentCounterpartyAccountsService;
+  organizationRequisitesService: PaymentOrganizationRequisitesService;
 }): DocumentModule<PaymentIntentPayload, PaymentIntentPayload> {
-  const { counterpartyAccountsService } = deps;
+  const { organizationRequisitesService } = deps;
 
   return {
     moduleId: "payment_intent",
@@ -271,7 +271,7 @@ export function createPaymentIntentDocumentModule(deps: {
     },
     async canCreate(_context, input) {
       const bindings = await resolveBindings(
-        counterpartyAccountsService,
+        organizationRequisitesService,
         input,
       );
       if (
@@ -294,7 +294,7 @@ export function createPaymentIntentDocumentModule(deps: {
         document,
       );
       const bindings = await resolveBindings(
-        counterpartyAccountsService,
+        organizationRequisitesService,
         payload,
       );
       if (
@@ -312,7 +312,7 @@ export function createPaymentIntentDocumentModule(deps: {
         document,
       );
       const bindings = await resolveBindings(
-        counterpartyAccountsService,
+        organizationRequisitesService,
         payload,
       );
       const sourceBookId = bindings.source.bookId;
@@ -337,8 +337,8 @@ export function createPaymentIntentDocumentModule(deps: {
                   payload.sourceCounterpartyAccountId,
                 destinationCounterpartyAccountId:
                   payload.destinationCounterpartyAccountId,
-                sourceCounterpartyId: bindings.source.counterpartyId,
-                destinationCounterpartyId: bindings.destination.counterpartyId,
+                sourceCounterpartyId: bindings.source.organizationId,
+                destinationCounterpartyId: bindings.destination.organizationId,
                 direction: payload.direction,
                 corridor: payload.corridor,
               },
@@ -375,7 +375,7 @@ export function createPaymentIntentDocumentModule(deps: {
               sourceCounterpartyAccountId: payload.sourceCounterpartyAccountId,
               destinationCounterpartyAccountId:
                 payload.destinationCounterpartyAccountId,
-              destinationCounterpartyId: bindings.destination.counterpartyId,
+              destinationCounterpartyId: bindings.destination.organizationId,
               direction: payload.direction,
               corridor: payload.corridor,
             },
@@ -401,7 +401,7 @@ export function createPaymentIntentDocumentModule(deps: {
               sourceCounterpartyAccountId: payload.sourceCounterpartyAccountId,
               destinationCounterpartyAccountId:
                 payload.destinationCounterpartyAccountId,
-              sourceCounterpartyId: bindings.source.counterpartyId,
+              sourceCounterpartyId: bindings.source.organizationId,
               direction: payload.direction,
               corridor: payload.corridor,
             },
@@ -444,9 +444,9 @@ export function createPaymentIntentDocumentModule(deps: {
 }
 
 export function createPaymentResolutionDocumentModule(deps: {
-  counterpartyAccountsService: PaymentCounterpartyAccountsService;
+  organizationRequisitesService: PaymentOrganizationRequisitesService;
 }): DocumentModule<PaymentResolutionPayload, PaymentResolutionPayload> {
-  const { counterpartyAccountsService } = deps;
+  const { organizationRequisitesService } = deps;
 
   return {
     moduleId: "payment_resolution",
@@ -561,7 +561,7 @@ export function createPaymentResolutionDocumentModule(deps: {
         dependency,
       );
       const bindings = await resolveBindings(
-        counterpartyAccountsService,
+        organizationRequisitesService,
         intentPayload,
       );
       const pendingTransfers = await getPendingTransferIdsForDocument(

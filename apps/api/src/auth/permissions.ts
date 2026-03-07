@@ -9,7 +9,7 @@ const statements = {
   ...defaultStatements,
   customers: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
-  counterparty_accounts: ["create", "list", "update", "delete"],
+  counterparty_requisites: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
   fx_rates: ["list", "sync"],
   documents: [
@@ -37,6 +37,7 @@ const statements = {
   balances: ["get", "reserve", "release", "consume"],
   users: ["create", "list", "update", "delete"],
   system_modules: ["list", "manage"],
+  organization_requisites: ["create", "list", "update", "delete", "bind"],
 } as const;
 
 export type ResourcePermissions = {
@@ -49,7 +50,7 @@ export const admin = ac.newRole({
   ...adminAc.statements,
   customers: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
-  counterparty_accounts: ["create", "list", "update", "delete"],
+  counterparty_requisites: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
   fx_rates: ["list", "sync"],
   documents: [
@@ -77,13 +78,14 @@ export const admin = ac.newRole({
   balances: ["get", "reserve", "release", "consume"],
   users: ["create", "list", "update", "delete"],
   system_modules: ["list", "manage"],
+  organization_requisites: ["create", "list", "update", "delete", "bind"],
 });
 
 export const user = ac.newRole({
   ...userAc.statements,
   customers: ["create", "list", "update"],
   counterparties: ["create", "list", "update"],
-  counterparty_accounts: ["list"],
+  counterparty_requisites: ["list"],
   currencies: ["list"],
   fx_rates: ["list"],
   documents: ["create", "list", "get", "update", "submit"],
@@ -91,4 +93,5 @@ export const user = ac.newRole({
   accounting: ["list"],
   balances: ["get"],
   system_modules: ["list"],
+  organization_requisites: ["list"],
 });

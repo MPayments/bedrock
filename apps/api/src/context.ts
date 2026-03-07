@@ -9,7 +9,7 @@ import type { AccountingService } from "@bedrock/core/accounting";
 import type { BalancesService } from "@bedrock/core/balances";
 import type { CounterpartiesService } from "@bedrock/core/counterparties";
 import { assertInternalLedgerInvariants } from "@bedrock/core/counterparties";
-import type { CounterpartyAccountsService } from "@bedrock/core/counterparty-accounts";
+import type { CounterpartyRequisitesService } from "@bedrock/core/counterparty-requisites";
 import type { CurrenciesService } from "@bedrock/core/currencies";
 import type { CustomersService } from "@bedrock/core/customers";
 import type { DocumentsService } from "@bedrock/core/documents";
@@ -18,6 +18,7 @@ import {
   createModuleRuntimeService,
   type ModuleRuntimeService,
 } from "@bedrock/core/module-runtime";
+import type { OrganizationRequisitesService } from "@bedrock/core/organization-requisites";
 import type { UsersService } from "@bedrock/core/users";
 import { db } from "@bedrock/db/client";
 import type { Logger } from "@bedrock/kernel";
@@ -61,7 +62,7 @@ export function parseEnv(): Env {
 export interface AppContext {
   env: Env;
   logger: Logger;
-  counterpartyAccountsService: CounterpartyAccountsService;
+  counterpartyRequisitesService: CounterpartyRequisitesService;
   accountingService: AccountingService;
   accountingReportingService: AccountingReportingService;
   counterpartiesService: CounterpartiesService;
@@ -69,6 +70,7 @@ export interface AppContext {
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
+  organizationRequisitesService: OrganizationRequisitesService;
   paymentsService: PaymentsService;
   usersService: UsersService;
   ledgerReadService: LedgerReadService;
@@ -93,13 +95,16 @@ export function createAppContext(env: Env): AppContext {
     accountingService: core.accountingService,
     ledgerReadService: core.ledgerReadService,
     balancesService: core.balancesService,
-    counterpartyAccountsService: applicationServices.counterpartyAccountsService,
+    counterpartyRequisitesService:
+      applicationServices.counterpartyRequisitesService,
     accountingReportingService: applicationServices.accountingReportingService,
     counterpartiesService: applicationServices.counterpartiesService,
     customersService: applicationServices.customersService,
     currenciesService: applicationServices.currenciesService,
     feesService: applicationServices.feesService,
     fxService: applicationServices.fxService,
+    organizationRequisitesService:
+      applicationServices.organizationRequisitesService,
     paymentsService: applicationServices.paymentsService,
     usersService: core.usersService,
     documentsService: applicationServices.documentsService,

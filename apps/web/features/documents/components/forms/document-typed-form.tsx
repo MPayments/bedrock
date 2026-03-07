@@ -37,8 +37,8 @@ import { cn } from "@bedrock/ui/lib/utils";
 import type { UserRole } from "@/lib/auth/types";
 import { isUuid } from "@/lib/resources/http";
 import {
-  fetchCounterpartyAccountOptions,
-  type CounterpartyAccountOption,
+  fetchRequisiteOptions,
+  type RequisiteOption,
 } from "@/features/documents/lib/account-options";
 import {
   getDocumentFormDefinitionForRole,
@@ -92,6 +92,25 @@ function fieldErrorMessage(
 
 function isAccountField(field: DocumentFormField): field is Extract<DocumentFormField, { kind: "account" }> {
   return field.kind === "account";
+}
+
+function resolveOwnerFieldSource(
+  field: Extract<DocumentFormField, { kind: "counterparty" }>,
+) {
+  return field.optionsSource ?? "counterparties";
+}
+
+function resolveRequisiteFieldSource(
+  field: Extract<DocumentFormField, { kind: "account" }>,
+) {
+  return field.optionsSource ?? "counterpartyRequisites";
+}
+
+function resolveOwnerKey(input: {
+  ownerId: string;
+  requisiteSource: "counterpartyRequisites" | "organizationRequisites";
+}) {
+  return `${input.requisiteSource}:${input.ownerId}`;
 }
 
 function readValueAsString(input: unknown): string {
@@ -267,13 +286,13 @@ export function DocumentTypedForm({
   const watchedValues = useWatch({ control });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [accountsByCounterpartyId, setAccountsByCounterpartyId] = useState(
-    new Map<string, CounterpartyAccountOption[]>(),
+  const [requisitesByOwnerKey, setRequisitesByOwnerKey] = useState(
+    new Map<string, RequisiteOption[]>(),
   );
-  const [loadingCounterpartyIds, setLoadingCounterpartyIds] = useState(
+  const [loadingOwnerKeys, setLoadingOwnerKeys] = useState(
     new Set<string>(),
   );
-  const loadingIdsRef = useRef(new Set<string>());
+  const loadingOwnerKeysRef = useRef(new Set<string>());
 
   const accountFields = useMemo(() => {
     if (!definition) {
@@ -309,10 +328,18 @@ export function DocumentTypedForm({
       })),
     [options.counterparties],
   );
+  const organizationSelectOptions = useMemo(
+    () =>
+      options.organizations.map((organization) => ({
+        value: organization.id,
+        label: organization.label,
+      })),
+    [options.organizations],
+  );
   const accountCurrencyCodeById = useMemo(() => {
     const next = new Map<string, string>();
 
-    for (const accountOptions of accountsByCounterpartyId.values()) {
+    for (const accountOptions of requisitesByOwnerKey.values()) {
       for (const option of accountOptions) {
         const currencyCode = currencyCodeById.get(option.currencyId);
         if (currencyCode) {
@@ -322,7 +349,7 @@ export function DocumentTypedForm({
     }
 
     return next;
-  }, [accountsByCounterpartyId, currencyCodeById]);
+  }, [currencyCodeById, requisitesByOwnerKey]);
   const derivedFields = useMemo(() => {
     if (!definition) {
       return [] as DocumentFormField[];
@@ -343,34 +370,43 @@ export function DocumentTypedForm({
     }
 
     for (const field of accountFields) {
-      const counterpartyId = readValueAsString(
+      const ownerId = readValueAsString(
         watchedValues?.[field.counterpartyField],
       ).trim();
+      const requisiteSource = resolveRequisiteFieldSource(field);
+      const ownerKey = resolveOwnerKey({
+        ownerId,
+        requisiteSource,
+      });
 
-      if (!isUuid(counterpartyId)) {
+      if (!isUuid(ownerId)) {
         continue;
       }
 
       if (
-        accountsByCounterpartyId.has(counterpartyId) ||
-        loadingIdsRef.current.has(counterpartyId)
+        requisitesByOwnerKey.has(ownerKey) ||
+        loadingOwnerKeysRef.current.has(ownerKey)
       ) {
         continue;
       }
 
-      loadingIdsRef.current.add(counterpartyId);
-      setLoadingCounterpartyIds(
-        (current) => new Set([...current, counterpartyId]),
+      loadingOwnerKeysRef.current.add(ownerKey);
+      setLoadingOwnerKeys(
+        (current) => new Set([...current, ownerKey]),
       );
 
-      fetchCounterpartyAccountOptions({
-        counterpartyId,
+      fetchRequisiteOptions({
+        ownerId,
+        ownerType:
+          requisiteSource === "organizationRequisites"
+            ? "organization"
+            : "counterparty",
         currencyLabelById,
       })
         .then((accountOptions) => {
-          setAccountsByCounterpartyId((current) => {
+          setRequisitesByOwnerKey((current) => {
             const next = new Map(current);
-            next.set(counterpartyId, accountOptions);
+            next.set(ownerKey, accountOptions);
             return next;
           });
         })
@@ -378,19 +414,19 @@ export function DocumentTypedForm({
           toast.error(
             error instanceof Error
               ? error.message
-              : "Не удалось загрузить счета контрагента",
+              : "Не удалось загрузить реквизиты",
           );
         })
         .finally(() => {
-          loadingIdsRef.current.delete(counterpartyId);
-          setLoadingCounterpartyIds((current) => {
+          loadingOwnerKeysRef.current.delete(ownerKey);
+          setLoadingOwnerKeys((current) => {
             const next = new Set(current);
-            next.delete(counterpartyId);
+            next.delete(ownerKey);
             return next;
           });
         });
     }
-  }, [accountFields, accountsByCounterpartyId, currencyLabelById, definition, watchedValues]);
+  }, [accountFields, currencyLabelById, definition, requisitesByOwnerKey, watchedValues]);
 
   useEffect(() => {
     for (const field of derivedFields) {
@@ -710,6 +746,20 @@ export function DocumentTypedForm({
                         }
 
                         if (field.kind === "counterparty") {
+                          const ownerSource = resolveOwnerFieldSource(field);
+                          const ownerOptions =
+                            ownerSource === "organizations"
+                              ? options.organizations
+                              : options.counterparties;
+                          const ownerSelectOptions =
+                            ownerSource === "organizations"
+                              ? organizationSelectOptions
+                              : counterpartySelectOptions;
+                          const ownerNoun =
+                            ownerSource === "organizations"
+                              ? "организацию"
+                              : "контрагента";
+
                           return (
                             <Field
                               key={field.name}
@@ -735,15 +785,15 @@ export function DocumentTypedForm({
                                     }}
                                   >
                                     <SelectTrigger id={`document-field-${field.name}`}>
-                                      <SelectValue placeholder="Выберите контрагента">
+                                      <SelectValue placeholder={`Выберите ${ownerNoun}`}>
                                         {findSelectedLabel(
                                           controlledField.value,
-                                          counterpartySelectOptions,
+                                          ownerSelectOptions,
                                         )}
                                       </SelectValue>
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {options.counterparties.map((option) => (
+                                      {ownerOptions.map((option) => (
                                         <SelectItem key={option.id} value={option.id}>
                                           {option.label}
                                         </SelectItem>
@@ -760,14 +810,23 @@ export function DocumentTypedForm({
                         }
 
                         if (field.kind === "account") {
-                          const counterpartyId = readValueAsString(
+                          const ownerId = readValueAsString(
                             watchedValues?.[field.counterpartyField],
                           ).trim();
-                          const accountOptions = isUuid(counterpartyId)
-                            ? (accountsByCounterpartyId.get(counterpartyId) ?? [])
+                          const requisiteSource = resolveRequisiteFieldSource(field);
+                          const ownerKey = resolveOwnerKey({
+                            ownerId,
+                            requisiteSource,
+                          });
+                          const accountOptions = isUuid(ownerId)
+                            ? (requisitesByOwnerKey.get(ownerKey) ?? [])
                             : [];
-                          const isLoading = loadingCounterpartyIds.has(counterpartyId);
-                          const hasCounterparty = isUuid(counterpartyId);
+                          const isLoading = loadingOwnerKeys.has(ownerKey);
+                          const hasOwner = isUuid(ownerId);
+                          const ownerNoun =
+                            requisiteSource === "organizationRequisites"
+                              ? "организацию"
+                              : "контрагента";
                           const accountSelectOptions = accountOptions.map((option) => ({
                             value: option.id,
                             label: option.label,
@@ -794,7 +853,7 @@ export function DocumentTypedForm({
                                     disabled={
                                       disabled ||
                                       submitting ||
-                                      !hasCounterparty ||
+                                      !hasOwner ||
                                       isLoading ||
                                       accountOptions.length === 0
                                     }
@@ -805,11 +864,11 @@ export function DocumentTypedForm({
                                     <SelectTrigger id={`document-field-${field.name}`}>
                                       <SelectValue
                                         placeholder={
-                                          !hasCounterparty
-                                            ? "Сначала выберите контрагента"
+                                          !hasOwner
+                                            ? `Сначала выберите ${ownerNoun}`
                                             : isLoading
-                                              ? "Загрузка счетов..."
-                                              : "Выберите счет"
+                                              ? "Загрузка реквизитов..."
+                                              : "Выберите реквизит"
                                         }
                                       >
                                         {findSelectedLabel(

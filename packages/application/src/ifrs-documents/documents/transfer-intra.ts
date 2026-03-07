@@ -29,7 +29,7 @@ import type { IfrsModuleDeps } from "./internal/types";
 export function createTransferIntraDocumentModule(
   deps: IfrsModuleDeps,
 ): DocumentModule<TransferIntraInput, TransferIntraInput> {
-  const { counterpartyAccountsService } = deps;
+  const { organizationRequisitesService } = deps;
 
   return {
     moduleId: "transfer_intra",
@@ -44,20 +44,26 @@ export function createTransferIntraDocumentModule(
     allowDirectPostFromDraft: true,
     approvalRequired: () => false,
     async createDraft(_context, input) {
-      const bindings = await resolveTransferBindings(counterpartyAccountsService, input);
-      if (bindings.source.counterpartyId !== bindings.destination.counterpartyId) {
+      const bindings = await resolveTransferBindings(
+        organizationRequisitesService,
+        input,
+      );
+      if (bindings.source.organizationId !== bindings.destination.organizationId) {
         throw new DocumentValidationError(
-          "transfer_intra requires source and destination accounts from the same counterparty",
+          "transfer_intra requires source and destination requisites from the same organization",
         );
       }
 
       return buildDocumentDraft(input, normalizeTransferPayload(input, bindings));
     },
     async updateDraft(_context, _document, input) {
-      const bindings = await resolveTransferBindings(counterpartyAccountsService, input);
-      if (bindings.source.counterpartyId !== bindings.destination.counterpartyId) {
+      const bindings = await resolveTransferBindings(
+        organizationRequisitesService,
+        input,
+      );
+      if (bindings.source.organizationId !== bindings.destination.organizationId) {
         throw new DocumentValidationError(
-          "transfer_intra requires source and destination accounts from the same counterparty",
+          "transfer_intra requires source and destination requisites from the same organization",
         );
       }
 
@@ -86,15 +92,18 @@ export function createTransferIntraDocumentModule(
       };
     },
     async canCreate(_context, input) {
-      const bindings = await resolveTransferBindings(counterpartyAccountsService, input);
+      const bindings = await resolveTransferBindings(
+        organizationRequisitesService,
+        input,
+      );
       ensureTransferCurrencies({
         payloadCurrency: input.currency,
         sourceCurrency: bindings.source.currencyCode,
         destinationCurrency: bindings.destination.currencyCode,
       });
-      if (bindings.source.counterpartyId !== bindings.destination.counterpartyId) {
+      if (bindings.source.organizationId !== bindings.destination.organizationId) {
         throw new DocumentValidationError(
-          "transfer_intra requires accounts from the same counterparty",
+          "transfer_intra requires requisites from the same organization",
         );
       }
     },
@@ -105,7 +114,10 @@ export function createTransferIntraDocumentModule(
     async canCancel() {},
     async canPost(_context, document) {
       const payload = parseDocumentPayload(TransferIntraPayloadSchema, document);
-      const bindings = await resolveTransferBindings(counterpartyAccountsService, payload);
+      const bindings = await resolveTransferBindings(
+        organizationRequisitesService,
+        payload,
+      );
       ensureTransferCurrencies({
         payloadCurrency: payload.currency,
         sourceCurrency: bindings.source.currencyCode,
@@ -120,7 +132,10 @@ export function createTransferIntraDocumentModule(
     },
     async buildPostingPlan(_context, document) {
       const payload = parseDocumentPayload(TransferIntraPayloadSchema, document);
-      const bindings = await resolveTransferBindings(counterpartyAccountsService, payload);
+      const bindings = await resolveTransferBindings(
+        organizationRequisitesService,
+        payload,
+      );
 
       if (bindings.source.bookId !== bindings.destination.bookId) {
         throw new DocumentValidationError(

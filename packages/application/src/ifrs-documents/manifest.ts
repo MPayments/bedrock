@@ -24,8 +24,8 @@ export const IFRS_DOCUMENTS_MODULE_MANIFEST = {
       reason: "IFRS workflows are executed through the documents runtime",
     },
     {
-      moduleId: "counterparty-accounts",
-      reason: "Transfer and funding modules resolve counterparty account bindings",
+      moduleId: "organization-requisites",
+      reason: "Transfer and funding modules resolve organization requisite bindings",
     },
   ],
 } as const satisfies ModuleManifest;

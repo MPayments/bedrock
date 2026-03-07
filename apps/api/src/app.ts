@@ -27,15 +27,15 @@ import { createModuleGuard } from "./middleware/module-guard";
 import { requestContextMiddleware } from "./middleware/request-context";
 import {
   accountingRoutes,
-  counterpartyAccountProvidersRoutes,
-  counterpartyAccountsRoutes,
   balancesRoutes,
   counterpartiesRoutes,
+  counterpartyRequisitesRoutes,
   counterpartyGroupsRoutes,
   customersRoutes,
   currenciesRoutes,
   documentsRoutes,
   fxRatesRoutes,
+  organizationRequisitesRoutes,
   paymentsRoutes,
   profileRoutes,
   systemModulesRoutes,
@@ -264,14 +264,14 @@ function buildV1Router(
 
 const TYPED_ROUTE_PATHS = [
   "/accounting",
-  "/counterparty-account-providers",
-  "/counterparty-accounts",
+  "/counterparty-requisites",
   "/balances",
   "/counterparties",
   "/counterparty-groups",
   "/customers",
   "/currencies",
   "/documents",
+  "/organization-requisites",
   "/payments",
   "/fx/rates",
   "/system/modules",
@@ -297,17 +297,14 @@ assertTypedRouteCoverage();
 
 const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/accounting", accountingRoutes(ctx))
-  .route(
-    "/counterparty-account-providers",
-    counterpartyAccountProvidersRoutes(ctx),
-  )
-  .route("/counterparty-accounts", counterpartyAccountsRoutes(ctx))
+  .route("/counterparty-requisites", counterpartyRequisitesRoutes(ctx))
   .route("/balances", balancesRoutes(ctx))
   .route("/counterparties", counterpartiesRoutes(ctx))
   .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
   .route("/documents", documentsRoutes(ctx))
+  .route("/organization-requisites", organizationRequisitesRoutes(ctx))
   .route("/payments", paymentsRoutes(ctx))
   .route("/fx/rates", fxRatesRoutes(ctx))
   .route("/system/modules", systemModulesRoutes(ctx))

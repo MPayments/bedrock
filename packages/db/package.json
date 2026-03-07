@@ -26,6 +26,7 @@
     "db:seed:counterparties": "tsx ./src/seeds/run-counterparties.ts",
     "db:seed:counterparty-account-providers": "tsx ./src/seeds/run-counterparty-account-providers.ts",
     "db:seed:counterparty-accounts": "tsx ./src/seeds/run-counterparty-accounts.ts",
+    "db:seed:requisites": "tsx ./src/seeds/run-requisites.ts",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {

@@ -1,5 +1,5 @@
-import { CreateProviderFormClient } from "@/features/entities/counterparty-account-providers/components/create-provider-form-client";
+import { redirect } from "next/navigation";
 
-export default function CreateProviderPage() {
-  return <CreateProviderFormClient />;
+export default function LegacyCreateProviderPage() {
+  redirect("/entities/counterparty-requisites");
 }

@@ -19,6 +19,11 @@ type DocumentFormFieldBase = {
   };
 };
 
+type DocumentFormOwnerOptionsSource = "counterparties" | "organizations";
+type DocumentFormRequisiteOptionsSource =
+  | "counterpartyRequisites"
+  | "organizationRequisites";
+
 type DocumentFormFieldInput =
   | (DocumentFormFieldBase & {
       kind: "datetime" | "date" | "month" | "text" | "amount";
@@ -37,11 +42,16 @@ type DocumentFormFieldInput =
       options: DocumentFormFieldOption[];
     })
   | (DocumentFormFieldBase & {
-      kind: "counterparty" | "currency";
+      kind: "counterparty";
+      optionsSource?: DocumentFormOwnerOptionsSource;
+    })
+  | (DocumentFormFieldBase & {
+      kind: "currency";
     })
   | (DocumentFormFieldBase & {
       kind: "account";
       counterpartyField: string;
+      optionsSource?: DocumentFormRequisiteOptionsSource;
     });
 
 export type DocumentFormField = DocumentFormFieldInput;

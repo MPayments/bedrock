@@ -63,7 +63,7 @@ function resolveCapitalFundingEntryRef(input: {
 export function createCapitalFundingDocumentModule(
   deps: IfrsModuleDeps,
 ): DocumentModule<CapitalFundingInput, CapitalFundingInput> {
-  const { counterpartyAccountsService } = deps;
+  const { organizationRequisitesService } = deps;
 
   return {
     moduleId: "capital_funding",
@@ -104,6 +104,7 @@ export function createCapitalFundingDocumentModule(
           document.docType,
           payload.kind,
           payload.entryRef,
+          payload.organizationId ?? "",
           payload.counterpartyId,
           payload.counterpartyAccountId,
         ]
@@ -112,15 +113,20 @@ export function createCapitalFundingDocumentModule(
       };
     },
     async canCreate(_context, input) {
-      const [binding] = await counterpartyAccountsService.resolveTransferBindings({
-        accountIds: [input.counterpartyAccountId],
+      const [binding] = await organizationRequisitesService.resolveBindings({
+        requisiteIds: [input.counterpartyAccountId],
       });
       if (!binding) {
-        throw new DocumentValidationError("Counterparty account binding is missing");
-      }
-      if (binding.counterpartyId !== input.counterpartyId) {
         throw new DocumentValidationError(
-          "counterpartyId does not match counterpartyAccountId owner",
+          "Organization requisite binding is missing",
+        );
+      }
+      if (
+        input.organizationId &&
+        binding.organizationId !== input.organizationId
+      ) {
+        throw new DocumentValidationError(
+          "organizationId does not match selected organization requisite",
         );
       }
       if (binding.currencyCode !== input.currency) {
@@ -136,15 +142,20 @@ export function createCapitalFundingDocumentModule(
     async canCancel() {},
     async canPost(_context, document) {
       const payload = parseDocumentPayload(CapitalFundingPayloadSchema, document);
-      const [binding] = await counterpartyAccountsService.resolveTransferBindings({
-        accountIds: [payload.counterpartyAccountId],
+      const [binding] = await organizationRequisitesService.resolveBindings({
+        requisiteIds: [payload.counterpartyAccountId],
       });
       if (!binding) {
-        throw new DocumentValidationError("Counterparty account binding is missing");
-      }
-      if (binding.counterpartyId !== payload.counterpartyId) {
         throw new DocumentValidationError(
-          "counterpartyId does not match counterpartyAccountId owner",
+          "Organization requisite binding is missing",
+        );
+      }
+      if (
+        payload.organizationId &&
+        binding.organizationId !== payload.organizationId
+      ) {
+        throw new DocumentValidationError(
+          "organizationId does not match selected organization requisite",
         );
       }
       if (binding.currencyCode !== payload.currency) {
@@ -155,13 +166,15 @@ export function createCapitalFundingDocumentModule(
     },
     async buildPostingPlan(_context, document) {
       const payload = parseDocumentPayload(CapitalFundingPayloadSchema, document);
-      const [binding] = await counterpartyAccountsService.resolveTransferBindings({
-        accountIds: [payload.counterpartyAccountId],
+      const [binding] = await organizationRequisitesService.resolveBindings({
+        requisiteIds: [payload.counterpartyAccountId],
       });
       const entryRef = resolveCapitalFundingEntryRef({ document, payload });
 
       if (!binding) {
-        throw new DocumentValidationError("Counterparty account binding is missing");
+        throw new DocumentValidationError(
+          "Organization requisite binding is missing",
+        );
       }
 
       return buildDocumentPostingPlan({

@@ -8,36 +8,38 @@ import {
   CardHeader,
   CardTitle,
 } from "@bedrock/ui/components/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@bedrock/ui/components/table";
 
 import {
   getAccountingOrgOptions,
   getBalanceSheet,
   getCashFlow,
   getClosePackage,
+  getCounterpartyGroupOptions,
   getFeeRevenue,
   getFxRevaluation,
   getGeneralLedger,
   getIncomeStatement,
   getLiquidity,
   getTrialBalance,
-  getCounterpartyGroupOptions,
   type AccountingReportKey,
 } from "@/features/accounting/lib/queries";
+
+import {
+  buildReportOverviewCards,
+  buildReportSections,
+  ReportOverviewCards,
+  ReportSectionTable,
+} from "./report-presenter";
 
 interface AccountingReportPageProps {
   params: Promise<{ report: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-const REPORT_META: Record<AccountingReportKey, { title: string; description: string }> = {
+const REPORT_META: Record<
+  AccountingReportKey,
+  { title: string; description: string }
+> = {
   "trial-balance": {
     title: "Оборотно-сальдовая ведомость (ОСВ)",
     description:
@@ -65,11 +67,13 @@ const REPORT_META: Record<AccountingReportKey, { title: string; description: str
   },
   "fx-revaluation": {
     title: "Переоценка валютных позиций",
-    description: "Реализованный и нереализованный результат по курсовым разницам.",
+    description:
+      "Реализованный и нереализованный результат по курсовым разницам.",
   },
   "fee-revenue": {
     title: "Анализ комиссионных доходов",
-    description: "Разбивка комиссионной выручки по продукту, каналу и контрагенту.",
+    description:
+      "Разбивка комиссионной выручки по продукту, каналу и контрагенту.",
   },
   "close-package": {
     title: "Пакет закрытия периода",
@@ -103,76 +107,6 @@ function getMultiParam(
 
 function isReportKey(value: string): value is AccountingReportKey {
   return value in REPORT_META;
-}
-
-function toDisplay(value: unknown) {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
-
-  return String(value);
-}
-
-function asObjectRows(value: unknown): Record<string, unknown>[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.filter((item): item is Record<string, unknown> => {
-    return Boolean(item) && typeof item === "object" && !Array.isArray(item);
-  });
-}
-
-function ResultTable({
-  title,
-  rows,
-}: {
-  title: string;
-  rows: Record<string, unknown>[];
-}) {
-  const columns = rows.length === 0 ? [] : Object.keys(rows[0]!);
-
-  return (
-    <Card className="rounded-sm">
-      <CardHeader className="border-b">
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="pt-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {columns.map((column) => (
-                <TableHead key={column}>{column}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell className="text-muted-foreground h-12 text-center" colSpan={1}>
-                  Данные отсутствуют
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((row, index) => (
-                <TableRow key={index}>
-                  {columns.map((column) => (
-                    <TableCell key={column} className="align-top">
-                      {toDisplay(row[column])}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
 }
 
 function buildPageHref(
@@ -237,7 +171,8 @@ export default async function AccountingReportPage({
       ? "false"
       : "true";
   const attributionMode =
-    getFirstParam(rawSearchParams, "attributionMode") ?? "analytic_counterparty";
+    getFirstParam(rawSearchParams, "attributionMode") ??
+    "analytic_counterparty";
   const includeUnattributed =
     getFirstParam(rawSearchParams, "includeUnattributed") === "true"
       ? "true"
@@ -250,19 +185,23 @@ export default async function AccountingReportPage({
   const accountNo = getMultiParam(rawSearchParams, "accountNo");
   const status = getMultiParam(rawSearchParams, "status");
   const statuses = status.length > 0 ? status : ["posted"];
-  const periodStart = getFirstParam(rawSearchParams, "periodStart") ?? monthStartIso;
+  const periodStart =
+    getFirstParam(rawSearchParams, "periodStart") ?? monthStartIso;
   const page = Number(getFirstParam(rawSearchParams, "page") ?? "1");
   const perPage = Number(getFirstParam(rawSearchParams, "perPage") ?? "20");
-  const normalizedPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+  const normalizedPage =
+    Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
   const normalizedPerPage =
-    Number.isFinite(perPage) && perPage > 0 ? Math.min(Math.floor(perPage), 200) : 20;
+    Number.isFinite(perPage) && perPage > 0
+      ? Math.min(Math.floor(perPage), 200)
+      : 20;
   const offset = (normalizedPage - 1) * normalizedPerPage;
 
   const queryBase: Record<string, string | string[]> = {
-    scopeType,
-    includeDescendants,
     attributionMode,
+    includeDescendants,
     includeUnattributed,
+    scopeType,
     status: statuses,
   };
 
@@ -292,9 +231,9 @@ export default async function AccountingReportPage({
         requestQuery = {
           ...queryBase,
           from,
-          to,
           limit: String(normalizedPerPage),
           offset: String(offset),
+          to,
         };
         payload = await getTrialBalance(requestQuery);
         break;
@@ -302,11 +241,11 @@ export default async function AccountingReportPage({
       case "general-ledger": {
         requestQuery = {
           ...queryBase,
-          from,
-          to,
           accountNo: accountNo.length > 0 ? accountNo : ["1110"],
+          from,
           limit: String(normalizedPerPage),
           offset: String(offset),
+          to,
         };
         payload = await getGeneralLedger(requestQuery);
         break;
@@ -332,8 +271,8 @@ export default async function AccountingReportPage({
         requestQuery = {
           ...queryBase,
           from,
-          to,
           method,
+          to,
         };
         payload = await getCashFlow(requestQuery);
         break;
@@ -361,9 +300,9 @@ export default async function AccountingReportPage({
         requestQuery = {
           ...queryBase,
           from,
-          to,
           limit: String(normalizedPerPage),
           offset: String(offset),
+          to,
         };
         payload = await getFeeRevenue(requestQuery);
         break;
@@ -396,29 +335,35 @@ export default async function AccountingReportPage({
 
     csvParams.set(key, value);
   }
+
   const csvHref = `/v1/accounting/reports/${report}/export${
     csvParams.size > 0 ? `?${csvParams.toString()}` : ""
   }`;
 
-  const dataRows = asObjectRows(payload?.data);
-  const summaryRows = asObjectRows(payload?.summaryByCurrency);
-  const checksRows = asObjectRows(payload?.checks);
-  const openingRows = asObjectRows(payload?.openingBalances);
-  const closingRows = asObjectRows(payload?.closingBalances);
-  const adjustmentsRows = asObjectRows(payload?.adjustments);
-  const auditRows = asObjectRows(payload?.auditEvents);
-  const closeTbRows = asObjectRows(payload?.trialBalanceSummaryByCurrency);
-  const closeIncomeRows = asObjectRows(payload?.incomeStatementSummaryByCurrency);
-  const closeCashRows = asObjectRows(payload?.cashFlowSummaryByCurrency);
+  const presentationContext = {
+    accountNo,
+    asOf,
+    from,
+    method,
+    periodStart,
+    to,
+  };
+  const overviewCards = buildReportOverviewCards(
+    report,
+    payload,
+    presentationContext,
+  );
+  const sections = buildReportSections(report, payload, presentationContext);
 
   const total = typeof payload?.total === "number" ? payload.total : 0;
-  const limit = typeof payload?.limit === "number" ? payload.limit : normalizedPerPage;
+  const limit =
+    typeof payload?.limit === "number" ? payload.limit : normalizedPerPage;
   const currentPage = normalizedPage;
   const totalPages = Math.max(1, Math.ceil(total / Math.max(limit, 1)));
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card className="rounded-sm">
+    <div className="flex min-w-0 flex-col gap-4">
+      <Card className="min-w-0 rounded-sm">
         <CardHeader className="border-b">
           <CardTitle>{meta.title}</CardTitle>
           <CardDescription>{meta.description}</CardDescription>
@@ -490,7 +435,10 @@ export default async function AccountingReportPage({
               />
             </div>
             <div className="grid gap-1">
-              <label htmlFor="includeDescendants" className="text-sm font-medium">
+              <label
+                htmlFor="includeDescendants"
+                className="text-sm font-medium"
+              >
                 Включая дочерние группы
               </label>
               <select
@@ -513,12 +461,17 @@ export default async function AccountingReportPage({
                 defaultValue={attributionMode}
                 className="border-input bg-background h-9 rounded-md border px-3 text-sm"
               >
-                <option value="analytic_counterparty">Аналитика контрагента</option>
+                <option value="analytic_counterparty">
+                  Аналитика контрагента
+                </option>
                 <option value="book_org">Организация книги</option>
               </select>
             </div>
             <div className="grid gap-1">
-              <label htmlFor="includeUnattributed" className="text-sm font-medium">
+              <label
+                htmlFor="includeUnattributed"
+                className="text-sm font-medium"
+              >
                 Включать неатрибутированные
               </label>
               <select
@@ -659,50 +612,51 @@ export default async function AccountingReportPage({
       </Card>
 
       {queryError ? (
-        <Card className="rounded-sm">
+        <Card className="min-w-0 rounded-sm">
           <CardHeader className="border-b">
-            <CardTitle className="text-base text-red-600">Ошибка запроса</CardTitle>
+            <CardTitle className="text-base text-red-600">
+              Ошибка запроса
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-4 text-sm">{queryError}</CardContent>
         </Card>
       ) : null}
 
-      {dataRows.length > 0 ? <ResultTable title="Данные" rows={dataRows} /> : null}
-      {summaryRows.length > 0 ? <ResultTable title="Итоги по валютам" rows={summaryRows} /> : null}
-      {checksRows.length > 0 ? <ResultTable title="Контрольные проверки" rows={checksRows} /> : null}
-      {openingRows.length > 0 ? <ResultTable title="Входящие остатки" rows={openingRows} /> : null}
-      {closingRows.length > 0 ? <ResultTable title="Исходящие остатки" rows={closingRows} /> : null}
-      {closeTbRows.length > 0 ? (
-        <ResultTable title="Пакет закрытия: итоги ОСВ" rows={closeTbRows} />
-      ) : null}
-      {closeIncomeRows.length > 0 ? (
-        <ResultTable title="Пакет закрытия: итоги ОФР" rows={closeIncomeRows} />
-      ) : null}
-      {closeCashRows.length > 0 ? (
-        <ResultTable title="Пакет закрытия: итоги ОДДС" rows={closeCashRows} />
-      ) : null}
-      {adjustmentsRows.length > 0 ? (
-        <ResultTable title="Пакет закрытия: корректировки" rows={adjustmentsRows} />
-      ) : null}
-      {auditRows.length > 0 ? (
-        <ResultTable title="Пакет закрытия: события аудита" rows={auditRows} />
-      ) : null}
+      {!queryError ? <ReportOverviewCards cards={overviewCards} /> : null}
+
+      {!queryError
+        ? sections.map((section) => (
+            <ReportSectionTable
+              key={`${report}:${section.id}`}
+              report={report}
+              section={section}
+            />
+          ))
+        : null}
 
       {total > 0 ? (
-        <Card className="rounded-sm">
+        <Card className="min-w-0 rounded-sm">
           <CardContent className="flex items-center justify-between pt-4">
             <p className="text-sm">
               Строк: {total} | Страница {currentPage} из {totalPages}
             </p>
             <div className="flex gap-2">
               <Link
-                href={buildPageHref(report, rawSearchParams, Math.max(1, currentPage - 1))}
+                href={buildPageHref(
+                  report,
+                  rawSearchParams,
+                  Math.max(1, currentPage - 1),
+                )}
                 className="border-input bg-background rounded-md border px-3 py-1 text-sm"
               >
                 Назад
               </Link>
               <Link
-                href={buildPageHref(report, rawSearchParams, Math.min(totalPages, currentPage + 1))}
+                href={buildPageHref(
+                  report,
+                  rawSearchParams,
+                  Math.min(totalPages, currentPage + 1),
+                )}
                 className="border-input bg-background rounded-md border px-3 py-1 text-sm"
               >
                 Вперед

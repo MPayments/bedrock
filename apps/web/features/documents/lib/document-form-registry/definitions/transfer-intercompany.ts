@@ -28,24 +28,28 @@ export function createTransferIntercompanyDefinition(): DocumentFormDefinition {
           {
             kind: "counterparty",
             name: "sourceCounterpartyId",
-            label: "Контрагент источник",
+            label: "Организация источник",
+            optionsSource: "organizations",
           },
           {
             kind: "account",
             name: "sourceCounterpartyAccountId",
-            label: "Счет источник",
+            label: "Реквизит источник",
             counterpartyField: "sourceCounterpartyId",
+            optionsSource: "organizationRequisites",
           },
           {
             kind: "counterparty",
             name: "destinationCounterpartyId",
-            label: "Контрагент назначение",
+            label: "Организация назначение",
+            optionsSource: "organizations",
           },
           {
             kind: "account",
             name: "destinationCounterpartyAccountId",
-            label: "Счет назначение",
+            label: "Реквизит назначение",
             counterpartyField: "destinationCounterpartyId",
+            optionsSource: "organizationRequisites",
           },
         ],
         layout: {

@@ -16,9 +16,9 @@ import {
   type CounterpartiesService,
 } from "@bedrock/core/counterparties";
 import {
-  createCounterpartyAccountsService,
-  type CounterpartyAccountsService,
-} from "@bedrock/core/counterparty-accounts";
+  createCounterpartyRequisitesService,
+  type CounterpartyRequisitesService,
+} from "@bedrock/core/counterparty-requisites";
 import {
   createCurrenciesService,
   type CurrenciesService,
@@ -32,18 +32,23 @@ import {
   createDocumentsService,
   type DocumentsService,
 } from "@bedrock/core/documents";
+import {
+  createOrganizationRequisitesService,
+  type OrganizationRequisitesService,
+} from "@bedrock/core/organization-requisites";
 import { db } from "@bedrock/db/client";
 
 import type { ApiCoreServices } from "./core";
 
 export interface ApiApplicationServices {
-  counterpartyAccountsService: CounterpartyAccountsService;
+  counterpartyRequisitesService: CounterpartyRequisitesService;
   accountingReportingService: AccountingReportingService;
   counterpartiesService: CounterpartiesService;
   customersService: CustomersService;
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
+  organizationRequisitesService: OrganizationRequisitesService;
   paymentsService: PaymentsService;
   documentsService: DocumentsService;
 }
@@ -53,7 +58,7 @@ export function createApplicationServices(
 ): ApiApplicationServices {
   const { accountingService, ledger, ledgerReadService, logger } = platform;
 
-  const counterpartyAccountsService = createCounterpartyAccountsService({
+  const counterpartyRequisitesService = createCounterpartyRequisitesService({
     db,
     logger,
   });
@@ -72,15 +77,19 @@ export function createApplicationServices(
     feesService,
     currenciesService,
   });
+  const organizationRequisitesService = createOrganizationRequisitesService({
+    db,
+    logger,
+  });
   const documentRegistry = createDocumentRegistry([
     ...createIfrsDocumentModules({
-      counterpartyAccountsService,
+      organizationRequisitesService,
     }),
     createPaymentIntentDocumentModule({
-      counterpartyAccountsService,
+      organizationRequisitesService,
     }),
     createPaymentResolutionDocumentModule({
-      counterpartyAccountsService,
+      organizationRequisitesService,
     }),
   ]);
   const documentsService = createDocumentsService({
@@ -97,13 +106,14 @@ export function createApplicationServices(
   });
 
   return {
-    counterpartyAccountsService,
+    counterpartyRequisitesService,
     accountingReportingService,
     counterpartiesService,
     customersService,
     currenciesService,
     feesService,
     fxService,
+    organizationRequisitesService,
     paymentsService,
     documentsService,
   };

@@ -3,15 +3,15 @@ import type { BedrockModuleId } from "@bedrock/application/module-runtime";
 import type { AppContext } from "../context";
 import {
   accountingRoutes,
-  counterpartyAccountProvidersRoutes,
-  counterpartyAccountsRoutes,
   balancesRoutes,
   counterpartiesRoutes,
+  counterpartyRequisitesRoutes,
   counterpartyGroupsRoutes,
   customersRoutes,
   currenciesRoutes,
   documentsRoutes,
   fxRatesRoutes,
+  organizationRequisitesRoutes,
   paymentsRoutes,
   systemModulesRoutes,
 } from "../routes";
@@ -31,21 +31,13 @@ export const accountingModule = {
   },
 } as const satisfies ApiApplicationModule<"/accounting">;
 
-export const counterpartyAccountProvidersModule = {
-  id: "counterparty-account-providers",
-  routePath: "/counterparty-account-providers",
+export const counterpartyRequisitesModule = {
+  id: "counterparty-requisites",
+  routePath: "/counterparty-requisites",
   registerRoutes(ctx: AppContext) {
-    return counterpartyAccountProvidersRoutes(ctx);
+    return counterpartyRequisitesRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/counterparty-account-providers">;
-
-export const counterpartyAccountsModule = {
-  id: "counterparty-accounts",
-  routePath: "/counterparty-accounts",
-  registerRoutes(ctx: AppContext) {
-    return counterpartyAccountsRoutes(ctx);
-  },
-} as const satisfies ApiApplicationModule<"/counterparty-accounts">;
+} as const satisfies ApiApplicationModule<"/counterparty-requisites">;
 
 export const balancesModule = {
   id: "balances",
@@ -111,6 +103,14 @@ export const paymentsModule = {
   },
 } as const satisfies ApiApplicationModule<"/payments">;
 
+export const organizationRequisitesModule = {
+  id: "organization-requisites",
+  routePath: "/organization-requisites",
+  registerRoutes(ctx: AppContext) {
+    return organizationRequisitesRoutes(ctx);
+  },
+} as const satisfies ApiApplicationModule<"/organization-requisites">;
+
 export const systemModulesModule = {
   id: "system-modules",
   routePath: "/system/modules",
@@ -122,14 +122,14 @@ export const systemModulesModule = {
 
 export const API_APPLICATION_MODULES = [
   accountingModule,
-  counterpartyAccountProvidersModule,
-  counterpartyAccountsModule,
+  counterpartyRequisitesModule,
   balancesModule,
   counterpartiesModule,
   counterpartyGroupsModule,
   customersModule,
   currenciesModule,
   documentsModule,
+  organizationRequisitesModule,
   paymentsModule,
   fxRatesModule,
   systemModulesModule,

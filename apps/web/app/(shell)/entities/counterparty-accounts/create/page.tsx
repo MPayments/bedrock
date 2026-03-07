@@ -1,5 +1,4 @@
-import { CreateAccountFormClient } from "@/features/entities/counterparty-accounts/components/create-account-form-client";
-import { getAccountFormOptions } from "@/features/entities/counterparty-accounts/lib/queries";
+import { redirect } from "next/navigation";
 
 interface CreateAccountPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -21,23 +20,20 @@ function readSingleSearchValue(
   return undefined;
 }
 
-export default async function CreateAccountPage({
+export default async function LegacyCreateAccountPage({
   searchParams,
 }: CreateAccountPageProps) {
-  const [params, options] = await Promise.all([
-    searchParams,
-    getAccountFormOptions(),
-  ]);
-  const prefilledCounterpartyId = readSingleSearchValue(params.counterpartyId);
+  const params = await searchParams;
+  const counterpartyId = readSingleSearchValue(params.counterpartyId);
+  const query = new URLSearchParams();
 
-  return (
-    <CreateAccountFormClient
-      options={options}
-      initialValues={
-        prefilledCounterpartyId
-          ? { counterpartyId: prefilledCounterpartyId }
-          : undefined
-      }
-    />
+  if (counterpartyId) {
+    query.set("counterpartyId", counterpartyId);
+  }
+
+  redirect(
+    query.size > 0
+      ? `/entities/counterparty-requisites/create?${query.toString()}`
+      : "/entities/counterparty-requisites/create",
   );
 }

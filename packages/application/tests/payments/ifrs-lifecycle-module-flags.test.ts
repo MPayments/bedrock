@@ -10,8 +10,8 @@ const SIMPLE_IFRS_DOC_TYPES = [
 describe("ifrs lifecycle module flags", () => {
   it("uses explicit submit step for non-posting IFRS documents", () => {
     const modules = createIfrsDocumentModules({
-      counterpartyAccountsService: {
-        async resolveTransferBindings() {
+      organizationRequisitesService: {
+        async resolveBindings() {
           return [];
         },
       },

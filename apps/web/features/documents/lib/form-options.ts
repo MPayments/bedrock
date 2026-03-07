@@ -19,18 +19,28 @@ export type DocumentFormCurrencyOption = {
 
 export type DocumentFormOptions = {
   counterparties: DocumentFormCounterpartyOption[];
+  organizations: DocumentFormCounterpartyOption[];
   currencies: DocumentFormCurrencyOption[];
 };
 
 export async function getDocumentFormOptions(): Promise<DocumentFormOptions> {
   const client = await getServerApiClient();
 
-  const [counterparties, currencies] = await Promise.all([
+  const [counterparties, organizations, currencies] = await Promise.all([
     readOptionsList({
       request: () =>
         client.v1.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
       schema: CounterpartyOptionsResponseSchema,
       context: "Не удалось загрузить контрагентов",
+    }),
+    readOptionsList({
+      request: () =>
+        client.v1.counterparties["internal-ledger-entities"].$get(
+          {},
+          { init: { cache: "force-cache" } },
+        ),
+      schema: CounterpartyOptionsResponseSchema,
+      context: "Не удалось загрузить организации",
     }),
     readOptionsList({
       request: () =>
@@ -42,6 +52,10 @@ export async function getDocumentFormOptions(): Promise<DocumentFormOptions> {
 
   return {
     counterparties: counterparties.data.map((item) => ({
+      id: item.id,
+      label: item.label,
+    })),
+    organizations: organizations.data.map((item) => ({
       id: item.id,
       label: item.label,
     })),

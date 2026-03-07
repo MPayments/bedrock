@@ -1,21 +1,22 @@
 import type { DocumentModule } from "@bedrock/core/documents";
 
-export interface CounterpartyAccountBinding {
-  accountId: string;
+export interface OrganizationRequisiteBinding {
+  requisiteId: string;
   bookId: string;
-  counterpartyId: string;
+  organizationId: string;
   currencyCode: string;
-  stableKey: string;
+  postingAccountNo: string;
+  bookAccountInstanceId: string;
 }
 
-export interface CounterpartyAccountsService {
-  resolveTransferBindings(input: {
-    accountIds: string[];
-  }): Promise<CounterpartyAccountBinding[]>;
+export interface OrganizationRequisitesService {
+  resolveBindings(input: {
+    requisiteIds: string[];
+  }): Promise<OrganizationRequisiteBinding[]>;
 }
 
 export interface IfrsModuleDeps {
-  counterpartyAccountsService: CounterpartyAccountsService;
+  organizationRequisitesService: OrganizationRequisitesService;
 }
 
 export type IfrsDocumentDb = Parameters<DocumentModule["canPost"]>[0]["db"];

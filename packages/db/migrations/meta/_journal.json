@@ -8,6 +8,13 @@
       "when": 1772827651771,
       "tag": "0000_aromatic_retro_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772872470410,
+      "tag": "0001_rich_nebula",
+      "breakpoints": true
     }
   ]
 }

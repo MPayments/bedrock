@@ -17,7 +17,7 @@ export { createTransferIntraDocumentModule } from "./transfer-intra";
 export { createTransferResolutionDocumentModule } from "./transfer-resolution";
 
 export type {
-  CounterpartyAccountBinding,
-  CounterpartyAccountsService,
+  OrganizationRequisiteBinding,
+  OrganizationRequisitesService,
   IfrsModuleDeps,
 } from "./internal/types";

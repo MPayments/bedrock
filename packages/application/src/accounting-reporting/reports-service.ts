@@ -7,7 +7,7 @@ import {
   listInternalLedgerCounterparties,
 } from "@bedrock/core/counterparties";
 import { schema as counterpartiesSchema } from "@bedrock/core/counterparties/schema";
-import { schema as counterpartyAccountsSchema } from "@bedrock/core/counterparty-accounts/schema";
+import { schema as organizationRequisitesSchema } from "@bedrock/core/organization-requisites/schema";
 import { schema as documentsSchema } from "@bedrock/core/documents/schema";
 import { schema as ledgerSchema } from "@bedrock/core/ledger/schema";
 import { canonicalJson, sha256Hex } from "@bedrock/kernel";
@@ -47,9 +47,9 @@ import { schema as reportingSchema } from "./schema";
 const schema = {
   ...accountingSchema,
   ...counterpartiesSchema,
-  ...counterpartyAccountsSchema,
   ...documentsSchema,
   ...ledgerSchema,
+  ...organizationRequisitesSchema,
   ...balancesSchema,
   ...reportingSchema,
 };
@@ -1667,7 +1667,7 @@ export function createAccountingReportsService(deps: {
         );
       } else {
         conditions.push(
-          sql`${schema.counterpartyAccounts.counterpartyId} IN (${sql.join(
+          sql`${schema.organizationRequisites.organizationId} IN (${sql.join(
             scope.resolvedCounterpartyIds.map((id) => sql`${id}`),
             sql`, `,
           )})`,
@@ -1708,7 +1708,7 @@ export function createAccountingReportsService(deps: {
       .select({
         bookId: schema.balancePositions.bookId,
         bookLabel: schema.books.name,
-        counterpartyId: schema.counterpartyAccounts.counterpartyId,
+        counterpartyId: schema.organizationRequisites.organizationId,
         counterpartyName: schema.counterparties.shortName,
         currency: schema.balancePositions.currency,
         ledgerBalanceMinor:
@@ -1722,19 +1722,22 @@ export function createAccountingReportsService(deps: {
       })
       .from(schema.balancePositions)
       .leftJoin(
-        schema.counterpartyAccounts,
-        eq(schema.counterpartyAccounts.id, schema.balancePositions.subjectId),
+        schema.organizationRequisites,
+        eq(schema.organizationRequisites.id, schema.balancePositions.subjectId),
       )
       .leftJoin(
         schema.counterparties,
-        eq(schema.counterparties.id, schema.counterpartyAccounts.counterpartyId),
+        eq(
+          schema.counterparties.id,
+          schema.organizationRequisites.organizationId,
+        ),
       )
       .leftJoin(schema.books, eq(schema.books.id, schema.balancePositions.bookId))
       .where(whereSql)
       .groupBy(
         schema.balancePositions.bookId,
         schema.books.name,
-        schema.counterpartyAccounts.counterpartyId,
+        schema.organizationRequisites.organizationId,
         schema.counterparties.shortName,
         schema.balancePositions.currency,
       );
