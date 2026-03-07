@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChartLine, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -33,26 +33,149 @@ import {
   sourceLabel,
 } from "../lib/format";
 import type {
+  CurrencyOption,
   SerializedRatePair,
   SerializedSourceRate,
 } from "../lib/queries";
+import {
+  CurrencyFacetedFilter,
+  type CurrencyFacetOption,
+} from "./currency-faceted-filter";
 import { FxSourceAvatar } from "./fx-source-avatar";
+
 type RatePairsListProps = {
+  currencies: CurrencyOption[];
   initialPairs: SerializedRatePair[];
 };
 
-export function RatePairsList({ initialPairs }: RatePairsListProps) {
+export function RatePairsList({
+  currencies,
+  initialPairs,
+}: RatePairsListProps) {
+  const [selectedBaseCurrencyCode, setSelectedBaseCurrencyCode] = useState<
+    string | undefined
+  >();
+  const [selectedQuoteCurrencyCode, setSelectedQuoteCurrencyCode] = useState<
+    string | undefined
+  >();
+
+  const currencyNameByCode = useMemo(
+    () =>
+      new Map(
+        currencies.map((currency) => [currency.code.toUpperCase(), currency.name]),
+      ),
+    [currencies],
+  );
+  const baseOptions = useMemo(
+    () =>
+      buildCurrencyFacetOptions(
+        selectedQuoteCurrencyCode
+          ? initialPairs.filter(
+              (pair) => pair.quoteCurrencyCode === selectedQuoteCurrencyCode,
+            )
+          : initialPairs,
+        (pair) => pair.baseCurrencyCode,
+        currencyNameByCode,
+      ),
+    [currencyNameByCode, initialPairs, selectedQuoteCurrencyCode],
+  );
+  const quoteOptions = useMemo(
+    () =>
+      buildCurrencyFacetOptions(
+        selectedBaseCurrencyCode
+          ? initialPairs.filter(
+              (pair) => pair.baseCurrencyCode === selectedBaseCurrencyCode,
+            )
+          : initialPairs,
+        (pair) => pair.quoteCurrencyCode,
+        currencyNameByCode,
+      ),
+    [currencyNameByCode, initialPairs, selectedBaseCurrencyCode],
+  );
+  const filteredPairs = useMemo(
+    () =>
+      initialPairs.filter((pair) => {
+        if (
+          selectedBaseCurrencyCode &&
+          pair.baseCurrencyCode !== selectedBaseCurrencyCode
+        ) {
+          return false;
+        }
+
+        if (
+          selectedQuoteCurrencyCode &&
+          pair.quoteCurrencyCode !== selectedQuoteCurrencyCode
+        ) {
+          return false;
+        }
+
+        return true;
+      }),
+    [initialPairs, selectedBaseCurrencyCode, selectedQuoteCurrencyCode],
+  );
+  const hasActiveFilters =
+    selectedBaseCurrencyCode !== undefined ||
+    selectedQuoteCurrencyCode !== undefined;
+
+  function handleResetFilters() {
+    setSelectedBaseCurrencyCode(undefined);
+    setSelectedQuoteCurrencyCode(undefined);
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <h4 className="text-lg font-semibold">Пары валют</h4>
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h4 className="text-lg font-semibold">Пары валют</h4>
+
+          {initialPairs.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <CurrencyFacetedFilter
+                title="Базовая валюта"
+                placeholder="Поиск базовой валюты..."
+                options={baseOptions}
+                value={selectedBaseCurrencyCode}
+                onChange={setSelectedBaseCurrencyCode}
+              />
+              <CurrencyFacetedFilter
+                title="Валюта котировки"
+                placeholder="Поиск валюты котировки..."
+                options={quoteOptions}
+                value={selectedQuoteCurrencyCode}
+                onChange={setSelectedQuoteCurrencyCode}
+              />
+              {hasActiveFilters ? (
+                <Button variant="ghost" size="sm" onClick={handleResetFilters}>
+                  Сбросить
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        {initialPairs.length > 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Показано {filteredPairs.length} из {initialPairs.length}
+          </p>
+        ) : null}
+      </div>
 
       {initialPairs.length === 0 ? (
         <p className="text-muted-foreground text-sm py-8 text-center">
           Нет данных о курсах. Синхронизируйте источники.
         </p>
+      ) : filteredPairs.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
+          <p className="text-muted-foreground text-sm">
+            По выбранным валютам пары не найдены.
+          </p>
+          <Button variant="outline" size="sm" onClick={handleResetFilters}>
+            Сбросить фильтры
+          </Button>
+        </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {initialPairs.map((pair) => (
+          {filteredPairs.map((pair) => (
             <RatePairItem
               key={`${pair.baseCurrencyCode}-${pair.quoteCurrencyCode}`}
               pair={pair}
@@ -62,6 +185,27 @@ export function RatePairsList({ initialPairs }: RatePairsListProps) {
       )}
     </div>
   );
+}
+
+function buildCurrencyFacetOptions(
+  pairs: SerializedRatePair[],
+  selectCurrencyCode: (pair: SerializedRatePair) => string,
+  currencyNameByCode: Map<string, string>,
+): CurrencyFacetOption[] {
+  const countsByCode = new Map<string, number>();
+
+  for (const pair of pairs) {
+    const currencyCode = selectCurrencyCode(pair);
+    countsByCode.set(currencyCode, (countsByCode.get(currencyCode) ?? 0) + 1);
+  }
+
+  return Array.from(countsByCode.entries())
+    .map(([value, count]) => ({
+      count,
+      name: currencyNameByCode.get(value) ?? value,
+      value,
+    }))
+    .sort((left, right) => left.value.localeCompare(right.value));
 }
 
 function RatePairItem({ pair }: { pair: SerializedRatePair }) {

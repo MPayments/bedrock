@@ -87,9 +87,6 @@ export function getColumns(): ColumnDef<OperationSummaryDto>[] {
       cell: ({ row }) => (
         <div className="text-sm">
           <div>{row.original.sourceType}</div>
-          <div className="text-muted-foreground font-mono text-xs">
-            {row.original.sourceId}
-          </div>
         </div>
       ),
       enableSorting: false,

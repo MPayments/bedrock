@@ -26,7 +26,7 @@ export default async function RatesPage() {
     >
       <RateSourcesLoader />
       <Separator className="w-full h-px" />
-      <RatePairsLoader />
+      <RatePairsLoader currencies={currencies} />
     </EntityListPageShell>
   );
 }
@@ -36,10 +36,14 @@ async function RateSourcesLoader() {
   return <RateSourcesPanel initialSources={sources} />;
 }
 
-async function RatePairsLoader() {
+async function RatePairsLoader({
+  currencies,
+}: {
+  currencies: Awaited<ReturnType<typeof getCurrencyOptions>>;
+}) {
   const pairs = await getRatePairs();
 
-  return <RatePairsList initialPairs={pairs} />;
+  return <RatePairsList initialPairs={pairs} currencies={currencies} />;
 }
 
 function SourcesPanelSkeleton() {

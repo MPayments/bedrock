@@ -94,9 +94,6 @@ export function getDocumentColumns(options?: {
           <Badge variant="outline">
             {getDocumentTypeLabel(row.original.docType)}
           </Badge>
-          <div className="text-muted-foreground font-mono text-xs">
-            {row.original.docType}
-          </div>
         </div>
       ),
       meta: {
