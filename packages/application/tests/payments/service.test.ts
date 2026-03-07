@@ -24,9 +24,10 @@ describe("payments service", () => {
     await service.createDraft({
       payload: {
         direction: "payin",
-        sourceCounterpartyAccountId: "00000000-0000-4000-8000-000000000001",
-        destinationCounterpartyAccountId:
-          "00000000-0000-4000-8000-000000000002",
+        organizationId: "00000000-0000-4000-8000-000000000010",
+        organizationRequisiteId: "00000000-0000-4000-8000-000000000001",
+        counterpartyId: "00000000-0000-4000-8000-000000000020",
+        counterpartyRequisiteId: "00000000-0000-4000-8000-000000000002",
         amountMinor: 100n,
         currency: "USD",
         corridor: "default",

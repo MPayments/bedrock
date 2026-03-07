@@ -27,6 +27,7 @@ export type RelationOption = {
 
 export type RequisiteFormValues = {
   ownerId: string;
+  providerId: string;
   currencyId: string;
   kind: RequisiteKind;
   label: string;
@@ -61,6 +62,8 @@ export type SerializedRequisite = {
   id: string;
   ownerId: string;
   ownerDisplay: string;
+  providerId: string;
+  providerDisplay: string;
   currencyId: string;
   currencyDisplay: string;
   kind: RequisiteKind;

@@ -3,8 +3,6 @@ import { and, eq } from "drizzle-orm";
 import type { Transaction } from "@bedrock/kernel/db/types";
 
 import { schema as ledgerSchema } from "../../ledger/schema";
-import { InternalLedgerInvariantViolationError } from "../errors";
-import { assertInternalLedgerCounterparty } from "../internal-ledger";
 
 const DEFAULT_BOOK_CODE_PREFIX = "counterparty-default";
 
@@ -20,17 +18,12 @@ export async function ensureInternalLedgerDefaultBookIdTx(
   tx: Transaction,
   counterpartyId: string,
 ): Promise<string> {
-  await assertInternalLedgerCounterparty({
-    db: tx,
-    counterpartyId,
-  });
-
   const [defaultBook] = await tx
     .select({ id: ledgerSchema.books.id })
     .from(ledgerSchema.books)
     .where(
       and(
-        eq(ledgerSchema.books.counterpartyId, counterpartyId),
+        eq(ledgerSchema.books.organizationId, counterpartyId),
         eq(ledgerSchema.books.isDefault, true),
       ),
     )
@@ -45,14 +38,14 @@ export async function ensureInternalLedgerDefaultBookIdTx(
     .from(ledgerSchema.books)
     .where(
       and(
-        eq(ledgerSchema.books.counterpartyId, counterpartyId),
+        eq(ledgerSchema.books.organizationId, counterpartyId),
         eq(ledgerSchema.books.isDefault, false),
       ),
     )
     .limit(1);
 
   if (existingNonDefaultBook) {
-    throw new InternalLedgerInvariantViolationError(
+    throw new Error(
       `Internal counterparty ${counterpartyId} has no default book configured`,
     );
   }
@@ -61,7 +54,7 @@ export async function ensureInternalLedgerDefaultBookIdTx(
   const [created] = await tx
     .insert(ledgerSchema.books)
     .values({
-      counterpartyId,
+      organizationId: counterpartyId,
       code,
       name: defaultBookName(counterpartyId),
       isDefault: true,
@@ -85,7 +78,7 @@ export async function ensureInternalLedgerDefaultBookIdTx(
     return bookByCode.id;
   }
 
-  throw new InternalLedgerInvariantViolationError(
+  throw new Error(
     `Failed to resolve default book for counterparty: ${counterpartyId}`,
   );
 }

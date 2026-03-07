@@ -32,7 +32,7 @@ export function createListDocumentsQuery(context: DocumentsServiceContext) {
       inArraySafe(schema.documents.currency, query.currency),
       inArraySafe(schema.documents.counterpartyId, query.counterpartyId),
       inArraySafe(schema.documents.customerId, query.customerId),
-      inArraySafe(schema.documents.counterpartyAccountId, query.counterpartyAccountId),
+      inArraySafe(schema.documents.organizationRequisiteId, query.organizationRequisiteId),
       query.occurredAtFrom
         ? gte(schema.documents.occurredAt, new Date(query.occurredAtFrom))
         : undefined,

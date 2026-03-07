@@ -9,13 +9,13 @@ describe("balances projector helpers", () => {
   it("projects dimension ids into balance subjects", () => {
     expect(
       projectBalanceSubjects({
-        counterpartyAccountId: "oa-1",
+        organizationRequisiteId: "oa-1",
         customerId: "cust-1",
         ignored: "x",
         emptyId: "",
       }),
     ).toEqual([
-      { subjectType: "counterparty_account", subjectId: "oa-1" },
+      { subjectType: "organization_requisite", subjectId: "oa-1" },
       { subjectType: "customer", subjectId: "cust-1" },
     ]);
   });
@@ -34,11 +34,11 @@ describe("balances projector helpers", () => {
           amountMinor: 100n,
           postingCode: "PCODE",
           debitDimensions: {
-            counterpartyAccountId: "oa-1",
+            organizationRequisiteId: "oa-1",
             customerId: "cust-1",
           },
           creditDimensions: {
-            counterpartyAccountId: "oa-2",
+            organizationRequisiteId: "oa-2",
           },
         },
         {
@@ -52,7 +52,7 @@ describe("balances projector helpers", () => {
           amountMinor: 40n,
           postingCode: "PCODE",
           debitDimensions: {
-            counterpartyAccountId: "oa-1",
+            organizationRequisiteId: "oa-1",
           },
           creditDimensions: {
             customerId: "cust-1",
@@ -63,7 +63,7 @@ describe("balances projector helpers", () => {
       {
         bookId: "book-1",
         currency: "USD",
-        subjectType: "counterparty_account",
+        subjectType: "organization_requisite",
         subjectId: "oa-1",
         deltaLedgerBalance: 140n,
         deltaAvailable: 140n,
@@ -79,7 +79,7 @@ describe("balances projector helpers", () => {
       {
         bookId: "book-1",
         currency: "USD",
-        subjectType: "counterparty_account",
+        subjectType: "organization_requisite",
         subjectId: "oa-2",
         deltaLedgerBalance: -100n,
         deltaAvailable: -100n,

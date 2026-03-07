@@ -8,7 +8,7 @@ import {
 describe("ifrs module registry", () => {
   it("registers one module per IFRS doc type in canonical order", () => {
     const modules = createIfrsDocumentModules({
-      organizationRequisitesService: {
+      requisitesService: {
         async resolveBindings() {
           return [];
         },

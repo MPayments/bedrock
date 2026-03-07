@@ -166,7 +166,7 @@ export function createPeriodCloseWorkerDefinition(deps: {
               memo: null,
               counterpartyId: row.id,
               customerId: null,
-              counterpartyAccountId: null,
+              organizationRequisiteId: null,
               searchText: `period_close ${periodLabel} ${row.id}`,
               createdBy: actorUserId,
               submittedBy: actorUserId,

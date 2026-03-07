@@ -47,7 +47,7 @@ function resolveTransferResolutionTitle(
 export function createTransferResolutionDocumentModule(
   deps: IfrsModuleDeps,
 ): DocumentModule<TransferResolutionInput, TransferResolutionInput> {
-  const { organizationRequisitesService } = deps;
+  const { requisitesService } = deps;
 
   return {
     moduleId: "transfer_resolution",
@@ -129,7 +129,7 @@ export function createTransferResolutionDocumentModule(
           : parseDocumentPayload(TransferIntercompanyPayloadSchema, transferDocument);
 
       const bindings = await resolveTransferBindings(
-        organizationRequisitesService,
+        requisitesService,
         transferPayload,
       );
       const bookId = resolvePendingTransferBookId({

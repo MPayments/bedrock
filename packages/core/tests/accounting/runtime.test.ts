@@ -28,8 +28,8 @@ describe("accounting runtime", () => {
             bookId: "00000000-0000-4000-8000-000000000001",
           },
           dimensions: {
-            sourceCounterpartyAccountId: "src-op",
-            destinationCounterpartyAccountId: "dst-op",
+            sourceRequisiteId: "src-op",
+            destinationRequisiteId: "dst-op",
           },
           refs: {
             transferDocumentId: "doc-1",
@@ -68,14 +68,14 @@ describe("accounting runtime", () => {
           accountNo: "1110",
           currency: "USD",
           dimensions: {
-            counterpartyAccountId: "dst-op",
+            organizationRequisiteId: "dst-op",
           },
         },
         credit: {
           accountNo: "1110",
           currency: "USD",
           dimensions: {
-            counterpartyAccountId: "src-op",
+            organizationRequisiteId: "src-op",
           },
         },
         amountMinor: 1250n,
@@ -107,8 +107,8 @@ describe("accounting runtime", () => {
                 bookId: "00000000-0000-4000-8000-000000000001",
               },
               dimensions: {
-                sourceCounterpartyAccountId: "src-op",
-                destinationCounterpartyAccountId: "dst-op",
+                sourceRequisiteId: "src-op",
+                destinationRequisiteId: "dst-op",
               },
             },
           ],
@@ -136,8 +136,8 @@ describe("accounting runtime", () => {
               amountMinor: 100n,
               bookRefs: {},
               dimensions: {
-                sourceCounterpartyAccountId: "src-op",
-                destinationCounterpartyAccountId: "dst-op",
+                sourceRequisiteId: "src-op",
+                destinationRequisiteId: "dst-op",
               },
             },
           ],

@@ -29,7 +29,7 @@ export const DocumentSchema = z.object({
   memo: z.string().nullable(),
   counterpartyId: z.string().nullable(),
   customerId: z.string().nullable(),
-  counterpartyAccountId: z.string().nullable(),
+  organizationRequisiteId: z.string().nullable(),
   searchText: z.string(),
   createdBy: z.string(),
   submittedBy: z.string().nullable(),

@@ -51,7 +51,7 @@ function makeDocument(overrides: Partial<Document> = {}): Document {
     memo: "hello",
     counterpartyId: "cp-1",
     customerId: "cust-1",
-    counterpartyAccountId: "oa-1",
+    organizationRequisiteId: "oa-1",
     searchText: "test document",
     createdBy: "maker-1",
     submittedBy: null,
@@ -138,7 +138,7 @@ describe("document helpers", () => {
       memo: null,
       counterpartyId: null,
       customerId: null,
-      counterpartyAccountId: null,
+      organizationRequisiteId: null,
       searchText: "hello world",
     });
   });

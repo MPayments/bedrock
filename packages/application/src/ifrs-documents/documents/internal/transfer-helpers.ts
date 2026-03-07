@@ -7,7 +7,7 @@ import { schema as ledgerSchema } from "@bedrock/core/ledger/schema";
 
 import type {
   OrganizationRequisiteBinding,
-  OrganizationRequisitesService,
+  RequisitesService,
   IfrsDocumentDb,
 } from "./types";
 import {
@@ -25,33 +25,56 @@ const schema = {
 
 export { resolvePendingTransferBookId } from "@bedrock/core/documents/module-kit";
 
-export function normalizeTransferPayload(
-  input: TransferIntraInput | TransferIntercompanyInput,
+export function normalizeTransferIntraPayload(
+  input: TransferIntraInput,
+  bindings: {
+    source: OrganizationRequisiteBinding;
+    destination: OrganizationRequisiteBinding;
+  }): TransferIntraPayload {
+  return {
+    ...serializeOccurredAt(input),
+    organizationId: bindings.source.organizationId,
+    sourceRequisiteId: input.sourceRequisiteId,
+    destinationRequisiteId: input.destinationRequisiteId,
+    timeoutSeconds: input.timeoutSeconds,
+    currency: input.currency,
+    amountMinor: input.amountMinor,
+    memo: input.memo,
+  };
+}
+
+export function normalizeTransferIntercompanyPayload(
+  input: TransferIntercompanyInput,
   bindings: {
     source: OrganizationRequisiteBinding;
     destination: OrganizationRequisiteBinding;
   },
-): TransferIntraPayload | TransferIntercompanyPayload {
+): TransferIntercompanyPayload {
   return {
     ...serializeOccurredAt(input),
-    sourceCounterpartyId: bindings.source.organizationId,
-    destinationCounterpartyId: bindings.destination.organizationId,
+    sourceOrganizationId: bindings.source.organizationId,
+    sourceRequisiteId: input.sourceRequisiteId,
+    destinationOrganizationId: bindings.destination.organizationId,
+    destinationRequisiteId: input.destinationRequisiteId,
+    timeoutSeconds: input.timeoutSeconds,
+    currency: input.currency,
+    amountMinor: input.amountMinor,
     memo: input.memo,
   };
 }
 
 export async function resolveTransferBindings(
-  organizationRequisitesService: OrganizationRequisitesService,
+  requisitesService: RequisitesService,
   input: {
-    sourceCounterpartyAccountId: string;
-    destinationCounterpartyAccountId: string;
+    sourceRequisiteId: string;
+    destinationRequisiteId: string;
   },
 ) {
   const [source, destination] =
-    await organizationRequisitesService.resolveBindings({
+    await requisitesService.resolveBindings({
       requisiteIds: [
-        input.sourceCounterpartyAccountId,
-        input.destinationCounterpartyAccountId,
+        input.sourceRequisiteId,
+        input.destinationRequisiteId,
       ],
     });
 

@@ -32,7 +32,7 @@ export function toDocumentDto(input: DocumentWithOperationId) {
     memo: document.memo,
     counterpartyId: document.counterpartyId,
     customerId: document.customerId,
-    counterpartyAccountId: document.counterpartyAccountId,
+    organizationRequisiteId: document.organizationRequisiteId,
     searchText: document.searchText,
     createdBy: document.createdBy,
     submittedBy: document.submittedBy,

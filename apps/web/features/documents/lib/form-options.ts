@@ -2,6 +2,7 @@ import {
   CounterpartyOptionsResponseSchema,
 } from "@bedrock/core/counterparties/contracts";
 import { CurrencyOptionsResponseSchema } from "@bedrock/core/currencies/contracts";
+import { OrganizationOptionsResponseSchema } from "@bedrock/core/organizations/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { readOptionsList } from "@/lib/api/query";
@@ -35,11 +36,11 @@ export async function getDocumentFormOptions(): Promise<DocumentFormOptions> {
     }),
     readOptionsList({
       request: () =>
-        client.v1.counterparties["internal-ledger-entities"].$get(
+        client.v1.organizations.options.$get(
           {},
           { init: { cache: "force-cache" } },
         ),
-      schema: CounterpartyOptionsResponseSchema,
+      schema: OrganizationOptionsResponseSchema,
       context: "Не удалось загрузить организации",
     }),
     readOptionsList({

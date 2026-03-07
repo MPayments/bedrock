@@ -11,8 +11,9 @@ import {
 } from "./shared";
 
 const transferInputBaseSchema = baseOccurredAtSchema.extend({
-  sourceCounterpartyAccountId: z.uuid(),
-  destinationCounterpartyAccountId: z.uuid(),
+  organizationId: z.uuid(),
+  sourceRequisiteId: z.uuid(),
+  destinationRequisiteId: z.uuid(),
   amount: amountValueInputSchema,
   currency: currencyCodeSchema,
   timeoutSeconds: z.number().int().positive().max(7 * 24 * 60 * 60).optional(),
@@ -20,8 +21,9 @@ const transferInputBaseSchema = baseOccurredAtSchema.extend({
 });
 
 const transferPayloadBaseSchema = baseOccurredAtSchema.extend({
-  sourceCounterpartyAccountId: z.uuid(),
-  destinationCounterpartyAccountId: z.uuid(),
+  organizationId: z.uuid(),
+  sourceRequisiteId: z.uuid(),
+  destinationRequisiteId: z.uuid(),
   amountMinor: amountMinorSchema,
   currency: currencyCodeSchema,
   timeoutSeconds: z.number().int().positive().max(7 * 24 * 60 * 60).optional(),
@@ -32,10 +34,7 @@ export const TransferIntraInputSchema = transferInputBaseSchema.transform(
   (input, ctx) => withAmountMinor(input, ctx),
 );
 
-export const TransferIntraPayloadSchema = transferPayloadBaseSchema.extend({
-  sourceCounterpartyId: z.uuid(),
-  destinationCounterpartyId: z.uuid(),
-});
+export const TransferIntraPayloadSchema = transferPayloadBaseSchema;
 
 export type TransferIntraInput = z.infer<typeof TransferIntraInputSchema>;
 export type TransferIntraPayload = z.infer<typeof TransferIntraPayloadSchema>;

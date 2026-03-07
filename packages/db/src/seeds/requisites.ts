@@ -1,468 +1,278 @@
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
+import {
+  computeDimensionsHash,
+  tbBookAccountInstanceIdFor,
+  tbLedgerForCurrency,
+} from "@bedrock/kernel";
 import { ACCOUNT_NO } from "@bedrock/core/accounting";
-import { listInternalLedgerCounterparties } from "@bedrock/core/counterparties";
 
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema";
+import { seedCurrencies } from "./currencies";
+import { seedCounterparties } from "./counterparties";
+import { ORGANIZATION_IDS, seedOrganizations } from "./organizations";
+import { seedRequisiteProviders } from "./requisite-providers";
+import { REQUISITES, type SeedRequisiteFixture } from "./fixtures";
+
+export { REQUISITE_IDS } from "./fixtures";
 
 type DbLike = Database | Transaction;
 
-type LegacyAccountRow = {
-  id: string;
-  counterpartyId: string;
-  ledgerEntityCounterpartyId: string;
-  currencyId: string;
-  currencyCode: string;
-  label: string;
-  description: string | null;
-  accountNo: string | null;
-  corrAccount: string | null;
-  address: string | null;
-  iban: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  counterpartyShortName: string;
-  counterpartyFullName: string | null;
-  providerType: "bank" | "exchange" | "blockchain" | "custodian";
-  providerName: string;
-  providerDescription: string | null;
-  providerAddress: string | null;
-  providerContact: string | null;
-  providerBic: string | null;
-  providerSwift: string | null;
-  providerCountry: string;
-  bindingBookId: string | null;
-  bindingBookAccountInstanceId: string | null;
-  bindingPostingAccountNo: string | null;
-};
-
-type BackfillAuditRow = {
-  accountId: string;
-  reason: string;
-  counterpartyId: string;
-  ledgerEntityCounterpartyId: string;
-  label: string;
-};
-
-type BackfillResult = {
-  counterpartyRequisites: number;
-  organizationRequisites: number;
-  organizationBindings: number;
-  auditRows: BackfillAuditRow[];
-};
-
-function hasText(value: string | null | undefined): value is string {
-  return typeof value === "string" && value.trim().length > 0;
+function organizationDefaultBookCode(organizationId: string) {
+  return `organization-default:${organizationId}`;
 }
 
-function joinNotes(...parts: Array<string | null | undefined>): string | null {
-  const text = parts.filter(hasText).map((part) => part.trim());
-  return text.length > 0 ? text.join("\n\n") : null;
+function organizationDefaultBookName(organizationId: string) {
+  return `Organization ${organizationId} default book`;
 }
 
-function mapLegacyFields(row: LegacyAccountRow) {
-  const shared = {
-    label: row.label,
-    description: row.description ?? null,
-    beneficiaryName: null as string | null,
-    institutionName: null as string | null,
-    institutionCountry: null as string | null,
-    accountNo: null as string | null,
-    corrAccount: null as string | null,
-    iban: null as string | null,
-    bic: null as string | null,
-    swift: null as string | null,
-    bankAddress: null as string | null,
-    network: null as string | null,
-    assetCode: null as string | null,
-    address: null as string | null,
-    memoTag: null as string | null,
-    accountRef: null as string | null,
-    subaccountRef: null as string | null,
-    contact: row.providerContact ?? null,
-    notes: joinNotes(row.description, row.providerDescription),
-  };
+async function currencyIdByCodeMap(db: DbLike) {
+  const out = new Map<string, string>();
+  const rows = await db
+    .select({ id: schema.currencies.id, code: schema.currencies.code })
+    .from(schema.currencies);
 
-  switch (row.providerType) {
-    case "bank":
-      return {
-        ...shared,
-        kind: row.providerType,
-        beneficiaryName: row.counterpartyFullName ?? row.counterpartyShortName,
-        institutionName: row.providerName,
-        institutionCountry: row.providerCountry,
-        accountNo: row.accountNo ?? null,
-        corrAccount: row.corrAccount ?? null,
-        iban: row.iban ?? null,
-        bic: row.providerBic ?? null,
-        swift: row.providerSwift ?? null,
-        bankAddress: row.address ?? row.providerAddress ?? null,
-      };
-    case "blockchain":
-      return {
-        ...shared,
-        kind: row.providerType,
-        network: row.providerName,
-        assetCode: row.currencyCode,
-        address: row.address ?? row.accountNo ?? row.iban ?? null,
-        memoTag: row.corrAccount ?? null,
-      };
-    case "exchange":
-    case "custodian":
-      return {
-        ...shared,
-        kind: row.providerType,
-        institutionName: row.providerName,
-        institutionCountry: row.providerCountry,
-        accountRef: row.accountNo ?? row.iban ?? row.label,
-        subaccountRef: row.corrAccount ?? null,
-      };
+  for (const row of rows) {
+    out.set(row.code, row.id);
   }
+
+  return out;
 }
 
-async function loadLegacyAccountRows(db: DbLike): Promise<LegacyAccountRow[]> {
-  return db
-    .select({
-      id: schema.counterpartyAccounts.id,
-      counterpartyId: schema.counterpartyAccounts.counterpartyId,
-      ledgerEntityCounterpartyId:
-        schema.counterpartyAccounts.ledgerEntityCounterpartyId,
-      currencyId: schema.counterpartyAccounts.currencyId,
-      currencyCode: schema.currencies.code,
-      label: schema.counterpartyAccounts.label,
-      description: schema.counterpartyAccounts.description,
-      accountNo: schema.counterpartyAccounts.accountNo,
-      corrAccount: schema.counterpartyAccounts.corrAccount,
-      address: schema.counterpartyAccounts.address,
-      iban: schema.counterpartyAccounts.iban,
-      createdAt: schema.counterpartyAccounts.createdAt,
-      updatedAt: schema.counterpartyAccounts.updatedAt,
-      counterpartyShortName: schema.counterparties.shortName,
-      counterpartyFullName: schema.counterparties.fullName,
-      providerType: schema.counterpartyAccountProviders.type,
-      providerName: schema.counterpartyAccountProviders.name,
-      providerDescription: schema.counterpartyAccountProviders.description,
-      providerAddress: schema.counterpartyAccountProviders.address,
-      providerContact: schema.counterpartyAccountProviders.contact,
-      providerBic: schema.counterpartyAccountProviders.bic,
-      providerSwift: schema.counterpartyAccountProviders.swift,
-      providerCountry: schema.counterpartyAccountProviders.country,
-      bindingBookId: schema.counterpartyAccountBindings.bookId,
-      bindingBookAccountInstanceId:
-        schema.counterpartyAccountBindings.bookAccountInstanceId,
-      bindingPostingAccountNo: schema.bookAccountInstances.accountNo,
-    })
-    .from(schema.counterpartyAccounts)
-    .innerJoin(
-      schema.counterparties,
-      eq(schema.counterparties.id, schema.counterpartyAccounts.counterpartyId),
-    )
-    .innerJoin(
-      schema.counterpartyAccountProviders,
-      eq(
-        schema.counterpartyAccountProviders.id,
-        schema.counterpartyAccounts.accountProviderId,
-      ),
-    )
-    .innerJoin(
-      schema.currencies,
-      eq(schema.currencies.id, schema.counterpartyAccounts.currencyId),
-    )
-    .leftJoin(
-      schema.counterpartyAccountBindings,
-      eq(
-        schema.counterpartyAccountBindings.counterpartyAccountId,
-        schema.counterpartyAccounts.id,
-      ),
-    )
-    .leftJoin(
-      schema.bookAccountInstances,
-      eq(
-        schema.bookAccountInstances.id,
-        schema.counterpartyAccountBindings.bookAccountInstanceId,
-      ),
-    )
-    .orderBy(
-      asc(schema.counterpartyAccounts.counterpartyId),
-      asc(schema.counterpartyAccounts.currencyId),
-      asc(schema.counterpartyAccounts.createdAt),
-      asc(schema.counterpartyAccounts.id),
-    );
-}
-
-async function setCounterpartyDefault(
+async function ensureDefaultBooks(
   db: DbLike,
-  input: { counterpartyId: string; currencyId: string; currentId: string },
-) {
-  await db
-    .update(schema.counterpartyRequisites)
-    .set({ isDefault: false })
-    .where(
-      and(
-        eq(schema.counterpartyRequisites.counterpartyId, input.counterpartyId),
-        eq(schema.counterpartyRequisites.currencyId, input.currencyId),
-        ne(schema.counterpartyRequisites.id, input.currentId),
-      ),
-    );
-}
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
 
-async function setOrganizationDefault(
-  db: DbLike,
-  input: { organizationId: string; currencyId: string; currentId: string },
-) {
-  await db
-    .update(schema.organizationRequisites)
-    .set({ isDefault: false })
-    .where(
-      and(
-        eq(schema.organizationRequisites.organizationId, input.organizationId),
-        eq(schema.organizationRequisites.currencyId, input.currencyId),
-        ne(schema.organizationRequisites.id, input.currentId),
-      ),
-    );
-}
+  for (const organizationId of Object.values(ORGANIZATION_IDS)) {
+    const [existing] = await db
+      .select({ id: schema.books.id })
+      .from(schema.books)
+      .where(
+        and(
+          eq(schema.books.organizationId, organizationId),
+          eq(schema.books.isDefault, true),
+        ),
+      )
+      .limit(1);
 
-export async function backfillRequisitesFromLegacy(
-  db: DbLike,
-): Promise<BackfillResult> {
-  const legacyRows = await loadLegacyAccountRows(db);
-  const internalCounterparties = new Set(
-    (await listInternalLedgerCounterparties(db)).map((row) => row.id),
-  );
-  const auditRows: BackfillAuditRow[] = [];
-  const defaultCounterpartyKeys = new Set<string>();
-  const defaultOrganizationKeys = new Set<string>();
-  let counterpartyRequisites = 0;
-  let organizationRequisites = 0;
-  let organizationBindings = 0;
-
-  for (const row of legacyRows) {
-    const fields = mapLegacyFields(row);
-    const isInternalOwner = internalCounterparties.has(row.counterpartyId);
-
-    if (isInternalOwner) {
-      if (row.counterpartyId !== row.ledgerEntityCounterpartyId) {
-        auditRows.push({
-          accountId: row.id,
-          reason:
-            "Internal counterparty account points at a different ledger entity",
-          counterpartyId: row.counterpartyId,
-          ledgerEntityCounterpartyId: row.ledgerEntityCounterpartyId,
-          label: row.label,
-        });
-        continue;
-      }
-
-      const defaultKey = `${row.counterpartyId}:${row.currencyId}`;
-      const isDefault = !defaultOrganizationKeys.has(defaultKey);
-      defaultOrganizationKeys.add(defaultKey);
-
-      await db
-        .insert(schema.organizationRequisites)
-        .values({
-          id: row.id,
-          organizationId: row.counterpartyId,
-          currencyId: row.currencyId,
-          kind: fields.kind,
-          label: fields.label,
-          description: fields.description,
-          beneficiaryName: fields.beneficiaryName,
-          institutionName: fields.institutionName,
-          institutionCountry: fields.institutionCountry,
-          accountNo: fields.accountNo,
-          corrAccount: fields.corrAccount,
-          iban: fields.iban,
-          bic: fields.bic,
-          swift: fields.swift,
-          bankAddress: fields.bankAddress,
-          network: fields.network,
-          assetCode: fields.assetCode,
-          address: fields.address,
-          memoTag: fields.memoTag,
-          accountRef: fields.accountRef,
-          subaccountRef: fields.subaccountRef,
-          contact: fields.contact,
-          notes: fields.notes,
-          isDefault,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-        })
-        .onConflictDoUpdate({
-          target: schema.organizationRequisites.id,
-          set: {
-            organizationId: row.counterpartyId,
-            currencyId: row.currencyId,
-            kind: fields.kind,
-            label: fields.label,
-            description: fields.description,
-            beneficiaryName: fields.beneficiaryName,
-            institutionName: fields.institutionName,
-            institutionCountry: fields.institutionCountry,
-            accountNo: fields.accountNo,
-            corrAccount: fields.corrAccount,
-            iban: fields.iban,
-            bic: fields.bic,
-            swift: fields.swift,
-            bankAddress: fields.bankAddress,
-            network: fields.network,
-            assetCode: fields.assetCode,
-            address: fields.address,
-            memoTag: fields.memoTag,
-            accountRef: fields.accountRef,
-            subaccountRef: fields.subaccountRef,
-            contact: fields.contact,
-            notes: fields.notes,
-            isDefault,
-            updatedAt: row.updatedAt,
-          },
-        });
-
-      if (isDefault) {
-        await setOrganizationDefault(db, {
-          organizationId: row.counterpartyId,
-          currencyId: row.currencyId,
-          currentId: row.id,
-        });
-      }
-
-      organizationRequisites += 1;
-
-      if (!row.bindingBookId || !row.bindingBookAccountInstanceId) {
-        auditRows.push({
-          accountId: row.id,
-          reason: "Organization requisite is missing a legacy accounting binding",
-          counterpartyId: row.counterpartyId,
-          ledgerEntityCounterpartyId: row.ledgerEntityCounterpartyId,
-          label: row.label,
-        });
-        continue;
-      }
-
-      await db
-        .insert(schema.organizationRequisiteBindings)
-        .values({
-          requisiteId: row.id,
-          bookId: row.bindingBookId,
-          bookAccountInstanceId: row.bindingBookAccountInstanceId,
-          postingAccountNo: row.bindingPostingAccountNo ?? ACCOUNT_NO.BANK,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-        })
-        .onConflictDoUpdate({
-          target: schema.organizationRequisiteBindings.requisiteId,
-          set: {
-            bookId: row.bindingBookId,
-            bookAccountInstanceId: row.bindingBookAccountInstanceId,
-            postingAccountNo: row.bindingPostingAccountNo ?? ACCOUNT_NO.BANK,
-            updatedAt: row.updatedAt,
-          },
-        });
-
-      organizationBindings += 1;
+    if (existing) {
+      out.set(organizationId, existing.id);
       continue;
     }
 
-    const defaultKey = `${row.counterpartyId}:${row.currencyId}`;
-    const isDefault = !defaultCounterpartyKeys.has(defaultKey);
-    defaultCounterpartyKeys.add(defaultKey);
-
-    await db
-      .insert(schema.counterpartyRequisites)
+    const code = organizationDefaultBookCode(organizationId);
+    const [created] = await db
+      .insert(schema.books)
       .values({
-        id: row.id,
-        counterpartyId: row.counterpartyId,
-        currencyId: row.currencyId,
-        kind: fields.kind,
-        label: fields.label,
-        description: fields.description,
-        beneficiaryName: fields.beneficiaryName,
-        institutionName: fields.institutionName,
-        institutionCountry: fields.institutionCountry,
-        accountNo: fields.accountNo,
-        corrAccount: fields.corrAccount,
-        iban: fields.iban,
-        bic: fields.bic,
-        swift: fields.swift,
-        bankAddress: fields.bankAddress,
-        network: fields.network,
-        assetCode: fields.assetCode,
-        address: fields.address,
-        memoTag: fields.memoTag,
-        accountRef: fields.accountRef,
-        subaccountRef: fields.subaccountRef,
-        contact: fields.contact,
-        notes: fields.notes,
-        isDefault,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
+        organizationId,
+        code,
+        name: organizationDefaultBookName(organizationId),
+        isDefault: true,
       })
-      .onConflictDoUpdate({
-        target: schema.counterpartyRequisites.id,
-        set: {
-          counterpartyId: row.counterpartyId,
-          currencyId: row.currencyId,
-          kind: fields.kind,
-          label: fields.label,
-          description: fields.description,
-          beneficiaryName: fields.beneficiaryName,
-          institutionName: fields.institutionName,
-          institutionCountry: fields.institutionCountry,
-          accountNo: fields.accountNo,
-          corrAccount: fields.corrAccount,
-          iban: fields.iban,
-          bic: fields.bic,
-          swift: fields.swift,
-          bankAddress: fields.bankAddress,
-          network: fields.network,
-          assetCode: fields.assetCode,
-          address: fields.address,
-          memoTag: fields.memoTag,
-          accountRef: fields.accountRef,
-          subaccountRef: fields.subaccountRef,
-          contact: fields.contact,
-          notes: fields.notes,
-          isDefault,
-          updatedAt: row.updatedAt,
-        },
-      });
+      .onConflictDoNothing({ target: schema.books.code })
+      .returning({ id: schema.books.id });
 
-    if (isDefault) {
-      await setCounterpartyDefault(db, {
-        counterpartyId: row.counterpartyId,
-        currencyId: row.currencyId,
-        currentId: row.id,
-      });
+    if (created) {
+      out.set(organizationId, created.id);
+      continue;
     }
 
-    counterpartyRequisites += 1;
-  }
+    const [byCode] = await db
+      .select({ id: schema.books.id })
+      .from(schema.books)
+      .where(eq(schema.books.code, code))
+      .limit(1);
 
-  return {
-    counterpartyRequisites,
-    organizationRequisites,
-    organizationBindings,
-    auditRows,
-  };
-}
-
-export async function seedRequisitesFromLegacy(db: DbLike) {
-  const result = await backfillRequisitesFromLegacy(db);
-
-  console.log(
-    `[seed:requisites] Backfilled ${result.counterpartyRequisites} counterparty requisites, ${result.organizationRequisites} organization requisites, ${result.organizationBindings} organization bindings`,
-  );
-
-  if (result.auditRows.length > 0) {
-    console.warn(
-      `[seed:requisites] ${result.auditRows.length} legacy rows require manual mapping`,
-    );
-    for (const row of result.auditRows) {
-      console.warn(
-        `[seed:requisites] audit account=${row.accountId} counterparty=${row.counterpartyId} ledgerEntity=${row.ledgerEntityCounterpartyId} label=${row.label} reason=${row.reason}`,
+    if (!byCode) {
+      throw new Error(
+        `Failed to create or fetch default book for organization ${organizationId}`,
       );
     }
+
+    out.set(organizationId, byCode.id);
   }
 
-  return result;
+  return out;
+}
+
+async function upsertRequisites(
+  db: DbLike,
+  currencyIds: ReadonlyMap<string, string>,
+) {
+  for (const requisite of REQUISITES) {
+    const currencyId = currencyIds.get(requisite.currencyCode);
+    if (!currencyId) {
+      throw new Error(`Currency not found for code ${requisite.currencyCode}`);
+    }
+
+    await db
+      .insert(schema.requisites)
+      .values({
+        id: requisite.id,
+        ownerType: requisite.ownerType,
+        organizationId:
+          requisite.ownerType === "organization" ? requisite.ownerId : null,
+        counterpartyId:
+          requisite.ownerType === "counterparty" ? requisite.ownerId : null,
+        providerId: requisite.providerId,
+        currencyId,
+        kind: requisite.kind,
+        label: requisite.label,
+        description: requisite.description ?? null,
+        beneficiaryName: requisite.beneficiaryName ?? null,
+        institutionName: requisite.institutionName ?? null,
+        institutionCountry: requisite.institutionCountry ?? null,
+        accountNo: requisite.accountNo ?? null,
+        corrAccount: requisite.corrAccount ?? null,
+        iban: requisite.iban ?? null,
+        bic: requisite.bic ?? null,
+        swift: requisite.swift ?? null,
+        bankAddress: requisite.bankAddress ?? null,
+        network: requisite.network ?? null,
+        assetCode: requisite.assetCode ?? null,
+        address: requisite.address ?? null,
+        memoTag: requisite.memoTag ?? null,
+        accountRef: requisite.accountRef ?? null,
+        subaccountRef: requisite.subaccountRef ?? null,
+        contact: requisite.contact ?? null,
+        notes: requisite.notes ?? null,
+        isDefault: requisite.isDefault ?? false,
+      })
+      .onConflictDoUpdate({
+        target: schema.requisites.id,
+        set: {
+          ownerType: requisite.ownerType,
+          organizationId:
+            requisite.ownerType === "organization" ? requisite.ownerId : null,
+          counterpartyId:
+            requisite.ownerType === "counterparty" ? requisite.ownerId : null,
+          providerId: requisite.providerId,
+          currencyId,
+          kind: requisite.kind,
+          label: requisite.label,
+          description: requisite.description ?? null,
+          beneficiaryName: requisite.beneficiaryName ?? null,
+          institutionName: requisite.institutionName ?? null,
+          institutionCountry: requisite.institutionCountry ?? null,
+          accountNo: requisite.accountNo ?? null,
+          corrAccount: requisite.corrAccount ?? null,
+          iban: requisite.iban ?? null,
+          bic: requisite.bic ?? null,
+          swift: requisite.swift ?? null,
+          bankAddress: requisite.bankAddress ?? null,
+          network: requisite.network ?? null,
+          assetCode: requisite.assetCode ?? null,
+          address: requisite.address ?? null,
+          memoTag: requisite.memoTag ?? null,
+          accountRef: requisite.accountRef ?? null,
+          subaccountRef: requisite.subaccountRef ?? null,
+          contact: requisite.contact ?? null,
+          notes: requisite.notes ?? null,
+          isDefault: requisite.isDefault ?? false,
+          archivedAt: null,
+        },
+      });
+  }
+}
+
+async function upsertOrganizationBindings(
+  db: DbLike,
+  defaultBookIdByOrganizationId: ReadonlyMap<string, string>,
+) {
+  const organizationRequisites = REQUISITES.filter(
+    (requisite): requisite is SeedRequisiteFixture & { ownerType: "organization" } =>
+      requisite.ownerType === "organization",
+  );
+
+  for (const requisite of organizationRequisites) {
+    const bookId = defaultBookIdByOrganizationId.get(requisite.ownerId);
+    if (!bookId) {
+      throw new Error(`Book not found for organization ${requisite.ownerId}`);
+    }
+
+    const dimensions = { organizationRequisiteId: requisite.id };
+    const dimensionsHash = computeDimensionsHash(dimensions);
+    const tbLedger = tbLedgerForCurrency(requisite.currencyCode);
+    const tbAccountId = tbBookAccountInstanceIdFor(
+      bookId,
+      ACCOUNT_NO.BANK,
+      requisite.currencyCode,
+      dimensionsHash,
+      tbLedger,
+    );
+
+    const [instance] = await db
+      .insert(schema.bookAccountInstances)
+      .values({
+        bookId,
+        accountNo: ACCOUNT_NO.BANK,
+        currency: requisite.currencyCode,
+        dimensions,
+        dimensionsHash,
+        tbLedger,
+        tbAccountId,
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.bookAccountInstances.bookId,
+          schema.bookAccountInstances.accountNo,
+          schema.bookAccountInstances.currency,
+          schema.bookAccountInstances.dimensionsHash,
+        ],
+        set: {
+          tbLedger,
+          tbAccountId,
+          dimensions,
+        },
+      })
+      .returning({ id: schema.bookAccountInstances.id });
+
+    if (!instance) {
+      throw new Error(
+        `Failed to upsert organization binding instance for requisite ${requisite.id}`,
+      );
+    }
+
+    await db
+      .insert(schema.requisiteAccountingBindings)
+      .values({
+        requisiteId: requisite.id,
+        bookId,
+        bookAccountInstanceId: instance.id,
+        postingAccountNo: requisite.postingAccountNo ?? ACCOUNT_NO.BANK,
+      })
+      .onConflictDoUpdate({
+        target: schema.requisiteAccountingBindings.requisiteId,
+        set: {
+          bookId,
+          bookAccountInstanceId: instance.id,
+          postingAccountNo: requisite.postingAccountNo ?? ACCOUNT_NO.BANK,
+        },
+      });
+  }
+}
+
+export async function seedRequisites(db: DbLike) {
+  await seedCurrencies(db as Database);
+  await seedCounterparties(db);
+  await seedOrganizations(db);
+  await seedRequisiteProviders(db);
+
+  const currencyIds = await currencyIdByCodeMap(db);
+  await upsertRequisites(db, currencyIds);
+  const defaultBookIdByOrganizationId = await ensureDefaultBooks(db);
+  await upsertOrganizationBindings(db, defaultBookIdByOrganizationId);
+
+  const organizationRequisites = REQUISITES.filter(
+    (requisite) => requisite.ownerType === "organization",
+  );
+  const counterpartyRequisites = REQUISITES.filter(
+    (requisite) => requisite.ownerType === "counterparty",
+  );
+
+  console.log(
+    `[seed:requisites] Seeded ${counterpartyRequisites.length} counterparty requisites, ${organizationRequisites.length} organization requisites, ${organizationRequisites.length} organization bindings`,
+  );
 }

@@ -43,20 +43,7 @@ async function cleanupCustomerTables() {
       )
   `);
   await pool.query(`
-    DELETE FROM counterparty_account_bindings
-    WHERE counterparty_account_id IN (
-      SELECT id
-      FROM counterparty_accounts
-      WHERE counterparty_id IN (
-        SELECT id
-        FROM counterparties
-        WHERE customer_id IS NOT NULL
-           OR external_id LIKE 'cp-%'
-      )
-    )
-  `);
-  await pool.query(`
-    DELETE FROM counterparty_accounts
+    DELETE FROM requisites
     WHERE counterparty_id IN (
       SELECT id
       FROM counterparties

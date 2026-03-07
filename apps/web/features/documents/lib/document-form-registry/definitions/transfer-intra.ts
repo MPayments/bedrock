@@ -27,7 +27,7 @@ export function createTransferIntraDefinition(): DocumentFormDefinition {
           { kind: "datetime", name: "occurredAt", label: "Дата документа" },
           {
             kind: "counterparty",
-            name: "sourceCounterpartyId",
+            name: "organizationId",
             label: "Организация",
             optionsSource: "organizations",
             description:
@@ -35,30 +35,27 @@ export function createTransferIntraDefinition(): DocumentFormDefinition {
           },
           {
             kind: "account",
-            name: "sourceCounterpartyAccountId",
+            name: "sourceRequisiteId",
             label: "Реквизит источник",
-            counterpartyField: "sourceCounterpartyId",
+            counterpartyField: "organizationId",
             optionsSource: "organizationRequisites",
           },
           {
             kind: "account",
-            name: "destinationCounterpartyAccountId",
+            name: "destinationRequisiteId",
             label: "Реквизит назначение",
-            counterpartyField: "sourceCounterpartyId",
+            counterpartyField: "organizationId",
             optionsSource: "organizationRequisites",
           },
         ],
         layout: {
           rows: [
             {
-              fields: ["sourceCounterpartyId"],
+              fields: ["organizationId"],
             },
             {
               columns: TWO_COLUMN_SM_COLUMNS,
-              fields: [
-                "sourceCounterpartyAccountId",
-                "destinationCounterpartyAccountId",
-              ],
+              fields: ["sourceRequisiteId", "destinationRequisiteId"],
             },
             {
               fields: ["occurredAt"],
@@ -78,10 +75,7 @@ export function createTransferIntraDefinition(): DocumentFormDefinition {
             hidden: true,
             deriveFrom: {
               kind: "accountCurrency",
-              accountFieldNames: [
-                "sourceCounterpartyAccountId",
-                "destinationCounterpartyAccountId",
-              ],
+              accountFieldNames: ["sourceRequisiteId", "destinationRequisiteId"],
             },
           },
           {
@@ -115,13 +109,9 @@ export function createTransferIntraDefinition(): DocumentFormDefinition {
       return {
         ...getDefaultTransferValues(),
         occurredAt: isoToDateTimeLocal(payload.occurredAt),
-        sourceCounterpartyId: readString(payload.sourceCounterpartyId),
-        sourceCounterpartyAccountId: readString(
-          payload.sourceCounterpartyAccountId,
-        ),
-        destinationCounterpartyAccountId: readString(
-          payload.destinationCounterpartyAccountId,
-        ),
+        organizationId: readString(payload.organizationId),
+        sourceRequisiteId: readString(payload.sourceRequisiteId),
+        destinationRequisiteId: readString(payload.destinationRequisiteId),
         amount: normalizeMajorAmountInput(payload.amount, payload.currency),
         currency: readString(payload.currency),
         timeoutSeconds:
@@ -134,12 +124,9 @@ export function createTransferIntraDefinition(): DocumentFormDefinition {
     toPayload(values) {
       return parseSchema(TransferIntraInputSchema, {
         occurredAt: toOccurredAtIso(values.occurredAt),
-        sourceCounterpartyAccountId: readString(
-          values.sourceCounterpartyAccountId,
-        ).trim(),
-        destinationCounterpartyAccountId: readString(
-          values.destinationCounterpartyAccountId,
-        ).trim(),
+        organizationId: readString(values.organizationId).trim(),
+        sourceRequisiteId: readString(values.sourceRequisiteId).trim(),
+        destinationRequisiteId: readString(values.destinationRequisiteId).trim(),
         amount: normalizeMajorAmountInput(values.amount, values.currency),
         currency: readString(values.currency).trim(),
         timeoutSeconds: optionalNumber(values.timeoutSeconds),

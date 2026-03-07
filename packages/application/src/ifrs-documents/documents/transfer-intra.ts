@@ -21,7 +21,7 @@ import {
 } from "../validation";
 import {
   ensureTransferCurrencies,
-  normalizeTransferPayload,
+  normalizeTransferIntraPayload,
   resolveTransferBindings,
 } from "./internal/transfer-helpers";
 import type { IfrsModuleDeps } from "./internal/types";
@@ -29,7 +29,7 @@ import type { IfrsModuleDeps } from "./internal/types";
 export function createTransferIntraDocumentModule(
   deps: IfrsModuleDeps,
 ): DocumentModule<TransferIntraInput, TransferIntraInput> {
-  const { organizationRequisitesService } = deps;
+  const { requisitesService } = deps;
 
   return {
     moduleId: "transfer_intra",
@@ -45,7 +45,7 @@ export function createTransferIntraDocumentModule(
     approvalRequired: () => false,
     async createDraft(_context, input) {
       const bindings = await resolveTransferBindings(
-        organizationRequisitesService,
+        requisitesService,
         input,
       );
       if (bindings.source.organizationId !== bindings.destination.organizationId) {
@@ -54,11 +54,14 @@ export function createTransferIntraDocumentModule(
         );
       }
 
-      return buildDocumentDraft(input, normalizeTransferPayload(input, bindings));
+      return buildDocumentDraft(
+        input,
+        normalizeTransferIntraPayload(input, bindings),
+      );
     },
     async updateDraft(_context, _document, input) {
       const bindings = await resolveTransferBindings(
-        organizationRequisitesService,
+        requisitesService,
         input,
       );
       if (bindings.source.organizationId !== bindings.destination.organizationId) {
@@ -67,7 +70,10 @@ export function createTransferIntraDocumentModule(
         );
       }
 
-      return buildDocumentDraft(input, normalizeTransferPayload(input, bindings));
+      return buildDocumentDraft(
+        input,
+        normalizeTransferIntraPayload(input, bindings),
+      );
     },
     deriveSummary(document) {
       const payload = parseDocumentPayload(TransferIntraPayloadSchema, document);
@@ -77,14 +83,14 @@ export function createTransferIntraDocumentModule(
         amountMinor: BigInt(payload.amountMinor),
         currency: payload.currency,
         memo: payload.memo ?? null,
-        counterpartyId: payload.sourceCounterpartyId,
-        counterpartyAccountId: payload.sourceCounterpartyAccountId,
+        counterpartyId: null,
+        organizationRequisiteId: payload.sourceRequisiteId,
         searchText: [
           document.docNo,
           document.docType,
-          payload.sourceCounterpartyAccountId,
-          payload.destinationCounterpartyAccountId,
-          payload.sourceCounterpartyId,
+          payload.organizationId,
+          payload.sourceRequisiteId,
+          payload.destinationRequisiteId,
           payload.currency,
         ]
           .filter(Boolean)
@@ -93,7 +99,7 @@ export function createTransferIntraDocumentModule(
     },
     async canCreate(_context, input) {
       const bindings = await resolveTransferBindings(
-        organizationRequisitesService,
+        requisitesService,
         input,
       );
       ensureTransferCurrencies({
@@ -101,7 +107,12 @@ export function createTransferIntraDocumentModule(
         sourceCurrency: bindings.source.currencyCode,
         destinationCurrency: bindings.destination.currencyCode,
       });
-      if (bindings.source.organizationId !== bindings.destination.organizationId) {
+      if (bindings.source.organizationId !== input.organizationId) {
+        throw new DocumentValidationError(
+          "organizationId does not match selected source requisite",
+        );
+      }
+      if (bindings.destination.organizationId !== input.organizationId) {
         throw new DocumentValidationError(
           "transfer_intra requires requisites from the same organization",
         );
@@ -115,7 +126,7 @@ export function createTransferIntraDocumentModule(
     async canPost(_context, document) {
       const payload = parseDocumentPayload(TransferIntraPayloadSchema, document);
       const bindings = await resolveTransferBindings(
-        organizationRequisitesService,
+        requisitesService,
         payload,
       );
       ensureTransferCurrencies({
@@ -133,7 +144,7 @@ export function createTransferIntraDocumentModule(
     async buildPostingPlan(_context, document) {
       const payload = parseDocumentPayload(TransferIntraPayloadSchema, document);
       const bindings = await resolveTransferBindings(
-        organizationRequisitesService,
+        requisitesService,
         payload,
       );
 
@@ -164,9 +175,8 @@ export function createTransferIntraDocumentModule(
             currency: payload.currency,
             amountMinor: BigInt(payload.amountMinor),
             dimensions: {
-              sourceCounterpartyAccountId: payload.sourceCounterpartyAccountId,
-              destinationCounterpartyAccountId:
-                payload.destinationCounterpartyAccountId,
+              sourceRequisiteId: payload.sourceRequisiteId,
+              destinationRequisiteId: payload.destinationRequisiteId,
             },
             pending: isPending
               ? {

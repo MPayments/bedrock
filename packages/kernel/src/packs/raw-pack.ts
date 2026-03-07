@@ -119,19 +119,19 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
-        "sourceCounterpartyAccountId",
-        "destinationCounterpartyAccountId",
+        "sourceRequisiteId",
+        "destinationRequisiteId",
       ],
       debit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("destinationCounterpartyAccountId"),
+          organizationRequisiteId: dimension("destinationRequisiteId"),
         },
       },
       credit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("sourceCounterpartyAccountId"),
+          organizationRequisiteId: dimension("sourceRequisiteId"),
         },
       },
     }),
@@ -145,20 +145,20 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
-        "sourceCounterpartyAccountId",
-        "destinationCounterpartyAccountId",
+        "sourceRequisiteId",
+        "destinationRequisiteId",
       ],
       pendingMode: "required",
       debit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("destinationCounterpartyAccountId"),
+          organizationRequisiteId: dimension("destinationRequisiteId"),
         },
       },
       credit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("sourceCounterpartyAccountId"),
+          organizationRequisiteId: dimension("sourceRequisiteId"),
         },
       },
     }),
@@ -172,7 +172,7 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
-        "sourceCounterpartyAccountId",
+        "sourceRequisiteId",
         "destinationCounterpartyId",
       ],
       debit: {
@@ -185,7 +185,7 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       credit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("sourceCounterpartyAccountId"),
+          organizationRequisiteId: dimension("sourceRequisiteId"),
         },
       },
     }),
@@ -199,7 +199,7 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
-        "sourceCounterpartyAccountId",
+        "sourceRequisiteId",
         "destinationCounterpartyId",
       ],
       pendingMode: "required",
@@ -213,7 +213,7 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       credit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("sourceCounterpartyAccountId"),
+          organizationRequisiteId: dimension("sourceRequisiteId"),
         },
       },
     }),
@@ -227,13 +227,13 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
-        "destinationCounterpartyAccountId",
+        "destinationRequisiteId",
         "sourceCounterpartyId",
       ],
       debit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("destinationCounterpartyAccountId"),
+          organizationRequisiteId: dimension("destinationRequisiteId"),
         },
       },
       credit: {
@@ -254,14 +254,14 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: [
-        "destinationCounterpartyAccountId",
+        "destinationRequisiteId",
         "sourceCounterpartyId",
       ],
       pendingMode: "required",
       debit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("destinationCounterpartyAccountId"),
+          organizationRequisiteId: dimension("destinationRequisiteId"),
         },
       },
       credit: {
@@ -308,12 +308,12 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY,
       allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["counterpartyAccountId", "counterpartyId"],
+      requiredDimensions: ["organizationRequisiteId", "counterpartyId"],
       requiredRefs: ["entryRef", "kind"],
       debit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("counterpartyAccountId"),
+          organizationRequisiteId: dimension("organizationRequisiteId"),
         },
       },
       credit: {
@@ -329,12 +329,12 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY,
       allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["counterpartyAccountId", "counterpartyId"],
+      requiredDimensions: ["organizationRequisiteId", "counterpartyId"],
       requiredRefs: ["entryRef", "kind"],
       debit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("counterpartyAccountId"),
+          organizationRequisiteId: dimension("organizationRequisiteId"),
         },
       },
       credit: {
@@ -350,12 +350,12 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
       allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["counterpartyAccountId", "counterpartyId"],
+      requiredDimensions: ["organizationRequisiteId", "counterpartyId"],
       requiredRefs: ["entryRef", "kind"],
       debit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("counterpartyAccountId"),
+          organizationRequisiteId: dimension("organizationRequisiteId"),
         },
       },
       credit: {
@@ -371,12 +371,12 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_OPENING_BALANCE,
       allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["counterpartyAccountId"],
+      requiredDimensions: ["organizationRequisiteId"],
       requiredRefs: ["entryRef", "kind"],
       debit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("counterpartyAccountId"),
+          organizationRequisiteId: dimension("organizationRequisiteId"),
         },
       },
       credit: {
@@ -390,12 +390,12 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY,
       allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["counterpartyAccountId", "counterpartyId"],
+      requiredDimensions: ["organizationRequisiteId", "counterpartyId"],
       requiredRefs: ["entryRef", "kind"],
       debit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("counterpartyAccountId"),
+          organizationRequisiteId: dimension("organizationRequisiteId"),
         },
       },
       credit: {
@@ -411,12 +411,12 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY,
       allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["counterpartyAccountId", "counterpartyId"],
+      requiredDimensions: ["organizationRequisiteId", "counterpartyId"],
       requiredRefs: ["entryRef", "kind"],
       debit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("counterpartyAccountId"),
+          organizationRequisiteId: dimension("organizationRequisiteId"),
         },
       },
       credit: {
@@ -432,12 +432,12 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
       allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["counterpartyAccountId", "counterpartyId"],
+      requiredDimensions: ["organizationRequisiteId", "counterpartyId"],
       requiredRefs: ["entryRef", "kind"],
       debit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("counterpartyAccountId"),
+          organizationRequisiteId: dimension("organizationRequisiteId"),
         },
       },
       credit: {
@@ -453,12 +453,12 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       transferCode: TRANSFER_CODE.EXTERNAL_FUNDING_OPENING_BALANCE,
       allowSources: [ACCOUNTING_SOURCE_ID.CAPITAL_FUNDING],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["counterpartyAccountId"],
+      requiredDimensions: ["organizationRequisiteId"],
       requiredRefs: ["entryRef", "kind"],
       debit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("counterpartyAccountId"),
+          organizationRequisiteId: dimension("organizationRequisiteId"),
         },
       },
       credit: {
@@ -472,12 +472,12 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       transferCode: TRANSFER_CODE.FUNDING_SETTLED,
       allowSources: [ACCOUNTING_SOURCE_ID.PAYIN_FUNDING],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["counterpartyAccountId", "customerId"],
+      requiredDimensions: ["organizationRequisiteId", "customerId"],
       requiredRefs: ["paymentCaseId", "railRef"],
       debit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("counterpartyAccountId"),
+          organizationRequisiteId: dimension("organizationRequisiteId"),
         },
       },
       credit: {
@@ -760,7 +760,7 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       transferCode: TRANSFER_CODE.PAYOUT_INITIATED,
       allowSources: [ACCOUNTING_SOURCE_ID.PAYOUT_INITIATE],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
-      requiredDimensions: ["orderId", "counterpartyAccountId"],
+      requiredDimensions: ["orderId", "organizationRequisiteId"],
       requiredRefs: ["railRef", "payoutBankStableKey"],
       pendingMode: "required",
       debit: {
@@ -772,7 +772,7 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       credit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("counterpartyAccountId"),
+          organizationRequisiteId: dimension("organizationRequisiteId"),
         },
       },
     }),
@@ -802,7 +802,7 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
         "feeBucket",
         "orderId",
         "counterpartyId",
-        "counterpartyAccountId",
+        "organizationRequisiteId",
       ],
       requiredRefs: ["componentId", "railRef"],
       pendingMode: "required",
@@ -817,7 +817,7 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       credit: {
         accountNo: ACCOUNT_NO.BANK,
         dimensions: {
-          counterpartyAccountId: dimension("counterpartyAccountId"),
+          organizationRequisiteId: dimension("organizationRequisiteId"),
         },
       },
     }),

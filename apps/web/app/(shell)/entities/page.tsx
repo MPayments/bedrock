@@ -1,10 +1,11 @@
 import { BookOpen } from "lucide-react";
 
 import { getCounterparties } from "@/features/entities/counterparties/lib/queries";
-import { getCounterpartyRequisites } from "@/features/entities/counterparty-requisites/lib/queries";
 import { getCurrencies } from "@/features/entities/currencies/lib/queries";
 import { getCustomers } from "@/features/entities/customers/lib/queries";
-import { getOrganizationRequisites } from "@/features/entities/organization-requisites/lib/queries";
+import { getOrganizations } from "@/features/entities/organizations/lib/queries";
+import { getRequisiteProviders } from "@/features/entities/requisite-providers/lib/queries";
+import { getRequisites } from "@/features/entities/requisites/lib/queries";
 import { SectionOverviewPage } from "@/features/overview/ui/section-overview-page";
 
 function formatCount(value: number) {
@@ -14,16 +15,18 @@ function formatCount(value: number) {
 export default async function EntitiesOverviewPage() {
   const [
     customers,
+    organizations,
     counterparties,
-    counterpartyRequisites,
-    organizationRequisites,
+    requisites,
+    requisiteProviders,
     currencies,
   ] =
     await Promise.all([
       getCustomers({ page: 1, perPage: 1 }),
+      getOrganizations(),
       getCounterparties({ page: 1, perPage: 1 }),
-      getCounterpartyRequisites({ page: 1, perPage: 1 }),
-      getOrganizationRequisites({ page: 1, perPage: 1 }),
+      getRequisites(),
+      getRequisiteProviders(),
       getCurrencies({ page: 1, perPage: 1 }),
     ]);
 
@@ -41,6 +44,13 @@ export default async function EntitiesOverviewPage() {
           href: "/entities/customers",
         },
         {
+          id: "organizations",
+          label: "Организации",
+          value: formatCount(organizations.total),
+          description: "Собственные компании, владеющие книгами и расчетными позициями.",
+          href: "/entities/organizations",
+        },
+        {
           id: "counterparties",
           label: "Контрагенты",
           value: formatCount(counterparties.total),
@@ -48,18 +58,18 @@ export default async function EntitiesOverviewPage() {
           href: "/entities/counterparties",
         },
         {
-          id: "counterparty-requisites",
-          label: "Реквизиты контрагентов",
-          value: formatCount(counterpartyRequisites.total),
-          description: "Внешние реквизиты без бухгалтерской привязки.",
-          href: "/entities/counterparty-requisites",
+          id: "requisites",
+          label: "Реквизиты",
+          value: formatCount(requisites.total),
+          description: "Единый каталог собственных и внешних реквизитов.",
+          href: "/entities/requisites",
         },
         {
-          id: "organization-requisites",
-          label: "Реквизиты организаций",
-          value: formatCount(organizationRequisites.total),
-          description: "Внутренние расчётные реквизиты организаций.",
-          href: "/entities/organization-requisites",
+          id: "requisite-providers",
+          label: "Провайдеры реквизитов",
+          value: formatCount(requisiteProviders.total),
+          description: "Банки, custodians, exchanges и blockchain-провайдеры.",
+          href: "/entities/requisite-providers",
         },
         {
           id: "currencies",
@@ -79,22 +89,29 @@ export default async function EntitiesOverviewPage() {
         {
           id: "counterparties",
           title: "Контрагенты",
-          description: "Группы, профили и связанные счета/операции.",
+          description: "Внешние стороны, папки и профили для расчетов и аналитики.",
           href: "/entities/counterparties",
         },
         {
-          id: "counterparty-requisites",
-          title: "Реквизиты контрагентов",
-          description: "Каталог пользовательских реквизитов для внешних контрагентов.",
-          href: "/entities/counterparty-requisites",
+          id: "organizations",
+          title: "Организации",
+          description: "Отдельный master-справочник собственных компаний.",
+          href: "/entities/organizations",
+          cta: "Открыть организации",
+        },
+        {
+          id: "requisites",
+          title: "Реквизиты",
+          description: "Единый каталог реквизитов организаций и контрагентов.",
+          href: "/entities/requisites",
           cta: "Открыть реквизиты",
         },
         {
-          id: "organization-requisites",
-          title: "Реквизиты организаций",
-          description: "Внутренние реквизиты своих компаний с отдельной accounting binding.",
-          href: "/entities/organization-requisites",
-          cta: "Открыть реквизиты",
+          id: "requisite-providers",
+          title: "Провайдеры реквизитов",
+          description: "Единый каталог банков, custodians, exchanges и blockchain-провайдеров.",
+          href: "/entities/requisite-providers",
+          cta: "Открыть провайдеров",
         },
       ]}
     />

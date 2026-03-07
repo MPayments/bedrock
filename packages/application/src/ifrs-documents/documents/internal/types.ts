@@ -9,14 +9,19 @@ export interface OrganizationRequisiteBinding {
   bookAccountInstanceId: string;
 }
 
-export interface OrganizationRequisitesService {
+export interface RequisitesService {
   resolveBindings(input: {
     requisiteIds: string[];
   }): Promise<OrganizationRequisiteBinding[]>;
+  findById(id: string): Promise<{
+    id: string;
+    ownerType: "organization" | "counterparty";
+    ownerId: string;
+  }>;
 }
 
 export interface IfrsModuleDeps {
-  organizationRequisitesService: OrganizationRequisitesService;
+  requisitesService: RequisitesService;
 }
 
 export type IfrsDocumentDb = Parameters<DocumentModule["canPost"]>[0]["db"];

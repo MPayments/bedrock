@@ -21,8 +21,8 @@ export const PAYMENTS_MODULE_MANIFEST = {
       reason: "Payments are implemented as document workflows",
     },
     {
-      moduleId: "organization-requisites",
-      reason: "Payments resolve transfer bindings via organization requisite mappings",
+      moduleId: "requisites",
+      reason: "Payments resolve organization bindings and external requisites",
     },
   ],
 } as const satisfies ModuleManifest;

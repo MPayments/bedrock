@@ -44,7 +44,7 @@ export interface DocumentSummaryFields {
   memo?: string | null;
   counterpartyId?: string | null;
   customerId?: string | null;
-  counterpartyAccountId?: string | null;
+  organizationRequisiteId?: string | null;
   searchText: string;
 }
 

@@ -180,7 +180,7 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
                 memo: summary.memo,
                 counterpartyId: summary.counterpartyId,
                 customerId: summary.customerId,
-                counterpartyAccountId: summary.counterpartyAccountId,
+                organizationRequisiteId: summary.organizationRequisiteId,
                 searchText: summary.searchText,
                 updatedAt: sql`now()`,
                 version: sql`${schema.documents.version} + 1`,

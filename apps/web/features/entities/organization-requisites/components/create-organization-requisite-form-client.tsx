@@ -19,11 +19,13 @@ type CreatedOrganizationRequisite = {
 type CreateOrganizationRequisiteFormClientProps = {
   options: OrganizationRequisiteFormOptions;
   initialValues?: Partial<RequisiteFormValues>;
+  ownerReadonly?: boolean;
 };
 
 export function CreateOrganizationRequisiteFormClient({
   options,
   initialValues,
+  ownerReadonly = false,
 }: CreateOrganizationRequisiteFormClientProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -35,9 +37,11 @@ export function CreateOrganizationRequisiteFormClient({
 
     const result = await executeMutation<CreatedOrganizationRequisite>({
       request: () =>
-        apiClient.v1["organization-requisites"].$post({
+        apiClient.v1.requisites.$post({
           json: {
-            organizationId: values.ownerId,
+            ownerType: "organization",
+            ownerId: values.ownerId,
+            providerId: values.providerId,
             currencyId: values.currencyId,
             kind: values.kind,
             label: values.label,
@@ -76,7 +80,7 @@ export function CreateOrganizationRequisiteFormClient({
     }
 
     toast.success("Реквизит организации создан");
-    router.push(`/entities/organization-requisites/${result.data.id}`);
+    router.push(`/entities/requisites/${result.data.id}`);
   }
 
   return (
@@ -84,8 +88,10 @@ export function CreateOrganizationRequisiteFormClient({
       ownerLabel="Организация"
       ownerDescription="Внутренняя организация, для которой хранится расчётный реквизит."
       ownerOptions={options.owners}
+      providerOptions={options.providers}
       currencyOptions={options.currencies}
       initialValues={initialValues}
+      ownerReadonly={ownerReadonly}
       submitting={submitting}
       error={error}
       onSubmit={handleSubmit}

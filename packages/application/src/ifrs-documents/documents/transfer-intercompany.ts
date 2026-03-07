@@ -21,7 +21,7 @@ import {
 } from "../validation";
 import {
   ensureTransferCurrencies,
-  normalizeTransferPayload,
+  normalizeTransferIntercompanyPayload,
   resolveTransferBindings,
 } from "./internal/transfer-helpers";
 import type { IfrsModuleDeps } from "./internal/types";
@@ -29,7 +29,7 @@ import type { IfrsModuleDeps } from "./internal/types";
 export function createTransferIntercompanyDocumentModule(
   deps: IfrsModuleDeps,
 ): DocumentModule<TransferIntercompanyInput, TransferIntercompanyInput> {
-  const { organizationRequisitesService } = deps;
+  const { requisitesService } = deps;
 
   return {
     moduleId: "transfer_intercompany",
@@ -45,7 +45,7 @@ export function createTransferIntercompanyDocumentModule(
     approvalRequired: () => false,
     async createDraft(_context, input) {
       const bindings = await resolveTransferBindings(
-        organizationRequisitesService,
+        requisitesService,
         input,
       );
       if (bindings.source.organizationId === bindings.destination.organizationId) {
@@ -54,11 +54,14 @@ export function createTransferIntercompanyDocumentModule(
         );
       }
 
-      return buildDocumentDraft(input, normalizeTransferPayload(input, bindings));
+      return buildDocumentDraft(
+        input,
+        normalizeTransferIntercompanyPayload(input, bindings),
+      );
     },
     async updateDraft(_context, _document, input) {
       const bindings = await resolveTransferBindings(
-        organizationRequisitesService,
+        requisitesService,
         input,
       );
       if (bindings.source.organizationId === bindings.destination.organizationId) {
@@ -67,7 +70,10 @@ export function createTransferIntercompanyDocumentModule(
         );
       }
 
-      return buildDocumentDraft(input, normalizeTransferPayload(input, bindings));
+      return buildDocumentDraft(
+        input,
+        normalizeTransferIntercompanyPayload(input, bindings),
+      );
     },
     deriveSummary(document) {
       const payload = parseDocumentPayload(TransferIntercompanyPayloadSchema, document);
@@ -77,15 +83,15 @@ export function createTransferIntercompanyDocumentModule(
         amountMinor: BigInt(payload.amountMinor),
         currency: payload.currency,
         memo: payload.memo ?? null,
-        counterpartyId: payload.sourceCounterpartyId,
-        counterpartyAccountId: payload.sourceCounterpartyAccountId,
+        counterpartyId: null,
+        organizationRequisiteId: payload.sourceRequisiteId,
         searchText: [
           document.docNo,
           document.docType,
-          payload.sourceCounterpartyId,
-          payload.destinationCounterpartyId,
-          payload.sourceCounterpartyAccountId,
-          payload.destinationCounterpartyAccountId,
+          payload.sourceOrganizationId,
+          payload.destinationOrganizationId,
+          payload.sourceRequisiteId,
+          payload.destinationRequisiteId,
           payload.currency,
         ]
           .filter(Boolean)
@@ -94,7 +100,7 @@ export function createTransferIntercompanyDocumentModule(
     },
     async canCreate(_context, input) {
       const bindings = await resolveTransferBindings(
-        organizationRequisitesService,
+        requisitesService,
         input,
       );
       ensureTransferCurrencies({
@@ -102,6 +108,16 @@ export function createTransferIntercompanyDocumentModule(
         sourceCurrency: bindings.source.currencyCode,
         destinationCurrency: bindings.destination.currencyCode,
       });
+      if (bindings.source.organizationId !== input.sourceOrganizationId) {
+        throw new DocumentValidationError(
+          "sourceOrganizationId does not match selected source requisite",
+        );
+      }
+      if (bindings.destination.organizationId !== input.destinationOrganizationId) {
+        throw new DocumentValidationError(
+          "destinationOrganizationId does not match selected destination requisite",
+        );
+      }
       if (bindings.source.organizationId === bindings.destination.organizationId) {
         throw new DocumentValidationError(
           "transfer_intercompany requires requisites from different organizations",
@@ -116,7 +132,7 @@ export function createTransferIntercompanyDocumentModule(
     async canPost(_context, document) {
       const payload = parseDocumentPayload(TransferIntercompanyPayloadSchema, document);
       const bindings = await resolveTransferBindings(
-        organizationRequisitesService,
+        requisitesService,
         payload,
       );
       ensureTransferCurrencies({
@@ -133,7 +149,7 @@ export function createTransferIntercompanyDocumentModule(
     async buildPostingPlan(_context, document) {
       const payload = parseDocumentPayload(TransferIntercompanyPayloadSchema, document);
       const bindings = await resolveTransferBindings(
-        organizationRequisitesService,
+        requisitesService,
         payload,
       );
       const isPending = Boolean(payload.timeoutSeconds);
@@ -161,8 +177,8 @@ export function createTransferIntercompanyDocumentModule(
             currency: payload.currency,
             amountMinor: BigInt(payload.amountMinor),
             dimensions: {
-              sourceCounterpartyAccountId: payload.sourceCounterpartyAccountId,
-              destinationCounterpartyId: payload.destinationCounterpartyId,
+              sourceRequisiteId: payload.sourceRequisiteId,
+              destinationOrganizationId: payload.destinationOrganizationId,
             },
             pending: isPending
               ? {
@@ -178,9 +194,8 @@ export function createTransferIntercompanyDocumentModule(
             currency: payload.currency,
             amountMinor: BigInt(payload.amountMinor),
             dimensions: {
-              destinationCounterpartyAccountId:
-                payload.destinationCounterpartyAccountId,
-              sourceCounterpartyId: payload.sourceCounterpartyId,
+              destinationRequisiteId: payload.destinationRequisiteId,
+              sourceOrganizationId: payload.sourceOrganizationId,
             },
             pending: isPending
               ? {

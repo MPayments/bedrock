@@ -7,9 +7,10 @@ import {
   listInternalLedgerCounterparties,
 } from "@bedrock/core/counterparties";
 import { schema as counterpartiesSchema } from "@bedrock/core/counterparties/schema";
-import { schema as organizationRequisitesSchema } from "@bedrock/core/organization-requisites/schema";
 import { schema as documentsSchema } from "@bedrock/core/documents/schema";
 import { schema as ledgerSchema } from "@bedrock/core/ledger/schema";
+import { schema as organizationsSchema } from "@bedrock/core/organizations/schema";
+import { schema as requisitesSchema } from "@bedrock/core/requisites/schema";
 import { canonicalJson, sha256Hex } from "@bedrock/kernel";
 import { ValidationError } from "@bedrock/kernel/errors";
 import {
@@ -49,7 +50,8 @@ const schema = {
   ...counterpartiesSchema,
   ...documentsSchema,
   ...ledgerSchema,
-  ...organizationRequisitesSchema,
+  ...organizationsSchema,
+  ...requisitesSchema,
   ...balancesSchema,
   ...reportingSchema,
 };
@@ -494,7 +496,7 @@ export function createAccountingReportsService(deps: {
         : await db
             .select({
               id: schema.books.id,
-              counterpartyId: schema.books.counterpartyId,
+              counterpartyId: schema.books.organizationId,
             })
             .from(schema.books)
             .where(inArray(schema.books.id, bookIds));
@@ -701,7 +703,7 @@ export function createAccountingReportsService(deps: {
           return [];
         }
         conditions.push(
-          sql`b.counterparty_id IN (${sql.join(
+          sql`b.organization_id IN (${sql.join(
             bookScopedCounterpartyIds.map((id) => sql`${id}`),
             sql`, `,
           )})`,
@@ -714,7 +716,7 @@ export function createAccountingReportsService(deps: {
         return [];
       }
       conditions.push(
-        sql`b.counterparty_id IN (${sql.join(
+        sql`b.organization_id IN (${sql.join(
           internalLedgerCounterpartyIds.map((id) => sql`${id}`),
           sql`, `,
         )})`,
@@ -735,7 +737,7 @@ export function createAccountingReportsService(deps: {
         lo.status,
         p.book_id,
         b.name AS book_name,
-        b.counterparty_id::text AS book_counterparty_id,
+        b.organization_id::text AS book_counterparty_id,
         p.currency,
         p.amount_minor,
         p.posting_code,
@@ -1626,7 +1628,7 @@ export function createAccountingReportsService(deps: {
     }
 
     const conditions: SQL[] = [
-      eq(schema.balancePositions.subjectType, "counterparty_account"),
+      eq(schema.balancePositions.subjectType, "organization_requisite"),
     ];
 
     if (scope.scopeType === "book") {
@@ -1660,17 +1662,19 @@ export function createAccountingReportsService(deps: {
           };
         }
         conditions.push(
-          sql`${schema.books.counterpartyId} IN (${sql.join(
+          sql`${schema.books.organizationId} IN (${sql.join(
             bookScopedCounterpartyIds.map((id) => sql`${id}`),
             sql`, `,
           )})`,
         );
       } else {
         conditions.push(
-          sql`${schema.organizationRequisites.organizationId} IN (${sql.join(
+          sql`${
+            schema.requisites.organizationId
+          } IN (${sql.join(
             scope.resolvedCounterpartyIds.map((id) => sql`${id}`),
             sql`, `,
-          )})`,
+          )}) AND ${schema.requisites.ownerType} = 'organization'`,
         );
       }
     }
@@ -1691,7 +1695,7 @@ export function createAccountingReportsService(deps: {
         };
       }
       conditions.push(
-        sql`${schema.books.counterpartyId} IN (${sql.join(
+        sql`${schema.books.organizationId} IN (${sql.join(
           internalCounterpartyIds.map((id) => sql`${id}`),
           sql`, `,
         )})`,
@@ -1708,8 +1712,8 @@ export function createAccountingReportsService(deps: {
       .select({
         bookId: schema.balancePositions.bookId,
         bookLabel: schema.books.name,
-        counterpartyId: schema.organizationRequisites.organizationId,
-        counterpartyName: schema.counterparties.shortName,
+        counterpartyId: schema.requisites.organizationId,
+        counterpartyName: schema.organizations.shortName,
         currency: schema.balancePositions.currency,
         ledgerBalanceMinor:
           sql<string>`coalesce(sum(${schema.balancePositions.ledgerBalance}), 0)::text`,
@@ -1722,23 +1726,23 @@ export function createAccountingReportsService(deps: {
       })
       .from(schema.balancePositions)
       .leftJoin(
-        schema.organizationRequisites,
-        eq(schema.organizationRequisites.id, schema.balancePositions.subjectId),
+        schema.requisites,
+        and(
+          eq(schema.requisites.id, schema.balancePositions.subjectId),
+          eq(schema.requisites.ownerType, "organization"),
+        ),
       )
       .leftJoin(
-        schema.counterparties,
-        eq(
-          schema.counterparties.id,
-          schema.organizationRequisites.organizationId,
-        ),
+        schema.organizations,
+        eq(schema.organizations.id, schema.requisites.organizationId),
       )
       .leftJoin(schema.books, eq(schema.books.id, schema.balancePositions.bookId))
       .where(whereSql)
       .groupBy(
         schema.balancePositions.bookId,
         schema.books.name,
-        schema.organizationRequisites.organizationId,
-        schema.counterparties.shortName,
+        schema.requisites.organizationId,
+        schema.organizations.shortName,
         schema.balancePositions.currency,
       );
 

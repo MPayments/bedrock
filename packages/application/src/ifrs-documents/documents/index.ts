@@ -18,6 +18,6 @@ export { createTransferResolutionDocumentModule } from "./transfer-resolution";
 
 export type {
   OrganizationRequisiteBinding,
-  OrganizationRequisitesService,
+  RequisitesService,
   IfrsModuleDeps,
 } from "./internal/types";

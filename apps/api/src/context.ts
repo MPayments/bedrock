@@ -8,8 +8,6 @@ import type { PaymentsService } from "@bedrock/application/payments";
 import type { AccountingService } from "@bedrock/core/accounting";
 import type { BalancesService } from "@bedrock/core/balances";
 import type { CounterpartiesService } from "@bedrock/core/counterparties";
-import { assertInternalLedgerInvariants } from "@bedrock/core/counterparties";
-import type { CounterpartyRequisitesService } from "@bedrock/core/counterparty-requisites";
 import type { CurrenciesService } from "@bedrock/core/currencies";
 import type { CustomersService } from "@bedrock/core/customers";
 import type { DocumentsService } from "@bedrock/core/documents";
@@ -18,7 +16,9 @@ import {
   createModuleRuntimeService,
   type ModuleRuntimeService,
 } from "@bedrock/core/module-runtime";
-import type { OrganizationRequisitesService } from "@bedrock/core/organization-requisites";
+import type { OrganizationsService } from "@bedrock/core/organizations";
+import type { RequisiteProvidersService } from "@bedrock/core/requisite-providers";
+import type { RequisitesService } from "@bedrock/core/requisites";
 import type { UsersService } from "@bedrock/core/users";
 import { db } from "@bedrock/db/client";
 import type { Logger } from "@bedrock/kernel";
@@ -62,7 +62,6 @@ export function parseEnv(): Env {
 export interface AppContext {
   env: Env;
   logger: Logger;
-  counterpartyRequisitesService: CounterpartyRequisitesService;
   accountingService: AccountingService;
   accountingReportingService: AccountingReportingService;
   counterpartiesService: CounterpartiesService;
@@ -70,14 +69,15 @@ export interface AppContext {
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
-  organizationRequisitesService: OrganizationRequisitesService;
+  organizationsService: OrganizationsService;
   paymentsService: PaymentsService;
+  requisiteProvidersService: RequisiteProvidersService;
+  requisitesService: RequisitesService;
   usersService: UsersService;
   ledgerReadService: LedgerReadService;
   balancesService: BalancesService;
   documentsService: DocumentsService;
   moduleRuntime: ModuleRuntimeService;
-  assertInternalLedgerInvariants: () => Promise<void>;
 }
 
 export function createAppContext(env: Env): AppContext {
@@ -95,20 +95,18 @@ export function createAppContext(env: Env): AppContext {
     accountingService: core.accountingService,
     ledgerReadService: core.ledgerReadService,
     balancesService: core.balancesService,
-    counterpartyRequisitesService:
-      applicationServices.counterpartyRequisitesService,
     accountingReportingService: applicationServices.accountingReportingService,
     counterpartiesService: applicationServices.counterpartiesService,
     customersService: applicationServices.customersService,
     currenciesService: applicationServices.currenciesService,
     feesService: applicationServices.feesService,
     fxService: applicationServices.fxService,
-    organizationRequisitesService:
-      applicationServices.organizationRequisitesService,
+    organizationsService: applicationServices.organizationsService,
     paymentsService: applicationServices.paymentsService,
+    requisiteProvidersService: applicationServices.requisiteProvidersService,
+    requisitesService: applicationServices.requisitesService,
     usersService: core.usersService,
     documentsService: applicationServices.documentsService,
     moduleRuntime,
-    assertInternalLedgerInvariants: () => assertInternalLedgerInvariants(db),
   };
 }

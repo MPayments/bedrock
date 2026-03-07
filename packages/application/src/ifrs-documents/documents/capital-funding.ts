@@ -63,7 +63,7 @@ function resolveCapitalFundingEntryRef(input: {
 export function createCapitalFundingDocumentModule(
   deps: IfrsModuleDeps,
 ): DocumentModule<CapitalFundingInput, CapitalFundingInput> {
-  const { organizationRequisitesService } = deps;
+  const { requisitesService } = deps;
 
   return {
     moduleId: "capital_funding",
@@ -98,40 +98,50 @@ export function createCapitalFundingDocumentModule(
         currency: payload.currency,
         memo: payload.memo ?? null,
         counterpartyId: payload.counterpartyId,
-        counterpartyAccountId: payload.counterpartyAccountId,
+        organizationRequisiteId: payload.organizationRequisiteId,
         searchText: [
           document.docNo,
           document.docType,
           payload.kind,
           payload.entryRef,
-          payload.organizationId ?? "",
+          payload.organizationId,
           payload.counterpartyId,
-          payload.counterpartyAccountId,
+          payload.organizationRequisiteId,
+          payload.counterpartyRequisiteId,
         ]
           .filter(Boolean)
           .join(" "),
       };
     },
     async canCreate(_context, input) {
-      const [binding] = await organizationRequisitesService.resolveBindings({
-        requisiteIds: [input.counterpartyAccountId],
-      });
-      if (!binding) {
+      const [binding, counterpartyRequisite] = await Promise.all([
+        requisitesService.resolveBindings({
+          requisiteIds: [input.organizationRequisiteId],
+        }),
+        requisitesService.findById(input.counterpartyRequisiteId),
+      ]);
+      const organizationBinding = binding[0];
+      if (!organizationBinding) {
         throw new DocumentValidationError(
           "Organization requisite binding is missing",
         );
       }
-      if (
-        input.organizationId &&
-        binding.organizationId !== input.organizationId
-      ) {
+      if (organizationBinding.organizationId !== input.organizationId) {
         throw new DocumentValidationError(
           "organizationId does not match selected organization requisite",
         );
       }
-      if (binding.currencyCode !== input.currency) {
+      if (organizationBinding.currencyCode !== input.currency) {
         throw new DocumentValidationError(
-          `Currency mismatch: payload=${input.currency}, account=${binding.currencyCode}`,
+          `Currency mismatch: payload=${input.currency}, account=${organizationBinding.currencyCode}`,
+        );
+      }
+      if (
+        counterpartyRequisite.ownerType !== "counterparty" ||
+        counterpartyRequisite.ownerId !== input.counterpartyId
+      ) {
+        throw new DocumentValidationError(
+          "counterpartyId does not match selected counterparty requisite",
         );
       }
     },
@@ -142,32 +152,41 @@ export function createCapitalFundingDocumentModule(
     async canCancel() {},
     async canPost(_context, document) {
       const payload = parseDocumentPayload(CapitalFundingPayloadSchema, document);
-      const [binding] = await organizationRequisitesService.resolveBindings({
-        requisiteIds: [payload.counterpartyAccountId],
-      });
-      if (!binding) {
+      const [binding, counterpartyRequisite] = await Promise.all([
+        requisitesService.resolveBindings({
+          requisiteIds: [payload.organizationRequisiteId],
+        }),
+        requisitesService.findById(payload.counterpartyRequisiteId),
+      ]);
+      const organizationBinding = binding[0];
+      if (!organizationBinding) {
         throw new DocumentValidationError(
           "Organization requisite binding is missing",
         );
       }
-      if (
-        payload.organizationId &&
-        binding.organizationId !== payload.organizationId
-      ) {
+      if (organizationBinding.organizationId !== payload.organizationId) {
         throw new DocumentValidationError(
           "organizationId does not match selected organization requisite",
         );
       }
-      if (binding.currencyCode !== payload.currency) {
+      if (organizationBinding.currencyCode !== payload.currency) {
         throw new DocumentValidationError(
-          `Currency mismatch: payload=${payload.currency}, account=${binding.currencyCode}`,
+          `Currency mismatch: payload=${payload.currency}, account=${organizationBinding.currencyCode}`,
+        );
+      }
+      if (
+        counterpartyRequisite.ownerType !== "counterparty" ||
+        counterpartyRequisite.ownerId !== payload.counterpartyId
+      ) {
+        throw new DocumentValidationError(
+          "counterpartyId does not match selected counterparty requisite",
         );
       }
     },
     async buildPostingPlan(_context, document) {
       const payload = parseDocumentPayload(CapitalFundingPayloadSchema, document);
-      const [binding] = await organizationRequisitesService.resolveBindings({
-        requisiteIds: [payload.counterpartyAccountId],
+      const [binding] = await requisitesService.resolveBindings({
+        requisiteIds: [payload.organizationRequisiteId],
       });
       const entryRef = resolveCapitalFundingEntryRef({ document, payload });
 
@@ -192,11 +211,12 @@ export function createCapitalFundingDocumentModule(
             amountMinor: BigInt(payload.amountMinor),
             dimensions: {
               counterpartyId: payload.counterpartyId,
-              counterpartyAccountId: payload.counterpartyAccountId,
+              organizationRequisiteId: payload.organizationRequisiteId,
             },
             refs: {
               entryRef,
               kind: payload.kind,
+              counterpartyRequisiteId: payload.counterpartyRequisiteId,
             },
             memo: payload.memo ?? null,
           }),

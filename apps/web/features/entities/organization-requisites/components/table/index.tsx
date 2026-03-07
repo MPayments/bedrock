@@ -31,7 +31,7 @@ export function OrganizationRequisitesTable({
 
   const handleRowDoubleClick = React.useCallback(
     (row: TanstackRow<SerializedRequisite>) => {
-      router.push(`/entities/organization-requisites/${row.original.id}`);
+      router.push(`/entities/requisites/${row.original.id}`);
     },
     [router],
   );

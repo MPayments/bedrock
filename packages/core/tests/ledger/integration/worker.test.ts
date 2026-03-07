@@ -47,7 +47,7 @@ describe("Worker Integration Tests", () => {
           debit: {
             accountNo: ACCOUNT_NO.BANK,
             currency: "USD",
-            dimensions: { counterpartyAccountId: randomUUID() },
+            dimensions: { organizationRequisiteId: randomUUID() },
           },
           credit: {
             accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
@@ -95,7 +95,7 @@ describe("Worker Integration Tests", () => {
           debit: {
             accountNo: ACCOUNT_NO.BANK,
             currency: "USD",
-            dimensions: { counterpartyAccountId: randomUUID() },
+            dimensions: { organizationRequisiteId: randomUUID() },
           },
           credit: {
             accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
@@ -138,12 +138,12 @@ describe("Worker Integration Tests", () => {
             debit: {
               accountNo: ACCOUNT_NO.BANK,
               currency: "USD",
-              dimensions: { counterpartyAccountId: randomUUID() },
+              dimensions: { organizationRequisiteId: randomUUID() },
             },
             credit: {
               accountNo: ACCOUNT_NO.BANK,
               currency: "USD",
-              dimensions: { counterpartyAccountId: randomUUID() },
+              dimensions: { organizationRequisiteId: randomUUID() },
             },
             amountMinor: 10000n,
           },

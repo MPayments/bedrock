@@ -5,14 +5,15 @@ import {
   accountingRoutes,
   balancesRoutes,
   counterpartiesRoutes,
-  counterpartyRequisitesRoutes,
   counterpartyGroupsRoutes,
   customersRoutes,
   currenciesRoutes,
   documentsRoutes,
   fxRatesRoutes,
-  organizationRequisitesRoutes,
+  organizationsRoutes,
   paymentsRoutes,
+  requisiteProvidersRoutes,
+  requisitesRoutes,
   systemModulesRoutes,
 } from "../routes";
 import type { ApiApplicationModuleDefinition } from "./types";
@@ -30,14 +31,6 @@ export const accountingModule = {
     return accountingRoutes(ctx);
   },
 } as const satisfies ApiApplicationModule<"/accounting">;
-
-export const counterpartyRequisitesModule = {
-  id: "counterparty-requisites",
-  routePath: "/counterparty-requisites",
-  registerRoutes(ctx: AppContext) {
-    return counterpartyRequisitesRoutes(ctx);
-  },
-} as const satisfies ApiApplicationModule<"/counterparty-requisites">;
 
 export const balancesModule = {
   id: "balances",
@@ -103,13 +96,29 @@ export const paymentsModule = {
   },
 } as const satisfies ApiApplicationModule<"/payments">;
 
-export const organizationRequisitesModule = {
-  id: "organization-requisites",
-  routePath: "/organization-requisites",
+export const organizationsModule = {
+  id: "organizations",
+  routePath: "/organizations",
   registerRoutes(ctx: AppContext) {
-    return organizationRequisitesRoutes(ctx);
+    return organizationsRoutes(ctx);
   },
-} as const satisfies ApiApplicationModule<"/organization-requisites">;
+} as const satisfies ApiApplicationModule<"/organizations">;
+
+export const requisiteProvidersModule = {
+  id: "requisite-providers",
+  routePath: "/requisite-providers",
+  registerRoutes(ctx: AppContext) {
+    return requisiteProvidersRoutes(ctx);
+  },
+} as const satisfies ApiApplicationModule<"/requisite-providers">;
+
+export const requisitesModule = {
+  id: "requisites",
+  routePath: "/requisites",
+  registerRoutes(ctx: AppContext) {
+    return requisitesRoutes(ctx);
+  },
+} as const satisfies ApiApplicationModule<"/requisites">;
 
 export const systemModulesModule = {
   id: "system-modules",
@@ -122,15 +131,16 @@ export const systemModulesModule = {
 
 export const API_APPLICATION_MODULES = [
   accountingModule,
-  counterpartyRequisitesModule,
   balancesModule,
   counterpartiesModule,
   counterpartyGroupsModule,
   customersModule,
   currenciesModule,
   documentsModule,
-  organizationRequisitesModule,
+  organizationsModule,
   paymentsModule,
+  requisiteProvidersModule,
+  requisitesModule,
   fxRatesModule,
   systemModulesModule,
 ] as const;

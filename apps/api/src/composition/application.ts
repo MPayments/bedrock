@@ -16,10 +16,6 @@ import {
   type CounterpartiesService,
 } from "@bedrock/core/counterparties";
 import {
-  createCounterpartyRequisitesService,
-  type CounterpartyRequisitesService,
-} from "@bedrock/core/counterparty-requisites";
-import {
   createCurrenciesService,
   type CurrenciesService,
 } from "@bedrock/core/currencies";
@@ -33,23 +29,32 @@ import {
   type DocumentsService,
 } from "@bedrock/core/documents";
 import {
-  createOrganizationRequisitesService,
-  type OrganizationRequisitesService,
-} from "@bedrock/core/organization-requisites";
+  createOrganizationsService,
+  type OrganizationsService,
+} from "@bedrock/core/organizations";
+import {
+  createRequisiteProvidersService,
+  type RequisiteProvidersService,
+} from "@bedrock/core/requisite-providers";
+import {
+  createRequisitesService,
+  type RequisitesService,
+} from "@bedrock/core/requisites";
 import { db } from "@bedrock/db/client";
 
 import type { ApiCoreServices } from "./core";
 
 export interface ApiApplicationServices {
-  counterpartyRequisitesService: CounterpartyRequisitesService;
   accountingReportingService: AccountingReportingService;
   counterpartiesService: CounterpartiesService;
   customersService: CustomersService;
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
-  organizationRequisitesService: OrganizationRequisitesService;
+  organizationsService: OrganizationsService;
   paymentsService: PaymentsService;
+  requisiteProvidersService: RequisiteProvidersService;
+  requisitesService: RequisitesService;
   documentsService: DocumentsService;
 }
 
@@ -58,10 +63,6 @@ export function createApplicationServices(
 ): ApiApplicationServices {
   const { accountingService, ledger, ledgerReadService, logger } = platform;
 
-  const counterpartyRequisitesService = createCounterpartyRequisitesService({
-    db,
-    logger,
-  });
   const accountingReportingService = createAccountingReportingService({
     db,
     ledgerReadService,
@@ -77,19 +78,27 @@ export function createApplicationServices(
     feesService,
     currenciesService,
   });
-  const organizationRequisitesService = createOrganizationRequisitesService({
+  const organizationsService = createOrganizationsService({
+    db,
+    logger,
+  });
+  const requisiteProvidersService = createRequisiteProvidersService({
+    db,
+    logger,
+  });
+  const requisitesService = createRequisitesService({
     db,
     logger,
   });
   const documentRegistry = createDocumentRegistry([
     ...createIfrsDocumentModules({
-      organizationRequisitesService,
+      requisitesService,
     }),
     createPaymentIntentDocumentModule({
-      organizationRequisitesService,
+      requisitesService,
     }),
     createPaymentResolutionDocumentModule({
-      organizationRequisitesService,
+      requisitesService,
     }),
   ]);
   const documentsService = createDocumentsService({
@@ -106,15 +115,16 @@ export function createApplicationServices(
   });
 
   return {
-    counterpartyRequisitesService,
     accountingReportingService,
     counterpartiesService,
     customersService,
     currenciesService,
     feesService,
     fxService,
-    organizationRequisitesService,
+    organizationsService,
     paymentsService,
+    requisiteProvidersService,
+    requisitesService,
     documentsService,
   };
 }

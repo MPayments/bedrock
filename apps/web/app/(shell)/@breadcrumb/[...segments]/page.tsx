@@ -1,8 +1,9 @@
 import { getCounterpartyById } from "@/features/entities/counterparties/lib/queries";
-import { getCounterpartyRequisiteById } from "@/features/entities/counterparty-requisites/lib/queries";
 import { getCurrencyById } from "@/features/entities/currencies/lib/queries";
 import { getCustomerById } from "@/features/entities/customers/lib/queries";
-import { getOrganizationRequisiteById } from "@/features/entities/organization-requisites/lib/queries";
+import { getOrganizationById } from "@/features/entities/organizations/lib/queries";
+import { getRequisiteProviderById } from "@/features/entities/requisite-providers/lib/queries";
+import { getRequisiteById } from "@/features/entities/requisites/lib/queries";
 import {
   getDocumentTypeLabel,
   isKnownDocumentType,
@@ -70,6 +71,13 @@ const dynamicResolvers = {
     getLabel: (customer) => customer.displayName,
     getId: (customer) => customer.id,
   }),
+  organizations: createResourceSegmentResolver({
+    singularLabel: "Организация",
+    hrefPrefix: "/entities/organizations",
+    getById: getOrganizationById,
+    getLabel: (organization) => organization.shortName,
+    getId: (organization) => organization.id,
+  }),
   currencies: createResourceSegmentResolver({
     singularLabel: "Валюта",
     hrefPrefix: "/entities/currencies",
@@ -77,19 +85,19 @@ const dynamicResolvers = {
     getLabel: (currency) => currency.name,
     getId: (currency) => currency.id,
   }),
-  "counterparty-requisites": createResourceSegmentResolver({
-    singularLabel: "Реквизит контрагента",
-    hrefPrefix: "/entities/counterparty-requisites",
-    getById: getCounterpartyRequisiteById,
+  requisites: createResourceSegmentResolver({
+    singularLabel: "Реквизит",
+    hrefPrefix: "/entities/requisites",
+    getById: getRequisiteById,
     getLabel: (requisite) => requisite.label,
     getId: (requisite) => requisite.id,
   }),
-  "organization-requisites": createResourceSegmentResolver({
-    singularLabel: "Реквизит организации",
-    hrefPrefix: "/entities/organization-requisites",
-    getById: getOrganizationRequisiteById,
-    getLabel: (requisite) => requisite.label,
-    getId: (requisite) => requisite.id,
+  "requisite-providers": createResourceSegmentResolver({
+    singularLabel: "Провайдер реквизитов",
+    hrefPrefix: "/entities/requisite-providers",
+    getById: getRequisiteProviderById,
+    getLabel: (provider) => provider.name,
+    getId: (provider) => provider.id,
   }),
   documents: async ({ segment }: { segment: string }) => {
     if (!isKnownDocumentType(segment)) {

@@ -31,7 +31,7 @@ export function CounterpartyRequisitesTable({
 
   const handleRowDoubleClick = React.useCallback(
     (row: TanstackRow<SerializedRequisite>) => {
-      router.push(`/entities/counterparty-requisites/${row.original.id}`);
+      router.push(`/entities/requisites/${row.original.id}`);
     },
     [router],
   );

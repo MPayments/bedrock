@@ -38,9 +38,10 @@ export function EditOrganizationRequisiteFormClient({
 
     const result = await executeMutation<OrganizationRequisiteDetails>({
       request: () =>
-        apiClient.v1["organization-requisites"][":id"].$patch({
+        apiClient.v1.requisites[":id"].$patch({
           param: { id: current.id },
           json: {
+            providerId: values.providerId,
             currencyId: values.currencyId,
             kind: values.kind,
             label: values.label,
@@ -69,7 +70,8 @@ export function EditOrganizationRequisiteFormClient({
       parseData: async (response) => {
         const payload = (await response.json()) as {
           id: string;
-          organizationId: string;
+          ownerId: string;
+          providerId: string;
           currencyId: string;
           kind: RequisiteFormValues["kind"];
           label: string;
@@ -98,7 +100,8 @@ export function EditOrganizationRequisiteFormClient({
 
         return {
           id: payload.id,
-          ownerId: payload.organizationId,
+          ownerId: payload.ownerId,
+          providerId: payload.providerId,
           currencyId: payload.currencyId,
           kind: payload.kind,
           label: payload.label,
@@ -147,7 +150,7 @@ export function EditOrganizationRequisiteFormClient({
 
     const result = await executeMutation<void>({
       request: () =>
-        apiClient.v1["organization-requisites"][":id"].$delete({
+        apiClient.v1.requisites[":id"].$delete({
           param: { id: current.id },
         }),
       fallbackMessage: "Не удалось удалить реквизит организации",
@@ -163,7 +166,7 @@ export function EditOrganizationRequisiteFormClient({
     }
 
     toast.success("Реквизит организации удалён");
-    router.push("/entities/organization-requisites");
+    router.push("/entities/requisites");
     return true;
   }
 
@@ -172,6 +175,7 @@ export function EditOrganizationRequisiteFormClient({
       ownerLabel="Организация"
       ownerDescription="Внутренняя организация-владелец."
       ownerOptions={options.owners}
+      providerOptions={options.providers}
       currencyOptions={options.currencies}
       initialValues={current}
       createdAt={current.createdAt}

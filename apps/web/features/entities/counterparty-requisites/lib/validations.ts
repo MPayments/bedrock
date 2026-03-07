@@ -1,4 +1,4 @@
-import { COUNTERPARTY_REQUISITES_LIST_CONTRACT } from "@bedrock/core/counterparty-requisites/contracts";
+import { REQUISITES_LIST_CONTRACT } from "@bedrock/core/requisites/contracts";
 
 import {
   createResourceSearchParamsCache,
@@ -6,7 +6,7 @@ import {
 } from "@/lib/resources/search-params";
 
 export const searchParamsCache = createResourceSearchParamsCache(
-  COUNTERPARTY_REQUISITES_LIST_CONTRACT,
+  REQUISITES_LIST_CONTRACT,
 );
 
 export type CounterpartyRequisitesSearchParams = ResourceSearchParams;

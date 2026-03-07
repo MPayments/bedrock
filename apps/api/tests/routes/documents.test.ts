@@ -36,7 +36,7 @@ function createDocumentWithOperation() {
       memo: null,
       counterpartyId: null,
       customerId: null,
-      counterpartyAccountId: null,
+      organizationRequisiteId: null,
       searchText: "",
       createdBy: "user-1",
       submittedBy: "user-1",

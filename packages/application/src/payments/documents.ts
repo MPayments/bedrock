@@ -45,10 +45,17 @@ interface PaymentBinding {
   currencyCode: string;
 }
 
-interface PaymentOrganizationRequisitesService {
+interface PaymentRequisite {
+  id: string;
+  ownerType: "organization" | "counterparty";
+  ownerId: string;
+}
+
+interface PaymentRequisitesService {
   resolveBindings: (input: {
     requisiteIds: string[];
   }) => Promise<PaymentBinding[]>;
+  findById: (id: string) => Promise<PaymentRequisite>;
 }
 
 function resolvePaymentDirectionLabel(
@@ -101,24 +108,53 @@ function requireBinding<T>(value: T | undefined, label: string): T {
   return value;
 }
 
-async function resolveBindings(
-  organizationRequisitesService: PaymentOrganizationRequisitesService,
+async function resolveOrganizationBinding(
+  requisitesService: PaymentRequisitesService,
+  requisiteId: string,
+) {
+  const [binding] = await requisitesService.resolveBindings({
+    requisiteIds: [requisiteId],
+  });
+
+  return requireBinding(binding, "Organization requisite");
+}
+
+async function resolveIntentRequisites(
+  requisitesService: PaymentRequisitesService,
   payload: Pick<
     PaymentIntentPayload,
-    "sourceCounterpartyAccountId" | "destinationCounterpartyAccountId"
+    | "organizationRequisiteId"
+    | "counterpartyRequisiteId"
+    | "organizationId"
+    | "counterpartyId"
   >,
 ) {
-  const [sourceBinding, destinationBinding] =
-    await organizationRequisitesService.resolveBindings({
-      requisiteIds: [
-        payload.sourceCounterpartyAccountId,
-        payload.destinationCounterpartyAccountId,
-      ],
-    });
+  const [organizationBinding, counterpartyRequisite] = await Promise.all([
+    resolveOrganizationBinding(
+      requisitesService,
+      payload.organizationRequisiteId,
+    ),
+    requisitesService.findById(payload.counterpartyRequisiteId),
+  ]);
+
+  if (organizationBinding.organizationId !== payload.organizationId) {
+    throw new DocumentValidationError(
+      "organizationId does not match selected organization requisite",
+    );
+  }
+
+  if (
+    counterpartyRequisite.ownerType !== "counterparty" ||
+    counterpartyRequisite.ownerId !== payload.counterpartyId
+  ) {
+    throw new DocumentValidationError(
+      "counterpartyId does not match selected counterparty requisite",
+    );
+  }
 
   return {
-    source: requireBinding(sourceBinding, "Source"),
-    destination: requireBinding(destinationBinding, "Destination"),
+    organizationBinding,
+    counterpartyRequisite,
   };
 }
 
@@ -220,9 +256,9 @@ async function ensureNoPendingResolution(
 }
 
 export function createPaymentIntentDocumentModule(deps: {
-  organizationRequisitesService: PaymentOrganizationRequisitesService;
+  requisitesService: PaymentRequisitesService;
 }): DocumentModule<PaymentIntentPayload, PaymentIntentPayload> {
-  const { organizationRequisitesService } = deps;
+  const { requisitesService } = deps;
 
   return {
     moduleId: "payment_intent",
@@ -253,14 +289,16 @@ export function createPaymentIntentDocumentModule(deps: {
         amountMinor: payload.amountMinor,
         currency: payload.currency,
         memo: payload.memo ?? null,
-        counterpartyId: null,
-        counterpartyAccountId: payload.sourceCounterpartyAccountId,
+        counterpartyId: payload.counterpartyId,
+        organizationRequisiteId: payload.organizationRequisiteId,
         searchText: [
           document.docNo,
           payload.direction,
           payload.currency,
-          payload.sourceCounterpartyAccountId,
-          payload.destinationCounterpartyAccountId,
+          payload.organizationId,
+          payload.organizationRequisiteId,
+          payload.counterpartyId,
+          payload.counterpartyRequisiteId,
           payload.corridor,
           payload.providerConstraint ?? "",
           payload.memo ?? "",
@@ -270,16 +308,13 @@ export function createPaymentIntentDocumentModule(deps: {
       };
     },
     async canCreate(_context, input) {
-      const bindings = await resolveBindings(
-        organizationRequisitesService,
+      const { organizationBinding } = await resolveIntentRequisites(
+        requisitesService,
         input,
       );
-      if (
-        bindings.source.currencyCode !== input.currency ||
-        bindings.destination.currencyCode !== input.currency
-      ) {
+      if (organizationBinding.currencyCode !== input.currency) {
         throw new DocumentValidationError(
-          `currency mismatch: expected ${bindings.source.currencyCode}/${bindings.destination.currencyCode}, got ${input.currency}`,
+          `currency mismatch: expected ${organizationBinding.currencyCode}, got ${input.currency}`,
         );
       }
     },
@@ -293,16 +328,13 @@ export function createPaymentIntentDocumentModule(deps: {
         PaymentIntentPayloadSchema,
         document,
       );
-      const bindings = await resolveBindings(
-        organizationRequisitesService,
+      const { organizationBinding } = await resolveIntentRequisites(
+        requisitesService,
         payload,
       );
-      if (
-        bindings.source.currencyCode !== payload.currency ||
-        bindings.destination.currencyCode !== payload.currency
-      ) {
+      if (organizationBinding.currencyCode !== payload.currency) {
         throw new DocumentValidationError(
-          `currency mismatch: expected ${bindings.source.currencyCode}/${bindings.destination.currencyCode}, got ${payload.currency}`,
+          `currency mismatch: expected ${organizationBinding.currencyCode}, got ${payload.currency}`,
         );
       }
     },
@@ -311,110 +343,48 @@ export function createPaymentIntentDocumentModule(deps: {
         PaymentIntentPayloadSchema,
         document,
       );
-      const bindings = await resolveBindings(
-        organizationRequisitesService,
+      const { organizationBinding } = await resolveIntentRequisites(
+        requisitesService,
         payload,
       );
-      const sourceBookId = bindings.source.bookId;
-      const destinationBookId = bindings.destination.bookId;
+      const bookId = organizationBinding.bookId;
       const timeoutSeconds = payload.timeoutSeconds ?? DAY_IN_SECONDS;
-
-      if (sourceBookId === destinationBookId) {
-        return buildDocumentPostingPlan({
-          operationCode: OPERATION_CODE.TRANSFER_APPROVE_PENDING_INTRA,
-          payload: {
-            ...payload,
-            memo: payload.memo ?? null,
-          },
-          requests: [
-            buildDocumentPostingRequest(document, {
-              templateKey: POSTING_TEMPLATE_KEY.TRANSFER_INTRA_PENDING,
-              currency: payload.currency,
-              amountMinor: payload.amountMinor,
-              bookId: sourceBookId,
-              dimensions: {
-                sourceCounterpartyAccountId:
-                  payload.sourceCounterpartyAccountId,
-                destinationCounterpartyAccountId:
-                  payload.destinationCounterpartyAccountId,
-                sourceCounterpartyId: bindings.source.organizationId,
-                destinationCounterpartyId: bindings.destination.organizationId,
-                direction: payload.direction,
-                corridor: payload.corridor,
-              },
-              refs: {
-                sourceCounterpartyAccountId:
-                  payload.sourceCounterpartyAccountId,
-                destinationCounterpartyAccountId:
-                  payload.destinationCounterpartyAccountId,
-                direction: payload.direction,
-              },
-              pending: {
-                timeoutSeconds,
-                ref: `payment_intent:${document.id}:intra`,
-              },
-              memo: payload.memo ?? null,
-            }),
-          ],
-        });
-      }
+      const templateKey = payload.timeoutSeconds
+        ? POSTING_TEMPLATE_KEY.TRANSFER_INTRA_PENDING
+        : POSTING_TEMPLATE_KEY.TRANSFER_INTRA_IMMEDIATE;
+      const operationCode = payload.timeoutSeconds
+        ? OPERATION_CODE.TRANSFER_APPROVE_PENDING_INTRA
+        : OPERATION_CODE.TRANSFER_APPROVE_IMMEDIATE_INTRA;
 
       return buildDocumentPostingPlan({
-        operationCode: OPERATION_CODE.TRANSFER_APPROVE_PENDING_CROSS,
+        operationCode,
         payload: {
           ...payload,
           memo: payload.memo ?? null,
         },
         requests: [
           buildDocumentPostingRequest(document, {
-            templateKey: POSTING_TEMPLATE_KEY.TRANSFER_CROSS_SOURCE_PENDING,
+            templateKey,
             currency: payload.currency,
             amountMinor: payload.amountMinor,
-            bookId: sourceBookId,
+            bookId,
             dimensions: {
-              sourceCounterpartyAccountId: payload.sourceCounterpartyAccountId,
-              destinationCounterpartyAccountId:
-                payload.destinationCounterpartyAccountId,
-              destinationCounterpartyId: bindings.destination.organizationId,
+              sourceRequisiteId: payload.organizationRequisiteId,
+              destinationRequisiteId: payload.organizationRequisiteId,
+            },
+            refs: {
+              organizationId: payload.organizationId,
+              counterpartyId: payload.counterpartyId,
+              counterpartyRequisiteId: payload.counterpartyRequisiteId,
               direction: payload.direction,
               corridor: payload.corridor,
             },
-            refs: {
-              sourceCounterpartyAccountId: payload.sourceCounterpartyAccountId,
-              destinationCounterpartyAccountId:
-                payload.destinationCounterpartyAccountId,
-              direction: payload.direction,
-            },
-            pending: {
-              timeoutSeconds,
-              ref: `payment_intent:${document.id}:source`,
-            },
-            memo: payload.memo ?? null,
-          }),
-          buildDocumentPostingRequest(document, {
-            templateKey:
-              POSTING_TEMPLATE_KEY.TRANSFER_CROSS_DESTINATION_PENDING,
-            currency: payload.currency,
-            amountMinor: payload.amountMinor,
-            bookId: destinationBookId,
-            dimensions: {
-              sourceCounterpartyAccountId: payload.sourceCounterpartyAccountId,
-              destinationCounterpartyAccountId:
-                payload.destinationCounterpartyAccountId,
-              sourceCounterpartyId: bindings.source.organizationId,
-              direction: payload.direction,
-              corridor: payload.corridor,
-            },
-            refs: {
-              sourceCounterpartyAccountId: payload.sourceCounterpartyAccountId,
-              destinationCounterpartyAccountId:
-                payload.destinationCounterpartyAccountId,
-              direction: payload.direction,
-            },
-            pending: {
-              timeoutSeconds,
-              ref: `payment_intent:${document.id}:destination`,
-            },
+            pending: payload.timeoutSeconds
+              ? {
+                  timeoutSeconds,
+                  ref: `payment_intent:${document.id}:organization`,
+                }
+              : null,
             memo: payload.memo ?? null,
           }),
         ],
@@ -444,9 +414,9 @@ export function createPaymentIntentDocumentModule(deps: {
 }
 
 export function createPaymentResolutionDocumentModule(deps: {
-  organizationRequisitesService: PaymentOrganizationRequisitesService;
+  requisitesService: PaymentRequisitesService;
 }): DocumentModule<PaymentResolutionPayload, PaymentResolutionPayload> {
-  const { organizationRequisitesService } = deps;
+  const { requisitesService } = deps;
 
   return {
     moduleId: "payment_resolution",
@@ -560,8 +530,8 @@ export function createPaymentResolutionDocumentModule(deps: {
         PaymentIntentPayloadSchema,
         dependency,
       );
-      const bindings = await resolveBindings(
-        organizationRequisitesService,
+      const { organizationBinding } = await resolveIntentRequisites(
+        requisitesService,
         intentPayload,
       );
       const pendingTransfers = await getPendingTransferIdsForDocument(
@@ -592,8 +562,8 @@ export function createPaymentResolutionDocumentModule(deps: {
             currency: intentPayload.currency,
             amountMinor: 0n,
             bookId: resolvePendingTransferBookId({
-              sourceBookId: bindings.source.bookId,
-              destinationBookId: bindings.destination.bookId,
+              sourceBookId: organizationBinding.bookId,
+              destinationBookId: organizationBinding.bookId,
               pendingRef: item.pendingRef,
               buildAmbiguousPendingRefMessage: (pendingRef) =>
                 `Pending transfer reference is missing routing book for ${pendingRef ?? "unknown ref"}`,

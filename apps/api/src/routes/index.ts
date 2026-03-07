@@ -1,14 +1,15 @@
 export { accountingRoutes } from "./accounting";
 export { balancesRoutes } from "./balances";
 export { counterpartiesRoutes } from "./counterparties";
-export { counterpartyRequisitesRoutes } from "./counterparty-requisites";
 export { counterpartyGroupsRoutes } from "./counterparty-groups";
 export { customersRoutes } from "./customers";
 export { currenciesRoutes } from "./currencies";
 export { documentsRoutes } from "./documents";
 export { fxRatesRoutes } from "./fx-rates";
-export { organizationRequisitesRoutes } from "./organization-requisites";
+export { organizationsRoutes } from "./organizations";
 export { paymentsRoutes } from "./payments";
 export { profileRoutes } from "./profile";
+export { requisiteProvidersRoutes } from "./requisite-providers";
+export { requisitesRoutes } from "./requisites";
 export { systemModulesRoutes } from "./system-modules";
 export { usersRoutes } from "./users";

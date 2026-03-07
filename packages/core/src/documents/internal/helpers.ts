@@ -60,7 +60,7 @@ export function buildSummary(summary: DocumentSummaryFields) {
     memo: summary.memo ?? null,
     counterpartyId: summary.counterpartyId ?? null,
     customerId: summary.customerId ?? null,
-    counterpartyAccountId: summary.counterpartyAccountId ?? null,
+    organizationRequisiteId: summary.organizationRequisiteId ?? null,
     searchText: normalizeSearchText(summary.searchText),
   };
 }
@@ -445,7 +445,7 @@ export function createDocumentInsertBase(params: {
     memo: null,
     counterpartyId: null,
     customerId: null,
-    counterpartyAccountId: null,
+    organizationRequisiteId: null,
     searchText: "",
     createdBy: params.createdBy,
     submittedBy: null,

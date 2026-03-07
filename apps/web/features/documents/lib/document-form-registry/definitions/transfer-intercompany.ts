@@ -27,28 +27,28 @@ export function createTransferIntercompanyDefinition(): DocumentFormDefinition {
           { kind: "datetime", name: "occurredAt", label: "Дата документа" },
           {
             kind: "counterparty",
-            name: "sourceCounterpartyId",
+            name: "sourceOrganizationId",
             label: "Организация источник",
             optionsSource: "organizations",
           },
           {
             kind: "account",
-            name: "sourceCounterpartyAccountId",
+            name: "sourceRequisiteId",
             label: "Реквизит источник",
-            counterpartyField: "sourceCounterpartyId",
+            counterpartyField: "sourceOrganizationId",
             optionsSource: "organizationRequisites",
           },
           {
             kind: "counterparty",
-            name: "destinationCounterpartyId",
+            name: "destinationOrganizationId",
             label: "Организация назначение",
             optionsSource: "organizations",
           },
           {
             kind: "account",
-            name: "destinationCounterpartyAccountId",
+            name: "destinationRequisiteId",
             label: "Реквизит назначение",
-            counterpartyField: "destinationCounterpartyId",
+            counterpartyField: "destinationOrganizationId",
             optionsSource: "organizationRequisites",
           },
         ],
@@ -56,14 +56,11 @@ export function createTransferIntercompanyDefinition(): DocumentFormDefinition {
           rows: [
             {
               columns: TWO_COLUMN_SM_COLUMNS,
-              fields: ["sourceCounterpartyId", "destinationCounterpartyId"],
+              fields: ["sourceOrganizationId", "destinationOrganizationId"],
             },
             {
               columns: TWO_COLUMN_SM_COLUMNS,
-              fields: [
-                "sourceCounterpartyAccountId",
-                "destinationCounterpartyAccountId",
-              ],
+              fields: ["sourceRequisiteId", "destinationRequisiteId"],
             },
             {
               fields: ["occurredAt"],
@@ -83,10 +80,7 @@ export function createTransferIntercompanyDefinition(): DocumentFormDefinition {
             hidden: true,
             deriveFrom: {
               kind: "accountCurrency",
-              accountFieldNames: [
-                "sourceCounterpartyAccountId",
-                "destinationCounterpartyAccountId",
-              ],
+              accountFieldNames: ["sourceRequisiteId", "destinationRequisiteId"],
             },
           },
           {
@@ -120,14 +114,10 @@ export function createTransferIntercompanyDefinition(): DocumentFormDefinition {
       return {
         ...getDefaultTransferValues(),
         occurredAt: isoToDateTimeLocal(payload.occurredAt),
-        sourceCounterpartyId: readString(payload.sourceCounterpartyId),
-        sourceCounterpartyAccountId: readString(
-          payload.sourceCounterpartyAccountId,
-        ),
-        destinationCounterpartyId: readString(payload.destinationCounterpartyId),
-        destinationCounterpartyAccountId: readString(
-          payload.destinationCounterpartyAccountId,
-        ),
+        sourceOrganizationId: readString(payload.sourceOrganizationId),
+        sourceRequisiteId: readString(payload.sourceRequisiteId),
+        destinationOrganizationId: readString(payload.destinationOrganizationId),
+        destinationRequisiteId: readString(payload.destinationRequisiteId),
         amount: normalizeMajorAmountInput(payload.amount, payload.currency),
         currency: readString(payload.currency),
         timeoutSeconds:
@@ -140,12 +130,12 @@ export function createTransferIntercompanyDefinition(): DocumentFormDefinition {
     toPayload(values) {
       return parseSchema(TransferIntercompanyInputSchema, {
         occurredAt: toOccurredAtIso(values.occurredAt),
-        sourceCounterpartyAccountId: readString(
-          values.sourceCounterpartyAccountId,
+        sourceOrganizationId: readString(values.sourceOrganizationId).trim(),
+        sourceRequisiteId: readString(values.sourceRequisiteId).trim(),
+        destinationOrganizationId: readString(
+          values.destinationOrganizationId,
         ).trim(),
-        destinationCounterpartyAccountId: readString(
-          values.destinationCounterpartyAccountId,
-        ).trim(),
+        destinationRequisiteId: readString(values.destinationRequisiteId).trim(),
         amount: normalizeMajorAmountInput(values.amount, values.currency),
         currency: readString(values.currency).trim(),
         timeoutSeconds: optionalNumber(values.timeoutSeconds),

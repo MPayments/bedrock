@@ -14,7 +14,6 @@ import {
 import {
   CounterpartyOptionSchema,
   CounterpartyOptionsResponseSchema,
-  InternalLedgerCounterpartyOptionsResponseSchema,
 } from "@bedrock/core/counterparties/contracts";
 
 import { buildOptionsResponse } from "../common/options";
@@ -108,24 +107,6 @@ export function counterpartiesRoutes(ctx: AppContext) {
           },
         },
         description: "Counterparty option list",
-      },
-    },
-  });
-
-  const internalLedgerEntitiesRoute = createRoute({
-    middleware: [requirePermission({ counterparties: ["list"] })],
-    method: "get",
-    path: "/internal-ledger-entities",
-    tags: ["Counterparties"],
-    summary: "List internal ledger counterparties for select inputs",
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: InternalLedgerCounterpartyOptionsResponseSchema,
-          },
-        },
-        description: "Internal ledger counterparty option list",
       },
     },
   });
@@ -249,20 +230,6 @@ export function counterpartiesRoutes(ctx: AppContext) {
 
       return c.json(
         buildOptionsResponse(result, (counterparty) =>
-          CounterpartyOptionSchema.parse({
-            id: counterparty.id,
-            shortName: counterparty.shortName,
-            label: counterparty.shortName,
-          }),
-        ),
-        200,
-      );
-    })
-    .openapi(internalLedgerEntitiesRoute, async (c) => {
-      const rows = await ctx.counterpartiesService.listInternalLedgerEntities();
-
-      return c.json(
-        buildOptionsResponse(rows, (counterparty) =>
           CounterpartyOptionSchema.parse({
             id: counterparty.id,
             shortName: counterparty.shortName,

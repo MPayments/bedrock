@@ -3,19 +3,26 @@ import type { Pool } from "pg";
 const REQUIRED_TABLES = [
   { schemaName: "drizzle", tableName: "__drizzle_migrations" },
   { schemaName: "public", tableName: "books" },
-  { schemaName: "public", tableName: "counterparty_accounts" },
+  { schemaName: "public", tableName: "organizations" },
+  { schemaName: "public", tableName: "requisite_providers" },
+  { schemaName: "public", tableName: "requisites" },
+  { schemaName: "public", tableName: "organization_requisite_bindings" },
   { schemaName: "public", tableName: "accounting_report_line_mappings" },
   { schemaName: "public", tableName: "accounting_close_packages" },
 ] as const;
 
 const REQUIRED_COLUMNS = [
   {
-    tableName: "counterparty_accounts",
-    columnName: "ledger_entity_counterparty_id",
+    tableName: "books",
+    columnName: "organization_id",
   },
   {
-    tableName: "books",
-    columnName: "counterparty_id",
+    tableName: "requisites",
+    columnName: "owner_type",
+  },
+  {
+    tableName: "documents",
+    columnName: "organization_requisite_id",
   },
 ] as const;
 

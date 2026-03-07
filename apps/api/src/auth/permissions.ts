@@ -9,9 +9,9 @@ const statements = {
   ...defaultStatements,
   customers: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
-  counterparty_requisites: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
   fx_rates: ["list", "sync"],
+  organizations: ["create", "list", "update", "delete"],
   documents: [
     "create",
     "list",
@@ -37,7 +37,8 @@ const statements = {
   balances: ["get", "reserve", "release", "consume"],
   users: ["create", "list", "update", "delete"],
   system_modules: ["list", "manage"],
-  organization_requisites: ["create", "list", "update", "delete", "bind"],
+  requisite_providers: ["create", "list", "update", "delete"],
+  requisites: ["create", "list", "update", "delete", "configure_binding"],
 } as const;
 
 export type ResourcePermissions = {
@@ -50,9 +51,9 @@ export const admin = ac.newRole({
   ...adminAc.statements,
   customers: ["create", "list", "update", "delete"],
   counterparties: ["create", "list", "update", "delete"],
-  counterparty_requisites: ["create", "list", "update", "delete"],
   currencies: ["create", "list", "update", "delete"],
   fx_rates: ["list", "sync"],
+  organizations: ["create", "list", "update", "delete"],
   documents: [
     "create",
     "list",
@@ -78,20 +79,22 @@ export const admin = ac.newRole({
   balances: ["get", "reserve", "release", "consume"],
   users: ["create", "list", "update", "delete"],
   system_modules: ["list", "manage"],
-  organization_requisites: ["create", "list", "update", "delete", "bind"],
+  requisite_providers: ["create", "list", "update", "delete"],
+  requisites: ["create", "list", "update", "delete", "configure_binding"],
 });
 
 export const user = ac.newRole({
   ...userAc.statements,
   customers: ["create", "list", "update"],
   counterparties: ["create", "list", "update"],
-  counterparty_requisites: ["list"],
   currencies: ["list"],
   fx_rates: ["list"],
+  organizations: ["list"],
   documents: ["create", "list", "get", "update", "submit"],
   payments: ["create", "list", "get", "submit"],
   accounting: ["list"],
   balances: ["get"],
+  requisite_providers: ["list"],
+  requisites: ["list"],
   system_modules: ["list"],
-  organization_requisites: ["list"],
 });

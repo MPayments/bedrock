@@ -11,6 +11,7 @@ export type OrganizationRequisiteDetails = RequisiteDetails;
 
 export type OrganizationRequisiteFormOptions = {
   owners: RelationOption[];
+  providers: RelationOption[];
   currencies: RelationOption[];
 };
 

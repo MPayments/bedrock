@@ -216,10 +216,11 @@ export function createAmountSectionLayout(
 export function getDefaultTransferValues() {
   return {
     occurredAt: nowDateTimeLocal(),
-    sourceCounterpartyId: "",
-    sourceCounterpartyAccountId: "",
-    destinationCounterpartyId: "",
-    destinationCounterpartyAccountId: "",
+    organizationId: "",
+    sourceOrganizationId: "",
+    sourceRequisiteId: "",
+    destinationOrganizationId: "",
+    destinationRequisiteId: "",
     amount: "",
     currency: "",
     timeoutSeconds: "",

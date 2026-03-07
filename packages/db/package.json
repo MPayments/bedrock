@@ -24,8 +24,8 @@
     "db:bootstrap:v2-core": "tsx ./src/seeds/run-accounting.ts",
     "db:seed:users": "tsx ./src/seeds/run-users.ts",
     "db:seed:counterparties": "tsx ./src/seeds/run-counterparties.ts",
-    "db:seed:counterparty-account-providers": "tsx ./src/seeds/run-counterparty-account-providers.ts",
-    "db:seed:counterparty-accounts": "tsx ./src/seeds/run-counterparty-accounts.ts",
+    "db:seed:organizations": "tsx ./src/seeds/run-organizations.ts",
+    "db:seed:requisite-providers": "tsx ./src/seeds/run-requisite-providers.ts",
     "db:seed:requisites": "tsx ./src/seeds/run-requisites.ts",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },

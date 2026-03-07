@@ -51,6 +51,7 @@ type RequisiteFormProps = {
   ownerLabel: string;
   ownerDescription: string;
   ownerOptions: RelationOption[];
+  providerOptions: RelationOption[];
   currencyOptions: RelationOption[];
   initialValues?: Partial<RequisiteFormValues>;
   createdAt?: string | null;
@@ -72,6 +73,7 @@ type RequisiteFormProps = {
 
 const DEFAULT_VALUES: RequisiteFormValues = {
   ownerId: "",
+  providerId: "",
   currencyId: "",
   kind: "bank",
   label: "",
@@ -100,6 +102,7 @@ function createSchema() {
   return z
     .object({
       ownerId: z.string().trim().min(1, "Владелец обязателен"),
+      providerId: z.string().trim().min(1, "Провайдер обязателен"),
       currencyId: z.string().trim().min(1, "Валюта обязательна"),
       kind: z.enum(["bank", "blockchain", "exchange", "custodian"]),
       label: z.string().trim().min(1, "Название обязательно"),
@@ -208,6 +211,7 @@ function createSchema() {
 function normalizeValues(values: RequisiteFormValues): RequisiteFormValues {
   return {
     ownerId: values.ownerId.trim(),
+    providerId: values.providerId.trim(),
     currencyId: values.currencyId.trim(),
     kind: values.kind,
     label: values.label.trim(),
@@ -243,6 +247,7 @@ export function RequisiteGeneralForm({
   ownerLabel,
   ownerDescription,
   ownerOptions,
+  providerOptions,
   currencyOptions,
   initialValues,
   createdAt,
@@ -420,6 +425,33 @@ export function RequisiteGeneralForm({
                   )}
                 />
                 <FieldError>{form.formState.errors.currencyId?.message}</FieldError>
+              </Field>
+
+              <Field>
+                <FieldLabel>Провайдер</FieldLabel>
+                <Controller
+                  control={form.control}
+                  name="providerId"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={submitting || deleting}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите провайдера" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {providerOptions.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FieldError>{form.formState.errors.providerId?.message}</FieldError>
               </Field>
 
               <Field className="md:col-span-2">

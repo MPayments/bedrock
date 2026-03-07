@@ -7,28 +7,34 @@ const { db } = await import("../client");
 
 const { seedCurrencies } = await import("./currencies");
 const { seedAccounting } = await import("./accounting");
-const { seedRequisitesFromLegacy } = await import("./requisites");
+const { seedCounterparties } = await import("./counterparties");
+const { seedOrganizations } = await import("./organizations");
+const { seedRequisiteProviders } = await import("./requisite-providers");
+const { seedRequisites } = await import("./requisites");
 const { seedUsers } = await import("./users");
-const { seedCounterpartyDomain } = await import("./counterparty-accounts");
 
 console.log("[seed] Starting full database seed...\n");
 
-console.log("[seed] 1/5 Currencies");
+console.log("[seed] 1/7 Currencies");
 await seedCurrencies(db);
 
-console.log("[seed] 2/5 Users");
+console.log("[seed] 2/7 Users");
 await seedUsers(db, hashPassword);
 
-console.log("[seed] 3/5 Accounting (CoA, policies, correspondence rules)");
+console.log("[seed] 3/7 Accounting (CoA, policies, correspondence rules)");
 await seedAccounting(db);
 
-console.log(
-  "[seed] 4/5 Counterparty domain (customers, counterparties, providers, counterparty accounts)",
-);
-await seedCounterpartyDomain(db);
+console.log("[seed] 4/7 Counterparties");
+await seedCounterparties(db);
 
-console.log("[seed] 5/5 Requisites backfill from legacy counterparty accounts");
-await seedRequisitesFromLegacy(db);
+console.log("[seed] 5/7 Organizations");
+await seedOrganizations(db);
+
+console.log("[seed] 6/7 Requisite providers");
+await seedRequisiteProviders(db);
+
+console.log("[seed] 7/7 Requisites");
+await seedRequisites(db);
 
 console.log("\n[seed] Done.");
 process.exit(0);

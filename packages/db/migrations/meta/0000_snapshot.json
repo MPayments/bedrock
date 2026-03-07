@@ -1,5 +1,5 @@
 {
-  "id": "939eb113-65d3-494b-b2a5-16acda60e59d",
+  "id": "9cc2bc10-dbb5-4777-a59c-fbbe151c5abf",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2927,8 +2927,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "counterparty_account_id": {
-          "name": "counterparty_account_id",
+        "organization_requisite_id": {
+          "name": "organization_requisite_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -3222,11 +3222,11 @@
           "method": "btree",
           "with": {}
         },
-        "documents_counterparty_account_idx": {
-          "name": "documents_counterparty_account_idx",
+        "documents_organization_requisite_idx": {
+          "name": "documents_organization_requisite_idx",
           "columns": [
             {
-              "expression": "counterparty_account_id",
+              "expression": "organization_requisite_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3280,12 +3280,12 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "documents_counterparty_account_id_counterparty_accounts_id_fk": {
-          "name": "documents_counterparty_account_id_counterparty_accounts_id_fk",
+        "documents_organization_requisite_id_requisites_id_fk": {
+          "name": "documents_organization_requisite_id_requisites_id_fk",
           "tableFrom": "documents",
-          "tableTo": "counterparty_accounts",
+          "tableTo": "requisites",
           "columnsFrom": [
-            "counterparty_account_id"
+            "organization_requisite_id"
           ],
           "columnsTo": [
             "id"
@@ -3848,6 +3848,79 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.organizations": {
+      "name": "organizations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "short_name": {
+          "name": "short_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country": {
+          "name": "country",
+          "type": "counterparty_country_code",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "counterparty_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'legal_entity'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.reconciliation_exceptions": {
       "name": "reconciliation_exceptions",
       "schema": "",
@@ -4368,124 +4441,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.counterparty_account_bindings": {
-      "name": "counterparty_account_bindings",
-      "schema": "",
-      "columns": {
-        "counterparty_account_id": {
-          "name": "counterparty_account_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "book_id": {
-          "name": "book_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "book_account_instance_id": {
-          "name": "book_account_instance_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "counterparty_account_binding_book_idx": {
-          "name": "counterparty_account_binding_book_idx",
-          "columns": [
-            {
-              "expression": "book_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "counterparty_account_binding_instance_idx": {
-          "name": "counterparty_account_binding_instance_idx",
-          "columns": [
-            {
-              "expression": "book_account_instance_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "counterparty_account_bindings_counterparty_account_id_counterparty_accounts_id_fk": {
-          "name": "counterparty_account_bindings_counterparty_account_id_counterparty_accounts_id_fk",
-          "tableFrom": "counterparty_account_bindings",
-          "tableTo": "counterparty_accounts",
-          "columnsFrom": [
-            "counterparty_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "counterparty_account_bindings_book_id_books_id_fk": {
-          "name": "counterparty_account_bindings_book_id_books_id_fk",
-          "tableFrom": "counterparty_account_bindings",
-          "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "counterparty_account_bindings_book_account_instance_id_book_account_instances_id_fk": {
-          "name": "counterparty_account_bindings_book_account_instance_id_book_account_instances_id_fk",
-          "tableFrom": "counterparty_account_bindings",
-          "tableTo": "book_account_instances",
-          "columnsFrom": [
-            "book_account_instance_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.counterparty_account_providers": {
-      "name": "counterparty_account_providers",
+    "public.requisite_providers": {
+      "name": "requisite_providers",
       "schema": "",
       "columns": {
         "id": {
@@ -4495,9 +4452,9 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "type": {
-          "name": "type",
-          "type": "account_provider_type",
+        "kind": {
+          "name": "kind",
+          "type": "requisite_kind",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
@@ -4510,6 +4467,12 @@
         },
         "description": {
           "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country": {
+          "name": "country",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -4538,10 +4501,91 @@
           "primaryKey": false,
           "notNull": false
         },
-        "country": {
-          "name": "country",
-          "type": "counterparty_country_code",
-          "typeSchema": "public",
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "requisite_providers_kind_idx": {
+          "name": "requisite_providers_kind_idx",
+          "columns": [
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "requisite_providers_country_idx": {
+          "name": "requisite_providers_country_idx",
+          "columns": [
+            {
+              "expression": "country",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.organization_requisite_bindings": {
+      "name": "organization_requisite_bindings",
+      "schema": "",
+      "columns": {
+        "requisite_id": {
+          "name": "requisite_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "book_id": {
+          "name": "book_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "book_account_instance_id": {
+          "name": "book_account_instance_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "posting_account_no": {
+          "name": "posting_account_no",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -4561,31 +4605,86 @@
         }
       },
       "indexes": {
-        "counterparty_account_providers_name_uq": {
-          "name": "counterparty_account_providers_name_uq",
+        "requisite_accounting_bindings_book_idx": {
+          "name": "requisite_accounting_bindings_book_idx",
           "columns": [
             {
-              "expression": "name",
+              "expression": "book_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "requisite_accounting_bindings_instance_idx": {
+          "name": "requisite_accounting_bindings_instance_idx",
+          "columns": [
+            {
+              "expression": "book_account_instance_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "organization_requisite_bindings_requisite_id_requisites_id_fk": {
+          "name": "organization_requisite_bindings_requisite_id_requisites_id_fk",
+          "tableFrom": "organization_requisite_bindings",
+          "tableTo": "requisites",
+          "columnsFrom": [
+            "requisite_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "organization_requisite_bindings_book_id_books_id_fk": {
+          "name": "organization_requisite_bindings_book_id_books_id_fk",
+          "tableFrom": "organization_requisite_bindings",
+          "tableTo": "books",
+          "columnsFrom": [
+            "book_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "organization_requisite_bindings_book_account_instance_id_book_account_instances_id_fk": {
+          "name": "organization_requisite_bindings_book_account_instance_id_book_account_instances_id_fk",
+          "tableFrom": "organization_requisite_bindings",
+          "tableTo": "book_account_instances",
+          "columnsFrom": [
+            "book_account_instance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.counterparty_accounts": {
-      "name": "counterparty_accounts",
+    "public.requisites": {
+      "name": "requisites",
       "schema": "",
       "columns": {
         "id": {
@@ -4595,14 +4694,27 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+        "owner_type": {
+          "name": "owner_type",
+          "type": "requisite_owner_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "counterparty_id": {
           "name": "counterparty_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
-        "ledger_entity_counterparty_id": {
-          "name": "ledger_entity_counterparty_id",
+        "provider_id": {
+          "name": "provider_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -4613,9 +4725,10 @@
           "primaryKey": false,
           "notNull": true
         },
-        "account_provider_id": {
-          "name": "account_provider_id",
-          "type": "uuid",
+        "kind": {
+          "name": "kind",
+          "type": "requisite_kind",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -4627,6 +4740,24 @@
         },
         "description": {
           "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "beneficiary_name": {
+          "name": "beneficiary_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "institution_name": {
+          "name": "institution_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "institution_country": {
+          "name": "institution_country",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -4643,23 +4774,90 @@
           "primaryKey": false,
           "notNull": false
         },
-        "address": {
-          "name": "address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "iban": {
           "name": "iban",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "stable_key": {
-          "name": "stable_key",
+        "bic": {
+          "name": "bic",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "swift": {
+          "name": "swift",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_address": {
+          "name": "bank_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "network": {
+          "name": "network",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asset_code": {
+          "name": "asset_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "memo_tag": {
+          "name": "memo_tag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "account_ref": {
+          "name": "account_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subaccount_ref": {
+          "name": "subaccount_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact": {
+          "name": "contact",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_default": {
+          "name": "is_default",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -4677,29 +4875,120 @@
         }
       },
       "indexes": {
-        "counterparty_accounts_counterparty_stable_uq": {
-          "name": "counterparty_accounts_counterparty_stable_uq",
+        "requisites_owner_type_idx": {
+          "name": "requisites_owner_type_idx",
+          "columns": [
+            {
+              "expression": "owner_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "requisites_organization_idx": {
+          "name": "requisites_organization_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "requisites_counterparty_idx": {
+          "name": "requisites_counterparty_idx",
           "columns": [
             {
               "expression": "counterparty_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "requisites_provider_idx": {
+          "name": "requisites_provider_idx",
+          "columns": [
+            {
+              "expression": "provider_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "requisites_currency_idx": {
+          "name": "requisites_currency_idx",
+          "columns": [
+            {
+              "expression": "currency_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "requisites_kind_idx": {
+          "name": "requisites_kind_idx",
+          "columns": [
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "requisites_default_organization_uq": {
+          "name": "requisites_default_organization_uq",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
             },
             {
-              "expression": "stable_key",
+              "expression": "currency_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": true,
+          "where": "\"requisites\".\"owner_type\" = 'organization' and \"requisites\".\"is_default\" = true and \"requisites\".\"archived_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "counterparty_accounts_counterparty_cur_idx": {
-          "name": "counterparty_accounts_counterparty_cur_idx",
+        "requisites_default_counterparty_uq": {
+          "name": "requisites_default_counterparty_uq",
           "columns": [
             {
               "expression": "counterparty_id",
@@ -4714,16 +5003,187 @@
               "nulls": "last"
             }
           ],
+          "isUnique": true,
+          "where": "\"requisites\".\"owner_type\" = 'counterparty' and \"requisites\".\"is_default\" = true and \"requisites\".\"archived_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "requisites_organization_id_organizations_id_fk": {
+          "name": "requisites_organization_id_organizations_id_fk",
+          "tableFrom": "requisites",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "requisites_counterparty_id_counterparties_id_fk": {
+          "name": "requisites_counterparty_id_counterparties_id_fk",
+          "tableFrom": "requisites",
+          "tableTo": "counterparties",
+          "columnsFrom": [
+            "counterparty_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "requisites_provider_id_requisite_providers_id_fk": {
+          "name": "requisites_provider_id_requisite_providers_id_fk",
+          "tableFrom": "requisites",
+          "tableTo": "requisite_providers",
+          "columnsFrom": [
+            "provider_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "requisites_currency_id_currencies_id_fk": {
+          "name": "requisites_currency_id_currencies_id_fk",
+          "tableFrom": "requisites",
+          "tableTo": "currencies",
+          "columnsFrom": [
+            "currency_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "requisites_owner_fk_chk": {
+          "name": "requisites_owner_fk_chk",
+          "value": "(\n        \"requisites\".\"owner_type\" = 'organization'\n        and \"requisites\".\"organization_id\" is not null\n        and \"requisites\".\"counterparty_id\" is null\n      ) or (\n        \"requisites\".\"owner_type\" = 'counterparty'\n        and \"requisites\".\"counterparty_id\" is not null\n        and \"requisites\".\"organization_id\" is null\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.books": {
+      "name": "books",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_default": {
+          "name": "is_default",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "books_code_uq": {
+          "name": "books_code_uq",
+          "columns": [
+            {
+              "expression": "code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "books_default_owner_uq": {
+          "name": "books_default_owner_uq",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"books\".\"is_default\" = true",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "books_organization_idx": {
+          "name": "books_organization_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
           "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "counterparty_accounts_ledger_entity_idx": {
-          "name": "counterparty_accounts_ledger_entity_idx",
+        "books_organization_default_idx": {
+          "name": "books_organization_default_idx",
           "columns": [
             {
-              "expression": "ledger_entity_counterparty_id",
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "is_default",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4736,51 +5196,12 @@
         }
       },
       "foreignKeys": {
-        "counterparty_accounts_counterparty_id_counterparties_id_fk": {
-          "name": "counterparty_accounts_counterparty_id_counterparties_id_fk",
-          "tableFrom": "counterparty_accounts",
-          "tableTo": "counterparties",
+        "books_organization_id_organizations_id_fk": {
+          "name": "books_organization_id_organizations_id_fk",
+          "tableFrom": "books",
+          "tableTo": "organizations",
           "columnsFrom": [
-            "counterparty_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "counterparty_accounts_ledger_entity_counterparty_id_counterparties_id_fk": {
-          "name": "counterparty_accounts_ledger_entity_counterparty_id_counterparties_id_fk",
-          "tableFrom": "counterparty_accounts",
-          "tableTo": "counterparties",
-          "columnsFrom": [
-            "ledger_entity_counterparty_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "counterparty_accounts_currency_id_currencies_id_fk": {
-          "name": "counterparty_accounts_currency_id_currencies_id_fk",
-          "tableFrom": "counterparty_accounts",
-          "tableTo": "currencies",
-          "columnsFrom": [
-            "currency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "counterparty_accounts_account_provider_id_counterparty_account_providers_id_fk": {
-          "name": "counterparty_accounts_account_provider_id_counterparty_account_providers_id_fk",
-          "tableFrom": "counterparty_accounts",
-          "tableTo": "counterparty_account_providers",
-          "columnsFrom": [
-            "account_provider_id"
+            "organization_id"
           ],
           "columnsTo": [
             "id"
@@ -4962,147 +5383,6 @@
           "tableTo": "books",
           "columnsFrom": [
             "book_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.books": {
-      "name": "books",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "counterparty_id": {
-          "name": "counterparty_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "is_default": {
-          "name": "is_default",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "books_code_uq": {
-          "name": "books_code_uq",
-          "columns": [
-            {
-              "expression": "code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "books_default_owner_uq": {
-          "name": "books_default_owner_uq",
-          "columns": [
-            {
-              "expression": "counterparty_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"books\".\"is_default\" = true",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "books_counterparty_idx": {
-          "name": "books_counterparty_idx",
-          "columns": [
-            {
-              "expression": "counterparty_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "books_counterparty_default_idx": {
-          "name": "books_counterparty_default_idx",
-          "columns": [
-            {
-              "expression": "counterparty_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "is_default",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "books_counterparty_id_counterparties_id_fk": {
-          "name": "books_counterparty_id_counterparties_id_fk",
-          "tableFrom": "books",
-          "tableTo": "counterparties",
-          "columnsFrom": [
-            "counterparty_id"
           ],
           "columnsTo": [
             "id"
@@ -7636,14 +7916,12 @@
         "individual"
       ]
     },
-    "public.account_provider_type": {
-      "name": "account_provider_type",
+    "public.requisite_owner_type": {
+      "name": "requisite_owner_type",
       "schema": "public",
       "values": [
-        "bank",
-        "exchange",
-        "blockchain",
-        "custodian"
+        "organization",
+        "counterparty"
       ]
     }
   },

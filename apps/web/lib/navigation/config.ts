@@ -156,6 +156,13 @@ const navItems: AppNavItem[] = [
         audience: "admin",
       },
       {
+        id: "entities-organizations",
+        title: "Организации",
+        href: "/entities/organizations",
+        icon: "landmark",
+        audience: "admin",
+      },
+      {
         id: "entities-counterparties",
         title: "Контрагенты",
         href: "/entities/counterparties",
@@ -163,17 +170,17 @@ const navItems: AppNavItem[] = [
         audience: "admin",
       },
       {
-        id: "entities-counterparty-requisites",
-        title: "Реквизиты контрагентов",
-        href: "/entities/counterparty-requisites",
+        id: "entities-requisites",
+        title: "Реквизиты",
+        href: "/entities/requisites",
         icon: "wallet",
         audience: "admin",
       },
       {
-        id: "entities-organization-requisites",
-        title: "Реквизиты организаций",
-        href: "/entities/organization-requisites",
-        icon: "landmark",
+        id: "entities-requisite-providers",
+        title: "Провайдеры реквизитов",
+        href: "/entities/requisite-providers",
+        icon: "vault",
         audience: "admin",
       },
       {

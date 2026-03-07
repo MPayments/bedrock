@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: "./../../.env" });
 
 const { db } = await import("../client");
-const { seedRequisitesFromLegacy } = await import("./requisites");
+const { seedRequisites } = await import("./requisites");
 
-await seedRequisitesFromLegacy(db);
+await seedRequisites(db);
 process.exit(0);

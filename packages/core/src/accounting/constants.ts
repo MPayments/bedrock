@@ -28,7 +28,7 @@ export const ACCOUNT_NO = {
 } as const;
 
 export const DIM = {
-  counterpartyAccountId: "counterpartyAccountId",
+  organizationRequisiteId: "organizationRequisiteId",
   counterpartyId: "counterpartyId",
   customerId: "customerId",
   orderId: "orderId",
@@ -103,14 +103,14 @@ export const CLEARING_KIND_DIMENSION_RULES: Record<
     { dimensionKey: DIM.counterpartyId, mode: "required" },
     { dimensionKey: DIM.orderId, mode: "forbidden" },
     { dimensionKey: DIM.customerId, mode: "forbidden" },
-    { dimensionKey: DIM.counterpartyAccountId, mode: "forbidden" },
+    { dimensionKey: DIM.organizationRequisiteId, mode: "forbidden" },
     { dimensionKey: DIM.feeBucket, mode: "forbidden" },
   ],
   [CLEARING_KIND.TREASURY_FX]: [
     { dimensionKey: DIM.counterpartyId, mode: "required" },
     { dimensionKey: DIM.orderId, mode: "required" },
     { dimensionKey: DIM.customerId, mode: "forbidden" },
-    { dimensionKey: DIM.counterpartyAccountId, mode: "forbidden" },
+    { dimensionKey: DIM.organizationRequisiteId, mode: "forbidden" },
     { dimensionKey: DIM.feeBucket, mode: "forbidden" },
   ],
 };
@@ -344,10 +344,10 @@ export const DEFAULT_CHART_TEMPLATE_ACCOUNTS = [
 ] as const;
 
 export const DEFAULT_ACCOUNT_DIMENSION_POLICIES: AccountDimensionPolicy[] = [
-  // BANK: only counterpartyAccountId, everything else forbidden
+  // BANK: only organizationRequisiteId, everything else forbidden
   {
     accountNo: ACCOUNT_NO.BANK,
-    dimensionKey: DIM.counterpartyAccountId,
+    dimensionKey: DIM.organizationRequisiteId,
     mode: "required",
   },
   { accountNo: ACCOUNT_NO.BANK, dimensionKey: DIM.orderId, mode: "forbidden" },
@@ -380,7 +380,7 @@ export const DEFAULT_ACCOUNT_DIMENSION_POLICIES: AccountDimensionPolicy[] = [
   },
   {
     accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
-    dimensionKey: DIM.counterpartyAccountId,
+    dimensionKey: DIM.organizationRequisiteId,
     mode: "forbidden",
   },
   {
@@ -412,7 +412,7 @@ export const DEFAULT_ACCOUNT_DIMENSION_POLICIES: AccountDimensionPolicy[] = [
   },
   {
     accountNo: ACCOUNT_NO.CLEARING,
-    dimensionKey: DIM.counterpartyAccountId,
+    dimensionKey: DIM.organizationRequisiteId,
     mode: "forbidden",
   },
   {
@@ -439,7 +439,7 @@ export const DEFAULT_ACCOUNT_DIMENSION_POLICIES: AccountDimensionPolicy[] = [
   },
   {
     accountNo: ACCOUNT_NO.ORDER_RESERVE,
-    dimensionKey: DIM.counterpartyAccountId,
+    dimensionKey: DIM.organizationRequisiteId,
     mode: "forbidden",
   },
   {
@@ -471,7 +471,7 @@ export const DEFAULT_ACCOUNT_DIMENSION_POLICIES: AccountDimensionPolicy[] = [
   },
   {
     accountNo: ACCOUNT_NO.FEE_CLEARING,
-    dimensionKey: DIM.counterpartyAccountId,
+    dimensionKey: DIM.organizationRequisiteId,
     mode: "forbidden",
   },
   {
@@ -498,7 +498,7 @@ export const DEFAULT_ACCOUNT_DIMENSION_POLICIES: AccountDimensionPolicy[] = [
   },
   {
     accountNo: ACCOUNT_NO.PAYOUT_OBLIGATION,
-    dimensionKey: DIM.counterpartyAccountId,
+    dimensionKey: DIM.organizationRequisiteId,
     mode: "forbidden",
   },
   {
@@ -525,7 +525,7 @@ export const DEFAULT_ACCOUNT_DIMENSION_POLICIES: AccountDimensionPolicy[] = [
   },
   {
     accountNo: ACCOUNT_NO.SHAREHOLDER_LOAN,
-    dimensionKey: DIM.counterpartyAccountId,
+    dimensionKey: DIM.organizationRequisiteId,
     mode: "forbidden",
   },
   {
@@ -556,7 +556,7 @@ export const DEFAULT_ACCOUNT_DIMENSION_POLICIES: AccountDimensionPolicy[] = [
   },
   {
     accountNo: ACCOUNT_NO.FOUNDER_EQUITY,
-    dimensionKey: DIM.counterpartyAccountId,
+    dimensionKey: DIM.organizationRequisiteId,
     mode: "forbidden",
   },
   {
@@ -587,7 +587,7 @@ export const DEFAULT_ACCOUNT_DIMENSION_POLICIES: AccountDimensionPolicy[] = [
   },
   {
     accountNo: ACCOUNT_NO.INVESTOR_EQUITY,
-    dimensionKey: DIM.counterpartyAccountId,
+    dimensionKey: DIM.organizationRequisiteId,
     mode: "forbidden",
   },
   {
@@ -636,13 +636,13 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
     // --- Transfers ---
     {
       postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
-      dimensionKey: DIM.counterpartyAccountId,
+      dimensionKey: DIM.organizationRequisiteId,
       required: true,
       scope: "line",
     },
     {
       postingCode: POSTING_CODE.TRANSFER_INTRA_PENDING,
-      dimensionKey: DIM.counterpartyAccountId,
+      dimensionKey: DIM.organizationRequisiteId,
       required: true,
       scope: "line",
     },
@@ -656,7 +656,7 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
     },
     {
       postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_IMMEDIATE,
-      dimensionKey: DIM.counterpartyAccountId,
+      dimensionKey: DIM.organizationRequisiteId,
       required: true,
       scope: "credit",
     },
@@ -668,7 +668,7 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
     },
     {
       postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_IMMEDIATE,
-      dimensionKey: DIM.counterpartyAccountId,
+      dimensionKey: DIM.organizationRequisiteId,
       required: true,
       scope: "debit",
     },
@@ -680,7 +680,7 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
     },
     {
       postingCode: POSTING_CODE.TRANSFER_CROSS_SOURCE_PENDING,
-      dimensionKey: DIM.counterpartyAccountId,
+      dimensionKey: DIM.organizationRequisiteId,
       required: true,
       scope: "credit",
     },
@@ -692,7 +692,7 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
     },
     {
       postingCode: POSTING_CODE.TRANSFER_CROSS_DEST_PENDING,
-      dimensionKey: DIM.counterpartyAccountId,
+      dimensionKey: DIM.organizationRequisiteId,
       required: true,
       scope: "debit",
     },
@@ -707,13 +707,13 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
     },
     {
       postingCode: POSTING_CODE.FUNDING_SETTLED,
-      dimensionKey: DIM.counterpartyAccountId,
+      dimensionKey: DIM.organizationRequisiteId,
       required: true,
       scope: "debit",
     },
     {
       postingCode: POSTING_CODE.EXTERNAL_FUNDING_FOUNDER_EQUITY,
-      dimensionKey: DIM.counterpartyAccountId,
+      dimensionKey: DIM.organizationRequisiteId,
       required: true,
       scope: "debit",
     },
@@ -725,7 +725,7 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
     },
     {
       postingCode: POSTING_CODE.EXTERNAL_FUNDING_INVESTOR_EQUITY,
-      dimensionKey: DIM.counterpartyAccountId,
+      dimensionKey: DIM.organizationRequisiteId,
       required: true,
       scope: "debit",
     },
@@ -737,7 +737,7 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
     },
     {
       postingCode: POSTING_CODE.EXTERNAL_FUNDING_SHAREHOLDER_LOAN,
-      dimensionKey: DIM.counterpartyAccountId,
+      dimensionKey: DIM.organizationRequisiteId,
       required: true,
       scope: "debit",
     },
@@ -749,7 +749,7 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
     },
     {
       postingCode: POSTING_CODE.EXTERNAL_FUNDING_OPENING_BALANCE,
-      dimensionKey: DIM.counterpartyAccountId,
+      dimensionKey: DIM.organizationRequisiteId,
       required: true,
       scope: "debit",
     },
@@ -911,7 +911,7 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
     },
     {
       postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED,
-      dimensionKey: DIM.counterpartyAccountId,
+      dimensionKey: DIM.organizationRequisiteId,
       required: true,
       scope: "credit",
     },
@@ -925,7 +925,7 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
     },
     {
       postingCode: POSTING_CODE.PAYOUT_INITIATED,
-      dimensionKey: DIM.counterpartyAccountId,
+      dimensionKey: DIM.organizationRequisiteId,
       required: true,
       scope: "credit",
     },

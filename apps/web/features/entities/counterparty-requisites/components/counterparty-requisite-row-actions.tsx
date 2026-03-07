@@ -21,14 +21,14 @@ export function CounterpartyRequisiteRowActions({
 
   return (
     <EntityRowActions
-      openHref={`/entities/counterparty-requisites/${requisite.id}`}
+      openHref={`/entities/requisites/${requisite.id}`}
       ariaLabel={`Действия для реквизита ${requisite.label}`}
       deleteDialogTitle="Удалить реквизит контрагента?"
       deleteDialogDescription="Реквизит будет удалён без возможности восстановления."
       deleteFallbackMessage="Не удалось удалить реквизит контрагента"
       deleteSuccessMessage="Реквизит контрагента удалён"
       deleteRequest={() =>
-        apiClient.v1["counterparty-requisites"][":id"].$delete({
+        apiClient.v1.requisites[":id"].$delete({
           param: { id: requisite.id },
         })
       }

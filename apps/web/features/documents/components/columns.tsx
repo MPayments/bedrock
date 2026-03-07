@@ -49,7 +49,7 @@ export function getDocumentColumns(options?: {
           row.currency ?? "",
           row.counterpartyId ?? "",
           row.customerId ?? "",
-          row.counterpartyAccountId ?? "",
+          row.organizationRequisiteId ?? "",
         ]
           .filter((value) => value.length > 0)
           .join(" "),

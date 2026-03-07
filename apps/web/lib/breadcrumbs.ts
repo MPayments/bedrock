@@ -44,6 +44,11 @@ const segmentMap: Record<string, SegmentConfig> = {
     href: "/entities/customers",
     icon: "handshake",
   },
+  organizations: {
+    label: "Организации",
+    href: "/entities/organizations",
+    icon: "landmark",
+  },
   counterparties: {
     label: "Контрагенты",
     icon: "building-2",
@@ -53,15 +58,15 @@ const segmentMap: Record<string, SegmentConfig> = {
     href: "/entities/currencies",
     icon: "dollar-sign",
   },
-  "counterparty-requisites": {
-    label: "Реквизиты контрагентов",
-    href: "/entities/counterparty-requisites",
+  requisites: {
+    label: "Реквизиты",
+    href: "/entities/requisites",
     icon: "wallet",
   },
-  "organization-requisites": {
-    label: "Реквизиты организаций",
-    href: "/entities/organization-requisites",
-    icon: "landmark",
+  "requisite-providers": {
+    label: "Провайдеры реквизитов",
+    href: "/entities/requisite-providers",
+    icon: "vault",
   },
   create: { label: "Создать" },
   type: { label: "Тип" },

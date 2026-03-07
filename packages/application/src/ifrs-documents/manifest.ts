@@ -24,8 +24,8 @@ export const IFRS_DOCUMENTS_MODULE_MANIFEST = {
       reason: "IFRS workflows are executed through the documents runtime",
     },
     {
-      moduleId: "organization-requisites",
-      reason: "Transfer and funding modules resolve organization requisite bindings",
+      moduleId: "requisites",
+      reason: "Transfer and funding modules resolve organization bindings and requisite ownership",
     },
   ],
 } as const satisfies ModuleManifest;

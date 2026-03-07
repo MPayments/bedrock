@@ -11,8 +11,10 @@ const amountMinorSchema = z
 
 const paymentIntentBaseShape = {
   direction: z.enum(["payin", "payout"]),
-  sourceCounterpartyAccountId: z.uuid(),
-  destinationCounterpartyAccountId: z.uuid(),
+  organizationId: z.uuid(),
+  organizationRequisiteId: z.uuid(),
+  counterpartyId: z.uuid(),
+  counterpartyRequisiteId: z.uuid(),
   currency: z
     .string()
     .trim()

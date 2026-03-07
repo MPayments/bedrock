@@ -6,7 +6,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 
 const RequisiteListItemSchema = z.object({
   id: z.uuid(),
+  ownerType: z.enum(["organization", "counterparty"]),
+  ownerId: z.uuid(),
   currencyId: z.uuid(),
+  providerId: z.uuid(),
   label: z.string(),
   accountNo: z.string().nullable(),
   iban: z.string().nullable(),
@@ -24,16 +27,6 @@ export type RequisiteOption = {
   currencyId: string;
 };
 
-function resolveQueryKey(ownerType: "counterparty" | "organization") {
-  return ownerType === "organization" ? "organizationId" : "counterpartyId";
-}
-
-function resolveEndpoint(ownerType: "counterparty" | "organization") {
-  return ownerType === "organization"
-    ? "organization-requisites"
-    : "counterparty-requisites";
-}
-
 function buildRequisiteIdentity(item: z.infer<typeof RequisiteListItemSchema>) {
   return item.accountNo ?? item.iban ?? item.accountRef ?? item.address ?? item.id;
 }
@@ -46,13 +39,14 @@ export async function fetchRequisiteOptions(input: {
   const query = new URLSearchParams({
     limit: "200",
     offset: "0",
-    [resolveQueryKey(input.ownerType)]: input.ownerId,
+    ownerType: input.ownerType,
+    ownerId: input.ownerId,
     sortBy: "createdAt",
     sortOrder: "desc",
   });
 
   const response = await fetch(
-    `${API_URL}/v1/${resolveEndpoint(input.ownerType)}?${query.toString()}`,
+    `${API_URL}/v1/requisites?${query.toString()}`,
     {
       credentials: "include",
       cache: "no-store",

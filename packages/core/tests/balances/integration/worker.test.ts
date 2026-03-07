@@ -196,10 +196,10 @@ describe("balances projector integration", () => {
         accountNo: "1110",
         currency: "USD",
         dimensions: {
-          counterpartyAccountId: "oa-destination",
+          organizationRequisiteId: "oa-destination",
         },
         dimensionsHash: createDimensionsHash({
-          counterpartyAccountId: "oa-destination",
+          organizationRequisiteId: "oa-destination",
         }),
         tbLedger: 1,
         tbAccountId: 10_001n,
@@ -210,10 +210,10 @@ describe("balances projector integration", () => {
         accountNo: "1110",
         currency: "USD",
         dimensions: {
-          counterpartyAccountId: "oa-source",
+          organizationRequisiteId: "oa-source",
         },
         dimensionsHash: createDimensionsHash({
-          counterpartyAccountId: "oa-source",
+          organizationRequisiteId: "oa-source",
         }),
         tbLedger: 1,
         tbAccountId: 10_002n,
@@ -277,13 +277,13 @@ describe("balances projector integration", () => {
     expect(positions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          subjectType: "counterparty_account",
+          subjectType: "organization_requisite",
           subjectId: "oa-destination",
           ledgerBalance: 125n,
           available: 125n,
         }),
         expect.objectContaining({
-          subjectType: "counterparty_account",
+          subjectType: "organization_requisite",
           subjectId: "oa-source",
           ledgerBalance: -125n,
           available: -125n,

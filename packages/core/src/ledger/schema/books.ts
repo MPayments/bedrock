@@ -9,7 +9,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { counterparties } from "../../counterparties/schema";
+import { organizations } from "../../organizations/schema";
 
 export type Book = typeof books.$inferSelect;
 export type BookInsert = typeof books.$inferInsert;
@@ -18,9 +18,9 @@ export const books = pgTable(
   "books",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    counterpartyId: uuid("counterparty_id")
+    organizationId: uuid("organization_id")
       .notNull()
-      .references(() => counterparties.id),
+      .references(() => organizations.id),
     code: text("code").notNull(),
     name: text("name").notNull(),
     isDefault: boolean("is_default").notNull().default(false),
@@ -35,9 +35,9 @@ export const books = pgTable(
   (t) => [
     uniqueIndex("books_code_uq").on(t.code),
     uniqueIndex("books_default_owner_uq")
-      .on(t.counterpartyId)
+      .on(t.organizationId)
       .where(sql`${t.isDefault} = true`),
-    index("books_counterparty_idx").on(t.counterpartyId),
-    index("books_counterparty_default_idx").on(t.counterpartyId, t.isDefault),
+    index("books_organization_idx").on(t.organizationId),
+    index("books_organization_default_idx").on(t.organizationId, t.isDefault),
   ],
 );

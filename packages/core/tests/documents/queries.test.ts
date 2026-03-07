@@ -29,7 +29,7 @@ function makeDocument(overrides: Partial<Document> = {}): Document {
     memo: null,
     counterpartyId: null,
     customerId: null,
-    counterpartyAccountId: null,
+    organizationRequisiteId: null,
     searchText: "test",
     createdBy: "maker-1",
     submittedBy: null,

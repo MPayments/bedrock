@@ -36,12 +36,12 @@ describe("Engine Integration Tests", () => {
           debit: {
             accountNo: ACCOUNT_NO.BANK,
             currency: "USD",
-            dimensions: { counterpartyAccountId: randomUUID() },
+            dimensions: { organizationRequisiteId: randomUUID() },
           },
           credit: {
             accountNo: ACCOUNT_NO.BANK,
             currency: "USD",
-            dimensions: { counterpartyAccountId: randomUUID() },
+            dimensions: { organizationRequisiteId: randomUUID() },
           },
           amountMinor: 100000n,
         },
@@ -81,12 +81,12 @@ describe("Engine Integration Tests", () => {
           debit: {
             accountNo: ACCOUNT_NO.BANK,
             currency: "USD",
-            dimensions: { counterpartyAccountId: randomUUID() },
+            dimensions: { organizationRequisiteId: randomUUID() },
           },
           credit: {
             accountNo: ACCOUNT_NO.BANK,
             currency: "USD",
-            dimensions: { counterpartyAccountId: randomUUID() },
+            dimensions: { organizationRequisiteId: randomUUID() },
           },
           amountMinor: 200000n,
         },
@@ -120,12 +120,12 @@ describe("Engine Integration Tests", () => {
           debit: {
             accountNo: ACCOUNT_NO.BANK,
             currency: "USD",
-            dimensions: { counterpartyAccountId: randomUUID() },
+            dimensions: { organizationRequisiteId: randomUUID() },
           },
           credit: {
             accountNo: ACCOUNT_NO.BANK,
             currency: "USD",
-            dimensions: { counterpartyAccountId: randomUUID() },
+            dimensions: { organizationRequisiteId: randomUUID() },
           },
           amountMinor: 100000n,
         },
@@ -147,12 +147,12 @@ describe("Engine Integration Tests", () => {
             debit: {
               accountNo: ACCOUNT_NO.BANK,
               currency: "USD",
-              dimensions: { counterpartyAccountId: randomUUID() },
+              dimensions: { organizationRequisiteId: randomUUID() },
             },
             credit: {
               accountNo: ACCOUNT_NO.BANK,
               currency: "USD",
-              dimensions: { counterpartyAccountId: randomUUID() },
+              dimensions: { organizationRequisiteId: randomUUID() },
             },
             amountMinor: 200000n,
           },

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  mapCounterpartyBalanceDto,
   mapFinancialResultRowDto,
   mapFinancialSummaryDto,
   mapOperationDetailsDto,
@@ -67,22 +66,6 @@ describe("accounting mappers", () => {
       revenue: "25",
       expense: "5",
       net: "20",
-    });
-  });
-
-  it("maps counterparty balance amount", () => {
-    expect(
-      mapCounterpartyBalanceDto({
-        counterpartyAccountId: "22222222-2222-4222-8222-222222222222",
-        currency: "JPY",
-        balanceMinor: 120n,
-        precision: 0,
-      }),
-    ).toEqual({
-      counterpartyAccountId: "22222222-2222-4222-8222-222222222222",
-      currency: "JPY",
-      balance: "120",
-      precision: 0,
     });
   });
 

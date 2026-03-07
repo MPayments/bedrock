@@ -15,13 +15,6 @@ interface FinancialRowLike {
   netMinor: bigint;
 }
 
-interface CounterpartyBalanceLike {
-  counterpartyAccountId: string;
-  currency: string;
-  balanceMinor: bigint;
-  precision: number;
-}
-
 interface TbPlanLike {
   id: string;
   lineNo: number;
@@ -112,19 +105,6 @@ export function mapFinancialResultRowDto<TRow extends FinancialRowLike>(row: TRo
 
 export function mapFinancialSummaryDto<TRow extends FinancialRowLike>(row: TRow) {
   return mapFinancialResultRowDto(row);
-}
-
-export function mapCounterpartyBalanceDto<TBalance extends CounterpartyBalanceLike>(
-  balance: TBalance,
-) {
-  return {
-    counterpartyAccountId: balance.counterpartyAccountId,
-    currency: balance.currency,
-    balance: minorToAmountString(balance.balanceMinor, {
-      precision: balance.precision,
-    }),
-    precision: balance.precision,
-  };
 }
 
 export function mapOperationDetailsDto<

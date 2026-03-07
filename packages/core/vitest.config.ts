@@ -106,15 +106,6 @@ export const coreUnitProjects = [
   }),
   coreProject({
     test: {
-      name: "counterparty-accounts",
-      globals: true,
-      environment: "node",
-      include: ["tests/counterparty-accounts/**/*.test.ts"],
-      exclude: NODE_EXCLUDE,
-    },
-  }),
-  coreProject({
-    test: {
       name: "reconciliation",
       globals: true,
       environment: "node",

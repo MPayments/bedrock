@@ -21,7 +21,7 @@ import {
   postings,
   tbTransferPlans,
 } from "../ledger/schema";
-import { counterpartyAccounts } from "../counterparty-accounts/schema";
+import { requisites } from "../requisites/schema";
 
 export type DocumentSubmissionStatus = "draft" | "submitted";
 export type DocumentApprovalStatus =
@@ -77,8 +77,8 @@ export const documents = pgTable(
     customerId: uuid("customer_id").references(() => customers.id, {
       onDelete: "set null",
     }),
-    counterpartyAccountId: uuid("counterparty_account_id").references(
-      () => counterpartyAccounts.id,
+    organizationRequisiteId: uuid("organization_requisite_id").references(
+      () => requisites.id,
       { onDelete: "set null" },
     ),
     searchText: text("search_text")
@@ -172,7 +172,7 @@ export const documents = pgTable(
     index("documents_currency_idx").on(t.currency),
     index("documents_counterparty_idx").on(t.counterpartyId),
     index("documents_customer_idx").on(t.customerId),
-    index("documents_counterparty_account_idx").on(t.counterpartyAccountId),
+    index("documents_organization_requisite_idx").on(t.organizationRequisiteId),
     index("documents_payload_gin_idx").using("gin", t.payload),
   ],
 );

@@ -29,15 +29,16 @@ import {
   accountingRoutes,
   balancesRoutes,
   counterpartiesRoutes,
-  counterpartyRequisitesRoutes,
   counterpartyGroupsRoutes,
   customersRoutes,
   currenciesRoutes,
   documentsRoutes,
   fxRatesRoutes,
-  organizationRequisitesRoutes,
+  organizationsRoutes,
   paymentsRoutes,
   profileRoutes,
+  requisiteProvidersRoutes,
+  requisitesRoutes,
   systemModulesRoutes,
   usersRoutes,
 } from "./routes";
@@ -62,13 +63,6 @@ void ctx.documentsService
     process.exitCode = 1;
     setImmediate(() => process.exit(1));
   });
-void ctx.assertInternalLedgerInvariants().catch((error: unknown) => {
-  ctx.logger.error("Internal ledger invariants check failed", {
-    error: error instanceof Error ? error.message : String(error),
-  });
-  process.exitCode = 1;
-  setImmediate(() => process.exit(1));
-});
 
 const configuredAuthOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
   .map((origin) => origin.trim())
@@ -264,15 +258,16 @@ function buildV1Router(
 
 const TYPED_ROUTE_PATHS = [
   "/accounting",
-  "/counterparty-requisites",
   "/balances",
   "/counterparties",
   "/counterparty-groups",
   "/customers",
   "/currencies",
   "/documents",
-  "/organization-requisites",
+  "/organizations",
   "/payments",
+  "/requisite-providers",
+  "/requisites",
   "/fx/rates",
   "/system/modules",
 ] as const;
@@ -297,15 +292,16 @@ assertTypedRouteCoverage();
 
 const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/accounting", accountingRoutes(ctx))
-  .route("/counterparty-requisites", counterpartyRequisitesRoutes(ctx))
   .route("/balances", balancesRoutes(ctx))
   .route("/counterparties", counterpartiesRoutes(ctx))
   .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
   .route("/documents", documentsRoutes(ctx))
-  .route("/organization-requisites", organizationRequisitesRoutes(ctx))
+  .route("/organizations", organizationsRoutes(ctx))
   .route("/payments", paymentsRoutes(ctx))
+  .route("/requisite-providers", requisiteProvidersRoutes(ctx))
+  .route("/requisites", requisitesRoutes(ctx))
   .route("/fx/rates", fxRatesRoutes(ctx))
   .route("/system/modules", systemModulesRoutes(ctx))
   .route("/users", usersRoutes(ctx))

@@ -39,10 +39,17 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
           },
           {
             kind: "account",
-            name: "counterpartyAccountId",
+            name: "organizationRequisiteId",
             label: "Реквизит организации",
             counterpartyField: "organizationId",
             optionsSource: "organizationRequisites",
+          },
+          {
+            kind: "account",
+            name: "counterpartyRequisiteId",
+            label: "Реквизит контрагента",
+            counterpartyField: "counterpartyId",
+            optionsSource: "counterpartyRequisites",
           },
         ],
         layout: {
@@ -54,7 +61,11 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
               fields: ["counterpartyId", "organizationId"],
             },
             {
-              fields: ["counterpartyAccountId"],
+              columns: {
+                base: 1,
+                sm: 2,
+              },
+              fields: ["organizationRequisiteId", "counterpartyRequisiteId"],
             },
             {
               fields: ["occurredAt"],
@@ -74,7 +85,7 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
             hidden: true,
             deriveFrom: {
               kind: "accountCurrency",
-              accountFieldNames: ["counterpartyAccountId"],
+              accountFieldNames: ["organizationRequisiteId"],
             },
           },
           { kind: "textarea", name: "memo", label: "Комментарий", rows: 3 },
@@ -97,7 +108,8 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
         kind: "founder_equity",
         counterpartyId: "",
         organizationId: "",
-        counterpartyAccountId: "",
+        organizationRequisiteId: "",
+        counterpartyRequisiteId: "",
         amount: "",
         currency: "",
         memo: "",
@@ -109,7 +121,8 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
         kind: readString(payload.kind) || "founder_equity",
         counterpartyId: readString(payload.counterpartyId),
         organizationId: readString(payload.organizationId),
-        counterpartyAccountId: readString(payload.counterpartyAccountId),
+        organizationRequisiteId: readString(payload.organizationRequisiteId),
+        counterpartyRequisiteId: readString(payload.counterpartyRequisiteId),
         amount: normalizeMajorAmountInput(payload.amount, payload.currency),
         currency: readString(payload.currency),
         memo: readString(payload.memo),
@@ -120,8 +133,13 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
         occurredAt: toOccurredAtIso(values.occurredAt),
         kind: readString(values.kind).trim(),
         counterpartyId: readString(values.counterpartyId).trim(),
-        organizationId: optionalString(values.organizationId),
-        counterpartyAccountId: readString(values.counterpartyAccountId).trim(),
+        organizationId: readString(values.organizationId).trim(),
+        organizationRequisiteId: readString(
+          values.organizationRequisiteId,
+        ).trim(),
+        counterpartyRequisiteId: readString(
+          values.counterpartyRequisiteId,
+        ).trim(),
         amount: normalizeMajorAmountInput(values.amount, values.currency),
         currency: readString(values.currency).trim(),
         memo: optionalString(values.memo),

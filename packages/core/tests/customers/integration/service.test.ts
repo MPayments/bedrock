@@ -264,7 +264,7 @@ describe("Customers service integration", () => {
       memo: null,
       counterpartyId: counterparty!.id,
       customerId: customer.id,
-      counterpartyAccountId: null,
+      organizationRequisiteId: null,
       searchText: "customer linked payment case",
       createdBy,
       submittedBy: null,
