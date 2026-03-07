@@ -4,6 +4,7 @@ import { schema } from "@bedrock/core/counterparties/schema";
 
 import { CounterpartyNotFoundError } from "../errors";
 import type { CounterpartiesServiceContext } from "../internal/context";
+import { ensureInternalLedgerDefaultBookIdTx } from "../internal/default-book";
 import {
   CUSTOMERS_ROOT_GROUP_CODE,
   TREASURY_ROOT_GROUP_CODE,
@@ -15,6 +16,7 @@ import {
   resolveGroupMembershipClassification,
   withoutRootGroups,
 } from "../internal/group-rules";
+import { isInternalLedgerCounterparty } from "../internal-ledger";
 import {
   UpdateCounterpartyInputSchema,
   type Counterparty,
@@ -134,6 +136,15 @@ export function createUpdateCounterpartyHandler(
 
       if (validated.groupIds !== undefined || membershipChanged) {
         await replaceMemberships(tx, id, nextGroupIds);
+
+        if (
+          await isInternalLedgerCounterparty({
+            db: tx,
+            counterpartyId: id,
+          })
+        ) {
+          await ensureInternalLedgerDefaultBookIdTx(tx, id);
+        }
       }
 
       log.info("Counterparty updated", { id });

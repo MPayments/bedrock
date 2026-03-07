@@ -123,6 +123,7 @@ export const CounterpartyGroupSchema = z.object({
   description: z.string().nullable(),
   parentId: z.uuid().nullable(),
   customerId: z.uuid().nullable(),
+  customerLabel: z.string().nullable().optional(),
   isSystem: z.boolean(),
   createdAt: z.date(),
   updatedAt: z.date(),

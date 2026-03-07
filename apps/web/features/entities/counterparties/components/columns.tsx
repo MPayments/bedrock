@@ -11,7 +11,10 @@ import {
   COUNTERPARTY_COUNTRY_OPTIONS,
   getCountryPresentation,
 } from "../lib/countries";
-import { getCounterpartyGroupPresentation } from "../lib/group-label";
+import {
+  getCounterpartyGroupDisplayLabel,
+  getCounterpartyGroupPresentation,
+} from "../lib/group-label";
 import type { CounterpartyGroupOption } from "../lib/queries";
 import { CounterpartyRowActions } from "./counterparty-row-actions";
 
@@ -45,7 +48,7 @@ export function getColumns(
       const presentation = getCounterpartyGroupPresentation(group.name);
       return {
         value: group.id,
-        label: presentation.label,
+        label: getCounterpartyGroupDisplayLabel(group),
         icon:
           presentation.icon === "vault"
             ? (props: React.SVGProps<SVGSVGElement>) => <Vault {...props} />
@@ -58,7 +61,10 @@ export function getColumns(
   const groupPresentationById = new Map(
     groupOptions.map((group) => [
       group.id,
-      getCounterpartyGroupPresentation(group.name),
+      {
+        ...getCounterpartyGroupPresentation(group.name),
+        label: getCounterpartyGroupDisplayLabel(group),
+      },
     ]),
   );
 

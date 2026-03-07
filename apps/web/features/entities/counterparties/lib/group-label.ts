@@ -1,3 +1,5 @@
+import type { CounterpartyGroupOption } from "./queries";
+
 const GROUP_PRESENTATION_BY_KEY = {
   treasury: {
     label: "Казначейство",
@@ -40,4 +42,22 @@ export function getCounterpartyGroupPresentation(value: string): {
 
 export function localizeCounterpartyGroupLabel(value: string) {
   return getCounterpartyGroupPresentation(value).label;
+}
+
+export function getCounterpartyGroupDisplayLabel(
+  group: Pick<CounterpartyGroupOption, "name" | "customerId" | "customerLabel">,
+) {
+  const label = localizeCounterpartyGroupLabel(group.name);
+  const customerLabel = group.customerLabel?.trim();
+
+  if (
+    !group.customerId ||
+    !customerLabel ||
+    customerLabel.length === 0 ||
+    customerLabel === label
+  ) {
+    return label;
+  }
+
+  return `${label} · ${customerLabel}`;
 }

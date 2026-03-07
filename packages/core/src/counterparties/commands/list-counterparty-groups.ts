@@ -44,8 +44,23 @@ export function createListCounterpartyGroupsHandler(
       const where = conditions.length > 0 ? and(...conditions) : undefined;
 
       return tx
-        .select()
+        .select({
+          id: schema.counterpartyGroups.id,
+          code: schema.counterpartyGroups.code,
+          name: schema.counterpartyGroups.name,
+          description: schema.counterpartyGroups.description,
+          parentId: schema.counterpartyGroups.parentId,
+          customerId: schema.counterpartyGroups.customerId,
+          customerLabel: schema.customersRef.displayName,
+          isSystem: schema.counterpartyGroups.isSystem,
+          createdAt: schema.counterpartyGroups.createdAt,
+          updatedAt: schema.counterpartyGroups.updatedAt,
+        })
         .from(schema.counterpartyGroups)
+        .leftJoin(
+          schema.customersRef,
+          eq(schema.counterpartyGroups.customerId, schema.customersRef.id),
+        )
         .where(where)
         .orderBy(asc(schema.counterpartyGroups.name));
     });

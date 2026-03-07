@@ -56,7 +56,10 @@ import {
 } from "../lib/countries";
 import { CounterpartyDeleteDialog } from "./counterparty-delete-dialog";
 import type { CounterpartyGroupOption } from "../lib/queries";
-import { localizeCounterpartyGroupLabel } from "../lib/group-label";
+import {
+  getCounterpartyGroupDisplayLabel,
+  localizeCounterpartyGroupLabel,
+} from "../lib/group-label";
 import { formatDate } from "@/lib/format";
 
 export type CounterpartyGeneralFormValues = {
@@ -802,7 +805,7 @@ function CounterpartyGeneralFormBase({
       const isLocked = lockedGroupIdSet.has(group.id);
       const hasChildren = (groupsByParent.get(group.id)?.length ?? 0) > 0;
       const isExpanded = expandedIds.has(group.id);
-      const groupLabel = localizeCounterpartyGroupLabel(group.name);
+      const groupLabel = getCounterpartyGroupDisplayLabel(group);
 
       return (
         <div key={group.id} className="space-y-1">
@@ -864,12 +867,11 @@ function CounterpartyGeneralFormBase({
             <div className="leading-none">
               <div className="text-sm font-medium">{groupLabel}</div>
               <div className="text-muted-foreground text-xs">
-                {group.code} •{" "}
                 {group.customerId
                   ? "Клиент"
-                  : localizeCounterpartyGroupLabel(
+                  : `${group.code} • ${localizeCounterpartyGroupLabel(
                       rootCodeByGroupId.get(group.id) ?? "custom",
-                    )}
+                    )}`}
               </div>
             </div>
           </div>

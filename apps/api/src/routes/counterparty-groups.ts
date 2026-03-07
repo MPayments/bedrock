@@ -21,6 +21,20 @@ import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
+function buildCounterpartyGroupOptionLabel(group: {
+  name: string;
+  customerLabel?: string | null;
+}) {
+  const name = group.name.trim();
+  const customerLabel = group.customerLabel?.trim();
+
+  if (customerLabel && customerLabel.length > 0 && customerLabel !== name) {
+    return `${name} · ${customerLabel}`;
+  }
+
+  return name;
+}
+
 export function counterpartyGroupsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
@@ -237,8 +251,9 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
             name: group.name,
             parentId: group.parentId,
             customerId: group.customerId,
+            customerLabel: group.customerLabel ?? null,
             isSystem: group.isSystem,
-            label: `${group.code} - ${group.name}`,
+            label: buildCounterpartyGroupOptionLabel(group),
           }),
         ),
         200,

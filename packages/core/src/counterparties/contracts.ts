@@ -48,6 +48,7 @@ export const CounterpartyGroupOptionSchema = z.object({
   name: z.string(),
   parentId: z.uuid().nullable(),
   customerId: z.uuid().nullable(),
+  customerLabel: z.string().nullable().optional(),
   isSystem: z.boolean(),
   label: z.string(),
 });

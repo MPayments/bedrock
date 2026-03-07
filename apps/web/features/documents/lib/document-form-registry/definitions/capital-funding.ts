@@ -44,10 +44,7 @@ export function createCapitalFundingDefinition(): DocumentFormDefinition {
               fields: ["kind"],
             },
             {
-              fields: ["counterpartyId"],
-            },
-            {
-              fields: ["counterpartyAccountId"],
+              fields: ["counterpartyId", "counterpartyAccountId"],
             },
             {
               fields: ["occurredAt"],

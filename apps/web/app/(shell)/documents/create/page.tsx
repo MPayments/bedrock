@@ -16,11 +16,11 @@ import { getCreateDocumentTypeOptions } from "@/features/documents/lib/doc-types
 
 function groupLabel(family: string): string {
   if (family === "transfers") {
-    return "Transfers";
+    return "Переводы";
   }
 
   if (family === "ifrs") {
-    return "IFRS";
+    return "Бухгалтерский учет";
   }
 
   return family;
@@ -48,7 +48,7 @@ export default async function DocumentsCreatePage() {
         <CardHeader className="border-b">
           <CardTitle>Выбор типа документа</CardTitle>
           <CardDescription>
-            Для каждого типа используется отдельная форма. JSON-редактор создания отключен.
+            Для каждого типа используется отдельная форма.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 py-6">
