@@ -1,7 +1,7 @@
 import type {
   DocumentDetails as DocumentDetailsResult,
   DocumentWithOperationId,
-} from "@bedrock/core/documents";
+} from "@bedrock/documents/runtime";
 
 import { minorToAmountString, normalizeMoneyFields } from "../../common/amount";
 import { toJsonSafe } from "../../common/json";

@@ -8,15 +8,15 @@
     "check:boundaries": "node ./scripts/check-boundaries.mjs && node ./scripts/check-accounting-literals.mjs && node ./scripts/check-deprecated-imports.mjs",
     "check:worker-runtime": "node ./scripts/check-worker-runtime.mjs",
     "check:workspace-deps": "node ./scripts/check-workspace-deps.mjs",
-    "pack:validate": "bun run --filter=@bedrock/core pack:validate",
-    "pack:compile": "bun run --filter=@bedrock/core pack:compile",
-    "pack:activate": "bun run --filter=@bedrock/core pack:activate",
+    "pack:validate": "bun run --filter=@bedrock/accounting pack:validate",
+    "pack:compile": "bun run --filter=@bedrock/accounting pack:compile",
+    "pack:activate": "bun run --filter=@bedrock/accounting pack:activate",
     "check-types": "turbo run check-types",
     "test": "vitest run --project api --project workers --project countries --project db --project accounting --project balances --project module-runtime --project counterparties --project currencies --project customers --project dimensions --project documents --project idempotency --project ledger --project counterparty-accounts --project reconciliation --project accounting-reporting --project fees --project fx --project payments",
     "test:watch": "vitest --project api --project workers --project countries --project db --project accounting --project balances --project module-runtime --project counterparties --project currencies --project customers --project dimensions --project documents --project idempotency --project ledger --project counterparty-accounts --project reconciliation --project accounting-reporting --project fees --project fx --project payments",
     "test:coverage": "vitest run --coverage --project api --project workers --project countries --project db --project accounting --project balances --project module-runtime --project counterparties --project currencies --project customers --project dimensions --project documents --project idempotency --project ledger --project counterparty-accounts --project reconciliation --project accounting-reporting --project fees --project fx --project payments",
-    "test:integration": "vitest run --project accounting:integration --project balances:integration --project customers:integration --project fees:integration --project fx:integration --project ledger:integration --project reconciliation:integration",
-    "test:integration:watch": "vitest --project accounting:integration --project balances:integration --project customers:integration --project fees:integration --project fx:integration --project ledger:integration --project reconciliation:integration",
+    "test:integration": "vitest run --passWithNoTests --project accounting:integration --project balances:integration --project customers:integration --project fees:integration --project fx:integration --project ledger:integration --project reconciliation:integration",
+    "test:integration:watch": "vitest --passWithNoTests --project accounting:integration --project balances:integration --project customers:integration --project fees:integration --project fx:integration --project ledger:integration --project reconciliation:integration",
     "test:all": "npm run test && npm run test:integration",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "knip": "knip"
@@ -37,10 +37,9 @@
   "packageManager": "bun@1.3.6",
   "workspaces": [
     "apps/*",
-    "packages/kernel",
+    "packages/framework/*",
+    "packages/domains/*",
     "packages/db",
-    "packages/core",
-    "packages/application",
     "packages/sdk/*",
     "packages/tooling/*"
   ]

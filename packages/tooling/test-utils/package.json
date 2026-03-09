@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@bedrock/kernel": "workspace:*",
+    "@bedrock/sql": "workspace:*",
     "drizzle-orm": "^0.44.2"
   },
   "peerDependencies": {

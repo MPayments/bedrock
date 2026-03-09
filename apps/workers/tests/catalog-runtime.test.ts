@@ -3,9 +3,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
-import { DORMANT_MODULE_IDS } from "@bedrock/core/module-runtime";
-import { listWorkerCatalogEntries } from "@bedrock/core/worker-runtime";
+import { BEDROCK_ACTIVE_MODULES } from "@bedrock/bedrock-app";
+import {
+  compileModuleGraph,
+  DORMANT_MODULE_IDS,
+  listWorkerCatalogEntries,
+} from "@bedrock/modules";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const workersPackageJsonPath = path.resolve(__dirname, "../package.json");
@@ -18,7 +21,9 @@ describe("workers runtime taxonomy", () => {
     );
     const turboJson = JSON.parse(await readFile(turboJsonPath, "utf8"));
 
-    const entries = listWorkerCatalogEntries(BEDROCK_MODULE_MANIFESTS);
+    const entries = listWorkerCatalogEntries(
+      compileModuleGraph(BEDROCK_ACTIVE_MODULES).manifests,
+    );
     const entryIds = entries.map((entry) => entry.id);
     const entryEnvKeys = entries.map((entry) => entry.envKey);
     const entryModuleIds = new Set(entries.map((entry) => entry.moduleId));

@@ -11,10 +11,10 @@ Drizzle-based database package for the financial core.
 
 ## Schema ownership
 
-Table definitions are colocated with runtime domains:
+Table definitions are colocated with runtime packages:
 
-- `packages/core/src/<domain>/schema.ts` or `schema/**`
-- `packages/application/src/<domain>/schema.ts` or `schema/**`
+- `packages/framework/<package>/src/schema.ts` or `schema/**`
+- `packages/domains/<package>/src/schema.ts` or `schema/**`
 
 `@bedrock/db` aggregates these domain schemas for client construction and
 migrations.
@@ -23,7 +23,7 @@ migrations.
 
 - Financial IDs for TB integration use a custom `uint128` type (`numeric(39,0)` in Postgres).
 - Idempotency is enforced with unique indexes in ledger, orders, transfers, and quotes.
-- `fx_quotes` canonical definition lives in `packages/application/fx/src/schema/quotes.ts`.
+- `fx_quotes` canonical definition lives in `packages/domains/fx/src/schema/quotes.ts`.
 
 ## Scripts
 

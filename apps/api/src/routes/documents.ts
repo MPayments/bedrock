@@ -3,13 +3,13 @@ import { OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   CreateDocumentInputSchema,
   type DocumentAction,
-  type DocumentTransitionAction,
   DocumentSystemOnlyTypeError,
   ListDocumentsQuerySchema,
   UpdateDocumentInputSchema,
   isSystemOnlyDocumentType,
-} from "@bedrock/core/documents";
-import { ListLedgerOperationsQuerySchema } from "@bedrock/core/ledger";
+} from "@bedrock/documents";
+import type { DocumentTransitionAction } from "@bedrock/documents/runtime";
+import { ListLedgerOperationsQuerySchema } from "@bedrock/ledger";
 
 import auth from "../auth";
 import { handleRouteError } from "../common/errors";

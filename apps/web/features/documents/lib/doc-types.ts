@@ -1,4 +1,4 @@
-import type { IfrsDocumentType } from "@bedrock/application/ifrs-documents/contracts";
+import type { IfrsDocumentType } from "@bedrock/ifrs-documents/contracts";
 
 import type { UserRole } from "@/lib/auth/types";
 

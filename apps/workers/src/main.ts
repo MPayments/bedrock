@@ -1,44 +1,42 @@
 import "./env";
 
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
 import {
-  createModuleRuntimeService,
-} from "@bedrock/core/module-runtime";
-import { createTbClient } from "@bedrock/core/ledger";
-import {
-  createWorkerFleet,
-  startWorkerFleet,
-} from "@bedrock/core/worker-runtime";
+  createBedrockDomainBundle,
+  createBedrockWorkerImplementations,
+} from "@bedrock/bedrock-app";
 import { db } from "@bedrock/db/client";
 import {
   createConsoleLogger,
   installShutdownHandlers,
 } from "@bedrock/kernel";
+import { createTbClient } from "@bedrock/ledger";
+import { createBedrockApp } from "@bedrock/modules";
 
-import { createWorkerImplementations } from "./modules/registry";
 import { env } from "./env";
 import { createWorkerMonitoringRegistry, startWorkerMonitoringServer } from "./monitoring";
 import { parseSelectedWorkerIds } from "./selection";
 
 const logger = createConsoleLogger({ app: "bedrock-workers" });
-const moduleRuntime = createModuleRuntimeService({
+const bundle = createBedrockDomainBundle({ db, logger });
+const app = createBedrockApp({
   db,
   logger,
-  manifests: BEDROCK_MODULE_MANIFESTS,
+  modules: bundle.modules,
+  createServices: () => bundle.services,
 });
-await moduleRuntime.startBackgroundSync();
+await app.moduleRuntime.startBackgroundSync();
 
 const tb = createTbClient(env.TB_CLUSTER_ID, env.TB_ADDRESS);
-const workerImplementations = createWorkerImplementations({
+const workerImplementations = createBedrockWorkerImplementations({
   db,
   logger,
-  env,
   tb,
-  moduleRuntime,
+  moduleRuntime: app.moduleRuntime,
+  workerIntervals: env.WORKER_INTERVALS,
+  services: bundle.services,
 });
 const selectedWorkerIds = parseSelectedWorkerIds(process.argv.slice(2));
-const workers = createWorkerFleet({
-  manifests: BEDROCK_MODULE_MANIFESTS,
+const workers = app.createWorkerFleet({
   workerImplementations,
   selectedWorkerIds,
 });
@@ -53,10 +51,9 @@ const monitoringServer =
         logger,
       })
     : null;
-const fleet = startWorkerFleet({
+const fleet = app.startWorkerFleet({
   appName: "bedrock-workers",
   workers,
-  moduleRuntime,
   createObserver: (worker) =>
     monitoring.registerWorker({
       name: worker.id,
@@ -69,7 +66,7 @@ installShutdownHandlers(() => {
   if (monitoringServer) {
     void monitoringServer.stop();
   }
-  void moduleRuntime.stopBackgroundSync();
+  void app.moduleRuntime.stopBackgroundSync();
 });
 
 logger.info("Workers started", {
@@ -77,5 +74,5 @@ logger.info("Workers started", {
 });
 await fleet.promise;
 logger.info("Workers stopped");
-await moduleRuntime.stopBackgroundSync();
+await app.moduleRuntime.stopBackgroundSync();
 process.exit(0);

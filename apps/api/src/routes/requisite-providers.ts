@@ -1,18 +1,18 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { ValidationError } from "@bedrock/kernel/errors";
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import {
   CreateRequisiteProviderInputSchema,
   ListRequisiteProvidersQuerySchema,
   RequisiteProviderNotFoundError,
   RequisiteProviderSchema,
   UpdateRequisiteProviderInputSchema,
-} from "@bedrock/core/requisite-providers";
+} from "@bedrock/requisite-providers";
 import {
   RequisiteProviderOptionSchema,
   RequisiteProviderOptionsResponseSchema,
-} from "@bedrock/core/requisite-providers/contracts";
-import { ValidationError } from "@bedrock/kernel/errors";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+} from "@bedrock/requisite-providers/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";

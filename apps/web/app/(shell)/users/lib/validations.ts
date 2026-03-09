@@ -1,4 +1,4 @@
-import { USERS_LIST_CONTRACT } from "@bedrock/core/users/validation";
+import { USERS_LIST_CONTRACT } from "@bedrock/identity/validation";
 
 import {
   createResourceSearchParamsCache,

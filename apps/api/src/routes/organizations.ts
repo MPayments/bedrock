@@ -1,5 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { ValidationError } from "@bedrock/kernel/errors";
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 import {
   CreateOrganizationInputSchema,
   ListOrganizationsQuerySchema,
@@ -7,13 +9,11 @@ import {
   OrganizationNotFoundError,
   OrganizationSchema,
   UpdateOrganizationInputSchema,
-} from "@bedrock/core/organizations";
+} from "@bedrock/organizations";
 import {
   OrganizationOptionSchema,
   OrganizationOptionsResponseSchema,
-} from "@bedrock/core/organizations/contracts";
-import { ValidationError } from "@bedrock/kernel/errors";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+} from "@bedrock/organizations/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";

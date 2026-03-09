@@ -1,30 +1,9 @@
 import { z } from "zod";
 
-import type { AccountingReportingService } from "@bedrock/application/accounting-reporting";
-import type { FeesService } from "@bedrock/application/fees";
-import type { FxService } from "@bedrock/application/fx";
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
-import type { PaymentsService } from "@bedrock/application/payments";
-import type { AccountingService } from "@bedrock/core/accounting";
-import type { BalancesService } from "@bedrock/core/balances";
-import type { CounterpartiesService } from "@bedrock/core/counterparties";
-import type { CurrenciesService } from "@bedrock/core/currencies";
-import type { CustomersService } from "@bedrock/core/customers";
-import type { DocumentsService } from "@bedrock/core/documents";
-import type { LedgerReadService } from "@bedrock/core/ledger";
-import {
-  createModuleRuntimeService,
-  type ModuleRuntimeService,
-} from "@bedrock/core/module-runtime";
-import type { OrganizationsService } from "@bedrock/core/organizations";
-import type { RequisiteProvidersService } from "@bedrock/core/requisite-providers";
-import type { RequisitesService } from "@bedrock/core/requisites";
-import type { UsersService } from "@bedrock/core/users";
-import { db } from "@bedrock/db/client";
+import type { BedrockDomainServices } from "@bedrock/bedrock-app";
 import type { Logger } from "@bedrock/kernel";
 
-import { createApplicationServices } from "./composition/application";
-import { createCoreServices } from "./composition/core";
+import { createApiRuntime, type ApiRuntime } from "./runtime";
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -59,54 +38,21 @@ export function parseEnv(): Env {
   return result.data;
 }
 
-export interface AppContext {
+export interface AppContext extends BedrockDomainServices {
   env: Env;
+  app: ApiRuntime;
   logger: Logger;
-  accountingService: AccountingService;
-  accountingReportingService: AccountingReportingService;
-  counterpartiesService: CounterpartiesService;
-  customersService: CustomersService;
-  currenciesService: CurrenciesService;
-  feesService: FeesService;
-  fxService: FxService;
-  organizationsService: OrganizationsService;
-  paymentsService: PaymentsService;
-  requisiteProvidersService: RequisiteProvidersService;
-  requisitesService: RequisitesService;
-  usersService: UsersService;
-  ledgerReadService: LedgerReadService;
-  balancesService: BalancesService;
-  documentsService: DocumentsService;
-  moduleRuntime: ModuleRuntimeService;
+  moduleRuntime: ApiRuntime["moduleRuntime"];
 }
 
 export function createAppContext(env: Env): AppContext {
-  const core = createCoreServices();
-  const moduleRuntime = createModuleRuntimeService({
-    db,
-    logger: core.logger,
-    manifests: BEDROCK_MODULE_MANIFESTS,
-  });
-  const applicationServices = createApplicationServices(core);
+  const app = createApiRuntime();
 
   return {
     env,
-    logger: core.logger,
-    accountingService: core.accountingService,
-    ledgerReadService: core.ledgerReadService,
-    balancesService: core.balancesService,
-    accountingReportingService: applicationServices.accountingReportingService,
-    counterpartiesService: applicationServices.counterpartiesService,
-    customersService: applicationServices.customersService,
-    currenciesService: applicationServices.currenciesService,
-    feesService: applicationServices.feesService,
-    fxService: applicationServices.fxService,
-    organizationsService: applicationServices.organizationsService,
-    paymentsService: applicationServices.paymentsService,
-    requisiteProvidersService: applicationServices.requisiteProvidersService,
-    requisitesService: applicationServices.requisitesService,
-    usersService: core.usersService,
-    documentsService: applicationServices.documentsService,
-    moduleRuntime,
+    app,
+    logger: app.logger,
+    moduleRuntime: app.moduleRuntime,
+    ...app.services,
   };
 }

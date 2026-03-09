@@ -1,0 +1,36 @@
+{
+  "name": "@bedrock/modules",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./contracts": "./src/contracts.ts"
+  },
+  "scripts": {
+    "build": "tsgo --project tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsgo --noEmit --project tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
+  },
+  "dependencies": {
+    "@bedrock/accounting": "workspace:*",
+    "@bedrock/assets": "workspace:*",
+    "@bedrock/balances": "workspace:*",
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
+    "@bedrock/operations": "workspace:*",
+    "@bedrock/reconciliation": "workspace:*",
+    "@bedrock/sql": "workspace:*",
+    "drizzle-orm": "^0.45.1"
+  },
+  "devDependencies": {
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3"
+  }
+}

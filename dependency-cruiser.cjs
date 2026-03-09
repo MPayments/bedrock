@@ -1,37 +1,31 @@
 module.exports = {
   layers: {
-    kernel: "^packages/kernel/",
+    framework: "^packages/framework/",
+    domains: "^packages/domains/",
     db: "^packages/db/",
-    core: "^packages/core/",
-    application: "^packages/application/",
     sdk: "^packages/sdk/",
     tooling: "^packages/tooling/",
     adapter: "^apps/",
   },
   forbidden: [
     {
-      name: "no-internal-kernel-imports",
+      name: "framework-to-domains",
       from: {
-        path: "^(packages/(application|core|sdk|tooling)/|apps/)",
+        path: "^packages/framework/",
       },
       to: {
-        path: "^packages/kernel/(?!src(?:/|$))",
+        path: "^packages/domains/",
       },
     },
     {
-      name: "application-to-adapter",
-      from: { path: "^packages/application/" },
+      name: "domains-to-adapter",
+      from: { path: "^packages/domains/" },
       to: { path: "^apps/" },
     },
     {
-      name: "core-to-adapter",
-      from: { path: "^packages/core/" },
+      name: "framework-to-adapter",
+      from: { path: "^packages/framework/" },
       to: { path: "^apps/" },
-    },
-    {
-      name: "core-to-application",
-      from: { path: "^packages/core/" },
-      to: { path: "^packages/application/" },
     },
   ],
 };

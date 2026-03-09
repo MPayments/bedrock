@@ -14,23 +14,24 @@ Stack: TypeScript 5.8, Hono, Next.js, Drizzle ORM, PostgreSQL, TigerBeetle, Zod,
 
 ## Workspace Topology
 
-Runtime is consolidated into two workspace packages:
+Runtime is split between framework primitives and Bedrock domain packages:
 
-- `@bedrock/core` (core domains)
-- `@bedrock/application` (application workflows/use-cases)
+- `packages/framework/*` — reusable Bedrock primitives, ports, adapters, and runtimes
+- `packages/domains/*` — Bedrock business modules, document definitions, and app bundle composition
 
-Core dependency direction:
+Dependency direction:
 
-- `@bedrock/kernel -> @bedrock/core -> @bedrock/application -> apps/*`
-- `@bedrock/db` aggregates schemas from core/application and provides DB client/migrations/seeds.
+- `framework/kernel|zod|sql -> framework primitives -> domain packages -> apps/*`
+- `@bedrock/db` aggregates schemas from framework/domain packages and provides DB client/migrations/seeds.
 
 Hard rules:
 
-- No legacy runtime specifiers (`@bedrock/<domain>`) in runtime code.
+- No legacy runtime specifiers (`@bedrock/core/*`, `@bedrock/application/*`) in runtime code.
+- Framework packages must not import domain packages.
 - Domain schema ownership is colocated under:
-  - `packages/core/src/<domain>/schema.ts` or `schema/**`
-  - `packages/application/src/<domain>/schema.ts` or `schema/**`
-- `@bedrock/db` must not own domain table declarations; it only aggregates domain schemas for client/migrations/seeds.
+  - `packages/framework/<package>/src/schema.ts` or `schema/**`
+  - `packages/domains/<package>/src/schema.ts` or `schema/**`
+- `@bedrock/db` must not own domain table declarations; it only aggregates framework/domain schemas for client construction, migrations, and seeds.
 
 ## Package Manager and Runtime
 
@@ -140,12 +141,12 @@ export function createXxxService(deps: XxxServiceDeps) {
 
 ## Package Structure
 
-Runtime domain code lives under consolidated folders:
+Runtime code lives under package-local folders:
 
-- `packages/core/src/<domain>/**`
-- `packages/application/src/<domain>/**`
-- `packages/core/tests/<domain>/**`
-- `packages/application/tests/<domain>/**`
+- `packages/framework/<package>/src/**`
+- `packages/domains/<package>/src/**`
+- `packages/framework/<package>/tests/**`
+- `packages/domains/<package>/tests/**`
 
 Within each domain folder, follow this layout:
 
@@ -204,9 +205,9 @@ export class OrderNotFoundError extends ServiceError {
 
 - Drizzle ORM with PostgreSQL.
 - Schema uses `snake_case` column naming convention.
-- Runtime table definitions must be colocated in domain schema paths under core/application.
-- Runtime code imports schemas from `@bedrock/core/<domain>/schema` or `@bedrock/application/<domain>/schema`.
-- Runtime code imports shared database connection types from `@bedrock/kernel/db/types`.
+- Runtime table definitions must be colocated in package schema paths under framework/domains.
+- Runtime code imports schemas from the owning fine-grained package, for example `@bedrock/ledger/schema` or `@bedrock/payments/schema`.
+- Runtime code imports shared database connection types from `@bedrock/sql/ports`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.
 - Migration policy is baseline-only hard cutover.
   - Mandatory sequence: `db:nuke -> db:migrate -> db:seed`.
@@ -216,8 +217,8 @@ export class OrderNotFoundError extends ServiceError {
 
 - Vitest with globals enabled.
 - Test utilities and fixtures from `@bedrock/test-utils`.
-- Unit tests in `packages/{core,application}/tests/<domain>/*.test.ts`.
-- Integration tests in `packages/{core,application}/tests/<domain>/integration/*.test.ts`.
+- Unit tests live under the owning package, for example `packages/framework/<package>/tests/**/*.test.ts` or `packages/domains/<package>/tests/**/*.test.ts`.
+- Integration tests live under `tests/integration/**` inside the owning package.
 
 ## API Routes
 
