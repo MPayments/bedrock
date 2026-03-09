@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./kernel/db": "./src/kernel/db.ts",
+    "./common/db": "./src/common/db.ts",
     "./fixtures": "./src/fixtures.ts"
   },
   "scripts": {
@@ -14,7 +14,7 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/common": "workspace:*",
     "@bedrock/sql": "workspace:*",
     "drizzle-orm": "^0.44.2"
   },

@@ -15,7 +15,7 @@ Multihansa is a financial platform monorepo built on the Bedrock framework layer
 
 Dependency direction:
 
-- `@bedrock/kernel|zod|sql -> other @bedrock/* packages -> @multihansa/* packages -> apps/*`
+- `@bedrock/common|zod|sql -> other @bedrock/* packages -> @multihansa/* packages -> apps/*`
 - `@multihansa/db` aggregates Bedrock and Multihansa schemas; it does not own runtime domain tables itself.
 
 ## Stack

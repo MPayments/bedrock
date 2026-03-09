@@ -4,7 +4,7 @@ import {
   schema as balancesSchema,
   type Dimensions,
 } from "@bedrock/balances/schema";
-import { noopLogger, type Logger } from "@bedrock/kernel";
+import { noopLogger, type Logger } from "@bedrock/common";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import type { Database, Transaction } from "@bedrock/sql/ports";
 

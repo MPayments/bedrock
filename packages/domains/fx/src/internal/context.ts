@@ -1,5 +1,5 @@
 import { type CurrenciesService } from "@bedrock/assets";
-import { type Logger, noopLogger } from "@bedrock/kernel";
+import { type Logger, noopLogger } from "@bedrock/common";
 import type { Database } from "@bedrock/sql/ports";
 
 import { type FeesService } from "@multihansa/fees";

@@ -1,4 +1,4 @@
-import { tbLedgerForCurrency, tbTransferIdForOperation } from "@bedrock/kernel";
+import { tbLedgerForCurrency, tbTransferIdForOperation } from "@bedrock/common";
 import type { schema } from "@bedrock/ledger/schema";
 import type { Transaction } from "@bedrock/sql/ports";
 

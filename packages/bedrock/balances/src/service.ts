@@ -5,7 +5,7 @@ import {
   type BalanceHold,
   type BalancePosition,
 } from "@bedrock/balances/schema";
-import type { CorrelationContext } from "@bedrock/kernel";
+import type { CorrelationContext } from "@bedrock/common";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/operations";
 import { pgNotify } from "@bedrock/sql/drizzle";
 import type { Transaction } from "@bedrock/sql/ports";

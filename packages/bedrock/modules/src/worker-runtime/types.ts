@@ -1,4 +1,4 @@
-import type { WorkerLoopObserver } from "@bedrock/kernel";
+import type { WorkerLoopObserver } from "@bedrock/common";
 
 import type { ModuleManifest } from "../types";
 

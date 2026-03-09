@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { ValidationError } from "@bedrock/kernel/errors";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+import { ValidationError } from "@bedrock/common/errors";
+import { createPaginatedListSchema } from "@bedrock/common/pagination";
 
 import {
   CreateRequisiteProviderInputSchema,

@@ -1,11 +1,11 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 
-import { schema as documentsSchema } from "@bedrock/documents/schema";
 import {
   canonicalJson,
   sha256Hex,
   type CorrelationContext,
-} from "@bedrock/kernel";
+} from "@bedrock/common";
+import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/operations";
 import {

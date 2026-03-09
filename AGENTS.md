@@ -21,7 +21,7 @@ Runtime is split between Bedrock framework primitives and Multihansa product pac
 
 Dependency direction:
 
-- `bedrock/kernel|zod|sql -> other Bedrock primitives -> Multihansa packages -> apps/*`
+- `bedrock/common|zod|sql -> other Bedrock primitives -> Multihansa packages -> apps/*`
 - `@multihansa/db` aggregates schemas from framework/domain packages and provides DB client/migrations/seeds.
 
 Hard rules:
@@ -44,7 +44,7 @@ Hard rules:
 // package.json
 "dependencies": {
     "@multihansa/db": "workspace:*",    // correct
-    "@bedrock/kernel": "workspace:*" // correct
+    "@bedrock/common": "workspace:*" // correct
     // NOT "@multihansa/db": "*"
 }
 ```
@@ -154,7 +154,7 @@ Within each domain folder, follow this layout:
 |---|---|
 | `index.ts` | Public exports (service factory, types, errors, validation schemas) |
 | `service.ts` | Service factory function |
-| `errors.ts` | Custom error classes extending `ServiceError` from `@bedrock/kernel/errors` |
+| `errors.ts` | Custom error classes extending `ServiceError` from `@bedrock/common/errors` |
 | `validation.ts` | Zod schemas, derived types via `z.infer`, validator helpers |
 | `internal/context.ts` | `Deps` / `Context` types and context factory |
 | `commands/` | Command handlers (when the service is large) |
@@ -182,11 +182,11 @@ Separate each group with a blank line.
 
 ### Error handling
 
-- Define custom error classes extending `ServiceError` from `@bedrock/kernel/errors`.
+- Define custom error classes extending `ServiceError` from `@bedrock/common/errors`.
 - Throw errors directly; do not return error codes.
 
 ```typescript
-import { ServiceError } from "@bedrock/kernel/errors";
+import { ServiceError } from "@bedrock/common/errors";
 
 export class OrderNotFoundError extends ServiceError {
     constructor(id: string) {

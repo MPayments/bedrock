@@ -1,4 +1,4 @@
-import type { ListQueryContract } from "@bedrock/kernel/pagination";
+import type { ListQueryContract } from "@bedrock/common/pagination";
 
 const LEDGER_OPERATIONS_SORTABLE_COLUMNS = [
   "createdAt",

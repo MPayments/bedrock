@@ -5,7 +5,7 @@ import {
   AccountingCorrespondenceRuleSchema,
   AccountingTemplateAccountSchema,
 } from "@bedrock/accounting/contracts";
-import { ValidationError } from "@bedrock/kernel/errors";
+import { ValidationError } from "@bedrock/common/errors";
 
 import {
   BalanceSheetQuerySchema,

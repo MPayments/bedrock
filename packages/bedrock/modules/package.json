@@ -19,7 +19,7 @@
     "@bedrock/assets": "workspace:*",
     "@bedrock/balances": "workspace:*",
     "@bedrock/documents": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/common": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/operations": "workspace:*",
     "@bedrock/reconciliation": "workspace:*",

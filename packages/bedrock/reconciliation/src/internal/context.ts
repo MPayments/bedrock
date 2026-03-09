@@ -1,5 +1,5 @@
+import { noopLogger, type Logger } from "@bedrock/common";
 import type { DocumentsService } from "@bedrock/documents/runtime";
-import { noopLogger, type Logger } from "@bedrock/kernel";
 import {
   createIdempotencyService,
   type IdempotencyService,

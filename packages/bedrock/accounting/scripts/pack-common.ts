@@ -8,7 +8,7 @@ import {
   type AccountingPackDefinition,
   type CompiledPack,
 } from "@bedrock/accounting";
-import { canonicalJson } from "@bedrock/kernel";
+import { canonicalJson } from "@bedrock/common";
 
 import { db } from "../../../db/src/client.ts";
 

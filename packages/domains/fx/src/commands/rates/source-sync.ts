@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
-import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
+import { DAY_IN_SECONDS } from "@bedrock/common/constants";
 
 import type { FxRate, FxRateSourceRow } from "@multihansa/fx/schema";
 import { schema } from "@multihansa/fx/schema";

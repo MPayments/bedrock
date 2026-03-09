@@ -4,13 +4,13 @@ import {
 } from "@bedrock/accounting";
 import { createCurrenciesService, type CurrenciesService } from "@bedrock/assets";
 import { createBalancesService, type BalancesService } from "@bedrock/balances";
+import type { Logger } from "@bedrock/common";
 import {
   createDocumentRegistry,
   createDocumentsService,
   type DocumentsService,
 } from "@bedrock/documents/runtime";
 import { createUsersService, type UsersService } from "@bedrock/identity";
-import type { Logger } from "@bedrock/kernel";
 import {
   createLedgerEngine,
   createLedgerReadService,

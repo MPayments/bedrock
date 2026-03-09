@@ -1,21 +1,21 @@
-import { type Logger, noopLogger } from "@bedrock/kernel";
+import { type Logger, noopLogger } from "@bedrock/common";
 import type { Database } from "@bedrock/sql/ports";
 
 export interface UsersServiceDeps {
-    db: Database;
-    logger?: Logger;
+  db: Database;
+  logger?: Logger;
 }
 
 export interface UsersServiceContext {
-    db: Database;
-    log: Logger;
+  db: Database;
+  log: Logger;
 }
 
 export function createUsersServiceContext(
-    deps: UsersServiceDeps,
+  deps: UsersServiceDeps,
 ): UsersServiceContext {
-    return {
-        db: deps.db,
-        log: deps.logger?.child({ service: "users" }) ?? noopLogger,
-    };
+  return {
+    db: deps.db,
+    log: deps.logger?.child({ service: "users" }) ?? noopLogger,
+  };
 }

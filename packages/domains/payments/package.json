@@ -14,7 +14,7 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/common": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/accounting": "workspace:*",
     "@bedrock/ledger": "workspace:*",

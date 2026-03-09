@@ -189,7 +189,7 @@ function isSchemaDefinitionFile(file) {
 }
 
 function isAllowedContractImport(fromFile, specifier) {
-  return specifier === "@bedrock/kernel/countries/contracts";
+  return specifier === "@bedrock/common/countries/contracts";
 }
 
 for (const root of SOURCE_ROOTS) {
@@ -215,7 +215,7 @@ for (const root of SOURCE_ROOTS) {
 
       if (
         LEGACY_SPECIFIER_PATTERNS.some((pattern) => pattern.test(specifier)) &&
-        !relFile.startsWith("packages/bedrock/kernel/")
+        !relFile.startsWith("packages/bedrock/common/")
       ) {
         violations.push({
           rule: "legacy-foundation-import",
@@ -261,7 +261,7 @@ for (const root of SOURCE_ROOTS) {
           specifier === "@multihansa/api-client" ||
           specifier.startsWith("@multihansa/api-client/") ||
           /^@multihansa\/[^/]+\/contracts$/.test(specifier) ||
-          specifier.startsWith("@bedrock/kernel") ||
+          specifier.startsWith("@bedrock/common") ||
           /^@bedrock\/[^/]+\/contracts$/.test(specifier) ||
           /^@bedrock\/identity\/validation$/.test(specifier) ||
           specifier === "@bedrock/modules/contracts";

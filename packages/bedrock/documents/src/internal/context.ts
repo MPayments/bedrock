@@ -1,4 +1,4 @@
-import { noopLogger, type Logger } from "@bedrock/kernel";
+import { noopLogger, type Logger } from "@bedrock/common";
 import {
   createIdempotencyService,
   type IdempotencyService,

@@ -1,10 +1,10 @@
 import z from "zod";
 
-import { KNOWN_CURRENCY_CODES } from "@bedrock/kernel";
+import { KNOWN_CURRENCY_CODES } from "@bedrock/common";
 import {
     createListQuerySchemaFromContract,
     type ListQueryContract,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/common/pagination";
 
 export const CurrencySchema = z.object({
     id: z.uuid(),

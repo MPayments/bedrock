@@ -5,7 +5,7 @@ import {
   sha256Hex,
   stableStringify,
   tbTransferIdForOperation,
-} from "@bedrock/kernel";
+} from "@bedrock/common";
 import { schema } from "@bedrock/ledger/schema";
 import type { Transaction } from "@bedrock/sql/ports";
 

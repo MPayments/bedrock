@@ -41,7 +41,7 @@
     "@multihansa/fees": "workspace:*",
     "@multihansa/fx": "workspace:*",
     "@bedrock/identity": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/common": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/modules": "workspace:*",
     "@bedrock/operations": "workspace:*",

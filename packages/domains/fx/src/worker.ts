@@ -1,4 +1,4 @@
-import { type Logger } from "@bedrock/kernel";
+import { type Logger } from "@bedrock/common";
 import type {
     BedrockWorker,
     WorkerRunContext,

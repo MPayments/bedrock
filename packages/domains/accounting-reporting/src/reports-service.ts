@@ -2,15 +2,15 @@ import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import { schema as accountingSchema } from "@bedrock/accounting/schema";
 import { schema as balancesSchema } from "@bedrock/balances/schema";
-import { schema as documentsSchema } from "@bedrock/documents/schema";
-import { canonicalJson, sha256Hex } from "@bedrock/kernel";
-import { ValidationError } from "@bedrock/kernel/errors";
+import { canonicalJson, sha256Hex } from "@bedrock/common";
+import { ValidationError } from "@bedrock/common/errors";
 import {
   paginateInMemory,
   resolveSortOrder,
   sortInMemory,
   type PaginatedList,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/common/pagination";
+import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 
 import {

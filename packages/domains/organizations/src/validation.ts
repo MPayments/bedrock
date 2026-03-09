@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/common/pagination";
 
 import {
   CounterpartyKindSchema,

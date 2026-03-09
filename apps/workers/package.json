@@ -21,7 +21,7 @@
     "@multihansa/db": "workspace:*",
     "@multihansa/fees": "workspace:*",
     "@multihansa/fx": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/common": "workspace:*",
     "@multihansa/app": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/ledger": "workspace:*",

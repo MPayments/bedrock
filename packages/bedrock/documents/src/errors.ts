@@ -4,7 +4,7 @@ import {
   PermissionError,
   ServiceError,
   ValidationError,
-} from "@bedrock/kernel/errors";
+} from "@bedrock/common/errors";
 
 export class DocumentsError extends ServiceError {}
 

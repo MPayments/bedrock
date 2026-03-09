@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { canonicalJson, sha256Hex } from "@bedrock/kernel";
+import { canonicalJson, sha256Hex } from "@bedrock/common";
 import { schema, type ActionReceipt } from "@bedrock/operations/schema";
 import type { Transaction } from "@bedrock/sql/ports";
 

@@ -1,7 +1,7 @@
 
 import { createBalancesProjectorWorkerDefinition } from "@bedrock/balances";
+import type { Logger } from "@bedrock/common";
 import { createDocumentsWorkerDefinition } from "@bedrock/documents/runtime";
-import type { Logger } from "@bedrock/kernel";
 import {
   createLedgerWorkerDefinition,
   type TbClient,

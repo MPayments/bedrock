@@ -4,7 +4,7 @@ import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/common/pagination";
 
 import { schema } from "@multihansa/customers/schema";
 

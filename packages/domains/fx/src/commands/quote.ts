@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { effectiveRateFromAmounts, mulDivFloor } from "@bedrock/kernel/math";
+import { effectiveRateFromAmounts, mulDivFloor } from "@bedrock/common/math";
 import type { Transaction } from "@bedrock/sql/ports";
 
 import { schema, type FxQuote, type FxQuoteLeg } from "@multihansa/fx/schema";

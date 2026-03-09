@@ -20,7 +20,7 @@
     "@multihansa/counterparties": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/identity": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/common": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/modules": "workspace:*",
     "@multihansa/requisites": "workspace:*",

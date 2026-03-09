@@ -13,7 +13,7 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/common": "workspace:*",
     "@bedrock/zod": "workspace:*",
     "zod": "^4.1.11"
   },

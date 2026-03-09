@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
+import { createPaginatedListSchema } from "@bedrock/common/pagination";
 import {
   BanUserInputSchema,
   ChangePasswordInputSchema,
@@ -9,7 +10,6 @@ import {
   UserNotFoundError,
   UpdateUserInputSchema,
 } from "@bedrock/identity";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";

@@ -15,7 +15,7 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/common": "workspace:*",
     "@bedrock/sql": "workspace:*",
     "@bedrock/assets": "workspace:*",
     "drizzle-orm": "^0.45.1",

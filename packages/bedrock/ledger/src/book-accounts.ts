@@ -4,7 +4,7 @@ import {
   computeDimensionsHash,
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
-} from "@bedrock/kernel";
+} from "@bedrock/common";
 import { schema, type Dimensions } from "@bedrock/ledger/schema";
 import type { Transaction } from "@bedrock/sql/ports";
 

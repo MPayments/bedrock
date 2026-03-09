@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-import { createListQuerySchemaFromContract } from "@bedrock/kernel/pagination";
+import { createListQuerySchemaFromContract } from "@bedrock/common/pagination";
 
 import { LEDGER_OPERATIONS_LIST_CONTRACT } from "./operations-list-contract";
 

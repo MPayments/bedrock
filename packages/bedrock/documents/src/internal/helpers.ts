@@ -2,9 +2,9 @@ import { and, asc, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-or
 import { randomUUID } from "node:crypto";
 
 import type { DocumentPostingPlan } from "@bedrock/accounting";
+import { canonicalJson, sha256Hex, type Logger } from "@bedrock/common";
+import { InvalidStateError } from "@bedrock/common/errors";
 import { schema, type Document, type DocumentLinkType } from "@bedrock/documents/schema";
-import { canonicalJson, sha256Hex, type Logger } from "@bedrock/kernel";
-import { InvalidStateError } from "@bedrock/kernel/errors";
 import { pgNotify } from "@bedrock/sql/drizzle";
 import type { Database, Transaction } from "@bedrock/sql/ports";
 

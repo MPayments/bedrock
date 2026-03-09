@@ -4,7 +4,7 @@ import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/common/pagination";
 
 import type { CounterpartyKind } from "@multihansa/counterparties/validation";
 

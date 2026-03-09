@@ -1,5 +1,5 @@
-import type { Logger } from "@bedrock/kernel";
-import { noopLogger } from "@bedrock/kernel";
+import type { Logger } from "@bedrock/common";
+import { noopLogger } from "@bedrock/common";
 import type { Database } from "@bedrock/sql/ports";
 
 import type { AccountingPackDefinition } from "../packs/schema";

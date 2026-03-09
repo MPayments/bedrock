@@ -1,4 +1,4 @@
-import type { Logger } from "@bedrock/kernel";
+import type { Logger } from "@bedrock/common";
 import type { Database } from "@bedrock/sql/ports";
 
 export const MODULE_SCOPE_GLOBAL_ID = "__global__";

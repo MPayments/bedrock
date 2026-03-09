@@ -1,6 +1,6 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 
-import { noopLogger, sha256Hex, stableStringify } from "@bedrock/kernel";
+import { noopLogger, sha256Hex, stableStringify } from "@bedrock/common";
 import { schema } from "@bedrock/modules/schema";
 import {
   pgNotify,

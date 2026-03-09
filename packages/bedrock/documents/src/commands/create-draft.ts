@@ -80,7 +80,8 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
           now: new Date(),
           log,
         });
-        const { moduleId, moduleVersion } = resolveDocumentModuleIdentity(module);
+        const { moduleId, moduleVersion } =
+          resolveDocumentModuleIdentity(module);
 
         return idempotency.withIdempotencyTx({
           tx,
@@ -165,7 +166,9 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
               createIdempotencyKey: input.createIdempotencyKey,
               createdBy: input.actorUserId,
               approvalStatus: "not_required",
-              postingStatus: module.postingRequired ? "unposted" : "not_required",
+              postingStatus: module.postingRequired
+                ? "unposted"
+                : "not_required",
             });
 
             const transient: Document = {
@@ -221,7 +224,10 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
             }
 
             if (document.docType === "period_close") {
-              const counterpartyId = readPayloadString(payload, "counterpartyId");
+              const counterpartyId = readPayloadString(
+                payload,
+                "counterpartyId",
+              );
               if (!counterpartyId) {
                 throw new DocumentValidationError(
                   "period_close payload requires counterpartyId",
@@ -230,14 +236,25 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
               await closeCounterpartyPeriod({
                 db: tx,
                 counterpartyId,
-                periodStart: readPayloadDate(payload, "periodStart", document.occurredAt),
-                periodEnd: readPayloadDate(payload, "periodEnd", document.occurredAt),
+                periodStart: readPayloadDate(
+                  payload,
+                  "periodStart",
+                  document.occurredAt,
+                ),
+                periodEnd: readPayloadDate(
+                  payload,
+                  "periodEnd",
+                  document.occurredAt,
+                ),
                 closedBy: input.actorUserId,
                 closeReason: readPayloadString(payload, "closeReason"),
                 lockedByDocumentId: document.id,
               });
             } else if (document.docType === "period_reopen") {
-              const counterpartyId = readPayloadString(payload, "counterpartyId");
+              const counterpartyId = readPayloadString(
+                payload,
+                "counterpartyId",
+              );
               if (!counterpartyId) {
                 throw new DocumentValidationError(
                   "period_reopen payload requires counterpartyId",
@@ -246,7 +263,11 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
               await reopenCounterpartyPeriod({
                 db: tx,
                 counterpartyId,
-                periodStart: readPayloadDate(payload, "periodStart", document.occurredAt),
+                periodStart: readPayloadDate(
+                  payload,
+                  "periodStart",
+                  document.occurredAt,
+                ),
                 reopenedBy: input.actorUserId,
                 reopenReason: readPayloadString(payload, "reopenReason"),
               });

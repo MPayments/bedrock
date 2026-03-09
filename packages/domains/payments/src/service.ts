@@ -1,10 +1,10 @@
+import type { CorrelationContext, Logger } from "@bedrock/common";
 import type {
   DocumentDetails,
   DocumentTransitionAction,
   DocumentWithOperationId,
   DocumentsService,
 } from "@bedrock/documents/runtime";
-import type { CorrelationContext, Logger } from "@bedrock/kernel";
 
 import { type PaymentIntentPayload, type PaymentResolutionPayload } from "./validation";
 

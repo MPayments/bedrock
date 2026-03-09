@@ -5,7 +5,7 @@ import {
   noopLogger,
   sha256Hex,
   type Logger,
-} from "@bedrock/kernel";
+} from "@bedrock/common";
 import { schema } from "@bedrock/reconciliation/schema";
 import type { Database } from "@bedrock/sql/ports";
 

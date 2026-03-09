@@ -1,7 +1,7 @@
 import { inArray } from "drizzle-orm";
 
+import { isUuidLike } from "@bedrock/common";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
-import { isUuidLike } from "@bedrock/kernel";
 import {
   createDimensionRegistry,
   type DimensionRegistry,

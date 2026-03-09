@@ -13,7 +13,7 @@ This keeps framework primitives portable while the product packages own business
 
 | Layer | Examples | Responsibility |
 |---|---|---|
-| Bedrock kernel | `@bedrock/kernel`, `@bedrock/zod`, `@bedrock/sql` | Low-level primitives, schema helpers, runtime utilities |
+| Bedrock common | `@bedrock/common`, `@bedrock/zod`, `@bedrock/sql` | Low-level primitives, schema helpers, runtime utilities |
 | Bedrock primitives | `@bedrock/modules`, `@bedrock/ledger`, `@bedrock/documents` | Reusable framework runtimes, ports, adapters, definitions |
 | Multihansa domains | `@multihansa/payments`, `@multihansa/fx`, `@multihansa/app` | Business services, module bundles, documents, reporting |
 | Multihansa SDK/tooling | `@multihansa/ui`, `@multihansa/api-client`, `@multihansa/eslint-config` | Product-facing SDK and repo tooling |
@@ -23,7 +23,7 @@ This keeps framework primitives portable while the product packages own business
 Dependency direction:
 
 ```text
-@bedrock/kernel|zod|sql
+@bedrock/common|zod|sql
   -> other @bedrock/* packages
   -> @multihansa/* packages
   -> apps/*

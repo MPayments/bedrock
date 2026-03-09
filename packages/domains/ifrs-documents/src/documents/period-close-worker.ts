@@ -1,13 +1,13 @@
 import { and, asc, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
+import { canonicalJson, noopLogger, type Logger } from "@bedrock/common";
 import {
   closeCounterpartyPeriod,
   getPreviousCalendarMonthRange,
 } from "@bedrock/documents/runtime";
 import { schema, type Document } from "@bedrock/documents/schema";
 import { user } from "@bedrock/identity/schema";
-import { canonicalJson, noopLogger, type Logger } from "@bedrock/kernel";
 import type {
   BedrockWorker,
   WorkerRunContext,

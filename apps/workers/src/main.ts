@@ -3,7 +3,7 @@ import "./env";
 import {
   createConsoleLogger,
   installShutdownHandlers,
-} from "@bedrock/kernel";
+} from "@bedrock/common";
 import { createTbClient } from "@bedrock/ledger";
 import { createBedrockApp } from "@bedrock/modules";
 

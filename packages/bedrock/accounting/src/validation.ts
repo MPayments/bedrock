@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/common/pagination";
 import { LEDGER_OPERATIONS_LIST_CONTRACT } from "@bedrock/ledger/operations-list-contract";
 
 export const accountNoSchema = z

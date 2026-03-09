@@ -33,7 +33,7 @@ function integrationProject(name, include) {
 }
 
 const workspaceProjects = [
-  unitProject("countries", "packages/bedrock/kernel/tests/countries/**/*.test.ts"),
+  unitProject("countries", "packages/bedrock/common/tests/countries/**/*.test.ts"),
   unitProject("accounting", "packages/bedrock/accounting/tests/**/*.test.ts"),
   unitProject("balances", "packages/bedrock/balances/tests/**/*.test.ts"),
   unitProject("module-runtime", "packages/bedrock/modules/tests/**/*.test.ts"),

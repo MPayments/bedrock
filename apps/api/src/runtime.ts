@@ -5,7 +5,7 @@ import {
   createMultihansaDomainBundle,
   type MultihansaDomainServices,
 } from "@multihansa/app";
-import { createConsoleLogger, type Logger } from "@bedrock/kernel";
+import { createConsoleLogger, type Logger } from "@bedrock/common";
 import {
   createBedrockApp,
   defineModule,

@@ -1,4 +1,4 @@
-import { TransferCodes } from "@bedrock/kernel/constants";
+import { TransferCodes } from "@bedrock/common/constants";
 
 import type { FeeComponentDefaults } from "../types";
 

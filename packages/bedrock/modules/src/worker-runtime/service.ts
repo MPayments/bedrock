@@ -1,4 +1,4 @@
-import { runWorkerLoop } from "@bedrock/kernel";
+import { runWorkerLoop } from "@bedrock/common";
 
 import type {
   BedrockWorker,

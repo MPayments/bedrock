@@ -30,7 +30,7 @@
     "@multihansa/fx": "workspace:*",
     "@bedrock/identity": "workspace:*",
     "@multihansa/ifrs-documents": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/common": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/modules": "workspace:*",
     "@bedrock/operations": "workspace:*",

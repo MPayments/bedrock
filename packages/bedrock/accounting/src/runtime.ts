@@ -1,7 +1,7 @@
 import { and, desc, eq, lte } from "drizzle-orm";
 
 import { schema } from "@bedrock/accounting/schema";
-import { canonicalJson, makePlanKey, sha256Hex } from "@bedrock/kernel";
+import { canonicalJson, makePlanKey, sha256Hex } from "@bedrock/common";
 
 import { type PostingTemplateKey } from "./contracts/accounting-contracts";
 import {
