@@ -1,7 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
-import { counterparties } from "@bedrock/counterparties/schema";
 import {
   closeCounterpartyPeriod,
   getPreviousCalendarMonthRange,
@@ -16,6 +15,8 @@ import type {
 } from "@bedrock/modules";
 import { pgNotify } from "@bedrock/sql/drizzle";
 import type { Database, Transaction } from "@bedrock/sql/ports";
+
+import { counterparties } from "@multihansa/counterparties/schema";
 
 function formatPeriodLabel(periodStart: Date): string {
   return periodStart.toISOString().slice(0, 7);

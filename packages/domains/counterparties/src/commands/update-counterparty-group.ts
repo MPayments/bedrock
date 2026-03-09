@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/counterparties/schema";
+import { schema } from "@multihansa/counterparties/schema";
 
 import {
   CounterpartyGroupNotFoundError,

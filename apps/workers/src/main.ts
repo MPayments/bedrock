@@ -1,23 +1,24 @@
 import "./env";
 
 import {
-  createBedrockDomainBundle,
-  createBedrockWorkerImplementations,
-} from "@bedrock/bedrock-app";
-import { db } from "@bedrock/db/client";
-import {
   createConsoleLogger,
   installShutdownHandlers,
 } from "@bedrock/kernel";
 import { createTbClient } from "@bedrock/ledger";
 import { createBedrockApp } from "@bedrock/modules";
 
+import {
+  createMultihansaDomainBundle,
+  createMultihansaWorkerImplementations,
+} from "@multihansa/app";
+import { db } from "@multihansa/db/client";
+
 import { env } from "./env";
 import { createWorkerMonitoringRegistry, startWorkerMonitoringServer } from "./monitoring";
 import { parseSelectedWorkerIds } from "./selection";
 
-const logger = createConsoleLogger({ app: "bedrock-workers" });
-const bundle = createBedrockDomainBundle({ db, logger });
+const logger = createConsoleLogger({ app: "multihansa-workers" });
+const bundle = createMultihansaDomainBundle({ db, logger });
 const app = createBedrockApp({
   db,
   logger,
@@ -27,7 +28,7 @@ const app = createBedrockApp({
 await app.moduleRuntime.startBackgroundSync();
 
 const tb = createTbClient(env.TB_CLUSTER_ID, env.TB_ADDRESS);
-const workerImplementations = createBedrockWorkerImplementations({
+const workerImplementations = createMultihansaWorkerImplementations({
   db,
   logger,
   tb,
@@ -52,7 +53,7 @@ const monitoringServer =
       })
     : null;
 const fleet = app.startWorkerFleet({
-  appName: "bedrock-workers",
+  appName: "multihansa-workers",
   workers,
   createObserver: (worker) =>
     monitoring.registerWorker({

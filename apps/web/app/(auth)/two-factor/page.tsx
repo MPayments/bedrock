@@ -3,21 +3,21 @@
 import { Suspense, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { cn } from "@bedrock/ui/lib/utils";
-import { Button } from "@bedrock/ui/components/button";
+import { cn } from "@multihansa/ui/lib/utils";
+import { Button } from "@multihansa/ui/components/button";
 import {
     Card,
     CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@multihansa/ui/components/card";
 import {
     Field,
     FieldGroup,
     FieldLabel,
-} from "@bedrock/ui/components/field";
-import { Input } from "@bedrock/ui/components/input";
+} from "@multihansa/ui/components/field";
+import { Input } from "@multihansa/ui/components/input";
 
 import { authClient } from "@/lib/auth-client";
 import { TotpCodeInput } from "@/components/totp-code-input";

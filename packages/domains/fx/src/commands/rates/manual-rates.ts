@@ -1,4 +1,4 @@
-import { schema } from "@bedrock/fx/schema";
+import { schema } from "@multihansa/fx/schema";
 
 import { type FxServiceContext } from "../../internal/context";
 import { type SetManualRateInput, validateSetManualRateInput } from "../../validation";

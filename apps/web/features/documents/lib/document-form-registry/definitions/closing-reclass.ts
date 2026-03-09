@@ -1,4 +1,4 @@
-import { ClosingReclassInputSchema } from "@bedrock/ifrs-documents/contracts";
+import { ClosingReclassInputSchema } from "@multihansa/ifrs-documents/contracts";
 
 import { createAdjustmentDefinition } from "../shared";
 

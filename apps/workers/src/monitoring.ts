@@ -353,7 +353,7 @@ export function renderWorkerMonitoringResponse(input: {
     statusCode: 200,
     contentType: "application/json; charset=utf-8",
     body: `${JSON.stringify({
-      service: "bedrock-workers",
+      service: "multihansa-workers",
       endpoints: ["/health", "/metrics"],
     })}\n`,
   };

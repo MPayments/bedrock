@@ -1,6 +1,14 @@
-import "@bedrock/ui/globals.css";
-import { Providers } from "@/components/providers";
+import type { Metadata } from "next";
 import { Geist_Mono, Geist } from "next/font/google";
+
+import "@multihansa/ui/globals.css";
+
+import { Providers } from "@/components/providers";
+
+export const metadata: Metadata = {
+  title: "Multihansa Finance",
+  applicationName: "Multihansa Finance",
+};
 
 const geist = Geist({
   subsets: ["latin"],

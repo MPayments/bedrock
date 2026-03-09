@@ -5,7 +5,8 @@ import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
 } from "@bedrock/kernel/pagination";
-import { CountryAlpha2Schema, RequisiteKindSchema } from "@bedrock/requisites/shared";
+
+import { CountryAlpha2Schema, RequisiteKindSchema } from "@multihansa/requisites/shared";
 
 export const RequisiteProviderSchema = z.object({
   id: z.uuid(),

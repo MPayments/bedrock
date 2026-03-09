@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
-import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
-import { schema as customersSchema } from "@bedrock/customers/schema";
+import { schema as counterpartiesSchema } from "@multihansa/counterparties/schema";
+import { schema as customersSchema } from "@multihansa/customers/schema";
 
 import { CustomerNotFoundError } from "../errors";
 import type { CustomersServiceContext } from "../internal/context";

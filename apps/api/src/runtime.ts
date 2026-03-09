@@ -1,10 +1,10 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
-import { db } from "@bedrock/db/client";
+import { db } from "@multihansa/db/client";
 import {
-  createBedrockDomainBundle,
-  type BedrockDomainServices,
-} from "@bedrock/bedrock-app";
+  createMultihansaDomainBundle,
+  type MultihansaDomainServices,
+} from "@multihansa/app";
 import { createConsoleLogger, type Logger } from "@bedrock/kernel";
 import {
   createBedrockApp,
@@ -53,7 +53,7 @@ const apiRouteRegistrars = new Map<string, ApiAppRouteRegistrar>([
 
 export interface ApiRuntime extends BedrockAppRuntime {
   logger: Logger;
-  services: BedrockDomainServices;
+  services: MultihansaDomainServices;
 }
 
 export type ApiRuntimeModule = BedrockModuleDefinition & {
@@ -99,8 +99,8 @@ export function listApiModules(
 }
 
 export function createApiRuntime(): ApiRuntime {
-  const logger = createConsoleLogger({ app: "bedrock-api" });
-  const bundle = createBedrockDomainBundle({ db, logger });
+  const logger = createConsoleLogger({ app: "multihansa-api" });
+  const bundle = createMultihansaDomainBundle({ db, logger });
   const app = createBedrockApp({
     db,
     logger,

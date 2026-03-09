@@ -1,4 +1,4 @@
-# @bedrock/ui
+# @multihansa/ui
 
 Shared React UI primitives package.
 

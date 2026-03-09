@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 
-import { Badge } from "@bedrock/ui/components/badge";
+import { Badge } from "@multihansa/ui/components/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@multihansa/ui/components/card";
 
 import {
   getApprovalStatusLabel,

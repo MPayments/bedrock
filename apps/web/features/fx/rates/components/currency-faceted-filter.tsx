@@ -3,8 +3,8 @@
 import { type MouseEvent, useMemo, useState } from "react";
 import { Check, PlusCircle, XCircle } from "lucide-react";
 
-import { Badge } from "@bedrock/ui/components/badge";
-import { Button } from "@bedrock/ui/components/button";
+import { Badge } from "@multihansa/ui/components/badge";
+import { Button } from "@multihansa/ui/components/button";
 import {
   Command,
   CommandEmpty,
@@ -13,14 +13,14 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "@bedrock/ui/components/command";
+} from "@multihansa/ui/components/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@bedrock/ui/components/popover";
-import { Separator } from "@bedrock/ui/components/separator";
-import { cn } from "@bedrock/ui/lib/utils";
+} from "@multihansa/ui/components/popover";
+import { Separator } from "@multihansa/ui/components/separator";
+import { cn } from "@multihansa/ui/lib/utils";
 
 export type CurrencyFacetOption = {
   count: number;

@@ -5,14 +5,14 @@ import { CalendarIcon, XCircle } from "lucide-react";
 import * as React from "react";
 import type { DateRange } from "react-day-picker";
 
-import { Button } from "@bedrock/ui/components/button";
-import { Calendar } from "@bedrock/ui/components/calendar";
+import { Button } from "@multihansa/ui/components/button";
+import { Calendar } from "@multihansa/ui/components/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@bedrock/ui/components/popover";
-import { Separator } from "@bedrock/ui/components/separator";
+} from "@multihansa/ui/components/popover";
+import { Separator } from "@multihansa/ui/components/separator";
 import { formatDate } from "@/lib/format";
 
 type DateSelection = Date[] | DateRange;

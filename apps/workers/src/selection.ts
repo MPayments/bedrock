@@ -1,9 +1,10 @@
-import { BEDROCK_ACTIVE_MODULES } from "@bedrock/bedrock-app";
 import { compileModuleGraph, listWorkerCatalogEntries } from "@bedrock/modules";
+
+import { MULTIHANSA_ACTIVE_MODULES } from "@multihansa/app";
 
 export function listAvailableWorkerIds(): string[] {
   return listWorkerCatalogEntries(
-    compileModuleGraph(BEDROCK_ACTIVE_MODULES).manifests,
+    compileModuleGraph(MULTIHANSA_ACTIVE_MODULES).manifests,
   ).map((entry) => entry.id);
 }
 

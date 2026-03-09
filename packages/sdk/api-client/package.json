@@ -1,5 +1,5 @@
 {
-  "name": "@bedrock/api-client",
+  "name": "@multihansa/api-client",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,12 +13,12 @@
     "lint": "eslint src/**/*.ts --ignore-pattern \"src/**/*.d.ts\" --max-warnings 0"
   },
   "dependencies": {
-    "api": "workspace:*",
+    "multihansa-api": "workspace:*",
     "hono": "^4.12.2"
   },
   "devDependencies": {
-    "@bedrock/eslint-config": "workspace:*",
-    "@bedrock/typescript-config": "workspace:*",
+    "@multihansa/eslint-config": "workspace:*",
+    "@multihansa/typescript-config": "workspace:*",
     "eslint": "^9.31.0",
     "typescript": "^5.8.3"
   }

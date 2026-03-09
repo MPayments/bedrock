@@ -3,20 +3,20 @@
 import { useMemo } from "react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@multihansa/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@multihansa/ui/components/card";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from "@bedrock/ui/components/chart";
+} from "@multihansa/ui/components/chart";
 
 import { formatDate } from "@/lib/format";
 import {

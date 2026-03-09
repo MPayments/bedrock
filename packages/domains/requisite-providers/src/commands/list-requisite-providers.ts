@@ -14,7 +14,8 @@ import {
   resolveSortOrder,
   resolveSortValue,
 } from "@bedrock/kernel/pagination";
-import type { RequisiteKind } from "@bedrock/requisites/shared";
+
+import type { RequisiteKind } from "@multihansa/requisites/shared";
 
 import type { RequisiteProvidersServiceContext } from "../internal/context";
 import { schema } from "../schema";

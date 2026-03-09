@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Badge } from "@bedrock/ui/components/badge";
+import { Badge } from "@multihansa/ui/components/badge";
 import { Users, Vault } from "lucide-react";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";

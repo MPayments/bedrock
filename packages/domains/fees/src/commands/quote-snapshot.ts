@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { schema } from "@bedrock/fees/schema";
+import { schema } from "@multihansa/fees/schema";
 
 import { type FeesServiceContext } from "../internal/context";
 import { normalizeComponent } from "../internal/normalize";

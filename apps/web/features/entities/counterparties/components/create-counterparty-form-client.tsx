@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { toast } from "@bedrock/ui/components/sonner";
+import { toast } from "@multihansa/ui/components/sonner";
 
 import {
   CounterpartyCreateGeneralForm,

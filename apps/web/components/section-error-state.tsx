@@ -2,14 +2,14 @@
 
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@multihansa/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@multihansa/ui/components/card";
 
 export function SectionErrorState({
   title,

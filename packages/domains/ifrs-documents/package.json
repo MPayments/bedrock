@@ -1,5 +1,5 @@
 {
-  "name": "@bedrock/ifrs-documents",
+  "name": "@multihansa/ifrs-documents",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,19 +17,20 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/counterparties": "workspace:*",
+    "@multihansa/counterparties": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/identity": "workspace:*",
     "@bedrock/kernel": "workspace:*",
     "@bedrock/ledger": "workspace:*",
-    "@bedrock/requisites": "workspace:*",
+    "@bedrock/modules": "workspace:*",
+    "@multihansa/requisites": "workspace:*",
     "@bedrock/sql": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@bedrock/eslint-config": "workspace:*",
-    "@bedrock/typescript-config": "workspace:*",
+    "@multihansa/eslint-config": "workspace:*",
+    "@multihansa/typescript-config": "workspace:*",
     "@types/node": "^24",
     "eslint": "^9.31.0",
     "typescript": "^5.8.3"

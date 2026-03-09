@@ -1,9 +1,8 @@
 import { eq, inArray, sql } from "drizzle-orm";
 
-import {
-  schema as counterpartiesSchema,
-} from "@bedrock/counterparties/schema";
 import type { Database, Transaction } from "@bedrock/sql/ports";
+
+import { schema as counterpartiesSchema } from "@multihansa/counterparties/schema";
 
 import {
   CounterpartyCustomerNotFoundError,

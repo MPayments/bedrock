@@ -1,5 +1,5 @@
 {
-  "name": "workers",
+  "name": "multihansa-workers",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -18,11 +18,11 @@
   "dependencies": {
     "@bedrock/assets": "workspace:*",
     "@bedrock/balances": "workspace:*",
-    "@bedrock/db": "workspace:*",
-    "@bedrock/fees": "workspace:*",
-    "@bedrock/fx": "workspace:*",
+    "@multihansa/db": "workspace:*",
+    "@multihansa/fees": "workspace:*",
+    "@multihansa/fx": "workspace:*",
     "@bedrock/kernel": "workspace:*",
-    "@bedrock/bedrock-app": "workspace:*",
+    "@multihansa/app": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/modules": "workspace:*",
@@ -30,8 +30,8 @@
     "dotenv": "^17.3.1"
   },
   "devDependencies": {
-    "@bedrock/eslint-config": "workspace:*",
-    "@bedrock/typescript-config": "workspace:*",
+    "@multihansa/eslint-config": "workspace:*",
+    "@multihansa/typescript-config": "workspace:*",
     "@types/node": "^24",
     "eslint": "^9.31.0",
     "tsx": "^4.21.0",

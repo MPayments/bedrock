@@ -1,11 +1,12 @@
 import { and, asc, desc, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
-import type { CounterpartyKind } from "@bedrock/counterparties/validation";
 import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
 } from "@bedrock/kernel/pagination";
+
+import type { CounterpartyKind } from "@multihansa/counterparties/validation";
 
 import type { OrganizationsServiceContext } from "../internal/context";
 import { schema } from "../schema";

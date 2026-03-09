@@ -1,3 +1,3 @@
-import { config } from "@bedrock/eslint-config/backend";
+import { config } from "@multihansa/eslint-config/backend";
 
 export default config;

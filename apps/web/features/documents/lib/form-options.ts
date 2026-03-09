@@ -1,8 +1,8 @@
 import {
   CounterpartyOptionsResponseSchema,
-} from "@bedrock/counterparties/contracts";
+} from "@multihansa/counterparties/contracts";
 import { CurrencyOptionsResponseSchema } from "@bedrock/assets/contracts";
-import { OrganizationOptionsResponseSchema } from "@bedrock/organizations/contracts";
+import { OrganizationOptionsResponseSchema } from "@multihansa/organizations/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { readOptionsList } from "@/lib/api/query";

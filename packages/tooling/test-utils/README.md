@@ -1,4 +1,4 @@
-# @bedrock/test-utils
+# @multihansa/test-utils
 
 Shared testing utilities used across package unit/integration tests.
 

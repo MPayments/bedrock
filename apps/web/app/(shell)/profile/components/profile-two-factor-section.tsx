@@ -11,7 +11,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@multihansa/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -20,13 +20,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@bedrock/ui/components/dialog";
-import { Field, FieldGroup, FieldLabel } from "@bedrock/ui/components/field";
-import { Input } from "@bedrock/ui/components/input";
-import { Badge } from "@bedrock/ui/components/badge";
-import { Button } from "@bedrock/ui/components/button";
-import { Spinner } from "@bedrock/ui/components/spinner";
-import { toast } from "@bedrock/ui/components/sonner";
+} from "@multihansa/ui/components/dialog";
+import { Field, FieldGroup, FieldLabel } from "@multihansa/ui/components/field";
+import { Input } from "@multihansa/ui/components/input";
+import { Badge } from "@multihansa/ui/components/badge";
+import { Button } from "@multihansa/ui/components/button";
+import { Spinner } from "@multihansa/ui/components/spinner";
+import { toast } from "@multihansa/ui/components/sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { TotpCodeInput } from "@/components/totp-code-input";

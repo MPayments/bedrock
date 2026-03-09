@@ -12,11 +12,11 @@
     "iconLibrary": "lucide",
     "rtl": false,
     "aliases": {
-      "components": "@bedrock/ui/components",
-      "utils": "@bedrock/ui/lib/utils",
-      "hooks": "@bedrock/ui/hooks",
-      "lib": "@bedrock/ui/lib",
-      "ui": "@bedrock/ui/components"
+      "components": "@multihansa/ui/components",
+      "utils": "@multihansa/ui/lib/utils",
+      "hooks": "@multihansa/ui/hooks",
+      "lib": "@multihansa/ui/lib",
+      "ui": "@multihansa/ui/components"
     },
     "menuColor": "default",
     "menuAccent": "subtle",

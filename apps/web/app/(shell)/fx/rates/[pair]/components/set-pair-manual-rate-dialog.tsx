@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 import { parseDecimalToFraction } from "@bedrock/kernel/math";
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@multihansa/ui/components/button";
 import {
   Dialog,
   DialogClose,
@@ -15,10 +15,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@bedrock/ui/components/dialog";
-import { Input } from "@bedrock/ui/components/input";
-import { Label } from "@bedrock/ui/components/label";
-import { toast } from "@bedrock/ui/components/sonner";
+} from "@multihansa/ui/components/dialog";
+import { Input } from "@multihansa/ui/components/input";
+import { Label } from "@multihansa/ui/components/label";
+import { toast } from "@multihansa/ui/components/sonner";
 
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";

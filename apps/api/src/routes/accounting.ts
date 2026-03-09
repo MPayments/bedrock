@@ -5,6 +5,8 @@ import {
   AccountingCorrespondenceRuleSchema,
   AccountingTemplateAccountSchema,
 } from "@bedrock/accounting/contracts";
+import { ValidationError } from "@bedrock/kernel/errors";
+
 import {
   BalanceSheetQuerySchema,
   BalanceSheetResponseSchema,
@@ -24,8 +26,7 @@ import {
   LiquidityResponseSchema,
   TrialBalanceQuerySchema,
   TrialBalanceResponseSchema,
-} from "@bedrock/accounting-reporting";
-import { ValidationError } from "@bedrock/kernel/errors";
+} from "@multihansa/accounting-reporting";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";
@@ -65,12 +66,17 @@ function asCsvCell(value: unknown): string {
     return rendered;
   }
 
-  return `"${rendered.replaceAll("\"", "\"\"")}"`;
+  return `"${rendered.replaceAll('"', '""')}"`;
 }
 
-function toCsvContent(headers: string[], rows: Record<string, unknown>[]): string {
+function toCsvContent(
+  headers: string[],
+  rows: Record<string, unknown>[],
+): string {
   const head = headers.join(",");
-  const body = rows.map((row) => headers.map((key) => asCsvCell(row[key])).join(","));
+  const body = rows.map((row) =>
+    headers.map((key) => asCsvCell(row[key])).join(","),
+  );
   return [head, ...body].join("\n");
 }
 
@@ -83,7 +89,10 @@ interface PaginatedPayload<T> {
 
 async function readAllPages<T>(
   firstPage: PaginatedPayload<T>,
-  loadPage: (input: { limit: number; offset: number }) => Promise<PaginatedPayload<T>>,
+  loadPage: (input: {
+    limit: number;
+    offset: number;
+  }) => Promise<PaginatedPayload<T>>,
 ): Promise<T[]> {
   const rows: T[] = [...firstPage.data];
   let offset = firstPage.offset + firstPage.data.length;
@@ -107,7 +116,13 @@ async function readAllPages<T>(
 }
 
 function toReportCsvResponse(
-  c: { body: (body: string, status: number, headers: Record<string, string>) => Response },
+  c: {
+    body: (
+      body: string,
+      status: number,
+      headers: Record<string, string>,
+    ) => Response;
+  },
   input: {
     filename: string;
     headers: string[];
@@ -821,7 +836,8 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const result = await ctx.accountingReportingService.listTrialBalance(query);
+        const result =
+          await ctx.accountingReportingService.listTrialBalance(query);
         const payload = mapTrialBalanceDto(result);
 
         logReportMetrics(ctx, {
@@ -830,7 +846,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: payload.data.length,
           scopeType: payload.scopeMeta.scopeType,
           attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return c.json(payload, 200);
@@ -846,11 +863,13 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const firstPage = await ctx.accountingReportingService.listTrialBalance({
-          ...query,
-          limit: 200,
-          offset: 0,
-        });
+        const firstPage = await ctx.accountingReportingService.listTrialBalance(
+          {
+            ...query,
+            limit: 200,
+            offset: 0,
+          },
+        );
         const rows = await readAllPages(firstPage, ({ limit, offset }) =>
           ctx.accountingReportingService.listTrialBalance({
             ...query,
@@ -870,7 +889,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: mappedRows.length,
           scopeType: firstPage.scopeMeta.scopeType,
           attributionMode: firstPage.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: firstPage.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            firstPage.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return toReportCsvResponse(c, {
@@ -901,7 +921,8 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const result = await ctx.accountingReportingService.listGeneralLedger(query);
+        const result =
+          await ctx.accountingReportingService.listGeneralLedger(query);
         const payload = mapGeneralLedgerDto(result);
 
         logReportMetrics(ctx, {
@@ -910,7 +931,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: payload.data.length,
           scopeType: payload.scopeMeta.scopeType,
           attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return c.json(payload, 200);
@@ -926,11 +948,12 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const firstPage = await ctx.accountingReportingService.listGeneralLedger({
-          ...query,
-          limit: 200,
-          offset: 0,
-        });
+        const firstPage =
+          await ctx.accountingReportingService.listGeneralLedger({
+            ...query,
+            limit: 200,
+            offset: 0,
+          });
         const rows = await readAllPages(firstPage, ({ limit, offset }) =>
           ctx.accountingReportingService.listGeneralLedger({
             ...query,
@@ -950,7 +973,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: mappedRows.length,
           scopeType: firstPage.scopeMeta.scopeType,
           attributionMode: firstPage.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: firstPage.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            firstPage.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return toReportCsvResponse(c, {
@@ -983,7 +1007,8 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const result = await ctx.accountingReportingService.listBalanceSheet(query);
+        const result =
+          await ctx.accountingReportingService.listBalanceSheet(query);
         const payload = mapBalanceSheetDto(result);
 
         logReportMetrics(ctx, {
@@ -992,7 +1017,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: payload.data.length,
           scopeType: payload.scopeMeta.scopeType,
           attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return c.json(payload, 200);
@@ -1008,7 +1034,8 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const result = await ctx.accountingReportingService.listBalanceSheet(query);
+        const result =
+          await ctx.accountingReportingService.listBalanceSheet(query);
         const payload = mapBalanceSheetDto(result);
 
         logReportMetrics(ctx, {
@@ -1017,7 +1044,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: payload.data.length,
           scopeType: payload.scopeMeta.scopeType,
           attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return toReportCsvResponse(c, {
@@ -1037,7 +1065,8 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const result = await ctx.accountingReportingService.listIncomeStatement(query);
+        const result =
+          await ctx.accountingReportingService.listIncomeStatement(query);
         const payload = mapIncomeStatementDto(result);
 
         logReportMetrics(ctx, {
@@ -1046,7 +1075,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: payload.data.length,
           scopeType: payload.scopeMeta.scopeType,
           attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return c.json(payload, 200);
@@ -1062,7 +1092,8 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const result = await ctx.accountingReportingService.listIncomeStatement(query);
+        const result =
+          await ctx.accountingReportingService.listIncomeStatement(query);
         const payload = mapIncomeStatementDto(result);
 
         logReportMetrics(ctx, {
@@ -1071,7 +1102,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: payload.data.length,
           scopeType: payload.scopeMeta.scopeType,
           attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return toReportCsvResponse(c, {
@@ -1100,7 +1132,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: payload.data.length,
           scopeType: payload.scopeMeta.scopeType,
           attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return c.json(payload, 200);
@@ -1125,7 +1158,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: payload.data.length,
           scopeType: payload.scopeMeta.scopeType,
           attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return toReportCsvResponse(c, {
@@ -1145,7 +1179,8 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const result = await ctx.accountingReportingService.listLiquidity(query);
+        const result =
+          await ctx.accountingReportingService.listLiquidity(query);
         const payload = mapLiquidityDto(result);
 
         logReportMetrics(ctx, {
@@ -1154,7 +1189,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: payload.data.length,
           scopeType: payload.scopeMeta.scopeType,
           attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return c.json(payload, 200);
@@ -1193,7 +1229,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: mappedRows.length,
           scopeType: firstPage.scopeMeta.scopeType,
           attributionMode: firstPage.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: firstPage.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            firstPage.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return toReportCsvResponse(c, {
@@ -1223,7 +1260,8 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const result = await ctx.accountingReportingService.listFxRevaluation(query);
+        const result =
+          await ctx.accountingReportingService.listFxRevaluation(query);
         const payload = mapFxRevaluationDto(result);
 
         logReportMetrics(ctx, {
@@ -1232,7 +1270,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: payload.data.length,
           scopeType: payload.scopeMeta.scopeType,
           attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return c.json(payload, 200);
@@ -1248,7 +1287,8 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const result = await ctx.accountingReportingService.listFxRevaluation(query);
+        const result =
+          await ctx.accountingReportingService.listFxRevaluation(query);
         const payload = mapFxRevaluationDto(result);
 
         logReportMetrics(ctx, {
@@ -1257,7 +1297,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: payload.data.length,
           scopeType: payload.scopeMeta.scopeType,
           attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return toReportCsvResponse(c, {
@@ -1277,7 +1318,8 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const result = await ctx.accountingReportingService.listFeeRevenue(query);
+        const result =
+          await ctx.accountingReportingService.listFeeRevenue(query);
         const payload = mapFeeRevenueDto(result);
 
         logReportMetrics(ctx, {
@@ -1286,7 +1328,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: payload.data.length,
           scopeType: payload.scopeMeta.scopeType,
           attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return c.json(payload, 200);
@@ -1325,7 +1368,8 @@ export function accountingRoutes(ctx: AppContext) {
           rowCount: mappedRows.length,
           scopeType: firstPage.scopeMeta.scopeType,
           attributionMode: firstPage.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: firstPage.scopeMeta.resolvedCounterpartyIdsCount,
+          resolvedCounterpartyCount:
+            firstPage.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return toReportCsvResponse(c, {
@@ -1355,7 +1399,8 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const result = await ctx.accountingReportingService.listClosePackage(query);
+        const result =
+          await ctx.accountingReportingService.listClosePackage(query);
         const payload = mapClosePackageDto(result);
 
         logReportMetrics(ctx, {
@@ -1385,7 +1430,8 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const result = await ctx.accountingReportingService.listClosePackage(query);
+        const result =
+          await ctx.accountingReportingService.listClosePackage(query);
         const payload = mapClosePackageDto(result);
 
         const rows: Record<string, unknown>[] = [

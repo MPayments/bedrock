@@ -1,8 +1,9 @@
 import { and, eq, isNull, ne, sql } from "drizzle-orm";
 
-import { CounterpartyNotFoundError } from "@bedrock/counterparties";
-import { OrganizationNotFoundError } from "@bedrock/organizations";
 import type { Transaction } from "@bedrock/sql/ports";
+
+import { CounterpartyNotFoundError } from "@multihansa/counterparties";
+import { OrganizationNotFoundError } from "@multihansa/organizations";
 
 import { RequisiteNotFoundError, RequisiteProviderNotActiveError } from "../errors";
 import { ensureRequisiteAccountingBindingTx } from "../internal/bindings";

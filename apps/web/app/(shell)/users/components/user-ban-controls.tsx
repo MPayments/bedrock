@@ -13,13 +13,13 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@multihansa/ui/components/card";
 import {
   FieldLabel,
   FieldGroup,
   Field,
   FieldError,
-} from "@bedrock/ui/components/field";
+} from "@multihansa/ui/components/field";
 import {
   Dialog,
   DialogContent,
@@ -28,12 +28,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@bedrock/ui/components/dialog";
-import { Input } from "@bedrock/ui/components/input";
-import { Textarea } from "@bedrock/ui/components/textarea";
-import { Button } from "@bedrock/ui/components/button";
-import { Spinner } from "@bedrock/ui/components/spinner";
-import { toast } from "@bedrock/ui/components/sonner";
+} from "@multihansa/ui/components/dialog";
+import { Input } from "@multihansa/ui/components/input";
+import { Textarea } from "@multihansa/ui/components/textarea";
+import { Button } from "@multihansa/ui/components/button";
+import { Spinner } from "@multihansa/ui/components/spinner";
+import { toast } from "@multihansa/ui/components/sonner";
 
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";

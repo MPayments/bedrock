@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CircleAlert } from "lucide-react";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@multihansa/ui/components/button";
 import {
   Empty,
   EmptyContent,
@@ -11,7 +11,7 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@bedrock/ui/components/empty";
+} from "@multihansa/ui/components/empty";
 
 export default function NotFound() {
   const router = useRouter();

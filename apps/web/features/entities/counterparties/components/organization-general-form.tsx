@@ -12,7 +12,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@multihansa/ui/components/card";
 import {
   FieldLabel,
   FieldGroup,
@@ -21,7 +21,7 @@ import {
   FieldDescription,
   FieldError,
   FieldSeparator,
-} from "@bedrock/ui/components/field";
+} from "@multihansa/ui/components/field";
 import {
   Select,
   SelectTrigger,
@@ -29,7 +29,7 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-} from "@bedrock/ui/components/select";
+} from "@multihansa/ui/components/select";
 import {
   Command,
   CommandEmpty,
@@ -38,17 +38,17 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "@bedrock/ui/components/command";
-import { Checkbox } from "@bedrock/ui/components/checkbox";
-import { Input } from "@bedrock/ui/components/input";
+} from "@multihansa/ui/components/command";
+import { Checkbox } from "@multihansa/ui/components/checkbox";
+import { Input } from "@multihansa/ui/components/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@bedrock/ui/components/popover";
-import { Textarea } from "@bedrock/ui/components/textarea";
-import { Button } from "@bedrock/ui/components/button";
-import { Spinner } from "@bedrock/ui/components/spinner";
+} from "@multihansa/ui/components/popover";
+import { Textarea } from "@multihansa/ui/components/textarea";
+import { Button } from "@multihansa/ui/components/button";
+import { Spinner } from "@multihansa/ui/components/spinner";
 
 import {
   COUNTERPARTY_COUNTRY_OPTIONS,

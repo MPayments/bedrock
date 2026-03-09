@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { BEDROCK_ACTIVE_MODULES } from "@bedrock/bedrock-app";
+import { MULTIHANSA_ACTIVE_MODULES } from "@multihansa/app";
 import {
   compileModuleGraph,
   DORMANT_MODULE_IDS,
@@ -22,7 +22,7 @@ describe("workers runtime taxonomy", () => {
     const turboJson = JSON.parse(await readFile(turboJsonPath, "utf8"));
 
     const entries = listWorkerCatalogEntries(
-      compileModuleGraph(BEDROCK_ACTIVE_MODULES).manifests,
+      compileModuleGraph(MULTIHANSA_ACTIVE_MODULES).manifests,
     );
     const entryIds = entries.map((entry) => entry.id);
     const entryEnvKeys = entries.map((entry) => entry.envKey);

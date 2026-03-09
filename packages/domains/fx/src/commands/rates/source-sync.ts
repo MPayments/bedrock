@@ -1,8 +1,9 @@
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
-import type { FxRate, FxRateSourceRow } from "@bedrock/fx/schema";
-import { schema } from "@bedrock/fx/schema";
 import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
+
+import type { FxRate, FxRateSourceRow } from "@multihansa/fx/schema";
+import { schema } from "@multihansa/fx/schema";
 
 import { RateSourceStaleError, RateSourceSyncError } from "../../errors";
 import { type FxServiceContext } from "../../internal/context";

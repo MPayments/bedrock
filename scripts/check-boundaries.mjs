@@ -116,9 +116,10 @@ function collectWorkspacePackages(root) {
 }
 
 const packageDirsByName = collectWorkspacePackages(ROOT);
+const INTERNAL_PACKAGE_SCOPES = ["@bedrock/", "@multihansa/"];
 
 function toWorkspacePath(importPath) {
-  if (importPath.startsWith("@bedrock/")) {
+  if (INTERNAL_PACKAGE_SCOPES.some((scope) => importPath.startsWith(scope))) {
     const parts = importPath.split("/");
     const packageName = parts.slice(0, 2).join("/");
     const packageDir = packageDirsByName.get(packageName);
@@ -152,10 +153,30 @@ const LEGACY_SPECIFIER_PATTERNS = [
   /^@bedrock\/core(?:\/|$)/,
   /^@bedrock\/application(?:\/|$)/,
 ];
-const DB_TYPES_SPECIFIER = /^@bedrock\/db\/types(?:\/|$)/;
-const DB_RUNTIME_BLOCKED_SPECIFIER = /^@bedrock\/db(?:$|\/(?:client|seeds)(?:$|\/))/;
+const BEDROCK_PRODUCT_SPECIFIER_PATTERNS = [
+  /^@bedrock\/accounting-reporting(?:\/|$)/,
+  /^@bedrock\/bedrock-app(?:\/|$)/,
+  /^@bedrock\/counterparties(?:\/|$)/,
+  /^@bedrock\/customers(?:\/|$)/,
+  /^@bedrock\/db(?:\/|$)/,
+  /^@bedrock\/api-client(?:\/|$)/,
+  /^@bedrock\/ui(?:\/|$)/,
+  /^@bedrock\/eslint-config(?:\/|$)/,
+  /^@bedrock\/typescript-config(?:\/|$)/,
+  /^@bedrock\/test-utils(?:\/|$)/,
+  /^@bedrock\/fees(?:\/|$)/,
+  /^@bedrock\/fx(?:\/|$)/,
+  /^@bedrock\/ifrs-documents(?:\/|$)/,
+  /^@bedrock\/organizations(?:\/|$)/,
+  /^@bedrock\/payments(?:\/|$)/,
+  /^@bedrock\/requisite-providers(?:\/|$)/,
+  /^@bedrock\/requisites(?:\/|$)/,
+];
+const DB_TYPES_SPECIFIER = /^@multihansa\/db\/types(?:\/|$)/;
+const DB_RUNTIME_BLOCKED_SPECIFIER =
+  /^@multihansa\/db(?:$|\/(?:client|seeds)(?:$|\/))/;
 function isRuntimePackageFile(file) {
-  return /^packages\/(framework|domains)\/[^/]+\/src\//.test(file);
+  return /^packages\/(bedrock|domains)\/[^/]+\/src\//.test(file);
 }
 
 function isSchemaDefinitionFile(file) {
@@ -194,10 +215,22 @@ for (const root of SOURCE_ROOTS) {
 
       if (
         LEGACY_SPECIFIER_PATTERNS.some((pattern) => pattern.test(specifier)) &&
-        !relFile.startsWith("packages/framework/kernel/")
+        !relFile.startsWith("packages/bedrock/kernel/")
       ) {
         violations.push({
           rule: "legacy-foundation-import",
+          from: relFile,
+          to: specifier,
+          specifier,
+        });
+        continue;
+      }
+
+      if (
+        BEDROCK_PRODUCT_SPECIFIER_PATTERNS.some((pattern) => pattern.test(specifier))
+      ) {
+        violations.push({
+          rule: "bedrock-product-import",
           from: relFile,
           to: specifier,
           specifier,
@@ -219,12 +252,16 @@ for (const root of SOURCE_ROOTS) {
         continue;
       }
 
-      if (relFile.startsWith("apps/web/") && specifier.startsWith("@bedrock/")) {
+      if (
+        relFile.startsWith("apps/web/") &&
+        INTERNAL_PACKAGE_SCOPES.some((scope) => specifier.startsWith(scope))
+      ) {
         const allowed =
-          specifier.startsWith("@bedrock/ui") ||
+          specifier.startsWith("@multihansa/ui") ||
+          specifier === "@multihansa/api-client" ||
+          specifier.startsWith("@multihansa/api-client/") ||
+          /^@multihansa\/[^/]+\/contracts$/.test(specifier) ||
           specifier.startsWith("@bedrock/kernel") ||
-          specifier === "@bedrock/api-client" ||
-          specifier.startsWith("@bedrock/api-client/") ||
           /^@bedrock\/[^/]+\/contracts$/.test(specifier) ||
           /^@bedrock\/identity\/validation$/.test(specifier) ||
           specifier === "@bedrock/modules/contracts";

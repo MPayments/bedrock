@@ -4,14 +4,14 @@ import { Building2, ChevronDown, FolderPlus, Plus } from "lucide-react";
 import {
   ButtonGroup,
   ButtonGroupSeparator,
-} from "@bedrock/ui/components/button-group";
-import { Button } from "@bedrock/ui/components/button";
+} from "@multihansa/ui/components/button-group";
+import { Button } from "@multihansa/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@bedrock/ui/components/dropdown-menu";
+} from "@multihansa/ui/components/dropdown-menu";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";

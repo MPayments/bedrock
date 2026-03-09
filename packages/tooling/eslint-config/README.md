@@ -1,12 +1,12 @@
-# @bedrock/eslint-config
+# @multihansa/eslint-config
 
 Shared ESLint configuration package for the monorepo.
 
 ## Exports
 
-- `@bedrock/eslint-config/base`
-- `@bedrock/eslint-config/next-js`
-- `@bedrock/eslint-config/react-internal`
+- `@multihansa/eslint-config/base`
+- `@multihansa/eslint-config/next-js`
+- `@multihansa/eslint-config/react-internal`
 
 ## Purpose
 

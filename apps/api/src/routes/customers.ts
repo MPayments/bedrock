@@ -1,5 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+
 import {
   CustomerDeleteConflictError,
   CustomerNotFoundError,
@@ -7,8 +9,7 @@ import {
   CreateCustomerInputSchema,
   ListCustomersQuerySchema,
   UpdateCustomerInputSchema,
-} from "@bedrock/customers";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+} from "@multihansa/customers";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";

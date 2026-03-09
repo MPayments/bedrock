@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 
 import {
   schema as customersSchema,
-} from "@bedrock/customers/schema";
+} from "@multihansa/customers/schema";
 
 import { CustomerDeleteConflictError, CustomerNotFoundError } from "../errors";
 import type { CustomersServiceContext } from "../internal/context";

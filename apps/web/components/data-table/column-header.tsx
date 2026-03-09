@@ -15,8 +15,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@bedrock/ui/components/dropdown-menu";
-import { cn } from "@bedrock/ui/lib/utils";
+} from "@multihansa/ui/components/dropdown-menu";
+import { cn } from "@multihansa/ui/lib/utils";
 
 interface DataTableColumnHeaderProps<
   TData,

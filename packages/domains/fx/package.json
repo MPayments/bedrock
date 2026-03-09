@@ -1,5 +1,5 @@
 {
-  "name": "@bedrock/fx",
+  "name": "@multihansa/fx",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -20,15 +20,15 @@
     "@bedrock/modules": "workspace:*",
     "@bedrock/sql": "workspace:*",
     "@bedrock/assets": "workspace:*",
-    "@bedrock/fees": "workspace:*",
+    "@multihansa/fees": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "soap": "^1.6.0",
     "tlsclientwrapper": "^4.1.2",
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@bedrock/eslint-config": "workspace:*",
-    "@bedrock/typescript-config": "workspace:*",
+    "@multihansa/eslint-config": "workspace:*",
+    "@multihansa/typescript-config": "workspace:*",
     "@types/node": "^24",
     "eslint": "^9.31.0",
     "typescript": "^5.8.3"

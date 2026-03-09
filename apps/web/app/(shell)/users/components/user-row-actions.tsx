@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { Eye, MoreHorizontal } from "lucide-react";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@multihansa/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@bedrock/ui/components/dropdown-menu";
+} from "@multihansa/ui/components/dropdown-menu";
 
 type UserRowActionModel = {
   id: string;

@@ -193,7 +193,7 @@ app.use("*", requestContextMiddleware());
 app.use("/v1/*", requireAuth());
 
 app.get("/", (c) => {
-  return c.json({ status: "ok", service: "ledger-api" });
+  return c.json({ status: "ok", service: "multihansa-api" });
 });
 
 app.get("/health", async (c) => {
@@ -206,7 +206,7 @@ app.get("/health", async (c) => {
   // PostgreSQL check
   const pgStart = Date.now();
   try {
-    const { db } = await import("@bedrock/db/client");
+    const { db } = await import("@multihansa/db/client");
     const { schema } = await import("@bedrock/assets/schema");
     await db
       .select({ id: schema.currencies.id })
@@ -316,7 +316,7 @@ app.route("/v1", v1);
 
 const openApiInfo = {
   info: {
-    title: "Bedrock API",
+    title: "Multihansa API",
     version: "1.0.0",
     description: "Deterministic financial API",
   },

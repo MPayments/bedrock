@@ -7,8 +7,8 @@ import {
   InputOTPGroup,
   InputOTPSeparator,
   InputOTPSlot,
-} from "@bedrock/ui/components/input-otp";
-import { cn } from "@bedrock/ui/lib/utils";
+} from "@multihansa/ui/components/input-otp";
+import { cn } from "@multihansa/ui/lib/utils";
 
 type TotpCodeInputProps = {
   id?: string;

@@ -8,7 +8,7 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@bedrock/ui/components/avatar";
+} from "@multihansa/ui/components/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,13 +17,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@bedrock/ui/components/dropdown-menu";
+} from "@multihansa/ui/components/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@bedrock/ui/components/sidebar";
+} from "@multihansa/ui/components/sidebar";
 
 import { authClient } from "@/lib/auth-client";
 import type { UserSessionSnapshot } from "@/lib/auth/types";

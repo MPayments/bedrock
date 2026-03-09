@@ -1,4 +1,4 @@
-# @bedrock/typescript-config
+# @multihansa/typescript-config
 
 Shared TypeScript configuration package for the monorepo.
 

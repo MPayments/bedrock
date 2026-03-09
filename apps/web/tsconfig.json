@@ -1,13 +1,13 @@
 {
-  "extends": "@bedrock/typescript-config/nextjs.json",
+  "extends": "@multihansa/typescript-config/nextjs.json",
   "compilerOptions": {
     "declaration": false,
     "declarationMap": false,
     "paths": {
       "*": ["./*"],
       "@/*": ["./*"],
-      "@bedrock/ui/globals.css": ["../../packages/sdk/ui/src/styles/globals.css"],
-      "@bedrock/ui/*": ["../../packages/sdk/ui/src/*"]
+      "@multihansa/ui/globals.css": ["../../packages/sdk/ui/src/styles/globals.css"],
+      "@multihansa/ui/*": ["../../packages/sdk/ui/src/*"]
     },
     "plugins": [
       {

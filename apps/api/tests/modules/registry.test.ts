@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { BEDROCK_ACTIVE_MODULES } from "@bedrock/bedrock-app";
+import { MULTIHANSA_ACTIVE_MODULES } from "@multihansa/app";
 import { compileModuleGraph } from "@bedrock/modules";
 
 interface ApiModuleRegistryEntry {
@@ -16,7 +16,7 @@ process.env.BETTER_AUTH_TRUSTED_ORIGINS ??= "http://localhost:3000";
 const { createApiModules, listApiModules } = await import("../../src/runtime");
 
 const apiApplicationModules = listApiModules(
-  createApiModules(BEDROCK_ACTIVE_MODULES),
+  createApiModules(MULTIHANSA_ACTIVE_MODULES),
 )
   .map((module) => ({
     id: module.id,
@@ -25,7 +25,7 @@ const apiApplicationModules = listApiModules(
 
 describe("API module registry taxonomy", () => {
   it("maps every API module ID to a runtime manifest", () => {
-    const manifests = compileModuleGraph(BEDROCK_ACTIVE_MODULES).manifests;
+    const manifests = compileModuleGraph(MULTIHANSA_ACTIVE_MODULES).manifests;
     const manifestIds = new Set(
       manifests.map((manifest) => manifest.id),
     );
@@ -36,7 +36,7 @@ describe("API module registry taxonomy", () => {
   });
 
   it("keeps API route paths aligned with manifest API capabilities", () => {
-    const manifests = compileModuleGraph(BEDROCK_ACTIVE_MODULES).manifests;
+    const manifests = compileModuleGraph(MULTIHANSA_ACTIVE_MODULES).manifests;
     const manifestsById = new Map(
       manifests.map((manifest) => [manifest.id, manifest]),
     );

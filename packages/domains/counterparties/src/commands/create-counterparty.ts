@@ -1,4 +1,4 @@
-import { schema } from "@bedrock/counterparties/schema";
+import { schema } from "@multihansa/counterparties/schema";
 
 import type { CounterpartiesServiceContext } from "../internal/context";
 import { ensureInternalLedgerDefaultBookIdTx } from "../internal/default-book";

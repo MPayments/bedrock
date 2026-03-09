@@ -12,11 +12,14 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { currencies } from "@bedrock/assets/schema";
-import { counterparties } from "@bedrock/counterparties/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import { organizations } from "@bedrock/organizations/schema";
+
+import { counterparties } from "@multihansa/counterparties/schema";
+import { organizations } from "@multihansa/organizations/schema";
 
 import { requisiteKindEnum } from "./shared";
+
+export { requisiteKindEnum } from "./shared";
 
 const { books, bookAccountInstances } = ledgerSchema;
 

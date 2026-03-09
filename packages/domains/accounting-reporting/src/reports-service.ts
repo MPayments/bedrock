@@ -2,11 +2,6 @@ import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import { schema as accountingSchema } from "@bedrock/accounting/schema";
 import { schema as balancesSchema } from "@bedrock/balances/schema";
-import {
-  isInternalLedgerCounterparty,
-  listInternalLedgerCounterparties,
-} from "@bedrock/counterparties";
-import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { canonicalJson, sha256Hex } from "@bedrock/kernel";
 import { ValidationError } from "@bedrock/kernel/errors";
@@ -17,8 +12,14 @@ import {
   type PaginatedList,
 } from "@bedrock/kernel/pagination";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import { schema as organizationsSchema } from "@bedrock/organizations/schema";
-import { schema as requisitesSchema } from "@bedrock/requisites/schema";
+
+import {
+  isInternalLedgerCounterparty,
+  listInternalLedgerCounterparties,
+} from "@multihansa/counterparties";
+import { schema as counterpartiesSchema } from "@multihansa/counterparties/schema";
+import { schema as organizationsSchema } from "@multihansa/organizations/schema";
+import { schema as requisitesSchema } from "@multihansa/requisites/schema";
 
 import type { AccountingReportingServiceDeps } from "./internal/context";
 import {

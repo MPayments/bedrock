@@ -2,7 +2,7 @@
 
 import { Separator as SeparatorPrimitive } from "@base-ui/react/separator"
 
-import { cn } from "@bedrock/ui/lib/utils"
+import { cn } from "@multihansa/ui/lib/utils"
 
 function Separator({
   className,

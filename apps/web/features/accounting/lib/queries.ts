@@ -5,7 +5,7 @@ import {
 import {
   CounterpartyGroupOptionsResponseSchema,
   CounterpartyOptionsResponseSchema,
-} from "@bedrock/counterparties/contracts";
+} from "@multihansa/counterparties/contracts";
 import {
   BalanceSheetResponseSchema,
   CashFlowResponseSchema,
@@ -16,7 +16,7 @@ import {
   IncomeStatementResponseSchema,
   LiquidityResponseSchema,
   TrialBalanceResponseSchema,
-} from "@bedrock/accounting-reporting/contracts";
+} from "@multihansa/accounting-reporting/contracts";
 import { z } from "zod";
 
 import { getServerApiClient } from "@/lib/api/server-client";

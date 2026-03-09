@@ -5,7 +5,7 @@ import {
   FxRateHistoryResponseSchema,
   FxRatePairsResponseSchema,
   FxRateSourceStatusesResponseSchema,
-} from "@bedrock/fx/contracts";
+} from "@multihansa/fx/contracts";
 import { z } from "zod";
 
 import { getServerApiClient } from "@/lib/api/server-client";
