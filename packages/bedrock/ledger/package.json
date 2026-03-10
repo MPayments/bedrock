@@ -9,8 +9,7 @@
     "./actions": "./src/actions.ts",
     "./ports": "./src/ports.ts",
     "./tigerbeetle": "./src/tigerbeetle.ts",
-    "./operations-list-contract": "./src/queries/operations-list-contract.ts",
-    "./manifest": "./src/manifest.ts"
+    "./operations-list-contract": "./src/queries/operations-list-contract.ts"
   },
   "scripts": {
     "build": "tsgo --project tsconfig.json",
@@ -23,6 +22,7 @@
     "@bedrock/common": "workspace:*",
     "@bedrock/sql": "workspace:*",
     "@bedrock/operations": "workspace:*",
+    "@bedrock/workers": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "tigerbeetle-node": "^0.16.72",
     "zod": "^4.1.11"

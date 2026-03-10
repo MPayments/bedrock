@@ -1,7 +1,7 @@
 export { createDocumentsService } from "./service";
 export type { DocumentsService } from "./service";
 export { createDocumentRegistry } from "./create-document-registry";
-export { createDocumentsWorkerDefinition } from "./workers";
+export { DOCUMENTS_WORKER_DESCRIPTOR, createDocumentsWorker } from "./workers";
 export { createDefaultDocumentActionPolicyService } from "./policy";
 export {
   assertCounterpartyPeriodsOpen,

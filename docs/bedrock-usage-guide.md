@@ -36,7 +36,7 @@ Put code in:
 
 Representative files:
 
-- [`packages/bedrock/modules/src/app.ts`](/Users/alexey.eramasov/dev/ledger/packages/bedrock/modules/src/app.ts)
+- [`packages/bedrock/workers/src/index.ts`](/Users/alexey.eramasov/dev/ledger/packages/bedrock/workers/src/index.ts)
 - [`packages/bedrock/documents/src/index.ts`](/Users/alexey.eramasov/dev/ledger/packages/bedrock/documents/src/index.ts)
 
 ## Add a Multihansa Package
@@ -44,7 +44,7 @@ Representative files:
 1. Create `packages/domains/<name>/package.json` with the `@multihansa/<name>` scope.
 2. Import Bedrock primitives as needed.
 3. Keep product schema in the package itself.
-4. Register the package in the Multihansa bundle if it contributes modules/services.
+4. Register the package explicitly in `@multihansa/app` or the app entrypoint if it contributes services, documents, routes, or workers.
 
 Representative files:
 

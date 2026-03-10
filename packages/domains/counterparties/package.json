@@ -9,8 +9,7 @@
     "./contracts": "./src/contracts.ts",
     "./validation": "./src/validation.ts",
     "./internal/group-rules": "./src/internal/group-rules.ts",
-    "./internal/shared-group-rules": "./src/internal/shared-group-rules.ts",
-    "./manifest": "./src/manifest.ts"
+    "./internal/shared-group-rules": "./src/internal/shared-group-rules.ts"
   },
   "scripts": {
     "build": "tsgo --project tsconfig.json",

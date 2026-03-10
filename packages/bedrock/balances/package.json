@@ -5,8 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema.ts",
-    "./manifest": "./src/manifest.ts"
+    "./schema": "./src/schema.ts"
   },
   "scripts": {
     "build": "tsgo --project tsconfig.json",
@@ -19,6 +18,7 @@
     "@bedrock/sql": "workspace:*",
     "@bedrock/operations": "workspace:*",
     "@bedrock/ledger": "workspace:*",
+    "@bedrock/workers": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
   },

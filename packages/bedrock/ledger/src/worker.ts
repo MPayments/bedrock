@@ -2,27 +2,23 @@ import { sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/ledger/schema";
 import type { Database, Transaction } from "@bedrock/sql/ports";
+import {
+  defineWorkerDescriptor,
+  type BedrockWorker,
+  type BedrockWorkerRunContext as WorkerRunContext,
+  type BedrockWorkerRunResult as WorkerRunResult,
+} from "@bedrock/workers";
 
 import { isRetryableError } from "./errors";
 import { makeTbAccount, makeTbTransfer, tbCreateAccountsOrThrow, tbCreateTransfersOrThrow, TransferFlags, TB_AMOUNT_MAX, type TbClient } from "./tb";
 import { OPERATION_TRANSFER_TYPE } from "./types";
 
-export interface WorkerRunContext {
-  now: Date;
-  signal: AbortSignal;
-}
-
-export interface WorkerRunResult {
-  processed: number;
-  blocked?: number;
-}
-
-export interface BedrockWorker {
-  id: string;
-  moduleId: string;
-  intervalMs: number;
-  runOnce: (ctx: WorkerRunContext) => Promise<WorkerRunResult>;
-}
+export const LEDGER_WORKER_DESCRIPTOR = defineWorkerDescriptor({
+  id: "ledger",
+  envKey: "LEDGER_WORKER_INTERVAL_MS",
+  defaultIntervalMs: 5_000,
+  description: "Post pending ledger operations to TigerBeetle",
+});
 
 function tbAccountCodeFromId(id: bigint): number {
   return Number(id % 65535n) + 1;
@@ -98,7 +94,6 @@ async function releaseClaimedOutboxJob(input: {
 
 export function createLedgerWorkerDefinition(deps: {
   id?: string;
-  moduleId?: string;
   intervalMs?: number;
   db: Database;
   tb: TbClient;
@@ -371,7 +366,6 @@ export function createLedgerWorkerDefinition(deps: {
 
   return {
     id: deps.id ?? "ledger",
-    moduleId: deps.moduleId ?? "ledger",
     intervalMs: deps.intervalMs ?? 5_000,
     runOnce,
   };

@@ -1,5 +1,8 @@
 export { createBalancesService, type BalancesService } from "./service";
-export { createBalancesProjectorWorkerDefinition } from "./worker";
+export {
+  BALANCES_WORKER_DESCRIPTOR,
+  createBalancesProjectorWorkerDefinition as createBalancesProjectorWorker,
+} from "./worker";
 export * from "./errors";
 export {
   BalanceSubjectSchema,

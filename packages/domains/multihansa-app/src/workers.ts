@@ -1,49 +1,52 @@
-
-import { createBalancesProjectorWorkerDefinition } from "@bedrock/balances";
-import type { Logger } from "@bedrock/common";
-import { createDocumentsWorkerDefinition } from "@bedrock/documents/runtime";
 import {
-  createLedgerWorkerDefinition,
+  BALANCES_WORKER_DESCRIPTOR,
+  createBalancesProjectorWorker,
+} from "@bedrock/balances";
+import type { Logger } from "@bedrock/common";
+import {
+  DOCUMENTS_WORKER_DESCRIPTOR,
+  createDocumentsWorker,
+} from "@bedrock/documents/runtime";
+import {
+  LEDGER_WORKER_DESCRIPTOR,
+  createLedgerWorker,
   type TbClient,
 } from "@bedrock/ledger";
-import {
-  listWorkerCatalogEntries,
-  type BedrockWorker,
-  type ModuleRuntimeService,
-  type WorkerCatalogEntry,
-} from "@bedrock/modules";
 import type { Database } from "@bedrock/sql/ports";
+import { type BedrockWorker, type BedrockWorkerDescriptor } from "@bedrock/workers";
 
 import {
-  createFxRatesWorkerDefinition,
+  FX_RATES_WORKER_DESCRIPTOR,
+  createFxRatesWorker,
   type FxService,
 } from "@multihansa/fx";
-import { createIfrsPeriodCloseWorkerDefinition } from "@multihansa/ifrs-documents";
+import {
+  DOCUMENTS_PERIOD_CLOSE_WORKER_DESCRIPTOR,
+  createIfrsPeriodCloseWorker,
+} from "@multihansa/ifrs-documents";
 
-import { MULTIHANSA_MODULE_MANIFESTS } from "./module-runtime";
+export const MULTIHANSA_WORKER_DESCRIPTORS = [
+  BALANCES_WORKER_DESCRIPTOR,
+  DOCUMENTS_PERIOD_CLOSE_WORKER_DESCRIPTOR,
+  DOCUMENTS_WORKER_DESCRIPTOR,
+  FX_RATES_WORKER_DESCRIPTOR,
+  LEDGER_WORKER_DESCRIPTOR,
+] as const satisfies readonly BedrockWorkerDescriptor[];
 
-const workerCatalogById = new Map<string, WorkerCatalogEntry>(
-  listWorkerCatalogEntries(MULTIHANSA_MODULE_MANIFESTS).map((entry) => [
-    entry.id,
-    entry,
-  ]),
+const workerDescriptorById = new Map(
+  MULTIHANSA_WORKER_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
 );
 
-function requireWorkerCatalogEntry(workerId: string): WorkerCatalogEntry {
-  const entry = workerCatalogById.get(workerId);
-  if (!entry) {
-    throw new Error(`Missing worker catalog entry for ${workerId}`);
-  }
-  return entry;
-}
-
-function resolveIntervalMs(
+function requireWorkerInterval(
   workerId: string,
-  workerIntervals: Record<string, number | undefined>,
+  workerIntervals: Record<string, number>,
 ) {
-  const entry = requireWorkerCatalogEntry(workerId);
-  const intervalMs = workerIntervals[workerId] ?? entry.defaultIntervalMs;
+  const descriptor = workerDescriptorById.get(workerId);
+  if (!descriptor) {
+    throw new Error(`Missing worker descriptor for ${workerId}`);
+  }
 
+  const intervalMs = workerIntervals[workerId] ?? descriptor.defaultIntervalMs;
   if (!Number.isInteger(intervalMs) || intervalMs <= 0) {
     throw new Error(`Invalid interval for worker ${workerId}: ${intervalMs}`);
   }
@@ -51,118 +54,64 @@ function resolveIntervalMs(
   return intervalMs;
 }
 
-function dedupeBookIds(bookIds: readonly string[]) {
-  const unique = new Set<string>();
-  for (const bookId of bookIds) {
-    const normalized = bookId.trim();
-    if (normalized.length > 0) {
-      unique.add(normalized);
-    }
-  }
-  return [...unique];
-}
-
-async function isModuleEnabledForBooks(input: {
-  moduleRuntime: ModuleRuntimeService;
-  moduleId: string;
-  bookIds?: readonly string[];
-}) {
-  const bookIds = dedupeBookIds(input.bookIds ?? []);
-
-  if (bookIds.length === 0) {
-    return input.moduleRuntime.isModuleEnabled({
-      moduleId: input.moduleId,
-    });
-  }
-
-  for (const bookId of bookIds) {
-    const enabled = await input.moduleRuntime.isModuleEnabled({
-      moduleId: input.moduleId,
-      bookId,
-    });
-    if (!enabled) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-export function createMultihansaWorkerImplementations(input: {
+export function createMultihansaWorkers(input: {
   db: Database;
   logger: Logger;
-  moduleRuntime: ModuleRuntimeService;
   tb: TbClient;
-  workerIntervals: Record<string, number | undefined>;
+  workerIntervals: Record<string, number>;
   services: {
     fxService: FxService;
   };
 }): Record<string, BedrockWorker> {
-  const { db, logger, moduleRuntime, tb, workerIntervals, services } = input;
+  const { db, logger, tb, workerIntervals, services } = input;
 
-  const ledger = createLedgerWorkerDefinition({
-    id: "ledger",
-    moduleId: "ledger",
-    intervalMs: resolveIntervalMs("ledger", workerIntervals),
+  const ledger = createLedgerWorker({
+    id: LEDGER_WORKER_DESCRIPTOR.id,
+    intervalMs: requireWorkerInterval(
+      LEDGER_WORKER_DESCRIPTOR.id,
+      workerIntervals,
+    ),
     db,
     tb,
-    beforeJob: ({ bookIds }) =>
-      isModuleEnabledForBooks({
-        moduleRuntime,
-        moduleId: "ledger",
-        bookIds,
-      }),
   });
 
-  const documents = createDocumentsWorkerDefinition({
-    id: "documents",
-    moduleId: "documents",
-    intervalMs: resolveIntervalMs("documents", workerIntervals),
+  const documents = createDocumentsWorker({
+    id: DOCUMENTS_WORKER_DESCRIPTOR.id,
+    intervalMs: requireWorkerInterval(
+      DOCUMENTS_WORKER_DESCRIPTOR.id,
+      workerIntervals,
+    ),
     db,
-    beforeDocument: ({ bookIds }) =>
-      isModuleEnabledForBooks({
-        moduleRuntime,
-        moduleId: "documents",
-        bookIds,
-      }),
   });
 
-  const documentsPeriodClose = createIfrsPeriodCloseWorkerDefinition({
-    id: "documents-period-close",
-    moduleId: "ifrs-documents",
-    intervalMs: resolveIntervalMs("documents-period-close", workerIntervals),
+  const documentsPeriodClose = createIfrsPeriodCloseWorker({
+    id: DOCUMENTS_PERIOD_CLOSE_WORKER_DESCRIPTOR.id,
+    intervalMs: requireWorkerInterval(
+      DOCUMENTS_PERIOD_CLOSE_WORKER_DESCRIPTOR.id,
+      workerIntervals,
+    ),
     db,
     logger,
-    beforeCounterparty: () =>
-      moduleRuntime.isModuleEnabled({
-        moduleId: "ifrs-documents",
-      }),
   });
 
-  const balances = createBalancesProjectorWorkerDefinition({
-    id: "balances",
-    moduleId: "balances",
-    intervalMs: resolveIntervalMs("balances", workerIntervals),
+  const balances = createBalancesProjectorWorker({
+    id: BALANCES_WORKER_DESCRIPTOR.id,
+    intervalMs: requireWorkerInterval(
+      BALANCES_WORKER_DESCRIPTOR.id,
+      workerIntervals,
+    ),
     db,
     logger,
-    beforeOperation: ({ bookIds }) =>
-      isModuleEnabledForBooks({
-        moduleRuntime,
-        moduleId: "balances",
-        bookIds,
-      }),
   });
 
-  const fxRates = createFxRatesWorkerDefinition({
-    id: "fx-rates",
-    moduleId: "fx-rates",
-    intervalMs: resolveIntervalMs("fx-rates", workerIntervals),
+  const fxRates = createFxRatesWorker({
+    id: FX_RATES_WORKER_DESCRIPTOR.id,
+    intervalMs: requireWorkerInterval(
+      FX_RATES_WORKER_DESCRIPTOR.id,
+      workerIntervals,
+    ),
     fxService: services.fxService,
     logger,
-    beforeSourceSync: () =>
-      moduleRuntime.isModuleEnabled({
-        moduleId: "fx-rates",
-      }),
   });
 
   return {

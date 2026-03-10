@@ -25,8 +25,8 @@
     "@multihansa/app": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/ledger": "workspace:*",
-    "@bedrock/modules": "workspace:*",
     "@bedrock/sql": "workspace:*",
+    "@bedrock/workers": "workspace:*",
     "dotenv": "^17.3.1"
   },
   "devDependencies": {

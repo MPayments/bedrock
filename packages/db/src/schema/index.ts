@@ -14,7 +14,6 @@ import {
   verification,
 } from "@bedrock/identity/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import { schema as moduleRuntimeSchema } from "@bedrock/modules/schema";
 import { schema as idempotencySchema } from "@bedrock/operations/schema";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
 
@@ -50,7 +49,6 @@ type DatabaseSchema = typeof authSchema &
   typeof fxSchema &
   typeof feesSchema &
   typeof currenciesSchema &
-  typeof moduleRuntimeSchema &
   typeof organizationsSchema &
   typeof requisiteProvidersSchema &
   typeof balancesSchema &
@@ -69,7 +67,6 @@ const schemaInternal: DatabaseSchema = {
   ...fxSchema,
   ...feesSchema,
   ...currenciesSchema,
-  ...moduleRuntimeSchema,
   ...organizationsSchema,
   ...requisiteProvidersSchema,
   ...balancesSchema,

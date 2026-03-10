@@ -1,9 +1,10 @@
 import { type Logger } from "@bedrock/common";
-import type {
-    BedrockWorker,
-    WorkerRunContext,
-    WorkerRunResult,
-} from "@bedrock/modules";
+import {
+  defineWorkerDescriptor,
+  type BedrockWorker,
+  type BedrockWorkerRunContext as WorkerRunContext,
+  type BedrockWorkerRunResult as WorkerRunResult,
+} from "@bedrock/workers";
 
 import { type FxService } from "./service";
 import { type FxRateSource } from "./sources";
@@ -13,62 +14,67 @@ export interface FxRatesWorkerSourceContext {
 }
 
 type FxRatesWorkerSourceGuard = (
-    input: FxRatesWorkerSourceContext,
+  input: FxRatesWorkerSourceContext,
 ) => Promise<boolean> | boolean;
 
+export const FX_RATES_WORKER_DESCRIPTOR = defineWorkerDescriptor({
+  id: "fx-rates",
+  envKey: "FX_RATES_WORKER_INTERVAL_MS",
+  defaultIntervalMs: 60_000,
+  description: "Refresh expired FX source rates",
+});
+
 export function createFxRatesWorkerDefinition(deps: {
-    id?: string;
-    moduleId?: string;
-    intervalMs?: number;
-    fxService: FxService;
-    logger?: Logger;
-    beforeSourceSync?: FxRatesWorkerSourceGuard;
+  id?: string;
+  intervalMs?: number;
+  fxService: FxService;
+  logger?: Logger;
+  beforeSourceSync?: FxRatesWorkerSourceGuard;
 }): BedrockWorker {
-    const { fxService, logger } = deps;
-    const beforeSourceSync = deps.beforeSourceSync;
+  const { fxService, logger } = deps;
+  const beforeSourceSync = deps.beforeSourceSync;
 
-    async function runPass(now: Date) {
-        const statuses = await fxService.getRateSourceStatuses(now);
+  async function runPass(now: Date) {
+    const statuses = await fxService.getRateSourceStatuses(now);
 
-        let processed = 0;
-        for (const status of statuses) {
-            if (!status.isExpired) continue;
-            const source = status.source as FxRateSource;
+    let processed = 0;
+    for (const status of statuses) {
+      if (!status.isExpired) continue;
+      const source = status.source as FxRateSource;
 
-            if (beforeSourceSync) {
-                const isEnabled = await beforeSourceSync({ source });
-                if (!isEnabled) {
-                    continue;
-                }
-            }
-
-            try {
-                await fxService.syncRatesFromSource({
-                    source,
-                    now,
-                    force: true,
-                });
-                processed++;
-            } catch (error) {
-                logger?.error("FX source sync failed", {
-                    source: status.source,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
+      if (beforeSourceSync) {
+        const isEnabled = await beforeSourceSync({ source });
+        if (!isEnabled) {
+          continue;
         }
+      }
 
-        return processed;
+      try {
+        await fxService.syncRatesFromSource({
+          source,
+          now,
+          force: true,
+        });
+        processed++;
+      } catch (error) {
+        logger?.error("FX source sync failed", {
+          source: status.source,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
-    async function runOnce(ctx: WorkerRunContext): Promise<WorkerRunResult> {
-        const processed = await runPass(ctx.now);
-        return { processed };
-    }
+    return processed;
+  }
 
-    return {
-        id: deps.id ?? "fx-rates",
-        moduleId: deps.moduleId ?? "fx-rates",
-        intervalMs: deps.intervalMs ?? 60_000,
-        runOnce,
-    };
+  async function runOnce(ctx: WorkerRunContext): Promise<WorkerRunResult> {
+    const processed = await runPass(ctx.now);
+    return { processed };
+  }
+
+  return {
+    id: deps.id ?? "fx-rates",
+    intervalMs: deps.intervalMs ?? 60_000,
+    runOnce,
+  };
 }

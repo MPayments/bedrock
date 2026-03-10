@@ -7,28 +7,24 @@ import {
 import { noopLogger, type Logger } from "@bedrock/common";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import type { Database, Transaction } from "@bedrock/sql/ports";
-
-interface WorkerRunContext {
-  now: Date;
-  signal: AbortSignal;
-}
-
-interface WorkerRunResult {
-  processed: number;
-  blocked?: number;
-}
-
-interface BedrockWorker {
-  id: string;
-  moduleId: string;
-  intervalMs: number;
-  runOnce: (ctx: WorkerRunContext) => Promise<WorkerRunResult>;
-}
+import {
+  defineWorkerDescriptor,
+  type BedrockWorker,
+  type BedrockWorkerRunContext as WorkerRunContext,
+  type BedrockWorkerRunResult as WorkerRunResult,
+} from "@bedrock/workers";
 
 const schema = {
   ...balancesSchema,
   ...ledgerSchema,
 };
+
+export const BALANCES_WORKER_DESCRIPTOR = defineWorkerDescriptor({
+  id: "balances",
+  envKey: "BALANCES_WORKER_INTERVAL_MS",
+  defaultIntervalMs: 5_000,
+  description: "Project posted ledger operations into balance views",
+});
 
 const BALANCE_PROJECTOR_WORKER_KEY = "ledger_posted";
 const BALANCE_EVENT_TYPE = "ledger_posted";
@@ -412,7 +408,6 @@ async function listProjectionPostingRowsTx(
 
 interface BalancesProjectorWorkerDefinitionDeps {
   id?: string;
-  moduleId?: string;
   intervalMs?: number;
   db: Database;
   logger?: Logger;
@@ -501,7 +496,6 @@ export function createBalancesProjectorWorkerDefinition(
 
   return {
     id: deps.id ?? "balances",
-    moduleId: deps.moduleId ?? "balances",
     intervalMs: deps.intervalMs ?? 5_000,
     runOnce,
   };

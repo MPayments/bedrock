@@ -1,340 +1,200 @@
-# Bedrock Full Cutover Plan: Connectors + Orchestration (No Backward Compatibility)
+# План рефакторинга: переход к 1С-подобной модели `organizations / counterparties / requisites / requisite_providers`
 
 ## Summary
-This plan delivers a complete, end-state fintech runtime in Bedrock by adding and fully integrating:
-1. `@bedrock/connectors` as the provider integration runtime.
-2. `@bedrock/orchestration` as the routing/retry/fallback runtime.
+- Цель: убрать текущую смешанную модель `counterparties + treasury/internal-ledger + split requisites`, и привести систему к явной 1С-подобной структуре: `organizations`, `counterparties`, `requisites`, `requisite_providers`.
+- Выбранный режим: `hard cutover`. Совместимый legacy-слой не сохраняется. Все runtime-API, UI, документы и схема БД переводятся на новую модель одним релизом.
+- Зафиксированные решения:
+  - `organizations` — отдельный плоский справочник, без treasury-групп.
+  - `counterparties` — отдельный справочник внешних сущностей.
+  - `requisites` — одна общая сущность для обоих владельцев.
+  - `requisite_providers` — отдельный справочник, обязателен для любого реквизита.
+  - Явной связи `organization <-> counterparty` нет.
+  - У `counterparties` остаются только пользовательские папки/группы, без системной tree-логики.
+  - Бухгалтерская привязка хранится во внутренней таблице binding, не как бизнес-сущность UI.
 
-Hard constraints locked:
-- No backward compatibility.
-- Hard reset cutover (greenfield runtime data).
-- Keep documents as primary workflow source.
-- Keep current API versioning and break `/v1` in place.
+## Целевая доменная модель
+- `organizations`
+  - Новый домен `@bedrock/core/organizations`.
+  - Таблица `organizations`: `id`, `external_id`, `short_name`, `full_name`, `description`, `country`, `kind`, `created_at`, `updated_at`.
+  - Для мигрированных внутренних компаний использовать те же UUID, что у текущих internal-ledger counterparties, чтобы упростить перенос книг, документов и ссылок.
+- `counterparties`
+  - Текущий домен сохраняется, но очищается от treasury/internal-ledger семантики.
+  - `counterparties` больше не содержат наши балансовые компании.
+  - `counterparty_groups` превращаются в пользовательские папки: остаются `id`, `name`, `parent_id`, `customer_id`, `created_at`, `updated_at`.
+  - Поля `code`, `isSystem`, root-логика `treasury/customers`, `treasury_internal_entities`, group-rule validators и endpoint `internal-ledger-entities` удаляются.
+- `requisite_providers`
+  - Новый домен `@bedrock/core/requisite-providers`.
+  - Таблица `requisite_providers`: `id`, `kind`, `name`, `description`, `country`, `address`, `contact`, `bic`, `swift`, `created_at`, `updated_at`, `archived_at`.
+  - `providerId` обязателен для любого реквизита.
+  - Валидация:
+    - `bank`: `name` обязателен; для `RU` обязателен `bic`, вне `RU` обязателен `swift`.
+    - `exchange|custodian`: обязателен `name`, `country`.
+    - `blockchain`: обязателен `name`; `country` опционален.
+- `requisites`
+  - Новый домен `@bedrock/core/requisites`.
+  - Одна таблица `requisites`, но с физически безопасной FK-моделью:
+    - `owner_type enum('organization','counterparty')`
+    - `organization_id uuid null references organizations(id)`
+    - `counterparty_id uuid null references counterparties(id)`
+    - `provider_id uuid not null references requisite_providers(id)`
+    - `currency_id uuid not null references currencies(id)`
+    - `kind`, `label`, `description`, общие банковские/crypto/exchange поля, `is_default`, `archived_at`, `created_at`, `updated_at`
+  - DB check: ровно один owner FK заполнен и соответствует `owner_type`.
+  - В публичных контрактах наружу отдается только `ownerType` + `ownerId`; двойные FK наружу не торчат.
+  - Partial unique default:
+    - один default per `(organization_id, currency_id)` для ownerType=`organization`
+    - один default per `(counterparty_id, currency_id)` для ownerType=`counterparty`
+- `organization_requisite_bindings`
+  - Внутренняя таблица сохраняется, но привязывается к новой `requisites.id`.
+  - Структура: `requisite_id`, `book_id`, `book_account_instance_id`, `posting_account_no`, `created_at`, `updated_at`.
+  - Разрешена только для `requisites.owner_type = organization`.
 
-End state:
-- Treasury payment flows are rebuilt on top of connectors + orchestration.
-- Legacy treasury payment flow contracts are removed.
-- `/v1` payment surfaces are replaced with new contracts.
-- Worker topology includes full dispatch, polling, statement ingest, and orchestration loops.
-- Web/API/SDK/docs/tests are fully aligned with the new model.
+## Книги, balances и accounting
+- `books.counterparty_id` заменяется на `books.organization_id`.
+- Весь internal-ledger слой переносится из `counterparties` в `organizations`.
+- Новый helper `organizations/internal/default-book.ts` обеспечивает одну default-книгу на организацию.
+- Инварианты:
+  - каждая организация, участвующая в ledger, должна иметь ровно одну default-книгу;
+  - книги не могут принадлежать `counterparties`;
+  - внешние реквизиты не создают книги и не участвуют в balances.
+- Dimension key `counterpartyAccountId` удаляется.
+- Новый accounting dimension: `organizationRequisiteId`.
+- В отчетности, journal, balances API и accounting constants все ссылки на банковую/расчетную сущность переводятся на `organizationRequisiteId`.
 
-## End-State Architecture Decisions
+## Public API / types / contracts
+- Удалить публичные домены и контракты:
+  - `counterparty-accounts`
+  - `counterparty-account-providers`
+  - `counterparty-requisites`
+  - `organization-requisites`
+- Добавить новые публичные типы:
+  - `OrganizationSchema`
+  - `RequisiteProviderSchema`
+  - `RequisiteSchema`
+  - `RequisiteAccountingBindingSchema`
+  - `Create/Update/List` схемы для `organizations`, `requisite_providers`, `requisites`
+- API routes:
+  - добавить `/v1/organizations`
+  - добавить `/v1/organizations/options`
+  - оставить `/v1/counterparties`, но удалить `/v1/counterparties/internal-ledger-entities`
+  - добавить `/v1/requisite-providers`
+  - добавить `/v1/requisites`
+  - добавить `/v1/requisites/options?ownerType=&ownerId=`
+  - добавить `/v1/requisites/{id}/binding`
+- Удалить routes:
+  - `/v1/counterparty-accounts`
+  - `/v1/counterparty-account-providers`
+  - `/v1/counterparty-requisites`
+  - `/v1/organization-requisites`
+- Permissions:
+  - новые ресурсы `organizations`, `requisites`, `requisite_providers`
+  - binding-операции идут отдельным permission action, например `requisites.configure_binding`
 
-### 1. Primary Aggregates
-- `documents` remains the workflow source of truth.
-- New connector intent/attempt state is persisted in dedicated connector tables and linked to documents.
-- Payment lifecycle is represented as:
-  - `payment_intent` document (business intent)
-  - system-generated `payment_resolution` document (settle/void/fail), linked to intent.
+## Документы и workflows
+- Полный hard cutover payload-ов без legacy alias.
+- `transfer_intra`
+  - новый payload: `organizationId`, `sourceRequisiteId`, `destinationRequisiteId`, `amount`, `currency`, `memo`, `timeoutSeconds`
+  - оба реквизита обязаны принадлежать одной `organization`
+- `transfer_intercompany`
+  - новый payload: `sourceOrganizationId`, `sourceRequisiteId`, `destinationOrganizationId`, `destinationRequisiteId`, `amount`, `currency`, `memo`, `timeoutSeconds`
+- `capital_funding`
+  - новый payload: `organizationId`, `organizationRequisiteId`, `counterpartyId`, `counterpartyRequisiteId`, `kind`, `amount`, `currency`, `memo`
+  - `counterpartyRequisiteId` обязателен; исключений по `kind` в этом рефакторинге не вводить
+- `payment_intent`
+  - новый payload: `direction`, `organizationId`, `organizationRequisiteId`, `counterpartyId`, `counterpartyRequisiteId`, `currency`, `corridor`, `providerConstraint`, `countryFrom`, `countryTo`, `riskScore`, `timeoutSeconds`, `memo`
+  - runtime сам определяет source/destination по `direction`
+- `payment_resolution` не меняет внешний контракт, только внутренние резолверы intent-а
+- В `documents` summary/types:
+  - удалить `counterpartyAccountId`
+  - добавить `organizationRequisiteId`
+  - `counterpartyRequisiteId` хранить в payload; не выводить в generic summary-колонку
+- Все document modules, validators, summary builders, posting workers и query filters переводятся на новые имена без alias.
 
-### 2. New Platform Packages
-- `packages/platform/connectors` -> `@bedrock/connectors`
-- `packages/platform/orchestration` -> `@bedrock/orchestration`
+## Web UI / navigation
+- Добавить отдельный реестр `Организации`.
+- Оставить отдельный реестр `Контрагенты`.
+- Объединить `counterparty-requisites` и `organization-requisites` в один реестр `Реквизиты`.
+- Добавить отдельный реестр `Провайдеры реквизитов`.
+- В owner workspaces:
+  - у `organizations` таб `Реквизиты`
+  - у `counterparties` таб `Реквизиты`
+- Форма реквизита:
+  - обязательные поля `ownerType`, `ownerId`, `providerId`, `currencyId`, `kind`, `label`
+  - provider выбирается явно
+  - organization/counterparty выбираются через общий owner selector или через prefilled owner context
+- Документные формы:
+  - больше не использовать поля/лейблы `counterparty account`
+  - `payin/payout` явно спрашивают `Организация`, `Реквизит организации`, `Контрагент`, `Реквизит контрагента`
+- Удалить редиректы и остатки старых страниц `counterparty-accounts`, `counterparty-account-providers`, `counterparty-requisites`, `organization-requisites`.
 
-### 3. Legacy Runtime Removal (No Compatibility Layer)
-- Remove old treasury payment-case style public behavior.
-- Remove old treasury payment docTypes from public usage.
-- Remove route compatibility adapters.
-- Break `/v1` request/response shapes in place.
+## План миграции данных
+1. Подготовить audit script, который фиксирует:
+   - все internal-ledger counterparties
+   - все current `organization_requisites`
+   - все current `counterparty_requisites`
+   - все legacy `counterparty_accounts`
+   - все документы, где поля еще содержат legacy ids
+2. Создать `organizations` и вставить туда текущие internal-ledger counterparties с теми же UUID.
+3. Добавить `organization_id` в `books`, backfill из текущего `books.counterparty_id`, затем сделать `organization_id not null`, удалить `counterparty_id`.
+4. Создать `requisite_providers`.
+5. Backfill providers:
+   - сначала из legacy `counterparty_account_providers`
+   - затем из текущих requisites по сигнатуре `(kind, institutionName/name, institutionCountry/country, bic, swift, contact, address)`
+   - для blockchain без явного института создавать synthetic provider с `name = coalesce(institutionName, label, network)`
+6. Создать unified `requisites`.
+7. Перенести текущие `organization_requisites` в `requisites(ownerType=organization)` и сохранить mapping oldId -> newId.
+8. Перенести текущие `counterparty_requisites` в `requisites(ownerType=counterparty)` и сохранить mapping oldId -> newId.
+9. Перенести `organization_requisite_bindings`, перепривязав их к новым `requisites.id`.
+10. Переписать документы:
+   - если old field уже указывает на `organization_requisites.id`, использовать mapping из шага 7
+   - если old field указывает на legacy `counterparty_accounts.id`, сначала резолвить через legacy account -> provider/owner mapping и создать соответствующую новую запись `requisites`, затем обновить payload
+   - переписать payload keys на новые имена по doc type
+11. Переписать summary columns / reporting dimensions / journal labels на `organizationRequisiteId`.
+12. После успешной валидации удалить старые таблицы:
+   - `counterparty_accounts`
+   - `counterparty_account_bindings`
+   - `counterparty_account_providers`
+   - `counterparty_requisites`
+   - `organization_requisites`
+   - `organization_requisite_bindings`
+13. Удалить old manifests, routes, services, tests и UI feature trees.
 
-### 4. Cutover Strategy
-- Hard reset environments at cutover (`db:nuke` + migrate + reseed).
-- No table-to-table compatibility bridges.
-- No dual-write period.
-- No legacy endpoint shims.
+## Порядок реализации в коде
+1. Ввести новый core-domain `organizations`.
+2. Ввести новый core-domain `requisite-providers`.
+3. Ввести новый core-domain `requisites`.
+4. Перенести book ownership и default-book logic в `organizations`.
+5. Перевести application modules и reporting на `organizations + requisites`.
+6. Перевести API routes и permissions.
+7. Перевести web navigation, registries, forms, documents UI.
+8. Выполнить data migration и drop legacy schema.
+9. Удалить старые runtime imports, contracts, manifests и tests.
 
-## Phase-by-Phase Agentic Implementation
+## Test cases and scenarios
+- CRUD `organizations`.
+- CRUD `counterparties` без treasury/internal-ledger root-логики.
+- CRUD `requisite_providers` для `bank|exchange|blockchain|custodian`.
+- CRUD `requisites` для ownerType=`organization`.
+- CRUD `requisites` для ownerType=`counterparty`.
+- Негативный кейс: requisite без `providerId` отклоняется.
+- Негативный кейс: binding для `counterparty`-requisite отклоняется.
+- Негативный кейс: два default requisites в одной валюте для одного owner отклоняются.
+- Миграция internal-ledger counterparties -> `organizations` с сохранением UUID.
+- Миграция `books.counterparty_id` -> `books.organization_id`.
+- Миграция `organization_requisites` и `counterparty_requisites` в unified `requisites`.
+- Миграция providers с синтетическим backfill для blockchain.
+- Переписывание payload-ов документов для `transfer_intra`, `transfer_intercompany`, `capital_funding`, `payment_intent`.
+- Проверка posting/reporting: balances строятся только по organization requisites.
+- Проверка journal/report labels: legacy `counterpartyAccountId` нигде не остается.
+- Полный `check-types` для `@bedrock/core`, `@bedrock/application`, `apps/api`, `apps/web`.
+- API build обязателен после route changes.
+- Smoke test web navigation: старых href и breadcrumbs больше нет.
 
-## Phase 0: Program Freeze and Cutover Guardrails
-1. Freeze legacy payment-surface changes and declare this branch as the only payment-runtime workstream.
-2. Create a cutover runbook with explicit downtime and reset steps.
-3. Mark old payment contracts as deprecated internally and block new dependencies on old treasury flow.
-4. Define branch and merge policy: only phases in order, no mixed legacy/new runtime code in final state.
-
-Exit criteria:
-- Runbook approved.
-- Scope freeze communicated.
-- No new code merged against legacy payment runtime contracts.
-
-## Phase 1: Database Redesign (Hard Cutover Baseline)
-1. Add new schema files and exports in:
-   - [connectors schema](/Users/alexey.eramasov/dev/ledger/packages/platform/db/src/schema/connectors.ts)
-   - [orchestration schema](/Users/alexey.eramasov/dev/ledger/packages/platform/db/src/schema/orchestration.ts)
-   - [schema index](/Users/alexey.eramasov/dev/ledger/packages/platform/db/src/schema/index.ts)
-2. Create connector tables:
-   - `connector_payment_intents`
-   - `payment_attempts`
-   - `connector_events`
-   - `connector_references`
-   - `connector_health`
-   - `connector_cursors`
-3. Create orchestration tables:
-   - `routing_rules`
-   - `provider_corridors`
-   - `provider_fee_schedules`
-   - `provider_limits`
-   - `orchestration_scope_overrides` (scope_type fixed to `book` in v1)
-4. Enforce DB invariants:
-   - Unique `(document_id)` in `connector_payment_intents`
-   - Unique `(intent_id, attempt_no)` in `payment_attempts`
-   - Unique `(provider_code, webhook_idempotency_key)` in `connector_events`
-   - Unique `(provider_code, ref_kind, ref_value)` in `connector_references`
-   - Claim indexes for dispatch/poll/ingest workers
-5. Update seed layer to include baseline providers, corridors, fee schedules, limits, and default routing rules.
-6. Regenerate migrations for hard-cutover baseline and keep one coherent migration path for fresh reset deployment.
-
-Exit criteria:
-- Schema compiles.
-- Migration applies cleanly on empty DB.
-- Seed produces routable provider/rule state.
-
-## Phase 2: `@bedrock/connectors` Runtime Implementation
-1. Scaffold package with Bedrock closure pattern:
-   - `src/service.ts`
-   - `src/internal/context.ts`
-   - `src/validation.ts`
-   - `src/errors.ts`
-   - `src/commands/*`
-   - `src/workers/*`
-   - `src/index.ts`
-2. Implement provider adapter contract:
-   - `initiate(intent, attempt) -> provider submission result`
-   - `getStatus(attemptRef) -> provider status`
-   - `verifyAndParseWebhook(rawEvent) -> parsed event`
-   - `fetchStatements(range, cursor) -> records + nextCursor`
-3. Implement connectors service commands:
-   - `createIntentFromDocument`
-   - `enqueueAttempt`
-   - `recordDispatchResult`
-   - `recordStatusResult`
-   - `handleWebhookEvent` (idempotent mutation)
-   - `ingestStatementBatch`
-   - `markIntentTerminal`
-4. Implement canonical status model:
-   - Intent: `planned | in_progress | succeeded | failed | cancelled`
-   - Attempt: `queued | dispatching | submitted | pending | succeeded | failed_retryable | failed_terminal | cancelled`
-5. Add idempotency scopes in [idempotency scopes](/Users/alexey.eramasov/dev/ledger/packages/platform/idempotency/src/scopes.ts) for all connector write actions.
-
-Exit criteria:
-- Unit tests for status transitions and idempotency replay/conflict pass.
-- Package builds and exports are stable.
-
-## Phase 3: `@bedrock/orchestration` Runtime Implementation
-1. Scaffold package with same closure+commands pattern.
-2. Implement routing engine:
-   - Rule filtering by corridor, amount bands, currency, countries, risk band.
-   - Candidate pruning by `provider_corridors` + `provider_limits`.
-   - Cost scoring from `provider_fee_schedules` + FX markup.
-   - SLA/health weighting from `connector_health`.
-3. Implement deterministic score function and tie-breakers:
-   - Primary sort by score descending.
-   - Secondary sort by explicit rule priority.
-   - Final deterministic tie-break by provider code lexicographic.
-4. Implement retry/fallback planning:
-   - Exponential backoff for retryable failures.
-   - Fallback sequence and degradation graph (example: instant rail to standard rail).
-5. Implement per-book override resolver from `orchestration_scope_overrides`.
-
-Exit criteria:
-- Same inputs always yield same route order.
-- Retry/fallback behavior fully deterministic and tested.
-- Overrides work for `scope_type=book`.
-
-## Phase 4: Payment Domain Rebuild on Documents
-1. Create new payment module package (or replace old treasury module contents) for document modules:
-   - `payment_intent` docType
-   - `payment_resolution` docType (system-created)
-2. Remove legacy treasury payment docTypes from runtime registry.
-3. Define `payment_intent` payload contract:
-   - direction (`payin | payout`)
-   - amount/currency
-   - source/destination operational account references
-   - corridor metadata
-   - provider constraints (optional)
-4. Define `payment_resolution` payload contract:
-   - intentDocumentId
-   - resolutionType (`settle | void | fail`)
-   - provider references
-   - reason/meta
-5. On `payment_intent` post:
-   - produce ledger pending entries through accounting/ledger runtime
-   - create connector intent
-   - call orchestration plan and queue first attempt
-6. On terminal connector events:
-   - generate `payment_resolution` document
-   - post final ledger entries (settle or void/fail path)
-
-Exit criteria:
-- Payment lifecycle is fully executable via new docTypes.
-- No runtime dependency on legacy treasury payment-case flow remains.
-
-## Phase 5: API Cutover (`/v1` Breaking In Place)
-1. Remove old payment-facing `/v1` contracts and replace with:
-   - `/v1/payments`
-   - `/v1/connectors`
-   - `/v1/orchestration`
-2. Keep documents runtime internal; do not expose old generic payment doc workflows as public contract.
-3. Add `/v1/payments` endpoints:
-   - create/list/get
-   - submit/approve/reject/post/cancel
-   - timeline/status/details (aggregated doc + orchestration + attempts + provider refs)
-4. Add `/v1/connectors` endpoints:
-   - provider config CRUD
-   - attempt/events query
-   - statement ingest controls (admin)
-   - webhook receive endpoint for providers
-5. Add `/v1/orchestration` endpoints:
-   - routing rules CRUD
-   - provider corridor CRUD
-   - fee schedule CRUD
-   - limits CRUD
-   - per-book override CRUD
-   - route simulation endpoint
-6. Update permissions in [permissions](/Users/alexey.eramasov/dev/ledger/apps/api/src/auth/permissions.ts):
-   - add `payments`, `connectors`, `orchestration` resources
-   - remove payment permissions that only served legacy runtime
-7. Rebuild API dist types after API changes:
-   - `bun run build --filter=api`
-
-Exit criteria:
-- `/v1` only exposes new payment/connectors/orchestration contracts.
-- API client types compile against the new routes only.
-
-## Phase 6: Worker Topology Finalization
-1. Add workers:
-   - `connectors-attempt-dispatch`
-   - `connectors-status-poller`
-   - `connectors-statement-ingest`
-   - `orchestration-retry-fallback`
-2. Wire workers in:
-   - [workers env](/Users/alexey.eramasov/dev/ledger/apps/workers/src/env.ts)
-   - [workers registry](/Users/alexey.eramasov/dev/ledger/apps/workers/src/modules/registry.ts)
-   - [worker app](/Users/alexey.eramasov/dev/ledger/apps/workers/src/all.ts)
-   - [turbo env](/Users/alexey.eramasov/dev/ledger/turbo.json)
-3. Add monitoring dimensions for new workers in health and Prometheus metrics.
-4. Ensure recovery semantics:
-   - lease-based claims
-   - retry/backoff
-   - poison/final failure path
-   - idempotent reprocessing
-
-Exit criteria:
-- Worker fleet processes full payment lifecycle without manual intervention.
-- Health endpoints show all new loops and degraded status correctly.
-
-## Phase 7: SDK and Web Cutover
-1. Update `@bedrock/api-client` generated contracts to new `/v1` endpoints.
-2. Update web app pages to use `/v1/payments` instead of legacy payment docs surface.
-3. Remove UI flows tied only to removed legacy payment docTypes.
-4. Add operations views:
-   - payment timeline with attempts
-   - provider event history
-   - route decision explanation
-5. Keep non-payment modules unchanged unless their contracts changed.
-
-Exit criteria:
-- Web builds with no references to removed payment contracts.
-- User can create and monitor end-to-end payin/payout through new APIs.
-
-## Phase 8: Full Test Matrix and Quality Gates
-1. Unit tests:
-   - connectors command/state machine
-   - orchestration routing/scoring/retries
-   - webhook verification/idempotency
-2. Integration tests:
-   - payment intent post -> orchestration -> attempts -> resolution docs
-   - fallback and partial degradation
-   - statement ingest -> reconciliation ingestion bridge
-3. API tests:
-   - `/v1/payments`, `/v1/connectors`, `/v1/orchestration` happy and failure paths
-4. Worker tests:
-   - claim/lease/retry behavior
-   - duplicate delivery safety
-5. Load tests:
-   - burst webhook ingestion
-   - high-volume attempt dispatch
-   - statement backfill windows
-6. Security tests:
-   - webhook signature replay/forgery rejection
-   - permission boundaries on admin endpoints
-
-Exit criteria:
-- CI suite green for all new projects.
-- Load and failure tests meet defined SLOs.
-
-## Phase 9: Hard Cutover Execution and Cleanup
-1. Execute hard reset in target environments:
-   - DB nuke
-   - migrate
-   - seed
-2. Deploy new API/workers/web together; no staged compatibility mode.
-3. Remove dead code and packages tied to legacy payment runtime.
-4. Update architecture docs:
-   - [architecture](/Users/alexey.eramasov/dev/ledger/docs/architecture.md)
-   - [implementation details](/Users/alexey.eramasov/dev/ledger/docs/implementation-details.md)
-5. Run smoke suite and reconciliation sanity checks post-deploy.
-
-Exit criteria:
-- Only new runtime is active.
-- No legacy payment endpoints/docTypes are reachable.
-- Operational dashboards healthy.
-
-## Important Public API / Interface / Type Changes
-
-1. New public API groups on `/v1`:
-   - `/v1/payments`
-   - `/v1/connectors`
-   - `/v1/orchestration`
-2. Removed/replaced payment-facing legacy contracts on `/v1`.
-3. New platform interfaces:
-   - `ConnectorAdapter`
-   - `ConnectorsService`
-   - `OrchestrationService`
-   - routing rule and score explanation DTOs
-4. New document module contracts:
-   - `payment_intent`
-   - `payment_resolution`
-5. New permission resources:
-   - `payments`
-   - `connectors`
-   - `orchestration`
-
-## Test Cases and Scenarios
-
-1. Idempotency replay: same key and same payload returns same result for create, post, webhook, dispatch.
-2. Idempotency conflict: same key with different payload yields conflict.
-3. Route determinism: identical inputs produce identical candidate ordering.
-4. Retry policy: retryable provider failures schedule exponential backoff correctly.
-5. Fallback policy: exhausted or terminal failure triggers next provider/degraded rail.
-6. Polling-only rail: pending attempts resolve through poller without webhooks.
-7. Webhook dedupe: duplicate webhook event is no-op after first application.
-8. Webhook signature failure: rejected event stored, no state mutation.
-9. Statement cursor correctness: ingest resumes from last cursor without duplicates or gaps.
-10. Payment lifecycle: intent post creates attempts and terminal provider event creates resolution doc.
-11. Ledger consistency: settlement/void postings are balanced and idempotent.
-12. Worker resilience: restart/replay does not duplicate side effects.
-13. API authorization: admin-only connector/orchestration writes are enforced.
-14. End-to-end UI flow: create payment, observe attempts, terminal resolution visible in timeline.
-
-## Assumptions and Defaults
-
-1. Hard cutover is accepted: existing payment runtime data is not migrated; environments are reset.
-2. API version stays `/v1`; contracts break in place.
-3. Documents remain workflow source-of-truth; connector/orchestration tables are execution-state projections linked to docs.
-4. Scope overrides are `book` only in v1.
-5. No compatibility routes, no dual writes, no feature-flagged fallback runtime.
-6. Existing non-payment modules stay unless directly impacted by route/schema changes.
-7. Reconciliation remains the exception/matching engine; connectors feed it instead of replacing it.
-
-## Agent Execution Order (Strict)
-1. Phase 0
-2. Phase 1
-3. Phase 2 and Phase 3 in parallel after Phase 1
-4. Phase 4 after Phase 2 and 3
-5. Phase 5 after Phase 4
-6. Phase 6 after Phase 5
-7. Phase 7 after Phase 5 and 6
-8. Phase 8 after Phase 7
-9. Phase 9 final
-
-No phase skipping is allowed for implementation.
+## Assumptions and defaults
+- В этом рефакторинге не добавляются новые 1С-поля вроде ИНН/КПП/ОГРН; сохраняется текущий базовый identity shape (`shortName`, `fullName`, `country`, `kind`, `externalId`, `description`).
+- `organizations` и `counterparties` независимы и не связаны FK.
+- Все собственные расчетные позиции и ledger books принадлежат только `organizations`.
+- Все внешние реквизиты используются в документах, но не участвуют в balances/books.
+- `requisite_providers` обязателен для любого реквизита, включая blockchain.
+- Контрпартии сохраняют только пользовательские папки; системные root/subgroup правила полностью удаляются.
+- Из-за выбранного `hard cutover` legacy read/write compatibility не делается; приемка включает полное удаление старого слоя в одном релизе.

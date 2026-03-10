@@ -33,7 +33,10 @@ export {
   IdempotencyConflictError,
   DimensionPolicyViolationError,
 } from "./errors";
-export { createLedgerWorkerDefinition } from "./worker";
+export {
+  LEDGER_WORKER_DESCRIPTOR,
+  createLedgerWorkerDefinition as createLedgerWorker,
+} from "./worker";
 export { createTbClient, type TbClient } from "./tb";
 export type { LedgerAdapter, RawLedgerAdapter } from "./ports";
 export {

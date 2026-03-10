@@ -1,7 +1,8 @@
 export {
   createCapitalFundingDocumentModule,
   createIfrsDocumentModules,
-  createIfrsPeriodCloseWorkerDefinition,
+  DOCUMENTS_PERIOD_CLOSE_WORKER_DESCRIPTOR,
+  createIfrsPeriodCloseWorker,
   createTransferIntercompanyDocumentModule,
   createTransferIntraDocumentModule,
   createTransferResolutionDocumentModule,

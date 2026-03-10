@@ -15,24 +15,23 @@ Representative files:
 
 - [`packages/domains/customers/src/service.ts`](/Users/alexey.eramasov/dev/ledger/packages/domains/customers/src/service.ts)
 - [`packages/domains/customers/src/internal/context.ts`](/Users/alexey.eramasov/dev/ledger/packages/domains/customers/src/internal/context.ts)
-- [`packages/bedrock/modules/src/app.ts`](/Users/alexey.eramasov/dev/ledger/packages/bedrock/modules/src/app.ts)
+- [`packages/bedrock/workers/src/fleet.ts`](/Users/alexey.eramasov/dev/ledger/packages/bedrock/workers/src/fleet.ts)
 
-## Module Runtime
+## Worker Runtime
 
-Bedrock owns the generic module runtime:
+Bedrock owns only generic worker runtime primitives:
 
-- definitions and app assembly: [`packages/bedrock/modules/src/app.ts`](/Users/alexey.eramasov/dev/ledger/packages/bedrock/modules/src/app.ts)
-- core manifests: [`packages/bedrock/modules/src/manifests.ts`](/Users/alexey.eramasov/dev/ledger/packages/bedrock/modules/src/manifests.ts)
+- worker descriptors and interval resolution: [`packages/bedrock/workers/src/descriptors.ts`](/Users/alexey.eramasov/dev/ledger/packages/bedrock/workers/src/descriptors.ts)
+- worker fleet startup/shutdown: [`packages/bedrock/workers/src/fleet.ts`](/Users/alexey.eramasov/dev/ledger/packages/bedrock/workers/src/fleet.ts)
 
-Multihansa owns the product bundle:
+Multihansa owns the product composition:
 
-- bundle and service factory: [`packages/domains/multihansa-app/src/bundle.ts`](/Users/alexey.eramasov/dev/ledger/packages/domains/multihansa-app/src/bundle.ts)
-- module manifest exports: [`packages/domains/multihansa-app/src/module-runtime/manifests.ts`](/Users/alexey.eramasov/dev/ledger/packages/domains/multihansa-app/src/module-runtime/manifests.ts)
-- worker implementations: [`packages/domains/multihansa-app/src/workers.ts`](/Users/alexey.eramasov/dev/ledger/packages/domains/multihansa-app/src/workers.ts)
+- service factory: [`packages/domains/multihansa-app/src/bundle.ts`](/Users/alexey.eramasov/dev/ledger/packages/domains/multihansa-app/src/bundle.ts)
+- worker descriptors and worker factories: [`packages/domains/multihansa-app/src/workers.ts`](/Users/alexey.eramasov/dev/ledger/packages/domains/multihansa-app/src/workers.ts)
 
 ## App Composition
 
-Entry points consume the Multihansa bundle and Bedrock runtime:
+Entry points consume explicit Multihansa composition helpers:
 
 - API: [`apps/api/src/runtime.ts`](/Users/alexey.eramasov/dev/ledger/apps/api/src/runtime.ts)
 - Workers: [`apps/workers/src/main.ts`](/Users/alexey.eramasov/dev/ledger/apps/workers/src/main.ts)

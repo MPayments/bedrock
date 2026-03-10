@@ -10,8 +10,7 @@
     "./contracts": "./src/contracts.ts",
     "./validation": "./src/validation.ts",
     "./state-machine": "./src/state-machine.ts",
-    "./actions": "./src/actions.ts",
-    "./manifest": "./src/manifest.ts"
+    "./actions": "./src/actions.ts"
   },
   "scripts": {
     "build": "tsgo --project tsconfig.json",
@@ -26,6 +25,7 @@
     "@bedrock/ledger": "workspace:*",
     "@bedrock/sql": "workspace:*",
     "@bedrock/operations": "workspace:*",
+    "@bedrock/workers": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
   },

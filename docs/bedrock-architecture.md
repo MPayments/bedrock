@@ -14,8 +14,8 @@ This keeps framework primitives portable while the product packages own business
 | Layer | Examples | Responsibility |
 |---|---|---|
 | Bedrock common | `@bedrock/common`, `@bedrock/zod`, `@bedrock/sql` | Low-level primitives, schema helpers, runtime utilities |
-| Bedrock primitives | `@bedrock/modules`, `@bedrock/ledger`, `@bedrock/documents` | Reusable framework runtimes, ports, adapters, definitions |
-| Multihansa domains | `@multihansa/payments`, `@multihansa/fx`, `@multihansa/app` | Business services, module bundles, documents, reporting |
+| Bedrock primitives | `@bedrock/workers`, `@bedrock/ledger`, `@bedrock/documents` | Reusable framework runtimes, ports, adapters, definitions |
+| Multihansa domains | `@multihansa/payments`, `@multihansa/fx`, `@multihansa/app` | Business services, explicit product composition, documents, reporting |
 | Multihansa SDK/tooling | `@multihansa/ui`, `@multihansa/api-client`, `@multihansa/eslint-config` | Product-facing SDK and repo tooling |
 | Composition | `multihansa-api`, `multihansa-web`, `multihansa-workers` | Runtime adapters and deployment entrypoints |
 | DB aggregation | `@multihansa/db` | Aggregated schema, client, migrations, seeds |
@@ -37,13 +37,14 @@ Hard rules:
 
 ## Runtime Composition
 
-The product composition source of truth is [`packages/domains/multihansa-app/src/bundle.ts`](/Users/alexey.eramasov/dev/ledger/packages/domains/multihansa-app/src/bundle.ts).
+The product composition source of truth lives in:
 
-- Bedrock module graph/runtime lives in [`packages/bedrock/modules/src/app.ts`](/Users/alexey.eramasov/dev/ledger/packages/bedrock/modules/src/app.ts)
-- API composes the app in [`apps/api/src/runtime.ts`](/Users/alexey.eramasov/dev/ledger/apps/api/src/runtime.ts)
-- Workers compose the same bundle in [`apps/workers/src/main.ts`](/Users/alexey.eramasov/dev/ledger/apps/workers/src/main.ts)
+- services and document registry: [`packages/domains/multihansa-app/src/bundle.ts`](/Users/alexey.eramasov/dev/ledger/packages/domains/multihansa-app/src/bundle.ts)
+- worker descriptors and worker factories: [`packages/domains/multihansa-app/src/workers.ts`](/Users/alexey.eramasov/dev/ledger/packages/domains/multihansa-app/src/workers.ts)
+- API wiring: [`apps/api/src/runtime.ts`](/Users/alexey.eramasov/dev/ledger/apps/api/src/runtime.ts)
+- workers entrypoint: [`apps/workers/src/main.ts`](/Users/alexey.eramasov/dev/ledger/apps/workers/src/main.ts)
 
-The result is one Bedrock runtime model with a separate Multihansa product bundle layered on top.
+Bedrock now provides worker fleet primitives in `@bedrock/workers`; route and product composition stay explicit in app code.
 
 ## Schema Ownership
 

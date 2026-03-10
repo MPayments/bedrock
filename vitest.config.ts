@@ -36,7 +36,7 @@ const workspaceProjects = [
   unitProject("countries", "packages/bedrock/common/tests/countries/**/*.test.ts"),
   unitProject("accounting", "packages/bedrock/accounting/tests/**/*.test.ts"),
   unitProject("balances", "packages/bedrock/balances/tests/**/*.test.ts"),
-  unitProject("module-runtime", "packages/bedrock/modules/tests/**/*.test.ts"),
+  unitProject("workers", "packages/bedrock/workers/tests/**/*.test.ts"),
   unitProject("counterparties", "packages/domains/counterparties/tests/**/*.test.ts"),
   unitProject("currencies", "packages/bedrock/assets/tests/**/*.test.ts"),
   unitProject("customers", "packages/domains/customers/tests/**/*.test.ts"),

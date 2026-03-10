@@ -8,13 +8,14 @@ import {
 } from "@bedrock/documents/runtime";
 import { schema, type Document } from "@bedrock/documents/schema";
 import { user } from "@bedrock/identity/schema";
-import type {
-  BedrockWorker,
-  WorkerRunContext,
-  WorkerRunResult,
-} from "@bedrock/modules";
 import { pgNotify } from "@bedrock/sql/drizzle";
 import type { Database, Transaction } from "@bedrock/sql/ports";
+import {
+  defineWorkerDescriptor,
+  type BedrockWorker,
+  type BedrockWorkerRunContext as WorkerRunContext,
+  type BedrockWorkerRunResult as WorkerRunResult,
+} from "@bedrock/workers";
 
 import { counterparties } from "@multihansa/counterparties/schema";
 
@@ -136,9 +137,15 @@ type PeriodCloseWorkerCounterpartyGuard = (
   input: PeriodCloseWorkerCounterpartyContext,
 ) => Promise<boolean> | boolean;
 
+export const DOCUMENTS_PERIOD_CLOSE_WORKER_DESCRIPTOR = defineWorkerDescriptor({
+  id: "documents-period-close",
+  envKey: "DOCUMENTS_PERIOD_CLOSE_WORKER_INTERVAL_MS",
+  defaultIntervalMs: 60_000,
+  description: "Auto-create monthly IFRS period close documents",
+});
+
 export function createIfrsPeriodCloseWorkerDefinition(deps: {
   id?: string;
-  moduleId?: string;
   intervalMs?: number;
   db: Database;
   logger?: Logger;
@@ -151,7 +158,6 @@ export function createIfrsPeriodCloseWorkerDefinition(deps: {
 
   return {
     id: deps.id ?? "documents-period-close",
-    moduleId: deps.moduleId ?? "ifrs-documents",
     intervalMs: deps.intervalMs ?? 60_000,
     async runOnce(context: WorkerRunContext): Promise<WorkerRunResult> {
       const { periodStart, periodEnd } = getPreviousCalendarMonthRange(context.now);

@@ -12,8 +12,8 @@ export default function SettingsPage() {
         {
           id: "sections",
           label: "Разделы",
-          value: "2",
-          description: "Доступны разделы system и profile.",
+          value: "1",
+          description: "Доступен раздел профиля.",
         },
         {
           id: "scope",
@@ -23,12 +23,6 @@ export default function SettingsPage() {
         },
       ]}
       links={[
-        {
-          id: "system",
-          title: "Система",
-          description: "Параметры системы и технические настройки.",
-          href: "/settings/system",
-        },
         {
           id: "profile",
           title: "Профиль",

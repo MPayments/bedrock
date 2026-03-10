@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./manifest": "./src/manifest.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "build": "tsgo --project tsconfig.json",

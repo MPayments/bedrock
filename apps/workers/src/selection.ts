@@ -1,11 +1,9 @@
-import { compileModuleGraph, listWorkerCatalogEntries } from "@bedrock/modules";
+import { listWorkerIds } from "@bedrock/workers";
 
-import { MULTIHANSA_ACTIVE_MODULES } from "@multihansa/app";
+import { MULTIHANSA_WORKER_DESCRIPTORS } from "@multihansa/app";
 
 export function listAvailableWorkerIds(): string[] {
-  return listWorkerCatalogEntries(
-    compileModuleGraph(MULTIHANSA_ACTIVE_MODULES).manifests,
-  ).map((entry) => entry.id);
+  return listWorkerIds(MULTIHANSA_WORKER_DESCRIPTORS);
 }
 
 export function parseSelectedWorkerIds(

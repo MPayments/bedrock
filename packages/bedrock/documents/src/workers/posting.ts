@@ -2,17 +2,25 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/documents/schema";
 import type { Database } from "@bedrock/sql/ports";
+import {
+  defineWorkerDescriptor,
+  type BedrockWorker,
+  type BedrockWorkerRunContext as WorkerRunContext,
+  type BedrockWorkerRunResult as WorkerRunResult,
+} from "@bedrock/workers";
 
-import type {
-  BedrockWorker,
-  WorkerRunContext,
-  WorkerRunResult,
-} from "./types";
 import {
   buildDocumentEventState,
   getLatestPostingArtifacts,
   insertDocumentEvent,
 } from "../internal/helpers";
+
+export const DOCUMENTS_WORKER_DESCRIPTOR = defineWorkerDescriptor({
+  id: "documents",
+  envKey: "DOCUMENTS_WORKER_INTERVAL_MS",
+  defaultIntervalMs: 5_000,
+  description: "Finalize posted and failed document operations",
+});
 
 export interface DocumentsWorkerItemContext {
   documentId: string;
@@ -62,7 +70,6 @@ async function listOperationBookIds(
 
 export function createDocumentsWorkerDefinition(deps: {
   id?: string;
-  moduleId?: string;
   intervalMs?: number;
   db: Database;
   beforeDocument?: DocumentsWorkerItemGuard;
@@ -277,7 +284,6 @@ export function createDocumentsWorkerDefinition(deps: {
 
   return {
     id: deps.id ?? "documents",
-    moduleId: deps.moduleId ?? "documents",
     intervalMs: deps.intervalMs ?? 5_000,
     runOnce,
   };

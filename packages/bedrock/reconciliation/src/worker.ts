@@ -8,25 +8,21 @@ import {
 } from "@bedrock/common";
 import { schema } from "@bedrock/reconciliation/schema";
 import type { Database } from "@bedrock/sql/ports";
+import {
+  defineWorkerDescriptor,
+  type BedrockWorker,
+  type BedrockWorkerRunContext as WorkerRunContext,
+  type BedrockWorkerRunResult as WorkerRunResult,
+} from "@bedrock/workers";
 
 import { createReconciliationService } from "./service";
 
-interface WorkerRunContext {
-  now: Date;
-  signal: AbortSignal;
-}
-
-interface WorkerRunResult {
-  processed: number;
-  blocked?: number;
-}
-
-interface BedrockWorker {
-  id: string;
-  moduleId: string;
-  intervalMs: number;
-  runOnce: (ctx: WorkerRunContext) => Promise<WorkerRunResult>;
-}
+export const RECONCILIATION_WORKER_DESCRIPTOR = defineWorkerDescriptor({
+  id: "reconciliation",
+  envKey: "RECONCILIATION_WORKER_INTERVAL_MS",
+  defaultIntervalMs: 60_000,
+  description: "Process pending reconciliation runs",
+});
 
 interface PendingReconciliationSource {
   source: string;
@@ -118,7 +114,6 @@ function buildRunIdempotencyKey(input: {
 
 export function createReconciliationWorkerDefinition(deps: {
   id?: string;
-  moduleId?: string;
   intervalMs?: number;
   db: Database;
   logger?: Logger;
@@ -184,7 +179,6 @@ export function createReconciliationWorkerDefinition(deps: {
 
   return {
     id: deps.id ?? "reconciliation",
-    moduleId: deps.moduleId ?? "reconciliation",
     intervalMs: deps.intervalMs ?? 60_000,
     runOnce,
   };

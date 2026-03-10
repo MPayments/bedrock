@@ -2,23 +2,17 @@ import dotenv from "dotenv";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { compileModuleGraph, listWorkerCatalogEntries } from "@bedrock/modules";
+import { resolveWorkerIntervals } from "@bedrock/workers";
 
-import { MULTIHANSA_ACTIVE_MODULES } from "@multihansa/app";
+import { MULTIHANSA_WORKER_DESCRIPTORS } from "@multihansa/app";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(dir, "../../../.env") });
 
-const workerCatalog = listWorkerCatalogEntries(
-  compileModuleGraph(MULTIHANSA_ACTIVE_MODULES).manifests,
-);
-
-const workerIntervals = Object.fromEntries(
-  workerCatalog.map((entry) => [
-    entry.id,
-    Number(process.env[entry.envKey] ?? entry.defaultIntervalMs),
-  ]),
-) satisfies Record<string, number>;
+const workerIntervals = resolveWorkerIntervals({
+  descriptors: MULTIHANSA_WORKER_DESCRIPTORS,
+  env: process.env,
+});
 
 export const env = {
   TB_ADDRESS: process.env.TB_ADDRESS ?? "127.0.0.1:3000",

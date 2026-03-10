@@ -5,8 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema/index.ts",
-    "./manifest": "./src/manifest.ts"
+    "./schema": "./src/schema/index.ts"
   },
   "scripts": {
     "build": "tsgo --project tsconfig.json",

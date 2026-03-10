@@ -42,7 +42,6 @@ export interface AppContext extends MultihansaDomainServices {
   env: Env;
   app: ApiRuntime;
   logger: Logger;
-  moduleRuntime: ApiRuntime["moduleRuntime"];
 }
 
 export function createAppContext(env: Env): AppContext {
@@ -52,7 +51,6 @@ export function createAppContext(env: Env): AppContext {
     env,
     app,
     logger: app.logger,
-    moduleRuntime: app.moduleRuntime,
     ...app.services,
   };
 }

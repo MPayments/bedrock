@@ -9,8 +9,7 @@
     "./contracts": "./src/contracts.ts",
     "./packs/schema": "./src/packs/schema.ts",
     "./validation": "./src/validation.ts",
-    "./actions": "./src/actions.ts",
-    "./manifest": "./src/manifest.ts"
+    "./actions": "./src/actions.ts"
   },
   "scripts": {
     "build": "tsgo --project tsconfig.json",

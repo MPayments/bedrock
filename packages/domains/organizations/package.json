@@ -8,8 +8,7 @@
     "./schema": "./src/schema.ts",
     "./contracts": "./src/contracts.ts",
     "./validation": "./src/validation.ts",
-    "./internal/default-book": "./src/internal/default-book.ts",
-    "./manifest": "./src/manifest.ts"
+    "./internal/default-book": "./src/internal/default-book.ts"
   },
   "scripts": {
     "build": "tsgo --project tsconfig.json",

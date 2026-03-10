@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./module-runtime": "./src/module-runtime/index.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "build": "tsgo --project tsconfig.json",
@@ -15,7 +14,6 @@
   },
   "dependencies": {
     "@bedrock/common": "workspace:*",
-    "@bedrock/modules": "workspace:*",
     "@bedrock/accounting": "workspace:*",
     "@bedrock/assets": "workspace:*",
     "@bedrock/balances": "workspace:*",
@@ -34,6 +32,7 @@
     "@multihansa/accounting-reporting": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/sql": "workspace:*",
+    "@bedrock/workers": "workspace:*",
     "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {

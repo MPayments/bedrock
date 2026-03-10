@@ -263,8 +263,7 @@ for (const root of SOURCE_ROOTS) {
           /^@multihansa\/[^/]+\/contracts$/.test(specifier) ||
           specifier.startsWith("@bedrock/common") ||
           /^@bedrock\/[^/]+\/contracts$/.test(specifier) ||
-          /^@bedrock\/identity\/validation$/.test(specifier) ||
-          specifier === "@bedrock/modules/contracts";
+          /^@bedrock\/identity\/validation$/.test(specifier);
 
         if (!allowed) {
           violations.push({

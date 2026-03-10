@@ -3,12 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { MULTIHANSA_ACTIVE_MODULES } from "@multihansa/app";
-import {
-  compileModuleGraph,
-  DORMANT_MODULE_IDS,
-  listWorkerCatalogEntries,
-} from "@bedrock/modules";
+import { MULTIHANSA_WORKER_DESCRIPTORS } from "@multihansa/app";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const workersPackageJsonPath = path.resolve(__dirname, "../package.json");
@@ -21,17 +16,12 @@ describe("workers runtime taxonomy", () => {
     );
     const turboJson = JSON.parse(await readFile(turboJsonPath, "utf8"));
 
-    const entries = listWorkerCatalogEntries(
-      compileModuleGraph(MULTIHANSA_ACTIVE_MODULES).manifests,
+    const entryIds = MULTIHANSA_WORKER_DESCRIPTORS.map((entry) => entry.id);
+    const entryEnvKeys = MULTIHANSA_WORKER_DESCRIPTORS.map(
+      (entry) => entry.envKey,
     );
-    const entryIds = entries.map((entry) => entry.id);
-    const entryEnvKeys = entries.map((entry) => entry.envKey);
-    const entryModuleIds = new Set(entries.map((entry) => entry.moduleId));
 
-    expect(entries.length).toBeGreaterThan(0);
-    for (const dormantModuleId of DORMANT_MODULE_IDS) {
-      expect(entryModuleIds.has(dormantModuleId)).toBe(false);
-    }
+    expect(entryIds.length).toBeGreaterThan(0);
 
     const scripts = workersPackageJson.scripts ?? {};
     const scriptKeys = Object.keys(scripts);

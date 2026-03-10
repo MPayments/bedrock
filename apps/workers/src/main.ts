@@ -5,11 +5,11 @@ import {
   installShutdownHandlers,
 } from "@bedrock/common";
 import { createTbClient } from "@bedrock/ledger";
-import { createBedrockApp } from "@bedrock/modules";
+import { createWorkerFleet, startWorkerFleet } from "@bedrock/workers";
 
 import {
-  createMultihansaDomainBundle,
-  createMultihansaWorkerImplementations,
+  createMultihansaServices,
+  createMultihansaWorkers,
 } from "@multihansa/app";
 import { db } from "@multihansa/db/client";
 
@@ -18,27 +18,19 @@ import { createWorkerMonitoringRegistry, startWorkerMonitoringServer } from "./m
 import { parseSelectedWorkerIds } from "./selection";
 
 const logger = createConsoleLogger({ app: "multihansa-workers" });
-const bundle = createMultihansaDomainBundle({ db, logger });
-const app = createBedrockApp({
-  db,
-  logger,
-  modules: bundle.modules,
-  createServices: () => bundle.services,
-});
-await app.moduleRuntime.startBackgroundSync();
+const services = createMultihansaServices({ db, logger });
 
 const tb = createTbClient(env.TB_CLUSTER_ID, env.TB_ADDRESS);
-const workerImplementations = createMultihansaWorkerImplementations({
+const workerImplementations = createMultihansaWorkers({
   db,
   logger,
   tb,
-  moduleRuntime: app.moduleRuntime,
   workerIntervals: env.WORKER_INTERVALS,
-  services: bundle.services,
+  services,
 });
 const selectedWorkerIds = parseSelectedWorkerIds(process.argv.slice(2));
-const workers = app.createWorkerFleet({
-  workerImplementations,
+const workers = createWorkerFleet({
+  workers: workerImplementations,
   selectedWorkerIds,
 });
 
@@ -52,7 +44,7 @@ const monitoringServer =
         logger,
       })
     : null;
-const fleet = app.startWorkerFleet({
+const fleet = startWorkerFleet({
   appName: "multihansa-workers",
   workers,
   createObserver: (worker) =>
@@ -67,7 +59,6 @@ installShutdownHandlers(() => {
   if (monitoringServer) {
     void monitoringServer.stop();
   }
-  void app.moduleRuntime.stopBackgroundSync();
 });
 
 logger.info("Workers started", {
@@ -75,5 +66,4 @@ logger.info("Workers started", {
 });
 await fleet.promise;
 logger.info("Workers stopped");
-await app.moduleRuntime.stopBackgroundSync();
 process.exit(0);
