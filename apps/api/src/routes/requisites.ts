@@ -3,8 +3,8 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { ValidationError } from "@bedrock/common/errors";
 import { createPaginatedListSchema } from "@bedrock/common/pagination";
 
-import { CounterpartyNotFoundError } from "@multihansa/counterparties";
-import { OrganizationNotFoundError } from "@multihansa/organizations";
+import { CounterpartyNotFoundError } from "@multihansa/parties/counterparties";
+import { OrganizationNotFoundError } from "@multihansa/parties/organizations";
 import {
   CreateRequisiteInputSchema,
   ListRequisitesQuerySchema,
@@ -16,12 +16,12 @@ import {
   RequisiteSchema,
   UpdateRequisiteInputSchema,
   UpsertRequisiteAccountingBindingInputSchema,
-} from "@multihansa/requisites";
+} from "@multihansa/parties/requisites";
 import {
   RequisiteAccountingBindingSchema,
   RequisiteOptionSchema,
   RequisiteOptionsResponseSchema,
-} from "@multihansa/requisites/contracts";
+} from "@multihansa/parties/requisites/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";

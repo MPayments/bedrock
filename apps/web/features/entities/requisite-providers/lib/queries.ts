@@ -39,7 +39,7 @@ export async function getRequisiteProviders(): Promise<RequisiteProvidersListRes
   const client = await getServerApiClient();
   const { data } = await readPaginatedList({
     request: () =>
-      client.v1["requisite-providers"].$get({
+      client.v1.parties["requisite-providers"].$get({
         query: {
           limit: 200,
           offset: 0,
@@ -65,7 +65,7 @@ const getRequisiteProviderByIdUncached = async (
     resourceName: "провайдера реквизитов",
     request: async (validId) => {
       const client = await getServerApiClient();
-      return client.v1["requisite-providers"][":id"].$get(
+      return client.v1.parties["requisite-providers"][":id"].$get(
         { param: { id: validId } },
         { init: { cache: "no-store" } },
       );

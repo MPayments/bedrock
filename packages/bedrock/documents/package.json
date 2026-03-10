@@ -19,19 +19,13 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/accounting": "workspace:*",
-    "@bedrock/identity": "workspace:*",
     "@bedrock/common": "workspace:*",
-    "@bedrock/ledger": "workspace:*",
-    "@bedrock/sql": "workspace:*",
-    "@bedrock/operations": "workspace:*",
-    "@bedrock/workers": "workspace:*",
+    "@bedrock/finance": "workspace:*",
+    "@bedrock/platform": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@multihansa/eslint-config": "workspace:*",
-    "@multihansa/typescript-config": "workspace:*",
     "@types/node": "^24",
     "eslint": "^9.31.0",
     "typescript": "^5.8.3"

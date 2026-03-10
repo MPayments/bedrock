@@ -1,13 +1,13 @@
 import { and, eq } from "drizzle-orm";
 
-import { ACCOUNT_NO } from "@bedrock/accounting";
 import {
   computeDimensionsHash,
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
 } from "@bedrock/common";
+import { ACCOUNT_NO } from "@bedrock/finance/accounting";
 
-import type { Database, Transaction } from "../client";
+import type { Database } from "../client";
 import { schema } from "../schema";
 import { seedCounterparties } from "./counterparties";
 import { seedCurrencies } from "./currencies";
@@ -17,8 +17,6 @@ import { seedRequisiteProviders } from "./requisite-providers";
 
 export { REQUISITE_IDS } from "./fixtures";
 
-type DbLike = Database | Transaction;
-
 function organizationDefaultBookCode(organizationId: string) {
   return `organization-default:${organizationId}`;
 }
@@ -27,7 +25,7 @@ function organizationDefaultBookName(organizationId: string) {
   return `Organization ${organizationId} default book`;
 }
 
-async function currencyIdByCodeMap(db: DbLike) {
+async function currencyIdByCodeMap(db: Database) {
   const out = new Map<string, string>();
   const rows = await db
     .select({ id: schema.currencies.id, code: schema.currencies.code })
@@ -41,7 +39,7 @@ async function currencyIdByCodeMap(db: DbLike) {
 }
 
 async function ensureDefaultBooks(
-  db: DbLike,
+  db: Database,
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
 
@@ -98,7 +96,7 @@ async function ensureDefaultBooks(
 }
 
 async function upsertRequisites(
-  db: DbLike,
+  db: Database,
   currencyIds: ReadonlyMap<string, string>,
 ) {
   for (const requisite of REQUISITES) {
@@ -178,7 +176,7 @@ async function upsertRequisites(
 }
 
 async function upsertOrganizationBindings(
-  db: DbLike,
+  db: Database,
   defaultBookIdByOrganizationId: ReadonlyMap<string, string>,
 ) {
   const organizationRequisites = REQUISITES.filter(
@@ -254,8 +252,8 @@ async function upsertOrganizationBindings(
   }
 }
 
-export async function seedRequisites(db: DbLike) {
-  await seedCurrencies(db as Database);
+export async function seedRequisites(db: Database) {
+  await seedCurrencies(db);
   await seedCounterparties(db);
   await seedOrganizations(db);
   await seedRequisiteProviders(db);

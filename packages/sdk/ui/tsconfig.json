@@ -1,5 +1,5 @@
 {
-  "extends": "@multihansa/typescript-config/react-library.json",
+  "extends": "../../../tsconfig.react-library.json",
   "compilerOptions": {
     "paths": {
       "*": ["./*"],

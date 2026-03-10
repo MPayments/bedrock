@@ -37,17 +37,17 @@ export interface ApiRouteMount {
 export const API_ROUTE_MOUNTS = [
   {
     id: "accounting",
-    routePath: "/accounting",
+    routePath: "/finance/accounting",
     registerRoutes: accountingRoutes,
   },
   {
     id: "balances",
-    routePath: "/balances",
+    routePath: "/finance/balances",
     registerRoutes: balancesRoutes,
   },
   {
     id: "counterparties",
-    routePath: "/counterparties",
+    routePath: "/parties/counterparties",
     registerRoutes: counterpartiesRoutes,
   },
   {
@@ -57,7 +57,7 @@ export const API_ROUTE_MOUNTS = [
   },
   {
     id: "customers",
-    routePath: "/customers",
+    routePath: "/parties/customers",
     registerRoutes: customersRoutes,
   },
   {
@@ -72,27 +72,27 @@ export const API_ROUTE_MOUNTS = [
   },
   {
     id: "fx-rates",
-    routePath: "/fx/rates",
+    routePath: "/treasury/fx/rates",
     registerRoutes: fxRatesRoutes,
   },
   {
     id: "organizations",
-    routePath: "/organizations",
+    routePath: "/parties/organizations",
     registerRoutes: organizationsRoutes,
   },
   {
     id: "payments",
-    routePath: "/payments",
+    routePath: "/treasury/payments",
     registerRoutes: paymentsRoutes,
   },
   {
     id: "requisite-providers",
-    routePath: "/requisite-providers",
+    routePath: "/parties/requisite-providers",
     registerRoutes: requisiteProvidersRoutes,
   },
   {
     id: "requisites",
-    routePath: "/requisites",
+    routePath: "/parties/requisites",
     registerRoutes: requisitesRoutes,
   },
 ] as const satisfies readonly ApiRouteMount[];

@@ -1,10 +1,10 @@
 import { cache } from "react";
 import { z } from "zod";
 
-import { CurrencyOptionsResponseSchema } from "@bedrock/assets/contracts";
-import { OrganizationOptionsResponseSchema } from "@multihansa/organizations/contracts";
-import { RequisiteProviderOptionsResponseSchema } from "@multihansa/requisite-providers/contracts";
-import { REQUISITES_LIST_CONTRACT } from "@multihansa/requisites/contracts";
+import { CurrencyOptionsResponseSchema } from "@bedrock/finance/assets/contracts";
+import { OrganizationOptionsResponseSchema } from "@multihansa/parties/organizations/contracts";
+import { RequisiteProviderOptionsResponseSchema } from "@multihansa/parties/requisite-providers/contracts";
+import { REQUISITES_LIST_CONTRACT } from "@multihansa/parties/requisites/contracts";
 
 import {
   getRequisiteKindLabel,
@@ -137,7 +137,7 @@ async function getOrganizationLabelById() {
   const client = await getServerApiClient();
   const payload = await readOptionsList({
     request: () =>
-      client.v1.organizations.options.$get(
+      client.v1.parties.organizations.options.$get(
         {},
         { init: { cache: "force-cache" } },
       ),
@@ -152,7 +152,7 @@ async function getProviderLabelById() {
   const client = await getServerApiClient();
   const payload = await readOptionsList({
     request: () =>
-      client.v1["requisite-providers"].options.$get(
+      client.v1.parties["requisite-providers"].options.$get(
         {},
         { init: { cache: "force-cache" } },
       ),
@@ -217,7 +217,7 @@ export async function getOrganizationRequisites(
     await Promise.all([
       readPaginatedList({
         request: () =>
-          client.v1.requisites.$get({
+          client.v1.parties.requisites.$get({
             query: createListQuery(search),
           }),
         schema: RequisitesListResponseSchema,
@@ -244,7 +244,7 @@ const getOrganizationRequisiteByIdUncached = async (
     resourceName: "реквизит организации",
     request: async (validId) => {
       const client = await getServerApiClient();
-      return client.v1.requisites[":id"].$get(
+      return client.v1.parties.requisites[":id"].$get(
         { param: { id: validId } },
         { init: { cache: "no-store" } },
       );
@@ -268,7 +268,7 @@ export async function getOrganizationRequisiteFormOptions(): Promise<Organizatio
   const [owners, providers, currencies] = await Promise.all([
     readOptionsList({
       request: () =>
-        client.v1.organizations.options.$get(
+        client.v1.parties.organizations.options.$get(
           {},
           { init: { cache: "force-cache" } },
         ),
@@ -277,7 +277,7 @@ export async function getOrganizationRequisiteFormOptions(): Promise<Organizatio
     }),
     readOptionsList({
       request: () =>
-        client.v1["requisite-providers"].options.$get(
+        client.v1.parties["requisite-providers"].options.$get(
           {},
           { init: { cache: "force-cache" } },
         ),

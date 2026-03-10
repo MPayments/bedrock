@@ -1,4 +1,4 @@
-import { config } from "@multihansa/eslint-config/react-internal";
+import { reactInternalConfig } from "../../../eslint/react-internal.mjs";
 
 /** @type {import("eslint").Linter.Config} */
-export default config;
+export default reactInternalConfig;

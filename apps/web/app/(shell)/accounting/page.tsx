@@ -29,14 +29,14 @@ export default async function AccountingOverviewPage() {
           label: "План счетов",
           value: formatCount(accounts.length),
           description: "Глобальный chart template, доступный для posting rules.",
-          href: "/accounting/accounts",
+          href: "/finance/accounting/accounts",
         },
         {
           id: "rules",
           label: "Правила корреспонденции",
           value: formatCount(rules.length),
           description: "Активные debit/credit соответствия для posting codes.",
-          href: "/accounting/correspondence",
+          href: "/finance/accounting/correspondence",
         },
         {
           id: "operations",
@@ -51,19 +51,19 @@ export default async function AccountingOverviewPage() {
           id: "template-accounts",
           title: "План счетов",
           description: "Просмотр иерархии глобальных template accounts.",
-          href: "/accounting/accounts",
+          href: "/finance/accounting/accounts",
         },
         {
           id: "correspondence",
           title: "Корреспонденция",
           description: "Управление posting matrix и проверкой консистентности.",
-          href: "/accounting/correspondence",
+          href: "/finance/accounting/correspondence",
         },
         {
           id: "reports",
           title: "Отчетность v2",
           description: "Trial Balance, GL, FS, Liquidity, FX, Fee Revenue, Close Package.",
-          href: "/accounting/reports",
+          href: "/finance/accounting/reports",
         },
       ]}
     />

@@ -87,7 +87,7 @@ export function SetManualRateDialog({
     startTransition(async () => {
       const result = await executeMutation({
         request: () =>
-          apiClient.v1.fx.rates.manual.$post({
+          apiClient.v1.treasury.fx.rates.manual.$post({
             json: {
               base,
               quote,

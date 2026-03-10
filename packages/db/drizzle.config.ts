@@ -11,9 +11,11 @@ export default defineConfig({
     "../bedrock/*/src/schema.ts",
     "../bedrock/*/src/**/schema.ts",
     "../bedrock/*/src/schema/**/*.ts",
+    "../bedrock/*/src/**/schema/**/*.ts",
     "../domains/*/src/schema.ts",
     "../domains/*/src/**/schema.ts",
     "../domains/*/src/schema/**/*.ts",
+    "../domains/*/src/**/schema/**/*.ts",
   ],
 
   out: "./migrations",

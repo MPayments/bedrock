@@ -1,7 +1,9 @@
-import { schema as accountingSchema } from "@bedrock/accounting/schema";
-import { schema as currenciesSchema } from "@bedrock/assets/schema";
-import { schema as balancesSchema } from "@bedrock/balances/schema";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
+import { schema as accountingSchema } from "@bedrock/finance/accounting/schema";
+import { schema as currenciesSchema } from "@bedrock/finance/assets/schema";
+import { schema as balancesSchema } from "@bedrock/finance/balances/schema";
+import { schema as ledgerSchema } from "@bedrock/finance/ledger/schema";
+import { schema as reconciliationSchema } from "@bedrock/finance/reconciliation/schema";
 import {
   account,
   accountRelations,
@@ -12,19 +14,17 @@ import {
   user,
   userRelations,
   verification,
-} from "@bedrock/identity/schema";
-import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import { schema as idempotencySchema } from "@bedrock/operations/schema";
-import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
+} from "@bedrock/platform/identity/schema";
+import { schema as idempotencySchema } from "@bedrock/platform/operations/schema";
 
-import { schema as accountingReportingSchema } from "@multihansa/accounting-reporting/schema";
-import { schema as counterpartiesSchema } from "@multihansa/counterparties/schema";
-import { schema as customersSchema } from "@multihansa/customers/schema";
-import { schema as feesSchema } from "@multihansa/fees/schema";
-import { schema as fxSchema } from "@multihansa/fx/schema";
-import { schema as organizationsSchema } from "@multihansa/organizations/schema";
-import { schema as requisiteProvidersSchema } from "@multihansa/requisite-providers/schema";
-import { schema as requisitesSchema } from "@multihansa/requisites/schema";
+import { schema as counterpartiesSchema } from "@multihansa/parties/counterparties/schema";
+import { schema as customersSchema } from "@multihansa/parties/customers/schema";
+import { schema as organizationsSchema } from "@multihansa/parties/organizations/schema";
+import { schema as requisiteProvidersSchema } from "@multihansa/parties/requisite-providers/schema";
+import { schema as requisitesSchema } from "@multihansa/parties/requisites/schema";
+import { schema as accountingReportingSchema } from "@multihansa/reporting/accounting-reporting/schema";
+import { schema as feesSchema } from "@multihansa/treasury/fees/schema";
+import { schema as fxSchema } from "@multihansa/treasury/fx/schema";
 
 const authSchema = {
   user,

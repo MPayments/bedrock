@@ -21,7 +21,7 @@ Runtime is split between Bedrock framework primitives and Multihansa product pac
 
 Dependency direction:
 
-- `bedrock/common|zod|sql -> other Bedrock primitives -> Multihansa packages -> apps/*`
+- `@bedrock/common -> @bedrock/platform|@bedrock/finance|@bedrock/documents -> @multihansa/* -> apps/*`
 - `@multihansa/db` aggregates schemas from framework/domain packages and provides DB client/migrations/seeds.
 
 Hard rules:
@@ -206,8 +206,8 @@ export class OrderNotFoundError extends ServiceError {
 - Drizzle ORM with PostgreSQL.
 - Schema uses `snake_case` column naming convention.
 - Runtime table definitions must be colocated in package schema paths under `packages/bedrock/*` or `packages/domains/*`.
-- Runtime code imports schemas from the owning fine-grained package, for example `@bedrock/ledger/schema` or `@multihansa/payments/schema`.
-- Runtime code imports shared database connection types from `@bedrock/sql/ports`.
+- Runtime code imports schemas from the owning flattened package, for example `@bedrock/finance/ledger/schema` or `@multihansa/treasury/payments/schema`.
+- Runtime code imports shared database connection types from `@bedrock/common/sql/ports`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.
 - Migration policy is baseline-only hard cutover.
   - Mandatory sequence: `db:nuke -> db:migrate -> db:seed`.
@@ -216,7 +216,7 @@ export class OrderNotFoundError extends ServiceError {
 ### Testing
 
 - Vitest with globals enabled.
-- Test utilities and fixtures from `@multihansa/test-utils`.
+- Test utilities and fixtures from `tests/shared/**`.
 - Unit tests live under the owning package, for example `packages/bedrock/<package>/tests/**/*.test.ts` or `packages/domains/<package>/tests/**/*.test.ts`.
 - Integration tests live under `tests/integration/**` inside the owning package.
 

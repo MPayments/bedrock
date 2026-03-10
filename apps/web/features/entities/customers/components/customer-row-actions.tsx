@@ -19,14 +19,14 @@ export function CustomerRowActions({ customer }: CustomerRowActionsProps) {
 
   return (
     <EntityRowActions
-      openHref={`/entities/customers/${customer.id}`}
+      openHref={`/entities/parties/customers/${customer.id}`}
       ariaLabel={`Действия для клиента ${customer.displayName}`}
       deleteDialogTitle="Удалить клиента?"
       deleteDialogDescription="Клиент будет удален без возможности восстановления."
       deleteFallbackMessage="Не удалось удалить клиента"
       deleteSuccessMessage="Клиент удален"
       deleteRequest={() =>
-        apiClient.v1.customers[":id"].$delete({
+        apiClient.v1.parties.customers[":id"].$delete({
           param: { id: customer.id },
         })
       }

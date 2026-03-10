@@ -1,8 +1,8 @@
 import {
   CounterpartyOptionsResponseSchema,
-} from "@multihansa/counterparties/contracts";
-import { CurrencyOptionsResponseSchema } from "@bedrock/assets/contracts";
-import { OrganizationOptionsResponseSchema } from "@multihansa/organizations/contracts";
+} from "@multihansa/parties/counterparties/contracts";
+import { CurrencyOptionsResponseSchema } from "@bedrock/finance/assets/contracts";
+import { OrganizationOptionsResponseSchema } from "@multihansa/parties/organizations/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { readOptionsList } from "@/lib/api/query";
@@ -30,13 +30,13 @@ export async function getDocumentFormOptions(): Promise<DocumentFormOptions> {
   const [counterparties, organizations, currencies] = await Promise.all([
     readOptionsList({
       request: () =>
-        client.v1.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
+        client.v1.parties.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
       schema: CounterpartyOptionsResponseSchema,
       context: "Не удалось загрузить контрагентов",
     }),
     readOptionsList({
       request: () =>
-        client.v1.organizations.options.$get(
+        client.v1.parties.organizations.options.$get(
           {},
           { init: { cache: "force-cache" } },
         ),

@@ -161,7 +161,7 @@ export function CreateCounterpartyGroupFormClient({
     }
 
     toast.success("Группа контрагентов создана");
-    router.push("/entities/counterparties");
+    router.push("/entities/parties/counterparties");
     router.refresh();
   }
 
@@ -179,7 +179,7 @@ export function CreateCounterpartyGroupFormClient({
             <Button
               variant="outline"
               nativeButton={false}
-              render={<Link href="/entities/counterparties" />}
+              render={<Link href="/entities/parties/counterparties" />}
             >
               <ArrowLeft className="size-4" />
               Назад

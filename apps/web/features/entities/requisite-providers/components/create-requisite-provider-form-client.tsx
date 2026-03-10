@@ -28,7 +28,7 @@ export function CreateRequisiteProviderFormClient() {
 
     const result = await executeMutation<CreatedRequisiteProvider>({
       request: () =>
-        apiClient.v1["requisite-providers"].$post({
+        apiClient.v1.parties["requisite-providers"].$post({
           json: {
             kind: values.kind,
             name: values.name,
@@ -54,7 +54,7 @@ export function CreateRequisiteProviderFormClient() {
     }
 
     toast.success("Провайдер реквизитов создан");
-    router.push(`/entities/requisite-providers/${result.data.id}`);
+    router.push(`/entities/parties/requisite-providers/${result.data.id}`);
   }
 
   return (

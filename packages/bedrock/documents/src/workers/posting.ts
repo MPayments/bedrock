@@ -1,13 +1,13 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { schema } from "@bedrock/documents/schema";
-import type { Database } from "@bedrock/sql/ports";
+import type { Database } from "@bedrock/common/sql/ports";
 import {
   defineWorkerDescriptor,
   type BedrockWorker,
   type BedrockWorkerRunContext as WorkerRunContext,
   type BedrockWorkerRunResult as WorkerRunResult,
-} from "@bedrock/workers";
+} from "@bedrock/common/workers";
+import { schema } from "@bedrock/documents/schema";
 
 import {
   buildDocumentEventState,

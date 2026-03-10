@@ -2,7 +2,7 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import { ACCOUNTING_OPERATIONS_LIST_CONTRACT } from "@bedrock/accounting/contracts";
+import { ACCOUNTING_OPERATIONS_LIST_CONTRACT } from "@bedrock/finance/accounting/contracts";
 
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import { requestOk, readJsonWithSchema } from "@/lib/api/response";

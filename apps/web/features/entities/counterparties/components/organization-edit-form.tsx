@@ -46,7 +46,7 @@ export function CounterpartyEditForm({
   initialGroupOptions,
   allowedRootCode,
   lockedGroupIds,
-  listPath = "/entities/counterparties",
+  listPath = "/entities/parties/counterparties",
   disableSubmit = false,
   initialLoadError = null,
 }: CounterpartyEditFormProps) {
@@ -87,7 +87,7 @@ export function CounterpartyEditForm({
 
     const result = await executeMutation<CounterpartyDetails>({
       request: () =>
-        apiClient.v1.counterparties[":id"].$patch({
+        apiClient.v1.parties.counterparties[":id"].$patch({
           param: {
             id: counterparty.id,
           },
@@ -118,7 +118,7 @@ export function CounterpartyEditForm({
 
     const result = await executeMutation<void>({
       request: () =>
-        apiClient.v1.counterparties[":id"].$delete({
+        apiClient.v1.parties.counterparties[":id"].$delete({
           param: { id: counterparty.id },
         }),
       fallbackMessage: "Не удалось удалить контрагента",

@@ -1,29 +1,29 @@
-import {
-  BALANCES_WORKER_DESCRIPTOR,
-  createBalancesProjectorWorker,
-} from "@bedrock/balances";
 import type { Logger } from "@bedrock/common";
+import type { Database } from "@bedrock/common/sql/ports";
+import { type BedrockWorker, type BedrockWorkerDescriptor } from "@bedrock/common/workers";
 import {
   DOCUMENTS_WORKER_DESCRIPTOR,
   createDocumentsWorker,
 } from "@bedrock/documents/runtime";
 import {
+  BALANCES_WORKER_DESCRIPTOR,
+  createBalancesProjectorWorker,
+} from "@bedrock/finance/balances";
+import {
   LEDGER_WORKER_DESCRIPTOR,
   createLedgerWorker,
   type TbClient,
-} from "@bedrock/ledger";
-import type { Database } from "@bedrock/sql/ports";
-import { type BedrockWorker, type BedrockWorkerDescriptor } from "@bedrock/workers";
+} from "@bedrock/finance/ledger";
 
+import {
+  DOCUMENTS_PERIOD_CLOSE_WORKER_DESCRIPTOR,
+  createIfrsPeriodCloseWorker,
+} from "@multihansa/reporting/ifrs-documents";
 import {
   FX_RATES_WORKER_DESCRIPTOR,
   createFxRatesWorker,
   type FxService,
-} from "@multihansa/fx";
-import {
-  DOCUMENTS_PERIOD_CLOSE_WORKER_DESCRIPTOR,
-  createIfrsPeriodCloseWorker,
-} from "@multihansa/ifrs-documents";
+} from "@multihansa/treasury/fx";
 
 export const MULTIHANSA_WORKER_DESCRIPTORS = [
   BALANCES_WORKER_DESCRIPTOR,

@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/documents/schema";
-import { IDEMPOTENCY_SCOPE } from "@bedrock/operations";
+import { IDEMPOTENCY_SCOPE } from "@bedrock/platform/operations";
 
 import { DocumentValidationError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";

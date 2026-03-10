@@ -1,10 +1,10 @@
 import { cache } from "react";
 import { z } from "zod";
 
-import { CounterpartyOptionsResponseSchema } from "@multihansa/counterparties/contracts";
-import { CurrencyOptionsResponseSchema } from "@bedrock/assets/contracts";
-import { RequisiteProviderOptionsResponseSchema } from "@multihansa/requisite-providers/contracts";
-import { REQUISITES_LIST_CONTRACT } from "@multihansa/requisites/contracts";
+import { CounterpartyOptionsResponseSchema } from "@multihansa/parties/counterparties/contracts";
+import { CurrencyOptionsResponseSchema } from "@bedrock/finance/assets/contracts";
+import { RequisiteProviderOptionsResponseSchema } from "@multihansa/parties/requisite-providers/contracts";
+import { REQUISITES_LIST_CONTRACT } from "@multihansa/parties/requisites/contracts";
 
 import {
   getRequisiteKindLabel,
@@ -137,7 +137,7 @@ async function getCounterpartyLabelById() {
   const client = await getServerApiClient();
   const payload = await readOptionsList({
     request: () =>
-      client.v1.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
+      client.v1.parties.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
     schema: CounterpartyOptionsResponseSchema,
     context: "Не удалось загрузить контрагентов",
   });
@@ -149,7 +149,7 @@ async function getProviderLabelById() {
   const client = await getServerApiClient();
   const payload = await readOptionsList({
     request: () =>
-      client.v1["requisite-providers"].options.$get(
+      client.v1.parties["requisite-providers"].options.$get(
         {},
         { init: { cache: "force-cache" } },
       ),
@@ -214,7 +214,7 @@ export async function getCounterpartyRequisites(
     await Promise.all([
       readPaginatedList({
         request: () =>
-          client.v1.requisites.$get({
+          client.v1.parties.requisites.$get({
             query: createListQuery(search),
           }),
         schema: RequisitesListResponseSchema,
@@ -241,7 +241,7 @@ export async function getCounterpartyRequisitesForCounterparty(
     await Promise.all([
       readPaginatedList({
         request: () =>
-          client.v1.requisites.$get({
+          client.v1.parties.requisites.$get({
             query: {
               ownerType: "counterparty",
               ownerId: counterpartyId,
@@ -272,7 +272,7 @@ const getCounterpartyRequisiteByIdUncached = async (
     resourceName: "реквизит контрагента",
     request: async (validId) => {
       const client = await getServerApiClient();
-      return client.v1.requisites[":id"].$get(
+      return client.v1.parties.requisites[":id"].$get(
         { param: { id: validId } },
         { init: { cache: "no-store" } },
       );
@@ -296,13 +296,13 @@ export async function getCounterpartyRequisiteFormOptions(): Promise<Counterpart
   const [owners, providers, currencies] = await Promise.all([
     readOptionsList({
       request: () =>
-        client.v1.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
+        client.v1.parties.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
       schema: CounterpartyOptionsResponseSchema,
       context: "Не удалось загрузить контрагентов",
     }),
     readOptionsList({
       request: () =>
-        client.v1["requisite-providers"].options.$get(
+        client.v1.parties["requisite-providers"].options.$get(
           {},
           { init: { cache: "force-cache" } },
         ),

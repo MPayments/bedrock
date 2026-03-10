@@ -7,6 +7,7 @@ import { Badge } from "@multihansa/ui/components/badge";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
+import { buildDocumentDetailsHref } from "@/features/documents/lib/routes";
 import {
   getApprovalStatusLabel,
   getLifecycleStatusLabel,
@@ -24,18 +25,7 @@ function badgeVariant(
   return "outline";
 }
 
-function buildDocumentHref(
-  routeBasePath: string,
-  document: DocumentDto,
-): string {
-  return `${routeBasePath}/${document.docType}/${document.id}`;
-}
-
-export function getDocumentColumns(options?: {
-  routeBasePath?: string;
-}): ColumnDef<DocumentDto>[] {
-  const routeBasePath = options?.routeBasePath ?? "/documents";
-
+export function getDocumentColumns(): ColumnDef<DocumentDto>[] {
   return [
     {
       id: "query",
@@ -71,12 +61,22 @@ export function getDocumentColumns(options?: {
       ),
       cell: ({ row }) => (
         <div className="space-y-1">
-          <Link
-            href={buildDocumentHref(routeBasePath, row.original)}
-            className="font-medium hover:underline"
-          >
-            {row.original.docNo}
-          </Link>
+          {(() => {
+            const href = buildDocumentDetailsHref(
+              row.original.docType,
+              row.original.id,
+            );
+
+            if (!href) {
+              return <span className="font-medium">{row.original.docNo}</span>;
+            }
+
+            return (
+              <Link href={href} className="font-medium hover:underline">
+                {row.original.docNo}
+              </Link>
+            );
+          })()}
           <div className="text-muted-foreground text-xs">
             {row.original.title}
           </div>

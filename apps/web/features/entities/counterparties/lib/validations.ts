@@ -1,4 +1,4 @@
-import { COUNTERPARTIES_LIST_CONTRACT } from "@multihansa/counterparties/contracts";
+import { COUNTERPARTIES_LIST_CONTRACT } from "@multihansa/parties/counterparties/contracts";
 
 import {
   createResourceSearchParamsCache,

@@ -1,8 +1,8 @@
-import { nextJsConfig } from "@multihansa/eslint-config/next-js";
+import { nextConfig } from "../../eslint/next.mjs";
 
 /** @type {import("eslint").Linter.Config[]} */
 export default [
-  ...nextJsConfig,
+  ...nextConfig,
   {
     ignores: [".next/**", "next-env.d.ts"],
   },

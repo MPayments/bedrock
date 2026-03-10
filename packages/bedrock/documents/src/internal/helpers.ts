@@ -1,12 +1,12 @@
 import { and, asc, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
-import type { DocumentPostingPlan } from "@bedrock/accounting";
 import { canonicalJson, sha256Hex, type Logger } from "@bedrock/common";
 import { InvalidStateError } from "@bedrock/common/errors";
+import { pgNotify } from "@bedrock/common/sql/drizzle";
+import type { Database, Transaction } from "@bedrock/common/sql/ports";
 import { schema, type Document, type DocumentLinkType } from "@bedrock/documents/schema";
-import { pgNotify } from "@bedrock/sql/drizzle";
-import type { Database, Transaction } from "@bedrock/sql/ports";
+import type { DocumentPostingPlan } from "@bedrock/finance/accounting";
 
 import {
   DocumentGraphError,

@@ -10,7 +10,7 @@ import {
   IntercompanyLoanDrawdownInputSchema,
   IntercompanyLoanRepaymentInputSchema,
   RevaluationAdjustmentInputSchema,
-} from "@multihansa/ifrs-documents/contracts";
+} from "@multihansa/reporting/ifrs-documents/contracts";
 
 import type {
   DocumentFormDefinition,

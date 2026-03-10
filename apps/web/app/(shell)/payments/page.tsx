@@ -26,21 +26,21 @@ export default async function PaymentsOverviewPage() {
           label: "Интенты",
           value: formatCount(orders.total),
           description: "Инициированные платежи (`payment_intent`).",
-          href: "/payments/orders",
+          href: "/treasury/payments/orders",
         },
         {
           id: "settlements",
           label: "Резолюшены",
           value: formatCount(settlements.total),
           description: "Системные результаты (`payment_resolution`).",
-          href: "/payments/settlements",
+          href: "/treasury/payments/settlements",
         },
         {
           id: "pending",
           label: "Последние",
           value: formatCount(recent.data.length),
           description: "Количество записей в оперативном срезе.",
-          href: "/payments/orders",
+          href: "/treasury/payments/orders",
         },
       ]}
       links={[
@@ -48,21 +48,21 @@ export default async function PaymentsOverviewPage() {
           id: "orders",
           title: "Платежные интенты",
           description: "Список бизнес-интентов и их текущих статусов.",
-          href: "/payments/orders",
+          href: "/treasury/payments/orders",
           cta: "Открыть интенты",
         },
         {
           id: "settlements",
           title: "Резолюшены",
           description: "Список финальных исходов по платежам.",
-          href: "/payments/settlements",
+          href: "/treasury/payments/settlements",
           cta: "Открыть резолюшены",
         },
         {
           id: "timeline",
           title: "Таймлайн",
           description: "История попыток и событий доступна в карточке интента.",
-          href: "/payments/orders",
+          href: "/treasury/payments/orders",
           cta: "Открыть список",
         },
       ]}
@@ -76,8 +76,8 @@ export default async function PaymentsOverviewPage() {
             subtitle: `${document.docType} · ${document.docNo}`,
             href:
               document.docType === "payment_intent"
-                ? `/payments/orders/${document.id}`
-                : "/payments/settlements",
+                ? `/treasury/payments/orders/${document.id}`
+                : "/treasury/payments/settlements",
           }))}
         />
       }

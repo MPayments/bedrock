@@ -1,9 +1,10 @@
 {
-  "extends": "@multihansa/typescript-config/base.json",
+  "extends": "../../tsconfig.package.json",
   "compilerOptions": {
-    "target": "ESNext",
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
   },
   "include": ["src"]
 }

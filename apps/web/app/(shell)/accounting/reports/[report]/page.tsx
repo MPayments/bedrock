@@ -134,7 +134,7 @@ function buildPageHref(
   }
 
   params.set("page", String(page));
-  return `/accounting/reports/${report}?${params.toString()}`;
+  return `/finance/accounting/reports/${report}?${params.toString()}`;
 }
 
 export default async function AccountingReportPage({
@@ -336,7 +336,7 @@ export default async function AccountingReportPage({
     csvParams.set(key, value);
   }
 
-  const csvHref = `/v1/accounting/reports/${report}/export${
+  const csvHref = `/v1/finance/accounting/reports/${report}/export${
     csvParams.size > 0 ? `?${csvParams.toString()}` : ""
   }`;
 
@@ -601,7 +601,7 @@ export default async function AccountingReportPage({
                 Экспорт CSV
               </Link>
               <Link
-                href="/accounting/reports"
+                href="/finance/accounting/reports"
                 className="border-input bg-background rounded-md border px-3 py-2 text-sm"
               >
                 Все отчеты

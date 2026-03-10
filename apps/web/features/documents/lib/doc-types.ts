@@ -1,4 +1,4 @@
-import type { IfrsDocumentType } from "@multihansa/ifrs-documents/contracts";
+import type { IfrsDocumentType } from "@multihansa/reporting/ifrs-documents/contracts";
 
 import type { UserRole } from "@/lib/auth/types";
 
@@ -18,6 +18,8 @@ export type {
 };
 
 export type { IfrsDocumentType };
+
+export type DocumentsWorkspaceFamily = Exclude<DocumentTypeFamily, "payments">;
 
 const PAYMENT_DOCUMENT_TYPES: DocumentTypeOption[] = [
   {
@@ -40,10 +42,6 @@ const DOCUMENT_TYPES: DocumentTypeOption[] = [
   ...IFRS_DOCUMENT_TYPE_OPTIONS,
   ...PAYMENT_DOCUMENT_TYPES,
 ];
-
-export const DOCUMENT_TYPE_OPTIONS = DOCUMENT_TYPES.filter(
-  (option) => option.family !== "payments" && option.value !== "period_close",
-);
 
 const DOCUMENT_TYPE_BY_ID = new Map(
   DOCUMENT_TYPES.map((option) => [option.value, option]),
@@ -81,18 +79,46 @@ export function getDocumentTypeFamily(docType: string): DocumentTypeFamily | nul
   return DOCUMENT_TYPE_BY_ID.get(docType as KnownDocumentType)?.family ?? null;
 }
 
+export function isDocumentsWorkspaceFamily(
+  family: string,
+): family is DocumentsWorkspaceFamily {
+  return family === "transfers" || family === "ifrs";
+}
+
+export function getDocumentsWorkspaceFamily(
+  docType: string,
+): DocumentsWorkspaceFamily | null {
+  const family = getDocumentTypeFamily(docType);
+  if (!family || family === "payments") {
+    return null;
+  }
+
+  return family;
+}
+
+export function getDocumentsWorkspaceFamilyLabel(
+  family: DocumentsWorkspaceFamily,
+): string {
+  if (family === "transfers") {
+    return "Переводы";
+  }
+
+  return "IFRS";
+}
+
 export function isIfrsWorkflowDocumentType(docType: string): boolean {
   const family = getDocumentTypeFamily(docType);
   return family === "ifrs" || family === "transfers";
 }
 
-export function getTypeListDocumentOptions(role: UserRole): DocumentTypeOption[] {
-  return DOCUMENT_TYPE_OPTIONS.filter((option) => isAllowedForRole(option, role));
-}
-
-export function getCreateDocumentTypeOptions(role: UserRole): DocumentTypeOption[] {
-  return DOCUMENT_TYPE_OPTIONS.filter(
-    (option) => option.creatable && isAllowedForRole(option, role),
+export function getDocumentsWorkspaceTypesForFamily(
+  family: DocumentsWorkspaceFamily,
+  role: UserRole,
+): DocumentTypeOption[] {
+  return DOCUMENT_TYPES.filter(
+    (option) =>
+      option.family === family &&
+      isAllowedForRole(option, role),
   );
 }
 
@@ -127,4 +153,21 @@ export function canCreateDocumentType(docType: string, role: UserRole): boolean 
 
 export function isAdminOnlyDocumentType(docType: string): boolean {
   return DOCUMENT_TYPE_BY_ID.get(docType as KnownDocumentType)?.adminOnly === true;
+}
+
+export function isAllowedDocumentsWorkspaceType(
+  docType: string,
+  family: DocumentsWorkspaceFamily,
+  role: UserRole,
+): docType is KnownDocumentType {
+  if (!isKnownDocumentType(docType)) {
+    return false;
+  }
+
+  const option = DOCUMENT_TYPE_BY_ID.get(docType);
+  if (!option || option.family !== family) {
+    return false;
+  }
+
+  return isAllowedForRole(option, role);
 }

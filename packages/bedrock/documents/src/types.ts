@@ -1,10 +1,7 @@
 import type { z } from "zod";
 
-import type {
-  AccountingRuntime,
-  DocumentPostingPlan,
-} from "@bedrock/accounting";
 import type { CorrelationContext, Logger } from "@bedrock/common";
+import type { Database, Transaction } from "@bedrock/common/sql/ports";
 import type {
   Document,
   DocumentApprovalStatus,
@@ -17,10 +14,13 @@ import type {
   DocumentSubmissionStatus,
 } from "@bedrock/documents/schema";
 import type {
+  AccountingRuntime,
+  DocumentPostingPlan,
+} from "@bedrock/finance/accounting";
+import type {
   LedgerEngine,
   LedgerReadService,
-} from "@bedrock/ledger";
-import type { Database, Transaction } from "@bedrock/sql/ports";
+} from "@bedrock/finance/ledger";
 
 import type { DocumentAction } from "./state-machine";
 

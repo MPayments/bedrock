@@ -9,7 +9,7 @@ import {
   CreateCustomerInputSchema,
   ListCustomersQuerySchema,
   UpdateCustomerInputSchema,
-} from "@multihansa/customers";
+} from "@multihansa/parties/customers";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import type { AppContext } from "../context";

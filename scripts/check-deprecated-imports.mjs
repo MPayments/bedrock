@@ -5,10 +5,12 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
-const LEGACY_SPECIFIER_PATTERN =
-  /@bedrock\/(foundation|platform|core|application)(?:\/|["'])/g;
-const BEDROCK_PRODUCT_SPECIFIER_PATTERN =
+const REMOVED_BEDROCK_SPECIFIER_PATTERN =
+  /@bedrock\/(foundation|core|application|zod|sql|workers|operations|identity|registers|workflows|assets|ledger|accounting|balances|reconciliation)(?:\/|["'])/g;
+const REMOVED_BEDROCK_PRODUCT_SPECIFIER_PATTERN =
   /@bedrock\/(accounting-reporting|bedrock-app|counterparties|customers|db|api-client|ui|eslint-config|typescript-config|test-utils|fees|fx|ifrs-documents|organizations|payments|requisite-providers|requisites)(?:\/|["'])/g;
+const REMOVED_MULTIHANSA_SPECIFIER_PATTERN =
+  /@multihansa\/(accounting-reporting|counterparties|customers|api-client|eslint-config|typescript-config|test-utils|fees|fx|ifrs-documents|organizations|payments|requisite-providers|requisites)(?:\/|["'])/g;
 
 const SOURCE_ROOTS = [
   join(ROOT, "apps"),
@@ -66,10 +68,11 @@ for (const root of SOURCE_ROOTS) {
 const violations = [];
 for (const file of files) {
   const content = readFileSync(file, "utf8");
-  LEGACY_SPECIFIER_PATTERN.lastIndex = 0;
-  BEDROCK_PRODUCT_SPECIFIER_PATTERN.lastIndex = 0;
+  REMOVED_BEDROCK_SPECIFIER_PATTERN.lastIndex = 0;
+  REMOVED_BEDROCK_PRODUCT_SPECIFIER_PATTERN.lastIndex = 0;
+  REMOVED_MULTIHANSA_SPECIFIER_PATTERN.lastIndex = 0;
 
-  const match = LEGACY_SPECIFIER_PATTERN.exec(content);
+  const match = REMOVED_BEDROCK_SPECIFIER_PATTERN.exec(content);
   if (match) {
     violations.push({
       file: file.replace(`${ROOT}/`, ""),
@@ -77,11 +80,20 @@ for (const file of files) {
     });
   }
 
-  const productMatch = BEDROCK_PRODUCT_SPECIFIER_PATTERN.exec(content);
-  if (productMatch) {
+  const bedrockProductMatch =
+    REMOVED_BEDROCK_PRODUCT_SPECIFIER_PATTERN.exec(content);
+  if (bedrockProductMatch) {
     violations.push({
       file: file.replace(`${ROOT}/`, ""),
-      specifier: productMatch[0].replace(/["']$/, ""),
+      specifier: bedrockProductMatch[0].replace(/["']$/, ""),
+    });
+  }
+
+  const multihansaMatch = REMOVED_MULTIHANSA_SPECIFIER_PATTERN.exec(content);
+  if (multihansaMatch) {
+    violations.push({
+      file: file.replace(`${ROOT}/`, ""),
+      specifier: multihansaMatch[0].replace(/["']$/, ""),
     });
   }
 }

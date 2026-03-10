@@ -1,4 +1,4 @@
-import type { Customer } from "@multihansa/customers/contracts";
+import type { Customer } from "@multihansa/parties/customers/contracts";
 
 import type { ListResult } from "@/features/entities/shared/lib/list-result";
 

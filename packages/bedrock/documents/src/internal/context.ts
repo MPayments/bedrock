@@ -2,7 +2,7 @@ import { noopLogger, type Logger } from "@bedrock/common";
 import {
   createIdempotencyService,
   type IdempotencyService,
-} from "@bedrock/operations";
+} from "@bedrock/platform/operations";
 
 import { createDefaultDocumentActionPolicyService } from "../policy";
 import type { DocumentsServiceDeps } from "../types";

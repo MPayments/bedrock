@@ -21,14 +21,14 @@ export function OrganizationRequisiteRowActions({
 
   return (
     <EntityRowActions
-      openHref={`/entities/requisites/${requisite.id}`}
+      openHref={`/entities/parties/requisites/${requisite.id}`}
       ariaLabel={`Действия для реквизита ${requisite.label}`}
       deleteDialogTitle="Удалить реквизит организации?"
       deleteDialogDescription="Реквизит организации будет удалён без возможности восстановления."
       deleteFallbackMessage="Не удалось удалить реквизит организации"
       deleteSuccessMessage="Реквизит организации удалён"
       deleteRequest={() =>
-        apiClient.v1.requisites[":id"].$delete({
+        apiClient.v1.parties.requisites[":id"].$delete({
           param: { id: requisite.id },
         })
       }

@@ -1,0 +1,35 @@
+{
+  "name": "@multihansa/reporting",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ifrs-documents": "./src/ifrs-documents/index.ts",
+    "./ifrs-documents/*": "./src/ifrs-documents/*.ts",
+    "./accounting-reporting": "./src/accounting-reporting/index.ts",
+    "./accounting-reporting/schema": "./src/accounting-reporting/schema/index.ts",
+    "./accounting-reporting/schema/*": "./src/accounting-reporting/schema/*.ts",
+    "./accounting-reporting/*": "./src/accounting-reporting/*.ts"
+  },
+  "scripts": {
+    "build": "tsgo --project tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsgo --noEmit --project tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
+  },
+  "dependencies": {
+    "@bedrock/common": "workspace:*",
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/finance": "workspace:*",
+    "@bedrock/platform": "workspace:*",
+    "@multihansa/parties": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,11 +1,11 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { replaceCorrespondenceRulesSchema } from "@bedrock/accounting";
+import { ValidationError } from "@bedrock/common/errors";
+import { replaceCorrespondenceRulesSchema } from "@bedrock/finance/accounting";
 import {
   AccountingCorrespondenceRuleSchema,
   AccountingTemplateAccountSchema,
-} from "@bedrock/accounting/contracts";
-import { ValidationError } from "@bedrock/common/errors";
+} from "@bedrock/finance/accounting/contracts";
 
 import {
   BalanceSheetQuerySchema,
@@ -26,7 +26,7 @@ import {
   LiquidityResponseSchema,
   TrialBalanceQuerySchema,
   TrialBalanceResponseSchema,
-} from "@multihansa/accounting-reporting";
+} from "@multihansa/reporting/accounting-reporting";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";
@@ -600,7 +600,7 @@ export function accountingRoutes(ctx: AppContext) {
   const listFxRevaluationRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
-    path: "/reports/fx-revaluation",
+    path: "/reports/treasury/fx-revaluation",
     tags: ["Accounting"],
     summary: "FX revaluation (realized/unrealized)",
     request: {
@@ -629,7 +629,7 @@ export function accountingRoutes(ctx: AppContext) {
   const exportFxRevaluationRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
-    path: "/reports/fx-revaluation/export",
+    path: "/reports/treasury/fx-revaluation/export",
     tags: ["Accounting"],
     summary: "Export FX revaluation report to CSV",
     request: {

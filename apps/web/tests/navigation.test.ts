@@ -30,7 +30,6 @@ describe("navigation config", () => {
 
     expect(items.map((item) => item.href)).toEqual([
       "/",
-      "/transfers",
       "/documents",
       "/settings",
     ]);
@@ -43,17 +42,20 @@ describe("navigation config", () => {
       ...(item.children ?? []).map((child) => child.href),
     ]);
 
-    expect(hrefs).toContain("/accounting");
+    expect(hrefs).toContain("/finance/accounting");
+    expect(hrefs).toContain("/documents/transfers");
+    expect(hrefs).toContain("/documents/ifrs");
     expect(hrefs).toContain("/documents/journal");
     expect(hrefs).toContain("/entities");
-    expect(hrefs).toContain("/fx");
+    expect(hrefs).toContain("/treasury/fx");
     expect(hrefs).toContain("/settings");
     expect(hrefs).toContain("/settings/profile");
     expect(hrefs).toContain("/treasury");
     expect(hrefs).toContain("/users");
-    expect(hrefs).not.toContain("/operations");
+    expect(hrefs).not.toContain("/transfers");
+    expect(hrefs).not.toContain("/platform/operations");
     expect(hrefs).not.toContain("#");
-    expect(hrefs).not.toContain("/fx/quotes");
+    expect(hrefs).not.toContain("/treasury/fx/quotes");
     expect(hrefs).not.toContain("/treasury/counterparty-accounts");
   });
 

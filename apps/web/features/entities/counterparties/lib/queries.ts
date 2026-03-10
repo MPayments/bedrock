@@ -4,8 +4,8 @@ import { z } from "zod";
 import {
   CounterpartyGroupOptionsResponseSchema,
   type CounterpartyGroupOption,
-} from "@multihansa/counterparties/contracts";
-import { COUNTERPARTIES_LIST_CONTRACT } from "@multihansa/counterparties/contracts";
+} from "@multihansa/parties/counterparties/contracts";
+import { COUNTERPARTIES_LIST_CONTRACT } from "@multihansa/parties/counterparties/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
@@ -47,7 +47,7 @@ export async function getCounterparties(
   const client = await getServerApiClient();
   const { data } = await readPaginatedList({
     request: () =>
-      client.v1.counterparties.$get(
+      client.v1.parties.counterparties.$get(
         {
           query: createCounterpartiesListQuery(search),
         },
@@ -72,7 +72,7 @@ const getCounterpartyByIdUncached = async (
     resourceName: "контрагента",
     request: async (validId) => {
       const client = await getServerApiClient();
-      return client.v1.counterparties[":id"].$get(
+      return client.v1.parties.counterparties[":id"].$get(
         {
           param: { id: validId },
         },

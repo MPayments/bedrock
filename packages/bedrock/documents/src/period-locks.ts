@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/sql/ports";
+import type { Database, Transaction } from "@bedrock/common/sql/ports";
 
 import { DocumentValidationError } from "./errors";
 import { schema } from "./schema";

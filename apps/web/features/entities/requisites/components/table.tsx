@@ -75,7 +75,7 @@ export function RequisitesTable({ promise }: RequisitesTableProps) {
 
   const handleRowDoubleClick = React.useCallback(
     (row: TanstackRow<SerializedRequisite>) => {
-      router.push(`/entities/requisites/${row.original.id}`);
+      router.push(`/entities/parties/requisites/${row.original.id}`);
     },
     [router],
   );

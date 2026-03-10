@@ -4,10 +4,15 @@ Multihansa is a financial platform monorepo built on the Bedrock framework layer
 
 ## Workspace Topology
 
-- `packages/bedrock/*` - reusable Bedrock primitives, ports, adapters, and runtimes
-- `packages/domains/*` - Multihansa business modules and product composition
-- `packages/sdk/*` - Multihansa SDK packages such as `@multihansa/api-client` and `@multihansa/ui`
-- `packages/tooling/*` - shared Multihansa tooling such as ESLint, TypeScript config, and test utils
+- `packages/bedrock/common` - `@bedrock/common`, shared Bedrock utilities, SQL helpers, worker primitives, and validation helpers
+- `packages/bedrock/platform` - `@bedrock/platform`, operations, identity, registers, and workflows
+- `packages/bedrock/finance` - `@bedrock/finance`, assets, ledger, accounting, balances, and reconciliation
+- `packages/bedrock/documents` - `@bedrock/documents`, document runtime and schemas
+- `packages/domains/parties` - `@multihansa/parties`
+- `packages/domains/treasury` - `@multihansa/treasury`
+- `packages/domains/reporting` - `@multihansa/reporting`
+- `packages/domains/multihansa-app` - `@multihansa/app`, explicit product composition
+- `packages/sdk/ui` - `@multihansa/ui`
 - `packages/db` - `@multihansa/db`, the schema aggregator, DB client, migrations, and seeds
 - `apps/api` - `multihansa-api`
 - `apps/web` - `multihansa-web`
@@ -15,7 +20,7 @@ Multihansa is a financial platform monorepo built on the Bedrock framework layer
 
 Dependency direction:
 
-- `@bedrock/common|zod|sql -> other @bedrock/* packages -> @multihansa/* packages -> apps/*`
+- `@bedrock/common -> @bedrock/platform|@bedrock/finance|@bedrock/documents -> @multihansa/* -> apps/*`
 - `@multihansa/db` aggregates Bedrock and Multihansa schemas; it does not own runtime domain tables itself.
 
 ## Stack

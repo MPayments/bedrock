@@ -79,7 +79,7 @@ export function CounterpartiesTable({
   groupOptionsPromise,
   groupFilterOptionsPromise,
   lockedGroupFilterIds,
-  detailsBasePath = "/entities/counterparties",
+  detailsBasePath = "/entities/parties/counterparties",
 }: EntityCounterpartiesTableProps) {
   return (
     <CounterpartiesTableBase
@@ -113,7 +113,7 @@ export function TreasuryCounterpartiesTable({
       groupOptionsPromise={groupOptionsPromise}
       groupFilterOptionsPromise={treasuryGroupOptionsPromise}
       lockedGroupFilterIds={lockedGroupFilterIds}
-      detailsBasePath="/treasury/counterparties"
+      detailsBasePath="/treasury/parties/counterparties"
     />
   );
 }

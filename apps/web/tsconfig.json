@@ -1,5 +1,5 @@
 {
-  "extends": "@multihansa/typescript-config/nextjs.json",
+  "extends": "../../tsconfig.nextjs.json",
   "compilerOptions": {
     "declaration": false,
     "declarationMap": false,

@@ -9,11 +9,11 @@ import {
   CreateCounterpartyGroupInputSchema,
   ListCounterpartyGroupsQuerySchema,
   UpdateCounterpartyGroupInputSchema,
-} from "@multihansa/counterparties";
+} from "@multihansa/parties/counterparties";
 import {
   CounterpartyGroupOptionSchema,
   CounterpartyGroupOptionsResponseSchema,
-} from "@multihansa/counterparties/contracts";
+} from "@multihansa/parties/counterparties/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";

@@ -1,4 +1,4 @@
-import { config } from "@multihansa/eslint-config/backend";
+import { backendConfig } from "../../eslint/backend.mjs";
 
 /** @type {import("eslint").Linter.Config[]} */
-export default config;
+export default backendConfig;

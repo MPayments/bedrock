@@ -1,11 +1,11 @@
 import {
   CurrencyOptionsResponseSchema,
-} from "@bedrock/assets/contracts";
+} from "@bedrock/finance/assets/contracts";
 import {
   FxRateHistoryResponseSchema,
   FxRatePairsResponseSchema,
   FxRateSourceStatusesResponseSchema,
-} from "@multihansa/fx/contracts";
+} from "@multihansa/treasury/fx/contracts";
 import { z } from "zod";
 
 import { getServerApiClient } from "@/lib/api/server-client";
@@ -30,7 +30,7 @@ export type CurrencyOption = Pick<
 export async function getRatePairs(): Promise<SerializedRatePair[]> {
   const client = await getServerApiClient();
   const response = await requestOk(
-    await client.v1.fx.rates.pairs.$get(),
+    await client.v1.treasury.fx.rates.pairs.$get(),
     "Не удалось загрузить валютные пары",
   );
 
@@ -41,7 +41,7 @@ export async function getRatePairs(): Promise<SerializedRatePair[]> {
 export async function getRateSources(): Promise<SerializedSourceStatus[]> {
   const client = await getServerApiClient();
   const response = await requestOk(
-    await client.v1.fx.rates.sources.$get(),
+    await client.v1.treasury.fx.rates.sources.$get(),
     "Не удалось загрузить источники курсов",
   );
 
@@ -59,7 +59,7 @@ export async function getRateHistory(
 ): Promise<SerializedRateHistoryPoint[]> {
   const client = await getServerApiClient();
   const response = await requestOk(
-    await client.v1.fx.rates.history.$get({
+    await client.v1.treasury.fx.rates.history.$get({
       query: { base, quote, limit: 500, ...(from ? { from } : {}) },
     }),
     "Не удалось загрузить историю курсов",

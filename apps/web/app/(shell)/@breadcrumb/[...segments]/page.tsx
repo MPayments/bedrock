@@ -6,8 +6,15 @@ import { getRequisiteProviderById } from "@/features/entities/requisite-provider
 import { getRequisiteById } from "@/features/entities/requisites/lib/queries";
 import {
   getDocumentTypeLabel,
+  getDocumentsWorkspaceFamilyLabel,
+  isDocumentsWorkspaceFamily,
   isKnownDocumentType,
 } from "@/features/documents/lib/doc-types";
+import {
+  buildDocumentCreateHref,
+  buildDocumentTypeHref,
+  buildDocumentsFamilyHref,
+} from "@/features/documents/lib/routes";
 import { getUserById } from "@/app/(shell)/users/lib/queries";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import { resolveBreadcrumbItems } from "@/lib/breadcrumbs";
@@ -48,7 +55,7 @@ function resolvePairSegment({ segment }: { segment: string }) {
 
     return {
       label: `${base} / ${quote}`,
-      href: `/fx/rates/${base}-${quote}`,
+      href: `/treasury/fx/rates/${base}-${quote}`,
     };
   }
 
@@ -59,21 +66,21 @@ const dynamicResolvers = {
   rates: resolvePairSegment,
   counterparties: createResourceSegmentResolver({
     singularLabel: "Контрагент",
-    hrefPrefix: "/entities/counterparties",
+    hrefPrefix: "/entities/parties/counterparties",
     getById: getCounterpartyById,
     getLabel: (counterparty) => counterparty.shortName,
     getId: (counterparty) => counterparty.id,
   }),
   customers: createResourceSegmentResolver({
     singularLabel: "Клиент",
-    hrefPrefix: "/entities/customers",
+    hrefPrefix: "/entities/parties/customers",
     getById: getCustomerById,
     getLabel: (customer) => customer.displayName,
     getId: (customer) => customer.id,
   }),
   organizations: createResourceSegmentResolver({
     singularLabel: "Организация",
-    hrefPrefix: "/entities/organizations",
+    hrefPrefix: "/entities/parties/organizations",
     getById: getOrganizationById,
     getLabel: (organization) => organization.shortName,
     getId: (organization) => organization.id,
@@ -87,26 +94,56 @@ const dynamicResolvers = {
   }),
   requisites: createResourceSegmentResolver({
     singularLabel: "Реквизит",
-    hrefPrefix: "/entities/requisites",
+    hrefPrefix: "/entities/parties/requisites",
     getById: getRequisiteById,
     getLabel: (requisite) => requisite.label,
     getId: (requisite) => requisite.id,
   }),
   "requisite-providers": createResourceSegmentResolver({
     singularLabel: "Провайдер реквизитов",
-    hrefPrefix: "/entities/requisite-providers",
+    hrefPrefix: "/entities/parties/requisite-providers",
     getById: getRequisiteProviderById,
     getLabel: (provider) => provider.name,
     getId: (provider) => provider.id,
   }),
   documents: async ({ segment }: { segment: string }) => {
+    if (!isDocumentsWorkspaceFamily(segment)) {
+      return null;
+    }
+
+    return {
+      label: getDocumentsWorkspaceFamilyLabel(segment),
+      href: buildDocumentsFamilyHref(segment),
+    };
+  },
+  transfers: async ({ segment }: { segment: string }) => {
     if (!isKnownDocumentType(segment)) {
+      return null;
+    }
+
+    const href = buildDocumentTypeHref(segment);
+    if (!href) {
       return null;
     }
 
     return {
       label: getDocumentTypeLabel(segment),
-      href: `/documents/${segment}`,
+      href,
+    };
+  },
+  ifrs: async ({ segment }: { segment: string }) => {
+    if (!isKnownDocumentType(segment)) {
+      return null;
+    }
+
+    const href = buildDocumentTypeHref(segment);
+    if (!href) {
+      return null;
+    }
+
+    return {
+      label: getDocumentTypeLabel(segment),
+      href,
     };
   },
   create: async ({
@@ -117,13 +154,18 @@ const dynamicResolvers = {
     segments: string[];
   }) => {
     if (
-      segments.length >= 3 &&
+      segments.length >= 4 &&
       segments[0] === "documents" &&
       isKnownDocumentType(segment)
     ) {
+      const href = buildDocumentCreateHref(segment);
+      if (!href) {
+        return null;
+      }
+
       return {
         label: getDocumentTypeLabel(segment),
-        href: `/documents/create/${segment}`,
+        href,
       };
     }
 

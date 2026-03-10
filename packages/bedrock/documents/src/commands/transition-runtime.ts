@@ -1,6 +1,6 @@
+import type { Transaction } from "@bedrock/common/sql/ports";
 import type { Document } from "@bedrock/documents/schema";
-import type { IDEMPOTENCY_SCOPE } from "@bedrock/operations";
-import type { Transaction } from "@bedrock/sql/ports";
+import type { IDEMPOTENCY_SCOPE } from "@bedrock/platform/operations";
 
 import type { DocumentsServiceContext } from "../internal/context";
 import {

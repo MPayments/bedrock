@@ -71,7 +71,7 @@ export default function AccountingReportsLandingPage() {
           {REPORT_LINKS.map((item) => (
             <Link
               key={item.key}
-              href={`/accounting/reports/${item.key}`}
+              href={`/finance/accounting/reports/${item.key}`}
               className="bg-card hover:bg-muted/40 rounded-md border p-4 transition-colors"
             >
               <p className="text-sm font-semibold">{item.title}</p>

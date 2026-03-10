@@ -13,6 +13,7 @@ import { Separator } from "@multihansa/ui/components/separator";
 import type { UserRole } from "@/lib/auth/types";
 import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
+import { buildDocumentDetailsHref } from "@/features/documents/lib/routes";
 import {
   getApprovalStatusLabel,
   getLifecycleStatusLabel,
@@ -115,21 +116,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function buildDocumentHref(
-  basePath: string,
-  document: Pick<DocumentDto, "docType" | "id">,
-) {
-  return `${basePath}/${document.docType}/${document.id}`;
+function DocumentHref({
+  document,
+  children,
+  className,
+}: {
+  document: Pick<DocumentDto, "docType" | "id">;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const href = buildDocumentDetailsHref(document.docType, document.id);
+  if (!href) {
+    return <span className={className}>{children}</span>;
+  }
+
+  return (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  );
 }
 
 export function DocumentDetailsView({
   details,
-  documentBasePath,
   userRole,
   formOptions,
 }: {
   details: DocumentDetailsDto;
-  documentBasePath: string;
   userRole: UserRole;
   formOptions: DocumentFormOptions;
 }) {
@@ -264,12 +277,12 @@ export function DocumentDetailsView({
                     className="flex flex-col gap-2 rounded-sm border p-3 text-sm md:flex-row md:items-center md:justify-between"
                   >
                     <div className="space-y-1">
-                      <Link
-                        href={`${documentBasePath}/${itemDocType}/${itemId}`}
+                      <DocumentHref
+                        document={{ docType: itemDocType, id: itemId }}
                         className="font-medium hover:underline"
                       >
                         {itemDocNo}
-                      </Link>
+                      </DocumentHref>
                       <div className="text-muted-foreground">
                         {getDocumentTypeLabel(itemDocType)}
                       </div>
@@ -355,12 +368,12 @@ export function DocumentDetailsView({
               <div className="text-muted-foreground mb-2">
                 Родительский документ
               </div>
-              <Link
-                href={buildDocumentHref(documentBasePath, details.parent)}
+              <DocumentHref
+                document={details.parent}
                 className="hover:underline"
               >
                 {details.parent.docNo}
-              </Link>
+              </DocumentHref>
             </div>
           ) : null}
           {details.dependsOn.length > 0 ? (
@@ -368,13 +381,13 @@ export function DocumentDetailsView({
               <div className="text-muted-foreground mb-2">Зависит от</div>
               <div className="flex flex-col gap-2">
                 {details.dependsOn.map((item) => (
-                  <Link
+                  <DocumentHref
                     key={item.id}
-                    href={buildDocumentHref(documentBasePath, item)}
+                    document={item}
                     className="hover:underline"
                   >
                     {item.docNo}
-                  </Link>
+                  </DocumentHref>
                 ))}
               </div>
             </div>
@@ -386,13 +399,13 @@ export function DocumentDetailsView({
               </div>
               <div className="flex flex-col gap-2">
                 {details.children.map((item) => (
-                  <Link
+                  <DocumentHref
                     key={item.id}
-                    href={buildDocumentHref(documentBasePath, item)}
+                    document={item}
                     className="hover:underline"
                   >
                     {item.docNo}
-                  </Link>
+                  </DocumentHref>
                 ))}
               </div>
             </div>
@@ -402,13 +415,13 @@ export function DocumentDetailsView({
               <div className="text-muted-foreground mb-2">Компенсирует</div>
               <div className="flex flex-col gap-2">
                 {details.compensates.map((item) => (
-                  <Link
+                  <DocumentHref
                     key={item.id}
-                    href={buildDocumentHref(documentBasePath, item)}
+                    document={item}
                     className="hover:underline"
                   >
                     {item.docNo}
-                  </Link>
+                  </DocumentHref>
                 ))}
               </div>
             </div>

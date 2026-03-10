@@ -37,7 +37,7 @@ export function CreateCounterpartyRequisiteFormClient({
 
     const result = await executeMutation<CreatedCounterpartyRequisite>({
       request: () =>
-        apiClient.v1.requisites.$post({
+        apiClient.v1.parties.requisites.$post({
           json: {
             ownerType: "counterparty",
             ownerId: values.ownerId,
@@ -80,7 +80,7 @@ export function CreateCounterpartyRequisiteFormClient({
     }
 
     toast.success("Реквизит контрагента создан");
-    router.push(`/entities/requisites/${result.data.id}`);
+    router.push(`/entities/parties/requisites/${result.data.id}`);
   }
 
   return (

@@ -1,10 +1,10 @@
 import { cache } from "react";
 import { z } from "zod";
 
-import { CounterpartyOptionsResponseSchema } from "@multihansa/counterparties/contracts";
-import { CurrencyOptionsResponseSchema } from "@bedrock/assets/contracts";
-import { OrganizationOptionsResponseSchema } from "@multihansa/organizations/contracts";
-import { RequisiteProviderOptionsResponseSchema } from "@multihansa/requisite-providers/contracts";
+import { CounterpartyOptionsResponseSchema } from "@multihansa/parties/counterparties/contracts";
+import { CurrencyOptionsResponseSchema } from "@bedrock/finance/assets/contracts";
+import { OrganizationOptionsResponseSchema } from "@multihansa/parties/organizations/contracts";
+import { RequisiteProviderOptionsResponseSchema } from "@multihansa/parties/requisite-providers/contracts";
 
 import {
   getRequisiteKindLabel,
@@ -57,13 +57,13 @@ async function getOwnerLabelMaps() {
   const [counterparties, organizations] = await Promise.all([
     readOptionsList({
       request: () =>
-        client.v1.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
+        client.v1.parties.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
       schema: CounterpartyOptionsResponseSchema,
       context: "Не удалось загрузить контрагентов",
     }),
     readOptionsList({
       request: () =>
-        client.v1.organizations.options.$get({}, { init: { cache: "force-cache" } }),
+        client.v1.parties.organizations.options.$get({}, { init: { cache: "force-cache" } }),
       schema: OrganizationOptionsResponseSchema,
       context: "Не удалось загрузить организации",
     }),
@@ -81,7 +81,7 @@ async function getProviderLabelById() {
   const client = await getServerApiClient();
   const payload = await readOptionsList({
     request: () =>
-      client.v1["requisite-providers"].options.$get(
+      client.v1.parties["requisite-providers"].options.$get(
         {},
         { init: { cache: "force-cache" } },
       ),
@@ -144,7 +144,7 @@ export async function getRequisites(): Promise<RequisitesListResult> {
     await Promise.all([
       readPaginatedList({
         request: () =>
-          client.v1.requisites.$get({
+          client.v1.parties.requisites.$get({
             query: {
               limit: 200,
               offset: 0,
@@ -174,7 +174,7 @@ const getRequisiteByIdUncached = async (id: string) => {
     resourceName: "реквизит",
     request: async (validId) => {
       const client = await getServerApiClient();
-      return client.v1.requisites[":id"].$get(
+      return client.v1.parties.requisites[":id"].$get(
         { param: { id: validId } },
         { init: { cache: "no-store" } },
       );

@@ -43,7 +43,7 @@ export function CreateCustomerFormClient() {
 
     const result = await executeMutation<CreatedCustomer>({
       request: () =>
-        apiClient.v1.customers.$post({
+        apiClient.v1.parties.customers.$post({
           json: payload,
         }),
       fallbackMessage: "Не удалось создать клиента",
@@ -59,7 +59,7 @@ export function CreateCustomerFormClient() {
     }
 
     toast.success("Клиент создан");
-    router.push(`/entities/customers/${result.data.id}`);
+    router.push(`/entities/parties/customers/${result.data.id}`);
   }
 
   return (

@@ -2,11 +2,11 @@ import {
   BalanceHoldNotFoundError,
   BalanceHoldStateError,
   InsufficientAvailableBalanceError,
-} from "@bedrock/balances";
+} from "@bedrock/finance/balances";
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
-} from "@bedrock/operations";
+} from "@bedrock/platform/operations";
 import { ValidationError } from "@bedrock/common/errors";
 
 import { minorToAmountString } from "../../common/amount";

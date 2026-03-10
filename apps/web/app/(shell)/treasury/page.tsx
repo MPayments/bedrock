@@ -39,7 +39,7 @@ export default async function TreasuryOverviewPage() {
           value: formatCount(counterparties.total),
           description:
             "Контрагентская база, используемая в treasury workflows.",
-          href: "/treasury/counterparties",
+          href: "/treasury/parties/counterparties",
         },
         {
           id: "documents",
@@ -55,7 +55,7 @@ export default async function TreasuryOverviewPage() {
           id: "counterparties",
           title: "Контрагенты",
           description: "Рабочая зона казначейских контрагентов и их счетов.",
-          href: "/treasury/counterparties",
+          href: "/treasury/parties/counterparties",
         },
         {
           id: "journal",

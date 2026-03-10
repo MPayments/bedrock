@@ -33,6 +33,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   treasury: { label: "Казначейство", icon: "landmark" },
   fx: { label: "FX", icon: "currency" },
   transfers: { label: "Переводы", icon: "arrow-right-left" },
+  ifrs: { label: "IFRS", icon: "book-open" },
   documents: { label: "Документы", icon: "book-open" },
   settings: { label: "Настройки", icon: "settings" },
   accounting: { label: "Бухгалтерия", icon: "book-open" },
@@ -41,12 +42,12 @@ const segmentMap: Record<string, SegmentConfig> = {
 
   customers: {
     label: "Клиенты",
-    href: "/entities/customers",
+    href: "/entities/parties/customers",
     icon: "handshake",
   },
   organizations: {
     label: "Организации",
-    href: "/entities/organizations",
+    href: "/entities/parties/organizations",
     icon: "landmark",
   },
   counterparties: {
@@ -60,12 +61,12 @@ const segmentMap: Record<string, SegmentConfig> = {
   },
   requisites: {
     label: "Реквизиты",
-    href: "/entities/requisites",
+    href: "/entities/parties/requisites",
     icon: "wallet",
   },
   "requisite-providers": {
     label: "Провайдеры реквизитов",
-    href: "/entities/requisite-providers",
+    href: "/entities/parties/requisite-providers",
     icon: "vault",
   },
   create: { label: "Создать" },
@@ -86,7 +87,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   "fx-revaluation": { label: "Переоценка валюты" },
   "fee-revenue": { label: "Комиссионные доходы" },
   "close-package": { label: "Пакет закрытия" },
-  rates: { label: "Курсы", href: "/fx/rates", icon: "chart-candlestick" },
+  rates: { label: "Курсы", href: "/treasury/fx/rates", icon: "chart-candlestick" },
   quotes: { label: "Котировки" },
 
   orders: { label: "Ордера" },
@@ -104,10 +105,10 @@ function decodeSegment(segment: string) {
 function getCounterpartiesListHref(segments: string[], index: number): string {
   const parentSegments = segments.slice(0, index);
   if (parentSegments.includes("treasury")) {
-    return "/treasury/counterparties";
+    return "/treasury/parties/counterparties";
   }
 
-  return "/entities/counterparties";
+  return "/entities/parties/counterparties";
 }
 
 export async function resolveBreadcrumbItems(
@@ -147,7 +148,7 @@ export async function resolveBreadcrumbItems(
           return {
             ...config,
             label: "Счета",
-            href: "/accounting/accounts",
+            href: "/finance/accounting/accounts",
           };
         }
 

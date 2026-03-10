@@ -9,10 +9,10 @@ export default function CreateCustomerBreadcrumbPage() {
   return (
     <EntityCreateBreadcrumb
       entityLabel="Клиенты"
-      entityHref="/entities/customers"
+      entityHref="/entities/parties/customers"
       entityIcon="handshake"
       currentLabel={state.createLabel}
-      currentHref="/entities/customers/create"
+      currentHref="/entities/parties/customers/create"
     />
   );
 }

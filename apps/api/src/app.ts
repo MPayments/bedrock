@@ -119,7 +119,7 @@ app.get("/health", async (c) => {
   const pgStart = Date.now();
   try {
     const { db } = await import("@multihansa/db/client");
-    const { schema } = await import("@bedrock/assets/schema");
+    const { schema } = await import("@bedrock/finance/assets/schema");
     await db
       .select({ id: schema.currencies.id })
       .from(schema.currencies)
@@ -152,18 +152,18 @@ function buildV1Router(): OpenAPIHono<{ Variables: AuthVariables }> {
 }
 
 const TYPED_ROUTE_PATHS = [
-  "/accounting",
-  "/balances",
-  "/counterparties",
+  "/finance/accounting",
+  "/finance/balances",
+  "/parties/counterparties",
   "/counterparty-groups",
-  "/customers",
+  "/parties/customers",
   "/currencies",
   "/documents",
-  "/organizations",
-  "/payments",
-  "/requisite-providers",
-  "/requisites",
-  "/fx/rates",
+  "/parties/organizations",
+  "/treasury/payments",
+  "/parties/requisite-providers",
+  "/parties/requisites",
+  "/treasury/fx/rates",
 ] as const;
 
 function assertTypedRouteCoverage() {
@@ -185,18 +185,18 @@ function assertTypedRouteCoverage() {
 assertTypedRouteCoverage();
 
 const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
-  .route("/accounting", accountingRoutes(ctx))
-  .route("/balances", balancesRoutes(ctx))
-  .route("/counterparties", counterpartiesRoutes(ctx))
+  .route("/finance/accounting", accountingRoutes(ctx))
+  .route("/finance/balances", balancesRoutes(ctx))
+  .route("/parties/counterparties", counterpartiesRoutes(ctx))
   .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
-  .route("/customers", customersRoutes(ctx))
+  .route("/parties/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
   .route("/documents", documentsRoutes(ctx))
-  .route("/organizations", organizationsRoutes(ctx))
-  .route("/payments", paymentsRoutes(ctx))
-  .route("/requisite-providers", requisiteProvidersRoutes(ctx))
-  .route("/requisites", requisitesRoutes(ctx))
-  .route("/fx/rates", fxRatesRoutes(ctx))
+  .route("/parties/organizations", organizationsRoutes(ctx))
+  .route("/treasury/payments", paymentsRoutes(ctx))
+  .route("/parties/requisite-providers", requisiteProvidersRoutes(ctx))
+  .route("/parties/requisites", requisitesRoutes(ctx))
+  .route("/treasury/fx/rates", fxRatesRoutes(ctx))
   .route("/users", usersRoutes(ctx))
   .route("/me", profileRoutes(ctx));
 

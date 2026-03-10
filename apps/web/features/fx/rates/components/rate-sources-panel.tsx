@@ -47,7 +47,7 @@ export function RateSourcesPanel({ initialSources }: RateSourcesPanelProps) {
     try {
       const result = await executeMutation({
         request: () =>
-          apiClient.v1.fx.rates.sources[":source"].sync.$post({
+          apiClient.v1.treasury.fx.rates.sources[":source"].sync.$post({
             param: { source },
             query: { force: true },
           }),

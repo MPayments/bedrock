@@ -23,7 +23,7 @@ export function CustomersTable({ promise }: CustomersTableProps) {
   const columns = React.useMemo(() => getColumns(), []);
   const handleRowDoubleClick = React.useCallback(
     (row: TanstackRow<SerializedCustomer>) => {
-      router.push(`/entities/customers/${row.original.id}`);
+      router.push(`/entities/parties/customers/${row.original.id}`);
     },
     [router],
   );

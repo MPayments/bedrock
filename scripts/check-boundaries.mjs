@@ -147,30 +147,55 @@ function buildForbiddenRule(rule) {
 
 const forbiddenRules = (config.forbidden ?? []).map(buildForbiddenRule);
 const violations = [];
-const LEGACY_SPECIFIER_PATTERNS = [
+const REMOVED_BEDROCK_SPECIFIER_PATTERNS = [
   /^@bedrock\/foundation(?:\/|$)/,
-  /^@bedrock\/platform(?:\/|$)/,
   /^@bedrock\/core(?:\/|$)/,
   /^@bedrock\/application(?:\/|$)/,
+  /^@bedrock\/zod(?:\/|$)/,
+  /^@bedrock\/sql(?:\/|$)/,
+  /^@bedrock\/workers(?:\/|$)/,
+  /^@bedrock\/operations(?:\/|$)/,
+  /^@bedrock\/identity(?:\/|$)/,
+  /^@bedrock\/registers(?:\/|$)/,
+  /^@bedrock\/workflows(?:\/|$)/,
+  /^@bedrock\/assets(?:\/|$)/,
+  /^@bedrock\/ledger(?:\/|$)/,
+  /^@bedrock\/accounting(?:\/|$)/,
+  /^@bedrock\/balances(?:\/|$)/,
+  /^@bedrock\/reconciliation(?:\/|$)/,
 ];
-const BEDROCK_PRODUCT_SPECIFIER_PATTERNS = [
-  /^@bedrock\/accounting-reporting(?:\/|$)/,
+const REMOVED_PRODUCT_SPECIFIER_PATTERNS = [
   /^@bedrock\/bedrock-app(?:\/|$)/,
-  /^@bedrock\/counterparties(?:\/|$)/,
-  /^@bedrock\/customers(?:\/|$)/,
   /^@bedrock\/db(?:\/|$)/,
-  /^@bedrock\/api-client(?:\/|$)/,
   /^@bedrock\/ui(?:\/|$)/,
+  /^@bedrock\/api-client(?:\/|$)/,
   /^@bedrock\/eslint-config(?:\/|$)/,
   /^@bedrock\/typescript-config(?:\/|$)/,
   /^@bedrock\/test-utils(?:\/|$)/,
+  /^@bedrock\/counterparties(?:\/|$)/,
+  /^@bedrock\/customers(?:\/|$)/,
+  /^@bedrock\/organizations(?:\/|$)/,
+  /^@bedrock\/requisites(?:\/|$)/,
+  /^@bedrock\/requisite-providers(?:\/|$)/,
   /^@bedrock\/fees(?:\/|$)/,
   /^@bedrock\/fx(?:\/|$)/,
-  /^@bedrock\/ifrs-documents(?:\/|$)/,
-  /^@bedrock\/organizations(?:\/|$)/,
   /^@bedrock\/payments(?:\/|$)/,
-  /^@bedrock\/requisite-providers(?:\/|$)/,
-  /^@bedrock\/requisites(?:\/|$)/,
+  /^@bedrock\/ifrs-documents(?:\/|$)/,
+  /^@bedrock\/accounting-reporting(?:\/|$)/,
+  /^@multihansa\/counterparties(?:\/|$)/,
+  /^@multihansa\/customers(?:\/|$)/,
+  /^@multihansa\/organizations(?:\/|$)/,
+  /^@multihansa\/requisites(?:\/|$)/,
+  /^@multihansa\/requisite-providers(?:\/|$)/,
+  /^@multihansa\/fees(?:\/|$)/,
+  /^@multihansa\/fx(?:\/|$)/,
+  /^@multihansa\/payments(?:\/|$)/,
+  /^@multihansa\/ifrs-documents(?:\/|$)/,
+  /^@multihansa\/accounting-reporting(?:\/|$)/,
+  /^@multihansa\/api-client(?:\/|$)/,
+  /^@multihansa\/eslint-config(?:\/|$)/,
+  /^@multihansa\/typescript-config(?:\/|$)/,
+  /^@multihansa\/test-utils(?:\/|$)/,
 ];
 const DB_TYPES_SPECIFIER = /^@multihansa\/db\/types(?:\/|$)/;
 const DB_RUNTIME_BLOCKED_SPECIFIER =
@@ -214,11 +239,13 @@ for (const root of SOURCE_ROOTS) {
       }
 
       if (
-        LEGACY_SPECIFIER_PATTERNS.some((pattern) => pattern.test(specifier)) &&
+        REMOVED_BEDROCK_SPECIFIER_PATTERNS.some((pattern) =>
+          pattern.test(specifier),
+        ) &&
         !relFile.startsWith("packages/bedrock/common/")
       ) {
         violations.push({
-          rule: "legacy-foundation-import",
+          rule: "removed-bedrock-import",
           from: relFile,
           to: specifier,
           specifier,
@@ -227,10 +254,12 @@ for (const root of SOURCE_ROOTS) {
       }
 
       if (
-        BEDROCK_PRODUCT_SPECIFIER_PATTERNS.some((pattern) => pattern.test(specifier))
+        REMOVED_PRODUCT_SPECIFIER_PATTERNS.some((pattern) =>
+          pattern.test(specifier),
+        )
       ) {
         violations.push({
-          rule: "bedrock-product-import",
+          rule: "removed-product-import",
           from: relFile,
           to: specifier,
           specifier,
@@ -258,12 +287,12 @@ for (const root of SOURCE_ROOTS) {
       ) {
         const allowed =
           specifier.startsWith("@multihansa/ui") ||
-          specifier === "@multihansa/api-client" ||
-          specifier.startsWith("@multihansa/api-client/") ||
-          /^@multihansa\/[^/]+\/contracts$/.test(specifier) ||
+          specifier === "@/lib/api-client" ||
+          specifier.startsWith("@/lib/api-client/") ||
+          /^@multihansa\/[^/]+(?:\/[^/]+)*\/contracts$/.test(specifier) ||
           specifier.startsWith("@bedrock/common") ||
-          /^@bedrock\/[^/]+\/contracts$/.test(specifier) ||
-          /^@bedrock\/identity\/validation$/.test(specifier);
+          /^@bedrock\/[^/]+(?:\/[^/]+)*\/contracts$/.test(specifier) ||
+          /^@bedrock\/platform\/identity\/validation$/.test(specifier);
 
         if (!allowed) {
           violations.push({

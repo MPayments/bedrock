@@ -5,11 +5,11 @@ import { schema as documentsSchema } from "@bedrock/documents/schema";
 import {
   createDimensionRegistry,
   type DimensionRegistry,
-} from "@bedrock/registers";
+} from "@bedrock/platform/registers";
 
-import { schema as counterpartiesSchema } from "@multihansa/counterparties/schema";
-import { schema as customersSchema } from "@multihansa/customers/schema";
-import { schema as requisitesSchema } from "@multihansa/requisites/schema";
+import { schema as counterpartiesSchema } from "@multihansa/parties/counterparties/schema";
+import { schema as customersSchema } from "@multihansa/parties/customers/schema";
+import { schema as requisitesSchema } from "@multihansa/parties/requisites/schema";
 
 const schema = {
   ...counterpartiesSchema,

@@ -1,4 +1,4 @@
-import { EquityDistributionInputSchema } from "@multihansa/ifrs-documents/contracts";
+import { EquityDistributionInputSchema } from "@multihansa/reporting/ifrs-documents/contracts";
 
 import { createEquityDefinition } from "../shared";
 

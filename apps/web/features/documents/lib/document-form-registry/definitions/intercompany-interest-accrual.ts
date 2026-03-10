@@ -1,4 +1,4 @@
-import { IntercompanyInterestAccrualInputSchema } from "@multihansa/ifrs-documents/contracts";
+import { IntercompanyInterestAccrualInputSchema } from "@multihansa/reporting/ifrs-documents/contracts";
 
 import type { DocumentFormDefinition } from "../types";
 import {

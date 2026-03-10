@@ -4,8 +4,8 @@ import {
   createConsoleLogger,
   installShutdownHandlers,
 } from "@bedrock/common";
-import { createTbClient } from "@bedrock/ledger";
-import { createWorkerFleet, startWorkerFleet } from "@bedrock/workers";
+import { createWorkerFleet, startWorkerFleet } from "@bedrock/common/workers";
+import { createTbClient } from "@bedrock/finance/ledger";
 
 import {
   createMultihansaServices,

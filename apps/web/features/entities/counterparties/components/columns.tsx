@@ -34,7 +34,7 @@ export function getColumns(
   options: CounterpartyColumnsOptions = {},
 ): ColumnDef<SerializedCounterparty>[] {
   const {
-    detailsBasePath = "/entities/counterparties",
+    detailsBasePath = "/entities/parties/counterparties",
     groupFilterOptions: rawGroupFilterOptions,
     lockedGroupFilterIds,
   } = options;

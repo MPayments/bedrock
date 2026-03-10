@@ -1,5 +1,5 @@
+import type { Database, Transaction } from "@bedrock/common/sql/ports";
 import type { Document } from "@bedrock/documents/schema";
-import type { Database, Transaction } from "@bedrock/sql/ports";
 
 import { DocumentPolicyDeniedError } from "../errors";
 import { buildDocumentEventState, insertDocumentEvent } from "./helpers";

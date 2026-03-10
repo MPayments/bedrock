@@ -5,7 +5,7 @@ import {
   RateSourceStaleError,
   RateSourceSyncError,
   ValidationError,
-} from "@multihansa/fx";
+} from "@multihansa/treasury/fx";
 import {
   FxRateHistoryResponseSchema,
   FxRatePairsResponseSchema,
@@ -16,7 +16,7 @@ import {
   //FxRatePairSchema,
   SetManualRateInputSchema,
   SetManualRateResponseSchema,
-} from "@multihansa/fx/contracts";
+} from "@multihansa/treasury/fx/contracts";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";

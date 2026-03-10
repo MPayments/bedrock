@@ -28,11 +28,11 @@ export function CustomerWorkspaceLayout({
   const isTabDisabled = (tab: CustomerWorkspaceTab) =>
     disabledTabs.includes(tab);
 
-  const currentTab = pathname.endsWith("/counterparties")
+  const currentTab = pathname.endsWith("/parties/counterparties")
     ? "counterparties"
     : "info";
 
-  const basePath = pathname.replace(/\/counterparties(?:\/.*)?$/, "");
+  const basePath = pathname.split("/parties/counterparties")[0]!;
 
   const tabs: EntityWorkspaceTab[] = [
     {
@@ -46,7 +46,7 @@ export function CustomerWorkspaceLayout({
       id: "counterparties",
       label: "Контрагенты",
       icon: Building2,
-      href: `${basePath}/counterparties`,
+      href: `${basePath}/parties/counterparties`,
       disabled: isTabDisabled("counterparties"),
     },
   ];

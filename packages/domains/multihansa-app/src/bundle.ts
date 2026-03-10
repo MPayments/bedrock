@@ -1,54 +1,54 @@
-import {
-  createAccountingService,
-  type AccountingService,
-} from "@bedrock/accounting";
-import { createCurrenciesService, type CurrenciesService } from "@bedrock/assets";
-import { createBalancesService, type BalancesService } from "@bedrock/balances";
 import type { Logger } from "@bedrock/common";
+import type { Database } from "@bedrock/common/sql/ports";
 import {
   createDocumentRegistry,
   createDocumentsService,
   type DocumentRegistry,
   type DocumentsService,
 } from "@bedrock/documents/runtime";
-import { createUsersService, type UsersService } from "@bedrock/identity";
+import {
+  createAccountingService,
+  type AccountingService,
+} from "@bedrock/finance/accounting";
+import { createCurrenciesService, type CurrenciesService } from "@bedrock/finance/assets";
+import { createBalancesService, type BalancesService } from "@bedrock/finance/balances";
 import {
   createLedgerEngine,
   createLedgerReadService,
   type LedgerReadService,
-} from "@bedrock/ledger";
-import type { Database } from "@bedrock/sql/ports";
+} from "@bedrock/finance/ledger";
+import { createUsersService, type UsersService } from "@bedrock/platform/identity";
 
-import {
-  createAccountingReportingService,
-  type AccountingReportingService,
-} from "@multihansa/accounting-reporting";
 import {
   createCounterpartiesService,
   type CounterpartiesService,
-} from "@multihansa/counterparties";
-import { createCustomersService, type CustomersService } from "@multihansa/customers";
-import { createFeesService, type FeesService } from "@multihansa/fees";
-import { createFxService, type FxService } from "@multihansa/fx";
-import { createIfrsDocumentModules } from "@multihansa/ifrs-documents";
+} from "@multihansa/parties/counterparties";
+import { createCustomersService, type CustomersService } from "@multihansa/parties/customers";
 import {
   createOrganizationsService,
   type OrganizationsService,
-} from "@multihansa/organizations";
+} from "@multihansa/parties/organizations";
+import {
+  createRequisiteProvidersService,
+  type RequisiteProvidersService,
+} from "@multihansa/parties/requisite-providers";
+import {
+  createRequisitesService,
+  type RequisitesService,
+} from "@multihansa/parties/requisites";
+import {
+  createAccountingReportingService,
+  type AccountingReportingService,
+} from "@multihansa/reporting/accounting-reporting";
+import { createIfrsDocumentModules } from "@multihansa/reporting/ifrs-documents";
+import { createFeesService, type FeesService } from "@multihansa/treasury/fees";
+import { createFxService, type FxService } from "@multihansa/treasury/fx";
 import {
   createPaymentIntentDocumentModule,
   createPaymentResolutionDocumentModule,
   createPaymentsService,
   type PaymentsService,
-} from "@multihansa/payments";
-import {
-  createRequisiteProvidersService,
-  type RequisiteProvidersService,
-} from "@multihansa/requisite-providers";
-import {
-  createRequisitesService,
-  type RequisitesService,
-} from "@multihansa/requisites";
+} from "@multihansa/treasury/payments";
 
 import { rawMultihansaAccountingPackDefinition } from "./default-pack";
 import { createMultihansaDimensionRegistry } from "./dimensions";

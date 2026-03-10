@@ -9,7 +9,7 @@ import {
   isSystemOnlyDocumentType,
 } from "@bedrock/documents";
 import type { DocumentTransitionAction } from "@bedrock/documents/runtime";
-import { ListLedgerOperationsQuerySchema } from "@bedrock/ledger";
+import { ListLedgerOperationsQuerySchema } from "@bedrock/finance/ledger";
 
 import auth from "../auth";
 import { handleRouteError } from "../common/errors";

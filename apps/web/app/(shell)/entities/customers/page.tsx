@@ -27,7 +27,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
         <Button
           size="lg"
           nativeButton={false}
-          render={<Link href="/entities/customers/create" />}
+          render={<Link href="/entities/parties/customers/create" />}
         >
           <Plus className="h-4 w-4" />
           <span className="hidden md:block">Добавить</span>

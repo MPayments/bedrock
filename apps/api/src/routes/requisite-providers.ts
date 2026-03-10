@@ -9,11 +9,11 @@ import {
   RequisiteProviderNotFoundError,
   RequisiteProviderSchema,
   UpdateRequisiteProviderInputSchema,
-} from "@multihansa/requisite-providers";
+} from "@multihansa/parties/requisite-providers";
 import {
   RequisiteProviderOptionSchema,
   RequisiteProviderOptionsResponseSchema,
-} from "@multihansa/requisite-providers/contracts";
+} from "@multihansa/parties/requisite-providers/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";

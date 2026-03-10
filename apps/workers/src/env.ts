@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { resolveWorkerIntervals } from "@bedrock/workers";
+import { resolveWorkerIntervals } from "@bedrock/common/workers";
 
 import { MULTIHANSA_WORKER_DESCRIPTORS } from "@multihansa/app";
 

@@ -17,7 +17,7 @@ import {
   outbox,
   postings,
   tbTransferPlans,
-} from "@bedrock/ledger/schema";
+} from "@bedrock/finance/ledger/schema";
 
 export type DocumentSubmissionStatus = "draft" | "submitted";
 export type DocumentApprovalStatus =

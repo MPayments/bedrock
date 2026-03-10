@@ -54,7 +54,7 @@ export default async function TreasuryCounterpartyPage({
         }
         allowedRootCode="treasury"
         lockedGroupIds={treasuryRootGroup ? [treasuryRootGroup.id] : []}
-        listPath="/treasury/counterparties"
+        listPath="/treasury/parties/counterparties"
         disableSubmit={!treasuryRootGroup}
       />
     );
@@ -66,7 +66,7 @@ export default async function TreasuryCounterpartyPage({
       initialGroupOptions={[]}
       initialLoadError="Не удалось загрузить группы"
       allowedRootCode="treasury"
-      listPath="/treasury/counterparties"
+      listPath="/treasury/parties/counterparties"
       disableSubmit
     />
   );

@@ -38,7 +38,7 @@ export function EditCounterpartyRequisiteFormClient({
 
     const result = await executeMutation<CounterpartyRequisiteDetails>({
       request: () =>
-        apiClient.v1.requisites[":id"].$patch({
+        apiClient.v1.parties.requisites[":id"].$patch({
           param: { id: current.id },
           json: {
             providerId: values.providerId,
@@ -150,7 +150,7 @@ export function EditCounterpartyRequisiteFormClient({
 
     const result = await executeMutation<void>({
       request: () =>
-        apiClient.v1.requisites[":id"].$delete({
+        apiClient.v1.parties.requisites[":id"].$delete({
           param: { id: current.id },
         }),
       fallbackMessage: "Не удалось удалить реквизит контрагента",
@@ -166,7 +166,7 @@ export function EditCounterpartyRequisiteFormClient({
     }
 
     toast.success("Реквизит контрагента удалён");
-    router.push("/entities/requisites");
+    router.push("/entities/parties/requisites");
     return true;
   }
 

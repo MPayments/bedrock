@@ -1,7 +1,7 @@
 import {
   IFRS_DOCUMENT_METADATA,
   type IfrsDocumentType,
-} from "@multihansa/ifrs-documents/contracts";
+} from "@multihansa/reporting/ifrs-documents/contracts";
 
 export type DocumentTypeFamily = "transfers" | "ifrs" | "payments";
 

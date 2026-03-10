@@ -17,10 +17,10 @@ export function EditCustomerBreadcrumb({
   return (
     <EntityEditBreadcrumb
       entityLabel="Клиенты"
-      entityHref="/entities/customers"
+      entityHref="/entities/parties/customers"
       entityIcon="handshake"
       currentLabel={meta.getEditLabel(customerId, initialLabel)}
-      currentHref={`/entities/customers/${customerId}`}
+      currentHref={`/entities/parties/customers/${customerId}`}
     />
   );
 }

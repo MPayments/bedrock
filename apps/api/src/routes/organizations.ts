@@ -10,11 +10,11 @@ import {
   OrganizationNotFoundError,
   OrganizationSchema,
   UpdateOrganizationInputSchema,
-} from "@multihansa/organizations";
+} from "@multihansa/parties/organizations";
 import {
   OrganizationOptionSchema,
   OrganizationOptionsResponseSchema,
-} from "@multihansa/organizations/contracts";
+} from "@multihansa/parties/organizations/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
