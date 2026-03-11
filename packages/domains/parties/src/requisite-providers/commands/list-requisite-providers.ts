@@ -13,7 +13,7 @@ import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
-} from "@bedrock/common/pagination";
+} from "@multihansa/common/pagination";
 
 import type { RequisiteKind } from "@multihansa/parties/requisites/shared";
 

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
-import { ValidationError } from "@bedrock/common/errors";
-import { isUuidLike } from "@bedrock/common/utils";
+import { ValidationError } from "@multihansa/common/errors";
+import { isUuidLike } from "@multihansa/common/utils";
 
 import { type FxQuote, schema } from "@multihansa/treasury/fx/schema";
 

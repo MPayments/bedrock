@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { ValidationError } from "@bedrock/common/errors";
-import { createPaginatedListSchema } from "@bedrock/common/pagination";
+import { ValidationError } from "@multihansa/common/errors";
+import { createPaginatedListSchema } from "@multihansa/common/pagination";
 
 import { CounterpartyNotFoundError } from "@multihansa/parties/counterparties";
 import { OrganizationNotFoundError } from "@multihansa/parties/organizations";

@@ -1,11 +1,11 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { ValidationError } from "@bedrock/common/errors";
-import { replaceCorrespondenceRulesSchema } from "@bedrock/finance/accounting";
+import { ValidationError } from "@multihansa/common/errors";
+import { replaceCorrespondenceRulesSchema } from "@multihansa/accounting";
 import {
   AccountingCorrespondenceRuleSchema,
   AccountingTemplateAccountSchema,
-} from "@bedrock/finance/accounting/contracts";
+} from "@multihansa/accounting/contracts";
 
 import {
   BalanceSheetQuerySchema,

@@ -1,7 +1,7 @@
 import { inArray } from "drizzle-orm";
 
-import { schema as accountingSchema } from "@bedrock/finance/accounting/schema";
-import { type Dimensions } from "@bedrock/finance/ledger/schema";
+import { schema as accountingSchema } from "@multihansa/accounting/schema";
+import { type Dimensions } from "@multihansa/ledger/schema";
 
 import {
   createAccountingReportingServiceContext,

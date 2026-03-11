@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { normalizeCurrency, isValidCurrency } from "@bedrock/common";
-import { DAY_IN_SECONDS } from "@bedrock/common/constants";
-import { ValidationError } from "@bedrock/common/errors";
+import { normalizeCurrency, isValidCurrency } from "@multihansa/common";
+import { DAY_IN_SECONDS } from "@multihansa/common/constants";
+import { ValidationError } from "@multihansa/common/errors";
 
 import { feeDealDirectionSchema, feeDealFormSchema } from "@multihansa/treasury/fees";
 

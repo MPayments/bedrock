@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { amountMinorSchema } from "@bedrock/documents/actions";
+import { amountMinorSchema } from "@multihansa/documents/actions";
 
 import {
   amountValueInputSchema,

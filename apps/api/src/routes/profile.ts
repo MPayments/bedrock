@@ -6,7 +6,7 @@ import {
   UpdateProfileInputSchema,
   UserEmailConflictError,
   UserNotFoundError,
-} from "@bedrock/platform/identity";
+} from "@multihansa/identity";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";

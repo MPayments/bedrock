@@ -16,12 +16,10 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/common": "workspace:*",
-    "@bedrock/documents": "workspace:*",
-    "@bedrock/finance": "workspace:*",
     "@multihansa/app": "workspace:*",
+    "@multihansa/common": "workspace:*",
     "@multihansa/db": "workspace:*",
-    "@multihansa/treasury": "workspace:*",
+    "@multihansa/ledger": "workspace:*",
     "dotenv": "^17.3.1"
   },
   "devDependencies": {

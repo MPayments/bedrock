@@ -1,4 +1,4 @@
-import { listWorkerIds } from "@bedrock/common/workers";
+import { listWorkerIds } from "@multihansa/common/workers";
 
 import { MULTIHANSA_WORKER_DESCRIPTORS } from "@multihansa/app";
 

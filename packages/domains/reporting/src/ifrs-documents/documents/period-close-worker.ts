@@ -1,21 +1,21 @@
 import { and, asc, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
-import { canonicalJson, noopLogger, type Logger } from "@bedrock/common";
-import { pgNotify } from "@bedrock/common/sql/drizzle";
-import type { Database, Transaction } from "@bedrock/common/sql/ports";
+import { canonicalJson, noopLogger, type Logger } from "@multihansa/common";
+import { pgNotify } from "@multihansa/common/sql/drizzle";
+import type { Database, Transaction } from "@multihansa/common/sql/ports";
 import {
   defineWorkerDescriptor,
-  type BedrockWorker,
-  type BedrockWorkerRunContext as WorkerRunContext,
-  type BedrockWorkerRunResult as WorkerRunResult,
-} from "@bedrock/common/workers";
+  type Worker,
+  type WorkerRunContext,
+  type WorkerRunResult,
+} from "@multihansa/common/workers";
 import {
   closeCounterpartyPeriod,
   getPreviousCalendarMonthRange,
-} from "@bedrock/documents/runtime";
-import { schema, type Document } from "@bedrock/documents/schema";
-import { user } from "@bedrock/platform/identity/schema";
+} from "@multihansa/documents/runtime";
+import { schema, type Document } from "@multihansa/documents/schema";
+import { user } from "@multihansa/identity/schema";
 
 import { counterparties } from "@multihansa/parties/counterparties/schema";
 
@@ -150,7 +150,7 @@ export function createIfrsPeriodCloseWorkerDefinition(deps: {
   db: Database;
   logger?: Logger;
   beforeCounterparty?: PeriodCloseWorkerCounterpartyGuard;
-}): BedrockWorker {
+}): Worker {
   const { db } = deps;
   const log =
     deps.logger?.child({ svc: "ifrs-documents-period-close" }) ?? noopLogger;

@@ -10,7 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { documents } from "@bedrock/documents/schema";
+import { documents } from "@multihansa/documents/schema";
 
 import { counterparties } from "@multihansa/parties/counterparties/schema";
 

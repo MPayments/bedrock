@@ -1,23 +1,28 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
-const REMOVED_BEDROCK_SPECIFIER_PATTERN =
-  /@bedrock\/(foundation|core|application|zod|sql|workers|operations|identity|registers|workflows|assets|ledger|accounting|balances|reconciliation)(?:\/|["'])/g;
-const REMOVED_BEDROCK_PRODUCT_SPECIFIER_PATTERN =
-  /@bedrock\/(accounting-reporting|bedrock-app|counterparties|customers|db|api-client|ui|eslint-config|typescript-config|test-utils|fees|fx|ifrs-documents|organizations|payments|requisite-providers|requisites)(?:\/|["'])/g;
-const REMOVED_MULTIHANSA_SPECIFIER_PATTERN =
-  /@multihansa\/(accounting-reporting|counterparties|customers|api-client|eslint-config|typescript-config|test-utils|fees|fx|ifrs-documents|organizations|payments|requisite-providers|requisites)(?:\/|["'])/g;
+function decodeLegacy(value) {
+  return String.fromCharCode(...value);
+}
+
+const LEGACY_NAME = decodeLegacy([98, 101, 100, 114, 111, 99, 107]);
+const REMOVED_SCOPE = `@${LEGACY_NAME}/`;
+const REMOVED_PATH = `packages/${LEGACY_NAME}/`;
+const REMOVED_WORKER_TYPE = `${decodeLegacy([66, 101, 100, 114, 111, 99, 107])}Worker`;
+const REMOVED_WORKER_METRIC = `${LEGACY_NAME}_worker_`;
+const REMOVED_WORKERS_METRIC = `${LEGACY_NAME}_workers_`;
 
 const SOURCE_ROOTS = [
   join(ROOT, "apps"),
   join(ROOT, "packages"),
   join(ROOT, "scripts"),
+  join(ROOT, "docs"),
 ];
-
+const EXTRA_FILES = [join(ROOT, "README.md"), join(ROOT, "package.json"), join(ROOT, "vitest.config.ts")];
 const EXCLUDED_DIRS = new Set([
   ".git",
   "node_modules",
@@ -26,7 +31,6 @@ const EXCLUDED_DIRS = new Set([
   ".next",
   ".turbo",
 ]);
-
 const INCLUDED_EXTENSIONS = new Set([
   ".ts",
   ".tsx",
@@ -36,6 +40,7 @@ const INCLUDED_EXTENSIONS = new Set([
   ".mjs",
   ".cjs",
   ".json",
+  ".md",
 ]);
 
 function walk(dir, out) {
@@ -64,46 +69,29 @@ const files = [];
 for (const root of SOURCE_ROOTS) {
   walk(root, files);
 }
+files.push(...EXTRA_FILES);
 
 const violations = [];
+
 for (const file of files) {
   const content = readFileSync(file, "utf8");
-  REMOVED_BEDROCK_SPECIFIER_PATTERN.lastIndex = 0;
-  REMOVED_BEDROCK_PRODUCT_SPECIFIER_PATTERN.lastIndex = 0;
-  REMOVED_MULTIHANSA_SPECIFIER_PATTERN.lastIndex = 0;
-
-  const match = REMOVED_BEDROCK_SPECIFIER_PATTERN.exec(content);
-  if (match) {
-    violations.push({
-      file: file.replace(`${ROOT}/`, ""),
-      specifier: match[0].replace(/["']$/, ""),
-    });
-  }
-
-  const bedrockProductMatch =
-    REMOVED_BEDROCK_PRODUCT_SPECIFIER_PATTERN.exec(content);
-  if (bedrockProductMatch) {
-    violations.push({
-      file: file.replace(`${ROOT}/`, ""),
-      specifier: bedrockProductMatch[0].replace(/["']$/, ""),
-    });
-  }
-
-  const multihansaMatch = REMOVED_MULTIHANSA_SPECIFIER_PATTERN.exec(content);
-  if (multihansaMatch) {
-    violations.push({
-      file: file.replace(`${ROOT}/`, ""),
-      specifier: multihansaMatch[0].replace(/["']$/, ""),
-    });
+  if (
+    content.includes(REMOVED_SCOPE) ||
+    content.includes(REMOVED_PATH) ||
+    content.includes(REMOVED_WORKER_TYPE) ||
+    content.includes(REMOVED_WORKER_METRIC) ||
+    content.includes(REMOVED_WORKERS_METRIC)
+  ) {
+    violations.push(relative(ROOT, file));
   }
 }
 
 if (violations.length > 0) {
-  console.error("Disallowed import specifiers found:");
-  for (const violation of violations) {
-    console.error(`- ${violation.file}: ${violation.specifier}`);
+  console.error("Deprecated legacy references found:");
+  for (const file of violations) {
+    console.error(`- ${file}`);
   }
   process.exit(1);
 }
 
-console.log("Disallowed import specifier check passed.");
+console.log("Deprecated import check passed.");

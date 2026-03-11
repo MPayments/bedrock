@@ -9,7 +9,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { chartTemplateAccounts } from "@bedrock/finance/accounting/schema";
+import { chartTemplateAccounts } from "@multihansa/accounting/schema";
 
 export type AccountingReportKind =
   | "balance_sheet"

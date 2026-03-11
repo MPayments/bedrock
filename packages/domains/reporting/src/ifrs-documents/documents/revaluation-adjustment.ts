@@ -1,4 +1,4 @@
-import type { DocumentModule } from "@bedrock/documents/runtime";
+import type { DocumentModule } from "@multihansa/documents/runtime";
 
 import { IFRS_DOCUMENT_METADATA } from "../metadata";
 import {

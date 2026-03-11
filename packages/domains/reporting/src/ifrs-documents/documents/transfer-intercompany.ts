@@ -1,19 +1,19 @@
-import { DocumentValidationError } from "@bedrock/documents";
+import { DocumentValidationError } from "@multihansa/documents";
 import {
   buildDocumentDraft,
   buildDocumentPostIdempotencyKey,
   parseDocumentPayload,
-} from "@bedrock/documents/actions";
-import type { DocumentModule } from "@bedrock/documents/runtime";
+} from "@multihansa/documents/actions";
+import type { DocumentModule } from "@multihansa/documents/runtime";
 import {
   ACCOUNTING_SOURCE_ID,
   OPERATION_CODE,
   POSTING_TEMPLATE_KEY,
-} from "@bedrock/finance/accounting";
+} from "@multihansa/accounting";
 import {
   buildDocumentPostingPlan,
   buildDocumentPostingRequest,
-} from "@bedrock/finance/accounting/actions";
+} from "@multihansa/accounting/actions";
 
 import { IFRS_DOCUMENT_METADATA } from "../metadata";
 import {

@@ -33,19 +33,24 @@ function integrationProject(name, include) {
 }
 
 const workspaceProjects = [
-  unitProject("common", "packages/bedrock/common/tests/**/*.test.ts"),
-  unitProject("documents", "packages/bedrock/documents/tests/**/*.test.ts"),
-  unitProject("finance", "packages/bedrock/finance/tests/**/*.test.ts"),
+  unitProject("common", "packages/common/tests/**/*.test.ts"),
+  unitProject("identity", "packages/domains/identity/tests/**/*.test.ts"),
+  unitProject("assets", "packages/domains/assets/tests/**/*.test.ts"),
+  unitProject("ledger", "packages/domains/ledger/tests/**/*.test.ts"),
+  unitProject("accounting", "packages/domains/accounting/tests/**/*.test.ts"),
+  unitProject("balances", "packages/domains/balances/tests/**/*.test.ts"),
+  unitProject("reconciliation", "packages/domains/reconciliation/tests/**/*.test.ts"),
+  unitProject("documents", "packages/domains/documents/tests/**/*.test.ts"),
   unitProject("parties", "packages/domains/parties/tests/**/*.test.ts"),
   unitProject("treasury", "packages/domains/treasury/tests/**/*.test.ts"),
   unitProject("reporting", "packages/domains/reporting/tests/**/*.test.ts"),
-  integrationProject("accounting:integration", "packages/bedrock/finance/tests/accounting/integration/**/*.test.ts"),
-  integrationProject("balances:integration", "packages/bedrock/finance/tests/balances/integration/**/*.test.ts"),
+  integrationProject("accounting:integration", "packages/domains/accounting/tests/**/*.integration.test.ts"),
+  integrationProject("balances:integration", "packages/domains/balances/tests/**/*.integration.test.ts"),
   integrationProject("customers:integration", "packages/domains/parties/tests/customers/integration/**/*.test.ts"),
   integrationProject("fees:integration", "packages/domains/treasury/tests/fees/integration/**/*.test.ts"),
   integrationProject("fx:integration", "packages/domains/treasury/tests/fx/integration/**/*.test.ts"),
-  integrationProject("ledger:integration", "packages/bedrock/finance/tests/ledger/integration/**/*.test.ts"),
-  integrationProject("reconciliation:integration", "packages/bedrock/finance/tests/reconciliation/integration/**/*.test.ts"),
+  integrationProject("ledger:integration", "packages/domains/ledger/tests/**/*.integration.test.ts"),
+  integrationProject("reconciliation:integration", "packages/domains/reconciliation/tests/**/*.integration.test.ts"),
 ];
 
 export default defineConfig({

@@ -1,6 +1,6 @@
 import { and, eq, isNull, ne, sql } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/common/sql/ports";
+import type { Transaction } from "@multihansa/common/sql/ports";
 
 import type { RequisitesServiceContext } from "../context";
 import { RequisiteNotFoundError } from "../errors";

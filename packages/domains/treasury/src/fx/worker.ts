@@ -1,10 +1,10 @@
-import { type Logger } from "@bedrock/common";
+import { type Logger } from "@multihansa/common";
 import {
   defineWorkerDescriptor,
-  type BedrockWorker,
-  type BedrockWorkerRunContext as WorkerRunContext,
-  type BedrockWorkerRunResult as WorkerRunResult,
-} from "@bedrock/common/workers";
+  type Worker,
+  type WorkerRunContext,
+  type WorkerRunResult,
+} from "@multihansa/common/workers";
 
 import { type FxService } from "./service";
 import { type FxRateSource } from "./sources";
@@ -30,7 +30,7 @@ export function createFxRatesWorkerDefinition(deps: {
   fxService: FxService;
   logger?: Logger;
   beforeSourceSync?: FxRatesWorkerSourceGuard;
-}): BedrockWorker {
+}): Worker {
   const { fxService, logger } = deps;
   const beforeSourceSync = deps.beforeSourceSync;
 

@@ -1,17 +1,17 @@
 import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 
-import { canonicalJson, sha256Hex } from "@bedrock/common";
-import { ValidationError } from "@bedrock/common/errors";
+import { canonicalJson, sha256Hex } from "@multihansa/common";
+import { ValidationError } from "@multihansa/common/errors";
 import {
   paginateInMemory,
   resolveSortOrder,
   sortInMemory,
   type PaginatedList,
-} from "@bedrock/common/pagination";
-import { schema as documentsSchema } from "@bedrock/documents/schema";
-import { schema as accountingSchema } from "@bedrock/finance/accounting/schema";
-import { schema as balancesSchema } from "@bedrock/finance/balances/schema";
-import { schema as ledgerSchema } from "@bedrock/finance/ledger/schema";
+} from "@multihansa/common/pagination";
+import { schema as documentsSchema } from "@multihansa/documents/schema";
+import { schema as accountingSchema } from "@multihansa/accounting/schema";
+import { schema as balancesSchema } from "@multihansa/balances/schema";
+import { schema as ledgerSchema } from "@multihansa/ledger/schema";
 
 import {
   isInternalLedgerCounterparty,

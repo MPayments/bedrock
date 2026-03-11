@@ -1,5 +1,5 @@
-import { ValidationError } from "@bedrock/common/errors";
-import { mulDivFloor } from "@bedrock/common/math";
+import { ValidationError } from "@multihansa/common/errors";
+import { mulDivFloor } from "@multihansa/common/math";
 
 import { type ComputedLeg } from "./types";
 import { type QuoteInput } from "./validation";

@@ -1,20 +1,30 @@
 module.exports = {
   layers: {
-    bedrock: "^packages/bedrock/",
+    common: "^packages/common/",
     domains: "^packages/domains/",
     db: "^packages/db/",
-    sdk: "^packages/sdk/",
+    ui: "^packages/ui/",
     apps: "^apps/",
   },
   forbidden: [
     {
-      name: "bedrock-to-domains",
+      name: "common-to-domains",
       from: {
-        path: "^packages/bedrock/",
+        path: "^packages/common/",
       },
       to: {
         path: "^packages/domains/",
       },
+    },
+    {
+      name: "common-to-db",
+      from: { path: "^packages/common/" },
+      to: { path: "^packages/db/" },
+    },
+    {
+      name: "common-to-apps",
+      from: { path: "^packages/common/" },
+      to: { path: "^apps/" },
     },
     {
       name: "domains-to-apps",
@@ -22,28 +32,28 @@ module.exports = {
       to: { path: "^apps/" },
     },
     {
-      name: "bedrock-to-apps",
-      from: { path: "^packages/bedrock/" },
-      to: { path: "^apps/" },
+      name: "domains-to-db",
+      from: { path: "^packages/domains/" },
+      to: { path: "^packages/db/" },
     },
     {
-      name: "ui-to-bedrock",
-      from: { path: "^packages/sdk/ui/" },
-      to: { path: "^packages/bedrock/" },
+      name: "ui-to-common",
+      from: { path: "^packages/ui/" },
+      to: { path: "^packages/common/" },
     },
     {
       name: "ui-to-domains",
-      from: { path: "^packages/sdk/ui/" },
+      from: { path: "^packages/ui/" },
       to: { path: "^packages/domains/" },
     },
     {
       name: "ui-to-db",
-      from: { path: "^packages/sdk/ui/" },
+      from: { path: "^packages/ui/" },
       to: { path: "^packages/db/" },
     },
     {
       name: "ui-to-apps",
-      from: { path: "^packages/sdk/ui/" },
+      from: { path: "^packages/ui/" },
       to: { path: "^apps/" },
     },
   ],

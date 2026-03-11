@@ -6,8 +6,8 @@
     "paths": {
       "*": ["./*"],
       "@/*": ["./*"],
-      "@multihansa/ui/globals.css": ["../../packages/sdk/ui/src/styles/globals.css"],
-      "@multihansa/ui/*": ["../../packages/sdk/ui/src/*"]
+      "@multihansa/ui/globals.css": ["../../packages/ui/src/styles/globals.css"],
+      "@multihansa/ui/*": ["../../packages/ui/src/*"]
     },
     "plugins": [
       {

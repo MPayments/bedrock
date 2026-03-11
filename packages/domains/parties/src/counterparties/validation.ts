@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-import { COUNTRY_ALPHA2_SET } from "@bedrock/common/countries";
+import { COUNTRY_ALPHA2_SET } from "@multihansa/common/countries";
 import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
-} from "@bedrock/common/pagination";
+} from "@multihansa/common/pagination";
 
 export const CounterpartyKindSchema = z.enum(["legal_entity", "individual"]);
 export type CounterpartyKind = z.infer<typeof CounterpartyKindSchema>;

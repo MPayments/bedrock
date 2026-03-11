@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { z } from "zod";
 
-import { CurrencyOptionsResponseSchema } from "@bedrock/finance/assets/contracts";
+import { CurrencyOptionsResponseSchema } from "@multihansa/assets/contracts";
 import { OrganizationOptionsResponseSchema } from "@multihansa/parties/organizations/contracts";
 import { RequisiteProviderOptionsResponseSchema } from "@multihansa/parties/requisite-providers/contracts";
 import { REQUISITES_LIST_CONTRACT } from "@multihansa/parties/requisites/contracts";

@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-import { ValidationError } from "@bedrock/common/errors";
+import { ValidationError } from "@multihansa/common/errors";
 import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
-} from "@bedrock/common/pagination";
+} from "@multihansa/common/pagination";
 
 import { CountryAlpha2Schema, RequisiteKindSchema } from "@multihansa/parties/requisites/shared";
 

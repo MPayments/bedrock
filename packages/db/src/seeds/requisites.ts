@@ -4,8 +4,8 @@ import {
   computeDimensionsHash,
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
-} from "@bedrock/common";
-import { ACCOUNT_NO } from "@bedrock/finance/accounting";
+} from "@multihansa/common";
+import { ACCOUNT_NO } from "@multihansa/accounting";
 
 import type { Database } from "../client";
 import { schema } from "../schema";

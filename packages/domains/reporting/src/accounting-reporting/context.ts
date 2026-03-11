@@ -1,7 +1,7 @@
-import { noopLogger, type Logger } from "@bedrock/common";
-import type { Database } from "@bedrock/common/sql/ports";
-import type { LedgerReadService } from "@bedrock/finance/ledger";
-import type { DimensionRegistry } from "@bedrock/platform/registers";
+import { noopLogger, type Logger } from "@multihansa/common";
+import type { Database } from "@multihansa/common/sql/ports";
+import type { LedgerReadService } from "@multihansa/ledger";
+import type { DimensionRegistry } from "@multihansa/common/registers";
 
 export interface AccountingReportingServiceDeps {
   db: Database;

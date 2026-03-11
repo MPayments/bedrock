@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { MultihansaDomainServices } from "@multihansa/app";
-import type { Logger } from "@bedrock/common";
+import type { Logger } from "@multihansa/common";
 
 import { createApiRuntime, type ApiRuntime } from "./runtime";
 

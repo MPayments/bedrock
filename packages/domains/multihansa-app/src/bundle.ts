@@ -1,23 +1,23 @@
-import type { Logger } from "@bedrock/common";
-import type { Database } from "@bedrock/common/sql/ports";
+import type { Logger } from "@multihansa/common";
+import type { Database } from "@multihansa/common/sql/ports";
 import {
   createDocumentRegistry,
   createDocumentsService,
   type DocumentRegistry,
   type DocumentsService,
-} from "@bedrock/documents/runtime";
+} from "@multihansa/documents/runtime";
 import {
   createAccountingService,
   type AccountingService,
-} from "@bedrock/finance/accounting";
-import { createCurrenciesService, type CurrenciesService } from "@bedrock/finance/assets";
-import { createBalancesService, type BalancesService } from "@bedrock/finance/balances";
+} from "@multihansa/accounting";
+import { createCurrenciesService, type CurrenciesService } from "@multihansa/assets";
+import { createBalancesService, type BalancesService } from "@multihansa/balances";
 import {
   createLedgerEngine,
   createLedgerReadService,
   type LedgerReadService,
-} from "@bedrock/finance/ledger";
-import { createUsersService, type UsersService } from "@bedrock/platform/identity";
+} from "@multihansa/ledger";
+import { createUsersService, type UsersService } from "@multihansa/identity";
 
 import {
   createCounterpartiesService,

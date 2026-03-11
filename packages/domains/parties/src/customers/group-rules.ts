@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/common/sql/ports";
+import type { Transaction } from "@multihansa/common/sql/ports";
 
 import { resolveGroupMembershipClassification } from "@multihansa/parties/counterparties/internal/group-rules";
 import {

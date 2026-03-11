@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { isValidCurrency, normalizeCurrency } from "@bedrock/common";
+import { isValidCurrency, normalizeCurrency } from "@multihansa/common";
 
 import { FeeValidationError } from "./errors";
 

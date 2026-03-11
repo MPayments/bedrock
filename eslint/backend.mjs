@@ -18,7 +18,7 @@ export const backendConfig = [
       turbo: turboPlugin,
     },
     settings: {
-      "import/internal-regex": "^@(bedrock|multihansa)/",
+      "import/internal-regex": "^@multihansa/",
     },
     rules: {
       "turbo/no-undeclared-env-vars": "error",
@@ -30,11 +30,6 @@ export const backendConfig = [
         {
           groups: [["builtin", "external"], ["internal"], ["parent", "sibling", "index"]],
           pathGroups: [
-            {
-              pattern: "@bedrock/**",
-              group: "internal",
-              position: "after",
-            },
             {
               pattern: "@multihansa/**",
               group: "internal",

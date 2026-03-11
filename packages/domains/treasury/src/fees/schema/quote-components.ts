@@ -11,7 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { currencies } from "@bedrock/finance/assets/schema";
+import { currencies } from "@multihansa/assets/schema";
 
 import { feeRules, type FeeSettlementMode } from "./rules";
 

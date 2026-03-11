@@ -1,4 +1,4 @@
-import { ServiceError } from "@bedrock/common/errors";
+import { ServiceError } from "@multihansa/common/errors";
 
 export class CustomerError extends ServiceError {}
 

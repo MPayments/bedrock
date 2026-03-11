@@ -58,13 +58,13 @@ describe("worker monitoring", () => {
     );
 
     const metrics = registry.renderPrometheusMetrics();
-    expect(metrics).toContain('bedrock_worker_runs_total{worker="ledger"} 2');
+    expect(metrics).toContain('multihansa_worker_runs_total{worker="ledger"} 2');
     expect(metrics).toContain(
-      'bedrock_worker_processed_total{worker="ledger"} 3',
+      'multihansa_worker_processed_total{worker="ledger"} 3',
     );
-    expect(metrics).toContain('bedrock_worker_errors_total{worker="ledger"} 1');
+    expect(metrics).toContain('multihansa_worker_errors_total{worker="ledger"} 1');
     expect(metrics).toContain(
-      'bedrock_worker_state{worker="ledger",state="idle"} 1',
+      'multihansa_worker_state{worker="ledger",state="idle"} 1',
     );
   });
 
@@ -109,7 +109,7 @@ describe("worker monitoring", () => {
     });
     expect(metricsResponse.statusCode).toBe(200);
     expect(metricsResponse.body).toContain(
-      'bedrock_worker_processed_total{worker="balances"} 1',
+      'multihansa_worker_processed_total{worker="balances"} 1',
     );
   });
 });

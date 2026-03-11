@@ -1,5 +1,5 @@
-import { type Logger, noopLogger } from "@bedrock/common";
-import type { Database } from "@bedrock/common/sql/ports";
+import { type Logger, noopLogger } from "@multihansa/common";
+import type { Database } from "@multihansa/common/sql/ports";
 
 export interface CounterpartiesServiceDeps {
   db: Database;

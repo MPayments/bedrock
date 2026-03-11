@@ -1,4 +1,4 @@
-import { BPS_SCALE } from "@bedrock/common/constants";
+import { BPS_SCALE } from "@multihansa/common/constants";
 
 import { FeeValidationError } from "./errors";
 

@@ -6,7 +6,7 @@ import {
   type CreatePostingTemplateDefinition,
   type PendingPostingTemplateDefinition,
   type ValueBinding,
-} from "@bedrock/finance/accounting";
+} from "@multihansa/accounting";
 
 const BOOK_REF_BOOK_ID = "bookId";
 

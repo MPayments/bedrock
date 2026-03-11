@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { pgTable, uuid, text, timestamp, bigint, index, uniqueIndex } from "drizzle-orm/pg-core";
 
-import { currencies } from "@bedrock/finance/assets/schema";
+import { currencies } from "@multihansa/assets/schema";
 
 export type FxRate = typeof fxRates.$inferSelect;
 export type FxRateInsert = typeof fxRates.$inferInsert;

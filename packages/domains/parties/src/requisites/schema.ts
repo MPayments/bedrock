@@ -11,8 +11,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { currencies } from "@bedrock/finance/assets/schema";
-import { schema as ledgerSchema } from "@bedrock/finance/ledger/schema";
+import { currencies } from "@multihansa/assets/schema";
+import { schema as ledgerSchema } from "@multihansa/ledger/schema";
 
 import { counterparties } from "@multihansa/parties/counterparties/schema";
 import { organizations } from "@multihansa/parties/organizations/schema";

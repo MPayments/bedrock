@@ -23,9 +23,11 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/common": "workspace:*",
-    "@bedrock/documents": "workspace:*",
-    "@bedrock/finance": "workspace:*",
+    "@multihansa/accounting": "workspace:*",
+    "@multihansa/assets": "workspace:*",
+    "@multihansa/common": "workspace:*",
+    "@multihansa/documents": "workspace:*",
+    "@multihansa/ledger": "workspace:*",
     "@multihansa/parties": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "soap": "^1.6.0",

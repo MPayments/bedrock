@@ -9,7 +9,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { vi, type Mock } from "vitest";
 
-import type { Database } from "@bedrock/sql/ports";
+import type { Database } from "@multihansa/common/sql/ports";
 
 // Type for the mock database from drizzle.mock()
 export type MockDatabase = ReturnType<typeof drizzle.mock>;

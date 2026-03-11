@@ -5,7 +5,7 @@ import {
   NotFoundError,
   PermissionError,
   ValidationError,
-} from "@bedrock/common/errors";
+} from "@multihansa/common/errors";
 import {
   DocumentGraphError,
   DocumentNotFoundError,
@@ -13,11 +13,11 @@ import {
   DocumentPostingNotRequiredError,
   DocumentSystemOnlyTypeError,
   DocumentValidationError,
-} from "@bedrock/documents";
+} from "@multihansa/documents";
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
-} from "@bedrock/platform/operations";
+} from "@multihansa/common/operations";
 
 function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

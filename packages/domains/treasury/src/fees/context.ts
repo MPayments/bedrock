@@ -1,5 +1,5 @@
-import { type Logger } from "@bedrock/common";
-import type { Database } from "@bedrock/common/sql/ports";
+import { type Logger } from "@multihansa/common";
+import type { Database } from "@multihansa/common/sql/ports";
 
 import { type FeesCurrencyLookup } from "./currency-lookup";
 

@@ -90,7 +90,7 @@ export function AccountingCorrespondencePageClient({
     setSaving(true);
     const result = await executeMutation({
       request: () =>
-        apiClient.v1.finance.accounting["correspondence-rules"].$put({
+        apiClient.v1.accounting["correspondence-rules"].$put({
           json: {
             rules: rows.map((row) => ({
               postingCode: row.postingCode.trim(),

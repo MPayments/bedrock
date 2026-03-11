@@ -1,6 +1,6 @@
 import { eq, inArray, sql } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/common/sql/ports";
+import type { Database, Transaction } from "@multihansa/common/sql/ports";
 
 import { schema as counterpartiesSchema } from "@multihansa/parties/counterparties/schema";
 

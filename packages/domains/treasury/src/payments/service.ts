@@ -1,10 +1,10 @@
-import type { CorrelationContext, Logger } from "@bedrock/common";
+import type { CorrelationContext, Logger } from "@multihansa/common";
 import type {
   DocumentDetails,
   DocumentTransitionAction,
   DocumentWithOperationId,
   DocumentsService,
-} from "@bedrock/documents/runtime";
+} from "@multihansa/documents/runtime";
 
 import { type PaymentIntentPayload, type PaymentResolutionPayload } from "./validation";
 

@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-import { parseDecimalToFraction } from "@bedrock/common/math";
+import { parseDecimalToFraction } from "@multihansa/common/math";
 import { Button } from "@multihansa/ui/components/button";
 import {
   Dialog,

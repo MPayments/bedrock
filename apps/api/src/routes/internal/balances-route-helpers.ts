@@ -2,12 +2,12 @@ import {
   BalanceHoldNotFoundError,
   BalanceHoldStateError,
   InsufficientAvailableBalanceError,
-} from "@bedrock/finance/balances";
+} from "@multihansa/balances";
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
-} from "@bedrock/platform/operations";
-import { ValidationError } from "@bedrock/common/errors";
+} from "@multihansa/common/operations";
+import { ValidationError } from "@multihansa/common/errors";
 
 import { minorToAmountString } from "../../common/amount";
 

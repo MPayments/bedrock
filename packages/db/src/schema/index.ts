@@ -1,9 +1,9 @@
-import { schema as documentsSchema } from "@bedrock/documents/schema";
-import { schema as accountingSchema } from "@bedrock/finance/accounting/schema";
-import { schema as currenciesSchema } from "@bedrock/finance/assets/schema";
-import { schema as balancesSchema } from "@bedrock/finance/balances/schema";
-import { schema as ledgerSchema } from "@bedrock/finance/ledger/schema";
-import { schema as reconciliationSchema } from "@bedrock/finance/reconciliation/schema";
+import { schema as documentsSchema } from "@multihansa/documents/schema";
+import { schema as accountingSchema } from "@multihansa/accounting/schema";
+import { schema as currenciesSchema } from "@multihansa/assets/schema";
+import { schema as balancesSchema } from "@multihansa/balances/schema";
+import { schema as ledgerSchema } from "@multihansa/ledger/schema";
+import { schema as reconciliationSchema } from "@multihansa/reconciliation/schema";
 import {
   account,
   accountRelations,
@@ -14,8 +14,8 @@ import {
   user,
   userRelations,
   verification,
-} from "@bedrock/platform/identity/schema";
-import { schema as idempotencySchema } from "@bedrock/platform/operations/schema";
+} from "@multihansa/identity/schema";
+import { schema as idempotencySchema } from "@multihansa/common/operations/schema";
 
 import { schema as counterpartiesSchema } from "@multihansa/parties/counterparties/schema";
 import { schema as customersSchema } from "@multihansa/parties/customers/schema";

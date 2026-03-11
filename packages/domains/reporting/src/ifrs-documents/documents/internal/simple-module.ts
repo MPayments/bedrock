@@ -3,8 +3,8 @@ import {
   buildDocumentPostIdempotencyKey,
   parseDocumentPayload,
   serializeOccurredAt,
-} from "@bedrock/documents/actions";
-import type { DocumentModule } from "@bedrock/documents/runtime";
+} from "@multihansa/documents/actions";
+import type { DocumentModule } from "@multihansa/documents/runtime";
 
 import {
   firstString,

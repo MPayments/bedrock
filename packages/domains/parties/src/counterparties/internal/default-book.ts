@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/common/sql/ports";
-import { schema as ledgerSchema } from "@bedrock/finance/ledger/schema";
+import type { Transaction } from "@multihansa/common/sql/ports";
+import { schema as ledgerSchema } from "@multihansa/ledger/schema";
 
 const DEFAULT_BOOK_CODE_PREFIX = "counterparty-default";
 

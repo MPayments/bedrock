@@ -119,7 +119,7 @@ app.get("/health", async (c) => {
   const pgStart = Date.now();
   try {
     const { db } = await import("@multihansa/db/client");
-    const { schema } = await import("@bedrock/finance/assets/schema");
+    const { schema } = await import("@multihansa/assets/schema");
     await db
       .select({ id: schema.currencies.id })
       .from(schema.currencies)
@@ -152,8 +152,8 @@ function buildV1Router(): OpenAPIHono<{ Variables: AuthVariables }> {
 }
 
 const TYPED_ROUTE_PATHS = [
-  "/finance/accounting",
-  "/finance/balances",
+  "/accounting",
+  "/balances",
   "/parties/counterparties",
   "/counterparty-groups",
   "/parties/customers",
@@ -185,8 +185,8 @@ function assertTypedRouteCoverage() {
 assertTypedRouteCoverage();
 
 const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
-  .route("/finance/accounting", accountingRoutes(ctx))
-  .route("/finance/balances", balancesRoutes(ctx))
+  .route("/accounting", accountingRoutes(ctx))
+  .route("/balances", balancesRoutes(ctx))
   .route("/parties/counterparties", counterpartiesRoutes(ctx))
   .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
   .route("/parties/customers", customersRoutes(ctx))

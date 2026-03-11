@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.react-library.json",
+  "compilerOptions": {
+    "paths": {
+      "*": ["./*"],
+      "@multihansa/ui/*": ["./src/*"]
+    },
+    "outDir": "dist"
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

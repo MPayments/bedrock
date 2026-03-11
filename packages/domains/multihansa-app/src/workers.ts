@@ -1,19 +1,19 @@
-import type { Logger } from "@bedrock/common";
-import type { Database } from "@bedrock/common/sql/ports";
-import { type BedrockWorker, type BedrockWorkerDescriptor } from "@bedrock/common/workers";
+import type { Logger } from "@multihansa/common";
+import type { Database } from "@multihansa/common/sql/ports";
+import { type Worker, type WorkerDescriptor } from "@multihansa/common/workers";
 import {
   DOCUMENTS_WORKER_DESCRIPTOR,
   createDocumentsWorker,
-} from "@bedrock/documents/runtime";
+} from "@multihansa/documents/runtime";
 import {
   BALANCES_WORKER_DESCRIPTOR,
   createBalancesProjectorWorker,
-} from "@bedrock/finance/balances";
+} from "@multihansa/balances";
 import {
   LEDGER_WORKER_DESCRIPTOR,
   createLedgerWorker,
   type TbClient,
-} from "@bedrock/finance/ledger";
+} from "@multihansa/ledger";
 
 import {
   DOCUMENTS_PERIOD_CLOSE_WORKER_DESCRIPTOR,
@@ -31,7 +31,7 @@ export const MULTIHANSA_WORKER_DESCRIPTORS = [
   DOCUMENTS_WORKER_DESCRIPTOR,
   FX_RATES_WORKER_DESCRIPTOR,
   LEDGER_WORKER_DESCRIPTOR,
-] as const satisfies readonly BedrockWorkerDescriptor[];
+] as const satisfies readonly WorkerDescriptor[];
 
 const workerDescriptorById = new Map(
   MULTIHANSA_WORKER_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
@@ -62,7 +62,7 @@ export function createMultihansaWorkers(input: {
   services: {
     fxService: FxService;
   };
-}): Record<string, BedrockWorker> {
+}): Record<string, Worker> {
   const { db, logger, tb, workerIntervals, services } = input;
 
   const ledger = createLedgerWorker({

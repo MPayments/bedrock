@@ -3,9 +3,9 @@ import "./env";
 import {
   createConsoleLogger,
   installShutdownHandlers,
-} from "@bedrock/common";
-import { createWorkerFleet, startWorkerFleet } from "@bedrock/common/workers";
-import { createTbClient } from "@bedrock/finance/ledger";
+} from "@multihansa/common";
+import { createWorkerFleet, startWorkerFleet } from "@multihansa/common/workers";
+import { createTbClient } from "@multihansa/ledger";
 
 import {
   createMultihansaServices,

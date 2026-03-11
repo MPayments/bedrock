@@ -1,4 +1,4 @@
-import { ServiceError } from "@bedrock/common/errors";
+import { ServiceError } from "@multihansa/common/errors";
 
 export class RequisiteProviderError extends ServiceError {}
 

@@ -13,7 +13,7 @@ Drizzle-based database package for the financial core.
 
 Table definitions are colocated with runtime packages:
 
-- `packages/bedrock/<package>/src/schema.ts` or `schema/**`
+- `packages/common/src/operations/schema.ts`
 - `packages/domains/<package>/src/schema.ts` or `schema/**`
 
 `@multihansa/db` aggregates these domain schemas for client construction and
@@ -23,7 +23,7 @@ migrations.
 
 - Financial IDs for TB integration use a custom `uint128` type (`numeric(39,0)` in Postgres).
 - Idempotency is enforced with unique indexes in ledger, orders, transfers, and quotes.
-- `fx_quotes` canonical definition lives in `packages/domains/fx/src/schema/quotes.ts`.
+- `fx_quotes` canonical definition lives in `packages/domains/treasury/src/fx/schema/quotes.ts`.
 
 ## Scripts
 

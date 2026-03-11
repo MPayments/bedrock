@@ -5,7 +5,7 @@ import {
   createMultihansaServices,
   type MultihansaDomainServices,
 } from "@multihansa/app";
-import { createConsoleLogger, type Logger } from "@bedrock/common";
+import { createConsoleLogger, type Logger } from "@multihansa/common";
 
 import {
   accountingRoutes,
@@ -37,12 +37,12 @@ export interface ApiRouteMount {
 export const API_ROUTE_MOUNTS = [
   {
     id: "accounting",
-    routePath: "/finance/accounting",
+    routePath: "/accounting",
     registerRoutes: accountingRoutes,
   },
   {
     id: "balances",
-    routePath: "/finance/balances",
+    routePath: "/balances",
     registerRoutes: balancesRoutes,
   },
   {

@@ -1,7 +1,7 @@
 import {
   CounterpartyOptionsResponseSchema,
 } from "@multihansa/parties/counterparties/contracts";
-import { CurrencyOptionsResponseSchema } from "@bedrock/finance/assets/contracts";
+import { CurrencyOptionsResponseSchema } from "@multihansa/assets/contracts";
 import { OrganizationOptionsResponseSchema } from "@multihansa/parties/organizations/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";

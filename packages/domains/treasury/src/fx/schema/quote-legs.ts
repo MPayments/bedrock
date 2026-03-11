@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { bigint, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
-import { currencies } from "@bedrock/finance/assets/schema";
+import { currencies } from "@multihansa/assets/schema";
 
 import { fxQuotes } from "./quotes";
 

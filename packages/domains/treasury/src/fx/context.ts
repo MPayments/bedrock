@@ -1,6 +1,6 @@
-import { type Logger, noopLogger } from "@bedrock/common";
-import type { Database } from "@bedrock/common/sql/ports";
-import { type CurrenciesService } from "@bedrock/finance/assets";
+import { type Logger, noopLogger } from "@multihansa/common";
+import type { Database } from "@multihansa/common/sql/ports";
+import { type CurrenciesService } from "@multihansa/assets";
 
 import { type FeesService } from "@multihansa/treasury/fees";
 

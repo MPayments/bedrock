@@ -1,7 +1,7 @@
 import {
   AccountingCorrespondenceRuleSchema,
   AccountingTemplateAccountSchema,
-} from "@bedrock/finance/accounting/contracts";
+} from "@multihansa/accounting/contracts";
 import {
   CounterpartyGroupOptionsResponseSchema,
   CounterpartyOptionsResponseSchema,
@@ -106,7 +106,7 @@ export async function getAccountingTemplateAccounts(): Promise<
 > {
   const client = await getServerApiClient();
   const response = await requestOk(
-    await client.v1.finance.accounting.template.accounts.$get(
+    await client.v1.accounting.template.accounts.$get(
       {},
       { init: { cache: "no-store" } },
     ),
@@ -124,7 +124,7 @@ export async function getAccountingCorrespondenceRules(): Promise<
 > {
   const client = await getServerApiClient();
   const response = await requestOk(
-    await client.v1.finance.accounting["correspondence-rules"].$get(
+    await client.v1.accounting["correspondence-rules"].$get(
       {},
       { init: { cache: "no-store" } },
     ),
@@ -142,10 +142,10 @@ export async function getTrialBalance(
 ): Promise<TrialBalanceDto> {
   const client = await getServerApiClient();
   type QueryInput = RouteQuery<
-    (typeof client.v1.finance.accounting.reports)["trial-balance"]["$get"]
+    (typeof client.v1.accounting.reports)["trial-balance"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.finance.accounting.reports["trial-balance"].$get(
+    await client.v1.accounting.reports["trial-balance"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -160,10 +160,10 @@ export async function getGeneralLedger(
 ): Promise<GeneralLedgerDto> {
   const client = await getServerApiClient();
   type QueryInput = RouteQuery<
-    (typeof client.v1.finance.accounting.reports)["general-ledger"]["$get"]
+    (typeof client.v1.accounting.reports)["general-ledger"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.finance.accounting.reports["general-ledger"].$get(
+    await client.v1.accounting.reports["general-ledger"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -178,10 +178,10 @@ export async function getBalanceSheet(
 ): Promise<BalanceSheetDto> {
   const client = await getServerApiClient();
   type QueryInput = RouteQuery<
-    (typeof client.v1.finance.accounting.reports)["balance-sheet"]["$get"]
+    (typeof client.v1.accounting.reports)["balance-sheet"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.finance.accounting.reports["balance-sheet"].$get(
+    await client.v1.accounting.reports["balance-sheet"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -196,10 +196,10 @@ export async function getIncomeStatement(
 ): Promise<IncomeStatementDto> {
   const client = await getServerApiClient();
   type QueryInput = RouteQuery<
-    (typeof client.v1.finance.accounting.reports)["income-statement"]["$get"]
+    (typeof client.v1.accounting.reports)["income-statement"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.finance.accounting.reports["income-statement"].$get(
+    await client.v1.accounting.reports["income-statement"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -214,10 +214,10 @@ export async function getCashFlow(
 ): Promise<CashFlowDto> {
   const client = await getServerApiClient();
   type QueryInput = RouteQuery<
-    (typeof client.v1.finance.accounting.reports)["cash-flow"]["$get"]
+    (typeof client.v1.accounting.reports)["cash-flow"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.finance.accounting.reports["cash-flow"].$get(
+    await client.v1.accounting.reports["cash-flow"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -232,10 +232,10 @@ export async function getLiquidity(
 ): Promise<LiquidityDto> {
   const client = await getServerApiClient();
   type QueryInput = RouteQuery<
-    (typeof client.v1.finance.accounting.reports.liquidity)["$get"]
+    (typeof client.v1.accounting.reports.liquidity)["$get"]
   >;
   const response = await requestOk(
-    await client.v1.finance.accounting.reports.liquidity.$get(
+    await client.v1.accounting.reports.liquidity.$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -250,10 +250,10 @@ export async function getFxRevaluation(
 ): Promise<FxRevaluationDto> {
   const client = await getServerApiClient();
   type QueryInput = RouteQuery<
-    (typeof client.v1.finance.accounting.reports.treasury)["fx-revaluation"]["$get"]
+    (typeof client.v1.accounting.reports.treasury)["fx-revaluation"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.finance.accounting.reports.treasury["fx-revaluation"].$get(
+    await client.v1.accounting.reports.treasury["fx-revaluation"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -268,10 +268,10 @@ export async function getFeeRevenue(
 ): Promise<FeeRevenueDto> {
   const client = await getServerApiClient();
   type QueryInput = RouteQuery<
-    (typeof client.v1.finance.accounting.reports)["fee-revenue"]["$get"]
+    (typeof client.v1.accounting.reports)["fee-revenue"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.finance.accounting.reports["fee-revenue"].$get(
+    await client.v1.accounting.reports["fee-revenue"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -286,10 +286,10 @@ export async function getClosePackage(
 ): Promise<ClosePackageDto> {
   const client = await getServerApiClient();
   type QueryInput = RouteQuery<
-    (typeof client.v1.finance.accounting.reports)["close-package"]["$get"]
+    (typeof client.v1.accounting.reports)["close-package"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.finance.accounting.reports["close-package"].$get(
+    await client.v1.accounting.reports["close-package"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),

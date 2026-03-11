@@ -1,9 +1,9 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 
-import { DocumentValidationError } from "@bedrock/documents";
-import { serializeOccurredAt } from "@bedrock/documents/actions";
-import { schema as documentsSchema } from "@bedrock/documents/schema";
-import { schema as ledgerSchema } from "@bedrock/finance/ledger/schema";
+import { DocumentValidationError } from "@multihansa/documents";
+import { serializeOccurredAt } from "@multihansa/documents/actions";
+import { schema as documentsSchema } from "@multihansa/documents/schema";
+import { schema as ledgerSchema } from "@multihansa/ledger/schema";
 
 import type {
   OrganizationRequisiteBinding,

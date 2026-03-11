@@ -1,8 +1,7 @@
 import { eq } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/common/sql/ports";
-import { ACCOUNT_NO } from "@bedrock/finance/accounting";
-import { ensureBookAccountInstanceTx } from "@bedrock/finance/ledger";
+import type { Transaction } from "@multihansa/common/sql/ports";
+import { ACCOUNT_NO, ensureBookAccountInstanceTx } from "@multihansa/ledger";
 
 import { ensureOrganizationDefaultBookIdTx } from "@multihansa/parties/organizations/default-book";
 

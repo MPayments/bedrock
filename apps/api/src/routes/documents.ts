@@ -7,9 +7,9 @@ import {
   ListDocumentsQuerySchema,
   UpdateDocumentInputSchema,
   isSystemOnlyDocumentType,
-} from "@bedrock/documents";
-import type { DocumentTransitionAction } from "@bedrock/documents/runtime";
-import { ListLedgerOperationsQuerySchema } from "@bedrock/finance/ledger";
+} from "@multihansa/documents";
+import type { DocumentTransitionAction } from "@multihansa/documents/runtime";
+import { ListLedgerOperationsQuerySchema } from "@multihansa/ledger";
 
 import auth from "../auth";
 import { handleRouteError } from "../common/errors";

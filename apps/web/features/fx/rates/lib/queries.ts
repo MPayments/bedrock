@@ -1,6 +1,6 @@
 import {
   CurrencyOptionsResponseSchema,
-} from "@bedrock/finance/assets/contracts";
+} from "@multihansa/assets/contracts";
 import {
   FxRateHistoryResponseSchema,
   FxRatePairsResponseSchema,

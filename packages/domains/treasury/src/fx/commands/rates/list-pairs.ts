@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 
-import { schema as currenciesSchema } from "@bedrock/finance/assets/schema";
+import { schema as currenciesSchema } from "@multihansa/assets/schema";
 
 import { schema as fxSchema } from "@multihansa/treasury/fx/schema";
 

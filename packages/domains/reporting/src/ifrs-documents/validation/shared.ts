@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   amountValueSchema,
   toMinorAmountString,
-} from "@bedrock/documents/actions";
+} from "@multihansa/documents/actions";
 
 export const currencyCodeSchema = z
   .string()

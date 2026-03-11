@@ -1,4 +1,4 @@
-import { normalizeCurrency } from "@bedrock/common";
+import { normalizeCurrency } from "@multihansa/common";
 
 import { type FxServiceContext } from "../../context";
 import { RateNotFoundError } from "../../errors";

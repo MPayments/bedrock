@@ -1,29 +1,29 @@
 import { and, eq, inArray } from "drizzle-orm";
 
-import { DAY_IN_SECONDS } from "@bedrock/common/constants";
+import { DAY_IN_SECONDS } from "@multihansa/common/constants";
 import {
   DocumentGraphError,
   DocumentValidationError,
-} from "@bedrock/documents";
+} from "@multihansa/documents";
 import {
   buildDocumentDraft,
   buildDocumentPostIdempotencyKey,
   parseDocumentPayload,
   serializeOccurredAt,
-} from "@bedrock/documents/actions";
-import type { DocumentModule } from "@bedrock/documents/runtime";
-import { schema as documentsSchema } from "@bedrock/documents/schema";
+} from "@multihansa/documents/actions";
+import type { DocumentModule } from "@multihansa/documents/runtime";
+import { schema as documentsSchema } from "@multihansa/documents/schema";
 import {
   ACCOUNTING_SOURCE_ID,
   OPERATION_CODE,
   POSTING_TEMPLATE_KEY,
-} from "@bedrock/finance/accounting";
+} from "@multihansa/accounting";
 import {
   buildDocumentPostingPlan,
   buildDocumentPostingRequest,
-} from "@bedrock/finance/accounting/actions";
-import { resolvePendingTransferBookId } from "@bedrock/finance/ledger/actions";
-import { schema as ledgerSchema } from "@bedrock/finance/ledger/schema";
+} from "@multihansa/accounting/actions";
+import { resolvePendingTransferBookId } from "@multihansa/ledger/actions";
+import { schema as ledgerSchema } from "@multihansa/ledger/schema";
 
 import {
   PaymentIntentInputSchema,

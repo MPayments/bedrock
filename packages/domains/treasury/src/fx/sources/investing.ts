@@ -4,7 +4,7 @@ import {
   type TlsClientResponse,
 } from "tlsclientwrapper";
 
-import { parseDecimalToFraction } from "@bedrock/common/math";
+import { parseDecimalToFraction } from "@multihansa/common/math";
 
 import { RateSourceSyncError } from "../errors";
 import {
