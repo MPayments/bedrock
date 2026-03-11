@@ -23,6 +23,8 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/core": "workspace:*",
+    "@bedrock/security": "workspace:*",
     "@multihansa/assets": "workspace:*",
     "@multihansa/common": "workspace:*",
     "@multihansa/ledger": "workspace:*",

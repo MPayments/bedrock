@@ -1,20 +1,9 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
-
-function decodeLegacy(value) {
-  return String.fromCharCode(...value);
-}
-
-const LEGACY_NAME = decodeLegacy([98, 101, 100, 114, 111, 99, 107]);
-const REMOVED_SCOPE = `@${LEGACY_NAME}/`;
-const REMOVED_PATH = `packages/${LEGACY_NAME}/`;
-const REMOVED_WORKER_TYPE = `${decodeLegacy([66, 101, 100, 114, 111, 99, 107])}Worker`;
-const REMOVED_WORKER_METRIC = `${LEGACY_NAME}_worker_`;
-const REMOVED_WORKERS_METRIC = `${LEGACY_NAME}_workers_`;
 
 const SOURCE_ROOTS = [
   join(ROOT, "apps"),
@@ -22,7 +11,11 @@ const SOURCE_ROOTS = [
   join(ROOT, "scripts"),
   join(ROOT, "docs"),
 ];
-const EXTRA_FILES = [join(ROOT, "README.md"), join(ROOT, "package.json"), join(ROOT, "vitest.config.ts")];
+const EXTRA_FILES = [
+  join(ROOT, "README.md"),
+  join(ROOT, "package.json"),
+  join(ROOT, "vitest.config.ts"),
+];
 const EXCLUDED_DIRS = new Set([
   ".git",
   "node_modules",
@@ -30,6 +23,12 @@ const EXCLUDED_DIRS = new Set([
   "coverage",
   ".next",
   ".turbo",
+]);
+const EXCLUDED_PATH_SEGMENTS = [
+  "/packages/bedrock/",
+];
+const EXCLUDED_FILES = new Set([
+  fileURLToPath(import.meta.url),
 ]);
 const INCLUDED_EXTENSIONS = new Set([
   ".ts",
@@ -42,6 +41,18 @@ const INCLUDED_EXTENSIONS = new Set([
   ".json",
   ".md",
 ]);
+const DEPRECATED_PATTERNS = [
+  "@hono/",
+  'from "hono"',
+  "from 'hono'",
+  'from "hono/client"',
+  "from 'hono/client'",
+  "@scalar/hono-api-reference",
+  "@bedrock/http-hono",
+];
+const DEPRECATED_REGEXES = [
+  /@multihansa\/(?:identity|assets|ledger|accounting|balances|documents|parties|reporting|treasury|reconciliation)\/bedrock\b/,
+];
 
 function walk(dir, out) {
   for (const name of readdirSync(dir)) {
@@ -56,8 +67,7 @@ function walk(dir, out) {
       continue;
     }
 
-    const ext = name.slice(name.lastIndexOf("."));
-    if (!INCLUDED_EXTENSIONS.has(ext)) {
+    if (!INCLUDED_EXTENSIONS.has(extname(name))) {
       continue;
     }
 
@@ -74,22 +84,35 @@ files.push(...EXTRA_FILES);
 const violations = [];
 
 for (const file of files) {
-  const content = readFileSync(file, "utf8");
-  if (
-    content.includes(REMOVED_SCOPE) ||
-    content.includes(REMOVED_PATH) ||
-    content.includes(REMOVED_WORKER_TYPE) ||
-    content.includes(REMOVED_WORKER_METRIC) ||
-    content.includes(REMOVED_WORKERS_METRIC)
-  ) {
-    violations.push(relative(ROOT, file));
+  if (EXCLUDED_FILES.has(file)) {
+    continue;
   }
+
+  const content = readFileSync(file, "utf8");
+  if (EXCLUDED_PATH_SEGMENTS.some((segment) => file.includes(segment))) {
+    continue;
+  }
+  const matchedPattern = DEPRECATED_PATTERNS.find((pattern) =>
+    content.includes(pattern),
+  );
+  const matchedRegex = DEPRECATED_REGEXES.find((pattern) =>
+    pattern.test(content),
+  );
+  const matched = matchedPattern ?? matchedRegex?.toString();
+  if (!matched) {
+    continue;
+  }
+
+  violations.push({
+    file: relative(ROOT, file),
+    pattern: matched,
+  });
 }
 
 if (violations.length > 0) {
-  console.error("Deprecated legacy references found:");
-  for (const file of violations) {
-    console.error(`- ${file}`);
+  console.error("Deprecated Hono references found:");
+  for (const violation of violations) {
+    console.error(`- ${violation.file}: contains ${violation.pattern}`);
   }
   process.exit(1);
 }

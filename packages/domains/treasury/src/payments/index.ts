@@ -2,7 +2,10 @@ export {
   createPaymentIntentDocumentModule,
   createPaymentResolutionDocumentModule,
 } from "./documents";
-export { createPaymentsService, type PaymentsService } from "./service";
+export { paymentsController } from "./controller";
+export { paymentsModule } from "./module";
+export { paymentsService } from "./service";
+export type { PaymentsService } from "./runtime";
 export {
   PaymentIntentInputSchema,
   PaymentIntentPayloadSchema,

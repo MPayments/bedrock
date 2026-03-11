@@ -19,6 +19,9 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/core": "workspace:*",
+    "@bedrock/security": "workspace:*",
+    "@bedrock/worker-interval": "workspace:*",
     "@multihansa/accounting": "workspace:*",
     "@multihansa/balances": "workspace:*",
     "@multihansa/common": "workspace:*",

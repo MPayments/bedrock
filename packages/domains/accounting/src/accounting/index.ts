@@ -17,6 +17,13 @@ export {
   type DimensionKey,
   type Dimensions,
 } from "./constants";
+export { accountingController } from "./controller";
+export { accountingModule } from "./module";
+export { accountingService } from "./service";
+export {
+  AccountingDomainServiceToken,
+  AccountingPackDefinitionToken,
+} from "./tokens";
 
 export {
   ACCOUNTING_OPERATIONS_LIST_CONTRACT,
@@ -33,8 +40,20 @@ export {
   AccountingPackVersionConflictError,
   CorrespondenceRuleNotFoundError,
 } from "./errors";
+export {
+  mapBalanceSheetDto,
+  mapCashFlowDto,
+  mapClosePackageDto,
+  mapFeeRevenueDto,
+  mapFxRevaluationDto,
+  mapGeneralLedgerDto,
+  mapIncomeStatementDto,
+  mapLiquidityDto,
+  mapOperationDetailsDto,
+  mapTrialBalanceDto,
+} from "./mappers";
 
-export { createAccountingService, type AccountingService } from "./service";
+export type { AccountingService } from "./runtime-service";
 export {
   defineChart,
   defineJournal,

@@ -1,7 +1,9 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 
-import { type Logger } from "@multihansa/common";
+type LoggerLike = {
+  info: (message: string, meta?: Record<string, unknown>) => void;
+};
 
 type WorkerState = "created" | "idle" | "running" | "stopped";
 type HealthStatus = "ok" | "degraded";
@@ -363,7 +365,7 @@ export async function startWorkerMonitoringServer(input: {
   host: string;
   port: number;
   registry: WorkerMonitoringRegistry;
-  logger?: Logger;
+  logger?: LoggerLike;
 }): Promise<WorkerMonitoringServer> {
   const server = createServer((req, res) => {
     const response = renderWorkerMonitoringResponse({

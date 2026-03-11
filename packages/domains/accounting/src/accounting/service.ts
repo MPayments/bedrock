@@ -1,223 +1,106 @@
-import { eq } from "drizzle-orm";
-
-import { schema } from "@multihansa/accounting/schema";
-
+import { defineService, type Logger as BedrockLogger } from "@bedrock/core";
 import {
-  createAccountingServiceContext,
-  type AccountingServiceDeps,
-} from "./internal/context";
-import { createAccountingRuntime } from "./runtime";
+  AccountingCorrespondenceRuleSchema,
+  AccountingTemplateAccountSchema,
+} from "@multihansa/accounting/contracts";
 import {
-  replaceCorrespondenceRulesSchema,
-  type ReplaceCorrespondenceRulesInput,
-} from "./validation";
+  DbToken,
+  adaptBedrockLogger,
+} from "@multihansa/common/bedrock";
+import { z } from "zod";
 
-export type AccountingService = ReturnType<typeof createAccountingService>;
+import { replaceCorrespondenceRulesSchema } from "./validation";
+import { createAccountingService as createAccountingRuntime } from "./runtime-service";
+import { AccountingPackDefinitionToken } from "./tokens";
 
-export function createAccountingService(deps: AccountingServiceDeps) {
-  const context = createAccountingServiceContext(deps);
-  const { db } = context;
-  const runtime = createAccountingRuntime(deps);
+const ValidatePostingMatrixResultSchema = z.object({
+  ok: z.boolean(),
+  errors: z.array(
+    z.object({
+      code: z.string(),
+      message: z.string(),
+      postingCode: z.string().optional(),
+      accountNo: z.string().optional(),
+    }),
+  ),
+});
 
-  async function listTemplateAccounts() {
-    return db
-      .select()
-      .from(schema.chartTemplateAccounts)
-      .orderBy(schema.chartTemplateAccounts.accountNo);
-  }
-
-  async function listCorrespondenceRules() {
-    return db
-      .select()
-      .from(schema.correspondenceRules)
-      .orderBy(
-        schema.correspondenceRules.postingCode,
-        schema.correspondenceRules.debitAccountNo,
-        schema.correspondenceRules.creditAccountNo,
-      );
-  }
-
-  async function replaceCorrespondenceRules(
-    input: ReplaceCorrespondenceRulesInput,
-  ) {
-    const validated = replaceCorrespondenceRulesSchema.parse(input);
-
-    return db.transaction(async (tx) => {
-      await tx.delete(schema.correspondenceRules);
-
-      if (validated.rules.length === 0) {
-        return [];
-      }
-
-      return tx
-        .insert(schema.correspondenceRules)
-        .values(
-          validated.rules.map((rule) => ({
-            postingCode: rule.postingCode,
-            debitAccountNo: rule.debitAccountNo,
-            creditAccountNo: rule.creditAccountNo,
-            enabled: rule.enabled,
-          })),
-        )
-        .returning();
-    });
-  }
-
-  async function validatePostingMatrix() {
-    const [rules, accounts, accountDimPolicies, postingCodeDimPolicies] =
-      await Promise.all([
-        db
-          .select()
-          .from(schema.correspondenceRules)
-          .where(eq(schema.correspondenceRules.enabled, true)),
-        db.select().from(schema.chartTemplateAccounts),
-        db.select().from(schema.chartAccountDimensionPolicy),
-        db
-          .select()
-          .from(schema.postingCodeDimensionPolicy)
-          .where(eq(schema.postingCodeDimensionPolicy.required, true)),
-      ]);
-
-    const errors: {
-      code: string;
-      message: string;
-      postingCode?: string;
-      accountNo?: string;
-    }[] = [];
-
-    const activeAccounts = new Map(
-      accounts.map((account) => [account.accountNo, account]),
-    );
-    const requiredAccountDimsByNo = new Map<string, Set<string>>();
-
-    for (const row of accountDimPolicies) {
-      if (row.mode !== "required") continue;
-      const existing = requiredAccountDimsByNo.get(row.accountNo);
-      if (existing) {
-        existing.add(row.dimensionKey);
-      } else {
-        requiredAccountDimsByNo.set(row.accountNo, new Set([row.dimensionKey]));
-      }
-    }
-
-    interface ScopedDim {
-      dimensionKey: string;
-      scope: string;
-    }
-    const requiredPostingCodeDims = new Map<string, ScopedDim[]>();
-    for (const row of postingCodeDimPolicies) {
-      const existing = requiredPostingCodeDims.get(row.postingCode);
-      const entry = {
-        dimensionKey: row.dimensionKey,
-        scope: (row as { scope?: string }).scope ?? "line",
-      };
-      if (existing) {
-        existing.push(entry);
-      } else {
-        requiredPostingCodeDims.set(row.postingCode, [entry]);
-      }
-    }
-
-    const duplicateRuleCounts = new Map<string, number>();
-
-    for (const rule of rules) {
-      const key = [
-        rule.postingCode,
-        rule.debitAccountNo,
-        rule.creditAccountNo,
-      ].join("|");
-      duplicateRuleCounts.set(key, (duplicateRuleCounts.get(key) ?? 0) + 1);
-
-      for (const accountNo of [rule.debitAccountNo, rule.creditAccountNo]) {
-        const account = activeAccounts.get(accountNo);
-        if (!account) {
-          errors.push({
-            code: "ACCOUNT_NOT_FOUND",
-            message: `Rule references unknown account ${accountNo}`,
-            postingCode: rule.postingCode,
-            accountNo,
-          });
-          continue;
-        }
-
-        if (!account.postingAllowed) {
-          errors.push({
-            code: "ACCOUNT_NOT_POSTABLE",
-            message: `Rule references non-postable account ${accountNo}`,
-            postingCode: rule.postingCode,
-            accountNo,
-          });
-        }
-
-        if (!account.enabled) {
-          errors.push({
-            code: "ACCOUNT_DISABLED",
-            message: `Rule references disabled account ${accountNo}`,
-            postingCode: rule.postingCode,
-            accountNo,
-          });
-        }
-
-        const accountRequired =
-          requiredAccountDimsByNo.get(accountNo) ?? new Set<string>();
-        const postingEntries =
-          requiredPostingCodeDims.get(rule.postingCode) ?? [];
-        const isDebitSide = accountNo === rule.debitAccountNo;
-        const postingDimKeys = new Set(
-          postingEntries
-            .filter((entry) => {
-              if (entry.scope === "line") return true;
-              if (entry.scope === "debit" && isDebitSide) return true;
-              if (entry.scope === "credit" && !isDebitSide) return true;
-              return false;
-            })
-            .map((entry) => entry.dimensionKey),
-        );
-
-        for (const dimKey of accountRequired) {
-          if (!postingDimKeys.has(dimKey)) {
-            errors.push({
-              code: "ACCOUNT_DIMENSION_UNSATISFIED",
-              message: `Posting code ${rule.postingCode} does not declare required dimension ${dimKey} for account ${accountNo} (${isDebitSide ? "debit" : "credit"} side)`,
-              postingCode: rule.postingCode,
-              accountNo,
-            });
-          }
-        }
-      }
-
-      const postingEntries = requiredPostingCodeDims.get(rule.postingCode);
-      if (!postingEntries || postingEntries.length === 0) {
-        errors.push({
-          code: "POSTING_CODE_DIMENSIONS_UNDECLARED",
-          message: `Posting code ${rule.postingCode} has no declared dimension policies`,
-          postingCode: rule.postingCode,
-        });
-      }
-    }
-
-    for (const [key, count] of duplicateRuleCounts) {
-      if (count > 1) {
-        const [postingCode, debitAccountNo, creditAccountNo] = key.split("|");
-        errors.push({
-          code: "DUPLICATE_ACTIVE_RULE",
-          message: `Duplicate active rule for postingCode=${postingCode}, debit=${debitAccountNo}, credit=${creditAccountNo}`,
-          postingCode,
-        });
-      }
-    }
-
-    return {
-      ok: errors.length === 0,
-      errors,
-    };
-  }
-
-  return {
-    ...runtime,
-    listTemplateAccounts,
-    listCorrespondenceRules,
-    replaceCorrespondenceRules,
-    validatePostingMatrix,
-  };
+function getAccountingRuntime(ctx: {
+  db: Parameters<typeof createAccountingRuntime>[0]["db"];
+  defaultPackDefinition: Parameters<
+    typeof createAccountingRuntime
+  >[0]["defaultPackDefinition"];
+  logger: BedrockLogger;
+}) {
+  return createAccountingRuntime({
+    db: ctx.db,
+    logger: adaptBedrockLogger(ctx.logger),
+    defaultPackDefinition: ctx.defaultPackDefinition,
+  });
 }
+
+export const accountingService = defineService("accounting", {
+  deps: {
+    db: DbToken,
+    defaultPackDefinition: AccountingPackDefinitionToken,
+  },
+  ctx: ({ db, defaultPackDefinition }) => ({
+    db,
+    defaultPackDefinition,
+  }),
+  actions: ({ action }) => ({
+    listTemplateAccounts: action({
+      output: z.array(AccountingTemplateAccountSchema),
+      handler: async ({ ctx }) => {
+        const rows = await getAccountingRuntime(ctx).listTemplateAccounts();
+        return rows.map((row) => ({
+          accountNo: row.accountNo,
+          name: row.name,
+          kind: row.kind,
+          normalSide: row.normalSide,
+          postingAllowed: row.postingAllowed,
+          enabled: row.enabled,
+          parentAccountNo: row.parentAccountNo,
+          createdAt: row.createdAt.toISOString(),
+        }));
+      },
+    }),
+    listCorrespondenceRules: action({
+      output: z.array(AccountingCorrespondenceRuleSchema),
+      handler: async ({ ctx }) => {
+        const rows = await getAccountingRuntime(ctx).listCorrespondenceRules();
+        return rows.map((row) => ({
+          id: row.id,
+          postingCode: row.postingCode,
+          debitAccountNo: row.debitAccountNo,
+          creditAccountNo: row.creditAccountNo,
+          enabled: row.enabled,
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+        }));
+      },
+    }),
+    replaceCorrespondenceRules: action({
+      input: replaceCorrespondenceRulesSchema,
+      output: z.array(AccountingCorrespondenceRuleSchema),
+      handler: async ({ ctx, input }) => {
+        const rows = await getAccountingRuntime(ctx).replaceCorrespondenceRules(
+          input,
+        );
+        return rows.map((row) => ({
+          id: row.id,
+          postingCode: row.postingCode,
+          debitAccountNo: row.debitAccountNo,
+          creditAccountNo: row.creditAccountNo,
+          enabled: row.enabled,
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+        }));
+      },
+    }),
+    validatePostingMatrix: action({
+      output: ValidatePostingMatrixResultSchema,
+      handler: async ({ ctx }) => getAccountingRuntime(ctx).validatePostingMatrix(),
+    }),
+  }),
+});

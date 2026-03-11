@@ -1,0 +1,1 @@
+export { createPlatformModule } from "./module";

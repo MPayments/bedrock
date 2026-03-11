@@ -1,6 +1,8 @@
 // Service
-export { createCounterpartiesService } from "./service";
-export type { CounterpartiesService } from "./service";
+export { counterpartiesController } from "./controller";
+export { counterpartiesModule } from "./module";
+export { counterpartiesService } from "./service";
+export type { CounterpartiesService } from "./runtime";
 
 export {
   assertBooksBelongToInternalLedgerCounterparties,

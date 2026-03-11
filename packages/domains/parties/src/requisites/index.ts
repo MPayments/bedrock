@@ -1,5 +1,7 @@
-export { createRequisitesService } from "./service";
-export type { RequisitesService } from "./service";
+export { requisitesController } from "./controller";
+export { requisitesModule } from "./module";
+export { requisitesService } from "./service";
+export type { RequisitesService } from "./runtime";
 export type { RequisitesServiceDeps } from "./context";
 export {
   RequisiteError,

@@ -15,7 +15,7 @@ import {
 } from "@multihansa/common/workers";
 import { schema } from "@multihansa/reconciliation/schema";
 
-import { createReconciliationService } from "./service";
+import { createReconciliationService } from "./runtime";
 
 export const RECONCILIATION_WORKER_DESCRIPTOR = defineWorkerDescriptor({
   id: "reconciliation",

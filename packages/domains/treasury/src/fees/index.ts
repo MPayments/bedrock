@@ -52,6 +52,4 @@ export {
   validateGetQuoteFeeComponentsInput,
 } from "./validation";
 
-export { createFeesService } from "./service";
-
 export { FeesError, FeeValidationError } from "./errors";

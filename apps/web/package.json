@@ -12,6 +12,7 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@bedrock/client": "workspace:*",
     "@multihansa/accounting": "workspace:*",
     "@multihansa/assets": "workspace:*",
     "@multihansa/common": "workspace:*",
@@ -25,7 +26,6 @@
     "@hookform/resolvers": "^5.2.2",
     "@tanstack/react-table": "^8.21.3",
     "better-auth": "^1.4.18",
-    "hono": "^4.12.2",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.563.0",
     "next": "^16.0.10",

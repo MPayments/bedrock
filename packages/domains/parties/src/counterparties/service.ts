@@ -1,48 +1,144 @@
-import { createCreateCounterpartyHandler } from "./commands/create-counterparty";
-import { createCreateCounterpartyGroupHandler } from "./commands/create-counterparty-group";
-import { createFindCounterpartyByIdHandler } from "./commands/find-counterparty-by-id";
-import { createListCounterpartiesHandler } from "./commands/list-counterparties";
-import { createListCounterpartyGroupsHandler } from "./commands/list-counterparty-groups";
-import { createListInternalLedgerCounterpartiesHandler } from "./commands/list-internal-ledger-counterparties";
-import { createRemoveCounterpartyHandler } from "./commands/remove-counterparty";
-import { createRemoveCounterpartyGroupHandler } from "./commands/remove-counterparty-group";
-import { createUpdateCounterpartyHandler } from "./commands/update-counterparty";
-import { createUpdateCounterpartyGroupHandler } from "./commands/update-counterparty-group";
+import { defineService, error } from "@bedrock/core";
+import { z } from "zod";
+
+import { BadRequestDomainError, NotFoundDomainError } from "@multihansa/common/bedrock";
+import { buildOptionsResponse } from "@multihansa/common/bedrock";
+import { IdParamSchema } from "@multihansa/common/bedrock";
+import { createPaginatedListSchema } from "@multihansa/common/pagination";
 import {
-  createCounterpartiesServiceContext,
-  type CounterpartiesServiceDeps,
-} from "./internal/context";
+  CounterpartyCustomerNotFoundError,
+  CounterpartyGroupNotFoundError,
+  CounterpartyGroupRuleError,
+  CounterpartyNotFoundError,
+  CounterpartySchema,
+  CreateCounterpartyInputSchema,
+  ListCounterpartiesQuerySchema,
+  UpdateCounterpartyInputSchema,
+} from "@multihansa/parties/counterparties";
+import {
+  CounterpartyOptionSchema,
+  CounterpartyOptionsResponseSchema,
+} from "@multihansa/parties/counterparties/contracts";
 
-export type CounterpartiesService = ReturnType<
-  typeof createCounterpartiesService
->;
+import { CounterpartiesDomainServiceToken } from "../tokens";
 
-export function createCounterpartiesService(deps: CounterpartiesServiceDeps) {
-  const context = createCounterpartiesServiceContext(deps);
+const PaginatedCounterpartiesSchema = createPaginatedListSchema(
+  CounterpartySchema,
+);
 
-  const list = createListCounterpartiesHandler(context);
-  const listInternalLedgerCounterparties =
-    createListInternalLedgerCounterpartiesHandler(context);
-  const findById = createFindCounterpartyByIdHandler(context);
-  const create = createCreateCounterpartyHandler(context);
-  const update = createUpdateCounterpartyHandler(context);
-  const remove = createRemoveCounterpartyHandler(context);
+const UpdateCounterpartyActionInputSchema = z.object({
+  id: z.uuid(),
+  input: UpdateCounterpartyInputSchema,
+});
 
-  const listGroups = createListCounterpartyGroupsHandler(context);
-  const createGroup = createCreateCounterpartyGroupHandler(context);
-  const updateGroup = createUpdateCounterpartyGroupHandler(context);
-  const removeGroup = createRemoveCounterpartyGroupHandler(context);
+export const counterpartiesService = defineService("counterparties", {
+  deps: {
+    counterparties: CounterpartiesDomainServiceToken,
+  },
+  ctx: ({ counterparties }) => ({
+    counterparties,
+  }),
+  actions: ({ action }) => ({
+    list: action({
+      input: ListCounterpartiesQuerySchema,
+      output: PaginatedCounterpartiesSchema,
+      handler: async ({ ctx, input }) => ctx.counterparties.list(input),
+    }),
+    options: action({
+      output: CounterpartyOptionsResponseSchema,
+      handler: async ({ ctx }) => {
+        const result = await ctx.counterparties.list({
+          limit: 200,
+          offset: 0,
+          sortBy: "shortName",
+          sortOrder: "asc",
+        });
 
-  return {
-    list,
-    listInternalLedgerCounterparties,
-    findById,
-    create,
-    update,
-    remove,
-    listGroups,
-    createGroup,
-    updateGroup,
-    removeGroup,
-  };
-}
+        return buildOptionsResponse(result, (counterparty) =>
+          CounterpartyOptionSchema.parse({
+            id: counterparty.id,
+            shortName: counterparty.shortName,
+            label: counterparty.shortName,
+          }),
+        );
+      },
+    }),
+    create: action({
+      input: CreateCounterpartyInputSchema,
+      output: CounterpartySchema,
+      errors: [BadRequestDomainError, NotFoundDomainError],
+      handler: async ({ ctx, input }) => {
+        try {
+          return await ctx.counterparties.create(input);
+        } catch (cause) {
+          if (
+            cause instanceof CounterpartyGroupNotFoundError ||
+            cause instanceof CounterpartyCustomerNotFoundError
+          ) {
+            return error(NotFoundDomainError, { message: cause.message });
+          }
+          if (cause instanceof CounterpartyGroupRuleError) {
+            return error(BadRequestDomainError, { message: cause.message });
+          }
+
+          throw cause;
+        }
+      },
+    }),
+    get: action({
+      input: IdParamSchema,
+      output: CounterpartySchema,
+      errors: [NotFoundDomainError],
+      handler: async ({ ctx, input }) => {
+        try {
+          return await ctx.counterparties.findById(input.id);
+        } catch (cause) {
+          if (cause instanceof CounterpartyNotFoundError) {
+            return error(NotFoundDomainError, { message: cause.message });
+          }
+
+          throw cause;
+        }
+      },
+    }),
+    update: action({
+      input: UpdateCounterpartyActionInputSchema,
+      output: CounterpartySchema,
+      errors: [BadRequestDomainError, NotFoundDomainError],
+      handler: async ({ ctx, input }) => {
+        try {
+          return await ctx.counterparties.update(input.id, input.input);
+        } catch (cause) {
+          if (
+            cause instanceof CounterpartyNotFoundError ||
+            cause instanceof CounterpartyGroupNotFoundError ||
+            cause instanceof CounterpartyCustomerNotFoundError
+          ) {
+            return error(NotFoundDomainError, { message: cause.message });
+          }
+          if (cause instanceof CounterpartyGroupRuleError) {
+            return error(BadRequestDomainError, { message: cause.message });
+          }
+
+          throw cause;
+        }
+      },
+    }),
+    delete: action({
+      input: IdParamSchema,
+      errors: [NotFoundDomainError],
+      handler: async ({ ctx, input }) => {
+        try {
+          await ctx.counterparties.remove(input.id);
+          return undefined;
+        } catch (cause) {
+          if (cause instanceof CounterpartyNotFoundError) {
+            return error(NotFoundDomainError, { message: cause.message });
+          }
+
+          throw cause;
+        }
+      },
+    }),
+  }),
+});

@@ -1,154 +1,224 @@
-import type { CorrelationContext, Logger } from "@multihansa/common";
-import type {
-  DocumentDetails,
-  DocumentTransitionAction,
-  DocumentWithOperationId,
-  DocumentsService,
-} from "@multihansa/documents/runtime";
+import { defineService, error } from "@bedrock/core";
+import { AuthContextToken } from "@bedrock/security";
+import { z } from "zod";
 
-import { type PaymentIntentPayload, type PaymentResolutionPayload } from "./validation";
+import {
+  InvalidStateError,
+  NotFoundError,
+  PermissionError,
+  ValidationError,
+} from "@multihansa/common/errors";
+import {
+  ActionReceiptConflictError,
+  ActionReceiptStoredError,
+} from "@multihansa/common/operations";
+import {
+  DocumentGraphError,
+  DocumentNotFoundError,
+  DocumentPolicyDeniedError,
+  DocumentPostingNotRequiredError,
+  DocumentValidationError,
+} from "@multihansa/documents";
+import { PaymentIntentInputSchema } from "@multihansa/treasury/payments";
 
-export interface PaymentsServiceDeps {
-  documents: Pick<
-    DocumentsService,
-    | "createDraft"
-    | "list"
-    | "get"
-    | "getDetails"
-    | "transition"
-  >;
-  logger?: Logger;
+import {
+  PaymentDetailsSchema,
+  PaymentListResponseSchema,
+} from "./schemas";
+import {
+  BadRequestDomainError,
+  ConflictDomainError,
+  ForbiddenDomainError,
+  MissingIdempotencyKeyDomainError,
+  NotFoundDomainError,
+} from "@multihansa/common/bedrock";
+import { toApiJson } from "@multihansa/common/bedrock";
+import { RequestContextToken } from "@multihansa/common/bedrock";
+import { PaymentsDomainServiceToken } from "../tokens";
+import { DocumentSchema, toDocumentDto } from "@multihansa/documents";
+import { requireActorUserId } from "@multihansa/common/bedrock";
+import { requireIdempotencyKey } from "@multihansa/common/bedrock";
+
+const CreatePaymentInputSchema = z.object({
+  createIdempotencyKey: z.string().trim().min(1).max(255),
+  input: z.unknown(),
+});
+
+const ListPaymentsQuerySchema = z.object({
+  kind: z.enum(["intent", "resolution", "all"]).default("intent"),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+const PaymentIdParamSchema = z.object({
+  id: z.uuid(),
+});
+
+const PaymentTransitionActionSchema = z.object({
+  id: z.uuid(),
+  action: z.enum(["submit", "approve", "reject", "post", "cancel"]),
+});
+
+function toDomainFailure(cause: unknown) {
+  if (cause instanceof DocumentNotFoundError || cause instanceof NotFoundError) {
+    return error(NotFoundDomainError, { message: cause.message });
+  }
+
+  if (cause instanceof PermissionError || cause instanceof DocumentPolicyDeniedError) {
+    return error(ForbiddenDomainError, { message: cause.message });
+  }
+
+  if (
+    cause instanceof DocumentValidationError ||
+    cause instanceof DocumentGraphError ||
+    cause instanceof ValidationError
+  ) {
+    return error(BadRequestDomainError, { message: cause.message });
+  }
+
+  if (
+    cause instanceof InvalidStateError ||
+    cause instanceof DocumentPostingNotRequiredError ||
+    cause instanceof ActionReceiptConflictError ||
+    cause instanceof ActionReceiptStoredError
+  ) {
+    return error(ConflictDomainError, { message: cause.message });
+  }
+
+  throw cause;
 }
 
-export type PaymentsService = ReturnType<typeof createPaymentsService>;
+export const paymentsService = defineService("payments", {
+  deps: {
+    auth: AuthContextToken,
+    requestContext: RequestContextToken,
+    payments: PaymentsDomainServiceToken,
+  },
+  ctx: ({ auth, payments, requestContext }) => ({
+    auth,
+    requestContext,
+    payments,
+  }),
+  actions: ({ action }) => ({
+    list: action({
+      input: ListPaymentsQuerySchema,
+      output: PaymentListResponseSchema,
+      handler: async ({ ctx, input }) => {
+        const result = await ctx.payments.list(input);
+        return {
+          ...result,
+          data: result.data.map((item) => DocumentSchema.parse(toDocumentDto(item))),
+        };
+      },
+    }),
+    create: action({
+      input: CreatePaymentInputSchema,
+      output: DocumentSchema,
+      errors: [
+        BadRequestDomainError,
+        ConflictDomainError,
+        ForbiddenDomainError,
+        NotFoundDomainError,
+      ],
+      handler: async ({ ctx, input }) => {
+        try {
+          return DocumentSchema.parse(
+            toDocumentDto(
+              await ctx.payments.createDraft({
+                payload: PaymentIntentInputSchema.parse(input.input),
+                createIdempotencyKey: input.createIdempotencyKey,
+                actorUserId: requireActorUserId(ctx.auth),
+                requestContext: ctx.requestContext,
+              }),
+            ),
+          );
+        } catch (cause) {
+          return toDomainFailure(cause);
+        }
+      },
+    }),
+    get: action({
+      input: PaymentIdParamSchema,
+      output: DocumentSchema,
+      errors: [
+        BadRequestDomainError,
+        ConflictDomainError,
+        ForbiddenDomainError,
+        NotFoundDomainError,
+      ],
+      handler: async ({ ctx, input }) => {
+        try {
+          return DocumentSchema.parse(toDocumentDto(await ctx.payments.get(input.id)));
+        } catch (cause) {
+          return toDomainFailure(cause);
+        }
+      },
+    }),
+    getDetails: action({
+      input: PaymentIdParamSchema,
+      output: PaymentDetailsSchema,
+      errors: [
+        BadRequestDomainError,
+        ConflictDomainError,
+        ForbiddenDomainError,
+        NotFoundDomainError,
+      ],
+      handler: async ({ ctx, input }) => {
+        try {
+          const result = await ctx.payments.getDetails(
+            input.id,
+            requireActorUserId(ctx.auth),
+          );
+          return PaymentDetailsSchema.parse(
+            toApiJson(
+              {
+                ...result,
+                document: toDocumentDto({
+                  document: result.document,
+                  postingOperationId: null,
+                  allowedActions: [],
+                }),
+              },
+              { normalizeMoney: true },
+            ),
+          );
+        } catch (cause) {
+          return toDomainFailure(cause);
+        }
+      },
+    }),
+    transition: action({
+      input: PaymentTransitionActionSchema,
+      output: DocumentSchema,
+      errors: [
+        BadRequestDomainError,
+        ConflictDomainError,
+        ForbiddenDomainError,
+        MissingIdempotencyKeyDomainError,
+        NotFoundDomainError,
+      ],
+      handler: async ({ ctx, input }) => {
+        const idempotencyKey = requireIdempotencyKey(ctx.requestContext);
+        if (typeof idempotencyKey !== "string") {
+          return idempotencyKey;
+        }
 
-type PaymentIntentTransitionAction = Exclude<DocumentTransitionAction, "repost">;
-
-export function createPaymentsService(deps: PaymentsServiceDeps) {
-  const { documents } = deps;
-
-  async function createDraft(input: {
-    payload: PaymentIntentPayload;
-    createIdempotencyKey: string;
-    actorUserId: string;
-    requestContext?: CorrelationContext;
-  }) {
-    return documents.createDraft({
-      docType: "payment_intent",
-      payload: input.payload,
-      createIdempotencyKey: input.createIdempotencyKey,
-      actorUserId: input.actorUserId,
-      requestContext: input.requestContext,
-    });
-  }
-
-  async function list(input?: {
-    limit?: number;
-    offset?: number;
-    kind?: "intent" | "resolution" | "all";
-  }) {
-    const docType =
-      input?.kind === "resolution"
-        ? ["payment_resolution"]
-        : input?.kind === "all"
-          ? ["payment_intent", "payment_resolution"]
-          : ["payment_intent"];
-
-    return documents.list({
-      docType,
-      limit: input?.limit ?? 50,
-      offset: input?.offset ?? 0,
-      sortBy: "createdAt",
-      sortOrder: "desc",
-    });
-  }
-
-  async function get(documentId: string) {
-    return documents.get("payment_intent", documentId);
-  }
-
-  async function getDetails(documentId: string, actorUserId: string): Promise<{
-    document: DocumentDetails["document"];
-    details: DocumentDetails;
-    connectorIntent: null;
-    attempts: [];
-    events: [];
-  }> {
-    const details = await documents.getDetails("payment_intent", documentId, actorUserId);
-
-    return {
-      document: details.document,
-      details,
-      connectorIntent: null,
-      attempts: [],
-      events: [],
-    };
-  }
-
-  async function forwardIntentTransition(input: {
-    action: PaymentIntentTransitionAction;
-    documentId: string;
-    actorUserId: string;
-    idempotencyKey: string;
-    requestContext?: CorrelationContext;
-  }) {
-    return documents.transition({
-      action: input.action,
-      docType: "payment_intent",
-      documentId: input.documentId,
-      actorUserId: input.actorUserId,
-      idempotencyKey: input.idempotencyKey,
-      requestContext: input.requestContext,
-    });
-  }
-
-  async function transitionIntent(input: {
-    action: PaymentIntentTransitionAction;
-    documentId: string;
-    actorUserId: string;
-    idempotencyKey: string;
-    requestContext?: CorrelationContext;
-  }): Promise<DocumentWithOperationId> {
-    return forwardIntentTransition(input);
-  }
-
-  async function createResolution(input: {
-    payload: PaymentResolutionPayload;
-    actorUserId: string;
-    idempotencyKey: string;
-    requestContext?: CorrelationContext;
-  }) {
-    const draft = await documents.createDraft({
-      docType: "payment_resolution",
-      createIdempotencyKey: `${input.idempotencyKey}:draft`,
-      payload: input.payload,
-      actorUserId: input.actorUserId,
-      requestContext: input.requestContext,
-    });
-    await documents.transition({
-      action: "submit",
-      docType: "payment_resolution",
-      documentId: draft.document.id,
-      actorUserId: input.actorUserId,
-      idempotencyKey: `${input.idempotencyKey}:submit`,
-      requestContext: input.requestContext,
-    });
-    return documents.transition({
-      action: "post",
-      docType: "payment_resolution",
-      documentId: draft.document.id,
-      actorUserId: input.actorUserId,
-      idempotencyKey: `${input.idempotencyKey}:post`,
-      requestContext: input.requestContext,
-    });
-  }
-
-  return {
-    createDraft,
-    list,
-    get,
-    getDetails,
-    transitionIntent,
-    createResolution,
-  };
-}
+        try {
+          return DocumentSchema.parse(
+            toDocumentDto(
+              await ctx.payments.transitionIntent({
+                action: input.action,
+                documentId: input.id,
+                actorUserId: requireActorUserId(ctx.auth),
+                idempotencyKey,
+                requestContext: ctx.requestContext,
+              }),
+            ),
+          );
+        } catch (cause) {
+          return toDomainFailure(cause);
+        }
+      },
+    }),
+  }),
+});

@@ -33,7 +33,7 @@ function inArraySafe<T>(column: any, values: T[] | undefined) {
   return inArray(column, values as any[]);
 }
 
-interface LedgerOperationListRow {
+export interface LedgerOperationListRow {
   id: string;
   sourceType: string;
   sourceId: string;
@@ -51,7 +51,7 @@ interface LedgerOperationListRow {
   currencies: string[];
 }
 
-interface LedgerOperationPostingRow {
+export interface LedgerOperationPostingRow {
   id: string;
   lineNo: number;
   bookId: string;
@@ -71,7 +71,7 @@ interface LedgerOperationPostingRow {
   createdAt: Date;
 }
 
-interface LedgerOperationTbPlanRow {
+export interface LedgerOperationTbPlanRow {
   id: string;
   lineNo: number;
   type: "create" | "post_pending" | "void_pending";
@@ -91,7 +91,7 @@ interface LedgerOperationTbPlanRow {
   createdAt: Date;
 }
 
-interface LedgerOperationDetails {
+export interface LedgerOperationDetails {
   operation: LedgerOperationListRow;
   postings: LedgerOperationPostingRow[];
   tbPlans: LedgerOperationTbPlanRow[];

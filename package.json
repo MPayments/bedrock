@@ -11,7 +11,7 @@
     "pack:validate": "bun run --filter=@multihansa/accounting pack:validate",
     "pack:compile": "bun run --filter=@multihansa/accounting pack:compile",
     "pack:activate": "bun run --filter=@multihansa/accounting pack:activate",
-    "check-types": "turbo run check-types",
+    "check-types": "turbo run check-types typecheck",
     "test": "vitest run --project multihansa-api --project multihansa-workers --project multihansa-db --project common --project identity --project assets --project ledger --project accounting --project balances --project reconciliation --project documents --project parties --project treasury --project reporting",
     "test:watch": "vitest --project multihansa-api --project multihansa-workers --project multihansa-db --project common --project identity --project assets --project ledger --project accounting --project balances --project reconciliation --project documents --project parties --project treasury --project reporting",
     "test:coverage": "vitest run --coverage --project multihansa-api --project multihansa-workers --project multihansa-db --project common --project identity --project assets --project ledger --project accounting --project balances --project reconciliation --project documents --project parties --project treasury --project reporting",
@@ -49,6 +49,9 @@
   "packageManager": "bun@1.3.6",
   "workspaces": [
     "apps/*",
+    "packages/bedrock/*",
+    "packages/bedrock/adapters/*",
+    "packages/bedrock/tooling/*",
     "packages/common",
     "packages/domains/identity",
     "packages/domains/assets",

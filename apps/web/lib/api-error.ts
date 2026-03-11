@@ -47,10 +47,29 @@ function extractApiErrorMessage(payload: unknown): string | null {
     message?: unknown;
     details?: unknown;
   };
+  const nestedError =
+    parsed.error && typeof parsed.error === "object"
+      ? (parsed.error as {
+          message?: unknown;
+          details?: unknown;
+        })
+      : null;
+
+  const nestedValidationMessage = extractValidationMessage(nestedError?.details);
+  if (nestedValidationMessage) {
+    return nestedValidationMessage;
+  }
 
   const validationMessage = extractValidationMessage(parsed.details);
   if (validationMessage) {
     return validationMessage;
+  }
+
+  if (
+    typeof nestedError?.message === "string" &&
+    nestedError.message.trim().length > 0
+  ) {
+    return nestedError.message;
   }
 
   if (typeof parsed.error === "string" && parsed.error.trim().length > 0) {

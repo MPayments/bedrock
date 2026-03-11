@@ -18,6 +18,8 @@
     "pack:activate": "tsx ./scripts/pack-activate.ts"
   },
   "dependencies": {
+    "@bedrock/core": "workspace:*",
+    "@bedrock/security": "workspace:*",
     "@multihansa/common": "workspace:*",
     "@multihansa/ledger": "workspace:*",
     "drizzle-orm": "^0.45.1",

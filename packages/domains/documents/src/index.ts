@@ -5,6 +5,14 @@ export {
   type DocumentDefinition,
   type DocumentPolicyDefinition,
 } from "./definitions";
+export { documentsController } from "./controller";
+export { documentsModule } from "./module";
+export { documentsService } from "./service";
+export {
+  DocumentRegistryToken,
+  DocumentsDomainServiceToken,
+} from "./tokens";
+export { createDocumentsWorkerModule } from "./worker";
 export { IDEMPOTENCY_SCOPE, type IdempotencyScope } from "./scopes";
 export * from "./actions";
 export * from "./errors";
@@ -30,3 +38,13 @@ export {
   validateInput,
 } from "./validation";
 export type { ListDocumentsQuery } from "./validation";
+export {
+  DocumentDetailsSchema,
+  DocumentSchema,
+  DocumentsListResponseSchema,
+  OperationDetailsSchema,
+  OperationsListResponseSchema,
+  OperationSummarySchema,
+  toDocumentDetailsDto,
+  toDocumentDto,
+} from "./schemas";

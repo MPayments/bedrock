@@ -132,6 +132,10 @@ function getPackageKeyFromFile(relPath) {
 }
 
 function getPackageKeyFromSpecifier(specifier) {
+  if (specifier.startsWith("@bedrock/")) {
+    return "framework";
+  }
+
   for (const [packageName, key] of PACKAGE_BY_SPECIFIER.entries()) {
     if (specifier === packageName || specifier.startsWith(`${packageName}/`)) {
       return key;
@@ -156,20 +160,9 @@ for (const file of files) {
   const sourceKey = getPackageKeyFromFile(relPath);
   const content = readFileSync(file, "utf8");
 
-  if (content.includes(REMOVED_SCOPE) || content.includes(REMOVED_PATH)) {
-    violations.push({
-      file: relPath,
-      reason: "contains removed legacy reference",
-    });
-  }
-
   const imports = getImports(content);
   for (const specifier of imports) {
-    if (specifier.startsWith(REMOVED_SCOPE)) {
-      violations.push({
-        file: relPath,
-        reason: `imports removed specifier ${specifier}`,
-      });
+    if (specifier.startsWith("@bedrock/")) {
       continue;
     }
 

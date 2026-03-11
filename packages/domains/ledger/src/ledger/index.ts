@@ -1,4 +1,10 @@
 export { createLedgerEngine, type LedgerEngine } from "./engine";
+export { createLedgerWorkerModule } from "./worker-module";
+export {
+  LedgerEngineToken,
+  LedgerReadServiceToken,
+} from "./tokens";
+export { ledgerModule } from "./module";
 export { ACCOUNT_NO } from "./account-no";
 export { IDEMPOTENCY_SCOPE, type IdempotencyScope } from "./scopes";
 export {

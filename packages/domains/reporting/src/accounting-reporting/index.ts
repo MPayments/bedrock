@@ -50,9 +50,11 @@ export {
   TrialBalanceSummaryByCurrencySchema,
 } from "./contracts";
 export {
-  createAccountingReportingService,
-  type AccountingReportingService,
-} from "./service";
+  accountingReportsController,
+} from "./controller";
+export { accountingReportsModule } from "./module";
+export { accountingReportsService } from "./service";
+export type { AccountingReportingService } from "./runtime";
 export { schema as accountingReportingSchema } from "./schema";
 export type {
   AccountingClosePackage,

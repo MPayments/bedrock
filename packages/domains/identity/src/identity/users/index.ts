@@ -1,6 +1,8 @@
 // Service
-export { createUsersService } from "./service";
-export type { UsersService } from "./service";
+export { usersController } from "./controller";
+export { usersModule } from "./module";
+export { usersService } from "./service";
+export type { UsersService } from "./runtime";
 
 // Validation
 export {

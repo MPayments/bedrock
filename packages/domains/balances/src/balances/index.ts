@@ -1,4 +1,8 @@
-export { createBalancesService, type BalancesService } from "./service";
+export { balancesController } from "./controller";
+export { balancesModule } from "./module";
+export { balancesService } from "./service";
+export { createBalancesWorkerModule } from "./worker-module";
+export type { BalancesService } from "./runtime";
 export { IDEMPOTENCY_SCOPE, type IdempotencyScope } from "./scopes";
 export {
   BALANCES_WORKER_DESCRIPTOR,

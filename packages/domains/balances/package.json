@@ -16,6 +16,9 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/core": "workspace:*",
+    "@bedrock/security": "workspace:*",
+    "@bedrock/worker-interval": "workspace:*",
     "@multihansa/common": "workspace:*",
     "@multihansa/ledger": "workspace:*",
     "drizzle-orm": "^0.45.1",

@@ -1,5 +1,7 @@
-export { createRequisiteProvidersService } from "./service";
-export type { RequisiteProvidersService } from "./service";
+export { requisiteProvidersController } from "./controller";
+export { requisiteProvidersModule } from "./module";
+export { requisiteProvidersService } from "./service";
+export type { RequisiteProvidersService } from "./runtime";
 export type { RequisiteProvidersServiceDeps } from "./context";
 export {
   RequisiteProviderError,

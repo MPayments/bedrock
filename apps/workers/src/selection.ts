@@ -1,9 +1,7 @@
-import { listWorkerIds } from "@multihansa/common/workers";
-
 import { MULTIHANSA_WORKER_DESCRIPTORS } from "@multihansa/app";
 
 export function listAvailableWorkerIds(): string[] {
-  return listWorkerIds(MULTIHANSA_WORKER_DESCRIPTORS);
+  return MULTIHANSA_WORKER_DESCRIPTORS.map((descriptor) => descriptor.id);
 }
 
 export function parseSelectedWorkerIds(

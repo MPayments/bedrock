@@ -13,6 +13,16 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/auth-better": "workspace:*",
+    "@bedrock/client": "workspace:*",
+    "@bedrock/config-env": "workspace:*",
+    "@bedrock/core": "workspace:*",
+    "@bedrock/http-fastify": "workspace:*",
+    "@bedrock/logger-pino": "workspace:*",
+    "@bedrock/openapi": "workspace:*",
+    "@bedrock/security": "workspace:*",
+    "@bedrock/sql-drizzle": "workspace:*",
+    "@bedrock/worker-interval": "workspace:*",
     "@multihansa/accounting": "workspace:*",
     "@multihansa/assets": "workspace:*",
     "@multihansa/balances": "workspace:*",
@@ -21,9 +31,13 @@
     "@multihansa/identity": "workspace:*",
     "@multihansa/ledger": "workspace:*",
     "@multihansa/parties": "workspace:*",
+    "@multihansa/reconciliation": "workspace:*",
     "@multihansa/reporting": "workspace:*",
     "@multihansa/treasury": "workspace:*",
+    "better-auth": "^1.5.4",
     "drizzle-orm": "^0.45.1"
+    ,
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^24",

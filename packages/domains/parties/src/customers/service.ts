@@ -1,29 +1,94 @@
-import { createCreateCustomerHandler } from "./commands/create-customer";
-import { createFindCustomerByIdHandler } from "./commands/find-customer-by-id";
-import { createListCustomersHandler } from "./commands/list-customers";
-import { createRemoveCustomerHandler } from "./commands/remove-customer";
-import { createUpdateCustomerHandler } from "./commands/update-customer";
+import { defineService, error } from "@bedrock/core";
+import { createPaginatedListSchema } from "@multihansa/common/pagination";
 import {
-  createCustomersServiceContext,
-  type CustomersServiceDeps,
-} from "./context";
+  CreateCustomerInputSchema,
+  CustomerDeleteConflictError,
+  CustomerNotFoundError,
+  CustomerSchema,
+  ListCustomersQuerySchema,
+  UpdateCustomerInputSchema,
+} from "@multihansa/parties/customers";
+import { z } from "zod";
 
-export type CustomersService = ReturnType<typeof createCustomersService>;
+import { ConflictDomainError, NotFoundDomainError } from "@multihansa/common/bedrock";
+import { IdParamSchema } from "@multihansa/common/bedrock";
+import { CustomersDomainServiceToken } from "../tokens";
 
-export function createCustomersService(deps: CustomersServiceDeps) {
-  const context = createCustomersServiceContext(deps);
+const PaginatedCustomersSchema = createPaginatedListSchema(CustomerSchema);
 
-  const list = createListCustomersHandler(context);
-  const findById = createFindCustomerByIdHandler(context);
-  const create = createCreateCustomerHandler(context);
-  const update = createUpdateCustomerHandler(context);
-  const remove = createRemoveCustomerHandler(context);
+const UpdateCustomerActionInputSchema = z.object({
+  id: z.uuid(),
+  input: UpdateCustomerInputSchema,
+});
 
-  return {
-    list,
-    findById,
-    create,
-    update,
-    remove,
-  };
-}
+export const customersService = defineService("customers", {
+  deps: {
+    customers: CustomersDomainServiceToken,
+  },
+  ctx: ({ customers }) => ({
+    customers,
+  }),
+  actions: ({ action }) => ({
+    list: action({
+      input: ListCustomersQuerySchema,
+      output: PaginatedCustomersSchema,
+      handler: async ({ ctx, input }) => ctx.customers.list(input),
+    }),
+    create: action({
+      input: CreateCustomerInputSchema,
+      output: CustomerSchema,
+      handler: async ({ ctx, input }) => ctx.customers.create(input),
+    }),
+    get: action({
+      input: IdParamSchema,
+      output: CustomerSchema,
+      errors: [NotFoundDomainError],
+      handler: async ({ ctx, input }) => {
+        try {
+          return await ctx.customers.findById(input.id);
+        } catch (cause) {
+          if (cause instanceof CustomerNotFoundError) {
+            return error(NotFoundDomainError, { message: cause.message });
+          }
+
+          throw cause;
+        }
+      },
+    }),
+    update: action({
+      input: UpdateCustomerActionInputSchema,
+      output: CustomerSchema,
+      errors: [NotFoundDomainError],
+      handler: async ({ ctx, input }) => {
+        try {
+          return await ctx.customers.update(input.id, input.input);
+        } catch (cause) {
+          if (cause instanceof CustomerNotFoundError) {
+            return error(NotFoundDomainError, { message: cause.message });
+          }
+
+          throw cause;
+        }
+      },
+    }),
+    delete: action({
+      input: IdParamSchema,
+      errors: [NotFoundDomainError, ConflictDomainError],
+      handler: async ({ ctx, input }) => {
+        try {
+          await ctx.customers.remove(input.id);
+          return undefined;
+        } catch (cause) {
+          if (cause instanceof CustomerNotFoundError) {
+            return error(NotFoundDomainError, { message: cause.message });
+          }
+          if (cause instanceof CustomerDeleteConflictError) {
+            return error(ConflictDomainError, { message: cause.message });
+          }
+
+          throw cause;
+        }
+      },
+    }),
+  }),
+});

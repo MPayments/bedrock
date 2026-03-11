@@ -1,5 +1,7 @@
-export { createOrganizationsService } from "./service";
-export type { OrganizationsService } from "./service";
+export { organizationsController } from "./controller";
+export { organizationsModule } from "./module";
+export { organizationsService } from "./service";
+export type { OrganizationsService } from "./runtime";
 export type { OrganizationsServiceDeps } from "./context";
 export {
   OrganizationError,

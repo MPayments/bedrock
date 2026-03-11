@@ -11,11 +11,13 @@
     "worker:documents-period-close": "tsx src/main.ts documents-period-close",
     "worker:balances": "tsx src/main.ts balances",
     "worker:fx-rates": "tsx src/main.ts fx-rates",
+    "worker:reconciliation": "tsx src/main.ts reconciliation",
     "build": "tsgo",
     "check-types": "tsgo --noEmit",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/core": "workspace:*",
     "@multihansa/app": "workspace:*",
     "@multihansa/common": "workspace:*",
     "@multihansa/db": "workspace:*",

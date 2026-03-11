@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/assets/index.ts",
-    "./schema": "./src/assets/schema.ts",
-    "./*": "./src/assets/*.ts"
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./*": "./src/*.ts"
   },
   "scripts": {
     "build": "tsgo --project tsconfig.json",
@@ -15,6 +15,8 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/core": "workspace:*",
+    "@bedrock/security": "workspace:*",
     "@multihansa/common": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
