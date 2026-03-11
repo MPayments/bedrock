@@ -20,28 +20,28 @@ export function buildDocumentTypeHref(docType: string): string | null {
     return null;
   }
 
-  return `${buildDocumentsFamilyHref(family)}/${encodeSegment(docType)}`;
+  return `${buildDocumentsFamilyHref(family)}?docType=${encodeSegment(docType)}`;
 }
 
 export function buildDocumentCreateHref(docType: string): string | null {
-  const typeHref = buildDocumentTypeHref(docType);
-  if (!typeHref) {
+  const family = getDocumentsWorkspaceFamily(docType);
+  if (!family) {
     return null;
   }
 
-  return `${typeHref}/create`;
+  return `${buildDocumentsFamilyHref(family)}/${encodeSegment(docType)}/create`;
 }
 
 export function buildDocumentDetailsHref(
   docType: string,
   id: string,
 ): string | null {
-  const typeHref = buildDocumentTypeHref(docType);
-  if (!typeHref) {
+  const family = getDocumentsWorkspaceFamily(docType);
+  if (!family) {
     return null;
   }
 
-  return `${typeHref}/${encodeSegment(id)}`;
+  return `${buildDocumentsFamilyHref(family)}/${encodeSegment(docType)}/${encodeSegment(id)}`;
 }
 
 export function isDocumentInFamily(

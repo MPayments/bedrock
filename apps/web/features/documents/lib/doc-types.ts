@@ -103,7 +103,7 @@ export function getDocumentsWorkspaceFamilyLabel(
     return "Переводы";
   }
 
-  return "IFRS";
+  return "Учетные документы";
 }
 
 export function isIfrsWorkflowDocumentType(docType: string): boolean {

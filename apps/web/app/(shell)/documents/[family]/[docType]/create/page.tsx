@@ -9,7 +9,10 @@ import {
   isAllowedDocumentsWorkspaceType,
   isDocumentsWorkspaceFamily,
 } from "@/features/documents/lib/doc-types";
-import { getDocumentFormOptions } from "@/features/documents/lib/form-options";
+import {
+  createEmptyDocumentFormOptions,
+  getDocumentFormOptions,
+} from "@/features/documents/lib/form-options";
 import { getServerSessionSnapshot } from "@/lib/auth/session";
 
 interface PageProps {
@@ -31,7 +34,9 @@ export default async function DocumentCreateByTypePage({ params }: PageProps) {
     notFound();
   }
 
-  const options = await getDocumentFormOptions();
+  const options = await getDocumentFormOptions().catch(() =>
+    createEmptyDocumentFormOptions(),
+  );
 
   return (
     <EntityListPageShell

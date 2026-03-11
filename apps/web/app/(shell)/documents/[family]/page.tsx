@@ -2,10 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRightLeft, ChevronDown, FileText, Plus } from "lucide-react";
 
-import {
-  ButtonGroup,
-  ButtonGroupSeparator,
-} from "@multihansa/ui/components/button-group";
 import { Button } from "@multihansa/ui/components/button";
 import {
   DropdownMenu,
@@ -24,19 +20,31 @@ import {
   isDocumentsWorkspaceFamily,
   type DocumentsWorkspaceFamily,
 } from "@/features/documents/lib/doc-types";
-import {
-  buildDocumentCreateHref,
-  buildDocumentTypeHref,
-} from "@/features/documents/lib/routes";
+import { buildDocumentCreateHref } from "@/features/documents/lib/routes";
 import { getDocuments } from "@/features/operations/documents/lib/queries";
+import { searchParamsCache } from "@/features/operations/documents/lib/validations";
 import { getServerSessionSnapshot } from "@/lib/auth/session";
 
 interface FamilyPageProps {
   params: Promise<{ family: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+function normalizeDocTypeFilter(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  return [];
 }
 
 export default async function DocumentsFamilyPage({
   params,
+  searchParams,
 }: FamilyPageProps) {
   const { family } = await params;
 
@@ -51,15 +59,26 @@ export default async function DocumentsFamilyPage({
     notFound();
   }
 
+  const parsedSearch = await searchParamsCache.parse(searchParams);
   const familyDocTypes = typeOptions.map((option) => option.value);
+  const familyDocTypeSet = new Set<string>(familyDocTypes);
+  const requestedDocTypes = normalizeDocTypeFilter(parsedSearch.docType);
+  const selectedDocTypes = requestedDocTypes.filter((docType) =>
+    familyDocTypeSet.has(docType),
+  );
+
+  if (requestedDocTypes.length > 0 && selectedDocTypes.length === 0) {
+    notFound();
+  }
+
+  const scopedSearch = {
+    ...parsedSearch,
+    docType: selectedDocTypes.length > 0 ? selectedDocTypes : familyDocTypes,
+  };
   const config = FAMILY_CONFIG[family];
   const createOptions = typeOptions.filter((option) =>
     canCreateDocumentType(option.value, session.role),
   );
-  const primaryCreateOption = createOptions[0] ?? null;
-  const primaryCreateHref = primaryCreateOption
-    ? buildDocumentCreateHref(primaryCreateOption.value)
-    : null;
 
   return (
     <EntityListPageShell
@@ -67,87 +86,45 @@ export default async function DocumentsFamilyPage({
       title={config.title}
       description={config.description}
       actions={
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/documents" />}
-          >
-            Хаб документов
-          </Button>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/documents/journal" />}
-          >
-            Журнал операций
-          </Button>
-          {primaryCreateHref ? (
-            <ButtonGroup>
-              <Button
-                size="lg"
-                nativeButton={false}
-                render={<Link href={primaryCreateHref} />}
-              >
-                <Plus className="h-4 w-4" />
-                <span className="hidden md:block">Создать</span>
-              </Button>
-              {createOptions.length > 1 ? (
-                <>
-                  <ButtonGroupSeparator />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button size="lg" aria-label="Открыть меню создания документа" />
-                      }
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      {createOptions.slice(1).map((option) => {
-                        const createHref = buildDocumentCreateHref(option.value);
-                        if (!createHref) {
-                          return null;
-                        }
-
-                        return (
-                          <DropdownMenuItem
-                            key={option.value}
-                            render={<Link href={createHref} />}
-                          >
-                            <Plus className="h-4 w-4" />
-                            <span>{getDocumentTypeLabel(option.value)}</span>
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </>
-              ) : null}
-            </ButtonGroup>
-          ) : null}
-          {typeOptions.map((option) => (
-            <Button
-              key={option.value}
-              variant="outline"
-              nativeButton={false}
-              render={<Link href={buildDocumentTypeHref(option.value)!} />}
+        createOptions.length > 0 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button size="lg" aria-label="Открыть меню создания документа" />
+              }
             >
-              {getDocumentTypeLabel(option.value)}
-            </Button>
-          ))}
-        </div>
+              <Plus className="h-4 w-4" />
+              <span className="hidden md:block">Создать</span>
+              <ChevronDown className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {createOptions.map((option) => {
+                const createHref = buildDocumentCreateHref(option.value);
+                if (!createHref) {
+                  return null;
+                }
+
+                return (
+                  <DropdownMenuItem
+                    key={option.value}
+                    render={<Link href={createHref} />}
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>{getDocumentTypeLabel(option.value)}</span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null
       }
       fallback={
         <DataTableSkeleton columnCount={7} rowCount={10} filterCount={4} />
       }
     >
       <DocumentsTable
-        promise={getDocuments({
-          page: 1,
-          perPage: 20,
-          docType: familyDocTypes,
-        })}
+        promise={getDocuments(scopedSearch)}
+        docTypeOptions={typeOptions}
       />
     </EntityListPageShell>
   );
@@ -169,8 +146,8 @@ const FAMILY_CONFIG: Record<
   },
   ifrs: {
     icon: FileText,
-    title: "IFRS",
+    title: "Учетные документы",
     description:
-      "Семейство routed IFRS-документов без общего списка по всем документам.",
+      "Семейство учетных документов без общего списка по всем документам.",
   },
 };

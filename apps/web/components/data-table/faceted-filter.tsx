@@ -80,6 +80,7 @@ function DataTableFacetedFilterBase<TData, TValue>({
     () => Array.from(selectedValues).some((value) => !lockedValues.has(value)),
     [lockedValues, selectedValues],
   );
+  const filterContentClassName = column?.columnDef.meta?.filterContentClassName;
 
   const onItemSelect = React.useCallback(
     (option: Option, isSelected: boolean) => {
@@ -189,7 +190,10 @@ function DataTableFacetedFilterBase<TData, TValue>({
           </>
         )}
       </PopoverTrigger>
-      <PopoverContent className="w-50 p-0" align="start">
+      <PopoverContent
+        className={cn("w-50 p-0", filterContentClassName)}
+        align="start"
+      >
         <Command>
           <CommandInput placeholder={title} />
           <CommandList className="max-h-full">

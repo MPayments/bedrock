@@ -10,6 +10,11 @@ const getServerSessionSnapshot = vi.fn();
 const parseSearchParams = vi.fn();
 const getDocuments = vi.fn();
 const getDocumentFormOptions = vi.fn();
+const createEmptyDocumentFormOptions = vi.fn(() => ({
+  counterparties: [],
+  organizations: [],
+  currencies: [],
+}));
 
 vi.mock("next/navigation", () => ({
   notFound,
@@ -31,6 +36,7 @@ vi.mock("@/features/operations/documents/lib/queries", () => ({
 }));
 
 vi.mock("@/features/documents/lib/form-options", () => ({
+  createEmptyDocumentFormOptions,
   getDocumentFormOptions,
 }));
 
@@ -52,7 +58,11 @@ describe("document pages", () => {
     vi.clearAllMocks();
 
     getServerSessionSnapshot.mockResolvedValue({ role: "user" });
-    parseSearchParams.mockResolvedValue({ page: 1, perPage: 20 });
+    parseSearchParams.mockImplementation(async (input) => ({
+      page: 1,
+      perPage: 20,
+      ...(await input),
+    }));
     getDocuments.mockResolvedValue({ data: [], total: 0, limit: 20, offset: 0 });
     getDocumentFormOptions.mockResolvedValue({
       counterparties: [],
@@ -67,38 +77,39 @@ describe("document pages", () => {
     );
 
     await expect(
-      FamilyPage({ params: Promise.resolve({ family: "create" }) }),
-    ).rejects.toBe(NOT_FOUND);
-  });
-
-  it("returns notFound for removed /documents/create/[docType] route shape", async () => {
-    const { default: TypePage } = await import(
-      "@/app/(shell)/documents/[family]/[docType]/page"
-    );
-
-    await expect(
-      TypePage({
-        params: Promise.resolve({
-          family: "create",
-          docType: "transfer_intra",
-        }),
+      FamilyPage({
+        params: Promise.resolve({ family: "create" }),
         searchParams: Promise.resolve({}),
       }),
     ).rejects.toBe(NOT_FOUND);
   });
 
-  it("returns notFound for family/docType mismatches", async () => {
-    const { default: TypePage } = await import(
-      "@/app/(shell)/documents/[family]/[docType]/page"
+  it("returns notFound for removed /documents/create/[docType] route shape", async () => {
+    const { default: FamilyPage } = await import(
+      "@/app/(shell)/documents/[family]/page"
     );
 
     await expect(
-      TypePage({
+      FamilyPage({
         params: Promise.resolve({
           family: "transfers",
-          docType: "capital_funding",
         }),
-        searchParams: Promise.resolve({}),
+        searchParams: Promise.resolve({ docType: "payment_intent" }),
+      }),
+    ).rejects.toBe(NOT_FOUND);
+  });
+
+  it("returns notFound for family filter mismatches", async () => {
+    const { default: FamilyPage } = await import(
+      "@/app/(shell)/documents/[family]/page"
+    );
+
+    await expect(
+      FamilyPage({
+        params: Promise.resolve({
+          family: "transfers",
+        }),
+        searchParams: Promise.resolve({ docType: "capital_funding" }),
       }),
     ).rejects.toBe(NOT_FOUND);
   });

@@ -51,7 +51,7 @@ describe("document doc types", () => {
     expect(getDocumentsWorkspaceFamily("payment_intent")).toBeNull();
 
     expect(getDocumentsWorkspaceFamilyLabel("transfers")).toBe("Переводы");
-    expect(getDocumentsWorkspaceFamilyLabel("ifrs")).toBe("IFRS");
+    expect(getDocumentsWorkspaceFamilyLabel("ifrs")).toBe("Учетные документы");
 
     expect(
       getDocumentsWorkspaceTypesForFamily("transfers", "user").map(

@@ -13,10 +13,10 @@ describe("document routes", () => {
     expect(buildDocumentsFamilyHref("ifrs")).toBe("/documents/ifrs");
 
     expect(buildDocumentTypeHref("transfer_intra")).toBe(
-      "/documents/transfers/transfer_intra",
+      "/documents/transfers?docType=transfer_intra",
     );
     expect(buildDocumentTypeHref("capital_funding")).toBe(
-      "/documents/ifrs/capital_funding",
+      "/documents/ifrs?docType=capital_funding",
     );
     expect(buildDocumentCreateHref("transfer_resolution")).toBe(
       "/documents/transfers/transfer_resolution/create",

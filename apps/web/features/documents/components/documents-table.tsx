@@ -1,15 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import * as React from "react";
 
 import { EntityTableShell } from "@/components/entities/entity-table-shell";
 import type { DocumentDto } from "@/features/operations/documents/lib/schemas";
 import { buildDocumentDetailsHref } from "@/features/documents/lib/routes";
+import type { Option } from "@/types/data-table";
 
 import { getDocumentColumns } from "./columns";
 
 export function DocumentsTable({
   promise,
+  docTypeOptions,
 }: {
   promise: Promise<{
     data: DocumentDto[];
@@ -17,13 +20,18 @@ export function DocumentsTable({
     limit: number;
     offset: number;
   }>;
+  docTypeOptions: Option[];
 }) {
   const router = useRouter();
+  const columns = React.useMemo(
+    () => getDocumentColumns(docTypeOptions),
+    [docTypeOptions],
+  );
 
   return (
     <EntityTableShell
       promise={promise}
-      columns={getDocumentColumns()}
+      columns={columns}
       getRowId={(row) => row.id}
       initialState={{
         sorting: [{ id: "occurredAt", desc: true }],

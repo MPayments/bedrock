@@ -33,7 +33,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   treasury: { label: "Казначейство", icon: "landmark" },
   fx: { label: "FX", icon: "currency" },
   transfers: { label: "Переводы", icon: "arrow-right-left" },
-  ifrs: { label: "IFRS", icon: "book-open" },
+  ifrs: { label: "Учетные документы", icon: "book-open" },
   documents: { label: "Документы", icon: "book-open" },
   settings: { label: "Настройки", icon: "settings" },
   accounting: { label: "Бухгалтерия", icon: "book-open" },

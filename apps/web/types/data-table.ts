@@ -14,6 +14,7 @@ declare module "@tanstack/react-table" {
     placeholder?: string;
     variant?: FilterVariant;
     options?: Option[];
+    filterContentClassName?: string;
     lockedFilterValues?: string[];
     range?: [number, number];
     unit?: string;

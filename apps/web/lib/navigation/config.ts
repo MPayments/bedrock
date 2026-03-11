@@ -61,7 +61,7 @@ const navItems: AppNavItem[] = [
       },
       {
         id: "documents-ifrs",
-        title: "IFRS",
+        title: "Учетные документы",
         href: "/documents/ifrs",
         icon: "book-open",
         audience: "shared",

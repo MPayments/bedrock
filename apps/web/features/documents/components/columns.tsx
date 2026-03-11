@@ -15,6 +15,7 @@ import {
 } from "@/features/documents/lib/status-labels";
 import type { DocumentDto } from "@/features/operations/documents/lib/schemas";
 import { formatDate } from "@/lib/format";
+import type { Option } from "@/types/data-table";
 
 function badgeVariant(
   value: string,
@@ -25,7 +26,9 @@ function badgeVariant(
   return "outline";
 }
 
-export function getDocumentColumns(): ColumnDef<DocumentDto>[] {
+export function getDocumentColumns(
+  docTypeOptions: Option[],
+): ColumnDef<DocumentDto>[] {
   return [
     {
       id: "query",
@@ -99,7 +102,8 @@ export function getDocumentColumns(): ColumnDef<DocumentDto>[] {
       meta: {
         label: "Тип",
         variant: "multiSelect",
-        options: [],
+        options: docTypeOptions,
+        filterContentClassName: "w-72",
       },
       enableColumnFilter: true,
       enableSorting: false,

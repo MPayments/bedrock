@@ -5,7 +5,10 @@ import {
   isAllowedDocumentsWorkspaceType,
   isDocumentsWorkspaceFamily,
 } from "@/features/documents/lib/doc-types";
-import { getDocumentFormOptions } from "@/features/documents/lib/form-options";
+import {
+  createEmptyDocumentFormOptions,
+  getDocumentFormOptions,
+} from "@/features/documents/lib/form-options";
 import { getDocumentDetails } from "@/features/operations/documents/lib/queries";
 import { getServerSessionSnapshot } from "@/lib/auth/session";
 
@@ -27,11 +30,7 @@ export default async function DocumentsDetailsPage({ params }: PageProps) {
 
   const [details, formOptions] = await Promise.all([
     getDocumentDetails(docType, id),
-    getDocumentFormOptions().catch(() => ({
-      counterparties: [],
-      organizations: [],
-      currencies: [],
-    })),
+    getDocumentFormOptions().catch(() => createEmptyDocumentFormOptions()),
   ]);
 
   if (!details) {

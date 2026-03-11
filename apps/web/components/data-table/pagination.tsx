@@ -30,7 +30,7 @@ export function DataTablePagination<TData>({
   return (
     <div
       className={cn(
-        "flex w-full flex-col-reverse items-center justify-between gap-4 overflow-auto p-1 sm:flex-row sm:gap-8",
+        "flex w-full flex-col-reverse items-center justify-between gap-3 overflow-auto px-1 py-1.5 sm:flex-row sm:gap-4",
         className,
       )}
       {...props}
@@ -45,8 +45,8 @@ export function DataTablePagination<TData>({
           <></>
         )}
       </div>
-      <div className="flex flex-col-reverse items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">
-        <div className="flex items-center space-x-2">
+      <div className="flex flex-col-reverse items-center gap-3 sm:flex-row sm:gap-4">
+        <div className="flex items-center gap-2">
           <p className="whitespace-nowrap font-medium text-sm">
             Строк на странице
           </p>
@@ -56,7 +56,7 @@ export function DataTablePagination<TData>({
               table.setPageSize(Number(value));
             }}
           >
-            <SelectTrigger className="h-8 w-18 data-size:h-8">
+            <SelectTrigger className="h-7 w-16 data-size:h-7">
               <SelectValue placeholder={table.getState().pagination.pageSize} />
             </SelectTrigger>
             <SelectContent side="top">
@@ -72,12 +72,12 @@ export function DataTablePagination<TData>({
           Страница {table.getState().pagination.pageIndex + 1} из{" "}
           {table.getPageCount()}
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-1">
           <Button
             aria-label="Go to first page"
             variant="outline"
-            size="icon"
-            className="hidden size-8 lg:flex"
+            size="icon-sm"
+            className="hidden lg:flex"
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
           >
@@ -86,8 +86,7 @@ export function DataTablePagination<TData>({
           <Button
             aria-label="Go to previous page"
             variant="outline"
-            size="icon"
-            className="size-8"
+            size="icon-sm"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
@@ -96,8 +95,7 @@ export function DataTablePagination<TData>({
           <Button
             aria-label="Go to next page"
             variant="outline"
-            size="icon"
-            className="size-8"
+            size="icon-sm"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
@@ -106,8 +104,8 @@ export function DataTablePagination<TData>({
           <Button
             aria-label="Go to last page"
             variant="outline"
-            size="icon"
-            className="hidden size-8 lg:flex"
+            size="icon-sm"
+            className="hidden lg:flex"
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
           >
