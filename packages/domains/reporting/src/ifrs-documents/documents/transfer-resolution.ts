@@ -22,7 +22,6 @@ import {
   TransferIntercompanyPayloadSchema,
   TransferIntraPayloadSchema,
   TransferResolutionInputSchema,
-  TransferResolutionPayloadSchema,
   type TransferResolutionInput,
 } from "../validation";
 import {
@@ -62,7 +61,7 @@ export function createTransferResolutionDocumentModule(
     payloadVersion: 1,
     createSchema: TransferResolutionInputSchema,
     updateSchema: TransferResolutionInputSchema,
-    payloadSchema: TransferResolutionPayloadSchema,
+    payloadSchema: TransferResolutionInputSchema,
     postingRequired: true,
     allowDirectPostFromDraft: true,
     approvalRequired: () => false,
@@ -79,7 +78,7 @@ export function createTransferResolutionDocumentModule(
       });
     },
     deriveSummary(document) {
-      const payload = parseDocumentPayload(TransferResolutionPayloadSchema, document);
+      const payload = parseDocumentPayload(TransferResolutionInputSchema, document);
 
       return {
         title: resolveTransferResolutionTitle(payload.resolutionType),
@@ -103,12 +102,12 @@ export function createTransferResolutionDocumentModule(
     async canReject() {},
     async canCancel() {},
     async canPost(context, document) {
-      const payload = parseDocumentPayload(TransferResolutionPayloadSchema, document);
+      const payload = parseDocumentPayload(TransferResolutionInputSchema, document);
       await resolveTransferDependencyDocument(context.db, payload.transferDocumentId);
       await listPendingTransfers(context.db, payload.transferDocumentId);
     },
     async buildPostingPlan(context, document) {
-      const payload = parseDocumentPayload(TransferResolutionPayloadSchema, document);
+      const payload = parseDocumentPayload(TransferResolutionInputSchema, document);
       const transferDocument = await resolveTransferDependencyDocument(
         context.db,
         payload.transferDocumentId,
@@ -182,7 +181,7 @@ export function createTransferResolutionDocumentModule(
         : ACCOUNTING_SOURCE_ID.TRANSFER_RESOLUTION_VOID;
     },
     async buildInitialLinks(_context, document) {
-      const payload = parseDocumentPayload(TransferResolutionPayloadSchema, document);
+      const payload = parseDocumentPayload(TransferResolutionInputSchema, document);
       return [
         {
           toDocumentId: payload.transferDocumentId,

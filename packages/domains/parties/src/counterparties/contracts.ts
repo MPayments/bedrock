@@ -38,10 +38,6 @@ export const CounterpartyOptionsResponseSchema = z.object({
   data: z.array(CounterpartyOptionSchema),
 });
 
-export const InternalLedgerCounterpartyOptionSchema = CounterpartyOptionSchema;
-export const InternalLedgerCounterpartyOptionsResponseSchema =
-  CounterpartyOptionsResponseSchema;
-
 export const CounterpartyGroupOptionSchema = z.object({
   id: z.uuid(),
   code: z.string(),
@@ -58,9 +54,6 @@ export const CounterpartyGroupOptionsResponseSchema = z.object({
 });
 
 export type CounterpartyOption = z.infer<typeof CounterpartyOptionSchema>;
-export type InternalLedgerCounterpartyOption = z.infer<
-  typeof InternalLedgerCounterpartyOptionSchema
->;
 export type CounterpartyGroupOption = z.infer<
   typeof CounterpartyGroupOptionSchema
 >;

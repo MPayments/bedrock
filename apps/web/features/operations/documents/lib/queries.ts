@@ -11,22 +11,13 @@ import { createResourceListQuery } from "@/lib/resources/search-params";
 
 import {
   DocumentDetailsSchema,
-  DocumentSchema,
   DocumentsListResponseSchema,
   type DocumentDetailsDto,
-  type DocumentDto,
   type DocumentsListResponseDto,
 } from "./schemas";
 import type { OperationsSearchParams } from "./validations";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
-
-export type {
-  DocumentDetailsDto,
-  DocumentDto,
-  DocumentLinkDto,
-  DocumentOperationDto,
-} from "./schemas";
 
 async function fetchApi(path: string) {
   const requestHeaders = await headers();
@@ -71,20 +62,6 @@ export async function getDocuments(
   return readJsonWithSchema(response, DocumentsListResponseSchema);
 }
 
-const getDocumentUncached = async (
-  docType: string,
-  id: string,
-): Promise<DocumentDto | null> => {
-  const response = await fetchApi(`/v1/documents/${docType}/${id}`);
-
-  if (response.status === 404) {
-    return null;
-  }
-
-  await requestOk(response, "Не удалось загрузить документ");
-  return readJsonWithSchema(response, DocumentSchema);
-};
-
 const getDocumentDetailsUncached = async (
   docType: string,
   id: string,
@@ -98,6 +75,4 @@ const getDocumentDetailsUncached = async (
   await requestOk(response, "Не удалось загрузить детали документа");
   return readJsonWithSchema(response, DocumentDetailsSchema);
 };
-
-export const getDocument = cache(getDocumentUncached);
 export const getDocumentDetails = cache(getDocumentDetailsUncached);

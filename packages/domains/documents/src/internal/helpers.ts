@@ -33,7 +33,7 @@ import type {
 
 type Queryable = Database | Transaction;
 
-export function buildDocNo(prefix: string, documentId: string) {
+function buildDocNo(prefix: string, documentId: string) {
   return `${prefix}-${documentId.slice(0, 8).toUpperCase()}`;
 }
 
@@ -45,7 +45,7 @@ export function assertDocumentIsActive(document: Document, action: string) {
   }
 }
 
-export function normalizeSearchText(value: string) {
+function normalizeSearchText(value: string) {
   return value
     .toLowerCase()
     .trim()
@@ -112,24 +112,13 @@ export function resolveModuleForDocument(
   );
 }
 
-export function resolveModuleOrNull(
-  registry: DocumentRegistry,
-  docType: string,
-): DocumentModule | null {
-  try {
-    return registry.getDocumentModule(docType);
-  } catch {
-    return null;
-  }
-}
-
 export function createModuleContext(
   deps: Pick<DocumentModuleContext, "actorUserId" | "db" | "log" | "now">,
 ): DocumentModuleContext {
   return deps;
 }
 
-export function resolveDocumentAllowedActionsForDocument(input: {
+function resolveDocumentAllowedActionsForDocument(input: {
   registry?: DocumentRegistry;
   document: Document;
 }) {
@@ -519,7 +508,7 @@ export async function lockDocument(
   return document;
 }
 
-export async function getDocumentOrNull(
+async function getDocumentOrNull(
   db: Queryable,
   documentId: string,
   docType: string,
@@ -599,7 +588,7 @@ export function buildDefaultActionIdempotencyKey(
   return sha256Hex(canonicalJson({ action, ...payload }));
 }
 
-export function toStoredJson<T>(value: T): T {
+function toStoredJson<T>(value: T): T {
   return JSON.parse(canonicalJson(value)) as T;
 }
 

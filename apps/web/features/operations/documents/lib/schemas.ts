@@ -49,7 +49,7 @@ export const DocumentSchema = z.object({
   postingOperationId: z.string().nullable(),
 });
 
-export const DocumentLinkSchema = z.object({
+const DocumentLinkSchema = z.object({
   id: z.uuid(),
   fromDocumentId: z.uuid(),
   toDocumentId: z.uuid(),
@@ -58,7 +58,7 @@ export const DocumentLinkSchema = z.object({
   createdAt: z.iso.datetime(),
 });
 
-export const DocumentOperationSchema = z.object({
+const DocumentOperationSchema = z.object({
   id: z.uuid(),
   documentId: z.uuid(),
   operationId: z.uuid(),
@@ -83,7 +83,5 @@ export const DocumentDetailsSchema = z.object({
 });
 
 export type DocumentDto = z.infer<typeof DocumentSchema>;
-export type DocumentLinkDto = z.infer<typeof DocumentLinkSchema>;
-export type DocumentOperationDto = z.infer<typeof DocumentOperationSchema>;
 export type DocumentsListResponseDto = z.infer<typeof DocumentsListResponseSchema>;
 export type DocumentDetailsDto = z.infer<typeof DocumentDetailsSchema>;

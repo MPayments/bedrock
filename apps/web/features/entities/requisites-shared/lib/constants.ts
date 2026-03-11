@@ -7,13 +7,6 @@ export const REQUISITE_KIND_OPTIONS = [
 
 export type RequisiteKind = (typeof REQUISITE_KIND_OPTIONS)[number]["value"];
 
-export const REQUISITE_KIND_FILTER_OPTIONS = REQUISITE_KIND_OPTIONS.map(
-  (option) => ({
-    value: option.value,
-    label: option.label,
-  }),
-);
-
 export function getRequisiteKindLabel(kind: string): string {
   return (
     REQUISITE_KIND_OPTIONS.find((option) => option.value === kind)?.label ?? kind

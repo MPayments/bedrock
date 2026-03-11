@@ -1,5 +1,5 @@
 import { loadRawPackDefinition } from "./pack-common";
-import { validatePackDefinition } from "../../src/finance/accounting/index";
+import { validatePackDefinition } from "@multihansa/accounting";
 
 
 async function main() {

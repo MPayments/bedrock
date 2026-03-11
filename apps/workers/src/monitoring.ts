@@ -23,7 +23,7 @@ interface WorkerRuntimeState {
   totalErrors: number;
 }
 
-export interface RunLoopObserver {
+interface RunLoopObserver {
   onLoopStarted?: () => void;
   onTickStarted?: () => void;
   onTickSucceeded?: (input: {
@@ -35,7 +35,7 @@ export interface RunLoopObserver {
   onLoopStopped?: () => void;
 }
 
-export interface WorkerHealthSnapshot {
+interface WorkerHealthSnapshot {
   status: HealthStatus;
   checkedAt: string;
   workerCount: number;
@@ -58,7 +58,7 @@ export interface WorkerHealthSnapshot {
   }[];
 }
 
-export interface WorkerMonitoringRegistry {
+interface WorkerMonitoringRegistry {
   registerWorker: (input: {
     name: string;
     intervalMs: number;
@@ -67,13 +67,13 @@ export interface WorkerMonitoringRegistry {
   renderPrometheusMetrics: () => string;
 }
 
-export interface WorkerMonitoringServer {
+interface WorkerMonitoringServer {
   host: string;
   port: number;
   stop: () => Promise<void>;
 }
 
-export interface WorkerMonitoringHttpResponse {
+interface WorkerMonitoringHttpResponse {
   statusCode: number;
   contentType: string;
   body: string;

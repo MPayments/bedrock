@@ -7,10 +7,28 @@
     "ignoreUnresolved": [
         "next"
     ],
+    "eslint": {
+        "config": [
+            "eslint/**/*.mjs",
+            "apps/**/eslint.config.{js,cjs,mjs}",
+            "packages/**/eslint.config.{js,cjs,mjs}"
+        ]
+    },
+    "vitest": {
+        "config": [
+            "vitest.config.ts",
+            "apps/**/vitest.config.ts",
+            "packages/**/vitest.config.ts"
+        ]
+    },
     "tags": [
         "-lintignore"
     ],
   "workspaces": {
-    ".": {}
+    ".": {
+      "ignore": [
+        "packages/common/tests/workers/workers.test.ts"
+      ]
+    }
   }
 }

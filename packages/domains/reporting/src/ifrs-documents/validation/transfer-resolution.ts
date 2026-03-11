@@ -10,9 +10,5 @@ export const TransferResolutionInputSchema = baseOccurredAtSchema.extend({
   memo: memoSchema,
 });
 
-export const TransferResolutionPayloadSchema = TransferResolutionInputSchema;
-
 export type TransferResolutionInput = z.infer<typeof TransferResolutionInputSchema>;
-export type TransferResolutionPayload = z.infer<
-  typeof TransferResolutionPayloadSchema
->;
+export type TransferResolutionPayload = z.infer<typeof TransferResolutionInputSchema>;

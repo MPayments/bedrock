@@ -50,7 +50,7 @@ import {
   type PaymentsService,
 } from "@multihansa/treasury/payments";
 
-import { rawMultihansaAccountingPackDefinition } from "./default-pack";
+import { rawPackDefinition } from "./default-pack";
 import { createMultihansaDimensionRegistry } from "./dimensions";
 
 export interface MultihansaDomainServices extends Record<string, unknown> {
@@ -96,7 +96,7 @@ export function createMultihansaServices(input: {
   const accountingService = createAccountingService({
     db,
     logger,
-    defaultPackDefinition: rawMultihansaAccountingPackDefinition,
+    defaultPackDefinition: rawPackDefinition,
   });
   const ledger = createLedgerEngine({ db });
   const ledgerReadService = createLedgerReadService({ db });

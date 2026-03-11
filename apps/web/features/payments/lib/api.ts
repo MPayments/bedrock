@@ -32,7 +32,7 @@ const PaymentDetailsSchema = z.object({
 });
 
 export type PaymentDocumentDto = z.infer<typeof PaymentDocumentSchema>;
-export type PaymentDetailsDto = z.infer<typeof PaymentDetailsSchema>;
+type PaymentDetailsDto = z.infer<typeof PaymentDetailsSchema>;
 
 async function fetchApi(path: string) {
   const requestHeaders = await headers();

@@ -22,7 +22,7 @@ export const DOCUMENTS_WORKER_DESCRIPTOR = defineWorkerDescriptor({
   description: "Finalize posted and failed document operations",
 });
 
-export interface DocumentsWorkerItemContext {
+interface DocumentsWorkerItemContext {
   documentId: string;
   operationId: string;
   moduleId: string;

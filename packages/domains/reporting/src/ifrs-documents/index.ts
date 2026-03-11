@@ -45,7 +45,6 @@ export {
   TransferIntraInputSchema,
   TransferIntraPayloadSchema,
   TransferResolutionInputSchema,
-  TransferResolutionPayloadSchema,
   type AccrualAdjustment,
   type CapitalFundingInput,
   type CapitalFundingPayload,

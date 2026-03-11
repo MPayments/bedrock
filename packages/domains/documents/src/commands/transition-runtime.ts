@@ -20,7 +20,7 @@ import type {
   DocumentWithOperationId,
 } from "../types";
 
-export interface DocumentTransitionIdempotencyContext {
+interface DocumentTransitionIdempotencyContext {
   tx: Transaction;
   document: Document;
   module: DocumentModule;

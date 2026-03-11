@@ -14,7 +14,6 @@ export {
 
 export {
   TransferResolutionInputSchema,
-  TransferResolutionPayloadSchema,
   type TransferResolutionInput,
   type TransferResolutionPayload,
 } from "./transfer-resolution";

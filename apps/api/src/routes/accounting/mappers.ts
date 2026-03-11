@@ -144,7 +144,7 @@ function mapMinorByCurrency(value: bigint, currency: string) {
   return minorToAmountString(value, { currency });
 }
 
-export function mapReportScopeMetaDto<TMeta extends ReportScopeMetaLike>(meta: TMeta) {
+function mapReportScopeMetaDto<TMeta extends ReportScopeMetaLike>(meta: TMeta) {
   return {
     scopeType: meta.scopeType,
     requestedCounterpartyIds: meta.requestedCounterpartyIds,

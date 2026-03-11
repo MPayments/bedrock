@@ -1,4 +1,3 @@
-import type { KnownDocumentType } from "./doc-types";
 import {
   getDocumentsWorkspaceFamily,
   type DocumentsWorkspaceFamily,
@@ -42,11 +41,4 @@ export function buildDocumentDetailsHref(
   }
 
   return `${buildDocumentsFamilyHref(family)}/${encodeSegment(docType)}/${encodeSegment(id)}`;
-}
-
-export function isDocumentInFamily(
-  docType: string,
-  family: DocumentsWorkspaceFamily,
-): docType is KnownDocumentType {
-  return getDocumentsWorkspaceFamily(docType) === family;
 }

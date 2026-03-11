@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-export interface DocumentProjectionDefinition {
+interface DocumentProjectionDefinition {
   key: string;
   unique?: boolean;
 }

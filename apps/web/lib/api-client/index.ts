@@ -3,7 +3,7 @@ import { hc } from "hono/client";
 
 export type Client = ReturnType<typeof hc<AppType>>;
 
-export interface CreateClientOptions {
+interface CreateClientOptions {
   headers?: Record<string, string>;
   init?: RequestInit;
 }

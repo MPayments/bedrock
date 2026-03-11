@@ -35,5 +35,3 @@ export function createDocumentsService(deps: DocumentsServiceDeps) {
     validateAccountingSourceCoverage,
   };
 }
-
-export type { DocumentsServiceContext };

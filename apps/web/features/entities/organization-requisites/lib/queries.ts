@@ -4,7 +4,6 @@ import { z } from "zod";
 import { CurrencyOptionsResponseSchema } from "@multihansa/assets/contracts";
 import { OrganizationOptionsResponseSchema } from "@multihansa/parties/organizations/contracts";
 import { RequisiteProviderOptionsResponseSchema } from "@multihansa/parties/requisite-providers/contracts";
-import { REQUISITES_LIST_CONTRACT } from "@multihansa/parties/requisites/contracts";
 
 import {
   getRequisiteKindLabel,
@@ -19,14 +18,10 @@ import {
   readOptionsList,
   readPaginatedList,
 } from "@/lib/api/query";
-import { createResourceListQuery } from "@/lib/resources/search-params";
-
 import type {
   OrganizationRequisiteDetails,
   OrganizationRequisiteFormOptions,
-  OrganizationRequisitesListResult,
 } from "./types";
-import type { OrganizationRequisitesSearchParams } from "./validations";
 
 const RequisiteApiSchema = z.object({
   id: z.uuid(),
@@ -126,13 +121,6 @@ const RawRequisiteDetailsSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
-function createListQuery(search: OrganizationRequisitesSearchParams) {
-  return {
-    ...createResourceListQuery(REQUISITES_LIST_CONTRACT, search),
-    ownerType: "organization" as const,
-  };
-}
-
 async function getOrganizationLabelById() {
   const client = await getServerApiClient();
   const payload = await readOptionsList({
@@ -209,33 +197,6 @@ function serializeRow(
   };
 }
 
-export async function getOrganizationRequisites(
-  search: OrganizationRequisitesSearchParams,
-): Promise<OrganizationRequisitesListResult> {
-  const client = await getServerApiClient();
-  const [{ data: payload }, ownerLabelById, providerLabelById, currencyLabelById] =
-    await Promise.all([
-      readPaginatedList({
-        request: () =>
-          client.v1.parties.requisites.$get({
-            query: createListQuery(search),
-          }),
-        schema: RequisitesListResponseSchema,
-        context: "Не удалось загрузить реквизиты организаций",
-      }),
-      getOrganizationLabelById(),
-      getProviderLabelById(),
-      getCurrencyLabelById(),
-    ]);
-
-  return {
-    ...payload,
-    data: payload.data.map((row) =>
-      serializeRow(row, ownerLabelById, providerLabelById, currencyLabelById),
-    ),
-  };
-}
-
 const getOrganizationRequisiteByIdUncached = async (
   id: string,
 ): Promise<OrganizationRequisiteDetails | null> => {
@@ -300,12 +261,4 @@ export async function getOrganizationRequisiteFormOptions(): Promise<Organizatio
       label: item.label,
     })),
   };
-}
-
-export async function getOrganizationRequisiteCurrencyFilterOptions() {
-  const labelById = await getCurrencyLabelById();
-
-  return [...labelById.entries()]
-    .map(([value, label]) => ({ value, label }))
-    .sort((a, b) => a.label.localeCompare(b.label));
 }

@@ -1,5 +1,3 @@
-import type { IfrsDocumentType } from "@multihansa/reporting/ifrs-documents/contracts";
-
 import type { UserRole } from "@/lib/auth/types";
 
 import { IFRS_DOCUMENT_TYPE_OPTIONS } from "./doc-types/ifrs";
@@ -10,15 +8,7 @@ import type {
   TypedDocumentType,
 } from "./doc-types/shared";
 
-export type {
-  DocumentTypeFamily,
-  DocumentTypeOption,
-  KnownDocumentType,
-  TypedDocumentType,
-};
-
-export type { IfrsDocumentType };
-
+export type { TypedDocumentType } from "./doc-types/shared";
 export type DocumentsWorkspaceFamily = Exclude<DocumentTypeFamily, "payments">;
 
 const PAYMENT_DOCUMENT_TYPES: DocumentTypeOption[] = [
@@ -104,11 +94,6 @@ export function getDocumentsWorkspaceFamilyLabel(
   }
 
   return "Учетные документы";
-}
-
-export function isIfrsWorkflowDocumentType(docType: string): boolean {
-  const family = getDocumentTypeFamily(docType);
-  return family === "ifrs" || family === "transfers";
 }
 
 export function getDocumentsWorkspaceTypesForFamily(

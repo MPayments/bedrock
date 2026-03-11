@@ -81,7 +81,7 @@ const OperationsListResponseSchema = createPaginatedResponseSchema(
 );
 
 export type OperationSummaryDto = z.infer<typeof OperationSummarySchema>;
-export type OperationDetailsDto = z.infer<typeof OperationDetailsSchema>;
+type OperationDetailsDto = z.infer<typeof OperationDetailsSchema>;
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 

@@ -62,7 +62,6 @@
       "name": "multihansa-web",
       "version": "0.1.0",
       "dependencies": {
-        "@better-fetch/fetch": "^1.1.21",
         "@hookform/resolvers": "^5.2.2",
         "@multihansa/accounting": "workspace:*",
         "@multihansa/assets": "workspace:*",
@@ -79,7 +78,6 @@
         "input-otp": "^1.4.2",
         "lucide-react": "^0.563.0",
         "multihansa-api": "workspace:*",
-        "nanostores": "^1.1.1",
         "next": "^16.0.10",
         "next-themes": "^0.4.6",
         "nuqs": "^2.8.8",
@@ -277,7 +275,6 @@
       "name": "@multihansa/parties",
       "version": "0.0.0",
       "dependencies": {
-        "@multihansa/accounting": "workspace:*",
         "@multihansa/assets": "workspace:*",
         "@multihansa/common": "workspace:*",
         "@multihansa/ledger": "workspace:*",
@@ -295,7 +292,6 @@
       "version": "0.0.0",
       "dependencies": {
         "@multihansa/common": "workspace:*",
-        "@multihansa/documents": "workspace:*",
         "@multihansa/ledger": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
@@ -335,7 +331,6 @@
         "@multihansa/common": "workspace:*",
         "@multihansa/documents": "workspace:*",
         "@multihansa/ledger": "workspace:*",
-        "@multihansa/parties": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "soap": "^1.6.0",
         "tlsclientwrapper": "^4.1.2",

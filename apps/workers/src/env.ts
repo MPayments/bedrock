@@ -23,5 +23,3 @@ export const env = {
   ),
   WORKER_INTERVALS: workerIntervals,
 } as const;
-
-export type WorkerEnv = typeof env;

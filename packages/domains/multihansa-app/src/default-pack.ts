@@ -103,7 +103,7 @@ function pendingTemplate(
   return definition;
 }
 
-export const rawMultihansaAccountingPackDefinition =
+export const rawPackDefinition =
   AccountingPackDefinitionSchema.parse({
   packKey: "multihansa-core-default",
   version: 1,
@@ -838,5 +838,3 @@ export const rawMultihansaAccountingPackDefinition =
     }),
   ],
   }) as AccountingPackDefinition;
-
-export const rawPackDefinition = rawMultihansaAccountingPackDefinition;

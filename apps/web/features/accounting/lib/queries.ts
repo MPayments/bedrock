@@ -28,27 +28,27 @@ const AccountingCorrespondenceRulesResponseSchema = z.array(
   AccountingCorrespondenceRuleSchema,
 );
 
-export type AccountingTemplateAccount = z.infer<
+type AccountingTemplateAccount = z.infer<
   typeof AccountingTemplateAccountResponseSchema
 >;
 export type AccountingCorrespondenceRule = z.infer<
   typeof AccountingCorrespondenceRuleSchema
 >;
-export type AccountingOrgOption = z.infer<
+type AccountingOrgOption = z.infer<
   typeof CounterpartyOptionsResponseSchema.shape.data.element
 >;
-export type CounterpartyGroupOption = z.infer<
+type CounterpartyGroupOption = z.infer<
   typeof CounterpartyGroupOptionsResponseSchema.shape.data.element
 >;
-export type TrialBalanceDto = z.infer<typeof TrialBalanceResponseSchema>;
-export type GeneralLedgerDto = z.infer<typeof GeneralLedgerResponseSchema>;
-export type BalanceSheetDto = z.infer<typeof BalanceSheetResponseSchema>;
-export type IncomeStatementDto = z.infer<typeof IncomeStatementResponseSchema>;
-export type CashFlowDto = z.infer<typeof CashFlowResponseSchema>;
-export type LiquidityDto = z.infer<typeof LiquidityResponseSchema>;
-export type FxRevaluationDto = z.infer<typeof FxRevaluationResponseSchema>;
-export type FeeRevenueDto = z.infer<typeof FeeRevenueResponseSchema>;
-export type ClosePackageDto = z.infer<typeof ClosePackageResponseSchema>;
+type TrialBalanceDto = z.infer<typeof TrialBalanceResponseSchema>;
+type GeneralLedgerDto = z.infer<typeof GeneralLedgerResponseSchema>;
+type BalanceSheetDto = z.infer<typeof BalanceSheetResponseSchema>;
+type IncomeStatementDto = z.infer<typeof IncomeStatementResponseSchema>;
+type CashFlowDto = z.infer<typeof CashFlowResponseSchema>;
+type LiquidityDto = z.infer<typeof LiquidityResponseSchema>;
+type FxRevaluationDto = z.infer<typeof FxRevaluationResponseSchema>;
+type FeeRevenueDto = z.infer<typeof FeeRevenueResponseSchema>;
+type ClosePackageDto = z.infer<typeof ClosePackageResponseSchema>;
 
 export type AccountingReportKey =
   | "trial-balance"

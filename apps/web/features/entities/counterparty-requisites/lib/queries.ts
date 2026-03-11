@@ -1,10 +1,9 @@
 import { cache } from "react";
 import { z } from "zod";
 
-import { CounterpartyOptionsResponseSchema } from "@multihansa/parties/counterparties/contracts";
 import { CurrencyOptionsResponseSchema } from "@multihansa/assets/contracts";
+import { CounterpartyOptionsResponseSchema } from "@multihansa/parties/counterparties/contracts";
 import { RequisiteProviderOptionsResponseSchema } from "@multihansa/parties/requisite-providers/contracts";
-import { REQUISITES_LIST_CONTRACT } from "@multihansa/parties/requisites/contracts";
 
 import {
   getRequisiteKindLabel,
@@ -19,14 +18,10 @@ import {
   readOptionsList,
   readPaginatedList,
 } from "@/lib/api/query";
-import { createResourceListQuery } from "@/lib/resources/search-params";
-
 import type {
   CounterpartyRequisiteDetails,
   CounterpartyRequisiteFormOptions,
-  CounterpartyRequisitesListResult,
 } from "./types";
-import type { CounterpartyRequisitesSearchParams } from "./validations";
 
 const RequisiteApiSchema = z.object({
   id: z.uuid(),
@@ -126,13 +121,6 @@ const RawRequisiteDetailsSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
-function createListQuery(search: CounterpartyRequisitesSearchParams) {
-  return {
-    ...createResourceListQuery(REQUISITES_LIST_CONTRACT, search),
-    ownerType: "counterparty" as const,
-  };
-}
-
 async function getCounterpartyLabelById() {
   const client = await getServerApiClient();
   const payload = await readOptionsList({
@@ -203,33 +191,6 @@ function serializeRow(
     isDefault: row.isDefault,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-  };
-}
-
-export async function getCounterpartyRequisites(
-  search: CounterpartyRequisitesSearchParams,
-): Promise<CounterpartyRequisitesListResult> {
-  const client = await getServerApiClient();
-  const [{ data: payload }, ownerLabelById, providerLabelById, currencyLabelById] =
-    await Promise.all([
-      readPaginatedList({
-        request: () =>
-          client.v1.parties.requisites.$get({
-            query: createListQuery(search),
-          }),
-        schema: RequisitesListResponseSchema,
-        context: "Не удалось загрузить реквизиты контрагентов",
-      }),
-      getCounterpartyLabelById(),
-      getProviderLabelById(),
-      getCurrencyLabelById(),
-    ]);
-
-  return {
-    ...payload,
-    data: payload.data.map((row) =>
-      serializeRow(row, ownerLabelById, providerLabelById, currencyLabelById),
-    ),
   };
 }
 
@@ -325,12 +286,4 @@ export async function getCounterpartyRequisiteFormOptions(): Promise<Counterpart
       label: item.label,
     })),
   };
-}
-
-export async function getCounterpartyRequisiteCurrencyFilterOptions() {
-  const labelById = await getCurrencyLabelById();
-
-  return [...labelById.entries()]
-    .map(([value, label]) => ({ value, label }))
-    .sort((a, b) => a.label.localeCompare(b.label));
 }
