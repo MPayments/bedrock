@@ -3,17 +3,9 @@ import {
   AuthContextToken,
   type AuthContext,
 } from "@bedrock/security";
+import { z } from "zod";
+
 import { AccountingDomainServiceToken } from "@multihansa/accounting";
-import {
-  InvalidStateError,
-  NotFoundError,
-  PermissionError,
-  ValidationError,
-} from "@multihansa/common/errors";
-import {
-  ActionReceiptConflictError,
-  ActionReceiptStoredError,
-} from "@multihansa/common/operations";
 import {
   BadRequestDomainError,
   ConflictDomainError,
@@ -28,9 +20,21 @@ import {
   requireIdempotencyKey,
 } from "@multihansa/common/bedrock";
 import {
+  InvalidStateError,
+  NotFoundError,
+  PermissionError,
+  ValidationError,
+} from "@multihansa/common/errors";
+import {
+  ActionReceiptConflictError,
+  ActionReceiptStoredError,
+} from "@multihansa/common/operations";
+import {
   LedgerEngineToken,
   LedgerReadServiceToken,
 } from "@multihansa/ledger";
+
+import { isSystemOnlyDocumentType } from "./doc-type-rules";
 import {
   DocumentGraphError,
   DocumentNotFoundError,
@@ -39,17 +43,9 @@ import {
   DocumentSystemOnlyTypeError,
   DocumentValidationError,
 } from "./errors";
-import { type DocumentTransitionAction } from "./types";
-import { z } from "zod";
-
-import { createDocumentsService as createDocumentsRuntime } from "./runtime";
-import { isSystemOnlyDocumentType } from "./doc-type-rules";
-import {
-  CreateDocumentInputSchema,
-  ListDocumentsQuerySchema,
-  UpdateDocumentInputSchema,
-} from "./validation";
-import type { DocumentAction } from "./state-machine";
+import { createCreateDraftHandler } from "./commands/create-draft";
+import { createTransitionHandler } from "./commands/transition";
+import { createUpdateDraftHandler } from "./commands/update-draft";
 import {
   DocumentDetailsSchema,
   DocumentSchema,
@@ -57,7 +53,18 @@ import {
   toDocumentDetailsDto,
   toDocumentDto,
 } from "./schemas";
+import { createDocumentsServiceContext } from "./internal/context";
+import { createGetDocumentDetailsQuery } from "./queries/get-document-details";
+import { createGetDocumentQuery } from "./queries/get-document";
+import { createListDocumentsQuery } from "./queries/list-documents";
+import type { DocumentAction } from "./state-machine";
 import { DocumentRegistryToken } from "./tokens";
+import { type DocumentTransitionAction } from "./types";
+import {
+  CreateDocumentInputSchema,
+  ListDocumentsQuerySchema,
+  UpdateDocumentInputSchema,
+} from "./validation";
 
 const DocumentParamsSchema = z.object({
   docType: z.string().min(1),
@@ -201,17 +208,17 @@ function toDomainFailure(cause: unknown) {
   throw cause;
 }
 
-function getDocumentsRuntime(ctx: {
-  accounting: Parameters<typeof createDocumentsRuntime>[0]["accounting"];
-  db: Parameters<typeof createDocumentsRuntime>[0]["db"];
-  ledger: Parameters<typeof createDocumentsRuntime>[0]["ledger"];
+function createDocumentsContext(ctx: {
+  accounting: Parameters<typeof createDocumentsServiceContext>[0]["accounting"];
+  db: Parameters<typeof createDocumentsServiceContext>[0]["db"];
+  ledger: Parameters<typeof createDocumentsServiceContext>[0]["ledger"];
   ledgerReadService: Parameters<
-    typeof createDocumentsRuntime
+    typeof createDocumentsServiceContext
   >[0]["ledgerReadService"];
   logger: BedrockLogger;
-  registry: Parameters<typeof createDocumentsRuntime>[0]["registry"];
+  registry: Parameters<typeof createDocumentsServiceContext>[0]["registry"];
 }) {
-  return createDocumentsRuntime({
+  return createDocumentsServiceContext({
     accounting: ctx.accounting,
     db: ctx.db,
     ledger: ctx.ledger,
@@ -255,7 +262,9 @@ export const documentsService = defineService("documents", {
       handler: async ({ ctx, input }) => {
         const actorUserId = requireActorUserId(ctx.auth);
         const role = readActorRole(ctx.auth);
-        const result = await getDocumentsRuntime(ctx).list(input, actorUserId);
+        const result = await createListDocumentsQuery(
+          createDocumentsContext(ctx),
+        )(input, actorUserId);
 
         return {
           ...result,
@@ -284,7 +293,9 @@ export const documentsService = defineService("documents", {
       ],
       handler: async ({ ctx, input }) => {
         try {
-          const documents = getDocumentsRuntime(ctx);
+          const createDraft = createCreateDraftHandler(
+            createDocumentsContext(ctx),
+          );
           assertPublicMutationAllowed({
             docType: input.docType,
             action: "create",
@@ -293,7 +304,7 @@ export const documentsService = defineService("documents", {
 
           return DocumentSchema.parse(
             toDocumentDto(
-              await documents.createDraft({
+              await createDraft({
                 docType: input.docType,
                 createIdempotencyKey: input.body.createIdempotencyKey,
                 payload: input.body.input,
@@ -324,7 +335,9 @@ export const documentsService = defineService("documents", {
         }
 
         try {
-          const documents = getDocumentsRuntime(ctx);
+          const updateDraft = createUpdateDraftHandler(
+            createDocumentsContext(ctx),
+          );
           assertPublicMutationAllowed({
             docType: input.docType,
             action: "update",
@@ -333,7 +346,7 @@ export const documentsService = defineService("documents", {
 
           return DocumentSchema.parse(
             toDocumentDto(
-              await documents.updateDraft({
+              await updateDraft({
                 docType: input.docType,
                 documentId: input.id,
                 payload: input.body.input,
@@ -359,7 +372,9 @@ export const documentsService = defineService("documents", {
       ],
       handler: async ({ ctx, input }) => {
         try {
-          const result = await getDocumentsRuntime(ctx).get(
+          const result = await createGetDocumentQuery(
+            createDocumentsContext(ctx),
+          )(
             input.docType,
             input.id,
             requireActorUserId(ctx.auth),
@@ -390,7 +405,9 @@ export const documentsService = defineService("documents", {
       ],
       handler: async ({ ctx, input }) => {
         try {
-          const details = await getDocumentsRuntime(ctx).getDetails(
+          const details = await createGetDocumentDetailsQuery(
+            createDocumentsContext(ctx),
+          )(
             input.docType,
             input.id,
             requireActorUserId(ctx.auth),
@@ -427,7 +444,9 @@ export const documentsService = defineService("documents", {
         }
 
         try {
-          const documents = getDocumentsRuntime(ctx);
+          const transition = createTransitionHandler(
+            createDocumentsContext(ctx),
+          );
           assertPublicMutationAllowed({
             docType: input.docType,
             action: input.action,
@@ -436,7 +455,7 @@ export const documentsService = defineService("documents", {
 
           return DocumentSchema.parse(
             toDocumentDto(
-              await documents.transition({
+              await transition({
                 action: input.action as DocumentTransitionAction,
                 docType: input.docType,
                 documentId: input.id,

@@ -9,7 +9,7 @@ import {
 
 import {
     createCurrenciesServiceContext,
-    type CurrenciesServiceDeps,
+    type CurrenciesServiceContext,
 } from "./context";
 import {
     CurrencyDeleteConflictError,
@@ -49,32 +49,52 @@ function hasForeignKeyViolation(error: unknown): boolean {
     return hasForeignKeyViolation(candidate.cause);
 }
 
-export type CurrenciesService = ReturnType<typeof createCurrenciesService>;
+export interface CurrencyCacheState {
+    value: CurrencyCache | null;
+}
 
-export function createCurrenciesService(deps: CurrenciesServiceDeps) {
-    const { db, log } = createCurrenciesServiceContext(deps);
+export interface CurrenciesService {
+    list(query?: ListCurrenciesQuery): Promise<PaginatedList<Currency>>;
+    findById(id: string): Promise<Currency>;
+    findByCode(code: string): Promise<Currency>;
+    create(input: CurrencyInsert): Promise<Currency>;
+    update(id: string, input: UpdateCurrencyInput): Promise<Currency>;
+    remove(id: string): Promise<void>;
+}
 
-    // Populated lazily on first read, invalidated on every write.
-    // Safe for single-process deployments; for multi-instance add a
-    // pub/sub invalidation signal (e.g. pg NOTIFY) if needed.
-    let cache: CurrencyCache | null = null;
+export function createCurrencyCacheState(): CurrencyCacheState {
+    return {
+        value: null,
+    };
+}
 
-    async function warmCache() {
-        if (cache) return cache;
-        const rows = await db.select().from(schema.currencies);
-        cache = {
-            byId: new Map(rows.map((c) => [c.id, c])),
-            byCode: new Map(rows.map((c) => [c.code, c])),
-        };
-        log.debug("currencies cache warmed", { count: rows.length });
-        return cache;
+async function warmCache(
+    context: CurrenciesServiceContext,
+    cacheState: CurrencyCacheState,
+): Promise<CurrencyCache> {
+    if (cacheState.value) {
+        return cacheState.value;
     }
 
-    function invalidateCache() {
-        cache = null;
-    }
+    const rows = await context.db.select().from(schema.currencies);
+    cacheState.value = {
+        byId: new Map(rows.map((currency) => [currency.id, currency])),
+        byCode: new Map(rows.map((currency) => [currency.code, currency])),
+    };
+    context.log.debug("currencies cache warmed", { count: rows.length });
 
-    async function list(query?: ListCurrenciesQuery): Promise<PaginatedList<Currency>> {
+    return cacheState.value;
+}
+
+function invalidateCache(cacheState: CurrencyCacheState): void {
+    cacheState.value = null;
+}
+
+export async function listCurrencies(
+    context: CurrenciesServiceContext,
+    cacheState: CurrencyCacheState,
+    query?: ListCurrenciesQuery,
+): Promise<PaginatedList<Currency>> {
         const {
             limit,
             offset,
@@ -86,7 +106,7 @@ export function createCurrenciesService(deps: CurrenciesServiceDeps) {
             precision,
         } = ListCurrenciesQuerySchema.parse(query ?? {});
 
-        const c = await warmCache();
+        const c = await warmCache(context, cacheState);
         let all = [...c.byId.values()];
 
         if (name) {
@@ -114,61 +134,79 @@ export function createCurrenciesService(deps: CurrenciesServiceDeps) {
             sortMap: SORT_COLUMN_MAP,
         });
 
-        return paginateInMemory(sorted, { limit, offset });
-    }
+    return paginateInMemory(sorted, { limit, offset });
+}
 
-    async function findById(id: string) {
-        const c = await warmCache();
+export async function findCurrencyById(
+    context: CurrenciesServiceContext,
+    cacheState: CurrencyCacheState,
+    id: string,
+): Promise<Currency> {
+        const c = await warmCache(context, cacheState);
         const currency = c.byId.get(id);
 
         if (!currency) throw new CurrencyNotFoundError(id);
 
         return currency;
-    }
+}
 
-    async function findByCode(code: string) {
-        const c = await warmCache();
+export async function findCurrencyByCode(
+    context: CurrenciesServiceContext,
+    cacheState: CurrencyCacheState,
+    code: string,
+): Promise<Currency> {
+        const c = await warmCache(context, cacheState);
         const currency = c.byCode.get(code.toUpperCase());
 
         if (!currency) throw new CurrencyNotFoundError(code);
 
         return currency;
-    }
+}
 
-    async function create(input: CurrencyInsert) {
+export async function createCurrency(
+    context: CurrenciesServiceContext,
+    cacheState: CurrencyCacheState,
+    input: CurrencyInsert,
+): Promise<Currency> {
         const validated = CreateCurrencyInputSchema.parse(input);
 
-        const [row] = await db
+        const [row] = await context.db
             .insert(schema.currencies)
             .values(validated)
             .returning();
 
-        invalidateCache();
+        invalidateCache(cacheState);
 
         return row!;
-    }
+}
 
-    async function update(
+export async function updateCurrency(
+        context: CurrenciesServiceContext,
+        cacheState: CurrencyCacheState,
         id: string,
         input: UpdateCurrencyInput,
-    ) {
+    ): Promise<Currency> {
         const validated = UpdateCurrencyInputSchema.parse(input);
 
-        const [row] = await db
+        const [row] = await context.db
             .update(schema.currencies)
             .set(validated)
             .where(eq(schema.currencies.id, id))
             .returning();
 
         if (!row) throw new CurrencyNotFoundError(id);
-        invalidateCache();
+        invalidateCache(cacheState);
 
         return row;
-    }
+}
 
-    async function remove(id: string): Promise<void> {
+export async function removeCurrency(
+    context: CurrenciesServiceContext,
+    cacheState: CurrencyCacheState,
+    id: string,
+): Promise<void> {
         try {
-            const [deleted] = await db
+            const [deleted] = await context.db
                 .delete(schema.currencies)
                 .where(eq(schema.currencies.id, id))
                 .returning({ id: schema.currencies.id });
@@ -188,15 +226,5 @@ export function createCurrenciesService(deps: CurrenciesServiceDeps) {
             throw error;
         }
 
-        invalidateCache();
-    }
-
-    return {
-        list,
-        findById,
-        findByCode,
-        create,
-        update,
-        remove,
-    };
+    invalidateCache(cacheState);
 }

@@ -18,7 +18,15 @@ import {
   CurrencyDeleteConflictError,
   CurrencyNotFoundError,
 } from "./errors";
-import { createCurrenciesService as createCurrenciesRuntime } from "./runtime";
+import { createCurrenciesServiceContext } from "./context";
+import {
+  createCurrency,
+  createCurrencyCacheState,
+  findCurrencyById,
+  listCurrencies,
+  removeCurrency,
+  updateCurrency,
+} from "./runtime";
 import {
   CreateCurrencyInputSchema,
   CurrencySchema,
@@ -33,11 +41,11 @@ const UpdateCurrencyActionInputSchema = z.object({
   input: UpdateCurrencyInputSchema,
 });
 
-function getCurrenciesRuntime(ctx: {
-  db: Parameters<typeof createCurrenciesRuntime>[0]["db"];
+function createCurrenciesContext(ctx: {
+  db: Parameters<typeof createCurrenciesServiceContext>[0]["db"];
   logger: BedrockLogger;
 }) {
-  return createCurrenciesRuntime({
+  return createCurrenciesServiceContext({
     db: ctx.db,
     logger: adaptBedrockLogger(ctx.logger),
   });
@@ -49,22 +57,28 @@ export const currenciesService = defineService("currencies", {
   },
   ctx: ({ db }) => ({
     db,
+    cacheState: createCurrencyCacheState(),
   }),
   actions: ({ action }) => ({
     list: action({
       input: ListCurrenciesQuerySchema,
       output: PaginatedCurrenciesSchema,
-      handler: async ({ ctx, input }) => getCurrenciesRuntime(ctx).list(input),
+      handler: async ({ ctx, input }) =>
+        listCurrencies(createCurrenciesContext(ctx), ctx.cacheState, input),
     }),
     options: action({
       output: CurrencyOptionsResponseSchema,
       handler: async ({ ctx }) => {
-        const result = await getCurrenciesRuntime(ctx).list({
+        const result = await listCurrencies(
+          createCurrenciesContext(ctx),
+          ctx.cacheState,
+          {
           limit: 200,
           offset: 0,
           sortBy: "code",
           sortOrder: "asc",
-        });
+          },
+        );
 
         return buildOptionsResponse(result, (currency) =>
           CurrencyOptionSchema.parse({
@@ -80,7 +94,7 @@ export const currenciesService = defineService("currencies", {
       input: CreateCurrencyInputSchema,
       output: CurrencySchema,
       handler: async ({ ctx, input }) =>
-        getCurrenciesRuntime(ctx).create(input),
+        createCurrency(createCurrenciesContext(ctx), ctx.cacheState, input),
     }),
     get: action({
       input: IdParamSchema,
@@ -88,7 +102,11 @@ export const currenciesService = defineService("currencies", {
       errors: [NotFoundDomainError],
       handler: async ({ ctx, input }) => {
         try {
-          return await getCurrenciesRuntime(ctx).findById(input.id);
+          return await findCurrencyById(
+            createCurrenciesContext(ctx),
+            ctx.cacheState,
+            input.id,
+          );
         } catch (cause) {
           if (cause instanceof CurrencyNotFoundError) {
             return error(NotFoundDomainError, { message: cause.message });
@@ -104,7 +122,12 @@ export const currenciesService = defineService("currencies", {
       errors: [NotFoundDomainError],
       handler: async ({ ctx, input }) => {
         try {
-          return await getCurrenciesRuntime(ctx).update(input.id, input.input);
+          return await updateCurrency(
+            createCurrenciesContext(ctx),
+            ctx.cacheState,
+            input.id,
+            input.input,
+          );
         } catch (cause) {
           if (cause instanceof CurrencyNotFoundError) {
             return error(NotFoundDomainError, { message: cause.message });
@@ -119,7 +142,11 @@ export const currenciesService = defineService("currencies", {
       errors: [NotFoundDomainError, ConflictDomainError],
       handler: async ({ ctx, input }) => {
         try {
-          await getCurrenciesRuntime(ctx).remove(input.id);
+          await removeCurrency(
+            createCurrenciesContext(ctx),
+            ctx.cacheState,
+            input.id,
+          );
           return undefined;
         } catch (cause) {
           if (cause instanceof CurrencyNotFoundError) {

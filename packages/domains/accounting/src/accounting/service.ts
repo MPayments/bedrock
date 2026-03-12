@@ -1,17 +1,18 @@
-import { defineService, type Logger as BedrockLogger } from "@bedrock/core";
+import { defineService } from "@bedrock/core";
 import {
   AccountingCorrespondenceRuleSchema,
   AccountingTemplateAccountSchema,
 } from "@multihansa/accounting/contracts";
-import {
-  DbToken,
-  adaptBedrockLogger,
-} from "@multihansa/common/bedrock";
+import { DbToken } from "@multihansa/common/bedrock";
 import { z } from "zod";
 
+import {
+  listCorrespondenceRules,
+  listTemplateAccounts,
+  replaceCorrespondenceRules,
+  validatePostingMatrix,
+} from "./runtime-service";
 import { replaceCorrespondenceRulesSchema } from "./validation";
-import { createAccountingService as createAccountingRuntime } from "./runtime-service";
-import { AccountingPackDefinitionToken } from "./tokens";
 
 const ValidatePostingMatrixResultSchema = z.object({
   ok: z.boolean(),
@@ -25,34 +26,18 @@ const ValidatePostingMatrixResultSchema = z.object({
   ),
 });
 
-function getAccountingRuntime(ctx: {
-  db: Parameters<typeof createAccountingRuntime>[0]["db"];
-  defaultPackDefinition: Parameters<
-    typeof createAccountingRuntime
-  >[0]["defaultPackDefinition"];
-  logger: BedrockLogger;
-}) {
-  return createAccountingRuntime({
-    db: ctx.db,
-    logger: adaptBedrockLogger(ctx.logger),
-    defaultPackDefinition: ctx.defaultPackDefinition,
-  });
-}
-
 export const accountingService = defineService("accounting", {
   deps: {
     db: DbToken,
-    defaultPackDefinition: AccountingPackDefinitionToken,
   },
-  ctx: ({ db, defaultPackDefinition }) => ({
+  ctx: ({ db }) => ({
     db,
-    defaultPackDefinition,
   }),
   actions: ({ action }) => ({
     listTemplateAccounts: action({
       output: z.array(AccountingTemplateAccountSchema),
       handler: async ({ ctx }) => {
-        const rows = await getAccountingRuntime(ctx).listTemplateAccounts();
+        const rows = await listTemplateAccounts(ctx.db);
         return rows.map((row) => ({
           accountNo: row.accountNo,
           name: row.name,
@@ -68,7 +53,7 @@ export const accountingService = defineService("accounting", {
     listCorrespondenceRules: action({
       output: z.array(AccountingCorrespondenceRuleSchema),
       handler: async ({ ctx }) => {
-        const rows = await getAccountingRuntime(ctx).listCorrespondenceRules();
+        const rows = await listCorrespondenceRules(ctx.db);
         return rows.map((row) => ({
           id: row.id,
           postingCode: row.postingCode,
@@ -84,9 +69,7 @@ export const accountingService = defineService("accounting", {
       input: replaceCorrespondenceRulesSchema,
       output: z.array(AccountingCorrespondenceRuleSchema),
       handler: async ({ ctx, input }) => {
-        const rows = await getAccountingRuntime(ctx).replaceCorrespondenceRules(
-          input,
-        );
+        const rows = await replaceCorrespondenceRules(ctx.db, input);
         return rows.map((row) => ({
           id: row.id,
           postingCode: row.postingCode,
@@ -100,7 +83,7 @@ export const accountingService = defineService("accounting", {
     }),
     validatePostingMatrix: action({
       output: ValidatePostingMatrixResultSchema,
-      handler: async ({ ctx }) => getAccountingRuntime(ctx).validatePostingMatrix(),
+      handler: async ({ ctx }) => validatePostingMatrix(ctx.db),
     }),
   }),
 });

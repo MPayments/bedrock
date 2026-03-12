@@ -1,3 +1,5 @@
+import { eq } from "drizzle-orm";
+
 import { defineProvider, LoggerToken, type Provider } from "@bedrock/core";
 import {
   adaptBedrockLogger,
@@ -8,8 +10,16 @@ import {
   LedgerEngineToken,
   LedgerReadServiceToken,
 } from "@multihansa/ledger";
+import { schema } from "@multihansa/documents/schema";
 
-import { createDocumentsService } from "./runtime";
+import { createCreateDraftHandler } from "./commands/create-draft";
+import { createTransitionHandler } from "./commands/transition";
+import { createUpdateDraftHandler } from "./commands/update-draft";
+import { createValidateAccountingSourceCoverageHandler } from "./commands/validate-accounting-source-coverage";
+import { createDocumentsServiceContext } from "./internal/context";
+import { createGetDocumentDetailsQuery } from "./queries/get-document-details";
+import { createGetDocumentQuery } from "./queries/get-document";
+import { createListDocumentsQuery } from "./queries/list-documents";
 import {
   DocumentRegistryToken,
   DocumentsDomainServiceToken,
@@ -35,15 +45,36 @@ export function createDocumentsProviders(): Provider[] {
         ledgerReadService,
         logger,
         registry,
-      }) =>
-        createDocumentsService({
+      }) => {
+        const context = createDocumentsServiceContext({
           accounting,
           db,
           ledger,
           ledgerReadService,
           logger: adaptBedrockLogger(logger),
           registry,
-        }),
+        });
+
+        return {
+          list: createListDocumentsQuery(context),
+          get: createGetDocumentQuery(context),
+          getDetails: createGetDocumentDetailsQuery(context),
+          createDraft: createCreateDraftHandler(context),
+          updateDraft: createUpdateDraftHandler(context),
+          transition: createTransitionHandler(context),
+          validateAccountingSourceCoverage:
+            createValidateAccountingSourceCoverageHandler(context),
+          async hasDocument(documentId: string) {
+            const [document] = await context.db
+              .select({ id: schema.documents.id })
+              .from(schema.documents)
+              .where(eq(schema.documents.id, documentId))
+              .limit(1);
+
+            return document !== undefined;
+          },
+        };
+      },
     }),
   ];
 }

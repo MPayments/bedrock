@@ -287,37 +287,9 @@ async function loadMutationReplayResult(
   };
 }
 
-export type BalancesService = ReturnType<typeof createBalancesService>;
-
-export function createBalancesService(deps: BalancesServiceDeps) {
-  const context = createBalancesServiceContext(deps);
-  const { db, idempotency } = context;
-
-  async function getBalance(subjectInput: unknown): Promise<BalanceSnapshot> {
-    const subject = validateBalanceSubject(subjectInput);
-    const position = await getBalancePositionTx(
-      db as unknown as Transaction,
-      subject,
-    );
-
-    if (!position) {
-      return {
-        bookId: subject.bookId,
-        subjectType: subject.subjectType,
-        subjectId: subject.subjectId,
-        currency: subject.currency,
-        ledgerBalance: 0n,
-        available: 0n,
-        reserved: 0n,
-        pending: 0n,
-        version: 1,
-      };
-    }
-
-    return toBalanceSnapshot(position);
-  }
-
-  async function reserve(input: {
+export interface BalancesService {
+  getBalance(subjectInput: unknown): Promise<BalanceSnapshot>;
+  reserve(input: {
     subject: BalanceSubjectInput;
     amount?: string | number | bigint;
     amountMinor?: bigint;
@@ -326,278 +298,334 @@ export function createBalancesService(deps: BalancesServiceDeps) {
     actorId?: string;
     idempotencyKey: string;
     requestContext?: CorrelationContext;
-  }): Promise<BalanceMutationResult> {
-    const validated = validateReserveBalanceInput(input);
-
-    return db.transaction(async (tx: Transaction) =>
-      idempotency.withIdempotencyTx({
-        tx,
-        scope: IDEMPOTENCY_SCOPE.BALANCES_RESERVE,
-        idempotencyKey: input.idempotencyKey,
-        request: validated,
-        actorId: validated.actorId,
-        serializeResult: () => ({
-          holdRef: validated.holdRef,
-          subject: validated.subject,
-        }),
-        loadReplayResult: async () =>
-          loadMutationReplayResult(tx, validated.subject, validated.holdRef),
-        handler: async () => {
-          const position = await ensureBalancePositionTx(tx, validated.subject);
-          const existingHold = await getHoldTx(
-            tx,
-            validated.subject,
-            validated.holdRef,
-            true,
-          );
-
-          if (existingHold) {
-            if (existingHold.amountMinor !== validated.amountMinor) {
-              throw new BalanceHoldConflictError(validated.holdRef);
-            }
-
-            return loadMutationReplayResult(
-              tx,
-              validated.subject,
-              validated.holdRef,
-            );
-          }
-
-          if (position.available < validated.amountMinor) {
-            throw new InsufficientAvailableBalanceError(
-              position.available,
-              validated.amountMinor,
-            );
-          }
-
-          const updatedPosition = await updateBalancePositionTx(tx, {
-            subject: validated.subject,
-            deltaAvailable: -validated.amountMinor,
-            deltaReserved: validated.amountMinor,
-          });
-
-          const [hold] = await tx
-            .insert(schema.balanceHolds)
-            .values({
-              bookId: validated.subject.bookId,
-              subjectType: validated.subject.subjectType,
-              subjectId: validated.subject.subjectId,
-              currency: validated.subject.currency,
-              holdRef: validated.holdRef,
-              amountMinor: validated.amountMinor,
-              state: "active",
-              reason: validated.reason ?? null,
-              actorId: validated.actorId ?? null,
-              requestId: input.requestContext?.requestId ?? null,
-              correlationId: input.requestContext?.correlationId ?? null,
-              traceId: input.requestContext?.traceId ?? null,
-              causationId: input.requestContext?.causationId ?? null,
-            })
-            .returning();
-
-          await writeBalanceEventTx(tx, {
-            subject: validated.subject,
-            eventType: "reserve",
-            version: updatedPosition.version,
-            holdRef: validated.holdRef,
-            deltaAvailable: -validated.amountMinor,
-            deltaReserved: validated.amountMinor,
-            actorId: validated.actorId,
-            requestContext: input.requestContext,
-            meta: validated.reason ? { reason: validated.reason } : null,
-          });
-
-          return {
-            balance: toBalanceSnapshot(updatedPosition),
-            hold: toHoldSnapshot(hold!),
-          };
-        },
-      }),
-    );
-  }
-
-  async function release(input: {
+  }): Promise<BalanceMutationResult>;
+  release(input: {
     subject: BalanceSubjectInput;
     holdRef: string;
     reason?: string;
     actorId?: string;
     idempotencyKey: string;
     requestContext?: CorrelationContext;
-  }): Promise<BalanceMutationResult> {
-    const validated = validateReleaseBalanceInput(input);
-
-    return db.transaction(async (tx: Transaction) =>
-      idempotency.withIdempotencyTx({
-        tx,
-        scope: IDEMPOTENCY_SCOPE.BALANCES_RELEASE,
-        idempotencyKey: input.idempotencyKey,
-        request: validated,
-        actorId: validated.actorId,
-        serializeResult: () => ({
-          holdRef: validated.holdRef,
-          subject: validated.subject,
-        }),
-        loadReplayResult: async () =>
-          loadMutationReplayResult(tx, validated.subject, validated.holdRef),
-        handler: async () => {
-          const hold = await getHoldTx(
-            tx,
-            validated.subject,
-            validated.holdRef,
-            true,
-          );
-
-          if (!hold) {
-            throw new BalanceHoldNotFoundError(validated.holdRef);
-          }
-
-          if (hold.state === "released") {
-            return loadMutationReplayResult(
-              tx,
-              validated.subject,
-              validated.holdRef,
-            );
-          }
-          if (hold.state !== "active") {
-            throw new BalanceHoldStateError(
-              validated.holdRef,
-              hold.state,
-              "release",
-            );
-          }
-
-          await ensureBalancePositionTx(tx, validated.subject);
-          const updatedPosition = await updateBalancePositionTx(tx, {
-            subject: validated.subject,
-            deltaAvailable: hold.amountMinor,
-            deltaReserved: -hold.amountMinor,
-          });
-
-          const [updatedHold] = await tx
-            .update(schema.balanceHolds)
-            .set({
-              state: "released",
-              reason: validated.reason ?? hold.reason,
-              actorId: validated.actorId ?? hold.actorId,
-              releasedAt: sql`now()`,
-            })
-            .where(eq(schema.balanceHolds.id, hold.id))
-            .returning();
-
-          await writeBalanceEventTx(tx, {
-            subject: validated.subject,
-            eventType: "release",
-            version: updatedPosition.version,
-            holdRef: validated.holdRef,
-            deltaAvailable: hold.amountMinor,
-            deltaReserved: -hold.amountMinor,
-            actorId: validated.actorId,
-            requestContext: input.requestContext,
-            meta: validated.reason ? { reason: validated.reason } : null,
-          });
-
-          return {
-            balance: toBalanceSnapshot(updatedPosition),
-            hold: toHoldSnapshot(updatedHold!),
-          };
-        },
-      }),
-    );
-  }
-
-  async function consume(input: {
+  }): Promise<BalanceMutationResult>;
+  consume(input: {
     subject: BalanceSubjectInput;
     holdRef: string;
     reason?: string;
     actorId?: string;
     idempotencyKey: string;
     requestContext?: CorrelationContext;
-  }): Promise<BalanceMutationResult> {
-    const validated = validateConsumeBalanceInput(input);
+  }): Promise<BalanceMutationResult>;
+}
 
-    return db.transaction(async (tx: Transaction) =>
-      idempotency.withIdempotencyTx({
-        tx,
-        scope: IDEMPOTENCY_SCOPE.BALANCES_CONSUME,
-        idempotencyKey: input.idempotencyKey,
-        request: validated,
-        actorId: validated.actorId,
-        serializeResult: () => ({
-          holdRef: validated.holdRef,
-          subject: validated.subject,
-        }),
-        loadReplayResult: async () =>
-          loadMutationReplayResult(tx, validated.subject, validated.holdRef),
-        handler: async () => {
-          const hold = await getHoldTx(
+export async function getBalance(
+  context: ReturnType<typeof createBalancesServiceContext>,
+  subjectInput: unknown,
+): Promise<BalanceSnapshot> {
+  const subject = validateBalanceSubject(subjectInput);
+  const position = await getBalancePositionTx(
+    context.db as unknown as Transaction,
+    subject,
+  );
+
+  if (!position) {
+    return {
+      bookId: subject.bookId,
+      subjectType: subject.subjectType,
+      subjectId: subject.subjectId,
+      currency: subject.currency,
+      ledgerBalance: 0n,
+      available: 0n,
+      reserved: 0n,
+      pending: 0n,
+      version: 1,
+    };
+  }
+
+  return toBalanceSnapshot(position);
+}
+
+export async function reserveBalance(
+  context: ReturnType<typeof createBalancesServiceContext>,
+  input: {
+    subject: BalanceSubjectInput;
+    amount?: string | number | bigint;
+    amountMinor?: bigint;
+    holdRef: string;
+    reason?: string;
+    actorId?: string;
+    idempotencyKey: string;
+    requestContext?: CorrelationContext;
+  },
+): Promise<BalanceMutationResult> {
+  const validated = validateReserveBalanceInput(input);
+
+  return context.db.transaction(async (tx: Transaction) =>
+    context.idempotency.withIdempotencyTx({
+      tx,
+      scope: IDEMPOTENCY_SCOPE.BALANCES_RESERVE,
+      idempotencyKey: input.idempotencyKey,
+      request: validated,
+      actorId: validated.actorId,
+      serializeResult: () => ({
+        holdRef: validated.holdRef,
+        subject: validated.subject,
+      }),
+      loadReplayResult: async () =>
+        loadMutationReplayResult(tx, validated.subject, validated.holdRef),
+      handler: async () => {
+        const position = await ensureBalancePositionTx(tx, validated.subject);
+        const existingHold = await getHoldTx(
+          tx,
+          validated.subject,
+          validated.holdRef,
+          true,
+        );
+
+        if (existingHold) {
+          if (existingHold.amountMinor !== validated.amountMinor) {
+            throw new BalanceHoldConflictError(validated.holdRef);
+          }
+
+          return loadMutationReplayResult(
             tx,
             validated.subject,
             validated.holdRef,
-            true,
           );
+        }
 
-          if (!hold) {
-            throw new BalanceHoldNotFoundError(validated.holdRef);
-          }
+        if (position.available < validated.amountMinor) {
+          throw new InsufficientAvailableBalanceError(
+            position.available,
+            validated.amountMinor,
+          );
+        }
 
-          if (hold.state === "consumed") {
-            return loadMutationReplayResult(
-              tx,
-              validated.subject,
-              validated.holdRef,
-            );
-          }
-          if (hold.state !== "active") {
-            throw new BalanceHoldStateError(
-              validated.holdRef,
-              hold.state,
-              "consume",
-            );
-          }
+        const updatedPosition = await updateBalancePositionTx(tx, {
+          subject: validated.subject,
+          deltaAvailable: -validated.amountMinor,
+          deltaReserved: validated.amountMinor,
+        });
 
-          await ensureBalancePositionTx(tx, validated.subject);
-          const updatedPosition = await updateBalancePositionTx(tx, {
-            subject: validated.subject,
-            deltaReserved: -hold.amountMinor,
-            deltaPending: hold.amountMinor,
-          });
-
-          const [updatedHold] = await tx
-            .update(schema.balanceHolds)
-            .set({
-              state: "consumed",
-              reason: validated.reason ?? hold.reason,
-              actorId: validated.actorId ?? hold.actorId,
-              consumedAt: sql`now()`,
-            })
-            .where(eq(schema.balanceHolds.id, hold.id))
-            .returning();
-
-          await writeBalanceEventTx(tx, {
-            subject: validated.subject,
-            eventType: "consume",
-            version: updatedPosition.version,
+        const [hold] = await tx
+          .insert(schema.balanceHolds)
+          .values({
+            bookId: validated.subject.bookId,
+            subjectType: validated.subject.subjectType,
+            subjectId: validated.subject.subjectId,
+            currency: validated.subject.currency,
             holdRef: validated.holdRef,
-            deltaReserved: -hold.amountMinor,
-            deltaPending: hold.amountMinor,
-            actorId: validated.actorId,
-            requestContext: input.requestContext,
-            meta: validated.reason ? { reason: validated.reason } : null,
-          });
+            amountMinor: validated.amountMinor,
+            state: "active",
+            reason: validated.reason ?? null,
+            actorId: validated.actorId ?? null,
+            requestId: input.requestContext?.requestId ?? null,
+            correlationId: input.requestContext?.correlationId ?? null,
+            traceId: input.requestContext?.traceId ?? null,
+            causationId: input.requestContext?.causationId ?? null,
+          })
+          .returning();
 
-          return {
-            balance: toBalanceSnapshot(updatedPosition),
-            hold: toHoldSnapshot(updatedHold!),
-          };
-        },
+        await writeBalanceEventTx(tx, {
+          subject: validated.subject,
+          eventType: "reserve",
+          version: updatedPosition.version,
+          holdRef: validated.holdRef,
+          deltaAvailable: -validated.amountMinor,
+          deltaReserved: validated.amountMinor,
+          actorId: validated.actorId,
+          requestContext: input.requestContext,
+          meta: validated.reason ? { reason: validated.reason } : null,
+        });
+
+        return {
+          balance: toBalanceSnapshot(updatedPosition),
+          hold: toHoldSnapshot(hold!),
+        };
+      },
+    }),
+  );
+}
+
+export async function releaseBalance(
+  context: ReturnType<typeof createBalancesServiceContext>,
+  input: {
+    subject: BalanceSubjectInput;
+    holdRef: string;
+    reason?: string;
+    actorId?: string;
+    idempotencyKey: string;
+    requestContext?: CorrelationContext;
+  },
+): Promise<BalanceMutationResult> {
+  const validated = validateReleaseBalanceInput(input);
+
+  return context.db.transaction(async (tx: Transaction) =>
+    context.idempotency.withIdempotencyTx({
+      tx,
+      scope: IDEMPOTENCY_SCOPE.BALANCES_RELEASE,
+      idempotencyKey: input.idempotencyKey,
+      request: validated,
+      actorId: validated.actorId,
+      serializeResult: () => ({
+        holdRef: validated.holdRef,
+        subject: validated.subject,
       }),
-    );
-  }
+      loadReplayResult: async () =>
+        loadMutationReplayResult(tx, validated.subject, validated.holdRef),
+      handler: async () => {
+        const hold = await getHoldTx(
+          tx,
+          validated.subject,
+          validated.holdRef,
+          true,
+        );
 
-  return {
-    getBalance,
-    reserve,
-    release,
-    consume,
-  };
+        if (!hold) {
+          throw new BalanceHoldNotFoundError(validated.holdRef);
+        }
+
+        if (hold.state === "released") {
+          return loadMutationReplayResult(
+            tx,
+            validated.subject,
+            validated.holdRef,
+          );
+        }
+        if (hold.state !== "active") {
+          throw new BalanceHoldStateError(
+            validated.holdRef,
+            hold.state,
+            "release",
+          );
+        }
+
+        await ensureBalancePositionTx(tx, validated.subject);
+        const updatedPosition = await updateBalancePositionTx(tx, {
+          subject: validated.subject,
+          deltaAvailable: hold.amountMinor,
+          deltaReserved: -hold.amountMinor,
+        });
+
+        const [updatedHold] = await tx
+          .update(schema.balanceHolds)
+          .set({
+            state: "released",
+            reason: validated.reason ?? hold.reason,
+            actorId: validated.actorId ?? hold.actorId,
+            releasedAt: sql`now()`,
+          })
+          .where(eq(schema.balanceHolds.id, hold.id))
+          .returning();
+
+        await writeBalanceEventTx(tx, {
+          subject: validated.subject,
+          eventType: "release",
+          version: updatedPosition.version,
+          holdRef: validated.holdRef,
+          deltaAvailable: hold.amountMinor,
+          deltaReserved: -hold.amountMinor,
+          actorId: validated.actorId,
+          requestContext: input.requestContext,
+          meta: validated.reason ? { reason: validated.reason } : null,
+        });
+
+        return {
+          balance: toBalanceSnapshot(updatedPosition),
+          hold: toHoldSnapshot(updatedHold!),
+        };
+      },
+    }),
+  );
+}
+
+export async function consumeBalance(
+  context: ReturnType<typeof createBalancesServiceContext>,
+  input: {
+    subject: BalanceSubjectInput;
+    holdRef: string;
+    reason?: string;
+    actorId?: string;
+    idempotencyKey: string;
+    requestContext?: CorrelationContext;
+  },
+): Promise<BalanceMutationResult> {
+  const validated = validateConsumeBalanceInput(input);
+
+  return context.db.transaction(async (tx: Transaction) =>
+    context.idempotency.withIdempotencyTx({
+      tx,
+      scope: IDEMPOTENCY_SCOPE.BALANCES_CONSUME,
+      idempotencyKey: input.idempotencyKey,
+      request: validated,
+      actorId: validated.actorId,
+      serializeResult: () => ({
+        holdRef: validated.holdRef,
+        subject: validated.subject,
+      }),
+      loadReplayResult: async () =>
+        loadMutationReplayResult(tx, validated.subject, validated.holdRef),
+      handler: async () => {
+        const hold = await getHoldTx(
+          tx,
+          validated.subject,
+          validated.holdRef,
+          true,
+        );
+
+        if (!hold) {
+          throw new BalanceHoldNotFoundError(validated.holdRef);
+        }
+
+        if (hold.state === "consumed") {
+          return loadMutationReplayResult(
+            tx,
+            validated.subject,
+            validated.holdRef,
+          );
+        }
+        if (hold.state !== "active") {
+          throw new BalanceHoldStateError(
+            validated.holdRef,
+            hold.state,
+            "consume",
+          );
+        }
+
+        await ensureBalancePositionTx(tx, validated.subject);
+        const updatedPosition = await updateBalancePositionTx(tx, {
+          subject: validated.subject,
+          deltaReserved: -hold.amountMinor,
+          deltaPending: hold.amountMinor,
+        });
+
+        const [updatedHold] = await tx
+          .update(schema.balanceHolds)
+          .set({
+            state: "consumed",
+            reason: validated.reason ?? hold.reason,
+            actorId: validated.actorId ?? hold.actorId,
+            consumedAt: sql`now()`,
+          })
+          .where(eq(schema.balanceHolds.id, hold.id))
+          .returning();
+
+        await writeBalanceEventTx(tx, {
+          subject: validated.subject,
+          eventType: "consume",
+          version: updatedPosition.version,
+          holdRef: validated.holdRef,
+          deltaReserved: -hold.amountMinor,
+          deltaPending: hold.amountMinor,
+          actorId: validated.actorId,
+          requestContext: input.requestContext,
+          meta: validated.reason ? { reason: validated.reason } : null,
+        });
+
+        return {
+          balance: toBalanceSnapshot(updatedPosition),
+          hold: toHoldSnapshot(updatedHold!),
+        };
+      },
+    }),
+  );
 }

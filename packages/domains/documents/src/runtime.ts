@@ -1,51 +1,59 @@
-import { eq } from "drizzle-orm";
+import type { ListDocumentsQuery } from "./validation";
+import type {
+  DocumentDetails,
+  DocumentRequestContext,
+  DocumentTransitionAction,
+  DocumentWithOperationId,
+} from "./types";
 
-import { schema } from "@multihansa/documents/schema";
-
-import { createCreateDraftHandler } from "./commands/create-draft";
-import { createTransitionHandler } from "./commands/transition";
-import { createUpdateDraftHandler } from "./commands/update-draft";
-import { createValidateAccountingSourceCoverageHandler } from "./commands/validate-accounting-source-coverage";
-import { createDocumentsServiceContext } from "./internal/context";
-import { createGetDocumentDetailsQuery } from "./queries/get-document-details";
-import { createGetDocumentQuery } from "./queries/get-document";
-import { createListDocumentsQuery } from "./queries/list-documents";
-import type { DocumentsServiceDeps } from "./types";
-
-export type DocumentsService = ReturnType<typeof createDocumentsService>;
-
-export function createDocumentsService(deps: DocumentsServiceDeps) {
-  const context = createDocumentsServiceContext(deps);
-
-  const list = createListDocumentsQuery(context);
-  const get = createGetDocumentQuery(context);
-  const getDetails = createGetDocumentDetailsQuery(context);
-  const createDraft = createCreateDraftHandler(context);
-  const updateDraft = createUpdateDraftHandler(context);
-  const transition = createTransitionHandler(context);
-  const validateAccountingSourceCoverage =
-    createValidateAccountingSourceCoverageHandler(context);
-
-  async function hasDocument(documentId: string) {
-    const [document] = await context.db
-      .select({ id: schema.documents.id })
-      .from(schema.documents)
-      .where(eq(schema.documents.id, documentId))
-      .limit(1);
-
-    return document !== undefined;
-  }
-
-  return {
-    list,
-    get,
-    getDetails,
-    createDraft,
-    updateDraft,
-    transition,
-    validateAccountingSourceCoverage,
-    hasDocument,
-  };
+export interface DocumentsService {
+  list(
+    input?: ListDocumentsQuery,
+    actorUserId?: string,
+  ): Promise<{
+    data: DocumentWithOperationId[];
+    total: number;
+    limit: number;
+    offset: number;
+  }>;
+  get(
+    docType: string,
+    documentId: string,
+    actorUserId?: string,
+  ): Promise<DocumentWithOperationId>;
+  getDetails(
+    docType: string,
+    documentId: string,
+    actorUserId: string,
+  ): Promise<DocumentDetails>;
+  createDraft(input: {
+    docType: string;
+    createIdempotencyKey: string;
+    payload: unknown;
+    actorUserId: string;
+    requestContext?: DocumentRequestContext;
+  }): Promise<DocumentWithOperationId>;
+  updateDraft(input: {
+    docType: string;
+    documentId: string;
+    payload: unknown;
+    actorUserId: string;
+    idempotencyKey: string;
+    requestContext?: DocumentRequestContext;
+  }): Promise<DocumentWithOperationId>;
+  transition(input: {
+    action: DocumentTransitionAction;
+    docType: string;
+    documentId: string;
+    actorUserId: string;
+    idempotencyKey?: string;
+    requestContext?: DocumentRequestContext;
+  }): Promise<DocumentWithOperationId>;
+  validateAccountingSourceCoverage(input?: { bookId?: string }): Promise<{
+    packChecksum: string;
+    validatedSources: string[];
+  }>;
+  hasDocument(documentId: string): Promise<boolean>;
 }
 
 export { createDocumentRegistry } from "./create-document-registry";

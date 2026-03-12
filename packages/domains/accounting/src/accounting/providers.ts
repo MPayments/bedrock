@@ -1,9 +1,12 @@
-import { defineProvider, LoggerToken, type Provider } from "@bedrock/core";
+import { defineProvider, type Provider } from "@bedrock/core";
+import { DbToken } from "@multihansa/common/bedrock";
+import { createAccountingRuntime } from "./runtime";
 import {
-  adaptBedrockLogger,
-  DbToken,
-} from "@multihansa/common/bedrock";
-import { createAccountingService } from "./runtime-service";
+  listCorrespondenceRules,
+  listTemplateAccounts,
+  replaceCorrespondenceRules,
+  validatePostingMatrix,
+} from "./runtime-service";
 
 import {
   AccountingDomainServiceToken,
@@ -17,15 +20,24 @@ export function createAccountingProviders(): Provider[] {
       scope: "singleton",
       deps: {
         db: DbToken,
-        logger: LoggerToken,
         defaultPackDefinition: AccountingPackDefinitionToken,
       },
-      useFactory: ({ db, logger, defaultPackDefinition }) =>
-        createAccountingService({
+      useFactory: ({ db, defaultPackDefinition }) => {
+        const runtime = createAccountingRuntime({
           db,
-          logger: adaptBedrockLogger(logger),
           defaultPackDefinition,
-        }),
+        });
+
+        return {
+          ...runtime,
+          listTemplateAccounts: () => listTemplateAccounts(db),
+          listCorrespondenceRules: () => listCorrespondenceRules(db),
+          replaceCorrespondenceRules: (input: Parameters<
+            typeof replaceCorrespondenceRules
+          >[1]) => replaceCorrespondenceRules(db, input),
+          validatePostingMatrix: () => validatePostingMatrix(db),
+        };
+      },
     }),
   ];
 }

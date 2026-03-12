@@ -1,14 +1,15 @@
 import { defineProvider, LoggerToken, type Provider } from "@bedrock/core";
+
 import {
   adaptBedrockLogger,
   DbToken,
 } from "@multihansa/common/bedrock";
+
 import { createCounterpartiesService } from "./counterparties/runtime";
 import { createCustomersService } from "./customers/runtime";
 import { createOrganizationsService } from "./organizations/runtime";
 import { createRequisiteProvidersService } from "./requisite-providers/runtime";
 import { createRequisitesService } from "./requisites/runtime";
-
 import {
   CounterpartiesDomainServiceToken,
   CustomersDomainServiceToken,

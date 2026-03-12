@@ -27,11 +27,17 @@ import {
 import { AuthContextToken } from "@bedrock/security";
 import { BalanceSubjectSchema } from "./validation";
 
-import { createBalancesService as createBalancesRuntime } from "./runtime";
+import { createBalancesServiceContext } from "./context";
 import {
   BalanceMutationResultSchema,
   BalanceSnapshotSchema,
 } from "./schemas";
+import {
+  consumeBalance,
+  getBalance,
+  releaseBalance,
+  reserveBalance,
+} from "./runtime";
 
 const BalanceSubjectParamsSchema = z.object({
   bookId: z.uuid(),
@@ -145,11 +151,11 @@ function toDomainFailure(cause: unknown) {
   throw cause;
 }
 
-function getBalancesRuntime(ctx: {
-  db: Parameters<typeof createBalancesRuntime>[0]["db"];
+function createBalancesContext(ctx: {
+  db: Parameters<typeof createBalancesServiceContext>[0]["db"];
   logger: BedrockLogger;
 }) {
-  return createBalancesRuntime({
+  return createBalancesServiceContext({
     db: ctx.db,
     logger: adaptBedrockLogger(ctx.logger),
   });
@@ -171,7 +177,9 @@ export const balancesService = defineService("balances", {
       input: BalanceSubjectParamsSchema,
       output: BalanceSnapshotSchema,
       handler: async ({ ctx, input }) =>
-        toBalanceSnapshotDto(await getBalancesRuntime(ctx).getBalance(input)),
+        toBalanceSnapshotDto(
+          await getBalance(createBalancesContext(ctx), input),
+        ),
     }),
     reserve: action({
       input: ReserveBalanceBodySchema,
@@ -190,7 +198,7 @@ export const balancesService = defineService("balances", {
 
         try {
           return toMutationResultDto(
-            await getBalancesRuntime(ctx).reserve({
+            await reserveBalance(createBalancesContext(ctx), {
               ...input,
               actorId: requireActorUserId(ctx.auth),
               idempotencyKey,
@@ -219,7 +227,7 @@ export const balancesService = defineService("balances", {
 
         try {
           return toMutationResultDto(
-            await getBalancesRuntime(ctx).release({
+            await releaseBalance(createBalancesContext(ctx), {
               ...input,
               actorId: requireActorUserId(ctx.auth),
               idempotencyKey,
@@ -248,7 +256,7 @@ export const balancesService = defineService("balances", {
 
         try {
           return toMutationResultDto(
-            await getBalancesRuntime(ctx).consume({
+            await consumeBalance(createBalancesContext(ctx), {
               ...input,
               actorId: requireActorUserId(ctx.auth),
               idempotencyKey,

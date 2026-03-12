@@ -1,4 +1,6 @@
 import { defineService, error, type Logger as BedrockLogger } from "@bedrock/core";
+import { z } from "zod";
+
 import {
   ConflictDomainError,
   DbToken,
@@ -7,6 +9,21 @@ import {
   adaptBedrockLogger,
 } from "@multihansa/common/bedrock";
 import { createPaginatedListSchema } from "@multihansa/common/pagination";
+
+import {
+  createBanUserHandler,
+  createUnbanUserHandler,
+} from "./commands/ban-user";
+import { createChangePasswordHandler } from "./commands/change-password";
+import { createCreateUserHandler } from "./commands/create-user";
+import { createGetUserHandler } from "./commands/get-user";
+import { createListUsersHandler } from "./commands/list-users";
+import { createUpdateUserHandler } from "./commands/update-user";
+import {
+  UserEmailConflictError,
+  UserNotFoundError,
+} from "./errors";
+import { createUsersServiceContext } from "./internal/context";
 import {
   BanUserInputSchema,
   ChangePasswordInputSchema,
@@ -15,13 +32,6 @@ import {
   UserSchema,
   UpdateUserInputSchema,
 } from "./validation";
-import {
-  UserEmailConflictError,
-  UserNotFoundError,
-} from "./errors";
-import { z } from "zod";
-
-import { createUsersService as createUsersRuntime } from "./runtime";
 
 const GetUserInputSchema = z.object({
   id: z.uuid(),
@@ -53,11 +63,11 @@ const UserWithLastSessionSchema = UserSchema.extend({
 
 const PaginatedUsersSchema = createPaginatedListSchema(UserSchema);
 
-function getUsersRuntime(ctx: {
-  db: Parameters<typeof createUsersRuntime>[0]["db"];
+function createUsersContext(ctx: {
+  db: Parameters<typeof createUsersServiceContext>[0]["db"];
   logger: BedrockLogger;
 }) {
-  return createUsersRuntime({
+  return createUsersServiceContext({
     db: ctx.db,
     logger: adaptBedrockLogger(ctx.logger),
   });
@@ -67,14 +77,12 @@ export const usersService = defineService("users", {
   deps: {
     db: DbToken,
   },
-  ctx: ({ db }) => ({
-    db,
-  }),
   actions: ({ action }) => ({
     list: action({
       input: ListUsersQuerySchema,
       output: PaginatedUsersSchema,
-      handler: async ({ ctx, input }) => getUsersRuntime(ctx).list(input),
+      handler: async ({ ctx, input }) =>
+        createListUsersHandler(createUsersContext(ctx))(input),
     }),
     get: action({
       input: GetUserInputSchema,
@@ -82,7 +90,7 @@ export const usersService = defineService("users", {
       errors: [NotFoundDomainError],
       handler: async ({ ctx, input }) => {
         try {
-          return await getUsersRuntime(ctx).findById(input.id);
+          return await createGetUserHandler(createUsersContext(ctx))(input.id);
         } catch (cause) {
           if (cause instanceof UserNotFoundError) {
             return error(NotFoundDomainError, {
@@ -100,7 +108,7 @@ export const usersService = defineService("users", {
       errors: [ConflictDomainError],
       handler: async ({ ctx, input }) => {
         try {
-          return await getUsersRuntime(ctx).create(input);
+          return await createCreateUserHandler(createUsersContext(ctx))(input);
         } catch (cause) {
           if (cause instanceof UserEmailConflictError) {
             return error(ConflictDomainError, {
@@ -118,7 +126,10 @@ export const usersService = defineService("users", {
       errors: [NotFoundDomainError, ConflictDomainError],
       handler: async ({ ctx, input }) => {
         try {
-          return await getUsersRuntime(ctx).update(input.id, input.input);
+          return await createUpdateUserHandler(createUsersContext(ctx))(
+            input.id,
+            input.input,
+          );
         } catch (cause) {
           if (cause instanceof UserNotFoundError) {
             return error(NotFoundDomainError, {
@@ -141,7 +152,10 @@ export const usersService = defineService("users", {
       errors: [NotFoundDomainError],
       handler: async ({ ctx, input }) => {
         try {
-          await getUsersRuntime(ctx).changePassword(input.id, input.input);
+          await createChangePasswordHandler(createUsersContext(ctx))(
+            input.id,
+            input.input,
+          );
           return undefined;
         } catch (cause) {
           if (cause instanceof UserNotFoundError) {
@@ -160,7 +174,10 @@ export const usersService = defineService("users", {
       errors: [NotFoundDomainError],
       handler: async ({ ctx, input }) => {
         try {
-          return await getUsersRuntime(ctx).ban(input.id, input.input);
+          return await createBanUserHandler(createUsersContext(ctx))(
+            input.id,
+            input.input,
+          );
         } catch (cause) {
           if (cause instanceof UserNotFoundError) {
             return error(NotFoundDomainError, {
@@ -178,7 +195,7 @@ export const usersService = defineService("users", {
       errors: [NotFoundDomainError],
       handler: async ({ ctx, input }) => {
         try {
-          return await getUsersRuntime(ctx).unban(input.id);
+          return await createUnbanUserHandler(createUsersContext(ctx))(input.id);
         } catch (cause) {
           if (cause instanceof UserNotFoundError) {
             return error(NotFoundDomainError, {

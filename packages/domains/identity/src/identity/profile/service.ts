@@ -1,17 +1,7 @@
-import { z } from "zod";
 
 import { defineService, error, type Logger as BedrockLogger } from "@bedrock/core";
+import { z } from "zod";
 
-import {
-  ChangeOwnPasswordInputSchema,
-  UpdateProfileInputSchema,
-  UserSchema,
-} from "../users/validation";
-import {
-  InvalidPasswordError,
-  UserEmailConflictError,
-  UserNotFoundError,
-} from "../users/errors";
 
 import {
   BadRequestDomainError,
@@ -20,7 +10,21 @@ import {
   NotFoundDomainError,
   adaptBedrockLogger,
 } from "@multihansa/common/bedrock";
-import { createUsersService as createUsersRuntime } from "../users/runtime";
+
+import { createChangeOwnPasswordHandler } from "../users/commands/change-own-password";
+import { createGetUserHandler } from "../users/commands/get-user";
+import { createUpdateUserHandler } from "../users/commands/update-user";
+import {
+  InvalidPasswordError,
+  UserEmailConflictError,
+  UserNotFoundError,
+} from "../users/errors";
+import { createUsersServiceContext } from "../users/internal/context";
+import {
+  ChangeOwnPasswordInputSchema,
+  UpdateProfileInputSchema,
+  UserSchema,
+} from "../users/validation";
 
 const ProfileInputSchema = z.object({
   userId: z.uuid(),
@@ -41,11 +45,11 @@ const UserWithLastSessionSchema = UserSchema.extend({
   lastSessionIp: z.string().nullable(),
 });
 
-function getUsersRuntime(ctx: {
-  db: Parameters<typeof createUsersRuntime>[0]["db"];
+function createUsersContext(ctx: {
+  db: Parameters<typeof createUsersServiceContext>[0]["db"];
   logger: BedrockLogger;
 }) {
-  return createUsersRuntime({
+  return createUsersServiceContext({
     db: ctx.db,
     logger: adaptBedrockLogger(ctx.logger),
   });
@@ -65,7 +69,7 @@ export const profileService = defineService("profile", {
       errors: [NotFoundDomainError],
       handler: async ({ ctx, input }) => {
         try {
-          return await getUsersRuntime(ctx).findById(input.userId);
+          return await createGetUserHandler(createUsersContext(ctx))(input.userId);
         } catch (cause) {
           if (cause instanceof UserNotFoundError) {
             return error(NotFoundDomainError, { message: cause.message });
@@ -81,7 +85,10 @@ export const profileService = defineService("profile", {
       errors: [NotFoundDomainError, ConflictDomainError],
       handler: async ({ ctx, input }) => {
         try {
-          return await getUsersRuntime(ctx).update(input.userId, input.input);
+          return await createUpdateUserHandler(createUsersContext(ctx))(
+            input.userId,
+            input.input,
+          );
         } catch (cause) {
           if (cause instanceof UserNotFoundError) {
             return error(NotFoundDomainError, { message: cause.message });
@@ -100,7 +107,7 @@ export const profileService = defineService("profile", {
       errors: [BadRequestDomainError, NotFoundDomainError],
       handler: async ({ ctx, input }) => {
         try {
-          await getUsersRuntime(ctx).changeOwnPassword(
+          await createChangeOwnPasswordHandler(createUsersContext(ctx))(
             input.userId,
             input.input,
           );
