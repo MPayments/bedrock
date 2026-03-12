@@ -15,7 +15,7 @@ import {
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PACK_PATH = resolve(
   SCRIPT_DIR,
-  "../../../common/src/packs/bedrock-core-default.ts",
+  "../../src/accounting/packs/bedrock-core-default.ts",
 );
 
 function readFlag(name: string): string | undefined {
