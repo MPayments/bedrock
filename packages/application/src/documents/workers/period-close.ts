@@ -63,7 +63,6 @@ type PeriodCloseWorkerCounterpartyGuard = (
 
 export function createPeriodCloseWorkerDefinition(deps: {
   id?: string;
-  moduleId?: string;
   intervalMs?: number;
   db: Database;
   logger?: Logger;
@@ -75,7 +74,6 @@ export function createPeriodCloseWorkerDefinition(deps: {
 
   return {
     id: deps.id ?? "documents-period-close",
-    moduleId: deps.moduleId ?? "documents",
     intervalMs: deps.intervalMs ?? 60_000,
     async runOnce(context: WorkerRunContext): Promise<WorkerRunResult> {
       const { periodStart, periodEnd } = getPreviousCalendarMonthRange(context.now);

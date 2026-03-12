@@ -20,7 +20,6 @@ import { schema as feesSchema } from "@bedrock/application/fees/schema";
 import { schema as fxSchema } from "@bedrock/application/fx/schema";
 import { schema as idempotencySchema } from "@bedrock/application/idempotency/schema";
 import { schema as ledgerSchema } from "@bedrock/application/ledger/schema";
-import { schema as moduleRuntimeSchema } from "@bedrock/application/module-runtime/schema";
 import { schema as organizationsSchema } from "@bedrock/application/organizations/schema";
 import { schema as reconciliationSchema } from "@bedrock/application/reconciliation/schema";
 import { schema as requisiteProvidersSchema } from "@bedrock/application/requisite-providers/schema";
@@ -50,7 +49,6 @@ type CombinedSchema =
   & typeof fxSchema
   & typeof feesSchema
   & typeof currenciesSchema
-  & typeof moduleRuntimeSchema
   & typeof organizationsSchema
   & typeof requisiteProvidersSchema
   & typeof balancesSchema
@@ -69,7 +67,6 @@ const schemaInternal: CombinedSchema = {
   ...fxSchema,
   ...feesSchema,
   ...currenciesSchema,
-  ...moduleRuntimeSchema,
   ...organizationsSchema,
   ...requisiteProvidersSchema,
   ...balancesSchema,

@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { AccountingReportingService } from "@bedrock/application/accounting-reporting";
 import type { FeesService } from "@bedrock/application/fees";
 import type { FxService } from "@bedrock/application/fx";
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
 import type { PaymentsService } from "@bedrock/application/payments";
 import type { AccountingService } from "@bedrock/application/accounting";
 import type { BalancesService } from "@bedrock/application/balances";
@@ -12,15 +11,10 @@ import type { CurrenciesService } from "@bedrock/application/currencies";
 import type { CustomersService } from "@bedrock/application/customers";
 import type { DocumentsService } from "@bedrock/application/documents";
 import type { LedgerReadService } from "@bedrock/application/ledger";
-import {
-  createModuleRuntimeService,
-  type ModuleRuntimeService,
-} from "@bedrock/application/module-runtime";
 import type { OrganizationsService } from "@bedrock/application/organizations";
 import type { RequisiteProvidersService } from "@bedrock/application/requisite-providers";
 import type { RequisitesService } from "@bedrock/application/requisites";
 import type { UsersService } from "@bedrock/application/users";
-import { db } from "@bedrock/db/client";
 import type { Logger } from "@bedrock/common";
 
 import { createApplicationServices } from "./composition/application";
@@ -77,16 +71,10 @@ export interface AppContext {
   ledgerReadService: LedgerReadService;
   balancesService: BalancesService;
   documentsService: DocumentsService;
-  moduleRuntime: ModuleRuntimeService;
 }
 
 export function createAppContext(env: Env): AppContext {
   const core = createCoreServices();
-  const moduleRuntime = createModuleRuntimeService({
-    db,
-    logger: core.logger,
-    manifests: BEDROCK_MODULE_MANIFESTS,
-  });
   const applicationServices = createApplicationServices(core);
 
   return {
@@ -107,6 +95,5 @@ export function createAppContext(env: Env): AppContext {
     requisitesService: applicationServices.requisitesService,
     usersService: core.usersService,
     documentsService: applicationServices.documentsService,
-    moduleRuntime,
   };
 }

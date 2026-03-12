@@ -31,10 +31,10 @@ export const appUnitProjects = [
   }),
   appProject({
     test: {
-      name: "module-runtime",
+      name: "worker-runtime",
       globals: true,
       environment: "node",
-      include: ["tests/module-runtime/**/*.test.ts"],
+      include: ["tests/worker-runtime/**/*.test.ts"],
       exclude: NODE_EXCLUDE,
     },
   }),

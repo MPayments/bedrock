@@ -3,15 +3,6 @@ import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 
-import {
-  ModuleDependencyViolationError,
-  ModuleDisabledError,
-  ModuleStateVersionConflictError,
-  ImmutableModuleError,
-  MixedDeployError,
-  UnknownModuleError,
-} from "@bedrock/application/module-runtime";
-
 import auth from "./auth";
 import {
   API_APPLICATION_MODULES,
@@ -23,7 +14,6 @@ import {
   requireAuth,
   type AuthVariables,
 } from "./middleware/auth";
-import { createModuleGuard } from "./middleware/module-guard";
 import { requestContextMiddleware } from "./middleware/request-context";
 import {
   accountingRoutes,
@@ -39,18 +29,12 @@ import {
   profileRoutes,
   requisiteProvidersRoutes,
   requisitesRoutes,
-  systemModulesRoutes,
   usersRoutes,
 } from "./routes";
 
 const env = parseEnv();
 
 const ctx = createAppContext(env);
-void ctx.moduleRuntime.startBackgroundSync().catch((error: unknown) => {
-  ctx.logger.warn("Failed to start module runtime background sync", {
-    error: error instanceof Error ? error.message : String(error),
-  });
-});
 void ctx.documentsService
   .validateAccountingSourceCoverage()
   .catch((error: unknown) => {
@@ -84,78 +68,6 @@ const app = new OpenAPIHono<{ Variables: AuthVariables }>({
 });
 
 app.onError((err, c) => {
-  if (err instanceof ModuleDisabledError) {
-    c.header("Retry-After", String(err.retryAfterSec));
-    return c.json(
-      {
-        error: "Module disabled",
-        code: "MODULE_DISABLED",
-        moduleId: err.moduleId,
-        scope: err.scope,
-        effectiveState: err.effectiveState,
-        dependencyChain: err.dependencyChain,
-        retryAfterSec: err.retryAfterSec,
-        reason: err.reason,
-      },
-      503,
-    );
-  }
-
-  if (err instanceof UnknownModuleError) {
-    return c.json({ error: err.message, code: "UNKNOWN_MODULE" }, 404);
-  }
-
-  if (err instanceof MixedDeployError) {
-    return c.json(
-      {
-        error: err.message,
-        code: "MIXED_DEPLOY",
-        runtimeChecksum: err.runtimeChecksum,
-        localChecksum: err.localChecksum,
-      },
-      409,
-    );
-  }
-
-  if (err instanceof ModuleStateVersionConflictError) {
-    return c.json(
-      {
-        error: err.message,
-        code: "MODULE_STATE_VERSION_CONFLICT",
-        moduleId: err.moduleId,
-        scopeType: err.scopeType,
-        scopeId: err.scopeId,
-        expectedVersion: err.expectedVersion,
-        actualVersion: err.actualVersion,
-      },
-      409,
-    );
-  }
-
-  if (err instanceof ModuleDependencyViolationError) {
-    return c.json(
-      {
-        error: err.message,
-        code: "MODULE_DEPENDENCY_VIOLATION",
-        moduleId: err.moduleId,
-        dependencyModuleId: err.dependencyModuleId,
-        scope: err.scope,
-      },
-      409,
-    );
-  }
-
-  if (err instanceof ImmutableModuleError) {
-    return c.json(
-      {
-        error: err.message,
-        code: "IMMUTABLE_MODULE",
-        moduleId: err.moduleId,
-      },
-      409,
-    );
-  }
-
   ctx.logger.error("Unexpected error", {
     error: String(err),
     cause: err.cause ? String(err.cause) : undefined,
@@ -229,25 +141,11 @@ app.get("/health", async (c) => {
   return c.json({ status: healthy ? "healthy" : "degraded", checks }, status);
 });
 
-function createGuardedRouter(module: ApiApplicationModule) {
-  const guarded = new OpenAPIHono<{ Variables: AuthVariables }>();
-  if (module.guarded !== false) {
-    guarded.use("*", createModuleGuard(ctx, module.id));
-  }
-  guarded.route("/", module.registerRoutes(ctx));
-  return guarded;
-}
-
-function buildV1Router(
-  guarded: boolean,
-): OpenAPIHono<{ Variables: AuthVariables }> {
+function buildV1Router(): OpenAPIHono<{ Variables: AuthVariables }> {
   const router = new OpenAPIHono<{ Variables: AuthVariables }>();
 
   for (const module of API_APPLICATION_MODULES) {
-    router.route(
-      module.routePath,
-      guarded ? createGuardedRouter(module) : module.registerRoutes(ctx),
-    );
+    router.route(module.routePath, module.registerRoutes(ctx));
   }
 
   router.route("/users", usersRoutes(ctx));
@@ -269,7 +167,6 @@ const TYPED_ROUTE_PATHS = [
   "/requisite-providers",
   "/requisites",
   "/fx/rates",
-  "/system/modules",
 ] as const;
 
 function assertTypedRouteCoverage() {
@@ -303,7 +200,6 @@ const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/requisite-providers", requisiteProvidersRoutes(ctx))
   .route("/requisites", requisitesRoutes(ctx))
   .route("/fx/rates", fxRatesRoutes(ctx))
-  .route("/system/modules", systemModulesRoutes(ctx))
   .route("/users", usersRoutes(ctx))
   .route("/me", profileRoutes(ctx));
 
@@ -312,7 +208,7 @@ const typedRoutes = new OpenAPIHono<{ Variables: AuthVariables }>().route(
   typedV1,
 );
 
-const v1 = buildV1Router(true);
+const v1 = buildV1Router();
 
 app.route("/v1", v1);
 

@@ -18,7 +18,6 @@ type FxRatesWorkerSourceGuard = (
 
 export function createFxRatesWorkerDefinition(deps: {
     id?: string;
-    moduleId?: string;
     intervalMs?: number;
     fxService: FxService;
     logger?: Logger;
@@ -67,7 +66,6 @@ export function createFxRatesWorkerDefinition(deps: {
 
     return {
         id: deps.id ?? "fx-rates",
-        moduleId: deps.moduleId ?? "fx-rates",
         intervalMs: deps.intervalMs ?? 60_000,
         runOnce,
     };

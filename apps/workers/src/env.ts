@@ -2,16 +2,13 @@ import dotenv from "dotenv";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
-import { listWorkerCatalogEntries } from "@bedrock/application/worker-runtime";
+import { WORKER_CATALOG } from "./catalog";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(dir, "../../../.env") });
 
-const workerCatalog = listWorkerCatalogEntries(BEDROCK_MODULE_MANIFESTS);
-
 const workerIntervals = Object.fromEntries(
-  workerCatalog.map((entry) => [
+  WORKER_CATALOG.map((entry) => [
     entry.id,
     Number(process.env[entry.envKey] ?? entry.defaultIntervalMs),
   ]),

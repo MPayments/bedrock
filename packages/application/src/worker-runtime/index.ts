@@ -1,6 +1,5 @@
 export {
   createWorkerFleet,
-  listWorkerCatalogEntries,
   startWorkerFleet,
 } from "./service";
 export type {

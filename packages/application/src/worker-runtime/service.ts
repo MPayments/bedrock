@@ -3,35 +3,16 @@ import { runWorkerLoop } from "@bedrock/common";
 import type {
   BedrockWorker,
   StartedWorkerFleet,
-  WorkerCatalogEntry,
   WorkerFleetBuildInput,
   WorkerFleetStartInput,
 } from "./types";
 
-function listWorkerCatalogEntries(
-  manifests: WorkerFleetBuildInput["manifests"],
-) {
-  const entries: WorkerCatalogEntry[] = [];
-
-  for (const manifest of manifests) {
-    for (const capability of manifest.capabilities.workers ?? []) {
-      entries.push({
-        id: capability.id,
-        moduleId: manifest.id,
-        envKey: capability.envKey,
-        defaultIntervalMs: capability.defaultIntervalMs,
-        description: capability.description,
-      });
-    }
-  }
-
-  return entries.sort((left, right) => left.id.localeCompare(right.id));
-}
-
 export function createWorkerFleet(
   input: WorkerFleetBuildInput,
 ): BedrockWorker[] {
-  const catalog = listWorkerCatalogEntries(input.manifests);
+  const catalog = [...input.catalog].sort((left, right) =>
+    left.id.localeCompare(right.id),
+  );
   const catalogById = new Map(catalog.map((entry) => [entry.id, entry]));
   const implementationIds = Object.keys(input.workerImplementations).sort();
   const catalogIds = catalog.map((entry) => entry.id);
@@ -41,7 +22,7 @@ export function createWorkerFleet(
   );
   if (missing.length > 0) {
     throw new Error(
-      `Missing worker implementations for manifest workers: ${missing.join(", ")}`,
+      `Missing worker implementations for configured workers: ${missing.join(", ")}`,
     );
   }
 
@@ -65,12 +46,6 @@ export function createWorkerFleet(
     if (worker.id !== entry.id) {
       throw new Error(
         `Worker implementation id mismatch for ${workerId}: expected ${entry.id}, got ${worker.id}`,
-      );
-    }
-
-    if (worker.moduleId !== entry.moduleId) {
-      throw new Error(
-        `Worker implementation module mismatch for ${workerId}: expected ${entry.moduleId}, got ${worker.moduleId}`,
       );
     }
   }
@@ -109,13 +84,6 @@ export function startWorkerFleet(
       appName: input.appName,
       workerName: worker.id,
       processFn: async () => {
-        const enabled = await input.moduleRuntime.isModuleEnabled({
-          moduleId: worker.moduleId,
-        });
-        if (!enabled) {
-          return 0;
-        }
-
         const result = await worker.runOnce({
           now: new Date(),
           signal: controller.signal,
@@ -142,5 +110,3 @@ export function startWorkerFleet(
     promise: Promise.all(loops.map((loop) => loop.promise)).then(() => {}),
   };
 }
-
-export { listWorkerCatalogEntries };

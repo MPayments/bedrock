@@ -5,7 +5,11 @@ import { ensureBookAccountInstanceTx } from "@bedrock/application/ledger";
 import type { Transaction } from "@bedrock/common/db/types";
 
 import { ensureOrganizationDefaultBookIdTx } from "../../organizations/internal/default-book";
-import { RequisiteBindingNotFoundError, RequisiteBindingOwnerTypeError, RequisiteNotFoundError } from "../errors";
+import {
+  RequisiteBindingNotFoundError,
+  RequisiteBindingOwnerTypeError,
+  RequisiteNotFoundError,
+} from "../errors";
 import { schema } from "../schema";
 
 export async function ensureRequisiteAccountingBindingTx(

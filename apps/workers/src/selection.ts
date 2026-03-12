@@ -1,10 +1,7 @@
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
-import { listWorkerCatalogEntries } from "@bedrock/application/worker-runtime";
+import { WORKER_CATALOG } from "./catalog";
 
 export function listAvailableWorkerIds(): string[] {
-  return listWorkerCatalogEntries(BEDROCK_MODULE_MANIFESTS).map(
-    (entry) => entry.id,
-  );
+  return WORKER_CATALOG.map((entry) => entry.id);
 }
 
 export function parseSelectedWorkerIds(

@@ -11,5 +11,4 @@ export { paymentsRoutes } from "./payments";
 export { profileRoutes } from "./profile";
 export { requisiteProvidersRoutes } from "./requisite-providers";
 export { requisitesRoutes } from "./requisites";
-export { systemModulesRoutes } from "./system-modules";
 export { usersRoutes } from "./users";

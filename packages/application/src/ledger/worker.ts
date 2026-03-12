@@ -82,7 +82,6 @@ async function releaseClaimedOutboxJob(input: {
 
 export function createLedgerWorkerDefinition(deps: {
   id?: string;
-  moduleId?: string;
   intervalMs?: number;
   db: Database;
   tb: TbClient;
@@ -355,7 +354,6 @@ export function createLedgerWorkerDefinition(deps: {
 
   return {
     id: deps.id ?? "ledger",
-    moduleId: deps.moduleId ?? "ledger",
     intervalMs: deps.intervalMs ?? 5_000,
     runOnce,
   };

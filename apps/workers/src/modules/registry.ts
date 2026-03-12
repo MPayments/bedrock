@@ -15,32 +15,25 @@ import {
   createLedgerWorkerDefinition,
   type TbClient,
 } from "@bedrock/application/ledger";
-import type { ModuleRuntimeService } from "@bedrock/application/module-runtime";
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
 import {
-  listWorkerCatalogEntries,
   type BedrockWorker,
   type WorkerCatalogEntry,
 } from "@bedrock/application/worker-runtime";
 import type { Logger } from "@bedrock/common";
 import type { Database } from "@bedrock/common/db/types";
 
+import { WORKER_CATALOG } from "../catalog";
 import type { WorkerEnv } from "../env";
-import { isModuleEnabledForBooks } from "./runtime-guard";
 
 interface WorkerModuleDeps {
   db: Database;
   logger: Logger;
   env: WorkerEnv;
   tb: TbClient;
-  moduleRuntime: ModuleRuntimeService;
 }
 
 const workerCatalogById = new Map<string, WorkerCatalogEntry>(
-  listWorkerCatalogEntries(BEDROCK_MODULE_MANIFESTS).map((entry) => [
-    entry.id,
-    entry,
-  ]),
+  WORKER_CATALOG.map((entry) => [entry.id, entry]),
 );
 
 function requireWorkerCatalogEntry(workerId: string): WorkerCatalogEntry {
@@ -54,7 +47,7 @@ function requireWorkerCatalogEntry(workerId: string): WorkerCatalogEntry {
 function createWorkerMetadata(
   workerId: string,
   env: WorkerEnv,
-): Pick<BedrockWorker, "id" | "moduleId" | "intervalMs"> {
+): Pick<BedrockWorker, "id" | "intervalMs"> {
   const entry = requireWorkerCatalogEntry(workerId);
   const intervalMs = env.WORKER_INTERVALS[workerId] ?? entry.defaultIntervalMs;
 
@@ -64,7 +57,6 @@ function createWorkerMetadata(
 
   return {
     id: workerId,
-    moduleId: entry.moduleId,
     intervalMs,
   };
 }
@@ -76,44 +68,22 @@ export function createWorkerImplementations(
     ...createWorkerMetadata("ledger", deps.env),
     db: deps.db,
     tb: deps.tb,
-    beforeJob: ({ bookIds }) =>
-      isModuleEnabledForBooks({
-        moduleRuntime: deps.moduleRuntime,
-        moduleId: "ledger",
-        bookIds,
-      }),
   });
 
   const documents = createDocumentsWorkerDefinition({
     ...createWorkerMetadata("documents", deps.env),
     db: deps.db,
-    beforeDocument: ({ bookIds }) =>
-      isModuleEnabledForBooks({
-        moduleRuntime: deps.moduleRuntime,
-        moduleId: "documents",
-        bookIds,
-      }),
   });
   const documentsPeriodClose = createPeriodCloseWorkerDefinition({
     ...createWorkerMetadata("documents-period-close", deps.env),
     db: deps.db,
     logger: deps.logger,
-    beforeCounterparty: () =>
-      deps.moduleRuntime.isModuleEnabled({
-        moduleId: "documents",
-      }),
   });
 
   const balances = createBalancesProjectorWorkerDefinition({
     ...createWorkerMetadata("balances", deps.env),
     db: deps.db,
     logger: deps.logger,
-    beforeOperation: ({ bookIds }) =>
-      isModuleEnabledForBooks({
-        moduleRuntime: deps.moduleRuntime,
-        moduleId: "balances",
-        bookIds,
-      }),
   });
 
   const currenciesService = createCurrenciesService({
@@ -135,10 +105,6 @@ export function createWorkerImplementations(
     ...createWorkerMetadata("fx-rates", deps.env),
     fxService,
     logger: deps.logger,
-    beforeSourceSync: () =>
-      deps.moduleRuntime.isModuleEnabled({
-        moduleId: "fx-rates",
-      }),
   });
 
   return {

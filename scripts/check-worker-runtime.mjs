@@ -1,17 +1,11 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
-const domainRoots = [
-  path.join(repoRoot, "packages/application/src"),
-];
-const moduleManifestsPath = path.join(
-  repoRoot,
-  "packages/application/src/module-runtime/manifests.ts",
-);
+const workerCatalogPath = path.join(repoRoot, "apps/workers/src/catalog.ts");
 const workersPackageJsonPath = path.join(repoRoot, "apps/workers/package.json");
 const turboJsonPath = path.join(repoRoot, "turbo.json");
 
@@ -19,25 +13,10 @@ const workersPackageJson = JSON.parse(
   await readFile(workersPackageJsonPath, "utf8"),
 );
 const turboJson = JSON.parse(await readFile(turboJsonPath, "utf8"));
-const dormantModuleIds = await readDormantModuleIds(moduleManifestsPath);
-const manifestFiles = (
-  await Promise.all(domainRoots.map((root) => listManifestFiles(root)))
-).flat();
-const modules = (
-  await Promise.all(manifestFiles.map((manifestFile) => readModuleManifests(manifestFile)))
-).flat();
-
-const workerEntries = modules
-  .filter((manifest) => !dormantModuleIds.has(manifest.id))
-  .flatMap((manifest) =>
-    manifest.workers.map((worker) => ({
-      ...worker,
-      moduleId: manifest.id,
-    })),
-  );
+const workerEntries = await readWorkerCatalog(workerCatalogPath);
 
 if (workerEntries.length === 0) {
-  throw new Error("No active worker capability entries found in module manifests.");
+  throw new Error("No worker entries found in apps/workers/src/catalog.ts.");
 }
 
 const workerIds = workerEntries.map((entry) => entry.id);
@@ -47,7 +26,7 @@ const duplicateWorkerIds = workerIds.filter(
 );
 if (duplicateWorkerIds.length > 0) {
   throw new Error(
-    `Duplicate worker ids in manifests: ${[...new Set(duplicateWorkerIds)].join(", ")}`,
+    `Duplicate worker ids in catalog: ${[...new Set(duplicateWorkerIds)].join(", ")}`,
   );
 }
 const duplicateWorkerEnvKeys = workerEnvKeys.filter(
@@ -55,7 +34,7 @@ const duplicateWorkerEnvKeys = workerEnvKeys.filter(
 );
 if (duplicateWorkerEnvKeys.length > 0) {
   throw new Error(
-    `Duplicate worker env keys in manifests: ${[...new Set(duplicateWorkerEnvKeys)].join(", ")}`,
+    `Duplicate worker env keys in catalog: ${[...new Set(duplicateWorkerEnvKeys)].join(", ")}`,
   );
 }
 
@@ -107,7 +86,7 @@ if (missingTurboEnvKeys.length > 0) {
 }
 
 console.log(
-  `[check-worker-runtime] ok: ${workerIds.length} workers, ${workerEnvKeys.length} env keys, dormant modules ignored: ${[...dormantModuleIds].join(",") || "none"}`,
+  `[check-worker-runtime] ok: ${workerIds.length} workers, ${workerEnvKeys.length} env keys`,
 );
 
 function getObjectLiteralProp(objectLiteral, propertyName) {
@@ -129,99 +108,25 @@ function getObjectLiteralProp(objectLiteral, propertyName) {
 }
 
 function getStringLiteralValue(initializer) {
-  if (ts.isStringLiteral(initializer) || ts.isNoSubstitutionTemplateLiteral(initializer)) {
+  if (
+    ts.isStringLiteral(initializer) ||
+    ts.isNoSubstitutionTemplateLiteral(initializer)
+  ) {
     return initializer.text;
   }
 
   return null;
 }
 
-function isModuleManifestObject(objectLiteral) {
-  const idInit = getObjectLiteralProp(objectLiteral, "id");
-  const versionInit = getObjectLiteralProp(objectLiteral, "version");
-  const kindInit = getObjectLiteralProp(objectLiteral, "kind");
-  const scopeSupportInit = getObjectLiteralProp(objectLiteral, "scopeSupport");
-  const capabilitiesInit = getObjectLiteralProp(objectLiteral, "capabilities");
-
-  return Boolean(
-    idInit &&
-      getStringLiteralValue(idInit) &&
-      versionInit &&
-      ts.isNumericLiteral(versionInit) &&
-      kindInit &&
-      getStringLiteralValue(kindInit) &&
-      scopeSupportInit &&
-      ts.isObjectLiteralExpression(scopeSupportInit) &&
-      capabilitiesInit &&
-      ts.isObjectLiteralExpression(capabilitiesInit),
-  );
-}
-
-function extractWorkersFromCapabilities(capabilitiesObject) {
-  const workersInit = getObjectLiteralProp(capabilitiesObject, "workers");
-  if (!workersInit || !ts.isArrayLiteralExpression(workersInit)) {
-    return [];
-  }
-
-  const workers = [];
-  for (const element of workersInit.elements) {
-    if (!ts.isObjectLiteralExpression(element)) {
-      continue;
-    }
-
-    const workerId = getStringLiteralValue(getObjectLiteralProp(element, "id"));
-    const envKey = getStringLiteralValue(getObjectLiteralProp(element, "envKey"));
-    if (!workerId || !envKey) {
-      continue;
-    }
-    workers.push({ id: workerId, envKey });
-  }
-
-  return workers;
-}
-
-async function readModuleManifests(manifestFilePath) {
-  const source = await readFile(manifestFilePath, "utf8");
+async function readWorkerCatalog(catalogFilePath) {
+  const source = await readFile(catalogFilePath, "utf8");
   const sourceFile = ts.createSourceFile(
-    manifestFilePath,
+    catalogFilePath,
     source,
     ts.ScriptTarget.Latest,
     true,
     ts.ScriptKind.TS,
   );
-
-  const manifests = [];
-
-  function visit(node) {
-    if (ts.isObjectLiteralExpression(node) && isModuleManifestObject(node)) {
-      const id = getStringLiteralValue(getObjectLiteralProp(node, "id"));
-      const capabilitiesInit = getObjectLiteralProp(node, "capabilities");
-      const workers = ts.isObjectLiteralExpression(capabilitiesInit)
-        ? extractWorkersFromCapabilities(capabilitiesInit)
-        : [];
-      if (id) {
-        manifests.push({ id, workers });
-      }
-    }
-    ts.forEachChild(node, visit);
-  }
-
-  visit(sourceFile);
-
-  return manifests;
-}
-
-async function readDormantModuleIds(coreManifestsFilePath) {
-  const source = await readFile(coreManifestsFilePath, "utf8");
-  const sourceFile = ts.createSourceFile(
-    coreManifestsFilePath,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
-  );
-
-  const dormantIds = new Set();
 
   for (const statement of sourceFile.statements) {
     if (!ts.isVariableStatement(statement)) {
@@ -232,58 +137,49 @@ async function readDormantModuleIds(coreManifestsFilePath) {
       if (!ts.isIdentifier(declaration.name)) {
         continue;
       }
-
-      if (declaration.name.text !== "DORMANT_MODULE_IDS") {
+      if (declaration.name.text !== "WORKER_CATALOG") {
         continue;
       }
 
-      if (
-        declaration.initializer &&
-        ts.isAsExpression(declaration.initializer) &&
-        ts.isArrayLiteralExpression(declaration.initializer.expression)
-      ) {
-        for (const element of declaration.initializer.expression.elements) {
-          if (ts.isStringLiteral(element)) {
-            dormantIds.add(element.text);
-          }
-        }
-      } else if (
-        declaration.initializer &&
-        ts.isArrayLiteralExpression(declaration.initializer)
-      ) {
-        for (const element of declaration.initializer.elements) {
-          if (ts.isStringLiteral(element)) {
-            dormantIds.add(element.text);
-          }
-        }
+      const initializer = declaration.initializer;
+      const entries = unwrapCatalogEntries(initializer);
+      if (!entries) {
+        continue;
       }
+
+      return entries;
     }
   }
 
-  return dormantIds;
+  return [];
 }
 
-async function listManifestFiles(rootDir) {
-  const results = [];
-  const queue = [rootDir];
-
-  while (queue.length > 0) {
-    const current = queue.pop();
-    const entries = await readdir(current, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        queue.push(fullPath);
-        continue;
-      }
-      if (!entry.isFile()) {
-        continue;
-      }
-      if (entry.name === "manifest.ts") {
-        results.push(fullPath);
-      }
-    }
+function unwrapCatalogEntries(initializer) {
+  if (!initializer) {
+    return null;
   }
 
-  return results.sort();
+  if (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer)) {
+    return unwrapCatalogEntries(initializer.expression);
+  }
+
+  if (!ts.isArrayLiteralExpression(initializer)) {
+    return null;
+  }
+
+  const entries = [];
+  for (const element of initializer.elements) {
+    if (!ts.isObjectLiteralExpression(element)) {
+      continue;
+    }
+
+    const id = getStringLiteralValue(getObjectLiteralProp(element, "id"));
+    const envKey = getStringLiteralValue(getObjectLiteralProp(element, "envKey"));
+    if (!id || !envKey) {
+      continue;
+    }
+    entries.push({ id, envKey });
+  }
+
+  return entries;
 }

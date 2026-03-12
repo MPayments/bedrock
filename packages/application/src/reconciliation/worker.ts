@@ -102,7 +102,6 @@ function buildRunIdempotencyKey(input: {
 
 export function createReconciliationWorkerDefinition(deps: {
   id?: string;
-  moduleId?: string;
   intervalMs?: number;
   db: Database;
   logger?: Logger;
@@ -168,7 +167,6 @@ export function createReconciliationWorkerDefinition(deps: {
 
   return {
     id: deps.id ?? "reconciliation",
-    moduleId: deps.moduleId ?? "reconciliation",
     intervalMs: deps.intervalMs ?? 60_000,
     runOnce,
   };
