@@ -1,7 +1,7 @@
 import type { UserRole } from "@/lib/auth/types";
 
-import { COMMERCIAL_DOCUMENT_DEFINITIONS } from "@bedrock/application/commercial-documents/contracts";
-import { IFRS_DOCUMENT_DEFINITIONS } from "@bedrock/application/ifrs-documents/contracts";
+import { COMMERCIAL_DOCUMENT_DEFINITIONS } from "@bedrock/commercial-documents/contracts";
+import { IFRS_DOCUMENT_DEFINITIONS } from "@bedrock/ifrs-documents/contracts";
 
 import type { DocumentFormDefinition } from "./document-form-registry/types";
 

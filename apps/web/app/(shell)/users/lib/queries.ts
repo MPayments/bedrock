@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import { USERS_LIST_CONTRACT } from "@bedrock/application/users/validation";
+import { USERS_LIST_CONTRACT } from "@bedrock/users/validation";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { readResourceById } from "@/lib/resources/http";

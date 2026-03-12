@@ -1,0 +1,46 @@
+{
+  "name": "@bedrock/fx",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contracts": "./src/contracts.ts",
+    "./schema": "./src/schema/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.ts\" --no-error-on-unmatched-pattern --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration:watch": "vitest --config vitest.integration.config.ts"
+  },
+  "dependencies": {
+    "@bedrock/common": "workspace:*",
+    "@bedrock/currencies": "workspace:*",
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/fees": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
+    "@bedrock/parties": "workspace:*",
+    "@bedrock/worker-runtime": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "soap": "^1.6.0",
+    "tlsclientwrapper": "^4.1.2",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@bedrock/db": "workspace:*",
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18",
+    "@bedrock/test-utils": "workspace:*",
+    "@types/pg": "^8.16.0",
+    "pg": "^8.18.0"
+  }
+}

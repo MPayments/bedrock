@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { AccountingTemplateAccountSchema } from "@bedrock/application/accounting/contracts";
+import { AccountingTemplateAccountSchema } from "@bedrock/accounting/contracts";
 
 import type { AppContext } from "../../context";
 import { requirePermission } from "../../middleware/permission";

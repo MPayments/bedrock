@@ -5,7 +5,7 @@ import {
   RateSourceStaleError,
   RateSourceSyncError,
   ValidationError,
-} from "@bedrock/application/fx";
+} from "@bedrock/fx";
 import {
   FxRateHistoryResponseSchema,
   FxRatePairsResponseSchema,
@@ -16,7 +16,7 @@ import {
   //FxRatePairSchema,
   SetManualRateInputSchema,
   SetManualRateResponseSchema,
-} from "@bedrock/application/fx/contracts";
+} from "@bedrock/fx/contracts";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";

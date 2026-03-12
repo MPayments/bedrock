@@ -1,19 +1,19 @@
 import { z } from "zod";
 
-import type { AccountingReportingService } from "@bedrock/application/accounting-reporting";
-import type { FeesService } from "@bedrock/application/fees";
-import type { FxService } from "@bedrock/application/fx";
-import type { AccountingService } from "@bedrock/application/accounting";
-import type { BalancesService } from "@bedrock/application/balances";
-import type { CounterpartiesService } from "@bedrock/application/counterparties";
-import type { CurrenciesService } from "@bedrock/application/currencies";
-import type { CustomersService } from "@bedrock/application/customers";
-import type { DocumentsService } from "@bedrock/application/documents";
-import type { LedgerReadService } from "@bedrock/application/ledger";
-import type { OrganizationsService } from "@bedrock/application/organizations";
-import type { RequisiteProvidersService } from "@bedrock/application/requisite-providers";
-import type { RequisitesService } from "@bedrock/application/requisites";
-import type { UsersService } from "@bedrock/application/users";
+import type { AccountingReportingService } from "@bedrock/accounting-reporting";
+import type { FeesService } from "@bedrock/fees";
+import type { FxService } from "@bedrock/fx";
+import type { AccountingService } from "@bedrock/accounting";
+import type { BalancesService } from "@bedrock/balances";
+import type { CounterpartiesService } from "@bedrock/parties/counterparties";
+import type { CurrenciesService } from "@bedrock/currencies";
+import type { CustomersService } from "@bedrock/parties/customers";
+import type { DocumentsService } from "@bedrock/documents";
+import type { LedgerReadService } from "@bedrock/ledger";
+import type { OrganizationsService } from "@bedrock/parties/organizations";
+import type { RequisiteProvidersService } from "@bedrock/parties/requisite-providers";
+import type { RequisitesService } from "@bedrock/parties/requisites";
+import type { UsersService } from "@bedrock/users";
 import type { Logger } from "@bedrock/common";
 
 import { createApplicationServices } from "./composition/application";

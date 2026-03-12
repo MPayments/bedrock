@@ -1,6 +1,6 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
-import { BalanceSubjectSchema } from "@bedrock/application/balances";
+import { BalanceSubjectSchema } from "@bedrock/balances";
 
 import { jsonOk } from "../common/response";
 import type { AppContext } from "../context";

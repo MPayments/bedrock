@@ -16,9 +16,15 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/application": "workspace:*",
+    "@bedrock/balances": "workspace:*",
     "@bedrock/common": "workspace:*",
+    "@bedrock/currencies": "workspace:*",
     "@bedrock/db": "workspace:*",
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/fees": "workspace:*",
+    "@bedrock/fx": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
+    "@bedrock/worker-runtime": "workspace:*",
     "dotenv": "^17.3.1"
   },
   "devDependencies": {

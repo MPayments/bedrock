@@ -1,79 +1,85 @@
-import { lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { relative } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(__dirname, "..");
+import {
+  ROOT,
+  SOURCE_EXTENSIONS,
+  collectWorkspacePackages,
+  getImports,
+  listFiles,
+  normalizeWorkspaceSpecifier,
+} from "./lib/workspace-packages.mjs";
 
-const roots = [join(ROOT, "apps"), join(ROOT, "packages")];
+const sections = [
+  "dependencies",
+  "devDependencies",
+  "peerDependencies",
+  "optionalDependencies",
+];
+
+const workspacePackages = collectWorkspacePackages();
+const workspaceNames = new Set(workspacePackages.map((pkg) => pkg.name));
 const problems = [];
 
-function walk(dir) {
-  for (const name of readdirSync(dir)) {
-    const full = join(dir, name);
-    if (
-      name === "node_modules" ||
-      name === "dist" ||
-      name === "coverage" ||
-      name === ".next"
-    ) {
-      continue;
-    }
+for (const pkg of workspacePackages) {
+  const declared = new Map();
 
-    let stats;
-    try {
-      stats = lstatSync(full);
-    } catch {
-      continue;
-    }
-
-    if (stats.isSymbolicLink()) {
-      try {
-        stats = statSync(full);
-      } catch {
+  for (const section of sections) {
+    const deps = pkg.packageJson[section] ?? {};
+    for (const [name, version] of Object.entries(deps)) {
+      if (!workspaceNames.has(name)) {
         continue;
       }
-    }
 
-    if (stats.isDirectory()) {
-      walk(full);
-      continue;
-    }
-    if (name !== "package.json") continue;
-
-    const rel = relative(ROOT, full);
-    const json = JSON.parse(readFileSync(full, "utf8"));
-    const sections = [
-      "dependencies",
-      "devDependencies",
-      "peerDependencies",
-      "optionalDependencies",
-    ];
-
-    for (const section of sections) {
-      const deps = json[section];
-      if (!deps) continue;
-      for (const [name, version] of Object.entries(deps)) {
-        if (name.startsWith("@bedrock/") && version === "*") {
-          problems.push({ file: rel, section, name });
-        }
+      if (version !== "workspace:*") {
+        problems.push({
+          type: "non-workspace-protocol",
+          file: `${pkg.relDir}/package.json`,
+          detail: `${section}: ${name} -> ${JSON.stringify(version)}`,
+        });
       }
+
+      declared.set(name, section);
+    }
+  }
+
+  const used = new Set();
+
+  for (const filePath of listFiles(pkg.dir, SOURCE_EXTENSIONS)) {
+    const content = readFileSync(filePath, "utf8");
+
+    for (const specifier of getImports(content)) {
+      const normalized = normalizeWorkspaceSpecifier(specifier);
+      if (!normalized) {
+        continue;
+      }
+
+      if (
+        normalized.packageName !== pkg.name &&
+        workspaceNames.has(normalized.packageName)
+      ) {
+        used.add(normalized.packageName);
+      }
+    }
+  }
+
+  for (const dependencyName of used) {
+    if (!declared.has(dependencyName)) {
+      problems.push({
+        type: "undeclared-workspace-dependency",
+        file: pkg.relDir,
+        detail: dependencyName,
+      });
     }
   }
 }
 
-for (const root of roots) {
-  walk(root);
-}
-
 if (problems.length > 0) {
-  console.error("Found internal dependencies pinned to \"*\" instead of workspace:*:");
+  console.error("Workspace dependency check failed:");
   for (const problem of problems) {
-    console.error(
-      `- ${problem.file} (${problem.section}): ${problem.name} -> "*"`,
-    );
+    console.error(`- [${problem.type}] ${problem.file}: ${problem.detail}`);
   }
   process.exit(1);
 }
 
-console.log("Workspace dependency protocol check passed.");
+console.log("Workspace dependency check passed.");

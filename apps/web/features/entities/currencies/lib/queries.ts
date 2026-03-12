@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { z } from "zod";
 
-import { CURRENCIES_LIST_CONTRACT } from "@bedrock/application/currencies/contracts";
+import { CURRENCIES_LIST_CONTRACT } from "@bedrock/currencies/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";

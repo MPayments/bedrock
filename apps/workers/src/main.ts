@@ -1,10 +1,10 @@
 import "./env";
 
-import { createTbClient } from "@bedrock/application/ledger";
+import { createTbClient } from "@bedrock/ledger";
 import {
   createWorkerFleet,
   startWorkerFleet,
-} from "@bedrock/application/worker-runtime";
+} from "@bedrock/worker-runtime";
 import { db } from "@bedrock/db/client";
 import {
   createConsoleLogger,

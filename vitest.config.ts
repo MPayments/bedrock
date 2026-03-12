@@ -1,16 +1,36 @@
 import { defineConfig } from "vitest/config";
-import { appIntegrationProjects } from "./packages/application/vitest.integration.config";
-import { appUnitProjects } from "./packages/application/vitest.config";
 
 export default defineConfig({
   test: {
     projects: [
       "apps/api/vitest.config.ts",
       "apps/workers/vitest.config.ts",
-      "packages/db/vitest.config.ts",
+      "packages/platform/db/vitest.config.ts",
       "packages/common/vitest.config.ts",
-      ...appUnitProjects,
-      ...appIntegrationProjects,
+      "packages/modules/accounting/vitest.config.ts",
+      "packages/modules/accounting/vitest.integration.config.ts",
+      "packages/modules/accounting-reporting/vitest.config.ts",
+      "packages/platform/auth/vitest.config.ts",
+      "packages/modules/balances/vitest.config.ts",
+      "packages/modules/balances/vitest.integration.config.ts",
+      "packages/plugins/commercial-documents/vitest.config.ts",
+      "packages/modules/currencies/vitest.config.ts",
+      "packages/modules/documents/vitest.config.ts",
+      "packages/modules/fees/vitest.config.ts",
+      "packages/modules/fees/vitest.integration.config.ts",
+      "packages/modules/fx/vitest.config.ts",
+      "packages/modules/fx/vitest.integration.config.ts",
+      "packages/platform/idempotency/vitest.config.ts",
+      "packages/plugins/ifrs-documents/vitest.config.ts",
+      "packages/modules/ledger/vitest.config.ts",
+      "packages/modules/ledger/vitest.integration.config.ts",
+      "packages/modules/parties/vitest.config.ts",
+      "packages/modules/parties/vitest.integration.config.ts",
+      "packages/integrations/parties-ledger/vitest.config.ts",
+      "packages/modules/reconciliation/vitest.config.ts",
+      "packages/modules/reconciliation/vitest.integration.config.ts",
+      "packages/modules/users/vitest.config.ts",
+      "packages/runtime/worker-runtime/vitest.config.ts",
     ],
     exclude: ["**/node_modules/**", "**/dist/**"],
     coverage: {

@@ -1,24 +1,24 @@
 import {
   createBalancesProjectorWorkerDefinition,
-} from "@bedrock/application/balances";
-import { createCurrenciesService } from "@bedrock/application/currencies";
+} from "@bedrock/balances";
+import { createCurrenciesService } from "@bedrock/currencies";
 import {
   createDocumentsWorkerDefinition,
   createPeriodCloseWorkerDefinition,
-} from "@bedrock/application/documents";
-import { createFeesService } from "@bedrock/application/fees";
+} from "@bedrock/documents";
+import { createFeesService } from "@bedrock/fees";
 import {
   createFxRatesWorkerDefinition,
   createFxService,
-} from "@bedrock/application/fx";
+} from "@bedrock/fx";
 import {
   createLedgerWorkerDefinition,
   type TbClient,
-} from "@bedrock/application/ledger";
+} from "@bedrock/ledger";
 import {
   type BedrockWorker,
   type WorkerCatalogEntry,
-} from "@bedrock/application/worker-runtime";
+} from "@bedrock/worker-runtime";
 import type { Logger } from "@bedrock/common";
 import type { Database } from "@bedrock/common/db/types";
 

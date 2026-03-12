@@ -11,7 +11,7 @@ import {
   KNOWN_CURRENCY_CODES,
   getKnownCurrency,
   getDefaultPrecision,
-} from "@bedrock/application/currencies/catalog";
+} from "@bedrock/currencies/catalog";
 import { Button } from "@bedrock/ui/components/button";
 import {
   Card,

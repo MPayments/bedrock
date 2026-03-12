@@ -1,77 +1,63 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { extname, join, relative } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(__dirname, "..");
+import {
+  CODE_EXTENSIONS,
+  ROOT,
+  getImports,
+  listFiles,
+} from "./lib/workspace-packages.mjs";
 
 const LEGACY_SPECIFIER_PATTERN =
-  /@bedrock\/(foundation|platform|modules|core|app|kernel|accounting|balances|component-runtime|module-runtime|connectors|dimensions|documents|idempotency|ledger|orchestration|reconciliation|currencies|counterparties|customers|counterparty-accounts|accounting-reporting|fees|fx)(?:\/|["'])/g;
+  /@bedrock\/(application|foundation|platform|modules|core|app|kernel)(?:\/|["'])/g;
 
 const SOURCE_ROOTS = [
   join(ROOT, "apps"),
   join(ROOT, "packages"),
   join(ROOT, "scripts"),
-];
-
-const EXCLUDED_DIRS = new Set([
-  ".git",
-  "node_modules",
-  "dist",
-  "coverage",
-  ".next",
-  ".turbo",
-]);
-
-const INCLUDED_EXTENSIONS = new Set([
-  ".ts",
-  ".tsx",
-  ".mts",
-  ".cts",
-  ".js",
-  ".mjs",
-  ".cjs",
-  ".json",
-]);
-
-function walk(dir, out) {
-  for (const name of readdirSync(dir)) {
-    if (EXCLUDED_DIRS.has(name)) {
-      continue;
-    }
-
-    const fullPath = join(dir, name);
-    const stats = statSync(fullPath);
-    if (stats.isDirectory()) {
-      walk(fullPath, out);
-      continue;
-    }
-
-    const ext = name.slice(name.lastIndexOf("."));
-    if (!INCLUDED_EXTENSIONS.has(ext)) {
-      continue;
-    }
-
-    out.push(fullPath);
+  join(ROOT, "tests"),
+].filter((root) => {
+  try {
+    return listFiles(root, CODE_EXTENSIONS).length >= 0;
+  } catch {
+    return false;
   }
-}
-
-const files = [];
-for (const root of SOURCE_ROOTS) {
-  walk(root, files);
-}
+});
 
 const violations = [];
-for (const file of files) {
-  const content = readFileSync(file, "utf8");
-  LEGACY_SPECIFIER_PATTERN.lastIndex = 0;
 
-  const match = LEGACY_SPECIFIER_PATTERN.exec(content);
-  if (match) {
-    violations.push({
-      file: file.replace(`${ROOT}/`, ""),
-      specifier: match[0].replace(/["']$/, ""),
-    });
+for (const root of SOURCE_ROOTS) {
+  for (const file of listFiles(root, CODE_EXTENSIONS)) {
+    const content = readFileSync(file, "utf8");
+    const relFile = relative(ROOT, file);
+    const extension = extname(file);
+
+    if (extension === ".json") {
+      LEGACY_SPECIFIER_PATTERN.lastIndex = 0;
+      const match = LEGACY_SPECIFIER_PATTERN.exec(content);
+
+      if (match) {
+        violations.push({
+          file: relFile,
+          specifier: match[0].replace(/["']$/, ""),
+        });
+      }
+
+      continue;
+    }
+
+    for (const specifier of getImports(content)) {
+      LEGACY_SPECIFIER_PATTERN.lastIndex = 0;
+      const match = LEGACY_SPECIFIER_PATTERN.exec(specifier);
+      if (!match) {
+        continue;
+      }
+
+      violations.push({
+        file: relFile,
+        specifier: match[0].replace(/["']$/, ""),
+      });
+    }
   }
 }
 

@@ -1,286 +1,347 @@
-import { createRequire } from "node:module";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
-const config = require("../dependency-cruiser.cjs");
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(__dirname, "..");
+import {
+  ROOT,
+  SOURCE_EXTENSIONS,
+  collectWorkspacePackages,
+  findOwningPackage,
+  getImports,
+  listFiles,
+  normalizeWorkspaceSpecifier,
+  sortPackagesByDirLength,
+} from "./lib/workspace-packages.mjs";
 
 const SOURCE_ROOTS = [
-  join(ROOT, "packages"),
   join(ROOT, "apps"),
+  join(ROOT, "packages"),
   join(ROOT, "scripts"),
   join(ROOT, "infra"),
+  join(ROOT, "tests"),
 ].filter((candidate) => {
   try {
-    return statSync(candidate).isDirectory();
+    return listFiles(candidate, SOURCE_EXTENSIONS).length >= 0;
   } catch {
     return false;
   }
 });
-const IMPORT_PATTERNS = [
-  /\bimport\s+(?:[^"'()]*?\s+from\s+)?["']([^"']+)["']/g,
-  /\bexport\s+[^"'()]*?\s+from\s+["']([^"']+)["']/g,
-  /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
-];
 
-function listFiles(root) {
-  const out = [];
-  const stack = [root];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) continue;
-    for (const name of readdirSync(current)) {
-      const fullPath = join(current, name);
-      const stats = statSync(fullPath);
-      if (stats.isDirectory()) {
-        if (
-          name === "node_modules" ||
-          name === "dist" ||
-          name === "coverage" ||
-          name === ".next"
-        ) {
-          continue;
-        }
-        stack.push(fullPath);
-        continue;
-      }
-      if (
-        fullPath.endsWith(".ts") ||
-        fullPath.endsWith(".tsx") ||
-        fullPath.endsWith(".mts") ||
-        fullPath.endsWith(".cts")
-      ) {
-        if (/\.d\.(ts|tsx|mts|cts)$/.test(fullPath)) {
-          continue;
-        }
-        out.push(fullPath);
-      }
-    }
-  }
-  return out;
-}
+const REQUIRED_EXPORT_KINDS = new Set([
+  "integration",
+  "module",
+  "platform",
+  "plugin",
+  "runtime",
+]);
 
-function getImports(content) {
-  const imports = [];
-  for (const pattern of IMPORT_PATTERNS) {
-    let match = pattern.exec(content);
-    while (match) {
-      imports.push(match[1]);
-      match = pattern.exec(content);
-    }
-  }
-  return imports;
-}
-
-function collectWorkspacePackages(root) {
-  const packages = new Map();
-  const stack = [join(root, "packages"), join(root, "apps")];
-
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) continue;
-
-    for (const name of readdirSync(current)) {
-      const fullPath = join(current, name);
-      const stats = statSync(fullPath);
-      if (!stats.isDirectory()) {
-        continue;
-      }
-      if (
-        name === "node_modules" ||
-        name === "dist" ||
-        name === "coverage" ||
-        name === ".next"
-      ) {
-        continue;
-      }
-
-      const packageJsonPath = join(fullPath, "package.json");
-      try {
-        const pkg = JSON.parse(readFileSync(packageJsonPath, "utf8"));
-        if (typeof pkg.name === "string" && pkg.name.length > 0) {
-          packages.set(pkg.name, relative(root, fullPath));
-          continue;
-        }
-      } catch {}
-
-      stack.push(fullPath);
-    }
-  }
-
-  return packages;
-}
-
-const packageDirsByName = collectWorkspacePackages(ROOT);
-
-function toWorkspacePath(importPath) {
-  if (importPath.startsWith("@bedrock/")) {
-    const parts = importPath.split("/");
-    const packageName = parts.slice(0, 2).join("/");
-    const packageDir = packageDirsByName.get(packageName);
-    if (!packageDir) return null;
-
-    if (packageName === "@bedrock/application") {
-      const domain = parts[2];
-      if (!domain) {
-        return `${packageDir}`;
-      }
-
-      const subpath = parts.slice(3).join("/");
-      if (subpath.length === 0) {
-        return `${packageDir}/src/${domain}`;
-      }
-
-      return `${packageDir}/src/${domain}/${subpath}.ts`;
-    }
-
-    const subpath = parts.slice(2).join("/");
-    if (subpath.length === 0) {
-      return `${packageDir}/src`;
-    }
-
-    return `${packageDir}/src/${subpath}.ts`;
-  }
-  if (importPath.startsWith("apps/")) return importPath;
-  if (importPath.startsWith("packages/")) return importPath;
-  return null;
-}
-
-function buildForbiddenRule(rule) {
-  return {
-    name: rule.name,
-    from: new RegExp(rule.from.path),
-    to: new RegExp(rule.to.path),
-  };
-}
-
-const forbiddenRules = (config.forbidden ?? []).map(buildForbiddenRule);
+const workspacePackages = collectWorkspacePackages();
+const packagesByName = new Map(
+  workspacePackages.map((pkg) => [pkg.name, pkg]),
+);
+const packagesByDirLength = sortPackagesByDirLength(workspacePackages);
+const packageGraph = new Map(
+  workspacePackages
+    .filter((pkg) => pkg.kind !== "app")
+    .map((pkg) => [pkg.name, new Set()]),
+);
 const violations = [];
-const LEGACY_SPECIFIER_PATTERNS = [
-  /^@bedrock\/foundation(?:\/|$)/,
-  /^@bedrock\/platform(?:\/|$)/,
-  /^@bedrock\/modules(?:\/|$)/,
-  /^@bedrock\/accounting-contracts(?:\/|$)/,
-  /^@bedrock\/countries(?:\/|$)/,
-  /^@bedrock\/packs-schema(?:\/|$)/,
-  /^@bedrock\/pack-bedrock-core-default(?:\/|$)/,
-  /^@bedrock\/db-contracts(?:\/|$)/,
-  /^@bedrock\/foundation\/db-contracts(?:\/|$)/,
-];
-const DB_TYPES_SPECIFIER = /^@bedrock\/db\/types(?:\/|$)/;
-const DB_RUNTIME_BLOCKED_SPECIFIER = /^@bedrock\/db(?:$|\/(?:client|seeds)(?:$|\/))/;
-function isRuntimePackageFile(file) {
-  return /^packages\/application\/src\/[^/]+\//.test(file);
-}
 
 function isSchemaDefinitionFile(file) {
-  return (
-    /\/src\/[^/]+\/schema\.ts$/.test(file) ||
-    /\/src\/[^/]+\/schema\/.+\.ts$/.test(file) ||
-    /\/src\/schema\.ts$/.test(file) ||
-    /\/src\/schema\/.+\.ts$/.test(file)
+  return /\/src\/(?:.+\/)?schema(?:\.ts|\/.+\.ts)$/.test(file);
+}
+
+function isDbImportAllowed(owner, relFile) {
+  if (
+    relFile.startsWith("scripts/") ||
+    /\/scripts\//.test(relFile)
+  ) {
+    return true;
+  }
+
+  if (!owner) {
+    return false;
+  }
+
+  if (owner.name === "@bedrock/db" || owner.kind === "app") {
+    return true;
+  }
+
+  if (
+    relFile.startsWith("tests/integration/") ||
+    /\/tests\/integration\//.test(relFile)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function iterateExportTargets(exportsField) {
+  if (!exportsField) {
+    return [];
+  }
+
+  if (typeof exportsField === "string") {
+    return [exportsField];
+  }
+
+  if (Array.isArray(exportsField)) {
+    return exportsField.flatMap((entry) => iterateExportTargets(entry));
+  }
+
+  return Object.values(exportsField).flatMap((entry) =>
+    iterateExportTargets(entry),
   );
 }
 
-function isAllowedContractImport(fromFile, specifier) {
-  return (
-    fromFile.startsWith("packages/application/src/") &&
-    specifier === "@bedrock/common/countries/contracts"
-  );
+function isExportedSubpath(pkg, subpath) {
+  const exportsField = pkg.packageJson.exports;
+  if (!exportsField) {
+    return false;
+  }
+
+  if (typeof exportsField === "string" || Array.isArray(exportsField)) {
+    return subpath === ".";
+  }
+
+  if (Object.prototype.hasOwnProperty.call(exportsField, subpath)) {
+    return true;
+  }
+
+  for (const key of Object.keys(exportsField)) {
+    if (!key.includes("*")) {
+      continue;
+    }
+
+    const pattern = new RegExp(
+      `^${key
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+        .replace(/\\\*/g, "(.+)")}$`,
+    );
+
+    if (pattern.test(subpath)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function getPartiesSubdomain(filePath) {
+  const match = /^packages\/modules\/parties\/src\/([^/]+)\//.exec(filePath);
+  if (!match || match[1] === "internal") {
+    return null;
+  }
+
+  return match[1];
+}
+
+function recordViolation(rule, from, specifier, to = specifier) {
+  violations.push({ rule, from, specifier, to });
+}
+
+for (const pkg of workspacePackages) {
+  if (
+    REQUIRED_EXPORT_KINDS.has(pkg.kind) &&
+    !pkg.packageJson.exports
+  ) {
+    recordViolation("missing-exports", pkg.relDir, pkg.name, pkg.relDir);
+    continue;
+  }
+
+  if (!pkg.packageJson.exports) {
+    continue;
+  }
+
+  for (const target of iterateExportTargets(pkg.packageJson.exports)) {
+    if (typeof target !== "string") {
+      continue;
+    }
+
+    if (target.includes("/internal/")) {
+      recordViolation(
+        "internal-export",
+        pkg.relDir,
+        target,
+        `${pkg.relDir}/package.json`,
+      );
+    }
+  }
 }
 
 for (const root of SOURCE_ROOTS) {
-  for (const filePath of listFiles(root)) {
+  for (const filePath of listFiles(root, SOURCE_EXTENSIONS)) {
     const relFile = relative(ROOT, filePath);
     const content = readFileSync(filePath, "utf8");
+    const owner = findOwningPackage(filePath, packagesByDirLength);
 
-    if (content.includes("pgTable(") && !isSchemaDefinitionFile(relFile)) {
-      violations.push({
-        rule: "pgtable-outside-schema",
-        from: relFile,
-        to: relFile,
-        specifier: "pgTable(",
-      });
+    if (
+      owner &&
+      relFile.includes("/src/") &&
+      content.includes("pgTable(") &&
+      !isSchemaDefinitionFile(relFile)
+    ) {
+      recordViolation("pgtable-outside-schema", relFile, "pgTable(", relFile);
     }
 
-    const imports = getImports(content);
-
-    for (const specifier of imports) {
-      if (specifier.startsWith(".") || specifier.startsWith("node:")) {
+    for (const specifier of getImports(content)) {
+      if (specifier.startsWith("node:")) {
         continue;
       }
 
-      if (
-        LEGACY_SPECIFIER_PATTERNS.some((pattern) => pattern.test(specifier)) &&
-        !relFile.startsWith("packages/common/")
-      ) {
-        violations.push({
-          rule: "legacy-foundation-import",
-          from: relFile,
-          to: specifier,
-          specifier,
-        });
-        continue;
-      }
-
-      if (
-        isRuntimePackageFile(relFile) &&
-        DB_RUNTIME_BLOCKED_SPECIFIER.test(specifier) &&
-        !DB_TYPES_SPECIFIER.test(specifier)
-      ) {
-        violations.push({
-          rule: "runtime-no-db-client",
-          from: relFile,
-          to: specifier,
-          specifier,
-        });
-        continue;
-      }
-
-      if (relFile.startsWith("apps/web/") && specifier.startsWith("@bedrock/")) {
-        const allowed =
-          specifier.startsWith("@bedrock/ui") ||
-          specifier === "@bedrock/common" ||
-          specifier === "@bedrock/common/countries" ||
-          specifier === "@bedrock/common/countries/contracts" ||
-          specifier === "@bedrock/api-client" ||
-          specifier.startsWith("@bedrock/api-client/") ||
-          specifier === "@bedrock/application/currencies/catalog" ||
-          /^@bedrock\/application\/[^/]+\/(?:contracts|validation)$/.test(specifier);
-
-        if (!allowed) {
-          violations.push({
-            rule: "web-import-surface",
-            from: relFile,
-            to: specifier,
-            specifier,
-          });
+      if (specifier.startsWith(".") || specifier.startsWith("..")) {
+        if (!owner) {
           continue;
         }
-      }
 
-      if (isAllowedContractImport(relFile, specifier)) {
+        const targetPath = resolve(dirname(filePath), specifier);
+        const targetOwner = findOwningPackage(targetPath, packagesByDirLength);
+
+        if (targetOwner && targetOwner.name !== owner.name) {
+          recordViolation(
+            "cross-package-relative-import",
+            relFile,
+            specifier,
+            relative(ROOT, targetPath),
+          );
+          continue;
+        }
+
+        if (owner.name === "@bedrock/parties") {
+          const fromSubdomain = getPartiesSubdomain(relFile);
+          const toSubdomain = getPartiesSubdomain(relative(ROOT, targetPath));
+
+          if (
+            fromSubdomain &&
+            toSubdomain &&
+            fromSubdomain !== toSubdomain
+          ) {
+            recordViolation(
+              "parties-cross-subdomain-relative-import",
+              relFile,
+              specifier,
+              relative(ROOT, targetPath),
+            );
+          }
+        }
+
         continue;
       }
 
-      const targetPath = toWorkspacePath(specifier);
-      if (!targetPath) continue;
+      if (
+        specifier.startsWith("packages/") ||
+        specifier.startsWith("apps/") ||
+        specifier.startsWith("/")
+      ) {
+        recordViolation(
+          "workspace-path-import",
+          relFile,
+          specifier,
+          specifier,
+        );
+        continue;
+      }
 
-      for (const rule of forbiddenRules) {
-        if (rule.from.test(relFile) && rule.to.test(targetPath)) {
-          violations.push({
-            rule: rule.name,
-            from: relFile,
-            to: targetPath,
-            specifier,
-          });
-        }
+      const normalized = normalizeWorkspaceSpecifier(specifier);
+      if (!normalized) {
+        continue;
+      }
+
+      if (normalized.packageName === "@bedrock/application") {
+        recordViolation("deprecated-application-import", relFile, specifier);
+        continue;
+      }
+
+      const targetPkg = packagesByName.get(normalized.packageName);
+      if (!targetPkg) {
+        continue;
+      }
+
+      if (
+        normalized.subpath === "./internal" ||
+        normalized.subpath.startsWith("./internal/") ||
+        normalized.subpath.includes("/internal/")
+      ) {
+        recordViolation("internal-import", relFile, specifier);
+      }
+
+      if (
+        targetPkg.packageJson.exports &&
+        !isExportedSubpath(targetPkg, normalized.subpath)
+      ) {
+        recordViolation(
+          "non-exported-subpath",
+          relFile,
+          specifier,
+          `${targetPkg.relDir}:${normalized.subpath}`,
+        );
+      }
+
+      if (
+        normalized.packageName === "@bedrock/db" &&
+        !isDbImportAllowed(owner, relFile)
+      ) {
+        recordViolation("db-import-outside-app-or-integration", relFile, specifier);
+      }
+
+      if (
+        owner &&
+        owner.kind !== "app" &&
+        owner.name !== targetPkg.name &&
+        packageGraph.has(owner.name) &&
+        relFile.startsWith(`${owner.relDir}/src/`)
+      ) {
+        packageGraph.get(owner.name).add(targetPkg.name);
       }
     }
+  }
+}
+
+const visiting = new Set();
+const visited = new Set();
+const stack = [];
+const cycleKeys = new Set();
+
+function visitPackage(name) {
+  visiting.add(name);
+  stack.push(name);
+
+  for (const dependency of packageGraph.get(name) ?? []) {
+    if (!packageGraph.has(dependency)) {
+      continue;
+    }
+
+    if (!visited.has(dependency) && !visiting.has(dependency)) {
+      visitPackage(dependency);
+      continue;
+    }
+
+    if (!visiting.has(dependency)) {
+      continue;
+    }
+
+    const cycleStart = stack.indexOf(dependency);
+    const cycle = [...stack.slice(cycleStart), dependency];
+    const body = cycle.slice(0, -1);
+    const rotations = body.map((_, index) =>
+      [...body.slice(index), ...body.slice(0, index)].join(" -> "),
+    );
+    const normalized = rotations.sort()[0];
+
+    if (!cycleKeys.has(normalized)) {
+      cycleKeys.add(normalized);
+      recordViolation("package-cycle", normalized, normalized, normalized);
+    }
+  }
+
+  stack.pop();
+  visiting.delete(name);
+  visited.add(name);
+}
+
+for (const pkgName of packageGraph.keys()) {
+  if (!visited.has(pkgName)) {
+    visitPackage(pkgName);
   }
 }
 

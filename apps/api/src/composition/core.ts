@@ -1,22 +1,23 @@
 import {
   createAccountingService,
   type AccountingService,
-} from "@bedrock/application/accounting";
-import { rawPackDefinition } from "@bedrock/application/accounting/packs/bedrock-core-default";
+} from "@bedrock/accounting";
+import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import {
   createBalancesService,
   type BalancesService,
-} from "@bedrock/application/balances";
+} from "@bedrock/balances";
 import {
   createLedgerEngine,
   createLedgerReadService,
   type LedgerEngine,
   type LedgerReadService,
-} from "@bedrock/application/ledger";
+} from "@bedrock/ledger";
+import { assertBooksBelongToInternalLedgerCounterparties } from "@bedrock/parties/counterparties";
 import {
   createUsersService,
   type UsersService,
-} from "@bedrock/application/users";
+} from "@bedrock/users";
 import { createConsoleLogger, type Logger } from "@bedrock/common";
 import { db } from "@bedrock/db/client";
 
@@ -36,7 +37,10 @@ export function createCoreServices(): ApiCoreServices {
     logger,
     defaultPackDefinition: rawPackDefinition,
   });
-  const ledger = createLedgerEngine({ db });
+  const ledger = createLedgerEngine({
+    db,
+    assertInternalLedgerBooks: assertBooksBelongToInternalLedgerCounterparties,
+  });
   const ledgerReadService = createLedgerReadService({ db });
   const balancesService = createBalancesService({ db, logger });
   const usersService = createUsersService({ db, logger });

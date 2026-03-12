@@ -6,7 +6,7 @@ import {
   FxQuoteSchema,
   NotFoundError,
   ValidationError,
-} from "@bedrock/application/fx";
+} from "@bedrock/fx";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";

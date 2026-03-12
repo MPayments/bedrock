@@ -14,23 +14,31 @@ Stack: TypeScript 5.8, Hono, Next.js, Drizzle ORM, PostgreSQL, TigerBeetle, Zod,
 
 ## Workspace Topology
 
-Runtime is consolidated into two workspace packages:
+Runtime is split by package kind:
 
-- `@bedrock/common` (shared primitives and infrastructure helpers)
-- `@bedrock/application` (all runtime domains and workflows)
+- `packages/modules/*` for business capabilities, published as flat `@bedrock/<name>` packages
+- `packages/platform/*` for shared technical capabilities
+- `packages/runtime/*` for execution hosts
+- `packages/plugins/*` for document add-ons
+- `packages/integrations/*` for narrow cross-domain glue
+- `@bedrock/common` for shared primitives and infrastructure helpers
 
 Core dependency direction:
 
-- `@bedrock/common -> @bedrock/application -> apps/*`
-- `@bedrock/db` aggregates schemas from `@bedrock/application` and provides DB client/migrations/seeds.
+- `@bedrock/common -> modules/platform/runtime/plugins/integrations -> apps/*`
+- `@bedrock/db` aggregates schemas from owning packages and provides DB client/migrations/seeds.
 
 Hard rules:
 
-- No legacy runtime specifiers (`@bedrock/<domain>`) in runtime code.
+- No legacy runtime specifiers such as `@bedrock/application/*`, `@bedrock/platform/*`, or `@bedrock/modules/*`.
+- Runtime imports must go through declared package exports only. No cross-package `internal/**` imports.
 - Domain schema ownership is colocated under:
-  - `packages/application/src/<domain>/schema.ts` or `schema/**`
-  - `packages/application/src/<domain>/schema.ts` or `schema/**`
+  - `packages/modules/*/src/schema.ts` or `schema/**`
+  - `packages/modules/*/src/<subdomain>/schema.ts` for grouped packages such as `@bedrock/parties`
+  - `packages/platform/*/src/schema.ts` or `schema/**` when platform packages own schema
+  - `packages/integrations/*/src/schema.ts` or `schema/**` when integration packages own schema
 - `@bedrock/db` must not own domain table declarations; it only aggregates domain schemas for client/migrations/seeds.
+- Business packages must not import `@bedrock/db` from runtime code. Only apps, approved tooling/scripts, seeds/bootstrap, and integration tests may do so.
 
 ## Package Manager and Runtime
 
@@ -44,7 +52,7 @@ Hard rules:
 "dependencies": {
     "@bedrock/db": "workspace:*",     // correct
     "@bedrock/common": "workspace:*", // correct
-    "@bedrock/application": "workspace:*"     // correct
+    "@bedrock/ledger": "workspace:*"  // correct
     // NOT "@bedrock/db": "*"
 }
 ```
@@ -143,12 +151,14 @@ export function createXxxService(deps: XxxServiceDeps) {
 
 Runtime domain code lives under consolidated folders:
 
-- `packages/application/src/<domain>/**`
-- `packages/application/src/<domain>/**`
-- `packages/application/tests/<domain>/**`
-- `packages/application/tests/<domain>/**`
+- `packages/modules/<module>/src/**`
+- `packages/platform/<package>/src/**`
+- `packages/runtime/<package>/src/**`
+- `packages/plugins/<plugin>/src/**`
+- `packages/integrations/<integration>/src/**`
+- package-local `tests/**`
 
-Within each domain folder, follow this layout:
+Within each package, this is the common default layout:
 
 | File / Directory | Purpose |
 |---|---|
@@ -205,8 +215,8 @@ export class OrderNotFoundError extends ServiceError {
 
 - Drizzle ORM with PostgreSQL.
 - Schema uses `snake_case` column naming convention.
-- Runtime table definitions must be colocated in domain schema paths under `packages/application/src/<domain>/schema.ts` or `schema/**`.
-- Runtime code imports schemas from `@bedrock/application/<domain>/schema`.
+- Runtime table definitions must be colocated in the owning package under `src/schema.ts`, `src/schema/**`, or grouped subdomain `src/<subdomain>/schema.ts`.
+- Runtime code imports schemas through package exports such as `@bedrock/ledger/schema` or `@bedrock/parties/requisites/schema`.
 - Runtime code imports shared database connection types from `@bedrock/common/db/types`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.
 - Migration policy is baseline-only hard cutover.
@@ -217,8 +227,8 @@ export class OrderNotFoundError extends ServiceError {
 
 - Vitest with globals enabled.
 - Test utilities and fixtures from `@bedrock/test-utils`.
-- Unit tests in `packages/application/tests/<domain>/*.test.ts`.
-- Integration tests in `packages/application/tests/<domain>/integration/*.test.ts`.
+- Unit tests live in package-local `tests/**/*.test.ts`.
+- Integration tests live in package-local `tests/integration/**/*.test.ts`.
 
 ## API Routes
 

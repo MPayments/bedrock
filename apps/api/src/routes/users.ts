@@ -8,7 +8,7 @@ import {
   UserEmailConflictError,
   UserNotFoundError,
   UpdateUserInputSchema,
-} from "@bedrock/application/users";
+} from "@bedrock/users";
 import { createPaginatedListSchema } from "@bedrock/common/pagination";
 
 import { ErrorSchema } from "../common";

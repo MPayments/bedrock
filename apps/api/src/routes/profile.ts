@@ -6,7 +6,7 @@ import {
   UpdateProfileInputSchema,
   UserEmailConflictError,
   UserNotFoundError,
-} from "@bedrock/application/users";
+} from "@bedrock/users";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";

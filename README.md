@@ -4,16 +4,21 @@ Bedrock is a financial platform monorepo (ledger, balances, FX, reconciliation).
 
 ## Workspace Topology
 
-- `@bedrock/common` - shared runtime primitives and infrastructure helpers
-- `@bedrock/application` - all runtime domains and workflows (`@bedrock/application/<domain>`)
-- `@bedrock/db` - Drizzle client, all DB schema/migrations/seeds/types
+- `packages/modules/*` - business capabilities published as flat `@bedrock/<name>` packages
+- `packages/platform/*` - shared technical capabilities such as auth and idempotency
+- `packages/runtime/*` - execution hosts such as `@bedrock/worker-runtime`
+- `packages/plugins/*` - document add-ons published as flat `@bedrock/<name>` packages
+- `packages/integrations/*` - narrow cross-domain glue packages
+- `@bedrock/common` - shared primitives and infrastructure helpers
+- `@bedrock/db` - Drizzle client, schema aggregation, migrations, seeds, and DB types
 - `apps/*` - API/Web/Workers composition
 - `@bedrock/sdk/*` - API client + UI kit
 
 Runtime import contract:
 
-- Legacy `@bedrock/<domain>` runtime specifiers are removed.
-- Domain schemas are colocated under `@bedrock/application/<domain>/schema` or `@bedrock/application/<domain>/schema/**`.
+- Runtime packages publish flat imports such as `@bedrock/ledger`, `@bedrock/auth`, `@bedrock/worker-runtime`, and `@bedrock/parties/<subdomain>`.
+- Domain schemas stay with the owning package and are imported through package exports such as `@bedrock/ledger/schema` or `@bedrock/parties/requisites/schema`.
+- `@bedrock/db` aggregates schemas; business packages do not own migrations and do not import `@bedrock/db`.
 - Use DB connection types from `@bedrock/common/db/types`.
 
 ## Stack

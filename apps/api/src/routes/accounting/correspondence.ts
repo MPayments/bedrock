@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { replaceCorrespondenceRulesSchema } from "@bedrock/application/accounting";
-import { AccountingCorrespondenceRuleSchema } from "@bedrock/application/accounting/contracts";
+import { replaceCorrespondenceRulesSchema } from "@bedrock/accounting";
+import { AccountingCorrespondenceRuleSchema } from "@bedrock/accounting/contracts";
 
 import { ErrorSchema } from "../../common";
 import type { AppContext } from "../../context";

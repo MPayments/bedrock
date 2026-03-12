@@ -1,40 +1,40 @@
 import {
   createAccountingReportingService,
   type AccountingReportingService,
-} from "@bedrock/application/accounting-reporting";
+} from "@bedrock/accounting-reporting";
 import {
   createCounterpartiesService,
   type CounterpartiesService,
-} from "@bedrock/application/counterparties";
+} from "@bedrock/parties/counterparties";
 import {
   createCurrenciesService,
   type CurrenciesService,
-} from "@bedrock/application/currencies";
+} from "@bedrock/currencies";
 import {
   createCustomersService,
   type CustomersService,
-} from "@bedrock/application/customers";
+} from "@bedrock/parties/customers";
 import {
   createDocumentRegistry,
   createDocumentsService,
   type DocumentsService,
-} from "@bedrock/application/documents";
-import { createFeesService, type FeesService } from "@bedrock/application/fees";
-import { createFxService, type FxService } from "@bedrock/application/fx";
-import { createCommercialDocumentModules } from "@bedrock/application/commercial-documents";
-import { createIfrsDocumentModules } from "@bedrock/application/ifrs-documents";
+} from "@bedrock/documents";
+import { createFeesService, type FeesService } from "@bedrock/fees";
+import { createFxService, type FxService } from "@bedrock/fx";
+import { createCommercialDocumentModules } from "@bedrock/commercial-documents";
+import { createIfrsDocumentModules } from "@bedrock/ifrs-documents";
 import {
   createOrganizationsService,
   type OrganizationsService,
-} from "@bedrock/application/organizations";
+} from "@bedrock/parties/organizations";
 import {
   createRequisiteProvidersService,
   type RequisiteProvidersService,
-} from "@bedrock/application/requisite-providers";
+} from "@bedrock/parties/requisite-providers";
 import {
   createRequisitesService,
   type RequisitesService,
-} from "@bedrock/application/requisites";
+} from "@bedrock/parties/requisites";
 import { db } from "@bedrock/db/client";
 
 import type { ApiCoreServices } from "./core";

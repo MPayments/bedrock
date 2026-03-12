@@ -7,11 +7,11 @@ import {
   CreateCurrencyInputSchema,
   UpdateCurrencyInputSchema,
   CurrencyNotFoundError,
-} from "@bedrock/application/currencies";
+} from "@bedrock/currencies";
 import {
   CurrencyOptionSchema,
   CurrencyOptionsResponseSchema,
-} from "@bedrock/application/currencies/contracts";
+} from "@bedrock/currencies/contracts";
 import { createPaginatedListSchema } from "@bedrock/common/pagination";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";

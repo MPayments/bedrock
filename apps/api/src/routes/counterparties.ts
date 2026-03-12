@@ -9,11 +9,11 @@ import {
   CreateCounterpartyInputSchema,
   ListCounterpartiesQuerySchema,
   UpdateCounterpartyInputSchema,
-} from "@bedrock/application/counterparties";
+} from "@bedrock/parties/counterparties";
 import {
   CounterpartyOptionSchema,
   CounterpartyOptionsResponseSchema,
-} from "@bedrock/application/counterparties/contracts";
+} from "@bedrock/parties/counterparties/contracts";
 import { createPaginatedListSchema } from "@bedrock/common/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
