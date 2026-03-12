@@ -124,6 +124,20 @@ function toWorkspacePath(importPath) {
     const packageDir = packageDirsByName.get(packageName);
     if (!packageDir) return null;
 
+    if (packageName === "@bedrock/core" || packageName === "@bedrock/application") {
+      const domain = parts[2];
+      if (!domain) {
+        return `${packageDir}`;
+      }
+
+      const subpath = parts.slice(3).join("/");
+      if (subpath.length === 0) {
+        return `${packageDir}/src/${domain}`;
+      }
+
+      return `${packageDir}/src/${domain}/${subpath}.ts`;
+    }
+
     const subpath = parts.slice(2).join("/");
     if (subpath.length === 0) {
       return `${packageDir}/src`;
@@ -149,13 +163,18 @@ const violations = [];
 const LEGACY_SPECIFIER_PATTERNS = [
   /^@bedrock\/foundation(?:\/|$)/,
   /^@bedrock\/platform(?:\/|$)/,
-  /^@bedrock\/core(?:\/|$)/,
-  /^@bedrock\/application(?:\/|$)/,
+  /^@bedrock\/modules(?:\/|$)/,
+  /^@bedrock\/accounting-contracts(?:\/|$)/,
+  /^@bedrock\/countries(?:\/|$)/,
+  /^@bedrock\/packs-schema(?:\/|$)/,
+  /^@bedrock\/pack-bedrock-core-default(?:\/|$)/,
+  /^@bedrock\/db-contracts(?:\/|$)/,
+  /^@bedrock\/foundation\/db-contracts(?:\/|$)/,
 ];
 const DB_TYPES_SPECIFIER = /^@bedrock\/db\/types(?:\/|$)/;
 const DB_RUNTIME_BLOCKED_SPECIFIER = /^@bedrock\/db(?:$|\/(?:client|seeds)(?:$|\/))/;
 function isRuntimePackageFile(file) {
-  return /^packages\/(framework|domains)\/[^/]+\/src\//.test(file);
+  return /^packages\/(application|core)\/src\/[^/]+\//.test(file);
 }
 
 function isSchemaDefinitionFile(file) {
@@ -168,7 +187,10 @@ function isSchemaDefinitionFile(file) {
 }
 
 function isAllowedContractImport(fromFile, specifier) {
-  return specifier === "@bedrock/kernel/countries/contracts";
+  return (
+    fromFile.startsWith("packages/core/src/") &&
+    specifier === "@bedrock/kernel/countries/contracts"
+  );
 }
 
 for (const root of SOURCE_ROOTS) {
@@ -194,7 +216,7 @@ for (const root of SOURCE_ROOTS) {
 
       if (
         LEGACY_SPECIFIER_PATTERNS.some((pattern) => pattern.test(specifier)) &&
-        !relFile.startsWith("packages/framework/kernel/")
+        !relFile.startsWith("packages/kernel/")
       ) {
         violations.push({
           rule: "legacy-foundation-import",
@@ -222,12 +244,11 @@ for (const root of SOURCE_ROOTS) {
       if (relFile.startsWith("apps/web/") && specifier.startsWith("@bedrock/")) {
         const allowed =
           specifier.startsWith("@bedrock/ui") ||
-          specifier.startsWith("@bedrock/kernel") ||
+          specifier === "@bedrock/kernel/countries" ||
+          specifier === "@bedrock/kernel/countries/contracts" ||
           specifier === "@bedrock/api-client" ||
           specifier.startsWith("@bedrock/api-client/") ||
-          /^@bedrock\/[^/]+\/contracts$/.test(specifier) ||
-          /^@bedrock\/identity\/validation$/.test(specifier) ||
-          specifier === "@bedrock/modules/contracts";
+          /^@bedrock\/(?:core|application)\/[^/]+\/contracts$/.test(specifier);
 
         if (!allowed) {
           violations.push({

@@ -1,4 +1,4 @@
-import { TransferResolutionInputSchema } from "@bedrock/ifrs-documents/contracts";
+import { TransferResolutionInputSchema } from "@bedrock/application/ifrs-documents/contracts";
 
 import type { DocumentFormDefinition } from "../types";
 import {

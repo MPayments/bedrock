@@ -1,4 +1,4 @@
-import { ACCOUNTING_OPERATIONS_LIST_CONTRACT } from "@bedrock/accounting/contracts";
+import { ACCOUNTING_OPERATIONS_LIST_CONTRACT } from "@bedrock/core/accounting/contracts";
 
 import {
   createResourceSearchParamsCache,

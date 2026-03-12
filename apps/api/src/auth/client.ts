@@ -1,6 +1,6 @@
 import { createAuthClient } from "better-auth/client";
-import { twoFactorClient } from "better-auth/client/plugins";
 import { admin as adminPlugin } from "better-auth/plugins";
+import { twoFactorClient } from "better-auth/client/plugins";
 
 import { ac, admin, user } from "./permissions";
 

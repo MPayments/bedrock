@@ -1,0 +1,50 @@
+{
+  "name": "@bedrock/application",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./accounting-reporting": "./src/accounting-reporting/index.ts",
+    "./accounting-reporting/contracts": "./src/accounting-reporting/contracts.ts",
+    "./accounting-reporting/schema": "./src/accounting-reporting/schema/index.ts",
+    "./accounting-reporting/validation": "./src/accounting-reporting/validation.ts",
+    "./module-runtime": "./src/module-runtime/index.ts",
+    "./fees": "./src/fees/index.ts",
+    "./fees/schema": "./src/fees/schema/index.ts",
+    "./fx": "./src/fx/index.ts",
+    "./fx/contracts": "./src/fx/contracts.ts",
+    "./fx/schema": "./src/fx/schema/index.ts",
+    "./ifrs-documents": "./src/ifrs-documents/index.ts",
+    "./ifrs-documents/contracts": "./src/ifrs-documents/contracts.ts",
+    "./ifrs-documents/validation": "./src/ifrs-documents/validation.ts",
+    "./payments": "./src/payments/index.ts"
+  },
+  "scripts": {
+    "build": "tsgo --project tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsgo --noEmit --project tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration:watch": "vitest --config vitest.integration.config.ts"
+  },
+  "dependencies": {
+    "@bedrock/kernel": "workspace:*",
+    "@bedrock/core": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "soap": "^1.6.0",
+    "tlsclientwrapper": "^4.1.2",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "@types/pg": "^8.16.0",
+    "eslint": "^9.31.0",
+    "pg": "^8.18.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  }
+}

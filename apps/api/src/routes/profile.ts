@@ -6,17 +6,17 @@ import {
   UpdateProfileInputSchema,
   UserEmailConflictError,
   UserNotFoundError,
-} from "@bedrock/identity";
+} from "@bedrock/core/users";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";
+import type { AuthVariables } from "../middleware/auth";
 import {
   SerializedUserSchema,
   SerializedUserWithLastSessionSchema,
   serializeUser,
   serializeUserWithSession,
 } from "./users-serialization";
-import type { AuthVariables } from "../middleware/auth";
 
 export function profileRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();

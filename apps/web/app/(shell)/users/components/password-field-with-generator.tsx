@@ -2,13 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Dices, Eye, EyeOff } from "lucide-react";
-import type {
-  FieldPathByValue,
-  FieldValues,
-  PathValue,
-  UseFormRegisterReturn,
-  UseFormSetValue,
-} from "react-hook-form";
+import type { UseFormRegisterReturn, UseFormSetValue } from "react-hook-form";
 
 import { Input } from "@bedrock/ui/components/input";
 import { Button } from "@bedrock/ui/components/button";
@@ -21,36 +15,28 @@ import { toast } from "@bedrock/ui/components/sonner";
 
 import { generatePassword } from "@/lib/generate-password";
 
-type PasswordFieldWithGeneratorProps<
-  TFieldValues extends FieldValues,
-  TFieldName extends FieldPathByValue<TFieldValues, string>,
-> = {
+type PasswordFieldWithGeneratorProps = {
   id: string;
-  fieldName: TFieldName;
-  registration: UseFormRegisterReturn<TFieldName>;
-  setValue: UseFormSetValue<TFieldValues>;
+  fieldName: string;
+  registration: UseFormRegisterReturn;
+  setValue: UseFormSetValue<any>;
   invalid?: boolean;
   placeholder?: string;
 };
 
-export function PasswordFieldWithGenerator<
-  TFieldValues extends FieldValues,
-  TFieldName extends FieldPathByValue<TFieldValues, string>,
->({
+export function PasswordFieldWithGenerator({
   id,
   fieldName,
   registration,
   setValue,
   invalid,
   placeholder = "Минимум 6 символов",
-}: PasswordFieldWithGeneratorProps<TFieldValues, TFieldName>) {
+}: PasswordFieldWithGeneratorProps) {
   const [visible, setVisible] = useState(false);
 
   const handleGenerate = useCallback(() => {
     const password = generatePassword();
-    setValue(fieldName, password as PathValue<TFieldValues, TFieldName>, {
-      shouldValidate: true,
-    });
+    setValue(fieldName, password, { shouldValidate: true });
     setVisible(true);
     navigator.clipboard.writeText(password).then(
       () => toast.success("Пароль сгенерирован и скопирован"),

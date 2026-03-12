@@ -1,4 +1,4 @@
-import { CapitalFundingInputSchema } from "@bedrock/ifrs-documents/contracts";
+import { CapitalFundingInputSchema } from "@bedrock/application/ifrs-documents/contracts";
 
 import type { DocumentFormDefinition } from "../types";
 import {

@@ -1,19 +1,19 @@
 import { and, eq } from "drizzle-orm";
 
-import { ACCOUNT_NO } from "@bedrock/accounting";
 import {
   computeDimensionsHash,
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
 } from "@bedrock/kernel";
+import { ACCOUNT_NO } from "@bedrock/core/accounting";
 
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema";
-import { seedCounterparties } from "./counterparties";
 import { seedCurrencies } from "./currencies";
-import { REQUISITES, type SeedRequisiteFixture } from "./fixtures";
+import { seedCounterparties } from "./counterparties";
 import { ORGANIZATION_IDS, seedOrganizations } from "./organizations";
 import { seedRequisiteProviders } from "./requisite-providers";
+import { REQUISITES, type SeedRequisiteFixture } from "./fixtures";
 
 export { REQUISITE_IDS } from "./fixtures";
 

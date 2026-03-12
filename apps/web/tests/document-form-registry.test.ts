@@ -1,4 +1,4 @@
-import { IFRS_DOCUMENT_TYPE_ORDER } from "@bedrock/ifrs-documents/contracts";
+import { IFRS_DOCUMENT_TYPE_ORDER } from "@bedrock/application/ifrs-documents/contracts";
 import { describe, expect, it } from "vitest";
 
 import { DOCUMENT_FORM_DEFINITIONS } from "@/features/documents/lib/document-form-registry/definitions";

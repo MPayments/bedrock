@@ -1,10 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { replaceCorrespondenceRulesSchema } from "@bedrock/accounting";
-import {
-  AccountingCorrespondenceRuleSchema,
-  AccountingTemplateAccountSchema,
-} from "@bedrock/accounting/contracts";
 import {
   BalanceSheetQuerySchema,
   BalanceSheetResponseSchema,
@@ -24,7 +19,12 @@ import {
   LiquidityResponseSchema,
   TrialBalanceQuerySchema,
   TrialBalanceResponseSchema,
-} from "@bedrock/accounting-reporting";
+} from "@bedrock/application/accounting-reporting";
+import { replaceCorrespondenceRulesSchema } from "@bedrock/core/accounting";
+import {
+  AccountingCorrespondenceRuleSchema,
+  AccountingTemplateAccountSchema,
+} from "@bedrock/core/accounting/contracts";
 import { ValidationError } from "@bedrock/kernel/errors";
 
 import { ErrorSchema } from "../common";
@@ -1277,7 +1277,8 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const result = await ctx.accountingReportingService.listFeeRevenue(query);
+        const result =
+          await ctx.accountingReportingService.listFeeRevenueBreakdown(query);
         const payload = mapFeeRevenueDto(result);
 
         logReportMetrics(ctx, {
@@ -1302,13 +1303,13 @@ export function accountingRoutes(ctx: AppContext) {
       try {
         const startedAt = Date.now();
         const query = c.req.valid("query");
-        const firstPage = await ctx.accountingReportingService.listFeeRevenue({
+        const firstPage = await ctx.accountingReportingService.listFeeRevenueBreakdown({
           ...query,
           limit: 200,
           offset: 0,
         });
         const rows = await readAllPages(firstPage, ({ limit, offset }) =>
-          ctx.accountingReportingService.listFeeRevenue({
+          ctx.accountingReportingService.listFeeRevenueBreakdown({
             ...query,
             limit,
             offset,

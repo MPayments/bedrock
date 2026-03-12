@@ -1,4 +1,4 @@
-import { ImpairmentAdjustmentInputSchema } from "@bedrock/ifrs-documents/contracts";
+import { ImpairmentAdjustmentInputSchema } from "@bedrock/application/ifrs-documents/contracts";
 
 import { createAdjustmentDefinition } from "../shared";
 

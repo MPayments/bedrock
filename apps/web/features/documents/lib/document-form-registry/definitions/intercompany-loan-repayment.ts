@@ -1,4 +1,4 @@
-import { IntercompanyLoanRepaymentInputSchema } from "@bedrock/ifrs-documents/contracts";
+import { IntercompanyLoanRepaymentInputSchema } from "@bedrock/application/ifrs-documents/contracts";
 
 import { createLoanLikeDefinition } from "../shared";
 

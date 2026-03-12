@@ -10,9 +10,13 @@ import {
   ImmutableModuleError,
   MixedDeployError,
   UnknownModuleError,
-} from "@bedrock/modules";
+} from "@bedrock/core/module-runtime";
 
 import auth from "./auth";
+import {
+  API_APPLICATION_MODULES,
+  type ApiApplicationModule,
+} from "./modules/registry";
 import { createAppContext, parseEnv } from "./context";
 import {
   authMiddleware,
@@ -38,7 +42,6 @@ import {
   systemModulesRoutes,
   usersRoutes,
 } from "./routes";
-import { listApiModules, type ApiRuntimeModule } from "./runtime";
 
 const env = parseEnv();
 
@@ -207,7 +210,7 @@ app.get("/health", async (c) => {
   const pgStart = Date.now();
   try {
     const { db } = await import("@bedrock/db/client");
-    const { schema } = await import("@bedrock/assets/schema");
+    const { schema } = await import("@bedrock/core/currencies/schema");
     await db
       .select({ id: schema.currencies.id })
       .from(schema.currencies)
@@ -226,9 +229,9 @@ app.get("/health", async (c) => {
   return c.json({ status: healthy ? "healthy" : "degraded", checks }, status);
 });
 
-function createGuardedRouter(module: ApiRuntimeModule) {
+function createGuardedRouter(module: ApiApplicationModule) {
   const guarded = new OpenAPIHono<{ Variables: AuthVariables }>();
-  if (module.api.guarded !== false) {
+  if (module.guarded !== false) {
     guarded.use("*", createModuleGuard(ctx, module.id));
   }
   guarded.route("/", module.registerRoutes(ctx));
@@ -239,11 +242,10 @@ function buildV1Router(
   guarded: boolean,
 ): OpenAPIHono<{ Variables: AuthVariables }> {
   const router = new OpenAPIHono<{ Variables: AuthVariables }>();
-  const apiModules = listApiModules(ctx.app.modules);
 
-  for (const module of apiModules) {
+  for (const module of API_APPLICATION_MODULES) {
     router.route(
-      module.api.routePath,
+      module.routePath,
       guarded ? createGuardedRouter(module) : module.registerRoutes(ctx),
     );
   }
@@ -272,8 +274,8 @@ const TYPED_ROUTE_PATHS = [
 
 function assertTypedRouteCoverage() {
   const typedRoutePaths = [...TYPED_ROUTE_PATHS].sort();
-  const moduleRoutePaths = listApiModules(ctx.app.modules).map(
-    (module) => module.api.routePath,
+  const moduleRoutePaths = API_APPLICATION_MODULES.map(
+    (module) => module.routePath,
   ).sort();
 
   const hasMismatch =

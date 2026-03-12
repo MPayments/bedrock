@@ -1,11 +1,13 @@
 import type { MiddlewareHandler } from "hono";
 
+import type { BedrockModuleId } from "@bedrock/application/module-runtime";
+
 import type { AppContext } from "../context";
 import type { AuthVariables } from "./auth";
 
 export function createModuleGuard(
   ctx: AppContext,
-  moduleId: string,
+  moduleId: BedrockModuleId,
 ): MiddlewareHandler<{ Variables: AuthVariables }> {
   return async (c, next) => {
     const bookId = c.req.query("bookId") || undefined;
