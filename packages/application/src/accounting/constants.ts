@@ -67,9 +67,13 @@ export const POSTING_CODE = {
   FEE_INCOME: "TC.3001",
   SPREAD_INCOME: "TC.3002",
   FEE_PASS_THROUGH_RESERVE: "TC.3003",
+  FEE_INCOME_FROM_RESERVE: "TC.3004",
+  SPREAD_INCOME_FROM_RESERVE: "TC.3005",
   ADJUSTMENT_CHARGE: "TC.3006",
   ADJUSTMENT_REFUND: "TC.3007",
   PROVIDER_FEE_EXPENSE_ACCRUAL: "TC.3008",
+  ADJUSTMENT_CHARGE_FROM_RESERVE: "TC.3009",
+  ADJUSTMENT_REFUND_FROM_RESERVE: "TC.3010",
   FEE_PAYMENT_INITIATED: "TC.3011",
   PAYOUT_INITIATED: "TC.3101",
 } as const;
@@ -856,6 +860,33 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
       scope: "line",
     },
 
+    // --- Reserved customer charges released from FEE_CLEARING ---
+    {
+      postingCode: POSTING_CODE.FEE_INCOME_FROM_RESERVE,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.FEE_INCOME_FROM_RESERVE,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "line",
+    },
+
+    {
+      postingCode: POSTING_CODE.SPREAD_INCOME_FROM_RESERVE,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.SPREAD_INCOME_FROM_RESERVE,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "line",
+    },
+
     // CW/ADJ_EXPENSE → FEE_CLEARING
     {
       postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
@@ -951,6 +982,19 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
     },
 
     {
+      postingCode: POSTING_CODE.ADJUSTMENT_CHARGE_FROM_RESERVE,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.ADJUSTMENT_CHARGE_FROM_RESERVE,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "line",
+    },
+
+    {
       postingCode: POSTING_CODE.ADJUSTMENT_REFUND,
       dimensionKey: DIM.orderId,
       required: true,
@@ -964,6 +1008,18 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
     },
     {
       postingCode: POSTING_CODE.ADJUSTMENT_REFUND,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.ADJUSTMENT_REFUND_FROM_RESERVE,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.ADJUSTMENT_REFUND_FROM_RESERVE,
       dimensionKey: DIM.feeBucket,
       required: true,
       scope: "line",
@@ -1057,6 +1113,16 @@ export const DEFAULT_GLOBAL_CORRESPONDENCE_RULES = [
     creditAccountNo: ACCOUNT_NO.SPREAD_REVENUE,
   },
   {
+    postingCode: POSTING_CODE.FEE_INCOME_FROM_RESERVE,
+    debitAccountNo: ACCOUNT_NO.FEE_CLEARING,
+    creditAccountNo: ACCOUNT_NO.FEE_REVENUE,
+  },
+  {
+    postingCode: POSTING_CODE.SPREAD_INCOME_FROM_RESERVE,
+    debitAccountNo: ACCOUNT_NO.FEE_CLEARING,
+    creditAccountNo: ACCOUNT_NO.SPREAD_REVENUE,
+  },
+  {
     postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
     debitAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
     creditAccountNo: ACCOUNT_NO.FEE_CLEARING,
@@ -1082,8 +1148,18 @@ export const DEFAULT_GLOBAL_CORRESPONDENCE_RULES = [
     creditAccountNo: ACCOUNT_NO.ADJUSTMENT_REVENUE,
   },
   {
+    postingCode: POSTING_CODE.ADJUSTMENT_CHARGE_FROM_RESERVE,
+    debitAccountNo: ACCOUNT_NO.FEE_CLEARING,
+    creditAccountNo: ACCOUNT_NO.ADJUSTMENT_REVENUE,
+  },
+  {
     postingCode: POSTING_CODE.ADJUSTMENT_REFUND,
     debitAccountNo: ACCOUNT_NO.ADJUSTMENT_EXPENSE,
     creditAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+  },
+  {
+    postingCode: POSTING_CODE.ADJUSTMENT_REFUND_FROM_RESERVE,
+    debitAccountNo: ACCOUNT_NO.ADJUSTMENT_EXPENSE,
+    creditAccountNo: ACCOUNT_NO.FEE_CLEARING,
   },
 ] as const;

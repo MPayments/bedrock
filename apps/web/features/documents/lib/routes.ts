@@ -28,7 +28,7 @@ export function buildDocumentCreateHref(docType: string): string | null {
     return null;
   }
 
-  return `${buildDocumentsFamilyHref(family)}/${encodeSegment(docType)}/create`;
+  return `/documents/create/${encodeSegment(docType)}`;
 }
 
 export function buildDocumentDetailsHref(

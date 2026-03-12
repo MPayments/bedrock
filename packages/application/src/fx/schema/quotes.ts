@@ -5,7 +5,10 @@ import { currencies } from "@bedrock/application/currencies/schema";
 
 export type FxQuoteStatus = "active" | "used" | "expired" | "cancelled";
 export type FxQuotePricingMode = "auto_cross" | "explicit_route";
-export type FxQuote = typeof fxQuotes.$inferSelect;
+export type FxQuote = typeof fxQuotes.$inferSelect & {
+    fromCurrency?: string;
+    toCurrency?: string;
+};
 
 export const fxQuotes = pgTable(
     "fx_quotes",

@@ -21,6 +21,7 @@ import {
 } from "@bedrock/application/documents";
 import { createFeesService, type FeesService } from "@bedrock/application/fees";
 import { createFxService, type FxService } from "@bedrock/application/fx";
+import { createCommercialDocumentModules } from "@bedrock/application/commercial-documents";
 import { createIfrsDocumentModules } from "@bedrock/application/ifrs-documents";
 import {
   createOrganizationsService,
@@ -84,6 +85,10 @@ export function createApplicationServices(
     logger,
   });
   const documentRegistry = createDocumentRegistry([
+    ...createCommercialDocumentModules({
+      currenciesService,
+      requisitesService,
+    }),
     ...createIfrsDocumentModules({
       requisitesService,
     }),

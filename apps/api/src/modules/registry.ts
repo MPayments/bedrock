@@ -7,6 +7,7 @@ import {
   customersRoutes,
   currenciesRoutes,
   documentsRoutes,
+  fxQuotesRoutes,
   fxRatesRoutes,
   organizationsRoutes,
   requisiteProvidersRoutes,
@@ -73,6 +74,13 @@ export const fxRatesModule = {
   },
 } as const satisfies ApiApplicationModule<"/fx/rates">;
 
+export const fxQuotesModule = {
+  routePath: "/fx/quotes",
+  registerRoutes(ctx: AppContext) {
+    return fxQuotesRoutes(ctx);
+  },
+} as const satisfies ApiApplicationModule<"/fx/quotes">;
+
 export const organizationsModule = {
   routePath: "/organizations",
   registerRoutes(ctx: AppContext) {
@@ -105,5 +113,6 @@ export const API_APPLICATION_MODULES = [
   organizationsModule,
   requisiteProvidersModule,
   requisitesModule,
+  fxQuotesModule,
   fxRatesModule,
 ] as const;

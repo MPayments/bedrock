@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRightLeft, ChevronDown, FileText, Plus } from "lucide-react";
+import {
+  ArrowRightLeft,
+  ChevronDown,
+  FileText,
+  Plus,
+  ReceiptText,
+} from "lucide-react";
 
 import { Button } from "@bedrock/ui/components/button";
 import {
@@ -133,7 +139,7 @@ export default async function DocumentsFamilyPage({
 const FAMILY_CONFIG: Record<
   DocumentsWorkspaceFamily,
   {
-    icon: typeof ArrowRightLeft | typeof FileText;
+    icon: typeof ArrowRightLeft | typeof FileText | typeof ReceiptText;
     title: string;
     description: string;
   }
@@ -143,6 +149,12 @@ const FAMILY_CONFIG: Record<
     title: "Переводы",
     description:
       "Transfer workflow для intra/intercompany переводов и transfer resolution.",
+  },
+  commercial: {
+    icon: ReceiptText,
+    title: "Коммерческие документы",
+    description:
+      "Инвойсы, обмены и акты по клиентским операциям и FX-кейсам.",
   },
   ifrs: {
     icon: FileText,

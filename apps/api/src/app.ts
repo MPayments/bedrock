@@ -23,6 +23,7 @@ import {
   customersRoutes,
   currenciesRoutes,
   documentsRoutes,
+  fxQuotesRoutes,
   fxRatesRoutes,
   organizationsRoutes,
   profileRoutes,
@@ -161,6 +162,7 @@ const TYPED_ROUTE_PATHS = [
   "/customers",
   "/currencies",
   "/documents",
+  "/fx/quotes",
   "/organizations",
   "/requisite-providers",
   "/requisites",
@@ -193,6 +195,7 @@ const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/customers", customersRoutes(ctx))
   .route("/currencies", currenciesRoutes(ctx))
   .route("/documents", documentsRoutes(ctx))
+  .route("/fx/quotes", fxQuotesRoutes(ctx))
   .route("/organizations", organizationsRoutes(ctx))
   .route("/requisite-providers", requisiteProvidersRoutes(ctx))
   .route("/requisites", requisitesRoutes(ctx))

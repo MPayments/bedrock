@@ -9,4 +9,4 @@ export type {
   DocumentFormSection,
   DocumentFormSectionLayout,
   DocumentFormValues,
-} from "@bedrock/application/ifrs-documents/contracts";
+} from "@bedrock/application/documents/form-types";

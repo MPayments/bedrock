@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { financialLineSchema } from "@bedrock/application/commercial-documents/contracts";
 import { normalizeCurrency, isValidCurrency } from "@bedrock/application/currencies/catalog";
 import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/application/fees";
 import { DAY_IN_SECONDS } from "@bedrock/application/ledger/constants";
@@ -22,7 +23,7 @@ const rateSourceSchema = z.enum(["cbr", "investing", "xe"]);
 
 const quoteLegSourceKindSchema = z.enum(["cb", "bank", "manual", "derived", "market"]);
 
-const quoteLegInputSchema = z.object({
+export const QuoteLegInputSchema = z.object({
     fromCurrency: currencySchema,
     toCurrency: currencySchema,
     rateNum: positiveBigintSchema,
@@ -35,7 +36,7 @@ const quoteLegInputSchema = z.object({
     message: "Leg currencies must be different",
 });
 
-const pricingTraceSchema = z.object({
+export const PricingTraceSchema = z.object({
     version: z.literal("v1"),
     mode: z.enum(["auto_cross", "explicit_route"]),
     summary: z.string().max(2000).optional(),
@@ -76,6 +77,7 @@ const quoteBaseSchema = z.object({
     fromCurrency: currencySchema,
     toCurrency: currencySchema,
     fromAmountMinor: positiveAmountSchema,
+    manualFinancialLines: z.array(financialLineSchema).optional(),
     dealDirection: feeDealDirectionSchema.optional(),
     dealForm: feeDealFormSchema.optional(),
     ttlSeconds: positiveIntegerSchema.max(DAY_IN_SECONDS, "ttlSeconds cannot exceed 86400 (24 hours)").optional(),
@@ -85,24 +87,24 @@ const quoteBaseSchema = z.object({
 const autoCrossQuoteSchema = quoteBaseSchema.extend({
     mode: z.literal("auto_cross"),
     anchor: currencySchema.optional(),
-    pricingTrace: pricingTraceSchema.optional(),
+    pricingTrace: PricingTraceSchema.optional(),
 });
 
 const explicitRouteQuoteSchema = quoteBaseSchema.extend({
     mode: z.literal("explicit_route"),
-    legs: z.array(quoteLegInputSchema).min(1),
-    pricingTrace: pricingTraceSchema,
+    legs: z.array(QuoteLegInputSchema).min(1),
+    pricingTrace: PricingTraceSchema,
 });
 
 // Quote input schema
-const quoteInputSchema = z.union([autoCrossQuoteSchema, explicitRouteQuoteSchema]).refine(
+export const QuoteInputSchema = z.union([autoCrossQuoteSchema, explicitRouteQuoteSchema]).refine(
     (data) => data.fromCurrency !== data.toCurrency,
     { message: "fromCurrency and toCurrency must be different" }
 );
 
-export type QuoteInput = z.infer<typeof quoteInputSchema>;
-export type QuoteLegInput = z.infer<typeof quoteLegInputSchema>;
-export type PricingTrace = z.infer<typeof pricingTraceSchema>;
+export type QuoteInput = z.infer<typeof QuoteInputSchema>;
+export type QuoteLegInput = z.infer<typeof QuoteLegInputSchema>;
+export type PricingTrace = z.infer<typeof PricingTraceSchema>;
 
 // MarkQuoteUsed input schema
 const markQuoteUsedInputSchema = z.object({
@@ -113,11 +115,11 @@ const markQuoteUsedInputSchema = z.object({
 
 export type MarkQuoteUsedInput = z.infer<typeof markQuoteUsedInputSchema>;
 
-const getQuoteDetailsInputSchema = z.object({
+export const GetQuoteDetailsInputSchema = z.object({
     quoteRef: z.string().min(1).max(255),
 });
 
-export type GetQuoteDetailsInput = z.infer<typeof getQuoteDetailsInputSchema>;
+export type GetQuoteDetailsInput = z.infer<typeof GetQuoteDetailsInputSchema>;
 
 export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown, context?: string): T {
     const result = schema.safeParse(input);
@@ -147,7 +149,7 @@ export function validateSyncRatesFromSourceInput(input: unknown): SyncRatesFromS
 }
 
 export function validateQuoteInput(input: unknown): QuoteInput {
-    return validateInput(quoteInputSchema, input, "quote");
+    return validateInput(QuoteInputSchema, input, "quote");
 }
 
 export function validateMarkQuoteUsedInput(input: unknown): MarkQuoteUsedInput {
@@ -155,5 +157,5 @@ export function validateMarkQuoteUsedInput(input: unknown): MarkQuoteUsedInput {
 }
 
 export function validateGetQuoteDetailsInput(input: unknown): GetQuoteDetailsInput {
-    return validateInput(getQuoteDetailsInputSchema, input, "getQuoteDetails");
+    return validateInput(GetQuoteDetailsInputSchema, input, "getQuoteDetails");
 }

@@ -19,6 +19,7 @@ import {
 } from "@bedrock/application/accounting-reporting/contracts";
 import { z } from "zod";
 
+import { getAccountingApi } from "@/lib/api/accounting-client";
 import { getServerApiClient } from "@/lib/api/server-client";
 import { readOptionsList } from "@/lib/api/query";
 import { readJsonWithSchema, requestOk } from "@/lib/api/response";
@@ -105,8 +106,9 @@ export async function getAccountingTemplateAccounts(): Promise<
   AccountingTemplateAccount[]
 > {
   const client = await getServerApiClient();
+  const accountingApi = getAccountingApi(client);
   const response = await requestOk(
-    await client.v1.accounting.template.accounts.$get(
+    await accountingApi.template.accounts.$get(
       {},
       { init: { cache: "no-store" } },
     ),
@@ -123,8 +125,9 @@ export async function getAccountingCorrespondenceRules(): Promise<
   AccountingCorrespondenceRule[]
 > {
   const client = await getServerApiClient();
+  const accountingApi = getAccountingApi(client);
   const response = await requestOk(
-    await client.v1.accounting["correspondence-rules"].$get(
+    await accountingApi["correspondence-rules"].$get(
       {},
       { init: { cache: "no-store" } },
     ),
@@ -141,11 +144,12 @@ export async function getTrialBalance(
   query: Record<string, string | string[]>,
 ): Promise<TrialBalanceDto> {
   const client = await getServerApiClient();
+  const accountingApi = getAccountingApi(client);
   type QueryInput = RouteQuery<
-    (typeof client.v1.accounting.reports)["trial-balance"]["$get"]
+    (typeof accountingApi.reports)["trial-balance"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.accounting.reports["trial-balance"].$get(
+    await accountingApi.reports["trial-balance"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -159,11 +163,12 @@ export async function getGeneralLedger(
   query: Record<string, string | string[]>,
 ): Promise<GeneralLedgerDto> {
   const client = await getServerApiClient();
+  const accountingApi = getAccountingApi(client);
   type QueryInput = RouteQuery<
-    (typeof client.v1.accounting.reports)["general-ledger"]["$get"]
+    (typeof accountingApi.reports)["general-ledger"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.accounting.reports["general-ledger"].$get(
+    await accountingApi.reports["general-ledger"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -177,11 +182,12 @@ export async function getBalanceSheet(
   query: Record<string, string | string[]>,
 ): Promise<BalanceSheetDto> {
   const client = await getServerApiClient();
+  const accountingApi = getAccountingApi(client);
   type QueryInput = RouteQuery<
-    (typeof client.v1.accounting.reports)["balance-sheet"]["$get"]
+    (typeof accountingApi.reports)["balance-sheet"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.accounting.reports["balance-sheet"].$get(
+    await accountingApi.reports["balance-sheet"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -195,11 +201,12 @@ export async function getIncomeStatement(
   query: Record<string, string | string[]>,
 ): Promise<IncomeStatementDto> {
   const client = await getServerApiClient();
+  const accountingApi = getAccountingApi(client);
   type QueryInput = RouteQuery<
-    (typeof client.v1.accounting.reports)["income-statement"]["$get"]
+    (typeof accountingApi.reports)["income-statement"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.accounting.reports["income-statement"].$get(
+    await accountingApi.reports["income-statement"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -213,11 +220,12 @@ export async function getCashFlow(
   query: Record<string, string | string[]>,
 ): Promise<CashFlowDto> {
   const client = await getServerApiClient();
+  const accountingApi = getAccountingApi(client);
   type QueryInput = RouteQuery<
-    (typeof client.v1.accounting.reports)["cash-flow"]["$get"]
+    (typeof accountingApi.reports)["cash-flow"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.accounting.reports["cash-flow"].$get(
+    await accountingApi.reports["cash-flow"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -231,11 +239,12 @@ export async function getLiquidity(
   query: Record<string, string | string[]>,
 ): Promise<LiquidityDto> {
   const client = await getServerApiClient();
+  const accountingApi = getAccountingApi(client);
   type QueryInput = RouteQuery<
-    (typeof client.v1.accounting.reports.liquidity)["$get"]
+    (typeof accountingApi.reports.liquidity)["$get"]
   >;
   const response = await requestOk(
-    await client.v1.accounting.reports.liquidity.$get(
+    await accountingApi.reports.liquidity.$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -249,11 +258,12 @@ export async function getFxRevaluation(
   query: Record<string, string | string[]>,
 ): Promise<FxRevaluationDto> {
   const client = await getServerApiClient();
+  const accountingApi = getAccountingApi(client);
   type QueryInput = RouteQuery<
-    (typeof client.v1.accounting.reports)["fx-revaluation"]["$get"]
+    (typeof accountingApi.reports)["fx-revaluation"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.accounting.reports["fx-revaluation"].$get(
+    await accountingApi.reports["fx-revaluation"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -267,11 +277,12 @@ export async function getFeeRevenue(
   query: Record<string, string | string[]>,
 ): Promise<FeeRevenueDto> {
   const client = await getServerApiClient();
+  const accountingApi = getAccountingApi(client);
   type QueryInput = RouteQuery<
-    (typeof client.v1.accounting.reports)["fee-revenue"]["$get"]
+    (typeof accountingApi.reports)["fee-revenue"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.accounting.reports["fee-revenue"].$get(
+    await accountingApi.reports["fee-revenue"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -285,11 +296,12 @@ export async function getClosePackage(
   query: Record<string, string | string[]>,
 ): Promise<ClosePackageDto> {
   const client = await getServerApiClient();
+  const accountingApi = getAccountingApi(client);
   type QueryInput = RouteQuery<
-    (typeof client.v1.accounting.reports)["close-package"]["$get"]
+    (typeof accountingApi.reports)["close-package"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.accounting.reports["close-package"].$get(
+    await accountingApi.reports["close-package"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),

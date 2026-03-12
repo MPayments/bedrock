@@ -54,9 +54,13 @@ const POSTING_CODE = {
   FEE_INCOME: "TC.3001",
   SPREAD_INCOME: "TC.3002",
   FEE_PASS_THROUGH_RESERVE: "TC.3003",
+  FEE_INCOME_FROM_RESERVE: "TC.3004",
+  SPREAD_INCOME_FROM_RESERVE: "TC.3005",
   ADJUSTMENT_CHARGE: "TC.3006",
   ADJUSTMENT_REFUND: "TC.3007",
   PROVIDER_FEE_EXPENSE_ACCRUAL: "TC.3008",
+  ADJUSTMENT_CHARGE_FROM_RESERVE: "TC.3009",
+  ADJUSTMENT_REFUND_FROM_RESERVE: "TC.3010",
   FEE_PAYMENT_INITIATED: "TC.3011",
   PAYOUT_INITIATED: "TC.3101",
 } as const;
@@ -70,9 +74,13 @@ const TRANSFER_CODE = {
   FEE_INCOME: 3001,
   SPREAD_INCOME: 3002,
   FEE_PASS_THROUGH_RESERVE: 3003,
+  FEE_INCOME_FROM_RESERVE: 3004,
+  SPREAD_INCOME_FROM_RESERVE: 3005,
   ADJUSTMENT_CHARGE: 3006,
   ADJUSTMENT_REFUND: 3007,
   PROVIDER_FEE_EXPENSE_ACCRUAL: 3008,
+  ADJUSTMENT_CHARGE_FROM_RESERVE: 3009,
+  ADJUSTMENT_REFUND_FROM_RESERVE: 3010,
   FEE_PAYMENT_INITIATED: 3011,
   PAYOUT_INITIATED: 3101,
   INTERNAL_TRANSFER: 4001,
@@ -107,7 +115,7 @@ function pendingTemplate(
 
 export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
   packKey: "bedrock-core-default",
-  version: 1,
+  version: 2,
   templates: [
     createTemplate({
       key: POSTING_TEMPLATE_KEY.TRANSFER_INTRA_IMMEDIATE,
@@ -491,7 +499,10 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
       postingCode: POSTING_CODE.FX_PRINCIPAL,
       transferCode: TRANSFER_CODE.FX_PRINCIPAL,
-      allowSources: [ACCOUNTING_SOURCE_ID.FX_EXECUTE],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.FX_EXECUTE,
+        ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["customerId", "orderId"],
       requiredRefs: ["quoteRef", "chainId"],
@@ -558,7 +569,11 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME,
       postingCode: POSTING_CODE.FEE_INCOME,
       transferCode: TRANSFER_CODE.FEE_INCOME,
-      allowSources: [ACCOUNTING_SOURCE_ID.FX_EXECUTE],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.FX_EXECUTE,
+        ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
+        ACCOUNTING_SOURCE_ID.INVOICE_RESERVE,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["customerId", "orderId", "feeBucket"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
@@ -580,7 +595,11 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.PAYMENT_FX_SPREAD_INCOME,
       postingCode: POSTING_CODE.SPREAD_INCOME,
       transferCode: TRANSFER_CODE.SPREAD_INCOME,
-      allowSources: [ACCOUNTING_SOURCE_ID.FX_EXECUTE],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.FX_EXECUTE,
+        ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
+        ACCOUNTING_SOURCE_ID.INVOICE_RESERVE,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["customerId", "orderId", "feeBucket"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
@@ -599,10 +618,60 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       },
     }),
     createTemplate({
+      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME_FROM_RESERVE,
+      postingCode: POSTING_CODE.FEE_INCOME_FROM_RESERVE,
+      transferCode: TRANSFER_CODE.FEE_INCOME_FROM_RESERVE,
+      allowSources: [ACCOUNTING_SOURCE_ID.FX_EXECUTE],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
+      requiredDimensions: ["orderId", "feeBucket"],
+      requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
+      debit: {
+        accountNo: ACCOUNT_NO.FEE_CLEARING,
+        dimensions: {
+          orderId: dimension("orderId"),
+          feeBucket: dimension("feeBucket"),
+        },
+      },
+      credit: {
+        accountNo: ACCOUNT_NO.FEE_REVENUE,
+        dimensions: {
+          orderId: dimension("orderId"),
+          feeBucket: dimension("feeBucket"),
+        },
+      },
+    }),
+    createTemplate({
+      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_SPREAD_INCOME_FROM_RESERVE,
+      postingCode: POSTING_CODE.SPREAD_INCOME_FROM_RESERVE,
+      transferCode: TRANSFER_CODE.SPREAD_INCOME_FROM_RESERVE,
+      allowSources: [ACCOUNTING_SOURCE_ID.FX_EXECUTE],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
+      requiredDimensions: ["orderId", "feeBucket"],
+      requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
+      debit: {
+        accountNo: ACCOUNT_NO.FEE_CLEARING,
+        dimensions: {
+          orderId: dimension("orderId"),
+          feeBucket: dimension("feeBucket"),
+        },
+      },
+      credit: {
+        accountNo: ACCOUNT_NO.SPREAD_REVENUE,
+        dimensions: {
+          orderId: dimension("orderId"),
+          feeBucket: dimension("feeBucket"),
+        },
+      },
+    }),
+    createTemplate({
       key: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
       postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
       transferCode: TRANSFER_CODE.FEE_PASS_THROUGH_RESERVE,
-      allowSources: [ACCOUNTING_SOURCE_ID.FX_EXECUTE],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.FX_EXECUTE,
+        ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
+        ACCOUNTING_SOURCE_ID.INVOICE_RESERVE,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["customerId", "orderId", "feeBucket"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
@@ -621,10 +690,39 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       },
     }),
     createTemplate({
+      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE_REVERSAL,
+      postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
+      transferCode: TRANSFER_CODE.FEE_PASS_THROUGH_RESERVE,
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.FX_EXECUTE,
+        ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
+        ACCOUNTING_SOURCE_ID.INVOICE_RESERVE,
+      ],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
+      requiredDimensions: ["customerId", "orderId", "feeBucket"],
+      requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
+      debit: {
+        accountNo: ACCOUNT_NO.FEE_CLEARING,
+        dimensions: {
+          orderId: dimension("orderId"),
+          feeBucket: dimension("feeBucket"),
+        },
+      },
+      credit: {
+        accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+        dimensions: {
+          customerId: dimension("customerId"),
+        },
+      },
+    }),
+    createTemplate({
       key: POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE,
       postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL,
       transferCode: TRANSFER_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL,
-      allowSources: [ACCOUNTING_SOURCE_ID.FX_EXECUTE],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.FX_EXECUTE,
+        ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["orderId", "feeBucket", "counterpartyId"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
@@ -645,10 +743,40 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       },
     }),
     createTemplate({
+      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE_REVERSAL,
+      postingCode: POSTING_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL,
+      transferCode: TRANSFER_CODE.PROVIDER_FEE_EXPENSE_ACCRUAL,
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.FX_EXECUTE,
+        ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
+      ],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
+      requiredDimensions: ["orderId", "feeBucket", "counterpartyId"],
+      requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
+      debit: {
+        accountNo: ACCOUNT_NO.FEE_CLEARING,
+        dimensions: {
+          orderId: dimension("orderId"),
+          feeBucket: dimension("feeBucket"),
+        },
+      },
+      credit: {
+        accountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
+        dimensions: {
+          orderId: dimension("orderId"),
+          feeBucket: dimension("feeBucket"),
+          counterpartyId: dimension("counterpartyId"),
+        },
+      },
+    }),
+    createTemplate({
       key: POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_CHARGE,
       postingCode: POSTING_CODE.ADJUSTMENT_CHARGE,
       transferCode: TRANSFER_CODE.ADJUSTMENT_CHARGE,
-      allowSources: [ACCOUNTING_SOURCE_ID.FX_EXECUTE],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.FX_EXECUTE,
+        ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["customerId", "orderId", "feeBucket"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
@@ -670,7 +798,10 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND,
       postingCode: POSTING_CODE.ADJUSTMENT_REFUND,
       transferCode: TRANSFER_CODE.ADJUSTMENT_REFUND,
-      allowSources: [ACCOUNTING_SOURCE_ID.FX_EXECUTE],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.FX_EXECUTE,
+        ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["customerId", "orderId", "feeBucket"],
       requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
@@ -685,6 +816,29 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
         accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
         dimensions: {
           customerId: dimension("customerId"),
+        },
+      },
+    }),
+    createTemplate({
+      key: POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_CHARGE_FROM_RESERVE,
+      postingCode: POSTING_CODE.ADJUSTMENT_CHARGE_FROM_RESERVE,
+      transferCode: TRANSFER_CODE.ADJUSTMENT_CHARGE_FROM_RESERVE,
+      allowSources: [ACCOUNTING_SOURCE_ID.FX_EXECUTE],
+      requiredBookRefs: [BOOK_REF_BOOK_ID],
+      requiredDimensions: ["orderId", "feeBucket"],
+      requiredRefs: ["quoteRef", "chainId", "componentId", "componentIndex"],
+      debit: {
+        accountNo: ACCOUNT_NO.FEE_CLEARING,
+        dimensions: {
+          orderId: dimension("orderId"),
+          feeBucket: dimension("feeBucket"),
+        },
+      },
+      credit: {
+        accountNo: ACCOUNT_NO.ADJUSTMENT_REVENUE,
+        dimensions: {
+          orderId: dimension("orderId"),
+          feeBucket: dimension("feeBucket"),
         },
       },
     }),
@@ -712,8 +866,8 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
     }),
     createTemplate({
       key: POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND_RESERVE,
-      postingCode: POSTING_CODE.FEE_PASS_THROUGH_RESERVE,
-      transferCode: TRANSFER_CODE.FEE_PASS_THROUGH_RESERVE,
+      postingCode: POSTING_CODE.ADJUSTMENT_REFUND_FROM_RESERVE,
+      transferCode: TRANSFER_CODE.ADJUSTMENT_REFUND_FROM_RESERVE,
       allowSources: [ACCOUNTING_SOURCE_ID.FX_EXECUTE],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["orderId", "feeBucket"],
@@ -737,7 +891,10 @@ export const rawPackDefinition = AccountingPackDefinitionSchema.parse({
       key: POSTING_TEMPLATE_KEY.PAYMENT_FX_PAYOUT_OBLIGATION,
       postingCode: POSTING_CODE.FX_PAYOUT_OBLIGATION,
       transferCode: TRANSFER_CODE.FX_PAYOUT_OBLIGATION,
-      allowSources: [ACCOUNTING_SOURCE_ID.FX_EXECUTE],
+      allowSources: [
+        ACCOUNTING_SOURCE_ID.FX_EXECUTE,
+        ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
+      ],
       requiredBookRefs: [BOOK_REF_BOOK_ID],
       requiredDimensions: ["orderId"],
       requiredRefs: ["quoteRef", "chainId", "payoutCounterpartyId"],

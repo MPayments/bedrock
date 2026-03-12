@@ -1,120 +1,38 @@
-import type { z } from "zod";
-
 import type { DocumentModule } from "@bedrock/application/documents";
+import type {
+  DocumentCatalogEntry,
+  DocumentFormBreakpoint as GenericDocumentFormBreakpoint,
+  DocumentFormDefinition as GenericDocumentFormDefinition,
+  DocumentFormField as GenericDocumentFormField,
+  DocumentFormFieldOption as GenericDocumentFormFieldOption,
+  DocumentFormResponsiveCount as GenericDocumentFormResponsiveCount,
+  DocumentFormRow as GenericDocumentFormRow,
+  DocumentFormRowField as GenericDocumentFormRowField,
+  DocumentFormSection as GenericDocumentFormSection,
+  DocumentFormSectionLayout as GenericDocumentFormSectionLayout,
+  DocumentFormValues as GenericDocumentFormValues,
+} from "@bedrock/application/documents/form-types";
 
 import type { IfrsModuleDeps } from "../documents/internal/types";
 import type { IfrsDocumentFamily, IfrsDocumentType } from "../types";
 
-export interface DocumentFormFieldOption {
-  value: string;
-  label: string;
-}
-
-interface DocumentFormFieldBase {
-  name: string;
-  label: string;
-  description?: string;
-  placeholder?: string;
-  hidden?: boolean;
-  deriveFrom?: {
-    kind: "accountCurrency";
-    accountFieldNames: string[];
-  };
-}
-
-type DocumentFormOwnerOptionsSource = "counterparties" | "organizations";
-type DocumentFormRequisiteOptionsSource =
-  | "counterpartyRequisites"
-  | "organizationRequisites";
-
-type DocumentFormFieldInput =
-  | (DocumentFormFieldBase & {
-      kind: "datetime" | "date" | "month" | "text" | "amount";
-    })
-  | (DocumentFormFieldBase & {
-      kind: "textarea";
-      rows?: number;
-    })
-  | (DocumentFormFieldBase & {
-      kind: "number";
-      min?: number;
-      step?: number;
-    })
-  | (DocumentFormFieldBase & {
-      kind: "enum";
-      options: DocumentFormFieldOption[];
-    })
-  | (DocumentFormFieldBase & {
-      kind: "counterparty";
-      optionsSource?: DocumentFormOwnerOptionsSource;
-    })
-  | (DocumentFormFieldBase & {
-      kind: "currency";
-    })
-  | (DocumentFormFieldBase & {
-      kind: "account";
-      counterpartyField: string;
-      optionsSource?: DocumentFormRequisiteOptionsSource;
-    });
-
-export type DocumentFormField = DocumentFormFieldInput;
-
-export type DocumentFormBreakpoint = "base" | "sm" | "md" | "lg";
-
-export type DocumentFormResponsiveCount = Partial<
-  Record<DocumentFormBreakpoint, 1 | 2 | 3 | 4>
+export type DocumentFormBreakpoint = GenericDocumentFormBreakpoint;
+export type DocumentFormField = GenericDocumentFormField;
+export type DocumentFormFieldOption = GenericDocumentFormFieldOption;
+export type DocumentFormResponsiveCount = GenericDocumentFormResponsiveCount;
+export type DocumentFormRow = GenericDocumentFormRow;
+export type DocumentFormRowField = GenericDocumentFormRowField;
+export type DocumentFormSection = GenericDocumentFormSection;
+export type DocumentFormSectionLayout = GenericDocumentFormSectionLayout;
+export type DocumentFormValues = GenericDocumentFormValues;
+export type DocumentFormDefinition = GenericDocumentFormDefinition<
+  IfrsDocumentType,
+  IfrsDocumentFamily
 >;
-
-export type DocumentFormRowField =
-  | string
-  | {
-      name: string;
-      span?: DocumentFormResponsiveCount;
-    };
-
-export interface DocumentFormRow {
-  fields: DocumentFormRowField[];
-  columns?: DocumentFormResponsiveCount;
-}
-
-export interface DocumentFormSectionLayout {
-  rows: DocumentFormRow[];
-}
-
-export interface DocumentFormSection {
-  id: string;
-  title: string;
-  description?: string;
-  fields: DocumentFormField[];
-  layout?: DocumentFormSectionLayout;
-}
-
-export type DocumentFormValues = Record<string, unknown>;
-
-export interface DocumentFormDefinition {
-  docType: IfrsDocumentType;
-  label: string;
-  family: IfrsDocumentFamily;
-  adminOnly?: boolean;
-  schema: z.ZodTypeAny;
-  sections: DocumentFormSection[];
-  defaultValues: () => DocumentFormValues;
-  fromPayload: (payload: Record<string, unknown>) => DocumentFormValues;
-  toPayload: (values: DocumentFormValues) => unknown;
-}
-
-export interface IfrsDocumentCatalogEntry {
-  docType: IfrsDocumentType;
-  label: string;
-  family: IfrsDocumentFamily;
-  docNoPrefix: string;
-  schema: z.ZodTypeAny;
-  creatable: boolean;
-  hasTypedForm: boolean;
-  adminOnly: boolean;
-  listed: boolean;
-  formDefinition: DocumentFormDefinition | null;
-}
+export type IfrsDocumentCatalogEntry = DocumentCatalogEntry<
+  IfrsDocumentType,
+  IfrsDocumentFamily
+>;
 
 export type IfrsDocumentDefinition = IfrsDocumentCatalogEntry & {
   createModule: (deps: IfrsModuleDeps) => DocumentModule;

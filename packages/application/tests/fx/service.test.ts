@@ -33,6 +33,12 @@ function selectWhereOrderBy(rows: any[]) {
     };
 }
 
+function deleteWhere() {
+    return {
+        where: vi.fn(async () => undefined),
+    };
+}
+
 function makeQuote(overrides: Record<string, unknown> = {}) {
     return {
         id: QUOTE_ID,
@@ -62,6 +68,7 @@ describe("createFxService", () => {
     it("quotes explicit route and persists computed legs + fee snapshot", async () => {
         const createdQuote = makeQuote();
         const insertedLegRows: any[] = [];
+        const insertedFinancialLineRows: any[] = [];
         const txInsert = vi.fn((table: unknown) => {
             if (table === schema.fxQuotes) {
                 return {
@@ -80,11 +87,26 @@ describe("createFxService", () => {
                     }),
                 };
             }
+            if (table === schema.fxQuoteFinancialLines) {
+                return {
+                    values: vi.fn(async (rows: any[]) => {
+                        insertedFinancialLineRows.push(...rows);
+                        return rows;
+                    }),
+                };
+            }
             throw new Error("unexpected insert table");
+        });
+        const txDelete = vi.fn((table: unknown) => {
+            if (table === schema.fxQuoteFinancialLines) {
+                return deleteWhere();
+            }
+
+            throw new Error("unexpected delete table");
         });
         const db = {
             select: vi.fn(),
-            transaction: vi.fn(async (fn: any) => fn({ insert: txInsert })),
+            transaction: vi.fn(async (fn: any) => fn({ insert: txInsert, delete: txDelete })),
         } as any;
         const feesService = {
             calculateFxQuoteFeeComponents: vi.fn(async () => [{
@@ -155,6 +177,19 @@ describe("createFxService", () => {
             expect.objectContaining({ quoteId: QUOTE_ID }),
             expect.objectContaining({ insert: expect.any(Function) })
         );
+        expect(txDelete).toHaveBeenCalledWith(schema.fxQuoteFinancialLines);
+        expect(insertedFinancialLineRows).toEqual([
+            expect.objectContaining({
+                quoteId: QUOTE_ID,
+                idx: 1,
+                bucket: "fee_revenue",
+                currencyId: "cur-rub",
+                amountMinor: 1_000n,
+                source: "rule",
+                settlementMode: "in_ledger",
+                metadata: { feeKind: "fx_fee" },
+            }),
+        ]);
     });
 
     it("rejects explicit route with broken leg continuity", async () => {
@@ -217,6 +252,13 @@ describe("createFxService", () => {
             rateDen: 1n,
         });
         const insertedLegRows: any[] = [];
+        const txDelete = vi.fn((table: unknown) => {
+            if (table === schema.fxQuoteFinancialLines) {
+                return deleteWhere();
+            }
+
+            throw new Error("unexpected delete table");
+        });
         const db = {
             select: vi
                 .fn()
@@ -249,6 +291,7 @@ describe("createFxService", () => {
                     }
                     throw new Error("unexpected insert table");
                 }),
+                delete: txDelete,
             })),
         } as any;
         const feesService = {
@@ -277,6 +320,7 @@ describe("createFxService", () => {
             toAmountMinor: 20_000n,
             sourceKind: "derived",
         });
+        expect(txDelete).toHaveBeenCalledWith(schema.fxQuoteFinancialLines);
     });
 
     it("returns existing quote on idempotency race without duplicating side effects", async () => {
@@ -357,6 +401,17 @@ describe("createFxService", () => {
                 createdAt: new Date("2026-02-14T00:00:00Z"),
             },
         ];
+        const financialLines = [{
+            quoteId: quote.id,
+            idx: 1,
+            bucket: "fee_revenue",
+            currencyId: "cur-rub",
+            amountMinor: 300n,
+            source: "rule",
+            settlementMode: "in_ledger",
+            memo: "bank fee",
+            metadata: { feeKind: "bank_fee" },
+        }];
         const feeComponents = [{
             id: "quote_component:1",
             kind: "bank_fee",
@@ -369,7 +424,8 @@ describe("createFxService", () => {
             select: vi
                 .fn()
                 .mockImplementationOnce(() => selectWhereLimit([quote]))
-                .mockImplementationOnce(() => selectWhereOrderBy(legs)),
+                .mockImplementationOnce(() => selectWhereOrderBy(legs))
+                .mockImplementationOnce(() => selectWhereLimit(financialLines)),
         } as any;
         const feesService = {
             calculateFxQuoteFeeComponents: vi.fn(async () => []),
@@ -383,6 +439,18 @@ describe("createFxService", () => {
         expect(details.quote).toEqual(quote);
         expect(details.legs).toEqual(legs);
         expect(details.feeComponents).toEqual(feeComponents);
+        expect(details.financialLines).toEqual([
+            {
+                id: "quote_financial_line:550e8400-e29b-41d4-a716-446655440010:1",
+                bucket: "fee_revenue",
+                currency: "RUB",
+                amountMinor: 300n,
+                source: "rule",
+                settlementMode: "in_ledger",
+                memo: "bank fee",
+                metadata: { feeKind: "bank_fee" },
+            },
+        ]);
         expect(details.pricingTrace).toEqual({ version: "v1", mode: "explicit_route" });
     });
 

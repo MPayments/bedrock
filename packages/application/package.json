@@ -30,6 +30,7 @@
     "./dimensions": "./src/dimensions/index.ts",
     "./documents": "./src/documents/index.ts",
     "./documents/contracts": "./src/documents/contracts.ts",
+    "./documents/form-types": "./src/documents/form-types.ts",
     "./documents/module-kit": "./src/documents/module-kit/index.ts",
     "./documents/schema": "./src/documents/schema.ts",
     "./documents/state-machine": "./src/documents/state-machine.ts",
@@ -67,6 +68,8 @@
     "./fx": "./src/fx/index.ts",
     "./fx/contracts": "./src/fx/contracts.ts",
     "./fx/schema": "./src/fx/schema/index.ts",
+    "./commercial-documents": "./src/commercial-documents/index.ts",
+    "./commercial-documents/contracts": "./src/commercial-documents/contracts.ts",
     "./ifrs-documents": "./src/ifrs-documents/index.ts",
     "./ifrs-documents/contracts": "./src/ifrs-documents/contracts.ts",
     "./ifrs-documents/validation": "./src/ifrs-documents/validation.ts"

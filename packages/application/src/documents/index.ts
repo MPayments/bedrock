@@ -1,6 +1,20 @@
 export { createDocumentsService } from "./service";
 export type { DocumentsService } from "./service";
 export { createDocumentRegistry } from "./create-document-registry";
+export type {
+  DocumentCatalogEntry,
+  DocumentFormBreakpoint,
+  DocumentFormDefinition,
+  DocumentFormField,
+  DocumentFormFieldOption,
+  DocumentFormResponsiveCount,
+  DocumentFormRow,
+  DocumentFormRowField,
+  DocumentFormSection,
+  DocumentFormSectionLayout,
+  DocumentFormValues,
+  DocumentFormVisibilityRule,
+} from "./form-types";
 export {
   createDocumentsWorkerDefinition,
   createPeriodCloseWorkerDefinition,

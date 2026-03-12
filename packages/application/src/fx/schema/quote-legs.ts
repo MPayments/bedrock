@@ -40,4 +40,7 @@ export const fxQuoteLegs = pgTable(
     ]),
 );
 
-export type FxQuoteLeg = typeof fxQuoteLegs.$inferSelect;
+export type FxQuoteLeg = typeof fxQuoteLegs.$inferSelect & {
+    fromCurrency?: string;
+    toCurrency?: string;
+};

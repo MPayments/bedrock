@@ -6,6 +6,8 @@ export const ACCOUNTING_SOURCE_ID = {
   PAYMENT_CASE: "payment_case",
   PAYIN_FUNDING: "payin_funding",
   FX_EXECUTE: "fx_execute",
+  INVOICE_DIRECT: "invoice_direct",
+  INVOICE_RESERVE: "invoice_reserve",
   PAYOUT_INITIATE: "payout_initiate",
   PAYOUT_SETTLE: "payout_settle",
   PAYOUT_VOID: "payout_void",
@@ -35,6 +37,8 @@ export const OPERATION_CODE = {
   TREASURY_FEE_PAYMENT_SETTLE: "TREASURY_FEE_PAYMENT_SETTLE",
   TREASURY_FEE_PAYMENT_VOID: "TREASURY_FEE_PAYMENT_VOID",
   TREASURY_CAPITAL_FUNDING: "TREASURY_CAPITAL_FUNDING",
+  COMMERCIAL_INVOICE_DIRECT: "COMMERCIAL_INVOICE_DIRECT",
+  COMMERCIAL_INVOICE_RESERVE: "COMMERCIAL_INVOICE_RESERVE",
 } as const;
 
 export type OperationCode =
@@ -62,11 +66,19 @@ export const POSTING_TEMPLATE_KEY = {
   PAYMENT_FX_LEG_OUT: "payment.fx.leg_out",
   PAYMENT_FX_LEG_IN: "payment.fx.leg_in",
   PAYMENT_FX_FEE_INCOME: "payment.fx.fee_income",
+  PAYMENT_FX_FEE_INCOME_FROM_RESERVE: "payment.fx.fee_income.from_reserve",
   PAYMENT_FX_SPREAD_INCOME: "payment.fx.spread_income",
+  PAYMENT_FX_SPREAD_INCOME_FROM_RESERVE:
+    "payment.fx.spread_income.from_reserve",
   PAYMENT_FX_FEE_RESERVE: "payment.fx.fee_reserve",
+  PAYMENT_FX_FEE_RESERVE_REVERSAL: "payment.fx.fee_reserve.reversal",
   PAYMENT_FX_PROVIDER_FEE_EXPENSE: "payment.fx.provider_fee_expense",
+  PAYMENT_FX_PROVIDER_FEE_EXPENSE_REVERSAL:
+    "payment.fx.provider_fee_expense.reversal",
   PAYMENT_FX_ADJUSTMENT_CHARGE: "payment.fx.adjustment.charge",
   PAYMENT_FX_ADJUSTMENT_REFUND: "payment.fx.adjustment.refund",
+  PAYMENT_FX_ADJUSTMENT_CHARGE_FROM_RESERVE:
+    "payment.fx.adjustment.charge.from_reserve",
   PAYMENT_FX_ADJUSTMENT_CHARGE_RESERVE: "payment.fx.adjustment.charge_reserve",
   PAYMENT_FX_ADJUSTMENT_REFUND_RESERVE: "payment.fx.adjustment.refund_reserve",
   PAYMENT_FX_PAYOUT_OBLIGATION: "payment.fx.payout_obligation",

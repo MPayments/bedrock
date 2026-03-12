@@ -17,6 +17,7 @@ import { Spinner } from "@bedrock/ui/components/spinner";
 import type { UserRole } from "@/lib/auth/types";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
 import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
+import { buildDocumentDetailsHref } from "@/features/documents/lib/routes";
 
 import {
   DocumentTypedForm,
@@ -87,7 +88,10 @@ export function DocumentCreateTypedFormClient({
           actionsPlacement="external"
           onActionStateChange={setActionState}
           onSuccess={(document) => {
-            router.push(`/documents/${document.docType}/${document.id}`);
+            router.push(
+              buildDocumentDetailsHref(document.docType, document.id) ??
+                "/documents",
+            );
           }}
         />
       </CardContent>

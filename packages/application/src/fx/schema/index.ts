@@ -1,3 +1,4 @@
+import { fxQuoteFinancialLines } from "./quote-financial-lines";
 import { fxQuoteLegs } from "./quote-legs";
 import { fxQuotes } from "./quotes";
 import { fxRateSources } from "./rate-sources";
@@ -7,11 +8,19 @@ export const schema = {
   fxRates,
   fxRateSources,
   fxQuotes,
+  fxQuoteFinancialLines,
   fxQuoteLegs,
 };
 
-export { fxQuoteLegs, fxQuotes, fxRateSources, fxRates };
+export {
+  fxQuoteFinancialLines,
+  fxQuoteLegs,
+  fxQuotes,
+  fxRateSources,
+  fxRates,
+};
 
+export { type FxQuoteFinancialLine } from "./quote-financial-lines";
 export { type FxQuoteLeg } from "./quote-legs";
 export { type FxQuote, type FxQuoteStatus } from "./quotes";
 export {

@@ -1,5 +1,9 @@
 import { and, eq } from "drizzle-orm";
 
+import {
+    aggregateFinancialLines,
+    type FinancialLine,
+} from "@bedrock/application/commercial-documents/contracts";
 import { schema, type FxQuote, type FxQuoteLeg } from "@bedrock/application/fx/schema";
 import { effectiveRateFromAmounts, mulDivFloor } from "@bedrock/common";
 import type { Transaction } from "@bedrock/common/db/types";
@@ -8,6 +12,11 @@ import {
     NotFoundError,
     QuoteExpiredError,
 } from "../errors";
+import {
+    financialLineFromFeeComponent,
+    getQuoteFinancialLines,
+    saveQuoteFinancialLines,
+} from "../internal/financial-lines";
 import { type FxServiceContext } from "../internal/context";
 import { resolveQuoteByRef } from "../internal/quote-ref";
 import { buildAutoCrossTrace, computeExplicitRouteLegs } from "../internal/routes";
@@ -94,9 +103,19 @@ export function createQuoteHandlers(
         const legsWithCurrencyCodes = await withLegCurrencyCodes(legs);
 
         const feeComponents = await feesService.getQuoteFeeComponents({ quoteId: quote.id });
+        const financialLines = await getQuoteFinancialLines({
+            context,
+            quoteId: quote.id,
+        });
         const pricingTrace = (quote.pricingTrace ?? {}) as Record<string, unknown>;
 
-        return { quote, legs: legsWithCurrencyCodes, feeComponents, pricingTrace };
+        return {
+            quote,
+            legs: legsWithCurrencyCodes,
+            feeComponents,
+            financialLines,
+            pricingTrace,
+        };
     }
 
     async function quote(input: QuoteInput): Promise<FxQuote> {
@@ -151,6 +170,11 @@ export function createQuoteHandlers(
             dealForm: validated.dealForm,
             at: validated.asOf,
         });
+        const computedFinancialLines = feeComponents.map(financialLineFromFeeComponent);
+        const financialLines = aggregateFinancialLines([
+            ...computedFinancialLines,
+            ...(validated.manualFinancialLines ?? []),
+        ]) as FinancialLine[];
 
         const ttlSeconds = validated.ttlSeconds ?? DEFAULT_QUOTE_TTL_SECONDS;
         const expiresAt = new Date(validated.asOf.getTime() + ttlSeconds * 1000);
@@ -215,12 +239,19 @@ export function createQuoteHandlers(
                     quoteId: created.id,
                     components: feeComponents,
                 }, tx);
+                await saveQuoteFinancialLines({
+                    context,
+                    quoteId: created.id,
+                    financialLines,
+                    tx,
+                });
 
                 log?.info("FX quote created", {
                     quoteId: created.id,
                     mode: validated.mode,
                     legs: legs.length,
                     feeComponents: feeComponents.length,
+                    financialLines: financialLines.length,
                 });
                 return {
                     ...created,

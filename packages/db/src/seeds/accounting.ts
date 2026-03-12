@@ -97,7 +97,11 @@ const RULES = [
   ["TC.3001", "2110", "4110"],
   ["TC.3002", "2110", "4120"],
   ["TC.3003", "2110", "2120"],
+  ["TC.3004", "2120", "4110"],
+  ["TC.3005", "2120", "4120"],
   ["TC.3008", "5120", "2120"],
+  ["TC.3009", "2120", "4130"],
+  ["TC.3010", "5110", "2120"],
   ["TC.3101", "2130", "1110"],
   ["TC.3011", "2120", "1110"],
   ["TC.3006", "2110", "4130"],
@@ -210,6 +214,10 @@ const POSTING_CODE_DIMENSION_POLICIES = [
   ["TC.3002", "orderId", true, "line"],
   ["TC.3002", "customerId", true, "debit"],
   ["TC.3002", "feeBucket", true, "line"],
+  ["TC.3004", "orderId", true, "line"],
+  ["TC.3004", "feeBucket", true, "line"],
+  ["TC.3005", "orderId", true, "line"],
+  ["TC.3005", "feeBucket", true, "line"],
   ["TC.3003", "orderId", true, "line"],
   ["TC.3003", "feeBucket", true, "line"],
   ["TC.3008", "orderId", true, "line"],
@@ -227,6 +235,10 @@ const POSTING_CODE_DIMENSION_POLICIES = [
   ["TC.3007", "orderId", true, "line"],
   ["TC.3007", "customerId", true, "credit"],
   ["TC.3007", "feeBucket", true, "line"],
+  ["TC.3009", "orderId", true, "line"],
+  ["TC.3009", "feeBucket", true, "line"],
+  ["TC.3010", "orderId", true, "line"],
+  ["TC.3010", "feeBucket", true, "line"],
 ] as const;
 
 const REPORT_LINE_MAPPINGS = [

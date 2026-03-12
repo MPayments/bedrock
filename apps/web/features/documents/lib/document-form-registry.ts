@@ -1,5 +1,6 @@
 import type { UserRole } from "@/lib/auth/types";
 
+import { COMMERCIAL_DOCUMENT_DEFINITIONS } from "@bedrock/application/commercial-documents/contracts";
 import { IFRS_DOCUMENT_DEFINITIONS } from "@bedrock/application/ifrs-documents/contracts";
 
 import type { DocumentFormDefinition } from "./document-form-registry/types";
@@ -18,7 +19,7 @@ export type {
 } from "./document-form-registry/types";
 
 const DOCUMENT_FORM_DEFINITION_BY_TYPE = new Map<string, DocumentFormDefinition>(
-  IFRS_DOCUMENT_DEFINITIONS.flatMap((definition) =>
+  [...IFRS_DOCUMENT_DEFINITIONS, ...COMMERCIAL_DOCUMENT_DEFINITIONS].flatMap((definition) =>
     definition.formDefinition
       ? [[definition.docType, definition.formDefinition] as const]
       : [],

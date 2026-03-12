@@ -9,6 +9,8 @@ export {
   validateMarkQuoteUsedInput,
   validateGetQuoteDetailsInput,
   validateSyncRatesFromSourceInput,
+  GetQuoteDetailsInputSchema,
+  QuoteInputSchema,
 } from "./validation";
 export type {
   SetManualRateInput,
@@ -46,12 +48,22 @@ export {
   FxRateSourceSchema,
   FxRateSourceStatusSchema,
   FxRateSourceStatusesResponseSchema,
+  CreateFxQuoteInputSchema,
+  FxQuoteDetailsResponseSchema,
+  FxQuoteFeeComponentSchema,
+  FxQuoteFinancialLineSchema,
+  FxQuoteLegInputSchema,
+  FxQuoteLegSchema,
+  FxQuotePricingTraceSchema,
+  FxQuoteSchema,
   SetManualRateInputSchema,
   SetManualRateResponseSchema,
 } from "./contracts";
 export type {
+  CreateFxQuoteInput,
   FxRateHistoryPoint,
   FxRatePair,
+  FxQuoteDetailsResponse,
 } from "./contracts";
 
 export type {

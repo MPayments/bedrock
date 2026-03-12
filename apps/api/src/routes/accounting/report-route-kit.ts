@@ -5,7 +5,10 @@ import { ValidationError } from "@bedrock/common/errors";
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";
 
-export type AccountingRoutesApp = OpenAPIHono<{ Variables: AuthVariables }>;
+// The accounting router is composed through helper functions that currently
+// erase the accumulated Hono schema. Keep this sub-router typed as `any`
+// so the generated API client still exposes `/v1/accounting`.
+export type AccountingRoutesApp = OpenAPIHono<{ Variables: AuthVariables }, any>;
 
 export interface PaginatedPayload<T> {
   data: T[];
