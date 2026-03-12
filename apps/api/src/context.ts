@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { AccountingReportingService } from "@bedrock/application/accounting-reporting";
 import type { FeesService } from "@bedrock/application/fees";
 import type { FxService } from "@bedrock/application/fx";
-import type { PaymentsService } from "@bedrock/application/payments";
 import type { AccountingService } from "@bedrock/application/accounting";
 import type { BalancesService } from "@bedrock/application/balances";
 import type { CounterpartiesService } from "@bedrock/application/counterparties";
@@ -64,7 +63,6 @@ export interface AppContext {
   feesService: FeesService;
   fxService: FxService;
   organizationsService: OrganizationsService;
-  paymentsService: PaymentsService;
   requisiteProvidersService: RequisiteProvidersService;
   requisitesService: RequisitesService;
   usersService: UsersService;
@@ -90,7 +88,6 @@ export function createAppContext(env: Env): AppContext {
     feesService: applicationServices.feesService,
     fxService: applicationServices.fxService,
     organizationsService: applicationServices.organizationsService,
-    paymentsService: applicationServices.paymentsService,
     requisiteProvidersService: applicationServices.requisiteProvidersService,
     requisitesService: applicationServices.requisitesService,
     usersService: core.usersService,

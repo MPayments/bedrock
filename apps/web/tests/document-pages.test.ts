@@ -94,7 +94,7 @@ describe("document pages", () => {
         params: Promise.resolve({
           family: "transfers",
         }),
-        searchParams: Promise.resolve({ docType: "payment_intent" }),
+        searchParams: Promise.resolve({ docType: "legacy_doc_type" }),
       }),
     ).rejects.toBe(NOT_FOUND);
   });

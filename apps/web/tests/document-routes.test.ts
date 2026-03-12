@@ -27,8 +27,8 @@ describe("document routes", () => {
   });
 
   it("returns null for non-documents-workspace types", () => {
-    expect(buildDocumentTypeHref("payment_intent")).toBeNull();
-    expect(buildDocumentCreateHref("payment_resolution")).toBeNull();
-    expect(buildDocumentDetailsHref("payment_intent", "doc-123")).toBeNull();
+    expect(buildDocumentTypeHref("legacy_doc_type")).toBeNull();
+    expect(buildDocumentCreateHref("unknown_doc_type")).toBeNull();
+    expect(buildDocumentDetailsHref("legacy_doc_type", "doc-123")).toBeNull();
   });
 });

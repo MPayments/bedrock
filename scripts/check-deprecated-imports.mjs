@@ -6,7 +6,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
 const LEGACY_SPECIFIER_PATTERN =
-  /@bedrock\/(foundation|platform|modules|core|app|kernel|accounting|balances|component-runtime|module-runtime|connectors|dimensions|documents|idempotency|ledger|orchestration|reconciliation|currencies|counterparties|customers|counterparty-accounts|accounting-reporting|fees|fx|payments)(?:\/|["'])/g;
+  /@bedrock\/(foundation|platform|modules|core|app|kernel|accounting|balances|component-runtime|module-runtime|connectors|dimensions|documents|idempotency|ledger|orchestration|reconciliation|currencies|counterparties|customers|counterparty-accounts|accounting-reporting|fees|fx)(?:\/|["'])/g;
 
 const SOURCE_ROOTS = [
   join(ROOT, "apps"),

@@ -9,29 +9,9 @@ import type {
 } from "./doc-types/shared";
 
 export type { TypedDocumentType } from "./doc-types/shared";
-export type DocumentsWorkspaceFamily = Exclude<DocumentTypeFamily, "payments">;
+export type DocumentsWorkspaceFamily = DocumentTypeFamily;
 
-const PAYMENT_DOCUMENT_TYPES: DocumentTypeOption[] = [
-  {
-    value: "payment_intent",
-    label: "Платежное намерение",
-    family: "payments",
-    creatable: false,
-    hasTypedForm: false,
-  },
-  {
-    value: "payment_resolution",
-    label: "Разрешение платежа",
-    family: "payments",
-    creatable: false,
-    hasTypedForm: false,
-  },
-];
-
-const DOCUMENT_TYPES: DocumentTypeOption[] = [
-  ...IFRS_DOCUMENT_TYPE_OPTIONS,
-  ...PAYMENT_DOCUMENT_TYPES,
-];
+const DOCUMENT_TYPES: DocumentTypeOption[] = [...IFRS_DOCUMENT_TYPE_OPTIONS];
 
 const DOCUMENT_TYPE_BY_ID = new Map(
   DOCUMENT_TYPES.map((option) => [option.value, option]),
@@ -78,12 +58,7 @@ export function isDocumentsWorkspaceFamily(
 export function getDocumentsWorkspaceFamily(
   docType: string,
 ): DocumentsWorkspaceFamily | null {
-  const family = getDocumentTypeFamily(docType);
-  if (!family || family === "payments") {
-    return null;
-  }
-
-  return family;
+  return getDocumentTypeFamily(docType);
 }
 
 export function getDocumentsWorkspaceFamilyLabel(
@@ -108,11 +83,7 @@ export function getDocumentsWorkspaceTypesForFamily(
 }
 
 export function getTypeListDocumentOptions(role: UserRole): DocumentTypeOption[] {
-  return DOCUMENT_TYPES.filter(
-    (option) =>
-      option.family !== "payments" &&
-      isAllowedForRole(option, role),
-  );
+  return DOCUMENT_TYPES.filter((option) => isAllowedForRole(option, role));
 }
 
 export function getCreateDocumentTypeOptions(
@@ -120,7 +91,6 @@ export function getCreateDocumentTypeOptions(
 ): DocumentTypeOption[] {
   return DOCUMENT_TYPES.filter(
     (option) =>
-      option.family !== "payments" &&
       option.creatable &&
       isAllowedForRole(option, role),
   );

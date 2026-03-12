@@ -3,12 +3,9 @@ import {
   type IfrsDocumentType,
 } from "@bedrock/application/ifrs-documents/contracts";
 
-export type DocumentTypeFamily = "transfers" | "ifrs" | "payments";
+export type DocumentTypeFamily = "transfers" | "ifrs";
 
-export type KnownDocumentType =
-  | IfrsDocumentType
-  | "payment_intent"
-  | "payment_resolution";
+export type KnownDocumentType = IfrsDocumentType;
 
 export type TypedDocumentType = Exclude<IfrsDocumentType, "period_close">;
 

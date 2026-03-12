@@ -141,15 +141,6 @@ export const appUnitProjects = [
       exclude: ["tests/fx/integration/**", ...NODE_EXCLUDE],
     },
   }),
-  appProject({
-    test: {
-      name: "payments",
-      globals: true,
-      environment: "node",
-      include: ["tests/payments/**/*.test.ts"],
-      exclude: NODE_EXCLUDE,
-    },
-  }),
 ];
 
 export default defineConfig({

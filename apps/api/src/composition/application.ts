@@ -27,12 +27,6 @@ import {
   type OrganizationsService,
 } from "@bedrock/application/organizations";
 import {
-  createPaymentIntentDocumentModule,
-  createPaymentResolutionDocumentModule,
-  createPaymentsService,
-  type PaymentsService,
-} from "@bedrock/application/payments";
-import {
   createRequisiteProvidersService,
   type RequisiteProvidersService,
 } from "@bedrock/application/requisite-providers";
@@ -52,7 +46,6 @@ export interface ApiApplicationServices {
   feesService: FeesService;
   fxService: FxService;
   organizationsService: OrganizationsService;
-  paymentsService: PaymentsService;
   requisiteProvidersService: RequisiteProvidersService;
   requisitesService: RequisitesService;
   documentsService: DocumentsService;
@@ -94,12 +87,6 @@ export function createApplicationServices(
     ...createIfrsDocumentModules({
       requisitesService,
     }),
-    createPaymentIntentDocumentModule({
-      requisitesService,
-    }),
-    createPaymentResolutionDocumentModule({
-      requisitesService,
-    }),
   ]);
   const documentsService = createDocumentsService({
     accounting: accountingService,
@@ -107,10 +94,6 @@ export function createApplicationServices(
     ledger,
     ledgerReadService,
     registry: documentRegistry,
-    logger,
-  });
-  const paymentsService = createPaymentsService({
-    documents: documentsService,
     logger,
   });
 
@@ -122,7 +105,6 @@ export function createApplicationServices(
     feesService,
     fxService,
     organizationsService,
-    paymentsService,
     requisiteProvidersService,
     requisitesService,
     documentsService,

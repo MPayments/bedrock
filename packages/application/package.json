@@ -69,8 +69,7 @@
     "./fx/schema": "./src/fx/schema/index.ts",
     "./ifrs-documents": "./src/ifrs-documents/index.ts",
     "./ifrs-documents/contracts": "./src/ifrs-documents/contracts.ts",
-    "./ifrs-documents/validation": "./src/ifrs-documents/validation.ts",
-    "./payments": "./src/payments/index.ts"
+    "./ifrs-documents/validation": "./src/ifrs-documents/validation.ts"
   },
   "scripts": {
     "build": "tsgo --project tsconfig.json",

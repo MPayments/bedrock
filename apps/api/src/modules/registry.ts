@@ -9,7 +9,6 @@ import {
   documentsRoutes,
   fxRatesRoutes,
   organizationsRoutes,
-  paymentsRoutes,
   requisiteProvidersRoutes,
   requisitesRoutes,
 } from "../routes";
@@ -74,13 +73,6 @@ export const fxRatesModule = {
   },
 } as const satisfies ApiApplicationModule<"/fx/rates">;
 
-export const paymentsModule = {
-  routePath: "/payments",
-  registerRoutes(ctx: AppContext) {
-    return paymentsRoutes(ctx);
-  },
-} as const satisfies ApiApplicationModule<"/payments">;
-
 export const organizationsModule = {
   routePath: "/organizations",
   registerRoutes(ctx: AppContext) {
@@ -111,7 +103,6 @@ export const API_APPLICATION_MODULES = [
   currenciesModule,
   documentsModule,
   organizationsModule,
-  paymentsModule,
   requisiteProvidersModule,
   requisitesModule,
   fxRatesModule,

@@ -11,7 +11,6 @@ const SOURCE_ROOTS = [
   join(ROOT, "packages", "core", "src", "balances"),
   join(ROOT, "packages", "core", "src", "reconciliation"),
   join(ROOT, "packages", "application", "src", "accounting-reporting"),
-  join(ROOT, "packages", "application", "src", "payments"),
   join(ROOT, "packages", "application", "src", "fees"),
   join(ROOT, "apps", "api", "src"),
   join(ROOT, "apps", "workers", "src"),
