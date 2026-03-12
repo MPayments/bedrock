@@ -11,7 +11,7 @@
     "./bedrock/harness/fees": "./src/bedrock/harness/fees.ts",
     "./bedrock/harness/fx": "./src/bedrock/harness/fx.ts",
     "./bedrock/integration/postgres": "./src/bedrock/integration/postgres.ts",
-    "./kernel/db": "./src/kernel/db.ts",
+    "./kernel/db": "./src/db.ts",
     "./fixtures": "./src/fixtures.ts"
   },
   "scripts": {

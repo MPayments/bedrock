@@ -6,15 +6,21 @@ import { Pool } from "pg";
 
 import {
   AccountingPackDefinitionSchema,
+  type AccountingPackDefinition,
+} from "../src/packs/schema";
+import { PACK_PACKAGE_NAME } from "../src/packs/bedrock-core-default";
+import {
   compilePack,
   createAccountingRuntime,
-  type AccountingPackDefinition,
   type CompiledPack,
-} from "@bedrock/accounting";
+} from "../src/runtime";
 import { canonicalJson } from "@bedrock/common";
 import type { Database } from "@bedrock/common/db/types";
 
-const DEFAULT_PACK_SPECIFIER = "@bedrock/accounting/packs/bedrock-core-default";
+const DEFAULT_PACK_URL = new URL(
+  "../src/packs/bedrock-core-default.ts",
+  import.meta.url,
+);
 
 const db: Database = drizzle(
   new Pool({
@@ -67,10 +73,10 @@ export async function loadRawPackDefinition(): Promise<{
   const packPath = readOptionalFlag("pack-path");
   const packRef = packPath
     ? resolve(process.cwd(), packPath)
-    : DEFAULT_PACK_SPECIFIER;
+    : PACK_PACKAGE_NAME;
   const module = (packPath
     ? await import(pathToFileURL(packRef).href)
-    : await import(DEFAULT_PACK_SPECIFIER)) as {
+    : await import(DEFAULT_PACK_URL.href)) as {
     rawPackDefinition?: unknown;
   };
 

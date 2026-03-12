@@ -26,7 +26,6 @@
   },
   "devDependencies": {
     "@bedrock/db": "workspace:*",
-    "@bedrock/eslint-config": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
     "eslint": "^9.31.0",

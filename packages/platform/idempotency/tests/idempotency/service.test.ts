@@ -6,7 +6,7 @@ import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
   createIdempotencyService,
-} from "../../src/idempotency";
+} from "../../src";
 
 function createTxStub(options?: {
   insertedReceipt?: Record<string, unknown> | null;

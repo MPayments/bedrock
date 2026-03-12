@@ -34,17 +34,11 @@
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@bedrock/eslint-config": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
     "eslint": "^9.31.0",
     "typescript": "^5.8.3",
     "vitest": "^4.0.18",
-    "@bedrock/commercial-documents": "workspace:*",
-    "@bedrock/fx": "workspace:*",
-    "@bedrock/ifrs-documents": "workspace:*",
-    "@bedrock/test-utils": "workspace:*",
-    "@types/pg": "^8.16.0",
-    "pg": "^8.18.0"
+    "@bedrock/test-utils": "workspace:*"
   }
 }

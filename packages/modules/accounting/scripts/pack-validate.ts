@@ -1,6 +1,5 @@
 import { loadRawPackDefinition } from "./pack-common";
-import { validatePackDefinition } from "@bedrock/accounting";
-
+import { validatePackDefinition } from "../src/runtime";
 
 async function main() {
   const { packRef, definition } = await loadRawPackDefinition();

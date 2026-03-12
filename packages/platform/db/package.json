@@ -34,7 +34,6 @@
     "@bedrock/accounting-reporting": "workspace:*",
     "@bedrock/auth": "workspace:*",
     "@bedrock/balances": "workspace:*",
-    "@bedrock/common": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",

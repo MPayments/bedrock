@@ -2,11 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createReconciliationService } from "../src/service";
 
+const EXCEPTION_ID = "11111111-1111-4111-8111-111111111111";
+
 function createExceptionRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
-    id: "exc-1",
-    runId: "run-1",
-    externalRecordId: "record-1",
+    id: EXCEPTION_ID,
+    runId: "22222222-2222-4222-8222-222222222222",
+    externalRecordId: "33333333-3333-4333-8333-333333333333",
     matchedOperationId: null,
     matchedDocumentId: null,
     reasonCode: "no_match",
@@ -83,7 +85,7 @@ describe("reconciliation service", () => {
     const { service, documents, idempotency, updateSet } = createServiceContext();
 
     const result = await service.createAdjustmentDocument({
-      exceptionId: "exc-1",
+      exceptionId: EXCEPTION_ID,
       docType: "transfer_intra",
       payload: { amountMinor: "1000", currency: "USD" },
       actorUserId: "user-1",
@@ -113,7 +115,7 @@ describe("reconciliation service", () => {
       }),
     );
     expect(result).toEqual({
-      exceptionId: "exc-1",
+      exceptionId: EXCEPTION_ID,
       documentId: "doc-1",
     });
   });
@@ -127,14 +129,14 @@ describe("reconciliation service", () => {
 
     await expect(
       service.createAdjustmentDocument({
-        exceptionId: "exc-1",
+        exceptionId: EXCEPTION_ID,
         docType: "transfer_intra",
         payload: { amountMinor: "1000" },
         actorUserId: "user-1",
         idempotencyKey: "recon-adjustment-1",
       }),
     ).resolves.toEqual({
-      exceptionId: "exc-1",
+      exceptionId: EXCEPTION_ID,
       documentId: "doc-existing",
     });
 
