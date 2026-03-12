@@ -1,5 +1,7 @@
 import { z, type ZodTypeAny } from "zod";
 
+import { resolveApiErrorMessage } from "@/lib/api-error";
+
 import {
   ApiRequestError,
   parseJsonSafely,
@@ -8,7 +10,7 @@ import {
   type HttpResponseLike,
 } from "./response";
 
-type ApiQueryResult<T> = {
+export type ApiQueryResult<T> = {
   data: T;
   response: HttpResponseLike;
 };
@@ -63,4 +65,16 @@ export async function readEntityById<TSchema extends ZodTypeAny>({
 
   await requestOk(response, `Не удалось загрузить ${resourceName}`);
   return readJsonWithSchema(response, schema);
+}
+
+export async function readApiErrorMessage(
+  response: HttpResponseLike,
+  fallbackMessage: string,
+) {
+  const payload = await parseJsonSafely(response);
+  return resolveApiErrorMessage(response.status, payload, fallbackMessage);
+}
+
+export function isApiRequestError(error: unknown): error is ApiRequestError {
+  return error instanceof ApiRequestError;
 }

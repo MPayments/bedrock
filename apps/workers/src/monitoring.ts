@@ -1,9 +1,7 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 
-type LoggerLike = {
-  info: (message: string, meta?: Record<string, unknown>) => void;
-};
+import { type Logger } from "@bedrock/common";
 
 type WorkerState = "created" | "idle" | "running" | "stopped";
 type HealthStatus = "ok" | "degraded";
@@ -25,7 +23,7 @@ interface WorkerRuntimeState {
   totalErrors: number;
 }
 
-interface RunLoopObserver {
+export interface RunLoopObserver {
   onLoopStarted?: () => void;
   onTickStarted?: () => void;
   onTickSucceeded?: (input: {
@@ -37,7 +35,7 @@ interface RunLoopObserver {
   onLoopStopped?: () => void;
 }
 
-interface WorkerHealthSnapshot {
+export interface WorkerHealthSnapshot {
   status: HealthStatus;
   checkedAt: string;
   workerCount: number;
@@ -60,7 +58,7 @@ interface WorkerHealthSnapshot {
   }[];
 }
 
-interface WorkerMonitoringRegistry {
+export interface WorkerMonitoringRegistry {
   registerWorker: (input: {
     name: string;
     intervalMs: number;
@@ -69,13 +67,13 @@ interface WorkerMonitoringRegistry {
   renderPrometheusMetrics: () => string;
 }
 
-interface WorkerMonitoringServer {
+export interface WorkerMonitoringServer {
   host: string;
   port: number;
   stop: () => Promise<void>;
 }
 
-interface WorkerMonitoringHttpResponse {
+export interface WorkerMonitoringHttpResponse {
   statusCode: number;
   contentType: string;
   body: string;
@@ -231,52 +229,52 @@ export function createWorkerMonitoringRegistry(
   function renderPrometheusMetrics() {
     const snapshot = getHealthSnapshot();
     const lines = [
-      "# HELP multihansa_workers_health Overall workers health status (1=ok, 0=degraded).",
-      "# TYPE multihansa_workers_health gauge",
-      formatMetric("multihansa_workers_health", snapshot.status === "ok" ? 1 : 0),
-      "# HELP multihansa_worker_up Worker process availability (1=running/idle, 0=stopped).",
-      "# TYPE multihansa_worker_up gauge",
-      "# HELP multihansa_worker_runs_total Total worker loop iterations.",
-      "# TYPE multihansa_worker_runs_total counter",
-      "# HELP multihansa_worker_processed_total Total processed records reported by the worker.",
-      "# TYPE multihansa_worker_processed_total counter",
-      "# HELP multihansa_worker_errors_total Total failed worker loop iterations.",
-      "# TYPE multihansa_worker_errors_total counter",
-      "# HELP multihansa_worker_last_duration_ms Duration of the last worker iteration in milliseconds.",
-      "# TYPE multihansa_worker_last_duration_ms gauge",
-      "# HELP multihansa_worker_last_success_timestamp_seconds Unix timestamp of the last successful worker iteration.",
-      "# TYPE multihansa_worker_last_success_timestamp_seconds gauge",
-      "# HELP multihansa_worker_last_error_timestamp_seconds Unix timestamp of the last failed worker iteration.",
-      "# TYPE multihansa_worker_last_error_timestamp_seconds gauge",
-      "# HELP multihansa_worker_state Current worker state label.",
-      "# TYPE multihansa_worker_state gauge",
+      "# HELP bedrock_workers_health Overall workers health status (1=ok, 0=degraded).",
+      "# TYPE bedrock_workers_health gauge",
+      formatMetric("bedrock_workers_health", snapshot.status === "ok" ? 1 : 0),
+      "# HELP bedrock_worker_up Worker process availability (1=running/idle, 0=stopped).",
+      "# TYPE bedrock_worker_up gauge",
+      "# HELP bedrock_worker_runs_total Total worker loop iterations.",
+      "# TYPE bedrock_worker_runs_total counter",
+      "# HELP bedrock_worker_processed_total Total processed records reported by the worker.",
+      "# TYPE bedrock_worker_processed_total counter",
+      "# HELP bedrock_worker_errors_total Total failed worker loop iterations.",
+      "# TYPE bedrock_worker_errors_total counter",
+      "# HELP bedrock_worker_last_duration_ms Duration of the last worker iteration in milliseconds.",
+      "# TYPE bedrock_worker_last_duration_ms gauge",
+      "# HELP bedrock_worker_last_success_timestamp_seconds Unix timestamp of the last successful worker iteration.",
+      "# TYPE bedrock_worker_last_success_timestamp_seconds gauge",
+      "# HELP bedrock_worker_last_error_timestamp_seconds Unix timestamp of the last failed worker iteration.",
+      "# TYPE bedrock_worker_last_error_timestamp_seconds gauge",
+      "# HELP bedrock_worker_state Current worker state label.",
+      "# TYPE bedrock_worker_state gauge",
     ];
 
     for (const worker of snapshot.workers) {
       const labels = { worker: worker.name };
       lines.push(
         formatMetric(
-          "multihansa_worker_up",
+          "bedrock_worker_up",
           worker.state === "stopped" ? 0 : 1,
           labels,
         ),
       );
       lines.push(
-        formatMetric("multihansa_worker_runs_total", worker.totalRuns, labels),
+        formatMetric("bedrock_worker_runs_total", worker.totalRuns, labels),
       );
       lines.push(
         formatMetric(
-          "multihansa_worker_processed_total",
+          "bedrock_worker_processed_total",
           worker.totalProcessed,
           labels,
         ),
       );
       lines.push(
-        formatMetric("multihansa_worker_errors_total", worker.totalErrors, labels),
+        formatMetric("bedrock_worker_errors_total", worker.totalErrors, labels),
       );
       lines.push(
         formatMetric(
-          "multihansa_worker_last_duration_ms",
+          "bedrock_worker_last_duration_ms",
           worker.lastDurationMs ?? 0,
           labels,
         ),
@@ -288,7 +286,7 @@ export function createWorkerMonitoringRegistry(
       if (lastSuccess !== null) {
         lines.push(
           formatMetric(
-            "multihansa_worker_last_success_timestamp_seconds",
+            "bedrock_worker_last_success_timestamp_seconds",
             lastSuccess,
             labels,
           ),
@@ -301,7 +299,7 @@ export function createWorkerMonitoringRegistry(
       if (lastError !== null) {
         lines.push(
           formatMetric(
-            "multihansa_worker_last_error_timestamp_seconds",
+            "bedrock_worker_last_error_timestamp_seconds",
             lastError,
             labels,
           ),
@@ -310,7 +308,7 @@ export function createWorkerMonitoringRegistry(
 
       for (const state of ["created", "idle", "running", "stopped"] as const) {
         lines.push(
-          formatMetric("multihansa_worker_state", worker.state === state ? 1 : 0, {
+          formatMetric("bedrock_worker_state", worker.state === state ? 1 : 0, {
             worker: worker.name,
             state,
           }),
@@ -365,7 +363,7 @@ export async function startWorkerMonitoringServer(input: {
   host: string;
   port: number;
   registry: WorkerMonitoringRegistry;
-  logger?: LoggerLike;
+  logger?: Logger;
 }): Promise<WorkerMonitoringServer> {
   const server = createServer((req, res) => {
     const response = renderWorkerMonitoringResponse({

@@ -1,21 +1,21 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, extname, join, relative, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
+const LEGACY_SPECIFIER_PATTERN =
+  /@bedrock\/(foundation|platform|core|application)(?:\/|["'])/g;
+const BEDROCK_PRODUCT_SPECIFIER_PATTERN =
+  /@bedrock\/(accounting-reporting|bedrock-app|counterparties|customers|db|api-client|ui|eslint-config|typescript-config|test-utils|fees|fx|ifrs-documents|organizations|payments|requisite-providers|requisites)(?:\/|["'])/g;
+
 const SOURCE_ROOTS = [
   join(ROOT, "apps"),
   join(ROOT, "packages"),
   join(ROOT, "scripts"),
-  join(ROOT, "docs"),
 ];
-const EXTRA_FILES = [
-  join(ROOT, "README.md"),
-  join(ROOT, "package.json"),
-  join(ROOT, "vitest.config.ts"),
-];
+
 const EXCLUDED_DIRS = new Set([
   ".git",
   "node_modules",
@@ -24,12 +24,7 @@ const EXCLUDED_DIRS = new Set([
   ".next",
   ".turbo",
 ]);
-const EXCLUDED_PATH_SEGMENTS = [
-  "/packages/bedrock/",
-];
-const EXCLUDED_FILES = new Set([
-  fileURLToPath(import.meta.url),
-]);
+
 const INCLUDED_EXTENSIONS = new Set([
   ".ts",
   ".tsx",
@@ -39,20 +34,7 @@ const INCLUDED_EXTENSIONS = new Set([
   ".mjs",
   ".cjs",
   ".json",
-  ".md",
 ]);
-const DEPRECATED_PATTERNS = [
-  "@hono/",
-  'from "hono"',
-  "from 'hono'",
-  'from "hono/client"',
-  "from 'hono/client'",
-  "@scalar/hono-api-reference",
-  "@bedrock/http-hono",
-];
-const DEPRECATED_REGEXES = [
-  /@multihansa\/(?:identity|assets|ledger|accounting|balances|documents|parties|reporting|treasury|reconciliation)\/bedrock\b/,
-];
 
 function walk(dir, out) {
   for (const name of readdirSync(dir)) {
@@ -67,7 +49,8 @@ function walk(dir, out) {
       continue;
     }
 
-    if (!INCLUDED_EXTENSIONS.has(extname(name))) {
+    const ext = name.slice(name.lastIndexOf("."));
+    if (!INCLUDED_EXTENSIONS.has(ext)) {
       continue;
     }
 
@@ -79,42 +62,36 @@ const files = [];
 for (const root of SOURCE_ROOTS) {
   walk(root, files);
 }
-files.push(...EXTRA_FILES);
 
 const violations = [];
-
 for (const file of files) {
-  if (EXCLUDED_FILES.has(file)) {
-    continue;
-  }
-
   const content = readFileSync(file, "utf8");
-  if (EXCLUDED_PATH_SEGMENTS.some((segment) => file.includes(segment))) {
-    continue;
-  }
-  const matchedPattern = DEPRECATED_PATTERNS.find((pattern) =>
-    content.includes(pattern),
-  );
-  const matchedRegex = DEPRECATED_REGEXES.find((pattern) =>
-    pattern.test(content),
-  );
-  const matched = matchedPattern ?? matchedRegex?.toString();
-  if (!matched) {
-    continue;
+  LEGACY_SPECIFIER_PATTERN.lastIndex = 0;
+  BEDROCK_PRODUCT_SPECIFIER_PATTERN.lastIndex = 0;
+
+  const match = LEGACY_SPECIFIER_PATTERN.exec(content);
+  if (match) {
+    violations.push({
+      file: file.replace(`${ROOT}/`, ""),
+      specifier: match[0].replace(/["']$/, ""),
+    });
   }
 
-  violations.push({
-    file: relative(ROOT, file),
-    pattern: matched,
-  });
+  const productMatch = BEDROCK_PRODUCT_SPECIFIER_PATTERN.exec(content);
+  if (productMatch) {
+    violations.push({
+      file: file.replace(`${ROOT}/`, ""),
+      specifier: productMatch[0].replace(/["']$/, ""),
+    });
+  }
 }
 
 if (violations.length > 0) {
-  console.error("Deprecated Hono references found:");
+  console.error("Disallowed import specifiers found:");
   for (const violation of violations) {
-    console.error(`- ${violation.file}: contains ${violation.pattern}`);
+    console.error(`- ${violation.file}: ${violation.specifier}`);
   }
   process.exit(1);
 }
 
-console.log("Deprecated import check passed.");
+console.log("Disallowed import specifier check passed.");

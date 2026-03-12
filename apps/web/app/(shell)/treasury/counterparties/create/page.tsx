@@ -20,7 +20,7 @@ export default async function TreasuryCreateCounterpartyPage() {
         initialGroupIds={treasuryRootGroup ? [treasuryRootGroup.id] : []}
         allowedRootCode="treasury"
         lockedGroupIds={treasuryRootGroup ? [treasuryRootGroup.id] : []}
-        detailsBasePath="/treasury/parties/counterparties"
+        detailsBasePath="/treasury/counterparties"
         disableSubmit={!treasuryRootGroup}
         initialLoadError={
           treasuryRootGroup
@@ -34,7 +34,7 @@ export default async function TreasuryCreateCounterpartyPage() {
       <CreateCounterpartyFormClient
         initialGroupOptions={[]}
         allowedRootCode="treasury"
-        detailsBasePath="/treasury/parties/counterparties"
+        detailsBasePath="/treasury/counterparties"
         disableSubmit
         initialLoadError="Не удалось загрузить группы"
       />

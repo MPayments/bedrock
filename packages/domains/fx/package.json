@@ -1,0 +1,35 @@
+{
+  "name": "@multihansa/fx",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts",
+    "./contracts": "./src/contracts.ts"
+  },
+  "scripts": {
+    "build": "tsgo --project tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsgo --noEmit --project tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
+  },
+  "dependencies": {
+    "@bedrock/common": "workspace:*",
+    "@bedrock/workers": "workspace:*",
+    "@bedrock/sql": "workspace:*",
+    "@bedrock/assets": "workspace:*",
+    "@multihansa/fees": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "soap": "^1.6.0",
+    "tlsclientwrapper": "^4.1.2",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@multihansa/eslint-config": "workspace:*",
+    "@multihansa/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3"
+  }
+}

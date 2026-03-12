@@ -33,7 +33,7 @@ export async function getOrganizations(): Promise<OrganizationsListResult> {
   const client = await getServerApiClient();
   const { data } = await readPaginatedList({
     request: () =>
-      client.v1.parties.organizations.$get({
+      client.v1.organizations.$get({
         query: {
           limit: 200,
           offset: 0,
@@ -59,7 +59,7 @@ const getOrganizationByIdUncached = async (
     resourceName: "организацию",
     request: async (validId) => {
       const client = await getServerApiClient();
-      return client.v1.parties.organizations[":id"].$get(
+      return client.v1.organizations[":id"].$get(
         { param: { id: validId } },
         { init: { cache: "no-store" } },
       );

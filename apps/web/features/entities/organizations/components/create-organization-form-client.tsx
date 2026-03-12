@@ -28,7 +28,7 @@ export function CreateOrganizationFormClient() {
 
     const result = await executeMutation<CreatedOrganization>({
       request: () =>
-        apiClient.v1.parties.organizations.$post({
+        apiClient.v1.organizations.$post({
           json: {
             shortName: values.shortName,
             fullName: values.fullName,
@@ -51,7 +51,7 @@ export function CreateOrganizationFormClient() {
     }
 
     toast.success("Организация создана");
-    router.push(`/entities/parties/organizations/${result.data.id}`);
+    router.push(`/entities/organizations/${result.data.id}`);
   }
 
   return (

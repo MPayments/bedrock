@@ -210,7 +210,7 @@ function buildCurrencyFacetOptions(
 
 function RatePairItem({ pair }: { pair: SerializedRatePair }) {
   const [open, setOpen] = useState(false);
-  const pairHref = `/treasury/fx/rates/${pair.baseCurrencyCode}-${pair.quoteCurrencyCode}`;
+  const pairHref = `/fx/rates/${pair.baseCurrencyCode}-${pair.quoteCurrencyCode}`;
 
   return (
     <Collapsible

@@ -1,9 +1,9 @@
-interface Fraction {
+export interface Fraction {
   num: bigint;
   den: bigint;
 }
 
-interface ParseDecimalToFractionOptions {
+export interface ParseDecimalToFractionOptions {
   allowScientific?: boolean;
 }
 

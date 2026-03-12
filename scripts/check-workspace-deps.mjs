@@ -54,7 +54,10 @@ function walk(dir) {
       const deps = json[section];
       if (!deps) continue;
       for (const [name, version] of Object.entries(deps)) {
-        if (name.startsWith("@multihansa/") && version === "*") {
+        if (
+          (name.startsWith("@bedrock/") || name.startsWith("@multihansa/")) &&
+          version === "*"
+        ) {
           problems.push({ file: rel, section, name });
         }
       }

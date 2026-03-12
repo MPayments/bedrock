@@ -35,7 +35,7 @@ export function EditRequisiteProviderFormClient({
 
     const result = await executeMutation<SerializedRequisiteProvider>({
       request: () =>
-        apiClient.v1.parties["requisite-providers"][":id"].$patch({
+        apiClient.v1["requisite-providers"][":id"].$patch({
           param: { id: current.id },
           json: {
             kind: values.kind,
@@ -83,7 +83,7 @@ export function EditRequisiteProviderFormClient({
 
     const result = await executeMutation<void>({
       request: () =>
-        apiClient.v1.parties["requisite-providers"][":id"].$delete({
+        apiClient.v1["requisite-providers"][":id"].$delete({
           param: { id: current.id },
         }),
       fallbackMessage: "Не удалось удалить провайдера реквизитов",
@@ -99,7 +99,7 @@ export function EditRequisiteProviderFormClient({
     }
 
     toast.success("Провайдер реквизитов удалён");
-    router.push("/entities/parties/requisite-providers");
+    router.push("/entities/requisite-providers");
     return true;
   }
 

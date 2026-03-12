@@ -35,7 +35,7 @@ export function CreateCounterpartyFormClient({
   initialGroupIds = EMPTY_GROUP_IDS,
   allowedRootCode,
   lockedGroupIds,
-  detailsBasePath = "/entities/parties/counterparties",
+  detailsBasePath = "/entities/counterparties",
   disableSubmit = false,
   initialLoadError = null,
 }: CreateCounterpartyFormClientProps) {
@@ -77,7 +77,7 @@ export function CreateCounterpartyFormClient({
 
     const result = await executeMutation<CreatedCounterparty>({
       request: () =>
-        apiClient.v1.parties.counterparties.$post({
+        apiClient.v1.counterparties.$post({
           json: payload,
         }),
       fallbackMessage: "Не удалось создать контрагента",

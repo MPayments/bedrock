@@ -13,7 +13,7 @@ export default async function OrdersPage() {
       title="Платежные интенты"
       description="Список `payment_intent` документов с текущим workflow-статусом."
       rows={intents.data}
-      detailsBasePath="/treasury/payments/orders"
+      detailsBasePath="/payments/orders"
     />
   );
 }

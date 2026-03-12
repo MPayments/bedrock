@@ -1,3 +1,3 @@
-import { backendConfig } from "../../../eslint/backend.mjs";
+import { config } from "@multihansa/eslint-config/backend";
 
-export default backendConfig;
+export default config;

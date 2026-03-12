@@ -1,12 +1,10 @@
 {
-  "extends": "../../../tsconfig.base.json",
+  "extends": "@multihansa/typescript-config/base.json",
   "compilerOptions": {
-    "composite": true,
-    "incremental": true,
-    "rootDir": "src",
     "outDir": "dist",
-    "noEmit": true
+    "rootDir": "src",
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts", "src/typecheck.ts"]
+  "include": ["src"]
 }

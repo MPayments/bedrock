@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { z } from "zod";
 
-import { CUSTOMERS_LIST_CONTRACT } from "@multihansa/parties/customers/contracts";
+import { CUSTOMERS_LIST_CONTRACT } from "@multihansa/customers/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
@@ -34,7 +34,7 @@ export async function getCustomers(
   const client = await getServerApiClient();
   const { data } = await readPaginatedList({
     request: () =>
-      client.v1.parties.customers.$get(
+      client.v1.customers.$get(
         {
           query: createCustomersListQuery(search),
         },
@@ -59,7 +59,7 @@ const getCustomerByIdUncached = async (
     resourceName: "клиента",
     request: async (validId) => {
       const client = await getServerApiClient();
-      return client.v1.parties.customers[":id"].$get(
+      return client.v1.customers[":id"].$get(
         {
           param: { id: validId },
         },

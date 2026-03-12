@@ -54,7 +54,7 @@ type HeaderCell = {
   separatorBefore?: boolean;
 };
 
-type ReportSection = {
+export type ReportSection = {
   description?: string;
   emptyText?: string;
   id: string;
@@ -62,7 +62,7 @@ type ReportSection = {
   title: string;
 };
 
-type ReportPresentationContext = {
+export type ReportPresentationContext = {
   accountNo: string[];
   asOf: string;
   from: string;

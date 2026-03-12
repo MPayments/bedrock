@@ -6,8 +6,15 @@ import type { DocumentFormDefinition } from "./document-form-registry/types";
 
 export type {
   DocumentFormBreakpoint,
+  DocumentFormDefinition,
   DocumentFormField,
+  DocumentFormFieldOption,
   DocumentFormResponsiveCount,
+  DocumentFormRow,
+  DocumentFormRowField,
+  DocumentFormSection,
+  DocumentFormSectionLayout,
+  DocumentFormValues,
 } from "./document-form-registry/types";
 
 const DOCUMENT_FORM_DEFINITION_BY_TYPE = new Map(
@@ -17,7 +24,9 @@ const DOCUMENT_FORM_DEFINITION_BY_TYPE = new Map(
   ]),
 );
 
-function getDocumentFormDefinition(docType: string): DocumentFormDefinition | null {
+export function getDocumentFormDefinition(
+  docType: string,
+): DocumentFormDefinition | null {
   return (
     DOCUMENT_FORM_DEFINITION_BY_TYPE.get(docType as TypedDocumentType) ?? null
   );

@@ -22,7 +22,7 @@ export default async function FxOverviewPage() {
           label: "Валютные пары",
           value: formatCount(pairs.length),
           description: "Пары с лучшим курсом и breakdown по источникам.",
-          href: "/treasury/fx/rates",
+          href: "/fx/rates",
         },
         {
           id: "sources",
@@ -32,7 +32,7 @@ export default async function FxOverviewPage() {
             staleSources > 0
               ? `Просроченных источников: ${formatCount(staleSources)}`
               : "Все источники актуальны в пределах TTL.",
-          href: "/treasury/fx/rates",
+          href: "/fx/rates",
         },
       ]}
       links={[
@@ -40,7 +40,7 @@ export default async function FxOverviewPage() {
           id: "rates",
           title: "Курсы",
           description: "Открыть основной FX экран с manual rates и source statuses.",
-          href: "/treasury/fx/rates",
+          href: "/fx/rates",
         },
       ]}
     />

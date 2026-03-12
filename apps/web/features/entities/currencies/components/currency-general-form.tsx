@@ -11,7 +11,7 @@ import {
   KNOWN_CURRENCY_CODES,
   getKnownCurrency,
   getDefaultPrecision,
-} from "@multihansa/common/currency";
+} from "@bedrock/common/currency";
 import { Button } from "@multihansa/ui/components/button";
 import {
   Card,

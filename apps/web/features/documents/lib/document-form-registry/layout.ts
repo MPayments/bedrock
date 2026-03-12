@@ -5,12 +5,12 @@ import type {
   DocumentFormSection,
 } from "./types";
 
-type ResolvedDocumentFormRowField = {
+export type ResolvedDocumentFormRowField = {
   field: DocumentFormField;
   span?: DocumentFormResponsiveCount;
 };
 
-type ResolvedDocumentFormRow = {
+export type ResolvedDocumentFormRow = {
   fields: ResolvedDocumentFormRowField[];
   columns?: DocumentFormResponsiveCount;
 };

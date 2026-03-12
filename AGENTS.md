@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Multihansa is a financial platform (ledger, treasury, fees, FX, transfers) implemented as a **Turborepo monorepo**.
+Multihansa is a financial platform (ledger, treasury, fees, FX, transfers) built on the Bedrock framework as a **Turborepo monorepo**.
 
 ```
 apps/        — applications (api: Hono, web: Next.js)
@@ -14,22 +14,22 @@ Stack: TypeScript 5.8, Hono, Next.js, Drizzle ORM, PostgreSQL, TigerBeetle, Zod,
 
 ## Workspace Topology
 
-Runtime is split between shared infrastructure and Multihansa domain packages:
+Runtime is split between Bedrock framework primitives and Multihansa product packages:
 
-- `packages/common` — shared primitives, ports, adapters, and runtimes
+- `packages/bedrock/*` — reusable Bedrock primitives, ports, adapters, and runtimes
 - `packages/domains/*` — Multihansa business modules, document definitions, and app bundle composition
 
 Dependency direction:
 
-- `@multihansa/common -> @multihansa/<domain> -> apps/*`
-- `@multihansa/db` aggregates schemas from common/domain packages and provides DB client/migrations/seeds.
+- `bedrock/common|zod|sql -> other Bedrock primitives -> Multihansa packages -> apps/*`
+- `@multihansa/db` aggregates schemas from framework/domain packages and provides DB client/migrations/seeds.
 
 Hard rules:
 
-- No legacy removed-framework runtime specifiers in runtime code.
-- `packages/common` must not import domain packages.
+- No legacy runtime specifiers (`@bedrock/core/*`, `@bedrock/application/*`) in runtime code.
+- Framework packages must not import domain packages.
 - Domain schema ownership is colocated under:
-  - `packages/common/src/**`
+  - `packages/bedrock/<package>/src/schema.ts` or `schema/**`
   - `packages/domains/<package>/src/schema.ts` or `schema/**`
 - `@multihansa/db` must not own domain table declarations; it only aggregates framework/domain schemas for client construction, migrations, and seeds.
 
@@ -44,7 +44,7 @@ Hard rules:
 // package.json
 "dependencies": {
     "@multihansa/db": "workspace:*",    // correct
-    "@multihansa/common": "workspace:*" // correct
+    "@bedrock/common": "workspace:*" // correct
     // NOT "@multihansa/db": "*"
 }
 ```
@@ -143,9 +143,9 @@ export function createXxxService(deps: XxxServiceDeps) {
 
 Runtime code lives under package-local folders:
 
-- `packages/common/src/**`
+- `packages/bedrock/<package>/src/**`
 - `packages/domains/<package>/src/**`
-- `packages/common/tests/**`
+- `packages/bedrock/<package>/tests/**`
 - `packages/domains/<package>/tests/**`
 
 Within each domain folder, follow this layout:
@@ -154,7 +154,7 @@ Within each domain folder, follow this layout:
 |---|---|
 | `index.ts` | Public exports (service factory, types, errors, validation schemas) |
 | `service.ts` | Service factory function |
-| `errors.ts` | Custom error classes extending `ServiceError` from `@multihansa/common/errors` |
+| `errors.ts` | Custom error classes extending `ServiceError` from `@bedrock/common/errors` |
 | `validation.ts` | Zod schemas, derived types via `z.infer`, validator helpers |
 | `internal/context.ts` | `Deps` / `Context` types and context factory |
 | `commands/` | Command handlers (when the service is large) |
@@ -175,18 +175,18 @@ Within each domain folder, follow this layout:
 ### Import order
 
 1. External packages (`drizzle-orm`, `zod`, etc.)
-2. Internal `@multihansa/*` packages
+2. Internal `@bedrock/*` and `@multihansa/*` packages
 3. Local relative imports (`./`, `../`)
 
 Separate each group with a blank line.
 
 ### Error handling
 
-- Define custom error classes extending `ServiceError` from `@multihansa/common/errors`.
+- Define custom error classes extending `ServiceError` from `@bedrock/common/errors`.
 - Throw errors directly; do not return error codes.
 
 ```typescript
-import { ServiceError } from "@multihansa/common/errors";
+import { ServiceError } from "@bedrock/common/errors";
 
 export class OrderNotFoundError extends ServiceError {
     constructor(id: string) {
@@ -205,9 +205,9 @@ export class OrderNotFoundError extends ServiceError {
 
 - Drizzle ORM with PostgreSQL.
 - Schema uses `snake_case` column naming convention.
-- Runtime table definitions must be colocated in package schema paths under `packages/common` or `packages/domains/*`.
-- Runtime code imports schemas from the owning flattened package, for example `@multihansa/ledger/schema` or `@multihansa/treasury/payments/schema`.
-- Runtime code imports shared database connection types from `@multihansa/common/sql/ports`.
+- Runtime table definitions must be colocated in package schema paths under `packages/bedrock/*` or `packages/domains/*`.
+- Runtime code imports schemas from the owning fine-grained package, for example `@bedrock/ledger/schema` or `@multihansa/payments/schema`.
+- Runtime code imports shared database connection types from `@bedrock/sql/ports`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.
 - Migration policy is baseline-only hard cutover.
   - Mandatory sequence: `db:nuke -> db:migrate -> db:seed`.
@@ -216,8 +216,8 @@ export class OrderNotFoundError extends ServiceError {
 ### Testing
 
 - Vitest with globals enabled.
-- Test utilities and fixtures from `tests/shared/**`.
-- Unit tests live under the owning package, for example `packages/common/tests/**/*.test.ts` or `packages/domains/<package>/tests/**/*.test.ts`.
+- Test utilities and fixtures from `@multihansa/test-utils`.
+- Unit tests live under the owning package, for example `packages/bedrock/<package>/tests/**/*.test.ts` or `packages/domains/<package>/tests/**/*.test.ts`.
 - Integration tests live under `tests/integration/**` inside the owning package.
 
 ## API Routes

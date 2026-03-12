@@ -38,7 +38,7 @@ export function EditOrganizationRequisiteFormClient({
 
     const result = await executeMutation<OrganizationRequisiteDetails>({
       request: () =>
-        apiClient.v1.parties.requisites[":id"].$patch({
+        apiClient.v1.requisites[":id"].$patch({
           param: { id: current.id },
           json: {
             providerId: values.providerId,
@@ -150,7 +150,7 @@ export function EditOrganizationRequisiteFormClient({
 
     const result = await executeMutation<void>({
       request: () =>
-        apiClient.v1.parties.requisites[":id"].$delete({
+        apiClient.v1.requisites[":id"].$delete({
           param: { id: current.id },
         }),
       fallbackMessage: "Не удалось удалить реквизит организации",
@@ -166,7 +166,7 @@ export function EditOrganizationRequisiteFormClient({
     }
 
     toast.success("Реквизит организации удалён");
-    router.push("/entities/parties/requisites");
+    router.push("/entities/requisites");
     return true;
   }
 

@@ -46,7 +46,7 @@ export async function fetchRequisiteOptions(input: {
   });
 
   const response = await fetch(
-    `${API_URL}/v1/parties/requisites?${query.toString()}`,
+    `${API_URL}/v1/requisites?${query.toString()}`,
     {
       credentials: "include",
       cache: "no-store",

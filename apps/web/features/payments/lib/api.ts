@@ -32,7 +32,7 @@ const PaymentDetailsSchema = z.object({
 });
 
 export type PaymentDocumentDto = z.infer<typeof PaymentDocumentSchema>;
-type PaymentDetailsDto = z.infer<typeof PaymentDetailsSchema>;
+export type PaymentDetailsDto = z.infer<typeof PaymentDetailsSchema>;
 
 async function fetchApi(path: string) {
   const requestHeaders = await headers();
@@ -55,14 +55,14 @@ export async function listPayments(input?: {
   params.set("offset", String(input?.offset ?? 0));
 
   const response = await requestOk(
-    await fetchApi(`/v1/treasury/payments?${params.toString()}`),
+    await fetchApi(`/v1/payments?${params.toString()}`),
     "Не удалось загрузить платежи",
   );
   return readJsonWithSchema(response, PaymentListSchema);
 }
 
 const getPaymentDetailsUncached = async (id: string) => {
-  const response = await fetchApi(`/v1/treasury/payments/${id}/details`);
+  const response = await fetchApi(`/v1/payments/${id}/details`);
   if (response.status === 404) {
     return null;
   }

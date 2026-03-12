@@ -1,7 +1,9 @@
+import { listWorkerIds } from "@bedrock/workers";
+
 import { MULTIHANSA_WORKER_DESCRIPTORS } from "@multihansa/app";
 
 export function listAvailableWorkerIds(): string[] {
-  return MULTIHANSA_WORKER_DESCRIPTORS.map((descriptor) => descriptor.id);
+  return listWorkerIds(MULTIHANSA_WORKER_DESCRIPTORS);
 }
 
 export function parseSelectedWorkerIds(

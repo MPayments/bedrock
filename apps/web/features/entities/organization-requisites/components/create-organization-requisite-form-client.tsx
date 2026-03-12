@@ -37,7 +37,7 @@ export function CreateOrganizationRequisiteFormClient({
 
     const result = await executeMutation<CreatedOrganizationRequisite>({
       request: () =>
-        apiClient.v1.parties.requisites.$post({
+        apiClient.v1.requisites.$post({
           json: {
             ownerType: "organization",
             ownerId: values.ownerId,
@@ -80,7 +80,7 @@ export function CreateOrganizationRequisiteFormClient({
     }
 
     toast.success("Реквизит организации создан");
-    router.push(`/entities/parties/requisites/${result.data.id}`);
+    router.push(`/entities/requisites/${result.data.id}`);
   }
 
   return (

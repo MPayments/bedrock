@@ -9,10 +9,10 @@ export default function CreateCounterpartyBreadcrumbPage() {
   return (
     <EntityCreateBreadcrumb
       entityLabel="Контрагенты"
-      entityHref="/entities/parties/counterparties"
+      entityHref="/entities/counterparties"
       entityIcon="building-2"
       currentLabel={state.createLabel}
-      currentHref="/entities/parties/counterparties/create"
+      currentHref="/entities/counterparties/create"
     />
   );
 }

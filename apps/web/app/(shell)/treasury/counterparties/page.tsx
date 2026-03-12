@@ -65,7 +65,7 @@ export default async function CounterpartiesPage({ searchParams }: PageProps) {
         <Button
           size="lg"
           nativeButton={false}
-          render={<Link href="/treasury/parties/counterparties/create" />}
+          render={<Link href="/treasury/counterparties/create" />}
         >
           <Plus className="h-4 w-4" />
           <span className="hidden md:block">Создать</span>

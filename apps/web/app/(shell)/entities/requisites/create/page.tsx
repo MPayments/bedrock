@@ -91,7 +91,7 @@ export default async function CreateRequisitePage({
         <CardContent>
           <Button
             nativeButton={false}
-            render={<Link href="/entities/parties/requisites/create?ownerType=counterparty" />}
+            render={<Link href="/entities/requisites/create?ownerType=counterparty" />}
           >
             <Building2 className="h-4 w-4" />
             Открыть форму
@@ -109,7 +109,7 @@ export default async function CreateRequisitePage({
         <CardContent>
           <Button
             nativeButton={false}
-            render={<Link href="/entities/parties/requisites/create?ownerType=organization" />}
+            render={<Link href="/entities/requisites/create?ownerType=organization" />}
           >
             <Landmark className="h-4 w-4" />
             Открыть форму

@@ -1,11 +1,11 @@
 import {
   AccountingCorrespondenceRuleSchema,
   AccountingTemplateAccountSchema,
-} from "@multihansa/accounting/contracts";
+} from "@bedrock/accounting/contracts";
 import {
   CounterpartyGroupOptionsResponseSchema,
   CounterpartyOptionsResponseSchema,
-} from "@multihansa/parties/counterparties/contracts";
+} from "@multihansa/counterparties/contracts";
 import {
   BalanceSheetResponseSchema,
   CashFlowResponseSchema,
@@ -16,7 +16,7 @@ import {
   IncomeStatementResponseSchema,
   LiquidityResponseSchema,
   TrialBalanceResponseSchema,
-} from "@multihansa/reporting/accounting-reporting/contracts";
+} from "@multihansa/accounting-reporting/contracts";
 import { z } from "zod";
 
 import { getServerApiClient } from "@/lib/api/server-client";
@@ -28,27 +28,27 @@ const AccountingCorrespondenceRulesResponseSchema = z.array(
   AccountingCorrespondenceRuleSchema,
 );
 
-type AccountingTemplateAccount = z.infer<
+export type AccountingTemplateAccount = z.infer<
   typeof AccountingTemplateAccountResponseSchema
 >;
 export type AccountingCorrespondenceRule = z.infer<
   typeof AccountingCorrespondenceRuleSchema
 >;
-type AccountingOrgOption = z.infer<
+export type AccountingOrgOption = z.infer<
   typeof CounterpartyOptionsResponseSchema.shape.data.element
 >;
-type CounterpartyGroupOption = z.infer<
+export type CounterpartyGroupOption = z.infer<
   typeof CounterpartyGroupOptionsResponseSchema.shape.data.element
 >;
-type TrialBalanceDto = z.infer<typeof TrialBalanceResponseSchema>;
-type GeneralLedgerDto = z.infer<typeof GeneralLedgerResponseSchema>;
-type BalanceSheetDto = z.infer<typeof BalanceSheetResponseSchema>;
-type IncomeStatementDto = z.infer<typeof IncomeStatementResponseSchema>;
-type CashFlowDto = z.infer<typeof CashFlowResponseSchema>;
-type LiquidityDto = z.infer<typeof LiquidityResponseSchema>;
-type FxRevaluationDto = z.infer<typeof FxRevaluationResponseSchema>;
-type FeeRevenueDto = z.infer<typeof FeeRevenueResponseSchema>;
-type ClosePackageDto = z.infer<typeof ClosePackageResponseSchema>;
+export type TrialBalanceDto = z.infer<typeof TrialBalanceResponseSchema>;
+export type GeneralLedgerDto = z.infer<typeof GeneralLedgerResponseSchema>;
+export type BalanceSheetDto = z.infer<typeof BalanceSheetResponseSchema>;
+export type IncomeStatementDto = z.infer<typeof IncomeStatementResponseSchema>;
+export type CashFlowDto = z.infer<typeof CashFlowResponseSchema>;
+export type LiquidityDto = z.infer<typeof LiquidityResponseSchema>;
+export type FxRevaluationDto = z.infer<typeof FxRevaluationResponseSchema>;
+export type FeeRevenueDto = z.infer<typeof FeeRevenueResponseSchema>;
+export type ClosePackageDto = z.infer<typeof ClosePackageResponseSchema>;
 
 export type AccountingReportKey =
   | "trial-balance"
@@ -73,7 +73,7 @@ export async function getAccountingOrgOptions(): Promise<
   const client = await getServerApiClient();
   const payload = await readOptionsList({
     request: () =>
-      client.v1.parties.counterparties.options.$get(
+      client.v1.counterparties.options.$get(
         {},
         { init: { cache: "force-cache" } },
       ),
@@ -250,10 +250,10 @@ export async function getFxRevaluation(
 ): Promise<FxRevaluationDto> {
   const client = await getServerApiClient();
   type QueryInput = RouteQuery<
-    (typeof client.v1.accounting.reports.treasury)["fx-revaluation"]["$get"]
+    (typeof client.v1.accounting.reports)["fx-revaluation"]["$get"]
   >;
   const response = await requestOk(
-    await client.v1.accounting.reports.treasury["fx-revaluation"].$get(
+    await client.v1.accounting.reports["fx-revaluation"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),

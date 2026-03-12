@@ -6,18 +6,20 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
 const SOURCE_ROOTS = [
-  join(ROOT, "packages", "domains", "documents", "src"),
-  join(ROOT, "packages", "domains", "ledger", "src", "ledger"),
-  join(ROOT, "packages", "domains", "balances", "src", "balances"),
-  join(ROOT, "packages", "domains", "reconciliation", "src", "reconciliation"),
-  join(ROOT, "packages", "domains", "reporting", "src", "accounting-reporting"),
-  join(ROOT, "packages", "domains", "treasury", "src", "payments"),
-  join(ROOT, "packages", "domains", "treasury", "src", "fees"),
+  join(ROOT, "packages", "core", "src", "documents"),
+  join(ROOT, "packages", "core", "src", "ledger"),
+  join(ROOT, "packages", "core", "src", "balances"),
+  join(ROOT, "packages", "core", "src", "reconciliation"),
+  join(ROOT, "packages", "application", "src", "accounting-reporting"),
+  join(ROOT, "packages", "application", "src", "payments"),
+  join(ROOT, "packages", "application", "src", "fees"),
   join(ROOT, "apps", "api", "src"),
   join(ROOT, "apps", "workers", "src"),
 ];
 const EXCLUDED_DIRS = new Set(["node_modules", "dist", "coverage", ".next", "tests"]);
 
+const FORBIDDEN_IMPORT_PATTERN =
+  /(?:import|export)\s+[^"'`]*\b(?:ACCOUNT_NO|POSTING_CODE|CLEARING_KIND|OPERATION_CODE|POSTING_TEMPLATE_KEY)\b[^"'`]*from\s+["']@bedrock\/core\/accounting["']/g;
 const FORBIDDEN_ACCOUNT_LITERAL_PATTERN =
   /\b(?:accountNo|debitAccountNo|creditAccountNo)\s*:\s*["']\d{4}["']/g;
 const FORBIDDEN_POSTING_CODE_LITERAL_PATTERN =
@@ -71,6 +73,7 @@ for (const root of SOURCE_ROOTS) {
   for (const filePath of walk(root)) {
     const relPath = relative(ROOT, filePath);
     const content = readFileSync(filePath, "utf8");
+    const forbiddenImports = collectMatches(FORBIDDEN_IMPORT_PATTERN, content);
     const forbiddenAccountLiterals = collectMatches(
       FORBIDDEN_ACCOUNT_LITERAL_PATTERN,
       content,
@@ -87,6 +90,13 @@ for (const root of SOURCE_ROOTS) {
       FORBIDDEN_TEMPLATE_KEY_LITERAL_PATTERN,
       content,
     );
+
+    if (forbiddenImports.length > 0) {
+      problems.push({
+        file: relPath,
+        reason: `forbidden accounting constant import (${forbiddenImports[0]})`,
+      });
+    }
 
     if (forbiddenAccountLiterals.length > 0) {
       problems.push({

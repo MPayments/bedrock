@@ -2,7 +2,7 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import { ACCOUNTING_OPERATIONS_LIST_CONTRACT } from "@multihansa/accounting/contracts";
+import { ACCOUNTING_OPERATIONS_LIST_CONTRACT } from "@bedrock/accounting/contracts";
 
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import { requestOk, readJsonWithSchema } from "@/lib/api/response";
@@ -81,7 +81,7 @@ const OperationsListResponseSchema = createPaginatedResponseSchema(
 );
 
 export type OperationSummaryDto = z.infer<typeof OperationSummarySchema>;
-type OperationDetailsDto = z.infer<typeof OperationDetailsSchema>;
+export type OperationDetailsDto = z.infer<typeof OperationDetailsSchema>;
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 

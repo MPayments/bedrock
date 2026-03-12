@@ -6,7 +6,7 @@ import {
   type CreatePostingTemplateDefinition,
   type PendingPostingTemplateDefinition,
   type ValueBinding,
-} from "@multihansa/accounting";
+} from "@bedrock/accounting";
 
 const BOOK_REF_BOOK_ID = "bookId";
 
@@ -103,7 +103,7 @@ function pendingTemplate(
   return definition;
 }
 
-export const rawPackDefinition =
+export const rawMultihansaAccountingPackDefinition =
   AccountingPackDefinitionSchema.parse({
   packKey: "multihansa-core-default",
   version: 1,
@@ -838,3 +838,5 @@ export const rawPackDefinition =
     }),
   ],
   }) as AccountingPackDefinition;
+
+export const rawPackDefinition = rawMultihansaAccountingPackDefinition;

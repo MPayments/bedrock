@@ -10,12 +10,12 @@ export default function CreateCounterpartyGroupBreadcrumbPage() {
         },
         {
           label: "Контрагенты",
-          href: "/entities/parties/counterparties",
+          href: "/entities/counterparties",
           icon: "building-2",
         },
         {
           label: "Новая группа",
-          href: "/entities/parties/counterparties/groups/create",
+          href: "/entities/counterparties/groups/create",
         },
       ]}
     />

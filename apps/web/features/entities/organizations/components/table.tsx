@@ -68,7 +68,7 @@ export function OrganizationsTable({ promise }: OrganizationsTableProps) {
 
   const handleRowDoubleClick = React.useCallback(
     (row: TanstackRow<SerializedOrganization>) => {
-      router.push(`/entities/parties/organizations/${row.original.id}`);
+      router.push(`/entities/organizations/${row.original.id}`);
     },
     [router],
   );

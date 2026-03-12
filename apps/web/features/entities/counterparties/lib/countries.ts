@@ -1,4 +1,4 @@
-import { COUNTRIES, type CountryRecord } from "@multihansa/common/countries";
+import { COUNTRIES, type CountryRecord } from "@bedrock/common/countries";
 
 type CounterpartyCountryOption = {
   value: string;

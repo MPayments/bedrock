@@ -1,94 +1,69 @@
 import "./env";
 
-import { LoggerToken, createApp } from "@bedrock/core";
-import { createTbClient } from "@multihansa/ledger";
+import {
+  createConsoleLogger,
+  installShutdownHandlers,
+} from "@bedrock/common";
+import { createTbClient } from "@bedrock/ledger";
+import { createWorkerFleet, startWorkerFleet } from "@bedrock/workers";
 
 import {
-  MULTIHANSA_WORKER_DESCRIPTORS,
-  createMultihansaWorkerDescriptor,
-  loadMultihansaWorkerConfig,
+  createMultihansaServices,
+  createMultihansaWorkers,
 } from "@multihansa/app";
 import { db } from "@multihansa/db/client";
 
+import { env } from "./env";
 import { createWorkerMonitoringRegistry, startWorkerMonitoringServer } from "./monitoring";
 import { parseSelectedWorkerIds } from "./selection";
 
-const config = await loadMultihansaWorkerConfig();
+const logger = createConsoleLogger({ app: "multihansa-workers" });
+const services = createMultihansaServices({ db, logger });
+
+const tb = createTbClient(env.TB_CLUSTER_ID, env.TB_ADDRESS);
+const workerImplementations = createMultihansaWorkers({
+  db,
+  logger,
+  tb,
+  workerIntervals: env.WORKER_INTERVALS,
+  services,
+});
 const selectedWorkerIds = parseSelectedWorkerIds(process.argv.slice(2));
-const tb = createTbClient(config.tb.clusterId, config.tb.address);
+const workers = createWorkerFleet({
+  workers: workerImplementations,
+  selectedWorkerIds,
+});
+
 const monitoring = createWorkerMonitoringRegistry();
-const activeDescriptors = MULTIHANSA_WORKER_DESCRIPTORS.filter(
-  (descriptor) =>
-    selectedWorkerIds === undefined || selectedWorkerIds.includes(descriptor.id),
-);
-const workerObservers = Object.fromEntries(
-  activeDescriptors.map((descriptor) => [
-    descriptor.id,
-    monitoring.registerWorker({
-      name: descriptor.id,
-      intervalMs:
-        config.workerIntervals[descriptor.id] ?? descriptor.defaultIntervalMs,
-    }),
-  ]),
-);
-
-const app = createApp(
-  createMultihansaWorkerDescriptor({
-    appName: config.appName,
-    db,
-    tb,
-    workerIntervals: config.workerIntervals,
-    workerObservers,
-    logLevel: config.logLevel,
-    selectedWorkerIds,
-  }),
-);
-await app.start();
-
-const logger = app.get(LoggerToken);
 const monitoringServer =
-  config.monitoring.port > 0
+  env.WORKERS_MONITORING_PORT > 0
     ? await startWorkerMonitoringServer({
-        host: config.monitoring.host,
-        port: config.monitoring.port,
+        host: env.WORKERS_MONITORING_HOST,
+        port: env.WORKERS_MONITORING_PORT,
         registry: monitoring,
         logger,
       })
     : null;
-
-logger.info("multihansa.workers.started", {
-  workers: activeDescriptors.map((descriptor) => descriptor.id),
+const fleet = startWorkerFleet({
+  appName: "multihansa-workers",
+  workers,
+  createObserver: (worker) =>
+    monitoring.registerWorker({
+      name: worker.id,
+      intervalMs: worker.intervalMs,
+    }),
 });
 
-let stopping = false;
-
-async function stop(signal: string) {
-  if (stopping) {
-    return;
+installShutdownHandlers(() => {
+  fleet.stop();
+  if (monitoringServer) {
+    void monitoringServer.stop();
   }
-
-  stopping = true;
-
-  try {
-    logger.info("multihansa.workers.stopping", { signal });
-    await app.stop();
-    if (monitoringServer) {
-      await monitoringServer.stop();
-    }
-    logger.info("multihansa.workers.stopped", { signal });
-    process.exitCode = 0;
-  } catch (error) {
-    logger.error("multihansa.workers.stop_failed", { signal, error });
-    process.exitCode = 1;
-  } finally {
-    process.exit();
-  }
-}
-
-process.on("SIGINT", () => {
-  void stop("SIGINT");
 });
 
-process.on("SIGTERM", () => {
-  void stop("SIGTERM");
+logger.info("Workers started", {
+  workers: workers.map((worker) => worker.id),
 });
+await fleet.promise;
+logger.info("Workers stopped");
+process.exit(0);

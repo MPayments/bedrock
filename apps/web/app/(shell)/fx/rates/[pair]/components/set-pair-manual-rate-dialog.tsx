@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-import { parseDecimalToFraction } from "@multihansa/common/math";
+import { parseDecimalToFraction } from "@bedrock/common/math";
 import { Button } from "@multihansa/ui/components/button";
 import {
   Dialog,
@@ -62,7 +62,7 @@ export function SetPairManualRateDialog({
     startTransition(async () => {
       const result = await executeMutation({
         request: () =>
-          apiClient.v1.treasury.fx.rates.manual.$post({
+          apiClient.v1.fx.rates.manual.$post({
             json: {
               base,
               quote,

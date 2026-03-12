@@ -35,7 +35,7 @@ export function EditOrganizationFormClient({
 
     const result = await executeMutation<SerializedOrganization>({
       request: () =>
-        apiClient.v1.parties.organizations[":id"].$patch({
+        apiClient.v1.organizations[":id"].$patch({
           param: { id: current.id },
           json: {
             shortName: values.shortName,
@@ -78,7 +78,7 @@ export function EditOrganizationFormClient({
 
     const result = await executeMutation<void>({
       request: () =>
-        apiClient.v1.parties.organizations[":id"].$delete({
+        apiClient.v1.organizations[":id"].$delete({
           param: { id: current.id },
         }),
       fallbackMessage: "Не удалось удалить организацию",
@@ -94,7 +94,7 @@ export function EditOrganizationFormClient({
     }
 
     toast.success("Организация удалена");
-    router.push("/entities/parties/organizations");
+    router.push("/entities/organizations");
     return true;
   }
 

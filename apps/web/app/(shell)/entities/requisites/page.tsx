@@ -20,7 +20,7 @@ export default async function RequisitesPage() {
         <Button
           size="lg"
           nativeButton={false}
-          render={<Link href="/entities/parties/requisites/create" />}
+          render={<Link href="/entities/requisites/create" />}
         >
           <Plus className="h-4 w-4" />
           <span className="hidden md:block">Добавить</span>

@@ -56,7 +56,7 @@ export function EditCustomerFormClient({ customer }: EditCustomerFormClientProps
 
     const result = await executeMutation<CustomerDetails>({
       request: () =>
-        apiClient.v1.parties.customers[":id"].$patch({
+        apiClient.v1.customers[":id"].$patch({
           param: { id: customer.id },
           json: payload,
         }),
@@ -87,7 +87,7 @@ export function EditCustomerFormClient({ customer }: EditCustomerFormClientProps
 
     const result = await executeMutation<void>({
       request: () =>
-        apiClient.v1.parties.customers[":id"].$delete({
+        apiClient.v1.customers[":id"].$delete({
           param: { id: customer.id },
         }),
       fallbackMessage: "Не удалось удалить клиента",
@@ -103,7 +103,7 @@ export function EditCustomerFormClient({ customer }: EditCustomerFormClientProps
     }
 
     actions.clearEdit(customer.id);
-    router.push("/entities/parties/customers");
+    router.push("/entities/customers");
     return true;
   }
 

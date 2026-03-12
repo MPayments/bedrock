@@ -1,4 +1,4 @@
-import { TransferIntercompanyInputSchema } from "@multihansa/reporting/ifrs-documents/contracts";
+import { TransferIntercompanyInputSchema } from "@multihansa/ifrs-documents/contracts";
 
 import type { DocumentFormDefinition } from "../types";
 import {

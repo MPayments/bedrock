@@ -17,10 +17,10 @@ export function EditCounterpartyBreadcrumb({
   return (
     <EntityEditBreadcrumb
       entityLabel="Контрагенты"
-      entityHref="/entities/parties/counterparties"
+      entityHref="/entities/counterparties"
       entityIcon="building-2"
       currentLabel={meta.getEditLabel(counterpartyId, initialLabel)}
-      currentHref={`/entities/parties/counterparties/${counterpartyId}`}
+      currentHref={`/entities/counterparties/${counterpartyId}`}
     />
   );
 }

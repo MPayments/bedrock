@@ -1,4 +1,4 @@
-import { IntercompanyLoanDrawdownInputSchema } from "@multihansa/reporting/ifrs-documents/contracts";
+import { IntercompanyLoanDrawdownInputSchema } from "@multihansa/ifrs-documents/contracts";
 
 import { createLoanLikeDefinition } from "../shared";
 

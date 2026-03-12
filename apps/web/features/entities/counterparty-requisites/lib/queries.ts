@@ -1,9 +1,10 @@
 import { cache } from "react";
 import { z } from "zod";
 
-import { CurrencyOptionsResponseSchema } from "@multihansa/assets/contracts";
-import { CounterpartyOptionsResponseSchema } from "@multihansa/parties/counterparties/contracts";
-import { RequisiteProviderOptionsResponseSchema } from "@multihansa/parties/requisite-providers/contracts";
+import { CounterpartyOptionsResponseSchema } from "@multihansa/counterparties/contracts";
+import { CurrencyOptionsResponseSchema } from "@bedrock/assets/contracts";
+import { RequisiteProviderOptionsResponseSchema } from "@multihansa/requisite-providers/contracts";
+import { REQUISITES_LIST_CONTRACT } from "@multihansa/requisites/contracts";
 
 import {
   getRequisiteKindLabel,
@@ -18,10 +19,14 @@ import {
   readOptionsList,
   readPaginatedList,
 } from "@/lib/api/query";
+import { createResourceListQuery } from "@/lib/resources/search-params";
+
 import type {
   CounterpartyRequisiteDetails,
   CounterpartyRequisiteFormOptions,
+  CounterpartyRequisitesListResult,
 } from "./types";
+import type { CounterpartyRequisitesSearchParams } from "./validations";
 
 const RequisiteApiSchema = z.object({
   id: z.uuid(),
@@ -121,11 +126,18 @@ const RawRequisiteDetailsSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
+function createListQuery(search: CounterpartyRequisitesSearchParams) {
+  return {
+    ...createResourceListQuery(REQUISITES_LIST_CONTRACT, search),
+    ownerType: "counterparty" as const,
+  };
+}
+
 async function getCounterpartyLabelById() {
   const client = await getServerApiClient();
   const payload = await readOptionsList({
     request: () =>
-      client.v1.parties.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
+      client.v1.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
     schema: CounterpartyOptionsResponseSchema,
     context: "Не удалось загрузить контрагентов",
   });
@@ -137,7 +149,7 @@ async function getProviderLabelById() {
   const client = await getServerApiClient();
   const payload = await readOptionsList({
     request: () =>
-      client.v1.parties["requisite-providers"].options.$get(
+      client.v1["requisite-providers"].options.$get(
         {},
         { init: { cache: "force-cache" } },
       ),
@@ -194,6 +206,33 @@ function serializeRow(
   };
 }
 
+export async function getCounterpartyRequisites(
+  search: CounterpartyRequisitesSearchParams,
+): Promise<CounterpartyRequisitesListResult> {
+  const client = await getServerApiClient();
+  const [{ data: payload }, ownerLabelById, providerLabelById, currencyLabelById] =
+    await Promise.all([
+      readPaginatedList({
+        request: () =>
+          client.v1.requisites.$get({
+            query: createListQuery(search),
+          }),
+        schema: RequisitesListResponseSchema,
+        context: "Не удалось загрузить реквизиты контрагентов",
+      }),
+      getCounterpartyLabelById(),
+      getProviderLabelById(),
+      getCurrencyLabelById(),
+    ]);
+
+  return {
+    ...payload,
+    data: payload.data.map((row) =>
+      serializeRow(row, ownerLabelById, providerLabelById, currencyLabelById),
+    ),
+  };
+}
+
 export async function getCounterpartyRequisitesForCounterparty(
   counterpartyId: string,
 ): Promise<SerializedRequisite[]> {
@@ -202,7 +241,7 @@ export async function getCounterpartyRequisitesForCounterparty(
     await Promise.all([
       readPaginatedList({
         request: () =>
-          client.v1.parties.requisites.$get({
+          client.v1.requisites.$get({
             query: {
               ownerType: "counterparty",
               ownerId: counterpartyId,
@@ -233,7 +272,7 @@ const getCounterpartyRequisiteByIdUncached = async (
     resourceName: "реквизит контрагента",
     request: async (validId) => {
       const client = await getServerApiClient();
-      return client.v1.parties.requisites[":id"].$get(
+      return client.v1.requisites[":id"].$get(
         { param: { id: validId } },
         { init: { cache: "no-store" } },
       );
@@ -257,13 +296,13 @@ export async function getCounterpartyRequisiteFormOptions(): Promise<Counterpart
   const [owners, providers, currencies] = await Promise.all([
     readOptionsList({
       request: () =>
-        client.v1.parties.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
+        client.v1.counterparties.options.$get({}, { init: { cache: "force-cache" } }),
       schema: CounterpartyOptionsResponseSchema,
       context: "Не удалось загрузить контрагентов",
     }),
     readOptionsList({
       request: () =>
-        client.v1.parties["requisite-providers"].options.$get(
+        client.v1["requisite-providers"].options.$get(
           {},
           { init: { cache: "force-cache" } },
         ),
@@ -286,4 +325,12 @@ export async function getCounterpartyRequisiteFormOptions(): Promise<Counterpart
       label: item.label,
     })),
   };
+}
+
+export async function getCounterpartyRequisiteCurrencyFilterOptions() {
+  const labelById = await getCurrencyLabelById();
+
+  return [...labelById.entries()]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 }

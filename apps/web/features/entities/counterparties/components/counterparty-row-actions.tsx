@@ -17,7 +17,7 @@ type CounterpartyRowActionsProps = {
 
 export function CounterpartyRowActions({
   counterparty,
-  detailsBasePath = "/entities/parties/counterparties",
+  detailsBasePath = "/entities/counterparties",
 }: CounterpartyRowActionsProps) {
   const router = useRouter();
 
@@ -30,7 +30,7 @@ export function CounterpartyRowActions({
       deleteFallbackMessage="Не удалось удалить контрагента"
       deleteSuccessMessage="Контрагент удален"
       deleteRequest={() =>
-        apiClient.v1.parties.counterparties[":id"].$delete({
+        apiClient.v1.counterparties[":id"].$delete({
           param: { id: counterparty.id },
         })
       }

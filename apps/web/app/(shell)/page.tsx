@@ -1,9 +1,5 @@
 import { FileText } from "lucide-react";
 
-import {
-  buildDocumentDetailsHref,
-  buildDocumentsFamilyHref,
-} from "@/features/documents/lib/routes";
 import { requirePageAudience } from "@/lib/auth/session";
 import { getDocuments } from "@/features/operations/documents/lib/queries";
 import { getRateSources } from "@/features/fx/rates/lib/queries";
@@ -19,33 +15,6 @@ const TRANSFER_DOC_TYPES = [
 
 function formatCount(value: number) {
   return value.toLocaleString("ru-RU");
-}
-
-function buildRecentDocumentItems(
-  documents: Awaited<ReturnType<typeof getDocuments>>["data"],
-) {
-  const items: {
-    id: string;
-    title: string;
-    subtitle: string;
-    href: string;
-  }[] = [];
-
-  for (const document of documents) {
-    const href = buildDocumentDetailsHref(document.docType, document.id);
-    if (!href) {
-      continue;
-    }
-
-    items.push({
-      id: document.id,
-      title: document.title,
-      subtitle: `${document.docType} · ${document.docNo}`,
-      href,
-    });
-  }
-
-  return items;
 }
 
 export default async function DashboardPage() {
@@ -77,7 +46,7 @@ export default async function DashboardPage() {
           value: formatCount(transferDocuments.total),
           description:
             "Внутренние/межкомпанейские переводы и документы transfer_resolution.",
-          href: buildDocumentsFamilyHref("transfers"),
+          href: "/transfers",
         },
         {
           id: "fx",
@@ -92,7 +61,7 @@ export default async function DashboardPage() {
                 ? `Просроченных источников: ${formatCount(staleSources)}`
                 : "Все источники FX актуальны в пределах TTL."
               : "Административные разделы доступны по роли.",
-          href: session.role === "admin" ? "/treasury/fx" : undefined,
+          href: session.role === "admin" ? "/fx" : undefined,
         },
       ]}
       links={
@@ -109,7 +78,7 @@ export default async function DashboardPage() {
                 id: "accounting",
                 title: "Бухгалтерия",
                 description: "План счетов, корреспонденция и финансовый результат.",
-                href: "/finance/accounting",
+                href: "/accounting",
                 cta: "Открыть бухгалтерию",
               },
             ]
@@ -118,7 +87,7 @@ export default async function DashboardPage() {
                 id: "transfers",
                 title: "Переводы",
                 description: "Открыть transfer workflow и связанные документы.",
-                href: buildDocumentsFamilyHref("transfers"),
+                href: "/transfers",
                 cta: "Открыть переводы",
               },
               {
@@ -134,7 +103,12 @@ export default async function DashboardPage() {
         <RecentItemsCard
           title="Последние документы"
           description="Срез последних операций без дополнительной фильтрации."
-          items={buildRecentDocumentItems(recentDocuments.data.slice(0, 5))}
+          items={recentDocuments.data.slice(0, 5).map((document) => ({
+            id: document.id,
+            title: document.title,
+            subtitle: `${document.docType} · ${document.docNo}`,
+            href: `/documents/${document.docType}/${document.id}`,
+          }))}
         />
       }
     />

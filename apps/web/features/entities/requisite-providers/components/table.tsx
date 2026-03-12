@@ -65,7 +65,7 @@ export function RequisiteProvidersTable({
 
   const handleRowDoubleClick = React.useCallback(
     (row: TanstackRow<SerializedRequisiteProvider>) => {
-      router.push(`/entities/parties/requisite-providers/${row.original.id}`);
+      router.push(`/entities/requisite-providers/${row.original.id}`);
     },
     [router],
   );

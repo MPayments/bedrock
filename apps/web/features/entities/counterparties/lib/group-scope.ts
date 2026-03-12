@@ -1,4 +1,4 @@
-import type { CounterpartyGroupRootCode } from "@multihansa/parties/counterparties/contracts";
+import type { CounterpartyGroupRootCode } from "@multihansa/counterparties/contracts";
 
 import type { CounterpartyGroupOption } from "./queries";
 

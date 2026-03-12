@@ -1,4 +1,4 @@
-import { TransferResolutionInputSchema } from "@multihansa/reporting/ifrs-documents/contracts";
+import { TransferResolutionInputSchema } from "@multihansa/ifrs-documents/contracts";
 
 import type { DocumentFormDefinition } from "../types";
 import {

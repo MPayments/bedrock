@@ -56,7 +56,7 @@ export default async function CounterpartyRequisitesPage({
             render={
               <Link
                 href={{
-                  pathname: "/entities/parties/requisites/create",
+                  pathname: "/entities/requisites/create",
                   query: { ownerType: "counterparty", ownerId: id },
                 }}
               />
@@ -82,7 +82,7 @@ export default async function CounterpartyRequisitesPage({
                 render={
                   <Link
                     href={{
-                      pathname: "/entities/parties/requisites/create",
+                      pathname: "/entities/requisites/create",
                       query: { ownerType: "counterparty", ownerId: id },
                     }}
                   />
@@ -109,7 +109,7 @@ export default async function CounterpartyRequisitesPage({
                 <TableRow key={requisite.id}>
                   <TableCell className="font-medium">
                     <Link
-                      href={`/entities/parties/requisites/${requisite.id}`}
+                      href={`/entities/requisites/${requisite.id}`}
                       className="hover:underline"
                     >
                       {requisite.label}

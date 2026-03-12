@@ -1,14 +1,15 @@
 import { inArray } from "drizzle-orm";
 
-import { isUuidLike } from "@multihansa/common";
+import { isUuidLike } from "@bedrock/common";
+import { schema as documentsSchema } from "@bedrock/documents/schema";
 import {
   createDimensionRegistry,
   type DimensionRegistry,
-} from "@multihansa/common/registers";
-import { schema as documentsSchema } from "@multihansa/documents/schema";
-import { schema as counterpartiesSchema } from "@multihansa/parties/counterparties/schema";
-import { schema as customersSchema } from "@multihansa/parties/customers/schema";
-import { schema as requisitesSchema } from "@multihansa/parties/requisites/schema";
+} from "@bedrock/registers";
+
+import { schema as counterpartiesSchema } from "@multihansa/counterparties/schema";
+import { schema as customersSchema } from "@multihansa/customers/schema";
+import { schema as requisitesSchema } from "@multihansa/requisites/schema";
 
 const schema = {
   ...counterpartiesSchema,

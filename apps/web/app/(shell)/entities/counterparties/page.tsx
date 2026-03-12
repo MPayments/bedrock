@@ -39,7 +39,7 @@ export default async function CounterpartiesPage({ searchParams }: PageProps) {
           <Button
             size="lg"
             nativeButton={false}
-            render={<Link href="/entities/parties/counterparties/create" />}
+            render={<Link href="/entities/counterparties/create" />}
           >
             <Plus className="h-4 w-4" />
             <span className="hidden md:block">Создать</span>
@@ -53,7 +53,7 @@ export default async function CounterpartiesPage({ searchParams }: PageProps) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-46">
               <DropdownMenuItem
-                render={<Link href="/entities/parties/counterparties/groups/create" />}
+                render={<Link href="/entities/counterparties/groups/create" />}
               >
                 <FolderPlus className="h-4 w-4" />
                 <span>Создать группу</span>
