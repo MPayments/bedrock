@@ -17,6 +17,10 @@ import type {
   DocumentWithOperationId,
 } from "../types";
 import {
+  invokeDocumentModuleAction,
+  resolveDocumentPolicyDecision,
+} from "./action-dispatch";
+import {
   createModuleContext,
   resolveModuleForDocument,
 } from "./module-resolution";
@@ -101,36 +105,8 @@ async function isActionAllowedByModule(input: {
   document: Document;
 }): Promise<boolean> {
   try {
-    switch (input.action) {
-      case "edit":
-        await input.module.canEdit(input.moduleContext, input.document);
-        return true;
-      case "submit":
-        await input.module.canSubmit(input.moduleContext, input.document);
-        return true;
-      case "approve":
-        await input.module.canApprove(input.moduleContext, input.document);
-        return true;
-      case "reject":
-        await input.module.canReject(input.moduleContext, input.document);
-        return true;
-      case "post":
-        if (
-          input.module.allowDirectPostFromDraft &&
-          input.document.submissionStatus === "draft"
-        ) {
-          await input.module.canSubmit(input.moduleContext, input.document);
-        }
-        await input.module.canPost(input.moduleContext, input.document);
-        return true;
-      case "cancel":
-        await input.module.canCancel(input.moduleContext, input.document);
-        return true;
-      case "repost":
-        return true;
-      default:
-        return false;
-    }
+    await invokeDocumentModuleAction(input);
+    return true;
   } catch {
     return false;
   }
@@ -145,71 +121,14 @@ async function isActionAllowedByPolicy(input: {
   actorUserId: string;
 }): Promise<boolean> {
   try {
-    const decision =
-      input.action === "edit"
-        ? await input.policy.canEdit({
-            module: input.module,
-            document: input.document,
-            actorUserId: input.actorUserId,
-            moduleContext: input.moduleContext,
-          })
-        : input.action === "submit"
-          ? await input.policy.canSubmit({
-              module: input.module,
-              document: input.document,
-              actorUserId: input.actorUserId,
-              moduleContext: input.moduleContext,
-            })
-          : input.action === "approve"
-            ? await input.policy.canApprove({
-                module: input.module,
-                document: input.document,
-                actorUserId: input.actorUserId,
-                moduleContext: input.moduleContext,
-              })
-            : input.action === "reject"
-              ? await input.policy.canReject({
-                  module: input.module,
-                  document: input.document,
-                  actorUserId: input.actorUserId,
-                  moduleContext: input.moduleContext,
-                })
-              : input.action === "post"
-                ? await (async () => {
-                    if (
-                      input.module.allowDirectPostFromDraft &&
-                      input.document.submissionStatus === "draft"
-                    ) {
-                      const submitDecision = await input.policy.canSubmit({
-                        module: input.module,
-                        document: input.document,
-                        actorUserId: input.actorUserId,
-                        moduleContext: input.moduleContext,
-                      });
-                      if (!submitDecision.allow) {
-                        return submitDecision;
-                      }
-                    }
-
-                    return input.policy.canPost({
-                      module: input.module,
-                      document: input.document,
-                      actorUserId: input.actorUserId,
-                      moduleContext: input.moduleContext,
-                    });
-                  })()
-                : input.action === "cancel"
-                  ? await input.policy.canCancel({
-                      module: input.module,
-                      document: input.document,
-                      actorUserId: input.actorUserId,
-                      moduleContext: input.moduleContext,
-                    })
-                  : {
-                      allow: true,
-                      reasonCode: "allowed",
-                      reasonMeta: null,
-                    };
+    const decision = await resolveDocumentPolicyDecision({
+      policy: input.policy,
+      action: input.action,
+      module: input.module,
+      actorUserId: input.actorUserId,
+      moduleContext: input.moduleContext,
+      document: input.document,
+    });
 
     return decision.allow;
   } catch {

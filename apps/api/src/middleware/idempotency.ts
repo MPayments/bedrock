@@ -6,7 +6,7 @@ export function getRequestContext(c: {
   return c.get("requestContext");
 }
 
-export function requireIdempotencyKey(c: {
+function requireIdempotencyKey(c: {
   get: (key: "requestContext") => RequestContext | undefined;
   json: (body: unknown, status?: number) => Response;
 }) {

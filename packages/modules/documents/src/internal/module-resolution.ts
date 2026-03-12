@@ -56,17 +56,6 @@ export function resolveModuleForDocument(
   );
 }
 
-export function resolveModuleOrNull(
-  registry: DocumentRegistry,
-  docType: string,
-): DocumentModule | null {
-  try {
-    return registry.getDocumentModule(docType);
-  } catch {
-    return null;
-  }
-}
-
 export function createModuleContext(
   deps: Pick<DocumentModuleContext, "actorUserId" | "db" | "log" | "now">,
 ): DocumentModuleContext {

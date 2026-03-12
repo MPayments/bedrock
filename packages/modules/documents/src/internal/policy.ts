@@ -9,6 +9,7 @@ import type {
   DocumentModuleContext,
   DocumentRequestContext,
 } from "../types";
+import { resolveDocumentPolicyDecision } from "./action-dispatch";
 
 interface EnforceDocumentPolicyInput {
   policy: DocumentActionPolicyService;
@@ -45,55 +46,7 @@ class AuditedDocumentPolicyDeniedError extends DocumentPolicyDeniedError {
 export async function enforceDocumentPolicy(
   input: EnforceDocumentPolicyInput,
 ): Promise<void> {
-  const decision =
-    input.action === "create"
-      ? await input.policy.canCreate({
-          module: input.module,
-          actorUserId: input.actorUserId,
-          payload: input.payload,
-          moduleContext: input.moduleContext,
-        })
-      : input.action === "edit"
-        ? await input.policy.canEdit({
-            module: input.module,
-            document: input.document!,
-            actorUserId: input.actorUserId,
-            moduleContext: input.moduleContext,
-          })
-        : input.action === "submit"
-          ? await input.policy.canSubmit({
-              module: input.module,
-              document: input.document!,
-              actorUserId: input.actorUserId,
-              moduleContext: input.moduleContext,
-            })
-          : input.action === "approve"
-            ? await input.policy.canApprove({
-                module: input.module,
-                document: input.document!,
-                actorUserId: input.actorUserId,
-                moduleContext: input.moduleContext,
-              })
-            : input.action === "reject"
-              ? await input.policy.canReject({
-                  module: input.module,
-                  document: input.document!,
-                  actorUserId: input.actorUserId,
-                  moduleContext: input.moduleContext,
-                })
-              : input.action === "post"
-                ? await input.policy.canPost({
-                    module: input.module,
-                    document: input.document!,
-                    actorUserId: input.actorUserId,
-                    moduleContext: input.moduleContext,
-                  })
-                : await input.policy.canCancel({
-                    module: input.module,
-                    document: input.document!,
-                    actorUserId: input.actorUserId,
-                    moduleContext: input.moduleContext,
-                  });
+  const decision = await resolveDocumentPolicyDecision(input);
 
   if (decision.allow) {
     return;

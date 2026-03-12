@@ -18,84 +18,84 @@ import type { ApiApplicationModuleDefinition } from "./types";
 export type ApiApplicationModule<Path extends string = string> =
   ApiApplicationModuleDefinition<Path>;
 
-export const accountingModule = {
+const accountingModule = {
   routePath: "/accounting",
   registerRoutes(ctx: AppContext) {
     return accountingRoutes(ctx);
   },
 } as const satisfies ApiApplicationModule<"/accounting">;
 
-export const balancesModule = {
+const balancesModule = {
   routePath: "/balances",
   registerRoutes(ctx: AppContext) {
     return balancesRoutes(ctx);
   },
 } as const satisfies ApiApplicationModule<"/balances">;
 
-export const counterpartiesModule = {
+const counterpartiesModule = {
   routePath: "/counterparties",
   registerRoutes(ctx: AppContext) {
     return counterpartiesRoutes(ctx);
   },
 } as const satisfies ApiApplicationModule<"/counterparties">;
 
-export const counterpartyGroupsModule = {
+const counterpartyGroupsModule = {
   routePath: "/counterparty-groups",
   registerRoutes(ctx: AppContext) {
     return counterpartyGroupsRoutes(ctx);
   },
 } as const satisfies ApiApplicationModule<"/counterparty-groups">;
 
-export const customersModule = {
+const customersModule = {
   routePath: "/customers",
   registerRoutes(ctx: AppContext) {
     return customersRoutes(ctx);
   },
 } as const satisfies ApiApplicationModule<"/customers">;
 
-export const currenciesModule = {
+const currenciesModule = {
   routePath: "/currencies",
   registerRoutes(ctx: AppContext) {
     return currenciesRoutes(ctx);
   },
 } as const satisfies ApiApplicationModule<"/currencies">;
 
-export const documentsModule = {
+const documentsModule = {
   routePath: "/documents",
   registerRoutes(ctx: AppContext) {
     return documentsRoutes(ctx);
   },
 } as const satisfies ApiApplicationModule<"/documents">;
 
-export const fxRatesModule = {
+const fxRatesModule = {
   routePath: "/fx/rates",
   registerRoutes(ctx: AppContext) {
     return fxRatesRoutes(ctx);
   },
 } as const satisfies ApiApplicationModule<"/fx/rates">;
 
-export const fxQuotesModule = {
+const fxQuotesModule = {
   routePath: "/fx/quotes",
   registerRoutes(ctx: AppContext) {
     return fxQuotesRoutes(ctx);
   },
 } as const satisfies ApiApplicationModule<"/fx/quotes">;
 
-export const organizationsModule = {
+const organizationsModule = {
   routePath: "/organizations",
   registerRoutes(ctx: AppContext) {
     return organizationsRoutes(ctx);
   },
 } as const satisfies ApiApplicationModule<"/organizations">;
 
-export const requisiteProvidersModule = {
+const requisiteProvidersModule = {
   routePath: "/requisite-providers",
   registerRoutes(ctx: AppContext) {
     return requisiteProvidersRoutes(ctx);
   },
 } as const satisfies ApiApplicationModule<"/requisite-providers">;
 
-export const requisitesModule = {
+const requisitesModule = {
   routePath: "/requisites",
   registerRoutes(ctx: AppContext) {
     return requisitesRoutes(ctx);

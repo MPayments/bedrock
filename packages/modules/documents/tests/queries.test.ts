@@ -66,6 +66,83 @@ describe("documents queries", () => {
     );
   });
 
+  it("hides direct-post actions when submit policy denies the draft precondition", async () => {
+    const document = makeDocument({
+      submissionStatus: "draft",
+      approvalStatus: "not_required",
+      postingStatus: "unposted",
+      counterpartyId: null,
+      customerId: null,
+      organizationRequisiteId: null,
+      payload: {},
+    });
+    const module = {
+      ...createModuleStub(),
+      allowDirectPostFromDraft: true,
+      canSubmit: vi.fn(async () => undefined),
+      canPost: vi.fn(async () => undefined),
+    };
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          leftJoin: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => [
+                {
+                  document,
+                  postingOperationId: null,
+                },
+              ]),
+            })),
+          })),
+        })),
+      })),
+    };
+    const policy = {
+      approvalMode: vi.fn(),
+      canCreate: vi.fn(),
+      canEdit: vi.fn(async () => ({
+        allow: true,
+        reasonCode: "allowed",
+        reasonMeta: null,
+      })),
+      canSubmit: vi.fn(async () => ({
+        allow: false,
+        reasonCode: "maker_only",
+        reasonMeta: null,
+      })),
+      canApprove: vi.fn(),
+      canReject: vi.fn(),
+      canPost: vi.fn(async () => ({
+        allow: true,
+        reasonCode: "allowed",
+        reasonMeta: null,
+      })),
+      canCancel: vi.fn(async () => ({
+        allow: true,
+        reasonCode: "allowed",
+        reasonMeta: null,
+      })),
+    };
+    const registry = {
+      getDocumentModule: vi.fn(() => module),
+    };
+    const getDocument = createGetDocumentQuery({
+      db,
+      log: {} as any,
+      policy,
+      registry,
+    } as any);
+
+    const result = await getDocument(document.docType, document.id, "maker-1");
+
+    expect(result.allowedActions).toEqual(["edit", "cancel"]);
+    expect(module.canSubmit).toHaveBeenCalledTimes(1);
+    expect(module.canPost).toHaveBeenCalledTimes(1);
+    expect(policy.canSubmit).toHaveBeenCalledTimes(1);
+    expect(policy.canPost).not.toHaveBeenCalled();
+  });
+
   it("lists documents with the current pagination mapping", async () => {
     const document = makeDocument();
     const rows = [

@@ -15,7 +15,13 @@ const SOURCE_ROOTS = [
   join(ROOT, "apps", "api", "src"),
   join(ROOT, "apps", "workers", "src"),
 ];
-const EXCLUDED_DIRS = new Set(["node_modules", "dist", "coverage", ".next", "tests"]);
+const EXCLUDED_DIRS = new Set([
+  "node_modules",
+  "dist",
+  "coverage",
+  ".next",
+  "tests",
+]);
 
 const FORBIDDEN_IMPORT_PATTERN =
   /(?:import|export)\s+[^"'`]*\b(?:ACCOUNT_NO|POSTING_CODE|CLEARING_KIND|OPERATION_CODE|POSTING_TEMPLATE_KEY)\b[^"'`]*from\s+["']@bedrock\/core\/accounting["']/g;
