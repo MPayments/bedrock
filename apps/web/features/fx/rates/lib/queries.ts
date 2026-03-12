@@ -1,11 +1,11 @@
 import {
   CurrencyOptionsResponseSchema,
-} from "@bedrock/app/currencies/contracts";
+} from "@bedrock/application/currencies/contracts";
 import {
   FxRateHistoryResponseSchema,
   FxRatePairsResponseSchema,
   FxRateSourceStatusesResponseSchema,
-} from "@bedrock/app/fx/contracts";
+} from "@bedrock/application/fx/contracts";
 import { z } from "zod";
 
 import { getServerApiClient } from "@/lib/api/server-client";

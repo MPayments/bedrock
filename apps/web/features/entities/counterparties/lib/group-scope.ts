@@ -1,4 +1,4 @@
-import type { CounterpartyGroupRootCode } from "@bedrock/app/counterparties/contracts";
+import type { CounterpartyGroupRootCode } from "@bedrock/application/counterparties/contracts";
 
 import type { CounterpartyGroupOption } from "./queries";
 

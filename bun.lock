@@ -19,7 +19,7 @@
       "name": "api",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/app": "workspace:*",
+        "@bedrock/application": "workspace:*",
         "@bedrock/common": "workspace:*",
         "@bedrock/db": "workspace:*",
         "@hono/node-server": "^1.19.9",
@@ -44,7 +44,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@bedrock/api-client": "workspace:*",
-        "@bedrock/app": "workspace:*",
+        "@bedrock/application": "workspace:*",
         "@bedrock/common": "workspace:*",
         "@bedrock/ui": "workspace:*",
         "@better-fetch/fetch": "^1.1.21",
@@ -80,7 +80,7 @@
       "name": "workers",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/app": "workspace:*",
+        "@bedrock/application": "workspace:*",
         "@bedrock/common": "workspace:*",
         "@bedrock/db": "workspace:*",
         "dotenv": "^17.3.1",
@@ -94,8 +94,8 @@
         "typescript": "^5.8.3",
       },
     },
-    "packages/app": {
-      "name": "@bedrock/app",
+    "packages/application": {
+      "name": "@bedrock/application",
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/common": "workspace:*",
@@ -141,7 +141,7 @@
       "name": "@bedrock/db",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/app": "workspace:*",
+        "@bedrock/application": "workspace:*",
         "@bedrock/common": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "pg": "^8.17.2",
@@ -269,7 +269,7 @@
 
     "@bedrock/api-client": ["@bedrock/api-client@workspace:packages/sdk/api-client"],
 
-    "@bedrock/app": ["@bedrock/app@workspace:packages/app"],
+    "@bedrock/application": ["@bedrock/application@workspace:packages/application"],
 
     "@bedrock/common": ["@bedrock/common@workspace:packages/common"],
 
@@ -1673,7 +1673,7 @@
 
     "zod": ["zod@4.3.6", "", {}, "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="],
 
-    "@bedrock/app/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+    "@bedrock/application/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/common/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
@@ -1765,7 +1765,7 @@
 
     "workers/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
-    "@bedrock/app/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+    "@bedrock/application/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/common/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 

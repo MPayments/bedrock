@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@bedrock/api-client": "workspace:*",
-    "@bedrock/app": "workspace:*",
+    "@bedrock/application": "workspace:*",
     "@bedrock/common": "workspace:*",
     "@bedrock/ui": "workspace:*",
     "@better-fetch/fetch": "^1.1.21",

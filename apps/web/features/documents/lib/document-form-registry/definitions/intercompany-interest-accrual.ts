@@ -1,4 +1,4 @@
-import { IntercompanyInterestAccrualInputSchema } from "@bedrock/app/ifrs-documents/contracts";
+import { IntercompanyInterestAccrualInputSchema } from "@bedrock/application/ifrs-documents/contracts";
 
 import type { DocumentFormDefinition } from "../types";
 import {

@@ -1,4 +1,4 @@
-import { PeriodReopenSchema } from "@bedrock/app/ifrs-documents/contracts";
+import { PeriodReopenSchema } from "@bedrock/application/ifrs-documents/contracts";
 
 import type { DocumentFormDefinition } from "../types";
 import {

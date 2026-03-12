@@ -6,11 +6,11 @@ import ts from "typescript";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const domainRoots = [
-  path.join(repoRoot, "packages/app/src"),
+  path.join(repoRoot, "packages/application/src"),
 ];
 const moduleManifestsPath = path.join(
   repoRoot,
-  "packages/app/src/module-runtime/manifests.ts",
+  "packages/application/src/module-runtime/manifests.ts",
 );
 const workersPackageJsonPath = path.join(repoRoot, "apps/workers/package.json");
 const turboJsonPath = path.join(repoRoot, "turbo.json");

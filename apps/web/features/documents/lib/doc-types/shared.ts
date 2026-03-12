@@ -1,7 +1,7 @@
 import {
   IFRS_DOCUMENT_METADATA,
   type IfrsDocumentType,
-} from "@bedrock/app/ifrs-documents/contracts";
+} from "@bedrock/application/ifrs-documents/contracts";
 
 export type DocumentTypeFamily = "transfers" | "ifrs" | "payments";
 

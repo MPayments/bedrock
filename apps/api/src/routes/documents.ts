@@ -8,8 +8,8 @@ import {
   ListDocumentsQuerySchema,
   UpdateDocumentInputSchema,
   isSystemOnlyDocumentType,
-} from "@bedrock/app/documents";
-import { ListLedgerOperationsQuerySchema } from "@bedrock/app/ledger";
+} from "@bedrock/application/documents";
+import { ListLedgerOperationsQuerySchema } from "@bedrock/application/ledger";
 
 import auth from "../auth";
 import { handleRouteError } from "../common/errors";

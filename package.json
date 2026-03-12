@@ -8,9 +8,9 @@
     "check:boundaries": "node ./scripts/check-boundaries.mjs && node ./scripts/check-accounting-literals.mjs && node ./scripts/check-deprecated-imports.mjs",
     "check:worker-runtime": "node ./scripts/check-worker-runtime.mjs",
     "check:workspace-deps": "node ./scripts/check-workspace-deps.mjs",
-    "pack:validate": "bun run --filter=@bedrock/app pack:validate",
-    "pack:compile": "bun run --filter=@bedrock/app pack:compile",
-    "pack:activate": "bun run --filter=@bedrock/app pack:activate",
+    "pack:validate": "bun run --filter=@bedrock/application pack:validate",
+    "pack:compile": "bun run --filter=@bedrock/application pack:compile",
+    "pack:activate": "bun run --filter=@bedrock/application pack:activate",
     "check-types": "turbo run check-types",
     "test": "vitest run --project api --project workers --project countries --project db --project accounting --project balances --project module-runtime --project counterparties --project currencies --project customers --project dimensions --project documents --project idempotency --project ledger --project counterparty-accounts --project reconciliation --project accounting-reporting --project fees --project fx --project payments",
     "test:watch": "vitest --project api --project workers --project countries --project db --project accounting --project balances --project module-runtime --project counterparties --project currencies --project customers --project dimensions --project documents --project idempotency --project ledger --project counterparty-accounts --project reconciliation --project accounting-reporting --project fees --project fx --project payments",
@@ -39,7 +39,7 @@
     "apps/*",
     "packages/common",
     "packages/db",
-    "packages/app",
+    "packages/application",
     "packages/sdk/*",
     "packages/tooling/*"
   ]

@@ -2,7 +2,7 @@ module.exports = {
   layers: {
     common: "^packages/common/",
     db: "^packages/db/",
-    app: "^packages/app/",
+    app: "^packages/application/",
     sdk: "^packages/sdk/",
     tooling: "^packages/tooling/",
     adapter: "^apps/",
@@ -11,7 +11,7 @@ module.exports = {
     {
       name: "no-internal-common-imports",
       from: {
-        path: "^(packages/(app|sdk|tooling)/|apps/)",
+        path: "^(packages/(application|sdk|tooling)/|apps/)",
       },
       to: {
         path: "^packages/common/(?!src(?:/|$))",
@@ -19,13 +19,13 @@ module.exports = {
     },
     {
       name: "app-to-adapter",
-      from: { path: "^packages/app/" },
+      from: { path: "^packages/application/" },
       to: { path: "^apps/" },
     },
     {
       name: "common-to-app",
       from: { path: "^packages/common/" },
-      to: { path: "^packages/app/" },
+      to: { path: "^packages/application/" },
     },
   ],
 };

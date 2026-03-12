@@ -1,4 +1,4 @@
-import type { Counterparty } from "@bedrock/app/counterparties/contracts";
+import type { Counterparty } from "@bedrock/application/counterparties/contracts";
 
 import type { ListResult } from "@/features/entities/shared/lib/list-result";
 

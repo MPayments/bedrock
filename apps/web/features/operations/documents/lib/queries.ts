@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 
-import { DOCUMENTS_LIST_CONTRACT } from "@bedrock/app/documents/contracts";
+import { DOCUMENTS_LIST_CONTRACT } from "@bedrock/application/documents/contracts";
 
 import {
   readJsonWithSchema,

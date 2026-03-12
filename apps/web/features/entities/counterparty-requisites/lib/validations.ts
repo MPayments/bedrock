@@ -1,4 +1,4 @@
-import { REQUISITES_LIST_CONTRACT } from "@bedrock/app/requisites/contracts";
+import { REQUISITES_LIST_CONTRACT } from "@bedrock/application/requisites/contracts";
 
 import {
   createResourceSearchParamsCache,

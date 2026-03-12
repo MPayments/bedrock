@@ -10,7 +10,7 @@ import {
   IntercompanyLoanDrawdownInputSchema,
   IntercompanyLoanRepaymentInputSchema,
   RevaluationAdjustmentInputSchema,
-} from "@bedrock/app/ifrs-documents/contracts";
+} from "@bedrock/application/ifrs-documents/contracts";
 
 import type {
   DocumentFormDefinition,

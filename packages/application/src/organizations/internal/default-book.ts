@@ -1,0 +1,65 @@
+import { and, eq } from "drizzle-orm";
+
+import { schema as ledgerSchema } from "@bedrock/application/ledger/schema";
+import type { Transaction } from "@bedrock/common/db/types";
+
+const DEFAULT_BOOK_CODE_PREFIX = "organization-default";
+
+function defaultBookCode(organizationId: string) {
+  return `${DEFAULT_BOOK_CODE_PREFIX}:${organizationId}`;
+}
+
+function defaultBookName(organizationId: string) {
+  return `Organization ${organizationId} default book`;
+}
+
+export async function ensureOrganizationDefaultBookIdTx(
+  tx: Transaction,
+  organizationId: string,
+): Promise<string> {
+  const [defaultBook] = await tx
+    .select({ id: ledgerSchema.books.id })
+    .from(ledgerSchema.books)
+    .where(
+      and(
+        eq(ledgerSchema.books.organizationId, organizationId),
+        eq(ledgerSchema.books.isDefault, true),
+      ),
+    )
+    .limit(1);
+
+  if (defaultBook) {
+    return defaultBook.id;
+  }
+
+  const [created] = await tx
+    .insert(ledgerSchema.books)
+    .values({
+      organizationId,
+      code: defaultBookCode(organizationId),
+      name: defaultBookName(organizationId),
+      isDefault: true,
+    })
+    .onConflictDoNothing({
+      target: ledgerSchema.books.code,
+    })
+    .returning({ id: ledgerSchema.books.id });
+
+  if (created) {
+    return created.id;
+  }
+
+  const [byCode] = await tx
+    .select({ id: ledgerSchema.books.id })
+    .from(ledgerSchema.books)
+    .where(eq(ledgerSchema.books.code, defaultBookCode(organizationId)))
+    .limit(1);
+
+  if (byCode) {
+    return byCode.id;
+  }
+
+  throw new Error(
+    `Failed to resolve default book for organization: ${organizationId}`,
+  );
+}

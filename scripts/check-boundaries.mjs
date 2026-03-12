@@ -124,7 +124,7 @@ function toWorkspacePath(importPath) {
     const packageDir = packageDirsByName.get(packageName);
     if (!packageDir) return null;
 
-    if (packageName === "@bedrock/app") {
+    if (packageName === "@bedrock/application") {
       const domain = parts[2];
       if (!domain) {
         return `${packageDir}`;
@@ -174,7 +174,7 @@ const LEGACY_SPECIFIER_PATTERNS = [
 const DB_TYPES_SPECIFIER = /^@bedrock\/db\/types(?:\/|$)/;
 const DB_RUNTIME_BLOCKED_SPECIFIER = /^@bedrock\/db(?:$|\/(?:client|seeds)(?:$|\/))/;
 function isRuntimePackageFile(file) {
-  return /^packages\/app\/src\/[^/]+\//.test(file);
+  return /^packages\/application\/src\/[^/]+\//.test(file);
 }
 
 function isSchemaDefinitionFile(file) {
@@ -188,7 +188,7 @@ function isSchemaDefinitionFile(file) {
 
 function isAllowedContractImport(fromFile, specifier) {
   return (
-    fromFile.startsWith("packages/app/src/") &&
+    fromFile.startsWith("packages/application/src/") &&
     specifier === "@bedrock/common/countries/contracts"
   );
 }
@@ -249,8 +249,8 @@ for (const root of SOURCE_ROOTS) {
           specifier === "@bedrock/common/countries/contracts" ||
           specifier === "@bedrock/api-client" ||
           specifier.startsWith("@bedrock/api-client/") ||
-          specifier === "@bedrock/app/currencies/catalog" ||
-          /^@bedrock\/app\/[^/]+\/(?:contracts|validation)$/.test(specifier);
+          specifier === "@bedrock/application/currencies/catalog" ||
+          /^@bedrock\/application\/[^/]+\/(?:contracts|validation)$/.test(specifier);
 
         if (!allowed) {
           violations.push({

@@ -1,6 +1,6 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
-import type { ModuleCatalogEntry } from "@bedrock/app/module-runtime";
+import type { ModuleCatalogEntry } from "@bedrock/application/module-runtime";
 
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";

@@ -1,11 +1,11 @@
 import { and, eq } from "drizzle-orm";
 
-import { ACCOUNT_NO } from "@bedrock/app/accounting";
+import { ACCOUNT_NO } from "@bedrock/application/accounting";
 import {
   computeDimensionsHash,
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
-} from "@bedrock/app/ledger/ids";
+} from "@bedrock/application/ledger/ids";
 
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema";

@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
-import { appIntegrationProjects } from "./packages/app/vitest.integration.config";
-import { appUnitProjects } from "./packages/app/vitest.config";
+import { appIntegrationProjects } from "./packages/application/vitest.integration.config";
+import { appUnitProjects } from "./packages/application/vitest.config";
 
 export default defineConfig({
   test: {

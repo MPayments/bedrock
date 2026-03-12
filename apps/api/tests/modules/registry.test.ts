@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/app/module-runtime";
+import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
 
 interface ApiModuleRegistryEntry {
   id: string;

@@ -17,19 +17,19 @@ Stack: TypeScript 5.8, Hono, Next.js, Drizzle ORM, PostgreSQL, TigerBeetle, Zod,
 Runtime is consolidated into two workspace packages:
 
 - `@bedrock/common` (shared primitives and infrastructure helpers)
-- `@bedrock/app` (all runtime domains and workflows)
+- `@bedrock/application` (all runtime domains and workflows)
 
 Core dependency direction:
 
-- `@bedrock/common -> @bedrock/app -> apps/*`
-- `@bedrock/db` aggregates schemas from `@bedrock/app` and provides DB client/migrations/seeds.
+- `@bedrock/common -> @bedrock/application -> apps/*`
+- `@bedrock/db` aggregates schemas from `@bedrock/application` and provides DB client/migrations/seeds.
 
 Hard rules:
 
 - No legacy runtime specifiers (`@bedrock/<domain>`) in runtime code.
 - Domain schema ownership is colocated under:
-  - `packages/app/src/<domain>/schema.ts` or `schema/**`
-  - `packages/app/src/<domain>/schema.ts` or `schema/**`
+  - `packages/application/src/<domain>/schema.ts` or `schema/**`
+  - `packages/application/src/<domain>/schema.ts` or `schema/**`
 - `@bedrock/db` must not own domain table declarations; it only aggregates domain schemas for client/migrations/seeds.
 
 ## Package Manager and Runtime
@@ -44,7 +44,7 @@ Hard rules:
 "dependencies": {
     "@bedrock/db": "workspace:*",     // correct
     "@bedrock/common": "workspace:*", // correct
-    "@bedrock/app": "workspace:*"     // correct
+    "@bedrock/application": "workspace:*"     // correct
     // NOT "@bedrock/db": "*"
 }
 ```
@@ -143,10 +143,10 @@ export function createXxxService(deps: XxxServiceDeps) {
 
 Runtime domain code lives under consolidated folders:
 
-- `packages/app/src/<domain>/**`
-- `packages/app/src/<domain>/**`
-- `packages/app/tests/<domain>/**`
-- `packages/app/tests/<domain>/**`
+- `packages/application/src/<domain>/**`
+- `packages/application/src/<domain>/**`
+- `packages/application/tests/<domain>/**`
+- `packages/application/tests/<domain>/**`
 
 Within each domain folder, follow this layout:
 
@@ -205,8 +205,8 @@ export class OrderNotFoundError extends ServiceError {
 
 - Drizzle ORM with PostgreSQL.
 - Schema uses `snake_case` column naming convention.
-- Runtime table definitions must be colocated in domain schema paths under `packages/app/src/<domain>/schema.ts` or `schema/**`.
-- Runtime code imports schemas from `@bedrock/app/<domain>/schema`.
+- Runtime table definitions must be colocated in domain schema paths under `packages/application/src/<domain>/schema.ts` or `schema/**`.
+- Runtime code imports schemas from `@bedrock/application/<domain>/schema`.
 - Runtime code imports shared database connection types from `@bedrock/common/db/types`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.
 - Migration policy is baseline-only hard cutover.
@@ -217,8 +217,8 @@ export class OrderNotFoundError extends ServiceError {
 
 - Vitest with globals enabled.
 - Test utilities and fixtures from `@bedrock/test-utils`.
-- Unit tests in `packages/app/tests/<domain>/*.test.ts`.
-- Integration tests in `packages/app/tests/<domain>/integration/*.test.ts`.
+- Unit tests in `packages/application/tests/<domain>/*.test.ts`.
+- Integration tests in `packages/application/tests/<domain>/integration/*.test.ts`.
 
 ## API Routes
 

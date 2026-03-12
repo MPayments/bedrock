@@ -1,25 +1,25 @@
 import { z } from "zod";
 
-import type { AccountingReportingService } from "@bedrock/app/accounting-reporting";
-import type { FeesService } from "@bedrock/app/fees";
-import type { FxService } from "@bedrock/app/fx";
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/app/module-runtime";
-import type { PaymentsService } from "@bedrock/app/payments";
-import type { AccountingService } from "@bedrock/app/accounting";
-import type { BalancesService } from "@bedrock/app/balances";
-import type { CounterpartiesService } from "@bedrock/app/counterparties";
-import type { CurrenciesService } from "@bedrock/app/currencies";
-import type { CustomersService } from "@bedrock/app/customers";
-import type { DocumentsService } from "@bedrock/app/documents";
-import type { LedgerReadService } from "@bedrock/app/ledger";
+import type { AccountingReportingService } from "@bedrock/application/accounting-reporting";
+import type { FeesService } from "@bedrock/application/fees";
+import type { FxService } from "@bedrock/application/fx";
+import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
+import type { PaymentsService } from "@bedrock/application/payments";
+import type { AccountingService } from "@bedrock/application/accounting";
+import type { BalancesService } from "@bedrock/application/balances";
+import type { CounterpartiesService } from "@bedrock/application/counterparties";
+import type { CurrenciesService } from "@bedrock/application/currencies";
+import type { CustomersService } from "@bedrock/application/customers";
+import type { DocumentsService } from "@bedrock/application/documents";
+import type { LedgerReadService } from "@bedrock/application/ledger";
 import {
   createModuleRuntimeService,
   type ModuleRuntimeService,
-} from "@bedrock/app/module-runtime";
-import type { OrganizationsService } from "@bedrock/app/organizations";
-import type { RequisiteProvidersService } from "@bedrock/app/requisite-providers";
-import type { RequisitesService } from "@bedrock/app/requisites";
-import type { UsersService } from "@bedrock/app/users";
+} from "@bedrock/application/module-runtime";
+import type { OrganizationsService } from "@bedrock/application/organizations";
+import type { RequisiteProvidersService } from "@bedrock/application/requisite-providers";
+import type { RequisitesService } from "@bedrock/application/requisites";
+import type { UsersService } from "@bedrock/application/users";
 import { db } from "@bedrock/db/client";
 import type { Logger } from "@bedrock/common";
 

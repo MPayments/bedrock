@@ -16,7 +16,7 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/app": "workspace:*",
+    "@bedrock/application": "workspace:*",
     "@bedrock/common": "workspace:*",
     "@bedrock/db": "workspace:*",
     "dotenv": "^17.3.1"

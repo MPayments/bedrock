@@ -1,4 +1,4 @@
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/app/module-runtime/contracts";
+import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime/contracts";
 import { Badge } from "@bedrock/ui/components/badge";
 import {
   Card,

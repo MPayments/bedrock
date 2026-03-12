@@ -1,8 +1,8 @@
 import {
   CounterpartyOptionsResponseSchema,
-} from "@bedrock/app/counterparties/contracts";
-import { CurrencyOptionsResponseSchema } from "@bedrock/app/currencies/contracts";
-import { OrganizationOptionsResponseSchema } from "@bedrock/app/organizations/contracts";
+} from "@bedrock/application/counterparties/contracts";
+import { CurrencyOptionsResponseSchema } from "@bedrock/application/currencies/contracts";
+import { OrganizationOptionsResponseSchema } from "@bedrock/application/organizations/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { readOptionsList } from "@/lib/api/query";

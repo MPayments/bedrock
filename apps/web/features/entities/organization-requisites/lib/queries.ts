@@ -1,10 +1,10 @@
 import { cache } from "react";
 import { z } from "zod";
 
-import { CurrencyOptionsResponseSchema } from "@bedrock/app/currencies/contracts";
-import { OrganizationOptionsResponseSchema } from "@bedrock/app/organizations/contracts";
-import { RequisiteProviderOptionsResponseSchema } from "@bedrock/app/requisite-providers/contracts";
-import { REQUISITES_LIST_CONTRACT } from "@bedrock/app/requisites/contracts";
+import { CurrencyOptionsResponseSchema } from "@bedrock/application/currencies/contracts";
+import { OrganizationOptionsResponseSchema } from "@bedrock/application/organizations/contracts";
+import { RequisiteProviderOptionsResponseSchema } from "@bedrock/application/requisite-providers/contracts";
+import { REQUISITES_LIST_CONTRACT } from "@bedrock/application/requisites/contracts";
 
 import {
   getRequisiteKindLabel,

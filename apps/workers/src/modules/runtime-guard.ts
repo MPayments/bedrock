@@ -1,5 +1,5 @@
-import type { BedrockModuleId } from "@bedrock/app/module-runtime";
-import type { ModuleRuntimeService } from "@bedrock/app/module-runtime";
+import type { BedrockModuleId } from "@bedrock/application/module-runtime";
+import type { ModuleRuntimeService } from "@bedrock/application/module-runtime";
 
 function dedupeBookIds(bookIds: readonly string[]): string[] {
   const unique = new Set<string>();

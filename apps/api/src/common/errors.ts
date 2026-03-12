@@ -7,11 +7,11 @@ import {
   DocumentPostingNotRequiredError,
   DocumentSystemOnlyTypeError,
   DocumentValidationError,
-} from "@bedrock/app/documents";
+} from "@bedrock/application/documents";
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
-} from "@bedrock/app/idempotency";
+} from "@bedrock/application/idempotency";
 import {
   InvalidStateError,
   NotFoundError,

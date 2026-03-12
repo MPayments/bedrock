@@ -4,8 +4,8 @@ import { z } from "zod";
 import {
   CounterpartyGroupOptionsResponseSchema,
   type CounterpartyGroupOption,
-} from "@bedrock/app/counterparties/contracts";
-import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/app/counterparties/contracts";
+} from "@bedrock/application/counterparties/contracts";
+import { COUNTERPARTIES_LIST_CONTRACT } from "@bedrock/application/counterparties/contracts";
 
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";

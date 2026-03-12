@@ -1,22 +1,22 @@
 import {
   createAccountingService,
   type AccountingService,
-} from "@bedrock/app/accounting";
-import { rawPackDefinition } from "@bedrock/app/accounting/packs/bedrock-core-default";
+} from "@bedrock/application/accounting";
+import { rawPackDefinition } from "@bedrock/application/accounting/packs/bedrock-core-default";
 import {
   createBalancesService,
   type BalancesService,
-} from "@bedrock/app/balances";
+} from "@bedrock/application/balances";
 import {
   createLedgerEngine,
   createLedgerReadService,
   type LedgerEngine,
   type LedgerReadService,
-} from "@bedrock/app/ledger";
+} from "@bedrock/application/ledger";
 import {
   createUsersService,
   type UsersService,
-} from "@bedrock/app/users";
+} from "@bedrock/application/users";
 import { createConsoleLogger, type Logger } from "@bedrock/common";
 import { db } from "@bedrock/db/client";
 
