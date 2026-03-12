@@ -11,15 +11,15 @@ import {
   KNOWN_CURRENCY_CODES,
   getKnownCurrency,
   getDefaultPrecision,
-} from "@bedrock/common/currency";
-import { Button } from "@multihansa/ui/components/button";
+} from "@bedrock/kernel/currency";
+import { Button } from "@bedrock/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@multihansa/ui/components/card";
+} from "@bedrock/ui/components/card";
 import {
   Command,
   CommandEmpty,
@@ -27,21 +27,21 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@multihansa/ui/components/command";
+} from "@bedrock/ui/components/command";
 import {
   Field,
   FieldError,
   FieldGroup,
   FieldLabel,
   FieldSet,
-} from "@multihansa/ui/components/field";
-import { Input } from "@multihansa/ui/components/input";
+} from "@bedrock/ui/components/field";
+import { Input } from "@bedrock/ui/components/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@multihansa/ui/components/popover";
-import { Spinner } from "@multihansa/ui/components/spinner";
+} from "@bedrock/ui/components/popover";
+import { Spinner } from "@bedrock/ui/components/spinner";
 
 import { CurrencyDeleteDialog } from "./currency-delete-dialog";
 

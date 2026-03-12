@@ -1,11 +1,17 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
-import { db } from "@multihansa/db/client";
+import { db } from "@bedrock/db/client";
 import {
-  createMultihansaServices,
-  type MultihansaDomainServices,
-} from "@multihansa/app";
-import { createConsoleLogger, type Logger } from "@bedrock/common";
+  createBedrockDomainBundle,
+  type BedrockDomainServices,
+} from "@bedrock/bedrock-app";
+import { createConsoleLogger, type Logger } from "@bedrock/kernel";
+import {
+  createBedrockApp,
+  defineModule,
+  type BedrockAppRuntime,
+  type BedrockModuleDefinition,
+} from "@bedrock/modules";
 
 import {
   accountingRoutes,
@@ -20,6 +26,7 @@ import {
   paymentsRoutes,
   requisiteProvidersRoutes,
   requisitesRoutes,
+  systemModulesRoutes,
 } from "./routes";
 import type { AppContext } from "./context";
 import type { AuthVariables } from "./middleware/auth";
@@ -28,92 +35,82 @@ type ApiAppRouteRegistrar = (
   ctx: AppContext,
 ) => OpenAPIHono<{ Variables: AuthVariables }>;
 
-export interface ApiRouteMount {
-  id: string;
-  routePath: string;
-  registerRoutes: ApiAppRouteRegistrar;
-}
+const apiRouteRegistrars = new Map<string, ApiAppRouteRegistrar>([
+  ["accounting", accountingRoutes],
+  ["balances", balancesRoutes],
+  ["counterparties", counterpartiesRoutes],
+  ["counterparty-groups", counterpartyGroupsRoutes],
+  ["customers", customersRoutes],
+  ["currencies", currenciesRoutes],
+  ["documents", documentsRoutes],
+  ["fx-rates", fxRatesRoutes],
+  ["organizations", organizationsRoutes],
+  ["payments", paymentsRoutes],
+  ["requisite-providers", requisiteProvidersRoutes],
+  ["requisites", requisitesRoutes],
+  ["system-modules", systemModulesRoutes],
+]);
 
-export const API_ROUTE_MOUNTS = [
-  {
-    id: "accounting",
-    routePath: "/accounting",
-    registerRoutes: accountingRoutes,
-  },
-  {
-    id: "balances",
-    routePath: "/balances",
-    registerRoutes: balancesRoutes,
-  },
-  {
-    id: "counterparties",
-    routePath: "/counterparties",
-    registerRoutes: counterpartiesRoutes,
-  },
-  {
-    id: "counterparty-groups",
-    routePath: "/counterparty-groups",
-    registerRoutes: counterpartyGroupsRoutes,
-  },
-  {
-    id: "customers",
-    routePath: "/customers",
-    registerRoutes: customersRoutes,
-  },
-  {
-    id: "currencies",
-    routePath: "/currencies",
-    registerRoutes: currenciesRoutes,
-  },
-  {
-    id: "documents",
-    routePath: "/documents",
-    registerRoutes: documentsRoutes,
-  },
-  {
-    id: "fx-rates",
-    routePath: "/fx/rates",
-    registerRoutes: fxRatesRoutes,
-  },
-  {
-    id: "organizations",
-    routePath: "/organizations",
-    registerRoutes: organizationsRoutes,
-  },
-  {
-    id: "payments",
-    routePath: "/payments",
-    registerRoutes: paymentsRoutes,
-  },
-  {
-    id: "requisite-providers",
-    routePath: "/requisite-providers",
-    registerRoutes: requisiteProvidersRoutes,
-  },
-  {
-    id: "requisites",
-    routePath: "/requisites",
-    registerRoutes: requisitesRoutes,
-  },
-] as const satisfies readonly ApiRouteMount[];
-
-export interface ApiRuntime {
+export interface ApiRuntime extends BedrockAppRuntime {
   logger: Logger;
-  services: MultihansaDomainServices;
-  routeMounts: readonly ApiRouteMount[];
+  services: BedrockDomainServices;
 }
 
-export function listApiRouteMounts(): ApiRouteMount[] {
-  return [...API_ROUTE_MOUNTS];
+export type ApiRuntimeModule = BedrockModuleDefinition & {
+  api: NonNullable<BedrockModuleDefinition["api"]> & {
+    registerRoutes: NonNullable<
+      NonNullable<BedrockModuleDefinition["api"]>["registerRoutes"]
+    >;
+  };
+  registerRoutes: ApiAppRouteRegistrar;
+};
+
+export function createApiModules(
+  modules: readonly BedrockModuleDefinition[],
+): readonly BedrockModuleDefinition[] {
+  return modules.map((module) => {
+    if (!module.api) {
+      return module;
+    }
+
+    const registerRoutes = apiRouteRegistrars.get(module.id);
+    if (!registerRoutes) {
+      throw new Error(`Missing API route registrar for module ${module.id}`);
+    }
+
+    return defineModule({
+      ...module,
+      api: {
+        ...module.api,
+        registerRoutes: (runtime) =>
+          registerRoutes(runtime as unknown as AppContext),
+      },
+      registerRoutes,
+    });
+  });
+}
+
+export function listApiModules(
+  modules: readonly BedrockModuleDefinition[],
+): ApiRuntimeModule[] {
+  return modules.filter((module): module is ApiRuntimeModule =>
+    Boolean(module.api?.registerRoutes && "registerRoutes" in module),
+  );
 }
 
 export function createApiRuntime(): ApiRuntime {
-  const logger = createConsoleLogger({ app: "multihansa-api" });
-  const services = createMultihansaServices({ db, logger });
+  const logger = createConsoleLogger({ app: "bedrock-api" });
+  const bundle = createBedrockDomainBundle({ db, logger });
+  const app = createBedrockApp({
+    db,
+    logger,
+    modules: createApiModules(bundle.modules),
+    createServices: () => bundle.services,
+  });
 
   return {
+    ...app,
     logger,
-    services,
-    routeMounts: listApiRouteMounts(),
+    services: bundle.services,
   };
 }

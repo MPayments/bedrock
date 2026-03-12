@@ -1,5 +1,5 @@
 {
-  "name": "@multihansa/requisites",
+  "name": "@bedrock/requisites",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,8 @@
     "./schema": "./src/schema.ts",
     "./contracts": "./src/contracts.ts",
     "./validation": "./src/validation.ts",
-    "./shared": "./src/shared.ts"
+    "./shared": "./src/shared.ts",
+    "./manifest": "./src/manifest.ts"
   },
   "scripts": {
     "build": "tsgo --project tsconfig.json",
@@ -18,18 +19,18 @@
   },
   "dependencies": {
     "@bedrock/assets": "workspace:*",
-    "@bedrock/common": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "@bedrock/sql": "workspace:*",
     "@bedrock/accounting": "workspace:*",
     "@bedrock/ledger": "workspace:*",
-    "@multihansa/counterparties": "workspace:*",
-    "@multihansa/organizations": "workspace:*",
+    "@bedrock/counterparties": "workspace:*",
+    "@bedrock/organizations": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@multihansa/eslint-config": "workspace:*",
-    "@multihansa/typescript-config": "workspace:*",
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
     "eslint": "^9.31.0",
     "typescript": "^5.8.3"

@@ -1,14 +1,14 @@
 import Link from "next/link";
 
-import { Badge } from "@multihansa/ui/components/badge";
+import { Badge } from "@bedrock/ui/components/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@multihansa/ui/components/card";
-import { Separator } from "@multihansa/ui/components/separator";
+} from "@bedrock/ui/components/card";
+import { Separator } from "@bedrock/ui/components/separator";
 
 import type { UserRole } from "@/lib/auth/types";
 import type { DocumentFormOptions } from "@/features/documents/lib/form-options";

@@ -3,15 +3,15 @@
 import { useMemo, useState } from "react";
 import { Save, X } from "lucide-react";
 
-import { Button } from "@multihansa/ui/components/button";
+import { Button } from "@bedrock/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@multihansa/ui/components/card";
-import { Spinner } from "@multihansa/ui/components/spinner";
+} from "@bedrock/ui/components/card";
+import { Spinner } from "@bedrock/ui/components/spinner";
 
 import type { UserRole } from "@/lib/auth/types";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";

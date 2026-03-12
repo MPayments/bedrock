@@ -4,15 +4,15 @@ import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
-import { Badge } from "@multihansa/ui/components/badge";
+import { Badge } from "@bedrock/ui/components/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-} from "@multihansa/ui/components/card";
-import { Tabs, TabsList, TabsTrigger } from "@multihansa/ui/components/tabs";
-import { Skeleton } from "@multihansa/ui/components/skeleton";
+} from "@bedrock/ui/components/card";
+import { Tabs, TabsList, TabsTrigger } from "@bedrock/ui/components/tabs";
+import { Skeleton } from "@bedrock/ui/components/skeleton";
 
 import { formatDate } from "@/lib/format";
 import {

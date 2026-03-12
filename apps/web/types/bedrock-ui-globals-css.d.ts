@@ -1,1 +1,1 @@
-declare module "@multihansa/ui/globals.css";
+declare module "@bedrock/ui/globals.css";

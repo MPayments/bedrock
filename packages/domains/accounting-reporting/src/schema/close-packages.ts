@@ -10,9 +10,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { counterparties } from "@bedrock/counterparties/schema";
 import { documents } from "@bedrock/documents/schema";
-
-import { counterparties } from "@multihansa/counterparties/schema";
 
 export type AccountingClosePackageState = "closed" | "superseded";
 

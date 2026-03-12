@@ -1,4 +1,4 @@
-import { noopLogger, type Logger } from "@bedrock/common";
+import { noopLogger, type Logger } from "@bedrock/kernel";
 import type { LedgerReadService } from "@bedrock/ledger";
 import type { DimensionRegistry } from "@bedrock/registers";
 import type { Database } from "@bedrock/sql/ports";

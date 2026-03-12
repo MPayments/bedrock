@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { toast } from "@multihansa/ui/components/sonner";
+import { toast } from "@bedrock/ui/components/sonner";
 
 import { RequisiteGeneralForm } from "@/features/entities/requisites-shared/components/requisite-general-form";
 import type { RequisiteFormValues } from "@/features/entities/requisites-shared/lib/constants";

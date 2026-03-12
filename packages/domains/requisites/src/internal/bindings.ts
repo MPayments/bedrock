@@ -2,9 +2,8 @@ import { eq } from "drizzle-orm";
 
 import { ACCOUNT_NO } from "@bedrock/accounting";
 import { ensureBookAccountInstanceTx } from "@bedrock/ledger";
+import { ensureOrganizationDefaultBookIdTx } from "@bedrock/organizations/internal/default-book";
 import type { Transaction } from "@bedrock/sql/ports";
-
-import { ensureOrganizationDefaultBookIdTx } from "@multihansa/organizations/internal/default-book";
 
 import { RequisiteBindingNotFoundError, RequisiteBindingOwnerTypeError, RequisiteNotFoundError } from "../errors";
 import { schema } from "../schema";

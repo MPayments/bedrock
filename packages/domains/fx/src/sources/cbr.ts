@@ -4,7 +4,7 @@ import {
   parseDecimalToFraction,
   parsePositiveInt,
   reduceFraction,
-} from "@bedrock/common/math";
+} from "@bedrock/kernel/math";
 
 import { RateSourceSyncError } from "../errors";
 import {

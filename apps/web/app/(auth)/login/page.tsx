@@ -3,20 +3,20 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { cn } from "@multihansa/ui/lib/utils";
-import { Button } from "@multihansa/ui/components/button";
+import { cn } from "@bedrock/ui/lib/utils";
+import { Button } from "@bedrock/ui/components/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@multihansa/ui/components/card";
+} from "@bedrock/ui/components/card";
 import {
   Field,
   FieldGroup,
   FieldLabel,
-} from "@multihansa/ui/components/field";
-import { Input } from "@multihansa/ui/components/input";
+} from "@bedrock/ui/components/field";
+import { Input } from "@bedrock/ui/components/input";
 
 import { authClient } from "@/lib/auth-client";
 

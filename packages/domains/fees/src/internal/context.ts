@@ -1,4 +1,4 @@
-import { type Logger } from "@bedrock/common";
+import { type Logger } from "@bedrock/kernel";
 import type { Database } from "@bedrock/sql/ports";
 
 import { type FeesCurrencyLookup } from "./currency-lookup";

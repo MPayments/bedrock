@@ -2,7 +2,7 @@ import { defineProject } from "vitest/config";
 
 export default defineProject({
     test: {
-        name: "multihansa-db",
+        name: "db",
         globals: true,
         environment: "node",
         include: ["tests/**/*.test.ts"],

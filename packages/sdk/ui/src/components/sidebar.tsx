@@ -5,24 +5,24 @@ import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { useIsMobile } from "@multihansa/ui/hooks/use-mobile"
-import { cn } from "@multihansa/ui/lib/utils"
-import { Button } from "@multihansa/ui/components/button"
-import { Input } from "@multihansa/ui/components/input"
-import { Separator } from "@multihansa/ui/components/separator"
+import { useIsMobile } from "@bedrock/ui/hooks/use-mobile"
+import { cn } from "@bedrock/ui/lib/utils"
+import { Button } from "@bedrock/ui/components/button"
+import { Input } from "@bedrock/ui/components/input"
+import { Separator } from "@bedrock/ui/components/separator"
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@multihansa/ui/components/sheet"
-import { Skeleton } from "@multihansa/ui/components/skeleton"
+} from "@bedrock/ui/components/sheet"
+import { Skeleton } from "@bedrock/ui/components/skeleton"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@multihansa/ui/components/tooltip"
+} from "@bedrock/ui/components/tooltip"
 import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { toast } from "@multihansa/ui/components/sonner";
+import { toast } from "@bedrock/ui/components/sonner";
 
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";

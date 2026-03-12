@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
-} from "@bedrock/common/pagination";
+} from "@bedrock/kernel/pagination";
 
 export const CustomerSchema = z.object({
   id: z.uuid(),

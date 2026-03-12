@@ -1,14 +1,13 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/sql/ports";
-
-import { resolveGroupMembershipClassification } from "@multihansa/counterparties/internal/group-rules";
+import { resolveGroupMembershipClassification } from "@bedrock/counterparties/internal/group-rules";
 import {
   dedupeIds,
   ensureCustomerGroupForCustomer as ensureCustomerGroupForCustomerShared,
   listCounterpartyGroupSubtreeIds,
-} from "@multihansa/counterparties/internal/shared-group-rules";
-import { schema as counterpartiesSchema } from "@multihansa/counterparties/schema";
+} from "@bedrock/counterparties/internal/shared-group-rules";
+import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
+import type { Transaction } from "@bedrock/sql/ports";
 
 import { CustomerInvariantError } from "../errors";
 

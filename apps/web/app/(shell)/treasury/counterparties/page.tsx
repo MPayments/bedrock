@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Building2, Plus } from "lucide-react";
 
-import { Button } from "@multihansa/ui/components/button";
+import { Button } from "@bedrock/ui/components/button";
 
 import { TreasuryCounterpartiesTable } from "@/features/entities/counterparties/components/counterparties-table";
 import {

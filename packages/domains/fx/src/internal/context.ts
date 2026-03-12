@@ -1,8 +1,7 @@
 import { type CurrenciesService } from "@bedrock/assets";
-import { type Logger, noopLogger } from "@bedrock/common";
+import { type FeesService } from "@bedrock/fees";
+import { type Logger, noopLogger } from "@bedrock/kernel";
 import type { Database } from "@bedrock/sql/ports";
-
-import { type FeesService } from "@multihansa/fees";
 
 import { createCbrRateSourceProvider } from "../sources/cbr";
 import { createInvestingRateSourceProvider } from "../sources/investing";

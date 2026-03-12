@@ -1,14 +1,14 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 
-import { Button } from "@multihansa/ui/components/button";
+import { Button } from "@bedrock/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@multihansa/ui/components/card";
+} from "@bedrock/ui/components/card";
 
 type OverviewStat = {
   id: string;

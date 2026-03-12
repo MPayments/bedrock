@@ -1,12 +1,6 @@
 import type { Context } from "hono";
 
 import {
-  InvalidStateError,
-  NotFoundError,
-  PermissionError,
-  ValidationError,
-} from "@bedrock/common/errors";
-import {
   DocumentGraphError,
   DocumentNotFoundError,
   DocumentPolicyDeniedError,
@@ -14,6 +8,12 @@ import {
   DocumentSystemOnlyTypeError,
   DocumentValidationError,
 } from "@bedrock/documents";
+import {
+  InvalidStateError,
+  NotFoundError,
+  PermissionError,
+  ValidationError,
+} from "@bedrock/kernel/errors";
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,

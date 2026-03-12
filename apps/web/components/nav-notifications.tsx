@@ -3,19 +3,19 @@
 import { Fragment, useState } from "react";
 import { Stone, X } from "lucide-react";
 
-import { SidebarMenuButton } from "@multihansa/ui/components/sidebar";
+import { SidebarMenuButton } from "@bedrock/ui/components/sidebar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@multihansa/ui/components/popover";
+} from "@bedrock/ui/components/popover";
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@multihansa/ui/components/avatar";
-import { Badge } from "@multihansa/ui/components/badge";
-import { Separator } from "@multihansa/ui/components/separator";
+} from "@bedrock/ui/components/avatar";
+import { Badge } from "@bedrock/ui/components/badge";
+import { Separator } from "@bedrock/ui/components/separator";
 
 type Notification = {
   id: number;

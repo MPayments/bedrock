@@ -1,1 +1,1 @@
-export { default } from "@multihansa/ui/postcss.config";
+export { default } from "@bedrock/ui/postcss.config";

@@ -3,7 +3,7 @@
 import type { Table } from "@tanstack/react-table";
 import { Check, Settings2 } from "lucide-react";
 import * as React from "react";
-import { Button } from "@multihansa/ui/components/button";
+import { Button } from "@bedrock/ui/components/button";
 import {
   Command,
   CommandEmpty,
@@ -11,13 +11,13 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@multihansa/ui/components/command";
+} from "@bedrock/ui/components/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@multihansa/ui/components/popover";
-import { cn } from "@multihansa/ui/lib/utils";
+} from "@bedrock/ui/components/popover";
+import { cn } from "@bedrock/ui/lib/utils";
 
 interface DataTableViewOptionsProps<TData> extends React.ComponentProps<
   typeof PopoverContent

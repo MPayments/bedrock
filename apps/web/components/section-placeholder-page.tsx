@@ -4,7 +4,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@multihansa/ui/components/card";
+} from "@bedrock/ui/components/card";
 
 type SectionPlaceholderPageProps = {
   title: string;

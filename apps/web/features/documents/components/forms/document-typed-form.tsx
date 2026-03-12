@@ -5,7 +5,7 @@ import { Save, X } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { ZodError } from "zod";
 
-import { Button } from "@multihansa/ui/components/button";
+import { Button } from "@bedrock/ui/components/button";
 import {
   Field,
   FieldDescription,
@@ -14,25 +14,25 @@ import {
   FieldLegend,
   FieldSeparator,
   FieldSet,
-} from "@multihansa/ui/components/field";
-import { Input } from "@multihansa/ui/components/input";
+} from "@bedrock/ui/components/field";
+import { Input } from "@bedrock/ui/components/input";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
   InputGroupText,
-} from "@multihansa/ui/components/input-group";
+} from "@bedrock/ui/components/input-group";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@multihansa/ui/components/select";
-import { Spinner } from "@multihansa/ui/components/spinner";
-import { Textarea } from "@multihansa/ui/components/textarea";
-import { toast } from "@multihansa/ui/components/sonner";
-import { cn } from "@multihansa/ui/lib/utils";
+} from "@bedrock/ui/components/select";
+import { Spinner } from "@bedrock/ui/components/spinner";
+import { Textarea } from "@bedrock/ui/components/textarea";
+import { toast } from "@bedrock/ui/components/sonner";
+import { cn } from "@bedrock/ui/lib/utils";
 
 import type { UserRole } from "@/lib/auth/types";
 import { isUuid } from "@/lib/resources/http";

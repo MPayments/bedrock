@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
-import { requisiteKindEnum } from "@multihansa/requisites/shared";
+import { requisiteKindEnum } from "@bedrock/requisites/shared";
 
 export type RequisiteProvider = typeof requisiteProviders.$inferSelect;
 export type RequisiteProviderInsert = typeof requisiteProviders.$inferInsert;

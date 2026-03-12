@@ -9,7 +9,6 @@ import {
   buildDocumentPostingPlan,
   buildDocumentPostingRequest,
 } from "@bedrock/accounting/actions";
-import { DAY_IN_SECONDS } from "@bedrock/common/constants";
 import {
   DocumentGraphError,
   DocumentValidationError,
@@ -22,6 +21,7 @@ import {
 } from "@bedrock/documents/actions";
 import type { DocumentModule } from "@bedrock/documents/runtime";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
+import { DAY_IN_SECONDS } from "@bedrock/kernel/constants";
 import { resolvePendingTransferBookId } from "@bedrock/ledger/actions";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 

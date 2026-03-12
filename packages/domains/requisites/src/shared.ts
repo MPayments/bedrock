@@ -1,7 +1,7 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
-import { COUNTRY_ALPHA2_SET } from "@bedrock/common/countries";
+import { COUNTRY_ALPHA2_SET } from "@bedrock/kernel/countries";
 
 export const REQUISITE_KIND_VALUES = [
   "bank",

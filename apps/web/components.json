@@ -12,8 +12,8 @@
   "iconLibrary": "lucide",
   "aliases": {
     "components": "@/components",
-    "utils": "@multihansa/ui/lib/utils",
-    "ui": "@multihansa/ui/components",
+    "utils": "@bedrock/ui/lib/utils",
+    "ui": "@bedrock/ui/components",
     "lib": "@/lib",
     "hooks": "@/hooks"
   }

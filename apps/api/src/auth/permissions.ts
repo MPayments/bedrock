@@ -36,6 +36,7 @@ const statements = {
   accounting: ["list", "manage_accounts", "manage_correspondence"],
   balances: ["get", "reserve", "release", "consume"],
   users: ["create", "list", "update", "delete"],
+  system_modules: ["list", "manage"],
   requisite_providers: ["create", "list", "update", "delete"],
   requisites: ["create", "list", "update", "delete", "configure_binding"],
 } as const;
@@ -77,6 +78,7 @@ export const admin = ac.newRole({
   accounting: ["list", "manage_accounts", "manage_correspondence"],
   balances: ["get", "reserve", "release", "consume"],
   users: ["create", "list", "update", "delete"],
+  system_modules: ["list", "manage"],
   requisite_providers: ["create", "list", "update", "delete"],
   requisites: ["create", "list", "update", "delete", "configure_binding"],
 });
@@ -94,4 +96,5 @@ export const user = ac.newRole({
   balances: ["get"],
   requisite_providers: ["list"],
   requisites: ["list"],
+  system_modules: ["list"],
 });

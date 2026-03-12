@@ -4,7 +4,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@multihansa/ui/components/card";
+} from "@bedrock/ui/components/card";
 
 import { AccountingCorrespondencePageClient } from "./components/accounting-correspondence-page-client";
 import { getAccountingCorrespondenceRules } from "@/features/accounting/lib/queries";

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { schema } from "@multihansa/customers/schema";
+import { schema } from "@bedrock/customers/schema";
 
 import { CustomerNotFoundError } from "../errors";
 import type { CustomersServiceContext } from "../internal/context";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge } from "@multihansa/ui/components/badge";
+import { Badge } from "@bedrock/ui/components/badge";
 
 type UserStatusBadgeProps = {
   banned: boolean | null;

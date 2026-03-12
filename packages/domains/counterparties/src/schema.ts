@@ -12,7 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { COUNTRY_ALPHA2_CODES } from "@bedrock/common/countries/contracts";
+import { COUNTRY_ALPHA2_CODES } from "@bedrock/kernel/countries/contracts";
 
 export const counterpartyKindEnum = pgEnum("counterparty_kind", [
   "legal_entity",

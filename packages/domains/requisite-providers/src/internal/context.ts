@@ -1,4 +1,4 @@
-import { type Logger, noopLogger } from "@bedrock/common";
+import { type Logger, noopLogger } from "@bedrock/kernel";
 import type { Database } from "@bedrock/sql/ports";
 
 export interface RequisiteProvidersServiceDeps {

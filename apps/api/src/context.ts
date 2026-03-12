@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import type { MultihansaDomainServices } from "@multihansa/app";
-import type { Logger } from "@bedrock/common";
+import type { BedrockDomainServices } from "@bedrock/bedrock-app";
+import type { Logger } from "@bedrock/kernel";
 
 import { createApiRuntime, type ApiRuntime } from "./runtime";
 
@@ -38,10 +38,11 @@ export function parseEnv(): Env {
   return result.data;
 }
 
-export interface AppContext extends MultihansaDomainServices {
+export interface AppContext extends BedrockDomainServices {
   env: Env;
   app: ApiRuntime;
   logger: Logger;
+  moduleRuntime: ApiRuntime["moduleRuntime"];
 }
 
 export function createAppContext(env: Env): AppContext {
@@ -51,6 +52,7 @@ export function createAppContext(env: Env): AppContext {
     env,
     app,
     logger: app.logger,
+    moduleRuntime: app.moduleRuntime,
     ...app.services,
   };
 }

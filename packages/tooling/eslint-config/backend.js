@@ -23,7 +23,7 @@ export const config = [
       turbo: turboPlugin,
     },
     settings: {
-      "import/internal-regex": "^@(bedrock|multihansa)/",
+      "import/internal-regex": "^@bedrock/",
     },
     rules: {
       "turbo/no-undeclared-env-vars": "error",
@@ -37,11 +37,6 @@ export const config = [
           pathGroups: [
             {
               pattern: "@bedrock/**",
-              group: "internal",
-              position: "after",
-            },
-            {
-              pattern: "@multihansa/**",
               group: "internal",
               position: "after",
             },

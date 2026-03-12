@@ -8,12 +8,10 @@ dotenv.config({ path: resolve(dir, "../../.env") });
 
 export default defineConfig({
   schema: [
-    "../bedrock/*/src/schema.ts",
-    "../bedrock/*/src/**/schema.ts",
-    "../bedrock/*/src/schema/**/*.ts",
-    "../domains/*/src/schema.ts",
-    "../domains/*/src/**/schema.ts",
-    "../domains/*/src/schema/**/*.ts",
+    "../core/src/*/schema.ts",
+    "../core/src/*/schema/**/*.ts",
+    "../application/src/*/schema.ts",
+    "../application/src/*/schema/**/*.ts",
   ],
 
   out: "./migrations",

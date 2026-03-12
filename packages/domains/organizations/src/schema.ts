@@ -4,7 +4,7 @@ import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import {
   counterpartyCountryCodeEnum,
   counterpartyKindEnum,
-} from "@multihansa/counterparties/schema";
+} from "@bedrock/counterparties/schema";
 
 export type Organization = typeof organizations.$inferSelect;
 export type OrganizationInsert = typeof organizations.$inferInsert;

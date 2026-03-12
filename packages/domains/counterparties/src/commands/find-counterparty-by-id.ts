@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { schema } from "@multihansa/counterparties/schema";
+import { schema } from "@bedrock/counterparties/schema";
 
 import { CounterpartyNotFoundError } from "../errors";
 import type { CounterpartiesServiceContext } from "../internal/context";

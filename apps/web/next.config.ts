@@ -7,7 +7,7 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@multihansa/ui"],
+  transpilePackages: ["@bedrock/ui"],
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },

@@ -10,10 +10,7 @@ export { createIntercompanyInterestSettlementDocumentModule } from "./intercompa
 export { createIntercompanyLoanDrawdownDocumentModule } from "./intercompany-loan-drawdown";
 export { createIntercompanyLoanRepaymentDocumentModule } from "./intercompany-loan-repayment";
 export { createPeriodCloseDocumentModule } from "./period-close";
-export {
-  DOCUMENTS_PERIOD_CLOSE_WORKER_DESCRIPTOR,
-  createIfrsPeriodCloseWorkerDefinition as createIfrsPeriodCloseWorker,
-} from "./period-close-worker";
+export { createIfrsPeriodCloseWorkerDefinition } from "./period-close-worker";
 export { createPeriodReopenDocumentModule } from "./period-reopen";
 export { createRevaluationAdjustmentDocumentModule } from "./revaluation-adjustment";
 export { createTransferIntercompanyDocumentModule } from "./transfer-intercompany";

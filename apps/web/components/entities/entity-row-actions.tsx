@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { Eye, MoreHorizontal, Trash2 } from "lucide-react";
 
-import { Button } from "@multihansa/ui/components/button";
+import { Button } from "@bedrock/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@multihansa/ui/components/dropdown-menu";
-import { toast } from "@multihansa/ui/components/sonner";
+} from "@bedrock/ui/components/dropdown-menu";
+import { toast } from "@bedrock/ui/components/sonner";
 
 import { executeMutation, type HttpResponseLike } from "@/lib/resources/http";
 import { EntityDeleteDialog } from "@/components/entities/entity-delete-dialog";

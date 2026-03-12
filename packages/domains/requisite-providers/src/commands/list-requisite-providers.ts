@@ -13,9 +13,8 @@ import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
-} from "@bedrock/common/pagination";
-
-import type { RequisiteKind } from "@multihansa/requisites/shared";
+} from "@bedrock/kernel/pagination";
+import type { RequisiteKind } from "@bedrock/requisites/shared";
 
 import type { RequisiteProvidersServiceContext } from "../internal/context";
 import { schema } from "../schema";

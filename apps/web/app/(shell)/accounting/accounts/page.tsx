@@ -4,7 +4,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@multihansa/ui/components/card";
+} from "@bedrock/ui/components/card";
 import {
   Table,
   TableBody,
@@ -12,7 +12,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@multihansa/ui/components/table";
+} from "@bedrock/ui/components/table";
 
 import { getAccountingTemplateAccounts } from "@/features/accounting/lib/queries";
 

@@ -1,5 +1,5 @@
 {
-  "extends": "@multihansa/typescript-config/base.json",
+  "extends": "@bedrock/typescript-config/base.json",
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

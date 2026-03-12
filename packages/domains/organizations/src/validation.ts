@@ -1,14 +1,13 @@
 import { z } from "zod";
 
 import {
-  createListQuerySchemaFromContract,
-  type ListQueryContract,
-} from "@bedrock/common/pagination";
-
-import {
   CounterpartyKindSchema,
   CountryCodeSchema,
-} from "@multihansa/counterparties/validation";
+} from "@bedrock/counterparties/validation";
+import {
+  createListQuerySchemaFromContract,
+  type ListQueryContract,
+} from "@bedrock/kernel/pagination";
 
 export const OrganizationSchema = z.object({
   id: z.uuid(),

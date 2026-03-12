@@ -4,8 +4,8 @@ import type { Column } from "@tanstack/react-table";
 import { Check, PlusCircle, XCircle } from "lucide-react";
 import * as React from "react";
 
-import { Badge } from "@multihansa/ui/components/badge";
-import { Button } from "@multihansa/ui/components/button";
+import { Badge } from "@bedrock/ui/components/badge";
+import { Button } from "@bedrock/ui/components/button";
 import {
   Command,
   CommandEmpty,
@@ -14,14 +14,14 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "@multihansa/ui/components/command";
+} from "@bedrock/ui/components/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@multihansa/ui/components/popover";
-import { Separator } from "@multihansa/ui/components/separator";
-import { cn } from "@multihansa/ui/lib/utils";
+} from "@bedrock/ui/components/popover";
+import { Separator } from "@bedrock/ui/components/separator";
+import { cn } from "@bedrock/ui/lib/utils";
 import type { Option } from "@/types/data-table";
 
 interface DataTableFacetedFilterProps<TData, TValue> {

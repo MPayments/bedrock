@@ -6,7 +6,7 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@multihansa/ui/components/avatar";
+} from "@bedrock/ui/components/avatar";
 
 import { SOURCE_LABELS } from "../lib/constants";
 

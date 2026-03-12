@@ -1,4 +1,4 @@
-# @multihansa/db
+# @bedrock/db
 
 Drizzle-based database package for the financial core.
 
@@ -13,10 +13,10 @@ Drizzle-based database package for the financial core.
 
 Table definitions are colocated with runtime packages:
 
-- `packages/bedrock/<package>/src/schema.ts` or `schema/**`
+- `packages/framework/<package>/src/schema.ts` or `schema/**`
 - `packages/domains/<package>/src/schema.ts` or `schema/**`
 
-`@multihansa/db` aggregates these domain schemas for client construction and
+`@bedrock/db` aggregates these domain schemas for client construction and
 migrations.
 
 ## Key design notes

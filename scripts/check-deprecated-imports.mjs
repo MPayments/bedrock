@@ -7,8 +7,6 @@ const ROOT = resolve(__dirname, "..");
 
 const LEGACY_SPECIFIER_PATTERN =
   /@bedrock\/(foundation|platform|core|application)(?:\/|["'])/g;
-const BEDROCK_PRODUCT_SPECIFIER_PATTERN =
-  /@bedrock\/(accounting-reporting|bedrock-app|counterparties|customers|db|api-client|ui|eslint-config|typescript-config|test-utils|fees|fx|ifrs-documents|organizations|payments|requisite-providers|requisites)(?:\/|["'])/g;
 
 const SOURCE_ROOTS = [
   join(ROOT, "apps"),
@@ -67,7 +65,6 @@ const violations = [];
 for (const file of files) {
   const content = readFileSync(file, "utf8");
   LEGACY_SPECIFIER_PATTERN.lastIndex = 0;
-  BEDROCK_PRODUCT_SPECIFIER_PATTERN.lastIndex = 0;
 
   const match = LEGACY_SPECIFIER_PATTERN.exec(content);
   if (match) {
@@ -76,22 +73,14 @@ for (const file of files) {
       specifier: match[0].replace(/["']$/, ""),
     });
   }
-
-  const productMatch = BEDROCK_PRODUCT_SPECIFIER_PATTERN.exec(content);
-  if (productMatch) {
-    violations.push({
-      file: file.replace(`${ROOT}/`, ""),
-      specifier: productMatch[0].replace(/["']$/, ""),
-    });
-  }
 }
 
 if (violations.length > 0) {
-  console.error("Disallowed import specifiers found:");
+  console.error("Deprecated runtime import specifiers found:");
   for (const violation of violations) {
     console.error(`- ${violation.file}: ${violation.specifier}`);
   }
   process.exit(1);
 }
 
-console.log("Disallowed import specifier check passed.");
+console.log("Deprecated runtime import check passed.");

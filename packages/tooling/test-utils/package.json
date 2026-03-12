@@ -1,11 +1,11 @@
 {
-  "name": "@multihansa/test-utils",
+  "name": "@bedrock/test-utils",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./common/db": "./src/common/db.ts",
+    "./kernel/db": "./src/kernel/db.ts",
     "./fixtures": "./src/fixtures.ts"
   },
   "scripts": {
@@ -14,7 +14,7 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/common": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "@bedrock/sql": "workspace:*",
     "drizzle-orm": "^0.44.2"
   },
@@ -22,8 +22,8 @@
     "vitest": "^4.0.0"
   },
   "devDependencies": {
-    "@multihansa/eslint-config": "workspace:*",
-    "@multihansa/typescript-config": "workspace:*",
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
     "eslint": "^9.31.0",
     "typescript": "^5.8.3",

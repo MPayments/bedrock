@@ -1,13 +1,12 @@
 import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
-import { isUuidLike } from "@bedrock/common";
+import { schema } from "@bedrock/counterparties/schema";
+import { isUuidLike } from "@bedrock/kernel";
 import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
-} from "@bedrock/common/pagination";
-
-import { schema } from "@multihansa/counterparties/schema";
+} from "@bedrock/kernel/pagination";
 
 import type { CounterpartiesServiceContext } from "../internal/context";
 import { readMembershipMap } from "../internal/group-rules";

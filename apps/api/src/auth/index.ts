@@ -6,12 +6,12 @@ import {
     twoFactor,
 } from "better-auth/plugins";
 
-import { db } from "@multihansa/db";
+import { db } from "@bedrock/db";
 
 import { ac, admin, user } from "./permissions";
 
 const auth = betterAuth({
-    appName: "Multihansa Finance",
+    appName: "Bedrock Finance",
     secret: process.env.BETTER_AUTH_SECRET!,
     baseURL: process.env.BETTER_AUTH_URL!,
     basePath: "/api/auth",
@@ -41,7 +41,7 @@ const auth = betterAuth({
             },
         }),
         twoFactor({
-            issuer: "Multihansa Finance",
+            issuer: "Bedrock Finance",
             skipVerificationOnEnable: false,
         }),
     ],

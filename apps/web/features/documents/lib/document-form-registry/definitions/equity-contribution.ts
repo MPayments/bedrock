@@ -1,4 +1,4 @@
-import { EquityContributionInputSchema } from "@multihansa/ifrs-documents/contracts";
+import { EquityContributionInputSchema } from "@bedrock/ifrs-documents/contracts";
 
 import { createEquityDefinition } from "../shared";
 

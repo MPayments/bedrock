@@ -200,6 +200,13 @@ const navItems: AppNavItem[] = [
     audience: "shared",
     children: [
       {
+        id: "settings-system",
+        title: "Система",
+        href: "/settings/system",
+        icon: "cpu",
+        audience: "shared",
+      },
+      {
         id: "settings-profile",
         title: "Профиль",
         href: "/settings/profile",

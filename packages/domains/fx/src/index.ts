@@ -31,10 +31,7 @@ export {
   RateSourceStaleError,
 } from "./errors";
 
-export {
-  FX_RATES_WORKER_DESCRIPTOR,
-  createFxRatesWorkerDefinition as createFxRatesWorker,
-} from "./worker";
+export { createFxRatesWorkerDefinition } from "./worker";
 export type {
   FxRateSource,
   FxRateSourceStatus,

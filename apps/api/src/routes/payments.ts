@@ -1,6 +1,6 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
-import { PaymentIntentInputSchema } from "@multihansa/payments";
+import { PaymentIntentInputSchema } from "@bedrock/payments";
 
 import { handleRouteError } from "../common/errors";
 import { jsonOk } from "../common/response";

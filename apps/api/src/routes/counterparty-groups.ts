@@ -9,11 +9,11 @@ import {
   CreateCounterpartyGroupInputSchema,
   ListCounterpartyGroupsQuerySchema,
   UpdateCounterpartyGroupInputSchema,
-} from "@multihansa/counterparties";
+} from "@bedrock/counterparties";
 import {
   CounterpartyGroupOptionSchema,
   CounterpartyGroupOptionsResponseSchema,
-} from "@multihansa/counterparties/contracts";
+} from "@bedrock/counterparties/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";

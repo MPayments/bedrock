@@ -1,0 +1,29 @@
+{
+  "name": "@bedrock/sql",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ports": "./src/ports.ts",
+    "./drizzle": "./src/drizzle.ts",
+    "./schema-helpers": "./src/schema-helpers.ts"
+  },
+  "scripts": {
+    "build": "tsgo --project tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsgo --noEmit --project tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
+  },
+  "dependencies": {
+    "@bedrock/kernel": "workspace:*",
+    "drizzle-orm": "^0.45.1"
+  },
+  "devDependencies": {
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3"
+  }
+}

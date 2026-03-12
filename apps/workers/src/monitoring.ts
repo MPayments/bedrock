@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 
-import { type Logger } from "@bedrock/common";
+import { type Logger } from "@bedrock/kernel";
 
 type WorkerState = "created" | "idle" | "running" | "stopped";
 type HealthStatus = "ok" | "degraded";
@@ -353,7 +353,7 @@ export function renderWorkerMonitoringResponse(input: {
     statusCode: 200,
     contentType: "application/json; charset=utf-8",
     body: `${JSON.stringify({
-      service: "multihansa-workers",
+      service: "bedrock-workers",
       endpoints: ["/health", "/metrics"],
     })}\n`,
   };

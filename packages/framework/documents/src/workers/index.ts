@@ -1,0 +1,1 @@
+export { createDocumentsWorkerDefinition } from "./posting";

@@ -1,6 +1,6 @@
 import { User } from "lucide-react";
 
-import { Separator } from "@multihansa/ui/components/separator";
+import { Separator } from "@bedrock/ui/components/separator";
 
 import { ProfileGeneralForm } from "../../profile/components/profile-general-form";
 import { ProfilePasswordForm } from "../../profile/components/profile-password-form";

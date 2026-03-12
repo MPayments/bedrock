@@ -1,11 +1,11 @@
-import { Badge } from "@multihansa/ui/components/badge";
+import { Badge } from "@bedrock/ui/components/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@multihansa/ui/components/card";
+} from "@bedrock/ui/components/card";
 import {
   Table,
   TableBody,
@@ -13,8 +13,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@multihansa/ui/components/table";
-import { cn } from "@multihansa/ui/lib/utils";
+} from "@bedrock/ui/components/table";
+import { cn } from "@bedrock/ui/lib/utils";
 
 import type { AccountingReportKey } from "@/features/accounting/lib/queries";
 import { formatAmountByCurrency } from "@/lib/format";

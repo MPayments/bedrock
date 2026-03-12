@@ -9,14 +9,14 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@multihansa/ui/components/collapsible";
+} from "@bedrock/ui/components/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@multihansa/ui/components/dropdown-menu";
+} from "@bedrock/ui/components/dropdown-menu";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -27,7 +27,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   useSidebar,
-} from "@multihansa/ui/components/sidebar";
+} from "@bedrock/ui/components/sidebar";
 
 import type { AppNavItem } from "@/lib/navigation/config";
 import { resolveAppIcon } from "@/lib/icons";

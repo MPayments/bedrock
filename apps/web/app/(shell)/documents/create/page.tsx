@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { FilePlus2 } from "lucide-react";
 
-import { Button } from "@multihansa/ui/components/button";
+import { Button } from "@bedrock/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@multihansa/ui/components/card";
+} from "@bedrock/ui/components/card";
 
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 import { getServerSessionSnapshot } from "@/lib/auth/session";

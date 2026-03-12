@@ -1,4 +1,4 @@
-import { IntercompanyInterestSettlementInputSchema } from "@multihansa/ifrs-documents/contracts";
+import { IntercompanyInterestSettlementInputSchema } from "@bedrock/ifrs-documents/contracts";
 
 import { createLoanLikeDefinition } from "../shared";
 

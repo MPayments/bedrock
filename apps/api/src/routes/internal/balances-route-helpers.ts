@@ -7,7 +7,7 @@ import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
 } from "@bedrock/operations";
-import { ValidationError } from "@bedrock/common/errors";
+import { ValidationError } from "@bedrock/kernel/errors";
 
 import { minorToAmountString } from "../../common/amount";
 

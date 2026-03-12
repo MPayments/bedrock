@@ -3,10 +3,10 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "@multihansa/ui/lib/utils"
-import { Button } from "@multihansa/ui/components/button"
-import { Input } from "@multihansa/ui/components/input"
-import { Textarea } from "@multihansa/ui/components/textarea"
+import { cn } from "@bedrock/ui/lib/utils"
+import { Button } from "@bedrock/ui/components/button"
+import { Input } from "@bedrock/ui/components/input"
+import { Textarea } from "@bedrock/ui/components/textarea"
 
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (

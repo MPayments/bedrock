@@ -1,36 +1,43 @@
 import "./env";
 
 import {
+  createBedrockDomainBundle,
+  createBedrockWorkerImplementations,
+} from "@bedrock/bedrock-app";
+import { db } from "@bedrock/db/client";
+import {
   createConsoleLogger,
   installShutdownHandlers,
-} from "@bedrock/common";
+} from "@bedrock/kernel";
 import { createTbClient } from "@bedrock/ledger";
-import { createWorkerFleet, startWorkerFleet } from "@bedrock/workers";
-
-import {
-  createMultihansaServices,
-  createMultihansaWorkers,
-} from "@multihansa/app";
-import { db } from "@multihansa/db/client";
+import { createBedrockApp } from "@bedrock/modules";
 
 import { env } from "./env";
 import { createWorkerMonitoringRegistry, startWorkerMonitoringServer } from "./monitoring";
 import { parseSelectedWorkerIds } from "./selection";
 
-const logger = createConsoleLogger({ app: "multihansa-workers" });
-const services = createMultihansaServices({ db, logger });
+const logger = createConsoleLogger({ app: "bedrock-workers" });
+const bundle = createBedrockDomainBundle({ db, logger });
+const app = createBedrockApp({
+  db,
+  logger,
+  modules: bundle.modules,
+  createServices: () => bundle.services,
+});
+await app.moduleRuntime.startBackgroundSync();
 
 const tb = createTbClient(env.TB_CLUSTER_ID, env.TB_ADDRESS);
-const workerImplementations = createMultihansaWorkers({
+const workerImplementations = createBedrockWorkerImplementations({
   db,
   logger,
   tb,
+  moduleRuntime: app.moduleRuntime,
   workerIntervals: env.WORKER_INTERVALS,
-  services,
+  services: bundle.services,
 });
 const selectedWorkerIds = parseSelectedWorkerIds(process.argv.slice(2));
-const workers = createWorkerFleet({
-  workers: workerImplementations,
+const workers = app.createWorkerFleet({
+  workerImplementations,
   selectedWorkerIds,
 });
 
@@ -44,8 +51,8 @@ const monitoringServer =
         logger,
       })
     : null;
-const fleet = startWorkerFleet({
-  appName: "multihansa-workers",
+const fleet = app.startWorkerFleet({
+  appName: "bedrock-workers",
   workers,
   createObserver: (worker) =>
     monitoring.registerWorker({
@@ -59,6 +66,7 @@ installShutdownHandlers(() => {
   if (monitoringServer) {
     void monitoringServer.stop();
   }
+  void app.moduleRuntime.stopBackgroundSync();
 });
 
 logger.info("Workers started", {
@@ -66,4 +74,5 @@ logger.info("Workers started", {
 });
 await fleet.promise;
 logger.info("Workers stopped");
+await app.moduleRuntime.stopBackgroundSync();
 process.exit(0);

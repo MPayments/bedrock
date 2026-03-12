@@ -1,4 +1,4 @@
-import { Skeleton } from "@multihansa/ui/components/skeleton";
+import { Skeleton } from "@bedrock/ui/components/skeleton";
 
 export function SectionLoading({
   cards = 3,

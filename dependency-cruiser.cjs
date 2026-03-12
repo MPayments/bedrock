@@ -1,6 +1,6 @@
 module.exports = {
   layers: {
-    framework: "^packages/bedrock/",
+    framework: "^packages/framework/",
     domains: "^packages/domains/",
     db: "^packages/db/",
     sdk: "^packages/sdk/",
@@ -11,7 +11,7 @@ module.exports = {
     {
       name: "framework-to-domains",
       from: {
-        path: "^packages/bedrock/",
+        path: "^packages/framework/",
       },
       to: {
         path: "^packages/domains/",
@@ -24,7 +24,7 @@ module.exports = {
     },
     {
       name: "framework-to-adapter",
-      from: { path: "^packages/bedrock/" },
+      from: { path: "^packages/framework/" },
       to: { path: "^apps/" },
     },
   ],

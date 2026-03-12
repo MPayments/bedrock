@@ -19,7 +19,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@multihansa/ui/components/sidebar";
+} from "@bedrock/ui/components/sidebar";
 
 export function AppSidebar({
   items,
@@ -40,13 +40,13 @@ export function AppSidebar({
               size="lg"
               render={<Link href="/" />}
               className="font-semibold"
-              tooltip="Multihansa"
+              tooltip="Bedrock"
             >
               <div className="size-8 rounded-full bg-primary text-primary-foreground flex aspect-square items-center justify-center">
                 <Stone className="size-6" />
               </div>
               <div className="grid flex-1 text-left text-xl leading-tight">
-                <span className="truncate font-semibold">Multihansa Finance</span>
+                <span className="truncate font-semibold">Highrock Finance</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

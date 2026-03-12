@@ -1,10 +1,10 @@
 import { cache } from "react";
 import { z } from "zod";
 
-import { CounterpartyOptionsResponseSchema } from "@multihansa/counterparties/contracts";
+import { CounterpartyOptionsResponseSchema } from "@bedrock/counterparties/contracts";
 import { CurrencyOptionsResponseSchema } from "@bedrock/assets/contracts";
-import { OrganizationOptionsResponseSchema } from "@multihansa/organizations/contracts";
-import { RequisiteProviderOptionsResponseSchema } from "@multihansa/requisite-providers/contracts";
+import { OrganizationOptionsResponseSchema } from "@bedrock/organizations/contracts";
+import { RequisiteProviderOptionsResponseSchema } from "@bedrock/requisite-providers/contracts";
 
 import {
   getRequisiteKindLabel,

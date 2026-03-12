@@ -6,15 +6,15 @@ import { Save, Trash2 } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
-import { Button } from "@multihansa/ui/components/button";
+import { Button } from "@bedrock/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@multihansa/ui/components/card";
-import { Checkbox } from "@multihansa/ui/components/checkbox";
+} from "@bedrock/ui/components/card";
+import { Checkbox } from "@bedrock/ui/components/checkbox";
 import {
   Field,
   FieldDescription,
@@ -23,17 +23,17 @@ import {
   FieldLabel,
   FieldSeparator,
   FieldSet,
-} from "@multihansa/ui/components/field";
-import { Input } from "@multihansa/ui/components/input";
+} from "@bedrock/ui/components/field";
+import { Input } from "@bedrock/ui/components/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@multihansa/ui/components/select";
-import { Spinner } from "@multihansa/ui/components/spinner";
-import { Textarea } from "@multihansa/ui/components/textarea";
+} from "@bedrock/ui/components/select";
+import { Spinner } from "@bedrock/ui/components/spinner";
+import { Textarea } from "@bedrock/ui/components/textarea";
 
 import {
   REQUISITE_KIND_OPTIONS,

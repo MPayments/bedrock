@@ -2,9 +2,9 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ChartCandlestick, Plus } from "lucide-react";
 
-import { Button } from "@multihansa/ui/components/button";
-import { Separator } from "@multihansa/ui/components/separator";
-import { Skeleton } from "@multihansa/ui/components/skeleton";
+import { Button } from "@bedrock/ui/components/button";
+import { Separator } from "@bedrock/ui/components/separator";
+import { Skeleton } from "@bedrock/ui/components/skeleton";
 
 import {
   getRateHistory,

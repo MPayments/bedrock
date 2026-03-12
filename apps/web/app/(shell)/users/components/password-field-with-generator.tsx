@@ -10,14 +10,14 @@ import type {
   UseFormSetValue,
 } from "react-hook-form";
 
-import { Input } from "@multihansa/ui/components/input";
-import { Button } from "@multihansa/ui/components/button";
+import { Input } from "@bedrock/ui/components/input";
+import { Button } from "@bedrock/ui/components/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@multihansa/ui/components/tooltip";
-import { toast } from "@multihansa/ui/components/sonner";
+} from "@bedrock/ui/components/tooltip";
+import { toast } from "@bedrock/ui/components/sonner";
 
 import { generatePassword } from "@/lib/generate-password";
 

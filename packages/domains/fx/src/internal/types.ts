@@ -1,5 +1,5 @@
-import { type FeesService } from "@multihansa/fees";
-import type { FxQuote, FxQuoteLeg } from "@multihansa/fx/schema";
+import { type FeesService } from "@bedrock/fees";
+import type { FxQuote, FxQuoteLeg } from "@bedrock/fx/schema";
 
 export interface ComputedLeg {
     idx: number;

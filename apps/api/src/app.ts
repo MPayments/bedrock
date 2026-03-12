@@ -3,6 +3,15 @@ import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 
+import {
+  ModuleDependencyViolationError,
+  ModuleDisabledError,
+  ModuleStateVersionConflictError,
+  ImmutableModuleError,
+  MixedDeployError,
+  UnknownModuleError,
+} from "@bedrock/modules";
+
 import auth from "./auth";
 import { createAppContext, parseEnv } from "./context";
 import {
@@ -10,6 +19,7 @@ import {
   requireAuth,
   type AuthVariables,
 } from "./middleware/auth";
+import { createModuleGuard } from "./middleware/module-guard";
 import { requestContextMiddleware } from "./middleware/request-context";
 import {
   accountingRoutes,
@@ -25,13 +35,19 @@ import {
   profileRoutes,
   requisiteProvidersRoutes,
   requisitesRoutes,
+  systemModulesRoutes,
   usersRoutes,
 } from "./routes";
-import { listApiRouteMounts } from "./runtime";
+import { listApiModules, type ApiRuntimeModule } from "./runtime";
 
 const env = parseEnv();
 
 const ctx = createAppContext(env);
+void ctx.moduleRuntime.startBackgroundSync().catch((error: unknown) => {
+  ctx.logger.warn("Failed to start module runtime background sync", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+});
 void ctx.documentsService
   .validateAccountingSourceCoverage()
   .catch((error: unknown) => {
@@ -65,6 +81,78 @@ const app = new OpenAPIHono<{ Variables: AuthVariables }>({
 });
 
 app.onError((err, c) => {
+  if (err instanceof ModuleDisabledError) {
+    c.header("Retry-After", String(err.retryAfterSec));
+    return c.json(
+      {
+        error: "Module disabled",
+        code: "MODULE_DISABLED",
+        moduleId: err.moduleId,
+        scope: err.scope,
+        effectiveState: err.effectiveState,
+        dependencyChain: err.dependencyChain,
+        retryAfterSec: err.retryAfterSec,
+        reason: err.reason,
+      },
+      503,
+    );
+  }
+
+  if (err instanceof UnknownModuleError) {
+    return c.json({ error: err.message, code: "UNKNOWN_MODULE" }, 404);
+  }
+
+  if (err instanceof MixedDeployError) {
+    return c.json(
+      {
+        error: err.message,
+        code: "MIXED_DEPLOY",
+        runtimeChecksum: err.runtimeChecksum,
+        localChecksum: err.localChecksum,
+      },
+      409,
+    );
+  }
+
+  if (err instanceof ModuleStateVersionConflictError) {
+    return c.json(
+      {
+        error: err.message,
+        code: "MODULE_STATE_VERSION_CONFLICT",
+        moduleId: err.moduleId,
+        scopeType: err.scopeType,
+        scopeId: err.scopeId,
+        expectedVersion: err.expectedVersion,
+        actualVersion: err.actualVersion,
+      },
+      409,
+    );
+  }
+
+  if (err instanceof ModuleDependencyViolationError) {
+    return c.json(
+      {
+        error: err.message,
+        code: "MODULE_DEPENDENCY_VIOLATION",
+        moduleId: err.moduleId,
+        dependencyModuleId: err.dependencyModuleId,
+        scope: err.scope,
+      },
+      409,
+    );
+  }
+
+  if (err instanceof ImmutableModuleError) {
+    return c.json(
+      {
+        error: err.message,
+        code: "IMMUTABLE_MODULE",
+        moduleId: err.moduleId,
+      },
+      409,
+    );
+  }
+
   ctx.logger.error("Unexpected error", {
     error: String(err),
     cause: err.cause ? String(err.cause) : undefined,
@@ -105,7 +193,7 @@ app.use("*", requestContextMiddleware());
 app.use("/v1/*", requireAuth());
 
 app.get("/", (c) => {
-  return c.json({ status: "ok", service: "multihansa-api" });
+  return c.json({ status: "ok", service: "ledger-api" });
 });
 
 app.get("/health", async (c) => {
@@ -118,7 +206,7 @@ app.get("/health", async (c) => {
   // PostgreSQL check
   const pgStart = Date.now();
   try {
-    const { db } = await import("@multihansa/db/client");
+    const { db } = await import("@bedrock/db/client");
     const { schema } = await import("@bedrock/assets/schema");
     await db
       .select({ id: schema.currencies.id })
@@ -138,11 +226,26 @@ app.get("/health", async (c) => {
   return c.json({ status: healthy ? "healthy" : "degraded", checks }, status);
 });
 
-function buildV1Router(): OpenAPIHono<{ Variables: AuthVariables }> {
-  const router = new OpenAPIHono<{ Variables: AuthVariables }>();
+function createGuardedRouter(module: ApiRuntimeModule) {
+  const guarded = new OpenAPIHono<{ Variables: AuthVariables }>();
+  if (module.api.guarded !== false) {
+    guarded.use("*", createModuleGuard(ctx, module.id));
+  }
+  guarded.route("/", module.registerRoutes(ctx));
+  return guarded;
+}
 
-  for (const routeMount of ctx.app.routeMounts) {
-    router.route(routeMount.routePath, routeMount.registerRoutes(ctx));
+function buildV1Router(
+  guarded: boolean,
+): OpenAPIHono<{ Variables: AuthVariables }> {
+  const router = new OpenAPIHono<{ Variables: AuthVariables }>();
+  const apiModules = listApiModules(ctx.app.modules);
+
+  for (const module of apiModules) {
+    router.route(
+      module.api.routePath,
+      guarded ? createGuardedRouter(module) : module.registerRoutes(ctx),
+    );
   }
 
   router.route("/users", usersRoutes(ctx));
@@ -164,20 +267,21 @@ const TYPED_ROUTE_PATHS = [
   "/requisite-providers",
   "/requisites",
   "/fx/rates",
+  "/system/modules",
 ] as const;
 
 function assertTypedRouteCoverage() {
   const typedRoutePaths = [...TYPED_ROUTE_PATHS].sort();
-  const mountedRoutePaths = listApiRouteMounts()
-    .map((routeMount) => routeMount.routePath)
-    .sort();
+  const moduleRoutePaths = listApiModules(ctx.app.modules).map(
+    (module) => module.api.routePath,
+  ).sort();
 
   const hasMismatch =
-    typedRoutePaths.length !== mountedRoutePaths.length ||
-    typedRoutePaths.some((path, index) => path !== mountedRoutePaths[index]);
+    typedRoutePaths.length !== moduleRoutePaths.length ||
+    typedRoutePaths.some((path, index) => path !== moduleRoutePaths[index]);
   if (hasMismatch) {
     throw new Error(
-      `Typed API route mounts are out of sync with explicit route registry. typed=${typedRoutePaths.join(",")} mounted=${mountedRoutePaths.join(",")}`,
+      `Typed API route mounts are out of sync with module registry. typed=${typedRoutePaths.join(",")} modules=${moduleRoutePaths.join(",")}`,
     );
   }
 }
@@ -197,6 +301,7 @@ const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
   .route("/requisite-providers", requisiteProvidersRoutes(ctx))
   .route("/requisites", requisitesRoutes(ctx))
   .route("/fx/rates", fxRatesRoutes(ctx))
+  .route("/system/modules", systemModulesRoutes(ctx))
   .route("/users", usersRoutes(ctx))
   .route("/me", profileRoutes(ctx));
 
@@ -205,13 +310,13 @@ const typedRoutes = new OpenAPIHono<{ Variables: AuthVariables }>().route(
   typedV1,
 );
 
-const v1 = buildV1Router();
+const v1 = buildV1Router(true);
 
 app.route("/v1", v1);
 
 const openApiInfo = {
   info: {
-    title: "Multihansa API",
+    title: "Bedrock API",
     version: "1.0.0",
     description: "Deterministic financial API",
   },

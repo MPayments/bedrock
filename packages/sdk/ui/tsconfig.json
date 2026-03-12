@@ -1,9 +1,9 @@
 {
-  "extends": "@multihansa/typescript-config/react-library.json",
+  "extends": "@bedrock/typescript-config/react-library.json",
   "compilerOptions": {
     "paths": {
       "*": ["./*"],
-      "@multihansa/ui/*": ["./src/*"]
+      "@bedrock/ui/*": ["./src/*"]
     },
     "outDir": "dist"
   },

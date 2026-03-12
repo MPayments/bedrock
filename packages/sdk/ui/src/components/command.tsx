@@ -3,18 +3,18 @@
 import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
 
-import { cn } from "@multihansa/ui/lib/utils"
+import { cn } from "@bedrock/ui/lib/utils"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@multihansa/ui/components/dialog"
+} from "@bedrock/ui/components/dialog"
 import {
   InputGroup,
   InputGroupAddon,
-} from "@multihansa/ui/components/input-group"
+} from "@bedrock/ui/components/input-group"
 import { SearchIcon, CheckIcon } from "lucide-react"
 
 function Command({

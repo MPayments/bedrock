@@ -1,22 +1,21 @@
-# Multihansa
+# Bedrock
 
-Multihansa is a financial platform monorepo built on the Bedrock framework layer.
+Bedrock is a financial platform monorepo (ledger, balances, FX, reconciliation).
 
 ## Workspace Topology
 
-- `packages/bedrock/*` - reusable Bedrock primitives, ports, adapters, and runtimes
-- `packages/domains/*` - Multihansa business modules and product composition
-- `packages/sdk/*` - Multihansa SDK packages such as `@multihansa/api-client` and `@multihansa/ui`
-- `packages/tooling/*` - shared Multihansa tooling such as ESLint, TypeScript config, and test utils
-- `packages/db` - `@multihansa/db`, the schema aggregator, DB client, migrations, and seeds
-- `apps/api` - `multihansa-api`
-- `apps/web` - `multihansa-web`
-- `apps/workers` - `multihansa-workers`
+- `@bedrock/kernel` - shared kernel/primitives/packs/countries
+- `@bedrock/db` - Drizzle client, all DB schema/migrations/seeds/types
+- `@bedrock/core` - core runtime domains (`@bedrock/core/<domain>`)
+- `@bedrock/application` - application workflows/use-cases (`@bedrock/application/<domain>`)
+- `apps/*` - API/Web/Workers composition
+- `@bedrock/sdk/*` - API client + UI kit
 
-Dependency direction:
+Runtime import contract:
 
-- `@bedrock/common|zod|sql -> other @bedrock/* packages -> @multihansa/* packages -> apps/*`
-- `@multihansa/db` aggregates Bedrock and Multihansa schemas; it does not own runtime domain tables itself.
+- Legacy `@bedrock/<domain>` runtime specifiers are removed.
+- Domain schemas are colocated under `@bedrock/core/<domain>/schema` and `@bedrock/application/<domain>/schema`.
+- Use DB connection types from `@bedrock/kernel/db/types`.
 
 ## Stack
 
@@ -25,15 +24,17 @@ Dependency direction:
 - Monorepo: Turborepo
 - API: Hono
 - Web: Next.js
+- Docs: Nextra + Next.js (`apps/docs`)
 - Storage: PostgreSQL + TigerBeetle
 
+## Apps
+
+- `apps/api` - API adapter (`http://localhost:3002`)
+- `apps/web` - Web app (`http://localhost:3001`)
+- `apps/workers` - Background loops (monitoring on `http://localhost:8081`)
+- `apps/docs` - Documentation app (`http://localhost:3003`)
+
 ## Local Setup
-
-Install dependencies:
-
-```bash
-bun install
-```
 
 Start infrastructure:
 
@@ -41,63 +42,72 @@ Start infrastructure:
 docker compose -f infra/docker-compose.yml up -d
 ```
 
+Install dependencies:
+
+```bash
+bun install
+```
+
 ## Run
 
-Start the full workspace:
+Run all apps:
 
 ```bash
 bun run dev
 ```
 
-Run a single app:
+Run docs app only:
 
 ```bash
-bun run --filter=multihansa-api dev
-bun run --filter=multihansa-web dev
-bun run --filter=multihansa-workers dev
+bun run --cwd apps/docs dev
 ```
 
-Run workers directly:
+Run workers:
 
 ```bash
 bun run --cwd apps/workers worker:all
 bun run --cwd apps/workers worker:ledger
 bun run --cwd apps/workers worker:documents
-bun run --cwd apps/workers worker:documents-period-close
 bun run --cwd apps/workers worker:balances
 bun run --cwd apps/workers worker:fx-rates
+bun run --cwd apps/workers worker:reconciliation
 ```
 
 ## Build and Quality
 
+Build everything:
+
 ```bash
 bun run build
+```
+
+Build docs app only:
+
+```bash
+bun run build --filter=docs
+```
+
+Checks:
+
+```bash
 bun run lint
 bun run check-types
 bun run test
 bun run test:integration
 ```
 
-App-specific builds:
+## DB Cutover Sequence
+
+This repo now uses a baseline-only migration chain. Legacy DB states are unsupported.
 
 ```bash
-bun run build --filter=multihansa-api
-bun run build --filter=multihansa-web
-bun run --filter=multihansa-workers build
+bun run --filter=@bedrock/db db:nuke
+bun run --filter=@bedrock/db db:migrate
+bun run --filter=@bedrock/db db:seed
 ```
 
-## DB Baseline Flow
+## Documentation Source of Truth
 
-This repo uses a baseline-only migration chain.
+Canonical documentation lives in:
 
-```bash
-bun run --filter=@multihansa/db db:nuke
-bun run --filter=@multihansa/db db:migrate
-bun run --filter=@multihansa/db db:seed
-```
-
-## Reference Docs
-
-- [`docs/bedrock-architecture.md`](/Users/alexey.eramasov/dev/ledger/docs/bedrock-architecture.md)
-- [`docs/bedrock-usage-guide.md`](/Users/alexey.eramasov/dev/ledger/docs/bedrock-usage-guide.md)
-- [`docs/bedrock-implementation-details.md`](/Users/alexey.eramasov/dev/ledger/docs/bedrock-implementation-details.md)
+- `apps/docs/content/docs/**`

@@ -1,12 +1,11 @@
 import { z } from "zod";
 
-import { ValidationError } from "@bedrock/common/errors";
+import { ValidationError } from "@bedrock/kernel/errors";
 import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
-} from "@bedrock/common/pagination";
-
-import { CountryAlpha2Schema, RequisiteKindSchema } from "@multihansa/requisites/shared";
+} from "@bedrock/kernel/pagination";
+import { CountryAlpha2Schema, RequisiteKindSchema } from "@bedrock/requisites/shared";
 
 export const RequisiteProviderSchema = z.object({
   id: z.uuid(),
