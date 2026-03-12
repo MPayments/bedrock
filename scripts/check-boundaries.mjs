@@ -50,11 +50,12 @@ function isSchemaDefinitionFile(file) {
   return /\/src\/(?:.+\/)?schema(?:\.ts|\/.+\.ts)$/.test(file);
 }
 
+function isIntegrationTestFile(relFile) {
+  return /(^|\/)tests(?:\/[^/]+)*\/integration\//.test(relFile);
+}
+
 function isDbImportAllowed(owner, relFile) {
-  if (
-    relFile.startsWith("scripts/") ||
-    /\/scripts\//.test(relFile)
-  ) {
+  if (isIntegrationTestFile(relFile)) {
     return true;
   }
 
@@ -285,6 +286,28 @@ for (const root of SOURCE_ROOTS) {
       }
 
       if (
+        owner?.kind === "runtime" &&
+        ["module", "plugin", "integration", "db"].includes(targetPkg.kind)
+      ) {
+        recordViolation("runtime-imports-business", relFile, specifier);
+      }
+
+      if (
+        owner?.kind === "integration" &&
+        targetPkg.kind === "integration" &&
+        owner.name !== targetPkg.name
+      ) {
+        recordViolation("integration-imports-integration", relFile, specifier);
+      }
+
+      if (
+        owner?.kind === "integration" &&
+        targetPkg.kind === "runtime"
+      ) {
+        recordViolation("integration-imports-runtime", relFile, specifier);
+      }
+
+      if (
         owner &&
         owner.kind !== "app" &&
         owner.name !== targetPkg.name &&
@@ -342,6 +365,87 @@ function visitPackage(name) {
 for (const pkgName of packageGraph.keys()) {
   if (!visited.has(pkgName)) {
     visitPackage(pkgName);
+  }
+}
+
+for (const pkg of workspacePackages) {
+  if (pkg.kind !== "runtime") {
+    continue;
+  }
+
+  const directWorkspaceDeps = Object.keys(pkg.packageJson.dependencies ?? {})
+    .map((depName) => packagesByName.get(depName))
+    .filter(Boolean);
+
+  const disallowedDeps = directWorkspaceDeps.filter(
+    (depPkg) => !["common", "platform"].includes(depPkg.kind),
+  );
+
+  for (const depPkg of disallowedDeps) {
+    recordViolation(
+      "runtime-depends-on-non-platform",
+      `${pkg.relDir}/package.json`,
+      depPkg.name,
+    );
+  }
+}
+
+for (const pkg of workspacePackages) {
+  if (pkg.kind !== "integration") {
+    continue;
+  }
+
+  const directWorkspaceDeps = Object.keys(pkg.packageJson.dependencies ?? {})
+    .map((depName) => packagesByName.get(depName))
+    .filter(Boolean);
+
+  const integrationDeps = directWorkspaceDeps.filter(
+    (depPkg) => depPkg.kind === "integration" && depPkg.name !== pkg.name,
+  );
+  for (const depPkg of integrationDeps) {
+    recordViolation(
+      "integration-depends-on-integration",
+      `${pkg.relDir}/package.json`,
+      depPkg.name,
+    );
+  }
+
+  const runtimeDeps = directWorkspaceDeps.filter(
+    (depPkg) => depPkg.kind === "runtime",
+  );
+  for (const depPkg of runtimeDeps) {
+    recordViolation(
+      "integration-depends-on-runtime",
+      `${pkg.relDir}/package.json`,
+      depPkg.name,
+    );
+  }
+
+  const invalidWorkspaceDeps = directWorkspaceDeps.filter(
+    (depPkg) =>
+      !["common", "platform", "module", "plugin"].includes(depPkg.kind),
+  );
+  for (const depPkg of invalidWorkspaceDeps) {
+    if (depPkg.kind === "integration" || depPkg.kind === "runtime") {
+      continue;
+    }
+
+    recordViolation(
+      "integration-invalid-workspace-dependency",
+      `${pkg.relDir}/package.json`,
+      depPkg.name,
+    );
+  }
+
+  const bridgedBusinessDeps = directWorkspaceDeps.filter((depPkg) =>
+    depPkg.kind === "module" || depPkg.kind === "plugin",
+  );
+  if (bridgedBusinessDeps.length > 2) {
+    recordViolation(
+      "integration-too-wide",
+      `${pkg.relDir}/package.json`,
+      bridgedBusinessDeps.map((depPkg) => depPkg.name).join(", "),
+    );
   }
 }
 

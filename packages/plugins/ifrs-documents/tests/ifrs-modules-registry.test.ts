@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createIfrsDocumentModules,
   IFRS_DOCUMENT_TYPE_ORDER,
-} from "../../src/ifrs-documents";
+} from "../src";
 
 describe("ifrs module registry", () => {
   it("registers one module per IFRS doc type in canonical order", () => {

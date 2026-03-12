@@ -13,9 +13,9 @@ import {
   randomOrgId,
   tb,
 } from "./helpers";
-import { createLedgerEngine } from "../../../src/ledger/engine";
-import { OPERATION_TRANSFER_TYPE } from "../../../src/ledger/types";
-import { createLedgerWorkerDefinition } from "../../../src/ledger/worker";
+import { createLedgerEngine } from "../../src/engine";
+import { OPERATION_TRANSFER_TYPE } from "../../src/types";
+import { createLedgerWorkerDefinition } from "../../src/worker";
 
 async function runWorkerOnce(
   worker: ReturnType<typeof createLedgerWorkerDefinition>,

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { FeeValidationError, FeesError } from "../../src/fees/errors";
-import * as feesApi from "../../src/fees/index";
+import { FeeValidationError, FeesError } from "../src/errors";
+import * as feesApi from "../src/index";
 import {
   validateFeeComponent,
   validateFxQuoteFeeCalculation,
@@ -11,7 +11,7 @@ import {
   validateResolveFeeRulesInput,
   validateSaveQuoteFeeComponentsInput,
   validateUpsertFeeRuleInput,
-} from "../../src/fees/validation";
+} from "../src/validation";
 
 const VALID_QUOTE_ID = "11111111-1111-4111-8111-111111111111";
 

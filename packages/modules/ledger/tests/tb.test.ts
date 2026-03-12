@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 
 import { createMockTbClient } from "./helpers";
-import { TigerBeetleBatchError } from "../../src/ledger/errors";
+import { TigerBeetleBatchError } from "../src/errors";
 import {
   makeTbAccount,
   makeTbTransfer,
@@ -11,7 +11,7 @@ import {
   TransferFlags,
   CreateAccountError,
   CreateTransferError
-} from "../../src/ledger/tb";
+} from "../src/tb";
 
 describe("TB_AMOUNT_MAX", () => {
   it("should be 2^128 - 1", () => {

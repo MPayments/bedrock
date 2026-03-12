@@ -6,9 +6,9 @@ import { schema } from "@bedrock/fx/schema";
 import { DAY_IN_SECONDS } from "@bedrock/ledger/constants";
 
 import { db } from "./setup";
-import { createFxService } from "../../../src/fx/service";
-import { createFxRatesWorkerDefinition } from "../../../src/fx/worker";
-import { createNoopFeesService } from "../../support/harness/fx";
+import { createFxService } from "../../src/service";
+import { createFxRatesWorkerDefinition } from "../../src/worker";
+import { createNoopFeesService } from "@bedrock/test-utils/bedrock/harness/fx";
 
 async function runWorkerOnce(
     worker: ReturnType<typeof createFxRatesWorkerDefinition>,

@@ -1,12 +1,12 @@
 import { schema } from "@bedrock/parties/customers/schema";
 
-import { seedCurrencies } from "../../../../db/src/seeds/index.ts";
+import { seedCurrencies } from "@bedrock/db/seeds";
 import {
   createTestDrizzleDb,
   createTestPgPool,
   deleteIfTableExists,
   registerPgIntegrationLifecycle,
-} from "../../support/integration/postgres";
+} from "@bedrock/test-utils/bedrock/integration/postgres";
 
 const pool = createTestPgPool();
 const db = createTestDrizzleDb(pool, schema);

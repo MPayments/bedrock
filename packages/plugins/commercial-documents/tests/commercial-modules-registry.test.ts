@@ -5,7 +5,7 @@ import { ACCOUNTING_SOURCE_ID } from "@bedrock/accounting/posting-contracts";
 import {
   COMMERCIAL_DOCUMENT_TYPE_ORDER,
   createCommercialDocumentModules,
-} from "../../src/commercial-documents";
+} from "../src";
 
 describe("commercial module registry", () => {
   it("registers one module per commercial doc type in canonical order", () => {

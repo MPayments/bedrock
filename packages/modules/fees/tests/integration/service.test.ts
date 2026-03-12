@@ -8,7 +8,7 @@ import { schema as feesSchema } from "@bedrock/fees/schema";
 import { schema as fxSchema } from "@bedrock/fx/schema";
 
 import { db } from "./setup";
-import { createFeesService } from "../../../src/fees/service";
+import { createFeesService } from "../../src/service";
 
 const schema = {
   ...feesSchema,

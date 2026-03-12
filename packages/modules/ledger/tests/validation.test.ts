@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { OPERATION_TRANSFER_TYPE } from "../../src/ledger/types";
+import { OPERATION_TRANSFER_TYPE } from "../src/types";
 import {
   operationIntentSchema,
   validateOperationIntent,
-} from "../../src/ledger/validation";
+} from "../src/validation";
 
 const validInput = {
   source: { type: "payment", id: "src-1" },

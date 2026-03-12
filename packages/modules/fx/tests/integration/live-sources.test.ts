@@ -5,8 +5,8 @@ import { createCurrenciesService } from "@bedrock/currencies";
 import { schema } from "@bedrock/fx/schema";
 
 import { db } from "./setup";
-import { createFxService } from "../../../src/fx/service";
-import { createNoopFeesService } from "../../support/harness/fx";
+import { createFxService } from "../../src/service";
+import { createNoopFeesService } from "@bedrock/test-utils/bedrock/harness/fx";
 
 const EXTERNAL_API_TESTS_ENABLED = process.env.ENABLE_EXTERNAL_API_TESTS === "1";
 const describeExternal = EXTERNAL_API_TESTS_ENABLED ? describe : describe.skip;

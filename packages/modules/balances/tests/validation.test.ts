@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { validateReserveBalanceInput } from "../../src/balances/validation";
+import { validateReserveBalanceInput } from "../src/validation";
 
 describe("balances validation", () => {
   const subject = {

@@ -5,7 +5,7 @@ import {
   CapitalFundingPayloadSchema,
   TransferIntraInputSchema,
   TransferIntraPayloadSchema,
-} from "../../src/ifrs-documents/validation";
+} from "../src/validation";
 
 describe("ifrs documents validation", () => {
   it("accepts API amount and maps it to amountMinor", () => {

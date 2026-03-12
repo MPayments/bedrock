@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   AcceptancePayloadSchema,
   InvoiceInputSchema,
-} from "../../src/commercial-documents/validation";
+} from "../src/validation";
 
 const CUSTOMER_ID = "00000000-0000-4000-8000-000000000001";
 const COUNTERPARTY_ID = "00000000-0000-4000-8000-000000000002";

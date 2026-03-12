@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createListPairsHandler } from "../../src/fx/commands/rates/list-pairs";
+import { createListPairsHandler } from "../src/commands/rates/list-pairs";
 
 describe("list pairs handler", () => {
   it("groups pair rows, computes changes and sorts sources by priority", async () => {

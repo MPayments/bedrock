@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { schema } from "@bedrock/fees/schema";
 import { TransferCodes } from "@bedrock/ledger/constants";
 
-import { FeeValidationError } from "../../src/fees/errors";
-import { createTestFeesService } from "../support/harness/fees";
+import { FeeValidationError } from "../src/errors";
+import { createTestFeesService } from "@bedrock/test-utils/bedrock/harness/fees";
 
 const QUOTE_ID = "11111111-1111-4111-8111-111111111111";
 

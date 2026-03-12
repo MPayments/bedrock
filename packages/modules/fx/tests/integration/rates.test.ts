@@ -7,10 +7,10 @@ import { schema } from "@bedrock/fx/schema";
 import { DAY_IN_SECONDS } from "@bedrock/ledger/constants";
 
 import { db } from "./setup";
-import { RateSourceStaleError } from "../../../src/fx/errors";
-import { createFxService } from "../../../src/fx/service";
-import { type FxRateSourceProvider } from "../../../src/fx/sources/types";
-import { createNoopFeesService } from "../../support/harness/fx";
+import { RateSourceStaleError } from "../../src/errors";
+import { createFxService } from "../../src/service";
+import { type FxRateSourceProvider } from "../../src/sources/types";
+import { createNoopFeesService } from "@bedrock/test-utils/bedrock/harness/fx";
 
 function createFxServiceWithProvider(provider: FxRateSourceProvider) {
     return createFxService({

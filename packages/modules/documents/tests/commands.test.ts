@@ -4,10 +4,10 @@ import { z } from "zod";
 import { schema, type Document } from "@bedrock/documents/schema";
 import { InvalidStateError } from "@bedrock/common/errors";
 
-import { createCreateDraftHandler } from "../../src/documents/commands/create-draft";
-import { createTransitionHandler } from "../../src/documents/commands/transition";
-import { createUpdateDraftHandler } from "../../src/documents/commands/update-draft";
-import type { DocumentModule } from "../../src/documents/types";
+import { createCreateDraftHandler } from "../src/commands/create-draft";
+import { createTransitionHandler } from "../src/commands/transition";
+import { createUpdateDraftHandler } from "../src/commands/update-draft";
+import type { DocumentModule } from "../src/types";
 
 function makeDocument(overrides: Partial<Document> = {}): Document {
   return {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createRateQueryHandlers } from "../../src/fx/commands/rates/query";
-import { RateNotFoundError } from "../../src/fx/errors";
+import { createRateQueryHandlers } from "../src/commands/rates/query";
+import { RateNotFoundError } from "../src/errors";
 
 interface RateRow {
     rateNum: bigint;

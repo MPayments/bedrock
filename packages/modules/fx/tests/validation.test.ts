@@ -10,7 +10,7 @@ import {
     validateQuoteInput,
     validateSetManualRateInput,
     validateSyncRatesFromSourceInput,
-} from "../../src/fx/validation";
+} from "../src/validation";
 
 describe("FX validation", () => {
     it("validates and normalizes manual rate input", () => {

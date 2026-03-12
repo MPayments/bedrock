@@ -52,6 +52,7 @@
     "vitest": "^4.0.18",
     "@bedrock/accounting": "workspace:*",
     "@bedrock/auth": "workspace:*",
+    "@bedrock/db": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/test-utils": "workspace:*",
     "@types/pg": "^8.16.0",

@@ -5,7 +5,7 @@ import {
     RateNotFoundError,
     RateSourceStaleError,
     RateSourceSyncError,
-} from "../../src/fx/errors";
+} from "../src/errors";
 
 describe("FX errors", () => {
     it("creates typed domain errors with stable names", () => {

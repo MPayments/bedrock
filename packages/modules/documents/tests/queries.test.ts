@@ -2,15 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import { type Document, type DocumentEvent, type DocumentLink, type DocumentOperation, type DocumentSnapshot } from "@bedrock/documents/schema";
 
-import { DocumentNotFoundError } from "../../src/documents/errors";
-import { createGetDocumentQuery } from "../../src/documents/queries/get-document";
-import { createGetDocumentDetailsQuery } from "../../src/documents/queries/get-document-details";
-import { createListDocumentsQuery } from "../../src/documents/queries/list-documents";
-import type { DocumentModule } from "../../src/documents/types";
+import { DocumentNotFoundError } from "../src/errors";
+import { createGetDocumentQuery } from "../src/queries/get-document";
+import { createGetDocumentDetailsQuery } from "../src/queries/get-document-details";
+import { createListDocumentsQuery } from "../src/queries/list-documents";
+import type { DocumentModule } from "../src/types";
 import {
   buildTestDocument,
   createTestDocumentModule,
-} from "../support/builders/documents";
+} from "@bedrock/test-utils/bedrock/builders/documents";
 
 const makeDocument = (overrides: Partial<Document> = {}) => buildTestDocument(overrides);
 const createModuleStub = () =>

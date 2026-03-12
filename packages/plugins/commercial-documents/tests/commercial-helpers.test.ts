@@ -10,8 +10,8 @@ import {
   buildQuoteSnapshotHash,
   loadQuoteSnapshot,
   markQuoteUsedForInvoice,
-} from "../../src/commercial-documents/documents/internal/helpers";
-import { createMockCurrenciesService } from "../support/harness/fx";
+} from "../src/documents/internal/helpers";
+import { createMockCurrenciesService } from "@bedrock/test-utils/bedrock/harness/fx";
 
 function makeQuoteSnapshot(financialLines: any[]) {
   const snapshot = {

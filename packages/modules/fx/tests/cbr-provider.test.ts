@@ -8,8 +8,8 @@ vi.mock("soap", () => ({
     createClientAsync: soapMocks.createClientAsync,
 }));
 
-import { RateSourceSyncError } from "../../src/fx/errors";
-import { createCbrRateSourceProvider } from "../../src/fx/sources/cbr";
+import { RateSourceSyncError } from "../src/errors";
+import { createCbrRateSourceProvider } from "../src/sources/cbr";
 
 describe("createCbrRateSourceProvider", () => {
     it("uses default SOAP client factory", async () => {

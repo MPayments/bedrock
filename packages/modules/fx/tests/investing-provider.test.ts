@@ -21,8 +21,8 @@ vi.mock("tlsclientwrapper", () => {
     return { ModuleClient, SessionClient };
 });
 
-import { RateSourceSyncError } from "../../src/fx/errors";
-import { createInvestingRateSourceProvider } from "../../src/fx/sources/investing";
+import { RateSourceSyncError } from "../src/errors";
+import { createInvestingRateSourceProvider } from "../src/sources/investing";
 
 describe("createInvestingRateSourceProvider", () => {
     it("creates and disposes owned session when external session is not provided", async () => {

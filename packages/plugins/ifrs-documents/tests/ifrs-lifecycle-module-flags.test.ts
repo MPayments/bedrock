@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createIfrsDocumentModules } from "../../src/ifrs-documents";
+import { createIfrsDocumentModules } from "../src";
 
 const SIMPLE_IFRS_DOC_TYPES = [
   "period_close",

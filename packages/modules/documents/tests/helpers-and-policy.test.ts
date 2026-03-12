@@ -7,7 +7,7 @@ import {
   DocumentGraphError,
   DocumentPolicyDeniedError,
   DocumentRegistryError,
-} from "../../src/documents/errors";
+} from "../src/errors";
 import {
   assertDocumentIsActive,
   buildDefaultActionIdempotencyKey,
@@ -26,14 +26,14 @@ import {
   resolveDocumentsSort,
   resolveModule,
   toStoredJson,
-} from "../../src/documents/internal/helpers";
-import { enforceDocumentPolicy, persistDocumentPolicyDenial } from "../../src/documents/internal/policy";
-import type { DocumentModule } from "../../src/documents/types";
+} from "../src/internal/helpers";
+import { enforceDocumentPolicy, persistDocumentPolicyDenial } from "../src/internal/policy";
+import type { DocumentModule } from "../src/types";
 import {
   buildTestDocument,
   createTestDocumentModule,
-} from "../support/builders/documents";
-import { createDocumentPolicyStub } from "../support/harness/documents";
+} from "@bedrock/test-utils/bedrock/builders/documents";
+import { createDocumentPolicyStub } from "@bedrock/test-utils/bedrock/harness/documents";
 const createModuleStub = () => createTestDocumentModule() as DocumentModule;
 const makeDocument = (overrides: Partial<Document> = {}) => buildTestDocument(overrides);
 

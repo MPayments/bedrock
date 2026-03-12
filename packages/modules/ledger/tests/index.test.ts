@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import * as ledger from "../../src/ledger/index";
+import * as ledger from "../src/index";
 
 describe("ledger public exports", () => {
   it("exposes the expected API surface", () => {

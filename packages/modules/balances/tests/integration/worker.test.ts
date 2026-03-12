@@ -8,7 +8,7 @@ import { schema as balancesSchema } from "@bedrock/balances/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { canonicalJson, sha256Hex } from "@bedrock/common";
 
-import { createBalancesProjectorWorkerDefinition } from "../../../src/balances/worker";
+import { createBalancesProjectorWorkerDefinition } from "../../src/worker";
 
 const schema = {
   ...balancesSchema,

@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CurrencyDeleteConflictError,
   CurrencyNotFoundError,
-} from "../../src/currencies/errors";
-import { createCurrenciesService } from "../../src/currencies/service";
+} from "../src/errors";
+import { createCurrenciesService } from "../src/service";
 
 function makeCurrency(overrides: Record<string, unknown> = {}) {
   return {

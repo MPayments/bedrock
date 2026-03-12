@@ -169,7 +169,6 @@
         "zod": "^4.1.11",
       },
       "devDependencies": {
-        "@bedrock/db": "workspace:*",
         "@bedrock/eslint-config": "workspace:*",
         "@bedrock/test-utils": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
@@ -372,6 +371,7 @@
       "devDependencies": {
         "@bedrock/accounting": "workspace:*",
         "@bedrock/auth": "workspace:*",
+        "@bedrock/db": "workspace:*",
         "@bedrock/documents": "workspace:*",
         "@bedrock/eslint-config": "workspace:*",
         "@bedrock/test-utils": "workspace:*",

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { schema } from "@bedrock/fx/schema";
 import { ValidationError } from "@bedrock/common/errors";
 
-import { createManualRateHandlers } from "../../src/fx/commands/rates/manual-rates";
+import { createManualRateHandlers } from "../src/commands/rates/manual-rates";
 
 function createContext() {
     const values = vi.fn(async () => undefined);

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { schema, type Document } from "@bedrock/documents/schema";
 import { InvalidStateError } from "@bedrock/common/errors";
 
-import { createTransitionHandler } from "../../src/documents/commands/transition";
+import { createTransitionHandler } from "../src/commands/transition";
 
 function makeDocument(overrides: Partial<Document> = {}): Document {
   return {

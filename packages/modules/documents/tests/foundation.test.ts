@@ -11,11 +11,11 @@ import {
   createDocumentRegistry,
   createDocumentsService,
   validateInput,
-} from "../../src/documents";
-import { createDocumentsServiceContext } from "../../src/documents/internal/context";
-import type { DocumentModule } from "../../src/documents/types";
-import { createTestDocumentModule } from "../support/builders/documents";
-import { createDocumentsServiceDeps } from "../support/harness/documents";
+} from "../src";
+import { createDocumentsServiceContext } from "../src/internal/context";
+import type { DocumentModule } from "../src/types";
+import { createTestDocumentModule } from "@bedrock/test-utils/bedrock/builders/documents";
+import { createDocumentsServiceDeps } from "@bedrock/test-utils/bedrock/harness/documents";
 
 function createModuleStub(): DocumentModule<{ memo: string }, { memo: string }> {
   const payloadSchema = z.object({ memo: z.string() });

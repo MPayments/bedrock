@@ -7,7 +7,7 @@ import {
   AccountMappingConflictError,
   TigerBeetleBatchError,
   isRetryableError
-} from "../../src/ledger/errors";
+} from "../src/errors";
 
 describe("LedgerError", () => {
   it("should create error with message", () => {

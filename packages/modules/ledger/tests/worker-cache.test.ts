@@ -6,9 +6,9 @@ import {
   mockDbExecuteResult,
   type StubDatabase,
 } from "./helpers";
-import { TransferFlags } from "../../src/ledger/tb";
-import { OPERATION_TRANSFER_TYPE } from "../../src/ledger/types";
-import type { createLedgerWorkerDefinition as createLedgerWorkerDefinitionFactory } from "../../src/ledger/worker";
+import { TransferFlags } from "../src/tb";
+import { OPERATION_TRANSFER_TYPE } from "../src/types";
+import type { createLedgerWorkerDefinition as createLedgerWorkerDefinitionFactory } from "../src/worker";
 
 async function runWorkerOnce(
   worker: ReturnType<typeof createLedgerWorkerDefinitionFactory>,
@@ -27,7 +27,7 @@ describe("createLedgerWorkerDefinition account setup", () => {
   beforeEach(async () => {
     db = createStubDb();
     tb = createMockTbClient();
-    const { createLedgerWorkerDefinition } = await import("../../src/ledger/worker");
+    const { createLedgerWorkerDefinition } = await import("../src/worker");
     worker = createLedgerWorkerDefinition({ db, tb });
   });
 

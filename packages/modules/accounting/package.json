@@ -22,9 +22,9 @@
     "test:watch": "vitest --config vitest.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:integration:watch": "vitest --config vitest.integration.config.ts",
-    "pack:validate": "tsx ./scripts/pack-validate.ts",
-    "pack:compile": "tsx ./scripts/pack-compile.ts",
-    "pack:activate": "tsx ./scripts/pack-activate.ts"
+    "pack:validate": "tsx ../../../scripts/accounting/pack-validate.ts",
+    "pack:compile": "tsx ../../../scripts/accounting/pack-compile.ts",
+    "pack:activate": "tsx ../../../scripts/accounting/pack-activate.ts"
   },
   "dependencies": {
     "@bedrock/common": "workspace:*",
@@ -34,7 +34,6 @@
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@bedrock/db": "workspace:*",
     "@bedrock/eslint-config": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",

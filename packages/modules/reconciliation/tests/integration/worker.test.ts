@@ -7,8 +7,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
 
-import { createReconciliationService } from "../../../src/reconciliation/service";
-import { createReconciliationWorkerDefinition } from "../../../src/reconciliation/worker";
+import { createReconciliationService } from "../../src/service";
+import { createReconciliationWorkerDefinition } from "../../src/worker";
 
 const schema = {
   ...reconciliationSchema,

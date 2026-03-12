@@ -4,7 +4,7 @@ import {
     CurrencySchema,
     CreateCurrencyInputSchema,
     UpdateCurrencyInputSchema,
-} from "../../src/currencies/validation";
+} from "../src/validation";
 
 describe("currencies validation", () => {
     it("parses valid currency entity and coerces dates", () => {

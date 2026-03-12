@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { RateSourceSyncError } from "../../src/fx/errors";
-import { createXeRateSourceProvider } from "../../src/fx/sources/xe";
+import { RateSourceSyncError } from "../src/errors";
+import { createXeRateSourceProvider } from "../src/sources/xe";
 import {
   parseRateFromHtml,
   parseRateFromText,
   parseTimestampFromHtml,
-} from "../../src/fx/sources/xe";
+} from "../src/sources/xe";
 
 function makeHtml(rate: string, base: string, quote: string, time = "13:39") {
     return `

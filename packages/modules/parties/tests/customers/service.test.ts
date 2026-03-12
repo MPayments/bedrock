@@ -216,7 +216,6 @@ describe("createCustomersService", () => {
       select: vi
         .fn()
         .mockReturnValueOnce(selectWhereLimitRows([{ id: customer.id }]))
-        .mockReturnValueOnce(selectWhereLimitRows([]))
         .mockReturnValueOnce(selectWhereRows([{ id: "counterparty-1" }]))
         .mockReturnValueOnce(
           selectWhereRows([
@@ -292,6 +291,7 @@ describe("createCustomersService", () => {
           where: vi.fn(async () => undefined),
         })),
       }),
+      execute: vi.fn().mockResolvedValue({ rows: [] }),
       insert: vi.fn(),
     };
     db.transaction.mockImplementation(
@@ -315,10 +315,10 @@ describe("createCustomersService", () => {
     const tx = {
       select: vi
         .fn()
-        .mockReturnValueOnce(selectWhereLimitRows([{ id: customer.id }]))
-        .mockReturnValueOnce(selectWhereLimitRows([{ id: "order-1" }])),
+        .mockReturnValueOnce(selectWhereLimitRows([{ id: customer.id }])),
       delete: vi.fn(),
       update: vi.fn(),
+      execute: vi.fn().mockResolvedValue({ rows: [{ id: "order-1" }] }),
       insert: vi.fn(),
     };
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createFxRatesWorkerDefinition } from "../../src/fx/worker";
+import { createFxRatesWorkerDefinition } from "../src/worker";
 
 async function runWorkerOnce(
     worker: ReturnType<typeof createFxRatesWorkerDefinition>,

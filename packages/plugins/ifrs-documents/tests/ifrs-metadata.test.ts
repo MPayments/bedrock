@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   IFRS_DOCUMENT_METADATA,
   IFRS_DOCUMENT_TYPE_ORDER,
-} from "../../src/ifrs-documents";
+} from "../src";
 
 describe("ifrs metadata", () => {
   it("defines all IFRS doc types with required fields", () => {

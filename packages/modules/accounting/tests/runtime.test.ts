@@ -6,7 +6,7 @@ import { POSTING_TEMPLATE_KEY } from "@bedrock/accounting/posting-contracts";
 import {
   createAccountingRuntime,
   type DocumentPostingPlan,
-} from "../../src/accounting/runtime";
+} from "../src/runtime";
 
 describe("accounting runtime", () => {
   const runtime = createAccountingRuntime({

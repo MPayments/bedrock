@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { validateRunReconciliationInput } from "../../src/reconciliation/validation";
+import { validateRunReconciliationInput } from "../src/validation";
 
 describe("reconciliation validation", () => {
   it("requires source on runs", () => {

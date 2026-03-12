@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createWorkerFleet } from "../../src/worker-runtime";
+import { createWorkerFleet } from "../src/service";
 
 const WORKER_CATALOG = [
   {

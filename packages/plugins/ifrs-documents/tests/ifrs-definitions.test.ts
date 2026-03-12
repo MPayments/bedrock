@@ -5,7 +5,7 @@ import {
   IFRS_DOCUMENT_DEFINITIONS,
   IFRS_DOCUMENT_METADATA,
   IFRS_DOCUMENT_TYPE_ORDER,
-} from "../../src/ifrs-documents";
+} from "../src";
 
 describe("ifrs document definitions", () => {
   it("exposes one canonical definition per IFRS document type", () => {

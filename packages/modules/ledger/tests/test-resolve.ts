@@ -7,10 +7,10 @@ import {
 } from "@bedrock/ledger/ids";
 import type { Database } from "@bedrock/common/db/types";
 
-import { AccountMappingConflictError } from "../../src/ledger/errors";
-import { schema } from "../../src/ledger/schema";
-import type { Dimensions } from "../../src/ledger/schema";
-import { makeTbAccount, tbCreateAccountsOrThrow, type TbClient } from "../../src/ledger/tb";
+import { AccountMappingConflictError } from "../src/errors";
+import { schema } from "../src/schema";
+import type { Dimensions } from "../src/schema";
+import { makeTbAccount, tbCreateAccountsOrThrow, type TbClient } from "../src/tb";
 
 function accountCodeFromSeed(seed: string): number {
   const normalized = seed.trim().toLowerCase();

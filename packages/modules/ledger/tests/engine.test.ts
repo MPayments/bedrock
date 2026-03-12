@@ -12,9 +12,9 @@ import {
   createTestTransferPlan,
   type StubDatabase,
 } from "./helpers";
-import { createLedgerEngine } from "../../src/ledger/engine";
-import { IdempotencyConflictError } from "../../src/ledger/errors";
-import { OPERATION_TRANSFER_TYPE } from "../../src/ledger/types";
+import { createLedgerEngine } from "../src/engine";
+import { IdempotencyConflictError } from "../src/errors";
+import { OPERATION_TRANSFER_TYPE } from "../src/types";
 
 function createCreateTransferTx(options?: {
   ruleExists?: boolean;

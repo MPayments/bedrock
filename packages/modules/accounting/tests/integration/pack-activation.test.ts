@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { schema } from "@bedrock/accounting/schema";
 
-import { createAccountingRuntime } from "../../../src/accounting/runtime";
+import { createAccountingRuntime } from "../../src/runtime";
 
 const pool = new Pool({
   host: process.env.DB_HOST || "localhost",

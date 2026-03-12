@@ -1,21 +1,34 @@
-import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
-import { AccountingPackDefinitionSchema } from "@bedrock/accounting/packs/schema";
-import { canonicalJson } from "@bedrock/common";
-import { db } from "@bedrock/db/client";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 
 import {
+  AccountingPackDefinitionSchema,
   compilePack,
   createAccountingRuntime,
   type AccountingPackDefinition,
   type CompiledPack,
-} from "../../src/accounting/index";
+} from "@bedrock/accounting";
+import { canonicalJson } from "@bedrock/common";
+import type { Database } from "@bedrock/common/db/types";
 
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const DEFAULT_PACK_PATH = resolve(
-  SCRIPT_DIR,
-  "../../src/accounting/packs/bedrock-core-default.ts",
+const DEFAULT_PACK_SPECIFIER = "@bedrock/accounting/packs/bedrock-core-default";
+
+const db: Database = drizzle(
+  new Pool({
+    host: process.env.DB_HOST ?? "localhost",
+    port: +(process.env.DB_PORT ?? 5432),
+    database: process.env.DB_NAME ?? "postgres",
+    user: process.env.DB_USER ?? "postgres",
+    password: process.env.DB_PASSWORD ?? "",
+    ssl:
+      process.env.DB_SSL === "true"
+        ? { rejectUnauthorized: true }
+        : false,
+    allowExitOnIdle: true,
+  }),
 );
 
 function readFlag(name: string): string | undefined {
@@ -51,17 +64,22 @@ export async function loadRawPackDefinition(): Promise<{
   packRef: string;
   definition: AccountingPackDefinition;
 }> {
-  const packPath = readOptionalFlag("pack-path") ?? DEFAULT_PACK_PATH;
-  const module = (await import(pathToFileURL(packPath).href)) as {
+  const packPath = readOptionalFlag("pack-path");
+  const packRef = packPath
+    ? resolve(process.cwd(), packPath)
+    : DEFAULT_PACK_SPECIFIER;
+  const module = (packPath
+    ? await import(pathToFileURL(packRef).href)
+    : await import(DEFAULT_PACK_SPECIFIER)) as {
     rawPackDefinition?: unknown;
   };
 
   if (!module.rawPackDefinition) {
-    throw new Error(`${packPath} does not export rawPackDefinition`);
+    throw new Error(`${packRef} does not export rawPackDefinition`);
   }
 
   return {
-    packRef: packPath,
+    packRef,
     definition: AccountingPackDefinitionSchema.parse(
       module.rawPackDefinition,
     ) as AccountingPackDefinition,

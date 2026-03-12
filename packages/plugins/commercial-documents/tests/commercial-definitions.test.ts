@@ -5,7 +5,7 @@ import {
   COMMERCIAL_DOCUMENT_METADATA,
   COMMERCIAL_DOCUMENT_TYPE_ORDER,
   getCommercialDocumentDefinition,
-} from "../../src/commercial-documents";
+} from "../src";
 
 describe("commercial document definitions", () => {
   it("exposes one canonical definition per commercial document type", () => {

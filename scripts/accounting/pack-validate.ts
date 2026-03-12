@@ -1,5 +1,5 @@
 import { loadRawPackDefinition } from "./pack-common";
-import { validatePackDefinition } from "../../src/accounting/index";
+import { validatePackDefinition } from "@bedrock/accounting";
 
 
 async function main() {
