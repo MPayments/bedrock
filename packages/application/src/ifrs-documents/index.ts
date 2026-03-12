@@ -7,10 +7,17 @@ export {
 } from "./documents";
 
 export {
+  IFRS_DOCUMENT_DEFINITIONS,
   IFRS_DOCUMENT_METADATA,
   IFRS_DOCUMENT_TYPE_ORDER,
+  getIfrsDocumentDefinition,
+  type DocumentFormDefinition,
+  type DocumentFormField,
+  type DocumentFormSection,
+  type DocumentFormValues,
+  type IfrsDocumentDefinition,
   type IfrsDocumentType,
-} from "./metadata";
+} from "./contracts";
 
 export {
   AccrualAdjustmentInputSchema,

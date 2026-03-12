@@ -28,97 +28,14 @@ import {
   toStoredJson,
 } from "../../src/documents/internal/helpers";
 import { enforceDocumentPolicy, persistDocumentPolicyDenial } from "../../src/documents/internal/policy";
-import type { DocumentActionPolicyService, DocumentModule } from "../../src/documents/types";
-
-function makeDocument(overrides: Partial<Document> = {}): Document {
-  return {
-    id: "11111111-1111-4111-8111-111111111111",
-    docType: "test_document",
-    docNo: "TST-11111111",
-    moduleId: "test_document",
-    moduleVersion: 1,
-    payloadVersion: 1,
-    payload: { memo: "hello" },
-    title: "Test document",
-    occurredAt: new Date("2026-03-01T10:00:00.000Z"),
-    submissionStatus: "draft",
-    approvalStatus: "not_required",
-    postingStatus: "unposted",
-    lifecycleStatus: "active",
-    createIdempotencyKey: "idem-1",
-    amountMinor: 100n,
-    currency: "USD",
-    memo: "hello",
-    counterpartyId: "cp-1",
-    customerId: "cust-1",
-    organizationRequisiteId: "oa-1",
-    searchText: "test document",
-    createdBy: "maker-1",
-    submittedBy: null,
-    submittedAt: null,
-    approvedBy: null,
-    approvedAt: null,
-    rejectedBy: null,
-    rejectedAt: null,
-    cancelledBy: null,
-    cancelledAt: null,
-    postingStartedAt: null,
-    postedAt: null,
-    postingError: null,
-    createdAt: new Date("2026-03-01T10:00:00.000Z"),
-    updatedAt: new Date("2026-03-01T10:00:00.000Z"),
-    version: 1,
-    ...overrides,
-  };
-}
-
-function createModuleStub(): DocumentModule {
-  return {
-    docType: "test_document",
-    docNoPrefix: "TST",
-    payloadVersion: 1,
-    createSchema: {} as any,
-    updateSchema: {} as any,
-    payloadSchema: {} as any,
-    postingRequired: true,
-    approvalRequired: () => false,
-    async createDraft() {
-      throw new Error("not implemented");
-    },
-    async updateDraft() {
-      throw new Error("not implemented");
-    },
-    deriveSummary() {
-      return {
-        title: "Test",
-        searchText: "test",
-      };
-    },
-    async canCreate() {},
-    async canEdit() {},
-    async canSubmit() {},
-    async canApprove() {},
-    async canReject() {},
-    async canPost() {},
-    async canCancel() {},
-    buildPostIdempotencyKey() {
-      return "post-idem";
-    },
-  };
-}
-
-function createPolicyStub(): DocumentActionPolicyService {
-  return {
-    approvalMode: vi.fn(async () => "not_required"),
-    canCreate: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-    canEdit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-    canSubmit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-    canApprove: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-    canReject: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-    canPost: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-    canCancel: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-  };
-}
+import type { DocumentModule } from "../../src/documents/types";
+import {
+  buildTestDocument,
+  createTestDocumentModule,
+} from "../support/builders/documents";
+import { createDocumentPolicyStub } from "../support/harness/documents";
+const createModuleStub = () => createTestDocumentModule() as DocumentModule;
+const makeDocument = (overrides: Partial<Document> = {}) => buildTestDocument(overrides);
 
 describe("document helpers", () => {
   it("formats document numbers and normalizes search metadata", () => {
@@ -390,7 +307,7 @@ describe("document helpers", () => {
 
 describe("document internal policy", () => {
   it("routes allow decisions through the matching policy method", async () => {
-    const policy = createPolicyStub();
+    const policy = createDocumentPolicyStub();
     const module = createModuleStub();
 
     await expect(
@@ -413,7 +330,7 @@ describe("document internal policy", () => {
   });
 
   it("records audited policy denials for document actions", async () => {
-    const policy = createPolicyStub();
+    const policy = createDocumentPolicyStub();
     const document = makeDocument();
     let insertedEvent: Record<string, unknown> | undefined;
     const tx = {
@@ -482,7 +399,7 @@ describe("document internal policy", () => {
     await persistDocumentPolicyDenial(db as any, new Error("plain failure"));
     expect(db.transaction).not.toHaveBeenCalled();
 
-    const policy = createPolicyStub();
+    const policy = createDocumentPolicyStub();
     policy.canCreate = vi.fn(async () => ({
       allow: false,
       reasonCode: "blocked",

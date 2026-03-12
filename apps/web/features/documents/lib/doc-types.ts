@@ -1,17 +1,23 @@
 import type { UserRole } from "@/lib/auth/types";
+import {
+  IFRS_DOCUMENT_METADATA,
+  IFRS_DOCUMENT_TYPE_ORDER,
+} from "@bedrock/application/ifrs-documents/contracts";
 
-import { IFRS_DOCUMENT_TYPE_OPTIONS } from "./doc-types/ifrs";
 import type {
   DocumentTypeFamily,
   DocumentTypeOption,
   KnownDocumentType,
   TypedDocumentType,
 } from "./doc-types/shared";
+import { createIfrsDocumentTypeOption } from "./doc-types/shared";
 
 export type { TypedDocumentType } from "./doc-types/shared";
 export type DocumentsWorkspaceFamily = DocumentTypeFamily;
 
-const DOCUMENT_TYPES: DocumentTypeOption[] = [...IFRS_DOCUMENT_TYPE_OPTIONS];
+const DOCUMENT_TYPES: DocumentTypeOption[] = IFRS_DOCUMENT_TYPE_ORDER.map(
+  createIfrsDocumentTypeOption,
+);
 
 const DOCUMENT_TYPE_BY_ID = new Map(
   DOCUMENT_TYPES.map((option) => [option.value, option]),
@@ -126,7 +132,7 @@ export function canCreateDocumentType(docType: string, role: UserRole): boolean 
 }
 
 export function isAdminOnlyDocumentType(docType: string): boolean {
-  return DOCUMENT_TYPE_BY_ID.get(docType as KnownDocumentType)?.adminOnly === true;
+  return IFRS_DOCUMENT_METADATA[docType as KnownDocumentType]?.adminOnly === true;
 }
 
 export function isAllowedDocumentsWorkspaceType(

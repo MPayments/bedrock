@@ -5,45 +5,12 @@ import { ValidationError } from "@bedrock/common/errors";
 
 import { NotFoundError, QuoteExpiredError } from "../../src/fx/errors";
 import { createFxService } from "../../src/fx/service";
+import {
+  createMockCurrenciesService,
+  createNoopFeesService,
+} from "../support/harness/fx";
 
 const QUOTE_ID = "550e8400-e29b-41d4-a716-446655440010";
-
-function createMockCurrenciesService() {
-    const byCode = new Map<string, any>([
-        ["USD", { id: "cur-usd", code: "USD" }],
-        ["EUR", { id: "cur-eur", code: "EUR" }],
-        ["RUB", { id: "cur-rub", code: "RUB" }],
-        ["AED", { id: "cur-aed", code: "AED" }],
-        ["USDT", { id: "cur-usdt", code: "USDT" }],
-        ["BTC", { id: "cur-btc", code: "BTC" }],
-    ]);
-    const byId = new Map<string, any>(Array.from(byCode.values()).map((currency) => [currency.id, currency]));
-
-    return {
-        findByCode: vi.fn(async (code: string) => {
-            const normalized = code.trim().toUpperCase();
-            const existing = byCode.get(normalized);
-            if (existing) return existing;
-            const generated = { id: `cur-${normalized.toLowerCase()}`, code: normalized };
-            byCode.set(normalized, generated);
-            byId.set(generated.id, generated);
-            return generated;
-        }),
-        findById: vi.fn(async (id: string) => {
-            const existing = byId.get(id);
-            if (existing) return existing;
-            throw new Error(`Unknown currency id: ${id}`);
-        }),
-    };
-}
-
-function createNoopFeesService() {
-    return {
-        calculateFxQuoteFeeComponents: vi.fn(async () => []),
-        saveQuoteFeeComponents: vi.fn(async () => undefined),
-        getQuoteFeeComponents: vi.fn(async () => []),
-    } as any;
-}
 
 function selectWhereLimit(rows: any[]) {
     return {

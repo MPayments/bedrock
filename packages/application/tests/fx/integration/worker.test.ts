@@ -8,6 +8,7 @@ import { DAY_IN_SECONDS } from "@bedrock/application/ledger/constants";
 import { db } from "./setup";
 import { createFxService } from "../../../src/fx/service";
 import { createFxRatesWorkerDefinition } from "../../../src/fx/worker";
+import { createNoopFeesService } from "../../support/harness/fx";
 
 async function runWorkerOnce(
     worker: ReturnType<typeof createFxRatesWorkerDefinition>,
@@ -18,14 +19,6 @@ async function runWorkerOnce(
         signal: new AbortController().signal,
     });
     return result.processed;
-}
-
-function createNoopFeesService() {
-    return {
-        calculateFxQuoteFeeComponents: vi.fn(async () => []),
-        saveQuoteFeeComponents: vi.fn(async () => undefined),
-        getQuoteFeeComponents: vi.fn(async () => []),
-    } as any;
 }
 
 function createProvider(publishedAt: Date) {

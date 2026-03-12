@@ -1,37 +1,19 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
-import { afterAll, afterEach, beforeAll } from "vitest";
-
 import { schema } from "@bedrock/application/customers/schema";
 
 import { seedCurrencies } from "../../../../db/src/seeds/index.ts";
+import {
+  createTestDrizzleDb,
+  createTestPgPool,
+  deleteIfTableExists,
+  registerPgIntegrationLifecycle,
+} from "../../support/integration/postgres";
 
-const testDbConfig = {
-  host: process.env.DB_HOST || "localhost",
-  port: +(process.env.DB_PORT || 5432),
-  database: process.env.DB_NAME || "postgres",
-  user: process.env.DB_USER || "postgres",
-  password: process.env.DB_PASSWORD || "postgres",
-  ssl: false,
-};
-
-const pool = new Pool(testDbConfig);
-const db = drizzle(pool, { schema });
-
-async function deleteIfTableExists(tableName: string) {
-  const result = await pool.query<{ exists: string | null }>(
-    "select to_regclass($1) as exists",
-    [`public.${tableName}`],
-  );
-
-  if (result.rows[0]?.exists) {
-    await pool.query(`DELETE FROM ${tableName}`);
-  }
-}
+const pool = createTestPgPool();
+const db = createTestDrizzleDb(pool, schema);
 
 async function cleanupCustomerTables() {
-  await deleteIfTableExists("document_links");
-  await deleteIfTableExists("document_operations");
+  await deleteIfTableExists(pool, "document_links");
+  await deleteIfTableExists(pool, "document_operations");
   await pool.query(`
     DELETE FROM documents
     WHERE customer_id IS NOT NULL
@@ -79,22 +61,13 @@ async function cleanupCustomerTables() {
   await pool.query("DELETE FROM customers WHERE external_ref LIKE 'crm-%'");
 }
 
-beforeAll(async () => {
-  console.log("Setting up customers integration test environment...");
-  await pool.query("SELECT 1");
-  await cleanupCustomerTables();
-  await seedCurrencies(db);
-  console.log("Customers integration test environment ready");
-}, 30000);
-
-afterEach(async () => {
-  await cleanupCustomerTables();
+registerPgIntegrationLifecycle({
+  name: "customers",
+  pool,
+  cleanup: cleanupCustomerTables,
+  setup: async () => {
+    await seedCurrencies(db);
+  },
 });
-
-afterAll(async () => {
-  console.log("Tearing down customers integration test environment...");
-  await pool.end();
-  console.log("Customers integration test environment cleaned up");
-}, 30000);
 
 export { db, pool };

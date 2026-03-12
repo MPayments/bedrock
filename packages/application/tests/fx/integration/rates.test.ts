@@ -10,14 +10,7 @@ import { currencyIdForCode } from "../../../../db/src/seeds/index.ts";
 import { RateSourceStaleError } from "../../../src/fx/errors";
 import { createFxService } from "../../../src/fx/service";
 import { type FxRateSourceProvider } from "../../../src/fx/sources/types";
-
-function createNoopFeesService() {
-    return {
-        calculateFxQuoteFeeComponents: vi.fn(async () => []),
-        saveQuoteFeeComponents: vi.fn(async () => undefined),
-        getQuoteFeeComponents: vi.fn(async () => []),
-    } as any;
-}
+import { createNoopFeesService } from "../../support/harness/fx";
 
 function createFxServiceWithProvider(provider: FxRateSourceProvider) {
     return createFxService({

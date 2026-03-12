@@ -7,89 +7,14 @@ import { createGetDocumentQuery } from "../../src/documents/queries/get-document
 import { createGetDocumentDetailsQuery } from "../../src/documents/queries/get-document-details";
 import { createListDocumentsQuery } from "../../src/documents/queries/list-documents";
 import type { DocumentModule } from "../../src/documents/types";
+import {
+  buildTestDocument,
+  createTestDocumentModule,
+} from "../support/builders/documents";
 
-function makeDocument(overrides: Partial<Document> = {}): Document {
-  return {
-    id: "11111111-1111-4111-8111-111111111111",
-    docType: "test_document",
-    docNo: "TST-11111111",
-    moduleId: "test_document",
-    moduleVersion: 1,
-    payloadVersion: 1,
-    payload: { memo: "hello" },
-    title: "Test document",
-    occurredAt: new Date("2026-03-01T10:00:00.000Z"),
-    submissionStatus: "draft",
-    approvalStatus: "not_required",
-    postingStatus: "unposted",
-    lifecycleStatus: "active",
-    createIdempotencyKey: "idem-1",
-    amountMinor: null,
-    currency: null,
-    memo: null,
-    counterpartyId: null,
-    customerId: null,
-    organizationRequisiteId: null,
-    searchText: "test",
-    createdBy: "maker-1",
-    submittedBy: null,
-    submittedAt: null,
-    approvedBy: null,
-    approvedAt: null,
-    rejectedBy: null,
-    rejectedAt: null,
-    cancelledBy: null,
-    cancelledAt: null,
-    postingStartedAt: null,
-    postedAt: null,
-    postingError: null,
-    createdAt: new Date("2026-03-01T10:00:00.000Z"),
-    updatedAt: new Date("2026-03-01T10:00:00.000Z"),
-    version: 1,
-    ...overrides,
-  };
-}
-
-function createModuleStub(): DocumentModule {
-  return {
-    docType: "test_document",
-    docNoPrefix: "TST",
-    payloadVersion: 1,
-    createSchema: {} as any,
-    updateSchema: {} as any,
-    payloadSchema: {} as any,
-    postingRequired: true,
-    approvalRequired: () => false,
-    async createDraft() {
-      throw new Error("not implemented");
-    },
-    async updateDraft() {
-      throw new Error("not implemented");
-    },
-    deriveSummary() {
-      return {
-        title: "Test",
-        searchText: "test",
-      };
-    },
-    async canCreate() {},
-    async canEdit() {},
-    async canSubmit() {},
-    async canApprove() {},
-    async canReject() {},
-    async canPost() {},
-    async canCancel() {},
-    async buildDetails() {
-      return {
-        computed: { label: "computed" },
-        extra: { source: "module" },
-      };
-    },
-    buildPostIdempotencyKey() {
-      return "post-idem";
-    },
-  };
-}
+const makeDocument = (overrides: Partial<Document> = {}) => buildTestDocument(overrides);
+const createModuleStub = () =>
+  createTestDocumentModule() as DocumentModule;
 
 describe("documents queries", () => {
   it("loads a single document with its posting operation id", async () => {
@@ -318,6 +243,13 @@ describe("documents queries", () => {
               limit: vi.fn(async () => [snapshot]),
             })),
           })),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => []),
+            })),
+          })),
         }),
     };
     const ledgerReadService = {
@@ -377,6 +309,13 @@ describe("documents queries", () => {
         .mockReturnValueOnce({
           from: vi.fn(() => ({
             where: vi.fn(async () => []),
+          })),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(async () => []),
+            })),
           })),
         })
         .mockReturnValueOnce({

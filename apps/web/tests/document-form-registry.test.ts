@@ -1,7 +1,9 @@
-import { IFRS_DOCUMENT_TYPE_ORDER } from "@bedrock/application/ifrs-documents/contracts";
+import {
+  IFRS_DOCUMENT_DEFINITIONS,
+  IFRS_DOCUMENT_TYPE_ORDER,
+} from "@bedrock/application/ifrs-documents/contracts";
 import { describe, expect, it } from "vitest";
 
-import { DOCUMENT_FORM_DEFINITIONS } from "@/features/documents/lib/document-form-registry/definitions";
 import { getDocumentFormDefinitionForRole } from "@/features/documents/lib/document-form-registry";
 
 describe("document form registry", () => {
@@ -44,8 +46,14 @@ describe("document form registry", () => {
   });
 
   it("keeps layout metadata valid for current typed definitions", () => {
-    for (const definition of DOCUMENT_FORM_DEFINITIONS) {
-      for (const section of definition.sections) {
+    for (const definition of IFRS_DOCUMENT_DEFINITIONS) {
+      if (!definition.formDefinition) {
+        continue;
+      }
+
+      const formDefinition = definition.formDefinition;
+
+      for (const section of formDefinition.sections) {
         expect(section.layout).toBeDefined();
 
         const sectionFieldNames = section.fields

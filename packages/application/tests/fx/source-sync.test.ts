@@ -4,34 +4,10 @@ import { schema } from "@bedrock/application/fx/schema";
 
 import { RateSourceSyncError } from "../../src/fx/errors";
 import { createFxService } from "../../src/fx/service";
-
-function createCurrenciesService() {
-  const byCode = new Map([
-    ["USD", { id: "cur-usd", code: "USD" }],
-    ["EUR", { id: "cur-eur", code: "EUR" }],
-  ]);
-
-  return {
-    findByCode: vi.fn(async (code: string) => {
-      const currency = byCode.get(code.trim().toUpperCase());
-      if (!currency) throw new Error(`Unknown currency code: ${code}`);
-      return currency;
-    }),
-    findById: vi.fn(async (id: string) => {
-      const currency = [...byCode.values()].find((item) => item.id === id);
-      if (!currency) throw new Error(`Unknown currency id: ${id}`);
-      return currency;
-    }),
-  };
-}
-
-function createNoopFeesService() {
-  return {
-    calculateFxQuoteFeeComponents: vi.fn(async () => []),
-    saveQuoteFeeComponents: vi.fn(async () => undefined),
-    getQuoteFeeComponents: vi.fn(async () => []),
-  } as any;
-}
+import {
+  createMockCurrenciesService,
+  createNoopFeesService,
+} from "../support/harness/fx";
 
 function createSourceStatusRow(overrides: Partial<any> = {}) {
   return {
@@ -75,7 +51,10 @@ describe("fx source sync", () => {
     const service = createFxService({
       db,
       feesService: createNoopFeesService(),
-      currenciesService: createCurrenciesService(),
+      currenciesService: createMockCurrenciesService([
+        { id: "cur-usd", code: "USD" },
+        { id: "cur-eur", code: "EUR" },
+      ]),
       rateSourceProviders: {
         cbr: undefined as any,
         investing: undefined as any,
@@ -121,7 +100,10 @@ describe("fx source sync", () => {
     const service = createFxService({
       db,
       feesService: createNoopFeesService(),
-      currenciesService: createCurrenciesService(),
+      currenciesService: createMockCurrenciesService([
+        { id: "cur-usd", code: "USD" },
+        { id: "cur-eur", code: "EUR" },
+      ]),
       rateSourceProviders: { cbr: provider },
     });
 
@@ -150,7 +132,10 @@ describe("fx source sync", () => {
     const service = createFxService({
       db,
       feesService: createNoopFeesService(),
-      currenciesService: createCurrenciesService(),
+      currenciesService: createMockCurrenciesService([
+        { id: "cur-usd", code: "USD" },
+        { id: "cur-eur", code: "EUR" },
+      ]),
       rateSourceProviders: {
         cbr: { source: "cbr", fetchLatest: vi.fn() },
         investing: { source: "investing", fetchLatest: vi.fn() },
@@ -233,7 +218,7 @@ describe("fx source sync", () => {
     const service = createFxService({
       db,
       feesService: createNoopFeesService(),
-      currenciesService: createCurrenciesService(),
+      currenciesService: createMockCurrenciesService(),
       rateSourceProviders: { investing: provider },
     });
 
@@ -315,7 +300,7 @@ describe("fx source sync", () => {
     const service = createFxService({
       db,
       feesService: createNoopFeesService(),
-      currenciesService: createCurrenciesService(),
+      currenciesService: createMockCurrenciesService(),
       rateSourceProviders: { xe: provider },
     });
 
@@ -397,7 +382,7 @@ describe("fx source sync", () => {
     const service = createFxService({
       db,
       feesService: createNoopFeesService(),
-      currenciesService: createCurrenciesService(),
+      currenciesService: createMockCurrenciesService(),
       rateSourceProviders: { cbr: provider },
     });
 

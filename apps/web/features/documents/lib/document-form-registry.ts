@@ -1,7 +1,7 @@
 import type { UserRole } from "@/lib/auth/types";
-import type { TypedDocumentType } from "@/features/documents/lib/doc-types";
 
-import { DOCUMENT_FORM_DEFINITIONS } from "./document-form-registry/definitions";
+import { IFRS_DOCUMENT_DEFINITIONS } from "@bedrock/application/ifrs-documents/contracts";
+
 import type { DocumentFormDefinition } from "./document-form-registry/types";
 
 export type {
@@ -17,19 +17,18 @@ export type {
   DocumentFormValues,
 } from "./document-form-registry/types";
 
-const DOCUMENT_FORM_DEFINITION_BY_TYPE = new Map(
-  DOCUMENT_FORM_DEFINITIONS.map((definition) => [
-    definition.docType,
-    definition,
-  ]),
+const DOCUMENT_FORM_DEFINITION_BY_TYPE = new Map<string, DocumentFormDefinition>(
+  IFRS_DOCUMENT_DEFINITIONS.flatMap((definition) =>
+    definition.formDefinition
+      ? [[definition.docType, definition.formDefinition] as const]
+      : [],
+  ),
 );
 
 export function getDocumentFormDefinition(
   docType: string,
 ): DocumentFormDefinition | null {
-  return (
-    DOCUMENT_FORM_DEFINITION_BY_TYPE.get(docType as TypedDocumentType) ?? null
-  );
+  return DOCUMENT_FORM_DEFINITION_BY_TYPE.get(docType) ?? null;
 }
 
 export function getDocumentFormDefinitionForRole(input: {

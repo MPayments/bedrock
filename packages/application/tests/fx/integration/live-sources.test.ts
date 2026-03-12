@@ -1,22 +1,15 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { createCurrenciesService } from "@bedrock/application/currencies";
 import { schema } from "@bedrock/application/fx/schema";
 
 import { db } from "./setup";
 import { createFxService } from "../../../src/fx/service";
+import { createNoopFeesService } from "../../support/harness/fx";
 
 const EXTERNAL_API_TESTS_ENABLED = process.env.ENABLE_EXTERNAL_API_TESTS === "1";
 const describeExternal = EXTERNAL_API_TESTS_ENABLED ? describe : describe.skip;
-
-function createNoopFeesService() {
-    return {
-        calculateFxQuoteFeeComponents: vi.fn(async () => []),
-        saveQuoteFeeComponents: vi.fn(async () => undefined),
-        getQuoteFeeComponents: vi.fn(async () => []),
-    } as any;
-}
 
 function createLiveFxService() {
     return createFxService({

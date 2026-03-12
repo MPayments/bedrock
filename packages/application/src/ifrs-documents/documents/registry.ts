@@ -1,20 +1,15 @@
 import type { DocumentModule } from "@bedrock/application/documents";
 
-import { createCapitalFundingDocumentModule } from "./capital-funding";
+import { getIfrsDocumentDefinition, IFRS_DOCUMENT_TYPE_ORDER } from "../contracts";
 import type { IfrsModuleDeps } from "./internal/types";
-import { createPeriodCloseDocumentModule } from "./period-close";
-import { createPeriodReopenDocumentModule } from "./period-reopen";
-import { createTransferIntercompanyDocumentModule } from "./transfer-intercompany";
-import { createTransferIntraDocumentModule } from "./transfer-intra";
-import { createTransferResolutionDocumentModule } from "./transfer-resolution";
 
 export function createIfrsDocumentModules(deps: IfrsModuleDeps): DocumentModule[] {
-  return [
-    createTransferIntraDocumentModule(deps),
-    createTransferIntercompanyDocumentModule(deps),
-    createTransferResolutionDocumentModule(deps),
-    createCapitalFundingDocumentModule(deps),
-    createPeriodCloseDocumentModule(),
-    createPeriodReopenDocumentModule(),
-  ];
+  return IFRS_DOCUMENT_TYPE_ORDER.map((docType) => {
+    const definition = getIfrsDocumentDefinition(docType);
+    if (!definition) {
+      throw new Error(`Missing IFRS document definition for docType=${docType}`);
+    }
+
+    return definition.createModule(deps);
+  });
 }

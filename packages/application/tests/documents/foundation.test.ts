@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { createStubDb } from "@bedrock/test-utils";
-
 import {
   CreateDocumentInputSchema,
   DocumentPolicyDeniedError,
@@ -16,65 +14,25 @@ import {
 } from "../../src/documents";
 import { createDocumentsServiceContext } from "../../src/documents/internal/context";
 import type { DocumentModule } from "../../src/documents/types";
+import { createTestDocumentModule } from "../support/builders/documents";
+import { createDocumentsServiceDeps } from "../support/harness/documents";
 
 function createModuleStub(): DocumentModule<{ memo: string }, { memo: string }> {
   const payloadSchema = z.object({ memo: z.string() });
 
-  return {
+  return createTestDocumentModule({
     docType: "test.document",
-    docNoPrefix: "TST",
-    payloadVersion: 1,
     createSchema: payloadSchema,
     updateSchema: payloadSchema,
     payloadSchema,
     postingRequired: false,
-    approvalRequired: () => false,
-    async createDraft() {
-      return {
-        occurredAt: new Date("2026-03-01T00:00:00.000Z"),
-        payload: { memo: "draft" },
-      };
-    },
-    async updateDraft() {
-      return {
-        payload: { memo: "updated" },
-      };
-    },
     deriveSummary() {
       return {
         title: "Test",
         searchText: "Test document",
       };
     },
-    async canCreate() {},
-    async canEdit() {},
-    async canSubmit() {},
-    async canApprove() {},
-    async canReject() {},
-    async canPost() {},
-    async canCancel() {},
-    buildPostIdempotencyKey() {
-      return "post-idem";
-    },
-  };
-}
-
-function createServiceDeps() {
-  const registry = createDocumentRegistry([createModuleStub()]);
-
-  return {
-    accounting: {
-      resolvePostingPlan: vi.fn(),
-    },
-    db: createStubDb(),
-    ledger: {
-      commit: vi.fn(),
-    },
-    ledgerReadService: {
-      getOperationDetails: vi.fn(),
-    },
-    registry,
-  } as any;
+  }) as DocumentModule<{ memo: string }, { memo: string }>;
 }
 
 describe("documents foundations", () => {
@@ -214,7 +172,7 @@ describe("documents foundations", () => {
     };
 
     const context = createDocumentsServiceContext({
-      ...createServiceDeps(),
+      ...createDocumentsServiceDeps([createModuleStub()]),
       logger,
       policy: customPolicy,
     } as any);
@@ -225,7 +183,7 @@ describe("documents foundations", () => {
   });
 
   it("creates the documents service facade with the current handler surface", () => {
-    const service = createDocumentsService(createServiceDeps());
+    const service = createDocumentsService(createDocumentsServiceDeps([createModuleStub()]));
 
     expect(service).toEqual({
       createDraft: expect.any(Function),
