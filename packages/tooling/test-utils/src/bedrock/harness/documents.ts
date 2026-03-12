@@ -66,6 +66,11 @@ export function createDocumentsServiceDeps(
     ledgerReadService: {
       getOperationDetails: vi.fn(),
     },
+    idempotency: {
+      withIdempotencyTx: vi.fn(async ({ handler }: { handler: () => Promise<unknown> }) =>
+        handler(),
+      ),
+    },
     registry: createDocumentRegistry(modules),
   } as any;
 }

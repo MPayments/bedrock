@@ -14,6 +14,17 @@ describe("ifrs lifecycle module flags", () => {
         async resolveBindings() {
           return [];
         },
+        async findById() {
+          throw new Error("not implemented");
+        },
+      },
+      transferLookup: {
+        async resolveTransferDependencyDocument() {
+          throw new Error("not implemented");
+        },
+        async listPendingTransfers() {
+          return [];
+        },
       },
     });
 

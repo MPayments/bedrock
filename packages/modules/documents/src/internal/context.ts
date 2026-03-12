@@ -1,7 +1,3 @@
-import {
-  createIdempotencyService,
-  type IdempotencyService,
-} from "@bedrock/idempotency";
 import { noopLogger, type Logger } from "@bedrock/common";
 
 import { createDefaultDocumentActionPolicyService } from "../policy";
@@ -10,7 +6,7 @@ import type { DocumentsServiceDeps } from "../types";
 export interface DocumentsServiceContext {
   accounting: DocumentsServiceDeps["accounting"];
   db: DocumentsServiceDeps["db"];
-  idempotency: IdempotencyService;
+  idempotency: DocumentsServiceDeps["idempotency"];
   ledger: DocumentsServiceDeps["ledger"];
   ledgerReadService: DocumentsServiceDeps["ledgerReadService"];
   policy: NonNullable<DocumentsServiceDeps["policy"]>;
@@ -24,7 +20,7 @@ export function createDocumentsServiceContext(
   return {
     accounting: deps.accounting,
     db: deps.db,
-    idempotency: createIdempotencyService({ logger: deps.logger }),
+    idempotency: deps.idempotency,
     ledger: deps.ledger,
     ledgerReadService: deps.ledgerReadService,
     policy: deps.policy ?? createDefaultDocumentActionPolicyService(),

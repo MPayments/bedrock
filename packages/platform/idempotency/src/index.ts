@@ -12,3 +12,4 @@ export {
   ActionReceiptStoredError,
 } from "./errors";
 export type { IdempotencyServiceDeps } from "./internal/context";
+export type { IdempotencyPort } from "./types";

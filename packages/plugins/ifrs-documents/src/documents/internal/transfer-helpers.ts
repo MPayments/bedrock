@@ -1,14 +1,11 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
-
 import { DocumentValidationError } from "@bedrock/documents";
 import { serializeOccurredAt } from "@bedrock/documents/module-kit";
-import { schema as documentsSchema } from "@bedrock/documents/schema";
-import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 
 import type {
+  IfrsModuleDeps,
   OrganizationRequisiteBinding,
-  RequisitesService,
   IfrsDocumentDb,
+  RequisitesService,
 } from "./types";
 import {
   type TransferIntercompanyInput,
@@ -18,10 +15,6 @@ import {
 } from "../../validation";
 
 const TRANSFER_DOC_TYPES = ["transfer_intra", "transfer_intercompany"] as const;
-const schema = {
-  ...documentsSchema,
-  ...ledgerSchema,
-};
 
 export { resolvePendingTransferBookId } from "@bedrock/documents/module-kit";
 
@@ -103,54 +96,33 @@ export function ensureTransferCurrencies(input: {
 }
 
 export async function resolveTransferDependencyDocument(
+  deps: Pick<IfrsModuleDeps, "transferLookup">,
   db: IfrsDocumentDb,
   transferDocumentId: string,
 ) {
-  const [dependency] = await db
-    .select({
-      document: schema.documents,
-    })
-    .from(schema.documents)
-    .where(
-      and(
-        eq(schema.documents.id, transferDocumentId),
-        inArray(schema.documents.docType, [...TRANSFER_DOC_TYPES]),
-      ),
-    )
-    .limit(1);
+  const dependency = await deps.transferLookup.resolveTransferDependencyDocument({
+    db,
+    transferDocumentId,
+  });
 
-  if (!dependency) {
+  if (!TRANSFER_DOC_TYPES.includes(dependency.docType as (typeof TRANSFER_DOC_TYPES)[number])) {
     throw new DocumentValidationError(
       `Transfer document ${transferDocumentId} was not found`,
     );
   }
 
-  return dependency.document;
+  return dependency;
 }
 
 export async function listPendingTransfers(
+  deps: Pick<IfrsModuleDeps, "transferLookup">,
   db: IfrsDocumentDb,
   transferDocumentId: string,
 ) {
-  const rows = await db
-    .select({
-      transferId: schema.tbTransferPlans.transferId,
-      pendingRef: schema.tbTransferPlans.pendingRef,
-      amountMinor: schema.tbTransferPlans.amount,
-    })
-    .from(schema.documentOperations)
-    .innerJoin(
-      schema.tbTransferPlans,
-      eq(schema.tbTransferPlans.operationId, schema.documentOperations.operationId),
-    )
-    .where(
-      and(
-        eq(schema.documentOperations.documentId, transferDocumentId),
-        eq(schema.documentOperations.kind, "post"),
-        eq(schema.tbTransferPlans.isPending, true),
-      ),
-    )
-    .orderBy(asc(schema.tbTransferPlans.lineNo));
+  const rows = await deps.transferLookup.listPendingTransfers({
+    db,
+    transferDocumentId,
+  });
 
   if (rows.length === 0) {
     throw new DocumentValidationError(

@@ -8,6 +8,12 @@ import {
   type Logger,
 } from "@bedrock/common";
 import type { Database } from "@bedrock/common/db/types";
+
+import type {
+  ReconciliationDocumentsPort,
+  ReconciliationIdempotencyPort,
+  ReconciliationLedgerLookupPort,
+} from "./ports";
 import type {
   BedrockWorker,
   WorkerRunContext,
@@ -107,6 +113,9 @@ export function createReconciliationWorkerDefinition(deps: {
   id?: string;
   intervalMs?: number;
   db: Database;
+  documents: ReconciliationDocumentsPort;
+  idempotency: ReconciliationIdempotencyPort;
+  ledgerLookup: ReconciliationLedgerLookupPort;
   logger?: Logger;
   rulesetChecksum?: string;
   beforeSource?: ReconciliationWorkerSourceGuard;
@@ -120,6 +129,9 @@ export function createReconciliationWorkerDefinition(deps: {
   const batchSize = deps.batchSize ?? 25;
   const reconciliation = createReconciliationService({
     db,
+    documents: deps.documents,
+    idempotency: deps.idempotency,
+    ledgerLookup: deps.ledgerLookup,
     logger: deps.logger,
   });
 

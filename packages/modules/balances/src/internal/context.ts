@@ -1,18 +1,16 @@
-import {
-  createIdempotencyService,
-  type IdempotencyService,
-} from "@bedrock/idempotency";
+import type { IdempotencyPort } from "@bedrock/idempotency";
 import { noopLogger, type Logger } from "@bedrock/common";
 import type { Database } from "@bedrock/common/db/types";
 
 export interface BalancesServiceDeps {
   db: Database;
+  idempotency: IdempotencyPort;
   logger?: Logger;
 }
 
 export interface BalancesServiceContext {
   db: Database;
-  idempotency: IdempotencyService;
+  idempotency: IdempotencyPort;
   log: Logger;
 }
 
@@ -21,7 +19,7 @@ export function createBalancesServiceContext(
 ): BalancesServiceContext {
   return {
     db: deps.db,
-    idempotency: createIdempotencyService({ logger: deps.logger }),
+    idempotency: deps.idempotency,
     log: deps.logger?.child({ svc: "balances" }) ?? noopLogger,
   };
 }

@@ -38,6 +38,10 @@ import {
 import { db } from "@bedrock/db/client";
 
 import type { ApiCoreServices } from "./core";
+import {
+  createCommercialDocumentDeps,
+  createIfrsDocumentDeps,
+} from "./document-plugin-adapters";
 
 export interface ApiApplicationServices {
   accountingReportingService: AccountingReportingService;
@@ -55,7 +59,8 @@ export interface ApiApplicationServices {
 export function createApplicationServices(
   platform: ApiCoreServices,
 ): ApiApplicationServices {
-  const { accountingService, ledger, ledgerReadService, logger } = platform;
+  const { accountingService, idempotency, ledger, ledgerReadService, logger } =
+    platform;
 
   const accountingReportingService = createAccountingReportingService({
     db,
@@ -85,17 +90,22 @@ export function createApplicationServices(
     logger,
   });
   const documentRegistry = createDocumentRegistry([
-    ...createCommercialDocumentModules({
-      currenciesService,
-      requisitesService,
-    }),
-    ...createIfrsDocumentModules({
-      requisitesService,
-    }),
+    ...createCommercialDocumentModules(
+      createCommercialDocumentDeps({
+        currenciesService,
+        requisitesService,
+      }),
+    ),
+    ...createIfrsDocumentModules(
+      createIfrsDocumentDeps({
+        requisitesService,
+      }),
+    ),
   ]);
   const documentsService = createDocumentsService({
     accounting: accountingService,
     db,
+    idempotency,
     ledger,
     ledgerReadService,
     registry: documentRegistry,

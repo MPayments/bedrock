@@ -1,9 +1,6 @@
 import type { z } from "zod";
 
-import type {
-  AccountingRuntime,
-  DocumentPostingPlan,
-} from "@bedrock/accounting";
+import type { DocumentPostingPlan } from "@bedrock/accounting";
 import type {
   Document,
   DocumentApprovalStatus,
@@ -15,13 +12,15 @@ import type {
   DocumentSnapshot,
   DocumentSubmissionStatus,
 } from "@bedrock/documents/schema";
-import type {
-  LedgerEngine,
-  LedgerReadService,
-} from "@bedrock/ledger";
 import type { CorrelationContext, Logger } from "@bedrock/common";
 import type { Database, Transaction } from "@bedrock/common/db/types";
 
+import type {
+  DocumentsAccountingPort,
+  DocumentsIdempotencyPort,
+  DocumentsLedgerCommitPort,
+  DocumentsLedgerReadPort,
+} from "./ports";
 import type { DocumentAction } from "./state-machine";
 
 
@@ -209,10 +208,11 @@ export interface DocumentRegistry {
 }
 
 export interface DocumentsServiceDeps {
-  accounting: AccountingRuntime;
+  accounting: DocumentsAccountingPort;
   db: Database;
-  ledger: LedgerEngine;
-  ledgerReadService: LedgerReadService;
+  idempotency: DocumentsIdempotencyPort;
+  ledger: DocumentsLedgerCommitPort;
+  ledgerReadService: DocumentsLedgerReadPort;
   policy?: DocumentActionPolicyService;
   registry: DocumentRegistry;
   logger?: Logger;
@@ -236,7 +236,9 @@ export interface DocumentDetails {
   dependsOn: Document[];
   compensates: Document[];
   documentOperations: DocumentOperation[];
-  ledgerOperations: Awaited<ReturnType<LedgerReadService["getOperationDetails"]>>[];
+  ledgerOperations: Awaited<
+    ReturnType<DocumentsLedgerReadPort["getOperationDetails"]>
+  >[];
   computed?: unknown;
   extra?: unknown;
 }

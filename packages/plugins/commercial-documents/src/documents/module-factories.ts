@@ -8,7 +8,7 @@ import type { CommercialModuleDeps } from "./internal/types";
 export const COMMERCIAL_DOCUMENT_MODULE_FACTORIES = {
   invoice: createInvoiceDocumentModule,
   exchange: createExchangeDocumentModule,
-  acceptance: () => createAcceptanceDocumentModule(),
+  acceptance: createAcceptanceDocumentModule,
 } as const satisfies Record<
   string,
   (deps: CommercialModuleDeps) => DocumentModule

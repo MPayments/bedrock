@@ -21,11 +21,8 @@
     "@bedrock/common": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
-    "@bedrock/fx": "workspace:*",
     "@bedrock/ifrs-documents": "workspace:*",
     "@bedrock/ledger": "workspace:*",
-    "@bedrock/parties": "workspace:*",
-    "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
   },
   "devDependencies": {

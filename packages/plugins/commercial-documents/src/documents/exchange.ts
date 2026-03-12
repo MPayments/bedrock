@@ -43,7 +43,12 @@ export function createExchangeDocumentModule(
     allowDirectPostFromDraft: true,
     approvalRequired: () => false,
     async createDraft(context, input) {
-      const invoice = await loadInvoice(context.db, input.invoiceDocumentId, true);
+      const invoice = await loadInvoice(
+        deps,
+        context.db,
+        input.invoiceDocumentId,
+        true,
+      );
       requirePostedDocument(invoice);
       const invoicePayload = parseInvoicePayload(invoice);
 
@@ -52,7 +57,7 @@ export function createExchangeDocumentModule(
           "exchange can only be created for exchange-mode invoices",
         );
       }
-      if (await getInvoiceExchangeChild(context.db, invoice.id)) {
+      if (await getInvoiceExchangeChild(deps, context.db, invoice.id)) {
         throw new DocumentValidationError(
           "exchange already exists for this invoice",
         );
@@ -75,7 +80,7 @@ export function createExchangeDocumentModule(
           "exchange cannot change invoiceDocumentId",
         );
       }
-      if (await getExchangeAcceptance(context.db, document.id)) {
+      if (await getExchangeAcceptance(deps, context.db, document.id)) {
         throw new DocumentValidationError(
           "exchange cannot be edited after acceptance exists",
         );
@@ -106,7 +111,12 @@ export function createExchangeDocumentModule(
       };
     },
     async canCreate(context, input) {
-      const invoice = await loadInvoice(context.db, input.invoiceDocumentId, true);
+      const invoice = await loadInvoice(
+        deps,
+        context.db,
+        input.invoiceDocumentId,
+        true,
+      );
       requirePostedDocument(invoice);
       const invoicePayload = parseInvoicePayload(invoice);
       if (invoicePayload.mode !== "exchange") {
@@ -114,14 +124,14 @@ export function createExchangeDocumentModule(
           "exchange can only be created for exchange-mode invoices",
         );
       }
-      if (await getInvoiceExchangeChild(context.db, invoice.id)) {
+      if (await getInvoiceExchangeChild(deps, context.db, invoice.id)) {
         throw new DocumentValidationError(
           "exchange already exists for this invoice",
         );
       }
     },
     async canEdit(context, document) {
-      if (await getExchangeAcceptance(context.db, document.id)) {
+      if (await getExchangeAcceptance(deps, context.db, document.id)) {
         throw new DocumentValidationError(
           "exchange cannot be edited after acceptance exists",
         );
@@ -135,7 +145,7 @@ export function createExchangeDocumentModule(
       await resolveOrganizationBinding(deps, payload.organizationRequisiteId);
     },
     async canCancel(context, document) {
-      if (await getExchangeAcceptance(context.db, document.id)) {
+      if (await getExchangeAcceptance(deps, context.db, document.id)) {
         throw new DocumentValidationError(
           "exchange cannot be cancelled after acceptance exists",
         );

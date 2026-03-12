@@ -1,8 +1,6 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 
-import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
-import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import {
   schema as reconciliationSchema,
   type ReconciliationException,
@@ -16,6 +14,10 @@ import {
 } from "@bedrock/common";
 import type { Database, Transaction } from "@bedrock/common/db/types";
 
+import type {
+  ReconciliationDocumentsPort,
+  ReconciliationLedgerLookupPort,
+} from "./ports";
 import {
   ExternalRecordConflictError,
   ReconciliationExceptionNotFoundError,
@@ -35,8 +37,6 @@ import {
 
 const schema = {
   ...reconciliationSchema,
-  ...documentsSchema,
-  ...ledgerSchema,
 };
 
 type Queryable = Database | Transaction;
@@ -61,43 +61,36 @@ function readStringArray(value: unknown): string[] {
 }
 
 async function findOperationById(
-  db: Queryable,
+  ledgerLookup: ReconciliationLedgerLookupPort,
   operationId: string | null,
 ): Promise<string | null> {
   if (!operationId) {
     return null;
   }
 
-  const [row] = await db
-    .select({ id: schema.ledgerOperations.id })
-    .from(schema.ledgerOperations)
-    .where(eq(schema.ledgerOperations.id, operationId))
-    .limit(1);
-
-  return row?.id ?? null;
+  return (await ledgerLookup.operationExists(operationId)) ? operationId : null;
 }
 
 async function findDocumentById(
-  db: Queryable,
+  documents: ReconciliationDocumentsPort,
   documentId: string | null,
 ): Promise<string | null> {
   if (!documentId) {
     return null;
   }
 
-  const [row] = await db
-    .select({ id: schema.documents.id })
-    .from(schema.documents)
-    .where(eq(schema.documents.id, documentId))
-    .limit(1);
-
-  return row?.id ?? null;
+  return (await documents.existsById(documentId)) ? documentId : null;
 }
 
 async function resolveMatch(
-  db: Queryable,
+  input: {
+    db: Queryable;
+    documents: ReconciliationDocumentsPort;
+    ledgerLookup: ReconciliationLedgerLookupPort;
+  },
   record: ReconciliationExternalRecord,
 ): Promise<MatchResolution> {
+  const { documents, ledgerLookup } = input;
   const normalized = record.normalizedPayload;
   const candidateOperationIds = readStringArray(
     normalized.candidateOperationIds,
@@ -126,8 +119,8 @@ async function resolveMatch(
     candidateOperationIds[0] ?? readString(normalized.operationId);
   const documentId =
     candidateDocumentIds[0] ?? readString(normalized.documentId);
-  const matchedOperationId = await findOperationById(db, operationId);
-  const matchedDocumentId = await findDocumentById(db, documentId);
+  const matchedOperationId = await findOperationById(ledgerLookup, operationId);
+  const matchedDocumentId = await findDocumentById(documents, documentId);
 
   if (!matchedOperationId && !matchedDocumentId) {
     return {
@@ -191,7 +184,7 @@ export type ReconciliationService = ReturnType<
 
 export function createReconciliationService(deps: ReconciliationServiceDeps) {
   const context = createReconciliationServiceContext(deps);
-  const { db, documents, idempotency } = context;
+  const { db, documents, idempotency, ledgerLookup } = context;
 
   async function ingestExternalRecord(input: {
     source: string;
@@ -343,7 +336,14 @@ export function createReconciliationService(deps: ReconciliationServiceDeps) {
           for (const record of records) {
             resolutions.push({
               record,
-              resolution: await resolveMatch(tx, record),
+              resolution: await resolveMatch(
+                {
+                  db: tx,
+                  documents,
+                  ledgerLookup,
+                },
+                record,
+              ),
             });
           }
 
@@ -490,12 +490,6 @@ export function createReconciliationService(deps: ReconciliationServiceDeps) {
           documentId: String(storedResult?.documentId ?? ""),
         }),
         handler: async () => {
-          if (!documents) {
-            throw new Error(
-              "Reconciliation adjustment document creation requires documents service",
-            );
-          }
-
           const [exception] = await tx
             .select()
             .from(schema.reconciliationExceptions)

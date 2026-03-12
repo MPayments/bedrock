@@ -5,6 +5,15 @@ export {
   createTransferIntraDocumentModule,
   createTransferResolutionDocumentModule,
 } from "./documents";
+export type {
+  IfrsDocumentDb,
+  IfrsModuleDeps,
+  IfrsTransferLookupPort,
+  OrganizationRequisiteBinding,
+  PendingTransferRecord,
+  RequisitesService,
+  TransferDependencyDocument,
+} from "./documents";
 
 export {
   IFRS_DOCUMENT_DEFINITIONS,

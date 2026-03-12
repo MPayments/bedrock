@@ -1,5 +1,3 @@
-import { and, eq } from "drizzle-orm";
-
 import {
   normalizeFinancialLine,
   type FinancialLine,
@@ -18,11 +16,12 @@ import {
   buildDocumentPostingRequest,
   parseDocumentPayload,
 } from "@bedrock/documents/module-kit";
-import { schema as documentsSchema, type Document } from "@bedrock/documents/schema";
-import { type DocumentModuleContext, DocumentValidationError } from "@bedrock/documents";
-import { schema as fxSchema, type FxQuote } from "@bedrock/fx/schema";
-import { canonicalJson, isUuidLike, sha256Hex } from "@bedrock/common";
-import type { Database, Transaction } from "@bedrock/common/db/types";
+import {
+  type Document,
+  type DocumentModuleContext,
+  DocumentValidationError,
+} from "@bedrock/documents";
+import { canonicalJson, sha256Hex } from "@bedrock/common";
 
 import {
   AcceptancePayloadSchema,
@@ -34,173 +33,32 @@ import {
   type InvoicePayload,
   type QuoteSnapshot,
 } from "../../validation";
-import type { CommercialModuleDeps } from "./types";
-
-type Queryable = Database | Transaction;
-
-const INVOICE_DOC_TYPE = "invoice";
-const EXCHANGE_DOC_TYPE = "exchange";
-const ACCEPTANCE_DOC_TYPE = "acceptance";
+import type { CommercialDocumentDb, CommercialModuleDeps } from "./types";
 
 export function buildQuoteSnapshotHash(snapshot: Omit<QuoteSnapshot, "snapshotHash">) {
   return sha256Hex(canonicalJson(snapshot));
 }
 
-function minorToAmountString(amountMinor: bigint, precision: number): string {
-  const normalizedPrecision = Math.max(0, Math.trunc(precision));
-  const absolute = amountMinor < 0n ? -amountMinor : amountMinor;
-  const digits = absolute.toString().padStart(normalizedPrecision + 1, "0");
-  const integerPart = digits.slice(0, digits.length - normalizedPrecision);
-  const fractionPart =
-    normalizedPrecision > 0 ? digits.slice(-normalizedPrecision) : "";
-  const trimmedFraction = fractionPart.replace(/0+$/, "");
-  const sign = amountMinor < 0n ? "-" : "";
-
-  if (trimmedFraction.length === 0) {
-    return `${sign}${integerPart}`;
-  }
-
-  return `${sign}${integerPart}.${trimmedFraction}`;
-}
-
 export async function loadQuoteSnapshot(input: {
-  db: Queryable;
-  currenciesService: CommercialModuleDeps["currenciesService"];
+  db: CommercialDocumentDb;
+  deps: Pick<CommercialModuleDeps, "quoteSnapshot">;
   quoteRef: string;
 }): Promise<QuoteSnapshot> {
-  const { db, currenciesService, quoteRef } = input;
-
-  let quote: typeof fxSchema.fxQuotes.$inferSelect | null = null;
-
-  if (isUuidLike(quoteRef)) {
-    const [byId] = await db
-      .select()
-      .from(fxSchema.fxQuotes)
-      .where(eq(fxSchema.fxQuotes.id, quoteRef))
-      .limit(1);
-    const [byIdempotency] = await db
-      .select()
-      .from(fxSchema.fxQuotes)
-      .where(eq(fxSchema.fxQuotes.idempotencyKey, quoteRef))
-      .limit(1);
-
-    if (byId && byIdempotency && byId.id !== byIdempotency.id) {
-      throw new DocumentValidationError(
-        `quoteRef ${quoteRef} is ambiguous between quote ID and idempotency key`,
-      );
-    }
-
-    quote = byId ?? byIdempotency ?? null;
-  } else {
-    const [byIdempotency] = await db
-      .select()
-      .from(fxSchema.fxQuotes)
-      .where(eq(fxSchema.fxQuotes.idempotencyKey, quoteRef))
-      .limit(1);
-    quote = byIdempotency ?? null;
-  }
-
-  if (!quote) {
-    throw new DocumentValidationError(`Quote not found: ${quoteRef}`);
-  }
-
-  const [fromCurrency, toCurrency] = await Promise.all([
-    currenciesService.findById(quote.fromCurrencyId),
-    currenciesService.findById(quote.toCurrencyId),
-  ]);
-  const legs = await db
-    .select()
-    .from(fxSchema.fxQuoteLegs)
-    .where(eq(fxSchema.fxQuoteLegs.quoteId, quote.id))
-    .orderBy(fxSchema.fxQuoteLegs.idx);
-  const financialLineRows = await db
-    .select()
-    .from(fxSchema.fxQuoteFinancialLines)
-    .where(eq(fxSchema.fxQuoteFinancialLines.quoteId, quote.id))
-    .orderBy(fxSchema.fxQuoteFinancialLines.idx);
-  const uniqueCurrencyIds = [
-    ...new Set([
-      ...legs.flatMap((leg) => [leg.fromCurrencyId, leg.toCurrencyId]),
-      ...financialLineRows.map((row) => row.currencyId),
-    ]),
-  ];
-  const currencyById = new Map<string, { code: string; precision: number }>();
-  await Promise.all(
-    uniqueCurrencyIds.map(async (currencyId) => {
-      const currency =
-        currencyId === fromCurrency.id
-          ? fromCurrency
-          : currencyId === toCurrency.id
-            ? toCurrency
-            : await currenciesService.findById(currencyId);
-      currencyById.set(currencyId, {
-        code: currency.code,
-        precision: currency.precision,
-      });
+  return QuoteSnapshotSchema.parse(
+    await input.deps.quoteSnapshot.loadQuoteSnapshot({
+      db: input.db,
+      quoteRef: input.quoteRef,
     }),
   );
-
-  const snapshotWithoutHash = {
-    quoteId: quote.id,
-    quoteRef,
-    idempotencyKey: quote.idempotencyKey,
-    fromCurrency: fromCurrency.code,
-    toCurrency: toCurrency.code,
-    fromAmountMinor: quote.fromAmountMinor.toString(),
-    toAmountMinor: quote.toAmountMinor.toString(),
-    pricingMode: quote.pricingMode,
-    rateNum: quote.rateNum.toString(),
-    rateDen: quote.rateDen.toString(),
-    expiresAt: quote.expiresAt.toISOString(),
-    pricingTrace: (quote.pricingTrace ?? {}) as Record<string, unknown>,
-    legs: legs.map((leg) => ({
-      idx: leg.idx,
-      fromCurrency: currencyById.get(leg.fromCurrencyId)!.code,
-      toCurrency: currencyById.get(leg.toCurrencyId)!.code,
-      fromAmountMinor: leg.fromAmountMinor.toString(),
-      toAmountMinor: leg.toAmountMinor.toString(),
-      rateNum: leg.rateNum.toString(),
-      rateDen: leg.rateDen.toString(),
-      sourceKind: leg.sourceKind,
-      sourceRef: leg.sourceRef ?? null,
-      asOf: leg.asOf.toISOString(),
-      executionCounterpartyId: leg.executionCounterpartyId ?? null,
-    })),
-    financialLines: financialLineRows.map((line) => {
-      const currency = currencyById.get(line.currencyId)!;
-      const normalizedLine = normalizeFinancialLine({
-        id: `quote_financial_line:${line.quoteId}:${line.idx}`,
-        bucket: line.bucket as FinancialLineBucket,
-        currency: currency.code,
-        amountMinor: line.amountMinor,
-        source: line.source as FinancialLine["source"],
-        settlementMode: line.settlementMode as FinancialLine["settlementMode"],
-        memo: line.memo ?? undefined,
-        metadata: line.metadata ?? undefined,
-      });
-
-      return {
-        ...normalizedLine,
-        amount: minorToAmountString(normalizedLine.amountMinor, currency.precision),
-        amountMinor: normalizedLine.amountMinor.toString(),
-        settlementMode: normalizedLine.settlementMode ?? "in_ledger",
-      };
-    }),
-  } satisfies Omit<QuoteSnapshot, "snapshotHash">;
-
-  return QuoteSnapshotSchema.parse({
-    ...snapshotWithoutHash,
-    snapshotHash: buildQuoteSnapshotHash(snapshotWithoutHash),
-  });
 }
 
 export async function resolveOrganizationBinding(
   deps: CommercialModuleDeps,
   organizationRequisiteId: string,
 ) {
-  const [binding] = await deps.requisitesService.resolveBindings({
-    requisiteIds: [organizationRequisiteId],
-  });
+  const binding = await deps.requisiteBindings.resolveBinding(
+    organizationRequisiteId,
+  );
 
   if (!binding) {
     throw new DocumentValidationError(
@@ -211,114 +69,50 @@ export async function resolveOrganizationBinding(
   return binding;
 }
 
-async function loadDocumentByType(
-  db: Queryable,
-  documentId: string,
-  docType: string,
-  forUpdate = false,
-) {
-  const query = db
-    .select()
-    .from(documentsSchema.documents)
-    .where(
-      and(
-        eq(documentsSchema.documents.id, documentId),
-        eq(documentsSchema.documents.docType, docType),
-      ),
-    )
-    .limit(1);
-  const [document] = forUpdate ? await query.for("update") : await query;
-
-  if (!document) {
-    throw new DocumentValidationError(
-      `Document not found: ${docType}/${documentId}`,
-    );
-  }
-
-  return document;
-}
-
 export async function loadInvoice(
-  db: Queryable,
+  deps: Pick<CommercialModuleDeps, "documentRelations">,
+  db: CommercialDocumentDb,
   invoiceDocumentId: string,
   forUpdate = false,
 ) {
-  return loadDocumentByType(db, invoiceDocumentId, INVOICE_DOC_TYPE, forUpdate);
+  return deps.documentRelations.loadInvoice({
+    db,
+    invoiceDocumentId,
+    forUpdate,
+  });
 }
 
 export async function getInvoiceExchangeChild(
-  db: Queryable,
+  deps: Pick<CommercialModuleDeps, "documentRelations">,
+  db: CommercialDocumentDb,
   invoiceDocumentId: string,
 ) {
-  const [row] = await db
-    .select({
-      document: documentsSchema.documents,
-    })
-    .from(documentsSchema.documentLinks)
-    .innerJoin(
-      documentsSchema.documents,
-      eq(documentsSchema.documents.id, documentsSchema.documentLinks.fromDocumentId),
-    )
-    .where(
-      and(
-        eq(documentsSchema.documentLinks.toDocumentId, invoiceDocumentId),
-        eq(documentsSchema.documentLinks.linkType, "parent"),
-        eq(documentsSchema.documents.docType, EXCHANGE_DOC_TYPE),
-      ),
-    )
-    .limit(1);
-
-  return row?.document ?? null;
+  return deps.documentRelations.getInvoiceExchangeChild({
+    db,
+    invoiceDocumentId,
+  });
 }
 
 export async function getInvoiceAcceptanceChild(
-  db: Queryable,
+  deps: Pick<CommercialModuleDeps, "documentRelations">,
+  db: CommercialDocumentDb,
   invoiceDocumentId: string,
 ) {
-  const [row] = await db
-    .select({
-      document: documentsSchema.documents,
-    })
-    .from(documentsSchema.documentLinks)
-    .innerJoin(
-      documentsSchema.documents,
-      eq(documentsSchema.documents.id, documentsSchema.documentLinks.fromDocumentId),
-    )
-    .where(
-      and(
-        eq(documentsSchema.documentLinks.toDocumentId, invoiceDocumentId),
-        eq(documentsSchema.documentLinks.linkType, "parent"),
-        eq(documentsSchema.documents.docType, ACCEPTANCE_DOC_TYPE),
-      ),
-    )
-    .limit(1);
-
-  return row?.document ?? null;
+  return deps.documentRelations.getInvoiceAcceptanceChild({
+    db,
+    invoiceDocumentId,
+  });
 }
 
 export async function getExchangeAcceptance(
-  db: Queryable,
+  deps: Pick<CommercialModuleDeps, "documentRelations">,
+  db: CommercialDocumentDb,
   exchangeDocumentId: string,
 ) {
-  const [row] = await db
-    .select({
-      document: documentsSchema.documents,
-    })
-    .from(documentsSchema.documentLinks)
-    .innerJoin(
-      documentsSchema.documents,
-      eq(documentsSchema.documents.id, documentsSchema.documentLinks.fromDocumentId),
-    )
-    .where(
-      and(
-        eq(documentsSchema.documentLinks.toDocumentId, exchangeDocumentId),
-        eq(documentsSchema.documentLinks.linkType, "depends_on"),
-        eq(documentsSchema.documents.docType, ACCEPTANCE_DOC_TYPE),
-      ),
-    )
-    .limit(1);
-
-  return row?.document ?? null;
+  return deps.documentRelations.getExchangeAcceptance({
+    db,
+    exchangeDocumentId,
+  });
 }
 
 export function requirePostedDocument(
@@ -335,78 +129,18 @@ export function requirePostedDocument(
 }
 
 export async function markQuoteUsedForInvoice(input: {
-  db: Queryable;
+  db: CommercialDocumentDb;
+  deps: Pick<CommercialModuleDeps, "quoteUsage">;
   quoteId: string;
   invoiceDocumentId: string;
   at: Date;
-}): Promise<FxQuote> {
-  const [quote] = await input.db
-    .select()
-    .from(fxSchema.fxQuotes)
-    .where(eq(fxSchema.fxQuotes.id, input.quoteId))
-    .limit(1);
-
-  if (!quote) {
-    throw new DocumentValidationError(`Quote not found: ${input.quoteId}`);
-  }
-
-  const expectedUsedByRef = `invoice:${input.invoiceDocumentId}`;
-  if (quote.status === "used" && quote.usedByRef === expectedUsedByRef) {
-    return quote;
-  }
-
-  if (quote.status !== "active") {
-    throw new DocumentValidationError(
-      `Quote ${input.quoteId} is not active for invoice posting`,
-    );
-  }
-
-  if (quote.expiresAt.getTime() < input.at.getTime()) {
-    throw new DocumentValidationError(`Quote ${input.quoteId} is expired`);
-  }
-
-  const [updated] = await input.db
-    .update(fxSchema.fxQuotes)
-    .set({
-      status: "used",
-      usedByRef: expectedUsedByRef,
-      usedAt: input.at,
-    })
-    .where(
-      and(
-        eq(fxSchema.fxQuotes.id, input.quoteId),
-        eq(fxSchema.fxQuotes.status, "active"),
-      ),
-    )
-    .returning();
-
-  if (updated) {
-    return updated;
-  }
-
-  const [reloaded] = await input.db
-    .select()
-    .from(fxSchema.fxQuotes)
-    .where(eq(fxSchema.fxQuotes.id, input.quoteId))
-    .limit(1);
-
-  if (!reloaded) {
-    throw new DocumentValidationError(`Quote not found: ${input.quoteId}`);
-  }
-
-  if (reloaded.status === "used" && reloaded.usedByRef === expectedUsedByRef) {
-    return reloaded;
-  }
-
-  if (reloaded.status === "used") {
-    throw new DocumentValidationError(
-      `Quote ${input.quoteId} is already used by ${reloaded.usedByRef ?? "another document"}`,
-    );
-  }
-
-  throw new DocumentValidationError(
-    `Quote ${input.quoteId} could not be locked for invoice posting`,
-  );
+}): Promise<void> {
+  await input.deps.quoteUsage.markQuoteUsedForInvoice({
+    db: input.db,
+    quoteId: input.quoteId,
+    invoiceDocumentId: input.invoiceDocumentId,
+    at: input.at,
+  });
 }
 
 type FinancialLinePostingPhase = "direct" | "reserve" | "finalize";
@@ -634,6 +368,7 @@ export function buildDirectInvoicePostingPlan(input: {
 }
 
 export async function buildExchangeInvoicePostingPlan(input: {
+  deps: Pick<CommercialModuleDeps, "quoteUsage">;
   context: DocumentModuleContext;
   document: Document;
   payload: Extract<InvoicePayload, { mode: "exchange" }>;
@@ -642,6 +377,7 @@ export async function buildExchangeInvoicePostingPlan(input: {
   const chainId = `invoice:${input.document.id}`;
   await markQuoteUsedForInvoice({
     db: input.context.db,
+    deps: input.deps,
     quoteId: input.payload.quoteSnapshot.quoteId,
     invoiceDocumentId: input.document.id,
     at: input.context.now,

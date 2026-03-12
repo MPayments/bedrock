@@ -92,7 +92,7 @@ interface LedgerOperationTbPlanRow {
   createdAt: Date;
 }
 
-interface LedgerOperationDetails {
+export interface LedgerOperationDetails {
   operation: LedgerOperationListRow;
   postings: LedgerOperationPostingRow[];
   tbPlans: LedgerOperationTbPlanRow[];

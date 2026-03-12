@@ -8,16 +8,26 @@ import {
 } from "../src";
 
 describe("commercial module registry", () => {
+  const deps = {
+    documentRelations: {
+      loadInvoice: vi.fn(),
+      getInvoiceExchangeChild: vi.fn(),
+      getInvoiceAcceptanceChild: vi.fn(),
+      getExchangeAcceptance: vi.fn(),
+    },
+    quoteSnapshot: {
+      loadQuoteSnapshot: vi.fn(),
+    },
+    quoteUsage: {
+      markQuoteUsedForInvoice: vi.fn(),
+    },
+    requisiteBindings: {
+      resolveBinding: vi.fn(),
+    },
+  };
+
   it("registers one module per commercial doc type in canonical order", () => {
-    const modules = createCommercialDocumentModules({
-      currenciesService: {
-        findByCode: vi.fn(),
-        findById: vi.fn(),
-      } as any,
-      requisitesService: {
-        resolveBindings: vi.fn(),
-      } as any,
-    });
+    const modules = createCommercialDocumentModules(deps as any);
 
     expect(modules).toHaveLength(COMMERCIAL_DOCUMENT_TYPE_ORDER.length);
     expect(modules.map((module) => module.docType)).toEqual(
@@ -26,15 +36,7 @@ describe("commercial module registry", () => {
   });
 
   it("exposes the expected posting model for invoice, exchange, and acceptance", () => {
-    const modules = createCommercialDocumentModules({
-      currenciesService: {
-        findByCode: vi.fn(),
-        findById: vi.fn(),
-      } as any,
-      requisitesService: {
-        resolveBindings: vi.fn(),
-      } as any,
-    });
+    const modules = createCommercialDocumentModules(deps as any);
 
     const invoice = modules.find((module) => module.docType === "invoice");
     const exchange = modules.find((module) => module.docType === "exchange");

@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { POSTING_TEMPLATE_KEY } from "@bedrock/accounting/posting-contracts";
-import { schema as fxSchema } from "@bedrock/fx/schema";
 
 import {
   buildExchangeInvoicePostingPlan,
@@ -11,7 +10,6 @@ import {
   loadQuoteSnapshot,
   markQuoteUsedForInvoice,
 } from "../src/documents/internal/helpers";
-import { createMockCurrenciesService } from "@bedrock/test-utils/bedrock/harness/fx";
 
 function makeQuoteSnapshot(financialLines: any[]) {
   const snapshot = {
@@ -234,82 +232,27 @@ describe("commercial document helpers", () => {
     );
   });
 
-  it("uses currency precision from the currencies service in quote snapshots", async () => {
-    const quote = {
-      id: "550e8400-e29b-41d4-a716-446655440010",
-      fromCurrencyId: "cur-usd",
-      toCurrencyId: "cur-usdt",
-      fromAmountMinor: 10_000n,
-      toAmountMinor: 123_456n,
-      pricingMode: "explicit_route",
-      pricingTrace: { version: "v1", mode: "explicit_route" },
-      rateNum: 15432n,
-      rateDen: 1250n,
-      expiresAt: new Date("2026-03-03T10:10:00.000Z"),
-      idempotencyKey: "quote-ref-crypto",
-    };
-    const legs = [
+  it("delegates quote snapshot loading through the injected port", async () => {
+    const expectedSnapshot = makeQuoteSnapshot([
       {
-        quoteId: quote.id,
-        idx: 1,
-        fromCurrencyId: "cur-usd",
-        toCurrencyId: "cur-usdt",
-        fromAmountMinor: 10_000n,
-        toAmountMinor: 123_456n,
-        rateNum: 15432n,
-        rateDen: 1250n,
-        sourceKind: "manual",
-        sourceRef: "desk",
-        asOf: new Date("2026-03-03T10:00:00.000Z"),
-        executionCounterpartyId: null,
-      },
-    ];
-    const financialLines = [
-      {
-        quoteId: quote.id,
-        idx: 1,
+        id: "line-1",
         bucket: "fee_revenue",
-        currencyId: "cur-usdt",
-        amountMinor: 123_456n,
+        currency: "USDT",
+        amount: "0.123456",
+        amountMinor: "123456",
         source: "rule",
         settlementMode: "in_ledger",
-        memo: null,
-        metadata: null,
       },
-    ];
-    const db = {
-      select: vi.fn(() => ({
-        from: vi.fn((table: unknown) => {
-          if (table === fxSchema.fxQuotes) {
-            return {
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [quote]),
-              })),
-            };
-          }
-          if (table === fxSchema.fxQuoteLegs) {
-            return {
-              where: vi.fn(() => ({
-                orderBy: vi.fn(async () => legs),
-              })),
-            };
-          }
-          if (table === fxSchema.fxQuoteFinancialLines) {
-            return {
-              where: vi.fn(() => ({
-                orderBy: vi.fn(async () => financialLines),
-              })),
-            };
-          }
-
-          throw new Error("unexpected table");
-        }),
-      })),
-    } as any;
+    ]);
+    const loadQuoteSnapshotPort = vi.fn(async () => expectedSnapshot);
 
     const snapshot = await loadQuoteSnapshot({
-      db,
-      currenciesService: createMockCurrenciesService(),
+      db: {} as any,
+      deps: {
+        quoteSnapshot: {
+          loadQuoteSnapshot: loadQuoteSnapshotPort,
+        },
+      } as any,
       quoteRef: "quote-ref-crypto",
     });
 
@@ -320,45 +263,26 @@ describe("commercial document helpers", () => {
         amountMinor: "123456",
       }),
     ]);
+    expect(loadQuoteSnapshotPort).toHaveBeenCalledWith({
+      db: {},
+      quoteRef: "quote-ref-crypto",
+    });
   });
 
-  it("rejects invoice quote locking when another invoice wins the race", async () => {
-    const activeQuote = {
-      id: "550e8400-e29b-41d4-a716-446655440010",
-      status: "active",
-      usedByRef: null,
-      expiresAt: new Date("2026-03-03T10:10:00.000Z"),
-    };
-    const usedQuote = {
-      ...activeQuote,
-      status: "used",
-      usedByRef: "invoice:doc-other",
-      usedAt: new Date("2026-03-03T10:00:01.000Z"),
-    };
-    let selectCount = 0;
-    const db = {
-      select: vi.fn(() => ({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(async () => [
-              (selectCount += 1) === 1 ? activeQuote : usedQuote,
-            ]),
-          })),
-        })),
-      })),
-      update: vi.fn(() => ({
-        set: vi.fn(() => ({
-          where: vi.fn(() => ({
-            returning: vi.fn(async () => []),
-          })),
-        })),
-      })),
-    } as any;
+  it("delegates quote locking through the injected quote usage port", async () => {
+    const markQuoteUsed = vi.fn(async () => {
+      throw new Error("already used");
+    });
 
     await expect(
       markQuoteUsedForInvoice({
-        db,
-        quoteId: activeQuote.id,
+        db: {} as any,
+        deps: {
+          quoteUsage: {
+            markQuoteUsedForInvoice: markQuoteUsed,
+          },
+        } as any,
+        quoteId: "550e8400-e29b-41d4-a716-446655440010",
         invoiceDocumentId: "doc-1",
         at: new Date("2026-03-03T10:00:00.000Z"),
       }),
@@ -366,41 +290,16 @@ describe("commercial document helpers", () => {
   });
 
   it("reserves customer charges on exchange invoices without recognizing pnl", async () => {
-    const quoteId = "550e8400-e29b-41d4-a716-446655440010";
     const now = new Date("2026-03-03T10:00:00.000Z");
-    const db = {
-      select: vi.fn(() => ({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(async () => [
-              {
-                id: quoteId,
-                status: "active",
-                usedByRef: null,
-                expiresAt: new Date("2026-03-03T10:10:00.000Z"),
-              },
-            ]),
-          })),
-        })),
-      })),
-      update: vi.fn(() => ({
-        set: vi.fn(() => ({
-          where: vi.fn(() => ({
-            returning: vi.fn(async () => [
-              {
-                id: quoteId,
-                status: "used",
-                usedByRef: "invoice:invoice-1",
-                usedAt: now,
-              },
-            ]),
-          })),
-        })),
-      })),
-    } as any;
+    const markQuoteUsed = vi.fn(async () => undefined);
 
     const plan = await buildExchangeInvoicePostingPlan({
-      context: { db, now } as any,
+      deps: {
+        quoteUsage: {
+          markQuoteUsedForInvoice: markQuoteUsed,
+        },
+      } as any,
+      context: { db: {}, now } as any,
       document: {
         id: "invoice-1",
         occurredAt: now,
@@ -451,6 +350,13 @@ describe("commercial document helpers", () => {
           },
         ]),
       } as any,
+    });
+
+    expect(markQuoteUsed).toHaveBeenCalledWith({
+      db: {},
+      quoteId: "00000000-0000-4000-8000-000000000010",
+      invoiceDocumentId: "invoice-1",
+      at: now,
     });
 
     expect(plan.requests.map((request) => request.templateKey)).toEqual([

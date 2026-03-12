@@ -1,51 +1,34 @@
-import { hashPassword } from "better-auth/crypto";
-import { and, eq } from "drizzle-orm";
-
-import { account as authAccount, user as authUser } from "@bedrock/auth/schema";
-
 import { UserNotFoundError } from "../errors";
 import type { UsersServiceContext } from "../internal/context";
 import {
-    ChangePasswordInputSchema,
-    type ChangePasswordInput,
+  ChangePasswordInputSchema,
+  type ChangePasswordInput,
 } from "../validation";
 
 export function createChangePasswordHandler(context: UsersServiceContext) {
-    const { db, log } = context;
+  const { authStore, passwordHasher, log } = context;
 
-    return async function changePassword(
-        userId: string,
-        input: ChangePasswordInput,
-    ): Promise<void> {
-        const validated = ChangePasswordInputSchema.parse(input);
+  return async function changePassword(
+    userId: string,
+    input: ChangePasswordInput,
+  ): Promise<void> {
+    const validated = ChangePasswordInputSchema.parse(input);
+    const existingUser = await authStore.findUserById(userId);
 
-        const [existingUser] = await db
-            .select({ id: authUser.id })
-            .from(authUser)
-            .where(eq(authUser.id, userId))
-            .limit(1);
+    if (!existingUser) {
+      throw new UserNotFoundError(userId);
+    }
 
-        if (!existingUser) {
-            throw new UserNotFoundError(userId);
-        }
+    const passwordHash = await passwordHasher.hash(validated.newPassword);
+    const updated = await authStore.updateCredentialPassword({
+      userId,
+      passwordHash,
+    });
 
-        const passwordHash = await hashPassword(validated.newPassword);
+    if (!updated) {
+      throw new UserNotFoundError(userId);
+    }
 
-        const [updated] = await db
-            .update(authAccount)
-            .set({ password: passwordHash })
-            .where(
-                and(
-                    eq(authAccount.userId, userId),
-                    eq(authAccount.providerId, "credential"),
-                ),
-            )
-            .returning({ id: authAccount.id });
-
-        if (!updated) {
-            throw new UserNotFoundError(userId);
-        }
-
-        log.info("User password changed", { userId });
-    };
+    log.info("User password changed", { userId });
+  };
 }

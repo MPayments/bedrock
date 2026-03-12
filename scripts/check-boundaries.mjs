@@ -185,6 +185,55 @@ for (const root of SOURCE_ROOTS) {
       recordViolation("pgtable-outside-schema", relFile, "pgTable(", relFile);
     }
 
+    if (
+      /^packages\/modules\/users\/src\//.test(relFile) &&
+      (
+        content.includes("@bedrock/auth/schema") ||
+        content.includes("better-auth/crypto")
+      )
+    ) {
+      recordViolation(
+        "users-bypasses-auth-ports",
+        relFile,
+        "@bedrock/auth/schema|better-auth/crypto",
+      );
+    }
+
+    if (
+      /^packages\/modules\/fx\/src\//.test(relFile) &&
+      /\b(?:CurrenciesService|FeesService)\b/.test(content)
+    ) {
+      recordViolation(
+        "fx-imports-full-sibling-services",
+        relFile,
+        "CurrenciesService|FeesService",
+      );
+    }
+
+    if (
+      /^packages\/modules\/documents\/src\//.test(relFile) &&
+      /\b(?:AccountingRuntime|LedgerEngine|LedgerReadService)\b/.test(content)
+    ) {
+      recordViolation(
+        "documents-imports-broad-runtime-services",
+        relFile,
+        "AccountingRuntime|LedgerEngine|LedgerReadService",
+      );
+    }
+
+    if (
+      /^packages\/modules\/(?:balances|documents|reconciliation)\/src\//.test(
+        relFile,
+      ) &&
+      content.includes("createIdempotencyService(")
+    ) {
+      recordViolation(
+        "module-constructs-idempotency",
+        relFile,
+        "createIdempotencyService(",
+      );
+    }
+
     for (const specifier of getImports(content)) {
       if (specifier.startsWith("node:")) {
         continue;
@@ -256,6 +305,35 @@ for (const root of SOURCE_ROOTS) {
       const targetPkg = packagesByName.get(normalized.packageName);
       if (!targetPkg) {
         continue;
+      }
+
+      if (
+        owner?.kind === "plugin" &&
+        relFile.startsWith(`${owner.relDir}/src/`) &&
+        targetPkg.name !== owner.name &&
+        (
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        )
+      ) {
+        recordViolation("plugin-imports-foreign-schema", relFile, specifier);
+      }
+
+      if (
+        owner?.name === "@bedrock/reconciliation" &&
+        relFile.startsWith(`${owner.relDir}/src/`) &&
+        !isSchemaDefinitionFile(relFile) &&
+        targetPkg.name !== owner.name &&
+        (
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        )
+      ) {
+        recordViolation(
+          "strict-module-imports-foreign-schema",
+          relFile,
+          specifier,
+        );
       }
 
       if (

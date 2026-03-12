@@ -1,69 +1,34 @@
-import { hashPassword } from "better-auth/crypto";
-import { eq } from "drizzle-orm";
-
-import { account, user } from "@bedrock/auth/schema";
-
 import { UserEmailConflictError } from "../errors";
 import type { UsersServiceContext } from "../internal/context";
+import { toUser } from "../internal/auth-users";
 import {
-    CreateUserInputSchema,
-    type CreateUserInput,
-    type User,
-    type UserRole,
+  CreateUserInputSchema,
+  type CreateUserInput,
+  type User,
 } from "../validation";
 
 export function createCreateUserHandler(context: UsersServiceContext) {
-    const { db, log } = context;
+  const { authStore, passwordHasher, log } = context;
 
-    return async function createUser(input: CreateUserInput): Promise<User> {
-        const validated = CreateUserInputSchema.parse(input);
+  return async function createUser(input: CreateUserInput): Promise<User> {
+    const validated = CreateUserInputSchema.parse(input);
+    const existing = await authStore.findUserByEmail(validated.email);
 
-        return db.transaction(async (tx) => {
-            const [existing] = await tx
-                .select({ id: user.id })
-                .from(user)
-                .where(eq(user.email, validated.email))
-                .limit(1);
+    if (existing) {
+      throw new UserEmailConflictError(validated.email);
+    }
 
-            if (existing) {
-                throw new UserEmailConflictError(validated.email);
-            }
+    const passwordHash = await passwordHasher.hash(validated.password);
+    const created = await authStore.createUserWithCredential({
+      name: validated.name,
+      email: validated.email,
+      role: validated.role,
+      passwordHash,
+      emailVerified: true,
+    });
 
-            const userId = crypto.randomUUID();
-            const now = new Date();
-            const passwordHash = await hashPassword(validated.password);
+    log.info("User created", { id: created.id, email: created.email });
 
-            const [created] = await tx
-                .insert(user)
-                .values({
-                    id: userId,
-                    name: validated.name,
-                    email: validated.email,
-                    emailVerified: true,
-                    role: validated.role,
-                    createdAt: now,
-                    updatedAt: now,
-                })
-                .returning();
-
-            await tx.insert(account).values({
-                id: crypto.randomUUID(),
-                accountId: userId,
-                providerId: "credential",
-                userId,
-                password: passwordHash,
-                createdAt: now,
-                updatedAt: now,
-            });
-
-            log.info("User created", { id: created!.id, email: created!.email });
-
-            return {
-                ...created!,
-                role: created!.role as UserRole | null,
-                banned: created!.banned ?? false,
-                banExpires: created!.banExpires ?? null,
-            };
-        });
-    };
+    return toUser(created);
+  };
 }

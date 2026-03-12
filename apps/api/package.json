@@ -19,6 +19,7 @@
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
     "@bedrock/accounting-reporting": "workspace:*",
+    "@bedrock/auth": "workspace:*",
     "@bedrock/balances": "workspace:*",
     "@bedrock/commercial-documents": "workspace:*",
     "@bedrock/common": "workspace:*",
@@ -36,6 +37,7 @@
     "@hono/zod-openapi": "^1.2.2",
     "@scalar/hono-api-reference": "^0.9.44",
     "better-auth": "^1.4.18",
+    "drizzle-orm": "^0.45.1",
     "dotenv": "^17.3.1",
     "hono": "^4.12.2",
     "zod": "^4.3.6"

@@ -1,6 +1,7 @@
-import { type FeesService } from "@bedrock/fees";
 import type { FinancialLine } from "@bedrock/documents/financial-lines";
 import type { FxQuote, FxQuoteLeg } from "@bedrock/fx/schema";
+
+import type { FxQuoteFeePort } from "../ports";
 
 export interface ComputedLeg {
     idx: number;
@@ -19,7 +20,7 @@ export interface ComputedLeg {
 export interface FxQuoteDetails {
     quote: FxQuote;
     legs: FxQuoteLeg[];
-    feeComponents: Awaited<ReturnType<FeesService["getQuoteFeeComponents"]>>;
+    feeComponents: Awaited<ReturnType<FxQuoteFeePort["getQuoteFeeComponents"]>>;
     financialLines: FinancialLine[];
     pricingTrace: Record<string, unknown>;
 }

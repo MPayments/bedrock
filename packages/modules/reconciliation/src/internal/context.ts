@@ -1,21 +1,25 @@
-import type { DocumentsService } from "@bedrock/documents";
-import {
-  createIdempotencyService,
-  type IdempotencyService,
-} from "@bedrock/idempotency";
 import { noopLogger, type Logger } from "@bedrock/common";
 import type { Database } from "@bedrock/common/db/types";
 
+import type {
+  ReconciliationDocumentsPort,
+  ReconciliationIdempotencyPort,
+  ReconciliationLedgerLookupPort,
+} from "../ports";
+
 export interface ReconciliationServiceDeps {
   db: Database;
-  documents?: Pick<DocumentsService, "createDraft">;
+  documents: ReconciliationDocumentsPort;
+  idempotency: ReconciliationIdempotencyPort;
+  ledgerLookup: ReconciliationLedgerLookupPort;
   logger?: Logger;
 }
 
 export interface ReconciliationServiceContext {
   db: Database;
-  documents?: Pick<DocumentsService, "createDraft">;
-  idempotency: IdempotencyService;
+  documents: ReconciliationDocumentsPort;
+  idempotency: ReconciliationIdempotencyPort;
+  ledgerLookup: ReconciliationLedgerLookupPort;
   log: Logger;
 }
 
@@ -25,7 +29,8 @@ export function createReconciliationServiceContext(
   return {
     db: deps.db,
     documents: deps.documents,
-    idempotency: createIdempotencyService({ logger: deps.logger }),
+    idempotency: deps.idempotency,
+    ledgerLookup: deps.ledgerLookup,
     log: deps.logger?.child({ svc: "reconciliation" }) ?? noopLogger,
   };
 }

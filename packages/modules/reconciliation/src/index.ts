@@ -14,4 +14,5 @@ export {
   type ReconciliationExternalRecordInput,
   type RunReconciliationInput,
 } from "./validation";
+export type * from "./ports";
 export type { ReconciliationServiceDeps } from "./internal/context";

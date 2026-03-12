@@ -53,6 +53,7 @@ export {
   resolveDocumentAllowedActions,
 } from "./state-machine";
 export type { DocumentAction } from "./state-machine";
+export type * from "./ports";
 export {
   DOCUMENT_APPROVAL_STATUSES,
   DOCUMENT_LIFECYCLE_STATUSES,

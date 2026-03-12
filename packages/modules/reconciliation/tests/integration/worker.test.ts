@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import { createIdempotencyService } from "@bedrock/idempotency";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
 
@@ -37,6 +38,28 @@ const pool = new Pool({
 const db = drizzle(pool, { schema });
 const createdOperationIds = new Set<string>();
 const createdSources = new Set<string>();
+const idempotency = createIdempotencyService();
+
+const reconciliationDocuments = {
+  async createDraft() {
+    throw new Error("documents port is not configured in this integration test");
+  },
+  async existsById() {
+    return false;
+  },
+};
+
+const ledgerLookup = {
+  async operationExists(operationId: string) {
+    const [row] = await db
+      .select({ id: schema.ledgerOperations.id })
+      .from(schema.ledgerOperations)
+      .where(eq(schema.ledgerOperations.id, operationId))
+      .limit(1);
+
+    return Boolean(row);
+  },
+};
 
 async function cleanupRows() {
   for (const source of createdSources) {
@@ -111,7 +134,12 @@ describe("reconciliation worker integration", () => {
       postedAt: new Date("2026-02-28T08:05:00.000Z"),
     });
 
-    const reconciliation = createReconciliationService({ db });
+    const reconciliation = createReconciliationService({
+      db,
+      documents: reconciliationDocuments,
+      idempotency,
+      ledgerLookup,
+    });
 
     await reconciliation.ingestExternalRecord({
       source,
@@ -133,6 +161,9 @@ describe("reconciliation worker integration", () => {
 
     const worker = createReconciliationWorkerDefinition({
       db,
+      documents: reconciliationDocuments,
+      idempotency,
+      ledgerLookup,
       rulesetChecksum: "core-default-v1",
     });
 

@@ -8,6 +8,11 @@ import {
   type BalancesService,
 } from "@bedrock/balances";
 import {
+  createBetterAuthPasswordHasher,
+  createDrizzleAuthIdentityStore,
+} from "@bedrock/auth";
+import { createIdempotencyService, type IdempotencyPort } from "@bedrock/idempotency";
+import {
   createLedgerEngine,
   createLedgerReadService,
   type LedgerEngine,
@@ -25,6 +30,7 @@ export interface ApiCoreServices {
   logger: Logger;
   accountingService: AccountingService;
   balancesService: BalancesService;
+  idempotency: IdempotencyPort;
   ledger: LedgerEngine;
   ledgerReadService: LedgerReadService;
   usersService: UsersService;
@@ -32,6 +38,9 @@ export interface ApiCoreServices {
 
 export function createCoreServices(): ApiCoreServices {
   const logger = createConsoleLogger({ app: "bedrock-api" });
+  const idempotency = createIdempotencyService({ logger });
+  const authStore = createDrizzleAuthIdentityStore({ db });
+  const passwordHasher = createBetterAuthPasswordHasher();
   const accountingService = createAccountingService({
     db,
     logger,
@@ -42,13 +51,18 @@ export function createCoreServices(): ApiCoreServices {
     assertInternalLedgerBooks: assertBooksBelongToInternalLedgerCounterparties,
   });
   const ledgerReadService = createLedgerReadService({ db });
-  const balancesService = createBalancesService({ db, logger });
-  const usersService = createUsersService({ db, logger });
+  const balancesService = createBalancesService({ db, idempotency, logger });
+  const usersService = createUsersService({
+    authStore,
+    passwordHasher,
+    logger,
+  });
 
   return {
     logger,
     accountingService,
     balancesService,
+    idempotency,
     ledger,
     ledgerReadService,
     usersService,

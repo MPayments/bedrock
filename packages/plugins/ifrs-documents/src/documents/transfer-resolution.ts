@@ -93,7 +93,11 @@ export function createTransferResolutionDocumentModule(
       };
     },
     async canCreate(context, input) {
-      await resolveTransferDependencyDocument(context.db, input.transferDocumentId);
+      await resolveTransferDependencyDocument(
+        deps,
+        context.db,
+        input.transferDocumentId,
+      );
     },
     async canEdit() {},
     async canSubmit() {},
@@ -102,16 +106,22 @@ export function createTransferResolutionDocumentModule(
     async canCancel() {},
     async canPost(context, document) {
       const payload = parseDocumentPayload(TransferResolutionPayloadSchema, document);
-      await resolveTransferDependencyDocument(context.db, payload.transferDocumentId);
-      await listPendingTransfers(context.db, payload.transferDocumentId);
+      await resolveTransferDependencyDocument(
+        deps,
+        context.db,
+        payload.transferDocumentId,
+      );
+      await listPendingTransfers(deps, context.db, payload.transferDocumentId);
     },
     async buildPostingPlan(context, document) {
       const payload = parseDocumentPayload(TransferResolutionPayloadSchema, document);
       const transferDocument = await resolveTransferDependencyDocument(
+        deps,
         context.db,
         payload.transferDocumentId,
       );
       const pendingTransfers = await listPendingTransfers(
+        deps,
         context.db,
         payload.transferDocumentId,
       );

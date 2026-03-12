@@ -17,7 +17,11 @@ export { createTransferIntraDocumentModule } from "./transfer-intra";
 export { createTransferResolutionDocumentModule } from "./transfer-resolution";
 
 export type {
+  IfrsDocumentDb,
   OrganizationRequisiteBinding,
+  PendingTransferRecord,
   RequisitesService,
   IfrsModuleDeps,
+  IfrsTransferLookupPort,
+  TransferDependencyDocument,
 } from "./internal/types";

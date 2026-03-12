@@ -1,6 +1,7 @@
 // Service
 export { createFxService } from "./service";
 export type { FxService } from "./service";
+export type * from "./ports";
 
 // Validation
 export {

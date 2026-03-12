@@ -1,4 +1,13 @@
 export { createCommercialDocumentModules } from "./documents";
+export type {
+  CommercialDocumentDb,
+  CommercialDocumentRelationsPort,
+  CommercialModuleDeps,
+  CommercialQuoteSnapshotPort,
+  CommercialQuoteUsagePort,
+  CommercialRequisiteBindingsPort,
+  OrganizationRequisiteBinding,
+} from "./documents/internal/types";
 export {
   COMMERCIAL_DOCUMENT_DEFINITIONS,
   COMMERCIAL_DOCUMENT_METADATA,

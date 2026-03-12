@@ -10,6 +10,7 @@ export {
   createLedgerReadService,
   type LedgerReadService,
 } from "./read-service";
+export type { LedgerOperationDetails, LedgerReadQueries } from "./queries/read";
 export { OPERATION_TRANSFER_TYPE } from "./types";
 export type {
   OperationIntent,

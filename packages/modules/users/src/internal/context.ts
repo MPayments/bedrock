@@ -1,21 +1,27 @@
+import type {
+  AuthIdentityStorePort,
+  PasswordHasherPort,
+} from "@bedrock/auth";
 import { type Logger, noopLogger } from "@bedrock/common";
-import type { Database } from "@bedrock/common/db/types";
 
 export interface UsersServiceDeps {
-    db: Database;
-    logger?: Logger;
+  authStore: AuthIdentityStorePort;
+  passwordHasher: PasswordHasherPort;
+  logger?: Logger;
 }
 
 export interface UsersServiceContext {
-    db: Database;
-    log: Logger;
+  authStore: AuthIdentityStorePort;
+  passwordHasher: PasswordHasherPort;
+  log: Logger;
 }
 
 export function createUsersServiceContext(
-    deps: UsersServiceDeps,
+  deps: UsersServiceDeps,
 ): UsersServiceContext {
-    return {
-        db: deps.db,
-        log: deps.logger?.child({ service: "users" }) ?? noopLogger,
-    };
+  return {
+    authStore: deps.authStore,
+    passwordHasher: deps.passwordHasher,
+    log: deps.logger?.child({ service: "users" }) ?? noopLogger,
+  };
 }
