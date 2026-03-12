@@ -1,45 +1,45 @@
 import {
   createAccountingReportingService,
   type AccountingReportingService,
-} from "@bedrock/application/accounting-reporting";
-import { createFeesService, type FeesService } from "@bedrock/application/fees";
-import { createFxService, type FxService } from "@bedrock/application/fx";
-import { createIfrsDocumentModules } from "@bedrock/application/ifrs-documents";
+} from "@bedrock/app/accounting-reporting";
+import {
+  createCounterpartiesService,
+  type CounterpartiesService,
+} from "@bedrock/app/counterparties";
+import {
+  createCurrenciesService,
+  type CurrenciesService,
+} from "@bedrock/app/currencies";
+import {
+  createCustomersService,
+  type CustomersService,
+} from "@bedrock/app/customers";
+import {
+  createDocumentRegistry,
+  createDocumentsService,
+  type DocumentsService,
+} from "@bedrock/app/documents";
+import { createFeesService, type FeesService } from "@bedrock/app/fees";
+import { createFxService, type FxService } from "@bedrock/app/fx";
+import { createIfrsDocumentModules } from "@bedrock/app/ifrs-documents";
+import {
+  createOrganizationsService,
+  type OrganizationsService,
+} from "@bedrock/app/organizations";
 import {
   createPaymentIntentDocumentModule,
   createPaymentResolutionDocumentModule,
   createPaymentsService,
   type PaymentsService,
-} from "@bedrock/application/payments";
-import {
-  createCounterpartiesService,
-  type CounterpartiesService,
-} from "@bedrock/core/counterparties";
-import {
-  createCurrenciesService,
-  type CurrenciesService,
-} from "@bedrock/core/currencies";
-import {
-  createCustomersService,
-  type CustomersService,
-} from "@bedrock/core/customers";
-import {
-  createDocumentRegistry,
-  createDocumentsService,
-  type DocumentsService,
-} from "@bedrock/core/documents";
-import {
-  createOrganizationsService,
-  type OrganizationsService,
-} from "@bedrock/core/organizations";
+} from "@bedrock/app/payments";
 import {
   createRequisiteProvidersService,
   type RequisiteProvidersService,
-} from "@bedrock/core/requisite-providers";
+} from "@bedrock/app/requisite-providers";
 import {
   createRequisitesService,
   type RequisitesService,
-} from "@bedrock/core/requisites";
+} from "@bedrock/app/requisites";
 import { db } from "@bedrock/db/client";
 
 import type { ApiCoreServices } from "./core";

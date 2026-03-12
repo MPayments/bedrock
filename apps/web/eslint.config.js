@@ -20,7 +20,17 @@ export default [
         {
           patterns: [
             {
-              group: ["@/app/**", "**/app/**"],
+              group: [
+                "@/app/**",
+                "./app/**",
+                "../app/**",
+                "../../app/**",
+                "../../../app/**",
+                "../../../../app/**",
+                "../../../../../app/**",
+                "../../../../../../app/**",
+                "../../../../../../../app/**",
+              ],
               message:
                 "Import reusable logic from feature modules instead of app route files.",
             },

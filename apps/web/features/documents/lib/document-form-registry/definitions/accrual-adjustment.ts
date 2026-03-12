@@ -1,4 +1,4 @@
-import { AccrualAdjustmentInputSchema } from "@bedrock/application/ifrs-documents/contracts";
+import { AccrualAdjustmentInputSchema } from "@bedrock/app/ifrs-documents/contracts";
 
 import { createAdjustmentDefinition } from "../shared";
 

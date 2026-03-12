@@ -2,17 +2,15 @@ import { z } from "zod";
 
 import {
   AccrualAdjustmentInputSchema,
-  CapitalFundingInputSchema,
   ClosingReclassInputSchema,
   EquityContributionInputSchema,
   EquityDistributionInputSchema,
   ImpairmentAdjustmentInputSchema,
-  IntercompanyInterestAccrualInputSchema,
   IntercompanyInterestSettlementInputSchema,
   IntercompanyLoanDrawdownInputSchema,
   IntercompanyLoanRepaymentInputSchema,
   RevaluationAdjustmentInputSchema,
-} from "@bedrock/application/ifrs-documents/contracts";
+} from "@bedrock/app/ifrs-documents/contracts";
 
 import type {
   DocumentFormDefinition,

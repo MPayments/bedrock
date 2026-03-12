@@ -3,9 +3,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
-import { DORMANT_MODULE_IDS } from "@bedrock/core/module-runtime";
-import { listWorkerCatalogEntries } from "@bedrock/core/worker-runtime";
+import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/app/module-runtime";
+import { DORMANT_MODULE_IDS } from "@bedrock/app/module-runtime";
+import { listWorkerCatalogEntries } from "@bedrock/app/worker-runtime";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const workersPackageJsonPath = path.resolve(__dirname, "../package.json");

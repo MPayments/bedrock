@@ -1,7 +1,5 @@
-import { schema as accountingReportingSchema } from "@bedrock/application/accounting-reporting/schema";
-import { schema as feesSchema } from "@bedrock/application/fees/schema";
-import { schema as fxSchema } from "@bedrock/application/fx/schema";
-import { schema as accountingSchema } from "@bedrock/core/accounting/schema";
+import { schema as accountingSchema } from "@bedrock/app/accounting/schema";
+import { schema as accountingReportingSchema } from "@bedrock/app/accounting-reporting/schema";
 import {
   account,
   accountRelations,
@@ -12,19 +10,21 @@ import {
   user,
   userRelations,
   verification,
-} from "@bedrock/core/auth/schema";
-import { schema as balancesSchema } from "@bedrock/core/balances/schema";
-import { schema as counterpartiesSchema } from "@bedrock/core/counterparties/schema";
-import { schema as currenciesSchema } from "@bedrock/core/currencies/schema";
-import { schema as customersSchema } from "@bedrock/core/customers/schema";
-import { schema as documentsSchema } from "@bedrock/core/documents/schema";
-import { schema as idempotencySchema } from "@bedrock/core/idempotency/schema";
-import { schema as ledgerSchema } from "@bedrock/core/ledger/schema";
-import { schema as moduleRuntimeSchema } from "@bedrock/core/module-runtime/schema";
-import { schema as organizationsSchema } from "@bedrock/core/organizations/schema";
-import { schema as requisiteProvidersSchema } from "@bedrock/core/requisite-providers/schema";
-import { schema as reconciliationSchema } from "@bedrock/core/reconciliation/schema";
-import { schema as requisitesSchema } from "@bedrock/core/requisites/schema";
+} from "@bedrock/app/auth/schema";
+import { schema as balancesSchema } from "@bedrock/app/balances/schema";
+import { schema as counterpartiesSchema } from "@bedrock/app/counterparties/schema";
+import { schema as currenciesSchema } from "@bedrock/app/currencies/schema";
+import { schema as customersSchema } from "@bedrock/app/customers/schema";
+import { schema as documentsSchema } from "@bedrock/app/documents/schema";
+import { schema as feesSchema } from "@bedrock/app/fees/schema";
+import { schema as fxSchema } from "@bedrock/app/fx/schema";
+import { schema as idempotencySchema } from "@bedrock/app/idempotency/schema";
+import { schema as ledgerSchema } from "@bedrock/app/ledger/schema";
+import { schema as moduleRuntimeSchema } from "@bedrock/app/module-runtime/schema";
+import { schema as organizationsSchema } from "@bedrock/app/organizations/schema";
+import { schema as reconciliationSchema } from "@bedrock/app/reconciliation/schema";
+import { schema as requisiteProvidersSchema } from "@bedrock/app/requisite-providers/schema";
+import { schema as requisitesSchema } from "@bedrock/app/requisites/schema";
 
 const authSchema = {
   user,

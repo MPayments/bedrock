@@ -1,13 +1,13 @@
 import { normalizeMoneyFields } from "./amount";
 import { toJsonSafe } from "./json";
 
-type ApiJsonOptions = {
+interface ApiJsonOptions {
   normalizeMoney?: boolean;
-};
+}
 
-type JsonContextLike = {
+interface JsonContextLike {
   json: (body: unknown, status?: number) => Response;
-};
+}
 
 export function toApiJson(value: unknown, options?: ApiJsonOptions): unknown {
   const normalized =

@@ -31,8 +31,9 @@ export function formatMajorAmount(amount: string | number | bigint): string {
 
 export function formatAmountByCurrency(
   amount: string | number | bigint,
-  _currencyCode: string | null | undefined,
+  currencyCode: string | null | undefined,
 ): string {
+  void currencyCode;
   return formatMajorAmount(amount);
 }
 

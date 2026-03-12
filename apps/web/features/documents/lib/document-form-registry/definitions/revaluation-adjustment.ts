@@ -1,4 +1,4 @@
-import { RevaluationAdjustmentInputSchema } from "@bedrock/application/ifrs-documents/contracts";
+import { RevaluationAdjustmentInputSchema } from "@bedrock/app/ifrs-documents/contracts";
 
 import { createAdjustmentDefinition } from "../shared";
 

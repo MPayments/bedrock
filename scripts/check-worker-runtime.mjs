@@ -6,12 +6,11 @@ import ts from "typescript";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const domainRoots = [
-  path.join(repoRoot, "packages/core/src"),
-  path.join(repoRoot, "packages/application/src"),
+  path.join(repoRoot, "packages/app/src"),
 ];
-const coreManifestsPath = path.join(
+const moduleManifestsPath = path.join(
   repoRoot,
-  "packages/core/src/module-runtime/manifests.ts",
+  "packages/app/src/module-runtime/manifests.ts",
 );
 const workersPackageJsonPath = path.join(repoRoot, "apps/workers/package.json");
 const turboJsonPath = path.join(repoRoot, "turbo.json");
@@ -20,7 +19,7 @@ const workersPackageJson = JSON.parse(
   await readFile(workersPackageJsonPath, "utf8"),
 );
 const turboJson = JSON.parse(await readFile(turboJsonPath, "utf8"));
-const dormantModuleIds = await readDormantModuleIds(coreManifestsPath);
+const dormantModuleIds = await readDormantModuleIds(moduleManifestsPath);
 const manifestFiles = (
   await Promise.all(domainRoots.map((root) => listManifestFiles(root)))
 ).flat();

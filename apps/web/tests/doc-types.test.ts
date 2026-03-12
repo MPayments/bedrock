@@ -1,7 +1,7 @@
 import {
   IFRS_DOCUMENT_METADATA,
   IFRS_DOCUMENT_TYPE_ORDER,
-} from "@multihansa/reporting/ifrs-documents/contracts";
+} from "@bedrock/app/ifrs-documents/contracts";
 import { describe, expect, it } from "vitest";
 
 import {

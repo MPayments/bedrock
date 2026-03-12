@@ -6,13 +6,13 @@ import {
   RequisiteProviderNotFoundError,
   RequisiteProviderSchema,
   UpdateRequisiteProviderInputSchema,
-} from "@bedrock/core/requisite-providers";
+} from "@bedrock/app/requisite-providers";
 import {
   RequisiteProviderOptionSchema,
   RequisiteProviderOptionsResponseSchema,
-} from "@bedrock/core/requisite-providers/contracts";
-import { ValidationError } from "@bedrock/kernel/errors";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+} from "@bedrock/app/requisite-providers/contracts";
+import { ValidationError } from "@bedrock/common/errors";
+import { createPaginatedListSchema } from "@bedrock/common/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";

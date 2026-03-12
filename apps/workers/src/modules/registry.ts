@@ -1,29 +1,29 @@
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
-import { createFeesService } from "@bedrock/application/fees";
-import {
-  createFxRatesWorkerDefinition,
-  createFxService,
-} from "@bedrock/application/fx";
 import {
   createBalancesProjectorWorkerDefinition,
-} from "@bedrock/core/balances";
-import type { ModuleRuntimeService } from "@bedrock/core/module-runtime";
-import { createCurrenciesService } from "@bedrock/core/currencies";
+} from "@bedrock/app/balances";
+import { createCurrenciesService } from "@bedrock/app/currencies";
 import {
   createDocumentsWorkerDefinition,
   createPeriodCloseWorkerDefinition,
-} from "@bedrock/core/documents";
+} from "@bedrock/app/documents";
+import { createFeesService } from "@bedrock/app/fees";
+import {
+  createFxRatesWorkerDefinition,
+  createFxService,
+} from "@bedrock/app/fx";
 import {
   createLedgerWorkerDefinition,
   type TbClient,
-} from "@bedrock/core/ledger";
+} from "@bedrock/app/ledger";
+import type { ModuleRuntimeService } from "@bedrock/app/module-runtime";
+import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/app/module-runtime";
 import {
   listWorkerCatalogEntries,
   type BedrockWorker,
   type WorkerCatalogEntry,
-} from "@bedrock/core/worker-runtime";
-import type { Logger } from "@bedrock/kernel";
-import type { Database } from "@bedrock/kernel/db/types";
+} from "@bedrock/app/worker-runtime";
+import type { Logger } from "@bedrock/common";
+import type { Database } from "@bedrock/common/db/types";
 
 import type { WorkerEnv } from "../env";
 import { isModuleEnabledForBooks } from "./runtime-guard";

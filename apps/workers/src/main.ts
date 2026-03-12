@@ -1,19 +1,19 @@
 import "./env";
 
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
+import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/app/module-runtime";
 import {
   createModuleRuntimeService,
-} from "@bedrock/core/module-runtime";
-import { createTbClient } from "@bedrock/core/ledger";
+} from "@bedrock/app/module-runtime";
+import { createTbClient } from "@bedrock/app/ledger";
 import {
   createWorkerFleet,
   startWorkerFleet,
-} from "@bedrock/core/worker-runtime";
+} from "@bedrock/app/worker-runtime";
 import { db } from "@bedrock/db/client";
 import {
   createConsoleLogger,
   installShutdownHandlers,
-} from "@bedrock/kernel";
+} from "@bedrock/common";
 
 import { createWorkerImplementations } from "./modules/registry";
 import { env } from "./env";

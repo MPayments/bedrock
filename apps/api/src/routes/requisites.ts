@@ -1,6 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { CounterpartyNotFoundError } from "@bedrock/core/counterparties";
+import { CounterpartyNotFoundError } from "@bedrock/app/counterparties";
+import { OrganizationNotFoundError } from "@bedrock/app/organizations";
 import {
   CreateRequisiteInputSchema,
   ListRequisitesQuerySchema,
@@ -12,15 +13,14 @@ import {
   RequisiteSchema,
   UpdateRequisiteInputSchema,
   UpsertRequisiteAccountingBindingInputSchema,
-} from "@bedrock/core/requisites";
+} from "@bedrock/app/requisites";
 import {
   RequisiteAccountingBindingSchema,
   RequisiteOptionSchema,
   RequisiteOptionsResponseSchema,
-} from "@bedrock/core/requisites/contracts";
-import { ValidationError } from "@bedrock/kernel/errors";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
-import { OrganizationNotFoundError } from "@bedrock/core/organizations";
+} from "@bedrock/app/requisites/contracts";
+import { ValidationError } from "@bedrock/common/errors";
+import { createPaginatedListSchema } from "@bedrock/common/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";

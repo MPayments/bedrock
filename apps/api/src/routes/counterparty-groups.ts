@@ -9,14 +9,14 @@ import {
   CreateCounterpartyGroupInputSchema,
   ListCounterpartyGroupsQuerySchema,
   UpdateCounterpartyGroupInputSchema,
-} from "@bedrock/core/counterparties";
+} from "@bedrock/app/counterparties";
 import {
   CounterpartyGroupOptionSchema,
   CounterpartyGroupOptionsResponseSchema,
-} from "@bedrock/core/counterparties/contracts";
+} from "@bedrock/app/counterparties/contracts";
 
-import { buildOptionsResponse } from "../common/options";
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
+import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";

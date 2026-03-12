@@ -1,4 +1,4 @@
-import type { Customer } from "@bedrock/core/customers/contracts";
+import type { Customer } from "@bedrock/app/customers/contracts";
 
 import type { ListResult } from "@/features/entities/shared/lib/list-result";
 

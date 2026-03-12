@@ -12,7 +12,8 @@ import { getDocumentColumns } from "./columns";
 
 export function DocumentsTable({
   promise,
-  docTypeOptions,
+  docTypeOptions = [],
+  routeBasePath,
 }: {
   promise: Promise<{
     data: DocumentDto[];
@@ -20,8 +21,10 @@ export function DocumentsTable({
     limit: number;
     offset: number;
   }>;
-  docTypeOptions: Option[];
+  docTypeOptions?: Option[];
+  routeBasePath?: string;
 }) {
+  void routeBasePath;
   const router = useRouter();
   const columns = React.useMemo(
     () => getDocumentColumns(docTypeOptions),

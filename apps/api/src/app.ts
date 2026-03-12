@@ -10,7 +10,7 @@ import {
   ImmutableModuleError,
   MixedDeployError,
   UnknownModuleError,
-} from "@bedrock/core/module-runtime";
+} from "@bedrock/app/module-runtime";
 
 import auth from "./auth";
 import {
@@ -210,7 +210,7 @@ app.get("/health", async (c) => {
   const pgStart = Date.now();
   try {
     const { db } = await import("@bedrock/db/client");
-    const { schema } = await import("@bedrock/core/currencies/schema");
+    const { schema } = await import("@bedrock/app/currencies/schema");
     await db
       .select({ id: schema.currencies.id })
       .from(schema.currencies)

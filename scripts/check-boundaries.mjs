@@ -124,7 +124,7 @@ function toWorkspacePath(importPath) {
     const packageDir = packageDirsByName.get(packageName);
     if (!packageDir) return null;
 
-    if (packageName === "@bedrock/core" || packageName === "@bedrock/application") {
+    if (packageName === "@bedrock/app") {
       const domain = parts[2];
       if (!domain) {
         return `${packageDir}`;
@@ -174,7 +174,7 @@ const LEGACY_SPECIFIER_PATTERNS = [
 const DB_TYPES_SPECIFIER = /^@bedrock\/db\/types(?:\/|$)/;
 const DB_RUNTIME_BLOCKED_SPECIFIER = /^@bedrock\/db(?:$|\/(?:client|seeds)(?:$|\/))/;
 function isRuntimePackageFile(file) {
-  return /^packages\/(application|core)\/src\/[^/]+\//.test(file);
+  return /^packages\/app\/src\/[^/]+\//.test(file);
 }
 
 function isSchemaDefinitionFile(file) {
@@ -188,8 +188,8 @@ function isSchemaDefinitionFile(file) {
 
 function isAllowedContractImport(fromFile, specifier) {
   return (
-    fromFile.startsWith("packages/core/src/") &&
-    specifier === "@bedrock/kernel/countries/contracts"
+    fromFile.startsWith("packages/app/src/") &&
+    specifier === "@bedrock/common/countries/contracts"
   );
 }
 
@@ -216,7 +216,7 @@ for (const root of SOURCE_ROOTS) {
 
       if (
         LEGACY_SPECIFIER_PATTERNS.some((pattern) => pattern.test(specifier)) &&
-        !relFile.startsWith("packages/kernel/")
+        !relFile.startsWith("packages/common/")
       ) {
         violations.push({
           rule: "legacy-foundation-import",
@@ -244,11 +244,13 @@ for (const root of SOURCE_ROOTS) {
       if (relFile.startsWith("apps/web/") && specifier.startsWith("@bedrock/")) {
         const allowed =
           specifier.startsWith("@bedrock/ui") ||
-          specifier === "@bedrock/kernel/countries" ||
-          specifier === "@bedrock/kernel/countries/contracts" ||
+          specifier === "@bedrock/common" ||
+          specifier === "@bedrock/common/countries" ||
+          specifier === "@bedrock/common/countries/contracts" ||
           specifier === "@bedrock/api-client" ||
           specifier.startsWith("@bedrock/api-client/") ||
-          /^@bedrock\/(?:core|application)\/[^/]+\/contracts$/.test(specifier);
+          specifier === "@bedrock/app/currencies/catalog" ||
+          /^@bedrock\/app\/[^/]+\/(?:contracts|validation)$/.test(specifier);
 
         if (!allowed) {
           violations.push({

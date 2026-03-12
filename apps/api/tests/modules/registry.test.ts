@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
+import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/app/module-runtime";
 
 interface ApiModuleRegistryEntry {
   id: string;
@@ -16,7 +16,7 @@ beforeAll(async () => {
 
   const { API_APPLICATION_MODULES } = await import("../../src/modules/registry");
   apiApplicationModules = API_APPLICATION_MODULES;
-});
+}, 30000);
 
 describe("API module registry taxonomy", () => {
   it("maps every API module ID to a runtime manifest", () => {

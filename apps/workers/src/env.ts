@@ -2,8 +2,8 @@ import dotenv from "dotenv";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/application/module-runtime";
-import { listWorkerCatalogEntries } from "@bedrock/core/worker-runtime";
+import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/app/module-runtime";
+import { listWorkerCatalogEntries } from "@bedrock/app/worker-runtime";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(dir, "../../../.env") });

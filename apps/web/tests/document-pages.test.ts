@@ -116,13 +116,12 @@ describe("document pages", () => {
 
   it("returns notFound for admin-only create pages when role is user", async () => {
     const { default: CreatePage } = await import(
-      "@/app/(shell)/documents/[family]/[docType]/create/page"
+      "@/app/(shell)/documents/create/[docType]/page"
     );
 
     await expect(
       CreatePage({
         params: Promise.resolve({
-          family: "ifrs",
           docType: "period_reopen",
         }),
       }),

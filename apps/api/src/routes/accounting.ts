@@ -1,5 +1,10 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
+import { replaceCorrespondenceRulesSchema } from "@bedrock/app/accounting";
+import {
+  AccountingCorrespondenceRuleSchema,
+  AccountingTemplateAccountSchema,
+} from "@bedrock/app/accounting/contracts";
 import {
   BalanceSheetQuerySchema,
   BalanceSheetResponseSchema,
@@ -19,13 +24,8 @@ import {
   LiquidityResponseSchema,
   TrialBalanceQuerySchema,
   TrialBalanceResponseSchema,
-} from "@bedrock/application/accounting-reporting";
-import { replaceCorrespondenceRulesSchema } from "@bedrock/core/accounting";
-import {
-  AccountingCorrespondenceRuleSchema,
-  AccountingTemplateAccountSchema,
-} from "@bedrock/core/accounting/contracts";
-import { ValidationError } from "@bedrock/kernel/errors";
+} from "@bedrock/app/accounting-reporting";
+import { ValidationError } from "@bedrock/common/errors";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";

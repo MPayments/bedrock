@@ -30,9 +30,8 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/kernel": "workspace:*",
-    "@bedrock/application": "workspace:*",
-    "@bedrock/core": "workspace:*",
+    "@bedrock/app": "workspace:*",
+    "@bedrock/common": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "pg": "^8.17.2"
   },

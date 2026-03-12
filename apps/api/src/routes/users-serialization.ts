@@ -4,7 +4,7 @@ import {
   UserSchema,
   type User,
   type UserWithLastSession,
-} from "@bedrock/core/users";
+} from "@bedrock/app/users";
 
 export const SerializedUserSchema = UserSchema.extend({
   banExpires: z.string().nullable(),

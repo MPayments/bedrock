@@ -1,4 +1,4 @@
-import { BEDROCK_CORE_MODULE_MANIFESTS } from "@bedrock/core/module-runtime/contracts";
+import { BEDROCK_MODULE_MANIFESTS } from "@bedrock/app/module-runtime/contracts";
 import { Badge } from "@bedrock/ui/components/badge";
 import {
   Card,
@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@bedrock/ui/components/table";
 
-const enabledModules = BEDROCK_CORE_MODULE_MANIFESTS.filter(
+const enabledModules = BEDROCK_MODULE_MANIFESTS.filter(
   (module) => module.enabledByDefault,
 );
 

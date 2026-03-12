@@ -107,6 +107,25 @@ export function getDocumentsWorkspaceTypesForFamily(
   );
 }
 
+export function getTypeListDocumentOptions(role: UserRole): DocumentTypeOption[] {
+  return DOCUMENT_TYPES.filter(
+    (option) =>
+      option.family !== "payments" &&
+      isAllowedForRole(option, role),
+  );
+}
+
+export function getCreateDocumentTypeOptions(
+  role: UserRole,
+): DocumentTypeOption[] {
+  return DOCUMENT_TYPES.filter(
+    (option) =>
+      option.family !== "payments" &&
+      option.creatable &&
+      isAllowedForRole(option, role),
+  );
+}
+
 export function hasTypedDocumentForm(
   docType: string,
   role: UserRole,

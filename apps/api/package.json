@@ -17,10 +17,9 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/app": "workspace:*",
+    "@bedrock/common": "workspace:*",
     "@bedrock/db": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
-    "@bedrock/application": "workspace:*",
-    "@bedrock/core": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "@hono/zod-openapi": "^1.2.2",
     "@scalar/hono-api-reference": "^0.9.44",

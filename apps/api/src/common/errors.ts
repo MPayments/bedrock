@@ -7,17 +7,17 @@ import {
   DocumentPostingNotRequiredError,
   DocumentSystemOnlyTypeError,
   DocumentValidationError,
-} from "@bedrock/core/documents";
+} from "@bedrock/app/documents";
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
-} from "@bedrock/core/idempotency";
+} from "@bedrock/app/idempotency";
 import {
   InvalidStateError,
   NotFoundError,
   PermissionError,
   ValidationError,
-} from "@bedrock/kernel/errors";
+} from "@bedrock/common/errors";
 
 function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
