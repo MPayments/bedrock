@@ -18,27 +18,30 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/accounting-reporting": "workspace:*",
-    "@bedrock/auth": "workspace:*",
+    "@bedrock/adapter-auth-betterauth": "workspace:*",
+    "@bedrock/adapter-db-drizzle": "workspace:*",
+    "@bedrock/adapter-idempotency-postgres": "workspace:*",
     "@bedrock/balances": "workspace:*",
-    "@bedrock/commercial-documents": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/core": "workspace:*",
     "@bedrock/currencies": "workspace:*",
-    "@bedrock/db": "workspace:*",
     "@bedrock/documents": "workspace:*",
+    "@bedrock/extension-documents-commercial": "workspace:*",
+    "@bedrock/extension-documents-ifrs": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
-    "@bedrock/idempotency": "workspace:*",
-    "@bedrock/ifrs-documents": "workspace:*",
+    "@bedrock/identity": "workspace:*",
     "@bedrock/ledger": "workspace:*",
+    "@bedrock/money": "workspace:*",
+    "@bedrock/observability": "workspace:*",
     "@bedrock/parties": "workspace:*",
+    "@bedrock/query-accounting-reporting": "workspace:*",
     "@bedrock/users": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "@hono/zod-openapi": "^1.2.2",
     "@scalar/hono-api-reference": "^0.9.44",
     "better-auth": "^1.4.18",
-    "drizzle-orm": "^0.45.1",
     "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.1",
     "hono": "^4.12.2",
     "zod": "^4.3.6"
   },
@@ -49,5 +52,12 @@
     "eslint": "^9.31.0",
     "tsx": "^4.21.0",
     "typescript": "^5.8.3"
+  },
+  "bedrock": {
+    "kind": "app",
+    "tags": [
+      "app",
+      "api"
+    ]
   }
 }

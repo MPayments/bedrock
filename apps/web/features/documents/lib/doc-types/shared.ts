@@ -1,11 +1,11 @@
 import {
   COMMERCIAL_DOCUMENT_METADATA,
   type CommercialDocumentType,
-} from "@bedrock/commercial-documents/contracts";
+} from "@bedrock/extension-documents-commercial/contracts";
 import {
   IFRS_DOCUMENT_METADATA,
   type IfrsDocumentType,
-} from "@bedrock/ifrs-documents/contracts";
+} from "@bedrock/extension-documents-ifrs/contracts";
 
 export type DocumentTypeFamily = "transfers" | "ifrs" | "commercial";
 

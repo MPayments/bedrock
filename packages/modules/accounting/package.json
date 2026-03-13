@@ -28,8 +28,10 @@
     "pack:activate": "tsx ./scripts/pack-activate.ts"
   },
   "dependencies": {
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/adapter-db-drizzle": "workspace:*",
+    "@bedrock/core": "workspace:*",
     "@bedrock/ledger": "workspace:*",
+    "@bedrock/observability": "workspace:*",
     "@bedrock/parties": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
@@ -37,11 +39,18 @@
   "devDependencies": {
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
-    "eslint": "^9.31.0",
-    "typescript": "^5.8.3",
-    "vitest": "^4.0.18",
     "@types/pg": "^8.16.0",
+    "eslint": "^9.31.0",
     "pg": "^8.18.0",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "module",
+    "tags": [
+      "module",
+      "accounting"
+    ]
   }
 }

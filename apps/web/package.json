@@ -13,15 +13,16 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/accounting-reporting": "workspace:*",
-    "@bedrock/api-client": "workspace:*",
-    "@bedrock/commercial-documents": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/client-api": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
+    "@bedrock/extension-documents-commercial": "workspace:*",
+    "@bedrock/extension-documents-ifrs": "workspace:*",
     "@bedrock/fx": "workspace:*",
-    "@bedrock/ifrs-documents": "workspace:*",
+    "@bedrock/money": "workspace:*",
     "@bedrock/parties": "workspace:*",
+    "@bedrock/query-accounting-reporting": "workspace:*",
+    "@bedrock/reference-data": "workspace:*",
     "@bedrock/ui": "workspace:*",
     "@bedrock/users": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
@@ -49,5 +50,12 @@
     "@types/react-dom": "^19",
     "eslint": "^9.31.0",
     "typescript": "^5"
+  },
+  "bedrock": {
+    "kind": "app",
+    "tags": [
+      "app",
+      "web"
+    ]
   }
 }

@@ -16,7 +16,7 @@ import {
 } from "./helpers";
 import { createLedgerEngine } from "../../src/engine";
 import { OPERATION_TRANSFER_TYPE } from "../../src/types";
-import { createLedgerWorkerDefinition } from "../../src/worker";
+import { createLedgerWorkerDefinition } from "@bedrock/adapter-ledger-tigerbeetle";
 
 async function runWorkerOnce(
   worker: ReturnType<typeof createLedgerWorkerDefinition>,

@@ -1,7 +1,7 @@
 import {
   IFRS_DOCUMENT_DEFINITIONS,
   IFRS_DOCUMENT_TYPE_ORDER,
-} from "@bedrock/ifrs-documents/contracts";
+} from "@bedrock/extension-documents-ifrs/contracts";
 import { describe, expect, it } from "vitest";
 
 import { getDocumentFormDefinitionForRole } from "@/features/documents/lib/document-form-registry";

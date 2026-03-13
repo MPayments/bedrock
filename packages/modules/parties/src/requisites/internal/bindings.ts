@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { ensureRequisiteAccountingBindingTx as ensurePartiesLedgerBindingTx } from "@bedrock/parties-ledger";
-import type { Transaction } from "@bedrock/kernel/db/types";
+import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
 import {
   RequisiteBindingNotFoundError,
   RequisiteBindingOwnerTypeError,

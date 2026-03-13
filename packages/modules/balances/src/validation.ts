@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { toMinorAmountString } from "@bedrock/kernel/money";
+import { toMinorAmountString } from "@bedrock/money";
 
 export const BalanceSubjectSchema = z.object({
   bookId: z.uuid(),

@@ -17,7 +17,6 @@ export type {
 } from "./form-types";
 export {
   createDocumentsWorkerDefinition,
-  createPeriodCloseWorkerDefinition,
 } from "./workers";
 export { createDefaultDocumentActionPolicyService } from "./policy";
 export * from "./errors";
@@ -39,14 +38,6 @@ export {
   SYSTEM_ONLY_DOCUMENT_TYPES,
   isSystemOnlyDocumentType,
 } from "./doc-type-rules";
-export {
-  assertCounterpartyPeriodsOpen,
-  closeCounterpartyPeriod,
-  collectDocumentCounterpartyIds,
-  getPreviousCalendarMonthRange,
-  isCounterpartyPeriodClosed,
-  reopenCounterpartyPeriod,
-} from "./period-locks";
 export {
   DOCUMENT_ACTIONS,
   isDocumentActionAllowed,

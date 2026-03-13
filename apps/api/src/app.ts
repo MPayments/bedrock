@@ -118,7 +118,7 @@ app.get("/health", async (c) => {
   // PostgreSQL check
   const pgStart = Date.now();
   try {
-    const { db } = await import("@bedrock/db/client");
+    const { db } = await import("@bedrock/adapter-db-drizzle/client");
     const { schema } = await import("@bedrock/currencies/schema");
     await db
       .select({ id: schema.currencies.id })

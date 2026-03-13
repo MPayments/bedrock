@@ -12,7 +12,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { user } from "@bedrock/auth/schema";
+import { accountingPeriodLocks } from "@bedrock/accounting-close/schema";
+import { user } from "@bedrock/identity/schema";
 import { counterparties } from "@bedrock/parties/counterparties/schema";
 import { customers } from "@bedrock/parties/customers/schema";
 import {
@@ -43,7 +44,6 @@ export type DocumentLinkType =
   | "depends_on"
   | "compensates"
   | "related";
-export type AccountingPeriodState = "closed" | "reopened";
 
 export const documents = pgTable(
   "documents",
@@ -276,49 +276,6 @@ export const documentSnapshots = pgTable(
   (t) => [
     uniqueIndex("document_snapshots_document_uq").on(t.documentId),
     index("document_snapshots_created_idx").on(t.createdAt),
-  ],
-);
-
-export const accountingPeriodLocks = pgTable(
-  "accounting_period_locks",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    counterpartyId: uuid("counterparty_id")
-      .notNull()
-      .references(() => counterparties.id, { onDelete: "cascade" }),
-    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
-    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
-    state: text("state").$type<AccountingPeriodState>().notNull().default("closed"),
-    lockedByDocumentId: uuid("locked_by_document_id").references(() => documents.id, {
-      onDelete: "set null",
-    }),
-    closeReason: text("close_reason"),
-    closedBy: text("closed_by"),
-    closedAt: timestamp("closed_at", { withTimezone: true }),
-    reopenedBy: text("reopened_by"),
-    reopenReason: text("reopen_reason"),
-    reopenedAt: timestamp("reopened_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`)
-      .$onUpdateFn(() => new Date()),
-  },
-  (t) => [
-    uniqueIndex("accounting_period_locks_counterparty_period_uq").on(
-      t.counterpartyId,
-      t.periodStart,
-    ),
-    index("accounting_period_locks_state_period_idx").on(
-      t.state,
-      t.periodStart.desc(),
-    ),
-    index("accounting_period_locks_counterparty_state_idx").on(
-      t.counterpartyId,
-      t.state,
-    ),
   ],
 );
 

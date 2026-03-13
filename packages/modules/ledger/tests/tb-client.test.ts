@@ -10,7 +10,7 @@ vi.mock("tigerbeetle-node", () => ({
 
 describe("createTbClient", () => {
   it("forwards cluster id and address to tigerbeetle client", async () => {
-    const { createTbClient } = await import("../src/tb");
+    const { createTbClient } = await import("@bedrock/adapter-ledger-tigerbeetle");
     const { createClient } = await import("tigerbeetle-node");
     const client = createTbClient(10n, "127.0.0.1:3000");
 

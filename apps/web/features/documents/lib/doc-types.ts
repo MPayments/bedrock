@@ -2,11 +2,11 @@ import type { UserRole } from "@/lib/auth/types";
 import {
   COMMERCIAL_DOCUMENT_METADATA,
   COMMERCIAL_DOCUMENT_TYPE_ORDER,
-} from "@bedrock/commercial-documents/contracts";
+} from "@bedrock/extension-documents-commercial/contracts";
 import {
   IFRS_DOCUMENT_METADATA,
   IFRS_DOCUMENT_TYPE_ORDER,
-} from "@bedrock/ifrs-documents/contracts";
+} from "@bedrock/extension-documents-ifrs/contracts";
 
 import type {
   DocumentTypeFamily,

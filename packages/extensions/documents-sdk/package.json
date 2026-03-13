@@ -1,0 +1,39 @@
+{
+  "name": "@bedrock/extension-documents-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./definitions/shared": "./src/definitions/shared.ts",
+    "./form-types": "./src/form-types.ts",
+    "./module-kit": "./src/module-kit.ts",
+    "./validation/shared": "./src/validation/shared.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" --no-error-on-unmatched-pattern --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@bedrock/documents": "workspace:*",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "extension",
+    "tags": [
+      "extension",
+      "documents-sdk"
+    ]
+  }
+}

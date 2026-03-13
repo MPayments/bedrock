@@ -9,7 +9,7 @@ import {
   paginateInMemory,
   sortInMemory,
   type PaginatedList,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/core/pagination";
 
 import { CurrencyDeleteConflictError, CurrencyNotFoundError } from "./errors";
 import {

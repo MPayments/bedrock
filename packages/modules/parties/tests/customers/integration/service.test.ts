@@ -10,7 +10,7 @@ import {
   user,
   userRelations,
   verification,
-} from "@bedrock/auth/schema";
+} from "@bedrock/identity/schema";
 import { schema as counterpartiesSchema } from "@bedrock/parties/counterparties/schema";
 import { schema as customersSchema } from "@bedrock/parties/customers/schema";
 

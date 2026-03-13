@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { makePlanKey, stableStringify } from "@bedrock/kernel/canon";
+import { makePlanKey, stableStringify } from "@bedrock/core/canon";
 
 describe("stableStringify", () => {
   it("should stringify primitives", () => {

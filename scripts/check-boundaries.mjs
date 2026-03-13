@@ -15,8 +15,8 @@ import {
 const SOURCE_ROOTS = [
   join(ROOT, "apps"),
   join(ROOT, "packages"),
+  join(ROOT, "ops"),
   join(ROOT, "scripts"),
-  join(ROOT, "infra"),
   join(ROOT, "tests"),
 ].filter((candidate) => {
   try {
@@ -27,21 +27,39 @@ const SOURCE_ROOTS = [
 });
 
 const REQUIRED_EXPORT_KINDS = new Set([
-  "integration",
+  "foundation",
   "module",
-  "platform",
-  "plugin",
-  "runtime",
+  "workflow",
+  "query",
+  "adapter",
+  "integration",
+  "extension",
+  "client",
+  "ui",
 ]);
 
+const ALLOWED_IMPORT_KINDS = {
+  foundation: new Set(["foundation"]),
+  module: new Set(["foundation", "module", "adapter"]),
+  workflow: new Set(["foundation", "module", "adapter", "workflow"]),
+  query: new Set(["foundation", "module", "adapter", "query"]),
+  adapter: new Set(["foundation", "module", "query", "adapter"]),
+  integration: new Set(["foundation", "module", "workflow", "adapter", "query"]),
+  extension: new Set(["foundation", "module", "extension"]),
+  client: new Set(["foundation", "client", "app"]),
+  ui: new Set(["foundation", "ui", "client"]),
+  tooling: null,
+  ops: null,
+  app: null,
+  unknown: null,
+};
+
 const workspacePackages = collectWorkspacePackages();
-const packagesByName = new Map(
-  workspacePackages.map((pkg) => [pkg.name, pkg]),
-);
+const packagesByName = new Map(workspacePackages.map((pkg) => [pkg.name, pkg]));
 const packagesByDirLength = sortPackagesByDirLength(workspacePackages);
 const packageGraph = new Map(
   workspacePackages
-    .filter((pkg) => pkg.kind !== "app")
+    .filter((pkg) => !["app", "tooling", "ops"].includes(pkg.kind))
     .map((pkg) => [pkg.name, new Set()]),
 );
 const violations = [];
@@ -54,6 +72,13 @@ function isIntegrationTestFile(relFile) {
   return /(^|\/)tests(?:\/[^/]+)*\/integration\//.test(relFile);
 }
 
+function isDbRootImport(normalized) {
+  return (
+    normalized.packageName === "@bedrock/adapter-db-drizzle" &&
+    [".", "./client"].includes(normalized.subpath)
+  );
+}
+
 function isDbImportAllowed(owner, relFile) {
   if (isIntegrationTestFile(relFile)) {
     return true;
@@ -63,7 +88,12 @@ function isDbImportAllowed(owner, relFile) {
     return false;
   }
 
-  if (owner.name === "@bedrock/db" || owner.kind === "app") {
+  if (
+    owner.name === "@bedrock/adapter-db-drizzle" ||
+    owner.kind === "app" ||
+    owner.kind === "ops" ||
+    owner.kind === "tooling"
+  ) {
     return true;
   }
 
@@ -141,11 +171,17 @@ function recordViolation(rule, from, specifier, to = specifier) {
   violations.push({ rule, from, specifier, to });
 }
 
+function isKindAllowed(ownerKind, targetKind) {
+  const allowedKinds = ALLOWED_IMPORT_KINDS[ownerKind] ?? null;
+  if (!allowedKinds) {
+    return true;
+  }
+
+  return allowedKinds.has(targetKind);
+}
+
 for (const pkg of workspacePackages) {
-  if (
-    REQUIRED_EXPORT_KINDS.has(pkg.kind) &&
-    !pkg.packageJson.exports
-  ) {
+  if (REQUIRED_EXPORT_KINDS.has(pkg.kind) && !pkg.packageJson.exports) {
     recordViolation("missing-exports", pkg.relDir, pkg.name, pkg.relDir);
     continue;
   }
@@ -175,6 +211,8 @@ for (const root of SOURCE_ROOTS) {
     const relFile = relative(ROOT, filePath);
     const content = readFileSync(filePath, "utf8");
     const owner = findOwningPackage(filePath, packagesByDirLength);
+    const isRuntimeSourceFile =
+      owner && relFile.startsWith(`${owner.relDir}/src/`);
 
     if (
       owner &&
@@ -188,15 +226,22 @@ for (const root of SOURCE_ROOTS) {
     if (
       /^packages\/modules\/users\/src\//.test(relFile) &&
       (
-        content.includes("@bedrock/auth/schema") ||
+        content.includes("@bedrock/identity/schema") ||
         content.includes("better-auth/crypto")
       )
     ) {
       recordViolation(
-        "users-bypasses-auth-ports",
+        "users-bypasses-identity-ports",
         relFile,
-        "@bedrock/auth/schema|better-auth/crypto",
+        "@bedrock/identity/schema|better-auth/crypto",
       );
+    }
+
+    if (
+      /^packages\/modules\/identity\/src\//.test(relFile) &&
+      content.includes("@bedrock/users")
+    ) {
+      recordViolation("identity-imports-users", relFile, "@bedrock/users");
     }
 
     if (
@@ -261,11 +306,7 @@ for (const root of SOURCE_ROOTS) {
           const fromSubdomain = getPartiesSubdomain(relFile);
           const toSubdomain = getPartiesSubdomain(relative(ROOT, targetPath));
 
-          if (
-            fromSubdomain &&
-            toSubdomain &&
-            fromSubdomain !== toSubdomain
-          ) {
+          if (fromSubdomain && toSubdomain && fromSubdomain !== toSubdomain) {
             recordViolation(
               "parties-cross-subdomain-relative-import",
               relFile,
@@ -281,6 +322,7 @@ for (const root of SOURCE_ROOTS) {
       if (
         specifier.startsWith("packages/") ||
         specifier.startsWith("apps/") ||
+        specifier.startsWith("ops/") ||
         specifier.startsWith("/")
       ) {
         recordViolation(
@@ -297,31 +339,26 @@ for (const root of SOURCE_ROOTS) {
         continue;
       }
 
-      if (normalized.packageName === "@bedrock/application") {
-        recordViolation("deprecated-application-import", relFile, specifier);
-        continue;
-      }
-
       const targetPkg = packagesByName.get(normalized.packageName);
       if (!targetPkg) {
         continue;
       }
 
       if (
-        owner?.kind === "plugin" &&
-        relFile.startsWith(`${owner.relDir}/src/`) &&
+        owner?.kind === "extension" &&
+        isRuntimeSourceFile &&
         targetPkg.name !== owner.name &&
         (
           normalized.subpath === "./schema" ||
           normalized.subpath.startsWith("./schema/")
         )
       ) {
-        recordViolation("plugin-imports-foreign-schema", relFile, specifier);
+        recordViolation("extension-imports-foreign-schema", relFile, specifier);
       }
 
       if (
         owner?.name === "@bedrock/reconciliation" &&
-        relFile.startsWith(`${owner.relDir}/src/`) &&
+        isRuntimeSourceFile &&
         !isSchemaDefinitionFile(relFile) &&
         targetPkg.name !== owner.name &&
         (
@@ -356,41 +393,38 @@ for (const root of SOURCE_ROOTS) {
         );
       }
 
-      if (
-        normalized.packageName === "@bedrock/db" &&
-        !isDbImportAllowed(owner, relFile)
-      ) {
-        recordViolation("db-import-outside-app-or-integration", relFile, specifier);
-      }
-
-      if (
-        owner?.kind === "runtime" &&
-        ["module", "plugin", "integration", "db"].includes(targetPkg.kind)
-      ) {
-        recordViolation("runtime-imports-business", relFile, specifier);
-      }
-
-      if (
-        owner?.kind === "integration" &&
-        targetPkg.kind === "integration" &&
-        owner.name !== targetPkg.name
-      ) {
-        recordViolation("integration-imports-integration", relFile, specifier);
-      }
-
-      if (
-        owner?.kind === "integration" &&
-        targetPkg.kind === "runtime"
-      ) {
-        recordViolation("integration-imports-runtime", relFile, specifier);
+      if (isDbRootImport(normalized) && !isDbImportAllowed(owner, relFile)) {
+        recordViolation("db-import-outside-app-or-bootstrap", relFile, specifier);
       }
 
       if (
         owner &&
-        owner.kind !== "app" &&
-        owner.name !== targetPkg.name &&
+        targetPkg.name !== owner.name &&
+        isRuntimeSourceFile &&
+        !(
+          relFile.startsWith("packages/modules/fx/src/sources/") &&
+          targetPkg.kind === "integration"
+        ) &&
+        !isKindAllowed(owner.kind, targetPkg.kind)
+      ) {
+        recordViolation(
+          "kind-dependency-disallowed",
+          relFile,
+          specifier,
+          `${owner.kind} -> ${targetPkg.kind}`,
+        );
+      }
+
+      if (
+        owner &&
+        targetPkg.name !== owner.name &&
+        isRuntimeSourceFile &&
+        !(
+          targetPkg.name === "@bedrock/adapter-db-drizzle" &&
+          ["./db/types", "./db/notify"].includes(normalized.subpath)
+        ) &&
         packageGraph.has(owner.name) &&
-        relFile.startsWith(`${owner.relDir}/src/`)
+        packageGraph.has(targetPkg.name)
       ) {
         packageGraph.get(owner.name).add(targetPkg.name);
       }
@@ -447,7 +481,8 @@ for (const pkgName of packageGraph.keys()) {
 }
 
 for (const pkg of workspacePackages) {
-  if (pkg.kind !== "runtime") {
+  const allowedKinds = ALLOWED_IMPORT_KINDS[pkg.kind] ?? null;
+  if (!allowedKinds) {
     continue;
   }
 
@@ -455,75 +490,23 @@ for (const pkg of workspacePackages) {
     .map((depName) => packagesByName.get(depName))
     .filter(Boolean);
 
-  const disallowedDeps = directWorkspaceDeps.filter(
-    (depPkg) => !["kernel", "platform"].includes(depPkg.kind),
-  );
-
-  for (const depPkg of disallowedDeps) {
-    recordViolation(
-      "runtime-depends-on-non-platform",
-      `${pkg.relDir}/package.json`,
-      depPkg.name,
-    );
-  }
-}
-
-for (const pkg of workspacePackages) {
-  if (pkg.kind !== "integration") {
-    continue;
-  }
-
-  const directWorkspaceDeps = Object.keys(pkg.packageJson.dependencies ?? {})
-    .map((depName) => packagesByName.get(depName))
-    .filter(Boolean);
-
-  const integrationDeps = directWorkspaceDeps.filter(
-    (depPkg) => depPkg.kind === "integration" && depPkg.name !== pkg.name,
-  );
-  for (const depPkg of integrationDeps) {
-    recordViolation(
-      "integration-depends-on-integration",
-      `${pkg.relDir}/package.json`,
-      depPkg.name,
-    );
-  }
-
-  const runtimeDeps = directWorkspaceDeps.filter(
-    (depPkg) => depPkg.kind === "runtime",
-  );
-  for (const depPkg of runtimeDeps) {
-    recordViolation(
-      "integration-depends-on-runtime",
-      `${pkg.relDir}/package.json`,
-      depPkg.name,
-    );
-  }
-
-  const invalidWorkspaceDeps = directWorkspaceDeps.filter(
-    (depPkg) =>
-      !["kernel", "platform", "module", "plugin"].includes(depPkg.kind),
-  );
-  for (const depPkg of invalidWorkspaceDeps) {
-    if (depPkg.kind === "integration" || depPkg.kind === "runtime") {
+  for (const depPkg of directWorkspaceDeps) {
+    if (depPkg.name === pkg.name) {
       continue;
     }
 
-    recordViolation(
-      "integration-invalid-workspace-dependency",
-      `${pkg.relDir}/package.json`,
-      depPkg.name,
-    );
-  }
+    if (pkg.name === "@bedrock/fx" && depPkg.kind === "integration") {
+      continue;
+    }
 
-  const bridgedBusinessDeps = directWorkspaceDeps.filter((depPkg) =>
-    depPkg.kind === "module" || depPkg.kind === "plugin",
-  );
-  if (bridgedBusinessDeps.length > 2) {
-    recordViolation(
-      "integration-too-wide",
-      `${pkg.relDir}/package.json`,
-      bridgedBusinessDeps.map((depPkg) => depPkg.name).join(", "),
-    );
+    if (!allowedKinds.has(depPkg.kind)) {
+      recordViolation(
+        "package-json-kind-dependency-disallowed",
+        `${pkg.relDir}/package.json`,
+        depPkg.name,
+        `${pkg.kind} -> ${depPkg.kind}`,
+      );
+    }
   }
 }
 

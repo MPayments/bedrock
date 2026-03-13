@@ -10,8 +10,8 @@ import type {
 import { type PostingTemplateKey } from "@bedrock/accounting/posting-contracts";
 import { schema } from "@bedrock/accounting/schema";
 import { assertBooksBelongToInternalLedgerCounterparties } from "@bedrock/parties/counterparties";
-import { canonicalJson, makePlanKey } from "@bedrock/kernel/canon";
-import { sha256Hex } from "@bedrock/kernel/crypto";
+import { canonicalJson, makePlanKey } from "@bedrock/core/canon";
+import { sha256Hex } from "@bedrock/core/crypto";
 
 import {
   AccountingPackCompilationError,

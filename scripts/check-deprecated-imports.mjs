@@ -9,11 +9,12 @@ import {
 } from "./lib/workspace-packages.mjs";
 
 const LEGACY_SPECIFIER_PATTERN =
-  /@bedrock\/(application|foundation|platform|modules|core|app|kernel)(?:\/|["'])/g;
+  /@bedrock\/(?:(application|platform|runtime|modules)(?:\/|["'])|(kernel|auth|db(?:-bootstrap)?|idempotency|worker-runtime|accounting-reporting|commercial-documents|ifrs-documents|api-client)(?:\/|["']))/g;
 
 const SOURCE_ROOTS = [
   join(ROOT, "apps"),
   join(ROOT, "packages"),
+  join(ROOT, "ops"),
   join(ROOT, "scripts"),
   join(ROOT, "tests"),
 ].filter((root) => {

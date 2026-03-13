@@ -1,11 +1,13 @@
-export { createCbrRateSourceProvider } from "./cbr";
-export { createInvestingRateSourceProvider } from "./investing";
-export { createXeRateSourceProvider } from "./xe";
+export {
+  createCbrRateSourceProvider,
+  createInvestingRateSourceProvider,
+  createXeRateSourceProvider,
+} from "@bedrock/integration-fx-providers";
 export type {
-    FxRateRecord,
-    FxRateSource,
-    FxRateSourceFetchResult,
-    FxRateSourceProvider,
-    FxRateSourceStatus,
-    FxRateSourceSyncResult,
-} from "./types";
+  FxRateRecord,
+  FxRateSource,
+  FxRateSourceFetchResult,
+  FxRateSourceProvider,
+  FxRateSourceStatus,
+  FxRateSourceSyncResult,
+} from "@bedrock/integration-fx-providers";

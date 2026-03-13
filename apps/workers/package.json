@@ -16,15 +16,17 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/adapter-db-drizzle": "workspace:*",
+    "@bedrock/adapter-ledger-tigerbeetle": "workspace:*",
+    "@bedrock/adapter-worker-runtime": "workspace:*",
     "@bedrock/balances": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
     "@bedrock/currencies": "workspace:*",
-    "@bedrock/db": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
     "@bedrock/ledger": "workspace:*",
-    "@bedrock/worker-runtime": "workspace:*",
+    "@bedrock/observability": "workspace:*",
+    "@bedrock/workflow-period-close": "workspace:*",
     "dotenv": "^17.3.1"
   },
   "devDependencies": {
@@ -34,5 +36,12 @@
     "eslint": "^9.31.0",
     "tsx": "^4.21.0",
     "typescript": "^5.8.3"
+  },
+  "bedrock": {
+    "kind": "app",
+    "tags": [
+      "app",
+      "workers"
+    ]
   }
 }

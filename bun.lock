@@ -22,20 +22,23 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
-        "@bedrock/accounting-reporting": "workspace:*",
-        "@bedrock/auth": "workspace:*",
+        "@bedrock/adapter-auth-betterauth": "workspace:*",
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/adapter-idempotency-postgres": "workspace:*",
         "@bedrock/balances": "workspace:*",
-        "@bedrock/commercial-documents": "workspace:*",
+        "@bedrock/core": "workspace:*",
         "@bedrock/currencies": "workspace:*",
-        "@bedrock/db": "workspace:*",
         "@bedrock/documents": "workspace:*",
+        "@bedrock/extension-documents-commercial": "workspace:*",
+        "@bedrock/extension-documents-ifrs": "workspace:*",
         "@bedrock/fees": "workspace:*",
         "@bedrock/fx": "workspace:*",
-        "@bedrock/idempotency": "workspace:*",
-        "@bedrock/ifrs-documents": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
+        "@bedrock/identity": "workspace:*",
         "@bedrock/ledger": "workspace:*",
+        "@bedrock/money": "workspace:*",
+        "@bedrock/observability": "workspace:*",
         "@bedrock/parties": "workspace:*",
+        "@bedrock/query-accounting-reporting": "workspace:*",
         "@bedrock/users": "workspace:*",
         "@hono/node-server": "^1.19.9",
         "@hono/zod-openapi": "^1.2.2",
@@ -60,15 +63,16 @@
       "version": "0.1.0",
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
-        "@bedrock/accounting-reporting": "workspace:*",
-        "@bedrock/api-client": "workspace:*",
-        "@bedrock/commercial-documents": "workspace:*",
+        "@bedrock/client-api": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/documents": "workspace:*",
+        "@bedrock/extension-documents-commercial": "workspace:*",
+        "@bedrock/extension-documents-ifrs": "workspace:*",
         "@bedrock/fx": "workspace:*",
-        "@bedrock/ifrs-documents": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
+        "@bedrock/money": "workspace:*",
         "@bedrock/parties": "workspace:*",
+        "@bedrock/query-accounting-reporting": "workspace:*",
+        "@bedrock/reference-data": "workspace:*",
         "@bedrock/ui": "workspace:*",
         "@bedrock/users": "workspace:*",
         "@hookform/resolvers": "^5.2.2",
@@ -102,15 +106,17 @@
       "name": "workers",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/adapter-ledger-tigerbeetle": "workspace:*",
+        "@bedrock/adapter-worker-runtime": "workspace:*",
         "@bedrock/balances": "workspace:*",
         "@bedrock/currencies": "workspace:*",
-        "@bedrock/db": "workspace:*",
         "@bedrock/documents": "workspace:*",
         "@bedrock/fees": "workspace:*",
         "@bedrock/fx": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
         "@bedrock/ledger": "workspace:*",
-        "@bedrock/worker-runtime": "workspace:*",
+        "@bedrock/observability": "workspace:*",
+        "@bedrock/workflow-period-close": "workspace:*",
         "dotenv": "^17.3.1",
       },
       "devDependencies": {
@@ -122,12 +128,80 @@
         "typescript": "^5.8.3",
       },
     },
-    "packages/integrations/parties-ledger": {
-      "name": "@bedrock/parties-ledger",
+    "ops/bootstrap/db": {
+      "name": "@bedrock/bootstrap-db",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/kernel": "workspace:*",
+        "@bedrock/accounting": "workspace:*",
+        "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/ledger": "workspace:*",
+        "@bedrock/parties-ledger": "workspace:*",
+        "better-auth": "*",
+        "dotenv": "^17.3.1",
+        "drizzle-orm": "^0.45.1",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "tsx": "^4.21.0",
+        "typescript": "^5.8.3",
+      },
+    },
+    "packages/adapters/auth-betterauth": {
+      "name": "@bedrock/adapter-auth-betterauth",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/identity": "workspace:*",
+        "better-auth": "^1.4.18",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/adapters/db-drizzle": {
+      "name": "@bedrock/adapter-db-drizzle",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/accounting": "workspace:*",
+        "@bedrock/accounting-close": "workspace:*",
+        "@bedrock/adapter-idempotency-postgres": "workspace:*",
+        "@bedrock/balances": "workspace:*",
+        "@bedrock/currencies": "workspace:*",
+        "@bedrock/documents": "workspace:*",
+        "@bedrock/fees": "workspace:*",
+        "@bedrock/fx": "workspace:*",
+        "@bedrock/identity": "workspace:*",
+        "@bedrock/ledger": "workspace:*",
+        "@bedrock/parties": "workspace:*",
+        "@bedrock/parties-ledger": "workspace:*",
+        "@bedrock/query-accounting-reporting": "workspace:*",
+        "@bedrock/reconciliation": "workspace:*",
+        "drizzle-orm": "^0.45.1",
+        "pg": "^8.17.2",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/pg": "^8.16.0",
+        "dotenv": "^17.3.1",
+        "drizzle-kit": "^0.31.9",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+      },
+    },
+    "packages/adapters/idempotency-postgres": {
+      "name": "@bedrock/adapter-idempotency-postgres",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/core": "workspace:*",
+        "@bedrock/observability": "workspace:*",
         "drizzle-orm": "^0.45.1",
       },
       "devDependencies": {
@@ -138,12 +212,109 @@
         "vitest": "^4.0.18",
       },
     },
-    "packages/kernel": {
-      "name": "@bedrock/kernel",
+    "packages/adapters/ledger-tigerbeetle": {
+      "name": "@bedrock/adapter-ledger-tigerbeetle",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/adapter-worker-runtime": "workspace:*",
+        "@bedrock/ledger": "workspace:*",
         "drizzle-orm": "^0.45.1",
-        "pino": "^10.3.1",
+        "tigerbeetle-node": "^0.16.72",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/adapters/worker-runtime": {
+      "name": "@bedrock/adapter-worker-runtime",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/observability": "workspace:*",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/clients/api-client": {
+      "name": "@bedrock/client-api",
+      "version": "0.0.0",
+      "dependencies": {
+        "api": "workspace:*",
+        "hono": "^4.12.2",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+      },
+    },
+    "packages/extensions/documents-commercial": {
+      "name": "@bedrock/extension-documents-commercial",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/accounting": "workspace:*",
+        "@bedrock/core": "workspace:*",
+        "@bedrock/currencies": "workspace:*",
+        "@bedrock/extension-documents-ifrs": "workspace:*",
+        "@bedrock/extension-documents-sdk": "workspace:*",
+        "@bedrock/ledger": "workspace:*",
+        "@bedrock/money": "workspace:*",
+        "zod": "^4.1.11",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/extensions/documents-ifrs": {
+      "name": "@bedrock/extension-documents-ifrs",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/accounting": "workspace:*",
+        "@bedrock/extension-documents-sdk": "workspace:*",
+        "@bedrock/money": "workspace:*",
+        "zod": "^4.1.11",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/extensions/documents-sdk": {
+      "name": "@bedrock/extension-documents-sdk",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/documents": "workspace:*",
+        "zod": "^4.1.11",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/foundation/core": {
+      "name": "@bedrock/core",
+      "version": "0.0.0",
+      "dependencies": {
         "zod": "^4.3.6",
       },
       "devDependencies": {
@@ -156,12 +327,74 @@
         "vitest": "^4.0.18",
       },
     },
+    "packages/foundation/money": {
+      "name": "@bedrock/money",
+      "version": "0.0.0",
+      "dependencies": {
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/foundation/observability": {
+      "name": "@bedrock/observability",
+      "version": "0.0.0",
+      "dependencies": {
+        "pino": "^10.3.1",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "pino-pretty": "^13.1.3",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/foundation/reference-data": {
+      "name": "@bedrock/reference-data",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/integrations/fx-providers": {
+      "name": "@bedrock/integration-fx-providers",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/core": "workspace:*",
+        "@bedrock/money": "workspace:*",
+        "soap": "^1.6.0",
+        "tlsclientwrapper": "^4.1.2",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
     "packages/modules/accounting": {
       "name": "@bedrock/accounting",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/kernel": "workspace:*",
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/core": "workspace:*",
         "@bedrock/ledger": "workspace:*",
+        "@bedrock/observability": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
@@ -177,26 +410,19 @@
         "vitest": "^4.0.18",
       },
     },
-    "packages/modules/accounting-reporting": {
-      "name": "@bedrock/accounting-reporting",
+    "packages/modules/accounting-close": {
+      "name": "@bedrock/accounting-close",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/accounting": "workspace:*",
-        "@bedrock/balances": "workspace:*",
-        "@bedrock/currencies": "workspace:*",
-        "@bedrock/documents": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
-        "@bedrock/ledger": "workspace:*",
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/core": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "drizzle-orm": "^0.45.1",
-        "zod": "^4.1.11",
       },
       "devDependencies": {
         "@bedrock/typescript-config": "workspace:*",
         "@types/node": "^24",
-        "@types/pg": "^8.16.0",
         "eslint": "^9.31.0",
-        "pg": "^8.18.0",
         "typescript": "^5.8.3",
         "vitest": "^4.0.18",
       },
@@ -205,10 +431,13 @@
       "name": "@bedrock/balances",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/idempotency": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/adapter-idempotency-postgres": "workspace:*",
+        "@bedrock/adapter-worker-runtime": "workspace:*",
+        "@bedrock/core": "workspace:*",
         "@bedrock/ledger": "workspace:*",
-        "@bedrock/worker-runtime": "workspace:*",
+        "@bedrock/money": "workspace:*",
+        "@bedrock/observability": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
@@ -226,7 +455,9 @@
       "name": "@bedrock/currencies",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/kernel": "workspace:*",
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/core": "workspace:*",
+        "@bedrock/observability": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
@@ -245,13 +476,17 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
-        "@bedrock/auth": "workspace:*",
+        "@bedrock/accounting-close": "workspace:*",
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/adapter-idempotency-postgres": "workspace:*",
+        "@bedrock/adapter-worker-runtime": "workspace:*",
+        "@bedrock/core": "workspace:*",
         "@bedrock/currencies": "workspace:*",
-        "@bedrock/idempotency": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
+        "@bedrock/identity": "workspace:*",
         "@bedrock/ledger": "workspace:*",
+        "@bedrock/money": "workspace:*",
+        "@bedrock/observability": "workspace:*",
         "@bedrock/parties": "workspace:*",
-        "@bedrock/worker-runtime": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
@@ -269,8 +504,11 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/core": "workspace:*",
         "@bedrock/currencies": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
+        "@bedrock/money": "workspace:*",
+        "@bedrock/observability": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
@@ -289,12 +527,16 @@
       "name": "@bedrock/fx",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/adapter-worker-runtime": "workspace:*",
+        "@bedrock/core": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/documents": "workspace:*",
         "@bedrock/fees": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
+        "@bedrock/integration-fx-providers": "workspace:*",
+        "@bedrock/money": "workspace:*",
+        "@bedrock/observability": "workspace:*",
         "@bedrock/parties": "workspace:*",
-        "@bedrock/worker-runtime": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "soap": "^1.6.0",
         "tlsclientwrapper": "^4.1.2",
@@ -311,12 +553,31 @@
         "vitest": "^4.0.18",
       },
     },
+    "packages/modules/identity": {
+      "name": "@bedrock/identity",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/core": "workspace:*",
+        "better-auth": "^1.4.18",
+        "drizzle-orm": "^0.45.1",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
     "packages/modules/ledger": {
       "name": "@bedrock/ledger",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/kernel": "workspace:*",
-        "@bedrock/worker-runtime": "workspace:*",
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/adapter-ledger-tigerbeetle": "workspace:*",
+        "@bedrock/adapter-worker-runtime": "workspace:*",
+        "@bedrock/core": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "tigerbeetle-node": "^0.16.72",
         "zod": "^4.1.11",
@@ -336,14 +597,17 @@
       "name": "@bedrock/parties",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/core": "workspace:*",
         "@bedrock/currencies": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
+        "@bedrock/identity": "workspace:*",
+        "@bedrock/observability": "workspace:*",
         "@bedrock/parties-ledger": "workspace:*",
+        "@bedrock/reference-data": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
       "devDependencies": {
-        "@bedrock/auth": "workspace:*",
         "@bedrock/test-utils": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
         "@types/node": "^24",
@@ -354,15 +618,33 @@
         "vitest": "^4.0.18",
       },
     },
+    "packages/modules/parties-ledger": {
+      "name": "@bedrock/parties-ledger",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/ledger": "workspace:*",
+        "drizzle-orm": "^0.45.1",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
     "packages/modules/reconciliation": {
       "name": "@bedrock/reconciliation",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/adapter-idempotency-postgres": "workspace:*",
+        "@bedrock/adapter-worker-runtime": "workspace:*",
+        "@bedrock/core": "workspace:*",
         "@bedrock/documents": "workspace:*",
-        "@bedrock/idempotency": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
         "@bedrock/ledger": "workspace:*",
-        "@bedrock/worker-runtime": "workspace:*",
+        "@bedrock/observability": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
@@ -380,8 +662,9 @@
       "name": "@bedrock/users",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/auth": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
+        "@bedrock/core": "workspace:*",
+        "@bedrock/identity": "workspace:*",
+        "@bedrock/observability": "workspace:*",
         "zod": "^4.1.11",
       },
       "devDependencies": {
@@ -392,154 +675,79 @@
         "vitest": "^4.0.18",
       },
     },
-    "packages/platform/auth": {
-      "name": "@bedrock/auth",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/kernel": "workspace:*",
-        "better-auth": "^1.4.18",
-        "drizzle-orm": "^0.45.1",
-      },
-      "devDependencies": {
-        "@bedrock/typescript-config": "workspace:*",
-        "@types/node": "^24",
-        "eslint": "^9.31.0",
-        "typescript": "^5.8.3",
-        "vitest": "^4.0.18",
-      },
-    },
-    "packages/platform/db": {
-      "name": "@bedrock/db",
+    "packages/queries/accounting-reporting": {
+      "name": "@bedrock/query-accounting-reporting",
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
-        "@bedrock/accounting-reporting": "workspace:*",
-        "@bedrock/auth": "workspace:*",
+        "@bedrock/accounting-close": "workspace:*",
+        "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/balances": "workspace:*",
+        "@bedrock/core": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/documents": "workspace:*",
-        "@bedrock/fees": "workspace:*",
-        "@bedrock/fx": "workspace:*",
-        "@bedrock/idempotency": "workspace:*",
         "@bedrock/ledger": "workspace:*",
+        "@bedrock/observability": "workspace:*",
         "@bedrock/parties": "workspace:*",
-        "@bedrock/parties-ledger": "workspace:*",
-        "@bedrock/reconciliation": "workspace:*",
         "drizzle-orm": "^0.45.1",
-        "pg": "^8.17.2",
+        "zod": "^4.1.11",
       },
       "devDependencies": {
-        "@bedrock/eslint-config": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
         "@types/pg": "^8.16.0",
-        "dotenv": "^17.3.1",
-        "drizzle-kit": "^0.31.9",
         "eslint": "^9.31.0",
+        "pg": "^8.18.0",
         "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
       },
     },
-    "packages/platform/idempotency": {
-      "name": "@bedrock/idempotency",
+    "packages/tooling/eslint-config": {
+      "name": "@bedrock/eslint-config",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@eslint/js": "^9.31.0",
+        "@next/eslint-plugin-next": "^15.4.2",
+        "eslint": "^9.31.0",
+        "eslint-config-prettier": "^10.1.1",
+        "eslint-plugin-import": "^2.32.0",
+        "eslint-plugin-only-warn": "^1.1.0",
+        "eslint-plugin-react": "^7.37.5",
+        "eslint-plugin-react-hooks": "^5.2.0",
+        "eslint-plugin-security": "^3.0.1",
+        "eslint-plugin-turbo": "^2.5.0",
+        "globals": "^16.3.0",
+        "typescript": "^5.8.2",
+        "typescript-eslint": "^8.37.0",
+      },
+    },
+    "packages/tooling/test-utils": {
+      "name": "@bedrock/test-utils",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/kernel": "workspace:*",
+        "@bedrock/adapter-db-drizzle": "workspace:*",
         "drizzle-orm": "^0.45.1",
-      },
-      "devDependencies": {
-        "@bedrock/typescript-config": "workspace:*",
-        "@types/node": "^24",
-        "eslint": "^9.31.0",
-        "typescript": "^5.8.3",
-        "vitest": "^4.0.18",
-      },
-    },
-    "packages/plugins/commercial-documents": {
-      "name": "@bedrock/commercial-documents",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/accounting": "workspace:*",
-        "@bedrock/currencies": "workspace:*",
-        "@bedrock/documents": "workspace:*",
-        "@bedrock/ifrs-documents": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
-        "@bedrock/ledger": "workspace:*",
-        "zod": "^4.1.11",
-      },
-      "devDependencies": {
-        "@bedrock/typescript-config": "workspace:*",
-        "@types/node": "^24",
-        "eslint": "^9.31.0",
-        "typescript": "^5.8.3",
-        "vitest": "^4.0.18",
-      },
-    },
-    "packages/plugins/ifrs-documents": {
-      "name": "@bedrock/ifrs-documents",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/accounting": "workspace:*",
-        "@bedrock/documents": "workspace:*",
-        "@bedrock/kernel": "workspace:*",
-        "zod": "^4.1.11",
-      },
-      "devDependencies": {
-        "@bedrock/typescript-config": "workspace:*",
-        "@types/node": "^24",
-        "eslint": "^9.31.0",
-        "typescript": "^5.8.3",
-        "vitest": "^4.0.18",
-      },
-    },
-    "packages/runtime/db-bootstrap": {
-      "name": "@bedrock/db-bootstrap",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/accounting": "workspace:*",
-        "@bedrock/db": "workspace:*",
-        "@bedrock/ledger": "workspace:*",
-        "@bedrock/parties-ledger": "workspace:*",
-        "better-auth": "*",
-        "dotenv": "^17.3.1",
-        "drizzle-orm": "^0.45.1",
+        "pg": "^8.18.0",
+        "zod": "^4.3.6",
       },
       "devDependencies": {
         "@bedrock/eslint-config": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
         "@types/node": "^24",
-        "eslint": "^9.31.0",
-        "tsx": "^4.21.0",
-        "typescript": "^5.8.3",
-      },
-    },
-    "packages/runtime/worker-runtime": {
-      "name": "@bedrock/worker-runtime",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bedrock/kernel": "workspace:*",
-      },
-      "devDependencies": {
-        "@bedrock/typescript-config": "workspace:*",
-        "@types/node": "^24",
+        "@types/pg": "^8.16.0",
         "eslint": "^9.31.0",
         "typescript": "^5.8.3",
         "vitest": "^4.0.18",
       },
+      "peerDependencies": {
+        "vitest": "^4.0.0",
+      },
     },
-    "packages/sdk/api-client": {
-      "name": "@bedrock/api-client",
+    "packages/tooling/typescript-config": {
+      "name": "@bedrock/typescript-config",
       "version": "0.0.0",
-      "dependencies": {
-        "api": "workspace:*",
-        "hono": "^4.12.2",
-      },
-      "devDependencies": {
-        "@bedrock/eslint-config": "workspace:*",
-        "@bedrock/typescript-config": "workspace:*",
-        "eslint": "^9.31.0",
-        "typescript": "^5.8.3",
-      },
     },
-    "packages/sdk/ui": {
+    "packages/ui/core": {
       "name": "@bedrock/ui",
       "version": "0.0.0",
       "dependencies": {
@@ -570,50 +778,28 @@
         "typescript": "5.8.2",
       },
     },
-    "packages/tooling/eslint-config": {
-      "name": "@bedrock/eslint-config",
-      "version": "0.0.0",
-      "devDependencies": {
-        "@eslint/js": "^9.31.0",
-        "@next/eslint-plugin-next": "^15.4.2",
-        "eslint": "^9.31.0",
-        "eslint-config-prettier": "^10.1.1",
-        "eslint-plugin-import": "^2.32.0",
-        "eslint-plugin-only-warn": "^1.1.0",
-        "eslint-plugin-react": "^7.37.5",
-        "eslint-plugin-react-hooks": "^5.2.0",
-        "eslint-plugin-security": "^3.0.1",
-        "eslint-plugin-turbo": "^2.5.0",
-        "globals": "^16.3.0",
-        "typescript": "^5.8.2",
-        "typescript-eslint": "^8.37.0",
-      },
-    },
-    "packages/tooling/test-utils": {
-      "name": "@bedrock/test-utils",
+    "packages/workflows/period-close": {
+      "name": "@bedrock/workflow-period-close",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/kernel": "workspace:*",
+        "@bedrock/accounting-close": "workspace:*",
+        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/adapter-worker-runtime": "workspace:*",
+        "@bedrock/core": "workspace:*",
+        "@bedrock/documents": "workspace:*",
+        "@bedrock/identity": "workspace:*",
+        "@bedrock/observability": "workspace:*",
+        "@bedrock/parties": "workspace:*",
         "drizzle-orm": "^0.45.1",
-        "pg": "^8.18.0",
-        "zod": "^4.3.6",
       },
       "devDependencies": {
-        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/test-utils": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
         "@types/node": "^24",
-        "@types/pg": "^8.16.0",
         "eslint": "^9.31.0",
         "typescript": "^5.8.3",
         "vitest": "^4.0.18",
       },
-      "peerDependencies": {
-        "vitest": "^4.0.0",
-      },
-    },
-    "packages/tooling/typescript-config": {
-      "name": "@bedrock/typescript-config",
-      "version": "0.0.0",
     },
   },
   "packages": {
@@ -639,53 +825,71 @@
 
     "@bedrock/accounting": ["@bedrock/accounting@workspace:packages/modules/accounting"],
 
-    "@bedrock/accounting-reporting": ["@bedrock/accounting-reporting@workspace:packages/modules/accounting-reporting"],
+    "@bedrock/accounting-close": ["@bedrock/accounting-close@workspace:packages/modules/accounting-close"],
 
-    "@bedrock/api-client": ["@bedrock/api-client@workspace:packages/sdk/api-client"],
+    "@bedrock/adapter-auth-betterauth": ["@bedrock/adapter-auth-betterauth@workspace:packages/adapters/auth-betterauth"],
 
-    "@bedrock/auth": ["@bedrock/auth@workspace:packages/platform/auth"],
+    "@bedrock/adapter-db-drizzle": ["@bedrock/adapter-db-drizzle@workspace:packages/adapters/db-drizzle"],
+
+    "@bedrock/adapter-idempotency-postgres": ["@bedrock/adapter-idempotency-postgres@workspace:packages/adapters/idempotency-postgres"],
+
+    "@bedrock/adapter-ledger-tigerbeetle": ["@bedrock/adapter-ledger-tigerbeetle@workspace:packages/adapters/ledger-tigerbeetle"],
+
+    "@bedrock/adapter-worker-runtime": ["@bedrock/adapter-worker-runtime@workspace:packages/adapters/worker-runtime"],
 
     "@bedrock/balances": ["@bedrock/balances@workspace:packages/modules/balances"],
 
-    "@bedrock/commercial-documents": ["@bedrock/commercial-documents@workspace:packages/plugins/commercial-documents"],
+    "@bedrock/bootstrap-db": ["@bedrock/bootstrap-db@workspace:ops/bootstrap/db"],
+
+    "@bedrock/client-api": ["@bedrock/client-api@workspace:packages/clients/api-client"],
+
+    "@bedrock/core": ["@bedrock/core@workspace:packages/foundation/core"],
 
     "@bedrock/currencies": ["@bedrock/currencies@workspace:packages/modules/currencies"],
-
-    "@bedrock/db": ["@bedrock/db@workspace:packages/platform/db"],
-
-    "@bedrock/db-bootstrap": ["@bedrock/db-bootstrap@workspace:packages/runtime/db-bootstrap"],
 
     "@bedrock/documents": ["@bedrock/documents@workspace:packages/modules/documents"],
 
     "@bedrock/eslint-config": ["@bedrock/eslint-config@workspace:packages/tooling/eslint-config"],
 
+    "@bedrock/extension-documents-commercial": ["@bedrock/extension-documents-commercial@workspace:packages/extensions/documents-commercial"],
+
+    "@bedrock/extension-documents-ifrs": ["@bedrock/extension-documents-ifrs@workspace:packages/extensions/documents-ifrs"],
+
+    "@bedrock/extension-documents-sdk": ["@bedrock/extension-documents-sdk@workspace:packages/extensions/documents-sdk"],
+
     "@bedrock/fees": ["@bedrock/fees@workspace:packages/modules/fees"],
 
     "@bedrock/fx": ["@bedrock/fx@workspace:packages/modules/fx"],
 
-    "@bedrock/idempotency": ["@bedrock/idempotency@workspace:packages/platform/idempotency"],
+    "@bedrock/identity": ["@bedrock/identity@workspace:packages/modules/identity"],
 
-    "@bedrock/ifrs-documents": ["@bedrock/ifrs-documents@workspace:packages/plugins/ifrs-documents"],
-
-    "@bedrock/kernel": ["@bedrock/kernel@workspace:packages/kernel"],
+    "@bedrock/integration-fx-providers": ["@bedrock/integration-fx-providers@workspace:packages/integrations/fx-providers"],
 
     "@bedrock/ledger": ["@bedrock/ledger@workspace:packages/modules/ledger"],
 
+    "@bedrock/money": ["@bedrock/money@workspace:packages/foundation/money"],
+
+    "@bedrock/observability": ["@bedrock/observability@workspace:packages/foundation/observability"],
+
     "@bedrock/parties": ["@bedrock/parties@workspace:packages/modules/parties"],
 
-    "@bedrock/parties-ledger": ["@bedrock/parties-ledger@workspace:packages/integrations/parties-ledger"],
+    "@bedrock/parties-ledger": ["@bedrock/parties-ledger@workspace:packages/modules/parties-ledger"],
+
+    "@bedrock/query-accounting-reporting": ["@bedrock/query-accounting-reporting@workspace:packages/queries/accounting-reporting"],
 
     "@bedrock/reconciliation": ["@bedrock/reconciliation@workspace:packages/modules/reconciliation"],
+
+    "@bedrock/reference-data": ["@bedrock/reference-data@workspace:packages/foundation/reference-data"],
 
     "@bedrock/test-utils": ["@bedrock/test-utils@workspace:packages/tooling/test-utils"],
 
     "@bedrock/typescript-config": ["@bedrock/typescript-config@workspace:packages/tooling/typescript-config"],
 
-    "@bedrock/ui": ["@bedrock/ui@workspace:packages/sdk/ui"],
+    "@bedrock/ui": ["@bedrock/ui@workspace:packages/ui/core"],
 
     "@bedrock/users": ["@bedrock/users@workspace:packages/modules/users"],
 
-    "@bedrock/worker-runtime": ["@bedrock/worker-runtime@workspace:packages/runtime/worker-runtime"],
+    "@bedrock/workflow-period-close": ["@bedrock/workflow-period-close@workspace:packages/workflows/period-close"],
 
     "@better-auth/core": ["@better-auth/core@1.4.18", "", { "dependencies": { "@standard-schema/spec": "^1.0.0", "zod": "^4.3.5" }, "peerDependencies": { "@better-auth/utils": "0.3.0", "@better-fetch/fetch": "1.1.21", "better-call": "1.1.8", "jose": "^6.1.0", "kysely": "^0.28.5", "nanostores": "^1.0.1" } }, "sha512-q+awYgC7nkLEBdx2sW0iJjkzgSHlIxGnOpsN1r/O1+a4m7osJNHtfK2mKJSL1I+GfNyIlxJF8WvD/NLuYMpmcg=="],
 
@@ -2081,37 +2285,55 @@
 
     "@bedrock/accounting/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
-    "@bedrock/accounting-reporting/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+    "@bedrock/accounting-close/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
-    "@bedrock/auth/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+    "@bedrock/adapter-auth-betterauth/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/adapter-idempotency-postgres/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/adapter-ledger-tigerbeetle/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/adapter-worker-runtime/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/balances/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
-    "@bedrock/commercial-documents/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+    "@bedrock/bootstrap-db/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/core/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/currencies/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
-    "@bedrock/db-bootstrap/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
-
     "@bedrock/documents/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/extension-documents-commercial/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/extension-documents-ifrs/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/extension-documents-sdk/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/fees/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/fx/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
-    "@bedrock/idempotency/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+    "@bedrock/identity/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
-    "@bedrock/ifrs-documents/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
-
-    "@bedrock/kernel/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+    "@bedrock/integration-fx-providers/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/ledger/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/money/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/observability/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/parties/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/parties-ledger/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
+    "@bedrock/query-accounting-reporting/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
     "@bedrock/reconciliation/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/reference-data/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/test-utils/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
@@ -2121,7 +2343,7 @@
 
     "@bedrock/users/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
-    "@bedrock/worker-runtime/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+    "@bedrock/workflow-period-close/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@better-auth/core/@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
@@ -2207,39 +2429,57 @@
 
     "workers/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
-    "@bedrock/accounting-reporting/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+    "@bedrock/accounting-close/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/accounting/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
-    "@bedrock/auth/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+    "@bedrock/adapter-auth-betterauth/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/adapter-idempotency-postgres/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/adapter-ledger-tigerbeetle/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/adapter-worker-runtime/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/balances/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
-    "@bedrock/commercial-documents/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+    "@bedrock/bootstrap-db/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/core/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/currencies/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
-    "@bedrock/db-bootstrap/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
-
     "@bedrock/documents/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/extension-documents-commercial/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/extension-documents-ifrs/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/extension-documents-sdk/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/fees/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/fx/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
-    "@bedrock/idempotency/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+    "@bedrock/identity/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
-    "@bedrock/ifrs-documents/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
-
-    "@bedrock/kernel/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+    "@bedrock/integration-fx-providers/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/ledger/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/money/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/observability/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/parties-ledger/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/parties/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
+    "@bedrock/query-accounting-reporting/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
     "@bedrock/reconciliation/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/reference-data/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/test-utils/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
@@ -2247,7 +2487,7 @@
 
     "@bedrock/users/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
-    "@bedrock/worker-runtime/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+    "@bedrock/workflow-period-close/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@esbuild-kit/core-utils/esbuild/@esbuild/android-arm": ["@esbuild/android-arm@0.18.20", "", { "os": "android", "cpu": "arm" }, "sha512-fyi7TDI/ijKKNZTUJAQqiG5T7YjJXgnzkURqmGj13C6dCqckZBLdl4h7bkhHt/t0WP+zO9/zwroDvANaOqO5Sw=="],
 

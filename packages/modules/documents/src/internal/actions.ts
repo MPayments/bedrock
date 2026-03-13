@@ -1,11 +1,11 @@
 import type { Document } from "@bedrock/documents/schema";
-import type { Logger } from "@bedrock/kernel/logger";
-import type { Database, Transaction } from "@bedrock/kernel/db/types";
+import type { Logger } from "@bedrock/observability/logger";
+import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/db/types";
 
 import {
   collectDocumentCounterpartyIds,
   isCounterpartyPeriodClosed,
-} from "../period-locks";
+} from "@bedrock/accounting-close";
 import {
   resolveDocumentAllowedActions,
   type DocumentAction,

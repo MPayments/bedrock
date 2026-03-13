@@ -15,7 +15,7 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/adapter-db-drizzle": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "pg": "^8.18.0",
     "zod": "^4.3.6"
@@ -31,5 +31,12 @@
     "eslint": "^9.31.0",
     "typescript": "^5.8.3",
     "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "tooling",
+    "tags": [
+      "tooling",
+      "test-utils"
+    ]
   }
 }

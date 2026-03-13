@@ -19,7 +19,7 @@ import {
   LiquidityResponseSchema,
   TrialBalanceQuerySchema,
   TrialBalanceResponseSchema,
-} from "@bedrock/accounting-reporting";
+} from "@bedrock/query-accounting-reporting";
 
 import { ErrorSchema } from "../../common";
 import type { AppContext } from "../../context";

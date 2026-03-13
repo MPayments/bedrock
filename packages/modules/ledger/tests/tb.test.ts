@@ -11,7 +11,7 @@ import {
   TransferFlags,
   CreateAccountError,
   CreateTransferError
-} from "../src/tb";
+} from "@bedrock/adapter-ledger-tigerbeetle";
 
 describe("TB_AMOUNT_MAX", () => {
   it("should be 2^128 - 1", () => {

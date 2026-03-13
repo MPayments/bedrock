@@ -6,9 +6,9 @@ import {
   mockDbExecuteResult,
   type StubDatabase,
 } from "./helpers";
-import { TransferFlags } from "../src/tb";
+import { TransferFlags } from "@bedrock/adapter-ledger-tigerbeetle";
 import { OPERATION_TRANSFER_TYPE } from "../src/types";
-import type { createLedgerWorkerDefinition as createLedgerWorkerDefinitionFactory } from "../src/worker";
+import type { createLedgerWorkerDefinition as createLedgerWorkerDefinitionFactory } from "@bedrock/adapter-ledger-tigerbeetle";
 
 async function runWorkerOnce(
   worker: ReturnType<typeof createLedgerWorkerDefinitionFactory>,
@@ -27,7 +27,7 @@ describe("createLedgerWorkerDefinition account setup", () => {
   beforeEach(async () => {
     db = createStubDb();
     tb = createMockTbClient();
-    const { createLedgerWorkerDefinition } = await import("../src/worker");
+    const { createLedgerWorkerDefinition } = await import("@bedrock/adapter-ledger-tigerbeetle");
     worker = createLedgerWorkerDefinition({ db, tb });
   });
 

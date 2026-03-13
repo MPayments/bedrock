@@ -1,0 +1,49 @@
+{
+  "name": "@bedrock/bootstrap-db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./seeds": "./src/seeds/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "db:seed": "tsx ./src/seeds/run-all.ts",
+    "db:seed:accounting": "tsx ./src/seeds/run-accounting.ts",
+    "db:bootstrap:accounting": "tsx ./src/seeds/run-accounting.ts",
+    "db:seed:users": "tsx ./src/seeds/run-users.ts",
+    "db:seed:counterparties": "tsx ./src/seeds/run-counterparties.ts",
+    "db:seed:organizations": "tsx ./src/seeds/run-organizations.ts",
+    "db:seed:requisite-providers": "tsx ./src/seeds/run-requisite-providers.ts",
+    "db:seed:requisites": "tsx ./src/seeds/run-requisites.ts",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings 0"
+  },
+  "dependencies": {
+    "@bedrock/accounting": "workspace:*",
+    "@bedrock/adapter-db-drizzle": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
+    "@bedrock/parties-ledger": "workspace:*",
+    "better-auth": "*",
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.1"
+  },
+  "devDependencies": {
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3"
+  },
+  "bedrock": {
+    "kind": "ops",
+    "tags": [
+      "ops",
+      "bootstrap",
+      "db"
+    ]
+  }
+}

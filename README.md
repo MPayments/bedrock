@@ -4,24 +4,25 @@ Bedrock is a financial platform monorepo (ledger, balances, FX, reconciliation).
 
 ## Workspace Topology
 
-- `packages/modules/*` - business capabilities published as flat `@bedrock/<name>` packages
-- `packages/platform/*` - shared technical capabilities such as auth and idempotency
-- `packages/runtime/*` - execution hosts such as `@bedrock/worker-runtime` and tooling hosts such as `@bedrock/db-bootstrap`
-- `packages/plugins/*` - document add-ons published as flat `@bedrock/<name>` packages
-- `packages/integrations/*` - narrow cross-domain glue packages
-- `@bedrock/kernel` - shared primitives and infrastructure helpers
-- `@bedrock/db` - Drizzle client, schema aggregation, migrations, and DB types
-- `@bedrock/db-bootstrap` - DB seed/bootstrap runners
+- `packages/foundation/*` - stable primitives such as `@bedrock/core`, `@bedrock/money`, and `@bedrock/observability`
+- `packages/modules/*` - write-side business capabilities published as flat `@bedrock/<name>` packages
+- `packages/workflows/*` - cross-module orchestration such as `@bedrock/workflow-period-close`
+- `packages/queries/*` - read models and reporting packages such as `@bedrock/query-accounting-reporting`
+- `packages/integrations/*` - external-system integrations such as `@bedrock/integration-fx-providers`
+- `packages/adapters/*` - technical adapters such as `@bedrock/adapter-db-drizzle` and `@bedrock/adapter-worker-runtime`
+- `packages/extensions/*` - document extensions and extension SDKs
+- `packages/clients/*` - downstream-consumer client packages
+- `packages/ui/*` - reusable UI packages such as `@bedrock/ui`
 - `apps/*` - API/Web/Workers composition
-- `@bedrock/sdk/*` - API client + UI kit
+- `ops/*` - infra and bootstrap entrypoints
 
 Runtime import contract:
 
-- Runtime packages publish flat imports such as `@bedrock/ledger`, `@bedrock/auth`, `@bedrock/worker-runtime`, and `@bedrock/parties/<subdomain>`.
+- Runtime packages publish flat imports such as `@bedrock/ledger`, `@bedrock/identity`, `@bedrock/adapter-worker-runtime`, and `@bedrock/parties/<subdomain>`.
 - Domain schemas stay with the owning package and are imported through package exports such as `@bedrock/ledger/schema` or `@bedrock/parties/requisites/schema`.
-- `@bedrock/db` aggregates schemas; business packages do not own migrations and do not import `@bedrock/db`.
-- `@bedrock/db-bootstrap` owns DB seeding/bootstrap scripts.
-- Use DB connection types from `@bedrock/kernel/db/types`.
+- `@bedrock/adapter-db-drizzle` aggregates schemas for the DB client and migrations.
+- `@bedrock/bootstrap-db` owns DB seeding/bootstrap scripts.
+- Use DB connection types from `@bedrock/adapter-db-drizzle/db/types`.
 
 ## Stack
 
@@ -45,7 +46,7 @@ Runtime import contract:
 Start infrastructure:
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d
+docker compose -f ops/infra/docker-compose.yml up -d
 ```
 
 Install dependencies:
@@ -107,9 +108,9 @@ bun run test:integration
 This repo now uses a baseline-only migration chain. Legacy DB states are unsupported.
 
 ```bash
-bun run --filter=@bedrock/db db:nuke
-bun run --filter=@bedrock/db db:migrate
-bun run --filter=@bedrock/db-bootstrap db:seed
+bun run --filter=@bedrock/adapter-db-drizzle db:nuke
+bun run --filter=@bedrock/adapter-db-drizzle db:migrate
+bun run --filter=@bedrock/bootstrap-db db:seed
 ```
 
 ## Documentation Source of Truth

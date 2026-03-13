@@ -46,18 +46,81 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
+function normalizeKind(kind) {
+  switch (kind) {
+    case "kernel":
+      return "foundation";
+    case "db":
+    case "platform":
+    case "runtime":
+      return "adapter";
+    case "plugin":
+      return "extension";
+    case "sdk":
+      return "client";
+    default:
+      return kind;
+  }
+}
+
 function classifyPackageKind(relDir) {
-  if (relDir === "packages/kernel") return "kernel";
-  if (relDir === "packages/platform/db") return "db";
+  if (relDir.startsWith("packages/foundation/")) return "foundation";
   if (relDir.startsWith("packages/modules/")) return "module";
-  if (relDir.startsWith("packages/platform/")) return "platform";
-  if (relDir.startsWith("packages/runtime/")) return "runtime";
-  if (relDir.startsWith("packages/plugins/")) return "plugin";
+  if (relDir.startsWith("packages/workflows/")) return "workflow";
+  if (relDir.startsWith("packages/queries/")) return "query";
   if (relDir.startsWith("packages/integrations/")) return "integration";
-  if (relDir.startsWith("packages/sdk/")) return "sdk";
+  if (relDir.startsWith("packages/adapters/")) return "adapter";
+  if (relDir.startsWith("packages/extensions/")) return "extension";
+  if (relDir.startsWith("packages/clients/")) return "client";
+  if (relDir.startsWith("packages/ui/")) return "ui";
   if (relDir.startsWith("packages/tooling/")) return "tooling";
+  if (relDir.startsWith("ops/")) return "ops";
   if (relDir.startsWith("apps/")) return "app";
   return "unknown";
+}
+
+function expandWorkspacePattern(pattern) {
+  const segments = pattern.split("/").filter(Boolean);
+  const matches = [];
+
+  function walk(currentDir, index) {
+    if (index === segments.length) {
+      matches.push(currentDir);
+      return;
+    }
+
+    const segment = segments[index];
+    if (segment === "*") {
+      let names = [];
+      try {
+        names = readdirSync(currentDir);
+      } catch {
+        return;
+      }
+
+      for (const name of names) {
+        const fullPath = join(currentDir, name);
+        let stats;
+        try {
+          stats = statSync(fullPath);
+        } catch {
+          continue;
+        }
+
+        if (!stats.isDirectory()) {
+          continue;
+        }
+
+        walk(fullPath, index + 1);
+      }
+      return;
+    }
+
+    walk(join(currentDir, segment), index + 1);
+  }
+
+  walk(ROOT, 0);
+  return matches;
 }
 
 function listWorkspaceDirs() {
@@ -65,34 +128,17 @@ function listWorkspaceDirs() {
   const dirs = [];
 
   for (const pattern of rootPackageJson.workspaces ?? []) {
-    if (pattern.endsWith("/*")) {
-      const baseDir = join(ROOT, pattern.slice(0, -2));
-      for (const name of readdirSync(baseDir)) {
-        const fullPath = join(baseDir, name);
-        if (!statSync(fullPath).isDirectory()) {
-          continue;
+    for (const fullPath of expandWorkspacePattern(pattern)) {
+      const packageJsonPath = join(fullPath, "package.json");
+      try {
+        if (statSync(packageJsonPath).isFile()) {
+          dirs.push(fullPath);
         }
-
-        const packageJsonPath = join(fullPath, "package.json");
-        try {
-          if (statSync(packageJsonPath).isFile()) {
-            dirs.push(fullPath);
-          }
-        } catch {}
-      }
-      continue;
+      } catch {}
     }
-
-    const fullPath = join(ROOT, pattern);
-    const packageJsonPath = join(fullPath, "package.json");
-    try {
-      if (statSync(packageJsonPath).isFile()) {
-        dirs.push(fullPath);
-      }
-    } catch {}
   }
 
-  return dirs;
+  return [...new Set(dirs)].sort();
 }
 
 export function collectWorkspacePackages() {
@@ -101,11 +147,12 @@ export function collectWorkspacePackages() {
       const relDir = relative(ROOT, dir);
       const packageJsonPath = join(dir, "package.json");
       const packageJson = readJson(packageJsonPath);
+      const metadataKind = normalizeKind(packageJson.bedrock?.kind);
 
       return {
         dir,
         relDir,
-        kind: classifyPackageKind(relDir),
+        kind: metadataKind ?? classifyPackageKind(relDir),
         name: packageJson.name,
         packageJson,
       };
@@ -187,8 +234,7 @@ export function normalizeWorkspaceSpecifier(specifier) {
   }
 
   const packageName = parts.slice(0, 2).join("/");
-  const subpath =
-    parts.length > 2 ? `./${parts.slice(2).join("/")}` : ".";
+  const subpath = parts.length > 2 ? `./${parts.slice(2).join("/")}` : ".";
 
   return {
     packageName,
@@ -201,10 +247,7 @@ export function findOwningPackage(filePath, workspacePackages) {
   const normalized = resolve(filePath);
 
   for (const pkg of workspacePackages) {
-    if (
-      normalized === pkg.dir ||
-      normalized.startsWith(`${pkg.dir}/`)
-    ) {
+    if (normalized === pkg.dir || normalized.startsWith(`${pkg.dir}/`)) {
       return pkg;
     }
   }

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createCurrenciesService } from "@bedrock/currencies";
 import { schema } from "@bedrock/fx/schema";
-import { DAY_IN_SECONDS } from "@bedrock/kernel/math";
+import { DAY_IN_SECONDS } from "@bedrock/money/math";
 
 import { db } from "./setup";
 import { createFxService } from "../../src/service";

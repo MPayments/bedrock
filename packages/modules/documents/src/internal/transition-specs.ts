@@ -1,8 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/documents/schema";
-import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
-import { InvalidStateError } from "@bedrock/kernel/errors";
+import { IDEMPOTENCY_SCOPE } from "@bedrock/adapter-idempotency-postgres";
+import { InvalidStateError } from "@bedrock/core/errors";
 
 import { DocumentPostingNotRequiredError } from "../errors";
 import {
@@ -22,7 +22,7 @@ import type {
 import {
   assertCounterpartyPeriodsOpen,
   collectDocumentCounterpartyIds,
-} from "../period-locks";
+} from "@bedrock/accounting-close";
 import { isDocumentActionAllowed } from "../state-machine";
 import type {
   DocumentTransitionAction,

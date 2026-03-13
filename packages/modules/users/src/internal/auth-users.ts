@@ -1,4 +1,7 @@
-import type { AuthUserRecord, AuthUserWithLastSession } from "@bedrock/auth";
+import type {
+  AuthUserRecord,
+  AuthUserWithLastSession,
+} from "@bedrock/identity";
 
 import type { User, UserRole } from "../validation";
 import type { UserWithLastSession } from "../commands/get-user";

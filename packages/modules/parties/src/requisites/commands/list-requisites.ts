@@ -14,7 +14,7 @@ import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/core/pagination";
 
 import type { RequisitesServiceContext } from "../internal/context";
 import { toPublicRequisite } from "../internal/shape";

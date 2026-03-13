@@ -1,4 +1,4 @@
-import { ServiceError } from "@bedrock/kernel/errors";
+import { ServiceError } from "@bedrock/core/errors";
 
 export class UserError extends ServiceError {}
 

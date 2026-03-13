@@ -1,6 +1,6 @@
 import type { Document } from "@bedrock/documents/schema";
-import type { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
-import type { Transaction } from "@bedrock/kernel/db/types";
+import type { IDEMPOTENCY_SCOPE } from "@bedrock/adapter-idempotency-postgres";
+import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
 
 import type { DocumentsServiceContext } from "../internal/context";
 import {

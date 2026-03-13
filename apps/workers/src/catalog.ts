@@ -1,4 +1,4 @@
-import type { WorkerCatalogEntry } from "@bedrock/worker-runtime";
+import type { WorkerCatalogEntry } from "@bedrock/adapter-worker-runtime";
 
 export const WORKER_CATALOG = [
   {

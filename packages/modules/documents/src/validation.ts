@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/core/pagination";
 
 import { DocumentValidationError } from "./errors";
 

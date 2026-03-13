@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/kernel/db/types";
+import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/db/types";
 
 import {
   CounterpartyNotInternalLedgerEntityError,

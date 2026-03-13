@@ -1,5 +1,5 @@
-import type { Logger } from "@bedrock/kernel/logger";
-import type { Database } from "@bedrock/kernel/db/types";
+import type { Logger } from "@bedrock/observability/logger";
+import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
 
 import { type FeesCurrencyLookup } from "./currency-lookup";
 

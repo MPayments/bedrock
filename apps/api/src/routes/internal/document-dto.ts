@@ -1,4 +1,4 @@
-import { minorToAmountString } from "@bedrock/kernel/money";
+import { minorToAmountString } from "@bedrock/money";
 
 import type {
   DocumentDetails as DocumentDetailsResult,

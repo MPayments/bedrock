@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 import { randomUUID } from "node:crypto";
 
-import type { CorrelationContext } from "@bedrock/kernel/correlation";
+import type { CorrelationContext } from "@bedrock/core/correlation";
 
 import type { AuthVariables } from "./auth";
 

@@ -5,7 +5,7 @@ import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/core/pagination";
 
 import type { CustomersServiceContext } from "../internal/context";
 import {

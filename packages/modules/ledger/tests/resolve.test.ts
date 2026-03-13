@@ -4,8 +4,8 @@ import {
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
 } from "@bedrock/ledger/ids";
-import { stableStringify } from "@bedrock/kernel/canon";
-import { sha256Hex } from "@bedrock/kernel/crypto";
+import { stableStringify } from "@bedrock/core/canon";
+import { sha256Hex } from "@bedrock/core/crypto";
 
 import { createMockTbClient, createStubDb, type StubDatabase } from "./helpers";
 import { resolveTbBookAccountInstanceId } from "./test-resolve";

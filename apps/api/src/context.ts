@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { AccountingReportingService } from "@bedrock/accounting-reporting";
+import type { AccountingReportingService } from "@bedrock/query-accounting-reporting";
 import type { FeesService } from "@bedrock/fees";
 import type { FxService } from "@bedrock/fx";
 import type { AccountingService } from "@bedrock/accounting";
@@ -14,7 +14,7 @@ import type { OrganizationsService } from "@bedrock/parties/organizations";
 import type { RequisiteProvidersService } from "@bedrock/parties/requisite-providers";
 import type { RequisitesService } from "@bedrock/parties/requisites";
 import type { UsersService } from "@bedrock/users";
-import type { Logger } from "@bedrock/kernel/logger";
+import type { Logger } from "@bedrock/observability/logger";
 
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";

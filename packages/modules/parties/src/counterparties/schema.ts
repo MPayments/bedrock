@@ -12,7 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { COUNTRY_ALPHA2_CODES } from "@bedrock/kernel/countries/contracts";
+import { COUNTRY_ALPHA2_CODES } from "@bedrock/reference-data/countries/contracts";
 
 import { customers } from "@bedrock/parties/customers/schema";
 

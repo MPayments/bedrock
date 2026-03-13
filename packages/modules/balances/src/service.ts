@@ -5,10 +5,10 @@ import {
   type BalanceHold,
   type BalancePosition,
 } from "@bedrock/balances/schema";
-import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
-import type { CorrelationContext } from "@bedrock/kernel/correlation";
-import { pgNotify } from "@bedrock/kernel/db/notify";
-import type { Transaction } from "@bedrock/kernel/db/types";
+import { IDEMPOTENCY_SCOPE } from "@bedrock/adapter-idempotency-postgres";
+import type { CorrelationContext } from "@bedrock/core/correlation";
+import { pgNotify } from "@bedrock/adapter-db-drizzle/db/notify";
+import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
 
 import {
   BalanceHoldConflictError,

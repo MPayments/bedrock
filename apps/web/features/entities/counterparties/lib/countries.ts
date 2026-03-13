@@ -1,4 +1,4 @@
-import { COUNTRIES, type CountryRecord } from "@bedrock/kernel/countries";
+import { COUNTRIES, type CountryRecord } from "@bedrock/reference-data/countries";
 
 type CounterpartyCountryOption = {
   value: string;

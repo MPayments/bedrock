@@ -4,8 +4,8 @@ import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { createIdempotencyService } from "@bedrock/idempotency";
-import { schema as idempotencySchema } from "@bedrock/idempotency/schema";
+import { createIdempotencyService } from "@bedrock/adapter-idempotency-postgres";
+import { schema as idempotencySchema } from "@bedrock/adapter-idempotency-postgres/schema";
 import { schema as balancesSchema } from "@bedrock/balances/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 

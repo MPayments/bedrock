@@ -7,7 +7,9 @@ describe("ledger public exports", () => {
     expect(ledger.createLedgerEngine).toBeTypeOf("function");
     expect(ledger.OPERATION_TRANSFER_TYPE).toBeDefined();
     expect(ledger.IdempotencyConflictError).toBeTypeOf("function");
-    expect(ledger.createLedgerWorkerDefinition).toBeTypeOf("function");
+    expect(ledger.isRetryableError).toBeTypeOf("function");
+    expect("createLedgerWorkerDefinition" in ledger).toBe(false);
+    expect("createTbClient" in ledger).toBe(false);
     expect("TransferCodes" in ledger).toBe(false);
     expect("AccountingNotInitializedError" in ledger).toBe(false);
   });

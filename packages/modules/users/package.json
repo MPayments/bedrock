@@ -16,8 +16,9 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
-    "@bedrock/auth": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/core": "workspace:*",
+    "@bedrock/identity": "workspace:*",
+    "@bedrock/observability": "workspace:*",
     "zod": "^4.1.11"
   },
   "devDependencies": {
@@ -26,5 +27,12 @@
     "eslint": "^9.31.0",
     "typescript": "^5.8.3",
     "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "module",
+    "tags": [
+      "module",
+      "users"
+    ]
   }
 }

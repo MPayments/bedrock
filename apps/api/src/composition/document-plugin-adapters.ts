@@ -3,9 +3,9 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import {
   normalizeFinancialLine,
   type FinancialLine,
-} from "@bedrock/commercial-documents/contracts";
-import { QuoteSnapshotSchema } from "@bedrock/commercial-documents/validation";
-import { type CommercialModuleDeps } from "@bedrock/commercial-documents";
+} from "@bedrock/extension-documents-commercial/contracts";
+import { QuoteSnapshotSchema } from "@bedrock/extension-documents-commercial/validation";
+import { type CommercialModuleDeps } from "@bedrock/extension-documents-commercial";
 import {
   DocumentValidationError,
   type DocumentModule,
@@ -14,13 +14,13 @@ import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as fxSchema } from "@bedrock/fx/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import type { CurrenciesService } from "@bedrock/currencies";
-import type { IfrsModuleDeps } from "@bedrock/ifrs-documents";
+import type { IfrsModuleDeps } from "@bedrock/extension-documents-ifrs";
 import type { RequisitesService } from "@bedrock/parties/requisites";
-import { canonicalJson } from "@bedrock/kernel/canon";
-import { sha256Hex } from "@bedrock/kernel/crypto";
-import { isUuidLike } from "@bedrock/kernel/utils";
-import { minorToAmountString } from "@bedrock/kernel/money";
-import type { QuoteSnapshot } from "@bedrock/commercial-documents/validation";
+import { canonicalJson } from "@bedrock/core/canon";
+import { sha256Hex } from "@bedrock/core/crypto";
+import { isUuidLike } from "@bedrock/core/uuid";
+import { minorToAmountString } from "@bedrock/money";
+import type { QuoteSnapshot } from "@bedrock/extension-documents-commercial/validation";
 
 type Queryable = Parameters<DocumentModule["canPost"]>[0]["db"];
 

@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
 
-import { createClient, type Client } from "@bedrock/api-client";
+import { createClient, type Client } from "@bedrock/client-api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 

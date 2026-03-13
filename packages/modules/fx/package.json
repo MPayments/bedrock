@@ -19,25 +19,36 @@
     "test:integration:watch": "vitest --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/adapter-db-drizzle": "workspace:*",
+    "@bedrock/adapter-worker-runtime": "workspace:*",
+    "@bedrock/core": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
+    "@bedrock/integration-fx-providers": "workspace:*",
+    "@bedrock/money": "workspace:*",
+    "@bedrock/observability": "workspace:*",
     "@bedrock/parties": "workspace:*",
-    "@bedrock/worker-runtime": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "soap": "^1.6.0",
     "tlsclientwrapper": "^4.1.2",
     "zod": "^4.1.11"
   },
   "devDependencies": {
+    "@bedrock/test-utils": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
-    "eslint": "^9.31.0",
-    "typescript": "^5.8.3",
-    "vitest": "^4.0.18",
-    "@bedrock/test-utils": "workspace:*",
     "@types/pg": "^8.16.0",
-    "pg": "^8.18.0"
+    "eslint": "^9.31.0",
+    "pg": "^8.18.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "module",
+    "tags": [
+      "module",
+      "fx"
+    ]
   }
 }

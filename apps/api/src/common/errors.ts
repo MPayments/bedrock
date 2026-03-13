@@ -11,13 +11,13 @@ import {
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
-} from "@bedrock/idempotency";
+} from "@bedrock/adapter-idempotency-postgres";
 import {
   InvalidStateError,
   NotFoundError,
   PermissionError,
   ValidationError,
-} from "@bedrock/kernel/errors";
+} from "@bedrock/core/errors";
 
 function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

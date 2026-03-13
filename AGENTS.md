@@ -7,7 +7,7 @@ Bedrock is a financial platform (ledger, treasury, fees, FX, transfers) built as
 ```
 apps/        — applications (api: Hono, web: Next.js)
 packages/    — shared domain and infrastructure packages
-infra/       — Docker Compose (PostgreSQL, TigerBeetle)
+ops/         — infra and bootstrap entrypoints
 ```
 
 Stack: TypeScript 5.8, Hono, Next.js, Drizzle ORM, PostgreSQL, TigerBeetle, Zod, Vitest, Pino.
@@ -16,18 +16,21 @@ Stack: TypeScript 5.8, Hono, Next.js, Drizzle ORM, PostgreSQL, TigerBeetle, Zod,
 
 Runtime is split by package kind:
 
+- `packages/foundation/*` for stable shared primitives
 - `packages/modules/*` for business capabilities, published as flat `@bedrock/<name>` packages
-- `packages/platform/*` for shared technical capabilities
-- `packages/runtime/*` for execution hosts
-- `packages/plugins/*` for document add-ons
-- `packages/integrations/*` for narrow cross-domain glue
-- `@bedrock/kernel` for shared primitives and infrastructure helpers
+- `packages/workflows/*` for cross-module orchestration
+- `packages/queries/*` for read-side projections and reports
+- `packages/integrations/*` for external integrations
+- `packages/adapters/*` for technical adapters
+- `packages/extensions/*` for document extensions and extension SDKs
+- `packages/clients/*` for downstream API clients
+- `packages/ui/*` for reusable UI packages
 
 Core dependency direction:
 
-- `@bedrock/kernel -> modules/platform/runtime/plugins/integrations -> apps/*`
-- `@bedrock/db` aggregates schemas from owning packages and provides the DB client/migrations.
-- `@bedrock/db-bootstrap` owns DB seeds/bootstrap runners.
+- `foundation -> modules/workflows/queries/adapters/integrations/extensions/clients/ui -> apps/*`
+- `@bedrock/adapter-db-drizzle` aggregates schemas from owning packages and provides the DB client/migrations.
+- `@bedrock/bootstrap-db` owns DB seeds/bootstrap runners.
 
 Hard rules:
 
@@ -36,11 +39,11 @@ Hard rules:
 - Domain schema ownership is colocated under:
   - `packages/modules/*/src/schema.ts` or `schema/**`
   - `packages/modules/*/src/<subdomain>/schema.ts` for grouped packages such as `@bedrock/parties`
-  - `packages/platform/*/src/schema.ts` or `schema/**` when platform packages own schema
+  - `packages/adapters/*/src/schema.ts` or `schema/**` when adapters own schema
   - `packages/integrations/*/src/schema.ts` or `schema/**` when integration packages own schema
-- `@bedrock/db` must not own domain table declarations; it only aggregates domain schemas for client/migrations.
-- `@bedrock/db-bootstrap` is the only workspace package that should own shared seed/bootstrap orchestration.
-- Business packages must not import `@bedrock/db` from runtime code. Only apps, approved tooling/scripts, seeds/bootstrap, and integration tests may do so.
+- `@bedrock/adapter-db-drizzle` must not own domain table declarations; it only aggregates domain schemas for client/migrations.
+- `@bedrock/bootstrap-db` is the only workspace package that should own shared seed/bootstrap orchestration.
+- Business packages must not import `@bedrock/adapter-db-drizzle` root/client from runtime code. Only apps, approved tooling/scripts, seeds/bootstrap, and integration tests may do so.
 
 ## Package Manager and Runtime
 
@@ -52,10 +55,10 @@ Hard rules:
 ```jsonc
 // package.json
 "dependencies": {
-    "@bedrock/db": "workspace:*",     // correct
-    "@bedrock/kernel": "workspace:*", // correct
+    "@bedrock/adapter-db-drizzle": "workspace:*",     // correct
+    "@bedrock/core": "workspace:*", // correct
     "@bedrock/ledger": "workspace:*"  // correct
-    // NOT "@bedrock/db": "*"
+    // NOT "@bedrock/adapter-db-drizzle": "*"
 }
 ```
 
@@ -154,9 +157,10 @@ export function createXxxService(deps: XxxServiceDeps) {
 Runtime domain code lives under consolidated folders:
 
 - `packages/modules/<module>/src/**`
-- `packages/platform/<package>/src/**`
-- `packages/runtime/<package>/src/**`
-- `packages/plugins/<plugin>/src/**`
+- `packages/workflows/<workflow>/src/**`
+- `packages/queries/<query>/src/**`
+- `packages/adapters/<adapter>/src/**`
+- `packages/extensions/<extension>/src/**`
 - `packages/integrations/<integration>/src/**`
 - package-local `tests/**`
 
@@ -166,7 +170,7 @@ Within each package, this is the common default layout:
 |---|---|
 | `index.ts` | Public exports (service factory, types, errors, validation schemas) |
 | `service.ts` | Service factory function |
-| `errors.ts` | Custom error classes extending `ServiceError` from `@bedrock/kernel/errors` |
+| `errors.ts` | Custom error classes extending `ServiceError` from `@bedrock/core/errors` |
 | `validation.ts` | Zod schemas, derived types via `z.infer`, validator helpers |
 | `internal/context.ts` | `Deps` / `Context` types and context factory |
 | `commands/` | Command handlers (when the service is large) |
@@ -183,7 +187,7 @@ Within each package, this is the common default layout:
 ### Modules
 
 - All packages use ESM (`"type": "module"` in package.json).
-- Client-reachable code must never import `@bedrock/kernel` from the root barrel. Use explicit safe subpaths such as `@bedrock/kernel/math`, `@bedrock/kernel/utils`, or `@bedrock/kernel/canon`. Server-only helpers live under `@bedrock/kernel/logger`, `@bedrock/kernel/crypto`, and `@bedrock/kernel/worker-loop`.
+- Client-reachable code must import only client-safe packages or subpaths. Safe examples include `@bedrock/money/math`, `@bedrock/core/uuid`, and `@bedrock/core/canon`. Server-only helpers live under `@bedrock/observability/logger`, `@bedrock/core/crypto`, and `@bedrock/adapter-worker-runtime/worker-loop`.
 
 ### Import order
 
@@ -195,11 +199,11 @@ Separate each group with a blank line.
 
 ### Error handling
 
-- Define custom error classes extending `ServiceError` from `@bedrock/kernel/errors`.
+- Define custom error classes extending `ServiceError` from `@bedrock/core/errors`.
 - Throw errors directly; do not return error codes.
 
 ```typescript
-import { ServiceError } from "@bedrock/kernel/errors";
+import { ServiceError } from "@bedrock/core/errors";
 
 export class OrderNotFoundError extends ServiceError {
     constructor(id: string) {
@@ -220,7 +224,7 @@ export class OrderNotFoundError extends ServiceError {
 - Schema uses `snake_case` column naming convention.
 - Runtime table definitions must be colocated in the owning package under `src/schema.ts`, `src/schema/**`, or grouped subdomain `src/<subdomain>/schema.ts`.
 - Runtime code imports schemas through package exports such as `@bedrock/ledger/schema` or `@bedrock/parties/requisites/schema`.
-- Runtime code imports shared database connection types from `@bedrock/kernel/db/types`.
+- Runtime code imports shared database connection types from `@bedrock/adapter-db-drizzle/db/types`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.
 - Migration policy is baseline-only hard cutover.
   - Mandatory sequence: `db:nuke -> db:migrate -> db:seed`.

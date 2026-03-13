@@ -29,6 +29,7 @@ export {
   LedgerError,
   IdempotencyConflictError,
   TigerBeetleBatchError,
+  isRetryableError,
 } from "./errors";
 export {
   TB_ID_MAX,
@@ -40,5 +41,3 @@ export {
   tbTransferIdForOperation,
   u128FromHash,
 } from "./ids";
-export { createLedgerWorkerDefinition } from "./worker";
-export { createTbClient, type TbClient } from "./tb";

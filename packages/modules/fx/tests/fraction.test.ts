@@ -4,7 +4,7 @@ import {
   parseDecimalToFraction,
   parsePositiveInt,
   reduceFraction,
-} from "@bedrock/kernel/math";
+} from "@bedrock/money/math";
 
 describe("fraction helpers", () => {
   it("parses plain, fractional, and scientific decimals", () => {

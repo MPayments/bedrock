@@ -1,6 +1,6 @@
 import { schema, type Document } from "@bedrock/documents/schema";
-import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
-import type { Transaction } from "@bedrock/kernel/db/types";
+import { IDEMPOTENCY_SCOPE } from "@bedrock/adapter-idempotency-postgres";
+import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
 
 import { isSystemOnlyDocumentType } from "../doc-type-rules";
 import { DocumentValidationError } from "../errors";
@@ -27,7 +27,7 @@ import {
   closeCounterpartyPeriod,
   collectDocumentCounterpartyIds,
   reopenCounterpartyPeriod,
-} from "../period-locks";
+} from "@bedrock/accounting-close";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 import { validateInput } from "../validation";
 

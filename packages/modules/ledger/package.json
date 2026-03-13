@@ -20,20 +20,29 @@
     "test:integration:watch": "vitest --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@bedrock/kernel": "workspace:*",
-    "@bedrock/worker-runtime": "workspace:*",
+    "@bedrock/adapter-db-drizzle": "workspace:*",
+    "@bedrock/adapter-ledger-tigerbeetle": "workspace:*",
+    "@bedrock/adapter-worker-runtime": "workspace:*",
+    "@bedrock/core": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "tigerbeetle-node": "^0.16.72",
     "zod": "^4.1.11"
   },
   "devDependencies": {
+    "@bedrock/test-utils": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
-    "eslint": "^9.31.0",
-    "typescript": "^5.8.3",
-    "vitest": "^4.0.18",
-    "@bedrock/test-utils": "workspace:*",
     "@types/pg": "^8.16.0",
-    "pg": "^8.18.0"
+    "eslint": "^9.31.0",
+    "pg": "^8.18.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "module",
+    "tags": [
+      "module",
+      "ledger"
+    ]
   }
 }

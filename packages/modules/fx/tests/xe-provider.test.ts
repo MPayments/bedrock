@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { RateSourceSyncError } from "../src/errors";
+import { RateSourceSyncError } from "@bedrock/integration-fx-providers";
 import { createXeRateSourceProvider } from "../src/sources/xe";
 import {
   parseRateFromHtml,

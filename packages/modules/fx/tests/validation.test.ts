@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { ValidationError } from "@bedrock/kernel/errors";
+import { ValidationError } from "@bedrock/core/errors";
 
 import {
     validateGetQuoteDetailsInput,

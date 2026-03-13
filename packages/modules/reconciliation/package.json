@@ -18,21 +18,30 @@
     "test:integration:watch": "vitest --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@bedrock/kernel": "workspace:*",
+    "@bedrock/adapter-db-drizzle": "workspace:*",
+    "@bedrock/adapter-idempotency-postgres": "workspace:*",
+    "@bedrock/adapter-worker-runtime": "workspace:*",
+    "@bedrock/core": "workspace:*",
     "@bedrock/documents": "workspace:*",
-    "@bedrock/idempotency": "workspace:*",
     "@bedrock/ledger": "workspace:*",
-    "@bedrock/worker-runtime": "workspace:*",
+    "@bedrock/observability": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
   },
   "devDependencies": {
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
-    "eslint": "^9.31.0",
-    "typescript": "^5.8.3",
-    "vitest": "^4.0.18",
     "@types/pg": "^8.16.0",
-    "pg": "^8.18.0"
+    "eslint": "^9.31.0",
+    "pg": "^8.18.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "module",
+    "tags": [
+      "module",
+      "reconciliation"
+    ]
   }
 }

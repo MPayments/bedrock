@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/documents/schema";
-import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
+import { IDEMPOTENCY_SCOPE } from "@bedrock/adapter-idempotency-postgres";
 
 import { DocumentValidationError } from "../errors";
 import type { DocumentsServiceContext } from "../internal/context";
@@ -23,7 +23,7 @@ import {
 import {
   assertCounterpartyPeriodsOpen,
   collectDocumentCounterpartyIds,
-} from "../period-locks";
+} from "@bedrock/accounting-close";
 import { isDocumentActionAllowed } from "../state-machine";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 import { validateInput } from "../validation";

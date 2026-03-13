@@ -1,0 +1,59 @@
+{
+  "name": "@bedrock/adapter-db-drizzle",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./db/notify": "./src/db/notify.ts",
+    "./db/types": "./src/db/types.ts",
+    "./schema": "./src/schema/index.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "build": "tsgo",
+    "dev": "tsc --watch",
+    "check-types": "tsgo --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:nuke": "node ./scripts/db-nuke.mjs",
+    "db:studio": "drizzle-kit studio",
+    "db:push": "drizzle-kit push",
+    "lint": "eslint src/**/*.ts --max-warnings 0"
+  },
+  "dependencies": {
+    "@bedrock/accounting": "workspace:*",
+    "@bedrock/accounting-close": "workspace:*",
+    "@bedrock/adapter-idempotency-postgres": "workspace:*",
+    "@bedrock/balances": "workspace:*",
+    "@bedrock/currencies": "workspace:*",
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/fees": "workspace:*",
+    "@bedrock/fx": "workspace:*",
+    "@bedrock/identity": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
+    "@bedrock/parties": "workspace:*",
+    "@bedrock/parties-ledger": "workspace:*",
+    "@bedrock/query-accounting-reporting": "workspace:*",
+    "@bedrock/reconciliation": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "pg": "^8.17.2"
+  },
+  "devDependencies": {
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/pg": "^8.16.0",
+    "dotenv": "^17.3.1",
+    "drizzle-kit": "^0.31.9",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3"
+  },
+  "bedrock": {
+    "kind": "adapter",
+    "tags": [
+      "adapter",
+      "db-drizzle"
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { schema, type Document } from "@bedrock/documents/schema";
-import { InvalidStateError } from "@bedrock/kernel/errors";
+import { InvalidStateError } from "@bedrock/core/errors";
 
 import { createTransitionHandler } from "../src/commands/transition";
 

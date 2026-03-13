@@ -8,7 +8,7 @@ import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
-} from "@bedrock/kernel/pagination";
+} from "@bedrock/core/pagination";
 
 import {
   ListLedgerOperationsInputSchema,

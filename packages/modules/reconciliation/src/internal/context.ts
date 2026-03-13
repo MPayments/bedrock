@@ -1,5 +1,5 @@
-import { noopLogger, type Logger } from "@bedrock/kernel/logger";
-import type { Database } from "@bedrock/kernel/db/types";
+import { noopLogger, type Logger } from "@bedrock/observability/logger";
+import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
 
 import type {
   ReconciliationDocumentsPort,

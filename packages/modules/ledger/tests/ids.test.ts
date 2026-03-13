@@ -9,7 +9,7 @@ import {
   tbTransferIdForOperation,
   u128FromHash,
 } from "@bedrock/ledger/ids";
-import { sha256Hex } from "@bedrock/kernel/crypto";
+import { sha256Hex } from "@bedrock/core/crypto";
 
 describe("normalizeTbId", () => {
   it("normalizes zero and negatives to 1", () => {

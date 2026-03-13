@@ -5,11 +5,11 @@ export {
 
 import { vi } from "vitest";
 
+import type { TbClient } from "@bedrock/adapter-ledger-tigerbeetle";
 import {
   OPERATION_TRANSFER_TYPE,
   type CreateIntentLine,
   type OperationIntent,
-  type TbClient,
 } from "../src";
 import {
   createStubDb,

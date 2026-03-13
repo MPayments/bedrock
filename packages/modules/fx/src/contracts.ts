@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { parseMinorAmount } from "@bedrock/kernel/money";
+import { parseMinorAmount } from "@bedrock/money";
 import { FINANCIAL_LINE_BUCKETS } from "@bedrock/documents/financial-lines";
 import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
 

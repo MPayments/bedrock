@@ -21,7 +21,7 @@ vi.mock("tlsclientwrapper", () => {
     return { ModuleClient, SessionClient };
 });
 
-import { RateSourceSyncError } from "../src/errors";
+import { RateSourceSyncError } from "@bedrock/integration-fx-providers";
 import { createInvestingRateSourceProvider } from "../src/sources/investing";
 
 describe("createInvestingRateSourceProvider", () => {

@@ -1,7 +1,7 @@
 import {
   createAccountingReportingService,
   type AccountingReportingService,
-} from "@bedrock/accounting-reporting";
+} from "@bedrock/query-accounting-reporting";
 import {
   createCounterpartiesService,
   type CounterpartiesService,
@@ -21,8 +21,8 @@ import {
 } from "@bedrock/documents";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
-import { createCommercialDocumentModules } from "@bedrock/commercial-documents";
-import { createIfrsDocumentModules } from "@bedrock/ifrs-documents";
+import { createCommercialDocumentModules } from "@bedrock/extension-documents-commercial";
+import { createIfrsDocumentModules } from "@bedrock/extension-documents-ifrs";
 import {
   createOrganizationsService,
   type OrganizationsService,
@@ -35,7 +35,7 @@ import {
   createRequisitesService,
   type RequisitesService,
 } from "@bedrock/parties/requisites";
-import { db } from "@bedrock/db/client";
+import { db } from "@bedrock/adapter-db-drizzle/client";
 
 import type { ApiCoreServices } from "./core";
 import {
