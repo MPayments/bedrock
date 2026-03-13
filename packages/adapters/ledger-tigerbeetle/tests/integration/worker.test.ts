@@ -14,9 +14,9 @@ import {
   randomOrgId,
   tb,
 } from "./helpers";
-import { createLedgerEngine } from "../../src/engine";
-import { OPERATION_TRANSFER_TYPE } from "../../src/types";
-import { createLedgerWorkerDefinition } from "@bedrock/adapter-ledger-tigerbeetle";
+import { createLedgerEngine, OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
+
+import { createLedgerWorkerDefinition } from "../../src";
 
 async function runWorkerOnce(
   worker: ReturnType<typeof createLedgerWorkerDefinition>,

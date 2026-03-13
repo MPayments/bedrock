@@ -20,10 +20,8 @@
     "test:integration:watch": "vitest --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@bedrock/adapter-db-drizzle": "workspace:*",
-    "@bedrock/adapter-ledger-tigerbeetle": "workspace:*",
-    "@bedrock/adapter-worker-runtime": "workspace:*",
     "@bedrock/core": "workspace:*",
+    "@bedrock/persistence": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "tigerbeetle-node": "^0.16.72",
     "zod": "^4.1.11"

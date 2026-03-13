@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Transaction } from "@bedrock/persistence";
 
 export interface CustomerLifecycleSyncPort {
   onCustomerCreated(

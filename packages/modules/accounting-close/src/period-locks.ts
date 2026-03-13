@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database, Transaction } from "@bedrock/persistence";
 
 import { ValidationError } from "@bedrock/core/errors";
 

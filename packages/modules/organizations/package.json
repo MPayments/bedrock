@@ -18,10 +18,10 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
-    "@bedrock/adapter-db-drizzle": "workspace:*",
     "@bedrock/core": "workspace:*",
     "@bedrock/observability": "workspace:*",
     "@bedrock/party-types": "workspace:*",
+    "@bedrock/persistence": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
   },

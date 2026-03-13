@@ -5,11 +5,11 @@ import {
   type BalanceHold,
   type BalancePosition,
 } from "@bedrock/balances/schema";
-import { IDEMPOTENCY_SCOPE } from "@bedrock/adapter-idempotency-postgres";
 import type { CorrelationContext } from "@bedrock/core/correlation";
-import { pgNotify } from "@bedrock/adapter-db-drizzle/db/notify";
-import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import { pgNotify } from "@bedrock/persistence/notify";
+import type { Transaction } from "@bedrock/persistence";
 
+import { BALANCES_IDEMPOTENCY_SCOPE } from "./idempotency";
 import {
   BalanceHoldConflictError,
   BalanceHoldNotFoundError,
@@ -332,7 +332,7 @@ export function createBalancesService(deps: BalancesServiceDeps) {
     return db.transaction(async (tx: Transaction) =>
       idempotency.withIdempotencyTx({
         tx,
-        scope: IDEMPOTENCY_SCOPE.BALANCES_RESERVE,
+        scope: BALANCES_IDEMPOTENCY_SCOPE.RESERVE,
         idempotencyKey: input.idempotencyKey,
         request: validated,
         actorId: validated.actorId,
@@ -429,7 +429,7 @@ export function createBalancesService(deps: BalancesServiceDeps) {
     return db.transaction(async (tx: Transaction) =>
       idempotency.withIdempotencyTx({
         tx,
-        scope: IDEMPOTENCY_SCOPE.BALANCES_RELEASE,
+        scope: BALANCES_IDEMPOTENCY_SCOPE.RELEASE,
         idempotencyKey: input.idempotencyKey,
         request: validated,
         actorId: validated.actorId,
@@ -518,7 +518,7 @@ export function createBalancesService(deps: BalancesServiceDeps) {
     return db.transaction(async (tx: Transaction) =>
       idempotency.withIdempotencyTx({
         tx,
-        scope: IDEMPOTENCY_SCOPE.BALANCES_CONSUME,
+        scope: BALANCES_IDEMPOTENCY_SCOPE.CONSUME,
         idempotencyKey: input.idempotencyKey,
         request: validated,
         actorId: validated.actorId,

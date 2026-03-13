@@ -8,7 +8,7 @@ import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { schema as organizationsSchema } from "@bedrock/organizations/schema";
 import { schema as requisitesSchema } from "@bedrock/requisites/schema";
-import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database } from "@bedrock/persistence";
 
 import type { LineMapping, ScopedPosting } from "../reports/types";
 import { schema as reportingSchema } from "../schema";

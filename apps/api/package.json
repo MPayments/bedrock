@@ -20,6 +20,7 @@
     "@bedrock/accounting": "workspace:*",
     "@bedrock/adapter-auth-betterauth": "workspace:*",
     "@bedrock/adapter-db-drizzle": "workspace:*",
+    "@bedrock/adapter-identity-drizzle": "workspace:*",
     "@bedrock/adapter-idempotency-postgres": "workspace:*",
     "@bedrock/balances": "workspace:*",
     "@bedrock/counterparties": "workspace:*",

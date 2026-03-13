@@ -25,9 +25,6 @@
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
     "@bedrock/accounting-close": "workspace:*",
-    "@bedrock/adapter-db-drizzle": "workspace:*",
-    "@bedrock/adapter-idempotency-postgres": "workspace:*",
-    "@bedrock/adapter-worker-runtime": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/core": "workspace:*",
     "@bedrock/currencies": "workspace:*",
@@ -36,6 +33,7 @@
     "@bedrock/ledger": "workspace:*",
     "@bedrock/money": "workspace:*",
     "@bedrock/observability": "workspace:*",
+    "@bedrock/persistence": "workspace:*",
     "@bedrock/requisites": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"

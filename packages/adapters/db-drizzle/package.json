@@ -36,6 +36,7 @@
     "@bedrock/identity": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/organizations": "workspace:*",
+    "@bedrock/persistence": "workspace:*",
     "@bedrock/requisites": "workspace:*",
     "@bedrock/query-accounting-reporting": "workspace:*",
     "@bedrock/reconciliation": "workspace:*",

@@ -44,8 +44,12 @@
     },
     "dev": {
       "cache": false,
+      "persistent": true
+    },
+    "web#dev": {
+      "cache": false,
       "persistent": true,
-      "dependsOn": ["^build"]
+      "dependsOn": ["api#build", "@bedrock/client-api#build"]
     }
   }
 }

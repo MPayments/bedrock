@@ -28,11 +28,11 @@
     "pack:activate": "tsx ./scripts/pack-activate.ts"
   },
   "dependencies": {
-    "@bedrock/adapter-db-drizzle": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/core": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/observability": "workspace:*",
+    "@bedrock/persistence": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
   },

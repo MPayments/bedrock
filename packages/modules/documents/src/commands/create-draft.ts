@@ -1,9 +1,9 @@
 import { schema, type Document } from "@bedrock/documents/schema";
-import { IDEMPOTENCY_SCOPE } from "@bedrock/adapter-idempotency-postgres";
-import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Transaction } from "@bedrock/persistence";
 
 import { isSystemOnlyDocumentType } from "../doc-type-rules";
 import { DocumentValidationError } from "../errors";
+import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "../idempotency";
 import type { DocumentsServiceContext } from "../internal/context";
 import {
   buildDocumentEventState,
@@ -84,7 +84,7 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
 
         return idempotency.withIdempotencyTx({
           tx,
-          scope: IDEMPOTENCY_SCOPE.DOCUMENTS_CREATE_DRAFT,
+          scope: DOCUMENTS_IDEMPOTENCY_SCOPE.CREATE_DRAFT,
           idempotencyKey: input.createIdempotencyKey,
           request: {
             docType: input.docType,

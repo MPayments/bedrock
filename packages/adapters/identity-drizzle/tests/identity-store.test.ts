@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createDrizzleAuthIdentityStore } from "../src/identity-store";
-import { account, session, user } from "../src/schema";
+import { createDrizzleAuthIdentityStore } from "../src/service";
+import { account, session, user } from "@bedrock/identity";
 
 function createUserRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {

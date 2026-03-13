@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { schema, type ActionReceipt } from "@bedrock/adapter-idempotency-postgres/schema";
 import { canonicalJson } from "@bedrock/core/canon";
 import { sha256Hex } from "@bedrock/core/crypto";
-import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Transaction } from "@bedrock/persistence/drizzle";
 
 import { ActionReceiptConflictError, ActionReceiptStoredError } from "./errors";
 import {

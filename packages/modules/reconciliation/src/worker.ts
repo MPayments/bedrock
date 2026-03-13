@@ -4,7 +4,7 @@ import { schema } from "@bedrock/reconciliation/schema";
 import { canonicalJson } from "@bedrock/core/canon";
 import { sha256Hex } from "@bedrock/core/crypto";
 import { noopLogger, type Logger } from "@bedrock/observability/logger";
-import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database } from "@bedrock/persistence";
 
 import type {
   ReconciliationDocumentsPort,
@@ -15,7 +15,7 @@ import type {
   BedrockWorker,
   WorkerRunContext,
   WorkerRunResult,
-} from "@bedrock/adapter-worker-runtime";
+} from "@bedrock/core/worker";
 import { createReconciliationService } from "./service";
 
 interface PendingReconciliationSource {

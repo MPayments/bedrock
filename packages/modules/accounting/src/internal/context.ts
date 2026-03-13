@@ -1,6 +1,6 @@
 import type { AccountingPackDefinition } from "@bedrock/accounting/packs/schema";
 import type { Logger } from "@bedrock/observability/logger";
-import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database } from "@bedrock/persistence";
 import { noopLogger } from "@bedrock/observability/logger";
 
 export interface AccountingRuntimeDeps {

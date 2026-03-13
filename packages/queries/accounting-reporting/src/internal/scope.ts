@@ -3,7 +3,7 @@ import { inArray, sql, type SQL } from "drizzle-orm";
 import {
   listInternalLedgerCounterparties,
 } from "@bedrock/counterparties";
-import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database } from "@bedrock/persistence";
 import { ValidationError } from "@bedrock/core/errors";
 
 import { toBigInt } from "./normalization";

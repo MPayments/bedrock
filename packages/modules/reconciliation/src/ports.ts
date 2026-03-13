@@ -1,5 +1,5 @@
 import type { DocumentWithOperationId } from "@bedrock/documents";
-import type { IdempotencyPort } from "@bedrock/adapter-idempotency-postgres";
+import type { IdempotencyPort } from "@bedrock/core/idempotency";
 import type { CorrelationContext } from "@bedrock/core/correlation";
 
 export interface ReconciliationDocumentsPort {

@@ -1,22 +1,23 @@
 import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database, Transaction } from "@bedrock/persistence/drizzle";
 import {
   resolveSortOrder,
   resolveSortValue,
   type PaginatedList,
 } from "@bedrock/core/pagination";
-
-import { account, session, user } from "./schema";
-import type {
-  AuthBanUserInput,
-  AuthCreateUserWithCredentialInput,
-  AuthIdentityStorePort,
-  AuthListUsersInput,
-  AuthUpdateUserInput,
-  AuthUserRecord,
-  AuthUserWithLastSession,
-} from "./ports";
+import {
+  account,
+  session,
+  user,
+  type AuthBanUserInput,
+  type AuthCreateUserWithCredentialInput,
+  type AuthIdentityStorePort,
+  type AuthListUsersInput,
+  type AuthUpdateUserInput,
+  type AuthUserRecord,
+  type AuthUserWithLastSession,
+} from "@bedrock/identity";
 
 const SORT_COLUMN_MAP = {
   name: user.name,

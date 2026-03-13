@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { CustomerLifecycleSyncPort } from "@bedrock/customers";
-import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Transaction } from "@bedrock/persistence";
 
 import {
   ensureCustomerGroupForCustomer,

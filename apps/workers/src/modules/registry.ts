@@ -16,13 +16,13 @@ import { createDefaultFxRateSourceProviders } from "@bedrock/integration-fx-prov
 import {
   type BedrockWorker,
   type WorkerCatalogEntry,
-} from "@bedrock/adapter-worker-runtime";
+} from "@bedrock/core/worker";
 import type { Logger } from "@bedrock/observability/logger";
-import { createPeriodCloseWorkerDefinition } from "@bedrock/workflow-period-close";
-import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database } from "@bedrock/persistence/drizzle";
 
 import { WORKER_CATALOG } from "../catalog";
 import type { WorkerEnv } from "../env";
+import { createPeriodCloseWorkerDefinition } from "./period-close";
 
 interface WorkerModuleDeps {
   db: Database;

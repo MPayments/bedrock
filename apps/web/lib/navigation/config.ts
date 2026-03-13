@@ -74,6 +74,13 @@ const navItems: AppNavItem[] = [
         audience: "shared",
       },
       {
+        id: "documents-commercial",
+        title: "Коммерческие документы",
+        href: "/documents/commercial",
+        icon: "receipt",
+        audience: "shared",
+      },
+      {
         id: "documents-journal",
         title: "Журнал",
         href: "/documents/journal",

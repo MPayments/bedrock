@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Transaction } from "@bedrock/persistence";
 
 import { createCommitHandler } from "./commands/commit";
 import { createLedgerContext, type LedgerDeps } from "./internal/context";

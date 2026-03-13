@@ -5,7 +5,7 @@ import {
   type Document,
   type DocumentLinkType,
 } from "@bedrock/documents/schema";
-import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Transaction } from "@bedrock/persistence";
 
 import { DocumentGraphError } from "../errors";
 import type { DocumentInitialLink } from "../types";

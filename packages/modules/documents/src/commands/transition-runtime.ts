@@ -1,7 +1,7 @@
 import type { Document } from "@bedrock/documents/schema";
-import type { IDEMPOTENCY_SCOPE } from "@bedrock/adapter-idempotency-postgres";
-import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Transaction } from "@bedrock/persistence";
 
+import type { DocumentsIdempotencyScope } from "../idempotency";
 import type { DocumentsServiceContext } from "../internal/context";
 import {
   buildDocumentWithOperationId,
@@ -49,7 +49,7 @@ export interface DocumentTransitionExecutionContext {
 }
 
 export interface DocumentTransitionSpec {
-  scope: (typeof IDEMPOTENCY_SCOPE)[keyof typeof IDEMPOTENCY_SCOPE];
+  scope: DocumentsIdempotencyScope;
   needsDocumentForIdempotencyKey?: boolean;
   resolveIdempotencyKey(input: {
     transition: DocumentTransitionInput;

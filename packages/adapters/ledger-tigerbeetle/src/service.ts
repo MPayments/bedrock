@@ -4,12 +4,12 @@ import { schema } from "@bedrock/ledger/schema";
 import type {
   Database,
   Transaction,
-} from "@bedrock/adapter-db-drizzle/db/types";
+} from "@bedrock/persistence/drizzle";
 import type {
   BedrockWorker,
   WorkerRunContext,
   WorkerRunResult,
-} from "@bedrock/adapter-worker-runtime";
+} from "@bedrock/core/worker";
 import { isRetryableError, OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
 import {
   makeTbAccount,

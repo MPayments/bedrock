@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { ensureBookAccountInstanceTx } from "@bedrock/ledger";
-import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Transaction } from "@bedrock/persistence";
 import {
   RequisiteBindingNotFoundError,
   RequisiteBindingOwnerTypeError,

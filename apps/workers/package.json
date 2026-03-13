@@ -16,19 +16,25 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/accounting-close": "workspace:*",
     "@bedrock/adapter-db-drizzle": "workspace:*",
     "@bedrock/adapter-ledger-tigerbeetle": "workspace:*",
     "@bedrock/adapter-worker-runtime": "workspace:*",
     "@bedrock/balances": "workspace:*",
+    "@bedrock/core": "workspace:*",
+    "@bedrock/counterparties": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
+    "@bedrock/identity": "workspace:*",
     "@bedrock/integration-fx-providers": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/observability": "workspace:*",
+    "@bedrock/persistence": "workspace:*",
     "@bedrock/workflow-period-close": "workspace:*",
-    "dotenv": "^17.3.1"
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",

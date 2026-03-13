@@ -1,6 +1,5 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 
-import { IDEMPOTENCY_SCOPE } from "@bedrock/adapter-idempotency-postgres";
 import {
   schema as reconciliationSchema,
   type ReconciliationException,
@@ -10,8 +9,9 @@ import {
 import { canonicalJson } from "@bedrock/core/canon";
 import type { CorrelationContext } from "@bedrock/core/correlation";
 import { sha256Hex } from "@bedrock/core/crypto";
-import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database, Transaction } from "@bedrock/persistence";
 
+import { RECONCILIATION_IDEMPOTENCY_SCOPE } from "./idempotency";
 import type {
   ReconciliationDocumentsPort,
   ReconciliationLedgerLookupPort,
@@ -208,7 +208,7 @@ export function createReconciliationService(deps: ReconciliationServiceDeps) {
     return db.transaction(async (tx) =>
       idempotency.withIdempotencyTx({
         tx,
-        scope: IDEMPOTENCY_SCOPE.RECON_INGEST_EXTERNAL_RECORD,
+        scope: RECONCILIATION_IDEMPOTENCY_SCOPE.INGEST_EXTERNAL_RECORD,
         idempotencyKey: input.idempotencyKey,
         request: {
           ...validated,
@@ -306,7 +306,7 @@ export function createReconciliationService(deps: ReconciliationServiceDeps) {
     return db.transaction(async (tx) =>
       idempotency.withIdempotencyTx({
         tx,
-        scope: IDEMPOTENCY_SCOPE.RECON_RUN,
+        scope: RECONCILIATION_IDEMPOTENCY_SCOPE.RUN,
         idempotencyKey: input.idempotencyKey,
         request: validated,
         actorId: validated.actorUserId,
@@ -475,7 +475,7 @@ export function createReconciliationService(deps: ReconciliationServiceDeps) {
     return db.transaction(async (tx) =>
       idempotency.withIdempotencyTx({
         tx,
-        scope: IDEMPOTENCY_SCOPE.RECON_CREATE_ADJUSTMENT_DOCUMENT,
+        scope: RECONCILIATION_IDEMPOTENCY_SCOPE.CREATE_ADJUSTMENT_DOCUMENT,
         idempotencyKey: input.idempotencyKey,
         request: validated,
         actorId: validated.actorUserId,

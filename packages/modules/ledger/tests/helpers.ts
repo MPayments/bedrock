@@ -5,7 +5,6 @@ export {
 
 import { vi } from "vitest";
 
-import type { TbClient } from "@bedrock/adapter-ledger-tigerbeetle";
 import {
   OPERATION_TRANSFER_TYPE,
   type CreateIntentLine,
@@ -19,6 +18,14 @@ import {
   type StubDatabase,
   type StubTransaction,
 } from "@bedrock/test-utils";
+
+interface TbClient {
+  createAccounts: (...args: any[]) => Promise<any[]>;
+  createTransfers: (...args: any[]) => Promise<any[]>;
+  lookupAccounts: (...args: any[]) => Promise<any[]>;
+  lookupTransfers: (...args: any[]) => Promise<any[]>;
+  destroy: () => void;
+}
 
 export function createMockTbClient(): TbClient {
   return {

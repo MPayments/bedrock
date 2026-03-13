@@ -1,6 +1,6 @@
 import type { Document } from "@bedrock/documents/schema";
 import type { Logger } from "@bedrock/observability/logger";
-import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database, Transaction } from "@bedrock/persistence";
 
 import {
   collectDocumentCounterpartyIds,

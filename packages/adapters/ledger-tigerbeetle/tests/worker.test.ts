@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { createStubDb, createMockTbClient, mockDbExecuteResult, type StubDatabase } from "./helpers";
-import { LedgerError } from "../src/errors";
-import { OPERATION_TRANSFER_TYPE } from "../src/types";
-import { createLedgerWorkerDefinition } from "@bedrock/adapter-ledger-tigerbeetle";
+import { LedgerError, OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
+
+import { createLedgerWorkerDefinition } from "../src";
 
 async function runWorkerOnce(
   worker: ReturnType<typeof createLedgerWorkerDefinition>,

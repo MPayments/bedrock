@@ -5,8 +5,8 @@ import {
   schema,
   type Document,
 } from "@bedrock/documents/schema";
-import { pgNotify } from "@bedrock/adapter-db-drizzle/db/notify";
-import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import { pgNotify } from "@bedrock/persistence/notify";
+import type { Database, Transaction } from "@bedrock/persistence";
 
 import { DocumentNotFoundError } from "../errors";
 import type { DocumentRegistry } from "../types";

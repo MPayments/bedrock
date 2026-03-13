@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database, Transaction } from "@bedrock/persistence";
 
 import { schema } from "../schema";
 

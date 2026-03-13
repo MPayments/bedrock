@@ -21,7 +21,6 @@
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
     "@bedrock/accounting-close": "workspace:*",
-    "@bedrock/adapter-db-drizzle": "workspace:*",
     "@bedrock/balances": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/core": "workspace:*",
@@ -31,6 +30,7 @@
     "@bedrock/ledger": "workspace:*",
     "@bedrock/observability": "workspace:*",
     "@bedrock/organizations": "workspace:*",
+    "@bedrock/persistence": "workspace:*",
     "@bedrock/requisites": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"

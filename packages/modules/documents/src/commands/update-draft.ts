@@ -1,9 +1,9 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/documents/schema";
-import { IDEMPOTENCY_SCOPE } from "@bedrock/adapter-idempotency-postgres";
 
 import { DocumentValidationError } from "../errors";
+import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "../idempotency";
 import type { DocumentsServiceContext } from "../internal/context";
 import {
   buildDocumentWithOperationId,
@@ -63,7 +63,7 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
 
         return idempotency.withIdempotencyTx({
           tx,
-          scope: IDEMPOTENCY_SCOPE.DOCUMENTS_UPDATE_DRAFT,
+          scope: DOCUMENTS_IDEMPOTENCY_SCOPE.UPDATE_DRAFT,
           idempotencyKey,
           request: {
             docType: input.docType,

@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import type { Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Transaction } from "@bedrock/persistence";
 
 const DEFAULT_ORGANIZATION_BOOK_CODE_PREFIX = "organization-default";
 

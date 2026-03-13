@@ -6,12 +6,12 @@ import {
 } from "@bedrock/balances/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { noopLogger, type Logger } from "@bedrock/observability/logger";
-import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database, Transaction } from "@bedrock/persistence";
 import type {
   BedrockWorker,
   WorkerRunContext,
   WorkerRunResult,
-} from "@bedrock/adapter-worker-runtime";
+} from "@bedrock/core/worker";
 
 const schema = {
   ...balancesSchema,

@@ -9,8 +9,18 @@ export {
 } from "./errors";
 export {
   PaginationInputSchema,
-  SortOrderSchema,
   resolveSortOrder,
   resolveSortValue,
   createPaginatedListSchema,
 } from "./pagination";
+export type {
+  IdempotencyPort,
+  StoredActionReceipt,
+  WithIdempotencyTxInput,
+} from "./idempotency";
+export type {
+  BedrockWorker,
+  WorkerCatalogEntry,
+  WorkerRunContext,
+  WorkerRunResult,
+} from "./worker";

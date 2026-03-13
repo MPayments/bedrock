@@ -44,6 +44,7 @@ describe("navigation config", () => {
     ]);
 
     expect(hrefs).toContain("/accounting");
+    expect(hrefs).toContain("/documents/commercial");
     expect(hrefs).toContain("/documents/journal");
     expect(hrefs).toContain("/entities");
     expect(hrefs).toContain("/fx");

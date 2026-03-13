@@ -9,7 +9,7 @@ import {
 } from "@bedrock/balances";
 import {
   createDrizzleAuthIdentityStore,
-} from "@bedrock/identity";
+} from "@bedrock/adapter-identity-drizzle";
 import { createBetterAuthPasswordHasher } from "@bedrock/adapter-auth-betterauth";
 import { createIdempotencyService, type IdempotencyPort } from "@bedrock/adapter-idempotency-postgres";
 import {

@@ -370,6 +370,15 @@ for (const root of SOURCE_ROOTS) {
       }
 
       if (
+        owner &&
+        isRuntimeSourceFile &&
+        ["module", "query", "workflow"].includes(owner.kind) &&
+        targetPkg.name.startsWith("@bedrock/adapter-")
+      ) {
+        recordViolation("production-imports-adapter", relFile, specifier);
+      }
+
+      if (
         normalized.subpath === "./internal" ||
         normalized.subpath.startsWith("./internal/") ||
         normalized.subpath.includes("/internal/")

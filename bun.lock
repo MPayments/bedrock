@@ -25,6 +25,7 @@
         "@bedrock/adapter-auth-betterauth": "workspace:*",
         "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/adapter-idempotency-postgres": "workspace:*",
+        "@bedrock/adapter-identity-drizzle": "workspace:*",
         "@bedrock/balances": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/counterparties": "workspace:*",
@@ -113,19 +114,25 @@
       "name": "workers",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/accounting-close": "workspace:*",
         "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/adapter-ledger-tigerbeetle": "workspace:*",
         "@bedrock/adapter-worker-runtime": "workspace:*",
         "@bedrock/balances": "workspace:*",
+        "@bedrock/core": "workspace:*",
+        "@bedrock/counterparties": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/documents": "workspace:*",
         "@bedrock/fees": "workspace:*",
         "@bedrock/fx": "workspace:*",
+        "@bedrock/identity": "workspace:*",
         "@bedrock/integration-fx-providers": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/observability": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "@bedrock/workflow-period-close": "workspace:*",
         "dotenv": "^17.3.1",
+        "drizzle-orm": "^0.45.1",
       },
       "devDependencies": {
         "@bedrock/eslint-config": "workspace:*",
@@ -189,6 +196,7 @@
         "@bedrock/identity": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/organizations": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "@bedrock/query-accounting-reporting": "workspace:*",
         "@bedrock/reconciliation": "workspace:*",
         "@bedrock/requisites": "workspace:*",
@@ -209,9 +217,26 @@
       "name": "@bedrock/adapter-idempotency-postgres",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/observability": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
+        "drizzle-orm": "^0.45.1",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/adapters/identity-drizzle": {
+      "name": "@bedrock/adapter-identity-drizzle",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/core": "workspace:*",
+        "@bedrock/identity": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
       },
       "devDependencies": {
@@ -226,16 +251,19 @@
       "name": "@bedrock/adapter-ledger-tigerbeetle",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
-        "@bedrock/adapter-worker-runtime": "workspace:*",
+        "@bedrock/core": "workspace:*",
         "@bedrock/ledger": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "tigerbeetle-node": "^0.16.72",
       },
       "devDependencies": {
+        "@bedrock/test-utils": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
         "@types/node": "^24",
+        "@types/pg": "^8.16.0",
         "eslint": "^9.31.0",
+        "pg": "^8.18.0",
         "typescript": "^5.8.3",
         "vitest": "^4.0.18",
       },
@@ -325,6 +353,7 @@
       "name": "@bedrock/core",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/persistence": "workspace:*",
         "zod": "^4.3.6",
       },
       "devDependencies": {
@@ -385,6 +414,21 @@
         "vitest": "^4.0.18",
       },
     },
+    "packages/foundation/persistence": {
+      "name": "@bedrock/persistence",
+      "version": "0.0.0",
+      "dependencies": {
+        "drizzle-orm": "^0.45.1",
+      },
+      "devDependencies": {
+        "@bedrock/eslint-config": "workspace:*",
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
     "packages/foundation/reference-data": {
       "name": "@bedrock/reference-data",
       "version": "0.0.0",
@@ -418,11 +462,11 @@
       "name": "@bedrock/accounting",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/counterparties": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/observability": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
@@ -441,9 +485,9 @@
       "name": "@bedrock/accounting-close",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/counterparties": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
       },
       "devDependencies": {
@@ -458,17 +502,16 @@
       "name": "@bedrock/balances",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
-        "@bedrock/adapter-idempotency-postgres": "workspace:*",
-        "@bedrock/adapter-worker-runtime": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/money": "workspace:*",
         "@bedrock/observability": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
       "devDependencies": {
+        "@bedrock/adapter-idempotency-postgres": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
         "@types/node": "^24",
         "@types/pg": "^8.16.0",
@@ -482,12 +525,12 @@
       "name": "@bedrock/counterparties",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/customers": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/observability": "workspace:*",
         "@bedrock/party-types": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "@bedrock/reference-data": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
@@ -507,9 +550,9 @@
       "name": "@bedrock/currencies",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/observability": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
@@ -527,9 +570,9 @@
       "name": "@bedrock/customers",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/observability": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
@@ -550,9 +593,6 @@
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
         "@bedrock/accounting-close": "workspace:*",
-        "@bedrock/adapter-db-drizzle": "workspace:*",
-        "@bedrock/adapter-idempotency-postgres": "workspace:*",
-        "@bedrock/adapter-worker-runtime": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/counterparties": "workspace:*",
         "@bedrock/currencies": "workspace:*",
@@ -561,6 +601,7 @@
         "@bedrock/ledger": "workspace:*",
         "@bedrock/money": "workspace:*",
         "@bedrock/observability": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "@bedrock/requisites": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
@@ -579,11 +620,11 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
-        "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/money": "workspace:*",
         "@bedrock/observability": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
@@ -602,8 +643,6 @@
       "name": "@bedrock/fx",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
-        "@bedrock/adapter-worker-runtime": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/counterparties": "workspace:*",
         "@bedrock/currencies": "workspace:*",
@@ -611,6 +650,7 @@
         "@bedrock/fees": "workspace:*",
         "@bedrock/money": "workspace:*",
         "@bedrock/observability": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
@@ -630,7 +670,6 @@
       "name": "@bedrock/identity",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/core": "workspace:*",
         "better-auth": "^1.4.18",
         "drizzle-orm": "^0.45.1",
@@ -647,10 +686,8 @@
       "name": "@bedrock/ledger",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
-        "@bedrock/adapter-ledger-tigerbeetle": "workspace:*",
-        "@bedrock/adapter-worker-runtime": "workspace:*",
         "@bedrock/core": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "tigerbeetle-node": "^0.16.72",
         "zod": "^4.1.11",
@@ -670,10 +707,10 @@
       "name": "@bedrock/organizations",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/observability": "workspace:*",
         "@bedrock/party-types": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
@@ -692,17 +729,16 @@
       "name": "@bedrock/reconciliation",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
-        "@bedrock/adapter-idempotency-postgres": "workspace:*",
-        "@bedrock/adapter-worker-runtime": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/documents": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/observability": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
       },
       "devDependencies": {
+        "@bedrock/adapter-idempotency-postgres": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
         "@types/node": "^24",
         "@types/pg": "^8.16.0",
@@ -716,13 +752,13 @@
       "name": "@bedrock/requisites",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/counterparties": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/observability": "workspace:*",
         "@bedrock/organizations": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "@bedrock/reference-data": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
@@ -761,7 +797,6 @@
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
         "@bedrock/accounting-close": "workspace:*",
-        "@bedrock/adapter-db-drizzle": "workspace:*",
         "@bedrock/balances": "workspace:*",
         "@bedrock/core": "workspace:*",
         "@bedrock/counterparties": "workspace:*",
@@ -771,6 +806,7 @@
         "@bedrock/ledger": "workspace:*",
         "@bedrock/observability": "workspace:*",
         "@bedrock/organizations": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "@bedrock/requisites": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
@@ -808,7 +844,7 @@
       "name": "@bedrock/test-utils",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/adapter-db-drizzle": "workspace:*",
+        "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "pg": "^8.18.0",
         "zod": "^4.3.6",
@@ -866,14 +902,8 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/accounting-close": "workspace:*",
-        "@bedrock/adapter-db-drizzle": "workspace:*",
-        "@bedrock/adapter-worker-runtime": "workspace:*",
         "@bedrock/core": "workspace:*",
-        "@bedrock/counterparties": "workspace:*",
-        "@bedrock/documents": "workspace:*",
-        "@bedrock/identity": "workspace:*",
         "@bedrock/observability": "workspace:*",
-        "drizzle-orm": "^0.45.1",
       },
       "devDependencies": {
         "@bedrock/test-utils": "workspace:*",
@@ -915,6 +945,8 @@
     "@bedrock/adapter-db-drizzle": ["@bedrock/adapter-db-drizzle@workspace:packages/adapters/db-drizzle"],
 
     "@bedrock/adapter-idempotency-postgres": ["@bedrock/adapter-idempotency-postgres@workspace:packages/adapters/idempotency-postgres"],
+
+    "@bedrock/adapter-identity-drizzle": ["@bedrock/adapter-identity-drizzle@workspace:packages/adapters/identity-drizzle"],
 
     "@bedrock/adapter-ledger-tigerbeetle": ["@bedrock/adapter-ledger-tigerbeetle@workspace:packages/adapters/ledger-tigerbeetle"],
 
@@ -961,6 +993,8 @@
     "@bedrock/organizations": ["@bedrock/organizations@workspace:packages/modules/organizations"],
 
     "@bedrock/party-types": ["@bedrock/party-types@workspace:packages/foundation/party-types"],
+
+    "@bedrock/persistence": ["@bedrock/persistence@workspace:packages/foundation/persistence"],
 
     "@bedrock/query-accounting-reporting": ["@bedrock/query-accounting-reporting@workspace:packages/queries/accounting-reporting"],
 
@@ -2382,6 +2416,8 @@
 
     "@bedrock/adapter-idempotency-postgres/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
+    "@bedrock/adapter-identity-drizzle/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
     "@bedrock/adapter-ledger-tigerbeetle/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/adapter-worker-runtime/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
@@ -2423,6 +2459,8 @@
     "@bedrock/organizations/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/party-types/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/persistence/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/query-accounting-reporting/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
@@ -2536,6 +2574,8 @@
 
     "@bedrock/adapter-idempotency-postgres/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
+    "@bedrock/adapter-identity-drizzle/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
     "@bedrock/adapter-ledger-tigerbeetle/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/adapter-worker-runtime/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
@@ -2577,6 +2617,8 @@
     "@bedrock/organizations/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/party-types/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/persistence/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/query-accounting-reporting/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 

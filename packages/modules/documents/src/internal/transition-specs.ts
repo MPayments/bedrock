@@ -1,10 +1,10 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/documents/schema";
-import { IDEMPOTENCY_SCOPE } from "@bedrock/adapter-idempotency-postgres";
 import { InvalidStateError } from "@bedrock/core/errors";
 
 import { DocumentPostingNotRequiredError } from "../errors";
+import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "../idempotency";
 import {
   assertDocumentIsActive,
   buildDefaultActionIdempotencyKey,
@@ -596,25 +596,25 @@ async function runPost(context: DocumentTransitionExecutionContext) {
 
 export const DOCUMENT_TRANSITION_SPECS: DocumentTransitionSpecs = {
   submit: {
-    scope: IDEMPOTENCY_SCOPE.DOCUMENTS_SUBMIT,
+    scope: DOCUMENTS_IDEMPOTENCY_SCOPE.SUBMIT,
     resolveIdempotencyKey: ({ transition }) =>
       transition.idempotencyKey ?? buildActionIdempotencyKey("submit", transition),
     execute: runSubmit,
   },
   approve: {
-    scope: IDEMPOTENCY_SCOPE.DOCUMENTS_APPROVE,
+    scope: DOCUMENTS_IDEMPOTENCY_SCOPE.APPROVE,
     resolveIdempotencyKey: ({ transition }) =>
       transition.idempotencyKey ?? buildActionIdempotencyKey("approve", transition),
     execute: async (context) => runApproveOrReject(context, "approve"),
   },
   reject: {
-    scope: IDEMPOTENCY_SCOPE.DOCUMENTS_REJECT,
+    scope: DOCUMENTS_IDEMPOTENCY_SCOPE.REJECT,
     resolveIdempotencyKey: ({ transition }) =>
       transition.idempotencyKey ?? buildActionIdempotencyKey("reject", transition),
     execute: async (context) => runApproveOrReject(context, "reject"),
   },
   post: {
-    scope: IDEMPOTENCY_SCOPE.DOCUMENTS_POST,
+    scope: DOCUMENTS_IDEMPOTENCY_SCOPE.POST,
     needsDocumentForIdempotencyKey: true,
     resolveIdempotencyKey: ({ transition, context }) =>
       transition.idempotencyKey ??
@@ -623,13 +623,13 @@ export const DOCUMENT_TRANSITION_SPECS: DocumentTransitionSpecs = {
     execute: runPost,
   },
   cancel: {
-    scope: IDEMPOTENCY_SCOPE.DOCUMENTS_CANCEL,
+    scope: DOCUMENTS_IDEMPOTENCY_SCOPE.CANCEL,
     resolveIdempotencyKey: ({ transition }) =>
       transition.idempotencyKey ?? buildActionIdempotencyKey("cancel", transition),
     execute: runCancel,
   },
   repost: {
-    scope: IDEMPOTENCY_SCOPE.DOCUMENTS_REPOST,
+    scope: DOCUMENTS_IDEMPOTENCY_SCOPE.REPOST,
     resolveIdempotencyKey: ({ transition }) =>
       transition.idempotencyKey ?? buildActionIdempotencyKey("repost", transition),
     execute: runRepost,

@@ -1,4 +1,4 @@
-import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database } from "@bedrock/persistence";
 
 import type {
   ReportAttributionMode,

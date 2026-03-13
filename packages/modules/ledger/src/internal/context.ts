@@ -1,4 +1,4 @@
-import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database } from "@bedrock/persistence";
 
 export interface InternalLedgerBookGuard {
   (input: { db: Database; bookIds: string[] }): Promise<void>;

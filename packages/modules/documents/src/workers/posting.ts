@@ -1,12 +1,12 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/documents/schema";
-import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
+import type { Database } from "@bedrock/persistence";
 import type {
   BedrockWorker,
   WorkerRunContext,
   WorkerRunResult,
-} from "@bedrock/adapter-worker-runtime";
+} from "@bedrock/core/worker";
 import {
   buildDocumentEventState,
   getLatestPostingArtifacts,
