@@ -1,4 +1,4 @@
-import { BPS_SCALE } from "@bedrock/ledger/constants";
+import { BPS_SCALE } from "@bedrock/common";
 
 import { FeeValidationError } from "../errors";
 

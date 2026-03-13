@@ -17,15 +17,9 @@ import { IdempotencyConflictError } from "../src/errors";
 import { OPERATION_TRANSFER_TYPE } from "../src/types";
 
 function createCreateTransferTx(options?: {
-  ruleExists?: boolean;
-  postingAllowed?: boolean;
-  accountEnabled?: boolean;
-  requiredDimensions?: string[];
+  existingOperation?: boolean;
 }) {
-  const ruleExists = options?.ruleExists ?? true;
-  const postingAllowed = options?.postingAllowed ?? true;
-  const accountEnabled = options?.accountEnabled ?? true;
-  const requiredDimensions = options?.requiredDimensions ?? [];
+  const existingOperation = options?.existingOperation ?? false;
 
   let bookInsertCount = 0;
 
@@ -77,27 +71,17 @@ function createCreateTransferTx(options?: {
     select: vi.fn(() => ({
       from: vi.fn((table: unknown) => ({
         where: vi.fn(() => {
-          if (table === schema.chartAccountDimensionPolicy) {
-            return Promise.resolve([]);
-          }
-          if (table === schema.postingCodeDimensionPolicy) {
-            return Promise.resolve(
-              requiredDimensions.map((dimensionKey) => ({
-                dimensionKey,
-                required: true,
-                scope: "line",
-              })),
-            );
-          }
-
           return {
             limit: vi.fn(async () => {
-              if (table === schema.correspondenceRules) {
-                return ruleExists ? [{ id: "rule" }] : [];
-              }
-
-              if (table === schema.chartTemplateAccounts) {
-                return [{ postingAllowed, enabled: accountEnabled }];
+              if (table === schema.ledgerOperations && existingOperation) {
+                return [
+                  {
+                    id: "op-create-1",
+                    sourceType: "payment",
+                    sourceId: "pay-456",
+                    payloadHash: "existing-hash",
+                  },
+                ];
               }
 
               return [];
@@ -154,17 +138,17 @@ describe("createLedgerEngine", () => {
       );
     });
 
-    it("rejects invalid account number format", async () => {
+    it("rejects empty account number", async () => {
       const input = createTestEntry({
         transfers: [
           createTestTransferPlan({
-            debitAccountNo: "12",
+            debitAccountNo: "   ",
           }),
         ],
       });
 
       await expect(engine.commitStandalone(input)).rejects.toThrow(
-        /accountNo must match NNNN/,
+        /accountNo must be a non-empty string/,
       );
     });
 
@@ -528,13 +512,8 @@ describe("createLedgerEngine", () => {
       expect(result.pendingTransferIdsByRef.has("pending-ref-1")).toBe(true);
     });
 
-    it("does not re-run accounting policy checks during ledger commit", async () => {
-      const tx = createCreateTransferTx({
-        ruleExists: false,
-        postingAllowed: false,
-        accountEnabled: false,
-        requiredDimensions: ["customerId"],
-      });
+    it("does not depend on accounting policy tables during ledger commit", async () => {
+      const tx = createCreateTransferTx();
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
       await expect(

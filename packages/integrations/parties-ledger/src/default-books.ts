@@ -31,7 +31,7 @@ export async function ensureOrganizationDefaultBookIdTx(
     .from(ledgerSchema.books)
     .where(
       and(
-        eq(ledgerSchema.books.organizationId, organizationId),
+        eq(ledgerSchema.books.ownerId, organizationId),
         eq(ledgerSchema.books.isDefault, true),
       ),
     )
@@ -45,7 +45,7 @@ export async function ensureOrganizationDefaultBookIdTx(
   const [created] = await tx
     .insert(ledgerSchema.books)
     .values({
-      organizationId,
+      ownerId: organizationId,
       code,
       name: defaultOrganizationBookName(organizationId),
       isDefault: true,
@@ -83,7 +83,7 @@ export async function ensureInternalLedgerDefaultBookIdTx(
     .from(ledgerSchema.books)
     .where(
       and(
-        eq(ledgerSchema.books.organizationId, counterpartyId),
+        eq(ledgerSchema.books.ownerId, counterpartyId),
         eq(ledgerSchema.books.isDefault, true),
       ),
     )
@@ -98,7 +98,7 @@ export async function ensureInternalLedgerDefaultBookIdTx(
     .from(ledgerSchema.books)
     .where(
       and(
-        eq(ledgerSchema.books.organizationId, counterpartyId),
+        eq(ledgerSchema.books.ownerId, counterpartyId),
         eq(ledgerSchema.books.isDefault, false),
       ),
     )
@@ -114,7 +114,7 @@ export async function ensureInternalLedgerDefaultBookIdTx(
   const [created] = await tx
     .insert(ledgerSchema.books)
     .values({
-      organizationId: counterpartyId,
+      ownerId: counterpartyId,
       code,
       name: defaultCounterpartyBookName(counterpartyId),
       isDefault: true,

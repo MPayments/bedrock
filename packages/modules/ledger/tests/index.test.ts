@@ -8,5 +8,7 @@ describe("ledger public exports", () => {
     expect(ledger.OPERATION_TRANSFER_TYPE).toBeDefined();
     expect(ledger.IdempotencyConflictError).toBeTypeOf("function");
     expect(ledger.createLedgerWorkerDefinition).toBeTypeOf("function");
+    expect("TransferCodes" in ledger).toBe(false);
+    expect("AccountingNotInitializedError" in ledger).toBe(false);
   });
 });

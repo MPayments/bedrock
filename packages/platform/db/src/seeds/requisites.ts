@@ -1,12 +1,12 @@
 import { and, eq } from "drizzle-orm";
 
 import { ACCOUNT_NO } from "@bedrock/accounting";
-import { schema as partiesLedgerSchema } from "@bedrock/parties-ledger/schema";
 import {
   computeDimensionsHash,
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
 } from "@bedrock/ledger/ids";
+import { schema as partiesLedgerSchema } from "@bedrock/parties-ledger/schema";
 
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema";
@@ -52,7 +52,7 @@ async function ensureDefaultBooks(
       .from(schema.books)
       .where(
         and(
-          eq(schema.books.organizationId, organizationId),
+          eq(schema.books.ownerId, organizationId),
           eq(schema.books.isDefault, true),
         ),
       )
@@ -67,7 +67,7 @@ async function ensureDefaultBooks(
     const [created] = await db
       .insert(schema.books)
       .values({
-        organizationId,
+        ownerId: organizationId,
         code,
         name: organizationDefaultBookName(organizationId),
         isDefault: true,

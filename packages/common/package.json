@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./errors": "./src/errors.ts",
+    "./math": "./src/math.ts",
     "./pagination": "./src/pagination.ts",
     "./db/notify": "./src/db/notify.ts",
     "./db/types": "./src/db/types.ts",

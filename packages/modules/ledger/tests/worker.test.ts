@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { createStubDb, createMockTbClient, mockDbExecuteResult, type StubDatabase } from "./helpers";
-import { PostingError } from "../src/errors";
+import { LedgerError } from "../src/errors";
 import { OPERATION_TRANSFER_TYPE } from "../src/types";
 import { createLedgerWorkerDefinition } from "../src/worker";
 
@@ -163,7 +163,7 @@ describe("createLedgerWorkerDefinition", () => {
         from: vi.fn(() => ({
           where: vi.fn(() => ({
             orderBy: vi.fn(() => {
-              throw new PostingError("Permanent failure");
+              throw new LedgerError("Permanent failure");
             })
           }))
         }))

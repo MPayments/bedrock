@@ -630,7 +630,7 @@ CREATE TABLE "fx_rates" (
 --> statement-breakpoint
 CREATE TABLE "books" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"organization_id" uuid NOT NULL,
+	"owner_id" uuid NOT NULL,
 	"code" text NOT NULL,
 	"name" text NOT NULL,
 	"is_default" boolean DEFAULT false NOT NULL,
@@ -785,7 +785,6 @@ ALTER TABLE "fx_quotes" ADD CONSTRAINT "fx_quotes_from_currency_id_currencies_id
 ALTER TABLE "fx_quotes" ADD CONSTRAINT "fx_quotes_to_currency_id_currencies_id_fk" FOREIGN KEY ("to_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fx_rates" ADD CONSTRAINT "fx_rates_base_currency_id_currencies_id_fk" FOREIGN KEY ("base_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fx_rates" ADD CONSTRAINT "fx_rates_quote_currency_id_currencies_id_fk" FOREIGN KEY ("quote_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "books" ADD CONSTRAINT "books_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "book_account_instances" ADD CONSTRAINT "book_account_instances_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "postings" ADD CONSTRAINT "postings_operation_id_ledger_operations_id_fk" FOREIGN KEY ("operation_id") REFERENCES "public"."ledger_operations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "postings" ADD CONSTRAINT "postings_book_id_books_id_fk" FOREIGN KEY ("book_id") REFERENCES "public"."books"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -875,9 +874,9 @@ CREATE INDEX "fx_rates_pair_asof_idx" ON "fx_rates" USING btree ("base_currency_
 CREATE INDEX "fx_rates_asof_idx" ON "fx_rates" USING btree ("as_of");--> statement-breakpoint
 CREATE INDEX "fx_rates_source_asof_idx" ON "fx_rates" USING btree ("source","as_of");--> statement-breakpoint
 CREATE UNIQUE INDEX "books_code_uq" ON "books" USING btree ("code");--> statement-breakpoint
-CREATE UNIQUE INDEX "books_default_owner_uq" ON "books" USING btree ("organization_id") WHERE "books"."is_default" = true;--> statement-breakpoint
-CREATE INDEX "books_organization_idx" ON "books" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "books_organization_default_idx" ON "books" USING btree ("organization_id","is_default");--> statement-breakpoint
+CREATE UNIQUE INDEX "books_default_owner_uq" ON "books" USING btree ("owner_id") WHERE "books"."is_default" = true;--> statement-breakpoint
+CREATE INDEX "books_owner_idx" ON "books" USING btree ("owner_id");--> statement-breakpoint
+CREATE INDEX "books_owner_default_idx" ON "books" USING btree ("owner_id","is_default");--> statement-breakpoint
 CREATE UNIQUE INDEX "book_account_instances_uq" ON "book_account_instances" USING btree ("book_id","account_no","currency","dimensions_hash");--> statement-breakpoint
 CREATE UNIQUE INDEX "book_account_instances_tb_uq" ON "book_account_instances" USING btree ("book_id","tb_ledger","tb_account_id");--> statement-breakpoint
 CREATE INDEX "book_account_instances_book_currency_idx" ON "book_account_instances" USING btree ("book_id","currency");--> statement-breakpoint

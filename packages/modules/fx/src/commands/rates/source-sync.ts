@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import type { FxRate, FxRateSourceRow } from "@bedrock/fx/schema";
 import { schema } from "@bedrock/fx/schema";
-import { DAY_IN_SECONDS } from "@bedrock/ledger/constants";
+import { DAY_IN_SECONDS } from "@bedrock/common";
 
 import { RateSourceStaleError, RateSourceSyncError } from "../../errors";
 import { type FxServiceContext } from "../../internal/context";

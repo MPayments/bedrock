@@ -56,6 +56,29 @@ describe("validateOperationIntent", () => {
     expect(parsed.lines[0]!.credit.currency).toBe("USD");
   });
 
+  it("accepts generic account identifiers", () => {
+    const parsed = validateOperationIntent({
+      ...validInput,
+      lines: [
+        {
+          ...validInput.lines[0],
+          debit: { accountNo: "cash.main", currency: "USD", dimensions: {} },
+          credit: {
+            accountNo: "wallet.customer",
+            currency: "USD",
+            dimensions: {},
+          },
+        },
+      ],
+    });
+
+    expect(parsed.lines[0]!.type).toBe(OPERATION_TRANSFER_TYPE.CREATE);
+    if (parsed.lines[0]!.type === OPERATION_TRANSFER_TYPE.CREATE) {
+      expect(parsed.lines[0]!.debit.accountNo).toBe("cash.main");
+      expect(parsed.lines[0]!.credit.accountNo).toBe("wallet.customer");
+    }
+  });
+
   it("rejects empty lines", () => {
     expect(() =>
       validateOperationIntent({

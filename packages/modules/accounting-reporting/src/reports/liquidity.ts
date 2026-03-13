@@ -87,7 +87,7 @@ export function createListLiquidityHandler(context: AccountingReportsContext) {
           };
         }
         conditions.push(
-          sql`${schema.books.organizationId} IN (${sql.join(
+          sql`${schema.books.ownerId} IN (${sql.join(
             bookScopedCounterpartyIds.map((id) => sql`${id}`),
             sql`, `,
           )})`,
@@ -120,7 +120,7 @@ export function createListLiquidityHandler(context: AccountingReportsContext) {
         };
       }
       conditions.push(
-        sql`${schema.books.organizationId} IN (${sql.join(
+        sql`${schema.books.ownerId} IN (${sql.join(
           internalCounterpartyIds.map((id) => sql`${id}`),
           sql`, `,
         )})`,

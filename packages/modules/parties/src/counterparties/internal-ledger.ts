@@ -116,11 +116,11 @@ export async function assertBooksBelongToInternalLedgerCounterparties(input: {
     )
     SELECT
       b.id::text AS book_id,
-      b.organization_id::text AS counterparty_id,
+      b.owner_id::text AS counterparty_id,
       CASE WHEN ic.counterparty_id IS NULL THEN false ELSE true END AS is_internal
     FROM books b
     LEFT JOIN internal_counterparties ic
-      ON ic.counterparty_id = b.organization_id
+      ON ic.counterparty_id = b.owner_id
     WHERE b.id IN (${sql.join(
       bookIds.map((id) => sql`${id}::uuid`),
       sql`, `,
@@ -189,11 +189,11 @@ export async function assertInternalLedgerInvariants(
     )
     SELECT
       b.id::text AS book_id,
-      b.organization_id::text AS counterparty_id
+      b.owner_id::text AS counterparty_id
     FROM books b
     LEFT JOIN internal_counterparties ic
-      ON ic.counterparty_id = b.organization_id
-    WHERE b.organization_id IS NULL OR ic.counterparty_id IS NULL
+      ON ic.counterparty_id = b.owner_id
+    WHERE b.owner_id IS NULL OR ic.counterparty_id IS NULL
     LIMIT 1
   `);
 
@@ -225,10 +225,10 @@ export async function assertInternalLedgerInvariants(
     ),
     default_counts AS (
       SELECT
-        b.organization_id AS counterparty_id,
+        b.owner_id AS counterparty_id,
         COUNT(*) FILTER (WHERE b.is_default = true)::int AS default_count
       FROM books b
-      GROUP BY b.organization_id
+      GROUP BY b.owner_id
     )
     SELECT
       ic.counterparty_id::text AS counterparty_id,

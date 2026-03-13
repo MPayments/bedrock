@@ -1,15 +1,16 @@
 import type { DocumentModule } from "@bedrock/documents";
 
-import { getIfrsDocumentDefinition, IFRS_DOCUMENT_TYPE_ORDER } from "../contracts";
+import { IFRS_DOCUMENT_TYPE_ORDER } from "../metadata";
+import { IFRS_DOCUMENT_MODULE_FACTORIES } from "./module-factories";
 import type { IfrsModuleDeps } from "./internal/types";
 
 export function createIfrsDocumentModules(deps: IfrsModuleDeps): DocumentModule[] {
   return IFRS_DOCUMENT_TYPE_ORDER.map((docType) => {
-    const definition = getIfrsDocumentDefinition(docType);
-    if (!definition) {
+    const createModule = IFRS_DOCUMENT_MODULE_FACTORIES[docType];
+    if (!createModule) {
       throw new Error(`Missing IFRS document definition for docType=${docType}`);
     }
 
-    return definition.createModule(deps);
+    return createModule(deps);
   });
 }

@@ -153,7 +153,7 @@ export function createReportsScopeHelpers(db: Database) {
         : await db
             .select({
               id: schema.books.id,
-              counterpartyId: schema.books.organizationId,
+              counterpartyId: schema.books.ownerId,
             })
             .from(schema.books)
             .where(inArray(schema.books.id, bookIds));
@@ -293,7 +293,7 @@ export function createReportsScopeHelpers(db: Database) {
           return [];
         }
         conditions.push(
-          sql`b.organization_id IN (${sql.join(
+          sql`b.owner_id IN (${sql.join(
             bookScopedCounterpartyIds.map((id) => sql`${id}`),
             sql`, `,
           )})`,
@@ -306,7 +306,7 @@ export function createReportsScopeHelpers(db: Database) {
         return [];
       }
       conditions.push(
-        sql`b.organization_id IN (${sql.join(
+        sql`b.owner_id IN (${sql.join(
           internalLedgerCounterpartyIds.map((id) => sql`${id}`),
           sql`, `,
         )})`,
@@ -327,7 +327,7 @@ export function createReportsScopeHelpers(db: Database) {
         lo.status,
         p.book_id,
         b.name AS book_name,
-        b.organization_id::text AS book_counterparty_id,
+        b.owner_id::text AS book_counterparty_id,
         p.currency,
         p.amount_minor,
         p.posting_code,

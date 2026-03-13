@@ -78,6 +78,29 @@ export const POSTING_CODE = {
   PAYOUT_INITIATED: "TC.3101",
 } as const;
 
+export const TransferCodes = {
+  FUNDING_SETTLED: 1001,
+  FX_PRINCIPAL: 2001,
+  FX_PAYOUT_OBLIGATION: 2005,
+  FX_LEG_OUT: 2009,
+  FX_LEG_IN: 2010,
+  FEE_INCOME: 3001,
+  SPREAD_INCOME: 3002,
+  FEE_PASS_THROUGH_RESERVE: 3003,
+  ADJUSTMENT_CHARGE: 3006,
+  ADJUSTMENT_REFUND: 3007,
+  PROVIDER_FEE_EXPENSE_ACCRUAL: 3008,
+  FEE_PAYMENT_INITIATED: 3011,
+  PAYOUT_INITIATED: 3101,
+  INTERNAL_TRANSFER: 4001,
+  EXTERNAL_FUNDING_FOUNDER_EQUITY: 9001,
+  EXTERNAL_FUNDING_INVESTOR_EQUITY: 9002,
+  EXTERNAL_FUNDING_SHAREHOLDER_LOAN: 9003,
+  EXTERNAL_FUNDING_OPENING_BALANCE: 9005,
+} as const;
+
+export type TransferCode = (typeof TransferCodes)[keyof typeof TransferCodes];
+
 export type DimensionMode = "required" | "optional" | "forbidden";
 export type DimensionPolicyScope = "line" | "debit" | "credit";
 

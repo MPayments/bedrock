@@ -26,7 +26,12 @@ export default async function CounterpartyDocumentsPage({
 
   const operations = await getOperations({
     ...parsedSearch,
-    counterpartyId: id,
+    dimensionFilters: {
+      ...parsedSearch.dimensionFilters,
+      counterpartyId: Array.from(
+        new Set([...(parsedSearch.dimensionFilters?.counterpartyId ?? []), id]),
+      ),
+    },
   });
 
   return (
@@ -42,8 +47,8 @@ export default async function CounterpartyDocumentsPage({
         <CardContent className="pt-4">
           <p className="text-muted-foreground text-sm">
             Отображаются документы и операции с фильтром{" "}
-            <code>counterpartyId={id}</code> по аналитике проводок. Для полного
-            журнала откройте{" "}
+            <code>dimension.counterpartyId={id}</code> по аналитике проводок.
+            Для полного журнала откройте{" "}
             <Link href="/documents/journal" className="underline">
               глобальный журнал операций
             </Link>

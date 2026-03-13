@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { schema } from "@bedrock/fees/schema";
-import { TransferCodes } from "@bedrock/ledger/constants";
+import { TransferCodes } from "@bedrock/accounting/constants";
 
 import { FeeValidationError } from "../src/errors";
 import { createTestFeesService } from "@bedrock/test-utils/bedrock/harness/fees";

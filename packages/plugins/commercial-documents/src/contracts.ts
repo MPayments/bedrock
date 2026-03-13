@@ -1,8 +1,8 @@
 import { COMMERCIAL_DOCUMENT_CATALOG } from "./definitions";
 import type {
+  CommercialDocumentCatalogEntry,
   CommercialDocumentDefinition,
 } from "./definitions/types";
-import { COMMERCIAL_DOCUMENT_MODULE_FACTORIES } from "./documents/module-factories";
 import {
   COMMERCIAL_DOCUMENT_METADATA,
   COMMERCIAL_DOCUMENT_TYPE_ORDER,
@@ -46,12 +46,8 @@ export * from "./validation";
 
 export { COMMERCIAL_DOCUMENT_METADATA, COMMERCIAL_DOCUMENT_TYPE_ORDER };
 
-export const COMMERCIAL_DOCUMENT_DEFINITIONS = COMMERCIAL_DOCUMENT_CATALOG.map(
-  (entry) => ({
-    ...entry,
-    createModule: COMMERCIAL_DOCUMENT_MODULE_FACTORIES[entry.docType],
-  }),
-) as readonly CommercialDocumentDefinition[];
+export const COMMERCIAL_DOCUMENT_DEFINITIONS =
+  COMMERCIAL_DOCUMENT_CATALOG as readonly CommercialDocumentCatalogEntry[];
 
 const COMMERCIAL_DOCUMENT_DEFINITION_BY_TYPE = new Map(
   COMMERCIAL_DOCUMENT_DEFINITIONS.map((definition) => [
@@ -61,5 +57,8 @@ const COMMERCIAL_DOCUMENT_DEFINITION_BY_TYPE = new Map(
 );
 
 export function getCommercialDocumentDefinition(docType: CommercialDocumentType) {
-  return COMMERCIAL_DOCUMENT_DEFINITION_BY_TYPE.get(docType) ?? null;
+  return (
+    COMMERCIAL_DOCUMENT_DEFINITION_BY_TYPE.get(docType) ??
+    null
+  ) as CommercialDocumentDefinition | null;
 }

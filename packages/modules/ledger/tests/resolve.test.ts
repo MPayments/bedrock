@@ -8,7 +8,6 @@ import { sha256Hex, stableStringify } from "@bedrock/common";
 
 import { createMockTbClient, createStubDb, type StubDatabase } from "./helpers";
 import { resolveTbBookAccountInstanceId } from "./test-resolve";
-import { AccountMappingConflictError } from "../src/errors";
 
 describe("resolveTbBookAccountInstanceId", () => {
   let db: StubDatabase;
@@ -80,7 +79,7 @@ describe("resolveTbBookAccountInstanceId", () => {
         currency,
         dimensions: {},
       }),
-    ).rejects.toThrow(AccountMappingConflictError);
+    ).rejects.toThrow(/TB account mapping mismatch/);
 
     expect(tb.createAccounts).not.toHaveBeenCalled();
   });

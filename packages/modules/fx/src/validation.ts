@@ -3,7 +3,7 @@ import { z } from "zod";
 import { financialLineSchema } from "@bedrock/documents/financial-lines";
 import { normalizeCurrency, isValidCurrency } from "@bedrock/currencies/catalog";
 import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
-import { DAY_IN_SECONDS } from "@bedrock/ledger/constants";
+import { DAY_IN_SECONDS } from "@bedrock/common";
 import { ValidationError } from "@bedrock/common/errors";
 
 const uuidSchema = z.uuid({ version: "v4" });

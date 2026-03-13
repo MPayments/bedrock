@@ -4,7 +4,6 @@ import { Pool } from "pg";
 import { createClient } from "tigerbeetle-node";
 import { beforeAll, afterAll, afterEach } from "vitest";
 
-import { seedAccounting } from "@bedrock/db/seeds";
 import { schema } from "@bedrock/ledger/schema";
 
 
@@ -165,13 +164,12 @@ beforeAll(async () => {
     "TRUNCATE TABLE outbox, tb_transfer_plans, postings, ledger_operations, book_account_instances RESTART IDENTITY CASCADE",
   );
 
-  await seedAccounting(db);
   const internalCounterpartyId = await resolveInternalLedgerCounterpartyId();
   await db
     .insert(schema.books)
     .values({
       id: TEST_BOOK_ID,
-      organizationId: internalCounterpartyId,
+      ownerId: internalCounterpartyId,
       code: TEST_BOOK_CODE,
       name: "Integration Ledger Book",
       isDefault: false,
@@ -179,7 +177,7 @@ beforeAll(async () => {
     .onConflictDoUpdate({
       target: schema.books.id,
       set: {
-        organizationId: internalCounterpartyId,
+        ownerId: internalCounterpartyId,
         code: TEST_BOOK_CODE,
         name: "Integration Ledger Book",
         isDefault: false,

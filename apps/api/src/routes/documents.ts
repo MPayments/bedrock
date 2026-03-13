@@ -9,7 +9,6 @@ import {
   UpdateDocumentInputSchema,
   isSystemOnlyDocumentType,
 } from "@bedrock/documents";
-import { ListLedgerOperationsQuerySchema } from "@bedrock/ledger";
 
 import auth from "../auth";
 import { handleRouteError } from "../common/errors";
@@ -59,6 +58,61 @@ interface DocumentMutationConfig {
 const OperationParamSchema = z.object({
   operationId: z.uuid(),
 });
+
+const JournalOperationsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+  sortBy: z.enum(["createdAt", "postingDate", "postedAt"]).default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  query: z.string().trim().min(1).optional(),
+  status: z.array(z.enum(["pending", "posted", "failed"])).min(1).optional(),
+  operationCode: z.array(z.string().trim().min(1)).min(1).optional(),
+  sourceType: z.array(z.string().trim().min(1)).min(1).optional(),
+  sourceId: z.string().trim().min(1).optional(),
+  bookId: z.string().trim().min(1).optional(),
+  dimensionFilters: z
+    .record(z.string().trim().min(1), z.array(z.string().trim().min(1)).min(1))
+    .optional(),
+});
+
+function parseJournalOperationsQuery(requestUrl: string) {
+  const params = new URL(requestUrl).searchParams;
+  const dimensionFilters = new Map<string, string[]>();
+  const status = params.getAll("status");
+  const operationCode = params.getAll("operationCode");
+  const sourceType = params.getAll("sourceType");
+
+  for (const [key, value] of params.entries()) {
+    if (!key.startsWith("dimension.")) {
+      continue;
+    }
+
+    const dimensionKey = key.slice("dimension.".length).trim();
+    const dimensionValue = value.trim();
+    if (!dimensionKey || !dimensionValue) {
+      continue;
+    }
+
+    const existing = dimensionFilters.get(dimensionKey) ?? [];
+    existing.push(dimensionValue);
+    dimensionFilters.set(dimensionKey, existing);
+  }
+
+  return JournalOperationsQuerySchema.parse({
+    limit: params.get("limit") ?? undefined,
+    offset: params.get("offset") ?? undefined,
+    sortBy: params.get("sortBy") ?? undefined,
+    sortOrder: params.get("sortOrder") ?? undefined,
+    query: params.get("query") ?? undefined,
+    status: status.length > 0 ? status : undefined,
+    operationCode: operationCode.length > 0 ? operationCode : undefined,
+    sourceType: sourceType.length > 0 ? sourceType : undefined,
+    sourceId: params.get("sourceId") ?? undefined,
+    bookId: params.get("bookId") ?? undefined,
+    dimensionFilters:
+      dimensionFilters.size > 0 ? Object.fromEntries(dimensionFilters) : undefined,
+  });
+}
 
 export function documentsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -191,9 +245,7 @@ export function documentsRoutes(ctx: AppContext) {
 
   app.get("/journal", requirePermission({ accounting: ["list"] }), async (c) => {
     try {
-      const query = ListLedgerOperationsQuerySchema.parse(
-        queryObjectFromUrl(c.req.url),
-      );
+      const query = parseJournalOperationsQuery(c.req.url);
       const result =
         await ctx.accountingReportingService.listOperationsWithLabels(query);
 

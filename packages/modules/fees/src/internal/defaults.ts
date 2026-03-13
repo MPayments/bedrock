@@ -1,4 +1,4 @@
-import { TransferCodes } from "@bedrock/ledger/constants";
+import { TransferCodes } from "@bedrock/accounting/constants";
 
 import type { FeeComponentDefaults } from "../types";
 

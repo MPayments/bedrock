@@ -16,7 +16,7 @@ export const books = pgTable(
   "books",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id").notNull(),
+    ownerId: uuid("owner_id").notNull(),
     code: text("code").notNull(),
     name: text("name").notNull(),
     isDefault: boolean("is_default").notNull().default(false),
@@ -31,9 +31,9 @@ export const books = pgTable(
   (t) => [
     uniqueIndex("books_code_uq").on(t.code),
     uniqueIndex("books_default_owner_uq")
-      .on(t.organizationId)
+      .on(t.ownerId)
       .where(sql`${t.isDefault} = true`),
-    index("books_organization_idx").on(t.organizationId),
-    index("books_organization_default_idx").on(t.organizationId, t.isDefault),
+    index("books_owner_idx").on(t.ownerId),
+    index("books_owner_default_idx").on(t.ownerId, t.isDefault),
   ],
 );

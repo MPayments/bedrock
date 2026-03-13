@@ -6334,8 +6334,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "organization_id": {
-          "name": "organization_id",
+        "owner_id": {
+          "name": "owner_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -6394,7 +6394,7 @@
           "name": "books_default_owner_uq",
           "columns": [
             {
-              "expression": "organization_id",
+              "expression": "owner_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -6406,11 +6406,11 @@
           "method": "btree",
           "with": {}
         },
-        "books_organization_idx": {
-          "name": "books_organization_idx",
+        "books_owner_idx": {
+          "name": "books_owner_idx",
           "columns": [
             {
-              "expression": "organization_id",
+              "expression": "owner_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -6421,11 +6421,11 @@
           "method": "btree",
           "with": {}
         },
-        "books_organization_default_idx": {
-          "name": "books_organization_default_idx",
+        "books_owner_default_idx": {
+          "name": "books_owner_default_idx",
           "columns": [
             {
-              "expression": "organization_id",
+              "expression": "owner_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -6443,21 +6443,7 @@
           "with": {}
         }
       },
-      "foreignKeys": {
-        "books_organization_id_organizations_id_fk": {
-          "name": "books_organization_id_organizations_id_fk",
-          "tableFrom": "books",
-          "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

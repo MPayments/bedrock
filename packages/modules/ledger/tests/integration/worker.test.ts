@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { ACCOUNT_NO, POSTING_CODE } from "@bedrock/accounting";
-
 import {
   db,
   getOperation,
   getTbAccount,
+  TEST_CREDIT_ACCOUNT_NO,
+  TEST_DEBIT_ACCOUNT_NO,
+  TEST_POSTING_CODE,
   getTbTransfer,
   getTbTransferPlans,
   randomIdempotencyKey,
@@ -43,14 +44,14 @@ describe("Worker Integration Tests", () => {
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: "transfer-1",
           bookId: randomOrgId(),
-          postingCode: POSTING_CODE.FUNDING_SETTLED,
+          postingCode: TEST_POSTING_CODE,
           debit: {
-            accountNo: ACCOUNT_NO.BANK,
+            accountNo: TEST_DEBIT_ACCOUNT_NO,
             currency: "USD",
             dimensions: { organizationRequisiteId: randomUUID() },
           },
           credit: {
-            accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+            accountNo: TEST_CREDIT_ACCOUNT_NO,
             currency: "USD",
             dimensions: { customerId: randomUUID() },
           },
@@ -91,14 +92,14 @@ describe("Worker Integration Tests", () => {
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: "pending-1",
           bookId: randomOrgId(),
-          postingCode: POSTING_CODE.FUNDING_SETTLED,
+          postingCode: TEST_POSTING_CODE,
           debit: {
-            accountNo: ACCOUNT_NO.BANK,
+            accountNo: TEST_DEBIT_ACCOUNT_NO,
             currency: "USD",
             dimensions: { organizationRequisiteId: randomUUID() },
           },
           credit: {
-            accountNo: ACCOUNT_NO.CUSTOMER_WALLET,
+            accountNo: TEST_CREDIT_ACCOUNT_NO,
             currency: "USD",
             dimensions: { customerId: randomUUID() },
           },
@@ -134,14 +135,14 @@ describe("Worker Integration Tests", () => {
             type: OPERATION_TRANSFER_TYPE.CREATE,
             planRef: `transfer-${i}`,
             bookId: orgId,
-            postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
+            postingCode: TEST_POSTING_CODE,
             debit: {
-              accountNo: ACCOUNT_NO.BANK,
+              accountNo: TEST_DEBIT_ACCOUNT_NO,
               currency: "USD",
               dimensions: { organizationRequisiteId: randomUUID() },
             },
             credit: {
-              accountNo: ACCOUNT_NO.BANK,
+              accountNo: TEST_CREDIT_ACCOUNT_NO,
               currency: "USD",
               dimensions: { organizationRequisiteId: randomUUID() },
             },

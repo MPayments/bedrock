@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createCurrenciesService } from "@bedrock/currencies";
 import { currencyIdForCode } from "@bedrock/db/seeds";
 import { schema } from "@bedrock/fx/schema";
-import { DAY_IN_SECONDS } from "@bedrock/ledger/constants";
+import { DAY_IN_SECONDS } from "@bedrock/common";
 
 import { db } from "./setup";
 import { RateSourceStaleError } from "../../src/errors";

@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { ACCOUNT_NO, POSTING_CODE } from "@bedrock/accounting";
-
 import {
   db,
   getOperation,
   getPostings,
+  TEST_CREDIT_ACCOUNT_NO,
+  TEST_DEBIT_ACCOUNT_NO,
+  TEST_POSTING_CODE,
   getTbTransferPlans,
   randomIdempotencyKey,
   randomOrgId,
@@ -32,14 +33,14 @@ describe("Engine Integration Tests", () => {
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: "transfer-1",
           bookId: orgId,
-          postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
+          postingCode: TEST_POSTING_CODE,
           debit: {
-            accountNo: ACCOUNT_NO.BANK,
+            accountNo: TEST_DEBIT_ACCOUNT_NO,
             currency: "USD",
             dimensions: { organizationRequisiteId: randomUUID() },
           },
           credit: {
-            accountNo: ACCOUNT_NO.BANK,
+            accountNo: TEST_CREDIT_ACCOUNT_NO,
             currency: "USD",
             dimensions: { organizationRequisiteId: randomUUID() },
           },
@@ -77,14 +78,14 @@ describe("Engine Integration Tests", () => {
           type: OPERATION_TRANSFER_TYPE.CREATE as const,
           planRef: "transfer-1",
           bookId: orgId,
-          postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
+          postingCode: TEST_POSTING_CODE,
           debit: {
-            accountNo: ACCOUNT_NO.BANK,
+            accountNo: TEST_DEBIT_ACCOUNT_NO,
             currency: "USD",
             dimensions: { organizationRequisiteId: randomUUID() },
           },
           credit: {
-            accountNo: ACCOUNT_NO.BANK,
+            accountNo: TEST_CREDIT_ACCOUNT_NO,
             currency: "USD",
             dimensions: { organizationRequisiteId: randomUUID() },
           },
@@ -116,14 +117,14 @@ describe("Engine Integration Tests", () => {
           type: OPERATION_TRANSFER_TYPE.CREATE,
           planRef: "transfer-1",
           bookId: orgId,
-          postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
+          postingCode: TEST_POSTING_CODE,
           debit: {
-            accountNo: ACCOUNT_NO.BANK,
+            accountNo: TEST_DEBIT_ACCOUNT_NO,
             currency: "USD",
             dimensions: { organizationRequisiteId: randomUUID() },
           },
           credit: {
-            accountNo: ACCOUNT_NO.BANK,
+            accountNo: TEST_CREDIT_ACCOUNT_NO,
             currency: "USD",
             dimensions: { organizationRequisiteId: randomUUID() },
           },
@@ -143,14 +144,14 @@ describe("Engine Integration Tests", () => {
             type: OPERATION_TRANSFER_TYPE.CREATE,
             planRef: "transfer-1",
             bookId: orgId,
-            postingCode: POSTING_CODE.TRANSFER_INTRA_IMMEDIATE,
+            postingCode: TEST_POSTING_CODE,
             debit: {
-              accountNo: ACCOUNT_NO.BANK,
+              accountNo: TEST_DEBIT_ACCOUNT_NO,
               currency: "USD",
               dimensions: { organizationRequisiteId: randomUUID() },
             },
             credit: {
-              accountNo: ACCOUNT_NO.BANK,
+              accountNo: TEST_CREDIT_ACCOUNT_NO,
               currency: "USD",
               dimensions: { organizationRequisiteId: randomUUID() },
             },

@@ -2,54 +2,8 @@ export class LedgerError extends Error {
   name = "LedgerError";
 }
 
-export class PostingError extends LedgerError {
-  name = "PostingError";
-}
-
 export class IdempotencyConflictError extends LedgerError {
   name = "IdempotencyConflictError";
-}
-
-export class AccountingNotInitializedError extends LedgerError {
-  name = "AccountingNotInitializedError";
-
-  constructor() {
-    super(
-      "Accounting defaults are not initialized. Run `bun run --filter=@bedrock/db db:bootstrap:accounting` before committing ledger operations.",
-    );
-  }
-}
-
-export class AccountPostingValidationError extends LedgerError {
-  name = "AccountPostingValidationError";
-}
-
-export class DimensionPolicyViolationError extends LedgerError {
-  name = "DimensionPolicyViolationError";
-
-  constructor(
-    public readonly accountNo: string,
-    public readonly dimensionKey: string,
-    public readonly violation: string,
-  ) {
-    super(
-      `Dimension policy violation for account=${accountNo}, key=${dimensionKey}: ${violation}`,
-    );
-  }
-}
-
-export class AccountMappingConflictError extends LedgerError {
-  name = "AccountMappingConflictError";
-  constructor(
-    msg: string,
-    public readonly orgId: string,
-    public readonly tbLedger: number,
-    public readonly key: string,
-    public readonly expected: bigint,
-    public readonly actual: bigint,
-  ) {
-    super(msg);
-  }
 }
 
 export class TigerBeetleBatchError extends LedgerError {
@@ -96,9 +50,7 @@ export function isRetryableError(error: unknown): boolean {
 
   if (
     err instanceof IdempotencyConflictError ||
-    err instanceof AccountMappingConflictError ||
     err instanceof TigerBeetleBatchError ||
-    err instanceof DimensionPolicyViolationError ||
     err instanceof LedgerError
   ) {
     return false;

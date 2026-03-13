@@ -4,6 +4,10 @@ import { schema } from "@bedrock/ledger/schema";
 
 import { db, TEST_BOOK_ID, tb } from "./setup";
 
+export const TEST_POSTING_CODE = "ledger.integration.transfer";
+export const TEST_DEBIT_ACCOUNT_NO = "cash.main";
+export const TEST_CREDIT_ACCOUNT_NO = "wallet.customer";
+
 export function randomOrgId() {
   return TEST_BOOK_ID;
 }

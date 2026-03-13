@@ -7,7 +7,6 @@ import {
 } from "@bedrock/ledger/ids";
 import type { Database } from "@bedrock/common/db/types";
 
-import { AccountMappingConflictError } from "../src/errors";
 import { schema } from "../src/schema";
 import type { Dimensions } from "../src/schema";
 import { makeTbAccount, tbCreateAccountsOrThrow, type TbClient } from "../src/tb";
@@ -38,13 +37,8 @@ function assertAccountMapping(
   tbLedger: number,
 ) {
   if (actual !== expected) {
-    throw new AccountMappingConflictError(
+    throw new Error(
       `TB account mapping mismatch for book=${bookId}, key=${key}, tbLedger=${tbLedger}`,
-      bookId,
-      tbLedger,
-      key,
-      expected,
-      actual,
     );
   }
 }

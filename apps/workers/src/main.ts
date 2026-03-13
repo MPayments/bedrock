@@ -1,19 +1,19 @@
 import "./env";
 
+import {
+  createConsoleLogger,
+  installShutdownHandlers,
+} from "@bedrock/common";
+import { db } from "@bedrock/db/client";
 import { createTbClient } from "@bedrock/ledger";
 import {
   createWorkerFleet,
   startWorkerFleet,
 } from "@bedrock/worker-runtime";
-import { db } from "@bedrock/db/client";
-import {
-  createConsoleLogger,
-  installShutdownHandlers,
-} from "@bedrock/common";
 
 import { WORKER_CATALOG } from "./catalog";
-import { createWorkerImplementations } from "./modules/registry";
 import { env } from "./env";
+import { createWorkerImplementations } from "./modules/registry";
 import { createWorkerMonitoringRegistry, startWorkerMonitoringServer } from "./monitoring";
 import { parseSelectedWorkerIds } from "./selection";
 

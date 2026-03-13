@@ -23,7 +23,6 @@
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
-    "@bedrock/ledger": "workspace:*",
     "@bedrock/parties": "workspace:*",
     "@bedrock/worker-runtime": "workspace:*",
     "drizzle-orm": "^0.45.1",

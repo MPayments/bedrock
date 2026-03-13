@@ -2,6 +2,8 @@ import { inArray } from "drizzle-orm";
 
 import { schema as accountingSchema } from "@bedrock/accounting/schema";
 import { createBedrockDimensionRegistry } from "@bedrock/accounting-reporting/dimensions";
+import { getDefaultPrecision } from "@bedrock/currencies";
+import { schema as currenciesSchema } from "@bedrock/currencies/schema";
 import { type Dimensions } from "@bedrock/ledger/schema";
 
 import {
@@ -26,7 +28,10 @@ type RawLedgerOperationDetails = NonNullable<
   >
 >;
 
-type LedgerOperationDetailsWithLabels = RawLedgerOperationDetails & {
+type LedgerOperationDetailsWithLabels = Omit<RawLedgerOperationDetails, "postings"> & {
+  postings: (RawLedgerOperationDetails["postings"][number] & {
+    currencyPrecision: number;
+  })[];
   dimensionLabels: Record<string, string>;
 };
 
@@ -58,6 +63,23 @@ export function createAccountingReportingService(
       return null;
     }
 
+    const currencyCodes = Array.from(
+      new Set(details.postings.map((posting) => posting.currency)),
+    );
+    const currencyRows =
+      currencyCodes.length === 0
+        ? []
+        : await db
+            .select({
+              code: currenciesSchema.currencies.code,
+              precision: currenciesSchema.currencies.precision,
+            })
+            .from(currenciesSchema.currencies)
+            .where(inArray(currenciesSchema.currencies.code, currencyCodes));
+    const precisionByCode = new Map(
+      currencyRows.map((row) => [row.code, row.precision]),
+    );
+
     const resolved = await dimensionRegistry.resolveLabelsFromDimensionRecords({
       db,
       records: details.postings.flatMap(
@@ -70,6 +92,12 @@ export function createAccountingReportingService(
 
     return {
       ...details,
+      postings: details.postings.map((posting) => ({
+        ...posting,
+        currencyPrecision:
+          precisionByCode.get(posting.currency) ??
+          getDefaultPrecision(posting.currency),
+      })),
       dimensionLabels: Object.fromEntries(
         Object.values(resolved).flatMap((labelsById) =>
           Object.entries(labelsById as Record<string, string>),

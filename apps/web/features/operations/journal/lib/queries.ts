@@ -2,12 +2,9 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import { ACCOUNTING_OPERATIONS_LIST_CONTRACT } from "@bedrock/accounting/contracts";
-
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import { requestOk, readJsonWithSchema } from "@/lib/api/response";
 import { isUuid } from "@/lib/resources/http";
-import { createResourceListQuery } from "@/lib/resources/search-params";
 
 import type { OperationsSearchParams } from "./validations";
 
@@ -84,6 +81,7 @@ export type OperationSummaryDto = z.infer<typeof OperationSummarySchema>;
 export type OperationDetailsDto = z.infer<typeof OperationDetailsSchema>;
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
+const OPERATIONS_SORTABLE_COLUMNS = new Set(["createdAt", "postingDate", "postedAt"]);
 
 async function fetchApi(path: string) {
   const requestHeaders = await headers();
@@ -96,29 +94,59 @@ async function fetchApi(path: string) {
   });
 }
 
+function appendMany(query: URLSearchParams, key: string, values?: string[]) {
+  if (!values || values.length === 0) {
+    return;
+  }
+
+  for (const value of values) {
+    query.append(key, value);
+  }
+}
+
 function createOperationsListQuery(search: OperationsSearchParams) {
-  return createResourceListQuery(ACCOUNTING_OPERATIONS_LIST_CONTRACT, search);
+  const query = new URLSearchParams();
+  const page = search.page ?? 1;
+  const perPage = search.perPage ?? 10;
+
+  query.set("limit", String(perPage));
+  query.set("offset", String(Math.max(0, (page - 1) * perPage)));
+
+  const sort = search.sort?.[0];
+  if (sort && OPERATIONS_SORTABLE_COLUMNS.has(sort.id)) {
+    query.set("sortBy", sort.id);
+    query.set("sortOrder", sort.desc ? "desc" : "asc");
+  }
+
+  if (search.query) {
+    query.set("query", search.query);
+  }
+
+  appendMany(query, "status", search.status);
+  appendMany(query, "operationCode", search.operationCode);
+  appendMany(query, "sourceType", search.sourceType);
+
+  if (search.sourceId) {
+    query.set("sourceId", search.sourceId);
+  }
+
+  if (search.bookId) {
+    query.set("bookId", search.bookId);
+  }
+
+  if (search.dimensionFilters) {
+    for (const [key, values] of Object.entries(search.dimensionFilters)) {
+      appendMany(query, `dimension.${key}`, values);
+    }
+  }
+
+  return query;
 }
 
 export async function getOperations(
   search: OperationsSearchParams,
 ): Promise<z.infer<typeof OperationsListResponseSchema>> {
-  const query = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(createOperationsListQuery(search))) {
-    if (value === undefined || value === null) {
-      continue;
-    }
-
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        query.append(key, String(item));
-      }
-      continue;
-    }
-
-    query.set(key, String(value));
-  }
+  const query = createOperationsListQuery(search);
 
   const response = await requestOk(
     await fetchApi(`/v1/documents/journal?${query.toString()}`),

@@ -11,7 +11,6 @@ import {
   type OperationIntent,
   type TbClient,
 } from "@bedrock/ledger";
-import { schema } from "@bedrock/ledger/schema";
 import {
   createStubDb,
   createStubTx,
@@ -136,23 +135,9 @@ function createSmartStubTx(): StubTransaction {
   })) as any;
 
   tx.select = vi.fn(() => ({
-    from: vi.fn((table: any) => ({
+    from: vi.fn(() => ({
       where: vi.fn(() => ({
-        limit: vi.fn(async () => {
-          if (table === (schema as any).correspondenceRules) {
-            return [{ id: "rule-1" }];
-          }
-          if (table === (schema as any).chartTemplateAccounts) {
-            return [{ postingAllowed: true, enabled: true, accountNo: "1000" }];
-          }
-          if (table === (schema as any).chartAccountDimensionPolicy) {
-            return [];
-          }
-          if (table === (schema as any).postingCodeDimensionPolicy) {
-            return [];
-          }
-          return [];
-        }),
+        limit: vi.fn(async () => []),
       })),
     })),
   })) as any;

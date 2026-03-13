@@ -22,7 +22,8 @@ const planRefSchema = z.string().min(1).max(512);
 const accountNoSchema = z
   .string()
   .trim()
-  .regex(/^[0-9]{4}$/, "accountNo must match NNNN");
+  .min(1, "accountNo must be a non-empty string")
+  .max(128, "accountNo must be at most 128 characters");
 const positiveAmountSchema = z.bigint().positive();
 const nonNegativeAmountSchema = z.bigint().min(0n);
 const positiveTimeoutSchema = z.number().int().positive();

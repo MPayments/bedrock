@@ -143,7 +143,7 @@ describe("createLedgerReadService", () => {
     expect(result.total).toBe(0);
   });
 
-  it("supports filtering operations by counterparty", async () => {
+  it("supports filtering operations by dimensions", async () => {
     const db = {
       select: vi
         .fn()
@@ -155,7 +155,10 @@ describe("createLedgerReadService", () => {
     const result = await service.listOperations({
       limit: 10,
       offset: 0,
-      counterpartyId: "550e8400-e29b-41d4-a716-446655440301",
+      dimensionFilters: {
+        counterpartyId: ["550e8400-e29b-41d4-a716-446655440301"],
+        customerId: ["cust-1", "cust-2"],
+      },
     });
 
     expect(result.data).toEqual([]);
@@ -248,9 +251,6 @@ describe("createLedgerReadService", () => {
         )
         .mockImplementationOnce(() =>
           makeWhereChain([{ id: "org-1", name: "Org One" }]),
-        )
-        .mockImplementationOnce(() =>
-          makeWhereChain([{ code: "USD", precision: 2 }]),
         ),
     } as any;
 
@@ -264,6 +264,7 @@ describe("createLedgerReadService", () => {
     expect(details!.postings[0]!.bookName).toBe("Org One");
     expect(details!.postings[0]!.debitAccountNo).toBe("1110");
     expect(details!.postings[0]!.creditAccountNo).toBe("2110");
+    expect(details!.postings[0]).not.toHaveProperty("currencyPrecision");
     expect(details!.tbPlans).toHaveLength(1);
     expect(details!.tbPlans[0]!.transferId).toBe(10n);
   });

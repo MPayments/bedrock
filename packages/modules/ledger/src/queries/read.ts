@@ -1,6 +1,4 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
-
-import { schema as currenciesSchema } from "@bedrock/currencies/schema";
 import {
   schema as ledgerSchema,
   type Dimensions,
@@ -13,15 +11,12 @@ import {
 } from "@bedrock/common/pagination";
 
 import {
-  ListLedgerOperationsQuerySchema,
-  type ListLedgerOperationsQuery,
-} from "./list-ledger-operations-query";
+  ListLedgerOperationsInputSchema,
+  type ListLedgerOperationsInput,
+} from "./list-ledger-operations-input";
 import type { LedgerContext } from "../internal/context";
 
-const schema = {
-  ...ledgerSchema,
-  ...currenciesSchema,
-};
+const schema = ledgerSchema;
 
 const OPERATION_SORT_COLUMN_MAP = {
   createdAt: schema.ledgerOperations.createdAt,
@@ -29,9 +24,26 @@ const OPERATION_SORT_COLUMN_MAP = {
   postedAt: schema.ledgerOperations.postedAt,
 } as const;
 
-function inArraySafe<T>(column: any, values: T[] | undefined) {
+function inArraySafe<T>(column: any, values: readonly T[] | undefined) {
   if (!values || values.length === 0) return undefined;
-  return inArray(column, values as any[]);
+  return inArray(column, [...values] as T[]);
+}
+
+function normalizeDimensionFilters(
+  input?: Record<string, string[]>,
+): Array<readonly [string, string[]]> {
+  if (!input) {
+    return [];
+  }
+
+  return Object.entries(input)
+    .map(([key, values]) => [
+      key.trim(),
+      Array.from(
+        new Set(values.map((value) => value.trim()).filter(Boolean)),
+      ),
+    ] as const)
+    .filter(([key, values]) => key.length > 0 && values.length > 0);
 }
 
 interface LedgerOperationListRow {
@@ -65,7 +77,6 @@ interface LedgerOperationPostingRow {
   creditDimensions: Dimensions | null;
   postingCode: string;
   currency: string;
-  currencyPrecision: number;
   amountMinor: bigint;
   memo: string | null;
   context: Record<string, string> | null;
@@ -100,7 +111,7 @@ export interface LedgerOperationDetails {
 
 export interface LedgerReadQueries {
   listOperations: (
-    input?: ListLedgerOperationsQuery,
+    input?: ListLedgerOperationsInput,
   ) => Promise<PaginatedList<LedgerOperationListRow>>;
   getOperationDetails: (
     operationId: string,
@@ -113,9 +124,9 @@ export function createLedgerReadQueries(
   const { db } = context;
 
   async function listOperations(
-    input?: ListLedgerOperationsQuery,
+    input?: ListLedgerOperationsInput,
   ): Promise<PaginatedList<LedgerOperationListRow>> {
-    const query = ListLedgerOperationsQuerySchema.parse(input ?? {});
+    const query = ListLedgerOperationsInputSchema.parse(input ?? {});
     const {
       limit,
       offset,
@@ -127,7 +138,7 @@ export function createLedgerReadQueries(
       sourceType,
       sourceId,
       bookId,
-      counterpartyId,
+      dimensionFilters,
     } = query;
 
     const conditions: SQL[] = [];
@@ -177,7 +188,9 @@ export function createLedgerReadQueries(
       )`);
     }
 
-    if (counterpartyId) {
+    for (const [dimensionKey, dimensionValues] of normalizeDimensionFilters(
+      dimensionFilters,
+    )) {
       conditions.push(sql`exists (
         select 1
         from ${schema.postings} p
@@ -187,8 +200,14 @@ export function createLedgerReadQueries(
           on credit_inst.id = p.credit_instance_id
         where p.operation_id = ${schema.ledgerOperations.id}
           and (
-            debit_inst.dimensions->>'counterpartyId' = ${counterpartyId}
-            or credit_inst.dimensions->>'counterpartyId' = ${counterpartyId}
+            debit_inst.dimensions ->> ${dimensionKey} in (${sql.join(
+              dimensionValues.map((value) => sql`${value}`),
+              sql`, `,
+            )})
+            or credit_inst.dimensions ->> ${dimensionKey} in (${sql.join(
+              dimensionValues.map((value) => sql`${value}`),
+              sql`, `,
+            )})
           )
       )`);
     }
@@ -356,23 +375,6 @@ export function createLedgerReadQueries(
             .where(inArray(schema.books.id, bookIds));
     const bookNameById = new Map(bookRows.map((book) => [book.id, book.name]));
 
-    const currencyCodes = Array.from(
-      new Set(postingRows.map((p) => p.currency)),
-    );
-    const currencyRows =
-      currencyCodes.length === 0
-        ? []
-        : await db
-            .select({
-              code: schema.currencies.code,
-              precision: schema.currencies.precision,
-            })
-            .from(schema.currencies)
-            .where(inArray(schema.currencies.code, currencyCodes));
-    const precisionByCode = new Map(
-      currencyRows.map((c) => [c.code, c.precision]),
-    );
-
     return {
       operation: {
         ...operation,
@@ -395,7 +397,6 @@ export function createLedgerReadQueries(
           creditDimensions: (creditInst?.dimensions as Dimensions) ?? null,
           postingCode: p.postingCode,
           currency: p.currency,
-          currencyPrecision: precisionByCode.get(p.currency) ?? 2,
           amountMinor: p.amountMinor,
           memo: p.memo,
           context: p.context as Record<string, string> | null,

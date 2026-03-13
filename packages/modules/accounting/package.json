@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./constants": "./src/constants.ts",
     "./contracts": "./src/contracts.ts",
     "./schema": "./src/schema.ts",
     "./validation": "./src/validation.ts",

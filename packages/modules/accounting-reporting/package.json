@@ -22,6 +22,7 @@
     "@bedrock/accounting": "workspace:*",
     "@bedrock/balances": "workspace:*",
     "@bedrock/common": "workspace:*",
+    "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/parties": "workspace:*",
