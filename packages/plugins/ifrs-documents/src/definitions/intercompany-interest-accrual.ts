@@ -1,11 +1,13 @@
+import { normalizeMajorAmountInput } from "@bedrock/common/money";
+
 import { IntercompanyInterestAccrualInputSchema } from "../validation";
 import {
   createAmountSectionLayout,
   isoToDateTimeLocal,
-  normalizeMajorAmountInput,
   nowDateTimeLocal,
   optionalString,
   parseSchema,
+  RUSSIAN_MAJOR_AMOUNT_MESSAGES,
   readString,
   TWO_COLUMN_SM_COLUMNS,
   toOccurredAtIso,
@@ -96,7 +98,11 @@ export const intercompanyInterestAccrualDocumentDefinition = {
         occurredAt: isoToDateTimeLocal(payload.occurredAt),
         debtorCounterpartyId: readString(payload.debtorCounterpartyId),
         creditorCounterpartyId: readString(payload.creditorCounterpartyId),
-        amount: normalizeMajorAmountInput(payload.amount, payload.currency),
+        amount: normalizeMajorAmountInput(
+          payload.amount,
+          payload.currency,
+          RUSSIAN_MAJOR_AMOUNT_MESSAGES,
+        ),
         currency: readString(payload.currency),
         accrualPeriodMonth: readString(payload.accrualPeriodMonth),
         reference: readString(payload.reference),
@@ -110,7 +116,11 @@ export const intercompanyInterestAccrualDocumentDefinition = {
         creditorCounterpartyId: readString(
           values.creditorCounterpartyId,
         ).trim(),
-        amount: normalizeMajorAmountInput(values.amount, values.currency),
+        amount: normalizeMajorAmountInput(
+          values.amount,
+          values.currency,
+          RUSSIAN_MAJOR_AMOUNT_MESSAGES,
+        ),
         currency: readString(values.currency).trim(),
         accrualPeriodMonth: optionalString(values.accrualPeriodMonth),
         reference: optionalString(values.reference),

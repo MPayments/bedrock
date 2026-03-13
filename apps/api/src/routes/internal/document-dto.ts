@@ -1,9 +1,11 @@
+import { minorToAmountString } from "@bedrock/common/money";
+
 import type {
   DocumentDetails as DocumentDetailsResult,
   DocumentWithOperationId,
 } from "@bedrock/documents";
 
-import { minorToAmountString, normalizeMoneyFields } from "../../common/amount";
+import { normalizeMoneyFields } from "../../common/amount";
 import { toJsonSafe } from "../../common/json";
 
 export function toDocumentDto(input: DocumentWithOperationId) {

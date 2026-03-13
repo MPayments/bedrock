@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { toMinorAmountString } from "@bedrock/ledger/amount-utils";
+import { toMinorAmountString } from "@bedrock/common/money";
 
 export const BalanceSubjectSchema = z.object({
   bookId: z.uuid(),
@@ -97,14 +97,20 @@ export function validateBalanceSubject(input: unknown): BalanceSubjectInput {
   return BalanceSubjectSchema.parse(input);
 }
 
-export function validateReserveBalanceInput(input: unknown): ReserveBalanceInput {
+export function validateReserveBalanceInput(
+  input: unknown,
+): ReserveBalanceInput {
   return ReserveBalanceInputSchema.parse(input);
 }
 
-export function validateReleaseBalanceInput(input: unknown): ReleaseBalanceInput {
+export function validateReleaseBalanceInput(
+  input: unknown,
+): ReleaseBalanceInput {
   return ReleaseBalanceInputSchema.parse(input);
 }
 
-export function validateConsumeBalanceInput(input: unknown): ConsumeBalanceInput {
+export function validateConsumeBalanceInput(
+  input: unknown,
+): ConsumeBalanceInput {
   return ConsumeBalanceInputSchema.parse(input);
 }

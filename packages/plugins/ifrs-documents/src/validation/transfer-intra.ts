@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { amountMinorSchema } from "@bedrock/documents/module-kit";
+import { amountMinorSchema } from "@bedrock/common/money";
 
 import {
   amountValueInputSchema,
@@ -16,7 +16,12 @@ const transferInputBaseSchema = baseOccurredAtSchema.extend({
   destinationRequisiteId: z.uuid(),
   amount: amountValueInputSchema,
   currency: currencyCodeSchema,
-  timeoutSeconds: z.number().int().positive().max(7 * 24 * 60 * 60).optional(),
+  timeoutSeconds: z
+    .number()
+    .int()
+    .positive()
+    .max(7 * 24 * 60 * 60)
+    .optional(),
   memo: memoSchema,
 });
 
@@ -26,7 +31,12 @@ const transferPayloadBaseSchema = baseOccurredAtSchema.extend({
   destinationRequisiteId: z.uuid(),
   amountMinor: amountMinorSchema,
   currency: currencyCodeSchema,
-  timeoutSeconds: z.number().int().positive().max(7 * 24 * 60 * 60).optional(),
+  timeoutSeconds: z
+    .number()
+    .int()
+    .positive()
+    .max(7 * 24 * 60 * 60)
+    .optional(),
   memo: memoSchema,
 });
 

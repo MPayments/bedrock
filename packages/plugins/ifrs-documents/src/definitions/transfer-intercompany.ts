@@ -1,11 +1,13 @@
+import { normalizeMajorAmountInput } from "@bedrock/common/money";
+
 import { TransferIntercompanyInputSchema } from "../validation";
 import {
   getDefaultTransferValues,
   isoToDateTimeLocal,
-  normalizeMajorAmountInput,
   optionalNumber,
   optionalString,
   parseSchema,
+  RUSSIAN_MAJOR_AMOUNT_MESSAGES,
   readString,
   TWO_COLUMN_SM_COLUMNS,
   toOccurredAtIso,
@@ -88,7 +90,10 @@ export const transferIntercompanyDocumentDefinition = {
             hidden: true,
             deriveFrom: {
               kind: "accountCurrency",
-              accountFieldNames: ["sourceRequisiteId", "destinationRequisiteId"],
+              accountFieldNames: [
+                "sourceRequisiteId",
+                "destinationRequisiteId",
+              ],
             },
           },
           {
@@ -124,9 +129,15 @@ export const transferIntercompanyDocumentDefinition = {
         occurredAt: isoToDateTimeLocal(payload.occurredAt),
         sourceOrganizationId: readString(payload.sourceOrganizationId),
         sourceRequisiteId: readString(payload.sourceRequisiteId),
-        destinationOrganizationId: readString(payload.destinationOrganizationId),
+        destinationOrganizationId: readString(
+          payload.destinationOrganizationId,
+        ),
         destinationRequisiteId: readString(payload.destinationRequisiteId),
-        amount: normalizeMajorAmountInput(payload.amount, payload.currency),
+        amount: normalizeMajorAmountInput(
+          payload.amount,
+          payload.currency,
+          RUSSIAN_MAJOR_AMOUNT_MESSAGES,
+        ),
         currency: readString(payload.currency),
         timeoutSeconds:
           typeof payload.timeoutSeconds === "number"
@@ -143,8 +154,14 @@ export const transferIntercompanyDocumentDefinition = {
         destinationOrganizationId: readString(
           values.destinationOrganizationId,
         ).trim(),
-        destinationRequisiteId: readString(values.destinationRequisiteId).trim(),
-        amount: normalizeMajorAmountInput(values.amount, values.currency),
+        destinationRequisiteId: readString(
+          values.destinationRequisiteId,
+        ).trim(),
+        amount: normalizeMajorAmountInput(
+          values.amount,
+          values.currency,
+          RUSSIAN_MAJOR_AMOUNT_MESSAGES,
+        ),
         currency: readString(values.currency).trim(),
         timeoutSeconds: optionalNumber(values.timeoutSeconds),
         memo: optionalString(values.memo),

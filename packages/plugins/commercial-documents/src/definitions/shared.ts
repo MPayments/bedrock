@@ -1,13 +1,13 @@
-import {
-  FINANCIAL_LINE_BUCKET_OPTIONS,
-} from "../financial-lines";
+import { normalizeMajorAmountInput } from "@bedrock/common/money";
+
+import { FINANCIAL_LINE_BUCKET_OPTIONS } from "../financial-lines";
 import type { FinancialLinePayload } from "../validation";
 import {
   isoToDateTimeLocal,
-  normalizeMajorAmountInput,
   nowDateTimeLocal,
   optionalString,
   parseSchema,
+  RUSSIAN_MAJOR_AMOUNT_MESSAGES,
   readString,
   toOccurredAtIso,
 } from "@bedrock/ifrs-documents/definitions/shared";
@@ -22,6 +22,17 @@ export const INVOICE_MODE_OPTIONS = [
   { value: "direct", label: "Без обмена" },
   { value: "exchange", label: "С обменом" },
 ] as const;
+
+function normalizeCommercialMajorAmountInput(
+  amountMajor: unknown,
+  currencyCode: unknown,
+) {
+  return normalizeMajorAmountInput(
+    amountMajor,
+    currencyCode,
+    RUSSIAN_MAJOR_AMOUNT_MESSAGES,
+  );
+}
 
 export function getDefaultInvoiceValues() {
   return {
@@ -48,7 +59,7 @@ export function mapPayloadFinancialLines(
     amount:
       typeof line.amount === "string"
         ? line.amount
-        : normalizeMajorAmountInput(line.amountMinor, line.currency),
+        : normalizeCommercialMajorAmountInput(line.amountMinor, line.currency),
     memo: readString(line.memo),
   }));
 }
@@ -61,14 +72,16 @@ export function createInvoicePayload(values: Record<string, unknown>) {
     counterpartyId: readString(values.counterpartyId).trim(),
     organizationId: optionalString(values.organizationId),
     organizationRequisiteId: readString(values.organizationRequisiteId).trim(),
-    amount: normalizeMajorAmountInput(values.amount, values.currency),
+    amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
     currency: readString(values.currency).trim(),
     quoteRef: optionalString(values.quoteRef),
     financialLines: Array.isArray(values.financialLines)
       ? values.financialLines.map((line) => ({
           bucket: readString((line as Record<string, unknown>).bucket).trim(),
-          currency: readString((line as Record<string, unknown>).currency).trim(),
-          amount: normalizeMajorAmountInput(
+          currency: readString(
+            (line as Record<string, unknown>).currency,
+          ).trim(),
+          amount: normalizeCommercialMajorAmountInput(
             (line as Record<string, unknown>).amount,
             (line as Record<string, unknown>).currency,
           ),
@@ -104,6 +117,5 @@ export {
   AcceptanceInputSchema,
   isoToDateTimeLocal,
   nowDateTimeLocal,
-  normalizeMajorAmountInput,
   readString,
 };

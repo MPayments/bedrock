@@ -1,14 +1,16 @@
 import { z } from "zod";
 
 import {
+  amountValueSchema,
+  parseMinorAmount,
+  toMinorAmountString,
+} from "@bedrock/common/money";
+import {
   financialLineBucketSchema,
   financialLineSchema,
   financialLineSettlementModeSchema,
   financialLineSourceSchema,
 } from "./financial-lines";
-import { amountValueSchema } from "@bedrock/documents/module-kit";
-import { toMinorAmountString } from "@bedrock/ledger/amount-utils";
-
 import {
   baseOccurredAtSchema,
   currencyCodeSchema,
@@ -17,18 +19,36 @@ import {
 } from "@bedrock/ifrs-documents/validation/shared";
 
 const uuidSchema = z.uuid();
+function parseStrictMinorAmountString(value: string): bigint | null {
+  if (value !== value.trim()) {
+    return null;
+  }
+
+  return parseMinorAmount(value);
+}
+
 const signedMinorAmountStringSchema = z
   .string()
-  .regex(/^-?\d+$/, "amountMinor must be an integer in minor units")
-  .refine((value) => BigInt(value) !== 0n, {
+  .refine((value) => parseStrictMinorAmountString(value) !== null, {
+    message: "amountMinor must be an integer in minor units",
+  })
+  .refine((value) => parseStrictMinorAmountString(value) !== 0n, {
     message: "amountMinor must be non-zero",
   });
 const positiveMinorAmountStringSchema = z
   .string()
-  .regex(/^\d+$/, "amountMinor must be a positive integer in minor units")
-  .refine((value) => BigInt(value) > 0n, {
-    message: "amountMinor must be positive",
-  });
+  .refine((value) => parseStrictMinorAmountString(value) !== null, {
+    message: "amountMinor must be a positive integer in minor units",
+  })
+  .refine(
+    (value) => {
+      const parsed = parseStrictMinorAmountString(value);
+      return parsed !== null && parsed > 0n;
+    },
+    {
+      message: "amountMinor must be positive",
+    },
+  );
 
 export const InvoiceModeSchema = z.enum(["direct", "exchange"]);
 
@@ -37,7 +57,7 @@ function toSignedMinorAmountString(input: {
   currency: string;
 }) {
   const amountMinor = toMinorAmountString(input.amount, input.currency);
-  if (BigInt(amountMinor) === 0n) {
+  if (parseMinorAmount(amountMinor) === 0n) {
     throw new Error("amount must be non-zero");
   }
 
@@ -223,14 +243,18 @@ export const AcceptancePayloadSchema = baseOccurredAtSchema.extend({
   memo: memoSchema,
 });
 
-export type DirectFinancialLineInput = z.infer<typeof directFinancialLineInputSchema>;
+export type DirectFinancialLineInput = z.infer<
+  typeof directFinancialLineInputSchema
+>;
 export type FinancialLinePayload = z.infer<typeof financialLinePayloadSchema>;
 export type QuoteSnapshot = z.infer<typeof QuoteSnapshotSchema>;
 export type InvoiceDirectInput = z.infer<typeof InvoiceDirectInputSchema>;
 export type InvoiceExchangeInput = z.infer<typeof InvoiceExchangeInputSchema>;
 export type InvoiceInput = z.infer<typeof InvoiceInputSchema>;
 export type InvoiceDirectPayload = z.infer<typeof InvoiceDirectPayloadSchema>;
-export type InvoiceExchangePayload = z.infer<typeof InvoiceExchangePayloadSchema>;
+export type InvoiceExchangePayload = z.infer<
+  typeof InvoiceExchangePayloadSchema
+>;
 export type InvoicePayload = z.infer<typeof InvoicePayloadSchema>;
 export type ExchangeInput = z.infer<typeof ExchangeInputSchema>;
 export type ExchangePayload = z.infer<typeof ExchangePayloadSchema>;

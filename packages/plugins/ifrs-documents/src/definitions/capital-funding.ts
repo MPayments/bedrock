@@ -1,11 +1,13 @@
+import { normalizeMajorAmountInput } from "@bedrock/common/money";
+
 import { CapitalFundingInputSchema } from "../validation";
 import {
   CAPITAL_FUNDING_KIND_OPTIONS,
   isoToDateTimeLocal,
-  normalizeMajorAmountInput,
   nowDateTimeLocal,
   optionalString,
   parseSchema,
+  RUSSIAN_MAJOR_AMOUNT_MESSAGES,
   readString,
   toOccurredAtIso,
 } from "./shared";
@@ -131,7 +133,11 @@ export const capitalFundingDocumentDefinition = {
         organizationId: readString(payload.organizationId),
         organizationRequisiteId: readString(payload.organizationRequisiteId),
         counterpartyRequisiteId: readString(payload.counterpartyRequisiteId),
-        amount: normalizeMajorAmountInput(payload.amount, payload.currency),
+        amount: normalizeMajorAmountInput(
+          payload.amount,
+          payload.currency,
+          RUSSIAN_MAJOR_AMOUNT_MESSAGES,
+        ),
         currency: readString(payload.currency),
         memo: readString(payload.memo),
       };
@@ -148,7 +154,11 @@ export const capitalFundingDocumentDefinition = {
         counterpartyRequisiteId: readString(
           values.counterpartyRequisiteId,
         ).trim(),
-        amount: normalizeMajorAmountInput(values.amount, values.currency),
+        amount: normalizeMajorAmountInput(
+          values.amount,
+          values.currency,
+          RUSSIAN_MAJOR_AMOUNT_MESSAGES,
+        ),
         currency: readString(values.currency).trim(),
         memo: optionalString(values.memo),
       });

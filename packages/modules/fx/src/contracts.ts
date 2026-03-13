@@ -1,10 +1,8 @@
 import { z } from "zod";
 
+import { parseMinorAmount } from "@bedrock/common/money";
 import { FINANCIAL_LINE_BUCKETS } from "@bedrock/documents/financial-lines";
-import {
-  feeDealDirectionSchema,
-  feeDealFormSchema,
-} from "@bedrock/fees";
+import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
 
 export const FxRateSourceSchema = z.enum(["cbr", "investing", "xe"]);
 const financialLineSourceSchema = z.enum(["rule", "manual"]);
@@ -12,16 +10,34 @@ const financialLineSettlementModeSchema = z.enum([
   "in_ledger",
   "separate_payment_order",
 ]);
+function parseStrictMinorAmountString(value: string): bigint | null {
+  if (value !== value.trim()) {
+    return null;
+  }
+
+  return parseMinorAmount(value);
+}
+
 const positiveMinorAmountStringSchema = z
   .string()
-  .regex(/^\d+$/, "Must be a positive integer string")
-  .refine((value) => BigInt(value) > 0n, {
-    message: "Must be greater than zero",
-  });
+  .refine((value) => parseStrictMinorAmountString(value) !== null, {
+    message: "Must be a positive integer string",
+  })
+  .refine(
+    (value) => {
+      const parsed = parseStrictMinorAmountString(value);
+      return parsed !== null && parsed > 0n;
+    },
+    {
+      message: "Must be greater than zero",
+    },
+  );
 const signedMinorAmountStringSchema = z
   .string()
-  .regex(/^-?\d+$/, "Must be an integer string")
-  .refine((value) => BigInt(value) !== 0n, {
+  .refine((value) => parseStrictMinorAmountString(value) !== null, {
+    message: "Must be an integer string",
+  })
+  .refine((value) => parseStrictMinorAmountString(value) !== 0n, {
     message: "Must be non-zero",
   });
 
@@ -213,4 +229,6 @@ export type FxRateHistoryPoint = z.infer<typeof FxRateHistoryPointSchema>;
 export type FxRateSourceStatus = z.infer<typeof FxRateSourceStatusSchema>;
 export type SetManualRateInput = z.infer<typeof SetManualRateInputSchema>;
 export type CreateFxQuoteInput = z.infer<typeof CreateFxQuoteInputSchema>;
-export type FxQuoteDetailsResponse = z.infer<typeof FxQuoteDetailsResponseSchema>;
+export type FxQuoteDetailsResponse = z.infer<
+  typeof FxQuoteDetailsResponseSchema
+>;

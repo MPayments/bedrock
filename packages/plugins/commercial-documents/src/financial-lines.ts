@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { signedMinorAmountSchema } from "@bedrock/common/money";
 import {
   isValidCurrency,
   normalizeCurrency,
@@ -34,28 +35,6 @@ const currencySchema = z
       "Currency must be 2-16 uppercase alphanumeric characters or underscores",
   })
   .transform((value) => normalizeCurrency(value));
-
-const signedMinorAmountSchema = z.union([z.string(), z.number().int(), z.bigint()])
-  .transform((value, ctx) => {
-    try {
-      const parsed = typeof value === "bigint" ? value : BigInt(value);
-      if (parsed === 0n) {
-        ctx.addIssue({
-          code: "custom",
-          message: "amountMinor must be non-zero",
-        });
-        return z.NEVER;
-      }
-
-      return parsed;
-    } catch {
-      ctx.addIssue({
-        code: "custom",
-        message: "amountMinor must be an integer in minor units",
-      });
-      return z.NEVER;
-    }
-  });
 
 export const financialLineBucketSchema = z.enum(FINANCIAL_LINE_BUCKETS);
 export const financialLineSourceSchema = z.enum(["rule", "manual"]);
@@ -108,7 +87,9 @@ export function financialLineAggregateKey(line: FinancialLine): string {
   ].join("|");
 }
 
-export function aggregateFinancialLines(lines: FinancialLine[]): FinancialLine[] {
+export function aggregateFinancialLines(
+  lines: FinancialLine[],
+): FinancialLine[] {
   const grouped = new Map<string, FinancialLine>();
 
   for (const raw of lines) {

@@ -7,8 +7,7 @@
     ".": "./src/index.ts",
     "./schema": "./src/schema/index.ts",
     "./tb": "./src/tb.ts",
-    "./ids": "./src/ids.ts",
-    "./amount-utils": "./src/amount-utils.ts"
+    "./ids": "./src/ids.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

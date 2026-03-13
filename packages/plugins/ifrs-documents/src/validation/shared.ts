@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-import {
-  amountValueSchema,
-  toMinorAmountString,
-} from "@bedrock/documents/module-kit";
+import { amountValueSchema, toMinorAmountString } from "@bedrock/common/money";
 
 export const currencyCodeSchema = z
   .string()
@@ -21,10 +18,12 @@ export const baseOccurredAtSchema = z.object({
 
 export const periodBoundarySchema = z.coerce.date();
 
-export function withAmountMinor<TInput extends { amount: string; currency: string }>(
+export function withAmountMinor<
+  TInput extends { amount: string; currency: string },
+>(
   input: TInput,
   ctx: z.RefinementCtx,
-) {
+): (Omit<TInput, "amount"> & { amountMinor: string }) | typeof z.NEVER {
   try {
     const amountMinor = toMinorAmountString(input.amount, input.currency, {
       requirePositive: true,

@@ -2,66 +2,9 @@ import { z } from "zod";
 
 import type { Document } from "@bedrock/documents/schema";
 
-import {
-  normalizeAmountValue,
-  toMinorAmountString,
-} from "@bedrock/ledger/amount-utils";
-
-export const amountMinorSchema = z
-  .union([z.string(), z.number().int(), z.bigint()])
-  .transform((value, ctx) => {
-    try {
-      const parsed = typeof value === "bigint" ? value : BigInt(value);
-      if (parsed <= 0n) {
-        ctx.addIssue({
-          code: "custom",
-          message: "amountMinor must be positive",
-        });
-        return z.NEVER;
-      }
-
-      return parsed.toString();
-    } catch {
-      ctx.addIssue({
-        code: "custom",
-        message: "amountMinor must be an integer in minor units",
-      });
-      return z.NEVER;
-    }
-  });
-
-// This parser only accepts a simple optional sign + digits + optional fraction.
-// eslint-disable-next-line security/detect-unsafe-regex
-const amountInputPattern = /^(-?)(\d+)(?:\.(\d+))?$/;
-
-export const amountValueSchema = z.union([z.string(), z.number(), z.bigint()]).transform(
-  (value, ctx) => {
-    const normalized = normalizeAmountValue(value).replace(",", ".");
-    const match = amountInputPattern.exec(normalized);
-    if (!match) {
-      ctx.addIssue({
-        code: "custom",
-        message: "amount must be a number, e.g. 1000.50",
-      });
-      return z.NEVER;
-    }
-
-    const [, signRaw = "", integerRaw = "", fractionRaw = ""] = match;
-    const integerPart = integerRaw.replace(/^0+(?=\d)/, "");
-    const fractionPart = fractionRaw.replace(/0+$/, "");
-    const isZero = /^0+$/.test(integerPart) && fractionPart.length === 0;
-
-    if (fractionPart.length === 0) {
-      return isZero ? "0" : `${signRaw}${integerPart}`;
-    }
-
-    return `${signRaw}${integerPart}.${fractionPart}`;
-  },
-);
-
-export { toMinorAmountString };
-
-export function serializeOccurredAt<T extends { occurredAt: Date }>(payload: T) {
+export function serializeOccurredAt<T extends { occurredAt: Date }>(
+  payload: T,
+) {
   return {
     ...payload,
     occurredAt: payload.occurredAt.toISOString(),

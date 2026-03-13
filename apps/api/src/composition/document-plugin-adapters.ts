@@ -6,7 +6,10 @@ import {
 } from "@bedrock/commercial-documents/contracts";
 import { QuoteSnapshotSchema } from "@bedrock/commercial-documents/validation";
 import { type CommercialModuleDeps } from "@bedrock/commercial-documents";
-import { DocumentValidationError, type DocumentModule } from "@bedrock/documents";
+import {
+  DocumentValidationError,
+  type DocumentModule,
+} from "@bedrock/documents";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as fxSchema } from "@bedrock/fx/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
@@ -14,6 +17,7 @@ import type { CurrenciesService } from "@bedrock/currencies";
 import type { IfrsModuleDeps } from "@bedrock/ifrs-documents";
 import type { RequisitesService } from "@bedrock/parties/requisites";
 import { canonicalJson, isUuidLike, sha256Hex } from "@bedrock/common";
+import { minorToAmountString } from "@bedrock/common/money";
 import type { QuoteSnapshot } from "@bedrock/commercial-documents/validation";
 
 type Queryable = Parameters<DocumentModule["canPost"]>[0]["db"];
@@ -25,23 +29,6 @@ const TRANSFER_DOC_TYPES = ["transfer_intra", "transfer_intercompany"] as const;
 
 function buildQuoteSnapshotHash(snapshot: Omit<QuoteSnapshot, "snapshotHash">) {
   return sha256Hex(canonicalJson(snapshot));
-}
-
-function minorToAmountString(amountMinor: bigint, precision: number): string {
-  const normalizedPrecision = Math.max(0, Math.trunc(precision));
-  const absolute = amountMinor < 0n ? -amountMinor : amountMinor;
-  const digits = absolute.toString().padStart(normalizedPrecision + 1, "0");
-  const integerPart = digits.slice(0, digits.length - normalizedPrecision);
-  const fractionPart =
-    normalizedPrecision > 0 ? digits.slice(-normalizedPrecision) : "";
-  const trimmedFraction = fractionPart.replace(/0+$/, "");
-  const sign = amountMinor < 0n ? "-" : "";
-
-  if (trimmedFraction.length === 0) {
-    return `${sign}${integerPart}`;
-  }
-
-  return `${sign}${integerPart}.${trimmedFraction}`;
 }
 
 async function loadDocumentByType(input: {
@@ -140,7 +127,10 @@ export function createCommercialDocumentDeps(input: {
             ...financialLineRows.map((row) => row.currencyId),
           ]),
         ];
-        const currencyById = new Map<string, { code: string; precision: number }>();
+        const currencyById = new Map<
+          string,
+          { code: string; precision: number }
+        >();
         await Promise.all(
           uniqueCurrencyIds.map(async (currencyId) => {
             const currency =
@@ -190,17 +180,17 @@ export function createCommercialDocumentDeps(input: {
               currency: currency.code,
               amountMinor: line.amountMinor,
               source: line.source as FinancialLine["source"],
-              settlementMode: line.settlementMode as FinancialLine["settlementMode"],
+              settlementMode:
+                line.settlementMode as FinancialLine["settlementMode"],
               memo: line.memo ?? undefined,
               metadata: line.metadata ?? undefined,
             });
 
             return {
               ...normalizedLine,
-              amount: minorToAmountString(
-                normalizedLine.amountMinor,
-                currency.precision,
-              ),
+              amount: minorToAmountString(normalizedLine.amountMinor, {
+                precision: currency.precision,
+              }),
               amountMinor: normalizedLine.amountMinor.toString(),
               settlementMode: normalizedLine.settlementMode ?? "in_ledger",
             };
@@ -435,7 +425,9 @@ export function createIfrsDocumentDeps(input: {
           .where(
             and(
               eq(documentsSchema.documents.id, transferDocumentId),
-              inArray(documentsSchema.documents.docType, [...TRANSFER_DOC_TYPES]),
+              inArray(documentsSchema.documents.docType, [
+                ...TRANSFER_DOC_TYPES,
+              ]),
             ),
           )
           .limit(1);

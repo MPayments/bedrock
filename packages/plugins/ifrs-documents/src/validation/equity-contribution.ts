@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { amountMinorSchema } from "@bedrock/documents/module-kit";
+import { amountMinorSchema } from "@bedrock/common/money";
 
 import {
   amountValueInputSchema,
@@ -20,9 +20,10 @@ const equityContributionInputBaseSchema = baseOccurredAtSchema.extend({
   memo: memoSchema,
 });
 
-export const EquityContributionInputSchema = equityContributionInputBaseSchema.transform(
-  (input, ctx) => withAmountMinor(input, ctx),
-);
+export const EquityContributionInputSchema =
+  equityContributionInputBaseSchema.transform((input, ctx) =>
+    withAmountMinor(input, ctx),
+  );
 
 export const EquityContributionSchema = baseOccurredAtSchema.extend({
   counterpartyId: z.uuid(),
@@ -33,5 +34,7 @@ export const EquityContributionSchema = baseOccurredAtSchema.extend({
   memo: memoSchema,
 });
 
-export type EquityContributionInput = z.infer<typeof EquityContributionInputSchema>;
+export type EquityContributionInput = z.infer<
+  typeof EquityContributionInputSchema
+>;
 export type EquityContribution = z.infer<typeof EquityContributionSchema>;

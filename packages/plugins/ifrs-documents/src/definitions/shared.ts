@@ -1,5 +1,7 @@
 import type { z } from "zod";
 
+import { normalizeMajorAmountInput } from "@bedrock/common/money";
+
 import type {
   AccrualAdjustmentInputSchema,
   ClosingReclassInputSchema,
@@ -117,67 +119,26 @@ export function parseSchema<TSchema extends z.ZodTypeAny>(
   return input as z.input<TSchema>;
 }
 
-function resolveCurrencyPrecision(currencyCode: unknown): number {
-  const normalized = readString(currencyCode).trim().toUpperCase();
-  if (normalized.length === 0) {
-    return 2;
-  }
+export const RUSSIAN_MAJOR_AMOUNT_MESSAGES = {
+  invalidNumberMessage: "Сумма должна быть числом, например 1000.50",
+  tooManyFractionDigitsMessage: (input: {
+    currency: string;
+    precision: number;
+  }) =>
+    `Слишком много знаков после запятой для ${
+      input.currency.length > 0 ? input.currency : "выбранной валюты"
+    }: максимум ${input.precision}`,
+};
 
-  try {
-    const options = new Intl.NumberFormat("en", {
-      style: "currency",
-      currency: normalized,
-    }).resolvedOptions();
-    return Math.max(0, Math.trunc(options.maximumFractionDigits ?? 2));
-  } catch {
-    return 2;
-  }
-}
-
-export function normalizeMajorAmountInput(
+function normalizeLocalizedMajorAmountInput(
   amountMajor: unknown,
   currencyCode: unknown,
-): string {
-  const normalizedMajor = readString(amountMajor).trim().replace(",", ".");
-  if (normalizedMajor.length === 0) {
-    return "";
-  }
-
-  const negative = normalizedMajor.startsWith("-");
-  const unsignedMajor = negative ? normalizedMajor.slice(1) : normalizedMajor;
-  const parts = unsignedMajor.split(".");
-  const [integerRaw = "", fractionRaw = ""] = parts;
-
-  if (
-    parts.length > 2 ||
-    !/^\d+$/.test(integerRaw) ||
-    (fractionRaw.length > 0 && !/^\d+$/.test(fractionRaw))
-  ) {
-    throw new Error("Сумма должна быть числом, например 1000.50");
-  }
-
-  const precision = resolveCurrencyPrecision(currencyCode);
-  if (fractionRaw.length > precision) {
-    const currency = readString(currencyCode).trim().toUpperCase();
-    throw new Error(
-      `Слишком много знаков после запятой для ${
-        currency.length > 0 ? currency : "выбранной валюты"
-      }: максимум ${precision}`,
-    );
-  }
-
-  const normalizedInteger = integerRaw.replace(/^0+(?=\d)/, "");
-  const normalizedFraction = fractionRaw.replace(/0+$/, "");
-  const isZero =
-    /^0+$/.test(normalizedInteger.length > 0 ? normalizedInteger : "0") &&
-    normalizedFraction.length === 0;
-  const sign = negative && !isZero ? "-" : "";
-
-  if (normalizedFraction.length === 0) {
-    return `${sign}${normalizedInteger.length > 0 ? normalizedInteger : "0"}`;
-  }
-
-  return `${sign}${normalizedInteger}.${normalizedFraction}`;
+) {
+  return normalizeMajorAmountInput(
+    amountMajor,
+    currencyCode,
+    RUSSIAN_MAJOR_AMOUNT_MESSAGES,
+  );
 }
 
 export const TRANSFER_RESOLUTION_TYPE_OPTIONS: DocumentFormFieldOption[] = [
@@ -305,7 +266,10 @@ export function createLoanLikeDefinition(input: {
         occurredAt: isoToDateTimeLocal(payload.occurredAt),
         debtorCounterpartyId: readString(payload.debtorCounterpartyId),
         creditorCounterpartyId: readString(payload.creditorCounterpartyId),
-        amount: normalizeMajorAmountInput(payload.amount, payload.currency),
+        amount: normalizeLocalizedMajorAmountInput(
+          payload.amount,
+          payload.currency,
+        ),
         currency: readString(payload.currency),
         reference: readString(payload.reference),
         memo: readString(payload.memo),
@@ -318,7 +282,10 @@ export function createLoanLikeDefinition(input: {
         creditorCounterpartyId: readString(
           values.creditorCounterpartyId,
         ).trim(),
-        amount: normalizeMajorAmountInput(values.amount, values.currency),
+        amount: normalizeLocalizedMajorAmountInput(
+          values.amount,
+          values.currency,
+        ),
         currency: readString(values.currency).trim(),
         reference: optionalString(values.reference),
         memo: optionalString(values.memo),
@@ -395,7 +362,10 @@ export function createEquityDefinition(input: {
         occurredAt: isoToDateTimeLocal(payload.occurredAt),
         counterpartyId: readString(payload.counterpartyId),
         investorCounterpartyId: readString(payload.investorCounterpartyId),
-        amount: normalizeMajorAmountInput(payload.amount, payload.currency),
+        amount: normalizeLocalizedMajorAmountInput(
+          payload.amount,
+          payload.currency,
+        ),
         currency: readString(payload.currency),
         reference: readString(payload.reference),
         memo: readString(payload.memo),
@@ -406,7 +376,10 @@ export function createEquityDefinition(input: {
         occurredAt: toOccurredAtIso(values.occurredAt),
         counterpartyId: readString(values.counterpartyId).trim(),
         investorCounterpartyId: optionalString(values.investorCounterpartyId),
-        amount: normalizeMajorAmountInput(values.amount, values.currency),
+        amount: normalizeLocalizedMajorAmountInput(
+          values.amount,
+          values.currency,
+        ),
         currency: readString(values.currency).trim(),
         reference: optionalString(values.reference),
         memo: optionalString(values.memo),
@@ -481,7 +454,10 @@ export function createAdjustmentDefinition(input: {
       return {
         occurredAt: isoToDateTimeLocal(payload.occurredAt),
         counterpartyId: readString(payload.counterpartyId),
-        amount: normalizeMajorAmountInput(payload.amount, payload.currency),
+        amount: normalizeLocalizedMajorAmountInput(
+          payload.amount,
+          payload.currency,
+        ),
         currency: readString(payload.currency),
         reference: readString(payload.reference),
         memo: readString(payload.memo),
@@ -491,7 +467,10 @@ export function createAdjustmentDefinition(input: {
       return parseSchema(input.schema, {
         occurredAt: toOccurredAtIso(values.occurredAt),
         counterpartyId: readString(values.counterpartyId).trim(),
-        amount: normalizeMajorAmountInput(values.amount, values.currency),
+        amount: normalizeLocalizedMajorAmountInput(
+          values.amount,
+          values.currency,
+        ),
         currency: readString(values.currency).trim(),
         reference: optionalString(values.reference),
         memo: optionalString(values.memo),

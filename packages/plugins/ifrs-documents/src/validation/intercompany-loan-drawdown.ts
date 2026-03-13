@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { amountMinorSchema } from "@bedrock/documents/module-kit";
+import { amountMinorSchema } from "@bedrock/common/money";
 
 import {
   amountValueInputSchema,

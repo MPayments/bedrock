@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import { normalizeMajorAmountInput } from "@bedrock/common/money";
+
 import {
   CapitalFundingInputSchema,
   CapitalFundingPayloadSchema,
   TransferIntraInputSchema,
   TransferIntraPayloadSchema,
 } from "../src/validation";
+import { RUSSIAN_MAJOR_AMOUNT_MESSAGES } from "../src/definitions/shared";
 
 describe("ifrs documents validation", () => {
   it("accepts API amount and maps it to amountMinor", () => {
@@ -67,5 +70,14 @@ describe("ifrs documents validation", () => {
 
     expect(parsed.entryRef).toBeUndefined();
     expect(parsed.amountMinor).toBe("100050");
+  });
+
+  it("preserves localized major amount validation messages", () => {
+    expect(() =>
+      normalizeMajorAmountInput("abc", "USD", RUSSIAN_MAJOR_AMOUNT_MESSAGES),
+    ).toThrow("Сумма должна быть числом, например 1000.50");
+    expect(() =>
+      normalizeMajorAmountInput("1.001", "USD", RUSSIAN_MAJOR_AMOUNT_MESSAGES),
+    ).toThrow("Слишком много знаков после запятой для USD: максимум 2");
   });
 });

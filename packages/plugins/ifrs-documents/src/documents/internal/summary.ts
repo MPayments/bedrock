@@ -1,15 +1,3 @@
-export function toAmountMinor(value: unknown): bigint | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  try {
-    return BigInt(value);
-  } catch {
-    return null;
-  }
-}
-
 export function firstString(
   input: Record<string, unknown>,
   keys: readonly string[],

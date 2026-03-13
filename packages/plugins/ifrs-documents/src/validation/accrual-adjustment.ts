@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { amountMinorSchema } from "@bedrock/documents/module-kit";
+import { amountMinorSchema } from "@bedrock/common/money";
 
 import {
   amountValueInputSchema,
@@ -33,5 +33,7 @@ export const AccrualAdjustmentInputSchema = adjustmentInputBaseSchema.transform(
 
 export const AccrualAdjustmentSchema = adjustmentPayloadBaseSchema;
 
-export type AccrualAdjustmentInput = z.infer<typeof AccrualAdjustmentInputSchema>;
+export type AccrualAdjustmentInput = z.infer<
+  typeof AccrualAdjustmentInputSchema
+>;
 export type AccrualAdjustment = z.infer<typeof AccrualAdjustmentSchema>;

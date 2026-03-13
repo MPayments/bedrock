@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { amountMinorSchema } from "@bedrock/documents/module-kit";
+import { amountMinorSchema } from "@bedrock/common/money";
 
 import {
   amountValueInputSchema,
@@ -29,9 +29,10 @@ const capitalFundingInputBaseSchema = baseOccurredAtSchema.extend({
   memo: memoSchema,
 });
 
-export const CapitalFundingInputSchema = capitalFundingInputBaseSchema.transform(
-  (input, ctx) => withAmountMinor(input, ctx),
-);
+export const CapitalFundingInputSchema =
+  capitalFundingInputBaseSchema.transform((input, ctx) =>
+    withAmountMinor(input, ctx),
+  );
 
 export const CapitalFundingPayloadSchema = baseOccurredAtSchema.extend({
   kind: CapitalFundingKindSchema,

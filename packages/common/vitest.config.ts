@@ -2,10 +2,10 @@ import { defineProject } from "vitest/config";
 
 export default defineProject({
   test: {
-    name: "countries",
+    name: "common",
     globals: true,
     environment: "node",
-    include: ["tests/countries/**/*.test.ts"],
+    include: ["tests/**/*.test.ts"],
     exclude: ["**/node_modules/**", "**/dist/**"],
   },
 });

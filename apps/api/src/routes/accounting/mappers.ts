@@ -1,4 +1,4 @@
-import { minorToAmountString } from "../../common/amount";
+import { minorToAmountString } from "@bedrock/common/money";
 
 interface PostingLike {
   bookId: string;
@@ -54,7 +54,12 @@ interface ReportScopeMetaLike {
 
 type MappedTbPlan<TPlan extends TbPlanLike> = Omit<
   TPlan,
-  "transferId" | "debitTbAccountId" | "creditTbAccountId" | "amount" | "pendingId" | "createdAt"
+  | "transferId"
+  | "debitTbAccountId"
+  | "creditTbAccountId"
+  | "amount"
+  | "pendingId"
+  | "createdAt"
 > & {
   transferId: string;
   debitTbAccountId: string | null;
@@ -64,7 +69,9 @@ type MappedTbPlan<TPlan extends TbPlanLike> = Omit<
   createdAt: string;
 };
 
-function mapTbPlanDto<TPlan extends TbPlanLike>(plan: TPlan): MappedTbPlan<TPlan> {
+function mapTbPlanDto<TPlan extends TbPlanLike>(
+  plan: TPlan,
+): MappedTbPlan<TPlan> {
   return {
     ...plan,
     transferId: plan.transferId.toString(),
@@ -87,7 +94,9 @@ export function mapPostingDto<TPosting extends PostingLike>(posting: TPosting) {
   };
 }
 
-export function mapFinancialResultRowDto<TRow extends FinancialRowLike>(row: TRow) {
+export function mapFinancialResultRowDto<TRow extends FinancialRowLike>(
+  row: TRow,
+) {
   const { revenueMinor, expenseMinor, netMinor, ...restRow } = row;
   return {
     ...restRow,
@@ -103,7 +112,9 @@ export function mapFinancialResultRowDto<TRow extends FinancialRowLike>(row: TRo
   };
 }
 
-export function mapFinancialSummaryDto<TRow extends FinancialRowLike>(row: TRow) {
+export function mapFinancialSummaryDto<TRow extends FinancialRowLike>(
+  row: TRow,
+) {
   return mapFinancialResultRowDto(row);
 }
 
@@ -144,7 +155,9 @@ function mapMinorByCurrency(value: bigint, currency: string) {
   return minorToAmountString(value, { currency });
 }
 
-export function mapReportScopeMetaDto<TMeta extends ReportScopeMetaLike>(meta: TMeta) {
+export function mapReportScopeMetaDto<TMeta extends ReportScopeMetaLike>(
+  meta: TMeta,
+) {
   return {
     scopeType: meta.scopeType,
     requestedCounterpartyIds: meta.requestedCounterpartyIds,
@@ -230,8 +243,16 @@ export function mapGeneralLedgerDto(input: {
   total: number;
   limit: number;
   offset: number;
-  openingBalances: { accountNo: string; currency: string; balanceMinor: bigint }[];
-  closingBalances: { accountNo: string; currency: string; balanceMinor: bigint }[];
+  openingBalances: {
+    accountNo: string;
+    currency: string;
+    balanceMinor: bigint;
+  }[];
+  closingBalances: {
+    accountNo: string;
+    currency: string;
+    balanceMinor: bigint;
+  }[];
   scopeMeta: ReportScopeMetaLike;
 }) {
   return {
@@ -468,7 +489,10 @@ export function mapFeeRevenueDto(input: {
       currency: row.currency,
       feeRevenue: mapMinorByCurrency(row.feeRevenueMinor, row.currency),
       spreadRevenue: mapMinorByCurrency(row.spreadRevenueMinor, row.currency),
-      providerFeeExpense: mapMinorByCurrency(row.providerFeeExpenseMinor, row.currency),
+      providerFeeExpense: mapMinorByCurrency(
+        row.providerFeeExpenseMinor,
+        row.currency,
+      ),
       net: mapMinorByCurrency(row.netMinor, row.currency),
     })),
     total: input.total,
@@ -478,7 +502,10 @@ export function mapFeeRevenueDto(input: {
       currency: row.currency,
       feeRevenue: mapMinorByCurrency(row.feeRevenueMinor, row.currency),
       spreadRevenue: mapMinorByCurrency(row.spreadRevenueMinor, row.currency),
-      providerFeeExpense: mapMinorByCurrency(row.providerFeeExpenseMinor, row.currency),
+      providerFeeExpense: mapMinorByCurrency(
+        row.providerFeeExpenseMinor,
+        row.currency,
+      ),
       net: mapMinorByCurrency(row.netMinor, row.currency),
     })),
     scopeMeta: mapReportScopeMetaDto(input.scopeMeta),
@@ -538,21 +565,24 @@ export function mapClosePackageDto(input: {
     generatedAt: input.generatedAt.toISOString(),
     closeDocumentId: input.closeDocumentId,
     reopenDocumentId: input.reopenDocumentId,
-    trialBalanceSummaryByCurrency: input.trialBalanceSummaryByCurrency.map((row) => ({
-      currency: row.currency,
-      openingDebit: mapMinorByCurrency(row.openingDebitMinor, row.currency),
-      openingCredit: mapMinorByCurrency(row.openingCreditMinor, row.currency),
-      periodDebit: mapMinorByCurrency(row.periodDebitMinor, row.currency),
-      periodCredit: mapMinorByCurrency(row.periodCreditMinor, row.currency),
-      closingDebit: mapMinorByCurrency(row.closingDebitMinor, row.currency),
-      closingCredit: mapMinorByCurrency(row.closingCreditMinor, row.currency),
-    })),
-    incomeStatementSummaryByCurrency: input.incomeStatementSummaryByCurrency.map((row) => ({
-      currency: row.currency,
-      revenue: mapMinorByCurrency(row.revenueMinor, row.currency),
-      expense: mapMinorByCurrency(row.expenseMinor, row.currency),
-      net: mapMinorByCurrency(row.netMinor, row.currency),
-    })),
+    trialBalanceSummaryByCurrency: input.trialBalanceSummaryByCurrency.map(
+      (row) => ({
+        currency: row.currency,
+        openingDebit: mapMinorByCurrency(row.openingDebitMinor, row.currency),
+        openingCredit: mapMinorByCurrency(row.openingCreditMinor, row.currency),
+        periodDebit: mapMinorByCurrency(row.periodDebitMinor, row.currency),
+        periodCredit: mapMinorByCurrency(row.periodCreditMinor, row.currency),
+        closingDebit: mapMinorByCurrency(row.closingDebitMinor, row.currency),
+        closingCredit: mapMinorByCurrency(row.closingCreditMinor, row.currency),
+      }),
+    ),
+    incomeStatementSummaryByCurrency:
+      input.incomeStatementSummaryByCurrency.map((row) => ({
+        currency: row.currency,
+        revenue: mapMinorByCurrency(row.revenueMinor, row.currency),
+        expense: mapMinorByCurrency(row.expenseMinor, row.currency),
+        net: mapMinorByCurrency(row.netMinor, row.currency),
+      })),
     cashFlowSummaryByCurrency: input.cashFlowSummaryByCurrency.map((row) => ({
       currency: row.currency,
       netCashFlow: mapMinorByCurrency(row.netCashFlowMinor, row.currency),

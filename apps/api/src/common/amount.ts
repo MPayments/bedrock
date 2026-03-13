@@ -1,7 +1,7 @@
-interface MoneyFormatOptions {
-  currency?: string | null | undefined;
-  precision?: number | null | undefined;
-}
+import {
+  minorToAmountString,
+  type MoneyFormatOptions,
+} from "@bedrock/common/money";
 
 const MONEY_FIELD_MAP: Record<string, string> = {
   amountMinor: "amount",
@@ -10,98 +10,6 @@ const MONEY_FIELD_MAP: Record<string, string> = {
   expenseMinor: "expense",
   netMinor: "net",
 };
-
-function resolveCurrencyPrecision(
-  currencyCode: string | null | undefined,
-): number {
-  const normalized = currencyCode?.trim().toUpperCase() ?? "";
-  if (normalized.length === 0) {
-    return 2;
-  }
-
-  try {
-    const options = new Intl.NumberFormat("en", {
-      style: "currency",
-      currency: normalized,
-    }).resolvedOptions();
-    return Math.max(0, Math.trunc(options.maximumFractionDigits ?? 2));
-  } catch {
-    return 2;
-  }
-}
-
-function resolvePrecision(options: MoneyFormatOptions): number {
-  if (
-    typeof options.precision === "number" &&
-    Number.isFinite(options.precision)
-  ) {
-    return Math.max(0, Math.trunc(options.precision));
-  }
-
-  return resolveCurrencyPrecision(options.currency);
-}
-
-function parseMinorAmount(value: unknown): bigint | null {
-  if (typeof value === "bigint") {
-    return value;
-  }
-
-  if (
-    typeof value === "number" &&
-    Number.isFinite(value) &&
-    Number.isInteger(value)
-  ) {
-    return BigInt(value);
-  }
-
-  if (typeof value === "string") {
-    const normalized = value.trim();
-    if (/^-?\d+$/.test(normalized)) {
-      try {
-        return BigInt(normalized);
-      } catch {
-        return null;
-      }
-    }
-  }
-
-  return null;
-}
-
-export function minorToAmountString(
-  value: unknown,
-  options: MoneyFormatOptions = {},
-): string {
-  const minorAmount = parseMinorAmount(value);
-  if (minorAmount === null) {
-    if (typeof value === "string") {
-      return value;
-    }
-    if (value === null || value === undefined) {
-      return "";
-    }
-    return String(value);
-  }
-
-  const precision = resolvePrecision(options);
-  const isNegative = minorAmount < 0n;
-  const absoluteMinor = isNegative ? -minorAmount : minorAmount;
-  const sign = isNegative ? "-" : "";
-
-  if (precision === 0) {
-    return `${sign}${absoluteMinor.toString()}`;
-  }
-
-  const base = absoluteMinor.toString().padStart(precision + 1, "0");
-  const integerPart = base.slice(0, -precision);
-  const fractionPart = base.slice(-precision).replace(/0+$/, "");
-
-  if (fractionPart.length === 0) {
-    return `${sign}${integerPart}`;
-  }
-
-  return `${sign}${integerPart}.${fractionPart}`;
-}
 
 export function normalizeMoneyFields(
   value: unknown,

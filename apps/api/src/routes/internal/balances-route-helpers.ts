@@ -8,8 +8,7 @@ import {
   ActionReceiptStoredError,
 } from "@bedrock/idempotency";
 import { ValidationError } from "@bedrock/common/errors";
-
-import { minorToAmountString } from "../../common/amount";
+import { minorToAmountString } from "@bedrock/common/money";
 
 export function toBalanceSnapshotDto(input: {
   bookId: string;

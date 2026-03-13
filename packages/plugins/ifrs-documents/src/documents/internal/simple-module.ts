@@ -1,3 +1,5 @@
+import { parseMinorAmount } from "@bedrock/common/money";
+
 import type { DocumentModule } from "@bedrock/documents";
 import {
   buildDocumentDraft,
@@ -6,22 +8,19 @@ import {
   serializeOccurredAt,
 } from "@bedrock/documents/module-kit";
 
-import {
-  firstString,
-  toAmountMinor,
-} from "./summary";
+import { firstString } from "./summary";
 import type { IfrsDocumentType } from "../../metadata";
 
-export function createSimpleIfrsDocumentModule<TPayload extends { occurredAt: Date }>(
-  input: {
-    docType: IfrsDocumentType;
-    docNoPrefix: string;
-    title: string;
-    payloadSchema: DocumentModule<TPayload, TPayload>["payloadSchema"];
-    createSchema: DocumentModule<TPayload, TPayload>["createSchema"];
-    updateSchema: DocumentModule<TPayload, TPayload>["updateSchema"];
-  },
-): DocumentModule<TPayload, TPayload> {
+export function createSimpleIfrsDocumentModule<
+  TPayload extends { occurredAt: Date },
+>(input: {
+  docType: IfrsDocumentType;
+  docNoPrefix: string;
+  title: string;
+  payloadSchema: DocumentModule<TPayload, TPayload>["payloadSchema"];
+  createSchema: DocumentModule<TPayload, TPayload>["createSchema"];
+  updateSchema: DocumentModule<TPayload, TPayload>["updateSchema"];
+}): DocumentModule<TPayload, TPayload> {
   return {
     moduleId: input.docType,
     accountingSourceIds: [],
@@ -41,15 +40,16 @@ export function createSimpleIfrsDocumentModule<TPayload extends { occurredAt: Da
       return buildDocumentDraft(payload, serializeOccurredAt(payload));
     },
     deriveSummary(document) {
-      const payload = parseDocumentPayload(input.payloadSchema, document) as Record<
-        string,
-        unknown
-      >;
+      const payload = parseDocumentPayload(
+        input.payloadSchema,
+        document,
+      ) as Record<string, unknown>;
 
       return {
         title: input.title,
-        amountMinor: toAmountMinor(payload.amountMinor),
-        currency: typeof payload.currency === "string" ? payload.currency : null,
+        amountMinor: parseMinorAmount(payload.amountMinor),
+        currency:
+          typeof payload.currency === "string" ? payload.currency : null,
         memo: typeof payload.memo === "string" ? payload.memo : null,
         counterpartyId: firstString(payload, [
           "counterpartyId",
