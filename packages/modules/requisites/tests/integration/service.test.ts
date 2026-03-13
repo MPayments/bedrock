@@ -65,7 +65,7 @@ async function seedOrganizationRequisiteFixture() {
   };
 }
 
-describe("parties-ledger integration", () => {
+describe("requisites integration", () => {
   it("creates one default organization book and reuses it on repeated resolution", async () => {
     const organizationId = randomUUID();
 

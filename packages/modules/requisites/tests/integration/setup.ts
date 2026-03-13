@@ -18,7 +18,7 @@ const schema = {
 const pool = createTestPgPool();
 const db = createTestDrizzleDb(pool, schema);
 
-async function cleanupPartiesLedgerTables() {
+async function cleanupRequisitesTables() {
   await pool.query(`
     DELETE FROM organization_requisite_bindings
     WHERE requisite_id IN (
@@ -66,9 +66,9 @@ async function cleanupPartiesLedgerTables() {
 }
 
 registerPgIntegrationLifecycle({
-  name: "parties-ledger",
+  name: "requisites",
   pool,
-  cleanup: cleanupPartiesLedgerTables,
+  cleanup: cleanupRequisitesTables,
 });
 
 export { db, pool };
