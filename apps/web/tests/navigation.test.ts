@@ -51,10 +51,24 @@ describe("navigation config", () => {
     expect(hrefs).toContain("/settings/profile");
     expect(hrefs).toContain("/treasury");
     expect(hrefs).toContain("/users");
+    expect(hrefs).toContain("/transfers");
+    expect(hrefs).toContain("/treasury/counterparties");
+    expect(hrefs).toContain("/entities/customers");
+    expect(hrefs).toContain("/entities/organizations");
+    expect(hrefs).toContain("/entities/counterparties");
+    expect(hrefs).toContain("/entities/requisites");
+    expect(hrefs).toContain("/entities/requisite-providers");
+    expect(hrefs).toContain("/accounting/accounts");
+    expect(hrefs).toContain("/accounting/correspondence");
+    expect(hrefs).toContain("/accounting/reports");
+    expect(hrefs).toContain("/fx/rates");
     expect(hrefs).not.toContain("/operations");
     expect(hrefs).not.toContain("#");
     expect(hrefs).not.toContain("/fx/quotes");
     expect(hrefs).not.toContain("/treasury/counterparty-accounts");
+    expect(hrefs).not.toContain("/finance/accounting");
+    expect(hrefs).not.toContain("/treasury/fx");
+    expect(hrefs).not.toContain("/entities/parties/customers");
   });
 
   it("keeps secondary navigation available", () => {

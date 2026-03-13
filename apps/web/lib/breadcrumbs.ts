@@ -30,24 +30,24 @@ type ResolveBreadcrumbItemsOptions = {
 };
 
 const segmentMap: Record<string, SegmentConfig> = {
-  treasury: { label: "Казначейство", icon: "landmark" },
-  fx: { label: "FX", icon: "currency" },
-  transfers: { label: "Переводы", icon: "arrow-right-left" },
+  treasury: { label: "Казначейство", href: "/treasury", icon: "landmark" },
+  fx: { label: "FX", href: "/fx", icon: "currency" },
+  transfers: { label: "Переводы", href: "/transfers", icon: "arrow-right-left" },
   ifrs: { label: "Учетные документы", icon: "book-open" },
-  documents: { label: "Документы", icon: "book-open" },
-  settings: { label: "Настройки", icon: "settings" },
-  accounting: { label: "Бухгалтерия", icon: "book-open" },
-  entities: { label: "Справочники", icon: "book-open" },
+  documents: { label: "Документы", href: "/documents", icon: "book-open" },
+  settings: { label: "Настройки", href: "/settings", icon: "settings" },
+  accounting: { label: "Бухгалтерия", href: "/accounting", icon: "book-open" },
+  entities: { label: "Справочники", href: "/entities", icon: "book-open" },
   users: { label: "Пользователи", href: "/users", icon: "users" },
 
   customers: {
     label: "Клиенты",
-    href: "/entities/parties/customers",
+    href: "/entities/customers",
     icon: "handshake",
   },
   organizations: {
     label: "Организации",
-    href: "/entities/parties/organizations",
+    href: "/entities/organizations",
     icon: "landmark",
   },
   counterparties: {
@@ -61,12 +61,12 @@ const segmentMap: Record<string, SegmentConfig> = {
   },
   requisites: {
     label: "Реквизиты",
-    href: "/entities/parties/requisites",
+    href: "/entities/requisites",
     icon: "wallet",
   },
   "requisite-providers": {
     label: "Провайдеры реквизитов",
-    href: "/entities/parties/requisite-providers",
+    href: "/entities/requisite-providers",
     icon: "vault",
   },
   create: { label: "Создать" },
@@ -87,7 +87,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   "fx-revaluation": { label: "Переоценка валюты" },
   "fee-revenue": { label: "Комиссионные доходы" },
   "close-package": { label: "Пакет закрытия" },
-  rates: { label: "Курсы", href: "/treasury/fx/rates", icon: "chart-candlestick" },
+  rates: { label: "Курсы", href: "/fx/rates", icon: "chart-candlestick" },
   quotes: { label: "Котировки" },
 
   orders: { label: "Ордера" },
@@ -105,10 +105,10 @@ function decodeSegment(segment: string) {
 function getCounterpartiesListHref(segments: string[], index: number): string {
   const parentSegments = segments.slice(0, index);
   if (parentSegments.includes("treasury")) {
-    return "/treasury/parties/counterparties";
+    return "/treasury/counterparties";
   }
 
-  return "/entities/parties/counterparties";
+  return "/entities/counterparties";
 }
 
 export async function resolveBreadcrumbItems(
@@ -148,7 +148,7 @@ export async function resolveBreadcrumbItems(
           return {
             ...config,
             label: "Счета",
-            href: "/finance/accounting/accounts",
+            href: "/accounting/accounts",
           };
         }
 

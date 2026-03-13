@@ -19,7 +19,7 @@ describe("document routes", () => {
       "/documents/ifrs?docType=capital_funding",
     );
     expect(buildDocumentCreateHref("transfer_resolution")).toBe(
-      "/documents/transfers/transfer_resolution/create",
+      "/documents/create/transfer_resolution",
     );
     expect(
       buildDocumentDetailsHref("period_close", "doc-123"),

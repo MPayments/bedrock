@@ -4,14 +4,13 @@ import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 
 import auth from "./auth";
-import { createAppContext, parseEnv } from "./context";
+import { createAppContext, parseEnv, type AppContext } from "./context";
 import {
   authMiddleware,
   requireAuth,
   type AuthVariables,
 } from "./middleware/auth";
 import { requestContextMiddleware } from "./middleware/request-context";
-import { API_APPLICATION_MODULES } from "./modules/registry";
 import {
   accountingRoutes,
   balancesRoutes,
@@ -138,74 +137,26 @@ app.get("/health", async (c) => {
   return c.json({ status: healthy ? "healthy" : "degraded", checks }, status);
 });
 
-function buildV1Router(): OpenAPIHono<{ Variables: AuthVariables }> {
-  const router = new OpenAPIHono<{ Variables: AuthVariables }>();
-
-  for (const module of API_APPLICATION_MODULES) {
-    router.route(module.routePath, module.registerRoutes(ctx));
-  }
-
-  router.route("/users", usersRoutes(ctx));
-  router.route("/me", profileRoutes(ctx));
-
-  return router;
+function createV1Routes(ctx: AppContext) {
+  return new OpenAPIHono<{ Variables: AuthVariables }>()
+    .route("/accounting", accountingRoutes(ctx))
+    .route("/balances", balancesRoutes(ctx))
+    .route("/counterparties", counterpartiesRoutes(ctx))
+    .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
+    .route("/customers", customersRoutes(ctx))
+    .route("/currencies", currenciesRoutes(ctx))
+    .route("/documents", documentsRoutes(ctx))
+    .route("/fx/quotes", fxQuotesRoutes(ctx))
+    .route("/organizations", organizationsRoutes(ctx))
+    .route("/requisite-providers", requisiteProvidersRoutes(ctx))
+    .route("/requisites", requisitesRoutes(ctx))
+    .route("/fx/rates", fxRatesRoutes(ctx))
+    .route("/users", usersRoutes(ctx))
+    .route("/me", profileRoutes(ctx));
 }
 
-const TYPED_ROUTE_PATHS = [
-  "/accounting",
-  "/balances",
-  "/counterparties",
-  "/counterparty-groups",
-  "/customers",
-  "/currencies",
-  "/documents",
-  "/fx/quotes",
-  "/organizations",
-  "/requisite-providers",
-  "/requisites",
-  "/fx/rates",
-] as const;
-
-function assertTypedRouteCoverage() {
-  const typedRoutePaths = [...TYPED_ROUTE_PATHS].sort();
-  const moduleRoutePaths = API_APPLICATION_MODULES.map(
-    (module) => module.routePath,
-  ).sort();
-
-  const hasMismatch =
-    typedRoutePaths.length !== moduleRoutePaths.length ||
-    typedRoutePaths.some((path, index) => path !== moduleRoutePaths[index]);
-  if (hasMismatch) {
-    throw new Error(
-      `Typed API route mounts are out of sync with module registry. typed=${typedRoutePaths.join(",")} modules=${moduleRoutePaths.join(",")}`,
-    );
-  }
-}
-
-assertTypedRouteCoverage();
-
-const typedV1 = new OpenAPIHono<{ Variables: AuthVariables }>()
-  .route("/accounting", accountingRoutes(ctx))
-  .route("/balances", balancesRoutes(ctx))
-  .route("/counterparties", counterpartiesRoutes(ctx))
-  .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
-  .route("/customers", customersRoutes(ctx))
-  .route("/currencies", currenciesRoutes(ctx))
-  .route("/documents", documentsRoutes(ctx))
-  .route("/fx/quotes", fxQuotesRoutes(ctx))
-  .route("/organizations", organizationsRoutes(ctx))
-  .route("/requisite-providers", requisiteProvidersRoutes(ctx))
-  .route("/requisites", requisitesRoutes(ctx))
-  .route("/fx/rates", fxRatesRoutes(ctx))
-  .route("/users", usersRoutes(ctx))
-  .route("/me", profileRoutes(ctx));
-
-const typedRoutes = new OpenAPIHono<{ Variables: AuthVariables }>().route(
-  "/v1",
-  typedV1,
-);
-
-const v1 = buildV1Router();
+const v1 = createV1Routes(ctx);
+const routes = new OpenAPIHono<{ Variables: AuthVariables }>().route("/v1", v1);
 
 app.route("/v1", v1);
 
@@ -240,4 +191,4 @@ app.get(
 );
 
 export { app };
-export type AppType = typeof typedRoutes;
+export type AppType = typeof routes;
