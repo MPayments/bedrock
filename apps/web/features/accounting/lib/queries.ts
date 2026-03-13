@@ -19,7 +19,6 @@ import {
 } from "@bedrock/accounting-reporting/contracts";
 import { z } from "zod";
 
-import { getAccountingApi } from "@/lib/api/accounting-client";
 import { getServerApiClient } from "@/lib/api/server-client";
 import { readOptionsList } from "@/lib/api/query";
 import { readJsonWithSchema, requestOk } from "@/lib/api/response";
@@ -68,19 +67,6 @@ type RouteQuery<T> = T extends (arg: infer TArg, ...rest: unknown[]) => unknown
     : never
   : never;
 
-type RouteGet<T> = NonNullable<T> extends { $get: infer TGet } ? TGet : never;
-
-function requireApiBranch<T>(
-  value: T | null | undefined,
-  message: string,
-): NonNullable<T> {
-  if (value == null) {
-    throw new Error(message);
-  }
-
-  return value;
-}
-
 export async function getAccountingOrgOptions(): Promise<
   AccountingOrgOption[]
 > {
@@ -119,13 +105,8 @@ export async function getAccountingTemplateAccounts(): Promise<
   AccountingTemplateAccount[]
 > {
   const client = await getServerApiClient();
-  const accountingApi = getAccountingApi(client);
-  const templateApi = requireApiBranch(
-    accountingApi.template,
-    "Accounting template routes are unavailable",
-  );
   const response = await requestOk(
-    await templateApi.accounts!.$get(
+    await client.v1.accounting.template.accounts.$get(
       {},
       { init: { cache: "no-store" } },
     ),
@@ -142,13 +123,8 @@ export async function getAccountingCorrespondenceRules(): Promise<
   AccountingCorrespondenceRule[]
 > {
   const client = await getServerApiClient();
-  const accountingApi = getAccountingApi(client);
-  const correspondenceRulesApi = requireApiBranch(
-    accountingApi["correspondence-rules"],
-    "Accounting correspondence routes are unavailable",
-  );
   const response = await requestOk(
-    await correspondenceRulesApi.$get(
+    await client.v1.accounting["correspondence-rules"].$get(
       {},
       { init: { cache: "no-store" } },
     ),
@@ -165,14 +141,11 @@ export async function getTrialBalance(
   query: Record<string, string | string[]>,
 ): Promise<TrialBalanceDto> {
   const client = await getServerApiClient();
-  const accountingApi = getAccountingApi(client);
-  const reportsApi = requireApiBranch(
-    accountingApi.reports,
-    "Accounting report routes are unavailable",
-  );
-  type QueryInput = RouteQuery<RouteGet<(typeof reportsApi)["trial-balance"]>>;
+  type QueryInput = RouteQuery<
+    (typeof client.v1.accounting.reports)["trial-balance"]["$get"]
+  >;
   const response = await requestOk(
-    await reportsApi["trial-balance"]!.$get(
+    await client.v1.accounting.reports["trial-balance"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -186,14 +159,11 @@ export async function getGeneralLedger(
   query: Record<string, string | string[]>,
 ): Promise<GeneralLedgerDto> {
   const client = await getServerApiClient();
-  const accountingApi = getAccountingApi(client);
-  const reportsApi = requireApiBranch(
-    accountingApi.reports,
-    "Accounting report routes are unavailable",
-  );
-  type QueryInput = RouteQuery<RouteGet<(typeof reportsApi)["general-ledger"]>>;
+  type QueryInput = RouteQuery<
+    (typeof client.v1.accounting.reports)["general-ledger"]["$get"]
+  >;
   const response = await requestOk(
-    await reportsApi["general-ledger"]!.$get(
+    await client.v1.accounting.reports["general-ledger"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -207,14 +177,11 @@ export async function getBalanceSheet(
   query: Record<string, string | string[]>,
 ): Promise<BalanceSheetDto> {
   const client = await getServerApiClient();
-  const accountingApi = getAccountingApi(client);
-  const reportsApi = requireApiBranch(
-    accountingApi.reports,
-    "Accounting report routes are unavailable",
-  );
-  type QueryInput = RouteQuery<RouteGet<(typeof reportsApi)["balance-sheet"]>>;
+  type QueryInput = RouteQuery<
+    (typeof client.v1.accounting.reports)["balance-sheet"]["$get"]
+  >;
   const response = await requestOk(
-    await reportsApi["balance-sheet"]!.$get(
+    await client.v1.accounting.reports["balance-sheet"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -228,14 +195,11 @@ export async function getIncomeStatement(
   query: Record<string, string | string[]>,
 ): Promise<IncomeStatementDto> {
   const client = await getServerApiClient();
-  const accountingApi = getAccountingApi(client);
-  const reportsApi = requireApiBranch(
-    accountingApi.reports,
-    "Accounting report routes are unavailable",
-  );
-  type QueryInput = RouteQuery<RouteGet<(typeof reportsApi)["income-statement"]>>;
+  type QueryInput = RouteQuery<
+    (typeof client.v1.accounting.reports)["income-statement"]["$get"]
+  >;
   const response = await requestOk(
-    await reportsApi["income-statement"]!.$get(
+    await client.v1.accounting.reports["income-statement"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -249,14 +213,11 @@ export async function getCashFlow(
   query: Record<string, string | string[]>,
 ): Promise<CashFlowDto> {
   const client = await getServerApiClient();
-  const accountingApi = getAccountingApi(client);
-  const reportsApi = requireApiBranch(
-    accountingApi.reports,
-    "Accounting report routes are unavailable",
-  );
-  type QueryInput = RouteQuery<RouteGet<(typeof reportsApi)["cash-flow"]>>;
+  type QueryInput = RouteQuery<
+    (typeof client.v1.accounting.reports)["cash-flow"]["$get"]
+  >;
   const response = await requestOk(
-    await reportsApi["cash-flow"]!.$get(
+    await client.v1.accounting.reports["cash-flow"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -270,14 +231,11 @@ export async function getLiquidity(
   query: Record<string, string | string[]>,
 ): Promise<LiquidityDto> {
   const client = await getServerApiClient();
-  const accountingApi = getAccountingApi(client);
-  const reportsApi = requireApiBranch(
-    accountingApi.reports,
-    "Accounting report routes are unavailable",
-  );
-  type QueryInput = RouteQuery<RouteGet<(typeof reportsApi)["liquidity"]>>;
+  type QueryInput = RouteQuery<
+    (typeof client.v1.accounting.reports.liquidity)["$get"]
+  >;
   const response = await requestOk(
-    await reportsApi.liquidity!.$get(
+    await client.v1.accounting.reports.liquidity.$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -291,14 +249,11 @@ export async function getFxRevaluation(
   query: Record<string, string | string[]>,
 ): Promise<FxRevaluationDto> {
   const client = await getServerApiClient();
-  const accountingApi = getAccountingApi(client);
-  const reportsApi = requireApiBranch(
-    accountingApi.reports,
-    "Accounting report routes are unavailable",
-  );
-  type QueryInput = RouteQuery<RouteGet<(typeof reportsApi)["fx-revaluation"]>>;
+  type QueryInput = RouteQuery<
+    (typeof client.v1.accounting.reports)["fx-revaluation"]["$get"]
+  >;
   const response = await requestOk(
-    await reportsApi["fx-revaluation"]!.$get(
+    await client.v1.accounting.reports["fx-revaluation"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -312,14 +267,11 @@ export async function getFeeRevenue(
   query: Record<string, string | string[]>,
 ): Promise<FeeRevenueDto> {
   const client = await getServerApiClient();
-  const accountingApi = getAccountingApi(client);
-  const reportsApi = requireApiBranch(
-    accountingApi.reports,
-    "Accounting report routes are unavailable",
-  );
-  type QueryInput = RouteQuery<RouteGet<(typeof reportsApi)["fee-revenue"]>>;
+  type QueryInput = RouteQuery<
+    (typeof client.v1.accounting.reports)["fee-revenue"]["$get"]
+  >;
   const response = await requestOk(
-    await reportsApi["fee-revenue"]!.$get(
+    await client.v1.accounting.reports["fee-revenue"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),
@@ -333,14 +285,11 @@ export async function getClosePackage(
   query: Record<string, string | string[]>,
 ): Promise<ClosePackageDto> {
   const client = await getServerApiClient();
-  const accountingApi = getAccountingApi(client);
-  const reportsApi = requireApiBranch(
-    accountingApi.reports,
-    "Accounting report routes are unavailable",
-  );
-  type QueryInput = RouteQuery<RouteGet<(typeof reportsApi)["close-package"]>>;
+  type QueryInput = RouteQuery<
+    (typeof client.v1.accounting.reports)["close-package"]["$get"]
+  >;
   const response = await requestOk(
-    await reportsApi["close-package"]!.$get(
+    await client.v1.accounting.reports["close-package"].$get(
       { query: query as QueryInput },
       { init: { cache: "no-store" } },
     ),

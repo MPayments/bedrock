@@ -4,16 +4,15 @@ import { AccountingTemplateAccountSchema } from "@bedrock/accounting/contracts";
 
 import type { AppContext } from "../../context";
 import { requirePermission } from "../../middleware/permission";
-import type { AccountingRoutesApp } from "./report-route-kit";
+import { createAccountingRouteApp } from "./report-route-kit";
 
-export function registerAccountingTemplateRoutes(
-  app: AccountingRoutesApp,
-  ctx: AppContext,
-) {
+export function accountingTemplateRoutes(ctx: AppContext) {
+  const app = createAccountingRouteApp();
+
   const listTemplateAccountsRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
-    path: "/template/accounts",
+    path: "/accounts",
     tags: ["Accounting"],
     summary: "List global chart template accounts",
     responses: {
@@ -28,7 +27,7 @@ export function registerAccountingTemplateRoutes(
     },
   });
 
-  app.openapi(listTemplateAccountsRoute, async (c) => {
+  return app.openapi(listTemplateAccountsRoute, async (c) => {
     const rows = await ctx.accountingService.listTemplateAccounts();
     return c.json(
       rows.map((row: (typeof rows)[number]) => ({
@@ -44,6 +43,4 @@ export function registerAccountingTemplateRoutes(
       200,
     );
   });
-
-  return app;
 }

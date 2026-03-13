@@ -16,7 +16,6 @@ import {
 } from "@bedrock/ui/components/table";
 
 import { apiClient } from "@/lib/api-client";
-import { getAccountingApi } from "@/lib/api/accounting-client";
 import { executeMutation } from "@/lib/resources/http";
 
 import type { AccountingCorrespondenceRule } from "@/features/accounting/lib/queries";
@@ -88,18 +87,10 @@ export function AccountingCorrespondencePageClient({
       return;
     }
 
-    const accountingApi = getAccountingApi(apiClient);
-    const correspondenceRulesApi = accountingApi["correspondence-rules"];
-
-    if (!correspondenceRulesApi?.$put) {
-      toast.error("Маршрут сохранения correspondence rules недоступен");
-      return;
-    }
-
     setSaving(true);
     const result = await executeMutation({
       request: () =>
-        correspondenceRulesApi.$put({
+        apiClient.v1.accounting["correspondence-rules"].$put({
           json: {
             rules: rows.map((row) => ({
               postingCode: row.postingCode.trim(),

@@ -26,10 +26,10 @@ import type { AppContext } from "../../context";
 import { requirePermission } from "../../middleware/permission";
 import { toReportCsvResponse } from "./csv";
 import {
+  createAccountingRouteApp,
   handleAccountingRouteError,
   logReportMetrics,
   readAllPages,
-  type AccountingRoutesApp,
   type PaginatedPayload,
 } from "./report-route-kit";
 import {
@@ -58,49 +58,66 @@ type ScopedDataPayload = {
 type PaginatedScopedPayload = PaginatedPayload<Record<string, unknown>> &
   ScopedDataPayload;
 
-type PaginatedReportDescriptor = {
-  key: string;
-  path: string;
-  summary: string;
-  exportSummary: string;
-  querySchema: z.ZodTypeAny;
-  responseSchema: z.ZodTypeAny;
-  filename: string;
-  headers: string[];
-  load: (query: any) => Promise<PaginatedPayload<unknown> & {
-    scopeMeta: ScopeMetaLike;
-  }>;
-  map: (result: any) => PaginatedScopedPayload;
+type PaginatedReportLoadResult = PaginatedPayload<unknown> & {
+  scopeMeta: ScopeMetaLike;
 };
 
-type SimpleReportDescriptor = {
+type RouteQuerySchema =
+  | z.ZodObject<z.ZodRawShape>
+  | z.ZodPipe<z.ZodTypeAny, z.ZodTypeAny>;
+
+type PaginatedReportDescriptor<
+  TQuerySchema extends RouteQuerySchema,
+  TResponseSchema extends z.ZodTypeAny,
+  TLoadResult extends PaginatedReportLoadResult,
+> = {
   key: string;
-  path: string;
   summary: string;
   exportSummary: string;
-  querySchema: z.ZodTypeAny;
-  responseSchema: z.ZodTypeAny;
+  querySchema: TQuerySchema;
+  responseSchema: TResponseSchema;
   filename: string;
   headers: string[];
-  load: (query: any) => Promise<any>;
-  map: (result: any) => ScopedDataPayload;
+  load: (query: z.infer<TQuerySchema>) => Promise<TLoadResult>;
+  map: (result: TLoadResult) => PaginatedScopedPayload;
+};
+
+type SimpleReportDescriptor<
+  TQuerySchema extends RouteQuerySchema,
+  TResponseSchema extends z.ZodTypeAny,
+  TLoadResult,
+> = {
+  key: string;
+  summary: string;
+  exportSummary: string;
+  querySchema: TQuerySchema;
+  responseSchema: TResponseSchema;
+  filename: string;
+  headers: string[];
+  load: (query: z.infer<TQuerySchema>) => Promise<TLoadResult>;
+  map: (result: TLoadResult) => ScopedDataPayload;
 };
 
 const EXPORT_PAGE_SIZE = 200;
 
-function registerPaginatedReport(
-  app: AccountingRoutesApp,
+function createPaginatedReportRoutes<
+  TQuerySchema extends RouteQuerySchema,
+  TResponseSchema extends z.ZodTypeAny,
+  TLoadResult extends PaginatedReportLoadResult,
+>(
   ctx: AppContext,
-  descriptor: PaginatedReportDescriptor,
+  descriptor: PaginatedReportDescriptor<TQuerySchema, TResponseSchema, TLoadResult>,
 ) {
+  const app = createAccountingRouteApp();
+
   const listRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
-    path: descriptor.path,
+    path: "/",
     tags: ["Accounting"],
     summary: descriptor.summary,
     request: {
-      query: descriptor.querySchema as any,
+      query: descriptor.querySchema,
     },
     responses: {
       200: {
@@ -125,11 +142,11 @@ function registerPaginatedReport(
   const exportRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
-    path: `${descriptor.path}/export`,
+    path: "/export",
     tags: ["Accounting"],
     summary: descriptor.exportSummary,
     request: {
-      query: descriptor.querySchema as any,
+      query: descriptor.querySchema,
     },
     responses: {
       200: {
@@ -151,82 +168,91 @@ function registerPaginatedReport(
     },
   });
 
-  app.openapi(listRoute, async (c) => {
-    try {
-      const startedAt = Date.now();
-      const query = (c.req as any).valid("query") as Record<string, unknown>;
-      const result = await descriptor.load(query);
-      const payload = descriptor.map(result as unknown as Record<string, unknown>);
+  return app
+    .openapi(
+      listRoute,
+      (async (c: any) => {
+        try {
+          const startedAt = Date.now();
+          const query = (c.req as any).valid("query") as z.infer<TQuerySchema>;
+          const result = await descriptor.load(query);
+          const payload = descriptor.map(result);
 
-      logReportMetrics(ctx, {
-        reportKey: descriptor.key,
-        startedAt,
-        rowCount: payload.data.length,
-        scopeType: payload.scopeMeta.scopeType,
-        attributionMode: payload.scopeMeta.attributionMode,
-        resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
-      });
+          logReportMetrics(ctx, {
+            reportKey: descriptor.key,
+            startedAt,
+            rowCount: payload.data.length,
+            scopeType: payload.scopeMeta.scopeType,
+            attributionMode: payload.scopeMeta.attributionMode,
+            resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          });
 
-      return c.json(payload, 200);
-    } catch (error) {
-      return handleAccountingRouteError(c, error);
-    }
-  });
+          return c.json(payload as z.infer<TResponseSchema>, 200);
+        } catch (error) {
+          return handleAccountingRouteError(c, error);
+        }
+      }) as any,
+    )
+    .openapi(exportRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = (c.req as any).valid("query") as z.infer<TQuerySchema>;
+        const baseQuery = query as Record<string, unknown>;
+        const firstPage = await descriptor.load({
+          ...baseQuery,
+          limit: EXPORT_PAGE_SIZE,
+          offset: 0,
+        } as z.infer<TQuerySchema>);
+        const rows = await readAllPages(firstPage, ({ limit, offset }) =>
+          descriptor.load({
+            ...baseQuery,
+            limit,
+            offset,
+          } as z.infer<TQuerySchema>),
+        );
+        const payload = descriptor.map({
+          ...firstPage,
+          data: rows,
+        } as TLoadResult);
 
-  app.openapi(exportRoute, async (c) => {
-    try {
-      const startedAt = Date.now();
-      const query = (c.req as any).valid("query") as Record<string, unknown>;
-      const firstPage = await descriptor.load({
-        ...query,
-        limit: EXPORT_PAGE_SIZE,
-        offset: 0,
-      });
-      const rows = await readAllPages(firstPage, ({ limit, offset }) =>
-        descriptor.load({
-          ...query,
-          limit,
-          offset,
-        }),
-      );
-      const payload = descriptor.map({
-        ...firstPage,
-        data: rows,
-      } as unknown as Record<string, unknown>);
+        logReportMetrics(ctx, {
+          reportKey: descriptor.key,
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
 
-      logReportMetrics(ctx, {
-        reportKey: descriptor.key,
-        startedAt,
-        rowCount: payload.data.length,
-        scopeType: payload.scopeMeta.scopeType,
-        attributionMode: payload.scopeMeta.attributionMode,
-        resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
-      });
-
-      return toReportCsvResponse(c, {
-        filename: descriptor.filename,
-        headers: descriptor.headers,
-        rows: payload.data,
-      });
-    } catch (error) {
-      return handleAccountingRouteError(c, error);
-    }
-  });
+        return toReportCsvResponse(c, {
+          filename: descriptor.filename,
+          headers: descriptor.headers,
+          rows: payload.data,
+        });
+      } catch (error) {
+        return handleAccountingRouteError(c, error);
+      }
+    });
 }
 
-function registerSimpleReport(
-  app: AccountingRoutesApp,
+function createSimpleReportRoutes<
+  TQuerySchema extends RouteQuerySchema,
+  TResponseSchema extends z.ZodTypeAny,
+  TLoadResult,
+>(
   ctx: AppContext,
-  descriptor: SimpleReportDescriptor,
+  descriptor: SimpleReportDescriptor<TQuerySchema, TResponseSchema, TLoadResult>,
 ) {
+  const app = createAccountingRouteApp();
+
   const listRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
-    path: descriptor.path,
+    path: "/",
     tags: ["Accounting"],
     summary: descriptor.summary,
     request: {
-      query: descriptor.querySchema as any,
+      query: descriptor.querySchema,
     },
     responses: {
       200: {
@@ -251,11 +277,11 @@ function registerSimpleReport(
   const exportRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
-    path: `${descriptor.path}/export`,
+    path: "/export",
     tags: ["Accounting"],
     summary: descriptor.exportSummary,
     request: {
-      query: descriptor.querySchema as any,
+      query: descriptor.querySchema,
     },
     responses: {
       200: {
@@ -277,53 +303,56 @@ function registerSimpleReport(
     },
   });
 
-  app.openapi(listRoute, async (c) => {
-    try {
-      const startedAt = Date.now();
-      const query = (c.req as any).valid("query") as Record<string, unknown>;
-      const result = await descriptor.load(query);
-      const payload = descriptor.map(result);
+  return app
+    .openapi(
+      listRoute,
+      (async (c: any) => {
+        try {
+          const startedAt = Date.now();
+          const query = (c.req as any).valid("query") as z.infer<TQuerySchema>;
+          const result = await descriptor.load(query);
+          const payload = descriptor.map(result);
 
-      logReportMetrics(ctx, {
-        reportKey: descriptor.key,
-        startedAt,
-        rowCount: payload.data.length,
-        scopeType: payload.scopeMeta.scopeType,
-        attributionMode: payload.scopeMeta.attributionMode,
-        resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
-      });
+          logReportMetrics(ctx, {
+            reportKey: descriptor.key,
+            startedAt,
+            rowCount: payload.data.length,
+            scopeType: payload.scopeMeta.scopeType,
+            attributionMode: payload.scopeMeta.attributionMode,
+            resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+          });
 
-      return c.json(payload, 200);
-    } catch (error) {
-      return handleAccountingRouteError(c, error);
-    }
-  });
+          return c.json(payload as z.infer<TResponseSchema>, 200);
+        } catch (error) {
+          return handleAccountingRouteError(c, error);
+        }
+      }) as any,
+    )
+    .openapi(exportRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = (c.req as any).valid("query") as z.infer<TQuerySchema>;
+        const result = await descriptor.load(query);
+        const payload = descriptor.map(result);
 
-  app.openapi(exportRoute, async (c) => {
-    try {
-      const startedAt = Date.now();
-      const query = (c.req as any).valid("query") as Record<string, unknown>;
-      const result = await descriptor.load(query);
-      const payload = descriptor.map(result);
+        logReportMetrics(ctx, {
+          reportKey: descriptor.key,
+          startedAt,
+          rowCount: payload.data.length,
+          scopeType: payload.scopeMeta.scopeType,
+          attributionMode: payload.scopeMeta.attributionMode,
+          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+        });
 
-      logReportMetrics(ctx, {
-        reportKey: descriptor.key,
-        startedAt,
-        rowCount: payload.data.length,
-        scopeType: payload.scopeMeta.scopeType,
-        attributionMode: payload.scopeMeta.attributionMode,
-        resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
-      });
-
-      return toReportCsvResponse(c, {
-        filename: descriptor.filename,
-        headers: descriptor.headers,
-        rows: payload.data,
-      });
-    } catch (error) {
-      return handleAccountingRouteError(c, error);
-    }
-  });
+        return toReportCsvResponse(c, {
+          filename: descriptor.filename,
+          headers: descriptor.headers,
+          rows: payload.data,
+        });
+      } catch (error) {
+        return handleAccountingRouteError(c, error);
+      }
+    });
 }
 
 function buildClosePackageRows(payload: ReturnType<typeof mapClosePackageDto>) {
@@ -368,168 +397,13 @@ function buildClosePackageRows(payload: ReturnType<typeof mapClosePackageDto>) {
   ] satisfies Record<string, unknown>[];
 }
 
-export function registerAccountingReportRoutes(
-  app: AccountingRoutesApp,
-  ctx: AppContext,
-) {
-  const paginatedReports: PaginatedReportDescriptor[] = [
-    {
-      key: "trial-balance",
-      path: "/reports/trial-balance",
-      summary: "Trial balance (opening, movements, closing)",
-      exportSummary: "Export trial balance to CSV",
-      querySchema: TrialBalanceQuerySchema,
-      responseSchema: TrialBalanceResponseSchema,
-      filename: "trial-balance.csv",
-      headers: [
-        "accountNo",
-        "accountName",
-        "accountKind",
-        "currency",
-        "openingDebit",
-        "openingCredit",
-        "periodDebit",
-        "periodCredit",
-        "closingDebit",
-        "closingCredit",
-      ],
-      load: (query) => ctx.accountingReportingService.listTrialBalance(query),
-      map: (result) => mapTrialBalanceDto(result as Parameters<typeof mapTrialBalanceDto>[0]),
-    },
-    {
-      key: "general-ledger",
-      path: "/reports/general-ledger",
-      summary: "General ledger account statement",
-      exportSummary: "Export general ledger to CSV",
-      querySchema: GeneralLedgerQuerySchema,
-      responseSchema: GeneralLedgerResponseSchema,
-      filename: "general-ledger.csv",
-      headers: [
-        "operationId",
-        "lineNo",
-        "postingDate",
-        "bookId",
-        "bookLabel",
-        "accountNo",
-        "currency",
-        "postingCode",
-        "counterpartyId",
-        "debit",
-        "credit",
-        "runningBalance",
-      ],
-      load: (query) => ctx.accountingReportingService.listGeneralLedger(query),
-      map: (result) => mapGeneralLedgerDto(result as Parameters<typeof mapGeneralLedgerDto>[0]),
-    },
-    {
-      key: "liquidity",
-      path: "/reports/liquidity",
-      summary: "Liquidity position by book/entity/currency",
-      exportSummary: "Export liquidity report to CSV",
-      querySchema: LiquidityQuerySchema,
-      responseSchema: LiquidityResponseSchema,
-      filename: "liquidity.csv",
-      headers: [
-        "bookId",
-        "bookLabel",
-        "counterpartyId",
-        "counterpartyName",
-        "currency",
-        "ledgerBalance",
-        "available",
-        "reserved",
-        "pending",
-      ],
-      load: (query) => ctx.accountingReportingService.listLiquidity(query),
-      map: (result) => mapLiquidityDto(result as Parameters<typeof mapLiquidityDto>[0]),
-    },
-    {
-      key: "fee-revenue",
-      path: "/reports/fee-revenue",
-      summary: "Fee revenue breakdown",
-      exportSummary: "Export fee revenue report to CSV",
-      querySchema: FeeRevenueQuerySchema,
-      responseSchema: FeeRevenueResponseSchema,
-      filename: "fee-revenue.csv",
-      headers: [
-        "product",
-        "channel",
-        "counterpartyId",
-        "counterpartyName",
-        "currency",
-        "feeRevenue",
-        "spreadRevenue",
-        "providerFeeExpense",
-        "net",
-      ],
-      load: (query) => ctx.accountingReportingService.listFeeRevenueBreakdown(query),
-      map: (result) => mapFeeRevenueDto(result as Parameters<typeof mapFeeRevenueDto>[0]),
-    },
-  ];
-
-  const simpleReports: SimpleReportDescriptor[] = [
-    {
-      key: "balance-sheet",
-      path: "/reports/balance-sheet",
-      summary: "Balance sheet (as-of)",
-      exportSummary: "Export balance sheet to CSV",
-      querySchema: BalanceSheetQuerySchema,
-      responseSchema: BalanceSheetResponseSchema,
-      filename: "balance-sheet.csv",
-      headers: ["section", "lineCode", "lineLabel", "currency", "amount"],
-      load: (query) => ctx.accountingReportingService.listBalanceSheet(query),
-      map: (result) => mapBalanceSheetDto(result as Parameters<typeof mapBalanceSheetDto>[0]),
-    },
-    {
-      key: "income-statement",
-      path: "/reports/income-statement",
-      summary: "Income statement (P&L)",
-      exportSummary: "Export income statement to CSV",
-      querySchema: IncomeStatementQuerySchema,
-      responseSchema: IncomeStatementResponseSchema,
-      filename: "income-statement.csv",
-      headers: ["section", "lineCode", "lineLabel", "currency", "amount"],
-      load: (query) => ctx.accountingReportingService.listIncomeStatement(query),
-      map: (result) => mapIncomeStatementDto(result as Parameters<typeof mapIncomeStatementDto>[0]),
-    },
-    {
-      key: "cash-flow",
-      path: "/reports/cash-flow",
-      summary: "Cash flow (direct/indirect)",
-      exportSummary: "Export cash flow report to CSV",
-      querySchema: CashFlowQuerySchema,
-      responseSchema: CashFlowResponseSchema,
-      filename: "cash-flow.csv",
-      headers: ["section", "lineCode", "lineLabel", "currency", "amount"],
-      load: (query) => ctx.accountingReportingService.listCashFlow(query),
-      map: (result) => mapCashFlowDto(result as Parameters<typeof mapCashFlowDto>[0]),
-    },
-    {
-      key: "fx-revaluation",
-      path: "/reports/fx-revaluation",
-      summary: "FX revaluation (realized/unrealized)",
-      exportSummary: "Export FX revaluation report to CSV",
-      querySchema: FxRevaluationQuerySchema,
-      responseSchema: FxRevaluationResponseSchema,
-      filename: "fx-revaluation.csv",
-      headers: ["bucket", "currency", "revenue", "expense", "net"],
-      load: (query) => ctx.accountingReportingService.listFxRevaluation(query),
-      map: (result) => mapFxRevaluationDto(result as Parameters<typeof mapFxRevaluationDto>[0]),
-    },
-  ];
-
-  for (const descriptor of paginatedReports) {
-    registerPaginatedReport(app, ctx, descriptor);
-  }
-
-  for (const descriptor of simpleReports) {
-    registerSimpleReport(app, ctx, descriptor);
-  }
+function createClosePackageReportRoutes(ctx: AppContext) {
+  const app = createAccountingRouteApp();
 
   const getClosePackageRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
-    path: "/reports/close-package",
+    path: "/",
     tags: ["Accounting"],
     summary: "Close package snapshot for counterparty and period",
     request: {
@@ -558,7 +432,7 @@ export function registerAccountingReportRoutes(
   const exportClosePackageRoute = createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
-    path: "/reports/close-package/export",
+    path: "/export",
     tags: ["Accounting"],
     summary: "Export close package report to CSV",
     request: {
@@ -584,54 +458,100 @@ export function registerAccountingReportRoutes(
     },
   });
 
-  app.openapi(getClosePackageRoute, async (c) => {
-    try {
-      const startedAt = Date.now();
-      const query = (c.req as any).valid("query") as Record<string, unknown>;
-      const result = await ctx.accountingReportingService.listClosePackage(query as any);
-      const payload = mapClosePackageDto(result);
+  return app
+    .openapi(getClosePackageRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result =
+          await ctx.accountingReportingService.listClosePackage(query);
+        const payload = mapClosePackageDto(result);
 
-      logReportMetrics(ctx, {
-        reportKey: "close-package",
-        startedAt,
-        rowCount:
-          payload.trialBalanceSummaryByCurrency.length +
-          payload.incomeStatementSummaryByCurrency.length +
-          payload.cashFlowSummaryByCurrency.length +
-          payload.adjustments.length +
-          payload.auditEvents.length,
-        scopeType: "counterparty",
-        attributionMode: "analytic_counterparty",
-        resolvedCounterpartyCount: 1,
-      });
+        logReportMetrics(ctx, {
+          reportKey: "close-package",
+          startedAt,
+          rowCount:
+            payload.trialBalanceSummaryByCurrency.length +
+            payload.incomeStatementSummaryByCurrency.length +
+            payload.cashFlowSummaryByCurrency.length +
+            payload.adjustments.length +
+            payload.auditEvents.length,
+          scopeType: "counterparty",
+          attributionMode: "analytic_counterparty",
+          resolvedCounterpartyCount: 1,
+        });
 
-      return c.json(payload, 200);
-    } catch (error) {
-      return handleAccountingRouteError(c, error);
-    }
-  });
+        return c.json(payload, 200);
+      } catch (error) {
+        return handleAccountingRouteError(c, error);
+      }
+    })
+    .openapi(exportClosePackageRoute, async (c) => {
+      try {
+        const startedAt = Date.now();
+        const query = c.req.valid("query");
+        const result =
+          await ctx.accountingReportingService.listClosePackage(query);
+        const payload = mapClosePackageDto(result);
+        const rows = buildClosePackageRows(payload);
 
-  app.openapi(exportClosePackageRoute, async (c) => {
-    try {
-      const startedAt = Date.now();
-      const query = (c.req as any).valid("query") as Record<string, unknown>;
-      const result = await ctx.accountingReportingService.listClosePackage(query as any);
-      const payload = mapClosePackageDto(result);
-      const rows = buildClosePackageRows(payload);
+        logReportMetrics(ctx, {
+          reportKey: "close-package",
+          startedAt,
+          rowCount: rows.length,
+          scopeType: "counterparty",
+          attributionMode: "analytic_counterparty",
+          resolvedCounterpartyCount: 1,
+        });
 
-      logReportMetrics(ctx, {
-        reportKey: "close-package",
-        startedAt,
-        rowCount: rows.length,
-        scopeType: "counterparty",
-        attributionMode: "analytic_counterparty",
-        resolvedCounterpartyCount: 1,
-      });
+        return toReportCsvResponse(c, {
+          filename: "close-package.csv",
+          headers: [
+            "section",
+            "currency",
+            "openingDebit",
+            "openingCredit",
+            "periodDebit",
+            "periodCredit",
+            "closingDebit",
+            "closingCredit",
+            "revenue",
+            "expense",
+            "net",
+            "netCashFlow",
+            "documentId",
+            "docType",
+            "docNo",
+            "occurredAt",
+            "title",
+            "id",
+            "eventType",
+            "actorId",
+            "createdAt",
+          ],
+          rows,
+        });
+      } catch (error) {
+        return handleAccountingRouteError(c, error);
+      }
+    });
+}
 
-      return toReportCsvResponse(c, {
-        filename: "close-package.csv",
+export function accountingReportRoutes(ctx: AppContext) {
+  return createAccountingRouteApp()
+    .route(
+      "/trial-balance",
+      createPaginatedReportRoutes(ctx, {
+        key: "trial-balance",
+        summary: "Trial balance (opening, movements, closing)",
+        exportSummary: "Export trial balance to CSV",
+        querySchema: TrialBalanceQuerySchema,
+        responseSchema: TrialBalanceResponseSchema,
+        filename: "trial-balance.csv",
         headers: [
-          "section",
+          "accountNo",
+          "accountName",
+          "accountKind",
           "currency",
           "openingDebit",
           "openingCredit",
@@ -639,26 +559,142 @@ export function registerAccountingReportRoutes(
           "periodCredit",
           "closingDebit",
           "closingCredit",
-          "revenue",
-          "expense",
-          "net",
-          "netCashFlow",
-          "documentId",
-          "docType",
-          "docNo",
-          "occurredAt",
-          "title",
-          "id",
-          "eventType",
-          "actorId",
-          "createdAt",
         ],
-        rows,
-      });
-    } catch (error) {
-      return handleAccountingRouteError(c, error);
-    }
-  });
-
-  return app;
+        load: (query) => ctx.accountingReportingService.listTrialBalance(query),
+        map: (result) => mapTrialBalanceDto(result),
+      }),
+    )
+    .route(
+      "/general-ledger",
+      createPaginatedReportRoutes(ctx, {
+        key: "general-ledger",
+        summary: "General ledger account statement",
+        exportSummary: "Export general ledger to CSV",
+        querySchema: GeneralLedgerQuerySchema,
+        responseSchema: GeneralLedgerResponseSchema,
+        filename: "general-ledger.csv",
+        headers: [
+          "operationId",
+          "lineNo",
+          "postingDate",
+          "bookId",
+          "bookLabel",
+          "accountNo",
+          "currency",
+          "postingCode",
+          "counterpartyId",
+          "debit",
+          "credit",
+          "runningBalance",
+        ],
+        load: (query) => ctx.accountingReportingService.listGeneralLedger(query),
+        map: (result) => mapGeneralLedgerDto(result),
+      }),
+    )
+    .route(
+      "/liquidity",
+      createPaginatedReportRoutes(ctx, {
+        key: "liquidity",
+        summary: "Liquidity position by book/entity/currency",
+        exportSummary: "Export liquidity report to CSV",
+        querySchema: LiquidityQuerySchema,
+        responseSchema: LiquidityResponseSchema,
+        filename: "liquidity.csv",
+        headers: [
+          "bookId",
+          "bookLabel",
+          "counterpartyId",
+          "counterpartyName",
+          "currency",
+          "ledgerBalance",
+          "available",
+          "reserved",
+          "pending",
+        ],
+        load: (query) => ctx.accountingReportingService.listLiquidity(query),
+        map: (result) => mapLiquidityDto(result),
+      }),
+    )
+    .route(
+      "/fee-revenue",
+      createPaginatedReportRoutes(ctx, {
+        key: "fee-revenue",
+        summary: "Fee revenue breakdown",
+        exportSummary: "Export fee revenue report to CSV",
+        querySchema: FeeRevenueQuerySchema,
+        responseSchema: FeeRevenueResponseSchema,
+        filename: "fee-revenue.csv",
+        headers: [
+          "product",
+          "channel",
+          "counterpartyId",
+          "counterpartyName",
+          "currency",
+          "feeRevenue",
+          "spreadRevenue",
+          "providerFeeExpense",
+          "net",
+        ],
+        load: (query) =>
+          ctx.accountingReportingService.listFeeRevenueBreakdown(query),
+        map: (result) => mapFeeRevenueDto(result),
+      }),
+    )
+    .route(
+      "/balance-sheet",
+      createSimpleReportRoutes(ctx, {
+        key: "balance-sheet",
+        summary: "Balance sheet (as-of)",
+        exportSummary: "Export balance sheet to CSV",
+        querySchema: BalanceSheetQuerySchema,
+        responseSchema: BalanceSheetResponseSchema,
+        filename: "balance-sheet.csv",
+        headers: ["section", "lineCode", "lineLabel", "currency", "amount"],
+        load: (query) => ctx.accountingReportingService.listBalanceSheet(query),
+        map: (result) => mapBalanceSheetDto(result),
+      }),
+    )
+    .route(
+      "/income-statement",
+      createSimpleReportRoutes(ctx, {
+        key: "income-statement",
+        summary: "Income statement (P&L)",
+        exportSummary: "Export income statement to CSV",
+        querySchema: IncomeStatementQuerySchema,
+        responseSchema: IncomeStatementResponseSchema,
+        filename: "income-statement.csv",
+        headers: ["section", "lineCode", "lineLabel", "currency", "amount"],
+        load: (query) => ctx.accountingReportingService.listIncomeStatement(query),
+        map: (result) => mapIncomeStatementDto(result),
+      }),
+    )
+    .route(
+      "/cash-flow",
+      createSimpleReportRoutes(ctx, {
+        key: "cash-flow",
+        summary: "Cash flow (direct/indirect)",
+        exportSummary: "Export cash flow report to CSV",
+        querySchema: CashFlowQuerySchema,
+        responseSchema: CashFlowResponseSchema,
+        filename: "cash-flow.csv",
+        headers: ["section", "lineCode", "lineLabel", "currency", "amount"],
+        load: (query) => ctx.accountingReportingService.listCashFlow(query),
+        map: (result) => mapCashFlowDto(result),
+      }),
+    )
+    .route(
+      "/fx-revaluation",
+      createSimpleReportRoutes(ctx, {
+        key: "fx-revaluation",
+        summary: "FX revaluation (realized/unrealized)",
+        exportSummary: "Export FX revaluation report to CSV",
+        querySchema: FxRevaluationQuerySchema,
+        responseSchema: FxRevaluationResponseSchema,
+        filename: "fx-revaluation.csv",
+        headers: ["bucket", "currency", "revenue", "expense", "net"],
+        load: (query) => ctx.accountingReportingService.listFxRevaluation(query),
+        map: (result) => mapFxRevaluationDto(result),
+      }),
+    )
+    .route("/close-package", createClosePackageReportRoutes(ctx));
 }
