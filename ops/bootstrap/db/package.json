@@ -25,7 +25,7 @@
     "@bedrock/accounting": "workspace:*",
     "@bedrock/adapter-db-drizzle": "workspace:*",
     "@bedrock/ledger": "workspace:*",
-    "@bedrock/parties-ledger": "workspace:*",
+    "@bedrock/requisites": "workspace:*",
     "better-auth": "*",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1"

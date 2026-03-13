@@ -3,9 +3,10 @@ import {
   type AccountingReportingService,
 } from "@bedrock/query-accounting-reporting";
 import {
+  createCustomerLifecycleSyncPort,
   createCounterpartiesService,
   type CounterpartiesService,
-} from "@bedrock/parties/counterparties";
+} from "@bedrock/counterparties";
 import {
   createCurrenciesService,
   type CurrenciesService,
@@ -13,7 +14,7 @@ import {
 import {
   createCustomersService,
   type CustomersService,
-} from "@bedrock/parties/customers";
+} from "@bedrock/customers";
 import {
   createDocumentRegistry,
   createDocumentsService,
@@ -27,15 +28,15 @@ import { createIfrsDocumentModules } from "@bedrock/extension-documents-ifrs";
 import {
   createOrganizationsService,
   type OrganizationsService,
-} from "@bedrock/parties/organizations";
+} from "@bedrock/organizations";
 import {
   createRequisiteProvidersService,
   type RequisiteProvidersService,
-} from "@bedrock/parties/requisite-providers";
+} from "@bedrock/requisites/providers";
 import {
   createRequisitesService,
   type RequisitesService,
-} from "@bedrock/parties/requisites";
+} from "@bedrock/requisites";
 import { db } from "@bedrock/adapter-db-drizzle/client";
 
 import type { ApiCoreServices } from "./core";
@@ -69,7 +70,11 @@ export function createApplicationServices(
     logger,
   });
   const counterpartiesService = createCounterpartiesService({ db, logger });
-  const customersService = createCustomersService({ db, logger });
+  const customersService = createCustomersService({
+    db,
+    customerLifecycleSyncPort: createCustomerLifecycleSyncPort(),
+    logger,
+  });
   const currenciesService = createCurrenciesService({ db, logger });
   const feesService = createFeesService({ db, logger, currenciesService });
   const fxService = createFxService({

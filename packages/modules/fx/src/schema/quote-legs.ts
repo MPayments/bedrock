@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { bigint, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
-import { counterparties } from "@bedrock/parties/counterparties/schema";
+import { counterparties } from "@bedrock/counterparties/schema";
 import { currencies } from "@bedrock/currencies/schema";
 
 import { fxQuotes } from "./quotes";

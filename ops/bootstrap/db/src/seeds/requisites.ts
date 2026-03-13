@@ -6,7 +6,7 @@ import {
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
 } from "@bedrock/ledger/ids";
-import { schema as partiesLedgerSchema } from "@bedrock/parties-ledger/schema";
+import { schema as partiesLedgerSchema } from "@bedrock/requisites/schema";
 
 import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/client";
 import { schema } from "@bedrock/adapter-db-drizzle";

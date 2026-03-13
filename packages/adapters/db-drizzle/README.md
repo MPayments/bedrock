@@ -15,7 +15,6 @@ Drizzle-based database package for the financial core.
 Table definitions are colocated with runtime domains:
 
 - `packages/modules/*/src/schema.ts` or `schema/**`
-- `packages/modules/*/src/<subdomain>/schema.ts` for grouped packages such as `@bedrock/parties`
 - `packages/adapters/*/src/schema.ts` when adapter packages own schema
 - `packages/integrations/*/src/schema.ts` for explicit integration-owned tables
 

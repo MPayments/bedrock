@@ -18,11 +18,11 @@
     "@bedrock/accounting-close": "workspace:*",
     "@bedrock/adapter-db-drizzle": "workspace:*",
     "@bedrock/adapter-worker-runtime": "workspace:*",
+    "@bedrock/counterparties": "workspace:*",
     "@bedrock/core": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/identity": "workspace:*",
     "@bedrock/observability": "workspace:*",
-    "@bedrock/parties": "workspace:*",
     "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {

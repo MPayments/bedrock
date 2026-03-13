@@ -18,7 +18,7 @@ import {
   type LedgerEngine,
   type LedgerReadService,
 } from "@bedrock/ledger";
-import { assertBooksBelongToInternalLedgerCounterparties } from "@bedrock/parties/counterparties";
+import { assertBooksBelongToInternalLedgerCounterparties } from "@bedrock/counterparties";
 import {
   createUsersService,
   type UsersService,

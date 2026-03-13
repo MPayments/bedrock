@@ -38,7 +38,6 @@ Hard rules:
 - Runtime imports must go through declared package exports only. No cross-package `internal/**` imports.
 - Domain schema ownership is colocated under:
   - `packages/modules/*/src/schema.ts` or `schema/**`
-  - `packages/modules/*/src/<subdomain>/schema.ts` for grouped packages such as `@bedrock/parties`
   - `packages/adapters/*/src/schema.ts` or `schema/**` when adapters own schema
   - `packages/integrations/*/src/schema.ts` or `schema/**` when integration packages own schema
 - `@bedrock/adapter-db-drizzle` must not own domain table declarations; it only aggregates domain schemas for client/migrations.
@@ -222,8 +221,8 @@ export class OrderNotFoundError extends ServiceError {
 
 - Drizzle ORM with PostgreSQL.
 - Schema uses `snake_case` column naming convention.
-- Runtime table definitions must be colocated in the owning package under `src/schema.ts`, `src/schema/**`, or grouped subdomain `src/<subdomain>/schema.ts`.
-- Runtime code imports schemas through package exports such as `@bedrock/ledger/schema` or `@bedrock/parties/requisites/schema`.
+- Runtime table definitions must be colocated in the owning package under `src/schema.ts` or `src/schema/**`.
+- Runtime code imports schemas through package exports such as `@bedrock/ledger/schema`, `@bedrock/counterparties/schema`, or `@bedrock/requisites/schema`.
 - Runtime code imports shared database connection types from `@bedrock/adapter-db-drizzle/db/types`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.
 - Migration policy is baseline-only hard cutover.

@@ -6,11 +6,11 @@ import {
   RequisiteProviderNotFoundError,
   RequisiteProviderSchema,
   UpdateRequisiteProviderInputSchema,
-} from "@bedrock/parties/requisite-providers";
+} from "@bedrock/requisites/providers";
 import {
   RequisiteProviderOptionSchema,
   RequisiteProviderOptionsResponseSchema,
-} from "@bedrock/parties/requisite-providers/contracts";
+} from "@bedrock/requisites/providers/contracts";
 import { ValidationError } from "@bedrock/core/errors";
 import { createPaginatedListSchema } from "@bedrock/core/pagination";
 

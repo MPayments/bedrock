@@ -2,7 +2,7 @@ import { inArray, sql, type SQL } from "drizzle-orm";
 
 import {
   listInternalLedgerCounterparties,
-} from "@bedrock/parties/counterparties";
+} from "@bedrock/counterparties";
 import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
 import { ValidationError } from "@bedrock/core/errors";
 

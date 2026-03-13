@@ -13,19 +13,17 @@ import {
   verification,
 } from "@bedrock/identity/schema";
 import { schema as balancesSchema } from "@bedrock/balances/schema";
-import { schema as counterpartiesSchema } from "@bedrock/parties/counterparties/schema";
+import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
 import { schema as currenciesSchema } from "@bedrock/currencies/schema";
-import { schema as customersSchema } from "@bedrock/parties/customers/schema";
+import { schema as customersSchema } from "@bedrock/customers/schema";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as feesSchema } from "@bedrock/fees/schema";
 import { schema as fxSchema } from "@bedrock/fx/schema";
 import { schema as idempotencySchema } from "@bedrock/adapter-idempotency-postgres/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import { schema as organizationsSchema } from "@bedrock/parties/organizations/schema";
-import { schema as partiesLedgerSchema } from "@bedrock/parties-ledger/schema";
+import { schema as organizationsSchema } from "@bedrock/organizations/schema";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
-import { schema as requisiteProvidersSchema } from "@bedrock/parties/requisite-providers/schema";
-import { schema as requisitesSchema } from "@bedrock/parties/requisites/schema";
+import { schema as requisitesSchema } from "@bedrock/requisites/schema";
 
 const authSchema = {
   user,
@@ -53,8 +51,6 @@ type CombinedSchema =
   & typeof feesSchema
   & typeof currenciesSchema
   & typeof organizationsSchema
-  & typeof partiesLedgerSchema
-  & typeof requisiteProvidersSchema
   & typeof balancesSchema
   & typeof requisitesSchema
   & typeof reconciliationSchema;
@@ -73,8 +69,6 @@ const schemaInternal: CombinedSchema = {
   ...feesSchema,
   ...currenciesSchema,
   ...organizationsSchema,
-  ...partiesLedgerSchema,
-  ...requisiteProvidersSchema,
   ...balancesSchema,
   ...requisitesSchema,
   ...reconciliationSchema,

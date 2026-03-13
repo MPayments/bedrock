@@ -7,11 +7,11 @@ import {
   OrganizationNotFoundError,
   OrganizationSchema,
   UpdateOrganizationInputSchema,
-} from "@bedrock/parties/organizations";
+} from "@bedrock/organizations";
 import {
   OrganizationOptionSchema,
   OrganizationOptionsResponseSchema,
-} from "@bedrock/parties/organizations/contracts";
+} from "@bedrock/organizations/contracts";
 import { ValidationError } from "@bedrock/core/errors";
 import { createPaginatedListSchema } from "@bedrock/core/pagination";
 

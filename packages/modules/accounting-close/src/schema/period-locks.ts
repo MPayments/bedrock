@@ -8,7 +8,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { counterparties } from "@bedrock/parties/counterparties/schema";
+import { counterparties } from "@bedrock/counterparties/schema";
 
 export type AccountingPeriodState = "closed" | "reopened";
 

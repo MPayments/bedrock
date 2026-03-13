@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import { isInternalLedgerCounterparty } from "@bedrock/parties/counterparties";
+import { isInternalLedgerCounterparty } from "@bedrock/counterparties";
 import { canonicalJson } from "@bedrock/core/canon";
 import { sha256Hex } from "@bedrock/core/crypto";
 import { ValidationError } from "@bedrock/core/errors";

@@ -1,10 +1,10 @@
 import { inArray } from "drizzle-orm";
 
-import { schema as counterpartiesSchema } from "@bedrock/parties/counterparties/schema";
-import { schema as customersSchema } from "@bedrock/parties/customers/schema";
+import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
+import { schema as customersSchema } from "@bedrock/customers/schema";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { type Dimensions } from "@bedrock/ledger/schema";
-import { schema as requisitesSchema } from "@bedrock/parties/requisites/schema";
+import { schema as requisitesSchema } from "@bedrock/requisites/schema";
 import { isUuidLike } from "@bedrock/core/uuid";
 import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
 

@@ -158,15 +158,6 @@ function isExportedSubpath(pkg, subpath) {
   return false;
 }
 
-function getPartiesSubdomain(filePath) {
-  const match = /^packages\/modules\/parties\/src\/([^/]+)\//.exec(filePath);
-  if (!match || match[1] === "internal") {
-    return null;
-  }
-
-  return match[1];
-}
-
 function recordViolation(rule, from, specifier, to = specifier) {
   violations.push({ rule, from, specifier, to });
 }
@@ -319,20 +310,6 @@ for (const root of SOURCE_ROOTS) {
             relative(ROOT, targetPath),
           );
           continue;
-        }
-
-        if (owner.name === "@bedrock/parties") {
-          const fromSubdomain = getPartiesSubdomain(relFile);
-          const toSubdomain = getPartiesSubdomain(relative(ROOT, targetPath));
-
-          if (fromSubdomain && toSubdomain && fromSubdomain !== toSubdomain) {
-            recordViolation(
-              "parties-cross-subdomain-relative-import",
-              relFile,
-              specifier,
-              relative(ROOT, targetPath),
-            );
-          }
         }
 
         continue;

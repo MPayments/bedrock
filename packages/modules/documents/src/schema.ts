@@ -14,15 +14,15 @@ import {
 
 import { accountingPeriodLocks } from "@bedrock/accounting-close/schema";
 import { user } from "@bedrock/identity/schema";
-import { counterparties } from "@bedrock/parties/counterparties/schema";
-import { customers } from "@bedrock/parties/customers/schema";
+import { counterparties } from "@bedrock/counterparties/schema";
+import { customers } from "@bedrock/customers/schema";
 import {
   ledgerOperations,
   outbox,
   postings,
   tbTransferPlans,
 } from "@bedrock/ledger/schema";
-import { requisites } from "@bedrock/parties/requisites/schema";
+import { requisites } from "@bedrock/requisites/schema";
 
 export type DocumentSubmissionStatus = "draft" | "submitted";
 export type DocumentApprovalStatus =

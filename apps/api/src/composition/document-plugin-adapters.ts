@@ -15,7 +15,7 @@ import { schema as fxSchema } from "@bedrock/fx/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { IfrsModuleDeps } from "@bedrock/extension-documents-ifrs";
-import type { RequisitesService } from "@bedrock/parties/requisites";
+import type { RequisitesService } from "@bedrock/requisites";
 import { canonicalJson } from "@bedrock/core/canon";
 import { sha256Hex } from "@bedrock/core/crypto";
 import { isUuidLike } from "@bedrock/core/uuid";

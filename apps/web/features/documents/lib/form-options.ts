@@ -2,10 +2,10 @@ import { z } from "zod";
 
 import {
   CounterpartyOptionsResponseSchema,
-} from "@bedrock/parties/counterparties/contracts";
+} from "@bedrock/counterparties/contracts";
 import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
-import { CUSTOMERS_LIST_CONTRACT } from "@bedrock/parties/customers/contracts";
-import { OrganizationOptionsResponseSchema } from "@bedrock/parties/organizations/contracts";
+import { CUSTOMERS_LIST_CONTRACT } from "@bedrock/customers/contracts";
+import { OrganizationOptionsResponseSchema } from "@bedrock/organizations/contracts";
 
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import { getServerApiClient } from "@/lib/api/server-client";

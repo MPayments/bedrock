@@ -2,7 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
 import { user } from "@bedrock/identity/schema";
-import { counterparties } from "@bedrock/parties/counterparties/schema";
+import { counterparties } from "@bedrock/counterparties/schema";
 import { noopLogger, type Logger } from "@bedrock/observability/logger";
 import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
 import type {

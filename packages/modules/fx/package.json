@@ -22,13 +22,13 @@
   "dependencies": {
     "@bedrock/adapter-db-drizzle": "workspace:*",
     "@bedrock/adapter-worker-runtime": "workspace:*",
+    "@bedrock/counterparties": "workspace:*",
     "@bedrock/core": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/money": "workspace:*",
     "@bedrock/observability": "workspace:*",
-    "@bedrock/parties": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
   },

@@ -18,8 +18,8 @@ Bedrock is a financial platform monorepo (ledger, balances, FX, reconciliation).
 
 Runtime import contract:
 
-- Runtime packages publish flat imports such as `@bedrock/ledger`, `@bedrock/identity`, `@bedrock/adapter-worker-runtime`, and `@bedrock/parties/<subdomain>`.
-- Domain schemas stay with the owning package and are imported through package exports such as `@bedrock/ledger/schema` or `@bedrock/parties/requisites/schema`.
+- Runtime packages publish flat imports such as `@bedrock/ledger`, `@bedrock/identity`, `@bedrock/counterparties`, and `@bedrock/adapter-worker-runtime`.
+- Domain schemas stay with the owning package and are imported through package exports such as `@bedrock/ledger/schema`, `@bedrock/counterparties/schema`, or `@bedrock/requisites/schema`.
 - `@bedrock/adapter-db-drizzle` aggregates schemas for the DB client and migrations.
 - `@bedrock/bootstrap-db` owns DB seeding/bootstrap scripts.
 - Use DB connection types from `@bedrock/adapter-db-drizzle/db/types`.

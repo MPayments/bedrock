@@ -3,11 +3,11 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { schema as accountingSchema } from "@bedrock/accounting/schema";
 import { schema as accountingCloseSchema } from "@bedrock/accounting-close/schema";
 import { schema as balancesSchema } from "@bedrock/balances/schema";
-import { schema as counterpartiesSchema } from "@bedrock/parties/counterparties/schema";
+import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import { schema as organizationsSchema } from "@bedrock/parties/organizations/schema";
-import { schema as requisitesSchema } from "@bedrock/parties/requisites/schema";
+import { schema as organizationsSchema } from "@bedrock/organizations/schema";
+import { schema as requisitesSchema } from "@bedrock/requisites/schema";
 import type { Database } from "@bedrock/adapter-db-drizzle/db/types";
 
 import type { LineMapping, ScopedPosting } from "../reports/types";
