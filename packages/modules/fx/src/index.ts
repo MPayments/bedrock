@@ -33,13 +33,12 @@ export {
   RateSourceSyncError,
   RateSourceStaleError,
 } from "./errors";
-
-export { createFxRatesWorkerDefinition } from "./worker";
 export type {
   FxRateSource,
   FxRateSourceStatus,
   FxRateSourceSyncResult,
-} from "./sources";
+  FxRateSourceProvider,
+} from "./source-providers";
 
 export {
   FxRateHistoryPointSchema,

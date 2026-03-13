@@ -10,7 +10,7 @@ import {
   type FxRateSource,
   type FxRateSourceStatus,
   type FxRateSourceSyncResult,
-} from "../../sources/types";
+} from "../../source-providers";
 import { validateSyncRatesFromSourceInput } from "../../validation";
 
 const DEFAULT_SOURCE_TTL_SECONDS: Record<FxRateSource, number> = {

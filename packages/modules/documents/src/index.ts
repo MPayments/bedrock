@@ -16,9 +16,8 @@ export type {
   DocumentFormVisibilityRule,
 } from "./form-types";
 export {
-  createDocumentsWorkerDefinition,
-} from "./workers";
-export { createDefaultDocumentActionPolicyService } from "./policy";
+  createDefaultDocumentActionPolicyService,
+} from "./policy";
 export * from "./errors";
 export {
   FINANCIAL_LINE_BUCKET_OPTIONS,

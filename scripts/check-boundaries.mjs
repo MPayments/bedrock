@@ -171,6 +171,21 @@ function recordViolation(rule, from, specifier, to = specifier) {
   violations.push({ rule, from, specifier, to });
 }
 
+function hasRuntimeRootExportLeak(owner, relFile, content) {
+  if (!owner || !["module", "query"].includes(owner.kind)) {
+    return false;
+  }
+
+  if (relFile !== `${owner.relDir}/src/index.ts`) {
+    return false;
+  }
+
+  return (
+    /create[A-Za-z0-9]+WorkerDefinition/.test(content) ||
+    /from\s+["']\.\/workers?(?:\/|["'])/.test(content)
+  );
+}
+
 function isKindAllowed(ownerKind, targetKind) {
   const allowedKinds = ALLOWED_IMPORT_KINDS[ownerKind] ?? null;
   if (!allowedKinds) {
@@ -213,6 +228,10 @@ for (const root of SOURCE_ROOTS) {
     const owner = findOwningPackage(filePath, packagesByDirLength);
     const isRuntimeSourceFile =
       owner && relFile.startsWith(`${owner.relDir}/src/`);
+
+    if (hasRuntimeRootExportLeak(owner, relFile, content)) {
+      recordViolation("runtime-root-export", relFile, owner.name, relFile);
+    }
 
     if (
       owner &&
@@ -401,10 +420,6 @@ for (const root of SOURCE_ROOTS) {
         owner &&
         targetPkg.name !== owner.name &&
         isRuntimeSourceFile &&
-        !(
-          relFile.startsWith("packages/modules/fx/src/sources/") &&
-          targetPkg.kind === "integration"
-        ) &&
         !isKindAllowed(owner.kind, targetPkg.kind)
       ) {
         recordViolation(
@@ -492,10 +507,6 @@ for (const pkg of workspacePackages) {
 
   for (const depPkg of directWorkspaceDeps) {
     if (depPkg.name === pkg.name) {
-      continue;
-    }
-
-    if (pkg.name === "@bedrock/fx" && depPkg.kind === "integration") {
       continue;
     }
 

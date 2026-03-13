@@ -5,7 +5,7 @@ import { schema as fxSchema } from "@bedrock/fx/schema";
 
 import { type FxServiceContext } from "../../internal/context";
 import { getSourceOrder } from "../../internal/source-priority";
-import { type FxRateSource } from "../../sources/types";
+import { type FxRateSource } from "../../source-providers";
 
 const schema = {
     ...fxSchema,

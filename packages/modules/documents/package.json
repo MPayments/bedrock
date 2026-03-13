@@ -11,7 +11,8 @@
     "./module-kit": "./src/module-kit/index.ts",
     "./schema": "./src/schema.ts",
     "./state-machine": "./src/state-machine.ts",
-    "./validation": "./src/validation.ts"
+    "./validation": "./src/validation.ts",
+    "./worker": "./src/workers/posting.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

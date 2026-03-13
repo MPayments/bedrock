@@ -7,6 +7,9 @@ export {
 export {
   createXeRateSourceProvider,
 } from "./sources/xe";
+export {
+  createDefaultFxRateSourceProviders,
+} from "./defaults";
 export type {
   FxRateRecord,
   FxRateSource,

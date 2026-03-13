@@ -1,17 +1,18 @@
 import {
   createBalancesProjectorWorkerDefinition,
-} from "@bedrock/balances";
+} from "@bedrock/balances/worker";
 import {
   createLedgerWorkerDefinition,
   type TbClient,
 } from "@bedrock/adapter-ledger-tigerbeetle";
 import { createCurrenciesService } from "@bedrock/currencies";
-import { createDocumentsWorkerDefinition } from "@bedrock/documents";
+import { createDocumentsWorkerDefinition } from "@bedrock/documents/worker";
 import { createFeesService } from "@bedrock/fees";
 import {
-  createFxRatesWorkerDefinition,
   createFxService,
 } from "@bedrock/fx";
+import { createFxRatesWorkerDefinition } from "@bedrock/fx/worker";
+import { createDefaultFxRateSourceProviders } from "@bedrock/integration-fx-providers";
 import {
   type BedrockWorker,
   type WorkerCatalogEntry,
@@ -98,6 +99,7 @@ export function createWorkerImplementations(
     logger: deps.logger,
     feesService,
     currenciesService,
+    rateSourceProviders: createDefaultFxRateSourceProviders(),
   });
   const fxRates = createFxRatesWorkerDefinition({
     ...createWorkerMetadata("fx-rates", deps.env),

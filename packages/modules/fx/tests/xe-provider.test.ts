@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { RateSourceSyncError } from "@bedrock/integration-fx-providers";
-import { createXeRateSourceProvider } from "../src/sources/xe";
+import {
+  createXeRateSourceProvider,
+  RateSourceSyncError,
+} from "@bedrock/integration-fx-providers";
 import {
   parseRateFromHtml,
   parseRateFromText,
   parseTimestampFromHtml,
-} from "../src/sources/xe";
+} from "@bedrock/integration-fx-providers/sources/xe";
 
 function makeHtml(rate: string, base: string, quote: string, time = "13:39") {
     return `

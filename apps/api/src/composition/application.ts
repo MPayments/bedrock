@@ -21,6 +21,7 @@ import {
 } from "@bedrock/documents";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
+import { createDefaultFxRateSourceProviders } from "@bedrock/integration-fx-providers";
 import { createCommercialDocumentModules } from "@bedrock/extension-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/extension-documents-ifrs";
 import {
@@ -76,6 +77,7 @@ export function createApplicationServices(
     logger,
     feesService,
     currenciesService,
+    rateSourceProviders: createDefaultFxRateSourceProviders(),
   });
   const organizationsService = createOrganizationsService({
     db,

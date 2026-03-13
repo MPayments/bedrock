@@ -30,6 +30,7 @@
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
     "@bedrock/identity": "workspace:*",
+    "@bedrock/integration-fx-providers": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/money": "workspace:*",
     "@bedrock/observability": "workspace:*",

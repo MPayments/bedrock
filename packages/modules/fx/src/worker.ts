@@ -6,7 +6,7 @@ import type {
 import type { Logger } from "@bedrock/observability/logger";
 
 import { type FxService } from "./service";
-import { type FxRateSource } from "./sources";
+import { type FxRateSource } from "./source-providers";
 
 export interface FxRatesWorkerSourceContext {
     source: FxRateSource;

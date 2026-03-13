@@ -2,7 +2,6 @@ export {
   createReconciliationService,
   type ReconciliationService,
 } from "./service";
-export { createReconciliationWorkerDefinition } from "./worker";
 export * from "./errors";
 export {
   CreateAdjustmentDocumentInputSchema,

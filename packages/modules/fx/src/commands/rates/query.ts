@@ -3,7 +3,7 @@ import { normalizeCurrency } from "@bedrock/currencies/catalog";
 import { RateNotFoundError } from "../../errors";
 import { type FxServiceContext } from "../../internal/context";
 import { getSourceOrder } from "../../internal/source-priority";
-import { type FxRateSource } from "../../sources/types";
+import { type FxRateSource } from "../../source-providers";
 
 export function createRateQueryHandlers(
     context: FxServiceContext,
