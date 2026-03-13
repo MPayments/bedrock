@@ -72,12 +72,20 @@ function createDocumentsServiceStub() {
   };
 }
 
-function createTestApp(requestIdempotencyKey: string | null = "idem-1") {
+function createTestApp(input?: {
+  requestIdempotencyKey?: string | null;
+  role?: string;
+}) {
+  const requestIdempotencyKey =
+    input && "requestIdempotencyKey" in input
+      ? input.requestIdempotencyKey
+      : "idem-1";
+  const role = input?.role ?? "admin";
   const documentsService = createDocumentsServiceStub();
   const app = new OpenAPIHono();
 
   app.use("*", async (c, next) => {
-    c.set("user", { id: "user-1", role: "admin" } as any);
+    c.set("user", { id: "user-1", role } as any);
     c.set("requestContext", {
       requestId: "req-1",
       correlationId: "corr-1",
@@ -99,7 +107,9 @@ describe("documentsRoutes mutation actions", () => {
   });
 
   it("returns 400 for all mutation actions when idempotency header is missing", async () => {
-    const { app, documentsService } = createTestApp(null);
+    const { app, documentsService } = createTestApp({
+      requestIdempotencyKey: null,
+    });
     const documentId = "22222222-2222-4222-8222-222222222222";
     const actions = ["submit", "approve", "reject", "post", "cancel", "repost"] as const;
 
@@ -118,7 +128,7 @@ describe("documentsRoutes mutation actions", () => {
   });
 
   it("routes each mutation action to corresponding documents service call", async () => {
-    const { app, documentsService } = createTestApp("idem-1");
+    const { app, documentsService } = createTestApp();
     const documentId = "33333333-3333-4333-8333-333333333333";
     const expectedResult = createDocumentWithOperation();
     const actions = ["submit", "approve", "reject", "post", "cancel", "repost"] as const;
@@ -144,5 +154,104 @@ describe("documentsRoutes mutation actions", () => {
         }),
       });
     }
+  });
+
+  it("filters allowed actions on list responses using public permissions", async () => {
+    userHasPermission.mockImplementation(async ({ body }) => {
+      const permission = body.permissions.documents?.[0];
+      return {
+        success:
+          permission === "list" ||
+          permission === "get" ||
+          permission === "submit" ||
+          permission === "cancel",
+      };
+    });
+
+    const { app, documentsService } = createTestApp();
+    documentsService.list.mockResolvedValue({
+      data: [createDocumentWithOperation()],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      data: [
+        expect.objectContaining({
+          id: "11111111-1111-4111-8111-111111111111",
+          allowedActions: ["submit", "cancel"],
+        }),
+      ],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    expect(documentsService.list).toHaveBeenCalledWith(
+      expect.objectContaining({
+        limit: 20,
+        offset: 0,
+      }),
+      "user-1",
+    );
+  });
+
+  it("blocks system-only document creation for non-admin users", async () => {
+    const { app, documentsService } = createTestApp({ role: "operator" });
+
+    const response = await app.request("http://localhost/period_close", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        createIdempotencyKey: "create-idem",
+        input: {
+          occurredAt: "2026-03-01T00:00:00.000Z",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error:
+        'Document type "period_close" is system-only and cannot be mutated via public API',
+    });
+    expect(documentsService.createDraft).not.toHaveBeenCalled();
+  });
+
+  it("allows admins to create public period_reopen documents", async () => {
+    const { app, documentsService } = createTestApp({ role: "admin" });
+    documentsService.createDraft.mockResolvedValue(createDocumentWithOperation());
+
+    const response = await app.request("http://localhost/period_reopen", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        createIdempotencyKey: "create-idem",
+        input: {
+          occurredAt: "2026-03-01T00:00:00.000Z",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(documentsService.createDraft).toHaveBeenCalledWith({
+      docType: "period_reopen",
+      createIdempotencyKey: "create-idem",
+      payload: {
+        occurredAt: "2026-03-01T00:00:00.000Z",
+      },
+      actorUserId: "user-1",
+      requestContext: expect.objectContaining({
+        requestId: "req-1",
+        correlationId: "corr-1",
+      }),
+    });
   });
 });

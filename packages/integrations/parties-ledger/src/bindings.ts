@@ -46,7 +46,9 @@ export async function ensureRequisiteAccountingBindingTx(
   const [binding] = await tx
     .select()
     .from(schema.requisiteAccountingBindings)
-    .where(eq(schema.requisiteAccountingBindings.requisiteId, input.requisiteId))
+    .where(
+      eq(schema.requisiteAccountingBindings.requisiteId, input.requisiteId),
+    )
     .limit(1);
 
   if (!binding) {

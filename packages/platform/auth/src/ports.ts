@@ -67,7 +67,9 @@ export interface AuthIdentityStorePort {
     passwordHash: string;
   }): Promise<AuthCredentialRecord | null>;
   deleteSessionsForUser(userId: string): Promise<void>;
-  getUserWithLastSession(userId: string): Promise<AuthUserWithLastSession | null>;
+  getUserWithLastSession(
+    userId: string,
+  ): Promise<AuthUserWithLastSession | null>;
   banUser(input: AuthBanUserInput): Promise<AuthUserRecord | null>;
   unbanUser(userId: string): Promise<AuthUserRecord | null>;
 }

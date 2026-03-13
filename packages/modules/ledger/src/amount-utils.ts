@@ -1,4 +1,4 @@
-function normalizeAmountValue(value: unknown): string {
+export function normalizeAmountValue(value: unknown): string {
   if (typeof value === "bigint") {
     return value.toString();
   }

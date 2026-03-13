@@ -2,7 +2,10 @@ import { z } from "zod";
 
 import type { Document } from "@bedrock/documents/schema";
 
-import { toMinorAmountString } from "@bedrock/ledger/amount-utils";
+import {
+  normalizeAmountValue,
+  toMinorAmountString,
+} from "@bedrock/ledger/amount-utils";
 
 export const amountMinorSchema = z
   .union([z.string(), z.number().int(), z.bigint()])
@@ -26,25 +29,6 @@ export const amountMinorSchema = z
       return z.NEVER;
     }
   });
-
-function normalizeAmountValue(value: unknown): string {
-  if (typeof value === "bigint") {
-    return value.toString();
-  }
-
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) {
-      throw new Error("amount must be a finite number");
-    }
-    return String(value);
-  }
-
-  if (typeof value === "string") {
-    return value.trim();
-  }
-
-  throw new Error("amount must be a string, number, or bigint");
-}
 
 // This parser only accepts a simple optional sign + digits + optional fraction.
 // eslint-disable-next-line security/detect-unsafe-regex

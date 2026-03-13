@@ -8,6 +8,7 @@ import { createIdempotencyService } from "@bedrock/idempotency";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
 
+import { ExternalRecordConflictError } from "../../src/errors";
 import { createReconciliationService } from "../../src/service";
 import { createReconciliationWorkerDefinition } from "../../src/worker";
 
@@ -288,5 +289,107 @@ describe("reconciliation worker integration", () => {
         reasonCode: "no_match",
       }),
     ]);
+  });
+
+  it("records ambiguous matches and exposes them through list/explain queries", async () => {
+    const source = `recon-it-${randomUUID()}`;
+    const candidateA = randomUUID();
+    const candidateB = randomUUID();
+
+    createdSources.add(source);
+
+    const reconciliation = createReconciliationService({
+      db,
+      documents: reconciliationDocuments,
+      idempotency,
+      ledgerLookup,
+    });
+
+    await reconciliation.ingestExternalRecord({
+      source,
+      sourceRecordId: "ambiguous-record",
+      rawPayload: { amountMinor: 100 },
+      normalizedPayload: {
+        candidateOperationIds: [candidateA, candidateB],
+      },
+      normalizationVersion: 1,
+      idempotencyKey: `ingest:${source}:ambiguous`,
+    });
+
+    const run = await reconciliation.runReconciliation({
+      source,
+      rulesetChecksum: "core-default-v1",
+      inputQuery: {},
+      idempotencyKey: `run:${source}:1`,
+    });
+    const replay = await reconciliation.runReconciliation({
+      source,
+      rulesetChecksum: "core-default-v1",
+      inputQuery: {},
+      idempotencyKey: `run:${source}:1`,
+    });
+
+    expect(run.resultSummary).toEqual({
+      total: 1,
+      matched: 0,
+      unmatched: 0,
+      ambiguous: 1,
+    });
+    expect(replay.id).toBe(run.id);
+
+    const exceptions = await reconciliation.listExceptions({
+      source,
+      state: "open",
+    });
+
+    expect(exceptions).toHaveLength(1);
+    expect(exceptions[0]?.exception.reasonCode).toBe("ambiguous_match");
+    expect(exceptions[0]?.run.id).toBe(run.id);
+    expect(exceptions[0]?.externalRecord.sourceRecordId).toBe("ambiguous-record");
+
+    const [match] = await db
+      .select()
+      .from(schema.reconciliationMatches)
+      .where(eq(schema.reconciliationMatches.runId, run.id))
+      .limit(1);
+
+    await expect(reconciliation.explainMatch(match!.id)).resolves.toEqual({
+      reason: "multiple_candidates",
+      candidateOperationIds: [candidateA, candidateB],
+      candidateDocumentIds: [],
+    });
+  });
+
+  it("rejects conflicting external record re-ingestion with a different payload", async () => {
+    const source = `recon-it-${randomUUID()}`;
+
+    createdSources.add(source);
+
+    const reconciliation = createReconciliationService({
+      db,
+      documents: reconciliationDocuments,
+      idempotency,
+      ledgerLookup,
+    });
+
+    await reconciliation.ingestExternalRecord({
+      source,
+      sourceRecordId: "duplicate-record",
+      rawPayload: { amountMinor: 100 },
+      normalizedPayload: { operationId: "first-op" },
+      normalizationVersion: 1,
+      idempotencyKey: `ingest:${source}:first`,
+    });
+
+    await expect(
+      reconciliation.ingestExternalRecord({
+        source,
+        sourceRecordId: "duplicate-record",
+        rawPayload: { amountMinor: 200 },
+        normalizedPayload: { operationId: "second-op" },
+        normalizationVersion: 1,
+        idempotencyKey: `ingest:${source}:second`,
+      }),
+    ).rejects.toThrow(ExternalRecordConflictError);
   });
 });
