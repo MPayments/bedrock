@@ -11,8 +11,8 @@ import {
   RequisiteProviderOptionSchema,
   RequisiteProviderOptionsResponseSchema,
 } from "@bedrock/parties/requisite-providers/contracts";
-import { ValidationError } from "@bedrock/common/errors";
-import { createPaginatedListSchema } from "@bedrock/common/pagination";
+import { ValidationError } from "@bedrock/kernel/errors";
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";

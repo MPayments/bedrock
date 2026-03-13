@@ -1,4 +1,4 @@
-import type { Database } from "@bedrock/common/db/types";
+import type { Database } from "@bedrock/kernel/db/types";
 
 export interface InternalLedgerBookGuard {
   (input: { db: Database; bookIds: string[] }): Promise<void>;

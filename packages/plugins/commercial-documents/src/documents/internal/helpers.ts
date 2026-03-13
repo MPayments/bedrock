@@ -21,7 +21,8 @@ import {
   type DocumentModuleContext,
   DocumentValidationError,
 } from "@bedrock/documents";
-import { canonicalJson, sha256Hex } from "@bedrock/common";
+import { canonicalJson } from "@bedrock/kernel/canon";
+import { sha256Hex } from "@bedrock/kernel/crypto";
 
 import {
   AcceptancePayloadSchema,

@@ -1,6 +1,6 @@
 import type { Document } from "@bedrock/documents/schema";
-import { type Logger } from "@bedrock/common";
-import type { Database, Transaction } from "@bedrock/common/db/types";
+import type { Logger } from "@bedrock/kernel/logger";
+import type { Database, Transaction } from "@bedrock/kernel/db/types";
 
 import {
   collectDocumentCounterpartyIds,

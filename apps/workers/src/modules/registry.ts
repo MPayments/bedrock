@@ -19,8 +19,8 @@ import {
   type BedrockWorker,
   type WorkerCatalogEntry,
 } from "@bedrock/worker-runtime";
-import type { Logger } from "@bedrock/common";
-import type { Database } from "@bedrock/common/db/types";
+import type { Logger } from "@bedrock/kernel/logger";
+import type { Database } from "@bedrock/kernel/db/types";
 
 import { WORKER_CATALOG } from "../catalog";
 import type { WorkerEnv } from "../env";

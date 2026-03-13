@@ -28,7 +28,7 @@
     "pack:activate": "tsx ./scripts/pack-activate.ts"
   },
   "dependencies": {
-    "@bedrock/common": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/parties": "workspace:*",
     "drizzle-orm": "^0.45.1",

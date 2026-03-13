@@ -9,7 +9,7 @@ import type {
   LedgerOperationDetails,
   OperationIntent,
 } from "@bedrock/ledger";
-import type { Transaction } from "@bedrock/common/db/types";
+import type { Transaction } from "@bedrock/kernel/db/types";
 
 export interface DocumentsAccountingPort {
   getDefaultCompiledPack(): CompiledPack;

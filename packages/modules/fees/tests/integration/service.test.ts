@@ -1,18 +1,16 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import { schema as currenciesSchema } from "@bedrock/currencies/schema";
-import { currencyIdForCode } from "@bedrock/db/seeds";
 import { schema as feesSchema } from "@bedrock/fees/schema";
-import { schema as fxSchema } from "@bedrock/fx/schema";
 
 import { db } from "./setup";
 import { createFeesService } from "../../src/service";
+import { currencyIdForCode } from "../helpers";
 
 const schema = {
   ...feesSchema,
-  ...fxSchema,
   ...currenciesSchema,
 };
 
@@ -59,26 +57,43 @@ function createCurrencyLookup() {
 }
 
 async function createFxQuote() {
-  const rows = await db
-    .insert(schema.fxQuotes)
-    .values({
-      fromCurrencyId: currencyIdForCode("USD"),
-      toCurrencyId: currencyIdForCode("EUR"),
-      fromAmountMinor: 100000n,
-      toAmountMinor: 85000n,
-      pricingMode: "auto_cross",
-      pricingTrace: { version: "v1", mode: "auto_cross" },
-      dealDirection: null,
-      dealForm: null,
-      rateNum: 85n,
-      rateDen: 100n,
-      status: "active",
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      idempotencyKey: uniq("quote"),
-    })
-    .returning({ id: schema.fxQuotes.id });
+  const quoteId = randomUUID();
+  await db.execute(sql`
+    INSERT INTO fx_quotes (
+      id,
+      from_currency_id,
+      to_currency_id,
+      from_amount_minor,
+      to_amount_minor,
+      pricing_mode,
+      pricing_trace,
+      deal_direction,
+      deal_form,
+      rate_num,
+      rate_den,
+      status,
+      expires_at,
+      idempotency_key
+    )
+    VALUES (
+      ${quoteId},
+      ${currencyIdForCode("USD")},
+      ${currencyIdForCode("EUR")},
+      ${100000n},
+      ${85000n},
+      ${"auto_cross"},
+      ${{ version: "v1", mode: "auto_cross" }},
+      ${null},
+      ${null},
+      ${85n},
+      ${100n},
+      ${"active"},
+      ${new Date(Date.now() + 10 * 60 * 1000)},
+      ${uniq("quote")}
+    )
+  `);
 
-  return rows[0]!.id;
+  return quoteId;
 }
 
 describe("Fees Service Integration Tests", () => {

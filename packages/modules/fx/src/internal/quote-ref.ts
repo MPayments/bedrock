@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 
 import { type FxQuote, schema } from "@bedrock/fx/schema";
-import { isUuidLike } from "@bedrock/common";
-import { ValidationError } from "@bedrock/common/errors";
+import { isUuidLike } from "@bedrock/kernel/utils";
+import { ValidationError } from "@bedrock/kernel/errors";
 
 import { type FxServiceContext } from "./context";
 

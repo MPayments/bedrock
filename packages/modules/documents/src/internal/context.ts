@@ -1,4 +1,4 @@
-import { noopLogger, type Logger } from "@bedrock/common";
+import { noopLogger, type Logger } from "@bedrock/kernel/logger";
 
 import { createDefaultDocumentActionPolicyService } from "../policy";
 import type { DocumentsServiceDeps } from "../types";

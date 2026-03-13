@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
-import type { Database } from "../client";
-import { schema } from "../schema";
+import type { Database } from "@bedrock/db/client";
+import { schema } from "@bedrock/db";
 
 export type HashPasswordFn = (password: string) => Promise<string>;
 

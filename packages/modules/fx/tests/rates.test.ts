@@ -7,7 +7,7 @@ import { createFxService } from "../src/service";
 import {
   createMockCurrenciesService,
   createNoopFeesService,
-} from "@bedrock/test-utils/bedrock/harness/fx";
+} from "./helpers";
 
 function createSelectChain(limitImpl: () => Promise<any[]>) {
     return {

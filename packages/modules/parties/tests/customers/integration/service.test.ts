@@ -13,9 +13,8 @@ import {
 } from "@bedrock/auth/schema";
 import { schema as counterpartiesSchema } from "@bedrock/parties/counterparties/schema";
 import { schema as customersSchema } from "@bedrock/parties/customers/schema";
-import { schema as documentsSchema } from "@bedrock/documents/schema";
 
-import { db } from "./setup";
+import { db, pool } from "./setup";
 import {
   CustomerDeleteConflictError,
   createCustomersService,
@@ -24,7 +23,6 @@ import {
 const schema = {
   ...customersSchema,
   ...counterpartiesSchema,
-  ...documentsSchema,
   user,
   account,
   session,
@@ -242,46 +240,94 @@ describe("Customers service integration", () => {
       updatedAt: new Date(),
     });
 
-    await db.insert(schema.documents).values({
-      id: randomUUID(),
-      docType: "payment_case",
-      docNo: `PAY-${randomUUID().slice(0, 8).toUpperCase()}`,
-      payloadVersion: 1,
-      payload: {
-        customerId: customer.id,
-        subject: "Customer linked payment case",
-        occurredAt: new Date().toISOString(),
-      },
-      title: "Customer linked payment case",
-      occurredAt: new Date(),
-      submissionStatus: "draft",
-      approvalStatus: "not_required",
-      postingStatus: "not_required",
-      lifecycleStatus: "active",
-      createIdempotencyKey: randomUUID(),
-      amountMinor: null,
-      currency: null,
-      memo: null,
-      counterpartyId: counterparty!.id,
-      customerId: customer.id,
-      organizationRequisiteId: null,
-      searchText: "customer linked payment case",
-      createdBy,
-      submittedBy: null,
-      submittedAt: null,
-      approvedBy: null,
-      approvedAt: null,
-      rejectedBy: null,
-      rejectedAt: null,
-      cancelledBy: null,
-      cancelledAt: null,
-      postingStartedAt: null,
-      postedAt: null,
-      postingError: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      version: 1,
-    });
+    const occurredAt = new Date();
+
+    await pool.query(
+      `
+        INSERT INTO documents (
+          id,
+          doc_type,
+          doc_no,
+          payload_version,
+          payload,
+          title,
+          occurred_at,
+          submission_status,
+          approval_status,
+          posting_status,
+          lifecycle_status,
+          create_idempotency_key,
+          amount_minor,
+          currency,
+          memo,
+          counterparty_id,
+          customer_id,
+          organization_requisite_id,
+          search_text,
+          created_by,
+          submitted_by,
+          submitted_at,
+          approved_by,
+          approved_at,
+          rejected_by,
+          rejected_at,
+          cancelled_by,
+          cancelled_at,
+          posting_started_at,
+          posted_at,
+          posting_error,
+          created_at,
+          updated_at,
+          version
+        )
+        VALUES (
+          $1, $2, $3, $4, $5::jsonb, $6, $7,
+          $8, $9, $10, $11, $12, $13, $14, $15,
+          $16, $17, $18, $19, $20, $21, $22, $23, $24,
+          $25, $26, $27, $28, $29, $30, $31, $32, $33, $34
+        )
+      `,
+      [
+        randomUUID(),
+        "payment_case",
+        `PAY-${randomUUID().slice(0, 8).toUpperCase()}`,
+        1,
+        JSON.stringify({
+          customerId: customer.id,
+          subject: "Customer linked payment case",
+          occurredAt: occurredAt.toISOString(),
+        }),
+        "Customer linked payment case",
+        occurredAt,
+        "draft",
+        "not_required",
+        "not_required",
+        "active",
+        randomUUID(),
+        null,
+        null,
+        null,
+        counterparty!.id,
+        customer.id,
+        null,
+        "customer linked payment case",
+        createdBy,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        occurredAt,
+        occurredAt,
+        1,
+      ],
+    );
 
     await expect(service.remove(customer.id)).rejects.toThrow(
       CustomerDeleteConflictError,
@@ -293,17 +339,17 @@ describe("Customers service integration", () => {
       .where(eq(schema.customers.id, customer.id))
       .limit(1);
 
-    const documents = await db
-      .select({ id: schema.documents.id })
-      .from(schema.documents)
-      .where(
-        and(
-          eq(schema.documents.customerId, customer.id),
-          eq(schema.documents.counterpartyId, counterparty!.id),
-        ),
-      );
+    const documents = await pool.query(
+      `
+        SELECT id
+        FROM documents
+        WHERE customer_id = $1
+          AND counterparty_id = $2
+      `,
+      [customer.id, counterparty!.id],
+    );
 
     expect(stillExists).toBeDefined();
-    expect(documents).toHaveLength(1);
+    expect(documents.rows).toHaveLength(1);
   });
 });

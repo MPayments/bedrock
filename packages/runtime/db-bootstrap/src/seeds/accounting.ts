@@ -1,5 +1,5 @@
-import type { Database, Transaction } from "../client";
-import { schema } from "../schema";
+import type { Database, Transaction } from "@bedrock/db/client";
+import { schema } from "@bedrock/db";
 
 const ACCOUNTS = [
   ["1000", "Активы", "asset", "debit", false, true, null],

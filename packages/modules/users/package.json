@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@bedrock/auth": "workspace:*",
-    "@bedrock/common": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "zod": "^4.1.11"
   },
   "devDependencies": {

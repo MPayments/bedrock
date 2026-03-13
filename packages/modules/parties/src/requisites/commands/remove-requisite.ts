@@ -1,6 +1,6 @@
 import { and, eq, isNull, ne, sql } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/common/db/types";
+import type { Transaction } from "@bedrock/kernel/db/types";
 
 import { RequisiteNotFoundError } from "../errors";
 import type { RequisitesServiceContext } from "../internal/context";

@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/common": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/ifrs-documents": "workspace:*",

@@ -18,7 +18,7 @@
     "test:integration:watch": "vitest --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@bedrock/common": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/idempotency": "workspace:*",
     "@bedrock/ledger": "workspace:*",

@@ -1,7 +1,7 @@
 import {
   minorToAmountString,
   type MoneyFormatOptions,
-} from "@bedrock/common/money";
+} from "@bedrock/kernel/money";
 
 const MONEY_FIELD_MAP: Record<string, string> = {
   amountMinor: "amount",

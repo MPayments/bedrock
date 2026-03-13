@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { canonicalJson, sha256Hex } from "@bedrock/common";
+import { canonicalJson } from "@bedrock/kernel/canon";
+import { sha256Hex } from "@bedrock/kernel/crypto";
 
 import {
   ActionReceiptConflictError,

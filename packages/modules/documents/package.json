@@ -24,7 +24,7 @@
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
     "@bedrock/auth": "workspace:*",
-    "@bedrock/common": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/idempotency": "workspace:*",
     "@bedrock/ledger": "workspace:*",

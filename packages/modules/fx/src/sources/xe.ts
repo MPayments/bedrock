@@ -4,7 +4,7 @@ import {
   type TlsClientResponse,
 } from "tlsclientwrapper";
 
-import { parseDecimalToFraction } from "@bedrock/common";
+import { parseDecimalToFraction } from "@bedrock/kernel/math";
 
 import { RateSourceSyncError } from "../errors";
 import {

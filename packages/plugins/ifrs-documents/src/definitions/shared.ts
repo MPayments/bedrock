@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-import { normalizeMajorAmountInput } from "@bedrock/common/money";
+import { normalizeMajorAmountInput } from "@bedrock/kernel/money";
 
 import type {
   AccrualAdjustmentInputSchema,

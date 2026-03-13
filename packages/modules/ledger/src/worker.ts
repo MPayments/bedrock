@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/ledger/schema";
-import type { Database, Transaction } from "@bedrock/common/db/types";
+import type { Database, Transaction } from "@bedrock/kernel/db/types";
 import type {
   BedrockWorker,
   WorkerRunContext,

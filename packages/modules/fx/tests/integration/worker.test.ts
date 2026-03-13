@@ -3,12 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createCurrenciesService } from "@bedrock/currencies";
 import { schema } from "@bedrock/fx/schema";
-import { DAY_IN_SECONDS } from "@bedrock/common";
+import { DAY_IN_SECONDS } from "@bedrock/kernel/math";
 
 import { db } from "./setup";
 import { createFxService } from "../../src/service";
 import { createFxRatesWorkerDefinition } from "../../src/worker";
-import { createNoopFeesService } from "@bedrock/test-utils/bedrock/harness/fx";
+import { createNoopFeesService } from "../helpers";
 
 async function runWorkerOnce(
     worker: ReturnType<typeof createFxRatesWorkerDefinition>,

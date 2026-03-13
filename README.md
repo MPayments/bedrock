@@ -6,11 +6,12 @@ Bedrock is a financial platform monorepo (ledger, balances, FX, reconciliation).
 
 - `packages/modules/*` - business capabilities published as flat `@bedrock/<name>` packages
 - `packages/platform/*` - shared technical capabilities such as auth and idempotency
-- `packages/runtime/*` - execution hosts such as `@bedrock/worker-runtime`
+- `packages/runtime/*` - execution hosts such as `@bedrock/worker-runtime` and tooling hosts such as `@bedrock/db-bootstrap`
 - `packages/plugins/*` - document add-ons published as flat `@bedrock/<name>` packages
 - `packages/integrations/*` - narrow cross-domain glue packages
-- `@bedrock/common` - shared primitives and infrastructure helpers
-- `@bedrock/db` - Drizzle client, schema aggregation, migrations, seeds, and DB types
+- `@bedrock/kernel` - shared primitives and infrastructure helpers
+- `@bedrock/db` - Drizzle client, schema aggregation, migrations, and DB types
+- `@bedrock/db-bootstrap` - DB seed/bootstrap runners
 - `apps/*` - API/Web/Workers composition
 - `@bedrock/sdk/*` - API client + UI kit
 
@@ -19,7 +20,8 @@ Runtime import contract:
 - Runtime packages publish flat imports such as `@bedrock/ledger`, `@bedrock/auth`, `@bedrock/worker-runtime`, and `@bedrock/parties/<subdomain>`.
 - Domain schemas stay with the owning package and are imported through package exports such as `@bedrock/ledger/schema` or `@bedrock/parties/requisites/schema`.
 - `@bedrock/db` aggregates schemas; business packages do not own migrations and do not import `@bedrock/db`.
-- Use DB connection types from `@bedrock/common/db/types`.
+- `@bedrock/db-bootstrap` owns DB seeding/bootstrap scripts.
+- Use DB connection types from `@bedrock/kernel/db/types`.
 
 ## Stack
 
@@ -107,7 +109,7 @@ This repo now uses a baseline-only migration chain. Legacy DB states are unsuppo
 ```bash
 bun run --filter=@bedrock/db db:nuke
 bun run --filter=@bedrock/db db:migrate
-bun run --filter=@bedrock/db db:seed
+bun run --filter=@bedrock/db-bootstrap db:seed
 ```
 
 ## Documentation Source of Truth

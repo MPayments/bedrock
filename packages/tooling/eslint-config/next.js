@@ -6,6 +6,7 @@ import pluginReact from "eslint-plugin-react";
 import globals from "globals";
 import pluginNext from "@next/eslint-plugin-next";
 import { config as baseConfig } from "./base.js";
+import { clientReachableCommonImportPaths } from "./client-reachable.js";
 
 /**
  * A custom ESLint configuration for libraries that use Next.js.
@@ -33,6 +34,17 @@ export const nextJsConfig = [
     rules: {
       ...pluginNext.configs.recommended.rules,
       ...pluginNext.configs["core-web-vitals"].rules,
+    },
+  },
+  {
+    files: ["**/*.{js,jsx,ts,tsx,mjs,cjs}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: clientReachableCommonImportPaths,
+        },
+      ],
     },
   },
   {

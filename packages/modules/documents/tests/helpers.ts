@@ -1,7 +1,14 @@
+import { vi } from "vitest";
 import { z } from "zod";
 
-import type { DocumentModule } from "@bedrock/documents";
-import { type Document } from "@bedrock/documents/schema";
+import {
+  createDocumentRegistry,
+  type DocumentActionPolicyService,
+  type DocumentApprovalMode,
+} from "../src";
+import type { DocumentModule } from "../src/types";
+import { type Document } from "../src/schema";
+import { createStubDb } from "@bedrock/test-utils";
 
 const DEFAULT_DOCUMENT_PAYLOAD_SCHEMA = z.object({
   memo: z.string().optional(),
@@ -100,4 +107,70 @@ export function createTestDocumentModule(
     },
     ...overrides,
   };
+}
+
+export function createDocumentPolicyStub(): DocumentActionPolicyService {
+  return {
+    approvalMode: vi.fn(
+      async (): Promise<DocumentApprovalMode> => "not_required",
+    ),
+    canCreate: vi.fn(async () => ({
+      allow: true,
+      reasonCode: "allowed",
+      reasonMeta: null,
+    })),
+    canEdit: vi.fn(async () => ({
+      allow: true,
+      reasonCode: "allowed",
+      reasonMeta: null,
+    })),
+    canSubmit: vi.fn(async () => ({
+      allow: true,
+      reasonCode: "allowed",
+      reasonMeta: null,
+    })),
+    canApprove: vi.fn(async () => ({
+      allow: true,
+      reasonCode: "allowed",
+      reasonMeta: null,
+    })),
+    canReject: vi.fn(async () => ({
+      allow: true,
+      reasonCode: "allowed",
+      reasonMeta: null,
+    })),
+    canPost: vi.fn(async () => ({
+      allow: true,
+      reasonCode: "allowed",
+      reasonMeta: null,
+    })),
+    canCancel: vi.fn(async () => ({
+      allow: true,
+      reasonCode: "allowed",
+      reasonMeta: null,
+    })),
+  };
+}
+
+export function createDocumentsServiceDeps(
+  modules: DocumentModule[] = [createTestDocumentModule()],
+) {
+  return {
+    accounting: {
+      resolvePostingPlan: vi.fn(),
+    },
+    db: createStubDb(),
+    ledger: {
+      commit: vi.fn(),
+    },
+    ledgerReadService: {
+      getOperationDetails: vi.fn(),
+    },
+    idempotency: {
+      withIdempotencyTx: vi.fn(async ({ handler }: { handler: () => Promise<unknown> }) =>
+        handler(),
+      ),
+    },
+    registry: createDocumentRegistry(modules),
+  } as any;
 }

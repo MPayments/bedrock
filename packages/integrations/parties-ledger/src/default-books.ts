@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import type { Transaction } from "@bedrock/common/db/types";
+import type { Transaction } from "@bedrock/kernel/db/types";
 
 const DEFAULT_ORGANIZATION_BOOK_CODE_PREFIX = "organization-default";
 const DEFAULT_COUNTERPARTY_BOOK_CODE_PREFIX = "counterparty-default";

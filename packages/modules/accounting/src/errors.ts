@@ -1,4 +1,4 @@
-import { ServiceError } from "@bedrock/common/errors";
+import { ServiceError } from "@bedrock/kernel/errors";
 
 export class AccountingError extends ServiceError {
   constructor(message: string) {

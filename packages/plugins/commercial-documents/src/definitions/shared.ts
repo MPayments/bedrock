@@ -1,4 +1,4 @@
-import { normalizeMajorAmountInput } from "@bedrock/common/money";
+import { normalizeMajorAmountInput } from "@bedrock/kernel/money";
 
 import { FINANCIAL_LINE_BUCKET_OPTIONS } from "../financial-lines";
 import type { FinancialLinePayload } from "../validation";

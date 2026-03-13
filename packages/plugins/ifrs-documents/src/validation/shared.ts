@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { amountValueSchema, toMinorAmountString } from "@bedrock/common/money";
+import { amountValueSchema, toMinorAmountString } from "@bedrock/kernel/money";
 
 export const currencyCodeSchema = z
   .string()

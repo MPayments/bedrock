@@ -1,8 +1,9 @@
 import { and, eq } from "drizzle-orm";
 
 import { schema, type ActionReceipt } from "@bedrock/idempotency/schema";
-import { canonicalJson, sha256Hex } from "@bedrock/common";
-import type { Transaction } from "@bedrock/common/db/types";
+import { canonicalJson } from "@bedrock/kernel/canon";
+import { sha256Hex } from "@bedrock/kernel/crypto";
+import type { Transaction } from "@bedrock/kernel/db/types";
 
 import { ActionReceiptConflictError, ActionReceiptStoredError } from "./errors";
 import {

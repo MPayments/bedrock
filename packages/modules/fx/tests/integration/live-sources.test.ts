@@ -6,7 +6,7 @@ import { schema } from "@bedrock/fx/schema";
 
 import { db } from "./setup";
 import { createFxService } from "../../src/service";
-import { createNoopFeesService } from "@bedrock/test-utils/bedrock/harness/fx";
+import { createNoopFeesService } from "../helpers";
 
 const EXTERNAL_API_TESTS_ENABLED = process.env.ENABLE_EXTERNAL_API_TESTS === "1";
 const describeExternal = EXTERNAL_API_TESTS_ENABLED ? describe : describe.skip;

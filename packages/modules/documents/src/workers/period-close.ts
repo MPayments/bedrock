@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 
 import { user } from "@bedrock/auth/schema";
 import { counterparties } from "@bedrock/parties/counterparties/schema";
-import { noopLogger, type Logger } from "@bedrock/common";
-import type { Database } from "@bedrock/common/db/types";
+import { noopLogger, type Logger } from "@bedrock/kernel/logger";
+import type { Database } from "@bedrock/kernel/db/types";
 import type {
   BedrockWorker,
   WorkerRunContext,

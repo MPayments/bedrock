@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/documents/schema";
-import type { Database } from "@bedrock/common/db/types";
+import type { Database } from "@bedrock/kernel/db/types";
 import type {
   BedrockWorker,
   WorkerRunContext,

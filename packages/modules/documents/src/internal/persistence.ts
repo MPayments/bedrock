@@ -5,8 +5,8 @@ import {
   schema,
   type Document,
 } from "@bedrock/documents/schema";
-import { pgNotify } from "@bedrock/common/db/notify";
-import type { Database, Transaction } from "@bedrock/common/db/types";
+import { pgNotify } from "@bedrock/kernel/db/notify";
+import type { Database, Transaction } from "@bedrock/kernel/db/types";
 
 import { DocumentNotFoundError } from "../errors";
 import type { DocumentRegistry } from "../types";

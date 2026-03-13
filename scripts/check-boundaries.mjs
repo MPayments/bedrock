@@ -456,7 +456,7 @@ for (const pkg of workspacePackages) {
     .filter(Boolean);
 
   const disallowedDeps = directWorkspaceDeps.filter(
-    (depPkg) => !["common", "platform"].includes(depPkg.kind),
+    (depPkg) => !["kernel", "platform"].includes(depPkg.kind),
   );
 
   for (const depPkg of disallowedDeps) {
@@ -501,7 +501,7 @@ for (const pkg of workspacePackages) {
 
   const invalidWorkspaceDeps = directWorkspaceDeps.filter(
     (depPkg) =>
-      !["common", "platform", "module", "plugin"].includes(depPkg.kind),
+      !["kernel", "platform", "module", "plugin"].includes(depPkg.kind),
   );
   for (const depPkg of invalidWorkspaceDeps) {
     if (depPkg.kind === "integration" || depPkg.kind === "runtime") {

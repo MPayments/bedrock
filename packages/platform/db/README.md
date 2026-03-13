@@ -8,6 +8,7 @@ Drizzle-based database package for the financial core.
 - Shared `Database` type
 - Aggregated schema registry (`packages/platform/db/src/schema/index.ts`)
 - Centralized migrations (`packages/platform/db/migrations`)
+- DB bootstrap/seeding now lives in `@bedrock/db-bootstrap`
 
 ## Schema ownership
 

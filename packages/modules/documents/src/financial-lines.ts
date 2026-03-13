@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { signedMinorAmountSchema } from "@bedrock/common/money";
+import { signedMinorAmountSchema } from "@bedrock/kernel/money";
 import {
   isValidCurrency,
   normalizeCurrency,

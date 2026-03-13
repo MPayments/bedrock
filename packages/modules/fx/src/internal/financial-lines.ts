@@ -8,7 +8,7 @@ import {
 } from "@bedrock/documents/financial-lines";
 import type { FeeComponent } from "@bedrock/fees";
 import { schema } from "@bedrock/fx/schema";
-import type { Transaction } from "@bedrock/common/db/types";
+import type { Transaction } from "@bedrock/kernel/db/types";
 
 import type { FxServiceContext } from "./context";
 

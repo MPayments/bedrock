@@ -47,7 +47,7 @@ function readJson(filePath) {
 }
 
 function classifyPackageKind(relDir) {
-  if (relDir === "packages/common") return "common";
+  if (relDir === "packages/kernel") return "kernel";
   if (relDir === "packages/platform/db") return "db";
   if (relDir.startsWith("packages/modules/")) return "module";
   if (relDir.startsWith("packages/platform/")) return "platform";

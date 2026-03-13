@@ -2,7 +2,7 @@ import {
   paginateInMemory,
   sortInMemory,
   type PaginatedList,
-} from "@bedrock/common/pagination";
+} from "@bedrock/kernel/pagination";
 
 import type {
   AccountingReportsContext,

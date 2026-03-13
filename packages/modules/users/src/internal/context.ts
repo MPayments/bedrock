@@ -2,7 +2,7 @@ import type {
   AuthIdentityStorePort,
   PasswordHasherPort,
 } from "@bedrock/auth";
-import { type Logger, noopLogger } from "@bedrock/common";
+import { noopLogger, type Logger } from "@bedrock/kernel/logger";
 
 export interface UsersServiceDeps {
   authStore: AuthIdentityStorePort;

@@ -4,7 +4,7 @@ import { KNOWN_CURRENCY_CODES } from "@bedrock/currencies/catalog";
 import {
     createListQuerySchemaFromContract,
     type ListQueryContract,
-} from "@bedrock/common/pagination";
+} from "@bedrock/kernel/pagination";
 
 export const CurrencySchema = z.object({
     id: z.uuid(),

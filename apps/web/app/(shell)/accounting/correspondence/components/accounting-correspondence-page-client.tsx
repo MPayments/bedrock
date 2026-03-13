@@ -88,11 +88,18 @@ export function AccountingCorrespondencePageClient({
       return;
     }
 
-    setSaving(true);
     const accountingApi = getAccountingApi(apiClient);
+    const correspondenceRulesApi = accountingApi["correspondence-rules"];
+
+    if (!correspondenceRulesApi?.$put) {
+      toast.error("Маршрут сохранения correspondence rules недоступен");
+      return;
+    }
+
+    setSaving(true);
     const result = await executeMutation({
       request: () =>
-        accountingApi["correspondence-rules"].$put({
+        correspondenceRulesApi.$put({
           json: {
             rules: rows.map((row) => ({
               postingCode: row.postingCode.trim(),

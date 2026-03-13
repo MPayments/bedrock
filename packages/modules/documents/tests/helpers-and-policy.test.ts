@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { schema, type Document } from "@bedrock/documents/schema";
-import { InvalidStateError } from "@bedrock/common/errors";
+import { InvalidStateError } from "@bedrock/kernel/errors";
 
 import {
   DocumentGraphError,
@@ -32,8 +32,8 @@ import type { DocumentModule } from "../src/types";
 import {
   buildTestDocument,
   createTestDocumentModule,
-} from "@bedrock/test-utils/bedrock/builders/documents";
-import { createDocumentPolicyStub } from "@bedrock/test-utils/bedrock/harness/documents";
+  createDocumentPolicyStub,
+} from "./helpers";
 const createModuleStub = () => createTestDocumentModule() as DocumentModule;
 const makeDocument = (overrides: Partial<Document> = {}) => buildTestDocument(overrides);
 

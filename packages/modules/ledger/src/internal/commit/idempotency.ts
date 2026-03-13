@@ -5,8 +5,9 @@ import {
   tbTransferIdForOperation,
 } from "@bedrock/ledger/ids";
 import { schema } from "@bedrock/ledger/schema";
-import { sha256Hex, stableStringify } from "@bedrock/common";
-import type { Transaction } from "@bedrock/common/db/types";
+import { stableStringify } from "@bedrock/kernel/canon";
+import { sha256Hex } from "@bedrock/kernel/crypto";
+import type { Transaction } from "@bedrock/kernel/db/types";
 
 import {
   IdempotencyConflictError,

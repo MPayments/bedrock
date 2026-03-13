@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/common": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "zod": "^4.1.11"
   },

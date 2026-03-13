@@ -5,7 +5,7 @@ import {
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
 } from "@bedrock/ledger/ids";
-import type { Database } from "@bedrock/common/db/types";
+import type { Database } from "@bedrock/kernel/db/types";
 
 import { schema } from "../src/schema";
 import type { Dimensions } from "../src/schema";

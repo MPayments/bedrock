@@ -14,8 +14,8 @@ import {
   createAccountingRuntime,
   type CompiledPack,
 } from "../src/runtime";
-import { canonicalJson } from "@bedrock/common";
-import type { Database } from "@bedrock/common/db/types";
+import { canonicalJson } from "@bedrock/kernel/canon";
+import type { Database } from "@bedrock/kernel/db/types";
 
 const DEFAULT_PACK_URL = new URL(
   "../src/packs/bedrock-core-default.ts",

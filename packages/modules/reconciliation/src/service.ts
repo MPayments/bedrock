@@ -7,12 +7,10 @@ import {
   type ReconciliationExternalRecord,
   type ReconciliationMatchStatus,
 } from "@bedrock/reconciliation/schema";
-import {
-  canonicalJson,
-  sha256Hex,
-  type CorrelationContext,
-} from "@bedrock/common";
-import type { Database, Transaction } from "@bedrock/common/db/types";
+import { canonicalJson } from "@bedrock/kernel/canon";
+import type { CorrelationContext } from "@bedrock/kernel/correlation";
+import { sha256Hex } from "@bedrock/kernel/crypto";
+import type { Database, Transaction } from "@bedrock/kernel/db/types";
 
 import type {
   ReconciliationDocumentsPort,

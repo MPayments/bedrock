@@ -14,8 +14,10 @@ import {
 } from "../src";
 import { createDocumentsServiceContext } from "../src/internal/context";
 import type { DocumentModule } from "../src/types";
-import { createTestDocumentModule } from "@bedrock/test-utils/bedrock/builders/documents";
-import { createDocumentsServiceDeps } from "@bedrock/test-utils/bedrock/harness/documents";
+import {
+  createDocumentsServiceDeps,
+  createTestDocumentModule,
+} from "./helpers";
 
 function createModuleStub(): DocumentModule<{ memo: string }, { memo: string }> {
   const payloadSchema = z.object({ memo: z.string() });

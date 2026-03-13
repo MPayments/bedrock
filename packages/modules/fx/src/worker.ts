@@ -3,7 +3,7 @@ import type {
     WorkerRunContext,
     WorkerRunResult,
 } from "@bedrock/worker-runtime";
-import { type Logger } from "@bedrock/common";
+import type { Logger } from "@bedrock/kernel/logger";
 
 import { type FxService } from "./service";
 import { type FxRateSource } from "./sources";

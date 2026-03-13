@@ -4,7 +4,7 @@ import { schema } from "@bedrock/fees/schema";
 import { TransferCodes } from "@bedrock/accounting/constants";
 
 import { FeeValidationError } from "../src/errors";
-import { createTestFeesService } from "@bedrock/test-utils/bedrock/harness/fees";
+import { createTestFeesService } from "./helpers";
 
 const QUOTE_ID = "11111111-1111-4111-8111-111111111111";
 

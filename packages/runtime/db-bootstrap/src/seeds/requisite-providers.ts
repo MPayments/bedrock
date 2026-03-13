@@ -1,5 +1,5 @@
-import type { Database, Transaction } from "../client";
-import { schema } from "../schema";
+import type { Database, Transaction } from "@bedrock/db/client";
+import { schema } from "@bedrock/db";
 import { REQUISITE_PROVIDERS } from "./fixtures";
 
 export { REQUISITE_PROVIDER_IDS } from "./fixtures";

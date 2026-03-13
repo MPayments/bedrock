@@ -5,8 +5,8 @@ import {
   type Dimensions,
 } from "@bedrock/balances/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import { noopLogger, type Logger } from "@bedrock/common";
-import type { Database, Transaction } from "@bedrock/common/db/types";
+import { noopLogger, type Logger } from "@bedrock/kernel/logger";
+import type { Database, Transaction } from "@bedrock/kernel/db/types";
 import type {
   BedrockWorker,
   WorkerRunContext,

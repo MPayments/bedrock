@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
-import type { Database } from "../client";
-import { schema } from "../schema";
+import type { Database } from "@bedrock/db/client";
+import { schema } from "@bedrock/db";
 
 export const CURRENCY_IDS = {
   USD: "00000000-0000-4000-8000-000000000101",

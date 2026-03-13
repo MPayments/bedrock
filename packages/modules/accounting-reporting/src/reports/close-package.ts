@@ -1,8 +1,9 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { isInternalLedgerCounterparty } from "@bedrock/parties/counterparties";
-import { canonicalJson, sha256Hex } from "@bedrock/common";
-import { ValidationError } from "@bedrock/common/errors";
+import { canonicalJson } from "@bedrock/kernel/canon";
+import { sha256Hex } from "@bedrock/kernel/crypto";
+import { ValidationError } from "@bedrock/kernel/errors";
 
 import type {
   AccountingReportsContext,

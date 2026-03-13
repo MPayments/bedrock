@@ -1,6 +1,6 @@
 import { and, eq, isNull, ne, sql } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/common/db/types";
+import type { Transaction } from "@bedrock/kernel/db/types";
 import { schema as partiesLedgerSchema } from "@bedrock/parties-ledger/schema";
 
 import { RequisiteNotFoundError, RequisiteProviderNotActiveError } from "../errors";

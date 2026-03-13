@@ -5,8 +5,8 @@ import { schema as customersSchema } from "@bedrock/parties/customers/schema";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { type Dimensions } from "@bedrock/ledger/schema";
 import { schema as requisitesSchema } from "@bedrock/parties/requisites/schema";
-import { isUuidLike } from "@bedrock/common";
-import type { Database } from "@bedrock/common/db/types";
+import { isUuidLike } from "@bedrock/kernel/utils";
+import type { Database } from "@bedrock/kernel/db/types";
 
 const schema = {
   ...counterpartiesSchema,

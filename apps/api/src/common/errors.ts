@@ -17,7 +17,7 @@ import {
   NotFoundError,
   PermissionError,
   ValidationError,
-} from "@bedrock/common/errors";
+} from "@bedrock/kernel/errors";
 
 function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

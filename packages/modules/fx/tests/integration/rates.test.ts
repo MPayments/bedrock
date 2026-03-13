@@ -2,15 +2,14 @@ import { and, desc, eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import { createCurrenciesService } from "@bedrock/currencies";
-import { currencyIdForCode } from "@bedrock/db/seeds";
 import { schema } from "@bedrock/fx/schema";
-import { DAY_IN_SECONDS } from "@bedrock/common";
+import { DAY_IN_SECONDS } from "@bedrock/kernel/math";
 
 import { db } from "./setup";
 import { RateSourceStaleError } from "../../src/errors";
 import { createFxService } from "../../src/service";
 import { type FxRateSourceProvider } from "../../src/sources/types";
-import { createNoopFeesService } from "@bedrock/test-utils/bedrock/harness/fx";
+import { createNoopFeesService, currencyIdForCode } from "../helpers";
 
 function createFxServiceWithProvider(provider: FxRateSourceProvider) {
     return createFxService({

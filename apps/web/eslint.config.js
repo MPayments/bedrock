@@ -1,4 +1,5 @@
 import { nextJsConfig } from "@bedrock/eslint-config/next-js";
+import { clientReachableCommonImportPaths } from "@bedrock/eslint-config/client-reachable";
 
 /** @type {import("eslint").Linter.Config[]} */
 export default [
@@ -18,6 +19,7 @@ export default [
       "no-restricted-imports": [
         "error",
         {
+          paths: clientReachableCommonImportPaths,
           patterns: [
             {
               group: [

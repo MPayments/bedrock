@@ -1,8 +1,8 @@
-import dotenv from "dotenv";
+import { loadSeedEnv } from "./load-env";
 
-dotenv.config({ path: "./../../.env" });
+loadSeedEnv();
 
-const { db } = await import("../client");
+const { db } = await import("@bedrock/db/client");
 const { seedOrganizations } = await import("./organizations");
 
 await seedOrganizations(db);

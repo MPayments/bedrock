@@ -3,8 +3,8 @@ import { inArray, sql, type SQL } from "drizzle-orm";
 import {
   listInternalLedgerCounterparties,
 } from "@bedrock/parties/counterparties";
-import type { Database } from "@bedrock/common/db/types";
-import { ValidationError } from "@bedrock/common/errors";
+import type { Database } from "@bedrock/kernel/db/types";
+import { ValidationError } from "@bedrock/kernel/errors";
 
 import { toBigInt } from "./normalization";
 import { schema } from "./shared";

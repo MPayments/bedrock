@@ -7,7 +7,7 @@ import {
 import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
-} from "@bedrock/common/pagination";
+} from "@bedrock/kernel/pagination";
 
 export const OrganizationSchema = z.object({
   id: z.uuid(),

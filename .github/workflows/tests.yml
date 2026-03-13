@@ -35,6 +35,9 @@ jobs:
       - name: Check workspace dependency protocol
         run: bun run check:workspace-deps
 
+      - name: Check workspace graph
+        run: bun run check:graph
+
       - name: Run lint
         run: bun run lint
 

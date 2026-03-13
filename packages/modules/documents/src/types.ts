@@ -12,8 +12,9 @@ import type {
   DocumentSnapshot,
   DocumentSubmissionStatus,
 } from "@bedrock/documents/schema";
-import type { CorrelationContext, Logger } from "@bedrock/common";
-import type { Database, Transaction } from "@bedrock/common/db/types";
+import type { CorrelationContext } from "@bedrock/kernel/correlation";
+import type { Database, Transaction } from "@bedrock/kernel/db/types";
+import type { Logger } from "@bedrock/kernel/logger";
 
 import type {
   DocumentsAccountingPort,
@@ -22,7 +23,6 @@ import type {
   DocumentsLedgerReadPort,
 } from "./ports";
 import type { DocumentAction } from "./state-machine";
-
 
 export type {
   Document,

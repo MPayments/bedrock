@@ -1,4 +1,4 @@
-import type { WorkerLoopObserver } from "@bedrock/common";
+import type { WorkerLoopObserver } from "@bedrock/kernel/worker-loop";
 
 export interface WorkerRunContext {
   now: Date;

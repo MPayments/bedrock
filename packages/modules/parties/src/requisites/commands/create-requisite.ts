@@ -2,7 +2,7 @@ import { and, eq, isNull, ne } from "drizzle-orm";
 
 import { CounterpartyNotFoundError } from "@bedrock/parties/counterparties";
 import { OrganizationNotFoundError } from "@bedrock/parties/organizations";
-import type { Transaction } from "@bedrock/common/db/types";
+import type { Transaction } from "@bedrock/kernel/db/types";
 
 import { RequisiteNotFoundError, RequisiteProviderNotActiveError } from "../errors";
 import { ensureRequisiteAccountingBindingTx } from "../internal/bindings";

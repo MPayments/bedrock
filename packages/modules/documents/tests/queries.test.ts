@@ -10,7 +10,7 @@ import type { DocumentModule } from "../src/types";
 import {
   buildTestDocument,
   createTestDocumentModule,
-} from "@bedrock/test-utils/bedrock/builders/documents";
+} from "./helpers";
 
 const makeDocument = (overrides: Partial<Document> = {}) => buildTestDocument(overrides);
 const createModuleStub = () =>

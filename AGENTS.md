@@ -21,12 +21,13 @@ Runtime is split by package kind:
 - `packages/runtime/*` for execution hosts
 - `packages/plugins/*` for document add-ons
 - `packages/integrations/*` for narrow cross-domain glue
-- `@bedrock/common` for shared primitives and infrastructure helpers
+- `@bedrock/kernel` for shared primitives and infrastructure helpers
 
 Core dependency direction:
 
-- `@bedrock/common -> modules/platform/runtime/plugins/integrations -> apps/*`
-- `@bedrock/db` aggregates schemas from owning packages and provides DB client/migrations/seeds.
+- `@bedrock/kernel -> modules/platform/runtime/plugins/integrations -> apps/*`
+- `@bedrock/db` aggregates schemas from owning packages and provides the DB client/migrations.
+- `@bedrock/db-bootstrap` owns DB seeds/bootstrap runners.
 
 Hard rules:
 
@@ -37,7 +38,8 @@ Hard rules:
   - `packages/modules/*/src/<subdomain>/schema.ts` for grouped packages such as `@bedrock/parties`
   - `packages/platform/*/src/schema.ts` or `schema/**` when platform packages own schema
   - `packages/integrations/*/src/schema.ts` or `schema/**` when integration packages own schema
-- `@bedrock/db` must not own domain table declarations; it only aggregates domain schemas for client/migrations/seeds.
+- `@bedrock/db` must not own domain table declarations; it only aggregates domain schemas for client/migrations.
+- `@bedrock/db-bootstrap` is the only workspace package that should own shared seed/bootstrap orchestration.
 - Business packages must not import `@bedrock/db` from runtime code. Only apps, approved tooling/scripts, seeds/bootstrap, and integration tests may do so.
 
 ## Package Manager and Runtime
@@ -51,7 +53,7 @@ Hard rules:
 // package.json
 "dependencies": {
     "@bedrock/db": "workspace:*",     // correct
-    "@bedrock/common": "workspace:*", // correct
+    "@bedrock/kernel": "workspace:*", // correct
     "@bedrock/ledger": "workspace:*"  // correct
     // NOT "@bedrock/db": "*"
 }
@@ -164,7 +166,7 @@ Within each package, this is the common default layout:
 |---|---|
 | `index.ts` | Public exports (service factory, types, errors, validation schemas) |
 | `service.ts` | Service factory function |
-| `errors.ts` | Custom error classes extending `ServiceError` from `@bedrock/common/errors` |
+| `errors.ts` | Custom error classes extending `ServiceError` from `@bedrock/kernel/errors` |
 | `validation.ts` | Zod schemas, derived types via `z.infer`, validator helpers |
 | `internal/context.ts` | `Deps` / `Context` types and context factory |
 | `commands/` | Command handlers (when the service is large) |
@@ -181,6 +183,7 @@ Within each package, this is the common default layout:
 ### Modules
 
 - All packages use ESM (`"type": "module"` in package.json).
+- Client-reachable code must never import `@bedrock/kernel` from the root barrel. Use explicit safe subpaths such as `@bedrock/kernel/math`, `@bedrock/kernel/utils`, or `@bedrock/kernel/canon`. Server-only helpers live under `@bedrock/kernel/logger`, `@bedrock/kernel/crypto`, and `@bedrock/kernel/worker-loop`.
 
 ### Import order
 
@@ -192,11 +195,11 @@ Separate each group with a blank line.
 
 ### Error handling
 
-- Define custom error classes extending `ServiceError` from `@bedrock/common/errors`.
+- Define custom error classes extending `ServiceError` from `@bedrock/kernel/errors`.
 - Throw errors directly; do not return error codes.
 
 ```typescript
-import { ServiceError } from "@bedrock/common/errors";
+import { ServiceError } from "@bedrock/kernel/errors";
 
 export class OrderNotFoundError extends ServiceError {
     constructor(id: string) {
@@ -217,7 +220,7 @@ export class OrderNotFoundError extends ServiceError {
 - Schema uses `snake_case` column naming convention.
 - Runtime table definitions must be colocated in the owning package under `src/schema.ts`, `src/schema/**`, or grouped subdomain `src/<subdomain>/schema.ts`.
 - Runtime code imports schemas through package exports such as `@bedrock/ledger/schema` or `@bedrock/parties/requisites/schema`.
-- Runtime code imports shared database connection types from `@bedrock/common/db/types`.
+- Runtime code imports shared database connection types from `@bedrock/kernel/db/types`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.
 - Migration policy is baseline-only hard cutover.
   - Mandatory sequence: `db:nuke -> db:migrate -> db:seed`.

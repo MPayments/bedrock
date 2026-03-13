@@ -23,7 +23,7 @@ import {
   createUsersService,
   type UsersService,
 } from "@bedrock/users";
-import { createConsoleLogger, type Logger } from "@bedrock/common";
+import { createConsoleLogger, type Logger } from "@bedrock/kernel/logger";
 import { db } from "@bedrock/db/client";
 
 export interface ApiCoreServices {

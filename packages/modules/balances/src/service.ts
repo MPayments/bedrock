@@ -6,9 +6,9 @@ import {
   type BalancePosition,
 } from "@bedrock/balances/schema";
 import { IDEMPOTENCY_SCOPE } from "@bedrock/idempotency";
-import type { CorrelationContext } from "@bedrock/common";
-import { pgNotify } from "@bedrock/common/db/notify";
-import type { Transaction } from "@bedrock/common/db/types";
+import type { CorrelationContext } from "@bedrock/kernel/correlation";
+import { pgNotify } from "@bedrock/kernel/db/notify";
+import type { Transaction } from "@bedrock/kernel/db/types";
 
 import {
   BalanceHoldConflictError,

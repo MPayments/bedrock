@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-import { ValidationError } from "@bedrock/common/errors";
+import { ValidationError } from "@bedrock/kernel/errors";
 import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
-} from "@bedrock/common/pagination";
+} from "@bedrock/kernel/pagination";
 
 import {
   buildRequisiteOptionLabel,

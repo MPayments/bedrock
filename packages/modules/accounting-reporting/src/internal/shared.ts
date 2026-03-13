@@ -7,7 +7,7 @@ import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { schema as organizationsSchema } from "@bedrock/parties/organizations/schema";
 import { schema as requisitesSchema } from "@bedrock/parties/requisites/schema";
-import type { Database } from "@bedrock/common/db/types";
+import type { Database } from "@bedrock/kernel/db/types";
 
 import type { LineMapping, ScopedPosting } from "../reports/types";
 import { schema as reportingSchema } from "../schema";

@@ -9,7 +9,7 @@ import {
   UserNotFoundError,
   UpdateUserInputSchema,
 } from "@bedrock/users";
-import { createPaginatedListSchema } from "@bedrock/common/pagination";
+import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";

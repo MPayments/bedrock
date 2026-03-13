@@ -1,11 +1,11 @@
 import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/common/db/types";
+import type { Database, Transaction } from "@bedrock/kernel/db/types";
 import {
   resolveSortOrder,
   resolveSortValue,
   type PaginatedList,
-} from "@bedrock/common/pagination";
+} from "@bedrock/kernel/pagination";
 
 import { account, session, user } from "./schema";
 import type {

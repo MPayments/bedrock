@@ -4,7 +4,7 @@ import {
   amountValueSchema,
   parseMinorAmount,
   toMinorAmountString,
-} from "@bedrock/common/money";
+} from "@bedrock/kernel/money";
 import {
   financialLineBucketSchema,
   financialLineSchema,

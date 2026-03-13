@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { schema as counterpartiesSchema } from "@bedrock/parties/counterparties/schema";
-import type { Transaction } from "@bedrock/common/db/types";
+import type { Transaction } from "@bedrock/kernel/db/types";
 
 import { resolveGroupMembershipClassification } from "../../internal/group-rules";
 import {

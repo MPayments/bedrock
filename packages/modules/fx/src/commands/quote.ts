@@ -5,8 +5,8 @@ import {
     type FinancialLine,
 } from "@bedrock/documents/financial-lines";
 import { schema, type FxQuote, type FxQuoteLeg } from "@bedrock/fx/schema";
-import { effectiveRateFromAmounts, mulDivFloor } from "@bedrock/common";
-import type { Transaction } from "@bedrock/common/db/types";
+import { effectiveRateFromAmounts, mulDivFloor } from "@bedrock/kernel/math";
+import type { Transaction } from "@bedrock/kernel/db/types";
 
 import {
     NotFoundError,

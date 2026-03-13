@@ -1,5 +1,5 @@
-import { type Logger, noopLogger } from "@bedrock/common";
-import type { Database } from "@bedrock/common/db/types";
+import { noopLogger, type Logger } from "@bedrock/kernel/logger";
+import type { Database } from "@bedrock/kernel/db/types";
 
 export interface RequisitesServiceDeps {
   db: Database;

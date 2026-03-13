@@ -4,10 +4,6 @@ import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 
 import auth from "./auth";
-import {
-  API_APPLICATION_MODULES,
-  type ApiApplicationModule,
-} from "./modules/registry";
 import { createAppContext, parseEnv } from "./context";
 import {
   authMiddleware,
@@ -15,6 +11,7 @@ import {
   type AuthVariables,
 } from "./middleware/auth";
 import { requestContextMiddleware } from "./middleware/request-context";
+import { API_APPLICATION_MODULES } from "./modules/registry";
 import {
   accountingRoutes,
   balancesRoutes,

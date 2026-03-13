@@ -1,9 +1,7 @@
 import "./env";
 
-import {
-  createConsoleLogger,
-  installShutdownHandlers,
-} from "@bedrock/common";
+import { createConsoleLogger } from "@bedrock/kernel/logger";
+import { installShutdownHandlers } from "@bedrock/kernel/worker-loop";
 import { db } from "@bedrock/db/client";
 import { createTbClient } from "@bedrock/ledger";
 import {

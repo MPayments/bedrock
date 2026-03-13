@@ -16,7 +16,7 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
-    "@bedrock/common": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "better-auth": "^1.4.18",
     "drizzle-orm": "^0.45.1"
   },

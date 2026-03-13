@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { ensureBookAccountInstanceTx } from "@bedrock/ledger";
-import type { Transaction } from "@bedrock/common/db/types";
+import type { Transaction } from "@bedrock/kernel/db/types";
 
 import { ensureOrganizationDefaultBookIdTx } from "./default-books";
 import { schema } from "./schema";

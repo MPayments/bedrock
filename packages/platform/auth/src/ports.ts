@@ -1,4 +1,4 @@
-import type { PaginatedList } from "@bedrock/common/pagination";
+import type { PaginatedList } from "@bedrock/kernel/pagination";
 
 import type { account, user } from "./schema";
 

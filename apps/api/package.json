@@ -22,7 +22,7 @@
     "@bedrock/auth": "workspace:*",
     "@bedrock/balances": "workspace:*",
     "@bedrock/commercial-documents": "workspace:*",
-    "@bedrock/common": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/db": "workspace:*",
     "@bedrock/documents": "workspace:*",

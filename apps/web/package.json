@@ -16,7 +16,7 @@
     "@bedrock/accounting-reporting": "workspace:*",
     "@bedrock/api-client": "workspace:*",
     "@bedrock/commercial-documents": "workspace:*",
-    "@bedrock/common": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fx": "workspace:*",

@@ -5,6 +5,7 @@ import pluginReactHooks from "eslint-plugin-react-hooks";
 import pluginReact from "eslint-plugin-react";
 import globals from "globals";
 import { config as baseConfig } from "./base.js";
+import { clientReachableCommonImportPaths } from "./client-reachable.js";
 
 /**
  * A custom ESLint configuration for libraries that use React.
@@ -23,6 +24,17 @@ export const config = [
         ...globals.serviceworker,
         ...globals.browser,
       },
+    },
+  },
+  {
+    files: ["**/*.{js,jsx,ts,tsx,mjs,cjs}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: clientReachableCommonImportPaths,
+        },
+      ],
     },
   },
   {

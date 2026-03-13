@@ -16,7 +16,7 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
-    "@bedrock/common": "workspace:*",
+    "@bedrock/kernel": "workspace:*",
     "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {
