@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev --concurrency 30",
+    "dev": "turbo run dev --concurrency 25",
     "lint": "turbo run lint",
     "check:boundaries": "node ./scripts/check-boundaries.mjs && node ./scripts/check-accounting-literals.mjs && node ./scripts/check-deprecated-imports.mjs",
     "check:worker-runtime": "node ./scripts/check-worker-runtime.mjs",
