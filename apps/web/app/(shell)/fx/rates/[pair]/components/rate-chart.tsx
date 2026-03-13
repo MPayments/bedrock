@@ -117,6 +117,7 @@ export function RateChart({
       <CardContent>
         <ChartContainer config={CHART_CONFIG} className="h-[350px] w-full">
           <LineChart
+            accessibilityLayer={true}
             data={data}
             margin={{ top: 5, right: 10, left: 10, bottom: 0 }}
           >
