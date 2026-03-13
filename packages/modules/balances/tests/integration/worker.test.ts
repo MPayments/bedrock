@@ -184,7 +184,7 @@ describe("balances projector integration", () => {
 
     await db.insert(schema.books).values({
       id: bookId,
-      organizationId: internalCounterpartyId,
+      ownerId: internalCounterpartyId,
       code: `it-balances-${bookId}`,
       name: "Integration Balances Book",
       isDefault: false,

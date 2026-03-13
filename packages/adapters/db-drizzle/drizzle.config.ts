@@ -4,13 +4,10 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const dir = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: resolve(dir, "../../.env") });
+dotenv.config({ path: resolve(dir, "../../../.env") });
 
 export default defineConfig({
-  schema: [
-    "../application/src/*/schema.ts",
-    "../application/src/*/schema/**/*.ts",
-  ],
+  schema: "./src/schema/index.ts",
 
   out: "./migrations",
   dialect: "postgresql",

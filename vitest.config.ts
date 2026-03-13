@@ -27,6 +27,7 @@ export default defineConfig({
       "packages/modules/parties/vitest.config.ts",
       "packages/modules/parties/vitest.integration.config.ts",
       "packages/modules/parties-ledger/vitest.config.ts",
+      "packages/modules/parties-ledger/vitest.integration.config.ts",
       "packages/modules/reconciliation/vitest.config.ts",
       "packages/modules/reconciliation/vitest.integration.config.ts",
       "packages/modules/users/vitest.config.ts",

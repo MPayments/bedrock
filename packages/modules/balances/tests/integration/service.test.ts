@@ -46,7 +46,7 @@ async function seedBook(bookId: string) {
 
   await db.insert(schema.books).values({
     id: bookId,
-    organizationId: randomUUID(),
+    ownerId: randomUUID(),
     code: `balances-it-${bookId}`,
     name: "Balances Integration Book",
     isDefault: false,

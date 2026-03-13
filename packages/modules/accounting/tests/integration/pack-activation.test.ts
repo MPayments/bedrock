@@ -134,7 +134,7 @@ describe("accounting pack activation integration", () => {
 
     await db.insert(schema.books).values({
       id: bookId,
-      organizationId: internalCounterpartyId,
+      ownerId: internalCounterpartyId,
       code: `it-pack-${bookId}`,
       name: "Integration Pack Book",
       isDefault: false,
@@ -171,5 +171,48 @@ describe("accounting pack activation integration", () => {
         packChecksum: compiled.checksum,
       }),
     );
+  });
+
+  it("resolves the active pack by effective date", async () => {
+    const runtime = createAccountingRuntime({
+      db,
+      defaultPackDefinition: rawPackDefinition,
+    });
+    const bookId = randomUUID();
+    const internalCounterpartyId = await resolveInternalLedgerCounterpartyId();
+    createdBookIds.add(bookId);
+
+    await db.insert(schema.books).values({
+      id: bookId,
+      ownerId: internalCounterpartyId,
+      code: `it-pack-effective-${bookId}`,
+      name: "Integration Effective Pack Book",
+      isDefault: false,
+    });
+
+    const futureCompiled = await runtime.storeCompiledPackVersion({
+      definition: {
+        ...rawPackDefinition,
+        version: rawPackDefinition.version + 1,
+      },
+    });
+
+    await runtime.activatePackForScope({
+      scopeId: bookId,
+      packChecksum: futureCompiled.checksum,
+      effectiveAt: new Date("2026-03-01T09:00:00.000Z"),
+    });
+
+    const beforeEffective = await runtime.loadActiveCompiledPackForBook({
+      bookId,
+      at: new Date("2026-03-01T08:59:59.000Z"),
+    });
+    const afterEffective = await runtime.loadActiveCompiledPackForBook({
+      bookId,
+      at: new Date("2026-03-01T09:00:01.000Z"),
+    });
+
+    expect(beforeEffective.checksum).toBe(runtime.getDefaultCompiledPack().checksum);
+    expect(afterEffective.checksum).toBe(futureCompiled.checksum);
   });
 });

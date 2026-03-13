@@ -14,7 +14,7 @@ const REQUIRED_TABLES = [
 const REQUIRED_COLUMNS = [
   {
     tableName: "books",
-    columnName: "organization_id",
+    columnName: "owner_id",
   },
   {
     tableName: "requisites",
