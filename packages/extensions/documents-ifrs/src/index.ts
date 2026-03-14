@@ -14,9 +14,9 @@ export type {
   IfrsTransferLookupPort,
   OrganizationRequisiteBinding,
   PendingTransferRecord,
-  QuoteSnapshotLoaderPort,
   QuoteUsagePort,
   RequisitesService,
+  TreasuryFxQuotePort,
   TransferDependencyDocument,
 } from "./documents";
 

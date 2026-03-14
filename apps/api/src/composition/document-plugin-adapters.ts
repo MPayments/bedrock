@@ -6,12 +6,14 @@ import {
 } from "@bedrock/extension-documents-commercial/contracts";
 import { QuoteSnapshotSchema } from "@bedrock/extension-documents-commercial/validation";
 import { type CommercialModuleDeps } from "@bedrock/extension-documents-commercial";
+import { FxExecuteQuoteSnapshotSchema } from "@bedrock/extension-documents-ifrs";
 import {
   DocumentValidationError,
   type DocumentModule,
 } from "@bedrock/documents";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as fxSchema } from "@bedrock/fx/schema";
+import type { FxService } from "@bedrock/fx";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { IfrsModuleDeps } from "@bedrock/extension-documents-ifrs";
@@ -30,7 +32,7 @@ const ACCEPTANCE_DOC_TYPE = "acceptance";
 const FX_EXECUTE_DOC_TYPE = "fx_execute";
 const TRANSFER_DOC_TYPES = ["transfer_intra", "transfer_intercompany"] as const;
 
-function buildQuoteSnapshotHash(snapshot: Omit<QuoteSnapshot, "snapshotHash">) {
+function buildQuoteSnapshotHash(snapshot: Record<string, unknown>) {
   return sha256Hex(canonicalJson(snapshot));
 }
 
@@ -66,7 +68,28 @@ async function loadQuoteSnapshotRecord(input: {
   currenciesService: CurrenciesService;
   quoteRef: string;
 }): Promise<QuoteSnapshot> {
-  const { db, currenciesService, quoteRef } = input;
+  const { quote, resolvedRef } = await loadQuoteRecordByRef(input);
+  const snapshotWithoutHash = await buildQuoteSnapshotBase({
+    db: input.db,
+    currenciesService: input.currenciesService,
+    quote,
+  });
+
+  return QuoteSnapshotSchema.parse({
+    ...snapshotWithoutHash,
+    quoteRef: resolvedRef,
+    snapshotHash: buildQuoteSnapshotHash({
+      ...snapshotWithoutHash,
+      quoteRef: resolvedRef,
+    }),
+  });
+}
+
+async function loadQuoteRecordByRef(input: {
+  db: Queryable;
+  quoteRef: string;
+}) {
+  const { db, quoteRef } = input;
   let quote: typeof fxSchema.fxQuotes.$inferSelect | null = null;
 
   if (isUuidLike(quoteRef)) {
@@ -101,6 +124,35 @@ async function loadQuoteSnapshotRecord(input: {
     throw new DocumentValidationError(`Quote not found: ${quoteRef}`);
   }
 
+  return {
+    quote,
+    resolvedRef: quoteRef,
+  };
+}
+
+async function loadQuoteRecordById(input: {
+  db: Queryable;
+  quoteId: string;
+}) {
+  const [quote] = await input.db
+    .select()
+    .from(fxSchema.fxQuotes)
+    .where(eq(fxSchema.fxQuotes.id, input.quoteId))
+    .limit(1);
+
+  if (!quote) {
+    throw new DocumentValidationError(`Quote not found: ${input.quoteId}`);
+  }
+
+  return quote;
+}
+
+async function buildQuoteSnapshotBase(input: {
+  db: Queryable;
+  currenciesService: CurrenciesService;
+  quote: typeof fxSchema.fxQuotes.$inferSelect;
+}) {
+  const { db, currenciesService, quote } = input;
   const [fromCurrency, toCurrency] = await Promise.all([
     currenciesService.findById(quote.fromCurrencyId),
     currenciesService.findById(quote.toCurrencyId),
@@ -137,9 +189,8 @@ async function loadQuoteSnapshotRecord(input: {
     }),
   );
 
-  const snapshotWithoutHash = {
+  return {
     quoteId: quote.id,
-    quoteRef,
     idempotencyKey: quote.idempotencyKey,
     fromCurrency: fromCurrency.code,
     toCurrency: toCurrency.code,
@@ -185,9 +236,25 @@ async function loadQuoteSnapshotRecord(input: {
         settlementMode: normalizedLine.settlementMode ?? "in_ledger",
       };
     }),
-  } satisfies Omit<QuoteSnapshot, "snapshotHash">;
+  };
+}
 
-  return QuoteSnapshotSchema.parse({
+async function loadFxExecuteQuoteSnapshotById(input: {
+  db: Queryable;
+  currenciesService: CurrenciesService;
+  quoteId: string;
+}) {
+  const quote = await loadQuoteRecordById({
+    db: input.db,
+    quoteId: input.quoteId,
+  });
+  const snapshotWithoutHash = await buildQuoteSnapshotBase({
+    db: input.db,
+    currenciesService: input.currenciesService,
+    quote,
+  });
+
+  return FxExecuteQuoteSnapshotSchema.parse({
     ...snapshotWithoutHash,
     snapshotHash: buildQuoteSnapshotHash(snapshotWithoutHash),
   });
@@ -429,9 +496,10 @@ export function createCommercialDocumentDeps(input: {
 
 export function createIfrsDocumentDeps(input: {
   currenciesService: CurrenciesService;
+  fxService: FxService;
   requisitesService: RequisitesService;
 }): IfrsModuleDeps {
-  const { currenciesService, requisitesService } = input;
+  const { currenciesService, fxService, requisitesService } = input;
 
   return {
     requisitesService,
@@ -563,12 +631,42 @@ export function createIfrsDocumentDeps(input: {
           .orderBy(asc(ledgerSchema.tbTransferPlans.lineNo));
       },
     },
-    quoteSnapshot: {
-      loadQuoteSnapshot({ db, quoteRef }) {
-        return loadQuoteSnapshotRecord({
+    treasuryFxQuote: {
+      async createQuoteSnapshot({
+        db,
+        fromCurrency,
+        toCurrency,
+        fromAmountMinor,
+        asOf,
+        idempotencyKey,
+      }: {
+        db: Queryable;
+        fromCurrency: string;
+        toCurrency: string;
+        fromAmountMinor: string;
+        asOf: Date;
+        idempotencyKey: string;
+      }) {
+        const quote = await fxService.quote({
+          mode: "auto_cross",
+          idempotencyKey,
+          fromCurrency,
+          toCurrency,
+          fromAmountMinor: BigInt(fromAmountMinor),
+          asOf,
+        });
+
+        return loadFxExecuteQuoteSnapshotById({
           db,
           currenciesService,
-          quoteRef,
+          quoteId: quote.id,
+        });
+      },
+      loadQuoteSnapshotById({ db, quoteId }) {
+        return loadFxExecuteQuoteSnapshotById({
+          db,
+          currenciesService,
+          quoteId,
         });
       },
     },

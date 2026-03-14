@@ -13,7 +13,8 @@ export const COUNTERPARTY_IDS = {
 } as const;
 
 export const ORGANIZATION_IDS = {
-  BEDROCK_PRIMARY: "00000000-0000-4000-8000-000000000310",
+  MULTIHANSA_PRIMARY: "00000000-0000-4000-8000-000000000310",
+  MULTIHANSA_RUSSIA: "00000000-0000-4000-8000-000000000320",
 } as const;
 
 export const REQUISITE_PROVIDER_IDS = {
@@ -24,14 +25,14 @@ export const REQUISITE_PROVIDER_IDS = {
 } as const;
 
 export const REQUISITE_IDS = {
-  BEDROCK_USD: "00000000-0000-4000-8000-000000000501",
-  BEDROCK_EUR: "00000000-0000-4000-8000-000000000502",
+  MULTIHANSA_USD: "00000000-0000-4000-8000-000000000501",
+  MULTIHANSA_EUR: "00000000-0000-4000-8000-000000000502",
   ACME_USD: "00000000-0000-4000-8000-000000000511",
   ACME_EUR: "00000000-0000-4000-8000-000000000512",
   GLOBEX_USD: "00000000-0000-4000-8000-000000000521",
-  BEDROCK_USDT: "00000000-0000-4000-8000-000000000531",
-  BEDROCK_CNY: "00000000-0000-4000-8000-000000000541",
-  BEDROCK_JPY: "00000000-0000-4000-8000-000000000542",
+  MULTIHANSA_USDT: "00000000-0000-4000-8000-000000000531",
+  MULTIHANSA_CNY: "00000000-0000-4000-8000-000000000541",
+  MULTIHANSA_JPY: "00000000-0000-4000-8000-000000000542",
   INITECH_GBP: "00000000-0000-4000-8000-000000000551",
   UMBRELLA_AED: "00000000-0000-4000-8000-000000000552",
   UMBRELLA_USDT: "00000000-0000-4000-8000-000000000553",
@@ -97,13 +98,22 @@ export const COUNTERPARTIES = [
 
 export const ORGANIZATIONS = [
   {
-    id: ORGANIZATION_IDS.BEDROCK_PRIMARY,
+    id: ORGANIZATION_IDS.MULTIHANSA_PRIMARY,
     externalId: "multihansa-primary",
     shortName: "Multihansa",
     fullName: "Multihansa Financial Services Ltd",
     description: "Primary treasury and accounting organization",
     kind: "legal_entity" as const,
     country: "AE" as const,
+  },
+  {
+    id: ORGANIZATION_IDS.MULTIHANSA_RUSSIA,
+    externalId: "multihansa-russia",
+    shortName: "Multihansa Russia",
+    fullName: "Multihansa Russia LLC",
+    description: "Russia operating organization for local treasury and accounting",
+    kind: "legal_entity" as const,
+    country: "RU" as const,
   },
 ] as const;
 
@@ -186,9 +196,9 @@ export interface SeedRequisiteFixture {
 
 export const REQUISITES: readonly SeedRequisiteFixture[] = [
   {
-    id: REQUISITE_IDS.BEDROCK_USD,
+    id: REQUISITE_IDS.MULTIHANSA_USD,
     ownerType: "organization",
-    ownerId: ORGANIZATION_IDS.BEDROCK_PRIMARY,
+    ownerId: ORGANIZATION_IDS.MULTIHANSA_PRIMARY,
     providerId: REQUISITE_PROVIDER_IDS.MAIN_BANK,
     currencyCode: "USD",
     kind: "bank",
@@ -201,9 +211,9 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     isDefault: true,
   },
   {
-    id: REQUISITE_IDS.BEDROCK_EUR,
+    id: REQUISITE_IDS.MULTIHANSA_EUR,
     ownerType: "organization",
-    ownerId: ORGANIZATION_IDS.BEDROCK_PRIMARY,
+    ownerId: ORGANIZATION_IDS.MULTIHANSA_PRIMARY,
     providerId: REQUISITE_PROVIDER_IDS.MAIN_BANK,
     currencyCode: "EUR",
     kind: "bank",
@@ -216,9 +226,9 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     isDefault: true,
   },
   {
-    id: REQUISITE_IDS.BEDROCK_USDT,
+    id: REQUISITE_IDS.MULTIHANSA_USDT,
     ownerType: "organization",
-    ownerId: ORGANIZATION_IDS.BEDROCK_PRIMARY,
+    ownerId: ORGANIZATION_IDS.MULTIHANSA_PRIMARY,
     providerId: REQUISITE_PROVIDER_IDS.CRYPTO_EXCHANGE,
     currencyCode: "USDT",
     kind: "exchange",
@@ -230,9 +240,9 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     isDefault: true,
   },
   {
-    id: REQUISITE_IDS.BEDROCK_CNY,
+    id: REQUISITE_IDS.MULTIHANSA_CNY,
     ownerType: "organization",
-    ownerId: ORGANIZATION_IDS.BEDROCK_PRIMARY,
+    ownerId: ORGANIZATION_IDS.MULTIHANSA_PRIMARY,
     providerId: REQUISITE_PROVIDER_IDS.ALT_BANK,
     currencyCode: "CNY",
     kind: "bank",
@@ -245,9 +255,9 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
     isDefault: true,
   },
   {
-    id: REQUISITE_IDS.BEDROCK_JPY,
+    id: REQUISITE_IDS.MULTIHANSA_JPY,
     ownerType: "organization",
-    ownerId: ORGANIZATION_IDS.BEDROCK_PRIMARY,
+    ownerId: ORGANIZATION_IDS.MULTIHANSA_PRIMARY,
     providerId: REQUISITE_PROVIDER_IDS.ALT_BANK,
     currencyCode: "JPY",
     kind: "bank",

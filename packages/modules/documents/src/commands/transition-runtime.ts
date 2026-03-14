@@ -122,6 +122,7 @@ export async function runDocumentTransition(input: {
         actorUserId: transition.actorUserId,
         now: new Date(),
         log: services.log,
+        operationIdempotencyKey: null,
       });
 
       return services.idempotency.withIdempotencyTx({

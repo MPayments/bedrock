@@ -57,9 +57,17 @@ export function resolveModuleForDocument(
 }
 
 export function createModuleContext(
-  deps: Pick<DocumentModuleContext, "actorUserId" | "db" | "log" | "now">,
+  deps: Pick<
+    DocumentModuleContext,
+    "actorUserId" | "db" | "log" | "now"
+  > & {
+    operationIdempotencyKey?: string | null;
+  },
 ): DocumentModuleContext {
-  return deps;
+  return {
+    ...deps,
+    operationIdempotencyKey: deps.operationIdempotencyKey ?? null,
+  };
 }
 
 export function resolveDocumentModuleIdentity(module: DocumentModule) {

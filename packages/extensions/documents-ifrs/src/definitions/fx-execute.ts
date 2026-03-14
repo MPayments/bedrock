@@ -1,3 +1,4 @@
+import { normalizeMajorAmountInput } from "@bedrock/money";
 import { FINANCIAL_LINE_BUCKET_OPTIONS } from "@bedrock/documents/financial-lines";
 
 import type { IfrsDocumentCatalogEntry } from "./types";
@@ -7,6 +8,7 @@ import {
   optionalNumber,
   optionalString,
   parseSchema,
+  RUSSIAN_MAJOR_AMOUNT_MESSAGES,
   readString,
   toOccurredAtIso,
   TWO_COLUMN_SM_COLUMNS,
@@ -20,7 +22,8 @@ function getDefaultFxExecuteValues() {
     sourceRequisiteId: "",
     destinationOrganizationId: "",
     destinationRequisiteId: "",
-    quoteRef: "",
+    amount: "",
+    currency: "",
     executionRef: "",
     timeoutSeconds: "",
     financialLines: [],
@@ -76,16 +79,27 @@ export const fxExecuteDocumentDefinition = {
             optionsSource: "organizationRequisites",
           },
           {
-            kind: "text",
-            name: "quoteRef",
-            label: "Quote ref",
-            placeholder: "quote-ref / UUID",
+            kind: "amount",
+            name: "amount",
+            label: "Сумма списания",
+          },
+          {
+            kind: "currency",
+            name: "currency",
+            label: "Валюта источника",
+            hidden: true,
+            deriveFrom: {
+              kind: "accountCurrency",
+              accountFieldNames: ["sourceRequisiteId"],
+            },
           },
           {
             kind: "text",
             name: "executionRef",
-            label: "Execution ref",
-            placeholder: "exec:...",
+            label: "Референс исполнения",
+            placeholder: "provider/dealer ticket",
+            description:
+              "Опционально. Референс исполнения у провайдера или дилера.",
           },
           {
             kind: "number",
@@ -110,7 +124,7 @@ export const fxExecuteDocumentDefinition = {
             },
             {
               columns: TWO_COLUMN_SM_COLUMNS,
-              fields: ["quoteRef", "executionRef"],
+              fields: ["amount", "executionRef"],
             },
             {
               columns: TWO_COLUMN_SM_COLUMNS,
@@ -153,7 +167,12 @@ export const fxExecuteDocumentDefinition = {
         sourceRequisiteId: readString(payload.sourceRequisiteId),
         destinationOrganizationId: readString(payload.destinationOrganizationId),
         destinationRequisiteId: readString(payload.destinationRequisiteId),
-        quoteRef: readString(quoteSnapshot?.quoteRef),
+        amount: normalizeMajorAmountInput(
+          payload.amount,
+          quoteSnapshot?.fromCurrency,
+          RUSSIAN_MAJOR_AMOUNT_MESSAGES,
+        ),
+        currency: readString(quoteSnapshot?.fromCurrency),
         executionRef: readString(payload.executionRef),
         timeoutSeconds:
           typeof payload.timeoutSeconds === "number"
@@ -175,7 +194,11 @@ export const fxExecuteDocumentDefinition = {
         occurredAt: toOccurredAtIso(values.occurredAt),
         sourceRequisiteId: readString(values.sourceRequisiteId).trim(),
         destinationRequisiteId: readString(values.destinationRequisiteId).trim(),
-        quoteRef: readString(values.quoteRef).trim(),
+        amount: normalizeMajorAmountInput(
+          values.amount,
+          values.currency,
+          RUSSIAN_MAJOR_AMOUNT_MESSAGES,
+        ),
         executionRef: optionalString(values.executionRef),
         timeoutSeconds: optionalNumber(values.timeoutSeconds),
         financialLines: Array.isArray(values.financialLines)

@@ -52,6 +52,7 @@ export interface DocumentModuleContext {
   actorUserId: string;
   now: Date;
   log: Logger;
+  operationIdempotencyKey: string | null;
 }
 
 export interface DocumentDraftResult {

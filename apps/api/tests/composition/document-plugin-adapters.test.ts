@@ -173,6 +173,9 @@ describe("document plugin adapters composition", () => {
       currenciesService: {
         findById: vi.fn(),
       } as any,
+      fxService: {
+        quote: vi.fn(),
+      } as any,
       requisitesService: {
         resolveBindings: vi.fn(async () => []),
         findById: vi.fn(),
@@ -300,6 +303,13 @@ describe("document plugin adapters composition", () => {
           throw new Error(`Unknown currency ${id}`);
         }),
       } as any,
+      fxService: {
+        quote: vi.fn(async () => ({
+          ...quote,
+          fromCurrency: "USD",
+          toCurrency: "EUR",
+        })),
+      } as any,
       requisitesService: {
         resolveBindings: vi.fn(async () => []),
         findById: vi.fn(),
@@ -307,15 +317,30 @@ describe("document plugin adapters composition", () => {
     });
 
     await expect(
-      deps.quoteSnapshot.loadQuoteSnapshot({
+      deps.treasuryFxQuote.createQuoteSnapshot({
         db: db as any,
-        quoteRef: "quote-ref-1",
+        fromCurrency: "USD",
+        toCurrency: "EUR",
+        fromAmountMinor: "10000",
+        asOf: new Date("2026-03-03T10:00:00.000Z"),
+        idempotencyKey: "documents.fx_execute.quote:create-idem",
       }),
     ).resolves.toEqual(
       expect.objectContaining({
         quoteId: quote.id,
         fromCurrency: "USD",
         toCurrency: "EUR",
+      }),
+    );
+    await expect(
+      deps.treasuryFxQuote.loadQuoteSnapshotById({
+        db: db as any,
+        quoteId: quote.id,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        quoteId: quote.id,
+        idempotencyKey: "quote-ref-1",
       }),
     );
     await expect(

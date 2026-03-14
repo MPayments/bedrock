@@ -13,6 +13,7 @@ import { Separator } from "@bedrock/ui/components/separator";
 import type { UserRole } from "@/lib/auth/types";
 import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
+import { OperationDetailsCards } from "@/features/operations/journal/components/operation-details-cards";
 import {
   getApprovalStatusLabel,
   getLifecycleStatusLabel,
@@ -20,6 +21,7 @@ import {
   getSubmissionStatusLabel,
 } from "@/features/documents/lib/status-labels";
 import { formatAmountByCurrency, formatDate } from "@/lib/format";
+import type { OperationDetailsDto } from "@/features/operations/journal/lib/queries";
 import {
   type DocumentDetailsDto,
   type DocumentDto,
@@ -125,11 +127,13 @@ function buildDocumentHref(
 export function DocumentDetailsView({
   details,
   documentBasePath,
+  journalOperations,
   userRole,
   formOptions,
 }: {
   details: DocumentDetailsDto;
   documentBasePath: string;
+  journalOperations: Record<string, OperationDetailsDto | null>;
   userRole: UserRole;
   formOptions: DocumentFormOptions;
 }) {
@@ -420,30 +424,51 @@ export function DocumentDetailsView({
         <CardHeader className="border-b">
           <CardTitle>Операции в журнале</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 py-6">
+        <CardContent className="space-y-6 py-6">
           {details.documentOperations.length === 0 ? (
             <div className="text-muted-foreground text-sm">
               Нет связанных операций.
             </div>
           ) : (
             details.documentOperations.map((operation, index) => (
-              <div key={operation.id} className="space-y-2">
+              <div key={operation.id} className="space-y-4">
                 {index > 0 ? <Separator /> : null}
-                <div className="text-sm">
-                  <Link
-                    href={`/documents/journal/${operation.operationId}`}
-                    className="font-mono hover:underline"
-                  >
-                    {operation.operationId}
-                  </Link>
-                </div>
-                <pre className="bg-muted overflow-x-auto rounded-sm p-4 text-xs">
-                  {JSON.stringify(
-                    details.ledgerOperations[index] ?? null,
-                    null,
-                    2,
-                  )}
-                </pre>
+                {journalOperations[operation.operationId] ? (
+                  <OperationDetailsCards
+                    details={journalOperations[operation.operationId]!}
+                    showTbPlan={false}
+                    title={
+                      <Link
+                        href={`/documents/journal/${operation.operationId}`}
+                        className="font-mono hover:underline"
+                      >
+                        Операция {operation.operationId}
+                      </Link>
+                    }
+                    description={
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>Связанная операция документа.</span>
+                        <Badge variant="outline" className="font-normal">
+                          {operation.kind}
+                        </Badge>
+                      </div>
+                    }
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <div className="text-sm">
+                      <Link
+                        href={`/documents/journal/${operation.operationId}`}
+                        className="font-mono hover:underline"
+                      >
+                        {operation.operationId}
+                      </Link>
+                    </div>
+                    <div className="text-muted-foreground text-sm">
+                      Не удалось загрузить детали операции.
+                    </div>
+                  </div>
+                )}
               </div>
             ))
           )}

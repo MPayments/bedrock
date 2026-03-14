@@ -177,7 +177,7 @@ export function createFxResolutionDocumentModule(
             sourceCurrency: fxExecutePayload.quoteSnapshot.fromCurrency,
             destinationBookId: bindings.destination.bookId,
             destinationCurrency: fxExecutePayload.quoteSnapshot.toCurrency,
-            quoteRef: fxExecutePayload.quoteSnapshot.quoteRef,
+            quoteId: fxExecutePayload.quoteSnapshot.quoteId,
             chainId,
             executionRef: fxExecutePayload.executionRef ?? null,
             fxExecuteDocumentId: payload.fxExecuteDocumentId,

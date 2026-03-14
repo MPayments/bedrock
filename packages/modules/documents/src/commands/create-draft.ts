@@ -79,6 +79,7 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
           actorUserId: input.actorUserId,
           now: new Date(),
           log,
+          operationIdempotencyKey: input.createIdempotencyKey,
         });
         const { moduleId, moduleVersion } = resolveDocumentModuleIdentity(module);
 

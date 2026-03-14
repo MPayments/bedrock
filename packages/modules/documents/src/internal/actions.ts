@@ -184,6 +184,7 @@ export async function resolveDocumentAllowedActionsForActor(input: {
     db: input.db,
     now: new Date(),
     log: input.log,
+    operationIdempotencyKey: null,
   });
 
   const filtered: DocumentAction[] = [];

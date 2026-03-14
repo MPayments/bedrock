@@ -106,6 +106,7 @@ export function createApplicationServices(
     ...createIfrsDocumentModules(
       createIfrsDocumentDeps({
         currenciesService,
+        fxService,
         requisitesService,
       }),
     ),

@@ -62,6 +62,23 @@ describe("document form registry", () => {
     ).toBeNull();
   });
 
+  it("keeps fx_execute amount-based and no longer exposes quoteRef input", () => {
+    const definition = getDocumentFormDefinitionForRole({
+      docType: "fx_execute",
+      role: "admin",
+    });
+
+    expect(definition).not.toBeNull();
+
+    const fieldNames =
+      definition?.sections.flatMap((section) =>
+        section.fields.map((field) => field.name),
+      ) ?? [];
+
+    expect(fieldNames).toContain("amount");
+    expect(fieldNames).not.toContain("quoteRef");
+  });
+
   it("keeps layout metadata valid for current typed definitions", () => {
     for (const definition of IFRS_DOCUMENT_DEFINITIONS) {
       if (!definition.formDefinition) {

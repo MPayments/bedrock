@@ -59,6 +59,7 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
           actorUserId: input.actorUserId,
           now: new Date(),
           log,
+          operationIdempotencyKey: idempotencyKey,
         });
 
         return idempotency.withIdempotencyTx({

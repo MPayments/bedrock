@@ -132,7 +132,6 @@ const quoteLegSnapshotSchema = z.object({
 
 export const FxExecuteQuoteSnapshotSchema = z.object({
   quoteId: uuidSchema,
-  quoteRef: z.string().trim().min(1).max(255),
   idempotencyKey: z.string().trim().min(1).max(255),
   fromCurrency: currencyCodeSchema,
   toCurrency: currencyCodeSchema,
@@ -156,7 +155,7 @@ export const FxExecuteOwnershipModeSchema = z.enum([
 export const FxExecuteInputSchema = baseOccurredAtSchema.extend({
   sourceRequisiteId: uuidSchema,
   destinationRequisiteId: uuidSchema,
-  quoteRef: z.string().trim().min(1).max(255),
+  amount: amountValueSchema,
   executionRef: referenceSchema,
   timeoutSeconds: z
     .number()
@@ -174,6 +173,8 @@ export const FxExecutePayloadSchema = baseOccurredAtSchema.extend({
   sourceRequisiteId: uuidSchema,
   destinationOrganizationId: uuidSchema,
   destinationRequisiteId: uuidSchema,
+  amount: amountValueSchema,
+  amountMinor: positiveMinorAmountStringSchema,
   quoteSnapshot: FxExecuteQuoteSnapshotSchema,
   executionRef: referenceSchema,
   timeoutSeconds: z

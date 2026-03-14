@@ -12,7 +12,6 @@ import { createFxResolutionDocumentModule } from "../src/documents/fx-resolution
 function createQuoteSnapshot() {
   return {
     quoteId: "00000000-0000-4000-8000-000000000010",
-    quoteRef: "quote-ref-1",
     idempotencyKey: "quote-ref-1",
     fromCurrency: "USD",
     toCurrency: "EUR",
@@ -105,8 +104,9 @@ function createDeps() {
         },
       ]),
     },
-    quoteSnapshot: {
-      loadQuoteSnapshot: vi.fn(async () => quoteSnapshot),
+    treasuryFxQuote: {
+      createQuoteSnapshot: vi.fn(async () => quoteSnapshot),
+      loadQuoteSnapshotById: vi.fn(async () => quoteSnapshot),
     },
     quoteUsage: {
       markQuoteUsedForFxExecute: vi.fn(async () => undefined),
@@ -122,6 +122,8 @@ function createFxExecutePayload() {
     sourceRequisiteId: "00000000-0000-4000-8000-000000000111",
     destinationOrganizationId: "00000000-0000-4000-8000-000000000312",
     destinationRequisiteId: "00000000-0000-4000-8000-000000000112",
+    amount: "100.00",
+    amountMinor: "10000",
     quoteSnapshot: createQuoteSnapshot(),
     financialLines: [
       {
@@ -159,12 +161,49 @@ describe("ifrs fx modules", () => {
           occurredAt: new Date("2026-03-03T10:00:00.000Z"),
           sourceRequisiteId: "00000000-0000-4000-8000-000000000111",
           destinationRequisiteId: "00000000-0000-4000-8000-000000000112",
-          quoteRef: "quote-ref-1",
+          amount: "100.00",
           memo: "desk conversion",
           financialLines: [],
         },
       ),
     ).resolves.toBeUndefined();
+  });
+
+  it("creates a draft from current rates and freezes the generated quote snapshot", async () => {
+    const deps = createDeps();
+    const module = createFxExecuteDocumentModule(deps as any);
+
+    const draft = await module.createDraft(
+      {
+        db: {},
+        now: new Date("2026-03-03T10:00:00.000Z"),
+        operationIdempotencyKey: "create-idem",
+      } as any,
+      {
+        occurredAt: new Date("2026-03-03T10:00:00.000Z"),
+        sourceRequisiteId: "00000000-0000-4000-8000-000000000111",
+        destinationRequisiteId: "00000000-0000-4000-8000-000000000112",
+        amount: "100.00",
+        memo: "desk conversion",
+        financialLines: [],
+      },
+    );
+
+    expect(deps.treasuryFxQuote.createQuoteSnapshot).toHaveBeenCalledWith({
+      db: {},
+      fromCurrency: "USD",
+      toCurrency: "EUR",
+      fromAmountMinor: "10000",
+      asOf: new Date("2026-03-03T10:00:00.000Z"),
+      idempotencyKey: "documents.fx_execute.quote:create-idem",
+    });
+    expect(draft.payload).toMatchObject({
+      amount: "100",
+      amountMinor: "10000",
+      quoteSnapshot: expect.objectContaining({
+        quoteId: "00000000-0000-4000-8000-000000000010",
+      }),
+    });
   });
 
   it("builds an immediate treasury fx posting plan and locks the quote", async () => {

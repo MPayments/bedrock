@@ -12,7 +12,7 @@ import {
   buildDocumentPostingRequest,
   serializeOccurredAt,
 } from "@bedrock/extension-documents-sdk/module-kit";
-import { minorToAmountString } from "@bedrock/money";
+import { minorToAmountString, toMinorAmountString } from "@bedrock/money";
 import type { Document } from "@bedrock/extension-documents-sdk";
 
 import type {
@@ -57,17 +57,7 @@ export function ensureFxBindingsMatchQuote(input: {
   destination: OrganizationRequisiteBinding;
   quoteSnapshot: FxExecuteQuoteSnapshot;
 }) {
-  if (input.source.requisiteId === input.destination.requisiteId) {
-    throw new DocumentValidationError(
-      "fx_execute requires different source and destination requisites",
-    );
-  }
-
-  if (input.source.currencyCode === input.destination.currencyCode) {
-    throw new DocumentValidationError(
-      "fx_execute requires source and destination currencies to differ",
-    );
-  }
+  ensureFxBindingsConvertible(input);
 
   if (input.quoteSnapshot.fromCurrency === input.quoteSnapshot.toCurrency) {
     throw new DocumentValidationError(
@@ -88,38 +78,84 @@ export function ensureFxBindingsMatchQuote(input: {
   }
 }
 
+export function ensureFxBindingsConvertible(input: {
+  source: OrganizationRequisiteBinding;
+  destination: OrganizationRequisiteBinding;
+}) {
+  if (input.source.requisiteId === input.destination.requisiteId) {
+    throw new DocumentValidationError(
+      "fx_execute requires different source and destination requisites",
+    );
+  }
+
+  if (input.source.currencyCode === input.destination.currencyCode) {
+    throw new DocumentValidationError(
+      "fx_execute requires source and destination currencies to differ",
+    );
+  }
+}
+
 export async function loadFxQuoteSnapshot(
-  deps: Pick<IfrsModuleDeps, "quoteSnapshot">,
-  db: IfrsDocumentDb,
-  quoteRef: string,
+  deps: Pick<IfrsModuleDeps, "treasuryFxQuote">,
+  input: {
+    db: IfrsDocumentDb;
+    fromCurrency: string;
+    toCurrency: string;
+    fromAmountMinor: string;
+    asOf: Date;
+    idempotencyKey: string;
+  },
 ) {
   return FxExecuteQuoteSnapshotSchema.parse(
-    await deps.quoteSnapshot.loadQuoteSnapshot({ db, quoteRef }),
+    await deps.treasuryFxQuote.createQuoteSnapshot(input),
   );
 }
 
 export async function revalidateFxQuoteSnapshot(
-  deps: Pick<IfrsModuleDeps, "quoteSnapshot">,
+  deps: Pick<IfrsModuleDeps, "treasuryFxQuote">,
   db: IfrsDocumentDb,
   payload: FxExecutePayload,
 ) {
-  const current = await loadFxQuoteSnapshot(
-    deps,
-    db,
-    payload.quoteSnapshot.quoteRef,
+  const current = FxExecuteQuoteSnapshotSchema.parse(
+    await deps.treasuryFxQuote.loadQuoteSnapshotById({
+      db,
+      quoteId: payload.quoteSnapshot.quoteId,
+    }),
   );
-
-  if (current.quoteId !== payload.quoteSnapshot.quoteId) {
-    throw new DocumentValidationError(
-      `Quote ${payload.quoteSnapshot.quoteRef} no longer matches the stored draft snapshot`,
-    );
-  }
 
   if (current.snapshotHash !== payload.quoteSnapshot.snapshotHash) {
     throw new DocumentValidationError(
-      `Quote ${payload.quoteSnapshot.quoteRef} changed after draft creation`,
+      `Quote ${payload.quoteSnapshot.quoteId} changed after draft creation`,
     );
   }
+}
+
+export function normalizeFxExecuteAmount(input: {
+  amount: string;
+  sourceCurrency: string;
+}) {
+  const amountMinor = toMinorAmountString(input.amount, input.sourceCurrency, {
+    requirePositive: true,
+  });
+
+  return {
+    amountMinor,
+    amount: minorToAmountString(BigInt(amountMinor), {
+      currency: input.sourceCurrency,
+    }),
+  };
+}
+
+export function buildTreasuryFxQuoteIdempotencyKey(
+  operationIdempotencyKey: string | null,
+) {
+  if (!operationIdempotencyKey) {
+    throw new DocumentValidationError(
+      "fx_execute requires an operation idempotency key for quote creation",
+    );
+  }
+
+  return `documents.fx_execute.quote:${operationIdempotencyKey}`;
 }
 
 function toFinancialLine(line: {
@@ -189,6 +225,10 @@ export function normalizeFxExecutePayload(
     source: OrganizationRequisiteBinding;
     destination: OrganizationRequisiteBinding;
   },
+  amount: {
+    amount: string;
+    amountMinor: string;
+  },
   quoteSnapshot: FxExecuteQuoteSnapshot,
 ): FxExecutePayload {
   return {
@@ -201,6 +241,8 @@ export function normalizeFxExecutePayload(
     sourceRequisiteId: input.sourceRequisiteId,
     destinationOrganizationId: bindings.destination.organizationId,
     destinationRequisiteId: input.destinationRequisiteId,
+    amount: amount.amount,
+    amountMinor: amount.amountMinor,
     quoteSnapshot,
     executionRef: input.executionRef,
     timeoutSeconds: input.timeoutSeconds,
@@ -325,7 +367,7 @@ export function buildTreasuryFxFinancialLineRequests(input: {
   sourceCurrency: string;
   destinationBookId: string;
   destinationCurrency: string;
-  quoteRef: string;
+  quoteId: string;
   chainId: string;
   executionRef?: string | null;
   fxExecuteDocumentId: string;
@@ -351,7 +393,7 @@ export function buildTreasuryFxFinancialLineRequests(input: {
       },
       refs: {
         fxExecuteDocumentId: input.fxExecuteDocumentId,
-        quoteRef: input.quoteRef,
+        quoteId: input.quoteId,
         chainId: input.chainId,
         componentId: line.id,
         componentIndex: String(index + 1),

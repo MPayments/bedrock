@@ -29,10 +29,18 @@ export interface PendingTransferRecord {
 export interface TransferDependencyDocument
   extends Pick<Document, "id" | "docType" | "payload" | "occurredAt"> {}
 
-export interface QuoteSnapshotLoaderPort {
-  loadQuoteSnapshot(input: {
+export interface TreasuryFxQuotePort {
+  createQuoteSnapshot(input: {
     db: IfrsDocumentDb;
-    quoteRef: string;
+    fromCurrency: string;
+    toCurrency: string;
+    fromAmountMinor: string;
+    asOf: Date;
+    idempotencyKey: string;
+  }): Promise<Record<string, unknown>>;
+  loadQuoteSnapshotById(input: {
+    db: IfrsDocumentDb;
+    quoteId: string;
   }): Promise<Record<string, unknown>>;
 }
 
@@ -71,7 +79,7 @@ export interface IfrsModuleDeps {
   requisitesService: RequisitesService;
   transferLookup: IfrsTransferLookupPort;
   fxExecuteLookup: IfrsFxExecuteLookupPort;
-  quoteSnapshot: QuoteSnapshotLoaderPort;
+  treasuryFxQuote: TreasuryFxQuotePort;
   quoteUsage: QuoteUsagePort;
 }
 

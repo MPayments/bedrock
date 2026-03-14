@@ -4,6 +4,7 @@ import {
   POSTING_TEMPLATE_KEY,
 } from "@bedrock/accounting/posting-contracts";
 import type { DocumentModule } from "@bedrock/extension-documents-sdk";
+import { DocumentValidationError } from "@bedrock/extension-documents-sdk";
 import {
   buildDocumentDraft,
   buildDocumentPostIdempotencyKey,
@@ -11,33 +12,94 @@ import {
   buildDocumentPostingRequest,
   parseDocumentPayload,
 } from "@bedrock/extension-documents-sdk/module-kit";
+import { minorToAmountString } from "@bedrock/money";
 
 import { IFRS_DOCUMENT_METADATA } from "../metadata";
 import {
   FxExecuteInputSchema,
   FxExecutePayloadSchema,
   type FxExecuteInput,
+  type FxExecutePayload,
 } from "../validation";
 import {
   buildTreasuryFxFinancialLineRequests,
+  buildTreasuryFxQuoteIdempotencyKey,
+  ensureFxBindingsConvertible,
   ensureFxBindingsMatchQuote,
   loadFxQuoteSnapshot,
   markFxQuoteUsed,
+  normalizeFxExecuteAmount,
   normalizeFxExecutePayload,
   revalidateFxQuoteSnapshot,
   resolveFxBindings,
 } from "./internal/fx-helpers";
 import type { IfrsModuleDeps } from "./internal/types";
 
+function assertFxExecuteAmountMatchesQuote(payload: FxExecutePayload) {
+  if (payload.amountMinor !== payload.quoteSnapshot.fromAmountMinor) {
+    throw new DocumentValidationError(
+      `Stored amount ${payload.amountMinor} does not match quote amount ${payload.quoteSnapshot.fromAmountMinor}`,
+    );
+  }
+}
+
+function formatRate(rateNum: string, rateDen: string) {
+  return (Number(rateNum) / Number(rateDen)).toFixed(6);
+}
+
+function buildFxExecuteDetails(payload: FxExecutePayload) {
+  return {
+    quoteId: payload.quoteSnapshot.quoteId,
+    quoteIdempotencyKey: payload.quoteSnapshot.idempotencyKey,
+    sourceAmount: payload.amount,
+    sourceAmountMinor: payload.amountMinor,
+    sourceCurrency: payload.quoteSnapshot.fromCurrency,
+    destinationAmount: minorToAmountString(
+      BigInt(payload.quoteSnapshot.toAmountMinor),
+      {
+        currency: payload.quoteSnapshot.toCurrency,
+      },
+    ),
+    destinationAmountMinor: payload.quoteSnapshot.toAmountMinor,
+    destinationCurrency: payload.quoteSnapshot.toCurrency,
+    effectiveRate: formatRate(
+      payload.quoteSnapshot.rateNum,
+      payload.quoteSnapshot.rateDen,
+    ),
+    quoteExpiresAt: payload.quoteSnapshot.expiresAt,
+    generatedFinancialLines: payload.financialLines.filter(
+      (line) => line.source === "rule",
+    ),
+  };
+}
+
 async function prepareDraftPayload(
   deps: IfrsModuleDeps,
-  context: { db: unknown },
+  context: {
+    db: unknown;
+    now: Date;
+    operationIdempotencyKey: string | null;
+  },
   input: FxExecuteInput,
 ) {
-  const [bindings, quoteSnapshot] = await Promise.all([
-    resolveFxBindings(deps.requisitesService, input),
-    loadFxQuoteSnapshot(deps, context.db as any, input.quoteRef),
-  ]);
+  const bindings = await resolveFxBindings(deps.requisitesService, input);
+  ensureFxBindingsConvertible(bindings);
+
+  const amount = normalizeFxExecuteAmount({
+    amount: input.amount,
+    sourceCurrency: bindings.source.currencyCode,
+  });
+
+  const quoteSnapshot = await loadFxQuoteSnapshot(deps, {
+    db: context.db as any,
+    fromCurrency: bindings.source.currencyCode,
+    toCurrency: bindings.destination.currencyCode,
+    fromAmountMinor: amount.amountMinor,
+    asOf: context.now,
+    idempotencyKey: buildTreasuryFxQuoteIdempotencyKey(
+      context.operationIdempotencyKey,
+    ),
+  });
 
   ensureFxBindingsMatchQuote({
     source: bindings.source,
@@ -45,7 +107,7 @@ async function prepareDraftPayload(
     quoteSnapshot,
   });
 
-  return normalizeFxExecutePayload(input, bindings, quoteSnapshot);
+  return normalizeFxExecutePayload(input, bindings, amount, quoteSnapshot);
 }
 
 export function createFxExecuteDocumentModule(
@@ -79,7 +141,7 @@ export function createFxExecuteDocumentModule(
           payload.ownershipMode === "cross_org"
             ? "Казначейский FX (между организациями)"
             : "Казначейский FX",
-        amountMinor: BigInt(payload.quoteSnapshot.fromAmountMinor),
+        amountMinor: BigInt(payload.amountMinor),
         currency: payload.quoteSnapshot.fromCurrency,
         memo: payload.memo ?? null,
         counterpartyId: null,
@@ -91,7 +153,8 @@ export function createFxExecuteDocumentModule(
           payload.destinationOrganizationId,
           payload.sourceRequisiteId,
           payload.destinationRequisiteId,
-          payload.quoteSnapshot.quoteRef,
+          payload.quoteSnapshot.quoteId,
+          payload.quoteSnapshot.idempotencyKey,
           payload.quoteSnapshot.fromCurrency,
           payload.quoteSnapshot.toCurrency,
           payload.executionRef,
@@ -100,16 +163,12 @@ export function createFxExecuteDocumentModule(
           .join(" "),
       };
     },
-    async canCreate(context, input) {
-      const [bindings, quoteSnapshot] = await Promise.all([
-        resolveFxBindings(deps.requisitesService, input),
-        loadFxQuoteSnapshot(deps, context.db as any, input.quoteRef),
-      ]);
-
-      ensureFxBindingsMatchQuote({
-        source: bindings.source,
-        destination: bindings.destination,
-        quoteSnapshot,
+    async canCreate(_context, input) {
+      const bindings = await resolveFxBindings(deps.requisitesService, input);
+      ensureFxBindingsConvertible(bindings);
+      normalizeFxExecuteAmount({
+        amount: input.amount,
+        sourceCurrency: bindings.source.currencyCode,
       });
     },
     async canEdit() {},
@@ -126,6 +185,7 @@ export function createFxExecuteDocumentModule(
         destination: bindings.destination,
         quoteSnapshot: payload.quoteSnapshot,
       });
+      assertFxExecuteAmountMatchesQuote(payload);
 
       await revalidateFxQuoteSnapshot(deps, context.db as any, payload);
     },
@@ -140,6 +200,8 @@ export function createFxExecuteDocumentModule(
         sourceOrganizationId: payload.sourceOrganizationId,
         destinationOrganizationId: payload.destinationOrganizationId,
       };
+
+      assertFxExecuteAmountMatchesQuote(payload);
 
       await markFxQuoteUsed({
         deps,
@@ -156,13 +218,15 @@ export function createFxExecuteDocumentModule(
             : POSTING_TEMPLATE_KEY.TREASURY_FX_SOURCE_IMMEDIATE,
           bookId: bindings.source.bookId,
           currency: payload.quoteSnapshot.fromCurrency,
-          amountMinor: BigInt(payload.quoteSnapshot.fromAmountMinor),
+          amountMinor: BigInt(payload.amountMinor),
           dimensions: baseDimensions,
           refs: {
             fxExecuteDocumentId: document.id,
-            quoteRef: payload.quoteSnapshot.quoteRef,
+            quoteId: payload.quoteSnapshot.quoteId,
             chainId,
-            ...(payload.executionRef ? { executionRef: payload.executionRef } : {}),
+            ...(payload.executionRef
+              ? { executionRef: payload.executionRef }
+              : {}),
           },
           pending: isPending
             ? {
@@ -182,9 +246,11 @@ export function createFxExecuteDocumentModule(
           dimensions: baseDimensions,
           refs: {
             fxExecuteDocumentId: document.id,
-            quoteRef: payload.quoteSnapshot.quoteRef,
+            quoteId: payload.quoteSnapshot.quoteId,
             chainId,
-            ...(payload.executionRef ? { executionRef: payload.executionRef } : {}),
+            ...(payload.executionRef
+              ? { executionRef: payload.executionRef }
+              : {}),
           },
           pending: isPending
             ? {
@@ -204,7 +270,7 @@ export function createFxExecuteDocumentModule(
             sourceCurrency: payload.quoteSnapshot.fromCurrency,
             destinationBookId: bindings.destination.bookId,
             destinationCurrency: payload.quoteSnapshot.toCurrency,
-            quoteRef: payload.quoteSnapshot.quoteRef,
+            quoteId: payload.quoteSnapshot.quoteId,
             chainId,
             executionRef: payload.executionRef ?? null,
             fxExecuteDocumentId: document.id,
@@ -224,6 +290,12 @@ export function createFxExecuteDocumentModule(
         },
         requests,
       });
+    },
+    async buildDetails(_context, document) {
+      const payload = parseDocumentPayload(FxExecutePayloadSchema, document);
+      return {
+        computed: buildFxExecuteDetails(payload),
+      };
     },
     buildPostIdempotencyKey(document) {
       return buildDocumentPostIdempotencyKey(document);

@@ -55,6 +55,7 @@ export function createGetDocumentDetailsQuery(
           actorUserId,
           now: new Date(),
           log,
+          operationIdempotencyKey: null,
         })
       : null;
 

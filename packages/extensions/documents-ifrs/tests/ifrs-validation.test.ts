@@ -88,7 +88,7 @@ describe("ifrs documents validation", () => {
       occurredAt: "2026-03-03T10:00:00.000Z",
       sourceRequisiteId: "00000000-0000-4000-8000-000000000001",
       destinationRequisiteId: "00000000-0000-4000-8000-000000000002",
-      quoteRef: "quote-ref-1",
+      amount: "100.00",
       financialLines: [
         {
           bucket: "fee_revenue",
@@ -115,9 +115,10 @@ describe("ifrs documents validation", () => {
       sourceRequisiteId: "00000000-0000-4000-8000-000000000001",
       destinationOrganizationId: "00000000-0000-4000-8000-000000000011",
       destinationRequisiteId: "00000000-0000-4000-8000-000000000002",
+      amount: "100.00",
+      amountMinor: "10000",
       quoteSnapshot: {
         quoteId: "00000000-0000-4000-8000-000000000020",
-        quoteRef: "quote-ref-1",
         idempotencyKey: "quote-ref-1",
         fromCurrency: "USD",
         toCurrency: "EUR",
@@ -150,7 +151,10 @@ describe("ifrs documents validation", () => {
       financialLines: [],
     });
 
-    expect(parsed.quoteSnapshot.quoteRef).toBe("quote-ref-1");
+    expect(parsed.amountMinor).toBe("10000");
+    expect(parsed.quoteSnapshot.quoteId).toBe(
+      "00000000-0000-4000-8000-000000000020",
+    );
     expect(parsed.ownershipMode).toBe("cross_org");
   });
 });
