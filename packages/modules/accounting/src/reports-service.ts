@@ -1,64 +1,50 @@
 export * from "./contracts/reports/dto";
 export * from "./contracts/reports/queries";
-import { createCurrenciesQueries } from "@bedrock/currencies/queries";
-import { createCustomersQueries } from "@bedrock/customers/queries";
-import type { LedgerReadService } from "@bedrock/ledger";
-import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Database } from "@bedrock/platform/persistence";
-import { createRequisitesQueries } from "@bedrock/requisites/queries";
+export type {
+  AccountingReportsContext,
+  AccountingReportsLedgerPort,
+  AccountingReportsServicePorts,
+} from "./application/reports/ports";
+export {
+  createAccountingReportQueries,
+  type AccountingReportQueries,
+} from "./application/reports/queries/reports";
+export {
+  createDrizzleAccountingReportsRepository,
+  type AccountingReportsRepository,
+} from "./infra/drizzle/repos/reports-repository";
+export {
+  createBedrockDimensionRegistry,
+  type DimensionDocumentsQueries as AccountingReportsDocumentsQueries,
+} from "./infra/reporting/dimensions";
+export { createAccountingReportsContext } from "./infra/reporting/context";
 
 import {
   createAccountingReportsHandlers,
   type AccountingReportsService,
 } from "./application/reports";
-import { createBedrockDimensionRegistry } from "./infra/reporting/dimensions";
-import { createAccountingReportingRuntime } from "./reporting-runtime";
+import type {
+  AccountingReportsLedgerPort,
+  AccountingReportsServicePorts,
+} from "./application/reports/ports";
+import type { AccountingReportQueries } from "./application/reports/queries/reports";
 
 export { type AccountingReportsService };
 
-export interface AccountingReportsDocumentsQueries {
-  listDocumentLabelsById: (ids: string[]) => Promise<Map<string, string>>;
-}
-
-export interface AccountingReportsServiceDeps {
-  db: Database;
-  ledgerReadService?: Pick<
-    LedgerReadService,
-    "getOperationDetails" | "listOperations"
-  >;
-  documentsQueries?: AccountingReportsDocumentsQueries;
-  logger?: Logger;
+export interface AccountingReportsServiceDeps
+  extends AccountingReportsServicePorts {
+  ledgerReadPort: AccountingReportsLedgerPort;
+  reportQueries: AccountingReportQueries;
 }
 
 export function createAccountingReportsService(
   deps: AccountingReportsServiceDeps,
 ): AccountingReportsService {
-  const { db, documentsQueries } = deps;
-
-  const currenciesQueries = createCurrenciesQueries({ db });
-  const customersQueries = createCustomersQueries({ db });
-  const requisitesQueries = createRequisitesQueries({ db });
-  const { counterpartiesQueries, ledgerQueries, reportQueries } =
-    createAccountingReportingRuntime({ db });
-  const dimensionRegistry = createBedrockDimensionRegistry({
-    counterpartiesQueries,
-    customersQueries,
-    requisitesQueries,
-    documentsQueries,
-  });
-
   return createAccountingReportsHandlers({
-    ledgerReadService: deps.ledgerReadService ?? ledgerQueries,
-    listBookNamesById: async (ids) =>
-      new Map(
-        (await ledgerQueries.listBooksById(ids)).map((row) => [
-          row.id,
-          row.name ?? row.id,
-        ]),
-      ),
-    listCurrencyPrecisionsByCode: currenciesQueries.listPrecisionsByCode,
-    resolveDimensionLabelsFromRecords:
-      dimensionRegistry.resolveLabelsFromDimensionRecords,
-    reportQueries,
+    ledgerReadPort: deps.ledgerReadPort,
+    listBookNamesById: deps.listBookNamesById,
+    listCurrencyPrecisionsByCode: deps.listCurrencyPrecisionsByCode,
+    resolveDimensionLabelsFromRecords: deps.resolveDimensionLabelsFromRecords,
+    reportQueries: deps.reportQueries,
   });
 }

@@ -1,5 +1,6 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
+import { DocumentSystemOnlyTypeError } from "@bedrock/documents";
 import {
   CreateDocumentInputSchema,
   type DocumentAction,
@@ -8,7 +9,6 @@ import {
   UpdateDocumentInputSchema,
   isSystemOnlyDocumentType,
 } from "@bedrock/documents/contracts";
-import { DocumentSystemOnlyTypeError } from "@bedrock/documents";
 
 import auth from "../auth";
 import { handleRouteError } from "../common/errors";

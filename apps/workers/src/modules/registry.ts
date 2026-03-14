@@ -1,24 +1,24 @@
 import {
   createBalancesProjectorWorkerDefinition,
 } from "@bedrock/balances/worker";
-import {
-  createLedgerWorkerDefinition,
-  type TbClient,
-} from "@bedrock/ledger/infra/tigerbeetle";
 import { createCurrenciesService } from "@bedrock/currencies";
 import { createDocumentsWorkerDefinition } from "@bedrock/documents/worker";
 import { createFeesService } from "@bedrock/fees";
 import {
   createFxService,
 } from "@bedrock/fx";
-import { createFxRatesWorkerDefinition } from "@bedrock/fx/worker";
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/infra/providers";
+import { createFxRatesWorkerDefinition } from "@bedrock/fx/worker";
+import {
+  createLedgerWorkerDefinition,
+  type TbClient,
+} from "@bedrock/ledger/infra/tigerbeetle";
+import type { Logger } from "@bedrock/platform/observability/logger";
+import type { Database } from "@bedrock/platform/persistence/drizzle";
 import {
   type BedrockWorker,
   type WorkerCatalogEntry,
 } from "@bedrock/platform/worker-runtime";
-import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Database } from "@bedrock/platform/persistence/drizzle";
 
 import { WORKER_CATALOG } from "../catalog";
 import type { WorkerEnv } from "../env";

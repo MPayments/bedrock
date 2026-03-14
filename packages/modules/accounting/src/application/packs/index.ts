@@ -56,7 +56,7 @@ export function createAccountingPacksHandlers(
   const defaultCompiledPack = compilePack(deps.defaultPackDefinition);
   const context: AccountingPacksContext = {
     defaultCompiledPack,
-    packCache: new Map(),
+    cache: deps.cache,
     repository: deps.repository,
     withTransaction: deps.withTransaction,
     assertBooksBelongToInternalLedgerOrganizations:

@@ -2,41 +2,27 @@ export {
   compilePack,
   validatePackDefinition,
 } from "./application/packs";
-import { createOrganizationsQueries } from "@bedrock/organizations/queries";
-import type { Database } from "@bedrock/platform/persistence";
+export type {
+  AccountingCompiledPackCache,
+  AccountingPacksRepository,
+  AccountingPacksServicePorts,
+} from "./application/packs/ports";
+export { createDrizzleAccountingPacksRepository } from "./infra/drizzle/repos/packs-repository";
+export { createInMemoryAccountingCompiledPackCache } from "./infra/packs/in-memory-compiled-pack-cache";
 
 import type { AccountingPacksService } from "./application/packs";
 import { createAccountingPacksHandlers } from "./application/packs";
-import { createDrizzleAccountingPacksRepository } from "./infra/drizzle/repos/packs-repository";
+import type { AccountingPacksServicePorts } from "./application/packs/ports";
 import type { AccountingPackDefinition } from "./packs/schema";
 
-export interface AccountingPacksServiceDeps {
-  db?: Database;
+export interface AccountingPacksServiceDeps extends AccountingPacksServicePorts {
   defaultPackDefinition: AccountingPackDefinition;
 }
 
 export function createAccountingPacksService(
   deps: AccountingPacksServiceDeps,
 ): AccountingPacksService {
-  const repository = deps.db
-    ? createDrizzleAccountingPacksRepository(deps.db)
-    : undefined;
-  const organizationsQueries = deps.db
-    ? createOrganizationsQueries({ db: deps.db })
-    : undefined;
-
-  return createAccountingPacksHandlers({
-    defaultPackDefinition: deps.defaultPackDefinition,
-    repository,
-    withTransaction: deps.db
-      ? async (run) =>
-          deps.db!.transaction(async (tx) =>
-            run(createDrizzleAccountingPacksRepository(tx)),
-          )
-      : undefined,
-    assertBooksBelongToInternalLedgerOrganizations:
-      organizationsQueries?.assertBooksBelongToInternalLedgerOrganizations,
-  });
+  return createAccountingPacksHandlers(deps);
 }
 
 export type {

@@ -6,30 +6,12 @@ import type { CompiledPack } from "../../domain/packs";
 
 export const PACK_SCOPE_TYPE_BOOK = "book";
 
-const PACK_CACHE_TTL_MS = 60_000;
-
-interface CachedPackEntry {
-  expiresAt: number;
-  value: CompiledPack | null;
-}
-
 export interface AccountingPacksContext extends AccountingPacksServicePorts {
   defaultCompiledPack: CompiledPack;
-  packCache: Map<string, CachedPackEntry>;
 }
 
 export function readCachedPack(context: AccountingPacksContext, key: string) {
-  const cached = context.packCache.get(key);
-  if (!cached) {
-    return undefined;
-  }
-
-  if (cached.expiresAt < Date.now()) {
-    context.packCache.delete(key);
-    return undefined;
-  }
-
-  return cached.value;
+  return context.cache?.read(key);
 }
 
 export function writeCachedPack(
@@ -37,10 +19,7 @@ export function writeCachedPack(
   key: string,
   value: CompiledPack | null,
 ) {
-  context.packCache.set(key, {
-    value,
-    expiresAt: Date.now() + PACK_CACHE_TTL_MS,
-  });
+  context.cache?.write(key, value);
 }
 
 export function requireRepository(context: AccountingPacksContext) {

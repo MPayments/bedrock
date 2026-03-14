@@ -65,4 +65,11 @@ export type {
   AccountingReportLineMapping,
 };
 
-export type { AccountingPackAssignment, AccountingPackVersion, ChartAccountDimensionPolicyRow, ChartTemplateAccount, CorrespondenceRule, PostingCodeDimensionPolicyRow } from "./accounting";
+export type {
+  AccountingPackAssignment,
+  AccountingPackVersion,
+  ChartAccountDimensionPolicyRow,
+  ChartTemplateAccount,
+  CorrespondenceRule,
+  PostingCodeDimensionPolicyRow,
+} from "./accounting";

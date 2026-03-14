@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-
 import { z } from "zod";
 
 const CHART_ACCOUNT_KIND_VALUES = [

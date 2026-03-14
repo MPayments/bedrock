@@ -1,6 +1,13 @@
+import type { CompiledPack } from "../../domain/packs";
+
 export interface StoredCompiledPackRow {
   checksum: string;
   compiledJson: Record<string, unknown>;
+}
+
+export interface AccountingCompiledPackCache {
+  read: (key: string) => CompiledPack | null | undefined;
+  write: (key: string, value: CompiledPack | null) => void;
 }
 
 export interface AccountingPacksRepository {
@@ -38,6 +45,7 @@ export interface AccountingPacksRepository {
 
 export interface AccountingPacksServicePorts {
   repository?: AccountingPacksRepository;
+  cache?: AccountingCompiledPackCache;
   withTransaction?: <T>(
     run: (repository: AccountingPacksRepository) => Promise<T>,
   ) => Promise<T>;

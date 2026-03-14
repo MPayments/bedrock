@@ -1,6 +1,7 @@
-import type { LedgerReadService } from "@bedrock/ledger";
-
-import type { AccountingReportsServicePorts } from "./ports";
+import type {
+  AccountingReportsLedgerPort,
+  AccountingReportsServicePorts,
+} from "./ports";
 import {
   createGetOperationDetailsWithLabelsQuery,
   type LedgerOperationDetailsWithLabels,
@@ -16,14 +17,11 @@ export type AccountingReportsService = ReturnType<
 >;
 
 export function createAccountingReportsHandlers(input: {
-  ledgerReadService: Pick<
-    LedgerReadService,
-    "getOperationDetails" | "listOperations"
-  >;
+  ledgerReadPort: AccountingReportsLedgerPort;
   reportQueries: AccountingReportQueries;
 } & AccountingReportsServicePorts) {
   const {
-    ledgerReadService,
+    ledgerReadPort,
     listBookNamesById,
     listCurrencyPrecisionsByCode,
     resolveDimensionLabelsFromRecords,
@@ -31,12 +29,12 @@ export function createAccountingReportsHandlers(input: {
   } = input;
 
   const getOperationDetailsWithLabels = createGetOperationDetailsWithLabelsQuery({
-    ledgerReadService,
+    ledgerReadPort,
     listCurrencyPrecisionsByCode,
     resolveDimensionLabelsFromRecords,
   });
   const listOperationsWithLabels = createListOperationsWithLabelsQuery({
-    ledgerReadService,
+    ledgerReadPort,
     listBookNamesById,
   });
 
@@ -47,7 +45,7 @@ export function createAccountingReportsHandlers(input: {
       getOperationDetailsWithLabels(operationId),
     listOperationsWithLabels: (
       query?: Parameters<
-        Pick<LedgerReadService, "listOperations">["listOperations"]
+        AccountingReportsLedgerPort["listOperations"]
       >[0],
     ): Promise<LedgerOperationListWithLabels> =>
       listOperationsWithLabels(query),

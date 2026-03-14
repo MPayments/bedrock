@@ -14,9 +14,9 @@ import {
 import {
   compilePack,
   createAccountingPacksService,
+  createDrizzleAccountingPacksRepository,
   type CompiledPack,
 } from "../src/packs-service";
-
 
 const DEFAULT_PACK_URL = new URL(
   "../src/packs/bedrock-core-default.ts",
@@ -97,8 +97,12 @@ export function createPacksService(
   defaultPackDefinition: AccountingPackDefinition,
 ) {
   return createAccountingPacksService({
-    db,
     defaultPackDefinition,
+    repository: createDrizzleAccountingPacksRepository(db),
+    withTransaction: async (run) =>
+      db.transaction(async (tx) =>
+        run(createDrizzleAccountingPacksRepository(tx)),
+      ),
   });
 }
 

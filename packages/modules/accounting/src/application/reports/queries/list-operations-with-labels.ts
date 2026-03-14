@@ -1,14 +1,10 @@
-import type { LedgerReadService } from "@bedrock/ledger";
-
-import type { AccountingReportsServicePorts } from "../ports";
+import type {
+  AccountingReportsLedgerPort,
+  AccountingReportsServicePorts,
+} from "../ports";
 
 type RawLedgerOperationList = Awaited<
-  ReturnType<
-    Pick<
-      LedgerReadService,
-      "listOperations"
-    >["listOperations"]
-  >
+  ReturnType<AccountingReportsLedgerPort["listOperations"]>
 >;
 
 export type LedgerOperationListWithLabels = Omit<RawLedgerOperationList, "data"> & {
@@ -18,17 +14,15 @@ export type LedgerOperationListWithLabels = Omit<RawLedgerOperationList, "data">
 };
 
 export function createListOperationsWithLabelsQuery(input: {
-  ledgerReadService: Pick<LedgerReadService, "listOperations">;
+  ledgerReadPort: Pick<AccountingReportsLedgerPort, "listOperations">;
   listBookNamesById: AccountingReportsServicePorts["listBookNamesById"];
 }) {
-  const { ledgerReadService, listBookNamesById } = input;
+  const { ledgerReadPort, listBookNamesById } = input;
 
   return async function listOperationsWithLabels(
-    query?: Parameters<
-      Pick<LedgerReadService, "listOperations">["listOperations"]
-    >[0],
+    query?: Parameters<AccountingReportsLedgerPort["listOperations"]>[0],
   ): Promise<LedgerOperationListWithLabels> {
-    const result = await ledgerReadService.listOperations(query);
+    const result = await ledgerReadPort.listOperations(query);
     const bookNamesById = await listBookNamesById(
       Array.from(new Set(result.data.flatMap((row) => row.bookIds))),
     );

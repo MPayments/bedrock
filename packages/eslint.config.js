@@ -25,6 +25,11 @@ export default [
           ],
           patterns: [
             {
+              group: ["@bedrock/*/queries"],
+              message:
+                "Accounting domain must not depend on cross-context query adapters.",
+            },
+            {
               group: ["@bedrock/*/schema"],
               message: "Accounting domain must not import schema surfaces.",
             },
@@ -63,8 +68,19 @@ export default [
               name: "@bedrock/platform/persistence/drizzle",
               message: "Accounting application code must not depend on persistence types.",
             },
+            {
+              name: "@bedrock/ledger",
+              importNames: ["LedgerReadService"],
+              message:
+                "Accounting application code must depend on local ledger ports, not LedgerReadService.",
+            },
           ],
           patterns: [
+            {
+              group: ["@bedrock/*/queries"],
+              message:
+                "Accounting application code must depend on ports injected from composition, not cross-context query adapters.",
+            },
             {
               group: ["@bedrock/*/schema"],
               message: "Accounting application code must consume query or contract surfaces, not schemas.",

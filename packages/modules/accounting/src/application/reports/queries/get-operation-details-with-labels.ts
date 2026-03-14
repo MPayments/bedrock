@@ -1,13 +1,13 @@
 import { getDefaultPrecision } from "@bedrock/currencies";
-import type { LedgerReadService } from "@bedrock/ledger";
 
-import type { AccountingReportsServicePorts } from "../ports";
+import type {
+  AccountingReportsLedgerPort,
+  AccountingReportsServicePorts,
+} from "../ports";
 
 type RawLedgerOperationDetails = NonNullable<
   Awaited<
-    ReturnType<
-      Pick<LedgerReadService, "getOperationDetails">["getOperationDetails"]
-    >
+    ReturnType<AccountingReportsLedgerPort["getOperationDetails"]>
   >
 >;
 
@@ -22,12 +22,12 @@ export type LedgerOperationDetailsWithLabels = Omit<
 };
 
 export function createGetOperationDetailsWithLabelsQuery(input: {
-  ledgerReadService: Pick<LedgerReadService, "getOperationDetails">;
+  ledgerReadPort: Pick<AccountingReportsLedgerPort, "getOperationDetails">;
   listCurrencyPrecisionsByCode: AccountingReportsServicePorts["listCurrencyPrecisionsByCode"];
   resolveDimensionLabelsFromRecords: AccountingReportsServicePorts["resolveDimensionLabelsFromRecords"];
 }) {
   const {
-    ledgerReadService,
+    ledgerReadPort,
     listCurrencyPrecisionsByCode,
     resolveDimensionLabelsFromRecords,
   } = input;
@@ -35,7 +35,7 @@ export function createGetOperationDetailsWithLabelsQuery(input: {
   return async function getOperationDetailsWithLabels(
     operationId: string,
   ): Promise<LedgerOperationDetailsWithLabels | null> {
-    const details = await ledgerReadService.getOperationDetails(operationId);
+    const details = await ledgerReadPort.getOperationDetails(operationId);
     if (!details) {
       return null;
     }

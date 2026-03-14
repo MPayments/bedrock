@@ -1,3 +1,5 @@
+import type { LedgerReadQueries } from "@bedrock/ledger";
+
 import type { AccountingClosePackageRecord } from "../../domain/periods";
 import type {
   FinancialResultStatus,
@@ -10,6 +12,11 @@ import type {
 } from "../../domain/reports";
 
 export type * from "../../domain/reports";
+
+export interface AccountingReportsLedgerPort {
+  listOperations: LedgerReadQueries["listOperations"];
+  getOperationDetails: LedgerReadQueries["getOperationDetails"];
+}
 
 export interface AccountingReportsContext {
   keyByParts: (...parts: (string | null | undefined)[]) => string;
