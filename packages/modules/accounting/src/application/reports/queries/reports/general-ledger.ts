@@ -7,49 +7,40 @@ import {
 
 import type {
   AccountingReportsContext,
-  FinancialResultStatus,
   GeneralLedgerBalance,
   GeneralLedgerEntry,
 } from "./types";
-import { normalizeReportCurrency } from "../../../../domain/reports";
 import {
   GeneralLedgerQuerySchema,
   type GeneralLedgerQuery,
 } from "../reports-validation";
+import { fetchScopedReportPostings, sortRowsByContextParts } from "./shared";
 
-export function createListGeneralLedgerHandler(context: AccountingReportsContext) {
-  return async function listGeneralLedger(
-    input?: GeneralLedgerQuery,
-  ): Promise<PaginatedList<GeneralLedgerEntry> & {
-    openingBalances: GeneralLedgerBalance[];
-    closingBalances: GeneralLedgerBalance[];
-    scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
-  }> {
+export function createListGeneralLedgerHandler(
+  context: AccountingReportsContext,
+) {
+  return async function listGeneralLedger(input?: GeneralLedgerQuery): Promise<
+    PaginatedList<GeneralLedgerEntry> & {
+      openingBalances: GeneralLedgerBalance[];
+      closingBalances: GeneralLedgerBalance[];
+      scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
+    }
+  > {
     const query = GeneralLedgerQuerySchema.parse(input ?? {});
     const from = new Date(query.from);
     const to = new Date(query.to);
-
-    const scope = await context.resolveScope({
-      scopeType: query.scopeType,
-      counterpartyIds: query.counterpartyId,
-      groupIds: query.groupId,
-      bookIds: query.bookId,
-      includeDescendants: query.includeDescendants,
-    });
-
-    const postings = await context.fetchScopedPostings({
-      scope,
-      attributionMode: query.attributionMode,
-      statuses: query.status as FinancialResultStatus[],
+    const { postings, scopeMeta } = await fetchScopedReportPostings(context, {
+      query,
       to,
-      currency: normalizeReportCurrency(query.currency),
-      includeUnattributed: query.includeUnattributed,
     });
 
     const accountSet = new Set(query.accountNo);
     const openingByKey = new Map<string, GeneralLedgerBalance>();
 
-    const entrySeed: (GeneralLedgerEntry & { deltaMinor: bigint; sideOrder: number })[] = [];
+    const entrySeed: (GeneralLedgerEntry & {
+      deltaMinor: bigint;
+      sideOrder: number;
+    })[] = [];
 
     for (const posting of postings) {
       const attributionId =
@@ -60,7 +51,10 @@ export function createListGeneralLedgerHandler(context: AccountingReportsContext
       if (accountSet.has(posting.debitAccountNo)) {
         const deltaMinor = posting.amountMinor;
         if (posting.postingDate < from) {
-          const key = context.keyByParts(posting.debitAccountNo, posting.currency);
+          const key = context.keyByParts(
+            posting.debitAccountNo,
+            posting.currency,
+          );
           const opening = openingByKey.get(key) ?? {
             accountNo: posting.debitAccountNo,
             currency: posting.currency,
@@ -91,7 +85,10 @@ export function createListGeneralLedgerHandler(context: AccountingReportsContext
       if (accountSet.has(posting.creditAccountNo)) {
         const deltaMinor = -posting.amountMinor;
         if (posting.postingDate < from) {
-          const key = context.keyByParts(posting.creditAccountNo, posting.currency);
+          const key = context.keyByParts(
+            posting.creditAccountNo,
+            posting.currency,
+          );
           const opening = openingByKey.get(key) ?? {
             accountNo: posting.creditAccountNo,
             currency: posting.currency,
@@ -179,36 +176,30 @@ export function createListGeneralLedgerHandler(context: AccountingReportsContext
       offset: query.offset,
     });
 
-    const openingBalances = Array.from(openingByKey.values()).sort((a, b) =>
-      context
-        .keyByParts(a.accountNo, a.currency)
-        .localeCompare(context.keyByParts(b.accountNo, b.currency)),
+    const openingBalances = sortRowsByContextParts(
+      context,
+      openingByKey.values(),
+      (row) => [row.accountNo, row.currency],
     );
 
-    const closingBalances = Array.from(runningByKey.entries())
-      .map(([key, balanceMinor]) => {
+    const closingBalances = sortRowsByContextParts(
+      context,
+      Array.from(runningByKey.entries()).map(([key, balanceMinor]) => {
         const [accountNo = "", currency = ""] = key.split("::");
         return {
           accountNo,
           currency,
           balanceMinor,
         };
-      })
-      .sort((a, b) =>
-        context
-          .keyByParts(a.accountNo, a.currency)
-          .localeCompare(context.keyByParts(b.accountNo, b.currency)),
-      );
+      }),
+      (row) => [row.accountNo, row.currency],
+    );
 
     return {
       ...paginated,
       openingBalances,
       closingBalances,
-      scopeMeta: context.buildScopeMeta({
-        scope,
-        attributionMode: query.attributionMode,
-        hasUnattributedData: postings.some((row) => row.analyticCounterpartyId === null),
-      }),
+      scopeMeta,
     };
   };
 }

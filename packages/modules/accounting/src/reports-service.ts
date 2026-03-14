@@ -1,12 +1,8 @@
 export * from "./contracts/reports/dto";
 export * from "./contracts/reports/queries";
-import { createBalancesQueries } from "@bedrock/balances/queries";
-import { createCounterpartiesQueries } from "@bedrock/counterparties/queries";
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import { createCustomersQueries } from "@bedrock/customers/queries";
 import type { LedgerReadService } from "@bedrock/ledger";
-import { createLedgerQueries } from "@bedrock/ledger/queries";
-import { createOrganizationsQueries } from "@bedrock/organizations/queries";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type { Database } from "@bedrock/platform/persistence";
 import { createRequisitesQueries } from "@bedrock/requisites/queries";
@@ -15,13 +11,8 @@ import {
   createAccountingReportsHandlers,
   type AccountingReportsService,
 } from "./application/reports";
-import {
-  createAccountingReportQueries,
-} from "./application/reports/queries/reports";
-import { createDrizzleAccountingReportsRepository } from "./infra/drizzle/repos/reports-repository";
 import { createBedrockDimensionRegistry } from "./infra/reporting/dimensions";
-import { createReportsScopeHelpers } from "./infra/reporting/query-support/scope";
-import { createReportsSharedHelpers } from "./infra/reporting/query-support/shared";
+import { createAccountingReportingRuntime } from "./reporting-runtime";
 
 export { type AccountingReportsService };
 
@@ -44,38 +35,16 @@ export function createAccountingReportsService(
 ): AccountingReportsService {
   const { db, documentsQueries } = deps;
 
-  const balancesQueries = createBalancesQueries({ db });
-  const counterpartiesQueries = createCounterpartiesQueries({ db });
   const currenciesQueries = createCurrenciesQueries({ db });
   const customersQueries = createCustomersQueries({ db });
-  const ledgerQueries = createLedgerQueries({ db });
-  const organizationsQueries = createOrganizationsQueries({ db });
   const requisitesQueries = createRequisitesQueries({ db });
-  const reportsRepository = createDrizzleAccountingReportsRepository(db);
+  const { counterpartiesQueries, ledgerQueries, reportQueries } =
+    createAccountingReportingRuntime({ db });
   const dimensionRegistry = createBedrockDimensionRegistry({
     counterpartiesQueries,
     customersQueries,
     requisitesQueries,
     documentsQueries,
-  });
-
-  const reportContext = {
-    ...createReportsSharedHelpers({
-      balancesQueries,
-      counterpartiesQueries,
-      organizationsQueries,
-      reportsRepository,
-    }),
-    ...createReportsScopeHelpers({
-      counterpartiesQueries,
-      ledgerQueries,
-      organizationsQueries,
-    }),
-    assertInternalOrganization: organizationsQueries.assertInternalLedgerOrganization,
-  };
-
-  const reportQueries = createAccountingReportQueries({
-    context: reportContext,
   });
 
   return createAccountingReportsHandlers({

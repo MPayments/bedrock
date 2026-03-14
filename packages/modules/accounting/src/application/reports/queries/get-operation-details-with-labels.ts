@@ -6,10 +6,7 @@ import type { AccountingReportsServicePorts } from "../ports";
 type RawLedgerOperationDetails = NonNullable<
   Awaited<
     ReturnType<
-      Pick<
-        LedgerReadService,
-        "getOperationDetails"
-      >["getOperationDetails"]
+      Pick<LedgerReadService, "getOperationDetails">["getOperationDetails"]
     >
   >
 >;

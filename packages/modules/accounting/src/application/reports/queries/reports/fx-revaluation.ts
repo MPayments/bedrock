@@ -1,19 +1,18 @@
 import type {
   AccountingReportsContext,
-  FinancialResultStatus,
   FxRevaluationRow,
   FxRevaluationSummaryByCurrency,
 } from "./types";
-import { normalizeReportCurrency } from "../../../../domain/reports";
 import {
   FxRevaluationQuerySchema,
   type FxRevaluationQuery,
 } from "../reports-validation";
+import { fetchScopedReportPostings, sortRowsByContextParts } from "./shared";
 
-export function createListFxRevaluationHandler(context: AccountingReportsContext) {
-  return async function listFxRevaluation(
-    input?: FxRevaluationQuery,
-  ): Promise<{
+export function createListFxRevaluationHandler(
+  context: AccountingReportsContext,
+) {
+  return async function listFxRevaluation(input?: FxRevaluationQuery): Promise<{
     data: FxRevaluationRow[];
     summaryByCurrency: FxRevaluationSummaryByCurrency[];
     scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
@@ -21,27 +20,16 @@ export function createListFxRevaluationHandler(context: AccountingReportsContext
     const query = FxRevaluationQuerySchema.parse(input ?? {});
     const from = new Date(query.from);
     const to = new Date(query.to);
-
-    const scope = await context.resolveScope({
-      scopeType: query.scopeType,
-      counterpartyIds: query.counterpartyId,
-      groupIds: query.groupId,
-      bookIds: query.bookId,
-      includeDescendants: query.includeDescendants,
-    });
-
-    const postings = await context.fetchScopedPostings({
-      scope,
-      attributionMode: query.attributionMode,
-      statuses: query.status as FinancialResultStatus[],
+    const { postings, scopeMeta } = await fetchScopedReportPostings(context, {
+      query,
       from,
       to,
-      currency: normalizeReportCurrency(query.currency),
-      includeUnattributed: query.includeUnattributed,
     });
 
     const accountSet = Array.from(
-      new Set(postings.flatMap((item) => [item.debitAccountNo, item.creditAccountNo])),
+      new Set(
+        postings.flatMap((item) => [item.debitAccountNo, item.creditAccountNo]),
+      ),
     );
     const accountMeta = await context.fetchAccountMeta(accountSet);
 
@@ -49,7 +37,9 @@ export function createListFxRevaluationHandler(context: AccountingReportsContext
 
     for (const posting of postings) {
       const bucket: "realized" | "unrealized" =
-        posting.documentType === "revaluation_adjustment" ? "unrealized" : "realized";
+        posting.documentType === "revaluation_adjustment"
+          ? "unrealized"
+          : "realized";
       const key = context.keyByParts(bucket, posting.currency);
       const current = rowsByBucket.get(key) ?? {
         bucket,
@@ -78,8 +68,10 @@ export function createListFxRevaluationHandler(context: AccountingReportsContext
       rowsByBucket.set(key, current);
     }
 
-    const rows = Array.from(rowsByBucket.values()).sort((a, b) =>
-      context.keyByParts(a.currency, a.bucket).localeCompare(context.keyByParts(b.currency, b.bucket)),
+    const rows = sortRowsByContextParts(
+      context,
+      rowsByBucket.values(),
+      (row) => [row.currency, row.bucket],
     );
 
     const summaryMap = new Map<string, FxRevaluationSummaryByCurrency>();
@@ -97,7 +89,8 @@ export function createListFxRevaluationHandler(context: AccountingReportsContext
         summary.unrealizedNetMinor += row.netMinor;
       }
 
-      summary.totalNetMinor = summary.realizedNetMinor + summary.unrealizedNetMinor;
+      summary.totalNetMinor =
+        summary.realizedNetMinor + summary.unrealizedNetMinor;
       summaryMap.set(row.currency, summary);
     }
 
@@ -106,11 +99,7 @@ export function createListFxRevaluationHandler(context: AccountingReportsContext
       summaryByCurrency: Array.from(summaryMap.values()).sort((a, b) =>
         a.currency.localeCompare(b.currency),
       ),
-      scopeMeta: context.buildScopeMeta({
-        scope,
-        attributionMode: query.attributionMode,
-        hasUnattributedData: postings.some((item) => item.analyticCounterpartyId === null),
-      }),
+      scopeMeta,
     };
   };
 }

@@ -2,25 +2,24 @@ import type {
   AccountingReportsContext,
   CashFlowRow,
   CashFlowSummaryByCurrency,
-  FinancialResultStatus,
 } from "./types";
-import { normalizeReportCurrency } from "../../../../domain/reports";
 import {
   CashFlowQuerySchema,
   type IncomeStatementQuery,
   type CashFlowQuery,
 } from "../reports-validation";
 import type { createComputeIncomeStatementCoreHandler } from "./income-statement";
+import { fetchScopedReportPostings, sortRowsByContextParts } from "./shared";
 
 export function createListCashFlowHandler(input: {
   context: AccountingReportsContext;
-  computeIncomeStatementCore: ReturnType<typeof createComputeIncomeStatementCoreHandler>;
+  computeIncomeStatementCore: ReturnType<
+    typeof createComputeIncomeStatementCoreHandler
+  >;
 }) {
   const { context, computeIncomeStatementCore } = input;
 
-  return async function listCashFlow(
-    inputQuery?: CashFlowQuery,
-  ): Promise<{
+  return async function listCashFlow(inputQuery?: CashFlowQuery): Promise<{
     method: "direct" | "indirect";
     data: CashFlowRow[];
     summaryByCurrency: CashFlowSummaryByCurrency[];
@@ -29,23 +28,10 @@ export function createListCashFlowHandler(input: {
     const query = CashFlowQuerySchema.parse(inputQuery ?? {});
     const from = new Date(query.from);
     const to = new Date(query.to);
-
-    const scope = await context.resolveScope({
-      scopeType: query.scopeType,
-      counterpartyIds: query.counterpartyId,
-      groupIds: query.groupId,
-      bookIds: query.bookId,
-      includeDescendants: query.includeDescendants,
-    });
-
-    const postings = await context.fetchScopedPostings({
-      scope,
-      attributionMode: query.attributionMode,
-      statuses: query.status as FinancialResultStatus[],
+    const { postings, scopeMeta } = await fetchScopedReportPostings(context, {
+      query,
       from,
       to,
-      currency: normalizeReportCurrency(query.currency),
-      includeUnattributed: query.includeUnattributed,
     });
 
     const movements = context.computeAccountNetMovements(postings);
@@ -66,7 +52,11 @@ export function createListCashFlowHandler(input: {
       });
 
       for (const summary of income.summaryByCurrency) {
-        const key = context.keyByParts("indirect", "CFI.NET_PROFIT", summary.currency);
+        const key = context.keyByParts(
+          "indirect",
+          "CFI.NET_PROFIT",
+          summary.currency,
+        );
         rowsByLine.set(key, {
           section: "indirect",
           lineCode: "CFI.NET_PROFIT",
@@ -101,33 +91,31 @@ export function createListCashFlowHandler(input: {
           currency: movement.currency,
           amountMinor: 0n,
         };
-        existing.amountMinor += movement.netMinor * BigInt(mapping.signMultiplier);
+        existing.amountMinor +=
+          movement.netMinor * BigInt(mapping.signMultiplier);
         rowsByLine.set(key, existing);
 
         const summary = summaryByCurrency.get(movement.currency) ?? {
           currency: movement.currency,
           netCashFlowMinor: 0n,
         };
-        summary.netCashFlowMinor += movement.netMinor * BigInt(mapping.signMultiplier);
+        summary.netCashFlowMinor +=
+          movement.netMinor * BigInt(mapping.signMultiplier);
         summaryByCurrency.set(movement.currency, summary);
       }
     }
 
     return {
       method: query.method,
-      data: Array.from(rowsByLine.values()).sort((a, b) =>
-        context
-          .keyByParts(a.section, a.lineCode, a.currency)
-          .localeCompare(context.keyByParts(b.section, b.lineCode, b.currency)),
-      ),
+      data: sortRowsByContextParts(context, rowsByLine.values(), (row) => [
+        row.section,
+        row.lineCode,
+        row.currency,
+      ]),
       summaryByCurrency: Array.from(summaryByCurrency.values()).sort((a, b) =>
         a.currency.localeCompare(b.currency),
       ),
-      scopeMeta: context.buildScopeMeta({
-        scope,
-        attributionMode: query.attributionMode,
-        hasUnattributedData: postings.some((item) => item.analyticCounterpartyId === null),
-      }),
+      scopeMeta,
     };
   };
 }

@@ -2,40 +2,26 @@ import type {
   AccountingReportsContext,
   BalanceSheetCheck,
   BalanceSheetRow,
-  FinancialResultStatus,
 } from "./types";
-import { normalizeReportCurrency } from "../../../../domain/reports";
 import {
   BalanceSheetQuerySchema,
   type BalanceSheetQuery,
 } from "../reports-validation";
+import { fetchScopedReportPostings, sortRowsByContextParts } from "./shared";
 
-export function createListBalanceSheetHandler(context: AccountingReportsContext) {
-  return async function listBalanceSheet(
-    input?: BalanceSheetQuery,
-  ): Promise<{
+export function createListBalanceSheetHandler(
+  context: AccountingReportsContext,
+) {
+  return async function listBalanceSheet(input?: BalanceSheetQuery): Promise<{
     data: BalanceSheetRow[];
     checks: BalanceSheetCheck[];
     scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
   }> {
     const query = BalanceSheetQuerySchema.parse(input ?? {});
     const asOf = new Date(query.asOf);
-
-    const scope = await context.resolveScope({
-      scopeType: query.scopeType,
-      counterpartyIds: query.counterpartyId,
-      groupIds: query.groupId,
-      bookIds: query.bookId,
-      includeDescendants: query.includeDescendants,
-    });
-
-    const postings = await context.fetchScopedPostings({
-      scope,
-      attributionMode: query.attributionMode,
-      statuses: query.status as FinancialResultStatus[],
+    const { postings, scopeMeta } = await fetchScopedReportPostings(context, {
+      query,
       asOf,
-      currency: normalizeReportCurrency(query.currency),
-      includeUnattributed: query.includeUnattributed,
     });
 
     const netByAccountCurrency = new Map<
@@ -44,7 +30,10 @@ export function createListBalanceSheetHandler(context: AccountingReportsContext)
     >();
 
     for (const posting of postings) {
-      const debitKey = context.keyByParts(posting.debitAccountNo, posting.currency);
+      const debitKey = context.keyByParts(
+        posting.debitAccountNo,
+        posting.currency,
+      );
       const debit = netByAccountCurrency.get(debitKey) ?? {
         accountNo: posting.debitAccountNo,
         currency: posting.currency,
@@ -53,7 +42,10 @@ export function createListBalanceSheetHandler(context: AccountingReportsContext)
       debit.netMinor += posting.amountMinor;
       netByAccountCurrency.set(debitKey, debit);
 
-      const creditKey = context.keyByParts(posting.creditAccountNo, posting.currency);
+      const creditKey = context.keyByParts(
+        posting.creditAccountNo,
+        posting.currency,
+      );
       const credit = netByAccountCurrency.get(creditKey) ?? {
         accountNo: posting.creditAccountNo,
         currency: posting.currency,
@@ -65,7 +57,9 @@ export function createListBalanceSheetHandler(context: AccountingReportsContext)
 
     const accountMeta = await context.fetchAccountMeta(
       Array.from(
-        new Set(Array.from(netByAccountCurrency.values()).map((row) => row.accountNo)),
+        new Set(
+          Array.from(netByAccountCurrency.values()).map((row) => row.accountNo),
+        ),
       ),
     );
     const lineMappings = await context.fetchLineMappings("balance_sheet", asOf);
@@ -101,7 +95,11 @@ export function createListBalanceSheetHandler(context: AccountingReportsContext)
       ];
 
       for (const mapping of mappings) {
-        const key = context.keyByParts(mapping.section, mapping.lineCode, row.currency);
+        const key = context.keyByParts(
+          mapping.section,
+          mapping.lineCode,
+          row.currency,
+        );
         const existing = rowsByLine.get(key) ?? {
           section: mapping.section,
           lineCode: mapping.lineCode,
@@ -114,11 +112,11 @@ export function createListBalanceSheetHandler(context: AccountingReportsContext)
       }
     }
 
-    const rows = Array.from(rowsByLine.values()).sort((a, b) =>
-      context
-        .keyByParts(a.section, a.lineCode, a.currency)
-        .localeCompare(context.keyByParts(b.section, b.lineCode, b.currency)),
-    );
+    const rows = sortRowsByContextParts(context, rowsByLine.values(), (row) => [
+      row.section,
+      row.lineCode,
+      row.currency,
+    ]);
 
     const checksByCurrency = new Map<
       string,
@@ -148,18 +146,15 @@ export function createListBalanceSheetHandler(context: AccountingReportsContext)
         assetsMinor: value.assetsMinor,
         liabilitiesMinor: value.liabilitiesMinor,
         equityMinor: value.equityMinor,
-        imbalanceMinor: value.assetsMinor - (value.liabilitiesMinor + value.equityMinor),
+        imbalanceMinor:
+          value.assetsMinor - (value.liabilitiesMinor + value.equityMinor),
       }))
       .sort((a, b) => a.currency.localeCompare(b.currency));
 
     return {
       data: rows,
       checks,
-      scopeMeta: context.buildScopeMeta({
-        scope,
-        attributionMode: query.attributionMode,
-        hasUnattributedData: postings.some((item) => item.analyticCounterpartyId === null),
-      }),
+      scopeMeta,
     };
   };
 }

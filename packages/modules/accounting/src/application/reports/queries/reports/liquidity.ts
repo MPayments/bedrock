@@ -4,35 +4,25 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import type {
-  AccountingReportsContext,
-  LiquidityRow,
-} from "./types";
-import {
-  normalizeReportCurrency,
-} from "../../../../domain/reports";
+import type { AccountingReportsContext, LiquidityRow } from "./types";
+import { normalizeReportCurrency } from "../../../../domain/reports";
 import {
   LiquidityQuerySchema,
   type LiquidityQuery,
 } from "../reports-validation";
+import { buildReportScopeMeta, resolveReportScope } from "./shared";
 
 export function createListLiquidityHandler(context: AccountingReportsContext) {
-  return async function listLiquidity(
-    input?: LiquidityQuery,
-  ): Promise<PaginatedList<LiquidityRow> & {
-    scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
-  }> {
+  return async function listLiquidity(input?: LiquidityQuery): Promise<
+    PaginatedList<LiquidityRow> & {
+      scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
+    }
+  > {
     const query = LiquidityQuerySchema.parse(input ?? {});
     const limit = query.limit;
     const offset = query.offset;
 
-    const scope = await context.resolveScope({
-      scopeType: query.scopeType,
-      counterpartyIds: query.counterpartyId,
-      groupIds: query.groupId,
-      bookIds: query.bookId,
-      includeDescendants: query.includeDescendants,
-    });
+    const scope = await resolveReportScope(context, query);
 
     if (
       (scope.scopeType === "counterparty" || scope.scopeType === "group") &&
@@ -43,7 +33,7 @@ export function createListLiquidityHandler(context: AccountingReportsContext) {
         total: 0,
         limit,
         offset,
-        scopeMeta: context.buildScopeMeta({
+        scopeMeta: buildReportScopeMeta(context, {
           scope,
           attributionMode: query.attributionMode,
           hasUnattributedData: false,
@@ -72,7 +62,7 @@ export function createListLiquidityHandler(context: AccountingReportsContext) {
 
     return {
       ...paginated,
-      scopeMeta: context.buildScopeMeta({
+      scopeMeta: buildReportScopeMeta(context, {
         scope,
         attributionMode: query.attributionMode,
         hasUnattributedData: false,

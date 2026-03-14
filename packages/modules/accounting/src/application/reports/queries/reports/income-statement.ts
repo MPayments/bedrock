@@ -1,15 +1,14 @@
 import type {
   AccountingReportsContext,
-  FinancialResultStatus,
   IncomeStatementRow,
   IncomeStatementSummaryByCurrency,
   ScopedPosting,
 } from "./types";
-import { normalizeReportCurrency } from "../../../../domain/reports";
 import {
   IncomeStatementQuerySchema,
   type IncomeStatementQuery,
 } from "../reports-validation";
+import { fetchScopedReportPostings, sortRowsByContextParts } from "./shared";
 
 export function createComputeIncomeStatementCoreHandler(
   context: AccountingReportsContext,
@@ -25,23 +24,10 @@ export function createComputeIncomeStatementCoreHandler(
     const query = input.query;
     const from = new Date(query.from);
     const to = new Date(query.to);
-
-    const scope = await context.resolveScope({
-      scopeType: query.scopeType,
-      counterpartyIds: query.counterpartyId,
-      groupIds: query.groupId,
-      bookIds: query.bookId,
-      includeDescendants: query.includeDescendants,
-    });
-
-    const postings = await context.fetchScopedPostings({
-      scope,
-      attributionMode: query.attributionMode,
-      statuses: query.status as FinancialResultStatus[],
+    const { postings, scopeMeta } = await fetchScopedReportPostings(context, {
+      query,
       from,
       to,
-      currency: normalizeReportCurrency(query.currency),
-      includeUnattributed: query.includeUnattributed,
     });
 
     const accountSet = new Set<string>();
@@ -63,7 +49,10 @@ export function createComputeIncomeStatementCoreHandler(
       const creditKind = accountMeta.get(posting.creditAccountNo)?.kind;
 
       if (debitKind === "revenue" || debitKind === "expense") {
-        const key = context.keyByParts(posting.debitAccountNo, posting.currency);
+        const key = context.keyByParts(
+          posting.debitAccountNo,
+          posting.currency,
+        );
         const current = amountByAccountCurrency.get(key) ?? {
           accountNo: posting.debitAccountNo,
           currency: posting.currency,
@@ -79,7 +68,10 @@ export function createComputeIncomeStatementCoreHandler(
       }
 
       if (creditKind === "revenue" || creditKind === "expense") {
-        const key = context.keyByParts(posting.creditAccountNo, posting.currency);
+        const key = context.keyByParts(
+          posting.creditAccountNo,
+          posting.currency,
+        );
         const current = amountByAccountCurrency.get(key) ?? {
           accountNo: posting.creditAccountNo,
           currency: posting.currency,
@@ -96,7 +88,10 @@ export function createComputeIncomeStatementCoreHandler(
     }
 
     const rowsByLine = new Map<string, IncomeStatementRow>();
-    const summaryByCurrencyMap = new Map<string, IncomeStatementSummaryByCurrency>();
+    const summaryByCurrencyMap = new Map<
+      string,
+      IncomeStatementSummaryByCurrency
+    >();
 
     for (const row of amountByAccountCurrency.values()) {
       const defaults = mappings.get(row.accountNo) ?? [
@@ -110,7 +105,11 @@ export function createComputeIncomeStatementCoreHandler(
       ];
 
       for (const mapping of defaults) {
-        const key = context.keyByParts(mapping.section, mapping.lineCode, row.currency);
+        const key = context.keyByParts(
+          mapping.section,
+          mapping.lineCode,
+          row.currency,
+        );
         const existing = rowsByLine.get(key) ?? {
           section: mapping.section,
           lineCode: mapping.lineCode,
@@ -118,7 +117,8 @@ export function createComputeIncomeStatementCoreHandler(
           currency: row.currency,
           amountMinor: 0n,
         };
-        existing.amountMinor += row.amountMinor * BigInt(mapping.signMultiplier);
+        existing.amountMinor +=
+          row.amountMinor * BigInt(mapping.signMultiplier);
         rowsByLine.set(key, existing);
       }
 
@@ -138,26 +138,24 @@ export function createComputeIncomeStatementCoreHandler(
     }
 
     return {
-      rows: Array.from(rowsByLine.values()).sort((a, b) =>
-        context
-          .keyByParts(a.section, a.lineCode, a.currency)
-          .localeCompare(context.keyByParts(b.section, b.lineCode, b.currency)),
+      rows: sortRowsByContextParts(context, rowsByLine.values(), (row) => [
+        row.section,
+        row.lineCode,
+        row.currency,
+      ]),
+      summaryByCurrency: Array.from(summaryByCurrencyMap.values()).sort(
+        (a, b) => a.currency.localeCompare(b.currency),
       ),
-      summaryByCurrency: Array.from(summaryByCurrencyMap.values()).sort((a, b) =>
-        a.currency.localeCompare(b.currency),
-      ),
-      scopeMeta: context.buildScopeMeta({
-        scope,
-        attributionMode: query.attributionMode,
-        hasUnattributedData: postings.some((item) => item.analyticCounterpartyId === null),
-      }),
+      scopeMeta,
       postings,
     };
   };
 }
 
 export function createListIncomeStatementHandler(input: {
-  computeIncomeStatementCore: ReturnType<typeof createComputeIncomeStatementCoreHandler>;
+  computeIncomeStatementCore: ReturnType<
+    typeof createComputeIncomeStatementCoreHandler
+  >;
 }) {
   return async function listIncomeStatement(
     inputQuery?: IncomeStatementQuery,

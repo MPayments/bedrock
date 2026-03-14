@@ -1,11 +1,12 @@
 import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
-import type { Database, Transaction } from "../../persistence/drizzle";
 import {
   resolveSortOrder,
   resolveSortValue,
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
+
+import type { Database, Transaction } from "../../persistence/drizzle";
 import {
   account,
   session,

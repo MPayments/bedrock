@@ -17,7 +17,7 @@
     "./packs/bedrock-core-default": "./src/packs/bedrock-core-default.ts"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node ./scripts/copy-assets.mjs",
     "dev": "tsc --watch -p tsconfig.json",
     "check-types": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.ts\" --no-error-on-unmatched-pattern --max-warnings 0",

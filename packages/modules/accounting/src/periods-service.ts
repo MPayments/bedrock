@@ -14,10 +14,6 @@ export {
   getPreviousCalendarMonthRange,
   type AccountingPeriodsService,
 } from "./application/periods";
-import { createBalancesQueries } from "@bedrock/balances/queries";
-import { createCounterpartiesQueries } from "@bedrock/counterparties/queries";
-import { createLedgerQueries } from "@bedrock/ledger/queries";
-import { createOrganizationsQueries } from "@bedrock/organizations/queries";
 import { sha256Hex } from "@bedrock/platform/crypto";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 import { canonicalJson } from "@bedrock/shared/core/canon";
@@ -28,11 +24,8 @@ import {
   type AccountingPeriodsService,
 } from "./application/periods";
 import { toJsonSafeValue } from "./application/periods/json-safe-value";
-import { createAccountingReportQueries } from "./application/reports/queries/reports";
 import { createDrizzleAccountingPeriodsRepository } from "./infra/drizzle/repos/periods-repository";
-import { createDrizzleAccountingReportsRepository } from "./infra/drizzle/repos/reports-repository";
-import { createReportsScopeHelpers } from "./infra/reporting/query-support/scope";
-import { createReportsSharedHelpers } from "./infra/reporting/query-support/shared";
+import { createAccountingReportingRuntime } from "./reporting-runtime";
 
 type Queryable = Database | Transaction;
 
@@ -51,9 +44,7 @@ export interface AccountingPeriodsDocumentsQueries {
       title: string;
     }[]
   >;
-  listAuditEventsByDocumentId: (
-    documentIds: string[],
-  ) => Promise<
+  listAuditEventsByDocumentId: (documentIds: string[]) => Promise<
     {
       id: string;
       eventType: string;
@@ -75,31 +66,13 @@ function createClosePackageSnapshotPort(input: {
   documentsQueriesFactory?: AccountingPeriodsServiceDeps["documentsQueriesFactory"];
 }) {
   const { db, documentsQueriesFactory } = input;
-  const balancesQueries = createBalancesQueries({ db });
-  const counterpartiesQueries = createCounterpartiesQueries({ db });
-  const ledgerQueries = createLedgerQueries({ db });
-  const organizationsQueries = createOrganizationsQueries({ db });
-  const reportsRepository = createDrizzleAccountingReportsRepository(db);
+  const {
+    ledgerQueries,
+    organizationsQueries,
+    reportQueries: reports,
+  } = createAccountingReportingRuntime({ db });
   const periodsRepository = createDrizzleAccountingPeriodsRepository(db);
   const documentsQueries = documentsQueriesFactory?.({ db });
-
-  const reportContext = {
-    ...createReportsSharedHelpers({
-      balancesQueries,
-      counterpartiesQueries,
-      organizationsQueries,
-      reportsRepository,
-    }),
-    ...createReportsScopeHelpers({
-      counterpartiesQueries,
-      ledgerQueries,
-      organizationsQueries,
-    }),
-    assertInternalOrganization: organizationsQueries.assertInternalLedgerOrganization,
-  };
-  const reports = createAccountingReportQueries({
-    context: reportContext,
-  });
 
   return {
     async generateClosePackageSnapshot(snapshotInput: {
@@ -264,70 +237,80 @@ export function createAccountingPeriodsService(
     reopenDocumentId?: string | null;
   }) => ReturnType<AccountingPeriodsService["reopenPeriod"]>;
 } {
-  function resolveService(override?: Queryable) {
-    return buildAccountingPeriodsService({
-      db: override ?? deps.db,
-      documentsQueriesFactory: deps.documentsQueriesFactory,
-    });
+  async function runWithService<T>(input: {
+    db?: Queryable;
+    transactional?: boolean;
+    run: (service: AccountingPeriodsService) => Promise<T>;
+  }) {
+    const execute = (db: Queryable) =>
+      input.run(
+        buildAccountingPeriodsService({
+          db,
+          documentsQueriesFactory: deps.documentsQueriesFactory,
+        }),
+      );
+
+    if (input.db) {
+      return execute(input.db);
+    }
+
+    if (input.transactional) {
+      return deps.db.transaction((tx) => execute(tx));
+    }
+
+    return execute(deps.db);
   }
 
   return {
     isOrganizationPeriodClosed(input) {
-      return resolveService(input.db).isOrganizationPeriodClosed({
-        organizationId: input.organizationId,
-        occurredAt: input.occurredAt,
+      return runWithService({
+        db: input.db,
+        run: (service) =>
+          service.isOrganizationPeriodClosed({
+            organizationId: input.organizationId,
+            occurredAt: input.occurredAt,
+          }),
       });
     },
     assertOrganizationPeriodsOpen(input) {
-      return resolveService(input.db).assertOrganizationPeriodsOpen({
-        occurredAt: input.occurredAt,
-        organizationIds: input.organizationIds,
-        docType: input.docType,
+      return runWithService({
+        db: input.db,
+        run: (service) =>
+          service.assertOrganizationPeriodsOpen({
+            occurredAt: input.occurredAt,
+            organizationIds: input.organizationIds,
+            docType: input.docType,
+          }),
       });
     },
     closePeriod(input) {
-      if (input.db) {
-        return resolveService(input.db).closePeriod({
-          organizationId: input.organizationId,
-          periodStart: input.periodStart,
-          periodEnd: input.periodEnd,
-          closedBy: input.closedBy,
-          closeReason: input.closeReason,
-          closeDocumentId: input.closeDocumentId,
-        });
-      }
-
-      return deps.db.transaction((tx) =>
-        resolveService(tx).closePeriod({
-          organizationId: input.organizationId,
-          periodStart: input.periodStart,
-          periodEnd: input.periodEnd,
-          closedBy: input.closedBy,
-          closeReason: input.closeReason,
-          closeDocumentId: input.closeDocumentId,
-        }),
-      );
+      return runWithService({
+        db: input.db,
+        transactional: true,
+        run: (service) =>
+          service.closePeriod({
+            organizationId: input.organizationId,
+            periodStart: input.periodStart,
+            periodEnd: input.periodEnd,
+            closedBy: input.closedBy,
+            closeReason: input.closeReason,
+            closeDocumentId: input.closeDocumentId,
+          }),
+      });
     },
     reopenPeriod(input) {
-      if (input.db) {
-        return resolveService(input.db).reopenPeriod({
-          organizationId: input.organizationId,
-          periodStart: input.periodStart,
-          reopenedBy: input.reopenedBy,
-          reopenReason: input.reopenReason,
-          reopenDocumentId: input.reopenDocumentId,
-        });
-      }
-
-      return deps.db.transaction((tx) =>
-        resolveService(tx).reopenPeriod({
-          organizationId: input.organizationId,
-          periodStart: input.periodStart,
-          reopenedBy: input.reopenedBy,
-          reopenReason: input.reopenReason,
-          reopenDocumentId: input.reopenDocumentId,
-        }),
-      );
+      return runWithService({
+        db: input.db,
+        transactional: true,
+        run: (service) =>
+          service.reopenPeriod({
+            organizationId: input.organizationId,
+            periodStart: input.periodStart,
+            reopenedBy: input.reopenedBy,
+            reopenReason: input.reopenReason,
+            reopenDocumentId: input.reopenDocumentId,
+          }),
+      });
     },
   };
 }

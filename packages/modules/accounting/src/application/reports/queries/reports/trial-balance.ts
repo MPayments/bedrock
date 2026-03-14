@@ -7,41 +7,30 @@ import {
 
 import type {
   AccountingReportsContext,
-  FinancialResultStatus,
   TrialBalanceRow,
   TrialBalanceSummaryByCurrency,
 } from "./types";
-import { normalizeReportCurrency } from "../../../../domain/reports";
 import {
   TrialBalanceQuerySchema,
   type TrialBalanceQuery,
 } from "../reports-validation";
+import { fetchScopedReportPostings } from "./shared";
 
-export function createListTrialBalanceHandler(context: AccountingReportsContext) {
-  return async function listTrialBalance(
-    input?: TrialBalanceQuery,
-  ): Promise<PaginatedList<TrialBalanceRow> & {
-    summaryByCurrency: TrialBalanceSummaryByCurrency[];
-    scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
-  }> {
+export function createListTrialBalanceHandler(
+  context: AccountingReportsContext,
+) {
+  return async function listTrialBalance(input?: TrialBalanceQuery): Promise<
+    PaginatedList<TrialBalanceRow> & {
+      summaryByCurrency: TrialBalanceSummaryByCurrency[];
+      scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
+    }
+  > {
     const query = TrialBalanceQuerySchema.parse(input ?? {});
     const from = new Date(query.from);
     const to = new Date(query.to);
-    const scope = await context.resolveScope({
-      scopeType: query.scopeType,
-      counterpartyIds: query.counterpartyId,
-      groupIds: query.groupId,
-      bookIds: query.bookId,
-      includeDescendants: query.includeDescendants,
-    });
-
-    const postings = await context.fetchScopedPostings({
-      scope,
-      attributionMode: query.attributionMode,
-      statuses: query.status as FinancialResultStatus[],
+    const { postings, scopeMeta } = await fetchScopedReportPostings(context, {
+      query,
       to,
-      currency: normalizeReportCurrency(query.currency),
-      includeUnattributed: query.includeUnattributed,
     });
 
     const totals = new Map<
@@ -64,7 +53,10 @@ export function createListTrialBalanceHandler(context: AccountingReportsContext)
         continue;
       }
 
-      const debitKey = context.keyByParts(posting.debitAccountNo, posting.currency);
+      const debitKey = context.keyByParts(
+        posting.debitAccountNo,
+        posting.currency,
+      );
       const debitBucket = totals.get(debitKey) ?? {
         accountNo: posting.debitAccountNo,
         currency: posting.currency,
@@ -81,7 +73,10 @@ export function createListTrialBalanceHandler(context: AccountingReportsContext)
       }
       totals.set(debitKey, debitBucket);
 
-      const creditKey = context.keyByParts(posting.creditAccountNo, posting.currency);
+      const creditKey = context.keyByParts(
+        posting.creditAccountNo,
+        posting.currency,
+      );
       const creditBucket = totals.get(creditKey) ?? {
         accountNo: posting.creditAccountNo,
         currency: posting.currency,
@@ -100,7 +95,9 @@ export function createListTrialBalanceHandler(context: AccountingReportsContext)
     }
 
     const accountMeta = await context.fetchAccountMeta(
-      Array.from(new Set(Array.from(totals.values()).map((row) => row.accountNo))),
+      Array.from(
+        new Set(Array.from(totals.values()).map((row) => row.accountNo)),
+      ),
     );
 
     const rows: TrialBalanceRow[] = Array.from(totals.values()).map((row) => {
@@ -146,7 +143,10 @@ export function createListTrialBalanceHandler(context: AccountingReportsContext)
       offset: query.offset,
     });
 
-    const summaryByCurrencyMap = new Map<string, TrialBalanceSummaryByCurrency>();
+    const summaryByCurrencyMap = new Map<
+      string,
+      TrialBalanceSummaryByCurrency
+    >();
     for (const row of rows) {
       const existing = summaryByCurrencyMap.get(row.currency) ?? {
         currency: row.currency,
@@ -168,14 +168,10 @@ export function createListTrialBalanceHandler(context: AccountingReportsContext)
 
     return {
       ...paginated,
-      summaryByCurrency: Array.from(summaryByCurrencyMap.values()).sort((a, b) =>
-        a.currency.localeCompare(b.currency),
+      summaryByCurrency: Array.from(summaryByCurrencyMap.values()).sort(
+        (a, b) => a.currency.localeCompare(b.currency),
       ),
-      scopeMeta: context.buildScopeMeta({
-        scope,
-        attributionMode: query.attributionMode,
-        hasUnattributedData: postings.some((row) => row.analyticCounterpartyId === null),
-      }),
+      scopeMeta,
     };
   };
 }

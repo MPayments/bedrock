@@ -8,43 +8,29 @@ import type {
   AccountingReportsContext,
   FeeRevenueRow,
   FeeRevenueSummaryByCurrency,
-  FinancialResultStatus,
 } from "./types";
-import { normalizeReportCurrency } from "../../../../domain/reports";
 import {
   FeeRevenueQuerySchema,
   type FeeRevenueQuery,
 } from "../reports-validation";
+import { fetchScopedReportPostings } from "./shared";
 
 export function createListFeeRevenueHandler(context: AccountingReportsContext) {
-  return async function listFeeRevenue(
-    input?: FeeRevenueQuery,
-  ): Promise<PaginatedList<FeeRevenueRow> & {
-    summaryByCurrency: FeeRevenueSummaryByCurrency[];
-    scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
-  }> {
+  return async function listFeeRevenue(input?: FeeRevenueQuery): Promise<
+    PaginatedList<FeeRevenueRow> & {
+      summaryByCurrency: FeeRevenueSummaryByCurrency[];
+      scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
+    }
+  > {
     const query = FeeRevenueQuerySchema.parse(input ?? {});
     const limit = query.limit;
     const offset = query.offset;
     const from = new Date(query.from);
     const to = new Date(query.to);
-
-    const scope = await context.resolveScope({
-      scopeType: query.scopeType,
-      counterpartyIds: query.counterpartyId,
-      groupIds: query.groupId,
-      bookIds: query.bookId,
-      includeDescendants: query.includeDescendants,
-    });
-
-    const postings = await context.fetchScopedPostings({
-      scope,
-      attributionMode: query.attributionMode,
-      statuses: query.status as FinancialResultStatus[],
+    const { postings, scopeMeta } = await fetchScopedReportPostings(context, {
+      query,
       from,
       to,
-      currency: normalizeReportCurrency(query.currency),
-      includeUnattributed: query.includeUnattributed,
     });
 
     const byDimension = new Map<string, FeeRevenueRow>();
@@ -66,7 +52,12 @@ export function createListFeeRevenueHandler(context: AccountingReportsContext) {
 
       const product = posting.documentType ?? "unknown";
       const channel = posting.channel ?? "unknown";
-      const key = context.keyByParts(product, channel, counterpartyId, posting.currency);
+      const key = context.keyByParts(
+        product,
+        channel,
+        counterpartyId,
+        posting.currency,
+      );
       const row = byDimension.get(key) ?? {
         product,
         channel,
@@ -100,11 +91,16 @@ export function createListFeeRevenueHandler(context: AccountingReportsContext) {
         row.providerFeeExpenseMinor -= posting.amountMinor;
       }
 
-      row.netMinor = row.feeRevenueMinor + row.spreadRevenueMinor - row.providerFeeExpenseMinor;
+      row.netMinor =
+        row.feeRevenueMinor +
+        row.spreadRevenueMinor -
+        row.providerFeeExpenseMinor;
       byDimension.set(key, row);
     }
 
-    const counterpartyNames = await context.fetchCounterpartyNames(Array.from(counterpartyIds));
+    const counterpartyNames = await context.fetchCounterpartyNames(
+      Array.from(counterpartyIds),
+    );
 
     const rows = Array.from(byDimension.values()).map((row) => ({
       ...row,
@@ -148,11 +144,7 @@ export function createListFeeRevenueHandler(context: AccountingReportsContext) {
       summaryByCurrency: Array.from(summaryMap.values()).sort((a, b) =>
         a.currency.localeCompare(b.currency),
       ),
-      scopeMeta: context.buildScopeMeta({
-        scope,
-        attributionMode: query.attributionMode,
-        hasUnattributedData: postings.some((item) => item.analyticCounterpartyId === null),
-      }),
+      scopeMeta,
     };
   };
 }
