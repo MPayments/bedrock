@@ -5,6 +5,8 @@ import { normalizeMajorAmountInput } from "@bedrock/money";
 import {
   CapitalFundingInputSchema,
   CapitalFundingPayloadSchema,
+  FxExecuteInputSchema,
+  FxExecutePayloadSchema,
   TransferIntraInputSchema,
   TransferIntraPayloadSchema,
 } from "../src/validation";
@@ -79,5 +81,76 @@ describe("ifrs documents validation", () => {
     expect(() =>
       normalizeMajorAmountInput("1.001", "USD", RUSSIAN_MAJOR_AMOUNT_MESSAGES),
     ).toThrow("Слишком много знаков после запятой для USD: максимум 2");
+  });
+
+  it("accepts fx_execute manual financial lines and normalizes them", () => {
+    const parsed = FxExecuteInputSchema.parse({
+      occurredAt: "2026-03-03T10:00:00.000Z",
+      sourceRequisiteId: "00000000-0000-4000-8000-000000000001",
+      destinationRequisiteId: "00000000-0000-4000-8000-000000000002",
+      quoteRef: "quote-ref-1",
+      financialLines: [
+        {
+          bucket: "fee_revenue",
+          currency: "usd",
+          amount: "1.5",
+        },
+      ],
+    });
+
+    expect(parsed.financialLines).toHaveLength(1);
+    expect(parsed.financialLines[0]).toMatchObject({
+      bucket: "fee_revenue",
+      currency: "USD",
+      amountMinor: "150",
+      source: "manual",
+    });
+  });
+
+  it("keeps fx_execute payload parsing compatible with frozen quote snapshots", () => {
+    const parsed = FxExecutePayloadSchema.parse({
+      occurredAt: "2026-03-03T10:00:00.000Z",
+      ownershipMode: "cross_org",
+      sourceOrganizationId: "00000000-0000-4000-8000-000000000010",
+      sourceRequisiteId: "00000000-0000-4000-8000-000000000001",
+      destinationOrganizationId: "00000000-0000-4000-8000-000000000011",
+      destinationRequisiteId: "00000000-0000-4000-8000-000000000002",
+      quoteSnapshot: {
+        quoteId: "00000000-0000-4000-8000-000000000020",
+        quoteRef: "quote-ref-1",
+        idempotencyKey: "quote-ref-1",
+        fromCurrency: "USD",
+        toCurrency: "EUR",
+        fromAmountMinor: "10000",
+        toAmountMinor: "9200",
+        pricingMode: "explicit_route",
+        rateNum: "23",
+        rateDen: "25",
+        expiresAt: "2026-03-03T10:10:00.000Z",
+        pricingTrace: { version: "v1", mode: "explicit_route" },
+        legs: [
+          {
+            idx: 1,
+            fromCurrency: "USD",
+            toCurrency: "EUR",
+            fromAmountMinor: "10000",
+            toAmountMinor: "9200",
+            rateNum: "23",
+            rateDen: "25",
+            sourceKind: "manual",
+            sourceRef: "desk",
+            asOf: "2026-03-03T10:00:00.000Z",
+            executionCounterpartyId: null,
+          },
+        ],
+        financialLines: [],
+        snapshotHash:
+          "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      },
+      financialLines: [],
+    });
+
+    expect(parsed.quoteSnapshot.quoteRef).toBe("quote-ref-1");
+    expect(parsed.ownershipMode).toBe("cross_org");
   });
 });

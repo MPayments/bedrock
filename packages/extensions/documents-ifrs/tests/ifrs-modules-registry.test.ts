@@ -24,6 +24,22 @@ describe("ifrs module registry", () => {
           return [];
         },
       },
+      fxExecuteLookup: {
+        async resolveFxExecuteDependencyDocument() {
+          throw new Error("not implemented");
+        },
+        async listPendingTransfers() {
+          return [];
+        },
+      },
+      quoteSnapshot: {
+        async loadQuoteSnapshot() {
+          throw new Error("not implemented");
+        },
+      },
+      quoteUsage: {
+        async markQuoteUsedForFxExecute() {},
+      },
     });
 
     expect(modules).toHaveLength(IFRS_DOCUMENT_TYPE_ORDER.length);

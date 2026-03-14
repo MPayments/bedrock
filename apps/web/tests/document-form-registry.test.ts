@@ -9,7 +9,10 @@ import { getDocumentFormDefinitionForRole } from "@/features/documents/lib/docum
 describe("document form registry", () => {
   it("provides definitions for all typed IFRS doc types", () => {
     for (const docType of IFRS_DOCUMENT_TYPE_ORDER) {
-      if (docType === "period_close") {
+      const definition = IFRS_DOCUMENT_DEFINITIONS.find(
+        (candidate) => candidate.docType === docType,
+      );
+      if (!definition?.hasTypedForm) {
         continue;
       }
 
@@ -23,6 +26,20 @@ describe("document form registry", () => {
   });
 
   it("keeps admin-only and non-typed behavior", () => {
+    expect(
+      getDocumentFormDefinitionForRole({
+        docType: "fx_execute",
+        role: "user",
+      }),
+    ).not.toBeNull();
+
+    expect(
+      getDocumentFormDefinitionForRole({
+        docType: "fx_resolution",
+        role: "admin",
+      }),
+    ).toBeNull();
+
     expect(
       getDocumentFormDefinitionForRole({
         docType: "period_reopen",

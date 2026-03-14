@@ -170,6 +170,9 @@ describe("document plugin adapters composition", () => {
         }),
     };
     const deps = createIfrsDocumentDeps({
+      currenciesService: {
+        findById: vi.fn(),
+      } as any,
       requisitesService: {
         resolveBindings: vi.fn(async () => []),
         findById: vi.fn(),
@@ -188,5 +191,158 @@ describe("document plugin adapters composition", () => {
         transferDocumentId: "doc-transfer-1",
       }),
     ).resolves.toEqual(pendingTransfers);
+  });
+
+  it("builds IFRS quote snapshot and FX dependency adapters from app-owned wiring", async () => {
+    const quote = {
+      id: "550e8400-e29b-41d4-a716-446655440099",
+      fromCurrencyId: "cur-usd",
+      toCurrencyId: "cur-eur",
+      fromAmountMinor: 10_000n,
+      toAmountMinor: 9_200n,
+      pricingMode: "explicit_route",
+      pricingTrace: { version: "v1", mode: "explicit_route" },
+      rateNum: 23n,
+      rateDen: 25n,
+      status: "active",
+      usedByRef: null,
+      expiresAt: new Date("2026-03-03T10:10:00.000Z"),
+      idempotencyKey: "quote-ref-1",
+    };
+    const dependencyDocument = {
+      id: "doc-fx-1",
+      docType: "fx_execute",
+      payload: { quoteRef: "quote-ref-1" },
+      occurredAt: new Date("2026-03-03T10:00:00.000Z"),
+    };
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn((table: unknown) => {
+          if (table === fxSchema.fxQuotes) {
+            return {
+              where: vi.fn(() => ({
+                limit: vi.fn(async () => [quote]),
+              })),
+            };
+          }
+
+          if (table === fxSchema.fxQuoteLegs) {
+            return {
+              where: vi.fn(() => ({
+                orderBy: vi.fn(async () => [
+                  {
+                    quoteId: quote.id,
+                    idx: 1,
+                    fromCurrencyId: "cur-usd",
+                    toCurrencyId: "cur-eur",
+                    fromAmountMinor: 10_000n,
+                    toAmountMinor: 9_200n,
+                    rateNum: 23n,
+                    rateDen: 25n,
+                    sourceKind: "manual",
+                    sourceRef: "desk",
+                    asOf: new Date("2026-03-03T10:00:00.000Z"),
+                    executionCounterpartyId: null,
+                  },
+                ]),
+              })),
+            };
+          }
+
+          if (table === fxSchema.fxQuoteFinancialLines) {
+            return {
+              where: vi.fn(() => ({
+                orderBy: vi.fn(async () => []),
+              })),
+            };
+          }
+
+          if (table === documentsSchema.documents) {
+            return {
+              where: vi.fn(() => ({
+                limit: vi.fn(async () => [{ document: dependencyDocument }]),
+              })),
+            };
+          }
+
+          if (table === documentsSchema.documentOperations) {
+            return {
+              innerJoin: vi.fn(() => ({
+                where: vi.fn(() => ({
+                  orderBy: vi.fn(async () => [
+                    {
+                      transferId: 101n,
+                      pendingRef: "fx_execute:doc-fx-1:source",
+                      amountMinor: 10_000n,
+                    },
+                  ]),
+                })),
+              })),
+            };
+          }
+
+          throw new Error("unexpected table");
+        }),
+      })),
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({
+          where: vi.fn(() => ({
+            returning: vi.fn(async () => [{}]),
+          })),
+        })),
+      })),
+    };
+    const deps = createIfrsDocumentDeps({
+      currenciesService: {
+        findById: vi.fn(async (id: string) => {
+          if (id === "cur-usd") return { id, code: "USD", precision: 2 };
+          if (id === "cur-eur") return { id, code: "EUR", precision: 2 };
+          throw new Error(`Unknown currency ${id}`);
+        }),
+      } as any,
+      requisitesService: {
+        resolveBindings: vi.fn(async () => []),
+        findById: vi.fn(),
+      } as any,
+    });
+
+    await expect(
+      deps.quoteSnapshot.loadQuoteSnapshot({
+        db: db as any,
+        quoteRef: "quote-ref-1",
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        quoteId: quote.id,
+        fromCurrency: "USD",
+        toCurrency: "EUR",
+      }),
+    );
+    await expect(
+      deps.fxExecuteLookup.resolveFxExecuteDependencyDocument({
+        db: db as any,
+        fxExecuteDocumentId: "doc-fx-1",
+      }),
+    ).resolves.toEqual(dependencyDocument);
+    await expect(
+      deps.fxExecuteLookup.listPendingTransfers({
+        db: db as any,
+        fxExecuteDocumentId: "doc-fx-1",
+      }),
+    ).resolves.toEqual([
+      {
+        transferId: 101n,
+        pendingRef: "fx_execute:doc-fx-1:source",
+        amountMinor: 10_000n,
+      },
+    ]);
+    await expect(
+      deps.quoteUsage.markQuoteUsedForFxExecute({
+        db: db as any,
+        quoteId: quote.id,
+        fxExecuteDocumentId: "doc-fx-1",
+        at: new Date("2026-03-03T10:05:00.000Z"),
+      }),
+    ).resolves.toBeUndefined();
   });
 });

@@ -35,6 +35,10 @@ describe("ifrs document definitions", () => {
   });
 
   it("keeps typed-form and admin-only semantics for period close and reopen", () => {
+    expect(getIfrsDocumentDefinition("fx_execute")?.formDefinition).not.toBeNull();
+    expect(getIfrsDocumentDefinition("fx_resolution")?.formDefinition).toBeNull();
+    expect(getIfrsDocumentDefinition("fx_resolution")?.creatable).toBe(false);
+
     expect(getIfrsDocumentDefinition("period_close")?.formDefinition).toBeNull();
     expect(getIfrsDocumentDefinition("period_close")?.hasTypedForm).toBe(false);
     expect(getIfrsDocumentDefinition("period_close")?.adminOnly).toBe(true);

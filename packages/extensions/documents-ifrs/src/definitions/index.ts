@@ -3,6 +3,8 @@ import { capitalFundingDocumentDefinition } from "./capital-funding";
 import { closingReclassDocumentDefinition } from "./closing-reclass";
 import { equityContributionDocumentDefinition } from "./equity-contribution";
 import { equityDistributionDocumentDefinition } from "./equity-distribution";
+import { fxExecuteDocumentDefinition } from "./fx-execute";
+import { fxResolutionDocumentDefinition } from "./fx-resolution";
 import { impairmentAdjustmentDocumentDefinition } from "./impairment-adjustment";
 import { intercompanyInterestAccrualDocumentDefinition } from "./intercompany-interest-accrual";
 import { intercompanyInterestSettlementDocumentDefinition } from "./intercompany-interest-settlement";
@@ -19,6 +21,8 @@ export const IFRS_DOCUMENT_CATALOG = [
   transferIntraDocumentDefinition,
   transferIntercompanyDocumentDefinition,
   transferResolutionDocumentDefinition,
+  fxExecuteDocumentDefinition,
+  fxResolutionDocumentDefinition,
   capitalFundingDocumentDefinition,
   intercompanyLoanDrawdownDocumentDefinition,
   intercompanyLoanRepaymentDocumentDefinition,

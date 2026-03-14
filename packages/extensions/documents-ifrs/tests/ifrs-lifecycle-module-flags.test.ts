@@ -26,6 +26,22 @@ describe("ifrs lifecycle module flags", () => {
           return [];
         },
       },
+      fxExecuteLookup: {
+        async resolveFxExecuteDependencyDocument() {
+          throw new Error("not implemented");
+        },
+        async listPendingTransfers() {
+          return [];
+        },
+      },
+      quoteSnapshot: {
+        async loadQuoteSnapshot() {
+          throw new Error("not implemented");
+        },
+      },
+      quoteUsage: {
+        async markQuoteUsedForFxExecute() {},
+      },
     });
 
     for (const docType of SIMPLE_IFRS_DOC_TYPES) {

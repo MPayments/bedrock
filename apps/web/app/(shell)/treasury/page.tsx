@@ -15,6 +15,7 @@ const TREASURY_DOC_TYPES = [
   "fee_payout_void",
   "capital_funding",
   "fx_execute",
+  "fx_resolution",
 ];
 
 function formatCount(value: number) {
@@ -46,7 +47,7 @@ export default async function TreasuryOverviewPage() {
           label: "Treasury-документы",
           value: formatCount(treasuryDocuments.total),
           description:
-            "Документы funding, payout и FX execute в едином журнале.",
+            "Документы funding, payout и treasury FX в едином журнале.",
           href: "/documents",
         },
       ]}

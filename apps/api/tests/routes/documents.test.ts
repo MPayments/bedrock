@@ -1,9 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { userHasPermission } = vi.hoisted(() => ({
-  userHasPermission: vi.fn(async () => ({ success: true })),
-}));
+const userHasPermission = vi.fn(async () => ({ success: true }));
 
 vi.mock("../../src/auth", () => ({
   default: {
@@ -253,5 +251,32 @@ describe("documentsRoutes mutation actions", () => {
         correlationId: "corr-1",
       }),
     });
+  });
+
+  it("blocks public creation for system-only fx_resolution documents", async () => {
+    const { app, documentsService } = createTestApp({ role: "admin" });
+
+    const response = await app.request("http://localhost/fx_resolution", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        createIdempotencyKey: "create-idem",
+        input: {
+          occurredAt: "2026-03-01T00:00:00.000Z",
+          fxExecuteDocumentId: "11111111-1111-4111-8111-111111111111",
+          resolutionType: "settle",
+          eventIdempotencyKey: "evt-1",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error:
+        'Document type "fx_resolution" is system-only and cannot be mutated via public API',
+    });
+    expect(documentsService.createDraft).not.toHaveBeenCalled();
   });
 });

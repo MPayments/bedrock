@@ -30,6 +30,11 @@ describe("document doc types", () => {
   });
 
   it("enforces typed-form and create permissions for admin-only IFRS docs", () => {
+    expect(hasTypedDocumentForm("fx_execute", "user")).toBe(true);
+    expect(canCreateDocumentType("fx_execute", "user")).toBe(true);
+    expect(hasTypedDocumentForm("fx_resolution", "admin")).toBe(false);
+    expect(canCreateDocumentType("fx_resolution", "admin")).toBe(false);
+
     expect(hasTypedDocumentForm("period_reopen", "admin")).toBe(true);
     expect(hasTypedDocumentForm("period_reopen", "user")).toBe(false);
 
@@ -47,6 +52,7 @@ describe("document doc types", () => {
     expect(isDocumentsWorkspaceFamily("legacy")).toBe(false);
 
     expect(getDocumentsWorkspaceFamily("transfer_intra")).toBe("transfers");
+    expect(getDocumentsWorkspaceFamily("fx_execute")).toBe("ifrs");
     expect(getDocumentsWorkspaceFamily("capital_funding")).toBe("ifrs");
     expect(getDocumentsWorkspaceFamily("legacy_doc_type")).toBeNull();
 
@@ -66,11 +72,17 @@ describe("document doc types", () => {
       getDocumentsWorkspaceTypesForFamily("ifrs", "user").map(
         (option) => option.value,
       ),
-    ).toEqual(["capital_funding"]);
+    ).toEqual(["fx_execute", "fx_resolution", "capital_funding"]);
     expect(
       getDocumentsWorkspaceTypesForFamily("ifrs", "admin").map(
         (option) => option.value,
       ),
-    ).toEqual(["capital_funding", "period_close", "period_reopen"]);
+    ).toEqual([
+      "fx_execute",
+      "fx_resolution",
+      "capital_funding",
+      "period_close",
+      "period_reopen",
+    ]);
   });
 });

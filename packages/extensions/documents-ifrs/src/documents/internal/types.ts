@@ -29,6 +29,22 @@ export interface PendingTransferRecord {
 export interface TransferDependencyDocument
   extends Pick<Document, "id" | "docType" | "payload" | "occurredAt"> {}
 
+export interface QuoteSnapshotLoaderPort {
+  loadQuoteSnapshot(input: {
+    db: IfrsDocumentDb;
+    quoteRef: string;
+  }): Promise<Record<string, unknown>>;
+}
+
+export interface QuoteUsagePort {
+  markQuoteUsedForFxExecute(input: {
+    db: IfrsDocumentDb;
+    quoteId: string;
+    fxExecuteDocumentId: string;
+    at: Date;
+  }): Promise<void>;
+}
+
 export interface IfrsTransferLookupPort {
   resolveTransferDependencyDocument(input: {
     db: IfrsDocumentDb;
@@ -40,9 +56,23 @@ export interface IfrsTransferLookupPort {
   }): Promise<PendingTransferRecord[]>;
 }
 
+export interface IfrsFxExecuteLookupPort {
+  resolveFxExecuteDependencyDocument(input: {
+    db: IfrsDocumentDb;
+    fxExecuteDocumentId: string;
+  }): Promise<TransferDependencyDocument>;
+  listPendingTransfers(input: {
+    db: IfrsDocumentDb;
+    fxExecuteDocumentId: string;
+  }): Promise<PendingTransferRecord[]>;
+}
+
 export interface IfrsModuleDeps {
   requisitesService: RequisitesService;
   transferLookup: IfrsTransferLookupPort;
+  fxExecuteLookup: IfrsFxExecuteLookupPort;
+  quoteSnapshot: QuoteSnapshotLoaderPort;
+  quoteUsage: QuoteUsagePort;
 }
 
 export type IfrsDocumentDb = Parameters<DocumentModule["canPost"]>[0]["db"];

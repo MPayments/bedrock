@@ -2,6 +2,8 @@ export const IFRS_ALL_DOCUMENT_TYPES = [
   "transfer_intra",
   "transfer_intercompany",
   "transfer_resolution",
+  "fx_execute",
+  "fx_resolution",
   "capital_funding",
   "intercompany_loan_drawdown",
   "intercompany_loan_repayment",

@@ -63,6 +63,10 @@ export const POSTING_CODE = {
   FX_PAYOUT_OBLIGATION: "TC.2005",
   FX_LEG_OUT: "TC.2009",
   FX_LEG_IN: "TC.2010",
+  TREASURY_FX_SOURCE_IMMEDIATE: "TC.2101",
+  TREASURY_FX_DESTINATION_IMMEDIATE: "TC.2102",
+  TREASURY_FX_SOURCE_PENDING: "TC.2103",
+  TREASURY_FX_DESTINATION_PENDING: "TC.2104",
 
   FEE_INCOME: "TC.3001",
   SPREAD_INCOME: "TC.3002",
@@ -75,6 +79,12 @@ export const POSTING_CODE = {
   ADJUSTMENT_CHARGE_FROM_RESERVE: "TC.3009",
   ADJUSTMENT_REFUND_FROM_RESERVE: "TC.3010",
   FEE_PAYMENT_INITIATED: "TC.3011",
+  TREASURY_FX_FEE_INCOME: "TC.3201",
+  TREASURY_FX_SPREAD_INCOME: "TC.3202",
+  TREASURY_FX_PASS_THROUGH: "TC.3203",
+  TREASURY_FX_PROVIDER_FEE_EXPENSE: "TC.3204",
+  TREASURY_FX_ADJUSTMENT_CHARGE: "TC.3205",
+  TREASURY_FX_ADJUSTMENT_REFUND: "TC.3206",
   PAYOUT_INITIATED: "TC.3101",
 } as const;
 
@@ -84,13 +94,27 @@ export const TransferCodes = {
   FX_PAYOUT_OBLIGATION: 2005,
   FX_LEG_OUT: 2009,
   FX_LEG_IN: 2010,
+  TREASURY_FX_SOURCE_IMMEDIATE: 2101,
+  TREASURY_FX_DESTINATION_IMMEDIATE: 2102,
+  TREASURY_FX_SOURCE_PENDING: 2103,
+  TREASURY_FX_DESTINATION_PENDING: 2104,
   FEE_INCOME: 3001,
   SPREAD_INCOME: 3002,
   FEE_PASS_THROUGH_RESERVE: 3003,
+  FEE_INCOME_FROM_RESERVE: 3004,
+  SPREAD_INCOME_FROM_RESERVE: 3005,
   ADJUSTMENT_CHARGE: 3006,
   ADJUSTMENT_REFUND: 3007,
   PROVIDER_FEE_EXPENSE_ACCRUAL: 3008,
+  ADJUSTMENT_CHARGE_FROM_RESERVE: 3009,
+  ADJUSTMENT_REFUND_FROM_RESERVE: 3010,
   FEE_PAYMENT_INITIATED: 3011,
+  TREASURY_FX_FEE_INCOME: 3201,
+  TREASURY_FX_SPREAD_INCOME: 3202,
+  TREASURY_FX_PASS_THROUGH: 3203,
+  TREASURY_FX_PROVIDER_FEE_EXPENSE: 3204,
+  TREASURY_FX_ADJUSTMENT_CHARGE: 3205,
+  TREASURY_FX_ADJUSTMENT_REFUND: 3206,
   PAYOUT_INITIATED: 3101,
   INTERNAL_TRANSFER: 4001,
   EXTERNAL_FUNDING_FOUNDER_EQUITY: 9001,
@@ -134,7 +158,7 @@ export const CLEARING_KIND_DIMENSION_RULES: Record<
     { dimensionKey: DIM.feeBucket, mode: "forbidden" },
   ],
   [CLEARING_KIND.TREASURY_FX]: [
-    { dimensionKey: DIM.counterpartyId, mode: "required" },
+    { dimensionKey: DIM.counterpartyId, mode: "optional" },
     { dimensionKey: DIM.orderId, mode: "required" },
     { dimensionKey: DIM.customerId, mode: "forbidden" },
     { dimensionKey: DIM.organizationRequisiteId, mode: "forbidden" },
@@ -724,6 +748,80 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
       scope: "debit",
     },
 
+    // --- Treasury FX principal ---
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_SOURCE_IMMEDIATE,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_SOURCE_IMMEDIATE,
+      dimensionKey: DIM.clearingKind,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_SOURCE_IMMEDIATE,
+      dimensionKey: DIM.organizationRequisiteId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_DESTINATION_IMMEDIATE,
+      dimensionKey: DIM.organizationRequisiteId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_DESTINATION_IMMEDIATE,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_DESTINATION_IMMEDIATE,
+      dimensionKey: DIM.clearingKind,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_SOURCE_PENDING,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_SOURCE_PENDING,
+      dimensionKey: DIM.clearingKind,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_SOURCE_PENDING,
+      dimensionKey: DIM.organizationRequisiteId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_DESTINATION_PENDING,
+      dimensionKey: DIM.organizationRequisiteId,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_DESTINATION_PENDING,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_DESTINATION_PENDING,
+      dimensionKey: DIM.clearingKind,
+      required: true,
+      scope: "credit",
+    },
+
     // --- Funding ---
     // BANK(debit) → CUSTOMER_WALLET(credit)
     {
@@ -984,6 +1082,116 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
       scope: "credit",
     },
 
+    // --- Treasury FX fees and adjustments ---
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_FEE_INCOME,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_FEE_INCOME,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_FEE_INCOME,
+      dimensionKey: DIM.clearingKind,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_SPREAD_INCOME,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_SPREAD_INCOME,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_SPREAD_INCOME,
+      dimensionKey: DIM.clearingKind,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_PASS_THROUGH,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_PASS_THROUGH,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_PASS_THROUGH,
+      dimensionKey: DIM.clearingKind,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_PROVIDER_FEE_EXPENSE,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_PROVIDER_FEE_EXPENSE,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_PROVIDER_FEE_EXPENSE,
+      dimensionKey: DIM.clearingKind,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_ADJUSTMENT_CHARGE,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_ADJUSTMENT_CHARGE,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "credit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_ADJUSTMENT_CHARGE,
+      dimensionKey: DIM.clearingKind,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_ADJUSTMENT_REFUND,
+      dimensionKey: DIM.orderId,
+      required: true,
+      scope: "line",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_ADJUSTMENT_REFUND,
+      dimensionKey: DIM.feeBucket,
+      required: true,
+      scope: "debit",
+    },
+    {
+      postingCode: POSTING_CODE.TREASURY_FX_ADJUSTMENT_REFUND,
+      dimensionKey: DIM.clearingKind,
+      required: true,
+      scope: "credit",
+    },
+
     // --- Adjustments (CW ↔ revenue/expense) ---
     {
       postingCode: POSTING_CODE.ADJUSTMENT_CHARGE,
@@ -1081,6 +1289,26 @@ export const DEFAULT_GLOBAL_CORRESPONDENCE_RULES = [
     creditAccountNo: ACCOUNT_NO.CLEARING,
   },
   {
+    postingCode: POSTING_CODE.TREASURY_FX_SOURCE_IMMEDIATE,
+    debitAccountNo: ACCOUNT_NO.CLEARING,
+    creditAccountNo: ACCOUNT_NO.BANK,
+  },
+  {
+    postingCode: POSTING_CODE.TREASURY_FX_DESTINATION_IMMEDIATE,
+    debitAccountNo: ACCOUNT_NO.BANK,
+    creditAccountNo: ACCOUNT_NO.CLEARING,
+  },
+  {
+    postingCode: POSTING_CODE.TREASURY_FX_SOURCE_PENDING,
+    debitAccountNo: ACCOUNT_NO.CLEARING,
+    creditAccountNo: ACCOUNT_NO.BANK,
+  },
+  {
+    postingCode: POSTING_CODE.TREASURY_FX_DESTINATION_PENDING,
+    debitAccountNo: ACCOUNT_NO.BANK,
+    creditAccountNo: ACCOUNT_NO.CLEARING,
+  },
+  {
     postingCode: POSTING_CODE.FUNDING_SETTLED,
     debitAccountNo: ACCOUNT_NO.BANK,
     creditAccountNo: ACCOUNT_NO.CUSTOMER_WALLET,
@@ -1159,6 +1387,46 @@ export const DEFAULT_GLOBAL_CORRESPONDENCE_RULES = [
     postingCode: POSTING_CODE.FEE_PAYMENT_INITIATED,
     debitAccountNo: ACCOUNT_NO.FEE_CLEARING,
     creditAccountNo: ACCOUNT_NO.BANK,
+  },
+  {
+    postingCode: POSTING_CODE.TREASURY_FX_FEE_INCOME,
+    debitAccountNo: ACCOUNT_NO.CLEARING,
+    creditAccountNo: ACCOUNT_NO.FEE_REVENUE,
+  },
+  {
+    postingCode: POSTING_CODE.TREASURY_FX_SPREAD_INCOME,
+    debitAccountNo: ACCOUNT_NO.CLEARING,
+    creditAccountNo: ACCOUNT_NO.SPREAD_REVENUE,
+  },
+  {
+    postingCode: POSTING_CODE.TREASURY_FX_PASS_THROUGH,
+    debitAccountNo: ACCOUNT_NO.CLEARING,
+    creditAccountNo: ACCOUNT_NO.FEE_CLEARING,
+  },
+  {
+    postingCode: POSTING_CODE.TREASURY_FX_PASS_THROUGH,
+    debitAccountNo: ACCOUNT_NO.FEE_CLEARING,
+    creditAccountNo: ACCOUNT_NO.CLEARING,
+  },
+  {
+    postingCode: POSTING_CODE.TREASURY_FX_PROVIDER_FEE_EXPENSE,
+    debitAccountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
+    creditAccountNo: ACCOUNT_NO.CLEARING,
+  },
+  {
+    postingCode: POSTING_CODE.TREASURY_FX_PROVIDER_FEE_EXPENSE,
+    debitAccountNo: ACCOUNT_NO.CLEARING,
+    creditAccountNo: ACCOUNT_NO.PROVIDER_FEE_EXPENSE,
+  },
+  {
+    postingCode: POSTING_CODE.TREASURY_FX_ADJUSTMENT_CHARGE,
+    debitAccountNo: ACCOUNT_NO.CLEARING,
+    creditAccountNo: ACCOUNT_NO.ADJUSTMENT_REVENUE,
+  },
+  {
+    postingCode: POSTING_CODE.TREASURY_FX_ADJUSTMENT_REFUND,
+    debitAccountNo: ACCOUNT_NO.ADJUSTMENT_EXPENSE,
+    creditAccountNo: ACCOUNT_NO.CLEARING,
   },
   {
     postingCode: POSTING_CODE.PAYOUT_INITIATED,

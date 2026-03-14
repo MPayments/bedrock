@@ -55,5 +55,8 @@
     "packages/ui/*",
     "packages/tooling/*",
     "ops/bootstrap/db"
-  ]
+  ],
+  "patchedDependencies": {
+    "tlsclientwrapper@4.1.2": "patches/tlsclientwrapper@4.1.2.patch"
+  }
 }

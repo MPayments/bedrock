@@ -20,6 +20,27 @@ export {
 } from "./transfer-resolution";
 
 export {
+  FxExecuteFinancialLinePayloadSchema,
+  FxExecuteInputSchema,
+  FxExecuteOwnershipModeSchema,
+  FxExecutePayloadSchema,
+  FxExecuteQuoteSnapshotSchema,
+  type FxExecuteFinancialLineInput,
+  type FxExecuteFinancialLinePayload,
+  type FxExecuteInput,
+  type FxExecutePayload,
+  type FxExecuteQuoteSnapshot,
+} from "./fx-execute";
+
+export {
+  FxResolutionInputSchema,
+  FxResolutionPayloadSchema,
+  FxResolutionTypeSchema,
+  type FxResolutionInput,
+  type FxResolutionPayload,
+} from "./fx-resolution";
+
+export {
   CapitalFundingInputSchema,
   CapitalFundingKindSchema,
   CapitalFundingPayloadSchema,

@@ -1,4 +1,5 @@
 export const SYSTEM_ONLY_DOCUMENT_TYPES = [
+  "fx_resolution",
   "period_close",
   "period_reopen",
 ] as const;

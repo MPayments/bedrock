@@ -18,6 +18,12 @@ describe("document routes", () => {
     expect(buildDocumentTypeHref("capital_funding")).toBe(
       "/documents/ifrs?docType=capital_funding",
     );
+    expect(buildDocumentTypeHref("fx_resolution")).toBe(
+      "/documents/ifrs?docType=fx_resolution",
+    );
+    expect(buildDocumentCreateHref("fx_execute")).toBe(
+      "/documents/create/fx_execute",
+    );
     expect(buildDocumentCreateHref("transfer_resolution")).toBe(
       "/documents/create/transfer_resolution",
     );

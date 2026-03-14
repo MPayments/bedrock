@@ -235,6 +235,78 @@ describe("accounting runtime", () => {
     ]);
   });
 
+  it("resolves treasury fx source postings into clearing and bank dimensions", async () => {
+    const result = await runtime.resolvePostingPlan({
+      accountingSourceId: "treasury_fx_execute",
+      source: { type: "documents/fx_execute/post", id: "doc-4" },
+      idempotencyKey: "post:doc-4",
+      postingDate: new Date("2026-03-03T10:00:00.000Z"),
+      plan: {
+        operationCode: "TREASURY_FX_EXECUTE_IMMEDIATE",
+        operationVersion: 1,
+        payload: { fxExecuteId: "doc-4" },
+        requests: [
+          {
+            templateKey: POSTING_TEMPLATE_KEY.TREASURY_FX_SOURCE_IMMEDIATE,
+            effectiveAt: new Date("2026-03-03T10:00:00.000Z"),
+            currency: "USD",
+            amountMinor: 10_000n,
+            bookRefs: {
+              bookId: "00000000-0000-4000-8000-000000000001",
+            },
+            dimensions: {
+              sourceRequisiteId: "src-op",
+              destinationRequisiteId: "dst-op",
+              sourceOrganizationId: "org-src",
+              destinationOrganizationId: "org-dst",
+            },
+            refs: {
+              fxExecuteDocumentId: "doc-4",
+              quoteRef: "quote-ref-1",
+              chainId: "fx_execute:doc-4",
+            },
+          },
+        ],
+      },
+    });
+
+    expect(result.appliedTemplates).toEqual([
+      {
+        requestIndex: 0,
+        templateKey: POSTING_TEMPLATE_KEY.TREASURY_FX_SOURCE_IMMEDIATE,
+        lineType: "create",
+        postingCode: "TC.2101",
+      },
+    ]);
+    expect(result.intent.lines).toEqual([
+      {
+        type: "create",
+        planRef: expect.any(String),
+        bookId: "00000000-0000-4000-8000-000000000001",
+        postingCode: "TC.2101",
+        debit: {
+          accountNo: "1310",
+          currency: "USD",
+          dimensions: {
+            clearingKind: "treasury_fx",
+            orderId: "doc-4",
+          },
+        },
+        credit: {
+          accountNo: "1110",
+          currency: "USD",
+          dimensions: {
+            organizationRequisiteId: "src-op",
+          },
+        },
+        amountMinor: 10_000n,
+        code: 2101,
+        memo: null,
+        chain: "fx_execute:doc-4",
+      },
+    ]);
+  });
+
   it("rejects posting plans without a concrete book id", async () => {
     await expect(
       runtime.resolvePostingPlan({

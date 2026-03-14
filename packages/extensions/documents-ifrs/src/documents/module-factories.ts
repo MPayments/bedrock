@@ -5,6 +5,8 @@ import { createCapitalFundingDocumentModule } from "./capital-funding";
 import { createClosingReclassDocumentModule } from "./closing-reclass";
 import { createEquityContributionDocumentModule } from "./equity-contribution";
 import { createEquityDistributionDocumentModule } from "./equity-distribution";
+import { createFxExecuteDocumentModule } from "./fx-execute";
+import { createFxResolutionDocumentModule } from "./fx-resolution";
 import { createImpairmentAdjustmentDocumentModule } from "./impairment-adjustment";
 import { createIntercompanyInterestAccrualDocumentModule } from "./intercompany-interest-accrual";
 import { createIntercompanyInterestSettlementDocumentModule } from "./intercompany-interest-settlement";
@@ -22,6 +24,8 @@ export const IFRS_DOCUMENT_MODULE_FACTORIES = {
   transfer_intra: createTransferIntraDocumentModule,
   transfer_intercompany: createTransferIntercompanyDocumentModule,
   transfer_resolution: createTransferResolutionDocumentModule,
+  fx_execute: createFxExecuteDocumentModule,
+  fx_resolution: createFxResolutionDocumentModule,
   capital_funding: createCapitalFundingDocumentModule,
   intercompany_loan_drawdown: createIntercompanyLoanDrawdownDocumentModule,
   intercompany_loan_repayment: createIntercompanyLoanRepaymentDocumentModule,

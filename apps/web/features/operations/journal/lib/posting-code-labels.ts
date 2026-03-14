@@ -22,6 +22,10 @@ const POSTING_CODE_LABELS: Record<string, string> = {
   "TC.2005": "FX: обязательство по выплате",
   "TC.2009": "FX: исходящая нога",
   "TC.2010": "FX: входящая нога",
+  "TC.2101": "Treasury FX: списание источника",
+  "TC.2102": "Treasury FX: зачисление назначения",
+  "TC.2103": "Treasury FX: удержание источника",
+  "TC.2104": "Treasury FX: удержание назначения",
 
   // Комиссии и корректировки
   "TC.3001": "Доход по комиссии",
@@ -32,6 +36,12 @@ const POSTING_CODE_LABELS: Record<string, string> = {
   "TC.3008": "Начисление комиссии провайдера",
   "TC.3011": "Инициация выплаты комиссии",
   "TC.3101": "Инициация выплаты",
+  "TC.3201": "Treasury FX: доход по комиссии",
+  "TC.3202": "Treasury FX: доход по спреду",
+  "TC.3203": "Treasury FX: pass-through комиссия",
+  "TC.3204": "Treasury FX: расход провайдера",
+  "TC.3205": "Treasury FX: корректировка (списание)",
+  "TC.3206": "Treasury FX: корректировка (возврат)",
 };
 
 export function getPostingCodeLabel(postingCode: string): string {

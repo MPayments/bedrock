@@ -3,6 +3,8 @@ export { createCapitalFundingDocumentModule } from "./capital-funding";
 export { createClosingReclassDocumentModule } from "./closing-reclass";
 export { createEquityContributionDocumentModule } from "./equity-contribution";
 export { createEquityDistributionDocumentModule } from "./equity-distribution";
+export { createFxExecuteDocumentModule } from "./fx-execute";
+export { createFxResolutionDocumentModule } from "./fx-resolution";
 export { createIfrsDocumentModules } from "./registry";
 export { createImpairmentAdjustmentDocumentModule } from "./impairment-adjustment";
 export { createIntercompanyInterestAccrualDocumentModule } from "./intercompany-interest-accrual";
@@ -18,8 +20,11 @@ export { createTransferResolutionDocumentModule } from "./transfer-resolution";
 
 export type {
   IfrsDocumentDb,
+  IfrsFxExecuteLookupPort,
   OrganizationRequisiteBinding,
   PendingTransferRecord,
+  QuoteSnapshotLoaderPort,
+  QuoteUsagePort,
   RequisitesService,
   IfrsModuleDeps,
   IfrsTransferLookupPort,
