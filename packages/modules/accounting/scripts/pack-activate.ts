@@ -1,6 +1,6 @@
 import {
   compilePack,
-  createPackRuntime,
+  createPacksService,
   loadRawPackDefinition,
   readOptionalFlag,
   readRequiredFlag,
@@ -17,10 +17,10 @@ async function main() {
   }
 
   const { packRef, definition } = await loadRawPackDefinition();
-  const runtime = createPackRuntime(definition);
+  const packsService = createPacksService(definition);
   const compiled = compilePack(definition);
-  await runtime.storeCompiledPackVersion({ pack: compiled });
-  const assignment = await runtime.activatePackForScope({
+  await packsService.storeCompiledPackVersion({ pack: compiled });
+  const assignment = await packsService.activatePackForScope({
     scopeId,
     scopeType,
     packChecksum: compiled.checksum,

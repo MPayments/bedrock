@@ -1,15 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  createAccountingPacksService,
+  type DocumentPostingPlan,
+} from "@bedrock/accounting/packs";
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { POSTING_TEMPLATE_KEY } from "@bedrock/accounting/posting-contracts";
 
-import {
-  createAccountingRuntime,
-  type DocumentPostingPlan,
-} from "../src/runtime";
-
-describe("accounting runtime", () => {
-  const runtime = createAccountingRuntime({
+describe("accounting packs service", () => {
+  const packsService = createAccountingPacksService({
     defaultPackDefinition: rawPackDefinition,
   });
 
@@ -39,7 +38,7 @@ describe("accounting runtime", () => {
       ],
     };
 
-    const result = await runtime.resolvePostingPlan({
+    const result = await packsService.resolvePostingPlan({
       accountingSourceId: "transfer_intra",
       source: { type: "documents/transfer_intra/post", id: "doc-1" },
       idempotencyKey: "post:doc-1",
@@ -88,7 +87,7 @@ describe("accounting runtime", () => {
 
   it("rejects template usage outside its allowlist", async () => {
     await expect(
-      runtime.resolvePostingPlan({
+      packsService.resolvePostingPlan({
         accountingSourceId: "capital_funding",
         source: { type: "documents/capital_funding/post", id: "doc-1" },
         idempotencyKey: "post:doc-1",
@@ -118,7 +117,7 @@ describe("accounting runtime", () => {
   });
 
   it("resolves reserve-release templates for exchange finalization", async () => {
-    const result = await runtime.resolvePostingPlan({
+    const result = await packsService.resolvePostingPlan({
       accountingSourceId: "fx_execute",
       source: { type: "documents/exchange/post", id: "doc-2" },
       idempotencyKey: "post:doc-2",
@@ -191,7 +190,7 @@ describe("accounting runtime", () => {
   });
 
   it("allows invoice reserve plans to reserve customer charges into fee clearing", async () => {
-    const result = await runtime.resolvePostingPlan({
+    const result = await packsService.resolvePostingPlan({
       accountingSourceId: "invoice_reserve",
       source: { type: "documents/invoice/post", id: "doc-3" },
       idempotencyKey: "post:doc-3",
@@ -236,7 +235,7 @@ describe("accounting runtime", () => {
   });
 
   it("resolves treasury fx source postings into clearing and bank dimensions", async () => {
-    const result = await runtime.resolvePostingPlan({
+    const result = await packsService.resolvePostingPlan({
       accountingSourceId: "treasury_fx_execute",
       source: { type: "documents/fx_execute/post", id: "doc-4" },
       idempotencyKey: "post:doc-4",
@@ -309,7 +308,7 @@ describe("accounting runtime", () => {
 
   it("rejects posting plans without a concrete book id", async () => {
     await expect(
-      runtime.resolvePostingPlan({
+      packsService.resolvePostingPlan({
         accountingSourceId: "transfer_intra",
         source: { type: "documents/transfer_intra/post", id: "doc-1" },
         idempotencyKey: "post:doc-1",

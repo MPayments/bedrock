@@ -12,7 +12,7 @@ import {
 } from "@bedrock/accounting/posting-contracts";
 import type {
   DocumentPostingPlanRequest,
-} from "@bedrock/accounting";
+} from "@bedrock/accounting/packs";
 import {
   buildDocumentPostingPlan,
   buildDocumentPostingRequest,

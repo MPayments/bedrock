@@ -13,9 +13,9 @@ import {
 } from "../src/packs/schema";
 import {
   compilePack,
-  createAccountingRuntime,
+  createAccountingPacksService,
   type CompiledPack,
-} from "../src/runtime";
+} from "../src/packs-service";
 
 
 const DEFAULT_PACK_URL = new URL(
@@ -93,10 +93,10 @@ export async function loadRawPackDefinition(): Promise<{
   };
 }
 
-export function createPackRuntime(
+export function createPacksService(
   defaultPackDefinition: AccountingPackDefinition,
 ) {
-  return createAccountingRuntime({
+  return createAccountingPacksService({
     db,
     defaultPackDefinition,
   });

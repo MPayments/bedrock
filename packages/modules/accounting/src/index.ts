@@ -1,53 +1,27 @@
-export {
-  ACCOUNT_NO,
-  CLEARING_KIND,
-  DIM,
-  KNOWN_DIMENSION_KEYS,
-  CLEARING_KIND_DIMENSION_RULES,
-  POSTING_CODE,
-  DEFAULT_CHART_TEMPLATE_ACCOUNTS,
-  DEFAULT_ACCOUNT_DIMENSION_POLICIES,
-  DEFAULT_POSTING_CODE_DIMENSION_POLICIES,
-  DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
-  TransferCodes,
-  type AccountDimensionPolicy,
-  type PostingCodeDimensionPolicyEntry,
-  type ClearingKindDimensionRule,
-  type DimensionMode,
-  type DimensionPolicyScope,
-  type DimensionKey,
-  type Dimensions,
-  type TransferCode,
-} from "./constants";
+import type { Logger } from "@bedrock/platform/observability/logger";
+import type { Database } from "@bedrock/platform/persistence";
 
-export {
-  accountNoSchema,
-  correspondenceRuleSchema,
-  replaceCorrespondenceRulesSchema,
-  type ReplaceCorrespondenceRulesInput,
-} from "./validation";
+export { type AccountingService } from "./application/chart";
+import { createAccountingChartHandlers } from "./application/chart";
+import type { AccountingService } from "./application/chart";
+import { createDrizzleAccountingChartRepository } from "./infra/drizzle/repos/chart-repository";
+import type { AccountingPackDefinition } from "./packs/schema";
+import { createAccountingPacksService } from "./packs-service";
 
-export {
-  AccountingError,
-  AccountingPackVersionConflictError,
-  CorrespondenceRuleNotFoundError,
-} from "./errors";
-export * from "./posting-contracts";
+export interface AccountingServiceDeps {
+  db: Database;
+  defaultPackDefinition: AccountingPackDefinition;
+  logger?: Logger;
+}
 
-export { createAccountingService, type AccountingService } from "./service";
-export type { AccountingPackDefinition } from "./packs/schema";
-export {
-  createAccountingRuntime,
-  compilePack,
-  validatePackDefinition,
-  type AccountingRuntime,
-  type CompiledPack,
-  type DocumentPostingPlan,
-  type DocumentPostingPlanRequest,
-  type ResolvePostingPlanInput,
-  type ResolvePostingPlanResult,
-  type ResolvedPostingTemplate,
-} from "./runtime";
-export { rawPackDefinition } from "./packs/raw-pack";
-
-export type { AccountingRuntimeDeps, AccountingServiceDeps } from "./deps";
+export function createAccountingService(
+  deps: AccountingServiceDeps,
+): AccountingService {
+  return createAccountingChartHandlers({
+    repository: createDrizzleAccountingChartRepository(deps.db),
+    packsService: createAccountingPacksService({
+      db: deps.db,
+      defaultPackDefinition: deps.defaultPackDefinition,
+    }),
+  });
+}

@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-import type { DocumentPostingPlan } from "@bedrock/accounting";
+import type { DocumentPostingPlan } from "@bedrock/accounting/packs";
 import type {
   Document,
   DocumentApprovalStatus,

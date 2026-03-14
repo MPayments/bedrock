@@ -4,11 +4,10 @@ import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import { createAccountingPacksService } from "@bedrock/accounting/packs";
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { schema as accountingSchema } from "@bedrock/accounting/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-
-import { createAccountingRuntime } from "../../src/runtime";
 
 const schema = {
   ...accountingSchema,
@@ -73,7 +72,7 @@ describe("accounting pack activation integration", () => {
   });
 
   it("stores, activates, and loads a compiled pack for a book scope", async () => {
-    const runtime = createAccountingRuntime({
+    const packsService = createAccountingPacksService({
       db,
       defaultPackDefinition: rawPackDefinition,
     });
@@ -89,18 +88,18 @@ describe("accounting pack activation integration", () => {
       isDefault: false,
     });
 
-    const compiled = await runtime.storeCompiledPackVersion({
+    const compiled = await packsService.storeCompiledPackVersion({
       definition: rawPackDefinition,
     });
     const effectiveAt = new Date("2026-02-28T09:00:00.000Z");
 
-    await runtime.activatePackForScope({
+    await packsService.activatePackForScope({
       scopeId: bookId,
       packChecksum: compiled.checksum,
       effectiveAt,
     });
 
-    const loaded = await runtime.loadActiveCompiledPackForBook({
+    const loaded = await packsService.loadActiveCompiledPackForBook({
       bookId,
       at: new Date("2026-02-28T10:00:00.000Z"),
     });
@@ -123,7 +122,7 @@ describe("accounting pack activation integration", () => {
   });
 
   it("resolves the active pack by effective date", async () => {
-    const runtime = createAccountingRuntime({
+    const packsService = createAccountingPacksService({
       db,
       defaultPackDefinition: rawPackDefinition,
     });
@@ -139,29 +138,31 @@ describe("accounting pack activation integration", () => {
       isDefault: false,
     });
 
-    const futureCompiled = await runtime.storeCompiledPackVersion({
+    const futureCompiled = await packsService.storeCompiledPackVersion({
       definition: {
         ...rawPackDefinition,
         version: rawPackDefinition.version + 1,
       },
     });
 
-    await runtime.activatePackForScope({
+    await packsService.activatePackForScope({
       scopeId: bookId,
       packChecksum: futureCompiled.checksum,
       effectiveAt: new Date("2026-03-01T09:00:00.000Z"),
     });
 
-    const beforeEffective = await runtime.loadActiveCompiledPackForBook({
+    const beforeEffective = await packsService.loadActiveCompiledPackForBook({
       bookId,
       at: new Date("2026-03-01T08:59:59.000Z"),
     });
-    const afterEffective = await runtime.loadActiveCompiledPackForBook({
+    const afterEffective = await packsService.loadActiveCompiledPackForBook({
       bookId,
       at: new Date("2026-03-01T09:00:01.000Z"),
     });
 
-    expect(beforeEffective.checksum).toBe(runtime.getDefaultCompiledPack().checksum);
+    expect(beforeEffective.checksum).toBe(
+      packsService.getDefaultCompiledPack().checksum,
+    );
     expect(afterEffective.checksum).toBe(futureCompiled.checksum);
   });
 });

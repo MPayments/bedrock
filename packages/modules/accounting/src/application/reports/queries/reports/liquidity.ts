@@ -9,8 +9,8 @@ import type {
   LiquidityRow,
 } from "./types";
 import {
-  normalizeCurrency,
-} from "../../../../domain/reports/normalization";
+  normalizeReportCurrency,
+} from "../../../../domain/reports";
 import {
   LiquidityQuerySchema,
   type LiquidityQuery,
@@ -54,7 +54,7 @@ export function createListLiquidityHandler(context: AccountingReportsContext) {
     const mapped: LiquidityRow[] = await context.fetchLiquidityRows({
       scope,
       attributionMode: query.attributionMode,
-      currency: normalizeCurrency(query.currency),
+      currency: normalizeReportCurrency(query.currency),
     });
 
     const sorted = sortInMemory(mapped, {

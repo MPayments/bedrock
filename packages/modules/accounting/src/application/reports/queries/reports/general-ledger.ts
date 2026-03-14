@@ -11,7 +11,7 @@ import type {
   GeneralLedgerBalance,
   GeneralLedgerEntry,
 } from "./types";
-import { normalizeCurrency } from "../../../../domain/reports/normalization";
+import { normalizeReportCurrency } from "../../../../domain/reports";
 import {
   GeneralLedgerQuerySchema,
   type GeneralLedgerQuery,
@@ -42,7 +42,7 @@ export function createListGeneralLedgerHandler(context: AccountingReportsContext
       attributionMode: query.attributionMode,
       statuses: query.status as FinancialResultStatus[],
       to,
-      currency: normalizeCurrency(query.currency),
+      currency: normalizeReportCurrency(query.currency),
       includeUnattributed: query.includeUnattributed,
     });
 

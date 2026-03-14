@@ -2,7 +2,7 @@ import type {
   CompiledPack,
   ResolvePostingPlanInput,
   ResolvePostingPlanResult,
-} from "@bedrock/accounting";
+} from "@bedrock/accounting/packs";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type {
   CommitResult,

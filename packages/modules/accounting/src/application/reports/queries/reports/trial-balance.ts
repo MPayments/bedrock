@@ -11,7 +11,7 @@ import type {
   TrialBalanceRow,
   TrialBalanceSummaryByCurrency,
 } from "./types";
-import { normalizeCurrency } from "../../../../domain/reports/normalization";
+import { normalizeReportCurrency } from "../../../../domain/reports";
 import {
   TrialBalanceQuerySchema,
   type TrialBalanceQuery,
@@ -40,7 +40,7 @@ export function createListTrialBalanceHandler(context: AccountingReportsContext)
       attributionMode: query.attributionMode,
       statuses: query.status as FinancialResultStatus[],
       to,
-      currency: normalizeCurrency(query.currency),
+      currency: normalizeReportCurrency(query.currency),
       includeUnattributed: query.includeUnattributed,
     });
 

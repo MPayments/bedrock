@@ -10,7 +10,7 @@ import type {
   FeeRevenueSummaryByCurrency,
   FinancialResultStatus,
 } from "./types";
-import { normalizeCurrency } from "../../../../domain/reports/normalization";
+import { normalizeReportCurrency } from "../../../../domain/reports";
 import {
   FeeRevenueQuerySchema,
   type FeeRevenueQuery,
@@ -43,7 +43,7 @@ export function createListFeeRevenueHandler(context: AccountingReportsContext) {
       statuses: query.status as FinancialResultStatus[],
       from,
       to,
-      currency: normalizeCurrency(query.currency),
+      currency: normalizeReportCurrency(query.currency),
       includeUnattributed: query.includeUnattributed,
     });
 

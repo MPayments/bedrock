@@ -1,4 +1,4 @@
-import type { DocumentPostingPlan } from "@bedrock/accounting";
+import type { DocumentPostingPlan } from "@bedrock/accounting/packs";
 import type { Document } from "@bedrock/documents/schema";
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 

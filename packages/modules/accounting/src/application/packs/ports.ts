@@ -36,7 +36,7 @@ export interface AccountingPacksRepository {
   }) => Promise<{ packChecksum: string } | null>;
 }
 
-export interface AccountingRuntimePorts {
+export interface AccountingPacksServicePorts {
   repository?: AccountingPacksRepository;
   withTransaction?: <T>(
     run: (repository: AccountingPacksRepository) => Promise<T>,

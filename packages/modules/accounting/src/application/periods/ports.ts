@@ -2,7 +2,7 @@ import type {
   AccountingClosePackageRecord,
   AccountingClosePackageState,
   AccountingPeriodLockRecord,
-} from "../../domain/periods/types";
+} from "../../domain/periods";
 
 export interface AccountingPeriodsRepository {
   findClosedPeriodLock: (input: {

@@ -1,11 +1,11 @@
+import type { ReplaceCorrespondenceRulesInput } from "../../contracts/commands";
 import type {
   ChartAccountDimensionPolicyRecord,
   ChartTemplateAccountRecord,
   CorrespondenceRuleRecord,
   PostingCodeDimensionPolicyRecord,
-} from "../../domain/chart/types";
-import type { PostingMatrixValidationInput } from "../../domain/chart/validate-posting-matrix";
-import type { ReplaceCorrespondenceRulesInput } from "../../validation";
+  PostingMatrixValidationInput,
+} from "../../domain/chart";
 
 export interface AccountingChartRepository {
   listTemplateAccounts: () => Promise<ChartTemplateAccountRecord[]>;

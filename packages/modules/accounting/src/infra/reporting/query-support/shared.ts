@@ -2,9 +2,13 @@ import type { BalancesQueries } from "@bedrock/balances/queries";
 import type { CounterpartiesQueries } from "@bedrock/counterparties/queries";
 import type { OrganizationsQueries } from "@bedrock/organizations/queries";
 
-import { toBigInt } from "../../../domain/reports/normalization";
-import type { LineMapping, ScopedPosting } from "../../../domain/reports/types";
-import type { ResolvedScope, ReportAttributionMode } from "../../../domain/reports/types";
+import {
+  parseMinorAmount,
+  type LineMapping,
+  type ReportAttributionMode,
+  type ResolvedScope,
+  type ScopedPosting,
+} from "../../../domain/reports";
 import type { AccountingReportsRepository } from "../../drizzle/repos/reports-repository";
 
 export function keyByParts(...parts: (string | null | undefined)[]): string {
@@ -100,10 +104,10 @@ export function createReportsSharedHelpers(input: {
       counterpartyId: row.counterpartyId,
       counterpartyName: row.counterpartyName,
       currency: row.currency,
-      ledgerBalanceMinor: toBigInt(row.ledgerBalanceMinor),
-      availableMinor: toBigInt(row.availableMinor),
-      reservedMinor: toBigInt(row.reservedMinor),
-      pendingMinor: toBigInt(row.pendingMinor),
+      ledgerBalanceMinor: parseMinorAmount(row.ledgerBalanceMinor),
+      availableMinor: parseMinorAmount(row.availableMinor),
+      reservedMinor: parseMinorAmount(row.reservedMinor),
+      pendingMinor: parseMinorAmount(row.pendingMinor),
     }));
   }
 

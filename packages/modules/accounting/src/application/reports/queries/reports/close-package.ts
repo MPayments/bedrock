@@ -6,15 +6,27 @@ import type {
   ClosePackageAuditEvent,
   ClosePackageResult,
 } from "./types";
+import { normalizeMonthStart } from "../../../../domain/periods";
 import {
-  normalizeMonthStart,
-  toBigInt,
-  toDateValue,
-} from "../../../../domain/reports/normalization";
+  parseMinorAmount,
+} from "../../../../domain/reports";
 import {
   ClosePackageQuerySchema,
   type ClosePackageQuery,
 } from "../reports-validation";
+
+function parseDateValue(value: unknown): Date {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  const parsed = new Date(typeof value === "string" ? value : String(value));
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date(0);
+  }
+
+  return parsed;
+}
 
 export function createListClosePackageHandler(
   context: AccountingReportsContext,
@@ -45,12 +57,12 @@ export function createListClosePackageHandler(
           const value = item as Record<string, unknown>;
           return {
             currency: String(value.currency ?? ""),
-            openingDebitMinor: toBigInt(value.openingDebitMinor),
-            openingCreditMinor: toBigInt(value.openingCreditMinor),
-            periodDebitMinor: toBigInt(value.periodDebitMinor),
-            periodCreditMinor: toBigInt(value.periodCreditMinor),
-            closingDebitMinor: toBigInt(value.closingDebitMinor),
-            closingCreditMinor: toBigInt(value.closingCreditMinor),
+            openingDebitMinor: parseMinorAmount(value.openingDebitMinor),
+            openingCreditMinor: parseMinorAmount(value.openingCreditMinor),
+            periodDebitMinor: parseMinorAmount(value.periodDebitMinor),
+            periodCreditMinor: parseMinorAmount(value.periodCreditMinor),
+            closingDebitMinor: parseMinorAmount(value.closingDebitMinor),
+            closingCreditMinor: parseMinorAmount(value.closingCreditMinor),
           };
         })
       : [];
@@ -61,9 +73,9 @@ export function createListClosePackageHandler(
           const value = item as Record<string, unknown>;
           return {
             currency: String(value.currency ?? ""),
-            revenueMinor: toBigInt(value.revenueMinor),
-            expenseMinor: toBigInt(value.expenseMinor),
-            netMinor: toBigInt(value.netMinor),
+            revenueMinor: parseMinorAmount(value.revenueMinor),
+            expenseMinor: parseMinorAmount(value.expenseMinor),
+            netMinor: parseMinorAmount(value.netMinor),
           };
         })
       : [];
@@ -74,7 +86,7 @@ export function createListClosePackageHandler(
           const value = item as Record<string, unknown>;
           return {
             currency: String(value.currency ?? ""),
-            netCashFlowMinor: toBigInt(value.netCashFlowMinor),
+            netCashFlowMinor: parseMinorAmount(value.netCashFlowMinor),
           };
         })
       : [];
@@ -86,7 +98,7 @@ export function createListClosePackageHandler(
               documentId: String(value.documentId ?? ""),
               docType: String(value.docType ?? ""),
               docNo: String(value.docNo ?? ""),
-              occurredAt: toDateValue(value.occurredAt),
+              occurredAt: parseDateValue(value.occurredAt),
               title: String(value.title ?? ""),
             };
           },
@@ -100,7 +112,7 @@ export function createListClosePackageHandler(
               id: String(value.id ?? ""),
               eventType: String(value.eventType ?? ""),
               actorId: value.actorId ? String(value.actorId) : null,
-              createdAt: toDateValue(value.createdAt),
+              createdAt: parseDateValue(value.createdAt),
             };
           },
         )

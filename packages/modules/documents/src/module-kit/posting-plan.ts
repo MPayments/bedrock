@@ -1,7 +1,7 @@
 import type {
   DocumentPostingPlan,
   DocumentPostingPlanRequest,
-} from "@bedrock/accounting";
+} from "@bedrock/accounting/packs";
 import type { Document } from "@bedrock/documents/schema";
 
 export function buildDocumentPostingRequest(

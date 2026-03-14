@@ -5,7 +5,7 @@ import type {
   IncomeStatementSummaryByCurrency,
   ScopedPosting,
 } from "./types";
-import { normalizeCurrency } from "../../../../domain/reports/normalization";
+import { normalizeReportCurrency } from "../../../../domain/reports";
 import {
   IncomeStatementQuerySchema,
   type IncomeStatementQuery,
@@ -40,7 +40,7 @@ export function createComputeIncomeStatementCoreHandler(
       statuses: query.status as FinancialResultStatus[],
       from,
       to,
-      currency: normalizeCurrency(query.currency),
+      currency: normalizeReportCurrency(query.currency),
       includeUnattributed: query.includeUnattributed,
     });
 

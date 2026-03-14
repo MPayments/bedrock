@@ -7,7 +7,6 @@ import type {
 import type { OrganizationsQueries } from "@bedrock/organizations/queries";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
-import { toBigInt } from "../../../domain/reports/normalization";
 import type {
   FinancialResultStatus,
   ReportAttributionMode,
@@ -15,7 +14,8 @@ import type {
   ReportScopeType,
   ResolvedScope,
   ScopedPosting,
-} from "../../../domain/reports/types";
+} from "../../../domain/reports";
+import { parseMinorAmount } from "../../../domain/reports";
 
 export function createReportsScopeHelpers(input: {
   counterpartiesQueries: CounterpartiesQueries;
@@ -176,7 +176,7 @@ export function createReportsScopeHelpers(input: {
       bookLabel: row.bookLabel,
       bookCounterpartyId: row.bookCounterpartyId,
       currency: row.currency,
-      amountMinor: toBigInt(row.amountMinor),
+      amountMinor: parseMinorAmount(row.amountMinor),
       postingCode: row.postingCode,
       debitAccountNo: row.debitAccountNo,
       creditAccountNo: row.creditAccountNo,

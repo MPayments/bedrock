@@ -1,5 +1,5 @@
 import { loadRawPackDefinition } from "./pack-common";
-import { validatePackDefinition } from "../src/runtime";
+import { validatePackDefinition } from "../src/packs-service";
 
 async function main() {
   const { packRef, definition } = await loadRawPackDefinition();

@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { ACCOUNT_NO } from "@bedrock/accounting";
+import { ACCOUNT_NO } from "@bedrock/accounting/constants";
 import {
   computeDimensionsHash,
   tbBookAccountInstanceIdFor,

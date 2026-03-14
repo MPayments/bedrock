@@ -4,7 +4,7 @@ import type {
   BalanceSheetRow,
   FinancialResultStatus,
 } from "./types";
-import { normalizeCurrency } from "../../../../domain/reports/normalization";
+import { normalizeReportCurrency } from "../../../../domain/reports";
 import {
   BalanceSheetQuerySchema,
   type BalanceSheetQuery,
@@ -34,7 +34,7 @@ export function createListBalanceSheetHandler(context: AccountingReportsContext)
       attributionMode: query.attributionMode,
       statuses: query.status as FinancialResultStatus[],
       asOf,
-      currency: normalizeCurrency(query.currency),
+      currency: normalizeReportCurrency(query.currency),
       includeUnattributed: query.includeUnattributed,
     });
 

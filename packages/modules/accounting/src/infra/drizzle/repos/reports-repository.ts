@@ -4,8 +4,8 @@ import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import type {
   AccountingClosePackageRecord,
-} from "../../../domain/periods/types";
-import type { LineMapping } from "../../../domain/reports/types";
+} from "../../../domain/periods";
+import type { LineMapping } from "../../../domain/reports";
 import { schema } from "../../../schema";
 
 type Queryable = Database | Transaction;

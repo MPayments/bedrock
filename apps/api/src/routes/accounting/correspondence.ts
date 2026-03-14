@@ -1,15 +1,17 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { replaceCorrespondenceRulesSchema } from "@bedrock/accounting";
-import { AccountingCorrespondenceRuleSchema } from "@bedrock/accounting/contracts";
+import {
+  AccountingCorrespondenceRuleSchema,
+  replaceCorrespondenceRulesSchema,
+} from "@bedrock/accounting/contracts";
 
-import { ErrorSchema } from "../../common";
-import type { AppContext } from "../../context";
-import { requirePermission } from "../../middleware/permission";
 import {
   createAccountingRouteApp,
   handleAccountingRouteError,
 } from "./report-route-kit";
+import { ErrorSchema } from "../../common";
+import type { AppContext } from "../../context";
+import { requirePermission } from "../../middleware/permission";
 
 const ValidatePostingMatrixResultSchema = z.object({
   ok: z.boolean(),
