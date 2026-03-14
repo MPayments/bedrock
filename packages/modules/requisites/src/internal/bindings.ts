@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { ensureBookAccountInstanceTx } from "@bedrock/ledger";
+import { createLedgerBookAccountsService } from "@bedrock/ledger";
 import type { Transaction } from "@bedrock/platform/persistence";
 import {
   RequisiteBindingNotFoundError,
@@ -48,12 +48,14 @@ export async function ensureRequisiteAccountingBindingTx(
     tx,
     requisite.organizationId,
   );
-  const { id: bookAccountInstanceId } = await ensureBookAccountInstanceTx(tx, {
-    bookId,
-    accountNo: postingAccountNo,
-    currency: requisite.currencyCode,
-    dimensions: {},
-  });
+  const ledgerBookAccounts = createLedgerBookAccountsService({ db: tx });
+  const { id: bookAccountInstanceId } =
+    await ledgerBookAccounts.ensureBookAccountInstance({
+      bookId,
+      accountNo: postingAccountNo,
+      currency: requisite.currencyCode,
+      dimensions: {},
+    });
 
   await tx
     .insert(schema.requisiteAccountingBindings)

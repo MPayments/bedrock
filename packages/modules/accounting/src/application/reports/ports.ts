@@ -1,4 +1,4 @@
-import type { LedgerReadQueries } from "@bedrock/ledger";
+import type { LedgerReadService } from "@bedrock/ledger";
 
 import type { AccountingClosePackageRecord } from "../../domain/periods";
 import type {
@@ -13,9 +13,22 @@ import type {
 
 export type * from "../../domain/reports";
 
+export interface AccountingReportsDocumentRef {
+  operationId: string;
+  documentId: string;
+  documentType: string;
+  channel: string | null;
+}
+
 export interface AccountingReportsLedgerPort {
-  listOperations: LedgerReadQueries["listOperations"];
-  getOperationDetails: LedgerReadQueries["getOperationDetails"];
+  listOperations: LedgerReadService["listOperations"];
+  getOperationDetails: LedgerReadService["getOperationDetails"];
+}
+
+export interface AccountingReportsDocumentsPort {
+  listOperationDocumentRefs: (
+    operationIds: string[],
+  ) => Promise<Map<string, AccountingReportsDocumentRef>>;
 }
 
 export interface AccountingReportsContext {

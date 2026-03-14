@@ -14,9 +14,9 @@ import {
   type BalancesService,
 } from "@bedrock/balances";
 import {
-  createLedgerEngine,
+  createLedgerService,
   createLedgerReadService,
-  type LedgerEngine,
+  type LedgerService,
   type LedgerReadService,
 } from "@bedrock/ledger";
 import { assertBooksBelongToInternalLedgerOrganizations } from "@bedrock/organizations";
@@ -38,7 +38,7 @@ export interface ApiCoreServices {
   accountingService: AccountingService;
   balancesService: BalancesService;
   idempotency: IdempotencyPort;
-  ledger: LedgerEngine;
+  ledger: LedgerService;
   ledgerReadService: LedgerReadService;
   usersService: UsersService;
 }
@@ -69,7 +69,7 @@ export function createCoreServices(): ApiCoreServices {
   const authStore = createDrizzleAuthIdentityStore({ db });
   const passwordHasher = createBetterAuthPasswordHasher();
   const accountingService = createApiAccountingService();
-  const ledger = createLedgerEngine({
+  const ledger = createLedgerService({
     db,
     assertInternalLedgerBooks: assertBooksBelongToInternalLedgerOrganizations,
   });

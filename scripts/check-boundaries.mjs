@@ -117,6 +117,50 @@ function isDocumentsSchemaImportAllowed(relFile) {
   return false;
 }
 
+function isLedgerSchemaImportAllowed(relFile) {
+  if (relFile.startsWith("apps/db/")) {
+    return true;
+  }
+
+  if (/(^|\/)tests\//.test(relFile)) {
+    return true;
+  }
+
+  if (isPluginInfraFile(relFile)) {
+    return true;
+  }
+
+  if (isSchemaDefinitionFile(relFile)) {
+    return true;
+  }
+
+  if (
+    relFile === "packages/modules/balances/src/worker.ts" ||
+    relFile === "packages/modules/organizations/src/default-book.ts" ||
+    relFile === "packages/modules/organizations/src/internal-ledger.ts"
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function isLedgerIdsImportAllowed(relFile) {
+  if (relFile.startsWith("apps/db/")) {
+    return true;
+  }
+
+  if (/(^|\/)tests\//.test(relFile)) {
+    return true;
+  }
+
+  if (relFile.startsWith("packages/modules/ledger/")) {
+    return true;
+  }
+
+  return false;
+}
+
 function iterateExportTargets(exportsField) {
   if (!exportsField) {
     return [];
@@ -413,6 +457,14 @@ for (const root of SOURCE_ROOTS) {
           continue;
         }
 
+        if (
+          owner?.name !== "@bedrock/ledger" &&
+          /^packages\/modules\/ledger\/src\/internal\//.test(relTargetPath)
+        ) {
+          recordViolation("ledger-internal-import", relFile, specifier);
+          continue;
+        }
+
         continue;
       }
 
@@ -473,6 +525,16 @@ for (const root of SOURCE_ROOTS) {
       }
 
       if (
+        normalized.packageName === "@bedrock/ledger" &&
+        (
+          normalized.subpath === "./infra/tigerbeetle" ||
+          normalized.subpath.startsWith("./infra/tigerbeetle/")
+        )
+      ) {
+        recordViolation("ledger-removed-subpath", relFile, specifier);
+      }
+
+      if (
         owner?.name === "@bedrock/reconciliation" &&
         isRuntimeSourceFile &&
         !isSchemaDefinitionFile(relFile) &&
@@ -514,6 +576,36 @@ for (const root of SOURCE_ROOTS) {
       ) {
         recordViolation(
           "documents-schema-import-outside-allowed-zones",
+          relFile,
+          specifier,
+        );
+      }
+
+      if (
+        normalized.packageName === "@bedrock/ledger" &&
+        (
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        ) &&
+        !isLedgerSchemaImportAllowed(relFile)
+      ) {
+        recordViolation(
+          "ledger-schema-import-outside-allowed-zones",
+          relFile,
+          specifier,
+        );
+      }
+
+      if (
+        normalized.packageName === "@bedrock/ledger" &&
+        (
+          normalized.subpath === "./ids" ||
+          normalized.subpath.startsWith("./ids/")
+        ) &&
+        !isLedgerIdsImportAllowed(relFile)
+      ) {
+        recordViolation(
+          "ledger-ids-import-outside-allowed-zones",
           relFile,
           specifier,
         );

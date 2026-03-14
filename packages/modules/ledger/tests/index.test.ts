@@ -4,8 +4,8 @@ import * as ledger from "../src/index";
 
 describe("ledger public exports", () => {
   it("exposes the expected API surface", () => {
-    expect(ledger.createLedgerEngine).toBeTypeOf("function");
-    expect(ledger.OPERATION_TRANSFER_TYPE).toBeDefined();
+    expect(ledger.createLedgerService).toBeTypeOf("function");
+    expect(ledger.createLedgerBookAccountsService).toBeTypeOf("function");
     expect(ledger.IdempotencyConflictError).toBeTypeOf("function");
     expect(ledger.isRetryableError).toBeTypeOf("function");
     expect("createLedgerWorkerDefinition" in ledger).toBe(false);

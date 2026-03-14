@@ -10,7 +10,7 @@ import {
   TransferFlags,
   CreateAccountError,
   CreateTransferError,
-} from "@bedrock/ledger/infra/tigerbeetle";
+} from "../../../src/infra/tigerbeetle/client";
 
 import { createMockTbClient } from "./helpers";
 

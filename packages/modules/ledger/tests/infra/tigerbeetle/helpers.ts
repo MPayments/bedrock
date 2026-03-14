@@ -9,8 +9,8 @@ import {
   OPERATION_TRANSFER_TYPE,
   type CreateIntentLine,
   type OperationIntent,
-} from "@bedrock/ledger";
-import type { TbClient } from "@bedrock/ledger/infra/tigerbeetle";
+} from "@bedrock/ledger/contracts";
+import type { TbClient } from "@bedrock/ledger/worker";
 import {
   createStubDb,
   createStubTx,

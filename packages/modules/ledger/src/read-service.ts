@@ -1,9 +1,19 @@
-import { createLedgerContext, type LedgerDeps } from "./internal/context";
-import { createLedgerReadQueries, type LedgerReadQueries } from "./queries/read";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
-export type LedgerReadService = LedgerReadQueries;
+import {
+  createLedgerReadQueries,
+  type LedgerReadService,
+} from "./application/operations/read-queries";
+import { createDrizzleLedgerReadRepository } from "./infra/drizzle/repos/ledger-read-repository";
 
-export function createLedgerReadService(deps: LedgerDeps): LedgerReadService {
-  const context = createLedgerContext(deps);
-  return createLedgerReadQueries(context);
+type Queryable = Database | Transaction;
+
+export function createLedgerReadService(input: {
+  db: Queryable;
+}): LedgerReadService {
+  return createLedgerReadQueries({
+    reads: createDrizzleLedgerReadRepository(input.db),
+  });
 }
+
+export type { LedgerReadService };

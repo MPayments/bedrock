@@ -1,10 +1,21 @@
 import { z } from "zod";
 
-import { OPERATION_TRANSFER_TYPE } from "./types";
+import { OPERATION_TRANSFER_TYPE } from "../domain/operation-intent";
+
+export const LedgerOperationStatusSchema = z.enum(["pending", "posted", "failed"]);
+export const SortableLedgerOperationColumnSchema = z.enum([
+  "createdAt",
+  "postingDate",
+  "postedAt",
+]);
+export const DimensionsSchema = z.record(
+  z.string().min(1),
+  z.string().min(1),
+);
 
 const uuidSchema = z.uuid({ version: "v4" });
-
-const bookIdSchema = uuidSchema;
+const nonEmptyStringSchema = z.string().trim().min(1);
+const nonEmptyStringArraySchema = z.array(nonEmptyStringSchema).min(1);
 const idempotencyKeySchema = z.string().min(1).max(255);
 const sourceTypeSchema = z.string().min(1).max(100);
 const sourceIdSchema = z.string().min(1).max(255);
@@ -12,8 +23,8 @@ const memoSchema = z.string().max(1000).optional().nullable();
 
 const currencySchema = z
   .string()
-  .transform((val) => val.trim().toUpperCase())
-  .refine((val) => /^[A-Z0-9_]{2,16}$/.test(val), {
+  .transform((value) => value.trim().toUpperCase())
+  .refine((value) => /^[A-Z0-9_]{2,16}$/.test(value), {
     message:
       "Currency must be 2-16 uppercase alphanumeric characters or underscores",
   });
@@ -30,8 +41,6 @@ const positiveTimeoutSchema = z.number().int().positive();
 const transferCodeSchema = z.number().int().min(0).optional();
 const chainIdSchema = z.string().min(1).optional().nullable();
 
-const dimensionsSchema = z.record(z.string().min(1), z.string().min(1));
-
 const contextSchema = z
   .record(z.string().min(1), z.string())
   .optional()
@@ -40,7 +49,7 @@ const contextSchema = z
 const accountSideSchema = z.object({
   accountNo: accountNoSchema,
   currency: currencySchema,
-  dimensions: dimensionsSchema,
+  dimensions: DimensionsSchema,
 });
 
 const pendingConfigSchema = z
@@ -59,7 +68,7 @@ const baseIntentLineSchema = z.object({
 
 const createIntentLineSchema = baseIntentLineSchema.extend({
   type: z.literal(OPERATION_TRANSFER_TYPE.CREATE),
-  bookId: bookIdSchema,
+  bookId: uuidSchema,
   postingCode: z.string().min(1).max(128),
   debit: accountSideSchema,
   credit: accountSideSchema,
@@ -81,56 +90,37 @@ const voidPendingIntentLineSchema = baseIntentLineSchema.extend({
   pendingId: z.bigint().positive(),
 });
 
-const intentLineSchema = z.discriminatedUnion("type", [
+export const IntentLineSchema = z.discriminatedUnion("type", [
   createIntentLineSchema,
   postPendingIntentLineSchema,
   voidPendingIntentLineSchema,
 ]);
 
-const sourceSchema = z.object({
-  type: sourceTypeSchema,
-  id: sourceIdSchema,
-});
-
-export const operationIntentSchema = z.object({
-  source: sourceSchema,
+export const OperationIntentSchema = z.object({
+  source: z.object({
+    type: sourceTypeSchema,
+    id: sourceIdSchema,
+  }),
   operationCode: z.string().min(1).max(128),
   operationVersion: z.number().int().positive().default(1),
   payload: z.unknown().optional(),
   idempotencyKey: idempotencyKeySchema,
   postingDate: z.date(),
-  lines: z.array(intentLineSchema).min(1, "lines must be a non-empty array"),
+  lines: z.array(IntentLineSchema).min(1, "lines must be a non-empty array"),
 });
 
-type ValidatedOperationIntent = z.infer<typeof operationIntentSchema>;
-type ValidatedIntentLine = z.infer<typeof intentLineSchema>;
-
-export function validateOperationIntent(
-  input: unknown,
-): ValidatedOperationIntent {
-  return operationIntentSchema.parse(input);
-}
-
-export function validateChainBlocks(lines: ValidatedIntentLine[]): void {
-  const pos = new Map<string, number[]>();
-
-  for (let i = 0; i < lines.length; i++) {
-    const ch = lines[i]!.chain;
-    if (!ch) continue;
-
-    const arr = pos.get(ch) ?? [];
-    arr.push(i);
-    pos.set(ch, arr);
-  }
-
-  for (const [ch, arr] of pos) {
-    for (let i = 1; i < arr.length; i++) {
-      if (arr[i]! !== arr[i - 1]! + 1) {
-        throw new Error(
-          `Non-contiguous chain block detected for chain="${ch}". ` +
-            "Chain entries must be adjacent in lines[] to be safe with TB linked semantics.",
-        );
-      }
-    }
-  }
-}
+export const ListLedgerOperationsInputSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+  sortBy: SortableLedgerOperationColumnSchema.default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  query: nonEmptyStringSchema.optional(),
+  status: z.array(LedgerOperationStatusSchema).min(1).optional(),
+  operationCode: nonEmptyStringArraySchema.optional(),
+  sourceType: nonEmptyStringArraySchema.optional(),
+  sourceId: nonEmptyStringSchema.optional(),
+  bookId: nonEmptyStringSchema.optional(),
+  dimensionFilters: z
+    .record(nonEmptyStringSchema, nonEmptyStringArraySchema)
+    .optional(),
+});

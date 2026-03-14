@@ -25,16 +25,16 @@ import { createBalancesQueries } from "@bedrock/balances/queries";
 import { createCounterpartiesQueries } from "@bedrock/counterparties/queries";
 import {
   createDocumentsService,
-  createDrizzleDocumentsRepository,
-  type DocumentModuleRuntime,
   type DocumentsIdempotencyPort,
   type DocumentsTransactionsPort,
 } from "@bedrock/documents";
+import type { DocumentModuleRuntime } from "@bedrock/documents/plugins";
 import {
   createDrizzleDocumentsReadModel,
   type DocumentsReadModel,
 } from "@bedrock/documents/read-model";
-import { createLedgerEngine, createLedgerReadService } from "@bedrock/ledger";
+import { createDrizzleDocumentsRepository } from "@bedrock/documents/repository";
+import { createLedgerReadService, createLedgerService } from "@bedrock/ledger";
 import { createLedgerQueries } from "@bedrock/ledger/queries";
 import { assertBooksBelongToInternalLedgerOrganizations } from "@bedrock/organizations";
 import { listInternalLedgerOrganizations } from "@bedrock/organizations";
@@ -143,12 +143,14 @@ async function createPeriodCloseForOrganization(input: {
 function createAccountingReportRuntime(queryable: Queryable) {
   const balancesQueries = createBalancesQueries({ db: queryable });
   const counterpartiesQueries = createCounterpartiesQueries({ db: queryable });
+  const documentsReadModel = createDrizzleDocumentsReadModel({ db: queryable });
   const ledgerQueries = createLedgerQueries({ db: queryable });
   const organizationsQueries = createOrganizationsQueries({ db: queryable });
   const reportsRepository = createDrizzleAccountingReportsRepository(queryable);
   const reportContext = createAccountingReportsContext({
     balancesQueries,
     counterpartiesQueries,
+    documentsPort: documentsReadModel,
     ledgerQueries,
     organizationsQueries,
     reportsRepository,
@@ -276,7 +278,7 @@ function createPeriodCloseAccountingService(db: Database) {
 function createDocumentsTransactions(input: {
   database: Database;
   idempotency: ReturnType<typeof createIdempotencyService>;
-  ledger: ReturnType<typeof createLedgerEngine>;
+  ledger: ReturnType<typeof createLedgerService>;
 }): DocumentsTransactionsPort {
   return {
     async withTransaction(run) {
@@ -338,7 +340,7 @@ export function createPeriodCloseWorkerDefinition(deps: {
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: deps.db });
   const accountingPeriods = createAccountingPeriodsPort(deps.db);
   const idempotency = createIdempotencyService({ logger: deps.logger });
-  const ledger = createLedgerEngine({
+  const ledger = createLedgerService({
     db: deps.db,
     assertInternalLedgerBooks: assertBooksBelongToInternalLedgerOrganizations,
   });

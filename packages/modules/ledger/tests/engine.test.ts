@@ -12,9 +12,9 @@ import {
   createTestTransferPlan,
   type StubDatabase,
 } from "./helpers";
-import { createLedgerEngine } from "../src/engine";
 import { IdempotencyConflictError } from "../src/errors";
-import { OPERATION_TRANSFER_TYPE } from "../src/types";
+import { OPERATION_TRANSFER_TYPE } from "../src/contracts";
+import { createLedgerService } from "../src/service";
 
 function createCreateTransferTx(options?: {
   existingOperation?: boolean;
@@ -121,13 +121,13 @@ function createVoidPendingInput(overrides: Record<string, unknown> = {}) {
   });
 }
 
-describe("createLedgerEngine", () => {
+describe("createLedgerService", () => {
   let db: StubDatabase;
-  let engine: ReturnType<typeof createLedgerEngine>;
+  let engine: ReturnType<typeof createLedgerService>;
 
   beforeEach(() => {
     db = createSmartStubDb();
-    engine = createLedgerEngine({ db });
+    engine = createLedgerService({ db });
   });
 
   describe("validation", () => {

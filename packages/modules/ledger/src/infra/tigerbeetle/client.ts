@@ -8,7 +8,7 @@ import {
   type Transfer,
 } from "tigerbeetle-node";
 
-import { TigerBeetleBatchError } from "@bedrock/ledger";
+import { TigerBeetleBatchError } from "../../errors";
 
 export type TbClient = ReturnType<typeof createClient>;
 export { TransferFlags, AccountFlags, CreateAccountError, CreateTransferError };

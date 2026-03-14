@@ -203,5 +203,3 @@ export function createDrizzleDocumentsReadModel(input: {
     },
   };
 }
-
-export const createDocumentsQueries = createDrizzleDocumentsReadModel;

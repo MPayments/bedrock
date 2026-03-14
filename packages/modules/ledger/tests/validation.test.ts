@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { OPERATION_TRANSFER_TYPE } from "../src/types";
+import { OPERATION_TRANSFER_TYPE } from "../src/contracts";
 import {
-  operationIntentSchema,
+  OperationIntentSchema,
   validateOperationIntent,
-} from "../src/validation";
+} from "../src/contracts";
 
 const validInput = {
   source: { type: "payment", id: "src-1" },
@@ -112,7 +112,7 @@ describe("validateOperationIntent", () => {
   });
 
   it("exposes schema for direct parsing", () => {
-    const result = operationIntentSchema.safeParse(validInput);
+    const result = OperationIntentSchema.safeParse(validInput);
     expect(result.success).toBe(true);
   });
 });

@@ -7,7 +7,7 @@ import type {
   CommitResult,
   LedgerOperationDetails,
   OperationIntent,
-} from "@bedrock/ledger";
+} from "@bedrock/ledger/contracts";
 
 import type { ListDocumentsQuery } from "../contracts/validation";
 import type {

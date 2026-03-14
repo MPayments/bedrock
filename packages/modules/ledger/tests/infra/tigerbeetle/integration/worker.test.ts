@@ -14,8 +14,9 @@ import {
   randomOrgId,
   tb,
 } from "./helpers";
-import { createLedgerEngine, OPERATION_TRANSFER_TYPE } from "@bedrock/ledger";
-import { createLedgerWorkerDefinition } from "@bedrock/ledger/infra/tigerbeetle";
+import { createLedgerService } from "@bedrock/ledger";
+import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger/contracts";
+import { createLedgerWorkerDefinition } from "@bedrock/ledger/worker";
 
 async function runWorkerOnce(
   worker: ReturnType<typeof createLedgerWorkerDefinition>,
@@ -29,7 +30,7 @@ async function runWorkerOnce(
 }
 
 describe("Worker Integration Tests", () => {
-  const engine = createLedgerEngine({ db });
+  const engine = createLedgerService({ db });
   const worker = createLedgerWorkerDefinition({ db, tb });
 
   it("posts create operation to TigerBeetle", async () => {

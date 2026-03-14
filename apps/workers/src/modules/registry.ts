@@ -12,7 +12,7 @@ import { createFxRatesWorkerDefinition } from "@bedrock/fx/worker";
 import {
   createLedgerWorkerDefinition,
   type TbClient,
-} from "@bedrock/ledger/infra/tigerbeetle";
+} from "@bedrock/ledger/worker";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 import {

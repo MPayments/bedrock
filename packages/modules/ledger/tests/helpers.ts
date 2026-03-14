@@ -9,7 +9,7 @@ import {
   OPERATION_TRANSFER_TYPE,
   type CreateIntentLine,
   type OperationIntent,
-} from "../src";
+} from "../src/contracts";
 import {
   createStubDb,
   createStubTx,

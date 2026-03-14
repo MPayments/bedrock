@@ -1,4 +1,4 @@
-import type { Dimensions } from "@bedrock/ledger/schema";
+import type { Dimensions } from "./dimensions";
 
 export const OPERATION_TRANSFER_TYPE = {
   CREATE: "create",
@@ -13,7 +13,6 @@ export interface CreateIntentLine {
   type: typeof OPERATION_TRANSFER_TYPE.CREATE;
   planRef: string;
   bookId: string;
-
   postingCode: string;
   debit: {
     accountNo: string;
@@ -25,18 +24,13 @@ export interface CreateIntentLine {
     currency: string;
     dimensions: Dimensions;
   };
-
   amountMinor: bigint;
-
   code?: number;
-
   pending?: {
     timeoutSeconds: number;
     ref?: string | null;
   };
-
   chain?: string | null;
-
   memo?: string | null;
   context?: Record<string, string> | null;
 }
@@ -44,34 +38,28 @@ export interface CreateIntentLine {
 export interface PostPendingIntentLine {
   type: typeof OPERATION_TRANSFER_TYPE.POST_PENDING;
   planRef: string;
-
   currency: string;
   pendingId: bigint;
-
   amount?: bigint;
-
   code?: number;
-
   chain?: string | null;
-
   memo?: string | null;
 }
 
 export interface VoidPendingIntentLine {
   type: typeof OPERATION_TRANSFER_TYPE.VOID_PENDING;
   planRef: string;
-
   currency: string;
   pendingId: bigint;
-
   code?: number;
-
   chain?: string | null;
-
   memo?: string | null;
 }
 
-export type IntentLine = CreateIntentLine | PostPendingIntentLine | VoidPendingIntentLine;
+export type IntentLine =
+  | CreateIntentLine
+  | PostPendingIntentLine
+  | VoidPendingIntentLine;
 
 export interface OperationIntent {
   source: {
@@ -83,7 +71,6 @@ export interface OperationIntent {
   payload?: unknown;
   idempotencyKey: string;
   postingDate: Date;
-
   lines: IntentLine[];
 }
 

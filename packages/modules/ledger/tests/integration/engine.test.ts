@@ -12,12 +12,12 @@ import {
   randomIdempotencyKey,
   randomOrgId,
 } from "./helpers";
-import { createLedgerEngine } from "../../src/engine";
 import { IdempotencyConflictError } from "../../src/errors";
-import { OPERATION_TRANSFER_TYPE } from "../../src/types";
+import { OPERATION_TRANSFER_TYPE } from "../../src/contracts";
+import { createLedgerService } from "../../src/service";
 
 describe("Engine Integration Tests", () => {
-  const engine = createLedgerEngine({ db });
+  const engine = createLedgerService({ db });
 
   it("creates pending operation with postings and TB plan", async () => {
     const orgId = randomOrgId();

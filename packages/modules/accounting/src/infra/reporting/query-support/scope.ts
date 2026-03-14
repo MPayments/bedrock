@@ -16,14 +16,17 @@ import type {
   ScopedPosting,
 } from "../../../domain/reports";
 import { parseMinorAmount } from "../../../domain/reports";
+import type { AccountingReportsDocumentsPort } from "../../../application/reports/ports";
 
 export function createReportsScopeHelpers(input: {
   counterpartiesQueries: CounterpartiesQueries;
+  documentsPort: AccountingReportsDocumentsPort;
   ledgerQueries: LedgerQueries;
   organizationsQueries: OrganizationsQueries;
 }) {
   const {
     counterpartiesQueries,
+    documentsPort,
     ledgerQueries,
     organizationsQueries,
   } = input;
@@ -166,6 +169,10 @@ export function createReportsScopeHelpers(input: {
       includeUnattributed: inputArgs.includeUnattributed,
       internalLedgerOrganizationIds,
     });
+    const documentRefsByOperationId =
+      await documentsPort.listOperationDocumentRefs(
+        Array.from(new Set(rows.map((row) => row.operationId))),
+      );
 
     return rows.map((row: AccountingScopedPostingRow) => ({
       operationId: row.operationId,
@@ -181,9 +188,11 @@ export function createReportsScopeHelpers(input: {
       debitAccountNo: row.debitAccountNo,
       creditAccountNo: row.creditAccountNo,
       analyticCounterpartyId: row.analyticCounterpartyId,
-      documentId: row.documentId,
-      documentType: row.documentType,
-      channel: row.channel,
+      documentId:
+        documentRefsByOperationId.get(row.operationId)?.documentId ?? null,
+      documentType:
+        documentRefsByOperationId.get(row.operationId)?.documentType ?? null,
+      channel: documentRefsByOperationId.get(row.operationId)?.channel ?? null,
     }));
   }
 

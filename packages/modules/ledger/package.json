@@ -5,10 +5,11 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./contracts": "./src/contracts/index.ts",
     "./queries": "./src/queries.ts",
-    "./schema": "./src/schema/index.ts",
+    "./schema": "./src/infra/drizzle/schema/index.ts",
     "./ids": "./src/ids.ts",
-    "./infra/tigerbeetle": "./src/infra/tigerbeetle/index.ts"
+    "./worker": "./src/worker.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

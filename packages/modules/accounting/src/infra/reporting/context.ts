@@ -5,12 +5,16 @@ import type { OrganizationsQueries } from "@bedrock/organizations/queries";
 
 import { createReportsScopeHelpers } from "./query-support/scope";
 import { createReportsSharedHelpers } from "./query-support/shared";
-import type { AccountingReportsContext } from "../../application/reports/ports";
+import type {
+  AccountingReportsContext,
+  AccountingReportsDocumentsPort,
+} from "../../application/reports/ports";
 import type { AccountingReportsRepository } from "../drizzle/repos/reports-repository";
 
 export function createAccountingReportsContext(input: {
   balancesQueries: BalancesQueries;
   counterpartiesQueries: CounterpartiesQueries;
+  documentsPort: AccountingReportsDocumentsPort;
   ledgerQueries: LedgerQueries;
   organizationsQueries: OrganizationsQueries;
   reportsRepository: AccountingReportsRepository;
@@ -18,6 +22,7 @@ export function createAccountingReportsContext(input: {
   const {
     balancesQueries,
     counterpartiesQueries,
+    documentsPort,
     ledgerQueries,
     organizationsQueries,
     reportsRepository,
@@ -32,6 +37,7 @@ export function createAccountingReportsContext(input: {
     }),
     ...createReportsScopeHelpers({
       counterpartiesQueries,
+      documentsPort,
       ledgerQueries,
       organizationsQueries,
     }),

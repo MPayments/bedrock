@@ -1,32 +1,38 @@
 import {
   tbLedgerForCurrency,
   tbTransferIdForOperation,
-} from "@bedrock/ledger/ids";
-import type { schema } from "@bedrock/ledger/schema";
+} from "../../../ids";
+import type { LedgerBookAccountsPort } from "../../../application/book-accounts/ports";
+import type {
+  LedgerPostingInsert,
+  LedgerTransferPlanInsert,
+} from "../../../application/commit/ports";
+import {
+  OPERATION_TRANSFER_TYPE,
+  type IntentLine,
+} from "../../../domain/operation-intent";
 import type { Transaction } from "@bedrock/platform/persistence";
-
-import { ensureBookAccountInstanceTx } from "../../book-accounts";
-import { OPERATION_TRANSFER_TYPE, type IntentLine } from "../../types";
 
 export async function buildPlanRows(input: {
   tx: Transaction;
   operationId: string;
   lines: IntentLine[];
   linkedFlags: boolean[];
+  bookAccounts: LedgerBookAccountsPort;
 }): Promise<{
-  postingRows: (typeof schema.postings.$inferInsert)[];
-  tbPlanRows: (typeof schema.tbTransferPlans.$inferInsert)[];
+  postingRows: LedgerPostingInsert[];
+  tbPlanRows: LedgerTransferPlanInsert[];
   pendingTransferIdsByRef: Map<string, bigint>;
 }> {
-  const { tx, operationId, lines, linkedFlags } = input;
+  const { tx, operationId, lines, linkedFlags, bookAccounts } = input;
 
   const pendingTransferIdsByRef = new Map<string, bigint>();
-  const postingRows: (typeof schema.postings.$inferInsert)[] = [];
-  const tbPlanRows: (typeof schema.tbTransferPlans.$inferInsert)[] = [];
+  const postingRows: LedgerPostingInsert[] = [];
+  const tbPlanRows: LedgerTransferPlanInsert[] = [];
 
-  for (let i = 0; i < lines.length; i++) {
-    const lineNo = i + 1;
-    const line = lines[i]!;
+  for (let index = 0; index < lines.length; index += 1) {
+    const lineNo = index + 1;
+    const line = lines[index]!;
     const transferId = tbTransferIdForOperation(
       operationId,
       lineNo,
@@ -35,13 +41,13 @@ export async function buildPlanRows(input: {
 
     if (line.type === OPERATION_TRANSFER_TYPE.CREATE) {
       const [debitInstance, creditInstance] = await Promise.all([
-        ensureBookAccountInstanceTx(tx, {
+        bookAccounts.ensureBookAccountInstanceTx(tx, {
           bookId: line.bookId,
           accountNo: line.debit.accountNo,
           currency: line.debit.currency,
           dimensions: line.debit.dimensions,
         }),
-        ensureBookAccountInstanceTx(tx, {
+        bookAccounts.ensureBookAccountInstanceTx(tx, {
           bookId: line.bookId,
           accountNo: line.credit.accountNo,
           currency: line.credit.currency,
@@ -81,8 +87,8 @@ export async function buildPlanRows(input: {
         code: line.code ?? 1,
         pendingRef: line.pending?.ref ?? null,
         pendingId: null,
-        isLinked: linkedFlags[i]!,
-        isPending: !!line.pending,
+        isLinked: linkedFlags[index]!,
+        isPending: Boolean(line.pending),
         timeoutSeconds: line.pending?.timeoutSeconds ?? 0,
         status: "pending",
       });
@@ -102,7 +108,7 @@ export async function buildPlanRows(input: {
         code: line.code ?? 0,
         pendingRef: null,
         pendingId: line.pendingId,
-        isLinked: linkedFlags[i]!,
+        isLinked: linkedFlags[index]!,
         isPending: false,
         timeoutSeconds: 0,
         status: "pending",
@@ -122,12 +128,16 @@ export async function buildPlanRows(input: {
       code: line.code ?? 0,
       pendingRef: null,
       pendingId: line.pendingId,
-      isLinked: linkedFlags[i]!,
+      isLinked: linkedFlags[index]!,
       isPending: false,
       timeoutSeconds: 0,
       status: "pending",
     });
   }
 
-  return { postingRows, tbPlanRows, pendingTransferIdsByRef };
+  return {
+    postingRows,
+    tbPlanRows,
+    pendingTransferIdsByRef,
+  };
 }

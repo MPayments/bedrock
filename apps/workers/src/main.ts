@@ -2,7 +2,7 @@ import "./env";
 
 import { createConsoleLogger } from "@bedrock/platform/observability/logger";
 import { installShutdownHandlers } from "@bedrock/platform/worker-runtime/worker-loop";
-import { createTbClient } from "@bedrock/ledger/infra/tigerbeetle";
+import { createTbClient } from "@bedrock/ledger/worker";
 import {
   createWorkerFleet,
   startWorkerFleet,

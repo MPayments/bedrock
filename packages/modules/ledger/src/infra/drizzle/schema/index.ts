@@ -13,7 +13,14 @@ export const schema = {
   tbTransferPlans,
 };
 
-export { books, ledgerOperations, postings, bookAccountInstances, outbox, tbTransferPlans };
+export {
+  books,
+  ledgerOperations,
+  postings,
+  bookAccountInstances,
+  outbox,
+  tbTransferPlans,
+};
 
 export type { Book, BookInsert } from "./books";
 export { type LedgerOperationStatus } from "./journal";

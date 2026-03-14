@@ -6,9 +6,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./contracts": "./src/contracts/index.ts",
+    "./model": "./src/model.ts",
     "./plugins": "./src/plugins.ts",
     "./read-model": "./src/read-model.ts",
-    "./queries": "./src/queries.ts",
+    "./repository": "./src/infra/drizzle/repository.ts",
     "./schema": "./src/infra/drizzle/schema.ts",
     "./worker": "./src/infra/workers/posting.ts"
   },

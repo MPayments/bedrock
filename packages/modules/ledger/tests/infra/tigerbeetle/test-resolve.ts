@@ -9,7 +9,7 @@ import {
   makeTbAccount,
   tbCreateAccountsOrThrow,
   type TbClient,
-} from "@bedrock/ledger/infra/tigerbeetle";
+} from "../../../src/infra/tigerbeetle/client";
 import { schema, type Dimensions } from "@bedrock/ledger/schema";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 

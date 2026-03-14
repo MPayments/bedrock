@@ -30,16 +30,14 @@ import {
 } from "@bedrock/customers";
 import { createCustomersQueries } from "@bedrock/customers/queries";
 import {
-  createDrizzleDocumentsRepository,
   createDocumentsService,
-  type DocumentModuleRuntime,
   type DocumentsIdempotencyPort,
   type DocumentsService,
   type DocumentsTransactionsPort,
 } from "@bedrock/documents";
-import {
-  createDrizzleDocumentsReadModel,
-} from "@bedrock/documents/read-model";
+import type { DocumentModuleRuntime } from "@bedrock/documents/plugins";
+import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
+import { createDrizzleDocumentsRepository } from "@bedrock/documents/repository";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/infra/providers";
@@ -96,12 +94,14 @@ export interface ApiApplicationServices {
 function createAccountingReportRuntime(queryable: Queryable) {
   const balancesQueries = createBalancesQueries({ db: queryable });
   const counterpartiesQueries = createCounterpartiesQueries({ db: queryable });
+  const documentsReadModel = createDrizzleDocumentsReadModel({ db: queryable });
   const ledgerQueries = createLedgerQueries({ db: queryable });
   const organizationsQueries = createOrganizationsQueries({ db: queryable });
   const reportsRepository = createDrizzleAccountingReportsRepository(queryable);
   const reportContext = createAccountingReportsContext({
     balancesQueries,
     counterpartiesQueries,
+    documentsPort: documentsReadModel,
     ledgerQueries,
     organizationsQueries,
     reportsRepository,

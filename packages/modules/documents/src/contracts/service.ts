@@ -1,4 +1,4 @@
-import type { LedgerOperationDetails } from "@bedrock/ledger";
+import type { LedgerOperationDetails } from "@bedrock/ledger/contracts";
 import type { CorrelationContext } from "@bedrock/shared/core/correlation";
 
 import type { DocumentAction } from "../domain/state-machine";
