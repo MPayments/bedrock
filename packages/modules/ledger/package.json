@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./queries": "./src/queries.ts",
     "./schema": "./src/schema/index.ts",
     "./ids": "./src/ids.ts",
     "./infra/tigerbeetle": "./src/infra/tigerbeetle/index.ts"

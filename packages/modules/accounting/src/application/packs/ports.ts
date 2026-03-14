@@ -35,3 +35,13 @@ export interface AccountingPacksRepository {
     effectiveAt: Date;
   }) => Promise<{ packChecksum: string } | null>;
 }
+
+export interface AccountingRuntimePorts {
+  repository?: AccountingPacksRepository;
+  withTransaction?: <T>(
+    run: (repository: AccountingPacksRepository) => Promise<T>,
+  ) => Promise<T>;
+  assertBooksBelongToInternalLedgerOrganizations?: (
+    bookIds: string[],
+  ) => Promise<void>;
+}

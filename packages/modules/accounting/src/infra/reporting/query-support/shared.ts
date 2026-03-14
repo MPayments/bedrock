@@ -1,73 +1,37 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import type { BalancesQueries } from "@bedrock/balances/queries";
+import type { CounterpartiesQueries } from "@bedrock/counterparties/queries";
+import type { OrganizationsQueries } from "@bedrock/organizations/queries";
 
-import { schema as balancesSchema } from "@bedrock/balances/schema";
-import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
-import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import { schema as organizationsSchema } from "@bedrock/organizations/schema";
-import { schema as requisitesSchema } from "@bedrock/requisites/schema";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
-
-import { schema as accountingSchema } from "../../../schema";
+import { toBigInt } from "../../../domain/reports/normalization";
 import type { LineMapping, ScopedPosting } from "../../../domain/reports/types";
-
-type ReportingQuerySchema = typeof accountingSchema &
-  typeof counterpartiesSchema &
-  typeof ledgerSchema &
-  typeof organizationsSchema &
-  typeof requisitesSchema &
-  typeof balancesSchema;
-
-export const schema: ReportingQuerySchema = {
-  ...accountingSchema,
-  ...counterpartiesSchema,
-  ...ledgerSchema,
-  ...organizationsSchema,
-  ...requisitesSchema,
-  ...balancesSchema,
-};
-
-type Queryable = Database | Transaction;
+import type { ResolvedScope, ReportAttributionMode } from "../../../domain/reports/types";
+import type { AccountingReportsRepository } from "../../drizzle/repos/reports-repository";
 
 export function keyByParts(...parts: (string | null | undefined)[]): string {
   return parts.map((part) => part ?? "").join("::");
 }
 
-export function createReportsSharedHelpers(db: Queryable) {
+export function createReportsSharedHelpers(input: {
+  balancesQueries: BalancesQueries;
+  counterpartiesQueries: CounterpartiesQueries;
+  organizationsQueries: OrganizationsQueries;
+  reportsRepository: AccountingReportsRepository;
+}) {
+  const {
+    balancesQueries,
+    counterpartiesQueries,
+    organizationsQueries,
+    reportsRepository,
+  } = input;
+
   async function fetchCounterpartyNames(ids: string[]): Promise<Map<string, string>> {
-    if (ids.length === 0) {
-      return new Map();
-    }
-
-    const rows = await db
-      .select({
-        id: schema.counterparties.id,
-        shortName: schema.counterparties.shortName,
-      })
-      .from(schema.counterparties)
-      .where(inArray(schema.counterparties.id, ids));
-
-    return new Map(rows.map((row) => [row.id, row.shortName]));
+    return counterpartiesQueries.listShortNamesById(ids);
   }
 
   async function fetchAccountMeta(
     accountNos: string[],
   ): Promise<Map<string, { name: string; kind: string }>> {
-    if (accountNos.length === 0) {
-      return new Map();
-    }
-
-    const rows = await db
-      .select({
-        accountNo: schema.chartTemplateAccounts.accountNo,
-        name: schema.chartTemplateAccounts.name,
-        kind: schema.chartTemplateAccounts.kind,
-      })
-      .from(schema.chartTemplateAccounts)
-      .where(inArray(schema.chartTemplateAccounts.accountNo, accountNos));
-
-    return new Map(
-      rows.map((row) => [row.accountNo, { name: row.name, kind: row.kind }]),
-    );
+    return reportsRepository.fetchAccountMeta(accountNos);
   }
 
   async function fetchLineMappings(
@@ -80,42 +44,7 @@ export function createReportsSharedHelpers(db: Queryable) {
       | "fee_revenue",
     asOf: Date,
   ): Promise<Map<string, LineMapping[]>> {
-    const rows = await db
-      .select({
-        lineCode: schema.accountingReportLineMappings.lineCode,
-        lineLabel: schema.accountingReportLineMappings.lineLabel,
-        section: schema.accountingReportLineMappings.section,
-        accountNo: schema.accountingReportLineMappings.accountNo,
-        signMultiplier: schema.accountingReportLineMappings.signMultiplier,
-      })
-      .from(schema.accountingReportLineMappings)
-      .where(
-        and(
-          eq(schema.accountingReportLineMappings.standard, "ifrs"),
-          eq(schema.accountingReportLineMappings.reportKind, reportKind),
-          sql`${schema.accountingReportLineMappings.effectiveFrom} <= ${asOf}`,
-          sql`(${schema.accountingReportLineMappings.effectiveTo} IS NULL OR ${schema.accountingReportLineMappings.effectiveTo} > ${asOf})`,
-        ),
-      );
-
-    const byAccount = new Map<string, LineMapping[]>();
-    for (const row of rows) {
-      const existing = byAccount.get(row.accountNo);
-      const mapped = {
-        lineCode: row.lineCode,
-        lineLabel: row.lineLabel,
-        section: row.section,
-        accountNo: row.accountNo,
-        signMultiplier: row.signMultiplier,
-      };
-      if (existing) {
-        existing.push(mapped);
-      } else {
-        byAccount.set(row.accountNo, [mapped]);
-      }
-    }
-
-    return byAccount;
+    return reportsRepository.fetchLineMappings(reportKind, asOf);
   }
 
   function computeAccountNetMovements(
@@ -149,10 +78,48 @@ export function createReportsSharedHelpers(db: Queryable) {
     return movements;
   }
 
+  async function fetchLiquidityRows(inputArgs: {
+    scope: ResolvedScope;
+    attributionMode: ReportAttributionMode;
+    currency?: string;
+  }) {
+    const internalLedgerOrganizationIds =
+      await organizationsQueries.listInternalLedgerOrganizationIds();
+    const rows = await balancesQueries.listOrganizationLiquidityRows({
+      resolvedBookIds: inputArgs.scope.resolvedBookIds,
+      resolvedCounterpartyIds: inputArgs.scope.resolvedCounterpartyIds,
+      scopeType: inputArgs.scope.scopeType,
+      attributionMode: inputArgs.attributionMode,
+      internalLedgerOrganizationIds,
+      currency: inputArgs.currency,
+    });
+
+    return rows.map((row) => ({
+      bookId: row.bookId,
+      bookLabel: row.bookLabel ?? row.bookId,
+      counterpartyId: row.counterpartyId,
+      counterpartyName: row.counterpartyName,
+      currency: row.currency,
+      ledgerBalanceMinor: toBigInt(row.ledgerBalanceMinor),
+      availableMinor: toBigInt(row.availableMinor),
+      reservedMinor: toBigInt(row.reservedMinor),
+      pendingMinor: toBigInt(row.pendingMinor),
+    }));
+  }
+
+  async function findLatestClosePackage(inputArgs: {
+    organizationId: string;
+    periodStart: Date;
+  }) {
+    return reportsRepository.findLatestClosePackage(inputArgs);
+  }
+
   return {
-    fetchCounterpartyNames,
     fetchAccountMeta,
+    fetchCounterpartyNames,
     fetchLineMappings,
+    fetchLiquidityRows,
+    findLatestClosePackage,
     keyByParts,
     computeAccountNetMovements,
   };

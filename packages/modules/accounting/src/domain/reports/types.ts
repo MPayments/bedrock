@@ -1,7 +1,5 @@
-import type {
-  ReportAttributionMode,
-  ReportScopeType,
-} from "../../contracts/reporting";
+export type ReportScopeType = "all" | "counterparty" | "group" | "book";
+export type ReportAttributionMode = "analytic_counterparty" | "book_org";
 
 export type FinancialResultStatus = "pending" | "posted" | "failed";
 

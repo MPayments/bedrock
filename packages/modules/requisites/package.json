@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./contracts": "./src/contracts.ts",
+    "./queries": "./src/queries.ts",
     "./schema": "./src/schema.ts",
     "./validation": "./src/validation.ts",
     "./providers": "./src/providers/index.ts",

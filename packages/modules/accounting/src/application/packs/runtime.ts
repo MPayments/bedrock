@@ -1,8 +1,4 @@
-import {
-  AccountingPackNotFoundError,
-  AccountingPackVersionConflictError,
-  AccountingPostingPlanValidationError,
-} from "../../errors";
+import type { AccountingRuntimePorts } from "./ports";
 import {
   compilePack,
   hydrateCompiledPack,
@@ -19,11 +15,12 @@ import type {
   ResolvePostingPlanInput,
   ResolvePostingPlanResult,
 } from "../../domain/packs/types";
-import { createDrizzleAccountingPacksRepository } from "../../infra/drizzle/repositories/accounting-repository";
 import {
-  assertAccountingBooksBelongToInternalOrganizations,
-} from "../../infra/organizations/internal-ledger";
-import { type AccountingRuntimeDeps } from "../shared/context";
+  AccountingPackNotFoundError,
+  AccountingPackVersionConflictError,
+  AccountingPostingPlanValidationError,
+} from "../../errors";
+import type { AccountingPackDefinition } from "../../packs/schema";
 
 export interface AccountingRuntime {
   compilePack: typeof compilePack;
@@ -44,7 +41,7 @@ export interface AccountingRuntime {
     at?: Date;
   }) => Promise<CompiledPack>;
   storeCompiledPackVersion: (input: {
-    definition?: AccountingRuntimeDeps["defaultPackDefinition"];
+    definition?: AccountingPackDefinition;
     pack?: CompiledPack;
   }) => Promise<CompiledPack>;
   resolvePostingPlan: (
@@ -64,9 +61,15 @@ interface CachedPackEntry {
 export { compilePack, validatePackDefinition };
 
 export function createAccountingRuntime(
-  deps: AccountingRuntimeDeps,
+  deps: {
+    defaultPackDefinition: AccountingPackDefinition;
+  } & AccountingRuntimePorts,
 ): AccountingRuntime {
-  const { db } = deps;
+  const {
+    repository,
+    withTransaction,
+    assertBooksBelongToInternalLedgerOrganizations,
+  } = deps;
   const defaultCompiledPack = compilePack(deps.defaultPackDefinition);
   const packCache = new Map<string, CachedPackEntry>();
 
@@ -91,34 +94,41 @@ export function createAccountingRuntime(
     });
   }
 
-  function requireDb() {
-    if (!db) {
+  function requireRepository() {
+    if (!repository) {
       throw new Error("Accounting runtime requires db for pack persistence");
     }
 
-    return db;
+    return repository;
+  }
+
+  function requireTransactionRunner() {
+    if (!withTransaction) {
+      throw new Error("Accounting runtime requires db for pack persistence");
+    }
+
+    return withTransaction;
   }
 
   async function storeCompiledPackVersion(input: {
-    definition?: AccountingRuntimeDeps["defaultPackDefinition"];
+    definition?: AccountingPackDefinition;
     pack?: CompiledPack;
   }) {
-    const runtimeDb = requireDb();
+    const transact = requireTransactionRunner();
     const compiled =
       input.pack ??
       (input.definition ? compilePack(input.definition) : defaultCompiledPack);
     const { compiledJson } = serializeCompiledPack(compiled);
     let replacedChecksum: string | null = null;
 
-    const stored = await runtimeDb.transaction(async (tx) => {
-      const repository = createDrizzleAccountingPacksRepository(tx);
-      const existing = await repository.findPackVersion({
+    const stored = await transact(async (transactionRepository) => {
+      const existing = await transactionRepository.findPackVersion({
         packKey: compiled.packKey,
         version: compiled.version,
       });
 
       if (!existing) {
-        await repository.insertPackVersion({
+        await transactionRepository.insertPackVersion({
           packKey: compiled.packKey,
           version: compiled.version,
           checksum: compiled.checksum,
@@ -136,7 +146,8 @@ export function createAccountingRuntime(
       }
 
       if (!checksumMatches) {
-        const checksumAssigned = await repository.hasAssignmentsForPackChecksum(
+        const checksumAssigned =
+          await transactionRepository.hasAssignmentsForPackChecksum(
           existing.checksum,
         );
         if (checksumAssigned) {
@@ -149,7 +160,7 @@ export function createAccountingRuntime(
         }
       }
 
-      await repository.updatePackVersion({
+      await transactionRepository.updatePackVersion({
         packKey: compiled.packKey,
         version: compiled.version,
         checksum: compiled.checksum,
@@ -172,14 +183,13 @@ export function createAccountingRuntime(
   }
 
   async function loadCompiledPackByChecksum(checksum: string) {
-    const runtimeDb = requireDb();
-    const repository = createDrizzleAccountingPacksRepository(runtimeDb);
+    const runtimeRepository = requireRepository();
     const cached = readCachedPack(checksum);
     if (typeof cached !== "undefined") {
       return cached;
     }
 
-    const row = await repository.findPackByChecksum(checksum);
+    const row = await runtimeRepository.findPackByChecksum(checksum);
     if (!row) {
       writeCachedPack(checksum, null);
       return null;
@@ -199,8 +209,7 @@ export function createAccountingRuntime(
     effectiveAt?: Date;
     scopeType?: string;
   }) {
-    const runtimeDb = requireDb();
-    const repository = createDrizzleAccountingPacksRepository(runtimeDb);
+    const runtimeRepository = requireRepository();
     const pack = await loadCompiledPackByChecksum(input.packChecksum);
     if (!pack) {
       throw new AccountingPackNotFoundError(input.packChecksum);
@@ -209,7 +218,7 @@ export function createAccountingRuntime(
     const scopeType = input.scopeType ?? PACK_SCOPE_TYPE_BOOK;
     const effectiveAt = input.effectiveAt ?? new Date();
 
-    await repository.insertPackAssignment({
+    await runtimeRepository.insertPackAssignment({
       scopeType,
       scopeId: input.scopeId,
       packChecksum: input.packChecksum,
@@ -239,7 +248,7 @@ export function createAccountingRuntime(
       );
     }
 
-    if (!db) {
+    if (!repository) {
       return defaultCompiledPack;
     }
 
@@ -250,7 +259,6 @@ export function createAccountingRuntime(
       return cached;
     }
 
-    const repository = createDrizzleAccountingPacksRepository(db);
     const assignment = await repository.findActivePackAssignment({
       scopeType: PACK_SCOPE_TYPE_BOOK,
       scopeId: input.bookId,
@@ -274,14 +282,11 @@ export function createAccountingRuntime(
   async function resolvePostingPlan(input: ResolvePostingPlanInput) {
     const bookId = resolveBookIdContext(input);
 
-    if (db) {
+    if (assertBooksBelongToInternalLedgerOrganizations) {
       const requestBookIds = Array.from(
         new Set(input.plan.requests.map((request) => readRequiredBookId(request))),
       );
-      await assertAccountingBooksBelongToInternalOrganizations({
-        db,
-        bookIds: requestBookIds,
-      });
+      await assertBooksBelongToInternalLedgerOrganizations(requestBookIds);
     }
 
     const pack =

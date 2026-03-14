@@ -1,22 +1,20 @@
-import {
-  createAccountingServiceContext,
-  type AccountingServiceDeps,
-} from "../shared/context";
-import { createAccountingRuntime } from "../packs/runtime";
+import type { AccountingChartRepository } from "./ports";
+import { validatePostingMatrix as validatePostingMatrixRules } from "../../domain/chart/validate-posting-matrix";
 import {
   replaceCorrespondenceRulesSchema,
   type ReplaceCorrespondenceRulesInput,
 } from "../../validation";
-import { validatePostingMatrix as validatePostingMatrixRules } from "../../domain/chart/validate-posting-matrix";
-import { createDrizzleAccountingChartRepository } from "../../infra/drizzle/repositories/accounting-repository";
+import {
+  type AccountingRuntime,
+} from "../packs/runtime";
 
-export type AccountingService = ReturnType<typeof createAccountingService>;
+export type AccountingService = ReturnType<typeof createAccountingChartService>;
 
-export function createAccountingService(deps: AccountingServiceDeps) {
-  const context = createAccountingServiceContext(deps);
-  const repository = createDrizzleAccountingChartRepository(context.db);
-  const runtime = createAccountingRuntime(deps);
-
+export function createAccountingChartService(input: {
+  repository: AccountingChartRepository;
+  runtime: AccountingRuntime;
+}) {
+  const { repository, runtime } = input;
   async function listTemplateAccounts() {
     return repository.listTemplateAccounts();
   }

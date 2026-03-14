@@ -1,5 +1,3 @@
-import { and, eq, sql } from "drizzle-orm";
-
 import { ValidationError } from "@bedrock/shared/core/errors";
 
 import type {
@@ -13,8 +11,6 @@ import {
   toBigInt,
   toDateValue,
 } from "../../../../domain/reports/normalization";
-import { schema } from "../../../../infra/reporting/query-support/shared";
-import { assertAccountingOrganizationIsInternal } from "../../../../infra/organizations/internal-ledger";
 import {
   ClosePackageQuerySchema,
   type ClosePackageQuery,
@@ -29,24 +25,12 @@ export function createListClosePackageHandler(
     const query = ClosePackageQuerySchema.parse(inputQuery ?? {});
     const periodStart = normalizeMonthStart(new Date(query.periodStart));
 
-    await assertAccountingOrganizationIsInternal({
-      db: context.db,
+    await context.assertInternalOrganization(query.organizationId);
+
+    const row = await context.findLatestClosePackage({
       organizationId: query.organizationId,
+      periodStart,
     });
-
-    const existingRows = await context.db
-      .select()
-      .from(schema.accountingClosePackages)
-      .where(
-        and(
-          eq(schema.accountingClosePackages.organizationId, query.organizationId),
-          eq(schema.accountingClosePackages.periodStart, periodStart),
-        ),
-      )
-      .orderBy(sql`${schema.accountingClosePackages.revision} DESC`)
-      .limit(1);
-
-    const row = existingRows[0];
     if (!row) {
       throw new ValidationError(
         `No close package found for organization ${query.organizationId} and period ${periodStart.toISOString()}`,

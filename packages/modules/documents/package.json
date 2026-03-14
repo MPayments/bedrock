@@ -9,6 +9,7 @@
     "./financial-lines": "./src/financial-lines.ts",
     "./form-types": "./src/form-types.ts",
     "./module-kit": "./src/module-kit/index.ts",
+    "./queries": "./src/queries.ts",
     "./schema": "./src/schema.ts",
     "./state-machine": "./src/state-machine.ts",
     "./validation": "./src/validation.ts",

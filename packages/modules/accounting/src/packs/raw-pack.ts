@@ -1,13 +1,13 @@
 import {
-  ACCOUNTING_SOURCE_ID,
-  POSTING_TEMPLATE_KEY,
-} from "../posting-contracts";
-import {
   ACCOUNT_NO,
   CLEARING_KIND,
   POSTING_CODE,
   TransferCodes,
 } from "../constants";
+import {
+  ACCOUNTING_SOURCE_ID,
+  POSTING_TEMPLATE_KEY,
+} from "../posting-contracts";
 import {
   AccountingPackDefinitionSchema,
   type AccountingPackDefinition,

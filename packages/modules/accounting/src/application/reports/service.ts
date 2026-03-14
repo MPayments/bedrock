@@ -1,19 +1,7 @@
-import { inArray } from "drizzle-orm";
-
 import { getDefaultPrecision } from "@bedrock/currencies";
-import { schema as currenciesSchema } from "@bedrock/currencies/schema";
-import { schema as ledgerSchema, type Dimensions } from "@bedrock/ledger/schema";
+import type { LedgerReadService } from "@bedrock/ledger";
 
-import {
-  createAccountingReportsServiceContext,
-  type AccountingReportsServiceDeps,
-} from "./context";
-import { createAccountingReportQueriesService } from "./report-service";
-import { createBedrockDimensionRegistry } from "../../infra/reporting/dimensions";
-
-const schema = {
-  ...ledgerSchema,
-};
+import type { createAccountingReportQueriesService } from "./report-service";
 
 export type AccountingReportsService = ReturnType<
   typeof createAccountingReportsService
@@ -22,7 +10,10 @@ export type AccountingReportsService = ReturnType<
 type RawLedgerOperationDetails = NonNullable<
   Awaited<
     ReturnType<
-      AccountingReportsServiceDeps["ledgerReadService"]["getOperationDetails"]
+      Pick<
+        LedgerReadService,
+        "getOperationDetails"
+      >["getOperationDetails"]
     >
   >
 >;
@@ -36,7 +27,10 @@ type LedgerOperationDetailsWithLabels = Omit<RawLedgerOperationDetails, "posting
 
 type RawLedgerOperationList = Awaited<
   ReturnType<
-    AccountingReportsServiceDeps["ledgerReadService"]["listOperations"]
+    Pick<
+      LedgerReadService,
+      "listOperations"
+    >["listOperations"]
   >
 >;
 
@@ -47,12 +41,23 @@ type LedgerOperationListWithLabels = Omit<RawLedgerOperationList, "data"> & {
 };
 
 export function createAccountingReportsService(
-  deps: AccountingReportsServiceDeps,
+  deps: {
+    ledgerReadService: Pick<LedgerReadService, "getOperationDetails" | "listOperations">;
+    listBookNamesById: (ids: string[]) => Promise<Map<string, string>>;
+    listCurrencyPrecisionsByCode: (codes: string[]) => Promise<Map<string, number>>;
+    resolveDimensionLabelsFromRecords: (input: {
+      records: (Record<string, string> | null | undefined)[];
+    }) => Promise<Record<string, Record<string, string>>>;
+    reportQueries: ReturnType<typeof createAccountingReportQueriesService>;
+  },
 ) {
-  const context = createAccountingReportsServiceContext(deps);
-  const { db, ledgerReadService } = context;
-  const dimensionRegistry = createBedrockDimensionRegistry();
-  const reportQueries = createAccountingReportQueriesService({ db });
+  const {
+    ledgerReadService,
+    listBookNamesById,
+    listCurrencyPrecisionsByCode,
+    resolveDimensionLabelsFromRecords,
+    reportQueries,
+  } = deps;
 
   async function getOperationDetailsWithLabels(
     operationId: string,
@@ -62,29 +67,15 @@ export function createAccountingReportsService(
       return null;
     }
 
-    const currencyCodes = Array.from(
-      new Set(details.postings.map((posting) => posting.currency)),
-    );
-    const currencyRows =
-      currencyCodes.length === 0
-        ? []
-        : await db
-            .select({
-              code: currenciesSchema.currencies.code,
-              precision: currenciesSchema.currencies.precision,
-            })
-            .from(currenciesSchema.currencies)
-            .where(inArray(currenciesSchema.currencies.code, currencyCodes));
-    const precisionByCode = new Map(
-      currencyRows.map((row) => [row.code, row.precision]),
+    const precisionByCode = await listCurrencyPrecisionsByCode(
+      Array.from(new Set(details.postings.map((posting) => posting.currency))),
     );
 
-    const resolved = await dimensionRegistry.resolveLabelsFromDimensionRecords({
-      db,
+    const resolved = await resolveDimensionLabelsFromRecords({
       records: details.postings.flatMap(
         (posting: RawLedgerOperationDetails["postings"][number]) => [
-          (posting.debitDimensions as Dimensions | null) ?? null,
-          (posting.creditDimensions as Dimensions | null) ?? null,
+          (posting.debitDimensions as Record<string, string> | null) ?? null,
+          (posting.creditDimensions as Record<string, string> | null) ?? null,
         ],
       ),
     });
@@ -107,24 +98,13 @@ export function createAccountingReportsService(
 
   async function listOperationsWithLabels(
     input?: Parameters<
-      AccountingReportsServiceDeps["ledgerReadService"]["listOperations"]
+      Pick<LedgerReadService, "listOperations">["listOperations"]
     >[0],
   ): Promise<LedgerOperationListWithLabels> {
     const result = await ledgerReadService.listOperations(input);
-    const bookIds = Array.from(
-      new Set(result.data.flatMap((row) => row.bookIds)),
+    const bookNamesById = await listBookNamesById(
+      Array.from(new Set(result.data.flatMap((row) => row.bookIds))),
     );
-    const bookRows =
-      bookIds.length === 0
-        ? []
-        : await db
-            .select({
-              id: schema.books.id,
-              name: schema.books.name,
-            })
-            .from(schema.books)
-            .where(inArray(schema.books.id, bookIds));
-    const bookNamesById = new Map(bookRows.map((row) => [row.id, row.name]));
 
     return {
       ...result,

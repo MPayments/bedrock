@@ -1,13 +1,10 @@
-import type { Database, Transaction } from "@bedrock/platform/persistence";
-
-import type {
-  ReportAttributionMode,
-  ReportScopeType,
-} from "../../contracts/reporting";
+import type { AccountingClosePackageRecord } from "../../domain/periods/types";
 import type {
   FinancialResultStatus,
   LineMapping,
+  ReportAttributionMode,
   ReportScopeMeta,
+  ReportScopeType,
   ResolvedScope,
   ScopedPosting,
 } from "../../domain/reports/types";
@@ -15,7 +12,6 @@ import type {
 export type * from "../../domain/reports/types";
 
 export interface AccountingReportsContext {
-  db: Database | Transaction;
   keyByParts: (...parts: (string | null | undefined)[]) => string;
   listInternalLedgerOrganizationIds: () => Promise<string[]>;
   resolveScope: (input: {
@@ -57,4 +53,34 @@ export interface AccountingReportsContext {
   computeAccountNetMovements: (
     postings: ScopedPosting[],
   ) => Map<string, { accountNo: string; currency: string; netMinor: bigint }>;
+  fetchLiquidityRows: (input: {
+    scope: ResolvedScope;
+    attributionMode: ReportAttributionMode;
+    currency?: string;
+  }) => Promise<
+    {
+      bookId: string;
+      bookLabel: string;
+      counterpartyId: string | null;
+      counterpartyName: string | null;
+      currency: string;
+      ledgerBalanceMinor: bigint;
+      availableMinor: bigint;
+      reservedMinor: bigint;
+      pendingMinor: bigint;
+    }[]
+  >;
+  assertInternalOrganization: (organizationId: string) => Promise<void>;
+  findLatestClosePackage: (input: {
+    organizationId: string;
+    periodStart: Date;
+  }) => Promise<AccountingClosePackageRecord | null>;
+}
+
+export interface AccountingReportsServicePorts {
+  listCurrencyPrecisionsByCode: (codes: string[]) => Promise<Map<string, number>>;
+  listBookNamesById: (ids: string[]) => Promise<Map<string, string>>;
+  resolveDimensionLabelsFromRecords: (input: {
+    records: (Record<string, string> | null | undefined)[];
+  }) => Promise<Record<string, Record<string, string>>>;
 }

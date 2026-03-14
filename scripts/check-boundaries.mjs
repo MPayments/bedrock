@@ -180,6 +180,28 @@ function isKindAllowed(ownerKind, targetKind) {
   return allowedKinds.has(targetKind);
 }
 
+function isAccountingDomainFile(relFile) {
+  return /^packages\/modules\/accounting\/src\/domain\//.test(relFile);
+}
+
+function isAccountingApplicationFile(relFile) {
+  return /^packages\/modules\/accounting\/src\/application\//.test(relFile);
+}
+
+function isAccountingPortsFile(relFile) {
+  return /^packages\/modules\/accounting\/src\/application\/.+\/ports\.ts$/.test(
+    relFile,
+  );
+}
+
+function isAccountingInfraFile(relFile) {
+  return /^packages\/modules\/accounting\/src\/infra\//.test(relFile);
+}
+
+function isAccountingRuntimeSource(relFile) {
+  return /^packages\/modules\/accounting\/src\//.test(relFile);
+}
+
 for (const pkg of workspacePackages) {
   if (REQUIRED_EXPORT_KINDS.has(pkg.kind) && !pkg.packageJson.exports) {
     recordViolation("missing-exports", pkg.relDir, pkg.name, pkg.relDir);
@@ -283,6 +305,35 @@ for (const root of SOURCE_ROOTS) {
       );
     }
 
+    if (
+      isAccountingRuntimeSource(relFile) &&
+      !isAccountingInfraFile(relFile) &&
+      !isSchemaDefinitionFile(relFile) &&
+      content.includes('from "drizzle-orm"')
+    ) {
+      recordViolation("accounting-drizzle-outside-infra", relFile, "drizzle-orm");
+    }
+
+    if (
+      isAccountingPortsFile(relFile) &&
+      /from\s+["'](?:\.\.\/)+schema(?:\.ts|["'/])/.test(content)
+    ) {
+      recordViolation("accounting-ports-import-schema", relFile, "schema");
+    }
+
+    if (
+      isAccountingApplicationFile(relFile) &&
+      /createDrizzleAccounting[A-Za-z]+|create(?:Balances|Counterparties|Currencies|Customers|Documents|Ledger|Organizations|Requisites)Queries\(/.test(
+        content,
+      )
+    ) {
+      recordViolation(
+        "accounting-application-constructs-adapters",
+        relFile,
+        "createDrizzleAccounting*|create*Queries(",
+      );
+    }
+
     for (const specifier of getImports(content)) {
       if (specifier.startsWith("node:")) {
         continue;
@@ -303,6 +354,34 @@ for (const root of SOURCE_ROOTS) {
             specifier,
             relative(ROOT, targetPath),
           );
+          continue;
+        }
+
+        const relTargetPath = relative(ROOT, targetPath);
+
+        if (
+          isAccountingDomainFile(relFile) &&
+          /^packages\/modules\/accounting\/src\/(?:contracts|application|infra)\//.test(
+            relTargetPath,
+          )
+        ) {
+          recordViolation("accounting-domain-layer-import", relFile, specifier);
+          continue;
+        }
+
+        if (
+          isAccountingApplicationFile(relFile) &&
+          /^packages\/modules\/accounting\/src\/infra\//.test(relTargetPath)
+        ) {
+          recordViolation("accounting-application-imports-infra", relFile, specifier);
+          continue;
+        }
+
+        if (
+          isAccountingApplicationFile(relFile) &&
+          /^packages\/modules\/accounting\/src\/schema(?:\.ts|\/)/.test(relTargetPath)
+        ) {
+          recordViolation("accounting-application-imports-schema", relFile, specifier);
           continue;
         }
 
@@ -358,6 +437,41 @@ for (const root of SOURCE_ROOTS) {
       ) {
         recordViolation(
           "strict-module-imports-foreign-schema",
+          relFile,
+          specifier,
+        );
+      }
+
+      if (
+        targetPkg.name !== owner?.name &&
+        (
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        ) &&
+        (isAccountingDomainFile(relFile) || isAccountingApplicationFile(relFile))
+      ) {
+        recordViolation(
+          "accounting-app-or-domain-imports-foreign-schema",
+          relFile,
+          specifier,
+        );
+      }
+
+      if (
+        isAccountingDomainFile(relFile) &&
+        normalized.packageName === "@bedrock/platform" &&
+        normalized.subpath.startsWith("./persistence")
+      ) {
+        recordViolation("accounting-domain-imports-persistence", relFile, specifier);
+      }
+
+      if (
+        isAccountingApplicationFile(relFile) &&
+        normalized.packageName === "@bedrock/platform" &&
+        normalized.subpath.startsWith("./persistence")
+      ) {
+        recordViolation(
+          "accounting-application-imports-persistence",
           relFile,
           specifier,
         );

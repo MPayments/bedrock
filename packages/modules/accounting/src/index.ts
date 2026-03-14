@@ -50,4 +50,4 @@ export {
 } from "./runtime";
 export { rawPackDefinition } from "./packs/raw-pack";
 
-export type { AccountingServiceDeps } from "./application/shared/context";
+export type { AccountingRuntimeDeps, AccountingServiceDeps } from "./deps";

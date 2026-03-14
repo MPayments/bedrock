@@ -1,4 +1,11 @@
-import { db } from "@bedrock/platform/postgres/client";
+import {
+  createAccountingPeriodsService,
+  type AccountingPeriodsService,
+} from "@bedrock/accounting/periods";
+import {
+  createAccountingReportsService,
+  type AccountingReportsService,
+} from "@bedrock/accounting/reports";
 import {
   createCustomerLifecycleSyncPort,
   createCounterpartiesService,
@@ -17,8 +24,7 @@ import {
   createDocumentsService,
   type DocumentsService,
 } from "@bedrock/documents";
-import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
-import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
+import { createDocumentsQueries } from "@bedrock/documents/queries";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/infra/providers";
@@ -26,14 +32,9 @@ import {
   createOrganizationsService,
   type OrganizationsService,
 } from "@bedrock/organizations";
-import {
-  createAccountingReportsService,
-  type AccountingReportsService,
-} from "@bedrock/accounting/reports";
-import {
-  createAccountingPeriodsService,
-  type AccountingPeriodsService,
-} from "@bedrock/accounting/periods";
+import { db } from "@bedrock/platform/postgres/client";
+import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
+import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import {
   createRequisitesService,
   type RequisitesService,
@@ -71,10 +72,15 @@ export function createApplicationServices(
 
   const accountingReportsService = createAccountingReportsService({
     db,
+    documentsQueries: createDocumentsQueries({ db }),
     ledgerReadService,
     logger,
   });
-  const accountingPeriodsService = createAccountingPeriodsService({ db });
+  const accountingPeriodsService = createAccountingPeriodsService({
+    db,
+    documentsQueriesFactory: ({ db: queryable }) =>
+      createDocumentsQueries({ db: queryable }),
+  });
   const counterpartiesService = createCounterpartiesService({ db, logger });
   const customersService = createCustomersService({
     db,

@@ -1,7 +1,3 @@
-import type { Database, Transaction } from "@bedrock/platform/persistence";
-
-import { createReportsScopeHelpers } from "../../infra/reporting/query-support/scope";
-import { createReportsSharedHelpers } from "../../infra/reporting/query-support/shared";
 import { createListBalanceSheetHandler } from "./queries/reports/balance-sheet";
 import { createListCashFlowHandler } from "./queries/reports/cash-flow";
 import { createListClosePackageHandler } from "./queries/reports/close-package";
@@ -38,18 +34,10 @@ export type {
   TrialBalanceSummaryByCurrency,
 } from "./types";
 
-type Queryable = Database | Transaction;
-
 export function createAccountingReportQueriesService(deps: {
-  db: Queryable;
+  context: AccountingReportsContext;
 }) {
-  const { db } = deps;
-
-  const context: AccountingReportsContext = {
-    db,
-    ...createReportsSharedHelpers(db),
-    ...createReportsScopeHelpers(db),
-  };
+  const { context } = deps;
 
   const listTrialBalance = createListTrialBalanceHandler(context);
   const listGeneralLedger = createListGeneralLedgerHandler(context);

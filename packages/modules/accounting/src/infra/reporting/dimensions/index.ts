@@ -1,21 +1,8 @@
-import { inArray } from "drizzle-orm";
-import { sql } from "drizzle-orm";
-
-import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
-import { schema as customersSchema } from "@bedrock/customers/schema";
-import { type Dimensions } from "@bedrock/ledger/schema";
-import { schema as requisitesSchema } from "@bedrock/requisites/schema";
-import { isUuidLike } from "@bedrock/shared/core/uuid";
-import type { Database } from "@bedrock/platform/persistence";
-
-const schema = {
-  ...counterpartiesSchema,
-  ...customersSchema,
-  ...requisitesSchema,
-};
+import type { CounterpartiesQueries } from "@bedrock/counterparties/queries";
+import type { CustomersQueries } from "@bedrock/customers/queries";
+import type { RequisitesQueries } from "@bedrock/requisites/queries";
 
 export type DimensionLabelResolver = (input: {
-  db: Database;
   values: string[];
 }) => Promise<Map<string, string>>;
 
@@ -31,13 +18,15 @@ interface CacheEntry {
 
 export interface DimensionRegistry {
   resolveLabels: (input: {
-    db: Database;
     valuesByKey: Record<string, string[]>;
   }) => Promise<Record<string, Record<string, string>>>;
   resolveLabelsFromDimensionRecords: (input: {
-    db: Database;
-    records: (Dimensions | null | undefined)[];
+    records: (Record<string, string> | null | undefined)[];
   }) => Promise<Record<string, Record<string, string>>>;
+}
+
+export interface DimensionDocumentsQueries {
+  listDocumentLabelsById: (ids: string[]) => Promise<Map<string, string>>;
 }
 
 function uniqueStrings(values: string[]): string[] {
@@ -78,7 +67,6 @@ export function createDimensionRegistry(
   }
 
   async function resolveLabels(input: {
-    db: Database;
     valuesByKey: Record<string, string[]>;
   }) {
     const resolved: Record<string, Record<string, string>> = {};
@@ -114,10 +102,7 @@ export function createDimensionRegistry(
         continue;
       }
 
-      const labels = await entry.resolveLabels({
-        db: input.db,
-        values: unresolved,
-      });
+      const labels = await entry.resolveLabels({ values: unresolved });
 
       for (const value of unresolved) {
         const label = labels.get(value) ?? null;
@@ -133,8 +118,7 @@ export function createDimensionRegistry(
   }
 
   async function resolveLabelsFromDimensionRecords(input: {
-    db: Database;
-    records: (Dimensions | null | undefined)[];
+    records: (Record<string, string> | null | undefined)[];
   }) {
     const valuesByKey: Record<string, string[]> = {};
 
@@ -154,7 +138,6 @@ export function createDimensionRegistry(
     }
 
     return resolveLabels({
-      db: input.db,
       valuesByKey,
     });
   }
@@ -165,81 +148,36 @@ export function createDimensionRegistry(
   };
 }
 
-export function createBedrockDimensionRegistry(): DimensionRegistry {
+export function createBedrockDimensionRegistry(input: {
+  counterpartiesQueries: CounterpartiesQueries;
+  customersQueries: CustomersQueries;
+  requisitesQueries: RequisitesQueries;
+  documentsQueries?: DimensionDocumentsQueries;
+}): DimensionRegistry {
+  const {
+    counterpartiesQueries,
+    customersQueries,
+    requisitesQueries,
+    documentsQueries,
+  } = input;
+
   return createDimensionRegistry([
     {
       key: "counterpartyId",
-      resolveLabels: async ({ db, values }) => {
-        const rows = await db
-          .select({
-            id: schema.counterparties.id,
-            label: schema.counterparties.shortName,
-          })
-          .from(schema.counterparties)
-          .where(inArray(schema.counterparties.id, uniqueStrings(values)));
-
-        return new Map(rows.map((row) => [row.id, row.label]));
-      },
+      resolveLabels: ({ values }) => counterpartiesQueries.listShortNamesById(values),
     },
     {
       key: "organizationRequisiteId",
-      resolveLabels: async ({ db, values }) => {
-        const rows = await db
-          .select({
-            id: schema.requisites.id,
-            label: schema.requisites.label,
-          })
-          .from(schema.requisites)
-          .where(inArray(schema.requisites.id, uniqueStrings(values)));
-
-        return new Map(rows.map((row) => [row.id, row.label]));
-      },
+      resolveLabels: ({ values }) => requisitesQueries.listLabelsById(values),
     },
     {
       key: "customerId",
-      resolveLabels: async ({ db, values }) => {
-        const rows = await db
-          .select({
-            id: schema.customers.id,
-            label: schema.customers.displayName,
-          })
-          .from(schema.customers)
-          .where(inArray(schema.customers.id, uniqueStrings(values)));
-
-        return new Map(rows.map((row) => [row.id, row.label]));
-      },
+      resolveLabels: ({ values }) => customersQueries.listDisplayNamesById(values),
     },
     {
       key: "orderId",
-      resolveLabels: async ({ db, values }) => {
-        const ids = uniqueStrings(values).filter(isUuidLike);
-        if (ids.length === 0) {
-          return new Map();
-        }
-
-        const rowsResult = await db.execute(sql`
-          SELECT
-            id::text AS id,
-            doc_no,
-            doc_type,
-            title
-          FROM "documents"
-          WHERE id IN (${sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `)})
-        `);
-        const rows = (rowsResult.rows ?? []) as {
-          id: string;
-          doc_no: string;
-          doc_type: string;
-          title: string | null;
-        }[];
-
-        return new Map(
-          rows.map((row) => [
-            row.id,
-            `${row.doc_type} ${row.doc_no}${row.title ? ` · ${row.title}` : ""}`,
-          ]),
-        );
-      },
+      resolveLabels: async ({ values }) =>
+        documentsQueries?.listDocumentLabelsById(values) ?? new Map(),
     },
   ]);
 }

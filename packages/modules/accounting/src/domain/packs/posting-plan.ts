@@ -1,12 +1,6 @@
-import { canonicalJson, makePlanKey } from "@bedrock/shared/core/canon";
 import { sha256Hex } from "@bedrock/platform/crypto";
+import { canonicalJson, makePlanKey } from "@bedrock/shared/core/canon";
 
-import {
-  AccountingPostingPlanValidationError,
-  AccountingTemplateAccessError,
-  UnknownPostingTemplateError,
-} from "../../errors";
-import type { ValueBinding } from "../../packs/schema";
 import {
   isCompiledCreateTemplate,
 } from "./compilation";
@@ -23,6 +17,12 @@ import type {
   ResolvedPostingTemplate,
   VoidPendingIntentLine,
 } from "./types";
+import {
+  AccountingPostingPlanValidationError,
+  AccountingTemplateAccessError,
+  UnknownPostingTemplateError,
+} from "../../errors";
+import type { ValueBinding } from "../../packs/schema";
 
 const OPERATION_TRANSFER_TYPE = {
   CREATE: "create",

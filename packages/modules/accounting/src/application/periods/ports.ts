@@ -1,10 +1,14 @@
-import type { AccountingClosePackage, AccountingPeriodLock } from "../../schema";
+import type {
+  AccountingClosePackageRecord,
+  AccountingClosePackageState,
+  AccountingPeriodLockRecord,
+} from "../../domain/periods/types";
 
 export interface AccountingPeriodsRepository {
   findClosedPeriodLock: (input: {
     organizationId: string;
     periodStart: Date;
-  }) => Promise<Pick<AccountingPeriodLock, "id"> | null>;
+  }) => Promise<Pick<AccountingPeriodLockRecord, "id"> | null>;
   upsertClosedPeriodLock: (input: {
     organizationId: string;
     periodStart: Date;
@@ -13,7 +17,7 @@ export interface AccountingPeriodsRepository {
     closeReason?: string | null;
     closedBy: string;
     closedAt: Date;
-  }) => Promise<AccountingPeriodLock>;
+  }) => Promise<AccountingPeriodLockRecord>;
   upsertReopenedPeriodLock: (input: {
     organizationId: string;
     periodStart: Date;
@@ -21,11 +25,11 @@ export interface AccountingPeriodsRepository {
     reopenedBy: string;
     reopenReason?: string | null;
     reopenedAt: Date;
-  }) => Promise<AccountingPeriodLock>;
+  }) => Promise<AccountingPeriodLockRecord>;
   findLatestClosePackage: (input: {
     organizationId: string;
     periodStart: Date;
-  }) => Promise<Pick<AccountingClosePackage, "id"> | null>;
+  }) => Promise<Pick<AccountingClosePackageRecord, "id"> | null>;
   markClosePackageSuperseded: (input: {
     id: string;
     reopenDocumentId?: string | null;
@@ -39,10 +43,19 @@ export interface AccountingPeriodsRepository {
     periodStart: Date;
     periodEnd: Date;
     revision: number;
-    state: "closed" | "superseded";
+    state: AccountingClosePackageState;
     closeDocumentId: string;
     reopenDocumentId?: string | null;
     checksum: string;
     payload: Record<string, unknown>;
-  }) => Promise<AccountingClosePackage>;
+  }) => Promise<AccountingClosePackageRecord>;
+}
+
+export interface AccountingClosePackageSnapshotPort {
+  generateClosePackageSnapshot: (input: {
+    organizationId: string;
+    periodStart: Date;
+    periodEnd: Date;
+    closeDocumentId: string;
+  }) => Promise<AccountingClosePackageRecord>;
 }

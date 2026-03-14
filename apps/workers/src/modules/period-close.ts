@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { createAccountingPeriodsService } from "@bedrock/accounting/periods";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import type { BedrockWorker } from "@bedrock/platform/worker-runtime";
+import { createDocumentsQueries } from "@bedrock/documents/queries";
 import { schema as documentsSchema, type Document } from "@bedrock/documents/schema";
 import { user } from "@bedrock/platform/auth-model/schema";
 import type { Logger } from "@bedrock/platform/observability/logger";
@@ -146,7 +147,10 @@ async function createPeriodCloseForOrganization(input: {
   periodEnd: Date;
   periodLabel: string;
 }): Promise<boolean> {
-  const accountingPeriods = createAccountingPeriodsService({ db: input.db });
+  const accountingPeriods = createAccountingPeriodsService({
+    db: input.db,
+    documentsQueriesFactory: ({ db }) => createDocumentsQueries({ db }),
+  });
 
   return input.db.transaction(async (tx) => {
     const createIdempotencyKey = buildPeriodCloseIdempotencyKey(
