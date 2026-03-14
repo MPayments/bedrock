@@ -1,4 +1,4 @@
-import type { Database } from "@bedrock/persistence";
+import type { Database } from "@bedrock/platform-persistence";
 
 export interface InternalLedgerBookGuard {
   (input: { db: Database; bookIds: string[] }): Promise<void>;

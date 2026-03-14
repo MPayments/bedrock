@@ -20,9 +20,8 @@
   "dependencies": {
     "@bedrock/core": "workspace:*",
     "@bedrock/customers": "workspace:*",
-    "@bedrock/observability": "workspace:*",
-    "@bedrock/party-types": "workspace:*",
-    "@bedrock/persistence": "workspace:*",
+    "@bedrock/platform-observability": "workspace:*",
+    "@bedrock/platform-persistence": "workspace:*",
     "@bedrock/reference-data": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"

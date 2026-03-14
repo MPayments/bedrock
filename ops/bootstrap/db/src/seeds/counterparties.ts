@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/client";
-import { schema } from "@bedrock/adapter-db-drizzle";
+import type { Database, Transaction } from "@bedrock/platform-postgres/client";
+import { schema } from "@bedrock/platform-postgres";
 import { COUNTERPARTIES, CUSTOMERS } from "./fixtures";
 
 type SeedDb = Database | Transaction;

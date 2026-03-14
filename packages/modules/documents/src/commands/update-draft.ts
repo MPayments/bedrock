@@ -20,16 +20,13 @@ import {
   enforceDocumentPolicy,
   persistDocumentPolicyDenial,
 } from "../internal/policy";
-import {
-  assertOrganizationPeriodsOpen,
-  collectDocumentOrganizationIds,
-} from "@bedrock/accounting-close";
+import { collectDocumentOrganizationIds } from "../internal/accounting-periods";
 import { isDocumentActionAllowed } from "../state-machine";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 import { validateInput } from "../validation";
 
 export function createUpdateDraftHandler(context: DocumentsServiceContext) {
-  const { db, idempotency, log, policy, registry } = context;
+  const { accountingPeriods, db, idempotency, log, policy, registry } = context;
 
   return async function updateDraft(input: {
     docType: string;
@@ -114,7 +111,7 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
             const currentOrganizationIds = collectDocumentOrganizationIds({
               payload: document.payload,
             });
-            await assertOrganizationPeriodsOpen({
+            await accountingPeriods.assertOrganizationPeriodsOpen({
               db: tx,
               occurredAt: document.occurredAt,
               organizationIds: currentOrganizationIds,
@@ -159,7 +156,7 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
             const nextOrganizationIds = collectDocumentOrganizationIds({
               payload,
             });
-            await assertOrganizationPeriodsOpen({
+            await accountingPeriods.assertOrganizationPeriodsOpen({
               db: tx,
               occurredAt: nextOccurredAt,
               organizationIds: nextOrganizationIds,

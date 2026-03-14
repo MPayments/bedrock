@@ -6,12 +6,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
 const SOURCE_ROOTS = [
-  join(ROOT, "packages", "core", "src", "documents"),
-  join(ROOT, "packages", "core", "src", "ledger"),
-  join(ROOT, "packages", "core", "src", "balances"),
-  join(ROOT, "packages", "core", "src", "reconciliation"),
-  join(ROOT, "packages", "application", "src", "accounting-reporting"),
-  join(ROOT, "packages", "application", "src", "fees"),
+  join(ROOT, "packages", "modules", "documents", "src"),
+  join(ROOT, "packages", "modules", "ledger", "src"),
+  join(ROOT, "packages", "modules", "balances", "src"),
+  join(ROOT, "packages", "modules", "reconciliation", "src"),
+  join(ROOT, "packages", "modules", "accounting", "src"),
+  join(ROOT, "packages", "modules", "fees", "src"),
   join(ROOT, "apps", "api", "src"),
   join(ROOT, "apps", "workers", "src"),
 ];

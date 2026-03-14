@@ -1,6 +1,6 @@
 import { Building2 } from "lucide-react";
 
-import { Separator } from "@bedrock/ui/components/separator";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
 
 import { CreateCounterpartyGroupFormClient } from "@/features/entities/counterparties/components/create-counterparty-group-form-client";
 import { getCounterpartyGroups } from "@/features/entities/counterparties/lib/queries";

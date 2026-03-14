@@ -12,8 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { accountingPeriodLocks } from "@bedrock/accounting-close/schema";
-import { user } from "@bedrock/identity/schema";
+import { user } from "@bedrock/platform-auth-model/schema";
 import { counterparties } from "@bedrock/counterparties/schema";
 import { customers } from "@bedrock/customers/schema";
 import {
@@ -289,8 +288,6 @@ export type DocumentLink = typeof documentLinks.$inferSelect;
 export type DocumentLinkInsert = typeof documentLinks.$inferInsert;
 export type DocumentSnapshot = typeof documentSnapshots.$inferSelect;
 export type DocumentSnapshotInsert = typeof documentSnapshots.$inferInsert;
-export type AccountingPeriodLock = typeof accountingPeriodLocks.$inferSelect;
-export type AccountingPeriodLockInsert = typeof accountingPeriodLocks.$inferInsert;
 
 export const schema: {
   documents: typeof documents;
@@ -298,7 +295,6 @@ export const schema: {
   documentOperations: typeof documentOperations;
   documentLinks: typeof documentLinks;
   documentSnapshots: typeof documentSnapshots;
-  accountingPeriodLocks: typeof accountingPeriodLocks;
   ledgerOperations: typeof ledgerOperations;
   outbox: typeof outbox;
   postings: typeof postings;
@@ -309,7 +305,6 @@ export const schema: {
   documentOperations,
   documentLinks,
   documentSnapshots,
-  accountingPeriodLocks,
   ledgerOperations,
   outbox,
   postings,

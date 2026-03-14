@@ -6,7 +6,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/sdk-ui/components/card";
 
 const REPORT_LINKS = [
   {

@@ -1,4 +1,4 @@
-import { Skeleton } from "@bedrock/ui/components/skeleton";
+import { Skeleton } from "@bedrock/sdk-ui/components/skeleton";
 
 export function SectionLoading({
   cards = 3,

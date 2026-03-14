@@ -9,7 +9,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@bedrock/ui/components/breadcrumb";
+} from "@bedrock/sdk-ui/components/breadcrumb";
 
 import type { BreadcrumbItem as AppBreadcrumbItem } from "@/lib/breadcrumbs";
 import { resolveAppIcon } from "@/lib/icons";

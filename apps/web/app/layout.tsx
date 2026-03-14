@@ -1,4 +1,4 @@
-import "@bedrock/ui/globals.css";
+import "@bedrock/sdk-ui/globals.css";
 import { Providers } from "@/components/providers";
 import { Geist_Mono, Geist } from "next/font/google";
 

@@ -4,7 +4,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/sdk-ui/components/card";
 import {
   Table,
   TableBody,
@@ -12,7 +12,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@bedrock/ui/components/table";
+} from "@bedrock/sdk-ui/components/table";
 
 import { getAccountingTemplateAccounts } from "@/features/accounting/lib/queries";
 

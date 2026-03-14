@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/adapter-db-drizzle": "workspace:*",
+    "@bedrock/platform-postgres": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/requisites": "workspace:*",
     "better-auth": "*",

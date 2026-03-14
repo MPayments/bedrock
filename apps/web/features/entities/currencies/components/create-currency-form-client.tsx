@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { toast } from "@bedrock/ui/components/sonner";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import {
   CurrencyCreateGeneralForm,

@@ -159,6 +159,12 @@ export function createDocumentsServiceDeps(
     accounting: {
       resolvePostingPlan: vi.fn(),
     },
+    accountingPeriods: {
+      assertOrganizationPeriodsOpen: vi.fn(async () => undefined),
+      closePeriod: vi.fn(async () => undefined),
+      isOrganizationPeriodClosed: vi.fn(async () => false),
+      reopenPeriod: vi.fn(async () => undefined),
+    },
     db: createStubDb(),
     ledger: {
       commit: vi.fn(),

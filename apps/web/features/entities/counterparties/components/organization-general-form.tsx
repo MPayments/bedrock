@@ -12,7 +12,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/sdk-ui/components/card";
 import {
   FieldLabel,
   FieldGroup,
@@ -21,7 +21,7 @@ import {
   FieldDescription,
   FieldError,
   FieldSeparator,
-} from "@bedrock/ui/components/field";
+} from "@bedrock/sdk-ui/components/field";
 import {
   Select,
   SelectTrigger,
@@ -29,7 +29,7 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-} from "@bedrock/ui/components/select";
+} from "@bedrock/sdk-ui/components/select";
 import {
   Command,
   CommandEmpty,
@@ -38,17 +38,17 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "@bedrock/ui/components/command";
-import { Checkbox } from "@bedrock/ui/components/checkbox";
-import { Input } from "@bedrock/ui/components/input";
+} from "@bedrock/sdk-ui/components/command";
+import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
+import { Input } from "@bedrock/sdk-ui/components/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@bedrock/ui/components/popover";
-import { Textarea } from "@bedrock/ui/components/textarea";
-import { Button } from "@bedrock/ui/components/button";
-import { Spinner } from "@bedrock/ui/components/spinner";
+} from "@bedrock/sdk-ui/components/popover";
+import { Textarea } from "@bedrock/sdk-ui/components/textarea";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 
 import {
   COUNTERPARTY_COUNTRY_OPTIONS,

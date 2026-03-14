@@ -133,15 +133,6 @@ function createContext(options: {
     select: vi.fn(() => ({
       from: vi.fn((table: unknown) => ({
         where: vi.fn(() => {
-          if (table === schema.accountingPeriodLocks) {
-            const locks = options.periodClosed ? [{ id: "lock-1" }] : [];
-            return {
-              limit: vi.fn(async () => locks),
-              for: vi.fn(() => ({
-                limit: vi.fn(async () => locks),
-              })),
-            };
-          }
           const rows = selectRows.shift() ?? [];
           return {
             limit: vi.fn(async () => rows),
@@ -212,6 +203,18 @@ function createContext(options: {
     context: {
       accounting: {
         resolvePostingPlan: vi.fn(),
+      },
+      accountingPeriods: {
+        assertOrganizationPeriodsOpen: vi.fn(async () => {
+          if (options.periodClosed) {
+            throw new Error("Accounting period is closed for organization");
+          }
+        }),
+        closePeriod: vi.fn(async () => undefined),
+        isOrganizationPeriodClosed: vi.fn(
+          async () => options.periodClosed ?? false,
+        ),
+        reopenPeriod: vi.fn(async () => undefined),
       },
       db,
       idempotency,

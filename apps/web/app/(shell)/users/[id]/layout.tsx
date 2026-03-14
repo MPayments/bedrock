@@ -1,6 +1,6 @@
 import { Users } from "lucide-react";
 
-import { Separator } from "@bedrock/ui/components/separator";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
 
 import { getUserById } from "../lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";

@@ -6,8 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/schema/index.ts",
-    "./tb": "./src/tb.ts",
-    "./ids": "./src/ids.ts"
+    "./ids": "./src/ids.ts",
+    "./infra/tigerbeetle": "./src/infra/tigerbeetle/index.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -21,7 +21,9 @@
   },
   "dependencies": {
     "@bedrock/core": "workspace:*",
-    "@bedrock/persistence": "workspace:*",
+    "@bedrock/platform-crypto": "workspace:*",
+    "@bedrock/platform-persistence": "workspace:*",
+    "@bedrock/platform-worker-runtime": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "tigerbeetle-node": "^0.16.72",
     "zod": "^4.1.11"

@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { Badge } from "@bedrock/ui/components/badge";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import type { FxQuoteListItem } from "@/features/fx/quotes/lib/queries";

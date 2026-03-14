@@ -16,20 +16,17 @@ Stack: TypeScript 5.8, Hono, Next.js, Drizzle ORM, PostgreSQL, TigerBeetle, Zod,
 
 Runtime is split by package kind:
 
-- `packages/foundation/*` for stable shared primitives
+- `packages/shared/*` for stable shared primitives
 - `packages/modules/*` for business capabilities, published as flat `@bedrock/<name>` packages
 - `packages/workflows/*` for cross-module orchestration
-- `packages/queries/*` for read-side projections and reports
-- `packages/integrations/*` for external integrations
-- `packages/adapters/*` for technical adapters
-- `packages/extensions/*` for document extensions and extension SDKs
-- `packages/clients/*` for downstream API clients
-- `packages/ui/*` for reusable UI packages
+- `packages/platform/*` for technical platform/runtime packages
+- `packages/plugins/*` for document plugins and plugin SDKs
+- `packages/sdk/*` for downstream API clients and reusable UI packages
 
 Core dependency direction:
 
-- `foundation -> modules/workflows/queries/adapters/integrations/extensions/clients/ui -> apps/*`
-- `@bedrock/adapter-db-drizzle` aggregates schemas from owning packages and provides the DB client/migrations.
+- `shared -> modules/workflows/platform/plugins/sdk -> apps/*`
+- `@bedrock/platform-postgres` aggregates schemas from owning packages and provides the DB client/migrations.
 - `@bedrock/bootstrap-db` owns DB seeds/bootstrap runners.
 
 Hard rules:
@@ -38,11 +35,10 @@ Hard rules:
 - Runtime imports must go through declared package exports only. No cross-package `internal/**` imports.
 - Domain schema ownership is colocated under:
   - `packages/modules/*/src/schema.ts` or `schema/**`
-  - `packages/adapters/*/src/schema.ts` or `schema/**` when adapters own schema
-  - `packages/integrations/*/src/schema.ts` or `schema/**` when integration packages own schema
-- `@bedrock/adapter-db-drizzle` must not own domain table declarations; it only aggregates domain schemas for client/migrations.
+  - `packages/platform/*/src/schema.ts` or `schema/**` when platform packages own schema
+- `@bedrock/platform-postgres` must not own domain table declarations; it only aggregates domain schemas for client/migrations.
 - `@bedrock/bootstrap-db` is the only workspace package that should own shared seed/bootstrap orchestration.
-- Business packages must not import `@bedrock/adapter-db-drizzle` root/client from runtime code. Only apps, approved tooling/scripts, seeds/bootstrap, and integration tests may do so.
+- Business packages must not import `@bedrock/platform-postgres` root/client from runtime code. Only apps, approved tooling/scripts, seeds/bootstrap, and integration tests may do so.
 
 ## Package Manager and Runtime
 
@@ -54,10 +50,10 @@ Hard rules:
 ```jsonc
 // package.json
 "dependencies": {
-    "@bedrock/adapter-db-drizzle": "workspace:*",     // correct
+    "@bedrock/platform-postgres": "workspace:*",     // correct
     "@bedrock/core": "workspace:*", // correct
     "@bedrock/ledger": "workspace:*"  // correct
-    // NOT "@bedrock/adapter-db-drizzle": "*"
+    // NOT "@bedrock/platform-postgres": "*"
 }
 ```
 
@@ -157,10 +153,9 @@ Runtime domain code lives under consolidated folders:
 
 - `packages/modules/<module>/src/**`
 - `packages/workflows/<workflow>/src/**`
-- `packages/queries/<query>/src/**`
-- `packages/adapters/<adapter>/src/**`
-- `packages/extensions/<extension>/src/**`
-- `packages/integrations/<integration>/src/**`
+- `packages/platform/<platform>/src/**`
+- `packages/plugins/<plugin>/src/**`
+- `packages/sdk/<sdk>/src/**`
 - package-local `tests/**`
 
 Within each package, this is the common default layout:
@@ -186,7 +181,7 @@ Within each package, this is the common default layout:
 ### Modules
 
 - All packages use ESM (`"type": "module"` in package.json).
-- Client-reachable code must import only client-safe packages or subpaths. Safe examples include `@bedrock/money/math`, `@bedrock/core/uuid`, and `@bedrock/core/canon`. Server-only helpers live under `@bedrock/observability/logger`, `@bedrock/core/crypto`, and `@bedrock/adapter-worker-runtime/worker-loop`.
+- Client-reachable code must import only client-safe packages or subpaths. Safe examples include `@bedrock/money/math`, `@bedrock/core/uuid`, and `@bedrock/core/canon`. Server-only helpers live under `@bedrock/platform-observability/logger`, `@bedrock/platform-crypto`, and `@bedrock/platform-worker-runtime/worker-loop`.
 
 ### Import order
 
@@ -223,7 +218,7 @@ export class OrderNotFoundError extends ServiceError {
 - Schema uses `snake_case` column naming convention.
 - Runtime table definitions must be colocated in the owning package under `src/schema.ts` or `src/schema/**`.
 - Runtime code imports schemas through package exports such as `@bedrock/ledger/schema`, `@bedrock/counterparties/schema`, or `@bedrock/requisites/schema`.
-- Runtime code imports shared database connection types from `@bedrock/adapter-db-drizzle/db/types`.
+- Runtime code imports shared database connection types from `@bedrock/platform-postgres/db/types`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.
 - Migration policy is baseline-only hard cutover.
   - Mandatory sequence: `db:nuke -> db:migrate -> db:seed`.

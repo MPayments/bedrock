@@ -1,5 +1,5 @@
-import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/client";
-import { schema } from "@bedrock/adapter-db-drizzle";
+import type { Database, Transaction } from "@bedrock/platform-postgres/client";
+import { schema } from "@bedrock/platform-postgres";
 import { REQUISITE_PROVIDERS } from "./fixtures";
 
 export { REQUISITE_PROVIDER_IDS } from "./fixtures";

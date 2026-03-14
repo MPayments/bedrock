@@ -10,14 +10,14 @@ import type {
   UseFormSetValue,
 } from "react-hook-form";
 
-import { Input } from "@bedrock/ui/components/input";
-import { Button } from "@bedrock/ui/components/button";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@bedrock/ui/components/tooltip";
-import { toast } from "@bedrock/ui/components/sonner";
+} from "@bedrock/sdk-ui/components/tooltip";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { generatePassword } from "@/lib/generate-password";
 

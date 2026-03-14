@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
-import { Separator } from "@bedrock/ui/components/separator";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-} from "@bedrock/ui/components/sidebar";
+} from "@bedrock/sdk-ui/components/sidebar";
 import { EntityDraftNameProviders } from "@/features/entities/shared/entity-draft-name-providers";
 import { getServerSessionSnapshot } from "@/lib/auth/session";
 import {

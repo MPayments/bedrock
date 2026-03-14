@@ -8,8 +8,8 @@ import {
 } from "@bedrock/ledger/ids";
 import { schema as partiesLedgerSchema } from "@bedrock/requisites/schema";
 
-import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/client";
-import { schema } from "@bedrock/adapter-db-drizzle";
+import type { Database, Transaction } from "@bedrock/platform-postgres/client";
+import { schema } from "@bedrock/platform-postgres";
 import { seedCounterparties } from "./counterparties";
 import { seedCurrencies } from "./currencies";
 import { REQUISITES, type SeedRequisiteFixture } from "./fixtures";

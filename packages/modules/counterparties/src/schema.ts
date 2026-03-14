@@ -12,10 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { customers } from "@bedrock/customers/schema";
-import {
-  partyCountryCodeEnum,
-  partyKindEnum,
-} from "@bedrock/party-types/schema";
+import { partyCountryCodeEnum, partyKindEnum } from "./party-types";
 
 export const customersRef = customers;
 

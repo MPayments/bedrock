@@ -4,7 +4,6 @@ export default defineConfig({
   test: {
     projects: [
       "packages/modules/accounting/vitest.integration.config.ts",
-      "packages/adapters/ledger-tigerbeetle/vitest.integration.config.ts",
       "packages/modules/balances/vitest.integration.config.ts",
       "packages/modules/customers/vitest.integration.config.ts",
       "packages/modules/fees/vitest.integration.config.ts",

@@ -53,6 +53,7 @@ export function createGetDocumentQuery(context: DocumentsServiceContext) {
     return {
       ...result,
       allowedActions: await resolveDocumentAllowedActionsForActor({
+        accountingPeriods: context.accountingPeriods,
         registry,
         policy,
         db,

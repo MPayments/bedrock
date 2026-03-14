@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/persistence";
+import type { Transaction } from "@bedrock/platform-persistence";
 
 export interface CustomerLifecycleSyncPort {
   onCustomerCreated(

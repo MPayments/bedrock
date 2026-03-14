@@ -9,9 +9,9 @@ import {
 } from "@bedrock/balances";
 import {
   createDrizzleAuthIdentityStore,
-} from "@bedrock/adapter-identity-drizzle";
-import { createBetterAuthPasswordHasher } from "@bedrock/adapter-auth-betterauth";
-import { createIdempotencyService, type IdempotencyPort } from "@bedrock/adapter-idempotency-postgres";
+} from "@bedrock/platform-auth-model/infra/drizzle";
+import { createBetterAuthPasswordHasher } from "@bedrock/platform-auth-betterauth";
+import { createIdempotencyService, type IdempotencyPort } from "@bedrock/platform-idempotency-postgres";
 import {
   createLedgerEngine,
   createLedgerReadService,
@@ -23,8 +23,8 @@ import {
   createUsersService,
   type UsersService,
 } from "@bedrock/users";
-import { createConsoleLogger, type Logger } from "@bedrock/observability/logger";
-import { db } from "@bedrock/adapter-db-drizzle/client";
+import { createConsoleLogger, type Logger } from "@bedrock/platform-observability/logger";
+import { db } from "@bedrock/platform-postgres/client";
 
 export interface ApiCoreServices {
   logger: Logger;

@@ -247,7 +247,7 @@ export function documentsRoutes(ctx: AppContext) {
     try {
       const query = parseJournalOperationsQuery(c.req.url);
       const result =
-        await ctx.accountingReportingService.listOperationsWithLabels(query);
+        await ctx.accountingReportsService.listOperationsWithLabels(query);
 
       return c.json(
         {
@@ -274,7 +274,7 @@ export function documentsRoutes(ctx: AppContext) {
       try {
         const { operationId } = OperationParamSchema.parse(c.req.param());
         const details =
-          await ctx.accountingReportingService.getOperationDetailsWithLabels(
+          await ctx.accountingReportsService.getOperationDetailsWithLabels(
             operationId,
           );
 

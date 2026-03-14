@@ -11,7 +11,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/sdk-ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -20,13 +20,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@bedrock/ui/components/dialog";
-import { Field, FieldGroup, FieldLabel } from "@bedrock/ui/components/field";
-import { Input } from "@bedrock/ui/components/input";
-import { Badge } from "@bedrock/ui/components/badge";
-import { Button } from "@bedrock/ui/components/button";
-import { Spinner } from "@bedrock/ui/components/spinner";
-import { toast } from "@bedrock/ui/components/sonner";
+} from "@bedrock/sdk-ui/components/dialog";
+import { Field, FieldGroup, FieldLabel } from "@bedrock/sdk-ui/components/field";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { TotpCodeInput } from "@/components/totp-code-input";

@@ -151,6 +151,7 @@ export function createGetDocumentDetailsQuery(
       documentOperations.find((operation) => operation.kind === "post")
         ?.operationId ?? null;
     const allowedActions = await resolveDocumentAllowedActionsForActor({
+      accountingPeriods: context.accountingPeriods,
       registry,
       policy: context.policy,
       db,

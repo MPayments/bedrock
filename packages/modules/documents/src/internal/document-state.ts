@@ -1,6 +1,6 @@
 import type { Document } from "@bedrock/documents/schema";
 import { canonicalJson } from "@bedrock/core/canon";
-import { sha256Hex } from "@bedrock/core/crypto";
+import { sha256Hex } from "@bedrock/platform-crypto";
 import { InvalidStateError } from "@bedrock/core/errors";
 
 export function buildDocNo(prefix: string, documentId: string) {

@@ -16,7 +16,7 @@ import {
   IncomeStatementResponseSchema,
   LiquidityResponseSchema,
   TrialBalanceResponseSchema,
-} from "@bedrock/query-accounting-reporting/contracts";
+} from "@bedrock/accounting/reports";
 import { z } from "zod";
 
 import { getServerApiClient } from "@/lib/api/server-client";

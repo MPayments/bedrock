@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge } from "@bedrock/ui/components/badge";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 
 type UserStatusBadgeProps = {
   banned: boolean | null;

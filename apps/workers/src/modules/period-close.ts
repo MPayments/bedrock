@@ -1,15 +1,15 @@
 import { and, asc, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
+import { createAccountingPeriodsService } from "@bedrock/accounting/periods";
 import { canonicalJson } from "@bedrock/core/canon";
-import type { BedrockWorker } from "@bedrock/core/worker";
-import { closeOrganizationPeriod } from "@bedrock/accounting-close";
+import type { BedrockWorker } from "@bedrock/platform-worker-runtime";
 import { schema as documentsSchema, type Document } from "@bedrock/documents/schema";
-import { user } from "@bedrock/identity/schema";
-import type { Logger } from "@bedrock/observability/logger";
+import { user } from "@bedrock/platform-auth-model/schema";
+import type { Logger } from "@bedrock/platform-observability/logger";
 import { listInternalLedgerOrganizations } from "@bedrock/organizations";
-import type { Database, Transaction } from "@bedrock/persistence/drizzle";
-import { pgNotify } from "@bedrock/persistence/notify";
+import type { Database, Transaction } from "@bedrock/platform-persistence/drizzle";
+import { pgNotify } from "@bedrock/platform-persistence/notify";
 import {
   createPeriodCloseWorkerRunner,
   type PeriodCloseWorkerOrganizationContext,
@@ -146,6 +146,8 @@ async function createPeriodCloseForOrganization(input: {
   periodEnd: Date;
   periodLabel: string;
 }): Promise<boolean> {
+  const accountingPeriods = createAccountingPeriodsService({ db: input.db });
+
   return input.db.transaction(async (tx) => {
     const createIdempotencyKey = buildPeriodCloseIdempotencyKey(
       input.organizationId,
@@ -224,14 +226,14 @@ async function createPeriodCloseForOrganization(input: {
       return false;
     }
 
-    await closeOrganizationPeriod({
+    await accountingPeriods.closePeriod({
       db: tx,
       organizationId: input.organizationId,
       periodStart: input.periodStart,
       periodEnd: input.periodEnd,
       closedBy: input.actorUserId,
       closeReason: "auto_monthly_close",
-      lockedByDocumentId: inserted.id,
+      closeDocumentId: inserted.id,
     });
 
     await insertDocumentEvent(tx, {

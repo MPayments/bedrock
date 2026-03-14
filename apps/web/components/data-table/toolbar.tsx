@@ -4,9 +4,9 @@ import type { Column, Table } from "@tanstack/react-table";
 import { X } from "lucide-react";
 import * as React from "react";
 
-import { Button } from "@bedrock/ui/components/button";
-import { Input } from "@bedrock/ui/components/input";
-import { cn } from "@bedrock/ui/lib/utils";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { cn } from "@bedrock/sdk-ui/lib/utils";
 import {
   DataTableDateFilter,
   DataTableDateRangeFilter,

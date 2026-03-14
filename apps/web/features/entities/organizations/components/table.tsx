@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import type { ColumnDef, Row as TanstackRow } from "@tanstack/react-table";
 import * as React from "react";
 
-import { Badge } from "@bedrock/ui/components/badge";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { COUNTRIES } from "@bedrock/reference-data/countries";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";

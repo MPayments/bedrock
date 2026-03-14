@@ -2,9 +2,9 @@ import { sql } from "drizzle-orm";
 
 import { schema } from "@bedrock/reconciliation/schema";
 import { canonicalJson } from "@bedrock/core/canon";
-import { sha256Hex } from "@bedrock/core/crypto";
-import { noopLogger, type Logger } from "@bedrock/observability/logger";
-import type { Database } from "@bedrock/persistence";
+import { sha256Hex } from "@bedrock/platform-crypto";
+import { noopLogger, type Logger } from "@bedrock/platform-observability/logger";
+import type { Database } from "@bedrock/platform-persistence";
 
 import type {
   ReconciliationDocumentsPort,
@@ -15,7 +15,7 @@ import type {
   BedrockWorker,
   WorkerRunContext,
   WorkerRunResult,
-} from "@bedrock/core/worker";
+} from "@bedrock/platform-worker-runtime";
 import { createReconciliationService } from "./service";
 
 interface PendingReconciliationSource {

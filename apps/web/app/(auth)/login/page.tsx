@@ -3,20 +3,20 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { cn } from "@bedrock/ui/lib/utils";
-import { Button } from "@bedrock/ui/components/button";
+import { cn } from "@bedrock/sdk-ui/lib/utils";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/sdk-ui/components/card";
 import {
   Field,
   FieldGroup,
   FieldLabel,
-} from "@bedrock/ui/components/field";
-import { Input } from "@bedrock/ui/components/input";
+} from "@bedrock/sdk-ui/components/field";
+import { Input } from "@bedrock/sdk-ui/components/input";
 
 import { authClient } from "@/lib/auth-client";
 

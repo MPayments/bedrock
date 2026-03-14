@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { schema as balancesSchema } from "@bedrock/balances/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { canonicalJson } from "@bedrock/core/canon";
-import { sha256Hex } from "@bedrock/core/crypto";
+import { sha256Hex } from "@bedrock/platform-crypto";
 
 import { createBalancesProjectorWorkerDefinition } from "../../src/worker";
 

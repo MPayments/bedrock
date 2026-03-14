@@ -6,8 +6,8 @@
     "paths": {
       "*": ["./*"],
       "@/*": ["./*"],
-      "@bedrock/ui/globals.css": ["../../packages/ui/core/src/styles/globals.css"],
-      "@bedrock/ui/*": ["../../packages/ui/core/src/*"]
+      "@bedrock/sdk-ui/globals.css": ["../../packages/sdk/ui/src/styles/globals.css"],
+      "@bedrock/sdk-ui/*": ["../../packages/sdk/ui/src/*"]
     },
     "plugins": [
       {

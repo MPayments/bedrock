@@ -12,14 +12,14 @@ import {
   getKnownCurrency,
   getDefaultPrecision,
 } from "@bedrock/currencies/catalog";
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/sdk-ui/components/card";
 import {
   Command,
   CommandEmpty,
@@ -27,21 +27,21 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@bedrock/ui/components/command";
+} from "@bedrock/sdk-ui/components/command";
 import {
   Field,
   FieldError,
   FieldGroup,
   FieldLabel,
   FieldSet,
-} from "@bedrock/ui/components/field";
-import { Input } from "@bedrock/ui/components/input";
+} from "@bedrock/sdk-ui/components/field";
+import { Input } from "@bedrock/sdk-ui/components/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@bedrock/ui/components/popover";
-import { Spinner } from "@bedrock/ui/components/spinner";
+} from "@bedrock/sdk-ui/components/popover";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 
 import { CurrencyDeleteDialog } from "./currency-delete-dialog";
 

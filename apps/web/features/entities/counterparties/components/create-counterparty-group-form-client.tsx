@@ -8,14 +8,14 @@ import { ArrowLeft, Save } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/sdk-ui/components/card";
 import {
   Field,
   FieldDescription,
@@ -23,8 +23,8 @@ import {
   FieldGroup,
   FieldLabel,
   FieldSet,
-} from "@bedrock/ui/components/field";
-import { Input } from "@bedrock/ui/components/input";
+} from "@bedrock/sdk-ui/components/field";
+import { Input } from "@bedrock/sdk-ui/components/input";
 import {
   Select,
   SelectContent,
@@ -32,10 +32,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@bedrock/ui/components/select";
-import { Spinner } from "@bedrock/ui/components/spinner";
-import { Textarea } from "@bedrock/ui/components/textarea";
-import { toast } from "@bedrock/ui/components/sonner";
+} from "@bedrock/sdk-ui/components/select";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
+import { Textarea } from "@bedrock/sdk-ui/components/textarea";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";

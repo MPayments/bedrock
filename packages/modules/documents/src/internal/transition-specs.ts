@@ -19,15 +19,12 @@ import type {
   DocumentTransitionExecutionResult,
   DocumentTransitionSpecs,
 } from "../commands/transition-runtime";
-import {
-  assertOrganizationPeriodsOpen,
-  collectDocumentOrganizationIds,
-} from "@bedrock/accounting-close";
 import { isDocumentActionAllowed } from "../state-machine";
 import type {
   DocumentTransitionAction,
   DocumentTransitionInput,
 } from "../types";
+import { collectDocumentOrganizationIds } from "./accounting-periods";
 
 function buildActionIdempotencyKey(
   action: DocumentTransitionAction,
@@ -62,7 +59,7 @@ async function assertOrganizationPeriodsOpenForDocument(input: {
     payload: input.document.payload,
   });
 
-  await assertOrganizationPeriodsOpen({
+  await input.context.services.accountingPeriods.assertOrganizationPeriodsOpen({
     db: input.context.tx,
     occurredAt: input.document.occurredAt,
     organizationIds,

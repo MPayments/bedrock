@@ -6,7 +6,7 @@ import {
     twoFactor,
 } from "better-auth/plugins";
 
-import { db } from "@bedrock/adapter-db-drizzle";
+import { db } from "@bedrock/platform-postgres";
 
 import { ac, admin, user } from "./permissions";
 

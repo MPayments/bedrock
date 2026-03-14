@@ -1,7 +1,7 @@
 import { ChartCandlestick } from "lucide-react";
 
-import { Separator } from "@bedrock/ui/components/separator";
-import { Skeleton } from "@bedrock/ui/components/skeleton";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
+import { Skeleton } from "@bedrock/sdk-ui/components/skeleton";
 
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 import { CreateManualRateDialog } from "@/features/fx/rates/components/create-manual-rate-dialog";

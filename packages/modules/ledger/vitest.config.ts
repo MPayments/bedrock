@@ -6,7 +6,12 @@ export default defineProject({
     globals: true,
     environment: "node",
     include: ["tests/**/*.test.ts"],
-    exclude: ["tests/integration/**", "**/node_modules/**", "**/dist/**"],
+    exclude: [
+      "tests/integration/**",
+      "tests/infra/tigerbeetle/integration/**",
+      "**/node_modules/**",
+      "**/dist/**",
+    ],
     passWithNoTests: false,
     mockReset: true,
     restoreMocks: true,

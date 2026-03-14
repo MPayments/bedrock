@@ -1,5 +1,5 @@
-import { noopLogger, type Logger } from "@bedrock/observability/logger";
-import type { Database } from "@bedrock/persistence";
+import { noopLogger, type Logger } from "@bedrock/platform-observability/logger";
+import type { Database } from "@bedrock/platform-persistence";
 
 import type { FxCurrencyCatalogPort, FxQuoteFeePort } from "../ports";
 import { type FxRateSource, type FxRateSourceProvider } from "../source-providers";

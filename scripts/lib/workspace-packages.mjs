@@ -48,31 +48,28 @@ function readJson(filePath) {
 
 function normalizeKind(kind) {
   switch (kind) {
-    case "kernel":
-      return "foundation";
-    case "db":
+    case "shared":
+    case "module":
+    case "workflow":
     case "platform":
-    case "runtime":
-      return "adapter";
     case "plugin":
-      return "extension";
     case "sdk":
-      return "client";
+    case "app":
+    case "ops":
+    case "tooling":
+      return kind;
     default:
       return kind;
   }
 }
 
 function classifyPackageKind(relDir) {
-  if (relDir.startsWith("packages/foundation/")) return "foundation";
+  if (relDir.startsWith("packages/shared/")) return "shared";
   if (relDir.startsWith("packages/modules/")) return "module";
   if (relDir.startsWith("packages/workflows/")) return "workflow";
-  if (relDir.startsWith("packages/queries/")) return "query";
-  if (relDir.startsWith("packages/integrations/")) return "integration";
-  if (relDir.startsWith("packages/adapters/")) return "adapter";
-  if (relDir.startsWith("packages/extensions/")) return "extension";
-  if (relDir.startsWith("packages/clients/")) return "client";
-  if (relDir.startsWith("packages/ui/")) return "ui";
+  if (relDir.startsWith("packages/platform/")) return "platform";
+  if (relDir.startsWith("packages/plugins/")) return "plugin";
+  if (relDir.startsWith("packages/sdk/")) return "sdk";
   if (relDir.startsWith("packages/tooling/")) return "tooling";
   if (relDir.startsWith("ops/")) return "ops";
   if (relDir.startsWith("apps/")) return "app";

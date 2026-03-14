@@ -5,7 +5,10 @@ export default defineProject({
     name: "ledger:integration",
     globals: true,
     environment: "node",
-    include: ["tests/integration/**/*.test.ts"],
+    include: [
+      "tests/integration/**/*.test.ts",
+      "tests/infra/tigerbeetle/integration/**/*.test.ts",
+    ],
     exclude: ["**/node_modules/**", "**/dist/**"],
     testTimeout: 30000,
     hookTimeout: 30000,

@@ -4,15 +4,15 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, RefreshCw } from "lucide-react";
 
-import { Badge } from "@bedrock/ui/components/badge";
-import { Button } from "@bedrock/ui/components/button";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
-import { toast } from "@bedrock/ui/components/sonner";
+} from "@bedrock/sdk-ui/components/card";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";

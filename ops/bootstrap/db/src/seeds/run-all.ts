@@ -3,7 +3,7 @@ import { loadSeedEnv } from "./load-env";
 
 loadSeedEnv();
 
-const { db } = await import("@bedrock/adapter-db-drizzle/client");
+const { db } = await import("@bedrock/platform-postgres/client");
 
 const { seedCurrencies } = await import("./currencies");
 const { seedAccounting } = await import("./accounting");

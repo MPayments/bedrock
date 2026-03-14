@@ -1,7 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const userHasPermission = vi.fn(async () => ({ success: true }));
+const { userHasPermission } = vi.hoisted(() => ({
+  userHasPermission: vi.fn(async () => ({ success: true })),
+}));
 
 vi.mock("../../src/auth", () => ({
   default: {

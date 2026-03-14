@@ -37,4 +37,6 @@ export {
   CounterpartyGroupRuleError,
   CounterpartyCustomerNotFoundError,
   CounterpartySystemGroupDeleteError,
+  CounterpartyNotInternalLedgerEntityError,
+  InternalLedgerInvariantViolationError,
 } from "./errors";

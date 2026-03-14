@@ -7,7 +7,9 @@
     ".": "./src/index.ts",
     "./contracts": "./src/contracts.ts",
     "./schema": "./src/schema/index.ts",
-    "./worker": "./src/worker.ts"
+    "./worker": "./src/worker.ts",
+    "./infra/providers": "./src/infra/providers/index.ts",
+    "./infra/providers/sources/xe": "./src/infra/providers/sources/xe.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -20,19 +22,19 @@
     "test:integration:watch": "vitest --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@bedrock/counterparties": "workspace:*",
     "@bedrock/core": "workspace:*",
+    "@bedrock/counterparties": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/money": "workspace:*",
-    "@bedrock/observability": "workspace:*",
-    "@bedrock/persistence": "workspace:*",
+    "@bedrock/platform-observability": "workspace:*",
+    "@bedrock/platform-persistence": "workspace:*",
+    "@bedrock/platform-worker-runtime": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@bedrock/integration-fx-providers": "workspace:*",
     "@bedrock/test-utils": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",

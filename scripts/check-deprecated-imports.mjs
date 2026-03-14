@@ -9,7 +9,7 @@ import {
 } from "./lib/workspace-packages.mjs";
 
 const LEGACY_SPECIFIER_PATTERN =
-  /@bedrock\/(?:(application|platform|runtime|modules)(?:\/|["'])|(kernel|auth|db(?:-bootstrap)?|idempotency|worker-runtime|accounting-reporting|commercial-documents|ifrs-documents|api-client)(?:\/|["']))/g;
+  /@bedrock\/(?:(application|runtime|modules)(?:\/|["'])|(?:(adapter|integration|extension)-[^"'/]+)|(?:party-types|query-accounting-reporting|observability|persistence|identity|client-api|ui)(?:\/|["']))/g;
 
 const SOURCE_ROOTS = [
   join(ROOT, "apps"),

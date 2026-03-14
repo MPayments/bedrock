@@ -13,11 +13,12 @@ import type {
   DocumentSubmissionStatus,
 } from "@bedrock/documents/schema";
 import type { CorrelationContext } from "@bedrock/core/correlation";
-import type { Database, Transaction } from "@bedrock/persistence";
-import type { Logger } from "@bedrock/observability/logger";
+import type { Database, Transaction } from "@bedrock/platform-persistence";
+import type { Logger } from "@bedrock/platform-observability/logger";
 
 import type {
   DocumentsAccountingPort,
+  DocumentsAccountingPeriodsPort,
   DocumentsIdempotencyPort,
   DocumentsLedgerCommitPort,
   DocumentsLedgerReadPort,
@@ -210,6 +211,7 @@ export interface DocumentRegistry {
 
 export interface DocumentsServiceDeps {
   accounting: DocumentsAccountingPort;
+  accountingPeriods: DocumentsAccountingPeriodsPort;
   db: Database;
   idempotency: DocumentsIdempotencyPort;
   ledger: DocumentsLedgerCommitPort;

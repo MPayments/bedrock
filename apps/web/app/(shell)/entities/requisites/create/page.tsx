@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { Building2, Landmark, Wallet } from "lucide-react";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/sdk-ui/components/card";
 
 import { EntityWorkspaceLayout } from "@/components/entities/workspace-layout";
 import { CreateCounterpartyRequisiteFormClient } from "@/features/entities/counterparty-requisites/components/create-counterparty-requisite-form-client";

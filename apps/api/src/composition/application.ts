@@ -1,4 +1,4 @@
-import { db } from "@bedrock/adapter-db-drizzle/client";
+import { db } from "@bedrock/platform-postgres/client";
 import {
   createCustomerLifecycleSyncPort,
   createCounterpartiesService,
@@ -17,19 +17,23 @@ import {
   createDocumentsService,
   type DocumentsService,
 } from "@bedrock/documents";
-import { createCommercialDocumentModules } from "@bedrock/extension-documents-commercial";
-import { createIfrsDocumentModules } from "@bedrock/extension-documents-ifrs";
+import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
+import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
-import { createDefaultFxRateSourceProviders } from "@bedrock/integration-fx-providers";
+import { createDefaultFxRateSourceProviders } from "@bedrock/fx/infra/providers";
 import {
   createOrganizationsService,
   type OrganizationsService,
 } from "@bedrock/organizations";
 import {
-  createAccountingReportingService,
-  type AccountingReportingService,
-} from "@bedrock/query-accounting-reporting";
+  createAccountingReportsService,
+  type AccountingReportsService,
+} from "@bedrock/accounting/reports";
+import {
+  createAccountingPeriodsService,
+  type AccountingPeriodsService,
+} from "@bedrock/accounting/periods";
 import {
   createRequisitesService,
   type RequisitesService,
@@ -46,7 +50,8 @@ import {
 } from "./document-plugin-adapters";
 
 export interface ApiApplicationServices {
-  accountingReportingService: AccountingReportingService;
+  accountingReportsService: AccountingReportsService;
+  accountingPeriodsService: AccountingPeriodsService;
   counterpartiesService: CounterpartiesService;
   customersService: CustomersService;
   currenciesService: CurrenciesService;
@@ -64,11 +69,12 @@ export function createApplicationServices(
   const { accountingService, idempotency, ledger, ledgerReadService, logger } =
     platform;
 
-  const accountingReportingService = createAccountingReportingService({
+  const accountingReportsService = createAccountingReportsService({
     db,
     ledgerReadService,
     logger,
   });
+  const accountingPeriodsService = createAccountingPeriodsService({ db });
   const counterpartiesService = createCounterpartiesService({ db, logger });
   const customersService = createCustomersService({
     db,
@@ -113,6 +119,7 @@ export function createApplicationServices(
   ]);
   const documentsService = createDocumentsService({
     accounting: accountingService,
+    accountingPeriods: accountingPeriodsService,
     db,
     idempotency,
     ledger,
@@ -122,7 +129,8 @@ export function createApplicationServices(
   });
 
   return {
-    accountingReportingService,
+    accountingReportsService,
+    accountingPeriodsService,
     counterpartiesService,
     customersService,
     currenciesService,

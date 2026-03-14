@@ -27,27 +27,21 @@ const SOURCE_ROOTS = [
 });
 
 const REQUIRED_EXPORT_KINDS = new Set([
-  "foundation",
+  "shared",
   "module",
   "workflow",
-  "query",
-  "adapter",
-  "integration",
-  "extension",
-  "client",
-  "ui",
+  "platform",
+  "plugin",
+  "sdk",
 ]);
 
 const ALLOWED_IMPORT_KINDS = {
-  foundation: new Set(["foundation"]),
-  module: new Set(["foundation", "module", "adapter"]),
-  workflow: new Set(["foundation", "module", "adapter", "workflow"]),
-  query: new Set(["foundation", "module", "adapter", "query"]),
-  adapter: new Set(["foundation", "module", "query", "adapter"]),
-  integration: new Set(["foundation", "module", "workflow", "adapter", "query"]),
-  extension: new Set(["foundation", "module", "extension"]),
-  client: new Set(["foundation", "client", "app"]),
-  ui: new Set(["foundation", "ui", "client"]),
+  shared: new Set(["shared"]),
+  module: new Set(["shared", "module", "platform"]),
+  workflow: new Set(["shared", "module", "platform", "workflow"]),
+  platform: new Set(["shared", "platform"]),
+  plugin: new Set(["shared", "module", "plugin"]),
+  sdk: new Set(["shared", "sdk", "app"]),
   tooling: null,
   ops: null,
   app: null,
@@ -74,7 +68,7 @@ function isIntegrationTestFile(relFile) {
 
 function isDbRootImport(normalized) {
   return (
-    normalized.packageName === "@bedrock/adapter-db-drizzle" &&
+    normalized.packageName === "@bedrock/platform-postgres" &&
     [".", "./client"].includes(normalized.subpath)
   );
 }
@@ -89,7 +83,7 @@ function isDbImportAllowed(owner, relFile) {
   }
 
   if (
-    owner.name === "@bedrock/adapter-db-drizzle" ||
+    owner.name === "@bedrock/platform-postgres" ||
     owner.kind === "app" ||
     owner.kind === "ops" ||
     owner.kind === "tooling"
@@ -163,7 +157,7 @@ function recordViolation(rule, from, specifier, to = specifier) {
 }
 
 function hasRuntimeRootExportLeak(owner, relFile, content) {
-  if (!owner || !["module", "query"].includes(owner.kind)) {
+  if (!owner || owner.kind !== "module") {
     return false;
   }
 
@@ -236,19 +230,19 @@ for (const root of SOURCE_ROOTS) {
     if (
       /^packages\/modules\/users\/src\//.test(relFile) &&
       (
-        content.includes("@bedrock/identity/schema") ||
+        content.includes("@bedrock/platform-auth-model/schema") ||
         content.includes("better-auth/crypto")
       )
     ) {
       recordViolation(
         "users-bypasses-identity-ports",
         relFile,
-        "@bedrock/identity/schema|better-auth/crypto",
+        "@bedrock/platform-auth-model/schema|better-auth/crypto",
       );
     }
 
     if (
-      /^packages\/modules\/identity\/src\//.test(relFile) &&
+      /^packages\/platform\/auth-model\/src\//.test(relFile) &&
       content.includes("@bedrock/users")
     ) {
       recordViolation("identity-imports-users", relFile, "@bedrock/users");
@@ -341,7 +335,7 @@ for (const root of SOURCE_ROOTS) {
       }
 
       if (
-        owner?.kind === "extension" &&
+        owner?.kind === "plugin" &&
         isRuntimeSourceFile &&
         targetPkg.name !== owner.name &&
         (
@@ -349,7 +343,7 @@ for (const root of SOURCE_ROOTS) {
           normalized.subpath.startsWith("./schema/")
         )
       ) {
-        recordViolation("extension-imports-foreign-schema", relFile, specifier);
+        recordViolation("plugin-imports-foreign-schema", relFile, specifier);
       }
 
       if (
@@ -367,15 +361,6 @@ for (const root of SOURCE_ROOTS) {
           relFile,
           specifier,
         );
-      }
-
-      if (
-        owner &&
-        isRuntimeSourceFile &&
-        ["module", "query", "workflow"].includes(owner.kind) &&
-        targetPkg.name.startsWith("@bedrock/adapter-")
-      ) {
-        recordViolation("production-imports-adapter", relFile, specifier);
       }
 
       if (
@@ -406,6 +391,11 @@ for (const root of SOURCE_ROOTS) {
         owner &&
         targetPkg.name !== owner.name &&
         isRuntimeSourceFile &&
+        !(
+          owner.kind === "platform" &&
+          owner.name === "@bedrock/platform-postgres" &&
+          targetPkg.kind === "module"
+        ) &&
         !isKindAllowed(owner.kind, targetPkg.kind)
       ) {
         recordViolation(
@@ -421,7 +411,7 @@ for (const root of SOURCE_ROOTS) {
         targetPkg.name !== owner.name &&
         isRuntimeSourceFile &&
         !(
-          targetPkg.name === "@bedrock/adapter-db-drizzle" &&
+          targetPkg.name === "@bedrock/platform-postgres" &&
           ["./db/types", "./db/notify"].includes(normalized.subpath)
         ) &&
         packageGraph.has(owner.name) &&
@@ -493,6 +483,14 @@ for (const pkg of workspacePackages) {
 
   for (const depPkg of directWorkspaceDeps) {
     if (depPkg.name === pkg.name) {
+      continue;
+    }
+
+    if (
+      pkg.kind === "platform" &&
+      pkg.name === "@bedrock/platform-postgres" &&
+      depPkg.kind === "module"
+    ) {
       continue;
     }
 

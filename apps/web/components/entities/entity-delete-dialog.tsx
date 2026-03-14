@@ -3,7 +3,7 @@
 import type * as React from "react";
 import { Trash2 } from "lucide-react";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Dialog,
   DialogClose,
@@ -13,8 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@bedrock/ui/components/dialog";
-import { Spinner } from "@bedrock/ui/components/spinner";
+} from "@bedrock/sdk-ui/components/dialog";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 
 type DeleteActionResult = Promise<boolean | void> | boolean | void;
 

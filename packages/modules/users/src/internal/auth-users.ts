@@ -1,7 +1,7 @@
 import type {
   AuthUserRecord,
   AuthUserWithLastSession,
-} from "@bedrock/identity";
+} from "@bedrock/platform-auth-model";
 
 import type { User, UserRole } from "../validation";
 import type { UserWithLastSession } from "../commands/get-user";

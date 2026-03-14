@@ -11,7 +11,7 @@ import {
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
-} from "@bedrock/adapter-idempotency-postgres";
+} from "@bedrock/platform-idempotency-postgres";
 import {
   InvalidStateError,
   NotFoundError,

@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import type { AccountingReportingService } from "@bedrock/query-accounting-reporting";
 import type { FeesService } from "@bedrock/fees";
 import type { FxService } from "@bedrock/fx";
 import type { AccountingService } from "@bedrock/accounting";
+import type { AccountingReportsService } from "@bedrock/accounting/reports";
 import type { BalancesService } from "@bedrock/balances";
 import type { CounterpartiesService } from "@bedrock/counterparties";
 import type { CurrenciesService } from "@bedrock/currencies";
@@ -14,7 +14,7 @@ import type { OrganizationsService } from "@bedrock/organizations";
 import type { RequisiteProvidersService } from "@bedrock/requisites/providers";
 import type { RequisitesService } from "@bedrock/requisites";
 import type { UsersService } from "@bedrock/users";
-import type { Logger } from "@bedrock/observability/logger";
+import type { Logger } from "@bedrock/platform-observability/logger";
 
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";
@@ -56,7 +56,7 @@ export interface AppContext {
   env: Env;
   logger: Logger;
   accountingService: AccountingService;
-  accountingReportingService: AccountingReportingService;
+  accountingReportsService: AccountingReportsService;
   counterpartiesService: CounterpartiesService;
   customersService: CustomersService;
   currenciesService: CurrenciesService;
@@ -81,7 +81,7 @@ export function createAppContext(env: Env): AppContext {
     accountingService: core.accountingService,
     ledgerReadService: core.ledgerReadService,
     balancesService: core.balancesService,
-    accountingReportingService: applicationServices.accountingReportingService,
+    accountingReportsService: applicationServices.accountingReportsService,
     counterpartiesService: applicationServices.counterpartiesService,
     customersService: applicationServices.customersService,
     currenciesService: applicationServices.currenciesService,

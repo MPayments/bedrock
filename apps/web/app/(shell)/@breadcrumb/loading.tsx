@@ -3,8 +3,8 @@ import {
   BreadcrumbItem,
   BreadcrumbList,
   BreadcrumbSeparator,
-} from "@bedrock/ui/components/breadcrumb";
-import { Skeleton } from "@bedrock/ui/components/skeleton";
+} from "@bedrock/sdk-ui/components/breadcrumb";
+import { Skeleton } from "@bedrock/sdk-ui/components/skeleton";
 
 export default function BreadcrumbLoading() {
   return (

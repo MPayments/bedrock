@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Button } from "@bedrock/ui/components/button";
-import { Input } from "@bedrock/ui/components/input";
-import { toast } from "@bedrock/ui/components/sonner";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 import {
   Table,
   TableBody,
@@ -13,7 +13,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@bedrock/ui/components/table";
+} from "@bedrock/sdk-ui/components/table";
 
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";

@@ -5,9 +5,15 @@ import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
-import { schema } from "@bedrock/accounting/schema";
+import { schema as accountingSchema } from "@bedrock/accounting/schema";
+import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 
 import { createAccountingRuntime } from "../../src/runtime";
+
+const schema = {
+  ...accountingSchema,
+  ...ledgerSchema,
+};
 
 const pool = new Pool({
   host: process.env.DB_HOST || "localhost",
@@ -46,9 +52,9 @@ async function cleanupCreatedBooks() {
   }
 
   await db
-    .delete(schema.accountingPackAssignments)
-    .where(inArray(schema.accountingPackAssignments.scopeId, bookIds));
-  await db.delete(schema.books).where(inArray(schema.books.id, bookIds));
+    .delete(accountingSchema.accountingPackAssignments)
+    .where(inArray(accountingSchema.accountingPackAssignments.scopeId, bookIds));
+  await db.delete(ledgerSchema.books).where(inArray(ledgerSchema.books.id, bookIds));
   createdBookIds.clear();
 }
 
@@ -75,7 +81,7 @@ describe("accounting pack activation integration", () => {
     const internalOrganizationId = await resolveInternalLedgerOrganizationId();
     createdBookIds.add(bookId);
 
-    await db.insert(schema.books).values({
+    await db.insert(ledgerSchema.books).values({
       id: bookId,
       ownerId: internalOrganizationId,
       code: `it-pack-${bookId}`,
@@ -103,8 +109,8 @@ describe("accounting pack activation integration", () => {
 
     const [assignment] = await db
       .select()
-      .from(schema.accountingPackAssignments)
-      .where(eq(schema.accountingPackAssignments.scopeId, bookId))
+      .from(accountingSchema.accountingPackAssignments)
+      .where(eq(accountingSchema.accountingPackAssignments.scopeId, bookId))
       .limit(1);
 
     expect(assignment).toEqual(
@@ -125,7 +131,7 @@ describe("accounting pack activation integration", () => {
     const internalOrganizationId = await resolveInternalLedgerOrganizationId();
     createdBookIds.add(bookId);
 
-    await db.insert(schema.books).values({
+    await db.insert(ledgerSchema.books).values({
       id: bookId,
       ownerId: internalOrganizationId,
       code: `it-pack-effective-${bookId}`,

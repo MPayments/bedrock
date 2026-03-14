@@ -3,8 +3,8 @@
 import * as React from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { Toaster } from "@bedrock/ui/components/sonner";
-import { TooltipProvider } from "@bedrock/ui/components/tooltip";
+import { Toaster } from "@bedrock/sdk-ui/components/sonner";
+import { TooltipProvider } from "@bedrock/sdk-ui/components/tooltip";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (

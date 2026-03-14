@@ -1,14 +1,14 @@
 import Link from "next/link";
 
-import { Badge } from "@bedrock/ui/components/badge";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
-import { Separator } from "@bedrock/ui/components/separator";
+} from "@bedrock/sdk-ui/components/card";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
 
 import type { UserRole } from "@/lib/auth/types";
 import type { DocumentFormOptions } from "@/features/documents/lib/form-options";

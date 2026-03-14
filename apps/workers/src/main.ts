@@ -1,13 +1,13 @@
 import "./env";
 
-import { createConsoleLogger } from "@bedrock/observability/logger";
-import { installShutdownHandlers } from "@bedrock/adapter-worker-runtime/worker-loop";
-import { db } from "@bedrock/adapter-db-drizzle/client";
-import { createTbClient } from "@bedrock/adapter-ledger-tigerbeetle";
+import { createConsoleLogger } from "@bedrock/platform-observability/logger";
+import { installShutdownHandlers } from "@bedrock/platform-worker-runtime/worker-loop";
+import { db } from "@bedrock/platform-postgres/client";
+import { createTbClient } from "@bedrock/ledger/infra/tigerbeetle";
 import {
   createWorkerFleet,
   startWorkerFleet,
-} from "@bedrock/adapter-worker-runtime";
+} from "@bedrock/platform-worker-runtime";
 
 import { WORKER_CATALOG } from "./catalog";
 import { env } from "./env";

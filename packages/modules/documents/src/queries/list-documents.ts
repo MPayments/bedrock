@@ -78,6 +78,7 @@ export function createListDocumentsQuery(context: DocumentsServiceContext) {
             return {
               ...base,
               allowedActions: await resolveDocumentAllowedActionsForActor({
+                accountingPeriods: context.accountingPeriods,
                 registry,
                 policy,
                 db,

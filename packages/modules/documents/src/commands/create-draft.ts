@@ -1,5 +1,5 @@
 import { schema, type Document } from "@bedrock/documents/schema";
-import type { Transaction } from "@bedrock/persistence";
+import type { Transaction } from "@bedrock/platform-persistence";
 
 import { isSystemOnlyDocumentType } from "../doc-type-rules";
 import { DocumentValidationError } from "../errors";
@@ -22,12 +22,7 @@ import {
   enforceDocumentPolicy,
   persistDocumentPolicyDenial,
 } from "../internal/policy";
-import {
-  assertOrganizationPeriodsOpen,
-  closeOrganizationPeriod,
-  collectDocumentOrganizationIds,
-  reopenOrganizationPeriod,
-} from "@bedrock/accounting-close";
+import { collectDocumentOrganizationIds } from "../internal/accounting-periods";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 import { validateInput } from "../validation";
 
@@ -56,7 +51,7 @@ function readPayloadDate(
 }
 
 export function createCreateDraftHandler(context: DocumentsServiceContext) {
-  const { db, idempotency, log, policy, registry } = context;
+  const { accountingPeriods, db, idempotency, log, policy, registry } = context;
 
   return async function createDraft(input: {
     docType: string;
@@ -179,7 +174,7 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
             const organizationIds = collectDocumentOrganizationIds({ payload });
 
             if (!isSystemOnlyDocumentType(input.docType)) {
-              await assertOrganizationPeriodsOpen({
+              await accountingPeriods.assertOrganizationPeriodsOpen({
                 db: tx,
                 occurredAt: draft.occurredAt,
                 organizationIds,
@@ -225,14 +220,14 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                   "period_close payload requires organizationId",
                 );
               }
-              await closeOrganizationPeriod({
+              await accountingPeriods.closePeriod({
                 db: tx,
                 organizationId,
                 periodStart: readPayloadDate(payload, "periodStart", document.occurredAt),
                 periodEnd: readPayloadDate(payload, "periodEnd", document.occurredAt),
                 closedBy: input.actorUserId,
                 closeReason: readPayloadString(payload, "closeReason"),
-                lockedByDocumentId: document.id,
+                closeDocumentId: document.id,
               });
             } else if (document.docType === "period_reopen") {
               const organizationId = readPayloadString(payload, "organizationId");
@@ -241,12 +236,13 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                   "period_reopen payload requires organizationId",
                 );
               }
-              await reopenOrganizationPeriod({
+              await accountingPeriods.reopenPeriod({
                 db: tx,
                 organizationId,
                 periodStart: readPayloadDate(payload, "periodStart", document.occurredAt),
                 reopenedBy: input.actorUserId,
                 reopenReason: readPayloadString(payload, "reopenReason"),
+                reopenDocumentId: document.id,
               });
             }
 

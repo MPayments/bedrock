@@ -2,7 +2,7 @@ import { loadSeedEnv } from "./load-env";
 
 loadSeedEnv();
 
-const { db } = await import("@bedrock/adapter-db-drizzle/client");
+const { db } = await import("@bedrock/platform-postgres/client");
 const { seedRequisiteProviders } = await import("./requisite-providers");
 
 await seedRequisiteProviders(db);

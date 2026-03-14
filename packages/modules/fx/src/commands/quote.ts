@@ -7,7 +7,7 @@ import {
 } from "@bedrock/documents/financial-lines";
 import { schema, type FxQuote, type FxQuoteLeg } from "@bedrock/fx/schema";
 import { effectiveRateFromAmounts, mulDivFloor } from "@bedrock/money/math";
-import type { Transaction } from "@bedrock/persistence";
+import type { Transaction } from "@bedrock/platform-persistence";
 
 import {
     NotFoundError,

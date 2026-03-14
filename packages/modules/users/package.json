@@ -17,8 +17,8 @@
   },
   "dependencies": {
     "@bedrock/core": "workspace:*",
-    "@bedrock/identity": "workspace:*",
-    "@bedrock/observability": "workspace:*",
+    "@bedrock/platform-auth-model": "workspace:*",
+    "@bedrock/platform-observability": "workspace:*",
     "zod": "^4.1.11"
   },
   "devDependencies": {

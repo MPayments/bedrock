@@ -24,7 +24,7 @@ vi.mock("tlsclientwrapper", () => {
 import {
     createInvestingRateSourceProvider,
     RateSourceSyncError,
-} from "@bedrock/integration-fx-providers";
+} from "@bedrock/fx/infra/providers";
 
 describe("createInvestingRateSourceProvider", () => {
     it("creates and disposes owned session when external session is not provided", async () => {

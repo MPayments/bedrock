@@ -4,25 +4,22 @@ Bedrock is a financial platform monorepo (ledger, balances, FX, reconciliation).
 
 ## Workspace Topology
 
-- `packages/foundation/*` - stable primitives such as `@bedrock/core`, `@bedrock/money`, and `@bedrock/observability`
+- `packages/shared/*` - stable shared primitives such as `@bedrock/core`, `@bedrock/money`, and `@bedrock/reference-data`
 - `packages/modules/*` - write-side business capabilities published as flat `@bedrock/<name>` packages
 - `packages/workflows/*` - cross-module orchestration such as `@bedrock/workflow-period-close`
-- `packages/queries/*` - read models and reporting packages such as `@bedrock/query-accounting-reporting`
-- `packages/integrations/*` - external-system integrations such as `@bedrock/integration-fx-providers`
-- `packages/adapters/*` - technical adapters such as `@bedrock/adapter-db-drizzle` and `@bedrock/adapter-worker-runtime`
-- `packages/extensions/*` - document extensions and extension SDKs
-- `packages/clients/*` - downstream-consumer client packages
-- `packages/ui/*` - reusable UI packages such as `@bedrock/ui`
+- `packages/platform/*` - technical runtime infrastructure such as `@bedrock/platform-postgres` and `@bedrock/platform-worker-runtime`
+- `packages/plugins/*` - document plugins and plugin SDK packages
+- `packages/sdk/*` - downstream-consumer SDK and reusable UI packages such as `@bedrock/sdk-ui`
 - `apps/*` - API/Web/Workers composition
 - `ops/*` - infra and bootstrap entrypoints
 
 Runtime import contract:
 
-- Runtime packages publish flat imports such as `@bedrock/ledger`, `@bedrock/identity`, `@bedrock/counterparties`, and `@bedrock/adapter-worker-runtime`.
+- Runtime packages publish flat imports such as `@bedrock/ledger`, `@bedrock/platform-auth-model`, `@bedrock/counterparties`, and `@bedrock/platform-worker-runtime`.
 - Domain schemas stay with the owning package and are imported through package exports such as `@bedrock/ledger/schema`, `@bedrock/counterparties/schema`, or `@bedrock/requisites/schema`.
-- `@bedrock/adapter-db-drizzle` aggregates schemas for the DB client and migrations.
+- `@bedrock/platform-postgres` aggregates schemas for the DB client and migrations.
 - `@bedrock/bootstrap-db` owns DB seeding/bootstrap scripts.
-- Use DB connection types from `@bedrock/adapter-db-drizzle/db/types`.
+- Use DB connection types from `@bedrock/platform-postgres/db/types`.
 
 ## Stack
 
@@ -108,8 +105,8 @@ bun run test:integration
 This repo now uses a baseline-only migration chain. Legacy DB states are unsupported.
 
 ```bash
-bun run --filter=@bedrock/adapter-db-drizzle db:nuke
-bun run --filter=@bedrock/adapter-db-drizzle db:migrate
+bun run --filter=@bedrock/platform-postgres db:nuke
+bun run --filter=@bedrock/platform-postgres db:migrate
 bun run --filter=@bedrock/bootstrap-db db:seed
 ```
 

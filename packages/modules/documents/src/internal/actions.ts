@@ -1,15 +1,13 @@
 import type { Document } from "@bedrock/documents/schema";
-import type { Logger } from "@bedrock/observability/logger";
-import type { Database, Transaction } from "@bedrock/persistence";
+import type { Logger } from "@bedrock/platform-observability/logger";
+import type { Database, Transaction } from "@bedrock/platform-persistence";
 
-import {
-  collectDocumentOrganizationIds,
-  isOrganizationPeriodClosed,
-} from "@bedrock/accounting-close";
 import {
   resolveDocumentAllowedActions,
   type DocumentAction,
 } from "../state-machine";
+import type { DocumentsServiceContext } from "./context";
+import { collectDocumentOrganizationIds } from "./accounting-periods";
 import type {
   DocumentActionPolicyService,
   DocumentModule,
@@ -76,6 +74,7 @@ const PERIOD_LOCKED_ACTIONS = new Set<DocumentAction>([
 ]);
 
 async function isDocumentLockedByOrganizationPeriod(input: {
+  accountingPeriods: DocumentsServiceContext["accountingPeriods"];
   db: Queryable;
   document: Document;
 }): Promise<boolean> {
@@ -84,7 +83,7 @@ async function isDocumentLockedByOrganizationPeriod(input: {
   });
 
   for (const organizationId of organizationIds) {
-    const closed = await isOrganizationPeriodClosed({
+    const closed = await input.accountingPeriods.isOrganizationPeriodClosed({
       db: input.db,
       organizationId,
       occurredAt: input.document.occurredAt,
@@ -136,6 +135,7 @@ async function isActionAllowedByPolicy(input: {
 }
 
 export async function resolveDocumentAllowedActionsForActor(input: {
+  accountingPeriods: DocumentsServiceContext["accountingPeriods"];
   registry?: DocumentRegistry;
   policy?: DocumentActionPolicyService;
   db: Queryable;
@@ -176,6 +176,7 @@ export async function resolveDocumentAllowedActionsForActor(input: {
   }
 
   const periodLocked = await isDocumentLockedByOrganizationPeriod({
+    accountingPeriods: input.accountingPeriods,
     db: input.db,
     document: input.document,
   });

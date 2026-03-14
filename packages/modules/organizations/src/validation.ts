@@ -1,14 +1,15 @@
 import { z } from "zod";
 
 import {
-  CountryCodeSchema,
-  PartyKind,
-  PartyKindSchema,
-} from "@bedrock/party-types";
-import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
 } from "@bedrock/core/pagination";
+
+import {
+  CountryCodeSchema,
+  type PartyKind,
+  PartyKindSchema,
+} from "./party-types";
 
 export const OrganizationSchema = z.object({
   id: z.uuid(),

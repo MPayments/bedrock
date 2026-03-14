@@ -1,0 +1,12 @@
+{
+  "extends": "@bedrock/typescript-config/react-library.json",
+  "compilerOptions": {
+    "paths": {
+      "*": ["./*"],
+      "@bedrock/sdk-ui/*": ["./src/*"]
+    },
+    "outDir": "dist"
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

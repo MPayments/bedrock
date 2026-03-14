@@ -1,1 +1,1 @@
-export { default } from "@bedrock/ui/postcss.config";
+export { default } from "@bedrock/sdk-ui/postcss.config";

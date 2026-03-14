@@ -6,8 +6,8 @@ import {
   resolveSortValue,
 } from "@bedrock/core/pagination";
 
-import type { PartyKind } from "@bedrock/party-types";
 import type { OrganizationsServiceContext } from "../internal/context";
+import type { PartyKind } from "../party-types";
 import { schema } from "../schema";
 import {
   ListOrganizationsQuerySchema,

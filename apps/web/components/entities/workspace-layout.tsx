@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useEffect } from "react";
 import type { LucideIcon } from "lucide-react";
 
-import { Separator } from "@bedrock/ui/components/separator";
-import { Tabs, TabsList, TabsTrigger } from "@bedrock/ui/components/tabs";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
+import { Tabs, TabsList, TabsTrigger } from "@bedrock/sdk-ui/components/tabs";
 
 type EntityWorkspaceLayoutProps = {
   title: string;

@@ -6,14 +6,14 @@ import { Save, X } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/sdk-ui/components/card";
 import {
   Field,
   FieldDescription,
@@ -22,10 +22,10 @@ import {
   FieldLabel,
   FieldSeparator,
   FieldSet,
-} from "@bedrock/ui/components/field";
-import { Input } from "@bedrock/ui/components/input";
-import { Spinner } from "@bedrock/ui/components/spinner";
-import { Textarea } from "@bedrock/ui/components/textarea";
+} from "@bedrock/sdk-ui/components/field";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
+import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 import { CustomerDeleteDialog } from "./customer-delete-dialog";
 import { formatDate } from "@/lib/format";

@@ -1,0 +1,35 @@
+{
+  "name": "@bedrock/money",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./math": "./src/math.ts"
+  },
+  "scripts": {
+    "build": "tsgo",
+    "dev": "tsc --watch",
+    "check-types": "tsgo --noEmit",
+    "lint": "eslint src/**/*.ts tests/**/*.ts --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "shared",
+    "tags": [
+      "shared",
+      "money"
+    ]
+  }
+}

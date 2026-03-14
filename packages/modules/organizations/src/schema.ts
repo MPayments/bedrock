@@ -1,10 +1,7 @@
 import { sql } from "drizzle-orm";
 import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
-import {
-  partyCountryCodeEnum,
-  partyKindEnum,
-} from "@bedrock/party-types/schema";
+import { partyCountryCodeEnum, partyKindEnum } from "./party-types";
 
 export type Organization = typeof organizations.$inferSelect;
 export type OrganizationInsert = typeof organizations.$inferInsert;

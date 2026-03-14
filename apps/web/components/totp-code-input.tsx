@@ -7,8 +7,8 @@ import {
   InputOTPGroup,
   InputOTPSeparator,
   InputOTPSlot,
-} from "@bedrock/ui/components/input-otp";
-import { cn } from "@bedrock/ui/lib/utils";
+} from "@bedrock/sdk-ui/components/input-otp";
+import { cn } from "@bedrock/sdk-ui/lib/utils";
 
 type TotpCodeInputProps = {
   id?: string;

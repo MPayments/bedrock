@@ -1,10 +1,11 @@
-import { noopLogger, type Logger } from "@bedrock/observability/logger";
+import { noopLogger, type Logger } from "@bedrock/platform-observability/logger";
 
 import { createDefaultDocumentActionPolicyService } from "../policy";
 import type { DocumentsServiceDeps } from "../types";
 
 export interface DocumentsServiceContext {
   accounting: DocumentsServiceDeps["accounting"];
+  accountingPeriods: DocumentsServiceDeps["accountingPeriods"];
   db: DocumentsServiceDeps["db"];
   idempotency: DocumentsServiceDeps["idempotency"];
   ledger: DocumentsServiceDeps["ledger"];
@@ -19,6 +20,7 @@ export function createDocumentsServiceContext(
 ): DocumentsServiceContext {
   return {
     accounting: deps.accounting,
+    accountingPeriods: deps.accountingPeriods,
     db: deps.db,
     idempotency: deps.idempotency,
     ledger: deps.ledger,

@@ -19,7 +19,7 @@ import {
   LiquidityResponseSchema,
   TrialBalanceQuerySchema,
   TrialBalanceResponseSchema,
-} from "@bedrock/query-accounting-reporting";
+} from "@bedrock/accounting/reports";
 
 import { ErrorSchema } from "../../common";
 import type { AppContext } from "../../context";
@@ -464,7 +464,7 @@ function createClosePackageReportRoutes(ctx: AppContext) {
         const startedAt = Date.now();
         const query = c.req.valid("query");
         const result =
-          await ctx.accountingReportingService.listClosePackage(query);
+          await ctx.accountingReportsService.listClosePackage(query);
         const payload = mapClosePackageDto(result);
 
         logReportMetrics(ctx, {
@@ -491,7 +491,7 @@ function createClosePackageReportRoutes(ctx: AppContext) {
         const startedAt = Date.now();
         const query = c.req.valid("query");
         const result =
-          await ctx.accountingReportingService.listClosePackage(query);
+          await ctx.accountingReportsService.listClosePackage(query);
         const payload = mapClosePackageDto(result);
         const rows = buildClosePackageRows(payload);
 
@@ -560,7 +560,7 @@ export function accountingReportRoutes(ctx: AppContext) {
           "closingDebit",
           "closingCredit",
         ],
-        load: (query) => ctx.accountingReportingService.listTrialBalance(query),
+        load: (query) => ctx.accountingReportsService.listTrialBalance(query),
         map: (result) => mapTrialBalanceDto(result),
       }),
     )
@@ -587,7 +587,7 @@ export function accountingReportRoutes(ctx: AppContext) {
           "credit",
           "runningBalance",
         ],
-        load: (query) => ctx.accountingReportingService.listGeneralLedger(query),
+        load: (query) => ctx.accountingReportsService.listGeneralLedger(query),
         map: (result) => mapGeneralLedgerDto(result),
       }),
     )
@@ -611,7 +611,7 @@ export function accountingReportRoutes(ctx: AppContext) {
           "reserved",
           "pending",
         ],
-        load: (query) => ctx.accountingReportingService.listLiquidity(query),
+        load: (query) => ctx.accountingReportsService.listLiquidity(query),
         map: (result) => mapLiquidityDto(result),
       }),
     )
@@ -636,7 +636,7 @@ export function accountingReportRoutes(ctx: AppContext) {
           "net",
         ],
         load: (query) =>
-          ctx.accountingReportingService.listFeeRevenueBreakdown(query),
+          ctx.accountingReportsService.listFeeRevenueBreakdown(query),
         map: (result) => mapFeeRevenueDto(result),
       }),
     )
@@ -650,7 +650,7 @@ export function accountingReportRoutes(ctx: AppContext) {
         responseSchema: BalanceSheetResponseSchema,
         filename: "balance-sheet.csv",
         headers: ["section", "lineCode", "lineLabel", "currency", "amount"],
-        load: (query) => ctx.accountingReportingService.listBalanceSheet(query),
+        load: (query) => ctx.accountingReportsService.listBalanceSheet(query),
         map: (result) => mapBalanceSheetDto(result),
       }),
     )
@@ -664,7 +664,7 @@ export function accountingReportRoutes(ctx: AppContext) {
         responseSchema: IncomeStatementResponseSchema,
         filename: "income-statement.csv",
         headers: ["section", "lineCode", "lineLabel", "currency", "amount"],
-        load: (query) => ctx.accountingReportingService.listIncomeStatement(query),
+        load: (query) => ctx.accountingReportsService.listIncomeStatement(query),
         map: (result) => mapIncomeStatementDto(result),
       }),
     )
@@ -678,7 +678,7 @@ export function accountingReportRoutes(ctx: AppContext) {
         responseSchema: CashFlowResponseSchema,
         filename: "cash-flow.csv",
         headers: ["section", "lineCode", "lineLabel", "currency", "amount"],
-        load: (query) => ctx.accountingReportingService.listCashFlow(query),
+        load: (query) => ctx.accountingReportsService.listCashFlow(query),
         map: (result) => mapCashFlowDto(result),
       }),
     )
@@ -692,7 +692,7 @@ export function accountingReportRoutes(ctx: AppContext) {
         responseSchema: FxRevaluationResponseSchema,
         filename: "fx-revaluation.csv",
         headers: ["bucket", "currency", "revenue", "expense", "net"],
-        load: (query) => ctx.accountingReportingService.listFxRevaluation(query),
+        load: (query) => ctx.accountingReportsService.listFxRevaluation(query),
         map: (result) => mapFxRevaluationDto(result),
       }),
     )

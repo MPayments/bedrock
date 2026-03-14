@@ -1,13 +1,14 @@
 import { z } from "zod";
 
 import {
-  CountryCodeSchema as PartyCountryCodeSchema,
-  PartyKindSchema,
-} from "@bedrock/party-types";
-import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
 } from "@bedrock/core/pagination";
+
+import {
+  CountryCodeSchema as PartyCountryCodeSchema,
+  PartyKindSchema,
+} from "./party-types";
 
 export const CounterpartyKindSchema = PartyKindSchema;
 export type CounterpartyKind = z.infer<typeof CounterpartyKindSchema>;

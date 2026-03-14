@@ -9,7 +9,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@bedrock/ui/components/sidebar";
+} from "@bedrock/sdk-ui/components/sidebar";
 import type { AppSecondaryNavItem } from "@/lib/navigation/config";
 import { resolveAppIcon } from "@/lib/icons";
 import { NavNotifications } from "./nav-notifications";

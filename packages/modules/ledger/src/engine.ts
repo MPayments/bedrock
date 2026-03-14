@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/persistence";
+import type { Transaction } from "@bedrock/platform-persistence";
 
 import { createCommitHandler } from "./commands/commit";
 import { createLedgerContext, type LedgerDeps } from "./internal/context";

@@ -49,7 +49,7 @@
     "web#dev": {
       "cache": false,
       "persistent": true,
-      "dependsOn": ["api#build", "@bedrock/client-api#build"]
+      "dependsOn": ["api#build", "@bedrock/sdk-api-client#build"]
     }
   }
 }

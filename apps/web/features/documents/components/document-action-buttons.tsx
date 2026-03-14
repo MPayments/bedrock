@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Button } from "@bedrock/ui/components/button";
-import { toast } from "@bedrock/ui/components/sonner";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import {
   approveDocument,

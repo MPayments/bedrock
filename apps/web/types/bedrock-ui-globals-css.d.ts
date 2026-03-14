@@ -1,1 +1,1 @@
-declare module "@bedrock/ui/globals.css";
+declare module "@bedrock/sdk-ui/globals.css";

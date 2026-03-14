@@ -15,7 +15,7 @@ import {
   type CompiledPack,
 } from "../src/runtime";
 import { canonicalJson } from "@bedrock/core/canon";
-import type { Database } from "@bedrock/persistence/drizzle";
+import type { Database } from "@bedrock/platform-persistence/drizzle";
 
 const DEFAULT_PACK_URL = new URL(
   "../src/packs/bedrock-core-default.ts",

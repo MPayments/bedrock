@@ -15,9 +15,10 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
-    "@bedrock/accounting-close": "workspace:*",
+    "@bedrock/accounting": "workspace:*",
     "@bedrock/core": "workspace:*",
-    "@bedrock/observability": "workspace:*"
+    "@bedrock/platform-observability": "workspace:*",
+    "@bedrock/platform-worker-runtime": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/test-utils": "workspace:*",

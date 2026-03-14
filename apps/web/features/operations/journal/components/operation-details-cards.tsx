@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 
-import { Badge } from "@bedrock/ui/components/badge";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/sdk-ui/components/card";
 import {
   Table,
   TableBody,
@@ -15,7 +15,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@bedrock/ui/components/table";
+} from "@bedrock/sdk-ui/components/table";
 
 import { formatAmountByCurrency, formatDate } from "@/lib/format";
 import { getOperationCodeLabel } from "@/features/operations/journal/lib/operation-code-labels";

@@ -4,7 +4,7 @@ import {
 import {
   createLedgerWorkerDefinition,
   type TbClient,
-} from "@bedrock/adapter-ledger-tigerbeetle";
+} from "@bedrock/ledger/infra/tigerbeetle";
 import { createCurrenciesService } from "@bedrock/currencies";
 import { createDocumentsWorkerDefinition } from "@bedrock/documents/worker";
 import { createFeesService } from "@bedrock/fees";
@@ -12,13 +12,13 @@ import {
   createFxService,
 } from "@bedrock/fx";
 import { createFxRatesWorkerDefinition } from "@bedrock/fx/worker";
-import { createDefaultFxRateSourceProviders } from "@bedrock/integration-fx-providers";
+import { createDefaultFxRateSourceProviders } from "@bedrock/fx/infra/providers";
 import {
   type BedrockWorker,
   type WorkerCatalogEntry,
-} from "@bedrock/core/worker";
-import type { Logger } from "@bedrock/observability/logger";
-import type { Database } from "@bedrock/persistence/drizzle";
+} from "@bedrock/platform-worker-runtime";
+import type { Logger } from "@bedrock/platform-observability/logger";
+import type { Database } from "@bedrock/platform-persistence/drizzle";
 
 import { WORKER_CATALOG } from "../catalog";
 import type { WorkerEnv } from "../env";

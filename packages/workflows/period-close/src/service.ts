@@ -1,9 +1,9 @@
-import { noopLogger, type Logger } from "@bedrock/observability/logger";
+import { noopLogger, type Logger } from "@bedrock/platform-observability/logger";
 import type {
   WorkerRunContext,
   WorkerRunResult,
-} from "@bedrock/core/worker";
-import { getPreviousCalendarMonthRange } from "@bedrock/accounting-close";
+} from "@bedrock/platform-worker-runtime";
+import { getPreviousCalendarMonthRange } from "@bedrock/accounting/periods";
 
 function formatPeriodLabel(periodStart: Date): string {
   return periodStart.toISOString().slice(0, 7);

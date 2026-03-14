@@ -35,7 +35,7 @@ export {
 export * from "./posting-contracts";
 
 export { createAccountingService, type AccountingService } from "./service";
-export type { AccountingPackDefinition } from "@bedrock/accounting/packs/schema";
+export type { AccountingPackDefinition } from "./packs/schema";
 export {
   createAccountingRuntime,
   compilePack,
@@ -50,4 +50,4 @@ export {
 } from "./runtime";
 export { rawPackDefinition } from "./packs/raw-pack";
 
-export type { AccountingServiceDeps } from "./internal/context";
+export type { AccountingServiceDeps } from "./application/shared/context";

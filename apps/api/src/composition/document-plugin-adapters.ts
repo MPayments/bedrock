@@ -3,10 +3,10 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import {
   normalizeFinancialLine,
   type FinancialLine,
-} from "@bedrock/extension-documents-commercial/contracts";
-import { QuoteSnapshotSchema } from "@bedrock/extension-documents-commercial/validation";
-import { type CommercialModuleDeps } from "@bedrock/extension-documents-commercial";
-import { FxExecuteQuoteSnapshotSchema } from "@bedrock/extension-documents-ifrs";
+} from "@bedrock/plugin-documents-commercial/contracts";
+import { QuoteSnapshotSchema } from "@bedrock/plugin-documents-commercial/validation";
+import { type CommercialModuleDeps } from "@bedrock/plugin-documents-commercial";
+import { FxExecuteQuoteSnapshotSchema } from "@bedrock/plugin-documents-ifrs";
 import {
   DocumentValidationError,
   type DocumentModule,
@@ -16,13 +16,13 @@ import { schema as fxSchema } from "@bedrock/fx/schema";
 import type { FxService } from "@bedrock/fx";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import type { CurrenciesService } from "@bedrock/currencies";
-import type { IfrsModuleDeps } from "@bedrock/extension-documents-ifrs";
+import type { IfrsModuleDeps } from "@bedrock/plugin-documents-ifrs";
 import type { RequisitesService } from "@bedrock/requisites";
 import { canonicalJson } from "@bedrock/core/canon";
-import { sha256Hex } from "@bedrock/core/crypto";
+import { sha256Hex } from "@bedrock/platform-crypto";
 import { isUuidLike } from "@bedrock/core/uuid";
 import { minorToAmountString } from "@bedrock/money";
-import type { QuoteSnapshot } from "@bedrock/extension-documents-commercial/validation";
+import type { QuoteSnapshot } from "@bedrock/plugin-documents-commercial/validation";
 
 type Queryable = Parameters<DocumentModule["canPost"]>[0]["db"];
 

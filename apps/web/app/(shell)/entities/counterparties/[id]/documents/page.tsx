@@ -6,7 +6,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/sdk-ui/components/card";
 
 import { OperationsJournalTable } from "@/features/operations/journal/components/operations-journal-table";
 import { getOperations } from "@/features/operations/journal/lib/queries";

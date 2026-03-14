@@ -1,21 +1,21 @@
 import Link from "next/link";
 import { Plus, Wallet } from "lucide-react";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/sdk-ui/components/card";
 import {
   Empty,
   EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
-} from "@bedrock/ui/components/empty";
+} from "@bedrock/sdk-ui/components/empty";
 import {
   Table,
   TableBody,
@@ -23,7 +23,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@bedrock/ui/components/table";
+} from "@bedrock/sdk-ui/components/table";
 
 import { getCounterpartyRequisitesForCounterparty } from "@/features/entities/counterparty-requisites/lib/queries";
 import { formatDate } from "@/lib/format";

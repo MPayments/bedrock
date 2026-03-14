@@ -4,17 +4,17 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChartLine, ChevronDown, ChevronUp } from "lucide-react";
 
-import { Button } from "@bedrock/ui/components/button";
-import { Badge } from "@bedrock/ui/components/badge";
+import { Button } from "@bedrock/sdk-ui/components/button";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 import {
   Card,
   CardContent,
-} from "@bedrock/ui/components/card";
+} from "@bedrock/sdk-ui/components/card";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@bedrock/ui/components/collapsible";
+} from "@bedrock/sdk-ui/components/collapsible";
 import {
   Table,
   TableBody,
@@ -22,7 +22,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@bedrock/ui/components/table";
+} from "@bedrock/sdk-ui/components/table";
 
 import { formatDate } from "@/lib/format";
 

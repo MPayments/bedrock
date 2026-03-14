@@ -29,6 +29,7 @@
     "kind": "tooling",
     "tags": [
       "tooling",
+      "tooling",
       "eslint"
     ]
   }

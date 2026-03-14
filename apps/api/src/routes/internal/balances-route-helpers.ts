@@ -6,7 +6,7 @@ import {
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
-} from "@bedrock/adapter-idempotency-postgres";
+} from "@bedrock/platform-idempotency-postgres";
 import { ValidationError } from "@bedrock/core/errors";
 import { minorToAmountString } from "@bedrock/money";
 

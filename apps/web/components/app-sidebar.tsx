@@ -19,7 +19,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@bedrock/ui/components/sidebar";
+} from "@bedrock/sdk-ui/components/sidebar";
 
 export function AppSidebar({
   items,

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { createCurrenciesService } from "@bedrock/currencies";
 import { schema } from "@bedrock/fx/schema";
-import { createDefaultFxRateSourceProviders } from "@bedrock/integration-fx-providers";
+import { createDefaultFxRateSourceProviders } from "@bedrock/fx/infra/providers";
 
 import { db } from "./setup";
 import { createFxService } from "../../src/service";

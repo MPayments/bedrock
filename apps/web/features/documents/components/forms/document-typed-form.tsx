@@ -5,7 +5,7 @@ import { Plus, Save, Trash2, X } from "lucide-react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { ZodError } from "zod";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Field,
   FieldDescription,
@@ -14,25 +14,25 @@ import {
   FieldLegend,
   FieldSeparator,
   FieldSet,
-} from "@bedrock/ui/components/field";
-import { Input } from "@bedrock/ui/components/input";
+} from "@bedrock/sdk-ui/components/field";
+import { Input } from "@bedrock/sdk-ui/components/input";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
   InputGroupText,
-} from "@bedrock/ui/components/input-group";
+} from "@bedrock/sdk-ui/components/input-group";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@bedrock/ui/components/select";
-import { Spinner } from "@bedrock/ui/components/spinner";
-import { Textarea } from "@bedrock/ui/components/textarea";
-import { toast } from "@bedrock/ui/components/sonner";
-import { cn } from "@bedrock/ui/lib/utils";
+} from "@bedrock/sdk-ui/components/select";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
+import { Textarea } from "@bedrock/sdk-ui/components/textarea";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
+import { cn } from "@bedrock/sdk-ui/lib/utils";
 
 import type { UserRole } from "@/lib/auth/types";
 import { isUuid } from "@/lib/resources/http";

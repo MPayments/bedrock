@@ -4,7 +4,7 @@ import {
   customersRef,
   schema as counterpartiesSchema,
 } from "@bedrock/counterparties/schema";
-import type { Database, Transaction } from "@bedrock/persistence";
+import type { Database, Transaction } from "@bedrock/platform-persistence";
 
 import {
   CounterpartyCustomerNotFoundError,

@@ -2,7 +2,7 @@
 
 import { Plus } from "lucide-react";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 
 import type { CurrencyOption } from "../lib/queries";
 import { SetManualRateDialog } from "./set-manual-rate-dialog";

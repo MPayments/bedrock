@@ -6,8 +6,8 @@ import {
 } from "@bedrock/ledger/ids";
 import { schema } from "@bedrock/ledger/schema";
 import { stableStringify } from "@bedrock/core/canon";
-import { sha256Hex } from "@bedrock/core/crypto";
-import type { Transaction } from "@bedrock/persistence";
+import { sha256Hex } from "@bedrock/platform-crypto";
+import type { Transaction } from "@bedrock/platform-persistence";
 
 import {
   IdempotencyConflictError,

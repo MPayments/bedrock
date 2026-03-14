@@ -4,15 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Save, X } from "lucide-react";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@bedrock/ui/components/card";
-import { Spinner } from "@bedrock/ui/components/spinner";
+} from "@bedrock/sdk-ui/components/card";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 
 import type { UserRole } from "@/lib/auth/types";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
