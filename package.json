@@ -3,6 +3,19 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
+    "db:generate": "bun run --filter=db db:generate",
+    "db:migrate": "bun run --filter=db db:migrate",
+    "db:nuke": "bun run --filter=db db:nuke",
+    "db:push": "bun run --filter=db db:push",
+    "db:seed": "bun run --filter=db db:seed",
+    "db:seed:accounting": "bun run --filter=db db:seed:accounting",
+    "db:bootstrap:accounting": "bun run --filter=db db:bootstrap:accounting",
+    "db:seed:users": "bun run --filter=db db:seed:users",
+    "db:seed:counterparties": "bun run --filter=db db:seed:counterparties",
+    "db:seed:organizations": "bun run --filter=db db:seed:organizations",
+    "db:seed:requisite-providers": "bun run --filter=db db:seed:requisite-providers",
+    "db:seed:requisites": "bun run --filter=db db:seed:requisites",
+    "db:studio": "bun run --filter=db db:studio",
     "dev": "turbo run dev --concurrency 100",
     "lint": "turbo run lint",
     "check:boundaries": "node ./scripts/check-boundaries.mjs && node ./scripts/check-accounting-literals.mjs && node ./scripts/check-deprecated-imports.mjs",
@@ -49,8 +62,7 @@
     "packages/plugins/*",
     "packages/sdk/*",
     "packages/workflows/*",
-    "packages/tooling/*",
-    "ops/bootstrap/db"
+    "packages/tooling/*"
   ],
   "patchedDependencies": {
     "tlsclientwrapper@4.1.2": "patches/tlsclientwrapper@4.1.2.patch"

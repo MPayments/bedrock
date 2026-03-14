@@ -7,7 +7,7 @@ Bedrock is a financial platform (ledger, treasury, fees, FX, transfers) built as
 ```
 apps/        — applications (api: Hono, web: Next.js)
 packages/    — shared domain and infrastructure packages
-ops/         — infra and bootstrap entrypoints
+ops/         — infra entrypoints
 ```
 
 Stack: TypeScript 5.8, Hono, Next.js, Drizzle ORM, PostgreSQL, TigerBeetle, Zod, Vitest, Pino.
@@ -27,8 +27,7 @@ Core dependency direction:
 
 - `shared -> modules/workflows/plugins/sdk -> apps/*`
 - `@bedrock/platform/*` subpaths provide shared runtime infrastructure for modules, workflows, and apps.
-- `@bedrock/platform/postgres` aggregates schemas from owning packages and provides the DB client/migrations.
-- `@bedrock/bootstrap-db` owns DB seeds/bootstrap runners.
+- `apps/db` owns schema aggregation, migrations, DB reset, and shared seed/bootstrap runners.
 
 Hard rules:
 
@@ -37,9 +36,9 @@ Hard rules:
 - Domain schema ownership is colocated under:
   - `packages/modules/*/src/schema.ts` or `schema/**`
   - `packages/platform/src/*/schema.ts` or `schema/**` when platform domains own schema
-- `@bedrock/platform/postgres` must not own domain table declarations; it only aggregates domain schemas for client/migrations.
-- `@bedrock/bootstrap-db` is the only workspace package that should own shared seed/bootstrap orchestration.
-- Business packages must not import `@bedrock/platform/postgres` or `@bedrock/platform/postgres/client` from runtime code. Only apps, approved tooling/scripts, seeds/bootstrap, and integration tests may do so.
+- `apps/db` must not own domain table declarations; it only aggregates domain schemas for migrations and seed/bootstrap tooling.
+- `apps/db` is the only workspace package that should own shared seed/bootstrap orchestration.
+- Business packages must not instantiate DB clients directly. Only apps, approved tooling/scripts, `apps/db`, and integration tests may use `@bedrock/platform/persistence/postgres`.
 
 ## Architecture Contract
 
@@ -263,7 +262,7 @@ export class OrderNotFoundError extends ServiceError {
 - Schema uses `snake_case` column naming convention.
 - Runtime table definitions must be colocated in the owning package under `src/schema.ts` or `src/schema/**`.
 - Runtime code imports schemas through package exports such as `@bedrock/ledger/schema`, `@bedrock/counterparties/schema`, or `@bedrock/requisites/schema`.
-- Runtime code imports shared database connection types from `@bedrock/platform/postgres/db/types`.
+- Runtime code imports shared database connection types from `@bedrock/platform/persistence` or `@bedrock/platform/persistence/drizzle`.
 - In new and refactored packages, application/domain code should depend on ports and domain types; concrete Drizzle queries belong in `infra/`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.
 - Migration policy is baseline-only hard cutover.

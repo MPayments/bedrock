@@ -32,7 +32,6 @@ import {
   createOrganizationsService,
   type OrganizationsService,
 } from "@bedrock/organizations";
-import { db } from "@bedrock/platform/postgres/client";
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import {
@@ -49,6 +48,7 @@ import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
+import { db } from "../db/client";
 
 export interface ApiApplicationServices {
   accountingReportsService: AccountingReportsService;

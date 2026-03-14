@@ -24,7 +24,8 @@ import {
   type UsersService,
 } from "@bedrock/users";
 import { createConsoleLogger, type Logger } from "@bedrock/platform/observability/logger";
-import { db } from "@bedrock/platform/postgres/client";
+
+import { db } from "../db/client";
 
 export interface ApiCoreServices {
   logger: Logger;

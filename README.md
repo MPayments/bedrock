@@ -7,19 +7,18 @@ Bedrock is a financial platform monorepo (ledger, balances, FX, reconciliation).
 - `packages/shared` - stable shared primitives exposed as `@bedrock/shared/core`, `@bedrock/shared/money`, and `@bedrock/shared/reference-data`
 - `packages/modules/*` - write-side business capabilities published as flat `@bedrock/<name>` packages
 - `packages/workflows/*` - cross-module orchestration such as `@bedrock/workflow-period-close`
-- `packages/platform` - technical runtime infrastructure exposed as `@bedrock/platform/postgres`, `@bedrock/platform/worker-runtime`, and related subpaths
+- `packages/platform` - technical runtime infrastructure exposed as `@bedrock/platform/persistence`, `@bedrock/platform/worker-runtime`, and related subpaths
 - `packages/plugins/*` - document plugins and plugin SDK packages
 - `packages/sdk/*` - downstream-consumer SDK and reusable UI packages such as `@bedrock/sdk-ui`
-- `apps/*` - API/Web/Workers composition
-- `ops/*` - infra and bootstrap entrypoints
+- `apps/*` - API/Web/Workers/DB composition
+- `ops/*` - infra entrypoints
 
 Runtime import contract:
 
 - Runtime packages publish flat imports such as `@bedrock/ledger` and `@bedrock/counterparties`, plus merged package subpaths such as `@bedrock/platform/auth-model` and `@bedrock/platform/worker-runtime`.
 - Domain schemas stay with the owning package and are imported through package exports such as `@bedrock/ledger/schema`, `@bedrock/counterparties/schema`, or `@bedrock/requisites/schema`.
-- `@bedrock/platform/postgres` aggregates schemas for the DB client and migrations.
-- `@bedrock/bootstrap-db` owns DB seeding/bootstrap scripts.
-- Use DB connection types from `@bedrock/platform/postgres/db/types`.
+- `apps/db` owns schema aggregation, migrations, DB reset, and seed/bootstrap scripts.
+- Use DB connection types from `@bedrock/platform/persistence` or `@bedrock/platform/persistence/drizzle`.
 
 ## Architecture
 
@@ -46,6 +45,7 @@ The short version:
 ## Apps
 
 - `apps/api` - API adapter (`http://localhost:3002`)
+- `apps/db` - DB tooling and seed runners
 - `apps/web` - Web app (`http://localhost:3001`)
 - `apps/workers` - Background loops (monitoring on `http://localhost:8081`)
 
@@ -104,9 +104,9 @@ bun run test:integration
 This repo now uses a baseline-only migration chain. Legacy DB states are unsupported.
 
 ```bash
-bun run --filter=@bedrock/platform db:nuke
-bun run --filter=@bedrock/platform db:migrate
-bun run --filter=@bedrock/bootstrap-db db:seed
+bun run db:nuke
+bun run db:migrate
+bun run db:seed
 ```
 
 ## Documentation Source of Truth

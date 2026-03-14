@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     projects: [
       "apps/api/vitest.config.ts",
+      "apps/db/vitest.config.ts",
       "apps/web/vitest.config.ts",
       "apps/workers/vitest.config.ts",
       "packages/modules/accounting/vitest.config.ts",
@@ -25,7 +26,6 @@ export default defineConfig({
       "packages/plugins/documents-sdk/vitest.config.ts",
       "packages/shared/vitest.config.ts",
       "packages/workflows/period-close/vitest.config.ts",
-      "ops/bootstrap/db/vitest.config.ts",
     ],
     exclude: ["**/node_modules/**", "**/dist/**"],
     coverage: {

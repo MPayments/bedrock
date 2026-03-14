@@ -2,7 +2,6 @@ import "./env";
 
 import { createConsoleLogger } from "@bedrock/platform/observability/logger";
 import { installShutdownHandlers } from "@bedrock/platform/worker-runtime/worker-loop";
-import { db } from "@bedrock/platform/postgres/client";
 import { createTbClient } from "@bedrock/ledger/infra/tigerbeetle";
 import {
   createWorkerFleet,
@@ -10,6 +9,7 @@ import {
 } from "@bedrock/platform/worker-runtime";
 
 import { WORKER_CATALOG } from "./catalog";
+import { db } from "./db/client";
 import { env } from "./env";
 import { createWorkerImplementations } from "./modules/registry";
 import { createWorkerMonitoringRegistry, startWorkerMonitoringServer } from "./monitoring";

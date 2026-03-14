@@ -77,9 +77,9 @@ jobs:
 
       - name: Prepare integration database
         run: |
-          bun run --filter=@bedrock/adapter-db-drizzle db:nuke
-          bun run --filter=@bedrock/adapter-db-drizzle db:migrate
-          bun run --filter=@bedrock/bootstrap-db db:seed
+          bun run db:nuke
+          bun run db:migrate
+          bun run db:seed
 
       - name: Run integration tests
         run: bun run test:integration
