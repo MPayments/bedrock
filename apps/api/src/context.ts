@@ -14,7 +14,7 @@ import type { OrganizationsService } from "@bedrock/organizations";
 import type { RequisiteProvidersService } from "@bedrock/requisites/providers";
 import type { RequisitesService } from "@bedrock/requisites";
 import type { UsersService } from "@bedrock/users";
-import type { Logger } from "@bedrock/platform-observability/logger";
+import type { Logger } from "@bedrock/platform/observability/logger";
 
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";

@@ -1,6 +1,6 @@
 import type { LedgerReadService } from "@bedrock/ledger";
-import { noopLogger, type Logger } from "@bedrock/platform-observability/logger";
-import type { Database } from "@bedrock/platform-persistence";
+import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
+import type { Database } from "@bedrock/platform/persistence";
 
 export interface AccountingReportsServiceDeps {
   db: Database;

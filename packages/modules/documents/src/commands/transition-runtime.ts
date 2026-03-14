@@ -1,5 +1,5 @@
 import type { Document } from "@bedrock/documents/schema";
-import type { Transaction } from "@bedrock/platform-persistence";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 import type { DocumentsIdempotencyScope } from "../idempotency";
 import type { DocumentsServiceContext } from "../internal/context";

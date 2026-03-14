@@ -17,23 +17,19 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/platform-postgres": "workspace:*",
-    "@bedrock/platform-worker-runtime": "workspace:*",
     "@bedrock/balances": "workspace:*",
-    "@bedrock/core": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
-    "@bedrock/platform-auth-model": "workspace:*",
     "@bedrock/ledger": "workspace:*",
-    "@bedrock/platform-observability": "workspace:*",
     "@bedrock/organizations": "workspace:*",
-    "@bedrock/platform-persistence": "workspace:*",
     "@bedrock/workflow-period-close": "workspace:*",
     "dotenv": "^17.3.1",
-    "drizzle-orm": "^0.45.1"
+    "drizzle-orm": "^0.45.1",
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/shared": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",

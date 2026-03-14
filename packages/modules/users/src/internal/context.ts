@@ -1,8 +1,8 @@
 import type {
   AuthIdentityStorePort,
   PasswordHasherPort,
-} from "@bedrock/platform-auth-model";
-import { noopLogger, type Logger } from "@bedrock/platform-observability/logger";
+} from "@bedrock/platform/auth-model";
+import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
 
 export interface UsersServiceDeps {
   authStore: AuthIdentityStorePort;

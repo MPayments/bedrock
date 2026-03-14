@@ -23,7 +23,7 @@ import {
   type DocumentModuleContext,
   DocumentValidationError,
 } from "@bedrock/plugin-documents-sdk";
-import { canonicalJson } from "@bedrock/core/canon";
+import { canonicalJson } from "@bedrock/shared/core/canon";
 
 import {
   AcceptancePayloadSchema,

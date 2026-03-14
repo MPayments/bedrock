@@ -4,7 +4,7 @@ import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
-} from "@bedrock/core/pagination";
+} from "@bedrock/shared/core/pagination";
 
 import type { OrganizationsServiceContext } from "../internal/context";
 import type { PartyKind } from "../party-types";

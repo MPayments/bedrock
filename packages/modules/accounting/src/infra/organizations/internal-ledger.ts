@@ -3,7 +3,7 @@ import {
   assertInternalLedgerOrganization,
   listInternalLedgerOrganizations,
 } from "@bedrock/organizations";
-import type { Database, Transaction } from "@bedrock/platform-persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 type Queryable = Database | Transaction;
 

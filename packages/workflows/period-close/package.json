@@ -16,9 +16,8 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/core": "workspace:*",
-    "@bedrock/platform-observability": "workspace:*",
-    "@bedrock/platform-worker-runtime": "workspace:*"
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/shared": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/test-utils": "workspace:*",

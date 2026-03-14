@@ -1,6 +1,6 @@
 import { and, eq, isNull, ne, sql } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/platform-persistence";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 import { RequisiteNotFoundError } from "../errors";
 import type { RequisitesServiceContext } from "../internal/context";

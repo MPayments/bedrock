@@ -6,10 +6,10 @@ import {
   type ReconciliationExternalRecord,
   type ReconciliationMatchStatus,
 } from "@bedrock/reconciliation/schema";
-import { canonicalJson } from "@bedrock/core/canon";
-import type { CorrelationContext } from "@bedrock/core/correlation";
-import { sha256Hex } from "@bedrock/platform-crypto";
-import type { Database, Transaction } from "@bedrock/platform-persistence";
+import { canonicalJson } from "@bedrock/shared/core/canon";
+import type { CorrelationContext } from "@bedrock/shared/core/correlation";
+import { sha256Hex } from "@bedrock/platform/crypto";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import { RECONCILIATION_IDEMPOTENCY_SCOPE } from "./idempotency";
 import type {

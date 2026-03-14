@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { PaginationInputSchema } from "@bedrock/core/pagination";
+import { PaginationInputSchema } from "@bedrock/shared/core/pagination";
 
 const uuidSchema = z.uuid({ version: "v4" });
 const dateTimeSchema = z.iso.datetime();

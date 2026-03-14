@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-import { ValidationError } from "@bedrock/core/errors";
+import { ValidationError } from "@bedrock/shared/core/errors";
 import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
-} from "@bedrock/core/pagination";
+} from "@bedrock/shared/core/pagination";
 
 import {
   CountryAlpha2Schema,

@@ -24,7 +24,7 @@ const EXCLUDED_DIRS = new Set([
 ]);
 
 const FORBIDDEN_IMPORT_PATTERN =
-  /(?:import|export)\s+[^"'`]*\b(?:ACCOUNT_NO|POSTING_CODE|CLEARING_KIND|OPERATION_CODE|POSTING_TEMPLATE_KEY)\b[^"'`]*from\s+["']@bedrock\/core\/accounting["']/g;
+  /(?:import|export)\s+[^"'`]*\b(?:ACCOUNT_NO|POSTING_CODE|CLEARING_KIND|OPERATION_CODE|POSTING_TEMPLATE_KEY)\b[^"'`]*from\s+["']@bedrock\/shared\/core\/accounting["']/g;
 const FORBIDDEN_ACCOUNT_LITERAL_PATTERN =
   /\b(?:accountNo|debitAccountNo|creditAccountNo)\s*:\s*["']\d{4}["']/g;
 const FORBIDDEN_POSTING_CODE_LITERAL_PATTERN =

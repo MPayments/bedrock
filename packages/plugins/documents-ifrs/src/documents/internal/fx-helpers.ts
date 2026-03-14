@@ -12,7 +12,7 @@ import {
   buildDocumentPostingRequest,
   serializeOccurredAt,
 } from "@bedrock/plugin-documents-sdk/module-kit";
-import { minorToAmountString, toMinorAmountString } from "@bedrock/money";
+import { minorToAmountString, toMinorAmountString } from "@bedrock/shared/money";
 import type { Document } from "@bedrock/plugin-documents-sdk";
 
 import type {

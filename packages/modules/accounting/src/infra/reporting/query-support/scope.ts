@@ -1,7 +1,7 @@
 import { inArray, sql, type SQL } from "drizzle-orm";
 
-import { ValidationError } from "@bedrock/core/errors";
-import type { Database, Transaction } from "@bedrock/platform-persistence";
+import { ValidationError } from "@bedrock/shared/core/errors";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import { toBigInt } from "../../../domain/reports/normalization";
 import { listAccountingInternalOrganizations } from "../../organizations/internal-ledger";

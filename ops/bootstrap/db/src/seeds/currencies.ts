@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
-import type { Database } from "@bedrock/platform-postgres/client";
-import { schema } from "@bedrock/platform-postgres";
+import type { Database } from "@bedrock/platform/postgres/client";
+import { schema } from "@bedrock/platform/postgres";
 
 export const CURRENCY_IDS = {
   USD: "00000000-0000-4000-8000-000000000101",

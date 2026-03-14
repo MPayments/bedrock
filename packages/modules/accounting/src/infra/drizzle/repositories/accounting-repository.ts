@@ -1,5 +1,5 @@
 import { and, desc, eq, lte } from "drizzle-orm";
-import type { Database, Transaction } from "@bedrock/platform-persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import { schema } from "../../../schema";
 import type { AccountingChartRepository } from "../../../application/chart/ports";

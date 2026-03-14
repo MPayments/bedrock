@@ -9,7 +9,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "@bedrock/fx";
-import { minorToAmountString } from "@bedrock/money";
+import { minorToAmountString } from "@bedrock/shared/money";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";

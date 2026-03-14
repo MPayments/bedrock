@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { schema, type Document } from "@bedrock/documents/schema";
-import { InvalidStateError } from "@bedrock/core/errors";
+import { InvalidStateError } from "@bedrock/shared/core/errors";
 
 import {
   DocumentGraphError,

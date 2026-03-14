@@ -3,7 +3,7 @@ import {
   tbTransferIdForOperation,
 } from "@bedrock/ledger/ids";
 import type { schema } from "@bedrock/ledger/schema";
-import type { Transaction } from "@bedrock/platform-persistence";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 import { ensureBookAccountInstanceTx } from "../../book-accounts";
 import { OPERATION_TRANSFER_TYPE, type IntentLine } from "../../types";

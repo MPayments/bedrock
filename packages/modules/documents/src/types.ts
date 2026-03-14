@@ -12,9 +12,9 @@ import type {
   DocumentSnapshot,
   DocumentSubmissionStatus,
 } from "@bedrock/documents/schema";
-import type { CorrelationContext } from "@bedrock/core/correlation";
-import type { Database, Transaction } from "@bedrock/platform-persistence";
-import type { Logger } from "@bedrock/platform-observability/logger";
+import type { CorrelationContext } from "@bedrock/shared/core/correlation";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Logger } from "@bedrock/platform/observability/logger";
 
 import type {
   DocumentsAccountingPort,

@@ -3,7 +3,7 @@ import {
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "@bedrock/core/errors";
+} from "@bedrock/shared/core/errors";
 
 export class BalancesError extends ServiceError {}
 

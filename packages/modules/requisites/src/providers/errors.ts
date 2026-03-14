@@ -1,4 +1,4 @@
-import { ServiceError } from "@bedrock/core/errors";
+import { ServiceError } from "@bedrock/shared/core/errors";
 
 export class RequisiteProviderError extends ServiceError {}
 

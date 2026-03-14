@@ -19,19 +19,14 @@
     "test:integration:watch": "vitest --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@bedrock/core": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/ledger": "workspace:*",
-    "@bedrock/platform-crypto": "workspace:*",
-    "@bedrock/platform-idempotency": "workspace:*",
-    "@bedrock/platform-observability": "workspace:*",
-    "@bedrock/platform-persistence": "workspace:*",
-    "@bedrock/platform-worker-runtime": "workspace:*",
     "drizzle-orm": "^0.45.1",
-    "zod": "^4.1.11"
+    "zod": "^4.1.11",
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/shared": "workspace:*"
   },
   "devDependencies": {
-    "@bedrock/platform-idempotency-postgres": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
     "@types/pg": "^8.16.0",

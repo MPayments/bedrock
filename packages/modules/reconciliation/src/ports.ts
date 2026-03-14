@@ -1,6 +1,6 @@
 import type { DocumentWithOperationId } from "@bedrock/documents";
-import type { IdempotencyPort } from "@bedrock/platform-idempotency";
-import type { CorrelationContext } from "@bedrock/core/correlation";
+import type { IdempotencyPort } from "@bedrock/platform/idempotency";
+import type { CorrelationContext } from "@bedrock/shared/core/correlation";
 
 export interface ReconciliationDocumentsPort {
   createDraft(input: {

@@ -12,7 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { user } from "@bedrock/platform-auth-model/schema";
+import { user } from "@bedrock/platform/auth-model/schema";
 import { counterparties } from "@bedrock/counterparties/schema";
 import { customers } from "@bedrock/customers/schema";
 import {

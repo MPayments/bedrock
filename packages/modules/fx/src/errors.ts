@@ -1,6 +1,6 @@
-import { ServiceError } from "@bedrock/core/errors";
+import { ServiceError } from "@bedrock/shared/core/errors";
 
-export { ValidationError, NotFoundError } from "@bedrock/core/errors";
+export { ValidationError, NotFoundError } from "@bedrock/shared/core/errors";
 
 export class FxError extends ServiceError {}
 

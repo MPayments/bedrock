@@ -19,7 +19,6 @@
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
     "@bedrock/balances": "workspace:*",
-    "@bedrock/core": "workspace:*",
     "@bedrock/counterparties": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/customers": "workspace:*",
@@ -27,14 +26,7 @@
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
     "@bedrock/ledger": "workspace:*",
-    "@bedrock/money": "workspace:*",
     "@bedrock/organizations": "workspace:*",
-    "@bedrock/platform-auth-betterauth": "workspace:*",
-    "@bedrock/platform-auth-model": "workspace:*",
-    "@bedrock/platform-crypto": "workspace:*",
-    "@bedrock/platform-idempotency-postgres": "workspace:*",
-    "@bedrock/platform-observability": "workspace:*",
-    "@bedrock/platform-postgres": "workspace:*",
     "@bedrock/plugin-documents-commercial": "workspace:*",
     "@bedrock/plugin-documents-ifrs": "workspace:*",
     "@bedrock/requisites": "workspace:*",
@@ -46,7 +38,9 @@
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.12.2",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/shared": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",

@@ -6,7 +6,7 @@ import {
   tbLedgerForCurrency,
 } from "@bedrock/ledger/ids";
 import { schema, type Dimensions } from "@bedrock/ledger/schema";
-import type { Transaction } from "@bedrock/platform-persistence";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 export interface BookAccountIdentityInput {
   bookId: string;

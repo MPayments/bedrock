@@ -1,8 +1,8 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
-import { COUNTRY_ALPHA2_CODES } from "@bedrock/reference-data/countries/contracts";
-import { COUNTRY_ALPHA2_SET } from "@bedrock/reference-data/countries";
+import { COUNTRY_ALPHA2_CODES } from "@bedrock/shared/reference-data/countries/contracts";
+import { COUNTRY_ALPHA2_SET } from "@bedrock/shared/reference-data/countries";
 
 export const PARTY_KIND_VALUES = ["legal_entity", "individual"] as const;
 

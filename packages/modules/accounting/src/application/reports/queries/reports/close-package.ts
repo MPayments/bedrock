@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { ValidationError } from "@bedrock/core/errors";
+import { ValidationError } from "@bedrock/shared/core/errors";
 
 import type {
   AccountingReportsContext,

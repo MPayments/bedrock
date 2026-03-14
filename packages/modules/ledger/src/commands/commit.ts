@@ -1,5 +1,5 @@
 import { schema } from "@bedrock/ledger/schema";
-import type { Transaction } from "@bedrock/platform-persistence";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 import {
   acquireOperationId,

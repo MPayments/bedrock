@@ -1,4 +1,4 @@
-import { db } from "@bedrock/platform-postgres/client";
+import { db } from "@bedrock/platform/postgres/client";
 import {
   createCustomerLifecycleSyncPort,
   createCounterpartiesService,

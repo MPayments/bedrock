@@ -1,5 +1,5 @@
-import { canonicalJson, makePlanKey } from "@bedrock/core/canon";
-import { sha256Hex } from "@bedrock/platform-crypto";
+import { canonicalJson, makePlanKey } from "@bedrock/shared/core/canon";
+import { sha256Hex } from "@bedrock/platform/crypto";
 
 import {
   AccountingPostingPlanValidationError,

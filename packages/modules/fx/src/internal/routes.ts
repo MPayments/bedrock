@@ -1,5 +1,5 @@
-import { mulDivFloor } from "@bedrock/money/math";
-import { ValidationError } from "@bedrock/core/errors";
+import { mulDivFloor } from "@bedrock/shared/money/math";
+import { ValidationError } from "@bedrock/shared/core/errors";
 
 import { type QuoteInput } from "../validation";
 import { type ComputedLeg } from "./types";

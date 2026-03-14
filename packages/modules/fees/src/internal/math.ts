@@ -1,4 +1,4 @@
-import { BPS_SCALE } from "@bedrock/money/math";
+import { BPS_SCALE } from "@bedrock/shared/money/math";
 
 import { FeeValidationError } from "../errors";
 

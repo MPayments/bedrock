@@ -1,4 +1,4 @@
-import { type PaginatedList } from "@bedrock/core/pagination";
+import { type PaginatedList } from "@bedrock/shared/core/pagination";
 
 import type { UsersServiceContext } from "../internal/context";
 import { toUser } from "../internal/auth-users";

@@ -1,6 +1,6 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
-import { ValidationError } from "@bedrock/core/errors";
+import { ValidationError } from "@bedrock/shared/core/errors";
 
 import type { AppContext } from "../../context";
 import type { AuthVariables } from "../../middleware/auth";

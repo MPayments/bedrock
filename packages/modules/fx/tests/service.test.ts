@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { schema } from "@bedrock/fx/schema";
-import { ValidationError } from "@bedrock/core/errors";
+import { ValidationError } from "@bedrock/shared/core/errors";
 
 import { NotFoundError, QuoteExpiredError } from "../src/errors";
 import { createFxService } from "../src/service";

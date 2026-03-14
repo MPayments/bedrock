@@ -18,10 +18,10 @@ import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { IfrsModuleDeps } from "@bedrock/plugin-documents-ifrs";
 import type { RequisitesService } from "@bedrock/requisites";
-import { canonicalJson } from "@bedrock/core/canon";
-import { sha256Hex } from "@bedrock/platform-crypto";
-import { isUuidLike } from "@bedrock/core/uuid";
-import { minorToAmountString } from "@bedrock/money";
+import { canonicalJson } from "@bedrock/shared/core/canon";
+import { sha256Hex } from "@bedrock/platform/crypto";
+import { isUuidLike } from "@bedrock/shared/core/uuid";
+import { minorToAmountString } from "@bedrock/shared/money";
 import type { QuoteSnapshot } from "@bedrock/plugin-documents-commercial/validation";
 
 type Queryable = Parameters<DocumentModule["canPost"]>[0]["db"];

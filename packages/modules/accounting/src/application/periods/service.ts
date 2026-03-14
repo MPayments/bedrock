@@ -1,9 +1,9 @@
 import { eq, sql } from "drizzle-orm";
 
-import { canonicalJson } from "@bedrock/core/canon";
-import { ValidationError } from "@bedrock/core/errors";
-import type { Database, Transaction } from "@bedrock/platform-persistence";
-import { sha256Hex } from "@bedrock/platform-crypto";
+import { canonicalJson } from "@bedrock/shared/core/canon";
+import { ValidationError } from "@bedrock/shared/core/errors";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
+import { sha256Hex } from "@bedrock/platform/crypto";
 
 import {
   formatPeriodLabel,

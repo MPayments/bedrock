@@ -2,8 +2,8 @@ import type {
     BedrockWorker,
     WorkerRunContext,
     WorkerRunResult,
-} from "@bedrock/platform-worker-runtime";
-import type { Logger } from "@bedrock/platform-observability/logger";
+} from "@bedrock/platform/worker-runtime";
+import type { Logger } from "@bedrock/platform/observability/logger";
 
 import { type FxService } from "./service";
 import { type FxRateSource } from "./source-providers";

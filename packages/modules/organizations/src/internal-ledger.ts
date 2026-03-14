@@ -1,7 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import type { Database, Transaction } from "@bedrock/platform-persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import {
   OrganizationInternalLedgerInvariantError,

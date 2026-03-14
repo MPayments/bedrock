@@ -12,7 +12,7 @@ import {
   buildDocumentPostingRequest,
   parseDocumentPayload,
 } from "@bedrock/plugin-documents-sdk/module-kit";
-import { minorToAmountString } from "@bedrock/money";
+import { minorToAmountString } from "@bedrock/shared/money";
 
 import { IFRS_DOCUMENT_METADATA } from "../metadata";
 import {

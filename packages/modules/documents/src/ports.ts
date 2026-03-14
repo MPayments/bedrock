@@ -3,13 +3,13 @@ import type {
   ResolvePostingPlanInput,
   ResolvePostingPlanResult,
 } from "@bedrock/accounting";
-import type { IdempotencyPort } from "@bedrock/platform-idempotency";
+import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type {
   CommitResult,
   LedgerOperationDetails,
   OperationIntent,
 } from "@bedrock/ledger";
-import type { Database, Transaction } from "@bedrock/platform-persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 export interface DocumentsAccountingPort {
   getDefaultCompiledPack(): CompiledPack;

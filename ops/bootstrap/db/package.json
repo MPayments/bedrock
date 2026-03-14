@@ -23,12 +23,12 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/platform-postgres": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/requisites": "workspace:*",
     "better-auth": "*",
     "dotenv": "^17.3.1",
-    "drizzle-orm": "^0.45.1"
+    "drizzle-orm": "^0.45.1",
+    "@bedrock/platform": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",

@@ -13,7 +13,7 @@ import {
   type PaginatedList,
   resolveSortOrder,
   resolveSortValue,
-} from "@bedrock/core/pagination";
+} from "@bedrock/shared/core/pagination";
 
 import type { RequisiteKind } from "../../internal/requisites-shared";
 import type { RequisiteProvidersServiceContext } from "../internal/context";

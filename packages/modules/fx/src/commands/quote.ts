@@ -1,13 +1,13 @@
 import { and, asc, desc, eq, ilike, inArray, sql } from "drizzle-orm";
 
-import { type PaginatedList } from "@bedrock/core/pagination";
+import { type PaginatedList } from "@bedrock/shared/core/pagination";
 import {
     aggregateFinancialLines,
     type FinancialLine,
 } from "@bedrock/documents/financial-lines";
 import { schema, type FxQuote, type FxQuoteLeg } from "@bedrock/fx/schema";
-import { effectiveRateFromAmounts, mulDivFloor } from "@bedrock/money/math";
-import type { Transaction } from "@bedrock/platform-persistence";
+import { effectiveRateFromAmounts, mulDivFloor } from "@bedrock/shared/money/math";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 import {
     NotFoundError,

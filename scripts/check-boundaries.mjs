@@ -39,7 +39,7 @@ const ALLOWED_IMPORT_KINDS = {
   shared: new Set(["shared"]),
   module: new Set(["shared", "module", "platform"]),
   workflow: new Set(["shared", "module", "platform", "workflow"]),
-  platform: new Set(["shared", "platform"]),
+  platform: new Set(["shared", "platform", "module"]),
   plugin: new Set(["shared", "module", "plugin"]),
   sdk: new Set(["shared", "sdk", "app"]),
   tooling: null,
@@ -68,8 +68,8 @@ function isIntegrationTestFile(relFile) {
 
 function isDbRootImport(normalized) {
   return (
-    normalized.packageName === "@bedrock/platform-postgres" &&
-    [".", "./client"].includes(normalized.subpath)
+    normalized.packageName === "@bedrock/platform" &&
+    ["./postgres", "./postgres/client"].includes(normalized.subpath)
   );
 }
 
@@ -83,7 +83,7 @@ function isDbImportAllowed(owner, relFile) {
   }
 
   if (
-    owner.name === "@bedrock/platform-postgres" ||
+    owner.name === "@bedrock/platform" ||
     owner.kind === "app" ||
     owner.kind === "ops" ||
     owner.kind === "tooling"
@@ -230,19 +230,19 @@ for (const root of SOURCE_ROOTS) {
     if (
       /^packages\/modules\/users\/src\//.test(relFile) &&
       (
-        content.includes("@bedrock/platform-auth-model/schema") ||
+        content.includes("@bedrock/platform/auth-model/schema") ||
         content.includes("better-auth/crypto")
       )
     ) {
       recordViolation(
         "users-bypasses-identity-ports",
         relFile,
-        "@bedrock/platform-auth-model/schema|better-auth/crypto",
+        "@bedrock/platform/auth-model/schema|better-auth/crypto",
       );
     }
 
     if (
-      /^packages\/platform\/auth-model\/src\//.test(relFile) &&
+      /^packages\/platform\/src\/auth-model\//.test(relFile) &&
       content.includes("@bedrock/users")
     ) {
       recordViolation("identity-imports-users", relFile, "@bedrock/users");
@@ -391,11 +391,6 @@ for (const root of SOURCE_ROOTS) {
         owner &&
         targetPkg.name !== owner.name &&
         isRuntimeSourceFile &&
-        !(
-          owner.kind === "platform" &&
-          owner.name === "@bedrock/platform-postgres" &&
-          targetPkg.kind === "module"
-        ) &&
         !isKindAllowed(owner.kind, targetPkg.kind)
       ) {
         recordViolation(
@@ -410,10 +405,8 @@ for (const root of SOURCE_ROOTS) {
         owner &&
         targetPkg.name !== owner.name &&
         isRuntimeSourceFile &&
-        !(
-          targetPkg.name === "@bedrock/platform-postgres" &&
-          ["./db/types", "./db/notify"].includes(normalized.subpath)
-        ) &&
+        owner.name !== "@bedrock/platform" &&
+        targetPkg.name !== "@bedrock/platform" &&
         packageGraph.has(owner.name) &&
         packageGraph.has(targetPkg.name)
       ) {
@@ -487,14 +480,8 @@ for (const pkg of workspacePackages) {
     }
 
     if (
-      pkg.kind === "platform" &&
-      pkg.name === "@bedrock/platform-postgres" &&
-      depPkg.kind === "module"
+      !allowedKinds.has(depPkg.kind)
     ) {
-      continue;
-    }
-
-    if (!allowedKinds.has(depPkg.kind)) {
       recordViolation(
         "package-json-kind-dependency-disallowed",
         `${pkg.relDir}/package.json`,

@@ -1,5 +1,5 @@
-import { noopLogger, type Logger } from "@bedrock/platform-observability/logger";
-import type { Database } from "@bedrock/platform-persistence";
+import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
+import type { Database } from "@bedrock/platform/persistence";
 
 import type { CustomerLifecycleSyncPort } from "../customer-lifecycle-port";
 

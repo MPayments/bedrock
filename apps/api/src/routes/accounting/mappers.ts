@@ -1,4 +1,4 @@
-import { minorToAmountString } from "@bedrock/money";
+import { minorToAmountString } from "@bedrock/shared/money";
 
 interface PostingLike {
   bookId: string;

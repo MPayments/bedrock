@@ -1,6 +1,6 @@
-import type { Logger } from "@bedrock/platform-observability/logger";
-import type { Database } from "@bedrock/platform-persistence";
-import { noopLogger } from "@bedrock/platform-observability/logger";
+import type { Logger } from "@bedrock/platform/observability/logger";
+import type { Database } from "@bedrock/platform/persistence";
+import { noopLogger } from "@bedrock/platform/observability/logger";
 
 import type { AccountingPackDefinition } from "../../packs/schema";
 

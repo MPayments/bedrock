@@ -1,6 +1,6 @@
 import type { Document } from "@bedrock/documents/schema";
-import type { Logger } from "@bedrock/platform-observability/logger";
-import type { Database, Transaction } from "@bedrock/platform-persistence";
+import type { Logger } from "@bedrock/platform/observability/logger";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import {
   resolveDocumentAllowedActions,

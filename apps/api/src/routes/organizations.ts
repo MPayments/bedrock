@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { ValidationError } from "@bedrock/core/errors";
-import { createPaginatedListSchema } from "@bedrock/core/pagination";
+import { ValidationError } from "@bedrock/shared/core/errors";
+import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 import {
   CreateOrganizationInputSchema,
   ListOrganizationsQuerySchema,

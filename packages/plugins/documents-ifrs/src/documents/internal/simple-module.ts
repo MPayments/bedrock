@@ -1,4 +1,4 @@
-import { parseMinorAmount } from "@bedrock/money";
+import { parseMinorAmount } from "@bedrock/shared/money";
 
 import type { DocumentModule } from "@bedrock/plugin-documents-sdk";
 import {

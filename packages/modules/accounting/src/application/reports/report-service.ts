@@ -1,4 +1,4 @@
-import type { Database, Transaction } from "@bedrock/platform-persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import { createReportsScopeHelpers } from "../../infra/reporting/query-support/scope";
 import { createReportsSharedHelpers } from "../../infra/reporting/query-support/shared";

@@ -1,6 +1,6 @@
-import type { IdempotencyPort } from "@bedrock/platform-idempotency";
-import { noopLogger, type Logger } from "@bedrock/platform-observability/logger";
-import type { Database } from "@bedrock/platform-persistence";
+import type { IdempotencyPort } from "@bedrock/platform/idempotency";
+import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
+import type { Database } from "@bedrock/platform/persistence";
 
 export interface BalancesServiceDeps {
   db: Database;

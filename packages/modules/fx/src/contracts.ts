@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { createPaginatedListSchema } from "@bedrock/core/pagination";
-import { parseMinorAmount } from "@bedrock/money";
+import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
+import { parseMinorAmount } from "@bedrock/shared/money";
 import { FINANCIAL_LINE_BUCKETS } from "@bedrock/documents/financial-lines";
 import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
 export {

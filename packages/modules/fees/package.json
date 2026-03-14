@@ -19,13 +19,11 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/core": "workspace:*",
     "@bedrock/currencies": "workspace:*",
-    "@bedrock/money": "workspace:*",
-    "@bedrock/platform-observability": "workspace:*",
-    "@bedrock/platform-persistence": "workspace:*",
     "drizzle-orm": "^0.45.1",
-    "zod": "^4.1.11"
+    "zod": "^4.1.11",
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/shared": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/test-utils": "workspace:*",

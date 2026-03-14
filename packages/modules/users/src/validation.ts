@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
     createListQuerySchemaFromContract,
     type ListQueryContract,
-} from "@bedrock/core/pagination";
+} from "@bedrock/shared/core/pagination";
 
 export const UserRoleSchema = z.enum(["admin", "user"]);
 export type UserRole = z.infer<typeof UserRoleSchema>;

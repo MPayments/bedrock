@@ -16,9 +16,9 @@ import { createDefaultFxRateSourceProviders } from "@bedrock/fx/infra/providers"
 import {
   type BedrockWorker,
   type WorkerCatalogEntry,
-} from "@bedrock/platform-worker-runtime";
-import type { Logger } from "@bedrock/platform-observability/logger";
-import type { Database } from "@bedrock/platform-persistence/drizzle";
+} from "@bedrock/platform/worker-runtime";
+import type { Logger } from "@bedrock/platform/observability/logger";
+import type { Database } from "@bedrock/platform/persistence/drizzle";
 
 import { WORKER_CATALOG } from "../catalog";
 import type { WorkerEnv } from "../env";

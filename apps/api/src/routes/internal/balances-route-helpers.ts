@@ -6,9 +6,9 @@ import {
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
-} from "@bedrock/platform-idempotency-postgres";
-import { ValidationError } from "@bedrock/core/errors";
-import { minorToAmountString } from "@bedrock/money";
+} from "@bedrock/platform/idempotency-postgres";
+import { ValidationError } from "@bedrock/shared/core/errors";
+import { minorToAmountString } from "@bedrock/shared/money";
 
 export function toBalanceSnapshotDto(input: {
   bookId: string;

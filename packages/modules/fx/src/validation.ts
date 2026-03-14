@@ -3,12 +3,12 @@ import { z } from "zod";
 import { financialLineSchema } from "@bedrock/documents/financial-lines";
 import { normalizeCurrency, isValidCurrency } from "@bedrock/currencies/catalog";
 import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
-import { DAY_IN_SECONDS } from "@bedrock/money/math";
-import { ValidationError } from "@bedrock/core/errors";
+import { DAY_IN_SECONDS } from "@bedrock/shared/money/math";
+import { ValidationError } from "@bedrock/shared/core/errors";
 import {
     createListQuerySchemaFromContract,
     type ListQueryContract,
-} from "@bedrock/core/pagination";
+} from "@bedrock/shared/core/pagination";
 
 const uuidSchema = z.uuid({ version: "v4" });
 

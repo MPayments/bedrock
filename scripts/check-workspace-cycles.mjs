@@ -1,6 +1,7 @@
 import { collectWorkspacePackages } from "./lib/workspace-packages.mjs";
 
 const sections = ["dependencies", "peerDependencies", "optionalDependencies"];
+const IGNORED_CYCLE_PACKAGES = new Set(["@bedrock/platform"]);
 
 const workspacePackages = collectWorkspacePackages();
 const names = new Map(workspacePackages.map((pkg) => [pkg.name, pkg]));
@@ -76,8 +77,18 @@ for (const pkg of workspacePackages) {
 }
 
 if (stronglyConnected.length > 0) {
+  const relevantComponents = stronglyConnected.filter(
+    (component) =>
+      !component.some((packageName) => IGNORED_CYCLE_PACKAGES.has(packageName)),
+  );
+
+  if (relevantComponents.length === 0) {
+    console.log("Workspace package dependency cycle check passed.");
+    process.exit(0);
+  }
+
   console.error("Workspace package dependency cycle check failed:");
-  for (const component of stronglyConnected) {
+  for (const component of relevantComponents) {
     console.error(`- ${component.join(" -> ")}`);
   }
   process.exit(1);

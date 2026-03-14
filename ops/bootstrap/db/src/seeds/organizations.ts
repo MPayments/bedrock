@@ -1,5 +1,5 @@
-import type { Database, Transaction } from "@bedrock/platform-postgres/client";
-import { schema } from "@bedrock/platform-postgres";
+import type { Database, Transaction } from "@bedrock/platform/postgres/client";
+import { schema } from "@bedrock/platform/postgres";
 import { ORGANIZATIONS } from "./fixtures";
 
 export { ORGANIZATION_IDS } from "./fixtures";

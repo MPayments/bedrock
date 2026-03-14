@@ -1,5 +1,5 @@
-import type { Logger } from "@bedrock/platform-observability/logger";
-import type { Database } from "@bedrock/platform-persistence";
+import type { Logger } from "@bedrock/platform/observability/logger";
+import type { Database } from "@bedrock/platform/persistence";
 
 import { type FeesCurrencyLookup } from "./currency-lookup";
 

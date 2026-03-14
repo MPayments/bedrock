@@ -5,9 +5,9 @@ import {
   type BalanceHold,
   type BalancePosition,
 } from "@bedrock/balances/schema";
-import type { CorrelationContext } from "@bedrock/core/correlation";
-import { pgNotify } from "@bedrock/platform-persistence/notify";
-import type { Transaction } from "@bedrock/platform-persistence";
+import type { CorrelationContext } from "@bedrock/shared/core/correlation";
+import { pgNotify } from "@bedrock/platform/persistence/notify";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 import { BALANCES_IDEMPOTENCY_SCOPE } from "./idempotency";
 import {

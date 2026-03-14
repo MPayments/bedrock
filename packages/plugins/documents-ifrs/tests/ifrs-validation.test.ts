@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeMajorAmountInput } from "@bedrock/money";
+import { normalizeMajorAmountInput } from "@bedrock/shared/money";
 
 import {
   CapitalFundingInputSchema,

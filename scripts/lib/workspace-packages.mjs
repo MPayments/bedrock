@@ -64,10 +64,17 @@ function normalizeKind(kind) {
 }
 
 function classifyPackageKind(relDir) {
-  if (relDir.startsWith("packages/shared/")) return "shared";
+  if (relDir === "packages/shared" || relDir.startsWith("packages/shared/")) {
+    return "shared";
+  }
   if (relDir.startsWith("packages/modules/")) return "module";
   if (relDir.startsWith("packages/workflows/")) return "workflow";
-  if (relDir.startsWith("packages/platform/")) return "platform";
+  if (
+    relDir === "packages/platform" ||
+    relDir.startsWith("packages/platform/")
+  ) {
+    return "platform";
+  }
   if (relDir.startsWith("packages/plugins/")) return "plugin";
   if (relDir.startsWith("packages/sdk/")) return "sdk";
   if (relDir.startsWith("packages/tooling/")) return "tooling";

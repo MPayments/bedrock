@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { schema } from "@bedrock/platform-postgres";
+import { schema } from "@bedrock/platform/postgres";
 
 import { seedCounterparties } from "../../src/seeds/counterparties";
 import { COUNTERPARTIES, CUSTOMERS } from "../../src/seeds/fixtures";

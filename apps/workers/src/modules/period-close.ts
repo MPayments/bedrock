@@ -2,14 +2,14 @@ import { and, asc, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
 import { createAccountingPeriodsService } from "@bedrock/accounting/periods";
-import { canonicalJson } from "@bedrock/core/canon";
-import type { BedrockWorker } from "@bedrock/platform-worker-runtime";
+import { canonicalJson } from "@bedrock/shared/core/canon";
+import type { BedrockWorker } from "@bedrock/platform/worker-runtime";
 import { schema as documentsSchema, type Document } from "@bedrock/documents/schema";
-import { user } from "@bedrock/platform-auth-model/schema";
-import type { Logger } from "@bedrock/platform-observability/logger";
+import { user } from "@bedrock/platform/auth-model/schema";
+import type { Logger } from "@bedrock/platform/observability/logger";
 import { listInternalLedgerOrganizations } from "@bedrock/organizations";
-import type { Database, Transaction } from "@bedrock/platform-persistence/drizzle";
-import { pgNotify } from "@bedrock/platform-persistence/notify";
+import type { Database, Transaction } from "@bedrock/platform/persistence/drizzle";
+import { pgNotify } from "@bedrock/platform/persistence/notify";
 import {
   createPeriodCloseWorkerRunner,
   type PeriodCloseWorkerOrganizationContext,

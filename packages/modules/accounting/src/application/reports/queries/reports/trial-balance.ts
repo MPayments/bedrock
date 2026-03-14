@@ -3,7 +3,7 @@ import {
   resolveSortOrder,
   sortInMemory,
   type PaginatedList,
-} from "@bedrock/core/pagination";
+} from "@bedrock/shared/core/pagination";
 
 import type {
   AccountingReportsContext,

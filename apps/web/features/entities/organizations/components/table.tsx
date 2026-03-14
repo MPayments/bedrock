@@ -5,7 +5,7 @@ import type { ColumnDef, Row as TanstackRow } from "@tanstack/react-table";
 import * as React from "react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
-import { COUNTRIES } from "@bedrock/reference-data/countries";
+import { COUNTRIES } from "@bedrock/shared/reference-data/countries";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { EntityTableShell } from "@/components/entities/entity-table-shell";

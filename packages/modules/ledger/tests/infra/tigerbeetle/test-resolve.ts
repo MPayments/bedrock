@@ -11,7 +11,7 @@ import {
   type TbClient,
 } from "@bedrock/ledger/infra/tigerbeetle";
 import { schema, type Dimensions } from "@bedrock/ledger/schema";
-import type { Database } from "@bedrock/platform-persistence/drizzle";
+import type { Database } from "@bedrock/platform/persistence/drizzle";
 
 function accountCodeFromSeed(seed: string): number {
   const normalized = seed.trim().toLowerCase();

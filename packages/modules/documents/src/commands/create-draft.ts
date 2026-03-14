@@ -1,5 +1,5 @@
 import { schema, type Document } from "@bedrock/documents/schema";
-import type { Transaction } from "@bedrock/platform-persistence";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 import { isSystemOnlyDocumentType } from "../doc-type-rules";
 import { DocumentValidationError } from "../errors";

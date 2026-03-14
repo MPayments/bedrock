@@ -5,7 +5,7 @@ import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { schema as organizationsSchema } from "@bedrock/organizations/schema";
 import { schema as requisitesSchema } from "@bedrock/requisites/schema";
-import type { Database, Transaction } from "@bedrock/platform-persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import { schema as accountingSchema } from "../../../schema";
 import type { LineMapping, ScopedPosting } from "../../../domain/reports/types";

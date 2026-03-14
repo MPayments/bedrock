@@ -1,4 +1,4 @@
-import { normalizeMajorAmountInput } from "@bedrock/money";
+import { normalizeMajorAmountInput } from "@bedrock/shared/money";
 
 import { TransferIntraInputSchema } from "../validation";
 import {

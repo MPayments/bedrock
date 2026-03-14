@@ -22,8 +22,8 @@
     "@bedrock/accounting": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/plugin-documents-sdk": "workspace:*",
-    "@bedrock/money": "workspace:*",
-    "zod": "^4.1.11"
+    "zod": "^4.1.11",
+    "@bedrock/shared": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/typescript-config": "workspace:*",

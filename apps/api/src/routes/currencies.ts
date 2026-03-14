@@ -12,7 +12,7 @@ import {
   CurrencyOptionSchema,
   CurrencyOptionsResponseSchema,
 } from "@bedrock/currencies/contracts";
-import { createPaginatedListSchema } from "@bedrock/core/pagination";
+import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
