@@ -6,9 +6,7 @@ import type { Transaction } from "@bedrock/persistence";
 import {
   ensureCustomerGroupForCustomer,
 } from "./internal/group-rules";
-import { resolveGroupMembershipClassification } from "./internal/group-rules";
 import {
-  dedupeIds,
   listCounterpartyGroupSubtreeIds,
 } from "./internal/shared-group-rules";
 import { schema } from "./schema";
@@ -63,8 +61,13 @@ async function detachCounterpartiesFromCustomerTree(
     .select({
       counterpartyId: schema.counterpartyGroupMemberships.counterpartyId,
       groupId: schema.counterpartyGroupMemberships.groupId,
+      customerId: schema.counterpartyGroups.customerId,
     })
     .from(schema.counterpartyGroupMemberships)
+    .innerJoin(
+      schema.counterpartyGroups,
+      eq(schema.counterpartyGroups.id, schema.counterpartyGroupMemberships.groupId),
+    )
     .where(
       inArray(
         schema.counterpartyGroupMemberships.counterpartyId,
@@ -72,17 +75,12 @@ async function detachCounterpartiesFromCustomerTree(
       ),
     );
 
-  const classification = await resolveGroupMembershipClassification(
-    tx,
-    memberships.map((membership) => membership.groupId),
-  );
-  const removableGroupIds = dedupeIds(
-    memberships
-      .filter((membership) => {
-        const rootCode = classification.rootsByGroupId.get(membership.groupId);
-        return rootCode === "customers";
-      })
-      .map((membership) => membership.groupId),
+  const removableGroupIds = Array.from(
+    new Set(
+      memberships
+        .filter((membership) => membership.customerId === customerId)
+        .map((membership) => membership.groupId),
+    ),
   );
 
   if (removableGroupIds.length > 0) {

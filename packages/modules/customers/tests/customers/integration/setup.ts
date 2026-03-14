@@ -45,13 +45,13 @@ async function cleanupCustomerTables() {
          SELECT id
          FROM counterparty_groups
          WHERE code LIKE 'customer:%'
-            OR code LIKE 'treasury-leaf-%'
+            OR code LIKE 'shared-leaf-%'
        )
   `);
   await pool.query(`
     DELETE FROM counterparty_groups
     WHERE code LIKE 'customer:%'
-       OR code LIKE 'treasury-leaf-%'
+       OR code LIKE 'shared-leaf-%'
   `);
   await pool.query(`
     DELETE FROM counterparties

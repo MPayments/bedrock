@@ -32,7 +32,11 @@ type ResolveBreadcrumbItemsOptions = {
 const segmentMap: Record<string, SegmentConfig> = {
   treasury: { label: "Казначейство", href: "/treasury", icon: "landmark" },
   fx: { label: "FX", href: "/fx", icon: "currency" },
-  transfers: { label: "Переводы", href: "/transfers", icon: "arrow-right-left" },
+  transfers: {
+    label: "Переводы",
+    href: "/documents/transfers",
+    icon: "arrow-right-left",
+  },
   ifrs: { label: "Учетные документы", icon: "book-open" },
   documents: { label: "Документы", href: "/documents", icon: "book-open" },
   settings: { label: "Настройки", href: "/settings", icon: "settings" },
@@ -102,13 +106,52 @@ function decodeSegment(segment: string) {
   }
 }
 
-function getCounterpartiesListHref(segments: string[], index: number): string {
+function getCounterpartiesListHref(): string {
+  return "/entities/counterparties";
+}
+
+function getOrganizationsListHref(segments: string[], index: number): string {
   const parentSegments = segments.slice(0, index);
   if (parentSegments.includes("treasury")) {
-    return "/treasury/counterparties";
+    return "/treasury/organizations";
   }
 
-  return "/entities/counterparties";
+  return "/entities/organizations";
+}
+
+function resolveStaticSegment(
+  segment: string,
+  segments: string[],
+  index: number,
+): BreadcrumbItem | null {
+  const config = segmentMap[segment];
+  if (!config) {
+    return null;
+  }
+
+  if (segment === "counterparties") {
+    return {
+      ...config,
+      href: getCounterpartiesListHref(),
+    };
+  }
+
+  if (segment === "organizations") {
+    return {
+      ...config,
+      href: getOrganizationsListHref(segments, index),
+    };
+  }
+
+  if (segment === "accounts" && segments.includes("accounting")) {
+    return {
+      ...config,
+      label: "Счета",
+      href: "/accounting/accounts",
+    };
+  }
+
+  return config;
 }
 
 export async function resolveBreadcrumbItems(
@@ -135,24 +178,9 @@ export async function resolveBreadcrumbItems(
         }
       }
 
-      const config = segmentMap[segment];
-      if (config) {
-        if (segment === "counterparties") {
-          return {
-            ...config,
-            href: getCounterpartiesListHref(segments, index),
-          };
-        }
-
-        if (segment === "accounts" && segments.includes("accounting")) {
-          return {
-            ...config,
-            label: "Счета",
-            href: "/accounting/accounts",
-          };
-        }
-
-        return config;
+      const staticSegment = resolveStaticSegment(segment, segments, index);
+      if (staticSegment) {
+        return staticSegment;
       }
 
       if (parentSegment) {

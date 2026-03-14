@@ -20,7 +20,6 @@ import { executeMutation } from "@/lib/resources/http";
 type CounterpartyEditFormProps = {
   counterparty: CounterpartyDetails;
   initialGroupOptions: CounterpartyGroupOption[];
-  allowedRootCode?: "treasury" | "customers";
   lockedGroupIds?: string[];
   listPath?: string;
   disableSubmit?: boolean;
@@ -44,7 +43,6 @@ function toFormValues(
 export function CounterpartyEditForm({
   counterparty,
   initialGroupOptions,
-  allowedRootCode,
   lockedGroupIds,
   listPath = "/entities/counterparties",
   disableSubmit = false,
@@ -142,7 +140,6 @@ export function CounterpartyEditForm({
     <CounterpartyEditGeneralForm
       initialValues={initialValues}
       groupOptions={initialGroupOptions}
-      allowedRootCode={allowedRootCode}
       lockedGroupIds={lockedGroupIds}
       submitting={submitting}
       deleting={deleting}

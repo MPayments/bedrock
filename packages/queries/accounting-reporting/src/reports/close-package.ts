@@ -1,9 +1,9 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 
-import { isInternalLedgerCounterparty } from "@bedrock/counterparties";
 import { canonicalJson } from "@bedrock/core/canon";
 import { sha256Hex } from "@bedrock/core/crypto";
 import { ValidationError } from "@bedrock/core/errors";
+import { assertInternalLedgerOrganization } from "@bedrock/organizations";
 
 import type {
   AccountingReportsContext,
@@ -49,22 +49,30 @@ export function createListClosePackageHandler(input: {
     const query = ClosePackageQuerySchema.parse(inputQuery ?? {});
     const periodStart = normalizeMonthStart(new Date(query.periodStart));
 
-    const isInternalCounterparty = await isInternalLedgerCounterparty({
+    await assertInternalLedgerOrganization({
       db: context.db,
-      counterpartyId: query.counterpartyId,
+      organizationId: query.organizationId,
     });
-    if (!isInternalCounterparty) {
+
+    const organizationBooks = await context.db
+      .select({ id: schema.books.id })
+      .from(schema.books)
+      .where(eq(schema.books.ownerId, query.organizationId));
+
+    if (organizationBooks.length === 0) {
       throw new ValidationError(
-        `Close package is available only for internal ledger counterparties: ${query.counterpartyId}`,
+        `No internal-ledger books found for organization ${query.organizationId}`,
       );
     }
+
+    const organizationBookIds = organizationBooks.map((row) => row.id);
 
     const existingRows = await context.db
       .select()
       .from(schema.accountingClosePackages)
       .where(
         and(
-          eq(schema.accountingClosePackages.counterpartyId, query.counterpartyId),
+          eq(schema.accountingClosePackages.organizationId, query.organizationId),
           eq(schema.accountingClosePackages.periodStart, periodStart),
         ),
       )
@@ -135,7 +143,7 @@ export function createListClosePackageHandler(input: {
         : [];
       return {
         id: row.id,
-        counterpartyId: row.counterpartyId,
+        organizationId: row.organizationId,
         periodStart: row.periodStart,
         periodEnd: row.periodEnd,
         revision: row.revision,
@@ -162,7 +170,7 @@ export function createListClosePackageHandler(input: {
       .from(schema.accountingPeriodLocks)
       .where(
         and(
-          eq(schema.accountingPeriodLocks.counterpartyId, query.counterpartyId),
+          eq(schema.accountingPeriodLocks.organizationId, query.organizationId),
           eq(schema.accountingPeriodLocks.periodStart, periodStart),
         ),
       )
@@ -170,19 +178,19 @@ export function createListClosePackageHandler(input: {
 
     if (!lock) {
       throw new ValidationError(
-        `No period lock found for counterparty ${query.counterpartyId} and period ${periodStart.toISOString()}`,
+        `No period lock found for organization ${query.organizationId} and period ${periodStart.toISOString()}`,
       );
     }
 
     const periodEnd = lock.periodEnd;
 
     const trialBalance = await listTrialBalance({
-      scopeType: "counterparty",
-      counterpartyId: [query.counterpartyId],
+      scopeType: "book",
+      counterpartyId: [],
       groupId: [],
-      bookId: [],
+      bookId: organizationBookIds,
       includeDescendants: true,
-      attributionMode: "analytic_counterparty",
+      attributionMode: "book_org",
       includeUnattributed: false,
       currency: undefined,
       status: ["posted"],
@@ -195,12 +203,12 @@ export function createListClosePackageHandler(input: {
     });
 
     const income = await listIncomeStatement({
-      scopeType: "counterparty",
-      counterpartyId: [query.counterpartyId],
+      scopeType: "book",
+      counterpartyId: [],
       groupId: [],
-      bookId: [],
+      bookId: organizationBookIds,
       includeDescendants: true,
-      attributionMode: "analytic_counterparty",
+      attributionMode: "book_org",
       includeUnattributed: false,
       currency: undefined,
       status: ["posted"],
@@ -209,12 +217,12 @@ export function createListClosePackageHandler(input: {
     });
 
     const cashFlow = await listCashFlow({
-      scopeType: "counterparty",
-      counterpartyId: [query.counterpartyId],
+      scopeType: "book",
+      counterpartyId: [],
       groupId: [],
-      bookId: [],
+      bookId: organizationBookIds,
       includeDescendants: true,
-      attributionMode: "analytic_counterparty",
+      attributionMode: "book_org",
       includeUnattributed: false,
       currency: undefined,
       status: ["posted"],
@@ -234,7 +242,12 @@ export function createListClosePackageHandler(input: {
       .from(schema.documents)
       .where(
         and(
-          eq(schema.documents.counterpartyId, query.counterpartyId),
+          or(
+            eq(schema.documents.counterpartyId, query.organizationId),
+            sql`${schema.documents.payload}->>'organizationId' = ${query.organizationId}`,
+            sql`${schema.documents.payload}->>'sourceOrganizationId' = ${query.organizationId}`,
+            sql`${schema.documents.payload}->>'destinationOrganizationId' = ${query.organizationId}`,
+          ),
           sql`${schema.documents.occurredAt} >= ${periodStart}`,
           sql`${schema.documents.occurredAt} <= ${periodEnd}`,
           inArray(schema.documents.docType, [
@@ -265,7 +278,7 @@ export function createListClosePackageHandler(input: {
     const closeDocumentId = lock.lockedByDocumentId;
     if (!closeDocumentId) {
       throw new ValidationError(
-        `Period lock for counterparty ${query.counterpartyId} does not reference close document`,
+        `Period lock for organization ${query.organizationId} does not reference close document`,
       );
     }
 
@@ -287,7 +300,7 @@ export function createListClosePackageHandler(input: {
       .from(schema.accountingClosePackages)
       .where(
         and(
-          eq(schema.accountingClosePackages.counterpartyId, query.counterpartyId),
+          eq(schema.accountingClosePackages.organizationId, query.organizationId),
           eq(schema.accountingClosePackages.periodStart, periodStart),
         ),
       );
@@ -296,7 +309,7 @@ export function createListClosePackageHandler(input: {
     const [inserted] = await context.db
       .insert(schema.accountingClosePackages)
       .values({
-        counterpartyId: query.counterpartyId,
+        organizationId: query.organizationId,
         periodStart,
         periodEnd,
         revision: maxRevision + 1,
@@ -310,7 +323,7 @@ export function createListClosePackageHandler(input: {
 
     return {
       id: inserted!.id,
-      counterpartyId: inserted!.counterpartyId,
+      organizationId: inserted!.organizationId,
       periodStart: inserted!.periodStart,
       periodEnd: inserted!.periodEnd,
       revision: inserted!.revision,

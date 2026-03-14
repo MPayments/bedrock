@@ -405,7 +405,7 @@ function createClosePackageReportRoutes(ctx: AppContext) {
     method: "get",
     path: "/",
     tags: ["Accounting"],
-    summary: "Close package snapshot for counterparty and period",
+    summary: "Close package snapshot for organization and period",
     request: {
       query: ClosePackageQuerySchema,
     },
@@ -476,8 +476,8 @@ function createClosePackageReportRoutes(ctx: AppContext) {
             payload.cashFlowSummaryByCurrency.length +
             payload.adjustments.length +
             payload.auditEvents.length,
-          scopeType: "counterparty",
-          attributionMode: "analytic_counterparty",
+          scopeType: "book",
+          attributionMode: "book_org",
           resolvedCounterpartyCount: 1,
         });
 
@@ -499,8 +499,8 @@ function createClosePackageReportRoutes(ctx: AppContext) {
           reportKey: "close-package",
           startedAt,
           rowCount: rows.length,
-          scopeType: "counterparty",
-          attributionMode: "analytic_counterparty",
+          scopeType: "book",
+          attributionMode: "book_org",
           resolvedCounterpartyCount: 1,
         });
 

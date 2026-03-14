@@ -7,9 +7,15 @@ import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 import { OrganizationsTable } from "@/features/entities/organizations/components/table";
 import { getOrganizations } from "@/features/entities/organizations/lib/queries";
+import { searchParamsCache } from "@/features/entities/organizations/lib/validations";
 
-export default async function OrganizationsPage() {
-  const promise = getOrganizations();
+interface PageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function OrganizationsPage({ searchParams }: PageProps) {
+  const parsedSearch = await searchParamsCache.parse(searchParams);
+  const promise = getOrganizations(parsedSearch);
 
   return (
     <EntityListPageShell
@@ -26,7 +32,9 @@ export default async function OrganizationsPage() {
           <span className="hidden md:block">Добавить</span>
         </Button>
       }
-      fallback={<DataTableSkeleton columnCount={5} rowCount={10} filterCount={0} />}
+      fallback={
+        <DataTableSkeleton columnCount={5} rowCount={10} filterCount={4} />
+      }
     >
       <OrganizationsTable promise={promise} />
     </EntityListPageShell>

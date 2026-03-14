@@ -20,8 +20,8 @@ import type {
   DocumentTransitionSpecs,
 } from "../commands/transition-runtime";
 import {
-  assertCounterpartyPeriodsOpen,
-  collectDocumentCounterpartyIds,
+  assertOrganizationPeriodsOpen,
+  collectDocumentOrganizationIds,
 } from "@bedrock/accounting-close";
 import { isDocumentActionAllowed } from "../state-machine";
 import type {
@@ -54,19 +54,18 @@ function buildTransitionEvent(input: {
   };
 }
 
-async function assertCounterpartyPeriodsOpenForDocument(input: {
+async function assertOrganizationPeriodsOpenForDocument(input: {
   context: DocumentTransitionExecutionContext;
   document: DocumentTransitionExecutionContext["document"];
 }) {
-  const counterpartyIds = collectDocumentCounterpartyIds({
-    documentCounterpartyId: input.document.counterpartyId,
+  const organizationIds = collectDocumentOrganizationIds({
     payload: input.document.payload,
   });
 
-  await assertCounterpartyPeriodsOpen({
+  await assertOrganizationPeriodsOpen({
     db: input.context.tx,
     occurredAt: input.document.occurredAt,
-    counterpartyIds,
+    organizationIds,
     docType: input.context.input.docType,
   });
 }
@@ -97,7 +96,7 @@ async function runSubmit(context: DocumentTransitionExecutionContext) {
     throw new InvalidStateError("Only draft documents can be submitted");
   }
 
-  await assertCounterpartyPeriodsOpenForDocument({
+  await assertOrganizationPeriodsOpenForDocument({
     context,
     document: context.document,
   });
@@ -248,7 +247,7 @@ async function runCancel(context: DocumentTransitionExecutionContext) {
     );
   }
 
-  await assertCounterpartyPeriodsOpenForDocument({
+  await assertOrganizationPeriodsOpenForDocument({
     context,
     document: context.document,
   });
@@ -318,7 +317,7 @@ async function runRepost(context: DocumentTransitionExecutionContext) {
     throw new InvalidStateError("Only failed documents can be reposted");
   }
 
-  await assertCounterpartyPeriodsOpenForDocument({
+  await assertOrganizationPeriodsOpenForDocument({
     context,
     document: context.document,
   });
@@ -494,7 +493,7 @@ async function runPost(context: DocumentTransitionExecutionContext) {
     );
   }
 
-  await assertCounterpartyPeriodsOpenForDocument({
+  await assertOrganizationPeriodsOpenForDocument({
     context,
     document: postingDocument,
   });

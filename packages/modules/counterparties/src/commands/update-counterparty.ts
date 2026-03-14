@@ -4,19 +4,14 @@ import { schema } from "@bedrock/counterparties/schema";
 
 import { CounterpartyNotFoundError } from "../errors";
 import type { CounterpartiesServiceContext } from "../internal/context";
-import { ensureInternalLedgerDefaultBookIdTx } from "../internal/default-book";
 import {
-  CUSTOMERS_ROOT_GROUP_CODE,
-  TREASURY_ROOT_GROUP_CODE,
   enforceCustomerLinkRules,
   ensureCustomerGroupForCustomer,
-  ensureSystemRootGroups,
   readMembershipIds,
   replaceMemberships,
   resolveGroupMembershipClassification,
   withoutRootGroups,
 } from "../internal/group-rules";
-import { isInternalLedgerCounterparty } from "../internal-ledger";
 import {
   UpdateCounterpartyInputSchema,
   type Counterparty,
@@ -35,8 +30,6 @@ export function createUpdateCounterpartyHandler(
     const validated = UpdateCounterpartyInputSchema.parse(input);
 
     return db.transaction(async (tx) => {
-      await ensureSystemRootGroups(tx);
-
       const [existing] = await tx
         .select()
         .from(schema.counterparties)
@@ -62,19 +55,7 @@ export function createUpdateCounterpartyHandler(
         validated.groupIds === undefined &&
         validated.customerId !== undefined
       ) {
-        if (nextCustomerId) {
-          nextGroupIds = await withoutRootGroups(
-            tx,
-            nextGroupIds,
-            TREASURY_ROOT_GROUP_CODE,
-          );
-        } else {
-          nextGroupIds = await withoutRootGroups(
-            tx,
-            nextGroupIds,
-            CUSTOMERS_ROOT_GROUP_CODE,
-          );
-        }
+        nextGroupIds = await withoutRootGroups(tx, nextGroupIds);
       }
 
       if (nextCustomerId) {
@@ -136,15 +117,6 @@ export function createUpdateCounterpartyHandler(
 
       if (validated.groupIds !== undefined || membershipChanged) {
         await replaceMemberships(tx, id, nextGroupIds);
-
-        if (
-          await isInternalLedgerCounterparty({
-            db: tx,
-            counterpartyId: id,
-          })
-        ) {
-          await ensureInternalLedgerDefaultBookIdTx(tx, id);
-        }
       }
 
       log.info("Counterparty updated", { id });

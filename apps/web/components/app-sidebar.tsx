@@ -46,7 +46,7 @@ export function AppSidebar({
                 <Stone className="size-6" />
               </div>
               <div className="grid flex-1 text-left text-xl leading-tight">
-                <span className="truncate font-semibold">Highrock Finance</span>
+                <span className="truncate font-semibold">Multihansa Finance</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

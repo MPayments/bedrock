@@ -1,11 +1,15 @@
 import { cache } from "react";
 import { z } from "zod";
 
+import { ORGANIZATIONS_LIST_CONTRACT } from "@bedrock/organizations/contracts";
+
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import { readEntityById, readPaginatedList } from "@/lib/api/query";
+import { createResourceListQuery } from "@/lib/resources/search-params";
 
 import type { OrganizationsListResult, SerializedOrganization } from "./types";
+import type { OrganizationsSearchParams } from "./validations";
 
 const OrganizationApiSchema = z.object({
   id: z.uuid(),
@@ -29,18 +33,22 @@ function serializeOrganization(
   return row;
 }
 
-export async function getOrganizations(): Promise<OrganizationsListResult> {
+function createOrganizationsListQuery(search: OrganizationsSearchParams) {
+  return createResourceListQuery(ORGANIZATIONS_LIST_CONTRACT, search);
+}
+
+export async function getOrganizations(
+  search: OrganizationsSearchParams = {},
+): Promise<OrganizationsListResult> {
   const client = await getServerApiClient();
   const { data } = await readPaginatedList({
     request: () =>
-      client.v1.organizations.$get({
-        query: {
-          limit: 200,
-          offset: 0,
-          sortBy: "updatedAt",
-          sortOrder: "desc",
+      client.v1.organizations.$get(
+        {
+          query: createOrganizationsListQuery(search),
         },
-      }),
+        { init: { cache: "no-store" } },
+      ),
     schema: OrganizationsResponseSchema,
     context: "Не удалось загрузить организации",
   });

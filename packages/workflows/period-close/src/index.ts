@@ -1,5 +1,5 @@
 export {
   createPeriodCloseWorkerRunner,
-  type CreatePeriodCloseForCounterpartyInput,
-  type PeriodCloseWorkerCounterpartyContext,
+  type CreatePeriodCloseForOrganizationInput,
+  type PeriodCloseWorkerOrganizationContext,
 } from "./service";

@@ -1,4 +1,5 @@
 import type { OrganizationsServiceContext } from "../internal/context";
+import { ensureOrganizationDefaultBookIdTx } from "../default-book";
 import { schema } from "../schema";
 import {
   CreateOrganizationInputSchema,
@@ -16,23 +17,27 @@ export function createCreateOrganizationHandler(
   ): Promise<Organization> {
     const validated = CreateOrganizationInputSchema.parse(input);
 
-    const [created] = await db
-      .insert(schema.organizations)
-      .values({
-        shortName: validated.shortName,
-        fullName: validated.fullName,
-        kind: validated.kind,
-        country: validated.country ?? null,
-        externalId: validated.externalId ?? null,
-        description: validated.description ?? null,
-      })
-      .returning();
+    return db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(schema.organizations)
+        .values({
+          shortName: validated.shortName,
+          fullName: validated.fullName,
+          kind: validated.kind,
+          country: validated.country ?? null,
+          externalId: validated.externalId ?? null,
+          description: validated.description ?? null,
+        })
+        .returning();
 
-    log.info("Organization created", {
-      id: created!.id,
-      shortName: created!.shortName,
+      await ensureOrganizationDefaultBookIdTx(tx, created!.id);
+
+      log.info("Organization created", {
+        id: created!.id,
+        shortName: created!.shortName,
+      });
+
+      return created!;
     });
-
-    return created!;
   };
 }

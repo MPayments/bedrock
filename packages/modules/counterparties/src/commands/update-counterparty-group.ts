@@ -9,10 +9,6 @@ import {
 import type { CounterpartiesServiceContext } from "../internal/context";
 import {
   assertCustomerExists,
-  CUSTOMERS_ROOT_GROUP_CODE,
-  TREASURY_INTERNAL_LEDGER_GROUP_CODE,
-  TREASURY_ROOT_GROUP_CODE,
-  resolveGroupMembershipClassification,
 } from "../internal/group-rules";
 import {
   UpdateCounterpartyGroupInputSchema,
@@ -41,10 +37,7 @@ export function createUpdateCounterpartyGroupHandler(
       throw new CounterpartyGroupNotFoundError(id);
     }
 
-    const isReservedRootGroup =
-      existing.code === TREASURY_ROOT_GROUP_CODE ||
-      existing.code === CUSTOMERS_ROOT_GROUP_CODE ||
-      existing.code === TREASURY_INTERNAL_LEDGER_GROUP_CODE;
+    const isManagedCustomerGroup = existing.code.startsWith("customer:");
     const hasRequestedChanges =
       validated.code !== undefined ||
       validated.name !== undefined ||
@@ -52,9 +45,9 @@ export function createUpdateCounterpartyGroupHandler(
       validated.parentId !== undefined ||
       validated.customerId !== undefined;
 
-    if (isReservedRootGroup && hasRequestedChanges) {
+    if (isManagedCustomerGroup && hasRequestedChanges) {
       throw new CounterpartyGroupRuleError(
-        "System root groups cannot be modified",
+        "Customer-generated groups cannot be modified",
       );
     }
 
@@ -65,15 +58,9 @@ export function createUpdateCounterpartyGroupHandler(
         ? validated.customerId
         : existing.customerId;
 
-    if (
-      validated.code &&
-      (validated.code === TREASURY_ROOT_GROUP_CODE ||
-        validated.code === CUSTOMERS_ROOT_GROUP_CODE ||
-        validated.code === TREASURY_INTERNAL_LEDGER_GROUP_CODE) &&
-      !existing.isSystem
-    ) {
+    if (validated.code?.startsWith("customer:") && !existing.code.startsWith("customer:")) {
       throw new CounterpartyGroupRuleError(
-        "System root group codes are reserved",
+        "Customer-generated group codes are reserved",
       );
     }
 
@@ -98,12 +85,6 @@ export function createUpdateCounterpartyGroupHandler(
         throw new CounterpartyGroupNotFoundError(nextParentId);
       }
 
-      const classification = await resolveGroupMembershipClassification(db, [
-        nextParentId,
-      ]);
-      const parentRoot =
-        classification.rootsByGroupId.get(nextParentId) ?? null;
-
       if (parent.customerId) {
         nextCustomerId = nextCustomerId ?? parent.customerId;
         if (nextCustomerId !== parent.customerId) {
@@ -111,11 +92,9 @@ export function createUpdateCounterpartyGroupHandler(
             "Child group customerId must match scoped parent customerId",
           );
         }
-      }
-
-      if (parentRoot !== CUSTOMERS_ROOT_GROUP_CODE && nextCustomerId) {
+      } else if (nextCustomerId) {
         throw new CounterpartyGroupRuleError(
-          "customerId is allowed only in customers tree groups",
+          "customerId is allowed only under customer-generated parent groups",
         );
       }
 
@@ -148,7 +127,7 @@ export function createUpdateCounterpartyGroupHandler(
       }
     }
 
-    if (!nextParentId && nextCustomerId) {
+    if (!nextParentId && nextCustomerId && !existing.code.startsWith("customer:")) {
       throw new CounterpartyGroupRuleError(
         "Root custom groups cannot have customerId",
       );

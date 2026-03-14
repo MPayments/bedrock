@@ -10,51 +10,13 @@ import {
 } from "../../../src/index";
 import { customers } from "../../../src/schema";
 
-const CUSTOMERS_ROOT_GROUP_CODE = "customers";
-const TREASURY_ROOT_GROUP_CODE = "treasury";
-
 function uniq(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function createTestCustomerLifecycleSyncPort(): CustomerLifecycleSyncPort {
-  async function ensureSystemRootGroups(
-    tx: Parameters<CustomerLifecycleSyncPort["onCustomerCreated"]>[0],
-  ) {
-    await tx.execute(sql`
-      INSERT INTO counterparty_groups (
-        code,
-        name,
-        description,
-        parent_id,
-        customer_id,
-        is_system
-      )
-      VALUES
-        (
-          ${TREASURY_ROOT_GROUP_CODE},
-          'Treasury',
-          'System treasury root',
-          NULL,
-          NULL,
-          TRUE
-        ),
-        (
-          ${CUSTOMERS_ROOT_GROUP_CODE},
-          'Customers',
-          'System customers root',
-          NULL,
-          NULL,
-          TRUE
-        )
-      ON CONFLICT (code) DO NOTHING
-    `);
-  }
-
   return {
     async onCustomerCreated(tx, input) {
-      await ensureSystemRootGroups(tx);
-
       await tx.execute(sql`
         INSERT INTO counterparty_groups (
           code,
@@ -68,11 +30,9 @@ function createTestCustomerLifecycleSyncPort(): CustomerLifecycleSyncPort {
           ${`customer:${input.customerId}`},
           ${input.displayName},
           'Customer-scoped counterparty group',
-          root.id,
+          NULL,
           ${input.customerId}::uuid,
-          TRUE
-        FROM counterparty_groups AS root
-        WHERE root.code = ${CUSTOMERS_ROOT_GROUP_CODE}
+          FALSE
         ON CONFLICT (code) DO UPDATE
         SET
           name = EXCLUDED.name,
@@ -127,7 +87,7 @@ function createTestCustomerLifecycleSyncPort(): CustomerLifecycleSyncPort {
 }
 
 describe("Customers service integration", () => {
-  it("creates system groups and customer group", async () => {
+  it("creates a top-level customer group", async () => {
     const service = createCustomersService({
       db,
       customerLifecycleSyncPort: createTestCustomerLifecycleSyncPort(),
@@ -138,26 +98,15 @@ describe("Customers service integration", () => {
       externalRef: "crm-acme",
     });
 
-    const rootsResult = await pool.query<{ id: string; code: string }>(
-      `
-        SELECT id, code
-        FROM counterparty_groups
-        WHERE code = ANY($1::text[])
-      `,
-      [[TREASURY_ROOT_GROUP_CODE, CUSTOMERS_ROOT_GROUP_CODE]],
-    );
-    const roots = rootsResult.rows;
-    const customersRoot = roots.find(
-      (group) => group.code === CUSTOMERS_ROOT_GROUP_CODE,
-    );
     const customerGroupCode = `customer:${created.id}`;
     const customerGroupResult = await pool.query<{
       id: string;
       parentId: string | null;
       name: string;
+      isSystem: boolean;
     }>(
       `
-        SELECT id, parent_id AS "parentId", name
+        SELECT id, parent_id AS "parentId", name, is_system AS "isSystem"
         FROM counterparty_groups
         WHERE code = $1
         LIMIT 1
@@ -166,11 +115,10 @@ describe("Customers service integration", () => {
     );
     const customerGroup = customerGroupResult.rows[0];
 
-    expect(roots).toHaveLength(2);
-    expect(customersRoot).toBeDefined();
     expect(customerGroup).toBeDefined();
-    expect(customerGroup!.parentId).toBe(customersRoot!.id);
+    expect(customerGroup!.parentId).toBeNull();
     expect(customerGroup!.name).toBe("Acme Corp");
+    expect(customerGroup!.isSystem).toBe(false);
   });
 
   it("updates customer display name and syncs customer group name", async () => {
@@ -213,28 +161,6 @@ describe("Customers service integration", () => {
       externalRef: "crm-detach",
     });
 
-    const customersRootResult = await pool.query<{ id: string }>(
-      `
-        SELECT id
-        FROM counterparty_groups
-        WHERE code = $1
-        LIMIT 1
-      `,
-      [CUSTOMERS_ROOT_GROUP_CODE],
-    );
-    const customersRoot = customersRootResult.rows[0];
-
-    const treasuryRootResult = await pool.query<{ id: string }>(
-      `
-        SELECT id
-        FROM counterparty_groups
-        WHERE code = $1
-        LIMIT 1
-      `,
-      [TREASURY_ROOT_GROUP_CODE],
-    );
-    const treasuryRoot = treasuryRootResult.rows[0];
-
     const customerGroupResult = await pool.query<{ id: string }>(
       `
         SELECT id
@@ -270,7 +196,7 @@ describe("Customers service integration", () => {
     );
     const customerLeaf = customerLeafResult.rows[0];
 
-    const treasuryLeafResult = await pool.query<{ id: string }>(
+    const sharedLeafResult = await pool.query<{ id: string }>(
       `
         INSERT INTO counterparty_groups (
           code,
@@ -284,15 +210,15 @@ describe("Customers service integration", () => {
         RETURNING id
       `,
       [
-        uniq("treasury-leaf"),
-        "Treasury Leaf",
+        uniq("shared-leaf"),
+        "Shared Leaf",
         "Integration test node",
-        treasuryRoot!.id,
+        null,
         null,
         false,
       ],
     );
-    const treasuryLeaf = treasuryLeafResult.rows[0];
+    const sharedLeaf = sharedLeafResult.rows[0];
 
     const counterpartyResult = await pool.query<{ id: string }>(
       `
@@ -325,7 +251,7 @@ describe("Customers service integration", () => {
         INSERT INTO counterparty_group_memberships (counterparty_id, group_id)
         VALUES ($1, $2), ($1, $3)
       `,
-      [counterparty!.id, customerLeaf!.id, treasuryLeaf!.id],
+      [counterparty!.id, customerLeaf!.id, sharedLeaf!.id],
     );
 
     await service.remove(customer.id);
@@ -369,11 +295,10 @@ describe("Customers service integration", () => {
     );
     const customerTreeGroups = customerTreeGroupsResult.rows;
 
-    expect(customersRoot).toBeDefined();
     expect(removedCustomer).toBeUndefined();
     expect(detachedCounterparty).toBeDefined();
     expect(detachedCounterparty!.customerId).toBeNull();
-    expect(memberships).toEqual([{ groupId: treasuryLeaf!.id }]);
+    expect(memberships).toEqual([{ groupId: sharedLeaf!.id }]);
     expect(customerTreeGroups).toEqual([]);
   });
 

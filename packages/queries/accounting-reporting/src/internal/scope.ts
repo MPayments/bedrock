@@ -1,10 +1,8 @@
 import { inArray, sql, type SQL } from "drizzle-orm";
 
-import {
-  listInternalLedgerCounterparties,
-} from "@bedrock/counterparties";
 import type { Database } from "@bedrock/persistence";
 import { ValidationError } from "@bedrock/core/errors";
+import { listInternalLedgerOrganizations } from "@bedrock/organizations";
 
 import { toBigInt } from "./normalization";
 import { schema } from "./shared";
@@ -20,8 +18,8 @@ import type {
 } from "../reports-validation";
 
 export function createReportsScopeHelpers(db: Database) {
-  async function listInternalLedgerCounterpartyIds(): Promise<string[]> {
-    const rows = await listInternalLedgerCounterparties(db);
+  async function listInternalLedgerOrganizationIds(): Promise<string[]> {
+    const rows = await listInternalLedgerOrganizations(db);
     return rows.map((row) => row.id);
   }
 
@@ -153,19 +151,19 @@ export function createReportsScopeHelpers(db: Database) {
         : await db
             .select({
               id: schema.books.id,
-              counterpartyId: schema.books.ownerId,
+              organizationId: schema.books.ownerId,
             })
             .from(schema.books)
             .where(inArray(schema.books.id, bookIds));
 
-    const internalCounterpartyIdSet = new Set(
-      await listInternalLedgerCounterpartyIds(),
+    const internalOrganizationIdSet = new Set(
+      await listInternalLedgerOrganizationIds(),
     );
     const invalidBookIds = bookRows
       .filter(
         (row) =>
-          !row.counterpartyId ||
-          !internalCounterpartyIdSet.has(row.counterpartyId),
+          !row.organizationId ||
+          !internalOrganizationIdSet.has(row.organizationId),
       )
       .map((row) => row.id);
     if (invalidBookIds.length > 0) {
@@ -182,7 +180,7 @@ export function createReportsScopeHelpers(db: Database) {
       resolvedCounterpartyIds: Array.from(
         new Set(
           bookRows
-            .map((row) => row.counterpartyId)
+            .map((row) => row.organizationId)
             .filter((id): id is string => Boolean(id)),
         ),
       ),
@@ -227,11 +225,11 @@ export function createReportsScopeHelpers(db: Database) {
       return [];
     }
 
-    const internalLedgerCounterpartyIds =
+    const internalLedgerOrganizationIds =
       input.attributionMode === "book_org"
-        ? await listInternalLedgerCounterpartyIds()
+        ? await listInternalLedgerOrganizationIds()
         : [];
-    const internalLedgerCounterpartyIdSet = new Set(internalLedgerCounterpartyIds);
+    const internalLedgerOrganizationIdSet = new Set(internalLedgerOrganizationIds);
 
     const analyticAttributionSql = sql`CASE
       WHEN debit_inst.dimensions->>'counterpartyId' IS NOT NULL
@@ -286,15 +284,15 @@ export function createReportsScopeHelpers(db: Database) {
           )})`,
         );
       } else {
-        const bookScopedCounterpartyIds = input.scope.resolvedCounterpartyIds.filter((id) =>
-          internalLedgerCounterpartyIdSet.has(id),
+        const bookScopedOrganizationIds = input.scope.resolvedCounterpartyIds.filter((id) =>
+          internalLedgerOrganizationIdSet.has(id),
         );
-        if (bookScopedCounterpartyIds.length === 0) {
+        if (bookScopedOrganizationIds.length === 0) {
           return [];
         }
         conditions.push(
           sql`b.owner_id IN (${sql.join(
-            bookScopedCounterpartyIds.map((id) => sql`${id}`),
+            bookScopedOrganizationIds.map((id) => sql`${id}`),
             sql`, `,
           )})`,
         );
@@ -302,12 +300,12 @@ export function createReportsScopeHelpers(db: Database) {
     }
 
     if (input.attributionMode === "book_org") {
-      if (internalLedgerCounterpartyIds.length === 0) {
+      if (internalLedgerOrganizationIds.length === 0) {
         return [];
       }
       conditions.push(
         sql`b.owner_id IN (${sql.join(
-          internalLedgerCounterpartyIds.map((id) => sql`${id}`),
+          internalLedgerOrganizationIds.map((id) => sql`${id}`),
           sql`, `,
         )})`,
       );
@@ -394,7 +392,7 @@ export function createReportsScopeHelpers(db: Database) {
   }
 
   return {
-    listInternalLedgerCounterpartyIds,
+    listInternalLedgerOrganizationIds,
     resolveScope,
     buildScopeMeta,
     fetchScopedPostings,

@@ -12,7 +12,6 @@ import type { CounterpartiesServiceContext } from "../internal/context";
 import { readMembershipMap } from "../internal/group-rules";
 import {
   CountryCodeSchema,
-  CounterpartyGroupRootCodeSchema,
   CounterpartyKindSchema,
   ListCounterpartiesQuerySchema,
   type Counterparty,
@@ -48,7 +47,6 @@ export function createListCounterpartiesHandler(
       country,
       kind,
       groupIds,
-      groupRoot,
     } = query;
 
     const conditions: SQL[] = [];
@@ -107,76 +105,6 @@ export function createListCounterpartiesHandler(
 
       const matchingCounterpartyIds = matchingRows.map(
         (row) => row.counterpartyId,
-      );
-      if (matchingCounterpartyIds.length === 0) {
-        return emptyResult;
-      }
-
-      conditions.push(
-        inArray(schema.counterparties.id, matchingCounterpartyIds),
-      );
-    }
-
-    const groupRoots = groupRoot?.map((value) =>
-      CounterpartyGroupRootCodeSchema.parse(value),
-    );
-    if (groupRoots?.length) {
-      const groups = await db
-        .select({
-          id: schema.counterpartyGroups.id,
-          parentId: schema.counterpartyGroups.parentId,
-          code: schema.counterpartyGroups.code,
-        })
-        .from(schema.counterpartyGroups);
-      const groupById = new Map(groups.map((group) => [group.id, group]));
-
-      const rootCodeByGroupId = new Map<string, string>();
-      const resolveRootCode = (groupId: string): string | null => {
-        const cached = rootCodeByGroupId.get(groupId);
-        if (cached) {
-          return cached;
-        }
-
-        const visited = new Set<string>();
-        let cursor = groupById.get(groupId);
-        while (cursor) {
-          if (visited.has(cursor.id)) {
-            return null;
-          }
-          visited.add(cursor.id);
-
-          if (!cursor.parentId) {
-            rootCodeByGroupId.set(groupId, cursor.code);
-            return cursor.code;
-          }
-          cursor = groupById.get(cursor.parentId);
-        }
-
-        return null;
-      };
-
-      const matchingRows = await db
-        .select({
-          counterpartyId: schema.counterpartyGroupMemberships.counterpartyId,
-          groupId: schema.counterpartyGroupMemberships.groupId,
-        })
-        .from(schema.counterpartyGroupMemberships)
-        .groupBy(
-          schema.counterpartyGroupMemberships.counterpartyId,
-          schema.counterpartyGroupMemberships.groupId,
-        );
-
-      const matchingCounterpartyIds = Array.from(
-        new Set(
-          matchingRows
-            .filter((row) => {
-              const rootCode = resolveRootCode(row.groupId);
-              return rootCode
-                ? groupRoots.includes(rootCode as "treasury" | "customers")
-                : false;
-            })
-            .map((row) => row.counterpartyId),
-        ),
       );
       if (matchingCounterpartyIds.length === 0) {
         return emptyResult;

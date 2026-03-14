@@ -6,7 +6,7 @@ import {
 } from "./shared";
 
 export const PeriodReopenSchema = baseOccurredAtSchema.extend({
-  counterpartyId: z.uuid(),
+  organizationId: z.uuid(),
   periodStart: periodBoundarySchema,
   periodEnd: periodBoundarySchema.optional(),
   reopenReason: z.string().trim().max(500).optional(),

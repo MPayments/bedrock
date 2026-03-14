@@ -12,6 +12,7 @@ const TRANSFER_DOC_TYPES = [
   "transfer_intercompany",
   "transfer_resolution",
 ];
+const TRANSFERS_HREF = "/documents/transfers";
 
 function formatCount(value: number) {
   return value.toLocaleString("ru-RU");
@@ -46,7 +47,7 @@ export default async function DashboardPage() {
           value: formatCount(transferDocuments.total),
           description:
             "Внутренние/межкомпанейские переводы и документы transfer_resolution.",
-          href: "/transfers",
+          href: TRANSFERS_HREF,
         },
         {
           id: "fx",
@@ -87,7 +88,7 @@ export default async function DashboardPage() {
                 id: "transfers",
                 title: "Переводы",
                 description: "Открыть transfer workflow и связанные документы.",
-                href: "/transfers",
+                href: TRANSFERS_HREF,
                 cta: "Открыть переводы",
               },
               {

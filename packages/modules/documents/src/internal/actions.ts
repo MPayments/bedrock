@@ -3,8 +3,8 @@ import type { Logger } from "@bedrock/observability/logger";
 import type { Database, Transaction } from "@bedrock/persistence";
 
 import {
-  collectDocumentCounterpartyIds,
-  isCounterpartyPeriodClosed,
+  collectDocumentOrganizationIds,
+  isOrganizationPeriodClosed,
 } from "@bedrock/accounting-close";
 import {
   resolveDocumentAllowedActions,
@@ -75,19 +75,18 @@ const PERIOD_LOCKED_ACTIONS = new Set<DocumentAction>([
   "repost",
 ]);
 
-async function isDocumentLockedByCounterpartyPeriod(input: {
+async function isDocumentLockedByOrganizationPeriod(input: {
   db: Queryable;
   document: Document;
 }): Promise<boolean> {
-  const counterpartyIds = collectDocumentCounterpartyIds({
-    documentCounterpartyId: input.document.counterpartyId,
+  const organizationIds = collectDocumentOrganizationIds({
     payload: input.document.payload,
   });
 
-  for (const counterpartyId of counterpartyIds) {
-    const closed = await isCounterpartyPeriodClosed({
+  for (const organizationId of organizationIds) {
+    const closed = await isOrganizationPeriodClosed({
       db: input.db,
-      counterpartyId,
+      organizationId,
       occurredAt: input.document.occurredAt,
     });
     if (closed) {
@@ -176,7 +175,7 @@ export async function resolveDocumentAllowedActionsForActor(input: {
     return [];
   }
 
-  const periodLocked = await isDocumentLockedByCounterpartyPeriod({
+  const periodLocked = await isDocumentLockedByOrganizationPeriod({
     db: input.db,
     document: input.document,
   });

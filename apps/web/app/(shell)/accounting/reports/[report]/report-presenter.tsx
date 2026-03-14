@@ -168,6 +168,10 @@ const FIELD_META: Record<string, ColumnMeta> = {
     kind: "uuid",
     label: "ID контрагента",
   },
+  organizationId: {
+    kind: "uuid",
+    label: "ID организации",
+  },
   counterpartyName: {
     emptyLabel: "Без контрагента",
     label: "Контрагент",
@@ -1215,9 +1219,9 @@ export function buildReportOverviewCards(
       items: [
         { fieldKey: "id", label: "ID пакета", value: payload.id },
         {
-          fieldKey: "counterpartyId",
-          label: "Контрагент",
-          value: payload.counterpartyId,
+          fieldKey: "organizationId",
+          label: "Организация",
+          value: payload.organizationId,
         },
         {
           fieldKey: "periodStart",

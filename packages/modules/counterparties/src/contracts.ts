@@ -2,7 +2,6 @@ import { z } from "zod";
 
 export {
   CounterpartyKindSchema,
-  CounterpartyGroupRootCodeSchema,
   CountryCodeSchema,
   CounterpartySchema,
   COUNTERPARTIES_LIST_CONTRACT,
@@ -17,7 +16,6 @@ export {
 
 export type {
   CounterpartyKind,
-  CounterpartyGroupRootCode,
   Counterparty,
   ListCounterpartiesQuery,
   CreateCounterpartyInput,

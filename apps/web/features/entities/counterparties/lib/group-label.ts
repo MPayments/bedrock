@@ -1,21 +1,12 @@
 import type { CounterpartyGroupOption } from "./queries";
 
 const GROUP_PRESENTATION_BY_KEY = {
-  treasury: {
-    label: "Казначейство",
-    icon: "vault",
-  },
-  treasury_internal_entities: {
-    label: "Балансовые компании",
-    icon: "vault",
-  },
-  "treasury internal ledger entities": {
-    label: "Балансовые компании",
-    icon: "vault",
-  },
-  customers: {
+  customer: {
     label: "Клиенты",
     icon: "users",
+  },
+  custom: {
+    label: "Пользовательская группа",
   },
 } as const;
 

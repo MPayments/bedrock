@@ -6,6 +6,14 @@ import * as React from "react";
 
 import { DataTableColumnHeader } from "@/components/data-table/column-header";
 import { EntityTableShell } from "@/components/entities/entity-table-shell";
+import {
+  COUNTERPARTY_COUNTRY_OPTIONS,
+  getCountryPresentation,
+} from "@/features/entities/counterparties/lib/countries";
+import {
+  REQUISITE_KIND_FILTER_OPTIONS,
+  getRequisiteKindLabel,
+} from "@/features/entities/requisites-shared/lib/constants";
 import { formatDate } from "@/lib/format";
 
 import type {
@@ -13,12 +21,10 @@ import type {
   SerializedRequisiteProvider,
 } from "../lib/types";
 
-const KIND_LABELS: Record<SerializedRequisiteProvider["kind"], string> = {
-  bank: "Банк",
-  blockchain: "Блокчейн",
-  exchange: "Биржа",
-  custodian: "Кастодиан",
-};
+const COUNTRY_FILTER_OPTIONS = COUNTERPARTY_COUNTRY_OPTIONS.map((country) => ({
+  value: country.value,
+  label: country.label,
+}));
 
 const columns: ColumnDef<SerializedRequisiteProvider>[] = [
   {
@@ -26,6 +32,12 @@ const columns: ColumnDef<SerializedRequisiteProvider>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} label="Название" />
     ),
+    meta: {
+      label: "Название",
+      variant: "text",
+      placeholder: "Поиск по названию...",
+    },
+    enableColumnFilter: true,
     enableSorting: true,
   },
   {
@@ -33,7 +45,13 @@ const columns: ColumnDef<SerializedRequisiteProvider>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} label="Вид" />
     ),
-    cell: ({ row }) => KIND_LABELS[row.original.kind],
+    cell: ({ row }) => getRequisiteKindLabel(row.original.kind),
+    meta: {
+      label: "Вид",
+      variant: "multiSelect",
+      options: REQUISITE_KIND_FILTER_OPTIONS,
+    },
+    enableColumnFilter: true,
     enableSorting: true,
   },
   {
@@ -41,7 +59,17 @@ const columns: ColumnDef<SerializedRequisiteProvider>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} label="Страна" />
     ),
-    cell: ({ row }) => row.original.country ?? "—",
+    cell: ({ row }) => {
+      const presentation = getCountryPresentation(row.original.country);
+      return presentation?.label ?? row.original.country ?? "—";
+    },
+    meta: {
+      label: "Страна",
+      variant: "multiSelect",
+      options: COUNTRY_FILTER_OPTIONS,
+      filterContentClassName: "w-72",
+    },
+    enableColumnFilter: true,
     enableSorting: true,
   },
   {

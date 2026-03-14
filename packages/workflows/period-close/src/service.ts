@@ -9,31 +9,31 @@ function formatPeriodLabel(periodStart: Date): string {
   return periodStart.toISOString().slice(0, 7);
 }
 
-export interface PeriodCloseWorkerCounterpartyContext {
-  counterpartyId: string;
+export interface PeriodCloseWorkerOrganizationContext {
+  organizationId: string;
   periodStart: Date;
   periodEnd: Date;
 }
 
-export interface CreatePeriodCloseForCounterpartyInput {
+export interface CreatePeriodCloseForOrganizationInput {
   actorUserId: string;
-  counterpartyId: string;
+  organizationId: string;
   periodStart: Date;
   periodEnd: Date;
   periodLabel: string;
 }
 
-type PeriodCloseWorkerCounterpartyGuard = (
-  input: PeriodCloseWorkerCounterpartyContext,
+type PeriodCloseWorkerOrganizationGuard = (
+  input: PeriodCloseWorkerOrganizationContext,
 ) => Promise<boolean> | boolean;
 
 export interface PeriodCloseWorkerRunnerDeps {
   logger?: Logger;
-  beforeCounterparty?: PeriodCloseWorkerCounterpartyGuard;
+  beforeOrganization?: PeriodCloseWorkerOrganizationGuard;
   resolveSystemActorUserId(): Promise<string | null>;
-  listCounterpartyIds(): Promise<string[]>;
-  createPeriodCloseForCounterparty(
-    input: CreatePeriodCloseForCounterpartyInput,
+  listOrganizationIds(): Promise<string[]>;
+  createPeriodCloseForOrganization(
+    input: CreatePeriodCloseForOrganizationInput,
   ): Promise<boolean>;
 }
 
@@ -45,7 +45,7 @@ export function createPeriodCloseWorkerRunner(
   deps: PeriodCloseWorkerRunnerDeps,
 ): PeriodCloseWorkerRunner {
   const log = deps.logger?.child({ svc: "documents-period-close" }) ?? noopLogger;
-  const beforeCounterparty = deps.beforeCounterparty;
+  const beforeOrganization = deps.beforeOrganization;
 
   return async function runOnce(
     context: WorkerRunContext,
@@ -59,19 +59,19 @@ export function createPeriodCloseWorkerRunner(
       return { processed: 0, blocked: 0 };
     }
 
-    const counterpartyIds = await deps.listCounterpartyIds();
+    const organizationIds = await deps.listOrganizationIds();
 
     let processed = 0;
     let blocked = 0;
 
-    for (const counterpartyId of counterpartyIds) {
+    for (const organizationId of organizationIds) {
       if (context.signal.aborted) {
         break;
       }
 
-      if (beforeCounterparty) {
-        const enabled = await beforeCounterparty({
-          counterpartyId,
+      if (beforeOrganization) {
+        const enabled = await beforeOrganization({
+          organizationId,
           periodStart,
           periodEnd,
         });
@@ -81,9 +81,9 @@ export function createPeriodCloseWorkerRunner(
         }
       }
 
-      const created = await deps.createPeriodCloseForCounterparty({
+      const created = await deps.createPeriodCloseForOrganization({
         actorUserId,
-        counterpartyId,
+        organizationId,
         periodStart,
         periodEnd,
         periodLabel,

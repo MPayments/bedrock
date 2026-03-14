@@ -21,8 +21,8 @@ import {
   persistDocumentPolicyDenial,
 } from "../internal/policy";
 import {
-  assertCounterpartyPeriodsOpen,
-  collectDocumentCounterpartyIds,
+  assertOrganizationPeriodsOpen,
+  collectDocumentOrganizationIds,
 } from "@bedrock/accounting-close";
 import { isDocumentActionAllowed } from "../state-machine";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
@@ -110,14 +110,13 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
                 "Only active draft documents can be updated",
               );
             }
-            const currentCounterpartyIds = collectDocumentCounterpartyIds({
-              documentCounterpartyId: document.counterpartyId,
+            const currentOrganizationIds = collectDocumentOrganizationIds({
               payload: document.payload,
             });
-            await assertCounterpartyPeriodsOpen({
+            await assertOrganizationPeriodsOpen({
               db: tx,
               occurredAt: document.occurredAt,
-              counterpartyIds: currentCounterpartyIds,
+              organizationIds: currentOrganizationIds,
               docType: input.docType,
             });
 
@@ -156,15 +155,13 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
             const summary = buildSummary(
               module.deriveSummary({ ...next, approvalStatus }),
             );
-            const nextCounterpartyIds = collectDocumentCounterpartyIds({
-              documentCounterpartyId: summary.counterpartyId,
-              summaryCounterpartyId: summary.counterpartyId,
+            const nextOrganizationIds = collectDocumentOrganizationIds({
               payload,
             });
-            await assertCounterpartyPeriodsOpen({
+            await assertOrganizationPeriodsOpen({
               db: tx,
               occurredAt: nextOccurredAt,
-              counterpartyIds: nextCounterpartyIds,
+              organizationIds: nextOrganizationIds,
               docType: input.docType,
             });
 

@@ -8,12 +8,10 @@ import { schema } from "./schema";
 
 type Queryable = Database | Transaction;
 
-const COUNTERPARTY_ID_PAYLOAD_KEYS = [
-  "counterpartyId",
-  "sourceCounterpartyId",
-  "destinationCounterpartyId",
-  "debtorCounterpartyId",
-  "creditorCounterpartyId",
+const ORGANIZATION_ID_PAYLOAD_KEYS = [
+  "organizationId",
+  "sourceOrganizationId",
+  "destinationOrganizationId",
 ] as const;
 
 function normalizeToMonthStart(input: Date): Date {
@@ -32,35 +30,30 @@ function formatPeriodLabel(periodStart: Date): string {
   return periodStart.toISOString().slice(0, 7);
 }
 
-function readCounterpartyIdsFromPayload(
+function readOrganizationIdsFromPayload(
   payload: Record<string, unknown> | null | undefined,
 ): string[] {
   if (!payload) {
     return [];
   }
-  const ids = COUNTERPARTY_ID_PAYLOAD_KEYS.flatMap((key) => {
+  const ids = ORGANIZATION_ID_PAYLOAD_KEYS.flatMap((key) => {
     const value = payload[key];
     return typeof value === "string" && value.trim().length > 0 ? [value] : [];
   });
   return [...new Set(ids)];
 }
 
-export function collectDocumentCounterpartyIds(input: {
-  documentCounterpartyId?: string | null;
+export function collectDocumentOrganizationIds(input: {
   payload?: Record<string, unknown> | null;
-  summaryCounterpartyId?: string | null;
 }): string[] {
-  const ids = [
-    ...(input.documentCounterpartyId ? [input.documentCounterpartyId] : []),
-    ...(input.summaryCounterpartyId ? [input.summaryCounterpartyId] : []),
-    ...readCounterpartyIdsFromPayload(input.payload),
-  ];
-  return [...new Set(ids.filter((value) => value.trim().length > 0))];
+  return readOrganizationIdsFromPayload(input.payload).filter(
+    (value) => value.trim().length > 0,
+  );
 }
 
-export async function isCounterpartyPeriodClosed(input: {
+export async function isOrganizationPeriodClosed(input: {
   db: Queryable;
-  counterpartyId: string;
+  organizationId: string;
   occurredAt: Date;
 }): Promise<boolean> {
   const periodStart = normalizeToMonthStart(input.occurredAt);
@@ -71,7 +64,7 @@ export async function isCounterpartyPeriodClosed(input: {
     .from(schema.accountingPeriodLocks)
     .where(
       and(
-        eq(schema.accountingPeriodLocks.counterpartyId, input.counterpartyId),
+        eq(schema.accountingPeriodLocks.organizationId, input.organizationId),
         eq(schema.accountingPeriodLocks.periodStart, periodStart),
         eq(schema.accountingPeriodLocks.state, "closed"),
       ),
@@ -81,37 +74,37 @@ export async function isCounterpartyPeriodClosed(input: {
   return Boolean(lock);
 }
 
-export async function assertCounterpartyPeriodsOpen(input: {
+export async function assertOrganizationPeriodsOpen(input: {
   db: Queryable;
   occurredAt: Date;
-  counterpartyIds: string[];
+  organizationIds: string[];
   docType: string;
 }): Promise<void> {
-  if (input.counterpartyIds.length === 0) {
+  if (input.organizationIds.length === 0) {
     return;
   }
 
   const periodStart = normalizeToMonthStart(input.occurredAt);
   const periodLabel = formatPeriodLabel(periodStart);
 
-  for (const counterpartyId of input.counterpartyIds) {
-    const closed = await isCounterpartyPeriodClosed({
+  for (const organizationId of input.organizationIds) {
+    const closed = await isOrganizationPeriodClosed({
       db: input.db,
-      counterpartyId,
+      organizationId,
       occurredAt: input.occurredAt,
     });
     if (!closed) {
       continue;
     }
     throw new ValidationError(
-      `Accounting period ${periodLabel} is closed for counterparty ${counterpartyId}; ${input.docType} cannot be mutated`,
+      `Accounting period ${periodLabel} is closed for organization ${organizationId}; ${input.docType} cannot be mutated`,
     );
   }
 }
 
-export async function closeCounterpartyPeriod(input: {
+export async function closeOrganizationPeriod(input: {
   db: Queryable;
-  counterpartyId: string;
+  organizationId: string;
   periodStart: Date;
   periodEnd: Date;
   closedBy: string;
@@ -124,7 +117,7 @@ export async function closeCounterpartyPeriod(input: {
   const [row] = await input.db
     .insert(schema.accountingPeriodLocks)
     .values({
-      counterpartyId: input.counterpartyId,
+      organizationId: input.organizationId,
       periodStart,
       periodEnd,
       state: "closed",
@@ -138,7 +131,7 @@ export async function closeCounterpartyPeriod(input: {
     })
     .onConflictDoUpdate({
       target: [
-        schema.accountingPeriodLocks.counterpartyId,
+        schema.accountingPeriodLocks.organizationId,
         schema.accountingPeriodLocks.periodStart,
       ],
       set: {
@@ -158,9 +151,9 @@ export async function closeCounterpartyPeriod(input: {
   return row!;
 }
 
-export async function reopenCounterpartyPeriod(input: {
+export async function reopenOrganizationPeriod(input: {
   db: Queryable;
-  counterpartyId: string;
+  organizationId: string;
   periodStart: Date;
   reopenedBy: string;
   reopenReason?: string | null;
@@ -170,7 +163,7 @@ export async function reopenCounterpartyPeriod(input: {
   const [row] = await input.db
     .insert(schema.accountingPeriodLocks)
     .values({
-      counterpartyId: input.counterpartyId,
+      organizationId: input.organizationId,
       periodStart,
       periodEnd: normalizeToMonthEndExclusive(periodStart),
       state: "reopened",
@@ -184,7 +177,7 @@ export async function reopenCounterpartyPeriod(input: {
     })
     .onConflictDoUpdate({
       target: [
-        schema.accountingPeriodLocks.counterpartyId,
+        schema.accountingPeriodLocks.organizationId,
         schema.accountingPeriodLocks.periodStart,
       ],
       set: {

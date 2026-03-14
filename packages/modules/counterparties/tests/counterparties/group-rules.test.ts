@@ -10,10 +10,7 @@ function makeClassification(
     overrides: Partial<GroupMembershipClassification> = {},
 ): GroupMembershipClassification {
     return {
-        rootsByGroupId: new Map(),
         customerScopeByGroupId: new Map(),
-        hasTreasury: false,
-        hasCustomers: false,
         customerScopedIds: new Set(),
         ...overrides,
     };
@@ -24,42 +21,59 @@ describe("enforceCustomerLinkRules", () => {
         expect(() => enforceCustomerLinkRules(makeClassification(), null)).not.toThrow();
     });
 
-    it("requires customerId for customer tree", () => {
+    it("allows unscoped groups without customerId", () => {
         expect(() =>
             enforceCustomerLinkRules(
-                makeClassification({ hasCustomers: true }),
+                makeClassification({
+                    customerScopeByGroupId: new Map([["group-1", null]]),
+                }),
+                null,
+            ),
+        ).not.toThrow();
+    });
+
+    it("requires customerId for customer-scoped groups", () => {
+        expect(() =>
+            enforceCustomerLinkRules(
+                makeClassification({
+                    customerScopeByGroupId: new Map([
+                        ["group-1", "550e8400-e29b-41d4-a716-446655440001"],
+                    ]),
+                    customerScopedIds: new Set([
+                        "550e8400-e29b-41d4-a716-446655440001",
+                    ]),
+                }),
                 null,
             ),
         ).toThrow(CounterpartyGroupRuleError);
     });
 
-    it("rejects customerId for treasury tree", () => {
-        expect(() =>
-            enforceCustomerLinkRules(
-                makeClassification({ hasTreasury: true }),
-                "550e8400-e29b-41d4-a716-446655440001",
-            ),
-        ).toThrow(CounterpartyGroupRuleError);
-    });
-
-    it("rejects memberships in both trees", () => {
+    it("allows matching customerId for customer-scoped groups", () => {
         expect(() =>
             enforceCustomerLinkRules(
                 makeClassification({
-                    hasTreasury: true,
-                    hasCustomers: true,
+                    customerScopeByGroupId: new Map([
+                        ["group-1", "550e8400-e29b-41d4-a716-446655440001"],
+                    ]),
+                    customerScopedIds: new Set([
+                        "550e8400-e29b-41d4-a716-446655440001",
+                    ]),
                 }),
                 "550e8400-e29b-41d4-a716-446655440001",
             ),
-        ).toThrow(CounterpartyGroupRuleError);
+        ).not.toThrow();
     });
 
     it("rejects customerId mismatch with scoped customer groups", () => {
         expect(() =>
             enforceCustomerLinkRules(
                 makeClassification({
-                    hasCustomers: true,
-                    customerScopedIds: new Set(["550e8400-e29b-41d4-a716-446655440002"]),
+                    customerScopeByGroupId: new Map([
+                        ["group-1", "550e8400-e29b-41d4-a716-446655440002"],
+                    ]),
+                    customerScopedIds: new Set([
+                        "550e8400-e29b-41d4-a716-446655440002",
+                    ]),
                 }),
                 "550e8400-e29b-41d4-a716-446655440001",
             ),

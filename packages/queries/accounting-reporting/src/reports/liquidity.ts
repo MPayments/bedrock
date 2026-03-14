@@ -67,11 +67,11 @@ export function createListLiquidityHandler(context: AccountingReportsContext) {
 
     if (scope.scopeType === "counterparty" || scope.scopeType === "group") {
       if (query.attributionMode === "book_org") {
-        const internalCounterpartyIdSet = new Set(
-          await context.listInternalLedgerCounterpartyIds(),
+        const internalOrganizationIdSet = new Set(
+          await context.listInternalLedgerOrganizationIds(),
         );
         const bookScopedCounterpartyIds = scope.resolvedCounterpartyIds.filter((id) =>
-          internalCounterpartyIdSet.has(id),
+          internalOrganizationIdSet.has(id),
         );
         if (bookScopedCounterpartyIds.length === 0) {
           return {
@@ -105,8 +105,8 @@ export function createListLiquidityHandler(context: AccountingReportsContext) {
     }
 
     if (scope.scopeType === "all" && query.attributionMode === "book_org") {
-      const internalCounterpartyIds = await context.listInternalLedgerCounterpartyIds();
-      if (internalCounterpartyIds.length === 0) {
+      const internalOrganizationIds = await context.listInternalLedgerOrganizationIds();
+      if (internalOrganizationIds.length === 0) {
         return {
           data: [],
           total: 0,
@@ -121,7 +121,7 @@ export function createListLiquidityHandler(context: AccountingReportsContext) {
       }
       conditions.push(
         sql`${schema.books.ownerId} IN (${sql.join(
-          internalCounterpartyIds.map((id) => sql`${id}`),
+          internalOrganizationIds.map((id) => sql`${id}`),
           sql`, `,
         )})`,
       );

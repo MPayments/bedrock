@@ -9,7 +9,7 @@ import type {
 } from "@bedrock/accounting/packs/schema";
 import { type PostingTemplateKey } from "@bedrock/accounting/posting-contracts";
 import { schema } from "@bedrock/accounting/schema";
-import { assertBooksBelongToInternalLedgerCounterparties } from "@bedrock/counterparties";
+import { assertBooksBelongToInternalLedgerOrganizations } from "@bedrock/organizations";
 import { canonicalJson, makePlanKey } from "@bedrock/core/canon";
 import { sha256Hex } from "@bedrock/core/crypto";
 
@@ -935,7 +935,7 @@ export function createAccountingRuntime(
       const requestBookIds = Array.from(
         new Set(input.plan.requests.map((request) => readRequiredBookId(request))),
       );
-      await assertBooksBelongToInternalLedgerCounterparties({
+      await assertBooksBelongToInternalLedgerOrganizations({
         db,
         bookIds: requestBookIds,
       });

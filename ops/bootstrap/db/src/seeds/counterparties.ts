@@ -1,8 +1,18 @@
+import { and, eq, inArray } from "drizzle-orm";
+
 import type { Database, Transaction } from "@bedrock/adapter-db-drizzle/client";
 import { schema } from "@bedrock/adapter-db-drizzle";
 import { COUNTERPARTIES, CUSTOMERS } from "./fixtures";
 
-async function upsertCustomers(db: Database | Transaction) {
+type SeedDb = Database | Transaction;
+
+const CUSTOMER_GROUP_CODE_PREFIX = "customer:";
+
+function customerGroupCode(customerId: string) {
+  return `${CUSTOMER_GROUP_CODE_PREFIX}${customerId}`;
+}
+
+async function upsertCustomers(db: SeedDb) {
   for (const customer of CUSTOMERS) {
     await db
       .insert(schema.customers)
@@ -21,7 +31,7 @@ async function upsertCustomers(db: Database | Transaction) {
   }
 }
 
-async function upsertCounterparties(db: Database | Transaction) {
+async function upsertCounterparties(db: SeedDb) {
   for (const counterparty of COUNTERPARTIES) {
     await db
       .insert(schema.counterparties)
@@ -48,11 +58,115 @@ async function upsertCounterparties(db: Database | Transaction) {
   }
 }
 
-export async function seedCounterparties(db: Database | Transaction) {
+async function ensureManagedCustomerGroups(
+  db: SeedDb,
+): Promise<Map<string, string>> {
+  for (const customer of CUSTOMERS) {
+    await db
+      .insert(schema.counterpartyGroups)
+      .values({
+        code: customerGroupCode(customer.id),
+        name: customer.displayName,
+        description: "Auto-created customer group",
+        parentId: null,
+        customerId: customer.id,
+        isSystem: false,
+      })
+      .onConflictDoUpdate({
+        target: schema.counterpartyGroups.code,
+        set: {
+          name: customer.displayName,
+          description: "Auto-created customer group",
+          parentId: null,
+          customerId: customer.id,
+          isSystem: false,
+        },
+      });
+  }
+
+  const groups = await db
+    .select({
+      id: schema.counterpartyGroups.id,
+      code: schema.counterpartyGroups.code,
+    })
+    .from(schema.counterpartyGroups)
+    .where(
+      inArray(
+        schema.counterpartyGroups.code,
+        CUSTOMERS.map((customer) => customerGroupCode(customer.id)),
+      ),
+    );
+
+  const groupsByCustomerId = new Map(
+    groups.map((group) => [
+      group.code.slice(CUSTOMER_GROUP_CODE_PREFIX.length),
+      group.id,
+    ]),
+  );
+
+  for (const customer of CUSTOMERS) {
+    if (!groupsByCustomerId.has(customer.id)) {
+      throw new Error(
+        `[seed:counterparties] Missing managed customer group for customer ${customer.id}`,
+      );
+    }
+  }
+
+  return groupsByCustomerId;
+}
+
+async function ensureManagedCustomerMemberships(
+  db: SeedDb,
+  groupsByCustomerId: Map<string, string>,
+) {
+  const managedGroupIds = [...groupsByCustomerId.values()];
+
+  for (const counterparty of COUNTERPARTIES) {
+    const managedGroupId = groupsByCustomerId.get(counterparty.customerId);
+    if (!managedGroupId) {
+      throw new Error(
+        `[seed:counterparties] Missing managed group for counterparty ${counterparty.id}`,
+      );
+    }
+
+    const staleManagedGroupIds = managedGroupIds.filter(
+      (groupId) => groupId !== managedGroupId,
+    );
+
+    if (staleManagedGroupIds.length > 0) {
+      await db
+        .delete(schema.counterpartyGroupMemberships)
+        .where(
+          and(
+            eq(
+              schema.counterpartyGroupMemberships.counterpartyId,
+              counterparty.id,
+            ),
+            inArray(
+              schema.counterpartyGroupMemberships.groupId,
+              staleManagedGroupIds,
+            ),
+          ),
+        );
+    }
+
+    await db
+      .insert(schema.counterpartyGroupMemberships)
+      .values({
+        counterpartyId: counterparty.id,
+        groupId: managedGroupId,
+      })
+      .onConflictDoNothing();
+  }
+}
+
+export async function seedCounterparties(db: SeedDb) {
   await upsertCustomers(db);
   await upsertCounterparties(db);
+  const groupsByCustomerId = await ensureManagedCustomerGroups(db);
+  await ensureManagedCustomerMemberships(db, groupsByCustomerId);
 
   console.log(
-    `[seed:counterparties] Seeded ${COUNTERPARTIES.length} counterparties (${CUSTOMERS.length} customers ensured)`,
+    `[seed:counterparties] Seeded ${COUNTERPARTIES.length} counterparties (${CUSTOMERS.length} customers and ${groupsByCustomerId.size} managed groups ensured)`,
   );
 }

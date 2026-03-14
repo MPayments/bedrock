@@ -1,69 +1,38 @@
-import type { CounterpartyGroupRootCode } from "@bedrock/counterparties/contracts";
-
 import type { CounterpartyGroupOption } from "./queries";
 
 function buildGroupById(groupOptions: CounterpartyGroupOption[]) {
   return new Map(groupOptions.map((group) => [group.id, group]));
 }
 
-function resolveRootCodeForGroup(
-  groupId: string,
-  groupById: Map<string, CounterpartyGroupOption>,
-): CounterpartyGroupRootCode | null {
-  const visited = new Set<string>();
-  let cursor = groupById.get(groupId);
-
-  while (cursor) {
-    if (visited.has(cursor.id)) {
-      return null;
-    }
-    visited.add(cursor.id);
-
-    if (!cursor.parentId) {
-      if (cursor.code === "treasury" || cursor.code === "customers") {
-        return cursor.code;
-      }
-      return null;
-    }
-
-    cursor = groupById.get(cursor.parentId);
-  }
-
-  return null;
-}
-
-export function getRootCodeByGroupId(
+export function getCustomerScopeByGroupId(
   groupOptions: CounterpartyGroupOption[],
-): Map<string, CounterpartyGroupRootCode | null> {
+): Map<string, string | null> {
   const groupById = buildGroupById(groupOptions);
-  const rootCodeByGroupId = new Map<string, CounterpartyGroupRootCode | null>();
+  const customerScopeByGroupId = new Map<string, string | null>();
 
   for (const group of groupOptions) {
-    rootCodeByGroupId.set(
-      group.id,
-      resolveRootCodeForGroup(group.id, groupById),
-    );
+    const visited = new Set<string>();
+    let cursor: CounterpartyGroupOption | undefined = group;
+
+    while (cursor) {
+      if (visited.has(cursor.id)) {
+        customerScopeByGroupId.set(group.id, null);
+        break;
+      }
+      visited.add(cursor.id);
+
+      if (cursor.customerId) {
+        customerScopeByGroupId.set(group.id, cursor.customerId);
+        break;
+      }
+
+      cursor = cursor.parentId ? groupById.get(cursor.parentId) : undefined;
+    }
+
+    if (!customerScopeByGroupId.has(group.id)) {
+      customerScopeByGroupId.set(group.id, null);
+    }
   }
 
-  return rootCodeByGroupId;
-}
-
-export function filterGroupsByRootCode(
-  groupOptions: CounterpartyGroupOption[],
-  rootCode: CounterpartyGroupRootCode,
-): CounterpartyGroupOption[] {
-  const rootCodeByGroupId = getRootCodeByGroupId(groupOptions);
-
-  return groupOptions.filter((group) => rootCodeByGroupId.get(group.id) === rootCode);
-}
-
-export function findSystemRootGroupByCode(
-  groupOptions: CounterpartyGroupOption[],
-  rootCode: CounterpartyGroupRootCode,
-): CounterpartyGroupOption | null {
-  return (
-    groupOptions.find(
-      (group) => !group.parentId && group.code === rootCode,
-    ) ?? null
-  );
+  return customerScopeByGroupId;
 }

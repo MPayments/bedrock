@@ -9,10 +9,6 @@ import {
 import type { CounterpartiesServiceContext } from "../internal/context";
 import {
   assertCustomerExists,
-  CUSTOMERS_ROOT_GROUP_CODE,
-  TREASURY_INTERNAL_LEDGER_GROUP_CODE,
-  TREASURY_ROOT_GROUP_CODE,
-  resolveGroupMembershipClassification,
 } from "../internal/group-rules";
 import {
   CreateCounterpartyGroupInputSchema,
@@ -31,13 +27,9 @@ export function createCreateCounterpartyGroupHandler(
     const validated = CreateCounterpartyGroupInputSchema.parse(input);
     let customerId: string | null = validated.customerId ?? null;
 
-    if (
-      validated.code === TREASURY_ROOT_GROUP_CODE ||
-      validated.code === CUSTOMERS_ROOT_GROUP_CODE ||
-      validated.code === TREASURY_INTERNAL_LEDGER_GROUP_CODE
-    ) {
+    if (validated.code.startsWith("customer:")) {
       throw new CounterpartyGroupRuleError(
-        "System root group codes are reserved",
+        "Customer-generated group codes are reserved",
       );
     }
 
@@ -61,12 +53,6 @@ export function createCreateCounterpartyGroupHandler(
         throw new CounterpartyGroupNotFoundError(validated.parentId);
       }
 
-      const classification = await resolveGroupMembershipClassification(db, [
-        validated.parentId,
-      ]);
-      const parentRoot =
-        classification.rootsByGroupId.get(validated.parentId) ?? null;
-
       if (parent.customerId) {
         customerId = customerId ?? parent.customerId;
         if (customerId !== parent.customerId) {
@@ -74,11 +60,9 @@ export function createCreateCounterpartyGroupHandler(
             "Child group customerId must match scoped parent customerId",
           );
         }
-      }
-
-      if (parentRoot !== CUSTOMERS_ROOT_GROUP_CODE && customerId) {
+      } else if (customerId) {
         throw new CounterpartyGroupRuleError(
-          "customerId is allowed only in customers tree groups",
+          "customerId is allowed only under customer-generated parent groups",
         );
       }
     }

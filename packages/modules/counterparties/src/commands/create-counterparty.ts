@@ -1,15 +1,12 @@
 import { schema } from "@bedrock/counterparties/schema";
 
 import type { CounterpartiesServiceContext } from "../internal/context";
-import { ensureInternalLedgerDefaultBookIdTx } from "../internal/default-book";
 import {
   enforceCustomerLinkRules,
   ensureCustomerGroupForCustomer,
-  ensureSystemRootGroups,
   replaceMemberships,
   resolveGroupMembershipClassification,
 } from "../internal/group-rules";
-import { isInternalLedgerCounterparty } from "../internal-ledger";
 import {
   CreateCounterpartyInputSchema,
   type Counterparty,
@@ -27,8 +24,6 @@ export function createCreateCounterpartyHandler(
     const validated = CreateCounterpartyInputSchema.parse(input);
 
     return db.transaction(async (tx) => {
-      await ensureSystemRootGroups(tx);
-
       const groupIds = Array.from(new Set(validated.groupIds));
       if (validated.customerId) {
         const customerGroupId = await ensureCustomerGroupForCustomer(
@@ -58,15 +53,6 @@ export function createCreateCounterpartyHandler(
         .returning();
 
       await replaceMemberships(tx, created!.id, groupIds);
-
-      if (
-        await isInternalLedgerCounterparty({
-          db: tx,
-          counterpartyId: created!.id,
-        })
-      ) {
-        await ensureInternalLedgerDefaultBookIdTx(tx, created!.id);
-      }
 
       log.info("Counterparty created", {
         id: created!.id,

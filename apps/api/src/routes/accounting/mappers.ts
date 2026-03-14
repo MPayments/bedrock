@@ -514,7 +514,7 @@ export function mapFeeRevenueDto(input: {
 
 export function mapClosePackageDto(input: {
   id: string;
-  counterpartyId: string;
+  organizationId: string;
   periodStart: Date;
   periodEnd: Date;
   revision: number;
@@ -556,7 +556,7 @@ export function mapClosePackageDto(input: {
 }) {
   return {
     id: input.id,
-    counterpartyId: input.counterpartyId,
+    organizationId: input.organizationId,
     periodStart: input.periodStart.toISOString(),
     periodEnd: input.periodEnd.toISOString(),
     revision: input.revision,

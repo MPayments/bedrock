@@ -183,6 +183,7 @@ function serializeRow(
 ): SerializedRequisite {
   return {
     id: row.id,
+    ownerType: row.ownerType,
     ownerId: row.ownerId,
     ownerDisplay: ownerLabelById.get(row.ownerId) ?? "—",
     providerId: row.providerId,

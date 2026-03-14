@@ -197,7 +197,7 @@ export interface ClosePackageAuditEvent {
 
 export interface ClosePackageResult {
   id: string;
-  counterpartyId: string;
+  organizationId: string;
   periodStart: Date;
   periodEnd: Date;
   revision: number;
@@ -224,7 +224,7 @@ export interface LineMapping {
 
 export interface AccountingReportsContext {
   db: Database;
-  listInternalLedgerCounterpartyIds: () => Promise<string[]>;
+  listInternalLedgerOrganizationIds: () => Promise<string[]>;
   resolveScope: (input: {
     scopeType: ReportScopeType;
     counterpartyIds: string[];

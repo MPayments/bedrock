@@ -1,4 +1,4 @@
-import { and, asc, desc, ilike, inArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 
 import {
   type PaginatedList,
@@ -33,13 +33,26 @@ export function createListOrganizationsHandler(
     input?: ListOrganizationsQuery,
   ): Promise<PaginatedList<Organization>> {
     const query = ListOrganizationsQuerySchema.parse(input ?? {});
-    const { limit, offset, sortBy, sortOrder, shortName, fullName, country, kind } =
-      query;
+    const {
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+      shortName,
+      fullName,
+      country,
+      kind,
+    } = query;
 
     const conditions: SQL[] = [];
 
     if (shortName) {
-      conditions.push(ilike(schema.organizations.shortName, `%${shortName}%`));
+      conditions.push(
+        or(
+          ilike(schema.organizations.shortName, `%${shortName}%`),
+          ilike(schema.organizations.fullName, `%${shortName}%`),
+        )!,
+      );
     }
 
     if (fullName) {

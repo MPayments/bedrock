@@ -298,8 +298,7 @@ describe("documents command flows", () => {
 
   it("blocks updates when the document period is closed", async () => {
     const document = makeDocument({
-      counterpartyId: "cp-closed",
-      payload: { counterpartyId: "cp-closed" },
+      payload: { organizationId: "00000000-0000-4000-8000-000000000777" },
     });
     const { context } = createContext({
       document,
@@ -315,7 +314,7 @@ describe("documents command flows", () => {
         payload: { memo: "updated" },
         actorUserId: "maker-1",
       }),
-    ).rejects.toThrow("is closed for counterparty");
+    ).rejects.toThrow("is closed for organization");
   });
 
   it("cancels active unposted documents", async () => {

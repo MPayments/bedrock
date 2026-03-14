@@ -1,6 +1,6 @@
 import { Vault } from "lucide-react";
 
-import { getCounterparties } from "@/features/entities/counterparties/lib/queries";
+import { getOrganizations } from "@/features/entities/organizations/lib/queries";
 import { getDocuments } from "@/features/operations/documents/lib/queries";
 import { SectionOverviewPage } from "@/features/overview/ui/section-overview-page";
 
@@ -22,8 +22,8 @@ function formatCount(value: number) {
 }
 
 export default async function TreasuryOverviewPage() {
-  const [counterparties, treasuryDocuments] = await Promise.all([
-    getCounterparties({ page: 1, perPage: 1 }),
+  const [organizations, treasuryDocuments] = await Promise.all([
+    getOrganizations(),
     getDocuments({ page: 1, perPage: 1, docType: TREASURY_DOC_TYPES }),
   ]);
 
@@ -34,12 +34,12 @@ export default async function TreasuryOverviewPage() {
       description="Административный обзор казначейских потоков, контрагентов и связанных документов."
       stats={[
         {
-          id: "counterparties",
-          label: "Контрагенты",
-          value: formatCount(counterparties.total),
+          id: "organizations",
+          label: "Организации",
+          value: formatCount(organizations.total),
           description:
-            "Контрагентская база, используемая в treasury workflows.",
-          href: "/treasury/counterparties",
+            "Владельцы внутренних книг и казначейских ledgers.",
+          href: "/treasury/organizations",
         },
         {
           id: "documents",
@@ -52,10 +52,10 @@ export default async function TreasuryOverviewPage() {
       ]}
       links={[
         {
-          id: "counterparties",
-          title: "Контрагенты",
-          description: "Рабочая зона казначейских контрагентов и их счетов.",
-          href: "/treasury/counterparties",
+          id: "organizations",
+          title: "Организации",
+          description: "Рабочая зона казначейских организаций и их внутренних книг.",
+          href: "/treasury/organizations",
         },
         {
           id: "journal",

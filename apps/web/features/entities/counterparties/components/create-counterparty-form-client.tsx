@@ -17,7 +17,6 @@ import { executeMutation } from "@/lib/resources/http";
 type CreateCounterpartyFormClientProps = {
   initialGroupOptions: CounterpartyGroupOption[];
   initialGroupIds?: string[];
-  allowedRootCode?: "treasury" | "customers";
   lockedGroupIds?: string[];
   detailsBasePath?: string;
   disableSubmit?: boolean;
@@ -33,7 +32,6 @@ const EMPTY_GROUP_IDS: string[] = [];
 export function CreateCounterpartyFormClient({
   initialGroupOptions,
   initialGroupIds = EMPTY_GROUP_IDS,
-  allowedRootCode,
   lockedGroupIds,
   detailsBasePath = "/entities/counterparties",
   disableSubmit = false,
@@ -100,7 +98,6 @@ export function CreateCounterpartyFormClient({
     <CounterpartyCreateGeneralForm
       initialValues={initialValues}
       groupOptions={initialGroupOptions}
-      allowedRootCode={allowedRootCode}
       lockedGroupIds={lockedGroupIds}
       submitting={submitting}
       error={error}

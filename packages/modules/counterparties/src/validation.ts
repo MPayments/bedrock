@@ -12,14 +12,6 @@ import {
 export const CounterpartyKindSchema = PartyKindSchema;
 export type CounterpartyKind = z.infer<typeof CounterpartyKindSchema>;
 
-export const CounterpartyGroupRootCodeSchema = z.enum([
-  "treasury",
-  "customers",
-]);
-export type CounterpartyGroupRootCode = z.infer<
-  typeof CounterpartyGroupRootCodeSchema
->;
-
 export const CountryCodeSchema = PartyCountryCodeSchema;
 
 export const CounterpartySchema = z.object({
@@ -54,7 +46,6 @@ interface CounterpartiesListFilters {
   country: { kind: "string"; cardinality: "multi" };
   kind: { kind: "string"; cardinality: "multi" };
   groupIds: { kind: "string"; cardinality: "multi" };
-  groupRoot: { kind: "string"; cardinality: "multi" };
 }
 
 export const COUNTERPARTIES_LIST_CONTRACT: ListQueryContract<
@@ -70,7 +61,6 @@ export const COUNTERPARTIES_LIST_CONTRACT: ListQueryContract<
     country: { kind: "string", cardinality: "multi" },
     kind: { kind: "string", cardinality: "multi" },
     groupIds: { kind: "string", cardinality: "multi" },
-    groupRoot: { kind: "string", cardinality: "multi" },
   },
 };
 

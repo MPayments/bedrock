@@ -58,7 +58,6 @@ import { CounterpartyDeleteDialog } from "./counterparty-delete-dialog";
 import type { CounterpartyGroupOption } from "../lib/queries";
 import {
   getCounterpartyGroupDisplayLabel,
-  localizeCounterpartyGroupLabel,
 } from "../lib/group-label";
 import { formatDate } from "@/lib/format";
 
@@ -83,7 +82,6 @@ type CounterpartyGeneralFormDelete = Promise<boolean | void> | boolean | void;
 type CounterpartyGeneralFormProps = {
   initialValues?: Partial<CounterpartyGeneralFormValues>;
   groupOptions: CounterpartyGroupOption[];
-  allowedRootCode?: "treasury" | "customers";
   lockedGroupIds?: string[];
   submitting?: boolean;
   deleting?: boolean;
@@ -159,15 +157,6 @@ function compareGroupsByName(
   a: CounterpartyGroupOption,
   b: CounterpartyGroupOption,
 ): number {
-  const getCodePriority = (code: string) =>
-    code === "treasury" ? 0 : code === "customers" ? 1 : 2;
-  const codePriorityA = getCodePriority(a.code);
-  const codePriorityB = getCodePriority(b.code);
-
-  if (codePriorityA !== codePriorityB) {
-    return codePriorityA - codePriorityB;
-  }
-
   const normalizedA = a.name.trim().toLowerCase();
   const normalizedB = b.name.trim().toLowerCase();
 
@@ -228,7 +217,6 @@ const EDIT_GENERAL_FORM_VARIANT: CounterpartyGeneralFormVariant = {
 function CounterpartyGeneralFormBase({
   initialValues,
   groupOptions,
-  allowedRootCode,
   lockedGroupIds: rawLockedGroupIds = EMPTY_GROUP_IDS,
   submitting = false,
   deleting = false,
@@ -246,9 +234,6 @@ function CounterpartyGeneralFormBase({
     () => new Set(lockedGroupIds),
     [lockedGroupIds],
   );
-  const allowedRootLabel = allowedRootCode === "customers"
-    ? "Клиенты"
-    : "Казначейство";
   const initial = useMemo(
     () => resolveInitialValues(initialValues, lockedGroupIds),
     [initialValues, lockedGroupIds],
@@ -257,69 +242,6 @@ function CounterpartyGeneralFormBase({
   const groupById = useMemo(() => {
     return new Map(groupOptions.map((group) => [group.id, group]));
   }, [groupOptions]);
-
-  const rootCodeByGroupId = useMemo(() => {
-    const cache = new Map<string, "treasury" | "customers">();
-
-    const resolveRootCode = (
-      groupId: string,
-    ): "treasury" | "customers" | null => {
-      const cached = cache.get(groupId);
-      if (cached) {
-        return cached;
-      }
-
-      const visited = new Set<string>();
-      let cursor = groupById.get(groupId);
-
-      while (cursor) {
-        if (visited.has(cursor.id)) {
-          return null;
-        }
-        visited.add(cursor.id);
-
-        if (!cursor.parentId) {
-          if (cursor.code === "treasury" || cursor.code === "customers") {
-            cache.set(groupId, cursor.code);
-            return cursor.code;
-          }
-          return null;
-        }
-
-        cursor = groupById.get(cursor.parentId);
-      }
-
-      return null;
-    };
-
-    for (const group of groupOptions) {
-      resolveRootCode(group.id);
-    }
-
-    return cache;
-  }, [groupById, groupOptions]);
-  const allowedGroupIds = useMemo(() => {
-    if (!allowedRootCode) {
-      return null;
-    }
-
-    const ids = new Set<string>();
-
-    for (const group of groupOptions) {
-      if (rootCodeByGroupId.get(group.id) === allowedRootCode) {
-        ids.add(group.id);
-      }
-    }
-
-    return ids;
-  }, [allowedRootCode, groupOptions, rootCodeByGroupId]);
-  const visibleGroupOptions = useMemo(() => {
-    if (!allowedGroupIds) {
-      return groupOptions;
-    }
-
-    return groupOptions.filter((group) => allowedGroupIds.has(group.id));
-  }, [allowedGroupIds, groupOptions]);
 
   const customerScopeByGroupId = useMemo(() => {
     const cache = new Map<string, string | null>();
@@ -365,7 +287,7 @@ function CounterpartyGeneralFormBase({
   const groupsByParent = useMemo(() => {
     const map = new Map<string, CounterpartyGroupOption[]>();
 
-    for (const group of visibleGroupOptions) {
+    for (const group of groupOptions) {
       const key = group.parentId ?? ROOT_GROUP;
       const bucket = map.get(key);
       if (bucket) {
@@ -380,7 +302,7 @@ function CounterpartyGeneralFormBase({
     }
 
     return map;
-  }, [visibleGroupOptions]);
+  }, [groupOptions]);
 
   const getAncestors = useCallback(
     (groupId: string): string[] => {
@@ -430,10 +352,6 @@ function CounterpartyGeneralFormBase({
     return descendants;
   }
 
-  function getRootCode(groupId: string): "treasury" | "customers" | null {
-    return rootCodeByGroupId.get(groupId) ?? null;
-  }
-
   function getCustomerScope(groupId: string): string | null {
     return customerScopeByGroupId.get(groupId) ?? null;
   }
@@ -477,44 +395,27 @@ function CounterpartyGeneralFormBase({
   }
 
   const normalizeSelectedGroupIds = useCallback(
-    (groupIds: string[]) => {
-      let normalized = normalizeGroupIds(groupIds);
-
-      if (allowedGroupIds) {
-        normalized = normalized.filter((groupId) => allowedGroupIds.has(groupId));
-      }
-
-      return normalizeGroupIds([...normalized, ...lockedGroupIds]);
-    },
-    [allowedGroupIds, lockedGroupIds],
+    (groupIds: string[]) =>
+      normalizeGroupIds([...normalizeGroupIds(groupIds), ...lockedGroupIds]),
+    [lockedGroupIds],
   );
 
-  function enforceBranchConstraints(
+  function enforceCustomerScopeConstraints(
     rawSet: Set<string>,
     anchorGroupId: string,
   ): Set<string> {
-    const next = new Set(rawSet);
-    const anchorRootCode = getRootCode(anchorGroupId);
     const anchorCustomerScope = getCustomerScope(anchorGroupId);
+    if (!anchorCustomerScope) {
+      return rawSet;
+    }
+
+    const next = new Set(rawSet);
 
     for (const selectedId of Array.from(next)) {
-      const selectedRootCode = getRootCode(selectedId);
       const selectedCustomerScope = getCustomerScope(selectedId);
 
       if (
-        selectedRootCode &&
-        anchorRootCode &&
-        selectedRootCode !== anchorRootCode
-      ) {
-        next.delete(selectedId);
-        continue;
-      }
-
-      if (
-        selectedRootCode === "customers" &&
-        anchorRootCode === "customers" &&
         selectedCustomerScope &&
-        anchorCustomerScope &&
         selectedCustomerScope !== anchorCustomerScope
       ) {
         next.delete(selectedId);
@@ -528,9 +429,9 @@ function CounterpartyGeneralFormBase({
     const next = new Set(currentIds);
     next.add(groupId);
 
-    const constrained = enforceBranchConstraints(next, groupId);
+    const constrained = enforceCustomerScopeConstraints(next, groupId);
     const withAncestors = addAncestorClosure(constrained);
-    const normalized = enforceBranchConstraints(withAncestors, groupId);
+    const normalized = enforceCustomerScopeConstraints(withAncestors, groupId);
 
     return normalizeSelectedGroupIds(Array.from(normalized));
   }
@@ -562,34 +463,17 @@ function CounterpartyGeneralFormBase({
   const formSchema = useMemo(
     () =>
       CounterpartyGeneralFormSchema.superRefine((values, ctx) => {
-        if (allowedRootCode) {
-          const hasOutsideRootMembership = values.groupIds.some(
-            (groupId) => rootCodeByGroupId.get(groupId) !== allowedRootCode,
-          );
-
-          if (hasOutsideRootMembership) {
-            ctx.addIssue({
-              code: "custom",
-              path: ["groupIds"],
-              message: `Выберите группы только из ветки ${allowedRootLabel}.`,
-            });
-          }
-        }
-
         for (const lockedGroupId of lockedGroupIds) {
           if (!values.groupIds.includes(lockedGroupId)) {
             ctx.addIssue({
               code: "custom",
               path: ["groupIds"],
-              message: "Системная группа Казначейство обязательна.",
+              message: "Обязательные группы нельзя снять.",
             });
             break;
           }
         }
 
-        const hasCustomersMembership = values.groupIds.some(
-          (groupId) => rootCodeByGroupId.get(groupId) === "customers",
-        );
         const scopedCustomerIds = Array.from(
           new Set(
             values.groupIds
@@ -600,14 +484,6 @@ function CounterpartyGeneralFormBase({
           ),
         );
 
-        if (hasCustomersMembership && scopedCustomerIds.length === 0) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["groupIds"],
-            message: "Для ветки Клиенты выберите группу конкретного клиента.",
-          });
-        }
-
         if (scopedCustomerIds.length > 1) {
           ctx.addIssue({
             code: "custom",
@@ -616,13 +492,7 @@ function CounterpartyGeneralFormBase({
           });
         }
       }),
-    [
-      allowedRootCode,
-      allowedRootLabel,
-      customerScopeByGroupId,
-      lockedGroupIds,
-      rootCodeByGroupId,
-    ],
+    [customerScopeByGroupId, lockedGroupIds],
   );
 
   const {
@@ -867,11 +737,11 @@ function CounterpartyGeneralFormBase({
             <div className="leading-none">
               <div className="text-sm font-medium">{groupLabel}</div>
               <div className="text-muted-foreground text-xs">
-                {group.customerId
-                  ? "Клиент"
-                  : `${group.code} • ${localizeCounterpartyGroupLabel(
-                      rootCodeByGroupId.get(group.id) ?? "custom",
-                    )}`}
+                {`${group.code} • ${
+                  getCustomerScope(group.id)
+                    ? "Группа клиента"
+                    : "Пользовательская группа"
+                }`}
               </div>
             </div>
           </div>
@@ -1140,11 +1010,12 @@ function CounterpartyGeneralFormBase({
                       <Field data-invalid={fieldState.invalid}>
                         <FieldLabel>Группы</FieldLabel>
                         <FieldDescription>
-                          Контрагент может быть только в одной ветке:
-                          Казначейство или Клиенты.
+                          Можно сочетать пользовательские группы и группы
+                          одного клиента. Группы разных клиентов смешивать
+                          нельзя.
                         </FieldDescription>
                         <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3">
-                          {visibleGroupOptions.length === 0 ? (
+                          {groupOptions.length === 0 ? (
                             <p className="text-muted-foreground text-sm">
                               Группы не найдены.
                             </p>

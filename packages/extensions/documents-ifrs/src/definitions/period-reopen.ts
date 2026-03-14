@@ -33,7 +33,12 @@ export const periodReopenDocumentDefinition = {
         title: "Параметры переоткрытия",
         fields: [
           { kind: "datetime", name: "occurredAt", label: "Дата документа" },
-          { kind: "counterparty", name: "counterpartyId", label: "Контрагент" },
+          {
+            kind: "counterparty",
+            name: "organizationId",
+            label: "Организация",
+            optionsSource: "organizations",
+          },
           { kind: "date", name: "periodStart", label: "Начало периода" },
           { kind: "date", name: "periodEnd", label: "Окончание периода" },
           {
@@ -46,7 +51,7 @@ export const periodReopenDocumentDefinition = {
         layout: {
           rows: [
             {
-              fields: ["counterpartyId"],
+              fields: ["organizationId"],
             },
             {
               columns: TWO_COLUMN_SM_COLUMNS,
@@ -66,7 +71,7 @@ export const periodReopenDocumentDefinition = {
       const today = new Date().toISOString().slice(0, 10);
       return {
         occurredAt: nowDateTimeLocal(),
-        counterpartyId: "",
+        organizationId: "",
         periodStart: today,
         periodEnd: "",
         reopenReason: "",
@@ -75,7 +80,7 @@ export const periodReopenDocumentDefinition = {
     fromPayload(payload) {
       return {
         occurredAt: isoToDateTimeLocal(payload.occurredAt),
-        counterpartyId: readString(payload.counterpartyId),
+        organizationId: readString(payload.organizationId),
         periodStart: isoToDateInput(payload.periodStart),
         periodEnd: isoToDateInput(payload.periodEnd),
         reopenReason: readString(payload.reopenReason),
@@ -84,7 +89,7 @@ export const periodReopenDocumentDefinition = {
     toPayload(values) {
       return parseSchema(PeriodReopenSchema, {
         occurredAt: toOccurredAtIso(values.occurredAt),
-        counterpartyId: readString(values.counterpartyId).trim(),
+        organizationId: readString(values.organizationId).trim(),
         periodStart: readString(values.periodStart).trim(),
         periodEnd: optionalString(values.periodEnd),
         reopenReason: optionalString(values.reopenReason),

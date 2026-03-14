@@ -16,8 +16,8 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
-    "@bedrock/counterparties": "workspace:*",
     "@bedrock/core": "workspace:*",
+    "@bedrock/organizations": "workspace:*",
     "@bedrock/persistence": "workspace:*",
     "drizzle-orm": "^0.45.1"
   },

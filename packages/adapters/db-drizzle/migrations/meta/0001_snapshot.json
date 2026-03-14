@@ -2074,8 +2074,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "counterparty_id": {
-          "name": "counterparty_id",
+        "organization_id": {
+          "name": "organization_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -2157,11 +2157,11 @@
         }
       },
       "indexes": {
-        "accounting_period_locks_counterparty_period_uq": {
-          "name": "accounting_period_locks_counterparty_period_uq",
+        "accounting_period_locks_organization_period_uq": {
+          "name": "accounting_period_locks_organization_period_uq",
           "columns": [
             {
-              "expression": "counterparty_id",
+              "expression": "organization_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2199,11 +2199,11 @@
           "method": "btree",
           "with": {}
         },
-        "accounting_period_locks_counterparty_state_idx": {
-          "name": "accounting_period_locks_counterparty_state_idx",
+        "accounting_period_locks_organization_state_idx": {
+          "name": "accounting_period_locks_organization_state_idx",
           "columns": [
             {
-              "expression": "counterparty_id",
+              "expression": "organization_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2222,12 +2222,12 @@
         }
       },
       "foreignKeys": {
-        "accounting_period_locks_counterparty_id_counterparties_id_fk": {
-          "name": "accounting_period_locks_counterparty_id_counterparties_id_fk",
+        "accounting_period_locks_organization_id_organizations_id_fk": {
+          "name": "accounting_period_locks_organization_id_organizations_id_fk",
           "tableFrom": "accounting_period_locks",
-          "tableTo": "counterparties",
+          "tableTo": "organizations",
           "columnsFrom": [
-            "counterparty_id"
+            "organization_id"
           ],
           "columnsTo": [
             "id"
@@ -4748,8 +4748,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "counterparty_id": {
-          "name": "counterparty_id",
+        "organization_id": {
+          "name": "organization_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -4822,7 +4822,7 @@
           "name": "accounting_close_packages_period_revision_uq",
           "columns": [
             {
-              "expression": "counterparty_id",
+              "expression": "organization_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4849,7 +4849,7 @@
           "name": "accounting_close_packages_lookup_idx",
           "columns": [
             {
-              "expression": "counterparty_id",
+              "expression": "organization_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4895,12 +4895,12 @@
         }
       },
       "foreignKeys": {
-        "accounting_close_packages_counterparty_id_counterparties_id_fk": {
-          "name": "accounting_close_packages_counterparty_id_counterparties_id_fk",
+        "accounting_close_packages_organization_id_organizations_id_fk": {
+          "name": "accounting_close_packages_organization_id_organizations_id_fk",
           "tableFrom": "accounting_close_packages",
-          "tableTo": "counterparties",
+          "tableTo": "organizations",
           "columnsFrom": [
-            "counterparty_id"
+            "organization_id"
           ],
           "columnsTo": [
             "id"

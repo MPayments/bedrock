@@ -28,12 +28,7 @@ describe("navigation config", () => {
   it("hides admin-only sections for regular users", () => {
     const items = getPrimaryNavigation(createSession("user"));
 
-    expect(items.map((item) => item.href)).toEqual([
-      "/",
-      "/transfers",
-      "/documents",
-      "/settings",
-    ]);
+    expect(items.map((item) => item.href)).toEqual(["/", "/documents", "/settings"]);
   });
 
   it("shows admin sections and no dead placeholder links", () => {
@@ -45,6 +40,7 @@ describe("navigation config", () => {
 
     expect(hrefs).toContain("/accounting");
     expect(hrefs).toContain("/documents/commercial");
+    expect(hrefs).toContain("/documents/transfers");
     expect(hrefs).toContain("/documents/journal");
     expect(hrefs).toContain("/entities");
     expect(hrefs).toContain("/fx");
@@ -52,8 +48,7 @@ describe("navigation config", () => {
     expect(hrefs).toContain("/settings/profile");
     expect(hrefs).toContain("/treasury");
     expect(hrefs).toContain("/users");
-    expect(hrefs).toContain("/transfers");
-    expect(hrefs).toContain("/treasury/counterparties");
+    expect(hrefs).toContain("/treasury/organizations");
     expect(hrefs).toContain("/entities/customers");
     expect(hrefs).toContain("/entities/organizations");
     expect(hrefs).toContain("/entities/counterparties");
@@ -68,6 +63,7 @@ describe("navigation config", () => {
     expect(hrefs).not.toContain("/fx/quotes");
     expect(hrefs).not.toContain("/treasury/counterparty-accounts");
     expect(hrefs).not.toContain("/finance/accounting");
+    expect(hrefs).not.toContain("/transfers");
     expect(hrefs).not.toContain("/treasury/fx");
     expect(hrefs).not.toContain("/entities/parties/customers");
   });

@@ -17,3 +17,7 @@ export class OrganizationDeleteConflictError extends OrganizationError {
     super(`Organization ${id} is referenced by existing records`);
   }
 }
+
+export class OrganizationInternalLedgerInvariantError extends OrganizationError {
+  name = "OrganizationInternalLedgerInvariantError";
+}

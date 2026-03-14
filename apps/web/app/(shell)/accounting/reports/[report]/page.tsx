@@ -164,6 +164,8 @@ export default async function AccountingReportPage({
 
   const scopeType = getFirstParam(rawSearchParams, "scopeType") ?? "all";
   const counterpartyId = getFirstParam(rawSearchParams, "counterpartyId") ?? "";
+  const organizationId =
+    getFirstParam(rawSearchParams, "organizationId") ?? counterpartyId;
   const groupId = getFirstParam(rawSearchParams, "groupId") ?? "";
   const bookId = getFirstParam(rawSearchParams, "bookId") ?? "";
   const includeDescendants =
@@ -308,12 +310,12 @@ export default async function AccountingReportPage({
         break;
       }
       case "close-package": {
-        if (!counterpartyId) {
-          queryError = "Для пакета закрытия выберите контрагента.";
+        if (!organizationId) {
+          queryError = "Для пакета закрытия выберите организацию.";
           break;
         }
         requestQuery = {
-          counterpartyId,
+          organizationId,
           periodStart,
         };
         payload = await getClosePackage(requestQuery);
@@ -388,13 +390,16 @@ export default async function AccountingReportPage({
               </select>
             </div>
             <div className="grid gap-1">
-              <label htmlFor="counterpartyId" className="text-sm font-medium">
-                Контрагент
+              <label
+                htmlFor={report === "close-package" ? "organizationId" : "counterpartyId"}
+                className="text-sm font-medium"
+              >
+                {report === "close-package" ? "Организация" : "Контрагент"}
               </label>
               <select
-                id="counterpartyId"
-                name="counterpartyId"
-                defaultValue={counterpartyId}
+                id={report === "close-package" ? "organizationId" : "counterpartyId"}
+                name={report === "close-package" ? "organizationId" : "counterpartyId"}
+                defaultValue={report === "close-package" ? organizationId : counterpartyId}
                 className="border-input bg-background h-9 rounded-md border px-3 text-sm"
               >
                 <option value="">Все</option>

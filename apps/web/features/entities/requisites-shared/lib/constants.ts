@@ -7,6 +7,14 @@ export const REQUISITE_KIND_OPTIONS = [
 
 export type RequisiteKind = (typeof REQUISITE_KIND_OPTIONS)[number]["value"];
 
+export const REQUISITE_OWNER_TYPE_OPTIONS = [
+  { value: "organization", label: "Организация" },
+  { value: "counterparty", label: "Контрагент" },
+] as const;
+
+export type RequisiteOwnerType =
+  (typeof REQUISITE_OWNER_TYPE_OPTIONS)[number]["value"];
+
 export const REQUISITE_KIND_FILTER_OPTIONS = REQUISITE_KIND_OPTIONS.map(
   (option) => ({
     value: option.value,
@@ -14,9 +22,22 @@ export const REQUISITE_KIND_FILTER_OPTIONS = REQUISITE_KIND_OPTIONS.map(
   }),
 );
 
+export const REQUISITE_OWNER_TYPE_FILTER_OPTIONS =
+  REQUISITE_OWNER_TYPE_OPTIONS.map((option) => ({
+    value: option.value,
+    label: option.label,
+  }));
+
 export function getRequisiteKindLabel(kind: string): string {
   return (
     REQUISITE_KIND_OPTIONS.find((option) => option.value === kind)?.label ?? kind
+  );
+}
+
+export function getRequisiteOwnerTypeLabel(ownerType: string): string {
+  return (
+    REQUISITE_OWNER_TYPE_OPTIONS.find((option) => option.value === ownerType)
+      ?.label ?? ownerType
   );
 }
 
@@ -60,6 +81,7 @@ export type RequisiteDetails = RequisiteFormValues & {
 
 export type SerializedRequisite = {
   id: string;
+  ownerType: RequisiteOwnerType;
   ownerId: string;
   ownerDisplay: string;
   providerId: string;

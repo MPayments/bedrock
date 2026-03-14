@@ -31,6 +31,7 @@
     "@bedrock/integration-fx-providers": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/observability": "workspace:*",
+    "@bedrock/organizations": "workspace:*",
     "@bedrock/persistence": "workspace:*",
     "@bedrock/workflow-period-close": "workspace:*",
     "dotenv": "^17.3.1",

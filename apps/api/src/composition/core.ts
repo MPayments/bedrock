@@ -18,7 +18,7 @@ import {
   type LedgerEngine,
   type LedgerReadService,
 } from "@bedrock/ledger";
-import { assertBooksBelongToInternalLedgerCounterparties } from "@bedrock/counterparties";
+import { assertBooksBelongToInternalLedgerOrganizations } from "@bedrock/organizations";
 import {
   createUsersService,
   type UsersService,
@@ -48,7 +48,7 @@ export function createCoreServices(): ApiCoreServices {
   });
   const ledger = createLedgerEngine({
     db,
-    assertInternalLedgerBooks: assertBooksBelongToInternalLedgerCounterparties,
+    assertInternalLedgerBooks: assertBooksBelongToInternalLedgerOrganizations,
   });
   const ledgerReadService = createLedgerReadService({ db });
   const balancesService = createBalancesService({ db, idempotency, logger });

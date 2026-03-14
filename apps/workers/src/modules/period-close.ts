@@ -3,24 +3,24 @@ import { randomUUID } from "node:crypto";
 
 import { canonicalJson } from "@bedrock/core/canon";
 import type { BedrockWorker } from "@bedrock/core/worker";
-import { closeCounterpartyPeriod } from "@bedrock/accounting-close";
-import { counterparties } from "@bedrock/counterparties/schema";
+import { closeOrganizationPeriod } from "@bedrock/accounting-close";
 import { schema as documentsSchema, type Document } from "@bedrock/documents/schema";
 import { user } from "@bedrock/identity/schema";
 import type { Logger } from "@bedrock/observability/logger";
+import { listInternalLedgerOrganizations } from "@bedrock/organizations";
 import type { Database, Transaction } from "@bedrock/persistence/drizzle";
 import { pgNotify } from "@bedrock/persistence/notify";
 import {
   createPeriodCloseWorkerRunner,
-  type PeriodCloseWorkerCounterpartyContext,
+  type PeriodCloseWorkerOrganizationContext,
 } from "@bedrock/workflow-period-close";
 
 function buildDocNo(prefix: string, documentId: string) {
   return `${prefix}-${documentId.slice(0, 8).toUpperCase()}`;
 }
 
-function buildPeriodCloseIdempotencyKey(counterpartyId: string, periodStart: Date) {
-  return `period_close:${counterpartyId}:${periodStart.toISOString().slice(0, 7)}`;
+function buildPeriodCloseIdempotencyKey(organizationId: string, periodStart: Date) {
+  return `period_close:${organizationId}:${periodStart.toISOString().slice(0, 7)}`;
 }
 
 function toStoredJson<T>(value: T): T {
@@ -133,22 +133,22 @@ async function resolveSystemActorUserId(db: Database): Promise<string | null> {
   return fallback?.id ?? null;
 }
 
-async function listCounterpartyIds(db: Database): Promise<string[]> {
-  const rows = await db.select({ id: counterparties.id }).from(counterparties);
+async function listOrganizationIds(db: Database): Promise<string[]> {
+  const rows = await listInternalLedgerOrganizations(db);
   return rows.map((row) => row.id);
 }
 
-async function createPeriodCloseForCounterparty(input: {
+async function createPeriodCloseForOrganization(input: {
   db: Database;
   actorUserId: string;
-  counterpartyId: string;
+  organizationId: string;
   periodStart: Date;
   periodEnd: Date;
   periodLabel: string;
 }): Promise<boolean> {
   return input.db.transaction(async (tx) => {
     const createIdempotencyKey = buildPeriodCloseIdempotencyKey(
-      input.counterpartyId,
+      input.organizationId,
       input.periodStart,
     );
 
@@ -170,7 +170,7 @@ async function createPeriodCloseForCounterparty(input: {
     const now = new Date();
     const id = randomUUID();
     const payload = {
-      counterpartyId: input.counterpartyId,
+      organizationId: input.organizationId,
       periodStart: input.periodStart.toISOString(),
       periodEnd: input.periodEnd.toISOString(),
       occurredAt: input.periodEnd.toISOString(),
@@ -197,10 +197,10 @@ async function createPeriodCloseForCounterparty(input: {
         amountMinor: null,
         currency: null,
         memo: null,
-        counterpartyId: input.counterpartyId,
+        counterpartyId: null,
         customerId: null,
         organizationRequisiteId: null,
-        searchText: `period_close ${input.periodLabel} ${input.counterpartyId}`,
+        searchText: `period_close ${input.periodLabel} ${input.organizationId}`,
         createdBy: input.actorUserId,
         submittedBy: input.actorUserId,
         submittedAt: now,
@@ -224,9 +224,9 @@ async function createPeriodCloseForCounterparty(input: {
       return false;
     }
 
-    await closeCounterpartyPeriod({
+    await closeOrganizationPeriod({
       db: tx,
-      counterpartyId: input.counterpartyId,
+      organizationId: input.organizationId,
       periodStart: input.periodStart,
       periodEnd: input.periodEnd,
       closedBy: input.actorUserId,
@@ -256,20 +256,20 @@ export function createPeriodCloseWorkerDefinition(deps: {
   intervalMs: number;
   db: Database;
   logger?: Logger;
-  beforeCounterparty?: (
-    input: PeriodCloseWorkerCounterpartyContext,
+  beforeOrganization?: (
+    input: PeriodCloseWorkerOrganizationContext,
   ) => Promise<boolean> | boolean;
 }): BedrockWorker {
   const runOnce = createPeriodCloseWorkerRunner({
     logger: deps.logger,
-    beforeCounterparty: deps.beforeCounterparty,
+    beforeOrganization: deps.beforeOrganization,
     resolveSystemActorUserId: () => resolveSystemActorUserId(deps.db),
-    listCounterpartyIds: () => listCounterpartyIds(deps.db),
-    createPeriodCloseForCounterparty: (input) =>
-      createPeriodCloseForCounterparty({
+    listOrganizationIds: () => listOrganizationIds(deps.db),
+    createPeriodCloseForOrganization: (input) =>
+      createPeriodCloseForOrganization({
         db: deps.db,
         actorUserId: input.actorUserId,
-        counterpartyId: input.counterpartyId,
+        organizationId: input.organizationId,
         periodStart: input.periodStart,
         periodEnd: input.periodEnd,
         periodLabel: input.periodLabel,

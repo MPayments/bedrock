@@ -11,20 +11,9 @@ import {
   CounterpartyGroupNotFoundError,
   CounterpartyGroupRuleError,
 } from "../errors";
-import type { CounterpartyGroupRootCode } from "../validation";
 import {
-  CUSTOMERS_ROOT_GROUP_CODE,
   dedupeIds,
-  ensureCounterpartyRootGroups,
   ensureCustomerGroupForCustomer as ensureCustomerGroupForCustomerShared,
-  ensureTreasuryInternalLedgerGroup,
-  TREASURY_ROOT_GROUP_CODE,
-} from "./shared-group-rules";
-
-export {
-  CUSTOMERS_ROOT_GROUP_CODE,
-  TREASURY_INTERNAL_LEDGER_GROUP_CODE,
-  TREASURY_ROOT_GROUP_CODE,
 } from "./shared-group-rules";
 
 const schema = {
@@ -40,10 +29,7 @@ interface GroupNode {
 }
 
 export interface GroupMembershipClassification {
-  rootsByGroupId: Map<string, CounterpartyGroupRootCode | null>;
   customerScopeByGroupId: Map<string, string | null>;
-  hasTreasury: boolean;
-  hasCustomers: boolean;
   customerScopedIds: Set<string>;
 }
 
@@ -113,10 +99,7 @@ export async function resolveGroupMembershipClassification(
   const groupIds = dedupeIds(rawGroupIds);
 
   const classification: GroupMembershipClassification = {
-    rootsByGroupId: new Map<string, CounterpartyGroupRootCode | null>(),
     customerScopeByGroupId: new Map<string, string | null>(),
-    hasTreasury: false,
-    hasCustomers: false,
     customerScopedIds: new Set<string>(),
   };
 
@@ -128,26 +111,9 @@ export async function resolveGroupMembershipClassification(
 
   for (const groupId of groupIds) {
     const path = resolvePathToRoot(groupMap, groupId);
-    const root = path[path.length - 1]!;
-
-    const rootCode =
-      root.code === TREASURY_ROOT_GROUP_CODE
-        ? TREASURY_ROOT_GROUP_CODE
-        : root.code === CUSTOMERS_ROOT_GROUP_CODE
-          ? CUSTOMERS_ROOT_GROUP_CODE
-          : null;
-
-    classification.rootsByGroupId.set(groupId, rootCode);
-
-    if (rootCode === TREASURY_ROOT_GROUP_CODE) {
-      classification.hasTreasury = true;
-    }
-    if (rootCode === CUSTOMERS_ROOT_GROUP_CODE) {
-      classification.hasCustomers = true;
-    }
-
     const scopedCustomerId =
       path.find((node) => Boolean(node.customerId))?.customerId ?? null;
+
     classification.customerScopeByGroupId.set(groupId, scopedCustomerId);
 
     if (scopedCustomerId) {
@@ -162,21 +128,9 @@ export function enforceCustomerLinkRules(
   classification: GroupMembershipClassification,
   customerId: string | null | undefined,
 ) {
-  if (classification.hasTreasury && classification.hasCustomers) {
+  if (classification.customerScopedIds.size > 0 && !customerId) {
     throw new CounterpartyGroupRuleError(
-      "Counterparty cannot belong to both treasury and customers group trees",
-    );
-  }
-
-  if (classification.hasCustomers && !customerId) {
-    throw new CounterpartyGroupRuleError(
-      "customerId is required for customers tree memberships",
-    );
-  }
-
-  if (classification.hasTreasury && customerId) {
-    throw new CounterpartyGroupRuleError(
-      "customerId must be null for treasury tree memberships",
+      "customerId is required for customer-scoped groups",
     );
   }
 
@@ -191,32 +145,6 @@ export function enforceCustomerLinkRules(
       );
     }
   }
-}
-
-export async function ensureSystemRootGroups(tx: Transaction): Promise<{
-  treasuryGroupId: string;
-  customersGroupId: string;
-  treasuryInternalLedgerGroupId: string;
-}> {
-  const { treasuryGroupId, customersGroupId } = await ensureCounterpartyRootGroups(
-    tx,
-    () =>
-      new CounterpartyGroupRuleError("System root groups are not available"),
-  );
-  const treasuryInternalLedgerGroupId = await ensureTreasuryInternalLedgerGroup({
-    tx,
-    treasuryGroupId,
-    onMissingGroup: () =>
-      new CounterpartyGroupRuleError(
-        "Treasury internal ledger group is not available",
-      ),
-  });
-
-  return {
-    treasuryGroupId,
-    customersGroupId,
-    treasuryInternalLedgerGroupId,
-  };
 }
 
 export async function ensureCustomerGroupForCustomer(
@@ -255,21 +183,17 @@ export async function assertCustomerExists(
 export async function withoutRootGroups(
   db: Database | Transaction,
   rawGroupIds: string[],
-  rootCodeToExclude: CounterpartyGroupRootCode,
 ): Promise<string[]> {
   const groupIds = dedupeIds(rawGroupIds);
   if (groupIds.length === 0) {
     return groupIds;
   }
 
-  const classification = await resolveGroupMembershipClassification(
-    db,
-    groupIds,
-  );
+  const classification = await resolveGroupMembershipClassification(db, groupIds);
 
   return groupIds.filter((groupId) => {
-    const root = classification.rootsByGroupId.get(groupId);
-    return root !== rootCodeToExclude;
+    const scopedCustomerId = classification.customerScopeByGroupId.get(groupId);
+    return !scopedCustomerId;
   });
 }
 
@@ -282,9 +206,7 @@ export async function replaceMemberships(
 
   await tx
     .delete(schema.counterpartyGroupMemberships)
-    .where(
-      eq(schema.counterpartyGroupMemberships.counterpartyId, counterpartyId),
-    );
+    .where(eq(schema.counterpartyGroupMemberships.counterpartyId, counterpartyId));
 
   if (groupIds.length === 0) {
     return;
@@ -305,9 +227,7 @@ export async function readMembershipIds(
   const rows = await db
     .select({ groupId: schema.counterpartyGroupMemberships.groupId })
     .from(schema.counterpartyGroupMemberships)
-    .where(
-      eq(schema.counterpartyGroupMemberships.counterpartyId, counterpartyId),
-    );
+    .where(eq(schema.counterpartyGroupMemberships.counterpartyId, counterpartyId));
 
   return rows.map((row) => row.groupId);
 }
@@ -340,6 +260,7 @@ export async function readMembershipMap(
       groupIds.push(row.groupId);
       continue;
     }
+
     map.set(row.counterpartyId, [row.groupId]);
   }
 

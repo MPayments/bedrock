@@ -244,7 +244,7 @@ CREATE TABLE "currencies" (
 --> statement-breakpoint
 CREATE TABLE "accounting_period_locks" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"counterparty_id" uuid NOT NULL,
+	"organization_id" uuid NOT NULL,
 	"period_start" timestamp with time zone NOT NULL,
 	"period_end" timestamp with time zone NOT NULL,
 	"state" text DEFAULT 'closed' NOT NULL,
@@ -499,7 +499,7 @@ CREATE TABLE "requisites" (
 --> statement-breakpoint
 CREATE TABLE "accounting_close_packages" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"counterparty_id" uuid NOT NULL,
+	"organization_id" uuid NOT NULL,
 	"period_start" timestamp with time zone NOT NULL,
 	"period_end" timestamp with time zone NOT NULL,
 	"revision" integer NOT NULL,
@@ -738,7 +738,7 @@ ALTER TABLE "counterparty_group_memberships" ADD CONSTRAINT "counterparty_group_
 ALTER TABLE "counterparty_group_memberships" ADD CONSTRAINT "counterparty_group_memberships_group_id_counterparty_groups_id_fk" FOREIGN KEY ("group_id") REFERENCES "public"."counterparty_groups"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "counterparty_groups" ADD CONSTRAINT "counterparty_groups_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "counterparty_groups" ADD CONSTRAINT "counterparty_groups_parent_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."counterparty_groups"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounting_period_locks" ADD CONSTRAINT "accounting_period_locks_counterparty_id_counterparties_id_fk" FOREIGN KEY ("counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "accounting_period_locks" ADD CONSTRAINT "accounting_period_locks_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounting_period_locks" ADD CONSTRAINT "accounting_period_locks_locked_by_document_id_documents_id_fk" FOREIGN KEY ("locked_by_document_id") REFERENCES "public"."documents"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "document_events" ADD CONSTRAINT "document_events_document_id_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "document_links" ADD CONSTRAINT "document_links_from_document_id_documents_id_fk" FOREIGN KEY ("from_document_id") REFERENCES "public"."documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -768,7 +768,7 @@ ALTER TABLE "requisites" ADD CONSTRAINT "requisites_organization_id_organization
 ALTER TABLE "requisites" ADD CONSTRAINT "requisites_counterparty_id_counterparties_id_fk" FOREIGN KEY ("counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "requisites" ADD CONSTRAINT "requisites_provider_id_requisite_providers_id_fk" FOREIGN KEY ("provider_id") REFERENCES "public"."requisite_providers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "requisites" ADD CONSTRAINT "requisites_currency_id_currencies_id_fk" FOREIGN KEY ("currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounting_close_packages" ADD CONSTRAINT "accounting_close_packages_counterparty_id_counterparties_id_fk" FOREIGN KEY ("counterparty_id") REFERENCES "public"."counterparties"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "accounting_close_packages" ADD CONSTRAINT "accounting_close_packages_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounting_close_packages" ADD CONSTRAINT "accounting_close_packages_close_document_id_documents_id_fk" FOREIGN KEY ("close_document_id") REFERENCES "public"."documents"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounting_close_packages" ADD CONSTRAINT "accounting_close_packages_reopen_document_id_documents_id_fk" FOREIGN KEY ("reopen_document_id") REFERENCES "public"."documents"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounting_report_line_mappings" ADD CONSTRAINT "accounting_report_line_mappings_account_no_chart_template_accounts_account_no_fk" FOREIGN KEY ("account_no") REFERENCES "public"."chart_template_accounts"("account_no") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -811,9 +811,9 @@ CREATE INDEX "counterparty_group_memberships_group_idx" ON "counterparty_group_m
 CREATE UNIQUE INDEX "counterparty_groups_code_uq" ON "counterparty_groups" USING btree ("code");--> statement-breakpoint
 CREATE INDEX "counterparty_groups_parent_idx" ON "counterparty_groups" USING btree ("parent_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "currencies_code_uq" ON "currencies" USING btree ("code");--> statement-breakpoint
-CREATE UNIQUE INDEX "accounting_period_locks_counterparty_period_uq" ON "accounting_period_locks" USING btree ("counterparty_id","period_start");--> statement-breakpoint
+CREATE UNIQUE INDEX "accounting_period_locks_organization_period_uq" ON "accounting_period_locks" USING btree ("organization_id","period_start");--> statement-breakpoint
 CREATE INDEX "accounting_period_locks_state_period_idx" ON "accounting_period_locks" USING btree ("state","period_start" DESC NULLS LAST);--> statement-breakpoint
-CREATE INDEX "accounting_period_locks_counterparty_state_idx" ON "accounting_period_locks" USING btree ("counterparty_id","state");--> statement-breakpoint
+CREATE INDEX "accounting_period_locks_organization_state_idx" ON "accounting_period_locks" USING btree ("organization_id","state");--> statement-breakpoint
 CREATE INDEX "document_events_document_created_idx" ON "document_events" USING btree ("document_id","created_at");--> statement-breakpoint
 CREATE INDEX "document_links_from_type_idx" ON "document_links" USING btree ("from_document_id","link_type");--> statement-breakpoint
 CREATE INDEX "document_links_to_type_idx" ON "document_links" USING btree ("to_document_id","link_type");--> statement-breakpoint
@@ -856,8 +856,8 @@ CREATE INDEX "requisites_currency_idx" ON "requisites" USING btree ("currency_id
 CREATE INDEX "requisites_kind_idx" ON "requisites" USING btree ("kind");--> statement-breakpoint
 CREATE UNIQUE INDEX "requisites_default_organization_uq" ON "requisites" USING btree ("organization_id","currency_id") WHERE "requisites"."owner_type" = 'organization' and "requisites"."is_default" = true and "requisites"."archived_at" is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "requisites_default_counterparty_uq" ON "requisites" USING btree ("counterparty_id","currency_id") WHERE "requisites"."owner_type" = 'counterparty' and "requisites"."is_default" = true and "requisites"."archived_at" is null;--> statement-breakpoint
-CREATE UNIQUE INDEX "accounting_close_packages_period_revision_uq" ON "accounting_close_packages" USING btree ("counterparty_id","period_start","revision");--> statement-breakpoint
-CREATE INDEX "accounting_close_packages_lookup_idx" ON "accounting_close_packages" USING btree ("counterparty_id","period_start","revision");--> statement-breakpoint
+CREATE UNIQUE INDEX "accounting_close_packages_period_revision_uq" ON "accounting_close_packages" USING btree ("organization_id","period_start","revision");--> statement-breakpoint
+CREATE INDEX "accounting_close_packages_lookup_idx" ON "accounting_close_packages" USING btree ("organization_id","period_start","revision");--> statement-breakpoint
 CREATE INDEX "accounting_close_packages_state_idx" ON "accounting_close_packages" USING btree ("state","generated_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "accounting_report_line_mappings_uq" ON "accounting_report_line_mappings" USING btree ("standard","report_kind","line_code","account_no","effective_from");--> statement-breakpoint
 CREATE INDEX "accounting_report_line_mappings_lookup_idx" ON "accounting_report_line_mappings" USING btree ("report_kind","account_no","effective_from","effective_to");--> statement-breakpoint

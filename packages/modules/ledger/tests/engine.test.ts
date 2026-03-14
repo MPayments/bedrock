@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { schema } from "@bedrock/ledger/schema";
 
-vi.mock("@bedrock/counterparties", () => ({
-  assertBooksBelongToInternalLedgerCounterparties: vi.fn(async () => undefined),
+vi.mock("@bedrock/organizations", () => ({
+  assertBooksBelongToInternalLedgerOrganizations: vi.fn(async () => undefined),
 }));
 
 import {

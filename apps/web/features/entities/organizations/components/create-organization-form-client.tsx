@@ -17,7 +17,13 @@ type CreatedOrganization = {
   id: string;
 };
 
-export function CreateOrganizationFormClient() {
+type CreateOrganizationFormClientProps = {
+  detailsBasePath?: string;
+};
+
+export function CreateOrganizationFormClient({
+  detailsBasePath = "/entities/organizations",
+}: CreateOrganizationFormClientProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +57,7 @@ export function CreateOrganizationFormClient() {
     }
 
     toast.success("Организация создана");
-    router.push(`/entities/organizations/${result.data.id}`);
+    router.push(`${detailsBasePath.replace(/\/+$/, "")}/${result.data.id}`);
   }
 
   return (

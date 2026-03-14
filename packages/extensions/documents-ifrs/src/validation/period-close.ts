@@ -6,7 +6,7 @@ import {
 } from "./shared";
 
 export const PeriodCloseSchema = baseOccurredAtSchema.extend({
-  counterpartyId: z.uuid(),
+  organizationId: z.uuid(),
   periodStart: periodBoundarySchema,
   periodEnd: periodBoundarySchema,
   closeReason: z.string().trim().max(500).optional(),

@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@bedrock/core": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
     "@bedrock/observability": "workspace:*",
     "@bedrock/party-types": "workspace:*",
     "@bedrock/persistence": "workspace:*",

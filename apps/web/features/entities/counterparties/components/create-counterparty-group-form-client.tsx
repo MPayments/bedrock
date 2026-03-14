@@ -40,7 +40,7 @@ import { toast } from "@bedrock/ui/components/sonner";
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";
 
-import { localizeCounterpartyGroupLabel } from "../lib/group-label";
+import { getCounterpartyGroupDisplayLabel } from "../lib/group-label";
 import type { CounterpartyGroupOption } from "../lib/queries";
 
 const CreateCounterpartyGroupFormSchema = z.object({
@@ -61,29 +61,6 @@ type CreateCounterpartyGroupFormClientProps = {
   initialLoadError?: string | null;
 };
 
-function resolveRootCode(
-  groupById: Map<string, CounterpartyGroupOption>,
-  groupId: string,
-): string | null {
-  const visited = new Set<string>();
-  let cursor = groupById.get(groupId);
-
-  while (cursor) {
-    if (visited.has(cursor.id)) {
-      return null;
-    }
-    visited.add(cursor.id);
-
-    if (!cursor.parentId) {
-      return cursor.code;
-    }
-
-    cursor = groupById.get(cursor.parentId);
-  }
-
-  return null;
-}
-
 export function CreateCounterpartyGroupFormClient({
   initialGroupOptions,
   initialLoadError = null,
@@ -92,27 +69,13 @@ export function CreateCounterpartyGroupFormClient({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(initialLoadError);
 
-  const treasuryParentOptions = useMemo(() => {
-    const groupById = new Map(initialGroupOptions.map((group) => [group.id, group]));
-
-    return initialGroupOptions
-      .filter((group) => {
-        if (group.code === "treasury" && !group.parentId) {
-          return true;
-        }
-
-        return resolveRootCode(groupById, group.id) === "treasury";
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
+  const parentOptions = useMemo(() => {
+    return [...initialGroupOptions].sort((a, b) =>
+      getCounterpartyGroupDisplayLabel(a).localeCompare(
+        getCounterpartyGroupDisplayLabel(b),
+      ),
+    );
   }, [initialGroupOptions]);
-
-  const defaultParentId = useMemo(
-    () =>
-      treasuryParentOptions.find(
-        (group) => group.code === "treasury" && !group.parentId,
-      )?.id ?? "",
-    [treasuryParentOptions],
-  );
 
   const {
     control,
@@ -125,7 +88,7 @@ export function CreateCounterpartyGroupFormClient({
       name: "",
       code: "",
       description: "",
-      parentId: defaultParentId || NO_PARENT_VALUE,
+      parentId: NO_PARENT_VALUE,
     },
     mode: "onChange",
     shouldUnregister: false,
@@ -242,16 +205,17 @@ export function CreateCounterpartyGroupFormClient({
                             <SelectItem value={NO_PARENT_VALUE}>
                               Без родителя
                             </SelectItem>
-                            {treasuryParentOptions.map((group) => (
+                            {parentOptions.map((group) => (
                               <SelectItem key={group.id} value={group.id}>
-                                {localizeCounterpartyGroupLabel(group.name)}
+                                {getCounterpartyGroupDisplayLabel(group)}
                               </SelectItem>
                             ))}
                           </SelectGroup>
                         </SelectContent>
                       </Select>
                       <FieldDescription>
-                        Доступны группы из ветки Казначейство.
+                        Можно выбрать любую существующую группу или оставить
+                        новую группу на верхнем уровне.
                       </FieldDescription>
                       {fieldState.invalid ? (
                         <FieldError errors={[fieldState.error]} />

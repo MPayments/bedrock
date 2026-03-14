@@ -223,7 +223,7 @@ export const ClosePackageAuditEventSchema = z.object({
 
 export const ClosePackageResponseSchema = z.object({
   id: z.uuid(),
-  counterpartyId: z.uuid(),
+  organizationId: z.uuid(),
   periodStart: z.iso.datetime(),
   periodEnd: z.iso.datetime(),
   revision: z.number().int().positive(),
@@ -239,4 +239,3 @@ export const ClosePackageResponseSchema = z.object({
   auditEvents: z.array(ClosePackageAuditEventSchema),
   payload: z.record(z.string(), z.unknown()),
 });
-

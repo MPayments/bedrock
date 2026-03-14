@@ -91,29 +91,3 @@ export function CounterpartiesTable({
     />
   );
 }
-
-interface TreasuryCounterpartiesTableProps {
-  promise: Promise<CounterpartiesListResult>;
-  groupOptionsPromise: Promise<CounterpartyGroupOption[]>;
-  treasuryGroupOptionsPromise: Promise<CounterpartyGroupOption[]>;
-  treasuryRootGroupId?: string;
-}
-
-export function TreasuryCounterpartiesTable({
-  promise,
-  groupOptionsPromise,
-  treasuryGroupOptionsPromise,
-  treasuryRootGroupId,
-}: TreasuryCounterpartiesTableProps) {
-  const lockedGroupFilterIds = treasuryRootGroupId ? [treasuryRootGroupId] : [];
-
-  return (
-    <CounterpartiesTableBase
-      promise={promise}
-      groupOptionsPromise={groupOptionsPromise}
-      groupFilterOptionsPromise={treasuryGroupOptionsPromise}
-      lockedGroupFilterIds={lockedGroupFilterIds}
-      detailsBasePath="/treasury/counterparties"
-    />
-  );
-}

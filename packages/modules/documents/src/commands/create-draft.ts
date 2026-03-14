@@ -23,10 +23,10 @@ import {
   persistDocumentPolicyDenial,
 } from "../internal/policy";
 import {
-  assertCounterpartyPeriodsOpen,
-  closeCounterpartyPeriod,
-  collectDocumentCounterpartyIds,
-  reopenCounterpartyPeriod,
+  assertOrganizationPeriodsOpen,
+  closeOrganizationPeriod,
+  collectDocumentOrganizationIds,
+  reopenOrganizationPeriod,
 } from "@bedrock/accounting-close";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../types";
 import { validateInput } from "../validation";
@@ -175,16 +175,13 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                 : "not_required",
             };
             const summary = buildSummary(module.deriveSummary(transient));
-            const counterpartyIds = collectDocumentCounterpartyIds({
-              summaryCounterpartyId: summary.counterpartyId,
-              payload,
-            });
+            const organizationIds = collectDocumentOrganizationIds({ payload });
 
             if (!isSystemOnlyDocumentType(input.docType)) {
-              await assertCounterpartyPeriodsOpen({
+              await assertOrganizationPeriodsOpen({
                 db: tx,
                 occurredAt: draft.occurredAt,
-                counterpartyIds,
+                organizationIds,
                 docType: input.docType,
               });
             }
@@ -221,15 +218,15 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
             }
 
             if (document.docType === "period_close") {
-              const counterpartyId = readPayloadString(payload, "counterpartyId");
-              if (!counterpartyId) {
+              const organizationId = readPayloadString(payload, "organizationId");
+              if (!organizationId) {
                 throw new DocumentValidationError(
-                  "period_close payload requires counterpartyId",
+                  "period_close payload requires organizationId",
                 );
               }
-              await closeCounterpartyPeriod({
+              await closeOrganizationPeriod({
                 db: tx,
-                counterpartyId,
+                organizationId,
                 periodStart: readPayloadDate(payload, "periodStart", document.occurredAt),
                 periodEnd: readPayloadDate(payload, "periodEnd", document.occurredAt),
                 closedBy: input.actorUserId,
@@ -237,15 +234,15 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                 lockedByDocumentId: document.id,
               });
             } else if (document.docType === "period_reopen") {
-              const counterpartyId = readPayloadString(payload, "counterpartyId");
-              if (!counterpartyId) {
+              const organizationId = readPayloadString(payload, "organizationId");
+              if (!organizationId) {
                 throw new DocumentValidationError(
-                  "period_reopen payload requires counterpartyId",
+                  "period_reopen payload requires organizationId",
                 );
               }
-              await reopenCounterpartyPeriod({
+              await reopenOrganizationPeriod({
                 db: tx,
-                counterpartyId,
+                organizationId,
                 periodStart: readPayloadDate(payload, "periodStart", document.occurredAt),
                 reopenedBy: input.actorUserId,
                 reopenReason: readPayloadString(payload, "reopenReason"),

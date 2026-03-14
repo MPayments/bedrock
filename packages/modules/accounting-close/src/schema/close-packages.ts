@@ -10,7 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { counterparties } from "@bedrock/counterparties/schema";
+import { organizations } from "@bedrock/organizations/schema";
 
 export type AccountingClosePackageState = "closed" | "superseded";
 
@@ -18,9 +18,9 @@ export const accountingClosePackages = pgTable(
   "accounting_close_packages",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    counterpartyId: uuid("counterparty_id")
+    organizationId: uuid("organization_id")
       .notNull()
-      .references(() => counterparties.id, { onDelete: "cascade" }),
+      .references(() => organizations.id, { onDelete: "cascade" }),
     periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
     periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
     revision: integer("revision").notNull(),
@@ -38,12 +38,12 @@ export const accountingClosePackages = pgTable(
   },
   (t) => [
     uniqueIndex("accounting_close_packages_period_revision_uq").on(
-      t.counterpartyId,
+      t.organizationId,
       t.periodStart,
       t.revision,
     ),
     index("accounting_close_packages_lookup_idx").on(
-      t.counterpartyId,
+      t.organizationId,
       t.periodStart,
       t.revision,
     ),

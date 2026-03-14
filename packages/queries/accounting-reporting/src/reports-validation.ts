@@ -164,7 +164,7 @@ export const FeeRevenueQuerySchema = reportScopeQuerySchema
   .merge(paginationQuerySchema);
 
 export const ClosePackageQuerySchema = z.object({
-  counterpartyId: uuidSchema,
+  organizationId: uuidSchema,
   periodStart: dateTimeSchema,
 });
 

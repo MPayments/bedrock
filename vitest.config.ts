@@ -37,6 +37,7 @@ export default defineConfig({
       "packages/integrations/fx-providers/vitest.config.ts",
       "packages/queries/accounting-reporting/vitest.config.ts",
       "packages/workflows/period-close/vitest.config.ts",
+      "ops/bootstrap/db/vitest.config.ts",
     ],
     exclude: ["**/node_modules/**", "**/dist/**"],
     coverage: {

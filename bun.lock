@@ -129,6 +129,7 @@
         "@bedrock/integration-fx-providers": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/observability": "workspace:*",
+        "@bedrock/organizations": "workspace:*",
         "@bedrock/persistence": "workspace:*",
         "@bedrock/workflow-period-close": "workspace:*",
         "dotenv": "^17.3.1",
@@ -463,9 +464,9 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/core": "workspace:*",
-        "@bedrock/counterparties": "workspace:*",
         "@bedrock/ledger": "workspace:*",
         "@bedrock/observability": "workspace:*",
+        "@bedrock/organizations": "workspace:*",
         "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
@@ -486,7 +487,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/core": "workspace:*",
-        "@bedrock/counterparties": "workspace:*",
+        "@bedrock/organizations": "workspace:*",
         "@bedrock/persistence": "workspace:*",
         "drizzle-orm": "^0.45.1",
       },
@@ -527,7 +528,6 @@
       "dependencies": {
         "@bedrock/core": "workspace:*",
         "@bedrock/customers": "workspace:*",
-        "@bedrock/ledger": "workspace:*",
         "@bedrock/observability": "workspace:*",
         "@bedrock/party-types": "workspace:*",
         "@bedrock/persistence": "workspace:*",
@@ -708,6 +708,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/core": "workspace:*",
+        "@bedrock/ledger": "workspace:*",
         "@bedrock/observability": "workspace:*",
         "@bedrock/party-types": "workspace:*",
         "@bedrock/persistence": "workspace:*",

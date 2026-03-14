@@ -16,10 +16,12 @@ import type { SerializedOrganization } from "../lib/types";
 
 type EditOrganizationFormClientProps = {
   organization: SerializedOrganization;
+  listPath?: string;
 };
 
 export function EditOrganizationFormClient({
   organization,
+  listPath = "/entities/organizations",
 }: EditOrganizationFormClientProps) {
   const router = useRouter();
   const [current, setCurrent] = useState(organization);
@@ -94,7 +96,7 @@ export function EditOrganizationFormClient({
     }
 
     toast.success("Организация удалена");
-    router.push("/entities/organizations");
+    router.push(listPath.replace(/\/+$/, ""));
     return true;
   }
 

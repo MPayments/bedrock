@@ -23,6 +23,7 @@ import { requirePermission } from "../middleware/permission";
 const PaginatedRequisiteProvidersSchema = createPaginatedListSchema(
   RequisiteProviderSchema,
 );
+const OPTIONS_LIMIT = 200;
 
 export function requisiteProvidersRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -213,7 +214,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
     })
     .openapi(optionsRoute, async (c) => {
       const result = await ctx.requisiteProvidersService.list({
-        limit: 1000,
+        limit: OPTIONS_LIMIT,
         offset: 0,
         sortBy: "name",
         sortOrder: "asc",

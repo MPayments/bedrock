@@ -13,7 +13,7 @@ export default function AuthLayout({
           <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
             <Stone className="size-4" />
           </div>
-          Highrock Finance
+          Multihansa Finance
         </a>
         {children}
       </div>

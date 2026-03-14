@@ -7,9 +7,17 @@ import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 import { RequisiteProvidersTable } from "@/features/entities/requisite-providers/components/table";
 import { getRequisiteProviders } from "@/features/entities/requisite-providers/lib/queries";
+import { searchParamsCache } from "@/features/entities/requisite-providers/lib/validations";
 
-export default async function RequisiteProvidersPage() {
-  const promise = getRequisiteProviders();
+interface PageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function RequisiteProvidersPage({
+  searchParams,
+}: PageProps) {
+  const parsedSearch = await searchParamsCache.parse(searchParams);
+  const promise = getRequisiteProviders(parsedSearch);
 
   return (
     <EntityListPageShell
@@ -26,7 +34,7 @@ export default async function RequisiteProvidersPage() {
           <span className="hidden md:block">Добавить</span>
         </Button>
       }
-      fallback={<DataTableSkeleton columnCount={4} rowCount={10} filterCount={0} />}
+      fallback={<DataTableSkeleton columnCount={4} rowCount={10} filterCount={3} />}
     >
       <RequisiteProvidersTable promise={promise} />
     </EntityListPageShell>

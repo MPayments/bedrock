@@ -14,13 +14,13 @@ export default function TreasuryCreateCounterpartyBreadcrumbPage() {
           icon: "landmark",
         },
         {
-          label: "Контрагенты",
-          href: "/treasury/counterparties",
-          icon: "building-2",
+          label: "Организации",
+          href: "/treasury/organizations",
+          icon: "landmark",
         },
         {
           label: state.createLabel,
-          href: "/treasury/counterparties/create",
+          href: "/treasury/organizations/create",
         },
       ]}
     />

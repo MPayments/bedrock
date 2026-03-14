@@ -46,13 +46,6 @@ const navItems: AppNavItem[] = [
     audience: "shared",
   },
   {
-    id: "transfers",
-    title: "Переводы",
-    href: "/transfers",
-    icon: "arrow-right-left",
-    audience: "shared",
-  },
-  {
     id: "documents",
     title: "Документы",
     href: "/documents",
@@ -77,7 +70,7 @@ const navItems: AppNavItem[] = [
         id: "documents-commercial",
         title: "Коммерческие документы",
         href: "/documents/commercial",
-        icon: "receipt",
+        icon: "book-open",
         audience: "shared",
       },
       {
@@ -97,10 +90,10 @@ const navItems: AppNavItem[] = [
     audience: "admin",
     children: [
       {
-        id: "treasury-counterparties",
-        title: "Контрагенты",
-        href: "/treasury/counterparties",
-        icon: "building-2",
+        id: "treasury-organizations",
+        title: "Организации",
+        href: "/treasury/organizations",
+        icon: "landmark",
         audience: "admin",
       },
     ],

@@ -1,66 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
 
-const defaultBookMocks = vi.hoisted(() => {
-  return {
-    ensureInternalLedgerDefaultBookIdTx: vi.fn(
-      async () => "00000000-0000-4000-8000-000000000701",
-    ),
-  };
-});
-
-const TREASURY_INTERNAL_GROUP_ID = "00000000-0000-4000-8000-000000000910";
+const CUSTOMER_GROUP_ID = "00000000-0000-4000-8000-000000000912";
 const EXISTING_GROUP_ID = "00000000-0000-4000-8000-000000000911";
 
 const groupRulesMocks = vi.hoisted(() => {
   return {
     enforceCustomerLinkRules: vi.fn(),
-    ensureCustomerGroupForCustomer: vi.fn(
-      async () => "00000000-0000-4000-8000-000000000912",
-    ),
-    ensureSystemRootGroups: vi.fn(
-      async () =>
-        ({
-          treasuryGroupId: "00000000-0000-4000-8000-000000000913",
-          customersGroupId: "00000000-0000-4000-8000-000000000914",
-          treasuryInternalLedgerGroupId: TREASURY_INTERNAL_GROUP_ID,
-        }),
-    ),
+    ensureCustomerGroupForCustomer: vi.fn(async () => CUSTOMER_GROUP_ID),
     readMembershipIds: vi.fn(async () => [EXISTING_GROUP_ID]),
     replaceMemberships: vi.fn(async () => undefined),
     resolveGroupMembershipClassification: vi.fn(
-      async () =>
-        ({
-          rootsByGroupId: new Map(),
-          customerScopeByGroupId: new Map(),
-          hasTreasury: true,
-          hasCustomers: false,
-          customerScopedIds: new Set(),
-        }),
+      async () => ({
+        customerScopeByGroupId: new Map(),
+        customerScopedIds: new Set(),
+      }),
     ),
     withoutRootGroups: vi.fn(async (_db, groupIds: string[]) => groupIds),
   };
 });
 
-const internalLedgerMocks = vi.hoisted(() => {
-  return {
-    isInternalLedgerCounterparty: vi.fn(async () => true),
-  };
-});
-
-vi.mock("../../src/internal/default-book", () => {
-  return {
-    ensureInternalLedgerDefaultBookIdTx:
-      defaultBookMocks.ensureInternalLedgerDefaultBookIdTx,
-  };
-});
-
-vi.mock("../../src/internal/group-rules", () => {
-  return groupRulesMocks;
-});
-
-vi.mock("../../src/internal-ledger", () => {
-  return internalLedgerMocks;
-});
+vi.mock("../../src/internal/group-rules", () => groupRulesMocks);
 
 import { createCounterpartiesService } from "../../src/service";
 
@@ -109,8 +68,10 @@ function updateReturning<T>(rows: T[]) {
 }
 
 describe("counterparties service", () => {
-  it("creates a default book when a new counterparty is internal ledger", async () => {
-    const created = makeCounterparty();
+  it("adds the managed customer group when creating a customer-linked counterparty", async () => {
+    const created = makeCounterparty({
+      customerId: "00000000-0000-4000-8000-000000000999",
+    });
     const tx = {
       insert: vi.fn().mockReturnValue(insertReturning([created])),
       select: vi.fn(),
@@ -127,26 +88,33 @@ describe("counterparties service", () => {
       shortName: created.shortName,
       fullName: created.fullName,
       kind: created.kind,
-      groupIds: [TREASURY_INTERNAL_GROUP_ID],
+      customerId: created.customerId,
+      groupIds: [EXISTING_GROUP_ID],
     });
 
     expect(result).toEqual({
       ...created,
-      groupIds: [TREASURY_INTERNAL_GROUP_ID],
+      groupIds: [EXISTING_GROUP_ID, CUSTOMER_GROUP_ID],
     });
+    expect(groupRulesMocks.ensureCustomerGroupForCustomer).toHaveBeenCalledWith(
+      tx,
+      created.customerId,
+    );
     expect(groupRulesMocks.replaceMemberships).toHaveBeenCalledWith(
       tx,
       created.id,
-      [TREASURY_INTERNAL_GROUP_ID],
+      [EXISTING_GROUP_ID, CUSTOMER_GROUP_ID],
     );
-    expect(
-      defaultBookMocks.ensureInternalLedgerDefaultBookIdTx,
-    ).toHaveBeenCalledWith(tx, created.id);
   });
 
-  it("creates a default book when an existing counterparty becomes internal ledger", async () => {
-    const existing = makeCounterparty();
-    const updated = makeCounterparty({ shortName: "Multihansa Updated" });
+  it("drops previous customer-scoped groups before switching customers", async () => {
+    const existing = makeCounterparty({
+      customerId: "00000000-0000-4000-8000-000000000998",
+    });
+    const updated = makeCounterparty({
+      customerId: "00000000-0000-4000-8000-000000000999",
+      shortName: "Multihansa Updated",
+    });
     const tx = {
       select: vi.fn().mockReturnValueOnce(selectSingleRow([existing])),
       update: vi.fn().mockReturnValueOnce(updateReturning([updated])),
@@ -158,23 +126,29 @@ describe("counterparties service", () => {
       transaction: vi.fn(async (fn: (tx: typeof tx) => Promise<unknown>) => fn(tx)),
     };
 
+    groupRulesMocks.withoutRootGroups.mockResolvedValueOnce([EXISTING_GROUP_ID]);
+
     const service = createCounterpartiesService({ db: db as any });
     const result = await service.update(existing.id, {
       shortName: updated.shortName,
-      groupIds: [TREASURY_INTERNAL_GROUP_ID],
+      customerId: updated.customerId,
     });
 
     expect(result).toEqual({
       ...updated,
-      groupIds: [TREASURY_INTERNAL_GROUP_ID],
+      groupIds: [EXISTING_GROUP_ID, CUSTOMER_GROUP_ID],
     });
+    expect(groupRulesMocks.withoutRootGroups).toHaveBeenCalledWith(tx, [
+      EXISTING_GROUP_ID,
+    ]);
+    expect(groupRulesMocks.ensureCustomerGroupForCustomer).toHaveBeenCalledWith(
+      tx,
+      updated.customerId,
+    );
     expect(groupRulesMocks.replaceMemberships).toHaveBeenCalledWith(
       tx,
       existing.id,
-      [TREASURY_INTERNAL_GROUP_ID],
+      [EXISTING_GROUP_ID, CUSTOMER_GROUP_ID],
     );
-    expect(
-      defaultBookMocks.ensureInternalLedgerDefaultBookIdTx,
-    ).toHaveBeenCalledWith(tx, existing.id);
   });
 });

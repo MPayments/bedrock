@@ -8,7 +8,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { counterparties } from "@bedrock/counterparties/schema";
+import { organizations } from "@bedrock/organizations/schema";
 
 export type AccountingPeriodState = "closed" | "reopened";
 
@@ -16,9 +16,9 @@ export const accountingPeriodLocks = pgTable(
   "accounting_period_locks",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    counterpartyId: uuid("counterparty_id")
+    organizationId: uuid("organization_id")
       .notNull()
-      .references(() => counterparties.id, { onDelete: "cascade" }),
+      .references(() => organizations.id, { onDelete: "cascade" }),
     periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
     periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
     state: text("state").$type<AccountingPeriodState>().notNull().default("closed"),
@@ -38,16 +38,16 @@ export const accountingPeriodLocks = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (t) => [
-    uniqueIndex("accounting_period_locks_counterparty_period_uq").on(
-      t.counterpartyId,
+    uniqueIndex("accounting_period_locks_organization_period_uq").on(
+      t.organizationId,
       t.periodStart,
     ),
     index("accounting_period_locks_state_period_idx").on(
       t.state,
       t.periodStart.desc(),
     ),
-    index("accounting_period_locks_counterparty_state_idx").on(
-      t.counterpartyId,
+    index("accounting_period_locks_organization_state_idx").on(
+      t.organizationId,
       t.state,
     ),
   ],
