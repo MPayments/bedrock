@@ -4,11 +4,11 @@ import {
   CreateDocumentInputSchema,
   type DocumentAction,
   type DocumentTransitionAction,
-  DocumentSystemOnlyTypeError,
   ListDocumentsQuerySchema,
   UpdateDocumentInputSchema,
   isSystemOnlyDocumentType,
-} from "@bedrock/documents";
+} from "@bedrock/documents/contracts";
+import { DocumentSystemOnlyTypeError } from "@bedrock/documents";
 
 import auth from "../auth";
 import { handleRouteError } from "../common/errors";

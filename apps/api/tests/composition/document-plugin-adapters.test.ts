@@ -144,7 +144,7 @@ describe("document plugin adapters composition", () => {
 
             return {
               where: vi.fn(() => ({
-                limit: vi.fn(async () => [{ document: dependencyDocument }]),
+                limit: vi.fn(async () => [dependencyDocument]),
               })),
             };
           }),
@@ -156,15 +156,20 @@ describe("document plugin adapters composition", () => {
             }
 
             return {
-              innerJoin: vi.fn((joinedTable: unknown) => {
-                expect(joinedTable).toBe(ledgerSchema.tbTransferPlans);
+              where: vi.fn(() => ({
+                limit: vi.fn(async () => [{ operationId: "op-transfer-1" }]),
+              })),
+            };
+          }),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn((table: unknown) => {
+            expect(table).toBe(ledgerSchema.tbTransferPlans);
 
-                return {
-                  where: vi.fn(() => ({
-                    orderBy: vi.fn(async () => pendingTransfers),
-                  })),
-                };
-              }),
+            return {
+              where: vi.fn(() => ({
+                orderBy: vi.fn(async () => pendingTransfers),
+              })),
             };
           }),
         }),
@@ -263,23 +268,29 @@ describe("document plugin adapters composition", () => {
           if (table === documentsSchema.documents) {
             return {
               where: vi.fn(() => ({
-                limit: vi.fn(async () => [{ document: dependencyDocument }]),
+                limit: vi.fn(async () => [dependencyDocument]),
               })),
             };
           }
 
           if (table === documentsSchema.documentOperations) {
             return {
-              innerJoin: vi.fn(() => ({
-                where: vi.fn(() => ({
-                  orderBy: vi.fn(async () => [
-                    {
-                      transferId: 101n,
-                      pendingRef: "fx_execute:doc-fx-1:source",
-                      amountMinor: 10_000n,
-                    },
-                  ]),
-                })),
+              where: vi.fn(() => ({
+                limit: vi.fn(async () => [{ operationId: "op-fx-1" }]),
+              })),
+            };
+          }
+
+          if (table === ledgerSchema.tbTransferPlans) {
+            return {
+              where: vi.fn(() => ({
+                orderBy: vi.fn(async () => [
+                  {
+                    transferId: 101n,
+                    pendingRef: "fx_execute:doc-fx-1:source",
+                    amountMinor: 10_000n,
+                  },
+                ]),
               })),
             };
           }

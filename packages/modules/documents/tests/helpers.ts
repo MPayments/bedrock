@@ -1,14 +1,15 @@
 import { vi } from "vitest";
 import { z } from "zod";
 
-import {
-  createDocumentRegistry,
-  type DocumentActionPolicyService,
-  type DocumentApprovalMode,
-} from "../src";
-import type { DocumentModule } from "../src/types";
-import { type Document } from "../src/schema";
 import { createStubDb } from "@bedrock/test-utils";
+
+import type {
+  DocumentActionPolicyService,
+  DocumentApprovalMode,
+  DocumentModule,
+  DocumentRegistry,
+} from "../src/types";
+import type { Document } from "../src/domain/types";
 
 const DEFAULT_DOCUMENT_PAYLOAD_SCHEMA = z.object({
   memo: z.string().optional(),
@@ -109,6 +110,34 @@ export function createTestDocumentModule(
   };
 }
 
+export function createTestDocumentRegistry(
+  modules: DocumentModule[],
+): DocumentRegistry {
+  const byType = new Map<string, DocumentModule>();
+  for (const module of modules) {
+    if (byType.has(module.docType)) {
+      throw new Error(
+        `Duplicate document module registration for docType "${module.docType}"`,
+      );
+    }
+    byType.set(module.docType, module);
+  }
+
+  return {
+    getDocumentModules() {
+      return [...byType.values()];
+    },
+    getDocumentModule(docType: string) {
+      const module = byType.get(docType);
+      if (!module) {
+        throw new Error(`Unknown document module: ${docType}`);
+      }
+
+      return module;
+    },
+  };
+}
+
 export function createDocumentPolicyStub(): DocumentActionPolicyService {
   return {
     approvalMode: vi.fn(
@@ -177,6 +206,6 @@ export function createDocumentsServiceDeps(
         handler(),
       ),
     },
-    registry: createDocumentRegistry(modules),
+    registry: createTestDocumentRegistry(modules),
   } as any;
 }

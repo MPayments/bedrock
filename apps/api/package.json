@@ -29,6 +29,7 @@
     "@bedrock/organizations": "workspace:*",
     "@bedrock/plugin-documents-commercial": "workspace:*",
     "@bedrock/plugin-documents-ifrs": "workspace:*",
+    "@bedrock/plugin-documents-sdk": "workspace:*",
     "@bedrock/requisites": "workspace:*",
     "@bedrock/users": "workspace:*",
     "@hono/node-server": "^1.19.9",

@@ -2,20 +2,22 @@ import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import {
-  CreateDocumentInputSchema,
   DocumentPolicyDeniedError,
   DocumentPostingNotRequiredError,
   DocumentRegistryError,
   DocumentValidationError,
   createDefaultDocumentActionPolicyService,
-  createDocumentRegistry,
   createDocumentsService,
-  validateInput,
 } from "../src";
-import { createDocumentsServiceContext } from "../src/internal/context";
+import {
+  CreateDocumentInputSchema,
+  validateInput,
+} from "../src/contracts/validation";
+import { createDocumentsServiceContext } from "../src/application/shared/context";
 import type { DocumentModule } from "../src/types";
 import {
   createDocumentsServiceDeps,
+  createTestDocumentRegistry,
   createTestDocumentModule,
 } from "./helpers";
 
@@ -40,7 +42,7 @@ function createModuleStub(): DocumentModule<{ memo: string }, { memo: string }> 
 describe("documents foundations", () => {
   it("creates a registry and resolves registered modules", () => {
     const module = createModuleStub();
-    const registry = createDocumentRegistry([module]);
+    const registry = createTestDocumentRegistry([module]);
 
     expect(registry.getDocumentModules()).toEqual([module]);
     expect(registry.getDocumentModule(module.docType)).toBe(module);

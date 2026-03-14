@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { schema, type Document } from "@bedrock/documents/schema";
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
-import { createCreateDraftHandler } from "../src/commands/create-draft";
-import { createTransitionHandler } from "../src/commands/transition";
-import { createUpdateDraftHandler } from "../src/commands/update-draft";
+import { createCreateDraftHandler } from "../src/application/commands/create-draft";
+import { createTransitionHandler } from "../src/application/commands/transition";
+import { createUpdateDraftHandler } from "../src/application/commands/update-draft";
+import type { Document } from "../src/domain/types";
+import { schema } from "../src/infra/drizzle/schema";
 import type { DocumentModule } from "../src/types";
 
 function makeDocument(overrides: Partial<Document> = {}): Document {

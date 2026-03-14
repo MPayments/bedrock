@@ -1,14 +1,14 @@
-import { createCreateDraftHandler } from "./commands/create-draft";
-import { createTransitionHandler } from "./commands/transition";
-import { createUpdateDraftHandler } from "./commands/update-draft";
-import { createValidateAccountingSourceCoverageHandler } from "./commands/validate-accounting-source-coverage";
+import { createCreateDraftHandler } from "./application/commands/create-draft";
+import { createTransitionHandler } from "./application/commands/transition";
+import { createUpdateDraftHandler } from "./application/commands/update-draft";
+import { createValidateAccountingSourceCoverageHandler } from "./application/commands/validate-accounting-source-coverage";
 import {
   createDocumentsServiceContext,
   type DocumentsServiceContext,
-} from "./internal/context";
-import { createGetDocumentQuery } from "./queries/get-document";
-import { createGetDocumentDetailsQuery } from "./queries/get-document-details";
-import { createListDocumentsQuery } from "./queries/list-documents";
+} from "./application/shared/context";
+import { createGetDocumentQuery } from "./application/queries/get-document";
+import { createGetDocumentDetailsQuery } from "./application/queries/get-document-details";
+import { createListDocumentsQuery } from "./application/queries/list-documents";
 import type { DocumentsServiceDeps } from "./types";
 
 export type DocumentsService = ReturnType<typeof createDocumentsService>;

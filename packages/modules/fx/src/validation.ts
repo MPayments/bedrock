@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { financialLineSchema } from "@bedrock/documents/financial-lines";
+import { financialLineSchema } from "@bedrock/documents/contracts";
 import { normalizeCurrency, isValidCurrency } from "@bedrock/currencies/catalog";
 import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
 import { DAY_IN_SECONDS } from "@bedrock/shared/money/math";

@@ -1,1 +1,1 @@
-export * from "@bedrock/documents/module-kit";
+export * from "./module-kit";

@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { schema, type Document } from "@bedrock/documents/schema";
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
 import {
@@ -8,6 +7,8 @@ import {
   DocumentPolicyDeniedError,
   DocumentRegistryError,
 } from "../src/errors";
+import type { Document } from "../src/domain/types";
+import { schema } from "../src/infra/drizzle/schema";
 import {
   assertDocumentIsActive,
   buildDefaultActionIdempotencyKey,
@@ -26,8 +27,11 @@ import {
   resolveDocumentsSort,
   resolveModule,
   toStoredJson,
-} from "../src/internal/helpers";
-import { enforceDocumentPolicy, persistDocumentPolicyDenial } from "../src/internal/policy";
+} from "../src/application/shared/helpers";
+import {
+  enforceDocumentPolicy,
+  persistDocumentPolicyDenial,
+} from "../src/application/shared/policy";
 import type { DocumentModule } from "../src/types";
 import {
   buildTestDocument,

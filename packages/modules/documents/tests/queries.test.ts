@@ -1,11 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { type Document, type DocumentEvent, type DocumentLink, type DocumentOperation, type DocumentSnapshot } from "@bedrock/documents/schema";
-
 import { DocumentNotFoundError } from "../src/errors";
-import { createGetDocumentQuery } from "../src/queries/get-document";
-import { createGetDocumentDetailsQuery } from "../src/queries/get-document-details";
-import { createListDocumentsQuery } from "../src/queries/list-documents";
+import { createGetDocumentQuery } from "../src/application/queries/get-document";
+import { createGetDocumentDetailsQuery } from "../src/application/queries/get-document-details";
+import { createListDocumentsQuery } from "../src/application/queries/list-documents";
+import type {
+  Document,
+  DocumentEvent,
+  DocumentLink,
+  DocumentOperation,
+  DocumentSnapshot,
+} from "../src/domain/types";
 import type { DocumentModule } from "../src/types";
 import {
   buildTestDocument,

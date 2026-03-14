@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { schema, type Document } from "@bedrock/documents/schema";
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
-import { createTransitionHandler } from "../src/commands/transition";
+import { createTransitionHandler } from "../src/application/commands/transition";
+import type { Document } from "../src/domain/types";
+import { schema } from "../src/infra/drizzle/schema";
 
 function makeDocument(overrides: Partial<Document> = {}): Document {
   return {

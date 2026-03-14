@@ -3,7 +3,7 @@ import { minorToAmountString } from "@bedrock/shared/money";
 import type {
   DocumentDetails as DocumentDetailsResult,
   DocumentWithOperationId,
-} from "@bedrock/documents";
+} from "@bedrock/documents/contracts";
 
 import { normalizeMoneyFields } from "../../common/amount";
 import { toJsonSafe } from "../../common/json";

@@ -1,4 +1,4 @@
-import type { FinancialLine } from "@bedrock/documents/financial-lines";
+import type { FinancialLine } from "@bedrock/documents/contracts";
 import type { FxQuote, FxQuoteLeg } from "@bedrock/fx/schema";
 
 import type { FxQuoteFeePort } from "../ports";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createDefaultDocumentActionPolicyService } from "../src/policy";
+import { createDefaultDocumentActionPolicyService } from "../src/domain/default-action-policy";
 import type { DocumentModule } from "../src/types";
 
 function createModuleStub(approvalRequired: boolean): DocumentModule {

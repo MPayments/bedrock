@@ -5,7 +5,7 @@ import {
   normalizeFinancialLine,
   type FinancialLine,
   type FinancialLineBucket,
-} from "@bedrock/documents/financial-lines";
+} from "@bedrock/documents/contracts";
 import type { FeeComponent } from "@bedrock/fees";
 import { schema } from "@bedrock/fx/schema";
 import type { Transaction } from "@bedrock/platform/persistence";

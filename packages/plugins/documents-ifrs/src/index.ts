@@ -3,6 +3,8 @@ export {
   createFxExecuteDocumentModule,
   createFxResolutionDocumentModule,
   createIfrsDocumentModules,
+  createPeriodCloseDocumentModule,
+  createPeriodReopenDocumentModule,
   createTransferIntercompanyDocumentModule,
   createTransferIntraDocumentModule,
   createTransferResolutionDocumentModule,
@@ -101,3 +103,5 @@ export {
   type TransferResolutionInput,
   type TransferResolutionPayload,
 } from "./validation";
+
+export { createIfrsDocumentDeps } from "./infra/deps";

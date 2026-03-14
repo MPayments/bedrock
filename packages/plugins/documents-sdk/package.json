@@ -5,9 +5,10 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./create-document-registry": "./src/create-document-registry.ts",
     "./definitions/shared": "./src/definitions/shared.ts",
     "./form-types": "./src/form-types.ts",
-    "./module-kit": "./src/module-kit.ts",
+    "./module-kit": "./src/module-kit/index.ts",
     "./validation/shared": "./src/validation/shared.ts"
   },
   "scripts": {
@@ -19,7 +20,9 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
+    "@bedrock/accounting": "workspace:*",
     "@bedrock/documents": "workspace:*",
+    "@bedrock/platform": "workspace:*",
     "zod": "^4.1.11"
   },
   "devDependencies": {

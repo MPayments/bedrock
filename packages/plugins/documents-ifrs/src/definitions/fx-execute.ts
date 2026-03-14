@@ -1,5 +1,5 @@
 import { normalizeMajorAmountInput } from "@bedrock/shared/money";
-import { FINANCIAL_LINE_BUCKET_OPTIONS } from "@bedrock/documents/financial-lines";
+import { FINANCIAL_LINE_BUCKET_OPTIONS } from "@bedrock/documents/contracts";
 
 import type { IfrsDocumentCatalogEntry } from "./types";
 import {

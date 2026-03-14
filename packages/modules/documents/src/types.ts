@@ -1,6 +1,10 @@
 import type { z } from "zod";
 
 import type { DocumentPostingPlan } from "@bedrock/accounting/packs";
+import type { CorrelationContext } from "@bedrock/shared/core/correlation";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Logger } from "@bedrock/platform/observability/logger";
+
 import type {
   Document,
   DocumentApprovalStatus,
@@ -11,19 +15,15 @@ import type {
   DocumentPostingStatus,
   DocumentSnapshot,
   DocumentSubmissionStatus,
-} from "@bedrock/documents/schema";
-import type { CorrelationContext } from "@bedrock/shared/core/correlation";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
-import type { Logger } from "@bedrock/platform/observability/logger";
-
+} from "./domain/types";
 import type {
   DocumentsAccountingPort,
   DocumentsAccountingPeriodsPort,
   DocumentsIdempotencyPort,
   DocumentsLedgerCommitPort,
   DocumentsLedgerReadPort,
-} from "./ports";
-import type { DocumentAction } from "./state-machine";
+} from "./application/ports";
+import type { DocumentAction } from "./domain/state-machine";
 
 export type {
   Document,

@@ -4,7 +4,7 @@ import {
   financialLineBucketSchema,
   financialLineSettlementModeSchema,
   financialLineSourceSchema,
-} from "@bedrock/documents/financial-lines";
+} from "@bedrock/documents/contracts";
 import {
   amountValueSchema,
   parseMinorAmount,

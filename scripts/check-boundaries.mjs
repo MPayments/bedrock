@@ -40,7 +40,7 @@ const ALLOWED_IMPORT_KINDS = {
   module: new Set(["shared", "module", "platform"]),
   workflow: new Set(["shared", "module", "platform", "workflow"]),
   platform: new Set(["shared", "platform", "module"]),
-  plugin: new Set(["shared", "module", "plugin"]),
+  plugin: new Set(["shared", "module", "plugin", "platform"]),
   sdk: new Set(["shared", "sdk", "app"]),
   tooling: null,
   ops: null,
@@ -95,6 +95,22 @@ function isDbImportAllowed(owner, relFile) {
     relFile.startsWith("tests/integration/") ||
     /\/tests\/integration\//.test(relFile)
   ) {
+    return true;
+  }
+
+  return false;
+}
+
+function isDocumentsSchemaImportAllowed(relFile) {
+  if (relFile.startsWith("apps/db/")) {
+    return true;
+  }
+
+  if (/(^|\/)tests\//.test(relFile)) {
+    return true;
+  }
+
+  if (isSchemaDefinitionFile(relFile)) {
     return true;
   }
 
@@ -196,6 +212,10 @@ function isAccountingPortsFile(relFile) {
 
 function isAccountingInfraFile(relFile) {
   return /^packages\/modules\/accounting\/src\/infra\//.test(relFile);
+}
+
+function isPluginInfraFile(relFile) {
+  return /^packages\/plugins\/[^/]+\/src\/infra\//.test(relFile);
 }
 
 function isAccountingRuntimeSource(relFile) {
@@ -385,6 +405,14 @@ for (const root of SOURCE_ROOTS) {
           continue;
         }
 
+        if (
+          owner?.name !== "@bedrock/documents" &&
+          /^packages\/modules\/documents\/src\/internal\//.test(relTargetPath)
+        ) {
+          recordViolation("documents-internal-import", relFile, specifier);
+          continue;
+        }
+
         continue;
       }
 
@@ -417,12 +445,31 @@ for (const root of SOURCE_ROOTS) {
         owner?.kind === "plugin" &&
         isRuntimeSourceFile &&
         targetPkg.name !== owner.name &&
+        !isPluginInfraFile(relFile) &&
         (
           normalized.subpath === "./schema" ||
           normalized.subpath.startsWith("./schema/")
         )
       ) {
         recordViolation("plugin-imports-foreign-schema", relFile, specifier);
+      }
+
+      if (
+        normalized.packageName === "@bedrock/documents" &&
+        (
+          normalized.subpath === "./module-kit" ||
+          normalized.subpath.startsWith("./module-kit/") ||
+          normalized.subpath === "./financial-lines" ||
+          normalized.subpath.startsWith("./financial-lines/") ||
+          normalized.subpath === "./validation" ||
+          normalized.subpath.startsWith("./validation/") ||
+          normalized.subpath === "./state-machine" ||
+          normalized.subpath.startsWith("./state-machine/") ||
+          normalized.subpath === "./form-types" ||
+          normalized.subpath.startsWith("./form-types/")
+        )
+      ) {
+        recordViolation("documents-removed-subpath", relFile, specifier);
       }
 
       if (
@@ -452,6 +499,21 @@ for (const root of SOURCE_ROOTS) {
       ) {
         recordViolation(
           "accounting-app-or-domain-imports-foreign-schema",
+          relFile,
+          specifier,
+        );
+      }
+
+      if (
+        normalized.packageName === "@bedrock/documents" &&
+        (
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        ) &&
+        !isDocumentsSchemaImportAllowed(relFile)
+      ) {
+        recordViolation(
+          "documents-schema-import-outside-allowed-zones",
           relFile,
           specifier,
         );

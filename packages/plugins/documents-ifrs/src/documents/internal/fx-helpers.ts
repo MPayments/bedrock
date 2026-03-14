@@ -6,7 +6,7 @@ import {
   aggregateFinancialLines,
   normalizeFinancialLine,
   type FinancialLine,
-} from "@bedrock/documents/financial-lines";
+} from "@bedrock/documents/contracts";
 import { DocumentValidationError } from "@bedrock/plugin-documents-sdk";
 import {
   buildDocumentPostingRequest,

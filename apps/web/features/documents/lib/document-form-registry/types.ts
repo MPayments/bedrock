@@ -9,4 +9,4 @@ export type {
   DocumentFormSection,
   DocumentFormSectionLayout,
   DocumentFormValues,
-} from "@bedrock/documents/form-types";
+} from "@bedrock/plugin-documents-sdk/form-types";

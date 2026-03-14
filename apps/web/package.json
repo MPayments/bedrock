@@ -20,6 +20,7 @@
     "@bedrock/documents": "workspace:*",
     "@bedrock/plugin-documents-commercial": "workspace:*",
     "@bedrock/plugin-documents-ifrs": "workspace:*",
+    "@bedrock/plugin-documents-sdk": "workspace:*",
     "@bedrock/fx": "workspace:*",
     "@bedrock/organizations": "workspace:*",
     "@bedrock/requisites": "workspace:*",

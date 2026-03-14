@@ -1,4 +1,4 @@
-import type { DocumentWithOperationId } from "@bedrock/documents";
+import type { DocumentWithOperationId } from "@bedrock/documents/contracts";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { CorrelationContext } from "@bedrock/shared/core/correlation";
 

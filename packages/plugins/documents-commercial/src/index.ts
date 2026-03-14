@@ -1,4 +1,5 @@
 export { createCommercialDocumentModules } from "./documents";
+export { createCommercialDocumentDeps } from "./infra/deps";
 export type {
   CommercialDocumentDb,
   CommercialDocumentRelationsPort,

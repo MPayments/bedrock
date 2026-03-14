@@ -20,7 +20,6 @@ import {
   type CustomersService,
 } from "@bedrock/customers";
 import {
-  createDocumentRegistry,
   createDocumentsService,
   type DocumentsService,
 } from "@bedrock/documents";
@@ -34,6 +33,7 @@ import {
 } from "@bedrock/organizations";
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
+import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
 import {
   createRequisitesService,
   type RequisitesService,
