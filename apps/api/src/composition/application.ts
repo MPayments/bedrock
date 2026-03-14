@@ -41,6 +41,7 @@ import { createDrizzleDocumentsRepository } from "@bedrock/documents/repository"
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/infra/providers";
+import { createLedgerBooksService } from "@bedrock/ledger";
 import { createLedgerQueries } from "@bedrock/ledger/queries";
 import {
   createOrganizationsService,
@@ -309,6 +310,7 @@ export function createApplicationServices(
   });
   const organizationsService = createOrganizationsService({
     db,
+    ledgerBooks: createLedgerBooksService(),
     logger,
   });
   const requisiteProvidersService = createRequisiteProvidersService({

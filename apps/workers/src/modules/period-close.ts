@@ -36,8 +36,6 @@ import {
 import { createDrizzleDocumentsRepository } from "@bedrock/documents/repository";
 import { createLedgerReadService, createLedgerService } from "@bedrock/ledger";
 import { createLedgerQueries } from "@bedrock/ledger/queries";
-import { assertBooksBelongToInternalLedgerOrganizations } from "@bedrock/organizations";
-import { listInternalLedgerOrganizations } from "@bedrock/organizations";
 import { createOrganizationsQueries } from "@bedrock/organizations/queries";
 import { user } from "@bedrock/platform/auth-model/schema";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
@@ -87,7 +85,8 @@ async function resolveSystemActorUserId(db: Database): Promise<string | null> {
 }
 
 async function listOrganizationIds(db: Database): Promise<string[]> {
-  const rows = await listInternalLedgerOrganizations(db);
+  const organizationsQueries = createOrganizationsQueries({ db });
+  const rows = await organizationsQueries.listInternalLedgerOrganizations();
   return rows.map((row) => row.id);
 }
 
@@ -257,6 +256,7 @@ function createAccountingPeriodsPort(db: Database): AccountingPeriodsService {
 }
 
 function createPeriodCloseAccountingService(db: Database) {
+  const organizationsQueries = createOrganizationsQueries({ db });
   const packsService = createAccountingPacksService({
     defaultPackDefinition: rawPackDefinition,
     cache: createInMemoryAccountingCompiledPackCache(),
@@ -265,8 +265,8 @@ function createPeriodCloseAccountingService(db: Database) {
       db.transaction(async (tx) =>
         run(createDrizzleAccountingPacksRepository(tx)),
       ),
-    assertBooksBelongToInternalLedgerOrganizations: (bookIds) =>
-      assertBooksBelongToInternalLedgerOrganizations({ db, bookIds }),
+    assertBooksBelongToInternalLedgerOrganizations:
+      organizationsQueries.assertBooksBelongToInternalLedgerOrganizations,
   });
 
   return createAccountingService({
@@ -340,9 +340,13 @@ export function createPeriodCloseWorkerDefinition(deps: {
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: deps.db });
   const accountingPeriods = createAccountingPeriodsPort(deps.db);
   const idempotency = createIdempotencyService({ logger: deps.logger });
+  const organizationsQueries = createOrganizationsQueries({ db: deps.db });
   const ledger = createLedgerService({
     db: deps.db,
-    assertInternalLedgerBooks: assertBooksBelongToInternalLedgerOrganizations,
+    assertInternalLedgerBooks: async ({ bookIds }) =>
+      organizationsQueries.assertBooksBelongToInternalLedgerOrganizations(
+        bookIds,
+      ),
   });
   const documentsService = createDocumentsService({
     accounting: createPeriodCloseAccountingService(deps.db),

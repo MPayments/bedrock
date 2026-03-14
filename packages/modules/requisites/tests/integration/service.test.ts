@@ -3,11 +3,11 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import { schema as currenciesSchema } from "@bedrock/currencies/schema";
+import { createLedgerBooksService } from "@bedrock/ledger";
 import { schema as organizationsSchema } from "@bedrock/organizations/schema";
 import { schema as requisitesSchema } from "@bedrock/requisites/schema";
 
 import { ensureRequisiteAccountingBindingTx } from "../../src/internal/bindings";
-import { ensureOrganizationDefaultBookIdTx } from "../../src/internal/organization-default-book";
 import { schema } from "../../src/schema";
 import { db } from "./setup";
 
@@ -68,15 +68,16 @@ async function seedOrganizationRequisiteFixture() {
 describe("requisites integration", () => {
   it("creates one default organization book and reuses it on repeated resolution", async () => {
     const organizationId = randomUUID();
+    const ledgerBooks = createLedgerBooksService();
 
-    const firstBookId = await db.transaction((tx) =>
-      ensureOrganizationDefaultBookIdTx(tx, organizationId),
+    const firstBook = await db.transaction((tx) =>
+      ledgerBooks.ensureDefaultOrganizationBook(tx, { organizationId }),
     );
-    const secondBookId = await db.transaction((tx) =>
-      ensureOrganizationDefaultBookIdTx(tx, organizationId),
+    const secondBook = await db.transaction((tx) =>
+      ledgerBooks.ensureDefaultOrganizationBook(tx, { organizationId }),
     );
 
-    expect(secondBookId).toBe(firstBookId);
+    expect(secondBook.bookId).toBe(firstBook.bookId);
 
     const rows = await db
       .select()
@@ -91,7 +92,7 @@ describe("requisites integration", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toEqual(
       expect.objectContaining({
-        id: firstBookId,
+        id: firstBook.bookId,
         ownerId: organizationId,
         code: `organization-default:${organizationId}`,
         isDefault: true,

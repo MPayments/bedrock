@@ -1,17 +1,33 @@
-import { createCreateOrganizationHandler } from "./commands/create-organization";
-import { createFindOrganizationByIdHandler } from "./commands/find-organization-by-id";
-import { createListOrganizationsHandler } from "./commands/list-organizations";
-import { createRemoveOrganizationHandler } from "./commands/remove-organization";
-import { createUpdateOrganizationHandler } from "./commands/update-organization";
+import {
+  createCreateOrganizationHandler,
+} from "./application/organizations/commands/create-organization";
+import {
+  createFindOrganizationByIdHandler,
+} from "./application/organizations/commands/find-organization-by-id";
+import {
+  createListOrganizationsHandler,
+} from "./application/organizations/commands/list-organizations";
+import {
+  createRemoveOrganizationHandler,
+} from "./application/organizations/commands/remove-organization";
+import {
+  createUpdateOrganizationHandler,
+} from "./application/organizations/commands/update-organization";
 import {
   createOrganizationsServiceContext,
   type OrganizationsServiceDeps,
-} from "./internal/context";
+} from "./application/shared/context";
+import { createDrizzleOrganizationsRepository } from "./infra/drizzle/repos/organizations-repository";
 
 export type OrganizationsService = ReturnType<typeof createOrganizationsService>;
 
 export function createOrganizationsService(deps: OrganizationsServiceDeps) {
-  const context = createOrganizationsServiceContext(deps);
+  const context = createOrganizationsServiceContext({
+    db: deps.db,
+    logger: deps.logger,
+    ledgerBooks: deps.ledgerBooks,
+    organizations: createDrizzleOrganizationsRepository(deps.db),
+  });
 
   const list = createListOrganizationsHandler(context);
   const findById = createFindOrganizationByIdHandler(context);

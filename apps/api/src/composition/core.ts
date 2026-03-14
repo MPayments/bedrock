@@ -19,7 +19,7 @@ import {
   type LedgerService,
   type LedgerReadService,
 } from "@bedrock/ledger";
-import { assertBooksBelongToInternalLedgerOrganizations } from "@bedrock/organizations";
+import { createOrganizationsQueries } from "@bedrock/organizations/queries";
 import { createBetterAuthPasswordHasher } from "@bedrock/platform/auth-betterauth";
 import {
   createDrizzleAuthIdentityStore,
@@ -44,6 +44,7 @@ export interface ApiCoreServices {
 }
 
 function createApiAccountingService(): AccountingService {
+  const organizationsQueries = createOrganizationsQueries({ db });
   const packsRepository = createDrizzleAccountingPacksRepository(db);
   const packsService = createAccountingPacksService({
     defaultPackDefinition: rawPackDefinition,
@@ -53,8 +54,8 @@ function createApiAccountingService(): AccountingService {
       db.transaction(async (tx) =>
         run(createDrizzleAccountingPacksRepository(tx)),
       ),
-    assertBooksBelongToInternalLedgerOrganizations: (bookIds) =>
-      assertBooksBelongToInternalLedgerOrganizations({ db, bookIds }),
+    assertBooksBelongToInternalLedgerOrganizations:
+      organizationsQueries.assertBooksBelongToInternalLedgerOrganizations,
   });
 
   return createAccountingService({
@@ -69,9 +70,13 @@ export function createCoreServices(): ApiCoreServices {
   const authStore = createDrizzleAuthIdentityStore({ db });
   const passwordHasher = createBetterAuthPasswordHasher();
   const accountingService = createApiAccountingService();
+  const organizationsQueries = createOrganizationsQueries({ db });
   const ledger = createLedgerService({
     db,
-    assertInternalLedgerBooks: assertBooksBelongToInternalLedgerOrganizations,
+    assertInternalLedgerBooks: async ({ bookIds }) =>
+      organizationsQueries.assertBooksBelongToInternalLedgerOrganizations(
+        bookIds,
+      ),
   });
   const ledgerReadService = createLedgerReadService({ db });
   const balancesService = createBalancesService({ db, idempotency, logger });

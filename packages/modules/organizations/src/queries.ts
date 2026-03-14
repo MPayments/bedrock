@@ -1,57 +1,24 @@
+import { createLedgerQueries } from "@bedrock/ledger/queries";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import {
-  assertBooksBelongToInternalLedgerOrganizations,
-  assertInternalLedgerOrganization,
-  isInternalLedgerOrganization,
-  listInternalLedgerOrganizations,
-} from "./internal-ledger";
+  createOrganizationQueries,
+  type OrganizationsQueries,
+} from "./application/internal-ledger/queries";
+import { createDrizzleOrganizationsRepository } from "./infra/drizzle/repos/organizations-repository";
 
 type Queryable = Database | Transaction;
 
-export interface OrganizationsQueries {
-  listInternalLedgerOrganizations: () => Promise<
-    {
-      id: string;
-      shortName: string;
-    }[]
-  >;
-  listInternalLedgerOrganizationIds: () => Promise<string[]>;
-  isInternalLedgerOrganization: (organizationId: string) => Promise<boolean>;
-  assertInternalLedgerOrganization: (organizationId: string) => Promise<void>;
-  assertBooksBelongToInternalLedgerOrganizations: (
-    bookIds: string[],
-  ) => Promise<void>;
-}
-
 export function createOrganizationsQueries(input: { db: Queryable }): OrganizationsQueries {
-  const { db } = input;
+  const organizations = createDrizzleOrganizationsRepository(input.db);
+  const ledgerQueries = createLedgerQueries({ db: input.db });
 
-  return {
-    async listInternalLedgerOrganizations() {
-      return listInternalLedgerOrganizations(db);
+  return createOrganizationQueries({
+    organizations,
+    ledgerRead: {
+      listBooksById: ledgerQueries.listBooksById,
     },
-    async listInternalLedgerOrganizationIds() {
-      const rows = await listInternalLedgerOrganizations(db);
-      return rows.map((row) => row.id);
-    },
-    async isInternalLedgerOrganization(organizationId: string) {
-      return isInternalLedgerOrganization({
-        db,
-        organizationId,
-      });
-    },
-    async assertInternalLedgerOrganization(organizationId: string) {
-      await assertInternalLedgerOrganization({
-        db,
-        organizationId,
-      });
-    },
-    async assertBooksBelongToInternalLedgerOrganizations(bookIds: string[]) {
-      await assertBooksBelongToInternalLedgerOrganizations({
-        db,
-        bookIds,
-      });
-    },
-  };
+  });
 }
+
+export type { OrganizationsQueries };

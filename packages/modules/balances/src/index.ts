@@ -1,13 +1,3 @@
 export { createBalancesService, type BalancesService } from "./service";
+export type { BalancesServiceDeps } from "./application/shared/context";
 export * from "./errors";
-export {
-  BalanceSubjectSchema,
-  ConsumeBalanceInputSchema,
-  ReleaseBalanceInputSchema,
-  ReserveBalanceInputSchema,
-  type BalanceSubjectInput,
-  type ConsumeBalanceInput,
-  type ReleaseBalanceInput,
-  type ReserveBalanceInput,
-} from "./validation";
-export type { BalancesServiceDeps } from "./internal/context";

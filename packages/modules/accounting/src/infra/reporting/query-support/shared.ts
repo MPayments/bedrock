@@ -1,5 +1,6 @@
 import type { BalancesQueries } from "@bedrock/balances/queries";
 import type { CounterpartiesQueries } from "@bedrock/counterparties/queries";
+import type { LedgerQueries } from "@bedrock/ledger/queries";
 import type { OrganizationsQueries } from "@bedrock/organizations/queries";
 
 import {
@@ -18,12 +19,14 @@ export function keyByParts(...parts: (string | null | undefined)[]): string {
 export function createReportsSharedHelpers(input: {
   balancesQueries: BalancesQueries;
   counterpartiesQueries: CounterpartiesQueries;
+  ledgerQueries: LedgerQueries;
   organizationsQueries: OrganizationsQueries;
   reportsRepository: AccountingReportsRepository;
 }) {
   const {
     balancesQueries,
     counterpartiesQueries,
+    ledgerQueries,
     organizationsQueries,
     reportsRepository,
   } = input;
@@ -97,12 +100,25 @@ export function createReportsSharedHelpers(input: {
       internalLedgerOrganizationIds,
       currency: inputArgs.currency,
     });
+    const [books, organizationNames] = await Promise.all([
+      ledgerQueries.listBooksById(rows.map((row) => row.bookId)),
+      organizationsQueries.listShortNamesById(
+        rows
+          .map((row) => row.counterpartyId)
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ]);
+    const bookNames = new Map(
+      books.map((book) => [book.id, book.name ?? book.id]),
+    );
 
     return rows.map((row) => ({
       bookId: row.bookId,
-      bookLabel: row.bookLabel ?? row.bookId,
+      bookLabel: bookNames.get(row.bookId) ?? row.bookId,
       counterpartyId: row.counterpartyId,
-      counterpartyName: row.counterpartyName,
+      counterpartyName: row.counterpartyId
+        ? (organizationNames.get(row.counterpartyId) ?? null)
+        : null,
       currency: row.currency,
       ledgerBalanceMinor: parseMinorAmount(row.ledgerBalanceMinor),
       availableMinor: parseMinorAmount(row.availableMinor),

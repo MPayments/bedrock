@@ -117,6 +117,38 @@ function isDocumentsSchemaImportAllowed(relFile) {
   return false;
 }
 
+function isBalancesSchemaImportAllowed(relFile) {
+  if (relFile.startsWith("apps/db/")) {
+    return true;
+  }
+
+  if (/(^|\/)tests\//.test(relFile)) {
+    return true;
+  }
+
+  if (isSchemaDefinitionFile(relFile)) {
+    return true;
+  }
+
+  return false;
+}
+
+function isOrganizationsSchemaImportAllowed(relFile) {
+  if (relFile.startsWith("apps/db/")) {
+    return true;
+  }
+
+  if (/(^|\/)tests\//.test(relFile)) {
+    return true;
+  }
+
+  if (isSchemaDefinitionFile(relFile)) {
+    return true;
+  }
+
+  return false;
+}
+
 function isLedgerSchemaImportAllowed(relFile) {
   if (relFile.startsWith("apps/db/")) {
     return true;
@@ -134,11 +166,7 @@ function isLedgerSchemaImportAllowed(relFile) {
     return true;
   }
 
-  if (
-    relFile === "packages/modules/balances/src/worker.ts" ||
-    relFile === "packages/modules/organizations/src/default-book.ts" ||
-    relFile === "packages/modules/organizations/src/internal-ledger.ts"
-  ) {
+  if (relFile.startsWith("packages/modules/balances/src/infra/")) {
     return true;
   }
 
@@ -450,6 +478,14 @@ for (const root of SOURCE_ROOTS) {
         }
 
         if (
+          owner?.name !== "@bedrock/balances" &&
+          /^packages\/modules\/balances\/src\/internal\//.test(relTargetPath)
+        ) {
+          recordViolation("balances-internal-import", relFile, specifier);
+          continue;
+        }
+
+        if (
           owner?.name !== "@bedrock/documents" &&
           /^packages\/modules\/documents\/src\/internal\//.test(relTargetPath)
         ) {
@@ -457,10 +493,18 @@ for (const root of SOURCE_ROOTS) {
           continue;
         }
 
-        if (
-          owner?.name !== "@bedrock/ledger" &&
-          /^packages\/modules\/ledger\/src\/internal\//.test(relTargetPath)
-        ) {
+      if (
+        owner?.name !== "@bedrock/organizations" &&
+        /^packages\/modules\/organizations\/src\/internal\//.test(relTargetPath)
+      ) {
+        recordViolation("organizations-internal-import", relFile, specifier);
+        continue;
+      }
+
+      if (
+        owner?.name !== "@bedrock/ledger" &&
+        /^packages\/modules\/ledger\/src\/internal\//.test(relTargetPath)
+      ) {
           recordViolation("ledger-internal-import", relFile, specifier);
           continue;
         }
@@ -504,6 +548,26 @@ for (const root of SOURCE_ROOTS) {
         )
       ) {
         recordViolation("plugin-imports-foreign-schema", relFile, specifier);
+      }
+
+      if (
+        normalized.packageName === "@bedrock/organizations" &&
+        (
+          normalized.subpath === "./validation" ||
+          normalized.subpath.startsWith("./validation/")
+        )
+      ) {
+        recordViolation("organizations-removed-subpath", relFile, specifier);
+      }
+
+      if (
+        normalized.packageName === "@bedrock/balances" &&
+        (
+          normalized.subpath === "./validation" ||
+          normalized.subpath.startsWith("./validation/")
+        )
+      ) {
+        recordViolation("balances-removed-subpath", relFile, specifier);
       }
 
       if (
@@ -567,6 +631,36 @@ for (const root of SOURCE_ROOTS) {
       }
 
       if (
+        normalized.packageName === "@bedrock/organizations" &&
+        (
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        ) &&
+        !isOrganizationsSchemaImportAllowed(relFile)
+      ) {
+        recordViolation(
+          "organizations-schema-import-outside-allowed-zones",
+          relFile,
+          specifier,
+        );
+      }
+
+      if (
+        normalized.packageName === "@bedrock/balances" &&
+        (
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        ) &&
+        !isBalancesSchemaImportAllowed(relFile)
+      ) {
+        recordViolation(
+          "balances-schema-import-outside-allowed-zones",
+          relFile,
+          specifier,
+        );
+      }
+
+      if (
         normalized.packageName === "@bedrock/documents" &&
         (
           normalized.subpath === "./schema" ||
@@ -594,6 +688,21 @@ for (const root of SOURCE_ROOTS) {
           relFile,
           specifier,
         );
+      }
+
+      if (
+        owner?.name === "@bedrock/organizations" &&
+        isRuntimeSourceFile &&
+        targetPkg.name === owner.name &&
+        (
+          normalized.subpath === "." ||
+          normalized.subpath === "./contracts" ||
+          normalized.subpath.startsWith("./contracts/") ||
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        )
+      ) {
+        recordViolation("organizations-self-import", relFile, specifier);
       }
 
       if (

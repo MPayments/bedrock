@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildProjectedBalanceDeltas,
   projectBalanceSubjects,
-} from "../src/worker";
+} from "../src/domain/projection";
 
 describe("balances projector helpers", () => {
   it("projects dimension ids into balance subjects", () => {

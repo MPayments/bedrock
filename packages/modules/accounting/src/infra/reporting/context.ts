@@ -32,6 +32,7 @@ export function createAccountingReportsContext(input: {
     ...createReportsSharedHelpers({
       balancesQueries,
       counterpartiesQueries,
+      ledgerQueries,
       organizationsQueries,
       reportsRepository,
     }),

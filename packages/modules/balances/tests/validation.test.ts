@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { validateReserveBalanceInput } from "../src/validation";
+import { validateReserveBalanceInput } from "../src/contracts";
 
 describe("balances validation", () => {
   const subject = {
@@ -16,6 +16,7 @@ describe("balances validation", () => {
         subject,
         amount: "0",
         holdRef: "hold-1",
+        idempotencyKey: "idem-1",
       }),
     ).toThrow();
   });
@@ -25,6 +26,7 @@ describe("balances validation", () => {
       subject,
       amount: "10.25",
       holdRef: "hold-2",
+      idempotencyKey: "idem-2",
     });
 
     expect(validated.amountMinor).toBe(1025n);
