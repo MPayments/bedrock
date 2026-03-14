@@ -18,7 +18,7 @@
     "db:studio": "bun run --filter=db db:studio",
     "dev": "turbo run dev --concurrency 100",
     "lint": "turbo run lint",
-    "check:boundaries": "node ./scripts/check-boundaries.mjs && node ./scripts/check-accounting-literals.mjs && node ./scripts/check-deprecated-imports.mjs",
+    "check:boundaries": "node ./scripts/check-boundaries.mjs && node ./scripts/check-accounting-literals.mjs && node ./scripts/check-deprecated-imports.mjs && node ./scripts/check-schema-entrypoints.mjs",
     "check:worker-runtime": "node ./scripts/check-worker-runtime.mjs",
     "check:cycles": "node ./scripts/check-workspace-cycles.mjs",
     "check:workspace-deps": "node ./scripts/check-workspace-deps.mjs",

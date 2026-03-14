@@ -35,9 +35,7 @@ export type DocumentPostingStatus =
   | "posting"
   | "posted"
   | "failed";
-export type DocumentLifecycleStatus =
-  | "active"
-  | "cancelled";
+export type DocumentLifecycleStatus = "active" | "cancelled";
 export type DocumentLinkType =
   | "parent"
   | "depends_on"
@@ -62,7 +60,9 @@ export const documents = pgTable(
     approvalStatus: text("approval_status")
       .$type<DocumentApprovalStatus>()
       .notNull(),
-    postingStatus: text("posting_status").$type<DocumentPostingStatus>().notNull(),
+    postingStatus: text("posting_status")
+      .$type<DocumentPostingStatus>()
+      .notNull(),
     lifecycleStatus: text("lifecycle_status")
       .$type<DocumentLifecycleStatus>()
       .notNull(),
@@ -70,9 +70,12 @@ export const documents = pgTable(
     amountMinor: bigint("amount_minor", { mode: "bigint" }),
     currency: text("currency"),
     memo: text("memo"),
-    counterpartyId: uuid("counterparty_id").references(() => counterparties.id, {
-      onDelete: "set null",
-    }),
+    counterpartyId: uuid("counterparty_id").references(
+      () => counterparties.id,
+      {
+        onDelete: "set null",
+      },
+    ),
     customerId: uuid("customer_id").references(() => customers.id, {
       onDelete: "set null",
     }),
@@ -80,9 +83,7 @@ export const documents = pgTable(
       () => requisites.id,
       { onDelete: "set null" },
     ),
-    searchText: text("search_text")
-      .notNull()
-      .default(""),
+    searchText: text("search_text").notNull().default(""),
     createdBy: text("created_by")
       .notNull()
       .references(() => user.id),
@@ -197,7 +198,9 @@ export const documentEvents = pgTable(
       .notNull()
       .default(sql`now()`),
   },
-  (t) => [index("document_events_document_created_idx").on(t.documentId, t.createdAt)],
+  (t) => [
+    index("document_events_document_created_idx").on(t.documentId, t.createdAt),
+  ],
 );
 
 export const documentOperations = pgTable(
@@ -216,7 +219,10 @@ export const documentOperations = pgTable(
       .default(sql`now()`),
   },
   (t) => [
-    uniqueIndex("document_operations_document_kind_uq").on(t.documentId, t.kind),
+    uniqueIndex("document_operations_document_kind_uq").on(
+      t.documentId,
+      t.kind,
+    ),
     uniqueIndex("document_operations_operation_uq").on(t.operationId),
     index("document_operations_document_idx").on(t.documentId),
   ],
@@ -239,7 +245,10 @@ export const documentLinks = pgTable(
       .default(sql`now()`),
   },
   (t) => [
-    check("document_links_no_self", sql`${t.fromDocumentId} <> ${t.toDocumentId}`),
+    check(
+      "document_links_no_self",
+      sql`${t.fromDocumentId} <> ${t.toDocumentId}`,
+    ),
     index("document_links_from_type_idx").on(t.fromDocumentId, t.linkType),
     index("document_links_to_type_idx").on(t.toDocumentId, t.linkType),
     uniqueIndex("document_links_unique_idx").on(
@@ -265,8 +274,12 @@ export const documentSnapshots = pgTable(
     packChecksum: text("pack_checksum").notNull(),
     postingPlanChecksum: text("posting_plan_checksum").notNull(),
     journalIntentChecksum: text("journal_intent_checksum").notNull(),
-    postingPlan: jsonb("posting_plan").$type<Record<string, unknown>>().notNull(),
-    journalIntent: jsonb("journal_intent").$type<Record<string, unknown>>().notNull(),
+    postingPlan: jsonb("posting_plan")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    journalIntent: jsonb("journal_intent")
+      .$type<Record<string, unknown>>()
+      .notNull(),
     resolvedTemplates: jsonb("resolved_templates").$type<unknown[] | null>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

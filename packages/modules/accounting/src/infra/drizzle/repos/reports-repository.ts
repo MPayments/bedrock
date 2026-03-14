@@ -6,7 +6,7 @@ import type {
   AccountingClosePackageRecord,
 } from "../../../domain/periods";
 import type { LineMapping } from "../../../domain/reports";
-import { schema } from "../../../schema";
+import { schema } from "../schema";
 
 type Queryable = Database | Transaction;
 

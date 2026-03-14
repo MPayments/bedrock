@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import type { Database } from "@bedrock/platform/persistence";
 
 import type { AccountingChartRepository } from "../../../application/chart/ports";
-import { schema } from "../../../schema";
+import { schema } from "../schema";
 
 export function createDrizzleAccountingChartRepository(
   db: Database,

@@ -3,7 +3,7 @@ import { and, desc, eq, lte } from "drizzle-orm";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import type { AccountingPacksRepository } from "../../../application/packs/ports";
-import { schema } from "../../../schema";
+import { schema } from "../schema";
 
 type Queryable = Database | Transaction;
 
