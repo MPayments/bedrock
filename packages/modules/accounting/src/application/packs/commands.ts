@@ -99,7 +99,9 @@ export function createStoreCompiledPackVersionCommand(input: {
 
 export function createActivatePackForScopeCommand(input: {
   context: AccountingPacksContext;
-  loadCompiledPackByChecksum: (checksum: string) => Promise<CompiledPack | null>;
+  loadCompiledPackByChecksum: (
+    checksum: string,
+  ) => Promise<CompiledPack | null>;
 }) {
   const { context, loadCompiledPackByChecksum } = input;
 

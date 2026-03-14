@@ -6,12 +6,12 @@ import type { DocumentsServiceDeps } from "../../types";
 export interface DocumentsServiceContext {
   accounting: DocumentsServiceDeps["accounting"];
   accountingPeriods: DocumentsServiceDeps["accountingPeriods"];
-  db: DocumentsServiceDeps["db"];
-  idempotency: DocumentsServiceDeps["idempotency"];
-  ledger: DocumentsServiceDeps["ledger"];
   ledgerReadService: DocumentsServiceDeps["ledgerReadService"];
+  moduleDb: DocumentsServiceDeps["moduleDb"];
   policy: NonNullable<DocumentsServiceDeps["policy"]>;
+  repository: DocumentsServiceDeps["repository"];
   registry: DocumentsServiceDeps["registry"];
+  transactions: DocumentsServiceDeps["transactions"];
   log: Logger;
 }
 
@@ -21,12 +21,12 @@ export function createDocumentsServiceContext(
   return {
     accounting: deps.accounting,
     accountingPeriods: deps.accountingPeriods,
-    db: deps.db,
-    idempotency: deps.idempotency,
-    ledger: deps.ledger,
     ledgerReadService: deps.ledgerReadService,
+    moduleDb: deps.moduleDb,
     policy: deps.policy ?? createDefaultDocumentActionPolicyService(),
+    repository: deps.repository,
     registry: deps.registry,
+    transactions: deps.transactions,
     log: deps.logger?.child({ svc: "documents" }) ?? noopLogger,
   };
 }

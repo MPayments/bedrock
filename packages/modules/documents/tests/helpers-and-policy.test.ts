@@ -3,41 +3,46 @@ import { describe, expect, it, vi } from "vitest";
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
 import {
-  DocumentGraphError,
-  DocumentPolicyDeniedError,
-  DocumentRegistryError,
-} from "../src/errors";
-import type { Document } from "../src/domain/types";
-import { schema } from "../src/infra/drizzle/schema";
-import {
-  assertDocumentIsActive,
-  buildDefaultActionIdempotencyKey,
-  buildDocNo,
-  buildDocumentEventState,
-  buildDocumentSearchCondition,
-  buildSummary,
-  createDocumentInsertBase,
-  createModuleContext,
-  getLatestPostingArtifacts,
-  inArraySafe,
-  insertDocumentEvent,
-  insertInitialLinks,
-  normalizeSearchText,
-  resolveDocumentModuleIdentity,
-  resolveDocumentsSort,
-  resolveModule,
-  toStoredJson,
-} from "../src/application/shared/helpers";
-import {
-  enforceDocumentPolicy,
-  persistDocumentPolicyDenial,
-} from "../src/application/shared/policy";
-import type { DocumentModule } from "../src/types";
-import {
   buildTestDocument,
   createTestDocumentModule,
   createDocumentPolicyStub,
 } from "./helpers";
+import { createDocumentInsertBase } from "../src/application/shared/document-record";
+import { buildDefaultActionIdempotencyKey } from "../src/application/shared/idempotency-key";
+import {
+  createModuleContext,
+  resolveDocumentModuleIdentity,
+  resolveModule,
+} from "../src/application/shared/module-resolution";
+import {
+  enforceDocumentPolicy,
+  persistDocumentPolicyDenial,
+} from "../src/application/shared/policy";
+import {
+  assertDocumentIsActive,
+  buildDocNo,
+  buildDocumentEventState,
+} from "../src/domain/document-state";
+import {
+  buildSummary,
+  normalizeSearchText,
+} from "../src/domain/document-summary";
+import type { Document } from "../src/domain/types";
+import {
+  DocumentGraphError,
+  DocumentPolicyDeniedError,
+  DocumentRegistryError,
+} from "../src/errors";
+import { insertInitialLinks } from "../src/infra/drizzle/graph";
+import {
+  buildDocumentSearchCondition,
+  inArraySafe,
+  resolveDocumentsSort,
+} from "../src/infra/drizzle/query-helpers";
+import { createDrizzleDocumentsRepository } from "../src/infra/drizzle/repository";
+import { schema } from "../src/infra/drizzle/schema";
+import { toStoredJson } from "../src/infra/drizzle/stored-json";
+import type { DocumentModule } from "../src/types";
 const createModuleStub = () => createTestDocumentModule() as DocumentModule;
 const makeDocument = (overrides: Partial<Document> = {}) => buildTestDocument(overrides);
 
@@ -198,6 +203,7 @@ describe("document helpers", () => {
   it("persists normalized document events and reads latest posting artifacts", async () => {
     let insertedEvent: Record<string, unknown> | undefined;
     const tx = {
+      execute: vi.fn(async () => ({ rows: [] })),
       insert: vi.fn(() => ({
         values: vi.fn(async (values: Record<string, unknown>) => {
           insertedEvent = values;
@@ -215,8 +221,9 @@ describe("document helpers", () => {
         })),
       })),
     };
+    const repository = createDrizzleDocumentsRepository(tx as any);
 
-    await insertDocumentEvent(tx as any, {
+    await repository.insertDocumentEvent({
       documentId: "doc-1",
       eventType: "post",
       reasonMeta: { amountMinor: 10n, skip: undefined },
@@ -234,7 +241,7 @@ describe("document helpers", () => {
       }),
     );
 
-    await expect(getLatestPostingArtifacts(tx as any, "doc-1")).resolves.toEqual({
+    await expect(repository.getLatestPostingArtifacts("doc-1")).resolves.toEqual({
       packChecksum: "pack-1",
     });
   });
@@ -344,8 +351,12 @@ describe("document internal policy", () => {
         }),
       })),
     };
-    const db = {
-      transaction: vi.fn(async (fn: (tx: typeof tx) => Promise<void>) => fn(tx)),
+    const transactions = {
+      withTransaction: vi.fn(async (fn: (context: unknown) => Promise<void>) =>
+        fn({
+          repository: createDrizzleDocumentsRepository(tx as any),
+        }),
+      ),
     };
 
     policy.canApprove = vi.fn(async () => ({
@@ -375,7 +386,7 @@ describe("document internal policy", () => {
     }
 
     expect(error).toBeInstanceOf(DocumentPolicyDeniedError);
-    await persistDocumentPolicyDenial(db as any, error);
+    await persistDocumentPolicyDenial(transactions as any, error);
 
     expect(insertedEvent).toEqual(
       expect.objectContaining({
@@ -396,12 +407,12 @@ describe("document internal policy", () => {
   });
 
   it("skips persistence for non-audited errors and create denials without a document id", async () => {
-    const db = {
-      transaction: vi.fn(),
+    const transactions = {
+      withTransaction: vi.fn(),
     };
 
-    await persistDocumentPolicyDenial(db as any, new Error("plain failure"));
-    expect(db.transaction).not.toHaveBeenCalled();
+    await persistDocumentPolicyDenial(transactions as any, new Error("plain failure"));
+    expect(transactions.withTransaction).not.toHaveBeenCalled();
 
     const policy = createDocumentPolicyStub();
     policy.canCreate = vi.fn(async () => ({
@@ -424,7 +435,7 @@ describe("document internal policy", () => {
       error = caught;
     }
 
-    await persistDocumentPolicyDenial(db as any, error);
-    expect(db.transaction).not.toHaveBeenCalled();
+    await persistDocumentPolicyDenial(transactions as any, error);
+    expect(transactions.withTransaction).not.toHaveBeenCalled();
   });
 });

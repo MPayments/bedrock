@@ -23,7 +23,12 @@ import {
 } from "@bedrock/accounting/reports";
 import { createBalancesQueries } from "@bedrock/balances/queries";
 import { createCounterpartiesQueries } from "@bedrock/counterparties/queries";
-import { createDocumentsService } from "@bedrock/documents";
+import {
+  createDocumentsService,
+  createDrizzleDocumentsRepository,
+  type DocumentsIdempotencyPort,
+  type DocumentsTransactionsPort,
+} from "@bedrock/documents";
 import { createDocumentsQueries } from "@bedrock/documents/queries";
 import { createLedgerEngine, createLedgerReadService } from "@bedrock/ledger";
 import { createLedgerQueries } from "@bedrock/ledger/queries";
@@ -257,6 +262,59 @@ function createPeriodCloseAccountingService(db: Database) {
   });
 }
 
+function createDocumentsTransactions(input: {
+  database: Database;
+  idempotency: ReturnType<typeof createIdempotencyService>;
+  ledger: ReturnType<typeof createLedgerEngine>;
+}): DocumentsTransactionsPort {
+  return {
+    async withTransaction(run) {
+      return input.database.transaction(async (tx: Transaction) => {
+        const idempotency: DocumentsIdempotencyPort = {
+          withIdempotency<TResult, TStoredResult = Record<string, unknown>>(
+            params: {
+              scope: string;
+              idempotencyKey: string;
+              request: unknown;
+              actorId?: string | null;
+              handler: () => Promise<TResult>;
+              serializeResult: (result: TResult) => TStoredResult;
+              loadReplayResult: (params: {
+                storedResult: TStoredResult | null;
+              }) => Promise<TResult>;
+              serializeError?: (error: unknown) => Record<string, unknown>;
+            },
+          ) {
+            return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
+              tx,
+              scope: params.scope,
+              idempotencyKey: params.idempotencyKey,
+              request: params.request,
+              actorId: params.actorId,
+              handler: params.handler,
+              serializeResult: params.serializeResult,
+              loadReplayResult: ({ storedResult }) =>
+                params.loadReplayResult({
+                  storedResult: (storedResult as TStoredResult | null) ?? null,
+                }),
+              serializeError: params.serializeError,
+            });
+          },
+        };
+
+        return run({
+          moduleDb: tx,
+          repository: createDrizzleDocumentsRepository(tx),
+          idempotency,
+          ledger: {
+            commit: (intent) => input.ledger.commit(tx, intent),
+          },
+        });
+      });
+    },
+  };
+}
+
 export function createPeriodCloseWorkerDefinition(deps: {
   id: string;
   intervalMs: number;
@@ -268,17 +326,23 @@ export function createPeriodCloseWorkerDefinition(deps: {
 }): BedrockWorker {
   const documentsQueries = createDocumentsQueries({ db: deps.db });
   const accountingPeriods = createAccountingPeriodsPort(deps.db);
+  const idempotency = createIdempotencyService({ logger: deps.logger });
+  const ledger = createLedgerEngine({
+    db: deps.db,
+    assertInternalLedgerBooks: assertBooksBelongToInternalLedgerOrganizations,
+  });
   const documentsService = createDocumentsService({
     accounting: createPeriodCloseAccountingService(deps.db),
     accountingPeriods,
-    db: deps.db,
-    idempotency: createIdempotencyService({ logger: deps.logger }),
-    ledger: createLedgerEngine({
-      db: deps.db,
-      assertInternalLedgerBooks: assertBooksBelongToInternalLedgerOrganizations,
-    }),
     ledgerReadService: createLedgerReadService({ db: deps.db }),
+    moduleDb: deps.db,
+    repository: createDrizzleDocumentsRepository(deps.db),
     registry: createDocumentRegistry([createPeriodCloseDocumentModule()]),
+    transactions: createDocumentsTransactions({
+      database: deps.db,
+      idempotency,
+      ledger,
+    }),
     logger: deps.logger,
   });
   const runOnce = createPeriodCloseWorkerRunner({

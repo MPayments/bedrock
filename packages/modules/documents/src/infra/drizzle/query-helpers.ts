@@ -1,27 +1,7 @@
 import { asc, desc, inArray, like, or, sql, type SQL } from "drizzle-orm";
 
-import type { DocumentSummaryFields } from "../../types";
 import { schema } from "./schema";
-
-export function normalizeSearchText(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, " ");
-}
-
-export function buildSummary(summary: DocumentSummaryFields) {
-  return {
-    title: summary.title,
-    amountMinor: summary.amountMinor ?? null,
-    currency: summary.currency ?? null,
-    memo: summary.memo ?? null,
-    counterpartyId: summary.counterpartyId ?? null,
-    customerId: summary.customerId ?? null,
-    organizationRequisiteId: summary.organizationRequisiteId ?? null,
-    searchText: normalizeSearchText(summary.searchText),
-  };
-}
+import { normalizeSearchText } from "../../domain/document-summary";
 
 export function buildDocumentSearchCondition(query: string | undefined): SQL | undefined {
   if (!query) {

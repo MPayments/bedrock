@@ -24,7 +24,9 @@ export function writeCachedPack(
 
 export function requireRepository(context: AccountingPacksContext) {
   if (!context.repository) {
-    throw new Error("Accounting packs service requires db for pack persistence");
+    throw new Error(
+      "Accounting packs service requires db for pack persistence",
+    );
   }
 
   return context.repository;
@@ -32,7 +34,9 @@ export function requireRepository(context: AccountingPacksContext) {
 
 export function requireTransactionRunner(context: AccountingPacksContext) {
   if (!context.withTransaction) {
-    throw new Error("Accounting packs service requires db for pack persistence");
+    throw new Error(
+      "Accounting packs service requires db for pack persistence",
+    );
   }
 
   return context.withTransaction;

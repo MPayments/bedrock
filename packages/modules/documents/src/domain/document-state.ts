@@ -1,5 +1,3 @@
-import { canonicalJson } from "@bedrock/shared/core/canon";
-import { sha256Hex } from "@bedrock/platform/crypto";
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
 import type { Document } from "./types";
@@ -14,17 +12,6 @@ export function assertDocumentIsActive(document: Document, action: string) {
       `Only active documents can be ${action}`,
     );
   }
-}
-
-export function buildDefaultActionIdempotencyKey(
-  action: string,
-  payload: Record<string, unknown>,
-) {
-  return sha256Hex(canonicalJson({ action, ...payload }));
-}
-
-export function toStoredJson<T>(value: T): T {
-  return JSON.parse(canonicalJson(value)) as T;
 }
 
 export function buildDocumentEventState(document: Document) {

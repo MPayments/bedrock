@@ -6,12 +6,12 @@ import type {
   WorkerRunContext,
   WorkerRunResult,
 } from "@bedrock/platform/worker-runtime";
-import { schema } from "../drizzle/schema";
+
 import {
   buildDocumentEventState,
-  getLatestPostingArtifacts,
-  insertDocumentEvent,
-} from "../../application/shared/helpers";
+} from "../../domain/document-state";
+import { createDrizzleDocumentsRepository } from "../drizzle/repository";
+import { schema } from "../drizzle/schema";
 
 export interface DocumentsWorkerItemContext {
   documentId: string;
@@ -158,6 +158,7 @@ export function createDocumentsWorkerDefinition(deps: {
       }
 
       await db.transaction(async (tx) => {
+        const repository = createDrizzleDocumentsRepository(tx);
         const before = buildDocumentEventState({
           id: row.id,
           docType: row.docType,
@@ -227,7 +228,7 @@ export function createDocumentsWorkerDefinition(deps: {
             .limit(1);
 
           if (!existingSnapshot) {
-            const artifacts = await getLatestPostingArtifacts(tx, row.id);
+            const artifacts = await repository.getLatestPostingArtifacts(row.id);
             if (artifacts) {
               await tx.insert(schema.documentSnapshots).values({
                 documentId: updated.id,
@@ -250,7 +251,7 @@ export function createDocumentsWorkerDefinition(deps: {
           }
         }
 
-        await insertDocumentEvent(tx, {
+        await repository.insertDocumentEvent({
           documentId: updated.id,
           eventType: row.ledgerStatus === "posted" ? "posted" : "posting_failed",
           before,

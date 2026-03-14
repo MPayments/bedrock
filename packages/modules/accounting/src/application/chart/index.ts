@@ -7,7 +7,9 @@ import {
   createValidatePostingMatrixQuery,
 } from "./queries";
 
-export type AccountingService = ReturnType<typeof createAccountingChartHandlers>;
+export type AccountingService = ReturnType<
+  typeof createAccountingChartHandlers
+>;
 
 export function createAccountingChartHandlers(input: {
   repository: AccountingChartRepository;

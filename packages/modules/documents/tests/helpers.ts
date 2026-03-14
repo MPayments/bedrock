@@ -3,13 +3,13 @@ import { z } from "zod";
 
 import { createStubDb } from "@bedrock/test-utils";
 
+import type { Document } from "../src/domain/types";
 import type {
   DocumentActionPolicyService,
   DocumentApprovalMode,
   DocumentModule,
   DocumentRegistry,
 } from "../src/types";
-import type { Document } from "../src/domain/types";
 
 const DEFAULT_DOCUMENT_PAYLOAD_SCHEMA = z.object({
   memo: z.string().optional(),
@@ -184,8 +184,39 @@ export function createDocumentPolicyStub(): DocumentActionPolicyService {
 export function createDocumentsServiceDeps(
   modules: DocumentModule[] = [createTestDocumentModule()],
 ) {
+  const moduleDb = createStubDb();
+  const repository = {
+    findDocumentByType: vi.fn(),
+    findDocumentWithPostingOperation: vi.fn(),
+    findDocumentByCreateIdempotencyKey: vi.fn(),
+    findPostingOperationId: vi.fn(),
+    insertDocument: vi.fn(),
+    updateDocument: vi.fn(),
+    insertDocumentOperation: vi.fn(),
+    resetPostingOperation: vi.fn(),
+    insertDocumentEvent: vi.fn(),
+    insertInitialLinks: vi.fn(),
+    listDocuments: vi.fn(async () => ({ rows: [], total: 0 })),
+    listDocumentLinks: vi.fn(async () => []),
+    listDocumentsByIds: vi.fn(async () => []),
+    listDocumentOperations: vi.fn(async () => []),
+    listDocumentEvents: vi.fn(async () => []),
+    findDocumentSnapshot: vi.fn(async () => null),
+    getLatestPostingArtifacts: vi.fn(async () => null),
+  };
+  const ledger = {
+    commit: vi.fn(),
+  };
+  const idempotency = {
+    withIdempotency: vi.fn(async ({ handler }: { handler: () => Promise<unknown> }) =>
+      handler(),
+    ),
+  };
+
   return {
     accounting: {
+      getDefaultCompiledPack: vi.fn(),
+      loadActiveCompiledPackForBook: vi.fn(),
       resolvePostingPlan: vi.fn(),
     },
     accountingPeriods: {
@@ -194,18 +225,21 @@ export function createDocumentsServiceDeps(
       isOrganizationPeriodClosed: vi.fn(async () => false),
       reopenPeriod: vi.fn(async () => undefined),
     },
-    db: createStubDb(),
-    ledger: {
-      commit: vi.fn(),
-    },
     ledgerReadService: {
       getOperationDetails: vi.fn(),
     },
-    idempotency: {
-      withIdempotencyTx: vi.fn(async ({ handler }: { handler: () => Promise<unknown> }) =>
-        handler(),
+    moduleDb,
+    repository,
+    registry: createTestDocumentRegistry(modules),
+    transactions: {
+      withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
+        run({
+          moduleDb,
+          repository,
+          ledger,
+          idempotency,
+        }),
       ),
     },
-    registry: createTestDocumentRegistry(modules),
   } as any;
 }

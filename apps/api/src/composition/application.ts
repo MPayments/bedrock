@@ -30,8 +30,11 @@ import {
 } from "@bedrock/customers";
 import { createCustomersQueries } from "@bedrock/customers/queries";
 import {
+  createDrizzleDocumentsRepository,
   createDocumentsService,
+  type DocumentsIdempotencyPort,
   type DocumentsService,
+  type DocumentsTransactionsPort,
 } from "@bedrock/documents";
 import { createDocumentsQueries } from "@bedrock/documents/queries";
 import { createFeesService, type FeesService } from "@bedrock/fees";
@@ -195,6 +198,59 @@ function createAccountingPeriodsPort(database: Database): AccountingPeriodsServi
   };
 }
 
+function createDocumentsTransactions(input: {
+  database: Database;
+  idempotency: ApiCoreServices["idempotency"];
+  ledger: ApiCoreServices["ledger"];
+}): DocumentsTransactionsPort {
+  return {
+    async withTransaction(run) {
+      return input.database.transaction(async (tx: Transaction) => {
+        const idempotency: DocumentsIdempotencyPort = {
+          withIdempotency<TResult, TStoredResult = Record<string, unknown>>(
+            params: {
+              scope: string;
+              idempotencyKey: string;
+              request: unknown;
+              actorId?: string | null;
+              handler: () => Promise<TResult>;
+              serializeResult: (result: TResult) => TStoredResult;
+              loadReplayResult: (params: {
+                storedResult: TStoredResult | null;
+              }) => Promise<TResult>;
+              serializeError?: (error: unknown) => Record<string, unknown>;
+            },
+          ) {
+            return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
+              tx,
+              scope: params.scope,
+              idempotencyKey: params.idempotencyKey,
+              request: params.request,
+              actorId: params.actorId,
+              handler: params.handler,
+              serializeResult: params.serializeResult,
+              loadReplayResult: ({ storedResult }) =>
+                params.loadReplayResult({
+                  storedResult: (storedResult as TStoredResult | null) ?? null,
+                }),
+              serializeError: params.serializeError,
+            });
+          },
+        };
+
+        return run({
+          moduleDb: tx,
+          repository: createDrizzleDocumentsRepository(tx),
+          idempotency,
+          ledger: {
+            commit: (intent) => input.ledger.commit(tx, intent),
+          },
+        });
+      });
+    },
+  };
+}
+
 export function createApplicationServices(
   platform: ApiCoreServices,
 ): ApiApplicationServices {
@@ -271,11 +327,15 @@ export function createApplicationServices(
   const documentsService = createDocumentsService({
     accounting: accountingService,
     accountingPeriods: accountingPeriodsService,
-    db,
-    idempotency,
-    ledger,
     ledgerReadService,
+    moduleDb: db,
+    repository: createDrizzleDocumentsRepository(db),
     registry: documentRegistry,
+    transactions: createDocumentsTransactions({
+      database: db,
+      idempotency,
+      ledger,
+    }),
     logger,
   });
 

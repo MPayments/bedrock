@@ -1,15 +1,14 @@
-import type { Database, Transaction } from "@bedrock/platform/persistence";
-
+import { resolveDocumentPolicyDecision } from "./action-dispatch";
+import { buildDocumentEventState } from "../../domain/document-state";
 import type { Document } from "../../domain/types";
 import { DocumentPolicyDeniedError } from "../../errors";
-import { buildDocumentEventState, insertDocumentEvent } from "./helpers";
 import type {
   DocumentActionPolicyService,
   DocumentModule,
   DocumentModuleContext,
   DocumentRequestContext,
 } from "../../types";
-import { resolveDocumentPolicyDecision } from "./action-dispatch";
+import type { DocumentsTransactionsPort } from "../ports";
 
 interface EnforceDocumentPolicyInput {
   policy: DocumentActionPolicyService;
@@ -64,15 +63,15 @@ export async function enforceDocumentPolicy(
 }
 
 export async function persistDocumentPolicyDenial(
-  db: Database,
+  transactions: DocumentsTransactionsPort,
   error: unknown,
 ): Promise<void> {
   if (!(error instanceof AuditedDocumentPolicyDeniedError) || !error.documentId) {
     return;
   }
 
-  await db.transaction(async (tx: Transaction) => {
-    await insertDocumentEvent(tx, {
+  await transactions.withTransaction(async ({ repository }) => {
+    await repository.insertDocumentEvent({
       documentId: error.documentId!,
       eventType: "policy_denied",
       actorId: error.actorUserId ?? null,

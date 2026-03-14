@@ -6,7 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./contracts": "./src/contracts/index.ts",
-    "./queries": "./src/application/queries/index.ts",
+    "./queries": "./src/queries.ts",
     "./schema": "./src/infra/drizzle/schema.ts",
     "./worker": "./src/infra/workers/posting.ts"
   },

@@ -17,6 +17,12 @@ export type DocumentLinkType =
   | "compensates"
   | "related";
 
+export interface DocumentInitialLink {
+  toDocumentId: string;
+  linkType: DocumentLinkType;
+  role?: string;
+}
+
 export interface Document {
   id: string;
   docType: string;

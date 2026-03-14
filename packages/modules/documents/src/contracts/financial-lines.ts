@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-import { signedMinorAmountSchema } from "@bedrock/shared/money";
 import {
   isValidCurrency,
   normalizeCurrency,
 } from "@bedrock/currencies/catalog";
+import { signedMinorAmountSchema } from "@bedrock/shared/money";
 
 export const FINANCIAL_LINE_BUCKETS = [
   "fee_revenue",

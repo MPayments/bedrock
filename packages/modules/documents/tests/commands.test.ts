@@ -7,7 +7,6 @@ import { createCreateDraftHandler } from "../src/application/commands/create-dra
 import { createTransitionHandler } from "../src/application/commands/transition";
 import { createUpdateDraftHandler } from "../src/application/commands/update-draft";
 import type { Document } from "../src/domain/types";
-import { schema } from "../src/infra/drizzle/schema";
 import type { DocumentModule } from "../src/types";
 
 function makeDocument(overrides: Partial<Document> = {}): Document {
@@ -130,71 +129,52 @@ function createContext(options: {
     } as Document;
   }
 
-  const tx = {
-    select: vi.fn(() => ({
-      from: vi.fn((table: unknown) => ({
-        where: vi.fn(() => {
-          const rows = selectRows.shift() ?? [];
-          return {
-            limit: vi.fn(async () => rows),
-            for: vi.fn(() => ({
-              limit: vi.fn(async () => rows),
-            })),
-          };
-        }),
-      })),
-    })),
-    insert: vi.fn((table: unknown) => ({
-      values: vi.fn((values: Record<string, unknown>) => {
-        if (table === schema.documents) {
-          insertedRows.push(values);
-          const document = options.insertDocumentResult ?? (values as unknown as Document);
-          return {
-            onConflictDoNothing: vi.fn(() => ({
-              returning: vi.fn(async () => [document]),
-            })),
-          };
-        }
-
-        if (table === schema.documentEvents) {
-          eventRows.push(values);
-          return undefined;
-        }
-
-        return {
-          onConflictDoNothing: vi.fn(async () => undefined),
-        };
-      }),
-    })),
-    update: vi.fn((table: unknown) => {
-      if (table === schema.documents) {
-        return {
-          set: vi.fn((values: Record<string, unknown>) => ({
-            where: vi.fn(() => ({
-              returning: vi.fn(async () => [
-                options.updateDocumentResult ??
-                  buildStoredDocument(values),
-              ]),
-            })),
-          })),
-        };
-      }
-
-      return {
-        set: vi.fn(() => ({
-          where: vi.fn(async () => undefined),
-        })),
-      };
+  const repository = {
+    findDocumentByType: vi.fn(async () => {
+      const rows = selectRows.shift() ?? [];
+      return (rows[0] as Document | undefined) ?? null;
     }),
-  };
-
-  const db = {
-    transaction: vi.fn(async (fn: (tx: typeof tx) => Promise<unknown>) => fn(tx)),
+    findDocumentWithPostingOperation: vi.fn(async () => {
+      const rows = selectRows.shift() ?? [];
+      return (rows[0] as { document: Document; postingOperationId: string | null } | undefined) ?? null;
+    }),
+    findDocumentByCreateIdempotencyKey: vi.fn(async () => {
+      const rows = selectRows.shift() ?? [];
+      return (rows[0] as Document | undefined) ?? null;
+    }),
+    findPostingOperationId: vi.fn(async () => {
+      const rows = selectRows.shift() ?? [];
+      const row = rows[0] as { operationId?: string } | undefined;
+      return row?.operationId ?? options.postingOperationId ?? null;
+    }),
+    insertDocument: vi.fn(async (values: Record<string, unknown>) => {
+      insertedRows.push(values);
+      return options.insertDocumentResult ?? (values as Document);
+    }),
+    updateDocument: vi.fn(async ({ patch }: { patch: Record<string, unknown> }) =>
+      options.updateDocumentResult ?? buildStoredDocument(patch),
+    ),
+    insertDocumentOperation: vi.fn(async () => undefined),
+    resetPostingOperation: vi.fn(async () => undefined),
+    insertDocumentEvent: vi.fn(async (values: Record<string, unknown>) => {
+      eventRows.push(values);
+    }),
+    insertInitialLinks: vi.fn(async () => undefined),
+    listDocuments: vi.fn(async () => ({ rows: [], total: 0 })),
+    listDocumentLinks: vi.fn(async () => []),
+    listDocumentsByIds: vi.fn(async () => []),
+    listDocumentOperations: vi.fn(async () => []),
+    listDocumentEvents: vi.fn(async () => []),
+    findDocumentSnapshot: vi.fn(async () => null),
+    getLatestPostingArtifacts: vi.fn(async () => null),
   };
   const idempotency = {
-    withIdempotencyTx: vi.fn(async ({ handler }: { handler: () => Promise<unknown> }) =>
+    withIdempotency: vi.fn(async ({ handler }: { handler: () => Promise<unknown> }) =>
       handler(),
     ),
+  };
+  const ledger = {
+    commit: vi.fn(),
   };
   const registry = {
     getDocumentModule: vi.fn(() => module),
@@ -217,11 +197,7 @@ function createContext(options: {
         ),
         reopenPeriod: vi.fn(async () => undefined),
       },
-      db,
-      idempotency,
-      ledger: {
-        commit: vi.fn(),
-      },
+      moduleDb: {} as any,
       ledgerReadService: {} as any,
       log: {
         debug: vi.fn(),
@@ -236,10 +212,22 @@ function createContext(options: {
         canPost: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
         canCancel: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
       },
+      repository,
       registry,
+      transactions: {
+        withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
+          run({
+            idempotency,
+            moduleDb: {} as any,
+            repository,
+            ledger,
+          }),
+        ),
+      },
     },
-    tx,
     idempotency,
+    repository,
+    ledger,
     insertedRows,
     eventRows,
   };
@@ -262,7 +250,7 @@ describe("documents command flows", () => {
       actorUserId: "maker-1",
     });
 
-    expect(idempotency.withIdempotencyTx).toHaveBeenCalled();
+    expect(idempotency.withIdempotency).toHaveBeenCalled();
     expect(insertedRows[0]).toEqual(
       expect.objectContaining({
         docType: "test_document",
@@ -393,7 +381,7 @@ describe("documents command flows", () => {
         } as any;
       },
     });
-    const { context, eventRows } = createContext({
+    const { context, eventRows, ledger } = createContext({
       document,
       module,
       selectRows: [[document], []],
@@ -405,7 +393,7 @@ describe("documents command flows", () => {
       journalIntentChecksum: "journal-intent-checksum",
       appliedTemplates: [],
     });
-    context.ledger.commit.mockResolvedValue({
+    ledger.commit.mockResolvedValue({
       operationId: "op-direct-post",
     });
     const transition = createTransitionHandler(context as any);
@@ -431,7 +419,7 @@ describe("documents command flows", () => {
       approvalStatus: "approved",
       postingStatus: "posting",
     });
-    const { context } = createContext({
+    const { context, ledger } = createContext({
       document,
       selectRows: [[document], [{ operationId: "op-existing" }]],
     });
@@ -447,7 +435,7 @@ describe("documents command flows", () => {
     ).rejects.toThrow("Document is not ready for posting");
 
     expect(context.accounting.resolvePostingPlan).not.toHaveBeenCalled();
-    expect(context.ledger.commit).not.toHaveBeenCalled();
+    expect(ledger.commit).not.toHaveBeenCalled();
   });
 
   it("rejects repost when there is no posting operation to restart", async () => {

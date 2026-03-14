@@ -1,14 +1,23 @@
 import type { z } from "zod";
 
 import type { DocumentPostingPlan } from "@bedrock/accounting/packs";
-import type { CorrelationContext } from "@bedrock/shared/core/correlation";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
 import type { Logger } from "@bedrock/platform/observability/logger";
+import type { CorrelationContext } from "@bedrock/shared/core/correlation";
 
+import type {
+  DocumentsAccountingPort,
+  DocumentsAccountingPeriodsPort,
+  DocumentsLedgerReadPort,
+  DocumentsRepository,
+  DocumentsTransactionsPort,
+} from "./application/ports";
+import type { DocumentSummaryFields } from "./domain/document-summary";
+import type { DocumentAction } from "./domain/state-machine";
 import type {
   Document,
   DocumentApprovalStatus,
   DocumentEvent,
+  DocumentInitialLink,
   DocumentLifecycleStatus,
   DocumentLink,
   DocumentOperation,
@@ -16,19 +25,13 @@ import type {
   DocumentSnapshot,
   DocumentSubmissionStatus,
 } from "./domain/types";
-import type {
-  DocumentsAccountingPort,
-  DocumentsAccountingPeriodsPort,
-  DocumentsIdempotencyPort,
-  DocumentsLedgerCommitPort,
-  DocumentsLedgerReadPort,
-} from "./application/ports";
-import type { DocumentAction } from "./domain/state-machine";
+import type { DocumentModuleDb } from "./module-db";
 
 export type {
   Document,
   DocumentApprovalStatus,
   DocumentEvent,
+  DocumentInitialLink,
   DocumentLifecycleStatus,
   DocumentLink,
   DocumentOperation,
@@ -36,20 +39,10 @@ export type {
   DocumentSnapshot,
   DocumentSubmissionStatus,
 };
-
-export interface DocumentSummaryFields {
-  title: string;
-  amountMinor?: bigint | null;
-  currency?: string | null;
-  memo?: string | null;
-  counterpartyId?: string | null;
-  customerId?: string | null;
-  organizationRequisiteId?: string | null;
-  searchText: string;
-}
+export type { DocumentSummaryFields };
 
 export interface DocumentModuleContext {
-  db: Database | Transaction;
+  db: DocumentModuleDb;
   actorUserId: string;
   now: Date;
   log: Logger;
@@ -83,12 +76,6 @@ export interface DocumentTransitionInput {
 export interface DocumentUpdateDraftResult {
   occurredAt?: Date;
   payload: Record<string, unknown>;
-}
-
-export interface DocumentInitialLink {
-  toDocumentId: string;
-  linkType: "parent" | "depends_on" | "compensates" | "related";
-  role?: string;
 }
 
 export interface DocumentModule<
@@ -212,12 +199,12 @@ export interface DocumentRegistry {
 export interface DocumentsServiceDeps {
   accounting: DocumentsAccountingPort;
   accountingPeriods: DocumentsAccountingPeriodsPort;
-  db: Database;
-  idempotency: DocumentsIdempotencyPort;
-  ledger: DocumentsLedgerCommitPort;
   ledgerReadService: DocumentsLedgerReadPort;
+  moduleDb: DocumentModuleDb;
   policy?: DocumentActionPolicyService;
+  repository: DocumentsRepository;
   registry: DocumentRegistry;
+  transactions: DocumentsTransactionsPort;
   logger?: Logger;
 }
 

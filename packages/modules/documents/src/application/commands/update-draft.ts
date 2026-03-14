@@ -1,31 +1,29 @@
-import { and, eq, sql } from "drizzle-orm";
-
 import { validateInput } from "../../contracts/validation";
 import { collectDocumentOrganizationIds } from "../../domain/accounting-periods";
+import { buildDocumentEventState } from "../../domain/document-state";
+import { buildSummary } from "../../domain/document-summary";
 import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "../../domain/idempotency";
 import { isDocumentActionAllowed } from "../../domain/state-machine";
 import { DocumentValidationError } from "../../errors";
-import { schema } from "../../infra/drizzle/schema";
 import type { DocumentRequestContext, DocumentWithOperationId } from "../../types";
-import type { DocumentsServiceContext } from "../shared/context";
 import {
   buildDocumentWithOperationId,
-  buildDefaultActionIdempotencyKey,
-  buildDocumentEventState,
-  buildSummary,
-  createModuleContext,
-  insertDocumentEvent,
-  lockDocument,
+  loadDocumentOrThrow,
   loadDocumentWithOperationId,
+} from "../shared/actions";
+import type { DocumentsServiceContext } from "../shared/context";
+import { buildDefaultActionIdempotencyKey } from "../shared/idempotency-key";
+import {
+  createModuleContext,
   resolveModuleForDocument,
-} from "../shared/helpers";
+} from "../shared/module-resolution";
 import {
   enforceDocumentPolicy,
   persistDocumentPolicyDenial,
 } from "../shared/policy";
 
 export function createUpdateDraftHandler(context: DocumentsServiceContext) {
-  const { accountingPeriods, db, idempotency, log, policy, registry } = context;
+  const { accountingPeriods, log, policy, registry, transactions } = context;
 
   return async function updateDraft(input: {
     docType: string;
@@ -49,166 +47,165 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
       });
 
     try {
-      return await db.transaction(async (tx) => {
-        const moduleContext = createModuleContext({
-          db: tx,
-          actorUserId: input.actorUserId,
-          now: new Date(),
-          log,
-          operationIdempotencyKey: idempotencyKey,
-        });
-
-        return idempotency.withIdempotencyTx({
-          tx,
-          scope: DOCUMENTS_IDEMPOTENCY_SCOPE.UPDATE_DRAFT,
-          idempotencyKey,
-          request: {
-            docType: input.docType,
-            documentId: input.documentId,
+      return await transactions.withTransaction(
+        async ({ idempotency, moduleDb, repository }) => {
+          const moduleContext = createModuleContext({
+            db: moduleDb,
             actorUserId: input.actorUserId,
-            payload: idempotencyPayload,
-          },
-          actorId: input.actorUserId,
-          serializeResult: (result: DocumentWithOperationId) => ({
-            documentId: result.document.id,
-          }),
-          loadReplayResult: async ({
-            storedResult,
-          }: {
-            storedResult: { documentId?: string } | null;
-          }) =>
-            loadDocumentWithOperationId(
-              tx,
-              input.docType,
-              String(storedResult?.documentId ?? input.documentId),
-              null,
-              registry,
-            ),
-          handler: async () => {
-            const document = await lockDocument(tx, input.documentId, input.docType);
-            const module = resolveModuleForDocument(registry, document);
-            const validatedUpdateInput = validateInput(
-              module.updateSchema,
-              input.payload,
-              `${input.docType}.update`,
-            );
+            now: new Date(),
+            log,
+            operationIdempotencyKey: idempotencyKey,
+          });
 
-            if (
-              !isDocumentActionAllowed({
-                action: "edit",
-                document,
-                module: {
-                  postingRequired: module.postingRequired,
-                  allowDirectPostFromDraft: module.allowDirectPostFromDraft,
-                },
-              })
-            ) {
-              throw new DocumentValidationError(
-                "Only active draft documents can be updated",
-              );
-            }
-            const currentOrganizationIds = collectDocumentOrganizationIds({
-              payload: document.payload,
-            });
-            await accountingPeriods.assertOrganizationPeriodsOpen({
-              db: tx,
-              occurredAt: document.occurredAt,
-              organizationIds: currentOrganizationIds,
+          return idempotency.withIdempotency({
+            scope: DOCUMENTS_IDEMPOTENCY_SCOPE.UPDATE_DRAFT,
+            idempotencyKey,
+            request: {
               docType: input.docType,
-            });
-
-            await module.canEdit(moduleContext, document);
-            await enforceDocumentPolicy({
-              policy,
-              action: "edit",
-              module,
+              documentId: input.documentId,
               actorUserId: input.actorUserId,
-              moduleContext,
-              document,
-              requestContext: input.requestContext,
-            });
+              payload: idempotencyPayload,
+            },
+            actorId: input.actorUserId,
+            serializeResult: (result: DocumentWithOperationId) => ({
+              documentId: result.document.id,
+            }),
+            loadReplayResult: async ({
+              storedResult,
+            }: {
+              storedResult: { documentId?: string } | null;
+            }) =>
+              loadDocumentWithOperationId(repository, {
+                docType: input.docType,
+                documentId: String(storedResult?.documentId ?? input.documentId),
+                postingOperationId: null,
+                registry,
+              }),
+            handler: async () => {
+              const document = await loadDocumentOrThrow(repository, {
+                documentId: input.documentId,
+                docType: input.docType,
+                forUpdate: true,
+              });
+              const module = resolveModuleForDocument(registry, document);
+              const validatedUpdateInput = validateInput(
+                module.updateSchema,
+                input.payload,
+                `${input.docType}.update`,
+              );
 
-            const before = buildDocumentEventState(document);
-            const updated = await module.updateDraft(
-              moduleContext,
-              document,
-              validatedUpdateInput,
-            );
-            const payload = validateInput(
-              module.payloadSchema,
-              updated.payload,
-              `${input.docType}.payload`,
-            );
-            const nextOccurredAt = updated.occurredAt ?? document.occurredAt;
+              if (
+                !isDocumentActionAllowed({
+                  action: "edit",
+                  document,
+                  module: {
+                    postingRequired: module.postingRequired,
+                    allowDirectPostFromDraft: module.allowDirectPostFromDraft,
+                  },
+                })
+              ) {
+                throw new DocumentValidationError(
+                  "Only active draft documents can be updated",
+                );
+              }
+              const currentOrganizationIds = collectDocumentOrganizationIds({
+                payload: document.payload,
+              });
+              await accountingPeriods.assertOrganizationPeriodsOpen({
+                occurredAt: document.occurredAt,
+                organizationIds: currentOrganizationIds,
+                docType: input.docType,
+              });
 
-            const next = {
-              ...document,
-              payload,
-              occurredAt: nextOccurredAt,
-            };
-            const approvalStatus = module.approvalRequired(next)
-              ? "pending"
-              : "not_required";
-            const summary = buildSummary(
-              module.deriveSummary({ ...next, approvalStatus }),
-            );
-            const nextOrganizationIds = collectDocumentOrganizationIds({
-              payload,
-            });
-            await accountingPeriods.assertOrganizationPeriodsOpen({
-              db: tx,
-              occurredAt: nextOccurredAt,
-              organizationIds: nextOrganizationIds,
-              docType: input.docType,
-            });
+              await module.canEdit(moduleContext, document);
+              await enforceDocumentPolicy({
+                policy,
+                action: "edit",
+                module,
+                actorUserId: input.actorUserId,
+                moduleContext,
+                document,
+                requestContext: input.requestContext,
+              });
 
-            const [stored] = await tx
-              .update(schema.documents)
-              .set({
+              const before = buildDocumentEventState(document);
+              const updated = await module.updateDraft(
+                moduleContext,
+                document,
+                validatedUpdateInput,
+              );
+              const payload = validateInput(
+                module.payloadSchema,
+                updated.payload,
+                `${input.docType}.payload`,
+              );
+              const nextOccurredAt = updated.occurredAt ?? document.occurredAt;
+
+              const next = {
+                ...document,
                 payload,
                 occurredAt: nextOccurredAt,
-                approvalStatus,
-                title: summary.title,
-                amountMinor: summary.amountMinor,
-                currency: summary.currency,
-                memo: summary.memo,
-                counterpartyId: summary.counterpartyId,
-                customerId: summary.customerId,
-                organizationRequisiteId: summary.organizationRequisiteId,
-                searchText: summary.searchText,
-                updatedAt: sql`now()`,
-                version: sql`${schema.documents.version} + 1`,
-              })
-              .where(
-                and(
-                  eq(schema.documents.id, document.id),
-                  eq(schema.documents.docType, input.docType),
-                ),
-              )
-              .returning();
+              };
+              const approvalStatus = module.approvalRequired(next)
+                ? "pending"
+                : "not_required";
+              const summary = buildSummary(
+                module.deriveSummary({ ...next, approvalStatus }),
+              );
+              const nextOrganizationIds = collectDocumentOrganizationIds({
+                payload,
+              });
+              await accountingPeriods.assertOrganizationPeriodsOpen({
+                occurredAt: nextOccurredAt,
+                organizationIds: nextOrganizationIds,
+                docType: input.docType,
+              });
 
-            await insertDocumentEvent(tx, {
-              documentId: document.id,
-              eventType: "update",
-              actorId: input.actorUserId,
-              requestId: input.requestContext?.requestId,
-              correlationId: input.requestContext?.correlationId,
-              traceId: input.requestContext?.traceId,
-              causationId: input.requestContext?.causationId,
-              before,
-              after: buildDocumentEventState(stored!),
-            });
+              const stored = await repository.updateDocument({
+                documentId: document.id,
+                docType: input.docType,
+                patch: {
+                  payload,
+                  occurredAt: nextOccurredAt,
+                  approvalStatus,
+                  title: summary.title,
+                  amountMinor: summary.amountMinor,
+                  currency: summary.currency,
+                  memo: summary.memo,
+                  counterpartyId: summary.counterpartyId,
+                  customerId: summary.customerId,
+                  organizationRequisiteId: summary.organizationRequisiteId,
+                  searchText: summary.searchText,
+                },
+              });
 
-            return buildDocumentWithOperationId({
-              registry,
-              document: stored!,
-              postingOperationId: null,
-            });
-          },
-        });
-      });
+              if (!stored) {
+                throw new Error("Failed to update document draft");
+              }
+
+              await repository.insertDocumentEvent({
+                documentId: document.id,
+                eventType: "update",
+                actorId: input.actorUserId,
+                requestId: input.requestContext?.requestId,
+                correlationId: input.requestContext?.correlationId,
+                traceId: input.requestContext?.traceId,
+                causationId: input.requestContext?.causationId,
+                before,
+                after: buildDocumentEventState(stored),
+              });
+
+              return buildDocumentWithOperationId({
+                registry,
+                document: stored,
+                postingOperationId: null,
+              });
+            },
+          });
+        },
+      );
     } catch (error) {
-      await persistDocumentPolicyDenial(db, error);
+      await persistDocumentPolicyDenial(transactions, error);
       throw error;
     }
   };

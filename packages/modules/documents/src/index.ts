@@ -1,5 +1,15 @@
 export { createDocumentsService } from "./service";
 export type { DocumentsService } from "./service";
+export type {
+  DocumentsAccountingPeriodsPort,
+  DocumentsAccountingPort,
+  DocumentsIdempotencyPort,
+  DocumentsLedgerCommitPort,
+  DocumentsLedgerReadPort,
+  DocumentsRepository,
+  DocumentsTransactionsPort,
+} from "./application/ports";
+export { createDrizzleDocumentsRepository } from "./infra/drizzle/repository";
 export {
   createDefaultDocumentActionPolicyService,
 } from "./domain/default-action-policy";

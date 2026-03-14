@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { DocumentNotFoundError } from "../src/errors";
+import { buildTestDocument, createTestDocumentModule } from "./helpers";
 import { createGetDocumentQuery } from "../src/application/queries/get-document";
 import { createGetDocumentDetailsQuery } from "../src/application/queries/get-document-details";
 import { createListDocumentsQuery } from "../src/application/queries/list-documents";
@@ -11,37 +11,47 @@ import type {
   DocumentOperation,
   DocumentSnapshot,
 } from "../src/domain/types";
+import { DocumentNotFoundError } from "../src/errors";
 import type { DocumentModule } from "../src/types";
-import {
-  buildTestDocument,
-  createTestDocumentModule,
-} from "./helpers";
 
-const makeDocument = (overrides: Partial<Document> = {}) => buildTestDocument(overrides);
-const createModuleStub = () =>
-  createTestDocumentModule() as DocumentModule;
+const makeDocument = (overrides: Partial<Document> = {}) =>
+  buildTestDocument(overrides);
+const createModuleStub = () => createTestDocumentModule() as DocumentModule;
+
+function createRepositoryStub(overrides: Record<string, unknown> = {}) {
+  return {
+    findDocumentByType: vi.fn(),
+    findDocumentWithPostingOperation: vi.fn(),
+    findDocumentByCreateIdempotencyKey: vi.fn(),
+    findPostingOperationId: vi.fn(),
+    insertDocument: vi.fn(),
+    updateDocument: vi.fn(),
+    insertDocumentOperation: vi.fn(),
+    resetPostingOperation: vi.fn(),
+    insertDocumentEvent: vi.fn(),
+    insertInitialLinks: vi.fn(),
+    listDocuments: vi.fn(async () => ({ rows: [], total: 0 })),
+    listDocumentLinks: vi.fn(async () => []),
+    listDocumentsByIds: vi.fn(async () => []),
+    listDocumentOperations: vi.fn(async () => []),
+    listDocumentEvents: vi.fn(async () => []),
+    findDocumentSnapshot: vi.fn(async () => null),
+    getLatestPostingArtifacts: vi.fn(async () => null),
+    ...overrides,
+  };
+}
 
 describe("documents queries", () => {
   it("loads a single document with its posting operation id", async () => {
     const document = makeDocument();
-    const db = {
-      select: vi.fn(() => ({
-        from: vi.fn(() => ({
-          leftJoin: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [
-                {
-                  document,
-                  postingOperationId: "op-1",
-                },
-              ]),
-            })),
-          })),
-        })),
+    const repository = createRepositoryStub({
+      findDocumentWithPostingOperation: vi.fn(async () => ({
+        document,
+        postingOperationId: "op-1",
       })),
-    };
+    });
 
-    const getDocument = createGetDocumentQuery({ db } as any);
+    const getDocument = createGetDocumentQuery({ repository } as any);
 
     await expect(
       getDocument(document.docType, document.id),
@@ -53,19 +63,11 @@ describe("documents queries", () => {
   });
 
   it("raises not found for missing document queries", async () => {
-    const db = {
-      select: vi.fn(() => ({
-        from: vi.fn(() => ({
-          leftJoin: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => []),
-            })),
-          })),
-        })),
-      })),
-    };
+    const repository = createRepositoryStub({
+      findDocumentWithPostingOperation: vi.fn(async () => null),
+    });
 
-    const getDocument = createGetDocumentQuery({ db } as any);
+    const getDocument = createGetDocumentQuery({ repository } as any);
     await expect(getDocument("test_document", "missing")).rejects.toThrow(
       DocumentNotFoundError,
     );
@@ -87,22 +89,12 @@ describe("documents queries", () => {
       canSubmit: vi.fn(async () => undefined),
       canPost: vi.fn(async () => undefined),
     };
-    const db = {
-      select: vi.fn(() => ({
-        from: vi.fn(() => ({
-          leftJoin: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [
-                {
-                  document,
-                  postingOperationId: null,
-                },
-              ]),
-            })),
-          })),
-        })),
+    const repository = createRepositoryStub({
+      findDocumentWithPostingOperation: vi.fn(async () => ({
+        document,
+        postingOperationId: null,
       })),
-    };
+    });
     const policy = {
       approvalMode: vi.fn(),
       canCreate: vi.fn(),
@@ -133,10 +125,14 @@ describe("documents queries", () => {
       getDocumentModule: vi.fn(() => module),
     };
     const getDocument = createGetDocumentQuery({
-      db,
+      accountingPeriods: {
+        isOrganizationPeriodClosed: vi.fn(async () => false),
+      },
       log: {} as any,
+      moduleDb: {} as any,
       policy,
       registry,
+      repository,
     } as any);
 
     const result = await getDocument(document.docType, document.id, "maker-1");
@@ -150,37 +146,14 @@ describe("documents queries", () => {
 
   it("lists documents with the current pagination mapping", async () => {
     const document = makeDocument();
-    const rows = [
-      {
-        document,
-        postingOperationId: null,
-      },
-    ];
+    const repository = createRepositoryStub({
+      listDocuments: vi.fn(async () => ({
+        rows: [{ document, postingOperationId: null }],
+        total: 1,
+      })),
+    });
 
-    const db = {
-      select: vi
-        .fn()
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            leftJoin: vi.fn(() => ({
-              where: vi.fn(() => ({
-                orderBy: vi.fn(() => ({
-                  limit: vi.fn(() => ({
-                    offset: vi.fn(async () => rows),
-                  })),
-                })),
-              })),
-            })),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(async () => [{ value: 1 }]),
-          })),
-        }),
-    };
-
-    const listDocuments = createListDocumentsQuery({ db } as any);
+    const listDocuments = createListDocumentsQuery({ repository } as any);
     const result = await listDocuments({
       query: "test",
       limit: 5,
@@ -289,51 +262,14 @@ describe("documents queries", () => {
       resolvedTemplates: null,
       createdAt: new Date("2026-03-01T10:00:00.000Z"),
     };
-    const db = {
-      select: vi
-        .fn()
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [document]),
-            })),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(async () => links),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(async () => [parent, child, dependsOn, compensates]),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(async () => documentOperations),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(async () => events),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [snapshot]),
-            })),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => []),
-            })),
-          })),
-        }),
-    };
+    const repository = createRepositoryStub({
+      findDocumentByType: vi.fn(async () => document),
+      listDocumentLinks: vi.fn(async () => links),
+      listDocumentsByIds: vi.fn(async () => [parent, child, dependsOn, compensates]),
+      listDocumentOperations: vi.fn(async () => documentOperations),
+      listDocumentEvents: vi.fn(async () => events),
+      findDocumentSnapshot: vi.fn(async () => snapshot),
+    });
     const ledgerReadService = {
       getOperationDetails: vi.fn(async (operationId: string) => ({
         id: operationId,
@@ -345,10 +281,14 @@ describe("documents queries", () => {
     };
 
     const getDetails = createGetDocumentDetailsQuery({
-      db,
+      accountingPeriods: {
+        isOrganizationPeriodClosed: vi.fn(async () => false),
+      },
       ledgerReadService,
       log: {} as any,
+      moduleDb: {} as any,
       registry,
+      repository,
     } as any);
 
     const result = await getDetails(document.docType, document.id, "checker-1");
@@ -368,46 +308,9 @@ describe("documents queries", () => {
 
   it("returns base details when module details builder fails", async () => {
     const document = makeDocument();
-    const db = {
-      select: vi
-        .fn()
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => [document]),
-            })),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(async () => []),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(async () => []),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(async () => []),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => []),
-            })),
-          })),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn(() => ({
-            where: vi.fn(() => ({
-              limit: vi.fn(async () => []),
-            })),
-          })),
-        }),
-    };
+    const repository = createRepositoryStub({
+      findDocumentByType: vi.fn(async () => document),
+    });
     const ledgerReadService = {
       getOperationDetails: vi.fn(),
     };
@@ -422,10 +325,14 @@ describe("documents queries", () => {
     };
 
     const getDetails = createGetDocumentDetailsQuery({
-      db,
+      accountingPeriods: {
+        isOrganizationPeriodClosed: vi.fn(async () => false),
+      },
       ledgerReadService,
       log: { warn } as any,
+      moduleDb: {} as any,
       registry,
+      repository,
     } as any);
 
     const result = await getDetails(document.docType, document.id, "checker-1");

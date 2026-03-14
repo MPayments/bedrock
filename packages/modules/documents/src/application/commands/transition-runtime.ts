@@ -1,17 +1,5 @@
-import type { Transaction } from "@bedrock/platform/persistence";
-
 import type { DocumentsIdempotencyScope } from "../../domain/idempotency";
 import type { Document } from "../../domain/types";
-import type { DocumentsServiceContext } from "../shared/context";
-import {
-  buildDocumentWithOperationId,
-  createModuleContext,
-  insertDocumentEvent,
-  loadDocumentWithOperationId,
-  lockDocument,
-  resolveModuleForDocument,
-} from "../shared/helpers";
-import { persistDocumentPolicyDenial } from "../shared/policy";
 import type {
   DocumentModule,
   DocumentRequestContext,
@@ -19,9 +7,21 @@ import type {
   DocumentTransitionInput,
   DocumentWithOperationId,
 } from "../../types";
+import type {
+  DocumentsLedgerCommitPort,
+  DocumentsRepository,
+} from "../ports";
+import {
+  buildDocumentWithOperationId,
+  loadDocumentOrThrow,
+  loadDocumentWithOperationId,
+} from "../shared/actions";
+import type { DocumentsServiceContext } from "../shared/context";
+import { createModuleContext, resolveModuleForDocument } from "../shared/module-resolution";
+import { persistDocumentPolicyDenial } from "../shared/policy";
 
 export interface DocumentTransitionIdempotencyContext {
-  tx: Transaction;
+  repository: DocumentsRepository;
   document: Document;
   module: DocumentModule;
 }
@@ -41,7 +41,8 @@ export interface DocumentTransitionExecutionResult {
 
 export interface DocumentTransitionExecutionContext {
   services: DocumentsServiceContext;
-  tx: Transaction;
+  repository: DocumentsRepository;
+  ledger: DocumentsLedgerCommitPort;
   input: DocumentTransitionInput;
   moduleContext: ReturnType<typeof createModuleContext>;
   document: Document;
@@ -66,13 +67,13 @@ export type DocumentTransitionSpecs = Record<
 >;
 
 async function insertTransitionEvents(input: {
-  tx: Transaction;
+  repository: DocumentsRepository;
   transition: DocumentTransitionInput;
   events: DocumentTransitionEvent[];
   requestContext?: DocumentRequestContext;
 }) {
   for (const event of input.events) {
-    await insertDocumentEvent(input.tx, {
+    await input.repository.insertDocumentEvent({
       documentId: input.transition.documentId,
       eventType: event.eventType,
       actorId: input.transition.actorUserId,
@@ -95,104 +96,110 @@ export async function runDocumentTransition(input: {
   const { services, spec, transition } = input;
 
   try {
-    return await services.db.transaction(async (tx) => {
-      let preparedForIdempotency: DocumentTransitionIdempotencyContext | null =
-        null;
+    return await services.transactions.withTransaction(
+      async ({ idempotency, ledger, moduleDb, repository }) => {
+        let preparedForIdempotency: DocumentTransitionIdempotencyContext | null =
+          null;
 
-      if (spec.needsDocumentForIdempotencyKey) {
-        const document = await lockDocument(
-          tx,
-          transition.documentId,
-          transition.docType,
-        );
-        preparedForIdempotency = {
-          tx,
-          document,
-          module: resolveModuleForDocument(services.registry, document),
-        };
-      }
-
-      const idempotencyKey = await spec.resolveIdempotencyKey({
-        transition,
-        context: preparedForIdempotency,
-      });
-
-      const moduleContext = createModuleContext({
-        db: tx,
-        actorUserId: transition.actorUserId,
-        now: new Date(),
-        log: services.log,
-        operationIdempotencyKey: null,
-      });
-
-      return services.idempotency.withIdempotencyTx({
-        tx,
-        scope: spec.scope,
-        idempotencyKey,
-        request: {
-          action: transition.action,
-          docType: transition.docType,
-          documentId: transition.documentId,
-          actorUserId: transition.actorUserId,
-          transitionIdempotencyKey: idempotencyKey,
-        },
-        actorId: transition.actorUserId,
-        serializeResult: (result: DocumentWithOperationId) => ({
-          documentId: result.document.id,
-          postingOperationId: result.postingOperationId,
-        }),
-        loadReplayResult: async ({
-          storedResult,
-        }: {
-          storedResult:
-            | { documentId?: string; postingOperationId?: string | null }
-            | null;
-        }) =>
-          loadDocumentWithOperationId(
-            tx,
-            transition.docType,
-            String(storedResult?.documentId ?? transition.documentId),
-            typeof storedResult?.postingOperationId === "string"
-              ? storedResult.postingOperationId
-              : null,
-            services.registry,
-          ),
-        handler: async () => {
-          const document =
-            preparedForIdempotency?.document ??
-            (await lockDocument(tx, transition.documentId, transition.docType));
-          const module =
-            preparedForIdempotency?.module ??
-            resolveModuleForDocument(services.registry, document);
-
-          const result = await spec.execute({
-            services,
-            tx,
-            input: transition,
-            moduleContext,
+        if (spec.needsDocumentForIdempotencyKey) {
+          const document = await loadDocumentOrThrow(repository, {
+            documentId: transition.documentId,
+            docType: transition.docType,
+            forUpdate: true,
+          });
+          preparedForIdempotency = {
+            repository,
             document,
-            module,
-          });
+            module: resolveModuleForDocument(services.registry, document),
+          };
+        }
 
-          if (result.events && result.events.length > 0) {
-            await insertTransitionEvents({
-              tx,
-              transition,
-              events: result.events,
-              requestContext: transition.requestContext,
-            });
-          }
+        const idempotencyKey = await spec.resolveIdempotencyKey({
+          transition,
+          context: preparedForIdempotency,
+        });
 
-          return buildDocumentWithOperationId({
-            registry: services.registry,
-            document: result.document,
+        const moduleContext = createModuleContext({
+          db: moduleDb,
+          actorUserId: transition.actorUserId,
+          now: new Date(),
+          log: services.log,
+          operationIdempotencyKey: null,
+        });
+
+        return idempotency.withIdempotency({
+          scope: spec.scope,
+          idempotencyKey,
+          request: {
+            action: transition.action,
+            docType: transition.docType,
+            documentId: transition.documentId,
+            actorUserId: transition.actorUserId,
+            transitionIdempotencyKey: idempotencyKey,
+          },
+          actorId: transition.actorUserId,
+          serializeResult: (result: DocumentWithOperationId) => ({
+            documentId: result.document.id,
             postingOperationId: result.postingOperationId,
-          });
-        },
-      });
-    });
+          }),
+          loadReplayResult: async ({
+            storedResult,
+          }: {
+            storedResult:
+              | { documentId?: string; postingOperationId?: string | null }
+              | null;
+          }) =>
+            loadDocumentWithOperationId(repository, {
+              docType: transition.docType,
+              documentId: String(storedResult?.documentId ?? transition.documentId),
+              postingOperationId:
+                typeof storedResult?.postingOperationId === "string"
+                  ? storedResult.postingOperationId
+                  : null,
+              registry: services.registry,
+            }),
+          handler: async () => {
+            const document =
+              preparedForIdempotency?.document ??
+              (await loadDocumentOrThrow(repository, {
+                documentId: transition.documentId,
+                docType: transition.docType,
+                forUpdate: true,
+              }));
+            const module =
+              preparedForIdempotency?.module ??
+              resolveModuleForDocument(services.registry, document);
+
+            const result = await spec.execute({
+              services,
+              repository,
+              ledger,
+              input: transition,
+              moduleContext,
+              document,
+              module,
+            });
+
+            if (result.events && result.events.length > 0) {
+              await insertTransitionEvents({
+                repository,
+                transition,
+                events: result.events,
+                requestContext: transition.requestContext,
+              });
+            }
+
+            return buildDocumentWithOperationId({
+              registry: services.registry,
+              document: result.document,
+              postingOperationId: result.postingOperationId,
+            });
+          },
+        });
+      },
+    );
   } catch (error) {
-    await persistDocumentPolicyDenial(services.db, error);
+    await persistDocumentPolicyDenial(services.transactions, error);
     throw error;
   }
 }

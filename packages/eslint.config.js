@@ -4,6 +4,97 @@ import { config } from "./tooling/eslint-config/backend.js";
 export default [
   ...config,
   {
+    files: ["**/documents/src/domain/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "drizzle-orm",
+              message: "Documents domain must stay free of Drizzle.",
+            },
+            {
+              name: "@bedrock/platform/persistence",
+              message: "Documents domain must not depend on persistence types.",
+            },
+            {
+              name: "@bedrock/platform/persistence/drizzle",
+              message: "Documents domain must not depend on persistence types.",
+            },
+          ],
+          patterns: [
+            {
+              group: [
+                "**/contracts",
+                "**/contracts/**",
+                "**/application",
+                "**/application/**",
+                "**/infra",
+                "**/infra/**",
+              ],
+              message: "Documents domain must depend inward only.",
+            },
+            {
+              group: ["@bedrock/*/queries"],
+              message:
+                "Documents domain must not depend on cross-context query adapters.",
+            },
+            {
+              group: ["@bedrock/*/schema"],
+              message: "Documents domain must not import schema surfaces.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["**/documents/src/application/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "drizzle-orm",
+              message: "Documents application code must not use Drizzle directly.",
+            },
+            {
+              name: "@bedrock/platform/persistence",
+              message: "Documents application code must not depend on persistence types.",
+            },
+            {
+              name: "@bedrock/platform/persistence/drizzle",
+              message: "Documents application code must not depend on persistence types.",
+            },
+            {
+              name: "@bedrock/platform/idempotency",
+              message:
+                "Documents application code must depend on local transaction ports, not platform idempotency types.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["@bedrock/*/queries"],
+              message:
+                "Documents application code must depend on injected ports, not cross-context query adapters.",
+            },
+            {
+              group: ["@bedrock/*/schema"],
+              message:
+                "Documents application code must consume contract or port surfaces, not schemas.",
+            },
+            {
+              group: ["**/infra", "**/infra/**"],
+              message: "Documents application code must not import infra adapters directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["**/accounting/src/domain/**/*.ts"],
     rules: {
       "no-restricted-imports": [

@@ -3,13 +3,22 @@ import type {
   ResolvePostingPlanInput,
   ResolvePostingPlanResult,
 } from "@bedrock/accounting/packs";
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type {
   CommitResult,
   LedgerOperationDetails,
   OperationIntent,
 } from "@bedrock/ledger";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+
+import type { ListDocumentsQuery } from "../contracts/validation";
+import type {
+  Document,
+  DocumentEvent,
+  DocumentInitialLink,
+  DocumentLink,
+  DocumentOperation,
+  DocumentSnapshot,
+} from "../domain/types";
+import type { DocumentModuleDb } from "../module-db";
 
 export interface DocumentsAccountingPort {
   getDefaultCompiledPack(): CompiledPack;
@@ -24,13 +33,11 @@ export interface DocumentsAccountingPort {
 
 export interface DocumentsAccountingPeriodsPort {
   assertOrganizationPeriodsOpen(input: {
-    db?: Database | Transaction;
     occurredAt: Date;
     organizationIds: string[];
     docType: string;
   }): Promise<void>;
   closePeriod(input: {
-    db?: Database | Transaction;
     organizationId: string;
     periodStart: Date;
     periodEnd: Date;
@@ -39,12 +46,10 @@ export interface DocumentsAccountingPeriodsPort {
     closeDocumentId: string;
   }): Promise<unknown>;
   isOrganizationPeriodClosed(input: {
-    db?: Database | Transaction;
     organizationId: string;
     occurredAt: Date;
   }): Promise<boolean>;
   reopenPeriod(input: {
-    db?: Database | Transaction;
     organizationId: string;
     periodStart: Date;
     reopenedBy: string;
@@ -54,11 +59,102 @@ export interface DocumentsAccountingPeriodsPort {
 }
 
 export interface DocumentsLedgerCommitPort {
-  commit(tx: Transaction, intent: OperationIntent): Promise<CommitResult>;
+  commit(intent: OperationIntent): Promise<CommitResult>;
 }
 
 export interface DocumentsLedgerReadPort {
   getOperationDetails(operationId: string): Promise<LedgerOperationDetails | null>;
 }
 
-export type DocumentsIdempotencyPort = IdempotencyPort;
+export interface DocumentsRepositoryRow {
+  document: Document;
+  postingOperationId: string | null;
+}
+
+export interface DocumentsRepositoryEventInput {
+  documentId: string;
+  eventType: string;
+  actorId?: string | null;
+  requestId?: string | null;
+  correlationId?: string | null;
+  traceId?: string | null;
+  causationId?: string | null;
+  reasonCode?: string | null;
+  reasonMeta?: Record<string, unknown> | null;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
+}
+
+export interface DocumentsRepository {
+  findDocumentByType: (input: {
+    documentId: string;
+    docType: string;
+    forUpdate?: boolean;
+  }) => Promise<Document | null>;
+  findDocumentWithPostingOperation: (input: {
+    documentId: string;
+    docType: string;
+  }) => Promise<DocumentsRepositoryRow | null>;
+  findDocumentByCreateIdempotencyKey: (input: {
+    docType: string;
+    createIdempotencyKey: string;
+  }) => Promise<Document | null>;
+  findPostingOperationId: (input: { documentId: string }) => Promise<string | null>;
+  insertDocument: (document: Document) => Promise<Document | null>;
+  updateDocument: (input: {
+    documentId: string;
+    docType: string;
+    patch: Partial<Document> & Record<string, unknown>;
+  }) => Promise<Document | null>;
+  insertDocumentOperation: (input: {
+    documentId: string;
+    operationId: string;
+    kind: string;
+  }) => Promise<void>;
+  resetPostingOperation: (input: { operationId: string }) => Promise<void>;
+  insertDocumentEvent: (input: DocumentsRepositoryEventInput) => Promise<void>;
+  insertInitialLinks: (input: {
+    document: Document;
+    links: DocumentInitialLink[];
+  }) => Promise<void>;
+  listDocuments: (input: ListDocumentsQuery) => Promise<{
+    rows: DocumentsRepositoryRow[];
+    total: number;
+  }>;
+  listDocumentLinks: (documentId: string) => Promise<DocumentLink[]>;
+  listDocumentsByIds: (documentIds: string[]) => Promise<Document[]>;
+  listDocumentOperations: (documentId: string) => Promise<DocumentOperation[]>;
+  listDocumentEvents: (documentId: string) => Promise<DocumentEvent[]>;
+  findDocumentSnapshot: (documentId: string) => Promise<DocumentSnapshot | null>;
+  getLatestPostingArtifacts: (
+    documentId: string,
+  ) => Promise<Record<string, unknown> | null>;
+}
+
+export interface DocumentsIdempotencyPort {
+  withIdempotency<TResult, TStoredResult = Record<string, unknown>>(input: {
+    scope: string;
+    idempotencyKey: string;
+    request: unknown;
+    actorId?: string | null;
+    handler: () => Promise<TResult>;
+    serializeResult: (result: TResult) => TStoredResult;
+    loadReplayResult: (params: {
+      storedResult: TStoredResult | null;
+    }) => Promise<TResult>;
+    serializeError?: (error: unknown) => Record<string, unknown>;
+  }): Promise<TResult>;
+}
+
+export interface DocumentsTransactionContext {
+  moduleDb: DocumentModuleDb;
+  repository: DocumentsRepository;
+  idempotency: DocumentsIdempotencyPort;
+  ledger: DocumentsLedgerCommitPort;
+}
+
+export interface DocumentsTransactionsPort {
+  withTransaction<TResult>(
+    run: (context: DocumentsTransactionContext) => Promise<TResult>,
+  ): Promise<TResult>;
+}

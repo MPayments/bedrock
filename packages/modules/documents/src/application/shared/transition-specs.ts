@@ -1,30 +1,25 @@
-import { and, eq, sql } from "drizzle-orm";
-
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
+import {
+  buildDefaultActionIdempotencyKey,
+} from "./idempotency-key";
+import { resolveDocumentAccountingSourceId } from "./module-resolution";
+import { enforceDocumentPolicy } from "./policy";
 import { collectDocumentOrganizationIds } from "../../domain/accounting-periods";
-import { assertDocumentIsActive } from "../../domain/document-state";
+import { assertDocumentIsActive, buildDocumentEventState } from "../../domain/document-state";
 import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "../../domain/idempotency";
 import { isDocumentActionAllowed } from "../../domain/state-machine";
 import { DocumentPostingNotRequiredError } from "../../errors";
-import { schema } from "../../infra/drizzle/schema";
-import {
-  buildDefaultActionIdempotencyKey,
-  buildDocumentEventState,
-  getPostingOperationId,
-  resolveDocumentAccountingSourceId,
-} from "./helpers";
-import { enforceDocumentPolicy } from "./policy";
+import type {
+  DocumentTransitionAction,
+  DocumentTransitionInput,
+} from "../../types";
 import type {
   DocumentTransitionEvent,
   DocumentTransitionExecutionContext,
   DocumentTransitionExecutionResult,
   DocumentTransitionSpecs,
 } from "../commands/transition-runtime";
-import type {
-  DocumentTransitionAction,
-  DocumentTransitionInput,
-} from "../../types";
 
 function buildActionIdempotencyKey(
   action: DocumentTransitionAction,
@@ -60,7 +55,6 @@ async function assertOrganizationPeriodsOpenForDocument(input: {
   });
 
   await input.context.services.accountingPeriods.assertOrganizationPeriodsOpen({
-    db: input.context.tx,
     occurredAt: input.document.occurredAt,
     organizationIds,
     docType: input.context.input.docType,
@@ -110,22 +104,15 @@ async function runSubmit(context: DocumentTransitionExecutionContext) {
   });
 
   const before = buildDocumentEventState(context.document);
-  const [stored] = await context.tx
-    .update(schema.documents)
-    .set({
+  const stored = await context.repository.updateDocument({
+    documentId: context.document.id,
+    docType: context.input.docType,
+    patch: {
       submissionStatus: "submitted",
       submittedBy: context.input.actorUserId,
-      submittedAt: sql`now()`,
-      updatedAt: sql`now()`,
-      version: sql`${schema.documents.version} + 1`,
-    })
-    .where(
-      and(
-        eq(schema.documents.id, context.document.id),
-        eq(schema.documents.docType, context.input.docType),
-      ),
-    )
-    .returning();
+      submittedAt: new Date(),
+    },
+  });
 
   if (!stored) {
     throw new InvalidStateError("Failed to submit document");
@@ -180,32 +167,22 @@ async function runApproveOrReject(
   });
 
   const before = buildDocumentEventState(context.document);
-  const [stored] = await context.tx
-    .update(schema.documents)
-    .set(
+  const stored = await context.repository.updateDocument({
+    documentId: context.document.id,
+    docType: context.input.docType,
+    patch:
       mode === "approve"
         ? {
             approvalStatus: "approved",
             approvedBy: context.input.actorUserId,
-            approvedAt: sql`now()`,
-            updatedAt: sql`now()`,
-            version: sql`${schema.documents.version} + 1`,
+            approvedAt: new Date(),
           }
         : {
             approvalStatus: "rejected",
             rejectedBy: context.input.actorUserId,
-            rejectedAt: sql`now()`,
-            updatedAt: sql`now()`,
-            version: sql`${schema.documents.version} + 1`,
+            rejectedAt: new Date(),
           },
-    )
-    .where(
-      and(
-        eq(schema.documents.id, context.document.id),
-        eq(schema.documents.docType, context.input.docType),
-      ),
-    )
-    .returning();
+  });
 
   if (!stored) {
     throw new InvalidStateError(
@@ -261,22 +238,15 @@ async function runCancel(context: DocumentTransitionExecutionContext) {
   });
 
   const before = buildDocumentEventState(context.document);
-  const [stored] = await context.tx
-    .update(schema.documents)
-    .set({
+  const stored = await context.repository.updateDocument({
+    documentId: context.document.id,
+    docType: context.input.docType,
+    patch: {
       lifecycleStatus: "cancelled",
       cancelledBy: context.input.actorUserId,
-      cancelledAt: sql`now()`,
-      updatedAt: sql`now()`,
-      version: sql`${schema.documents.version} + 1`,
-    })
-    .where(
-      and(
-        eq(schema.documents.id, context.document.id),
-        eq(schema.documents.docType, context.input.docType),
-      ),
-    )
-    .returning();
+      cancelledAt: new Date(),
+    },
+  });
 
   if (!stored) {
     throw new InvalidStateError("Failed to cancel document");
@@ -319,62 +289,27 @@ async function runRepost(context: DocumentTransitionExecutionContext) {
     document: context.document,
   });
 
-  const operationId = await getPostingOperationId(context.tx, context.document.id);
+  const operationId = await context.repository.findPostingOperationId({
+    documentId: context.document.id,
+  });
   if (!operationId) {
     throw new InvalidStateError(
       "Failed document does not have a posting operation to repost",
     );
   }
 
-  await context.tx
-    .update(schema.ledgerOperations)
-    .set({
-      status: "pending",
-      error: null,
-      postedAt: null,
-    })
-    .where(eq(schema.ledgerOperations.id, operationId));
-
-  await context.tx
-    .update(schema.tbTransferPlans)
-    .set({
-      status: "pending",
-      error: null,
-    })
-    .where(eq(schema.tbTransferPlans.operationId, operationId));
-
-  await context.tx
-    .update(schema.outbox)
-    .set({
-      status: "pending",
-      error: null,
-      lockedAt: null,
-      availableAt: sql`now()`,
-    })
-    .where(
-      and(
-        eq(schema.outbox.kind, "post_operation"),
-        eq(schema.outbox.refId, operationId),
-      ),
-    );
+  await context.repository.resetPostingOperation({ operationId });
 
   const before = buildDocumentEventState(context.document);
-  const [stored] = await context.tx
-    .update(schema.documents)
-    .set({
+  const stored = await context.repository.updateDocument({
+    documentId: context.document.id,
+    docType: context.input.docType,
+    patch: {
       postingStatus: "posting",
-      postingStartedAt: sql`now()`,
+      postingStartedAt: new Date(),
       postingError: null,
-      updatedAt: sql`now()`,
-      version: sql`${schema.documents.version} + 1`,
-    })
-    .where(
-      and(
-        eq(schema.documents.id, context.document.id),
-        eq(schema.documents.docType, context.input.docType),
-      ),
-    )
-    .returning();
+    },
+  });
 
   if (!stored) {
     throw new InvalidStateError("Failed to repost document");
@@ -418,22 +353,15 @@ async function runPost(context: DocumentTransitionExecutionContext) {
     });
 
     const beforeSubmit = buildDocumentEventState(postingDocument);
-    const [submitted] = await context.tx
-      .update(schema.documents)
-      .set({
+    const submitted = await context.repository.updateDocument({
+      documentId: postingDocument.id,
+      docType: context.input.docType,
+      patch: {
         submissionStatus: "submitted",
         submittedBy: context.input.actorUserId,
-        submittedAt: sql`now()`,
-        updatedAt: sql`now()`,
-        version: sql`${schema.documents.version} + 1`,
-      })
-      .where(
-        and(
-          eq(schema.documents.id, postingDocument.id),
-          eq(schema.documents.docType, context.input.docType),
-        ),
-      )
-      .returning();
+        submittedAt: new Date(),
+      },
+    });
 
     if (!submitted) {
       throw new InvalidStateError("Failed to submit document before posting");
@@ -480,10 +408,9 @@ async function runPost(context: DocumentTransitionExecutionContext) {
     );
   }
 
-  const existingOperationId = await getPostingOperationId(
-    context.tx,
-    postingDocument.id,
-  );
+  const existingOperationId = await context.repository.findPostingOperationId({
+    documentId: postingDocument.id,
+  });
   if (existingOperationId) {
     throw new InvalidStateError(
       "Document already has a posting operation",
@@ -530,37 +457,23 @@ async function runPost(context: DocumentTransitionExecutionContext) {
     plan: postingPlan,
   });
 
-  const ledgerResult = await context.services.ledger.commit(
-    context.tx,
-    resolved.intent,
-  );
-
-  await context.tx
-    .insert(schema.documentOperations)
-    .values({
-      documentId: postingDocument.id,
-      operationId: ledgerResult.operationId,
-      kind: "post",
-    })
-    .onConflictDoNothing();
+  const ledgerResult = await context.ledger.commit(resolved.intent);
+  await context.repository.insertDocumentOperation({
+    documentId: postingDocument.id,
+    operationId: ledgerResult.operationId,
+    kind: "post",
+  });
 
   const beforePost = buildDocumentEventState(postingDocument);
-  const [stored] = await context.tx
-    .update(schema.documents)
-    .set({
+  const stored = await context.repository.updateDocument({
+    documentId: postingDocument.id,
+    docType: context.input.docType,
+    patch: {
       postingStatus: "posting",
-      postingStartedAt: sql`now()`,
+      postingStartedAt: new Date(),
       postingError: null,
-      updatedAt: sql`now()`,
-      version: sql`${schema.documents.version} + 1`,
-    })
-    .where(
-      and(
-        eq(schema.documents.id, postingDocument.id),
-        eq(schema.documents.docType, context.input.docType),
-      ),
-    )
-    .returning();
+    },
+  });
 
   if (!stored) {
     throw new InvalidStateError("Failed to mark document as posting");

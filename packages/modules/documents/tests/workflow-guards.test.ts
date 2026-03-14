@@ -4,7 +4,6 @@ import { InvalidStateError } from "@bedrock/shared/core/errors";
 
 import { createTransitionHandler } from "../src/application/commands/transition";
 import type { Document } from "../src/domain/types";
-import { schema } from "../src/infra/drizzle/schema";
 
 function makeDocument(overrides: Partial<Document> = {}): Document {
   return {
@@ -48,25 +47,6 @@ function makeDocument(overrides: Partial<Document> = {}): Document {
   };
 }
 
-function createSelectChain(document: Document) {
-  return (table?: unknown) => ({
-    where: vi.fn(() => {
-      if (table === schema.documents) {
-        return {
-          for: vi.fn(() => ({
-            limit: vi.fn(async () => [document]),
-          })),
-          limit: vi.fn(async () => [document]),
-        };
-      }
-
-      return {
-        limit: vi.fn(async () => []),
-      };
-    }),
-  });
-}
-
 function createModuleStub() {
   return {
     canSubmit: vi.fn(),
@@ -80,17 +60,24 @@ function createModuleStub() {
 }
 
 function createContext(document: Document, module: ReturnType<typeof createModuleStub>) {
-  const tx = {
-    select: vi.fn(() => ({
-      from: createSelectChain(document),
-    })),
-    update: vi.fn(),
-    insert: vi.fn(),
-  };
-  const db = {
-    transaction: vi.fn(async (callback: (value: typeof tx) => Promise<unknown>) =>
-      callback(tx),
-    ),
+  const repository = {
+    findDocumentByType: vi.fn(async () => document),
+    findDocumentWithPostingOperation: vi.fn(),
+    findDocumentByCreateIdempotencyKey: vi.fn(),
+    findPostingOperationId: vi.fn(async () => null),
+    insertDocument: vi.fn(),
+    updateDocument: vi.fn(),
+    insertDocumentOperation: vi.fn(),
+    resetPostingOperation: vi.fn(),
+    insertDocumentEvent: vi.fn(),
+    insertInitialLinks: vi.fn(),
+    listDocuments: vi.fn(),
+    listDocumentLinks: vi.fn(),
+    listDocumentsByIds: vi.fn(),
+    listDocumentOperations: vi.fn(),
+    listDocumentEvents: vi.fn(),
+    findDocumentSnapshot: vi.fn(),
+    getLatestPostingArtifacts: vi.fn(),
   };
   const ledger = {
     commit: vi.fn(),
@@ -102,7 +89,7 @@ function createContext(document: Document, module: ReturnType<typeof createModul
     getDocumentModule: vi.fn(() => module),
   };
   const idempotency = {
-    withIdempotencyTx: vi.fn(async ({ handler }: { handler: () => Promise<unknown> }) =>
+    withIdempotency: vi.fn(async ({ handler }: { handler: () => Promise<unknown> }) =>
       handler(),
     ),
   };
@@ -110,14 +97,27 @@ function createContext(document: Document, module: ReturnType<typeof createModul
   return {
     context: {
       accounting,
-      db,
-      idempotency,
-      ledger,
+      accountingPeriods: {
+        assertOrganizationPeriodsOpen: vi.fn(async () => undefined),
+      },
       ledgerReadService: {} as any,
+      moduleDb: {} as any,
+      policy: undefined,
       registry,
+      repository,
+      transactions: {
+        withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
+          run({
+            idempotency,
+            ledger,
+            moduleDb: {} as any,
+            repository,
+          }),
+        ),
+      },
       log: {} as any,
     },
-    tx,
+    repository,
     accounting,
     ledger,
     idempotency,
@@ -165,7 +165,7 @@ describe("documents workflow lifecycle guards", () => {
     },
   ])("prevents $name on cancelled documents", async ({ action, document, moduleMethod }) => {
     const module = createModuleStub();
-    const { context, tx, ledger } = createContext(document, module);
+    const { context, ledger, repository } = createContext(document, module);
     const transition = createTransitionHandler(context as any);
 
     await expect(
@@ -178,7 +178,7 @@ describe("documents workflow lifecycle guards", () => {
     ).rejects.toThrow(InvalidStateError);
 
     expect(module[moduleMethod as keyof typeof module]).not.toHaveBeenCalled();
-    expect(tx.update).not.toHaveBeenCalled();
+    expect(repository.updateDocument).not.toHaveBeenCalled();
     expect(ledger.commit).not.toHaveBeenCalled();
   });
 
@@ -192,7 +192,7 @@ describe("documents workflow lifecycle guards", () => {
       ...createModuleStub(),
       allowDirectPostFromDraft: true,
     };
-    const { context, tx } = createContext(document, module);
+    const { context, repository } = createContext(document, module);
     const transition = createTransitionHandler(context as any);
 
     await expect(
@@ -205,6 +205,6 @@ describe("documents workflow lifecycle guards", () => {
     ).rejects.toThrow("Submit action is disabled for this document type; use post");
 
     expect(module.canSubmit).not.toHaveBeenCalled();
-    expect(tx.update).not.toHaveBeenCalled();
+    expect(repository.updateDocument).not.toHaveBeenCalled();
   });
 });

@@ -73,10 +73,11 @@ export function createAccountingPacksHandlers(
     context,
     loadCompiledPackByChecksum,
   });
-  const loadActiveCompiledPackForBook = createLoadActiveCompiledPackForBookQuery({
-    context,
-    loadCompiledPackByChecksum,
-  });
+  const loadActiveCompiledPackForBook =
+    createLoadActiveCompiledPackForBookQuery({
+      context,
+      loadCompiledPackByChecksum,
+    });
   const resolvePostingPlan = createResolvePostingPlanQuery({
     context,
     loadActiveCompiledPackForBook,

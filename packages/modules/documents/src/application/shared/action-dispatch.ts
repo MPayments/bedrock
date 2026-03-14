@@ -1,11 +1,11 @@
+import type { DocumentAction } from "../../domain/state-machine";
+import type { Document } from "../../domain/types";
 import type {
   DocumentActionPolicyService,
   DocumentModule,
   DocumentModuleContext,
   DocumentPolicyDecision,
 } from "../../types";
-import type { DocumentAction } from "../../domain/state-machine";
-import type { Document } from "../../domain/types";
 
 export async function invokeDocumentModuleAction(input: {
   action: DocumentAction;

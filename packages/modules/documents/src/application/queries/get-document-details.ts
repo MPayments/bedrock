@@ -1,35 +1,34 @@
-import { and, eq, inArray, or } from "drizzle-orm";
-
 import { DocumentNotFoundError } from "../../errors";
-import { schema } from "../../infra/drizzle/schema";
 import type { DocumentDetails } from "../../types";
+import { resolveDocumentAllowedActionsForActor } from "../shared/actions";
 import type { DocumentsServiceContext } from "../shared/context";
 import {
   createModuleContext,
-  resolveDocumentAllowedActionsForActor,
   resolveModuleForDocument,
-} from "../shared/helpers";
+} from "../shared/module-resolution";
 
 export function createGetDocumentDetailsQuery(
   context: DocumentsServiceContext,
 ) {
-  const { db, ledgerReadService, log, registry } = context;
+  const {
+    accountingPeriods,
+    ledgerReadService,
+    log,
+    moduleDb,
+    policy,
+    registry,
+    repository,
+  } = context;
 
   return async function getDocumentDetails(
     docType: string,
     documentId: string,
     actorUserId = "system",
   ): Promise<DocumentDetails> {
-    const [document] = await db
-      .select()
-      .from(schema.documents)
-      .where(
-        and(
-          eq(schema.documents.id, documentId),
-          eq(schema.documents.docType, docType),
-        ),
-      )
-      .limit(1);
+    const document = await repository.findDocumentByType({
+      documentId,
+      docType,
+    });
 
     if (!document) {
       throw new DocumentNotFoundError(documentId);
@@ -50,7 +49,7 @@ export function createGetDocumentDetailsQuery(
 
     const moduleContext = module
       ? createModuleContext({
-          db,
+          db: moduleDb,
           actorUserId,
           now: new Date(),
           log,
@@ -58,16 +57,7 @@ export function createGetDocumentDetailsQuery(
         })
       : null;
 
-    const links = await db
-      .select()
-      .from(schema.documentLinks)
-      .where(
-        or(
-          eq(schema.documentLinks.fromDocumentId, document.id),
-          eq(schema.documentLinks.toDocumentId, document.id),
-        ),
-      );
-
+    const links = await repository.listDocumentLinks(document.id);
     const parentIds = links
       .filter(
         (link) =>
@@ -97,31 +87,13 @@ export function createGetDocumentDetailsQuery(
     const relatedIds = Array.from(
       new Set([...parentIds, ...dependsOnIds, ...compensatesIds, ...childIds]),
     );
-    const relatedDocs =
-      relatedIds.length > 0
-        ? await db
-            .select()
-            .from(schema.documents)
-            .where(inArray(schema.documents.id, relatedIds))
-        : [];
-    const relatedById = new Map(relatedDocs.map((item) => [item.id, item]));
-
-    const documentOperations = await db
-      .select()
-      .from(schema.documentOperations)
-      .where(eq(schema.documentOperations.documentId, document.id));
-    const [events, snapshot] = await Promise.all([
-      db
-        .select()
-        .from(schema.documentEvents)
-        .where(eq(schema.documentEvents.documentId, document.id)),
-      db
-        .select()
-        .from(schema.documentSnapshots)
-        .where(eq(schema.documentSnapshots.documentId, document.id))
-        .limit(1)
-        .then((rows) => rows[0] ?? null),
+    const [relatedDocs, documentOperations, events, snapshot] = await Promise.all([
+      repository.listDocumentsByIds(relatedIds),
+      repository.listDocumentOperations(document.id),
+      repository.listDocumentEvents(document.id),
+      repository.findDocumentSnapshot(document.id),
     ]);
+    const relatedById = new Map(relatedDocs.map((item) => [item.id, item]));
 
     const ledgerOperations = await Promise.all(
       documentOperations.map(async (operation) =>
@@ -150,12 +122,12 @@ export function createGetDocumentDetailsQuery(
       documentOperations.find((operation) => operation.kind === "post")
         ?.operationId ?? null;
     const allowedActions = await resolveDocumentAllowedActionsForActor({
-      accountingPeriods: context.accountingPeriods,
+      accountingPeriods,
+      moduleDb,
       registry,
-      policy: context.policy,
-      db,
-      actorUserId,
+      policy,
       log,
+      actorUserId,
       document,
     });
 

@@ -29,7 +29,9 @@ export interface AccountingPacksRepository {
     compiledAt: Date;
   }) => Promise<void>;
   hasAssignmentsForPackChecksum: (checksum: string) => Promise<boolean>;
-  findPackByChecksum: (checksum: string) => Promise<StoredCompiledPackRow | null>;
+  findPackByChecksum: (
+    checksum: string,
+  ) => Promise<StoredCompiledPackRow | null>;
   insertPackAssignment: (input: {
     scopeType: string;
     scopeId: string;

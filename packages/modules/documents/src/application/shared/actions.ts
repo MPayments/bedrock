@@ -1,19 +1,5 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
 
-import { collectDocumentOrganizationIds } from "../../domain/accounting-periods";
-import {
-  resolveDocumentAllowedActions,
-  type DocumentAction,
-} from "../../domain/state-machine";
-import type { Document } from "../../domain/types";
-import type { DocumentsServiceContext } from "./context";
-import type {
-  DocumentActionPolicyService,
-  DocumentModule,
-  DocumentRegistry,
-  DocumentWithOperationId,
-} from "../../types";
 import {
   invokeDocumentModuleAction,
   resolveDocumentPolicyDecision,
@@ -22,8 +8,21 @@ import {
   createModuleContext,
   resolveModuleForDocument,
 } from "./module-resolution";
-
-type Queryable = Database | Transaction;
+import { collectDocumentOrganizationIds } from "../../domain/accounting-periods";
+import {
+  resolveDocumentAllowedActions,
+  type DocumentAction,
+} from "../../domain/state-machine";
+import type { Document } from "../../domain/types";
+import { DocumentNotFoundError } from "../../errors";
+import type { DocumentsRepository } from "../ports";
+import type { DocumentsServiceContext } from "./context";
+import type {
+  DocumentActionPolicyService,
+  DocumentModule,
+  DocumentRegistry,
+  DocumentWithOperationId,
+} from "../../types";
 
 export function resolveDocumentAllowedActionsForDocument(input: {
   registry?: DocumentRegistry;
@@ -75,7 +74,6 @@ const PERIOD_LOCKED_ACTIONS = new Set<DocumentAction>([
 
 async function isDocumentLockedByOrganizationPeriod(input: {
   accountingPeriods: DocumentsServiceContext["accountingPeriods"];
-  db: Queryable;
   document: Document;
 }): Promise<boolean> {
   const organizationIds = collectDocumentOrganizationIds({
@@ -84,7 +82,6 @@ async function isDocumentLockedByOrganizationPeriod(input: {
 
   for (const organizationId of organizationIds) {
     const closed = await input.accountingPeriods.isOrganizationPeriodClosed({
-      db: input.db,
       organizationId,
       occurredAt: input.document.occurredAt,
     });
@@ -136,9 +133,9 @@ async function isActionAllowedByPolicy(input: {
 
 export async function resolveDocumentAllowedActionsForActor(input: {
   accountingPeriods: DocumentsServiceContext["accountingPeriods"];
+  moduleDb: DocumentsServiceContext["moduleDb"];
   registry?: DocumentRegistry;
   policy?: DocumentActionPolicyService;
-  db: Queryable;
   actorUserId: string;
   log: Logger;
   document: Document;
@@ -177,12 +174,11 @@ export async function resolveDocumentAllowedActionsForActor(input: {
 
   const periodLocked = await isDocumentLockedByOrganizationPeriod({
     accountingPeriods: input.accountingPeriods,
-    db: input.db,
     document: input.document,
   });
   const moduleContext = createModuleContext({
     actorUserId: input.actorUserId,
-    db: input.db,
+    db: input.moduleDb,
     now: new Date(),
     log: input.log,
     operationIdempotencyKey: null,
@@ -222,4 +218,43 @@ export async function resolveDocumentAllowedActionsForActor(input: {
   }
 
   return filtered;
+}
+
+export async function loadDocumentOrThrow(
+  repository: DocumentsRepository,
+  input: {
+    documentId: string;
+    docType: string;
+    forUpdate?: boolean;
+  },
+): Promise<Document> {
+  const document = await repository.findDocumentByType(input);
+  if (!document) {
+    throw new DocumentNotFoundError(input.documentId);
+  }
+
+  return document;
+}
+
+export async function loadDocumentWithOperationId(
+  repository: DocumentsRepository,
+  input: {
+    docType: string;
+    documentId: string;
+    postingOperationId?: string | null;
+    registry?: DocumentRegistry;
+  },
+): Promise<DocumentWithOperationId> {
+  const document = await loadDocumentOrThrow(repository, {
+    documentId: input.documentId,
+    docType: input.docType,
+  });
+
+  return buildDocumentWithOperationId({
+    registry: input.registry,
+    document,
+    postingOperationId:
+      input.postingOperationId ??
+      (await repository.findPostingOperationId({ documentId: document.id })),
+  });
 }

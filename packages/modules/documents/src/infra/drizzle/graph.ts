@@ -2,10 +2,13 @@ import { sql } from "drizzle-orm";
 
 import type { Transaction } from "@bedrock/platform/persistence";
 
-import type { Document, DocumentLinkType } from "../../domain/types";
-import { DocumentGraphError } from "../../errors";
-import type { DocumentInitialLink } from "../../types";
 import { schema } from "./schema";
+import type {
+  Document,
+  DocumentInitialLink,
+  DocumentLinkType,
+} from "../../domain/types";
+import { DocumentGraphError } from "../../errors";
 
 async function assertNoLinkCycle(
   tx: Transaction,

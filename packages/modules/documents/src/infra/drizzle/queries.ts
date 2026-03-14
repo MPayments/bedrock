@@ -2,8 +2,8 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
+import { schema } from "./schema";
 import type { Document, DocumentLinkType } from "../../domain/types";
-import { schema } from "../../infra/drizzle/schema";
 
 type Queryable = Database | Transaction;
 

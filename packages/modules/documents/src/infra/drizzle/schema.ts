@@ -12,7 +12,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { user } from "@bedrock/platform/auth-model/schema";
 import { counterparties } from "@bedrock/counterparties/schema";
 import { customers } from "@bedrock/customers/schema";
 import {
@@ -21,6 +20,7 @@ import {
   postings,
   tbTransferPlans,
 } from "@bedrock/ledger/schema";
+import { user } from "@bedrock/platform/auth-model/schema";
 import { requisites } from "@bedrock/requisites/schema";
 
 export type DocumentSubmissionStatus = "draft" | "submitted";

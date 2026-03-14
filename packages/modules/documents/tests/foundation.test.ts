@@ -10,16 +10,16 @@ import {
   createDocumentsService,
 } from "../src";
 import {
-  CreateDocumentInputSchema,
-  validateInput,
-} from "../src/contracts/validation";
-import { createDocumentsServiceContext } from "../src/application/shared/context";
-import type { DocumentModule } from "../src/types";
-import {
   createDocumentsServiceDeps,
   createTestDocumentRegistry,
   createTestDocumentModule,
 } from "./helpers";
+import { createDocumentsServiceContext } from "../src/application/shared/context";
+import {
+  CreateDocumentInputSchema,
+  validateInput,
+} from "../src/contracts/validation";
+import type { DocumentModule } from "../src/types";
 
 function createModuleStub(): DocumentModule<{ memo: string }, { memo: string }> {
   const payloadSchema = z.object({ memo: z.string() });
