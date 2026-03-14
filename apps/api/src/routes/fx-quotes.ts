@@ -3,10 +3,13 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   CreateFxQuoteInputSchema,
   FxQuoteDetailsResponseSchema,
+  FxQuoteListResponseSchema,
   FxQuoteSchema,
+  ListFxQuotesQuerySchema,
   NotFoundError,
   ValidationError,
 } from "@bedrock/fx";
+import { minorToAmountString } from "@bedrock/money";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";
@@ -38,6 +41,20 @@ function serializeQuote(quote: Awaited<ReturnType<AppContext["fxService"]["quote
     expiresAt: quote.expiresAt.toISOString(),
     idempotencyKey: quote.idempotencyKey,
     createdAt: quote.createdAt.toISOString(),
+  };
+}
+
+function serializeQuoteListItem(
+  quote: Awaited<ReturnType<AppContext["fxService"]["quote"]>>,
+) {
+  return {
+    ...serializeQuote(quote),
+    fromAmount: minorToAmountString(quote.fromAmountMinor, {
+      currency: quote.fromCurrency ?? "",
+    }),
+    toAmount: minorToAmountString(quote.toAmountMinor, {
+      currency: quote.toCurrency ?? "",
+    }),
   };
 }
 
@@ -145,6 +162,27 @@ export function fxQuotesRoutes(ctx: AppContext) {
     },
   });
 
+  const listQuotesRoute = createRoute({
+    middleware: [requirePermission({ documents: ["list"] })],
+    method: "get",
+    path: "/",
+    tags: ["FX"],
+    summary: "List FX quotes",
+    request: {
+      query: ListFxQuotesQuerySchema,
+    },
+    responses: {
+      200: {
+        description: "Paginated FX quotes",
+        content: {
+          "application/json": {
+            schema: FxQuoteListResponseSchema,
+          },
+        },
+      },
+    },
+  });
+
   const getQuoteRoute = createRoute({
     middleware: [requirePermission({ documents: ["get"] })],
     method: "get",
@@ -183,6 +221,20 @@ export function fxQuotesRoutes(ctx: AppContext) {
   });
 
   return app
+    .openapi(listQuotesRoute, async (c) => {
+      const query = c.req.valid("query");
+      const result = await ctx.fxService.listQuotes(query);
+
+      return c.json(
+        {
+          data: result.data.map((quote) => serializeQuoteListItem(quote)),
+          total: result.total,
+          limit: result.limit,
+          offset: result.offset,
+        },
+        200,
+      );
+    })
     .openapi(createQuoteRoute, async (c) => {
       try {
         const body = c.req.valid("json");

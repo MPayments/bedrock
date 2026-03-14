@@ -8,6 +8,12 @@ import {
   getDocumentTypeLabel,
   isKnownDocumentType,
 } from "@/features/documents/lib/doc-types";
+import {
+  buildDocumentDetailsBreadcrumbItems,
+  getDocumentDetailsBreadcrumbParams,
+  resolveDocumentCreateBreadcrumbItems,
+} from "@/features/documents/lib/breadcrumbs";
+import { getDocumentDetails } from "@/features/operations/documents/lib/queries";
 import { getUserById } from "@/app/(shell)/users/lib/queries";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import { resolveBreadcrumbItems } from "@/lib/breadcrumbs";
@@ -146,6 +152,27 @@ export default async function BreadcrumbSegmentsPage({
   params,
 }: BreadcrumbSegmentsPageProps) {
   const { segments } = await params;
+  const documentCreateItems = resolveDocumentCreateBreadcrumbItems(segments);
+
+  if (documentCreateItems) {
+    return <DynamicBreadcrumb items={documentCreateItems} />;
+  }
+
+  const documentDetailsParams = getDocumentDetailsBreadcrumbParams(segments);
+  if (documentDetailsParams) {
+    const details = await getDocumentDetails(
+      documentDetailsParams.docType,
+      documentDetailsParams.id,
+    );
+
+    if (details) {
+      return (
+        <DynamicBreadcrumb
+          items={buildDocumentDetailsBreadcrumbItems(details.document)}
+        />
+      );
+    }
+  }
 
   const items = await resolveBreadcrumbItems(segments, {
     resolvers: dynamicResolvers,

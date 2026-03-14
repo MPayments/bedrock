@@ -57,8 +57,20 @@ export const invoiceDocumentDefinition = {
         layout: {
           rows: [
             { fields: ["mode", "occurredAt"] },
-            { fields: ["customerId", "counterpartyId"] },
-            { fields: ["organizationId", "organizationRequisiteId"] },
+            {
+              columns: {
+                base: 1,
+                sm: 2,
+              },
+              fields: ["customerId", "counterpartyId"],
+            },
+            {
+              columns: {
+                base: 1,
+                sm: 2,
+              },
+              fields: ["organizationId", "organizationRequisiteId"],
+            },
             { fields: ["memo"] },
           ],
         },
@@ -77,6 +89,11 @@ export const invoiceDocumentDefinition = {
             kind: "currency",
             name: "currency",
             label: "Валюта",
+            hidden: true,
+            deriveFrom: {
+              kind: "accountCurrency",
+              accountFieldNames: ["organizationRequisiteId"],
+            },
             visibleWhen: { fieldName: "mode", equals: ["direct"] },
           },
           {

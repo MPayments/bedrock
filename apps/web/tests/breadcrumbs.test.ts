@@ -13,6 +13,11 @@ describe("breadcrumbs", () => {
       { label: "FX", href: "/fx", icon: "currency" },
       { label: "Курсы", href: "/fx/rates", icon: "chart-candlestick" },
     ]);
+
+    await expect(resolveBreadcrumbItems(["fx", "quotes"])).resolves.toEqual([
+      { label: "FX", href: "/fx", icon: "currency" },
+      { label: "Котировки", href: "/fx/quotes", icon: "ticket-percent" },
+    ]);
   });
 
   it("uses canonical hrefs for entity counterparties and treasury organizations", async () => {

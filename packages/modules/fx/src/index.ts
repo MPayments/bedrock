@@ -9,8 +9,11 @@ export {
   validateQuoteInput,
   validateMarkQuoteUsedInput,
   validateGetQuoteDetailsInput,
+  validateListFxQuotesQuery,
   validateSyncRatesFromSourceInput,
+  FX_QUOTES_LIST_CONTRACT,
   GetQuoteDetailsInputSchema,
+  ListFxQuotesQuerySchema,
   QuoteInputSchema,
 } from "./validation";
 export type {
@@ -20,6 +23,7 @@ export type {
   QuoteLegInput,
   PricingTrace,
   GetQuoteDetailsInput,
+  ListFxQuotesQuery,
   SyncRatesFromSourceInput,
 } from "./validation";
 
@@ -50,6 +54,8 @@ export {
   FxRateSourceStatusesResponseSchema,
   CreateFxQuoteInputSchema,
   FxQuoteDetailsResponseSchema,
+  FxQuoteListItemSchema,
+  FxQuoteListResponseSchema,
   FxQuoteFeeComponentSchema,
   FxQuoteFinancialLineSchema,
   FxQuoteLegInputSchema,
@@ -63,6 +69,8 @@ export type {
   CreateFxQuoteInput,
   FxRateHistoryPoint,
   FxRatePair,
+  FxQuoteListItem,
+  FxQuoteListResponse,
   FxQuoteDetailsResponse,
 } from "./contracts";
 

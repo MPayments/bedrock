@@ -42,11 +42,32 @@ describe("commercial document definitions", () => {
     expect(formDefinition).not.toBeNull();
 
     const fields = formDefinition!.sections.flatMap((section) => section.fields);
+    const mainSection = formDefinition!.sections.find(
+      (section) => section.id === "main",
+    );
     const financialLines = fields.find((field) => field.name === "financialLines");
     const quoteRef = fields.find((field) => field.name === "quoteRef");
+    const currency = fields.find((field) => field.name === "currency");
 
+    expect(mainSection?.layout?.rows).toContainEqual({
+      columns: { base: 1, sm: 2 },
+      fields: ["customerId", "counterpartyId"],
+    });
+    expect(mainSection?.layout?.rows).toContainEqual({
+      columns: { base: 1, sm: 2 },
+      fields: ["organizationId", "organizationRequisiteId"],
+    });
     expect(financialLines).toMatchObject({
       kind: "financialLines",
+      visibleWhen: { fieldName: "mode", equals: ["direct"] },
+    });
+    expect(currency).toMatchObject({
+      kind: "currency",
+      hidden: true,
+      deriveFrom: {
+        kind: "accountCurrency",
+        accountFieldNames: ["organizationRequisiteId"],
+      },
       visibleWhen: { fieldName: "mode", equals: ["direct"] },
     });
     expect(quoteRef).toMatchObject({

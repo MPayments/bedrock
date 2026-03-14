@@ -1,5 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, sql } from "drizzle-orm";
 
+import { type PaginatedList } from "@bedrock/core/pagination";
 import {
     aggregateFinancialLines,
     type FinancialLine,
@@ -23,9 +24,11 @@ import { buildAutoCrossTrace, computeExplicitRouteLegs } from "../internal/route
 import { type FxQuoteDetails } from "../internal/types";
 import {
     type GetQuoteDetailsInput,
+    type ListFxQuotesQuery,
     type MarkQuoteUsedInput,
     type QuoteInput,
     validateGetQuoteDetailsInput,
+    validateListFxQuotesQuery,
     validateMarkQuoteUsedInput,
     validateQuoteInput,
 } from "../validation";
@@ -50,6 +53,7 @@ interface QuoteHandlersDeps {
 
 export interface QuoteHandlers {
     quote: (input: QuoteInput) => Promise<FxQuote>;
+    listQuotes: (input?: ListFxQuotesQuery) => Promise<PaginatedList<FxQuote>>;
     getQuoteDetails: (input: GetQuoteDetailsInput) => Promise<FxQuoteDetails>;
     markQuoteUsed: (input: MarkQuoteUsedInput) => Promise<FxQuote>;
 }
@@ -60,16 +64,45 @@ export function createQuoteHandlers(
 ): QuoteHandlers {
     const { db, feesService, currenciesService, log } = context;
 
+    async function resolveCurrencyCodeMap(quotes: FxQuote[]) {
+        const uniqueCurrencyIds = [
+            ...new Set(
+                quotes.flatMap((quote) => [quote.fromCurrencyId, quote.toCurrencyId]),
+            ),
+        ];
+        const codeById = new Map<string, string>();
+
+        await Promise.all(
+            uniqueCurrencyIds.map(async (id) => {
+                const currency = await currenciesService.findById(id);
+                codeById.set(id, currency.code);
+            }),
+        );
+
+        return codeById;
+    }
+
     async function withQuoteCurrencyCodes(quote: FxQuote) {
-        const [fromCurrency, toCurrency] = await Promise.all([
-            currenciesService.findById(quote.fromCurrencyId),
-            currenciesService.findById(quote.toCurrencyId),
-        ]);
+        const codeById = await resolveCurrencyCodeMap([quote]);
         return {
             ...quote,
-            fromCurrency: fromCurrency.code,
-            toCurrency: toCurrency.code,
+            fromCurrency: codeById.get(quote.fromCurrencyId)!,
+            toCurrency: codeById.get(quote.toCurrencyId)!,
         } as FxQuote;
+    }
+
+    async function withQuotesCurrencyCodes(quotes: FxQuote[]) {
+        if (quotes.length === 0) {
+            return [];
+        }
+
+        const codeById = await resolveCurrencyCodeMap(quotes);
+
+        return quotes.map((quote) => ({
+            ...quote,
+            fromCurrency: codeById.get(quote.fromCurrencyId)!,
+            toCurrency: codeById.get(quote.toCurrencyId)!,
+        })) as FxQuote[];
     }
 
     async function withLegCurrencyCodes(legs: FxQuoteLeg[]) {
@@ -115,6 +148,64 @@ export function createQuoteHandlers(
             feeComponents,
             financialLines,
             pricingTrace,
+        };
+    }
+
+    async function listQuotes(input?: ListFxQuotesQuery): Promise<PaginatedList<FxQuote>> {
+        const validated = validateListFxQuotesQuery(input ?? {});
+        const conditions = [];
+
+        if (validated.idempotencyKey) {
+            conditions.push(
+                ilike(schema.fxQuotes.idempotencyKey, `%${validated.idempotencyKey}%`),
+            );
+        }
+
+        if (validated.status && validated.status.length > 0) {
+            conditions.push(
+                inArray(schema.fxQuotes.status, validated.status as any),
+            );
+        }
+
+        if (validated.pricingMode && validated.pricingMode.length > 0) {
+            conditions.push(
+                inArray(schema.fxQuotes.pricingMode, validated.pricingMode as any),
+            );
+        }
+
+        const where = conditions.length > 0 ? and(...conditions) : undefined;
+        const sortColumn =
+            validated.sortBy === "expiresAt"
+                ? schema.fxQuotes.expiresAt
+                : validated.sortBy === "usedAt"
+                    ? schema.fxQuotes.usedAt
+                    : validated.sortBy === "status"
+                        ? schema.fxQuotes.status
+                        : validated.sortBy === "pricingMode"
+                            ? schema.fxQuotes.pricingMode
+                            : schema.fxQuotes.createdAt;
+        const sortDirection =
+            validated.sortOrder === "asc" ? asc(sortColumn) : desc(sortColumn);
+
+        const [rows, totalRows] = await Promise.all([
+            db
+                .select()
+                .from(schema.fxQuotes)
+                .where(where)
+                .orderBy(sortDirection, desc(schema.fxQuotes.createdAt))
+                .limit(validated.limit)
+                .offset(validated.offset),
+            db
+                .select({ total: sql<number>`count(*)::int` })
+                .from(schema.fxQuotes)
+                .where(where),
+        ]);
+
+        return {
+            data: await withQuotesCurrencyCodes(rows as FxQuote[]),
+            total: totalRows[0]?.total ?? 0,
+            limit: validated.limit,
+            offset: validated.offset,
         };
     }
 
@@ -313,6 +404,7 @@ export function createQuoteHandlers(
 
     return {
         quote,
+        listQuotes,
         getQuoteDetails,
         markQuoteUsed,
     };

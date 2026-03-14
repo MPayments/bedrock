@@ -1,8 +1,13 @@
 import { z } from "zod";
 
+import { createPaginatedListSchema } from "@bedrock/core/pagination";
 import { parseMinorAmount } from "@bedrock/money";
 import { FINANCIAL_LINE_BUCKETS } from "@bedrock/documents/financial-lines";
 import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
+export {
+  FX_QUOTES_LIST_CONTRACT,
+  ListFxQuotesQuerySchema,
+} from "./validation";
 
 export const FxRateSourceSchema = z.enum(["cbr", "investing", "xe"]);
 const financialLineSourceSchema = z.enum(["rule", "manual"]);
@@ -184,6 +189,11 @@ export const FxQuoteSchema = z.object({
   createdAt: z.iso.datetime(),
 });
 
+export const FxQuoteListItemSchema = FxQuoteSchema.extend({
+  fromAmount: z.string(),
+  toAmount: z.string(),
+});
+
 export const FxQuoteLegSchema = z.object({
   id: z.uuid(),
   quoteId: z.uuid(),
@@ -224,11 +234,17 @@ export const FxQuoteDetailsResponseSchema = z.object({
   pricingTrace: z.record(z.string(), z.unknown()),
 });
 
+export const FxQuoteListResponseSchema = createPaginatedListSchema(
+  FxQuoteListItemSchema,
+);
+
 export type FxRatePair = z.infer<typeof FxRatePairSchema>;
 export type FxRateHistoryPoint = z.infer<typeof FxRateHistoryPointSchema>;
 export type FxRateSourceStatus = z.infer<typeof FxRateSourceStatusSchema>;
 export type SetManualRateInput = z.infer<typeof SetManualRateInputSchema>;
 export type CreateFxQuoteInput = z.infer<typeof CreateFxQuoteInputSchema>;
+export type FxQuoteListItem = z.infer<typeof FxQuoteListItemSchema>;
+export type FxQuoteListResponse = z.infer<typeof FxQuoteListResponseSchema>;
 export type FxQuoteDetailsResponse = z.infer<
   typeof FxQuoteDetailsResponseSchema
 >;

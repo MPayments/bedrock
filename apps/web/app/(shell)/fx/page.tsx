@@ -1,5 +1,6 @@
 import { Currency } from "lucide-react";
 
+import { getFxQuotes } from "@/features/fx/quotes/lib/queries";
 import { getRatePairs, getRateSources } from "@/features/fx/rates/lib/queries";
 import { SectionOverviewPage } from "@/features/overview/ui/section-overview-page";
 
@@ -8,14 +9,18 @@ function formatCount(value: number) {
 }
 
 export default async function FxOverviewPage() {
-  const [pairs, sources] = await Promise.all([getRatePairs(), getRateSources()]);
+  const [pairs, sources, quotes] = await Promise.all([
+    getRatePairs(),
+    getRateSources(),
+    getFxQuotes({ page: 1, perPage: 1 }),
+  ]);
   const staleSources = sources.filter((source) => source.isExpired).length;
 
   return (
     <SectionOverviewPage
       icon={Currency}
       title="FX"
-      description="Административный обзор по источникам курсов, валютным парам и manual-rate workflow."
+      description="Административный обзор по источникам курсов, валютным парам, котировкам и manual-rate workflow."
       stats={[
         {
           id: "pairs",
@@ -34,6 +39,13 @@ export default async function FxOverviewPage() {
               : "Все источники актуальны в пределах TTL.",
           href: "/fx/rates",
         },
+        {
+          id: "quotes",
+          label: "Котировки",
+          value: formatCount(quotes.total),
+          description: "История созданных котировок и их жизненный цикл.",
+          href: "/fx/quotes",
+        },
       ]}
       links={[
         {
@@ -41,6 +53,12 @@ export default async function FxOverviewPage() {
           title: "Курсы",
           description: "Открыть основной FX экран с manual rates и source statuses.",
           href: "/fx/rates",
+        },
+        {
+          id: "quotes",
+          title: "Котировки",
+          description: "Открыть журнал FX-котировок с фильтрами по статусу и модели.",
+          href: "/fx/quotes",
         },
       ]}
     />

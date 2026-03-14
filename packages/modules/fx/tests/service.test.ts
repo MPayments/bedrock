@@ -33,6 +33,28 @@ function selectWhereOrderBy(rows: any[]) {
     };
 }
 
+function selectWhereOrderByLimitOffset(rows: any[]) {
+    return {
+        from: vi.fn(() => ({
+            where: vi.fn(() => ({
+                orderBy: vi.fn(() => ({
+                    limit: vi.fn(() => ({
+                        offset: vi.fn(async () => rows),
+                    })),
+                })),
+            })),
+        })),
+    };
+}
+
+function selectWhere(rows: any[]) {
+    return {
+        from: vi.fn(() => ({
+            where: vi.fn(async () => rows),
+        })),
+    };
+}
+
 function deleteWhere() {
     return {
         where: vi.fn(async () => undefined),
@@ -377,6 +399,60 @@ describe("createFxService", () => {
         expect(quote).toEqual(existingQuote);
         expect(insertLegs).not.toHaveBeenCalled();
         expect(feesService.saveQuoteFeeComponents).not.toHaveBeenCalled();
+    });
+
+    it("lists quotes with paginated rows and currency codes", async () => {
+        const firstQuote = makeQuote({
+            id: "550e8400-e29b-41d4-a716-446655440011",
+            idempotencyKey: "idem-list-1",
+            status: "active",
+            pricingMode: "explicit_route",
+        });
+        const secondQuote = makeQuote({
+            id: "550e8400-e29b-41d4-a716-446655440012",
+            idempotencyKey: "idem-list-2",
+            fromCurrencyId: "cur-usd",
+            toCurrencyId: "cur-eur",
+            status: "used",
+            pricingMode: "auto_cross",
+            usedByRef: "invoice:1",
+            usedAt: new Date("2026-02-14T00:03:00Z"),
+        });
+
+        const db = {
+            select: vi
+                .fn()
+                .mockImplementationOnce(() =>
+                    selectWhereOrderByLimitOffset([firstQuote, secondQuote]),
+                )
+                .mockImplementationOnce(() => selectWhere([{ total: 2 }])),
+        } as any;
+        const service = createFxService({
+            db,
+            feesService: createNoopFeesService(),
+            currenciesService: createMockCurrenciesService(),
+        });
+
+        const result = await service.listQuotes({
+            limit: 20,
+            offset: 0,
+            status: ["active", "used"],
+            pricingMode: ["explicit_route", "auto_cross"],
+        });
+
+        expect(result).toEqual({
+            data: [
+                firstQuote,
+                {
+                    ...secondQuote,
+                    fromCurrency: "USD",
+                    toCurrency: "EUR",
+                },
+            ],
+            total: 2,
+            limit: 20,
+            offset: 0,
+        });
     });
 
     it("returns quote details with legs, persisted fee snapshot, and pricing trace", async () => {

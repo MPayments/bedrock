@@ -37,7 +37,12 @@ const segmentMap: Record<string, SegmentConfig> = {
     href: "/documents/transfers",
     icon: "arrow-right-left",
   },
-  ifrs: { label: "Учетные документы", icon: "book-open" },
+  ifrs: { label: "Учетные документы", href: "/documents/ifrs", icon: "book-open" },
+  commercial: {
+    label: "Коммерческие документы",
+    href: "/documents/commercial",
+    icon: "book-open",
+  },
   documents: { label: "Документы", href: "/documents", icon: "book-open" },
   settings: { label: "Настройки", href: "/settings", icon: "settings" },
   accounting: { label: "Бухгалтерия", href: "/accounting", icon: "book-open" },
@@ -92,7 +97,7 @@ const segmentMap: Record<string, SegmentConfig> = {
   "fee-revenue": { label: "Комиссионные доходы" },
   "close-package": { label: "Пакет закрытия" },
   rates: { label: "Курсы", href: "/fx/rates", icon: "chart-candlestick" },
-  quotes: { label: "Котировки" },
+  quotes: { label: "Котировки", href: "/fx/quotes", icon: "ticket-percent" },
 
   orders: { label: "Ордера" },
   settlements: { label: "Расчетные операции" },

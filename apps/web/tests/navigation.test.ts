@@ -58,9 +58,9 @@ describe("navigation config", () => {
     expect(hrefs).toContain("/accounting/correspondence");
     expect(hrefs).toContain("/accounting/reports");
     expect(hrefs).toContain("/fx/rates");
+    expect(hrefs).toContain("/fx/quotes");
     expect(hrefs).not.toContain("/operations");
     expect(hrefs).not.toContain("#");
-    expect(hrefs).not.toContain("/fx/quotes");
     expect(hrefs).not.toContain("/treasury/counterparty-accounts");
     expect(hrefs).not.toContain("/finance/accounting");
     expect(hrefs).not.toContain("/transfers");

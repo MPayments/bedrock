@@ -5,6 +5,10 @@ import { normalizeCurrency, isValidCurrency } from "@bedrock/currencies/catalog"
 import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
 import { DAY_IN_SECONDS } from "@bedrock/money/math";
 import { ValidationError } from "@bedrock/core/errors";
+import {
+    createListQuerySchemaFromContract,
+    type ListQueryContract,
+} from "@bedrock/core/pagination";
 
 const uuidSchema = z.uuid({ version: "v4" });
 
@@ -121,6 +125,55 @@ export const GetQuoteDetailsInputSchema = z.object({
 
 export type GetQuoteDetailsInput = z.infer<typeof GetQuoteDetailsInputSchema>;
 
+const FX_QUOTES_SORTABLE_COLUMNS = [
+    "createdAt",
+    "expiresAt",
+    "usedAt",
+    "status",
+    "pricingMode",
+] as const;
+
+interface FxQuotesListFilters {
+    idempotencyKey: { kind: "string"; cardinality: "single" };
+    status: {
+        kind: "string";
+        cardinality: "multi";
+        enumValues: ["active", "used", "expired", "cancelled"];
+    };
+    pricingMode: {
+        kind: "string";
+        cardinality: "multi";
+        enumValues: ["auto_cross", "explicit_route"];
+    };
+}
+
+export const FX_QUOTES_LIST_CONTRACT: ListQueryContract<
+    typeof FX_QUOTES_SORTABLE_COLUMNS,
+    FxQuotesListFilters
+> = {
+    sortableColumns: FX_QUOTES_SORTABLE_COLUMNS,
+    defaultSort: { id: "createdAt", desc: true },
+    filters: {
+        idempotencyKey: { kind: "string", cardinality: "single" },
+        status: {
+            kind: "string",
+            cardinality: "multi",
+            enumValues: ["active", "used", "expired", "cancelled"],
+        },
+        pricingMode: {
+            kind: "string",
+            cardinality: "multi",
+            enumValues: ["auto_cross", "explicit_route"],
+        },
+    },
+};
+
+export const ListFxQuotesQuerySchema = createListQuerySchemaFromContract(
+    FX_QUOTES_LIST_CONTRACT,
+);
+
+export type ListFxQuotesQuery = z.infer<typeof ListFxQuotesQuerySchema>;
+
 export function validateInput<T>(schema: z.ZodSchema<T>, input: unknown, context?: string): T {
     const result = schema.safeParse(input);
 
@@ -158,4 +211,8 @@ export function validateMarkQuoteUsedInput(input: unknown): MarkQuoteUsedInput {
 
 export function validateGetQuoteDetailsInput(input: unknown): GetQuoteDetailsInput {
     return validateInput(GetQuoteDetailsInputSchema, input, "getQuoteDetails");
+}
+
+export function validateListFxQuotesQuery(input: unknown): ListFxQuotesQuery {
+    return validateInput(ListFxQuotesQuerySchema, input, "listQuotes");
 }

@@ -112,6 +112,13 @@ const navItems: AppNavItem[] = [
         icon: "chart-candlestick",
         audience: "admin",
       },
+      {
+        id: "fx-quotes",
+        title: "Котировки",
+        href: "/fx/quotes",
+        icon: "ticket-percent",
+        audience: "admin",
+      },
     ],
   },
   {
