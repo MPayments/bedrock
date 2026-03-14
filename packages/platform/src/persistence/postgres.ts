@@ -2,10 +2,10 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool, type PoolConfig } from "pg";
 
-export interface PostgresConnectionConfig extends Pick<
+export type PostgresConnectionConfig = Pick<
   PoolConfig,
   "database" | "host" | "password" | "port" | "ssl" | "user"
-> {}
+>;
 
 export interface CreatePostgresDatabaseOptions<
   TSchema extends Record<string, unknown>,
