@@ -4,6 +4,7 @@ import { InvalidStateError } from "@bedrock/shared/core/errors";
 
 import {
   buildTestDocument,
+  createStubDocumentModuleRuntime,
   createTestDocumentModule,
   createDocumentPolicyStub,
 } from "./helpers";
@@ -42,7 +43,7 @@ import {
 import { createDrizzleDocumentsRepository } from "../src/infra/drizzle/repository";
 import { schema } from "../src/infra/drizzle/schema";
 import { toStoredJson } from "../src/infra/drizzle/stored-json";
-import type { DocumentModule } from "../src/types";
+import type { DocumentModule } from "../src/plugins";
 const createModuleStub = () => createTestDocumentModule() as DocumentModule;
 const makeDocument = (overrides: Partial<Document> = {}) => buildTestDocument(overrides);
 
@@ -102,7 +103,7 @@ describe("document helpers", () => {
   it("creates module context and document base rows with current defaults", () => {
     const now = new Date("2026-03-01T12:00:00.000Z");
     const context = createModuleContext({
-      db: {} as any,
+      runtime: createStubDocumentModuleRuntime(),
       actorUserId: "user-1",
       now,
       log: {} as any,

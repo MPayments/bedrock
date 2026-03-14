@@ -6,13 +6,13 @@ import type {
   CompiledPostingTemplate,
   StoredCompiledPack,
 } from "./compiled-pack";
-import type { PackValidationResult } from "./pack-validation";
 import type {
   AccountingPackDefinition,
   CreatePostingTemplateDefinition,
   RawPostingTemplateDefinition,
   ValueBinding,
-} from "../../packs/schema";
+} from "./pack-definition";
+import type { PackValidationResult } from "./pack-validation";
 import { AccountingPackCompilationError } from "../errors";
 
 interface CompiledPackSerializable {

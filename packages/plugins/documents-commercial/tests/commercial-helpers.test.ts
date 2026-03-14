@@ -245,9 +245,10 @@ describe("commercial document helpers", () => {
       },
     ]);
     const loadQuoteSnapshotPort = vi.fn(async () => expectedSnapshot);
+    const runtime = {} as any;
 
     const snapshot = await loadQuoteSnapshot({
-      db: {} as any,
+      runtime,
       deps: {
         quoteSnapshot: {
           loadQuoteSnapshot: loadQuoteSnapshotPort,
@@ -264,7 +265,7 @@ describe("commercial document helpers", () => {
       }),
     ]);
     expect(loadQuoteSnapshotPort).toHaveBeenCalledWith({
-      db: {},
+      runtime,
       quoteRef: "quote-ref-crypto",
     });
   });
@@ -273,10 +274,11 @@ describe("commercial document helpers", () => {
     const markQuoteUsed = vi.fn(async () => {
       throw new Error("already used");
     });
+    const runtime = {} as any;
 
     await expect(
       markQuoteUsedForInvoice({
-        db: {} as any,
+        runtime,
         deps: {
           quoteUsage: {
             markQuoteUsedForInvoice: markQuoteUsed,
@@ -292,6 +294,7 @@ describe("commercial document helpers", () => {
   it("reserves customer charges on exchange invoices without recognizing pnl", async () => {
     const now = new Date("2026-03-03T10:00:00.000Z");
     const markQuoteUsed = vi.fn(async () => undefined);
+    const runtime = {} as any;
 
     const plan = await buildExchangeInvoicePostingPlan({
       deps: {
@@ -299,7 +302,7 @@ describe("commercial document helpers", () => {
           markQuoteUsedForInvoice: markQuoteUsed,
         },
       } as any,
-      context: { db: {}, now } as any,
+      context: { runtime, now } as any,
       document: {
         id: "invoice-1",
         occurredAt: now,
@@ -353,7 +356,7 @@ describe("commercial document helpers", () => {
     });
 
     expect(markQuoteUsed).toHaveBeenCalledWith({
-      db: {},
+      runtime,
       quoteId: "00000000-0000-4000-8000-000000000010",
       invoiceDocumentId: "invoice-1",
       at: now,

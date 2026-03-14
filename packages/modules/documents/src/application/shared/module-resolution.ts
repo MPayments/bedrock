@@ -7,7 +7,7 @@ import type {
   DocumentModule,
   DocumentModuleContext,
   DocumentRegistry,
-} from "../../types";
+} from "../../plugins";
 
 export function resolveModule(
   registry: DocumentRegistry,
@@ -59,7 +59,7 @@ export function resolveModuleForDocument(
 export function createModuleContext(
   deps: Pick<
     DocumentModuleContext,
-    "actorUserId" | "db" | "log" | "now"
+    "actorUserId" | "log" | "now" | "runtime"
   > & {
     operationIdempotencyKey?: string | null;
   },

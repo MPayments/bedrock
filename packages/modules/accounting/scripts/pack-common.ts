@@ -7,11 +7,9 @@ import type { Database } from "@bedrock/platform/persistence/drizzle";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 
 import { PACK_PACKAGE_NAME } from "../src/packs/bedrock-core-default";
+import { AccountingPackDefinitionSchema } from "../src/packs/schema";
 import {
-  AccountingPackDefinitionSchema,
   type AccountingPackDefinition,
-} from "../src/packs/schema";
-import {
   compilePack,
   createAccountingPacksService,
   createDrizzleAccountingPacksRepository,
@@ -87,9 +85,7 @@ export async function loadRawPackDefinition(): Promise<{
 
   return {
     packRef,
-    definition: AccountingPackDefinitionSchema.parse(
-      module.rawPackDefinition,
-    ) as AccountingPackDefinition,
+    definition: AccountingPackDefinitionSchema.parse(module.rawPackDefinition),
   };
 }
 

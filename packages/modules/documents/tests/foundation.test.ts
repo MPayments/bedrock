@@ -19,7 +19,7 @@ import {
   CreateDocumentInputSchema,
   validateInput,
 } from "../src/contracts/validation";
-import type { DocumentModule } from "../src/types";
+import type { DocumentModule } from "../src/plugins";
 
 function createModuleStub(): DocumentModule<{ memo: string }, { memo: string }> {
   const payloadSchema = z.object({ memo: z.string() });

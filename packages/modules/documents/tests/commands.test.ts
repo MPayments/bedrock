@@ -7,7 +7,7 @@ import { createCreateDraftHandler } from "../src/application/commands/create-dra
 import { createTransitionHandler } from "../src/application/commands/transition";
 import { createUpdateDraftHandler } from "../src/application/commands/update-draft";
 import type { Document } from "../src/domain/types";
-import type { DocumentModule } from "../src/types";
+import type { DocumentModule } from "../src/plugins";
 
 function makeDocument(overrides: Partial<Document> = {}): Document {
   return {
@@ -197,7 +197,7 @@ function createContext(options: {
         ),
         reopenPeriod: vi.fn(async () => undefined),
       },
-      moduleDb: {} as any,
+      moduleRuntime: {} as any,
       ledgerReadService: {} as any,
       log: {
         debug: vi.fn(),
@@ -218,7 +218,7 @@ function createContext(options: {
         withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
           run({
             idempotency,
-            moduleDb: {} as any,
+            moduleRuntime: {} as any,
             repository,
             ledger,
           }),

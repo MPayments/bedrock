@@ -2,7 +2,7 @@ import type {
   DocumentPostingPlan,
   DocumentPostingPlanRequest,
 } from "@bedrock/accounting/packs";
-import type { Document } from "@bedrock/documents/contracts";
+import type { Document } from "@bedrock/documents/plugins";
 
 export function buildDocumentPostingRequest(
   document: Pick<Document, "occurredAt">,

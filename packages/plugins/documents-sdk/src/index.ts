@@ -1,5 +1,5 @@
 export { DocumentValidationError } from "@bedrock/documents";
-export type { Document } from "@bedrock/documents/contracts";
+export type { Document } from "@bedrock/documents/plugins";
 
 export { createDocumentRegistry } from "./create-document-registry";
 export type {
@@ -7,6 +7,7 @@ export type {
   DocumentInitialLink,
   DocumentModule,
   DocumentModuleContext,
+  DocumentModuleRuntime,
   DocumentRegistry,
   DocumentSummaryFields,
   DocumentUpdateDraftResult,

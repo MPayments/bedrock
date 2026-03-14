@@ -55,7 +55,7 @@ export function createInvoiceDocumentModule(
       }
 
       const quoteSnapshot = await loadQuoteSnapshot({
-        db: _context.db,
+        runtime: _context.runtime,
         deps,
         quoteRef: input.quoteRef,
       });
@@ -70,12 +70,12 @@ export function createInvoiceDocumentModule(
       if (document.lifecycleStatus !== "active") {
         throw new DocumentValidationError("invoice is not active");
       }
-      if (await getInvoiceExchangeChild(deps, context.db, document.id)) {
+      if (await getInvoiceExchangeChild(deps, context.runtime, document.id)) {
         throw new DocumentValidationError(
           "invoice cannot be edited after an exchange child exists",
         );
       }
-      if (await getInvoiceAcceptanceChild(deps, context.db, document.id)) {
+      if (await getInvoiceAcceptanceChild(deps, context.runtime, document.id)) {
         throw new DocumentValidationError(
           "invoice cannot be edited after an acceptance child exists",
         );
@@ -127,7 +127,7 @@ export function createInvoiceDocumentModule(
 
       if (input.mode === "exchange") {
         const quoteSnapshot = await loadQuoteSnapshot({
-          db: _context.db,
+          runtime: _context.runtime,
           deps,
           quoteRef: input.quoteRef,
         });
@@ -144,12 +144,12 @@ export function createInvoiceDocumentModule(
       }
     },
     async canEdit(context, document) {
-      if (await getInvoiceExchangeChild(deps, context.db, document.id)) {
+      if (await getInvoiceExchangeChild(deps, context.runtime, document.id)) {
         throw new DocumentValidationError(
           "invoice cannot be edited after an exchange child exists",
         );
       }
-      if (await getInvoiceAcceptanceChild(deps, context.db, document.id)) {
+      if (await getInvoiceAcceptanceChild(deps, context.runtime, document.id)) {
         throw new DocumentValidationError(
           "invoice cannot be edited after an acceptance child exists",
         );
@@ -180,12 +180,12 @@ export function createInvoiceDocumentModule(
       }
     },
     async canCancel(context, document) {
-      if (await getInvoiceExchangeChild(deps, context.db, document.id)) {
+      if (await getInvoiceExchangeChild(deps, context.runtime, document.id)) {
         throw new DocumentValidationError(
           "invoice cannot be cancelled after an exchange child exists",
         );
       }
-      if (await getInvoiceAcceptanceChild(deps, context.db, document.id)) {
+      if (await getInvoiceAcceptanceChild(deps, context.runtime, document.id)) {
         throw new DocumentValidationError(
           "invoice cannot be cancelled after an acceptance child exists",
         );

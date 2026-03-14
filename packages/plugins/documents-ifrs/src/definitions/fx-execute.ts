@@ -1,7 +1,6 @@
-import { normalizeMajorAmountInput } from "@bedrock/shared/money";
 import { FINANCIAL_LINE_BUCKET_OPTIONS } from "@bedrock/documents/contracts";
+import { normalizeMajorAmountInput } from "@bedrock/shared/money";
 
-import type { IfrsDocumentCatalogEntry } from "./types";
 import {
   isoToDateTimeLocal,
   nowDateTimeLocal,
@@ -13,6 +12,7 @@ import {
   toOccurredAtIso,
   TWO_COLUMN_SM_COLUMNS,
 } from "./shared";
+import type { IfrsDocumentCatalogEntry } from "./types";
 import { FxExecuteInputSchema } from "../validation";
 
 function getDefaultFxExecuteValues() {

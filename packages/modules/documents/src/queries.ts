@@ -1,1 +1,1 @@
-export * from "./infra/drizzle/queries";
+export * from "./read-model";

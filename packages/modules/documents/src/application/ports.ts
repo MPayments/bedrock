@@ -18,7 +18,7 @@ import type {
   DocumentOperation,
   DocumentSnapshot,
 } from "../domain/types";
-import type { DocumentModuleDb } from "../module-db";
+import type { DocumentModuleRuntime } from "../plugins";
 
 export interface DocumentsAccountingPort {
   getDefaultCompiledPack(): CompiledPack;
@@ -147,7 +147,7 @@ export interface DocumentsIdempotencyPort {
 }
 
 export interface DocumentsTransactionContext {
-  moduleDb: DocumentModuleDb;
+  moduleRuntime: DocumentModuleRuntime;
   repository: DocumentsRepository;
   idempotency: DocumentsIdempotencyPort;
   ledger: DocumentsLedgerCommitPort;

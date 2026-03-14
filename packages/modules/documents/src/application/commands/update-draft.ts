@@ -1,3 +1,7 @@
+import type {
+  DocumentRequestContext,
+  DocumentWithOperationId,
+} from "../../contracts/service";
 import { validateInput } from "../../contracts/validation";
 import { collectDocumentOrganizationIds } from "../../domain/accounting-periods";
 import { buildDocumentEventState } from "../../domain/document-state";
@@ -5,7 +9,6 @@ import { buildSummary } from "../../domain/document-summary";
 import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "../../domain/idempotency";
 import { isDocumentActionAllowed } from "../../domain/state-machine";
 import { DocumentValidationError } from "../../errors";
-import type { DocumentRequestContext, DocumentWithOperationId } from "../../types";
 import {
   buildDocumentWithOperationId,
   loadDocumentOrThrow,
@@ -48,13 +51,13 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
 
     try {
       return await transactions.withTransaction(
-        async ({ idempotency, moduleDb, repository }) => {
+        async ({ idempotency, moduleRuntime, repository }) => {
           const moduleContext = createModuleContext({
-            db: moduleDb,
             actorUserId: input.actorUserId,
             now: new Date(),
             log,
             operationIdempotencyKey: idempotencyKey,
+            runtime: moduleRuntime,
           });
 
           return idempotency.withIdempotency({

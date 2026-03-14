@@ -1,4 +1,5 @@
 import { resolveDocumentPolicyDecision } from "./action-dispatch";
+import type { DocumentRequestContext } from "../../contracts/service";
 import { buildDocumentEventState } from "../../domain/document-state";
 import type { Document } from "../../domain/types";
 import { DocumentPolicyDeniedError } from "../../errors";
@@ -6,8 +7,7 @@ import type {
   DocumentActionPolicyService,
   DocumentModule,
   DocumentModuleContext,
-  DocumentRequestContext,
-} from "../../types";
+} from "../../plugins";
 import type { DocumentsTransactionsPort } from "../ports";
 
 interface EnforceDocumentPolicyInput {

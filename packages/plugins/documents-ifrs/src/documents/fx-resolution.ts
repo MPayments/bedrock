@@ -26,8 +26,8 @@ import {
   resolveFxBindings,
   resolveFxExecuteDependencyDocument,
 } from "./internal/fx-helpers";
-import type { IfrsModuleDeps } from "./internal/types";
 import { resolvePendingTransferBookId } from "./internal/transfer-helpers";
+import type { IfrsModuleDeps } from "./internal/types";
 
 function resolveFxResolutionTitle(resolutionType: "settle" | "void" | "fail") {
   if (resolutionType === "settle") {
@@ -96,7 +96,7 @@ export function createFxResolutionDocumentModule(
     async canCreate(context, input) {
       await resolveFxExecuteDependencyDocument(
         deps,
-        context.db as any,
+        context.runtime,
         input.fxExecuteDocumentId,
       );
     },
@@ -109,16 +109,20 @@ export function createFxResolutionDocumentModule(
       const payload = parseDocumentPayload(FxResolutionPayloadSchema, document);
       await resolveFxExecuteDependencyDocument(
         deps,
-        context.db as any,
+        context.runtime,
         payload.fxExecuteDocumentId,
       );
-      await listPendingFxTransfers(deps, context.db as any, payload.fxExecuteDocumentId);
+      await listPendingFxTransfers(
+        deps,
+        context.runtime,
+        payload.fxExecuteDocumentId,
+      );
     },
     async buildPostingPlan(context, document) {
       const payload = parseDocumentPayload(FxResolutionPayloadSchema, document);
       const fxExecuteDocument = await resolveFxExecuteDependencyDocument(
         deps,
-        context.db as any,
+        context.runtime,
         payload.fxExecuteDocumentId,
       );
       const fxExecutePayload = parseDocumentPayload(
@@ -128,7 +132,7 @@ export function createFxResolutionDocumentModule(
       const bindings = await resolveFxBindings(deps.requisitesService, fxExecutePayload);
       const pendingTransfers = await listPendingFxTransfers(
         deps,
-        context.db as any,
+        context.runtime,
         payload.fxExecuteDocumentId,
       );
       const settle = payload.resolutionType === "settle";

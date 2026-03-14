@@ -32,11 +32,14 @@ import { createCustomersQueries } from "@bedrock/customers/queries";
 import {
   createDrizzleDocumentsRepository,
   createDocumentsService,
+  type DocumentModuleRuntime,
   type DocumentsIdempotencyPort,
   type DocumentsService,
   type DocumentsTransactionsPort,
 } from "@bedrock/documents";
-import { createDocumentsQueries } from "@bedrock/documents/queries";
+import {
+  createDrizzleDocumentsReadModel,
+} from "@bedrock/documents/read-model";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/infra/providers";
@@ -68,6 +71,13 @@ import {
 import { db } from "../db/client";
 
 type Queryable = Database | Transaction;
+
+function createDocumentsModuleRuntime(queryable: Queryable): DocumentModuleRuntime {
+  return {
+    documents: createDrizzleDocumentsReadModel({ db: queryable }),
+    withQueryable: (run) => run(queryable),
+  };
+}
 
 export interface ApiApplicationServices {
   accountingReportsService: AccountingReportsService;
@@ -121,7 +131,7 @@ function createAccountingPeriodsPort(database: Database): AccountingPeriodsServi
           organizationsQueries.assertInternalLedgerOrganization,
         listBooksByOwnerId: ledgerQueries.listBooksByOwnerId,
         reportQueries,
-        documentsQueries: createDocumentsQueries({ db: queryable }),
+        documentsReadModel: createDrizzleDocumentsReadModel({ db: queryable }),
       }),
     });
   }
@@ -239,7 +249,7 @@ function createDocumentsTransactions(input: {
         };
 
         return run({
-          moduleDb: tx,
+          moduleRuntime: createDocumentsModuleRuntime(tx),
           repository: createDrizzleDocumentsRepository(tx),
           idempotency,
           ledger: {
@@ -257,7 +267,7 @@ export function createApplicationServices(
   const { accountingService, idempotency, ledger, ledgerReadService, logger } =
     platform;
 
-  const documentsQueries = createDocumentsQueries({ db });
+  const documentsReadModel = createDrizzleDocumentsReadModel({ db });
   const currenciesQueries = createCurrenciesQueries({ db });
   const customersQueries = createCustomersQueries({ db });
   const requisitesQueries = createRequisitesQueries({ db });
@@ -266,7 +276,7 @@ export function createApplicationServices(
     counterpartiesQueries: accountingReportRuntime.counterpartiesQueries,
     customersQueries,
     requisitesQueries,
-    documentsQueries,
+    documentsReadModel,
   });
   const accountingReportsService = createAccountingReportsService({
     ledgerReadPort: ledgerReadService,
@@ -328,7 +338,7 @@ export function createApplicationServices(
     accounting: accountingService,
     accountingPeriods: accountingPeriodsService,
     ledgerReadService,
-    moduleDb: db,
+    moduleRuntime: createDocumentsModuleRuntime(db),
     repository: createDrizzleDocumentsRepository(db),
     registry: documentRegistry,
     transactions: createDocumentsTransactions({

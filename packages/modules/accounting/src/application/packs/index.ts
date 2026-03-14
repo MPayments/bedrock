@@ -11,12 +11,12 @@ import {
 import { type AccountingPacksContext } from "./types";
 import {
   compilePack,
+  type AccountingPackDefinition,
   type CompiledPack,
   type ResolvePostingPlanInput,
   type ResolvePostingPlanResult,
   validatePackDefinition,
 } from "../../domain/packs";
-import type { AccountingPackDefinition } from "../../packs/schema";
 
 export interface AccountingPacksService {
   compilePack: typeof compilePack;

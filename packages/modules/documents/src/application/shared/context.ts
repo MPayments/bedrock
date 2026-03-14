@@ -1,13 +1,13 @@
 import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
 
-import { createDefaultDocumentActionPolicyService } from "../../domain/default-action-policy";
-import type { DocumentsServiceDeps } from "../../types";
+import { createDefaultDocumentActionPolicyService } from "../policy/default-action-policy";
+import type { DocumentsServiceDeps } from "../service-deps";
 
 export interface DocumentsServiceContext {
   accounting: DocumentsServiceDeps["accounting"];
   accountingPeriods: DocumentsServiceDeps["accountingPeriods"];
   ledgerReadService: DocumentsServiceDeps["ledgerReadService"];
-  moduleDb: DocumentsServiceDeps["moduleDb"];
+  moduleRuntime: DocumentsServiceDeps["moduleRuntime"];
   policy: NonNullable<DocumentsServiceDeps["policy"]>;
   repository: DocumentsServiceDeps["repository"];
   registry: DocumentsServiceDeps["registry"];
@@ -22,7 +22,7 @@ export function createDocumentsServiceContext(
     accounting: deps.accounting,
     accountingPeriods: deps.accountingPeriods,
     ledgerReadService: deps.ledgerReadService,
-    moduleDb: deps.moduleDb,
+    moduleRuntime: deps.moduleRuntime,
     policy: deps.policy ?? createDefaultDocumentActionPolicyService(),
     repository: deps.repository,
     registry: deps.registry,

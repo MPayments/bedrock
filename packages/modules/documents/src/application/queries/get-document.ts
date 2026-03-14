@@ -1,5 +1,5 @@
+import type { DocumentWithOperationId } from "../../contracts/service";
 import { DocumentNotFoundError } from "../../errors";
-import type { DocumentWithOperationId } from "../../types";
 import {
   buildDocumentWithOperationId,
   resolveDocumentAllowedActionsForActor,
@@ -7,7 +7,7 @@ import {
 import type { DocumentsServiceContext } from "../shared/context";
 
 export function createGetDocumentQuery(context: DocumentsServiceContext) {
-  const { accountingPeriods, log, moduleDb, policy, registry, repository } =
+  const { accountingPeriods, log, moduleRuntime, policy, registry, repository } =
     context;
 
   return async function getDocument(
@@ -38,7 +38,7 @@ export function createGetDocumentQuery(context: DocumentsServiceContext) {
       ...result,
       allowedActions: await resolveDocumentAllowedActionsForActor({
         accountingPeriods,
-        moduleDb,
+        moduleRuntime,
         registry,
         policy,
         log,

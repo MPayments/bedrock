@@ -11,6 +11,19 @@ export {
 } from "./validation";
 
 export type { ListDocumentsQuery } from "./validation";
+export type {
+  DocumentDetails,
+  DocumentRequestContext,
+  DocumentTransitionAction,
+  DocumentTransitionInput,
+  DocumentWithOperationId,
+} from "./service";
+export type {
+  DocumentAdjustmentRow,
+  DocumentAuditEventRow,
+  DocumentOperationRef,
+  DocumentsReadModel,
+} from "./read-model";
 
 export {
   FINANCIAL_LINE_BUCKET_OPTIONS,
@@ -45,6 +58,7 @@ export type {
   Document,
   DocumentApprovalStatus,
   DocumentEvent,
+  DocumentInitialLink,
   DocumentLifecycleStatus,
   DocumentLink,
   DocumentLinkType,
@@ -53,10 +67,3 @@ export type {
   DocumentSnapshot,
   DocumentSubmissionStatus,
 } from "../domain/types";
-export type {
-  DocumentDetails,
-  DocumentRequestContext,
-  DocumentTransitionAction,
-  DocumentTransitionInput,
-  DocumentWithOperationId,
-} from "../types";

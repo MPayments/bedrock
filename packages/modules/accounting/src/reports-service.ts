@@ -15,7 +15,7 @@ export {
 } from "./infra/drizzle/repos/reports-repository";
 export {
   createBedrockDimensionRegistry,
-  type DimensionDocumentsQueries as AccountingReportsDocumentsQueries,
+  type DimensionDocumentsReadModel as AccountingReportsDocumentsReadModel,
 } from "./infra/reporting/dimensions";
 export { createAccountingReportsContext } from "./infra/reporting/context";
 

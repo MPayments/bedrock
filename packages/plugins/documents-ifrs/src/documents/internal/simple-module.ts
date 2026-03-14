@@ -1,4 +1,3 @@
-import { parseMinorAmount } from "@bedrock/shared/money";
 
 import type { DocumentModule } from "@bedrock/plugin-documents-sdk";
 import {
@@ -7,6 +6,7 @@ import {
   parseDocumentPayload,
   serializeOccurredAt,
 } from "@bedrock/plugin-documents-sdk/module-kit";
+import { parseMinorAmount } from "@bedrock/shared/money";
 
 import { firstString } from "./summary";
 import type { IfrsDocumentType } from "../../metadata";

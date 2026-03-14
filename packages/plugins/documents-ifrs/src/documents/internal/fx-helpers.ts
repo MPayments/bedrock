@@ -8,13 +8,19 @@ import {
   type FinancialLine,
 } from "@bedrock/documents/contracts";
 import { DocumentValidationError } from "@bedrock/plugin-documents-sdk";
+import type { Document } from "@bedrock/plugin-documents-sdk";
 import {
   buildDocumentPostingRequest,
   serializeOccurredAt,
 } from "@bedrock/plugin-documents-sdk/module-kit";
 import { minorToAmountString, toMinorAmountString } from "@bedrock/shared/money";
-import type { Document } from "@bedrock/plugin-documents-sdk";
 
+import type {
+  IfrsDocumentRuntime,
+  IfrsModuleDeps,
+  OrganizationRequisiteBinding,
+  RequisitesService,
+} from "./types";
 import type {
   FxExecuteFinancialLineInput,
   FxExecuteFinancialLinePayload,
@@ -23,12 +29,6 @@ import type {
   FxExecuteQuoteSnapshot,
 } from "../../validation";
 import { FxExecuteQuoteSnapshotSchema } from "../../validation";
-import type {
-  IfrsDocumentDb,
-  IfrsModuleDeps,
-  OrganizationRequisiteBinding,
-  RequisitesService,
-} from "./types";
 
 const FX_EXECUTE_DOC_TYPES = ["fx_execute"] as const;
 
@@ -98,7 +98,7 @@ export function ensureFxBindingsConvertible(input: {
 export async function loadFxQuoteSnapshot(
   deps: Pick<IfrsModuleDeps, "treasuryFxQuote">,
   input: {
-    db: IfrsDocumentDb;
+    runtime: IfrsDocumentRuntime;
     fromCurrency: string;
     toCurrency: string;
     fromAmountMinor: string;
@@ -113,12 +113,12 @@ export async function loadFxQuoteSnapshot(
 
 export async function revalidateFxQuoteSnapshot(
   deps: Pick<IfrsModuleDeps, "treasuryFxQuote">,
-  db: IfrsDocumentDb,
+  runtime: IfrsDocumentRuntime,
   payload: FxExecutePayload,
 ) {
   const current = FxExecuteQuoteSnapshotSchema.parse(
     await deps.treasuryFxQuote.loadQuoteSnapshotById({
-      db,
+      runtime,
       quoteId: payload.quoteSnapshot.quoteId,
     }),
   );
@@ -256,13 +256,13 @@ export function normalizeFxExecutePayload(
 
 export async function markFxQuoteUsed(input: {
   deps: Pick<IfrsModuleDeps, "quoteUsage">;
-  db: IfrsDocumentDb;
+  runtime: IfrsDocumentRuntime;
   quoteId: string;
   fxExecuteDocumentId: string;
   at: Date;
 }) {
   await input.deps.quoteUsage.markQuoteUsedForFxExecute({
-    db: input.db,
+    runtime: input.runtime,
     quoteId: input.quoteId,
     fxExecuteDocumentId: input.fxExecuteDocumentId,
     at: input.at,
@@ -271,11 +271,11 @@ export async function markFxQuoteUsed(input: {
 
 export async function resolveFxExecuteDependencyDocument(
   deps: Pick<IfrsModuleDeps, "fxExecuteLookup">,
-  db: IfrsDocumentDb,
+  runtime: IfrsDocumentRuntime,
   fxExecuteDocumentId: string,
 ) {
   const dependency = await deps.fxExecuteLookup.resolveFxExecuteDependencyDocument({
-    db,
+    runtime,
     fxExecuteDocumentId,
   });
 
@@ -294,11 +294,11 @@ export async function resolveFxExecuteDependencyDocument(
 
 export async function listPendingFxTransfers(
   deps: Pick<IfrsModuleDeps, "fxExecuteLookup">,
-  db: IfrsDocumentDb,
+  runtime: IfrsDocumentRuntime,
   fxExecuteDocumentId: string,
 ) {
   const rows = await deps.fxExecuteLookup.listPendingTransfers({
-    db,
+    runtime,
     fxExecuteDocumentId,
   });
 

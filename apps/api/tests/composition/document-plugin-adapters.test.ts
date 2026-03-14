@@ -1,13 +1,32 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as fxSchema } from "@bedrock/fx/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
+import type { DocumentModuleRuntime } from "@bedrock/plugin-documents-sdk";
 
 import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
 } from "../../src/composition/document-plugin-adapters";
+
+function createRuntime(input: {
+  db: unknown;
+  getDocumentByType?: DocumentModuleRuntime["documents"]["getDocumentByType"];
+  getDocumentOperationId?: DocumentModuleRuntime["documents"]["getDocumentOperationId"];
+}): DocumentModuleRuntime {
+  return {
+    documents: {
+      findIncomingLinkedDocument: vi.fn(async () => null),
+      getDocumentByType:
+        input.getDocumentByType ??
+        vi.fn(async () => null),
+      getDocumentOperationId:
+        input.getDocumentOperationId ??
+        vi.fn(async () => null),
+    },
+    withQueryable: (run) => run(input.db),
+  };
+}
 
 describe("document plugin adapters composition", () => {
   it("builds commercial quote snapshots from app-owned query adapters", async () => {
@@ -103,9 +122,10 @@ describe("document plugin adapters composition", () => {
       currenciesService: currenciesService as any,
       requisitesService: requisitesService as any,
     });
+    const runtime = createRuntime({ db });
 
     const snapshot = await deps.quoteSnapshot.loadQuoteSnapshot({
-      db: db as any,
+      runtime,
       quoteRef: "quote-ref-crypto",
     });
 
@@ -134,45 +154,17 @@ describe("document plugin adapters composition", () => {
       },
     ];
     const db = {
-      select: vi
-        .fn()
-        .mockReturnValueOnce({
-          from: vi.fn((table: unknown) => {
-            if (table !== documentsSchema.documents) {
-              throw new Error("unexpected transfer dependency table");
-            }
+      select: vi.fn(() => ({
+        from: vi.fn((table: unknown) => {
+          expect(table).toBe(ledgerSchema.tbTransferPlans);
 
-            return {
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [dependencyDocument]),
-              })),
-            };
-          }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn((table: unknown) => {
-            if (table !== documentsSchema.documentOperations) {
-              throw new Error("unexpected pending transfer table");
-            }
-
-            return {
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [{ operationId: "op-transfer-1" }]),
-              })),
-            };
-          }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn((table: unknown) => {
-            expect(table).toBe(ledgerSchema.tbTransferPlans);
-
-            return {
-              where: vi.fn(() => ({
-                orderBy: vi.fn(async () => pendingTransfers),
-              })),
-            };
-          }),
+          return {
+            where: vi.fn(() => ({
+              orderBy: vi.fn(async () => pendingTransfers),
+            })),
+          };
         }),
+      })),
     };
     const deps = createIfrsDocumentDeps({
       currenciesService: {
@@ -186,16 +178,21 @@ describe("document plugin adapters composition", () => {
         findById: vi.fn(),
       } as any,
     });
+    const runtime = createRuntime({
+      db,
+      getDocumentByType: vi.fn(async () => dependencyDocument),
+      getDocumentOperationId: vi.fn(async () => "op-transfer-1"),
+    });
 
     await expect(
       deps.transferLookup.resolveTransferDependencyDocument({
-        db: db as any,
+        runtime,
         transferDocumentId: "doc-transfer-1",
       }),
     ).resolves.toEqual(dependencyDocument);
     await expect(
       deps.transferLookup.listPendingTransfers({
-        db: db as any,
+        runtime,
         transferDocumentId: "doc-transfer-1",
       }),
     ).resolves.toEqual(pendingTransfers);
@@ -265,22 +262,6 @@ describe("document plugin adapters composition", () => {
             };
           }
 
-          if (table === documentsSchema.documents) {
-            return {
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [dependencyDocument]),
-              })),
-            };
-          }
-
-          if (table === documentsSchema.documentOperations) {
-            return {
-              where: vi.fn(() => ({
-                limit: vi.fn(async () => [{ operationId: "op-fx-1" }]),
-              })),
-            };
-          }
-
           if (table === ledgerSchema.tbTransferPlans) {
             return {
               where: vi.fn(() => ({
@@ -326,10 +307,15 @@ describe("document plugin adapters composition", () => {
         findById: vi.fn(),
       } as any,
     });
+    const runtime = createRuntime({
+      db,
+      getDocumentByType: vi.fn(async () => dependencyDocument),
+      getDocumentOperationId: vi.fn(async () => "op-fx-1"),
+    });
 
     await expect(
       deps.treasuryFxQuote.createQuoteSnapshot({
-        db: db as any,
+        runtime,
         fromCurrency: "USD",
         toCurrency: "EUR",
         fromAmountMinor: "10000",
@@ -345,7 +331,7 @@ describe("document plugin adapters composition", () => {
     );
     await expect(
       deps.treasuryFxQuote.loadQuoteSnapshotById({
-        db: db as any,
+        runtime,
         quoteId: quote.id,
       }),
     ).resolves.toEqual(
@@ -356,13 +342,13 @@ describe("document plugin adapters composition", () => {
     );
     await expect(
       deps.fxExecuteLookup.resolveFxExecuteDependencyDocument({
-        db: db as any,
+        runtime,
         fxExecuteDocumentId: "doc-fx-1",
       }),
     ).resolves.toEqual(dependencyDocument);
     await expect(
       deps.fxExecuteLookup.listPendingTransfers({
-        db: db as any,
+        runtime,
         fxExecuteDocumentId: "doc-fx-1",
       }),
     ).resolves.toEqual([
@@ -374,7 +360,7 @@ describe("document plugin adapters composition", () => {
     ]);
     await expect(
       deps.quoteUsage.markQuoteUsedForFxExecute({
-        db: db as any,
+        runtime,
         quoteId: quote.id,
         fxExecuteDocumentId: "doc-fx-1",
         at: new Date("2026-03-03T10:05:00.000Z"),

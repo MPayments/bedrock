@@ -3,7 +3,7 @@ import {
   type DocumentsService,
   type DocumentsServiceContext,
 } from "./application";
-import type { DocumentsServiceDeps } from "./types";
+import type { DocumentsServiceDeps } from "./application/service-deps";
 
 export function createDocumentsService(deps: DocumentsServiceDeps) {
   return createDocumentsHandlers(deps);

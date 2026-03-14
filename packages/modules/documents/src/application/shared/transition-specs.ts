@@ -5,15 +5,15 @@ import {
 } from "./idempotency-key";
 import { resolveDocumentAccountingSourceId } from "./module-resolution";
 import { enforceDocumentPolicy } from "./policy";
+import type {
+  DocumentTransitionAction,
+  DocumentTransitionInput,
+} from "../../contracts/service";
 import { collectDocumentOrganizationIds } from "../../domain/accounting-periods";
 import { assertDocumentIsActive, buildDocumentEventState } from "../../domain/document-state";
 import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "../../domain/idempotency";
 import { isDocumentActionAllowed } from "../../domain/state-machine";
 import { DocumentPostingNotRequiredError } from "../../errors";
-import type {
-  DocumentTransitionAction,
-  DocumentTransitionInput,
-} from "../../types";
 import type {
   DocumentTransitionEvent,
   DocumentTransitionExecutionContext,

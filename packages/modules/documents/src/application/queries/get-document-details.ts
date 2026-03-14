@@ -1,5 +1,5 @@
+import type { DocumentDetails } from "../../contracts/service";
 import { DocumentNotFoundError } from "../../errors";
-import type { DocumentDetails } from "../../types";
 import { resolveDocumentAllowedActionsForActor } from "../shared/actions";
 import type { DocumentsServiceContext } from "../shared/context";
 import {
@@ -14,7 +14,7 @@ export function createGetDocumentDetailsQuery(
     accountingPeriods,
     ledgerReadService,
     log,
-    moduleDb,
+    moduleRuntime,
     policy,
     registry,
     repository,
@@ -49,11 +49,11 @@ export function createGetDocumentDetailsQuery(
 
     const moduleContext = module
       ? createModuleContext({
-          db: moduleDb,
           actorUserId,
           now: new Date(),
           log,
           operationIdempotencyKey: null,
+          runtime: moduleRuntime,
         })
       : null;
 
@@ -123,7 +123,7 @@ export function createGetDocumentDetailsQuery(
         ?.operationId ?? null;
     const allowedActions = await resolveDocumentAllowedActionsForActor({
       accountingPeriods,
-      moduleDb,
+      moduleRuntime,
       registry,
       policy,
       log,

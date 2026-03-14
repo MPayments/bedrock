@@ -1,4 +1,3 @@
-import type { DocumentsServiceDeps } from "../types";
 import { createCreateDraftHandler } from "./commands/create-draft";
 import { createTransitionHandler } from "./commands/transition";
 import { createUpdateDraftHandler } from "./commands/update-draft";
@@ -6,6 +5,7 @@ import { createValidateAccountingSourceCoverageHandler } from "./commands/valida
 import { createGetDocumentQuery } from "./queries/get-document";
 import { createGetDocumentDetailsQuery } from "./queries/get-document-details";
 import { createListDocumentsQuery } from "./queries/list-documents";
+import type { DocumentsServiceDeps } from "./service-deps";
 import {
   createDocumentsServiceContext,
   type DocumentsServiceContext,

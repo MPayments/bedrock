@@ -1,24 +1,24 @@
 import { and, asc, eq } from "drizzle-orm";
 
+import type { CurrenciesService } from "@bedrock/currencies";
 import {
   normalizeFinancialLine,
   type FinancialLine,
 } from "@bedrock/documents/contracts";
-import { createDocumentsQueries } from "@bedrock/documents/queries";
-import { schema as fxSchema } from "@bedrock/fx/schema";
 import type { FxService } from "@bedrock/fx";
+import { schema as fxSchema } from "@bedrock/fx/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import { DocumentValidationError, type DocumentModule } from "@bedrock/plugin-documents-sdk";
-import type { CurrenciesService } from "@bedrock/currencies";
+import { sha256Hex } from "@bedrock/platform/crypto";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
+import { DocumentValidationError, type DocumentModuleRuntime } from "@bedrock/plugin-documents-sdk";
 import type { RequisitesService } from "@bedrock/requisites";
 import { canonicalJson } from "@bedrock/shared/core/canon";
-import { sha256Hex } from "@bedrock/platform/crypto";
 import { minorToAmountString } from "@bedrock/shared/money";
 
-import { FxExecuteQuoteSnapshotSchema } from "../validation";
 import type { IfrsModuleDeps } from "../documents/internal/types";
+import { FxExecuteQuoteSnapshotSchema } from "../validation";
 
-type Queryable = Parameters<DocumentModule["canPost"]>[0]["db"];
+type Queryable = Database | Transaction;
 
 const FX_EXECUTE_DOC_TYPE = "fx_execute";
 const TRANSFER_DOC_TYPES = ["transfer_intra", "transfer_intercompany"] as const;
@@ -28,14 +28,17 @@ function buildQuoteSnapshotHash(snapshot: Record<string, unknown>) {
 }
 
 async function loadQuoteRecordById(input: {
-  db: Queryable;
+  runtime: DocumentModuleRuntime;
   quoteId: string;
 }) {
-  const [quote] = await input.db
-    .select()
-    .from(fxSchema.fxQuotes)
-    .where(eq(fxSchema.fxQuotes.id, input.quoteId))
-    .limit(1);
+  const quote = await withQueryable(input.runtime, async (db) => {
+    const [record] = await db
+      .select()
+      .from(fxSchema.fxQuotes)
+      .where(eq(fxSchema.fxQuotes.id, input.quoteId))
+      .limit(1);
+    return record ?? null;
+  });
 
   if (!quote) {
     throw new DocumentValidationError(`Quote not found: ${input.quoteId}`);
@@ -44,26 +47,43 @@ async function loadQuoteRecordById(input: {
   return quote;
 }
 
+async function withQueryable<TResult>(
+  runtime: DocumentModuleRuntime,
+  run: (db: Queryable) => Promise<TResult>,
+) {
+  return runtime.withQueryable((queryable) => run(queryable as Queryable));
+}
+
 async function buildQuoteSnapshotBase(input: {
-  db: Queryable;
+  runtime: DocumentModuleRuntime;
   currenciesService: CurrenciesService;
   quote: typeof fxSchema.fxQuotes.$inferSelect;
 }) {
-  const { db, currenciesService, quote } = input;
+  const { currenciesService, quote } = input;
   const [fromCurrency, toCurrency] = await Promise.all([
     currenciesService.findById(quote.fromCurrencyId),
     currenciesService.findById(quote.toCurrencyId),
   ]);
-  const legs = await db
-    .select()
-    .from(fxSchema.fxQuoteLegs)
-    .where(eq(fxSchema.fxQuoteLegs.quoteId, quote.id))
-    .orderBy(fxSchema.fxQuoteLegs.idx);
-  const financialLineRows = await db
-    .select()
-    .from(fxSchema.fxQuoteFinancialLines)
-    .where(eq(fxSchema.fxQuoteFinancialLines.quoteId, quote.id))
-    .orderBy(fxSchema.fxQuoteFinancialLines.idx);
+  const { financialLineRows, legs } = await withQueryable(
+    input.runtime,
+    async (db) => {
+      const quoteLegs = await db
+        .select()
+        .from(fxSchema.fxQuoteLegs)
+        .where(eq(fxSchema.fxQuoteLegs.quoteId, quote.id))
+        .orderBy(fxSchema.fxQuoteLegs.idx);
+      const quoteFinancialLineRows = await db
+        .select()
+        .from(fxSchema.fxQuoteFinancialLines)
+        .where(eq(fxSchema.fxQuoteFinancialLines.quoteId, quote.id))
+        .orderBy(fxSchema.fxQuoteFinancialLines.idx);
+
+      return {
+        financialLineRows: quoteFinancialLineRows,
+        legs: quoteLegs,
+      };
+    },
+  );
   const uniqueCurrencyIds = [
     ...new Set([
       ...legs.flatMap((leg) => [leg.fromCurrencyId, leg.toCurrencyId]),
@@ -138,16 +158,16 @@ async function buildQuoteSnapshotBase(input: {
 }
 
 async function loadFxExecuteQuoteSnapshotById(input: {
-  db: Queryable;
+  runtime: DocumentModuleRuntime;
   currenciesService: CurrenciesService;
   quoteId: string;
 }) {
   const quote = await loadQuoteRecordById({
-    db: input.db,
+    runtime: input.runtime,
     quoteId: input.quoteId,
   });
   const snapshotWithoutHash = await buildQuoteSnapshotBase({
-    db: input.db,
+    runtime: input.runtime,
     currenciesService: input.currenciesService,
     quote,
   });
@@ -159,18 +179,21 @@ async function loadFxExecuteQuoteSnapshotById(input: {
 }
 
 async function markQuoteUsedForRef(input: {
-  db: Queryable;
+  runtime: DocumentModuleRuntime;
   quoteId: string;
   usedByRef: string;
   at: Date;
   contextLabel: string;
 }) {
-  const { db, quoteId, usedByRef, at, contextLabel } = input;
-  const [quote] = await db
-    .select()
-    .from(fxSchema.fxQuotes)
-    .where(eq(fxSchema.fxQuotes.id, quoteId))
-    .limit(1);
+  const { quoteId, usedByRef, at, contextLabel } = input;
+  const quote = await withQueryable(input.runtime, async (db) => {
+    const [record] = await db
+      .select()
+      .from(fxSchema.fxQuotes)
+      .where(eq(fxSchema.fxQuotes.id, quoteId))
+      .limit(1);
+    return record ?? null;
+  });
 
   if (!quote) {
     throw new DocumentValidationError(`Quote not found: ${quoteId}`);
@@ -190,27 +213,36 @@ async function markQuoteUsedForRef(input: {
     throw new DocumentValidationError(`Quote ${quoteId} is expired`);
   }
 
-  const [updated] = await db
-    .update(fxSchema.fxQuotes)
-    .set({
-      status: "used",
-      usedByRef,
-      usedAt: at,
-    })
-    .where(
-      and(eq(fxSchema.fxQuotes.id, quoteId), eq(fxSchema.fxQuotes.status, "active")),
-    )
-    .returning();
+  const updated = await withQueryable(input.runtime, async (db) => {
+    const [record] = await db
+      .update(fxSchema.fxQuotes)
+      .set({
+        status: "used",
+        usedByRef,
+        usedAt: at,
+      })
+      .where(
+        and(
+          eq(fxSchema.fxQuotes.id, quoteId),
+          eq(fxSchema.fxQuotes.status, "active"),
+        ),
+      )
+      .returning();
+    return record ?? null;
+  });
 
   if (updated) {
     return;
   }
 
-  const [reloaded] = await db
-    .select()
-    .from(fxSchema.fxQuotes)
-    .where(eq(fxSchema.fxQuotes.id, quoteId))
-    .limit(1);
+  const reloaded = await withQueryable(input.runtime, async (db) => {
+    const [record] = await db
+      .select()
+      .from(fxSchema.fxQuotes)
+      .where(eq(fxSchema.fxQuotes.id, quoteId))
+      .limit(1);
+    return record ?? null;
+  });
 
   if (!reloaded) {
     throw new DocumentValidationError(`Quote not found: ${quoteId}`);
@@ -241,12 +273,11 @@ export function createIfrsDocumentDeps(input: {
   return {
     requisitesService,
     transferLookup: {
-      async resolveTransferDependencyDocument({ db, transferDocumentId }) {
-        const documentsQueries = createDocumentsQueries({ db });
+      async resolveTransferDependencyDocument({ runtime, transferDocumentId }) {
         let dependency = null;
 
         for (const docType of TRANSFER_DOC_TYPES) {
-          dependency = await documentsQueries.getDocumentByType({
+          dependency = await runtime.documents.getDocumentByType({
             documentId: transferDocumentId,
             docType,
           });
@@ -263,36 +294,36 @@ export function createIfrsDocumentDeps(input: {
 
         return dependency;
       },
-      async listPendingTransfers({ db, transferDocumentId }) {
-        const operationId = await createDocumentsQueries({ db }).getDocumentOperationId(
-          {
-            documentId: transferDocumentId,
-            kind: "post",
-          },
-        );
+      async listPendingTransfers({ runtime, transferDocumentId }) {
+        const operationId = await runtime.documents.getDocumentOperationId({
+          documentId: transferDocumentId,
+          kind: "post",
+        });
         if (!operationId) {
           return [];
         }
 
-        return db
-          .select({
-            transferId: ledgerSchema.tbTransferPlans.transferId,
-            pendingRef: ledgerSchema.tbTransferPlans.pendingRef,
-            amountMinor: ledgerSchema.tbTransferPlans.amount,
-          })
-          .from(ledgerSchema.tbTransferPlans)
-          .where(
-            and(
-              eq(ledgerSchema.tbTransferPlans.operationId, operationId),
-              eq(ledgerSchema.tbTransferPlans.isPending, true),
-            ),
-          )
-          .orderBy(asc(ledgerSchema.tbTransferPlans.lineNo));
+        return withQueryable(runtime, async (db) =>
+          db
+            .select({
+              transferId: ledgerSchema.tbTransferPlans.transferId,
+              pendingRef: ledgerSchema.tbTransferPlans.pendingRef,
+              amountMinor: ledgerSchema.tbTransferPlans.amount,
+            })
+            .from(ledgerSchema.tbTransferPlans)
+            .where(
+              and(
+                eq(ledgerSchema.tbTransferPlans.operationId, operationId),
+                eq(ledgerSchema.tbTransferPlans.isPending, true),
+              ),
+            )
+            .orderBy(asc(ledgerSchema.tbTransferPlans.lineNo)),
+        );
       },
     },
     fxExecuteLookup: {
-      async resolveFxExecuteDependencyDocument({ db, fxExecuteDocumentId }) {
-        const dependency = await createDocumentsQueries({ db }).getDocumentByType({
+      async resolveFxExecuteDependencyDocument({ runtime, fxExecuteDocumentId }) {
+        const dependency = await runtime.documents.getDocumentByType({
           documentId: fxExecuteDocumentId,
           docType: FX_EXECUTE_DOC_TYPE,
         });
@@ -305,36 +336,36 @@ export function createIfrsDocumentDeps(input: {
 
         return dependency;
       },
-      async listPendingTransfers({ db, fxExecuteDocumentId }) {
-        const operationId = await createDocumentsQueries({ db }).getDocumentOperationId(
-          {
-            documentId: fxExecuteDocumentId,
-            kind: "post",
-          },
-        );
+      async listPendingTransfers({ runtime, fxExecuteDocumentId }) {
+        const operationId = await runtime.documents.getDocumentOperationId({
+          documentId: fxExecuteDocumentId,
+          kind: "post",
+        });
         if (!operationId) {
           return [];
         }
 
-        return db
-          .select({
-            transferId: ledgerSchema.tbTransferPlans.transferId,
-            pendingRef: ledgerSchema.tbTransferPlans.pendingRef,
-            amountMinor: ledgerSchema.tbTransferPlans.amount,
-          })
-          .from(ledgerSchema.tbTransferPlans)
-          .where(
-            and(
-              eq(ledgerSchema.tbTransferPlans.operationId, operationId),
-              eq(ledgerSchema.tbTransferPlans.isPending, true),
-            ),
-          )
-          .orderBy(asc(ledgerSchema.tbTransferPlans.lineNo));
+        return withQueryable(runtime, async (db) =>
+          db
+            .select({
+              transferId: ledgerSchema.tbTransferPlans.transferId,
+              pendingRef: ledgerSchema.tbTransferPlans.pendingRef,
+              amountMinor: ledgerSchema.tbTransferPlans.amount,
+            })
+            .from(ledgerSchema.tbTransferPlans)
+            .where(
+              and(
+                eq(ledgerSchema.tbTransferPlans.operationId, operationId),
+                eq(ledgerSchema.tbTransferPlans.isPending, true),
+              ),
+            )
+            .orderBy(asc(ledgerSchema.tbTransferPlans.lineNo)),
+        );
       },
     },
     treasuryFxQuote: {
       async createQuoteSnapshot({
-        db,
+        runtime,
         fromCurrency,
         toCurrency,
         fromAmountMinor,
@@ -351,14 +382,14 @@ export function createIfrsDocumentDeps(input: {
         });
 
         return loadFxExecuteQuoteSnapshotById({
-          db,
+          runtime,
           currenciesService,
           quoteId: quote.id,
         });
       },
-      loadQuoteSnapshotById({ db, quoteId }) {
+      loadQuoteSnapshotById({ runtime, quoteId }) {
         return loadFxExecuteQuoteSnapshotById({
-          db,
+          runtime,
           currenciesService,
           quoteId,
         });
@@ -366,13 +397,13 @@ export function createIfrsDocumentDeps(input: {
     },
     quoteUsage: {
       async markQuoteUsedForFxExecute({
-        db,
+        runtime,
         quoteId,
         fxExecuteDocumentId,
         at,
       }) {
         await markQuoteUsedForRef({
-          db,
+          runtime,
           quoteId,
           usedByRef: `fx_execute:${fxExecuteDocumentId}`,
           at,

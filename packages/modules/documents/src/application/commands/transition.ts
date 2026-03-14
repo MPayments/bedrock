@@ -1,5 +1,5 @@
 import { runDocumentTransition } from "./transition-runtime";
-import type { DocumentTransitionInput } from "../../types";
+import type { DocumentTransitionInput } from "../../contracts/service";
 import type { DocumentsServiceContext } from "../shared/context";
 import { DOCUMENT_TRANSITION_SPECS } from "../shared/transition-specs";
 

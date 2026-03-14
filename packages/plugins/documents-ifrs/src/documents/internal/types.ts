@@ -1,4 +1,7 @@
-import type { Document, DocumentModule } from "@bedrock/plugin-documents-sdk";
+import type {
+  Document,
+  DocumentModuleRuntime,
+} from "@bedrock/plugin-documents-sdk";
 
 export interface OrganizationRequisiteBinding {
   requisiteId: string;
@@ -26,12 +29,14 @@ export interface PendingTransferRecord {
   amountMinor: bigint;
 }
 
-export interface TransferDependencyDocument
-  extends Pick<Document, "id" | "docType" | "payload" | "occurredAt"> {}
+export type TransferDependencyDocument = Pick<
+  Document,
+  "id" | "docType" | "payload" | "occurredAt"
+>;
 
 export interface TreasuryFxQuotePort {
   createQuoteSnapshot(input: {
-    db: IfrsDocumentDb;
+    runtime: IfrsDocumentRuntime;
     fromCurrency: string;
     toCurrency: string;
     fromAmountMinor: string;
@@ -39,14 +44,14 @@ export interface TreasuryFxQuotePort {
     idempotencyKey: string;
   }): Promise<Record<string, unknown>>;
   loadQuoteSnapshotById(input: {
-    db: IfrsDocumentDb;
+    runtime: IfrsDocumentRuntime;
     quoteId: string;
   }): Promise<Record<string, unknown>>;
 }
 
 export interface QuoteUsagePort {
   markQuoteUsedForFxExecute(input: {
-    db: IfrsDocumentDb;
+    runtime: IfrsDocumentRuntime;
     quoteId: string;
     fxExecuteDocumentId: string;
     at: Date;
@@ -55,22 +60,22 @@ export interface QuoteUsagePort {
 
 export interface IfrsTransferLookupPort {
   resolveTransferDependencyDocument(input: {
-    db: IfrsDocumentDb;
+    runtime: IfrsDocumentRuntime;
     transferDocumentId: string;
   }): Promise<TransferDependencyDocument>;
   listPendingTransfers(input: {
-    db: IfrsDocumentDb;
+    runtime: IfrsDocumentRuntime;
     transferDocumentId: string;
   }): Promise<PendingTransferRecord[]>;
 }
 
 export interface IfrsFxExecuteLookupPort {
   resolveFxExecuteDependencyDocument(input: {
-    db: IfrsDocumentDb;
+    runtime: IfrsDocumentRuntime;
     fxExecuteDocumentId: string;
   }): Promise<TransferDependencyDocument>;
   listPendingTransfers(input: {
-    db: IfrsDocumentDb;
+    runtime: IfrsDocumentRuntime;
     fxExecuteDocumentId: string;
   }): Promise<PendingTransferRecord[]>;
 }
@@ -83,4 +88,5 @@ export interface IfrsModuleDeps {
   quoteUsage: QuoteUsagePort;
 }
 
-export type IfrsDocumentDb = Parameters<DocumentModule["canPost"]>[0]["db"];
+export type IfrsDocumentRuntime = DocumentModuleRuntime;
+export type IfrsDocumentDb = IfrsDocumentRuntime;

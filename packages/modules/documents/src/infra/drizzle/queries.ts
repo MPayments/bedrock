@@ -3,67 +3,13 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import { schema } from "./schema";
-import type { Document, DocumentLinkType } from "../../domain/types";
+import type { DocumentsReadModel } from "../../contracts/read-model";
 
 type Queryable = Database | Transaction;
 
-export interface DocumentOperationRef {
-  operationId: string;
-  documentId: string;
-  documentType: string;
-  channel: string | null;
-}
-
-export interface DocumentAdjustmentRow {
-  documentId: string;
-  docType: string;
-  docNo: string;
-  occurredAt: Date;
-  title: string;
-}
-
-export interface DocumentAuditEventRow {
-  id: string;
-  eventType: string;
-  actorId: string | null;
-  createdAt: Date;
-}
-
-export interface DocumentsQueries {
-  getDocumentByType: (input: {
-    documentId: string;
-    docType: string;
-    forUpdate?: boolean;
-  }) => Promise<Document | null>;
-  findIncomingLinkedDocument: (input: {
-    toDocumentId: string;
-    linkType: DocumentLinkType;
-    fromDocType: string;
-  }) => Promise<Document | null>;
-  getDocumentOperationId: (input: {
-    documentId: string;
-    kind: string;
-  }) => Promise<string | null>;
-  listDocumentLabelsById: (ids: string[]) => Promise<Map<string, string>>;
-  findDocumentIdByCreateIdempotencyKey: (input: {
-    docType: string;
-    createIdempotencyKey: string;
-  }) => Promise<string | null>;
-  listOperationDocumentRefs: (
-    operationIds: string[],
-  ) => Promise<Map<string, DocumentOperationRef>>;
-  listAdjustmentsForOrganizationPeriod: (input: {
-    organizationId: string;
-    periodStart: Date;
-    periodEnd: Date;
-    docTypes: string[];
-  }) => Promise<DocumentAdjustmentRow[]>;
-  listAuditEventsByDocumentId: (
-    documentIds: string[],
-  ) => Promise<DocumentAuditEventRow[]>;
-}
-
-export function createDocumentsQueries(input: { db: Queryable }): DocumentsQueries {
+export function createDrizzleDocumentsReadModel(input: {
+  db: Queryable;
+}): DocumentsReadModel {
   const { db } = input;
 
   return {
@@ -257,3 +203,5 @@ export function createDocumentsQueries(input: { db: Queryable }): DocumentsQueri
     },
   };
 }
+
+export const createDocumentsQueries = createDrizzleDocumentsReadModel;

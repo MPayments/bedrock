@@ -1,12 +1,14 @@
-import type { DocumentsIdempotencyScope } from "../../domain/idempotency";
-import type { Document } from "../../domain/types";
 import type {
-  DocumentModule,
   DocumentRequestContext,
   DocumentTransitionAction,
   DocumentTransitionInput,
   DocumentWithOperationId,
-} from "../../types";
+} from "../../contracts/service";
+import type { DocumentsIdempotencyScope } from "../../domain/idempotency";
+import type { Document } from "../../domain/types";
+import type {
+  DocumentModule,
+} from "../../plugins";
 import type {
   DocumentsLedgerCommitPort,
   DocumentsRepository,
@@ -97,7 +99,7 @@ export async function runDocumentTransition(input: {
 
   try {
     return await services.transactions.withTransaction(
-      async ({ idempotency, ledger, moduleDb, repository }) => {
+      async ({ idempotency, ledger, moduleRuntime, repository }) => {
         let preparedForIdempotency: DocumentTransitionIdempotencyContext | null =
           null;
 
@@ -120,11 +122,11 @@ export async function runDocumentTransition(input: {
         });
 
         const moduleContext = createModuleContext({
-          db: moduleDb,
           actorUserId: transition.actorUserId,
           now: new Date(),
           log: services.log,
           operationIdempotencyKey: null,
+          runtime: moduleRuntime,
         });
 
         return idempotency.withIdempotency({

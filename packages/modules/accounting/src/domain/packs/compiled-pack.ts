@@ -1,7 +1,7 @@
 import type {
   CreatePostingTemplateDefinition,
   PendingPostingTemplateDefinition,
-} from "../../packs/schema";
+} from "./pack-definition";
 
 export type CompiledPostingTemplate =
   | (Omit<CreatePostingTemplateDefinition, "requiredRefs" | "pendingMode"> & {

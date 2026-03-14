@@ -1,8 +1,12 @@
-import type { Document, DocumentModule } from "@bedrock/plugin-documents-sdk";
+import type {
+  Document,
+  DocumentModuleRuntime,
+} from "@bedrock/plugin-documents-sdk";
 
 import type { QuoteSnapshot } from "../../validation";
 
-export type CommercialDocumentDb = Parameters<DocumentModule["canPost"]>[0]["db"];
+export type CommercialDocumentRuntime = DocumentModuleRuntime;
+export type CommercialDocumentDb = CommercialDocumentRuntime;
 
 export interface OrganizationRequisiteBinding {
   requisiteId: string;
@@ -15,14 +19,14 @@ export interface OrganizationRequisiteBinding {
 
 export interface CommercialQuoteSnapshotPort {
   loadQuoteSnapshot(input: {
-    db: CommercialDocumentDb;
+    runtime: CommercialDocumentRuntime;
     quoteRef: string;
   }): Promise<QuoteSnapshot>;
 }
 
 export interface CommercialQuoteUsagePort {
   markQuoteUsedForInvoice(input: {
-    db: CommercialDocumentDb;
+    runtime: CommercialDocumentRuntime;
     quoteId: string;
     invoiceDocumentId: string;
     at: Date;
@@ -37,20 +41,20 @@ export interface CommercialRequisiteBindingsPort {
 
 export interface CommercialDocumentRelationsPort {
   loadInvoice(input: {
-    db: CommercialDocumentDb;
+    runtime: CommercialDocumentRuntime;
     invoiceDocumentId: string;
     forUpdate?: boolean;
   }): Promise<Document>;
   getInvoiceExchangeChild(input: {
-    db: CommercialDocumentDb;
+    runtime: CommercialDocumentRuntime;
     invoiceDocumentId: string;
   }): Promise<Document | null>;
   getInvoiceAcceptanceChild(input: {
-    db: CommercialDocumentDb;
+    runtime: CommercialDocumentRuntime;
     invoiceDocumentId: string;
   }): Promise<Document | null>;
   getExchangeAcceptance(input: {
-    db: CommercialDocumentDb;
+    runtime: CommercialDocumentRuntime;
     exchangeDocumentId: string;
   }): Promise<Document | null>;
 }

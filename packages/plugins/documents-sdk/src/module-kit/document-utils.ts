@@ -1,6 +1,6 @@
-import { z } from "zod";
+import type { z } from "zod";
 
-import type { Document } from "@bedrock/documents/contracts";
+import type { Document } from "@bedrock/documents/plugins";
 
 export function serializeOccurredAt<T extends { occurredAt: Date }>(
   payload: T,

@@ -45,7 +45,7 @@ export function createExchangeDocumentModule(
     async createDraft(context, input) {
       const invoice = await loadInvoice(
         deps,
-        context.db,
+        context.runtime,
         input.invoiceDocumentId,
         true,
       );
@@ -57,7 +57,7 @@ export function createExchangeDocumentModule(
           "exchange can only be created for exchange-mode invoices",
         );
       }
-      if (await getInvoiceExchangeChild(deps, context.db, invoice.id)) {
+      if (await getInvoiceExchangeChild(deps, context.runtime, invoice.id)) {
         throw new DocumentValidationError(
           "exchange already exists for this invoice",
         );
@@ -80,7 +80,7 @@ export function createExchangeDocumentModule(
           "exchange cannot change invoiceDocumentId",
         );
       }
-      if (await getExchangeAcceptance(deps, context.db, document.id)) {
+      if (await getExchangeAcceptance(deps, context.runtime, document.id)) {
         throw new DocumentValidationError(
           "exchange cannot be edited after acceptance exists",
         );
@@ -113,7 +113,7 @@ export function createExchangeDocumentModule(
     async canCreate(context, input) {
       const invoice = await loadInvoice(
         deps,
-        context.db,
+        context.runtime,
         input.invoiceDocumentId,
         true,
       );
@@ -124,14 +124,14 @@ export function createExchangeDocumentModule(
           "exchange can only be created for exchange-mode invoices",
         );
       }
-      if (await getInvoiceExchangeChild(deps, context.db, invoice.id)) {
+      if (await getInvoiceExchangeChild(deps, context.runtime, invoice.id)) {
         throw new DocumentValidationError(
           "exchange already exists for this invoice",
         );
       }
     },
     async canEdit(context, document) {
-      if (await getExchangeAcceptance(deps, context.db, document.id)) {
+      if (await getExchangeAcceptance(deps, context.runtime, document.id)) {
         throw new DocumentValidationError(
           "exchange cannot be edited after acceptance exists",
         );
@@ -145,7 +145,7 @@ export function createExchangeDocumentModule(
       await resolveOrganizationBinding(deps, payload.organizationRequisiteId);
     },
     async canCancel(context, document) {
-      if (await getExchangeAcceptance(deps, context.db, document.id)) {
+      if (await getExchangeAcceptance(deps, context.runtime, document.id)) {
         throw new DocumentValidationError(
           "exchange cannot be cancelled after acceptance exists",
         );

@@ -10,12 +10,12 @@ import {
   AccountingPackVersionConflictError,
 } from "../../domain/errors";
 import {
+  type AccountingPackDefinition,
   compilePack,
   hydrateCompiledPack,
   serializeCompiledPack,
   type CompiledPack,
 } from "../../domain/packs";
-import type { AccountingPackDefinition } from "../../packs/schema";
 
 export function createStoreCompiledPackVersionCommand(input: {
   context: AccountingPacksContext;

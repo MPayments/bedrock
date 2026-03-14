@@ -4,7 +4,7 @@ import { serializeOccurredAt } from "@bedrock/plugin-documents-sdk/module-kit";
 import type {
   IfrsModuleDeps,
   OrganizationRequisiteBinding,
-  IfrsDocumentDb,
+  IfrsDocumentRuntime,
   RequisitesService,
 } from "./types";
 import {
@@ -97,11 +97,11 @@ export function ensureTransferCurrencies(input: {
 
 export async function resolveTransferDependencyDocument(
   deps: Pick<IfrsModuleDeps, "transferLookup">,
-  db: IfrsDocumentDb,
+  runtime: IfrsDocumentRuntime,
   transferDocumentId: string,
 ) {
   const dependency = await deps.transferLookup.resolveTransferDependencyDocument({
-    db,
+    runtime,
     transferDocumentId,
   });
 
@@ -116,11 +116,11 @@ export async function resolveTransferDependencyDocument(
 
 export async function listPendingTransfers(
   deps: Pick<IfrsModuleDeps, "transferLookup">,
-  db: IfrsDocumentDb,
+  runtime: IfrsDocumentRuntime,
   transferDocumentId: string,
 ) {
   const rows = await deps.transferLookup.listPendingTransfers({
-    db,
+    runtime,
     transferDocumentId,
   });
 

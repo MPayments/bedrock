@@ -12,7 +12,7 @@ import type {
   DocumentSnapshot,
 } from "../src/domain/types";
 import { DocumentNotFoundError } from "../src/errors";
-import type { DocumentModule } from "../src/types";
+import type { DocumentModule } from "../src/plugins";
 
 const makeDocument = (overrides: Partial<Document> = {}) =>
   buildTestDocument(overrides);
@@ -129,7 +129,7 @@ describe("documents queries", () => {
         isOrganizationPeriodClosed: vi.fn(async () => false),
       },
       log: {} as any,
-      moduleDb: {} as any,
+      moduleRuntime: {} as any,
       policy,
       registry,
       repository,
@@ -286,7 +286,7 @@ describe("documents queries", () => {
       },
       ledgerReadService,
       log: {} as any,
-      moduleDb: {} as any,
+      moduleRuntime: {} as any,
       registry,
       repository,
     } as any);
@@ -330,7 +330,7 @@ describe("documents queries", () => {
       },
       ledgerReadService,
       log: { warn } as any,
-      moduleDb: {} as any,
+      moduleRuntime: {} as any,
       registry,
       repository,
     } as any);

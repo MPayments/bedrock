@@ -25,7 +25,7 @@ export interface DimensionRegistry {
   }) => Promise<Record<string, Record<string, string>>>;
 }
 
-export interface DimensionDocumentsQueries {
+export interface DimensionDocumentsReadModel {
   listDocumentLabelsById: (ids: string[]) => Promise<Map<string, string>>;
 }
 
@@ -152,13 +152,13 @@ export function createBedrockDimensionRegistry(input: {
   counterpartiesQueries: CounterpartiesQueries;
   customersQueries: CustomersQueries;
   requisitesQueries: RequisitesQueries;
-  documentsQueries?: DimensionDocumentsQueries;
+  documentsReadModel?: DimensionDocumentsReadModel;
 }): DimensionRegistry {
   const {
     counterpartiesQueries,
     customersQueries,
     requisitesQueries,
-    documentsQueries,
+    documentsReadModel,
   } = input;
 
   return createDimensionRegistry([
@@ -177,7 +177,7 @@ export function createBedrockDimensionRegistry(input: {
     {
       key: "orderId",
       resolveLabels: async ({ values }) =>
-        documentsQueries?.listDocumentLabelsById(values) ?? new Map(),
+        documentsReadModel?.listDocumentLabelsById(values) ?? new Map(),
     },
   ]);
 }

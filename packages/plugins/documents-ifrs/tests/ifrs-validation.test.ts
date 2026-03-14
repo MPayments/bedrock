@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { normalizeMajorAmountInput } from "@bedrock/shared/money";
 
+import { RUSSIAN_MAJOR_AMOUNT_MESSAGES } from "../src/definitions/shared";
 import {
   CapitalFundingInputSchema,
   CapitalFundingPayloadSchema,
@@ -10,7 +11,6 @@ import {
   TransferIntraInputSchema,
   TransferIntraPayloadSchema,
 } from "../src/validation";
-import { RUSSIAN_MAJOR_AMOUNT_MESSAGES } from "../src/definitions/shared";
 
 describe("ifrs documents validation", () => {
   it("accepts API amount and maps it to amountMinor", () => {

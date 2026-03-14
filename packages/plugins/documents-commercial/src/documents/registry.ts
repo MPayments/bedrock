@@ -1,8 +1,8 @@
 import type { DocumentModule } from "@bedrock/plugin-documents-sdk";
 
 import { COMMERCIAL_DOCUMENT_TYPE_ORDER } from "../metadata";
-import { COMMERCIAL_DOCUMENT_MODULE_FACTORIES } from "./module-factories";
 import type { CommercialModuleDeps } from "./internal/types";
+import { COMMERCIAL_DOCUMENT_MODULE_FACTORIES } from "./module-factories";
 
 export function createCommercialDocumentModules(
   deps: CommercialModuleDeps,

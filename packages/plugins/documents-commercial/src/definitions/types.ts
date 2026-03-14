@@ -13,8 +13,8 @@ import type {
   DocumentFormValues,
 } from "@bedrock/plugin-documents-sdk/form-types";
 
-import type { CommercialDocumentFamily, CommercialDocumentType } from "../types";
 import type { CommercialModuleDeps } from "../documents/internal/types";
+import type { CommercialDocumentFamily, CommercialDocumentType } from "../types";
 
 export type DocumentFormDefinition = GenericDocumentFormDefinition<
   CommercialDocumentType,

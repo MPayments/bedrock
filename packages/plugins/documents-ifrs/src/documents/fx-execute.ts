@@ -33,7 +33,7 @@ import {
   revalidateFxQuoteSnapshot,
   resolveFxBindings,
 } from "./internal/fx-helpers";
-import type { IfrsModuleDeps } from "./internal/types";
+import type { IfrsDocumentRuntime, IfrsModuleDeps } from "./internal/types";
 
 function assertFxExecuteAmountMatchesQuote(payload: FxExecutePayload) {
   if (payload.amountMinor !== payload.quoteSnapshot.fromAmountMinor) {
@@ -76,7 +76,7 @@ function buildFxExecuteDetails(payload: FxExecutePayload) {
 async function prepareDraftPayload(
   deps: IfrsModuleDeps,
   context: {
-    db: unknown;
+    runtime: IfrsDocumentRuntime;
     now: Date;
     operationIdempotencyKey: string | null;
   },
@@ -91,7 +91,7 @@ async function prepareDraftPayload(
   });
 
   const quoteSnapshot = await loadFxQuoteSnapshot(deps, {
-    db: context.db as any,
+    runtime: context.runtime,
     fromCurrency: bindings.source.currencyCode,
     toCurrency: bindings.destination.currencyCode,
     fromAmountMinor: amount.amountMinor,
@@ -187,7 +187,7 @@ export function createFxExecuteDocumentModule(
       });
       assertFxExecuteAmountMatchesQuote(payload);
 
-      await revalidateFxQuoteSnapshot(deps, context.db as any, payload);
+      await revalidateFxQuoteSnapshot(deps, context.runtime, payload);
     },
     async buildPostingPlan(context, document) {
       const payload = parseDocumentPayload(FxExecutePayloadSchema, document);
@@ -205,7 +205,7 @@ export function createFxExecuteDocumentModule(
 
       await markFxQuoteUsed({
         deps,
-        db: context.db as any,
+        runtime: context.runtime,
         quoteId: payload.quoteSnapshot.quoteId,
         fxExecuteDocumentId: document.id,
         at: context.now,

@@ -5,7 +5,6 @@ import {
   OPERATION_CODE,
   POSTING_TEMPLATE_KEY,
 } from "@bedrock/accounting/posting-contracts";
-import { DocumentValidationError } from "@bedrock/plugin-documents-sdk";
 
 import { createTransferResolutionDocumentModule } from "../src/documents/transfer-resolution";
 

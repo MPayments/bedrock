@@ -16,7 +16,7 @@ import type {
   PostPendingIntentLine,
   VoidPendingIntentLine,
 } from "./operation-intent";
-import type { ValueBinding } from "../../packs/schema";
+import type { ValueBinding } from "./pack-definition";
 import {
   AccountingPostingPlanValidationError,
   AccountingTemplateAccessError,

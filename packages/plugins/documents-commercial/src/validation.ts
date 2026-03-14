@@ -1,22 +1,22 @@
 import { z } from "zod";
 
 import {
-  amountValueSchema,
-  parseMinorAmount,
-  toMinorAmountString,
-} from "@bedrock/shared/money";
-import {
-  financialLineBucketSchema,
-  financialLineSchema,
-  financialLineSettlementModeSchema,
-  financialLineSourceSchema,
-} from "./financial-lines";
-import {
   baseOccurredAtSchema,
   currencyCodeSchema,
   memoSchema,
   referenceSchema,
 } from "@bedrock/plugin-documents-sdk/validation/shared";
+import {
+  amountValueSchema,
+  parseMinorAmount,
+  toMinorAmountString,
+} from "@bedrock/shared/money";
+
+import {
+  financialLineBucketSchema,
+  financialLineSettlementModeSchema,
+  financialLineSourceSchema,
+} from "./financial-lines";
 
 const uuidSchema = z.uuid();
 function parseStrictMinorAmountString(value: string): bigint | null {

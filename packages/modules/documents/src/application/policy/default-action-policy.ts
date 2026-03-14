@@ -1,11 +1,11 @@
+import type { Document } from "../../domain/types";
 import type {
   DocumentActionPolicyService,
   DocumentApprovalMode,
   DocumentModule,
   DocumentModuleContext,
   DocumentPolicyDecision,
-} from "../types";
-import type { Document } from "./types";
+} from "../../plugins";
 
 function allow(reasonCode = "allowed"): DocumentPolicyDecision {
   return {

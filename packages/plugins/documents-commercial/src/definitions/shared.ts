@@ -1,7 +1,3 @@
-import { normalizeMajorAmountInput } from "@bedrock/shared/money";
-
-import { FINANCIAL_LINE_BUCKET_OPTIONS } from "../financial-lines";
-import type { FinancialLinePayload } from "../validation";
 import {
   isoToDateTimeLocal,
   nowDateTimeLocal,
@@ -11,6 +7,10 @@ import {
   readString,
   toOccurredAtIso,
 } from "@bedrock/plugin-documents-sdk/definitions/shared";
+import { normalizeMajorAmountInput } from "@bedrock/shared/money";
+
+import { FINANCIAL_LINE_BUCKET_OPTIONS } from "../financial-lines";
+import type { FinancialLinePayload } from "../validation";
 import {
   AcceptanceInputSchema,
   ExchangeInputSchema,

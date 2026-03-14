@@ -101,7 +101,7 @@ function createContext(document: Document, module: ReturnType<typeof createModul
         assertOrganizationPeriodsOpen: vi.fn(async () => undefined),
       },
       ledgerReadService: {} as any,
-      moduleDb: {} as any,
+      moduleRuntime: {} as any,
       policy: undefined,
       registry,
       repository,
@@ -110,7 +110,7 @@ function createContext(document: Document, module: ReturnType<typeof createModul
           run({
             idempotency,
             ledger,
-            moduleDb: {} as any,
+            moduleRuntime: {} as any,
             repository,
           }),
         ),

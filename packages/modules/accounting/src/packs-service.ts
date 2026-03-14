@@ -13,7 +13,7 @@ export { createInMemoryAccountingCompiledPackCache } from "./infra/packs/in-memo
 import type { AccountingPacksService } from "./application/packs";
 import { createAccountingPacksHandlers } from "./application/packs";
 import type { AccountingPacksServicePorts } from "./application/packs/ports";
-import type { AccountingPackDefinition } from "./packs/schema";
+import type { AccountingPackDefinition } from "./domain/packs";
 
 export interface AccountingPacksServiceDeps extends AccountingPacksServicePorts {
   defaultPackDefinition: AccountingPackDefinition;
@@ -26,11 +26,13 @@ export function createAccountingPacksService(
 }
 
 export type {
+  AccountingPackDefinition,
   CompiledPack,
   DocumentPostingPlan,
   DocumentPostingPlanRequest,
   ResolvePostingPlanInput,
   ResolvePostingPlanResult,
   ResolvedPostingTemplate,
+  ValueBinding,
 } from "./domain/packs";
 export type { AccountingPacksService } from "./application/packs";

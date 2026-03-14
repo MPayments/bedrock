@@ -8,6 +8,7 @@ import {
   createModuleContext,
   resolveModuleForDocument,
 } from "./module-resolution";
+import type { DocumentWithOperationId } from "../../contracts/service";
 import { collectDocumentOrganizationIds } from "../../domain/accounting-periods";
 import {
   resolveDocumentAllowedActions,
@@ -21,8 +22,7 @@ import type {
   DocumentActionPolicyService,
   DocumentModule,
   DocumentRegistry,
-  DocumentWithOperationId,
-} from "../../types";
+} from "../../plugins";
 
 export function resolveDocumentAllowedActionsForDocument(input: {
   registry?: DocumentRegistry;
@@ -133,7 +133,7 @@ async function isActionAllowedByPolicy(input: {
 
 export async function resolveDocumentAllowedActionsForActor(input: {
   accountingPeriods: DocumentsServiceContext["accountingPeriods"];
-  moduleDb: DocumentsServiceContext["moduleDb"];
+  moduleRuntime: DocumentsServiceContext["moduleRuntime"];
   registry?: DocumentRegistry;
   policy?: DocumentActionPolicyService;
   actorUserId: string;
@@ -178,7 +178,7 @@ export async function resolveDocumentAllowedActionsForActor(input: {
   });
   const moduleContext = createModuleContext({
     actorUserId: input.actorUserId,
-    db: input.moduleDb,
+    runtime: input.moduleRuntime,
     now: new Date(),
     log: input.log,
     operationIdempotencyKey: null,

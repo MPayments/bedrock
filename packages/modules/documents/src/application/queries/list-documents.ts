@@ -1,10 +1,10 @@
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
+import type { DocumentWithOperationId } from "../../contracts/service";
 import {
   ListDocumentsQuerySchema,
   type ListDocumentsQuery,
 } from "../../contracts/validation";
-import type { DocumentWithOperationId } from "../../types";
 import {
   buildDocumentWithOperationId,
   resolveDocumentAllowedActionsForActor,
@@ -12,7 +12,7 @@ import {
 import type { DocumentsServiceContext } from "../shared/context";
 
 export function createListDocumentsQuery(context: DocumentsServiceContext) {
-  const { accountingPeriods, log, moduleDb, policy, registry, repository } =
+  const { accountingPeriods, log, moduleRuntime, policy, registry, repository } =
     context;
 
   return async function listDocuments(
@@ -35,7 +35,7 @@ export function createListDocumentsQuery(context: DocumentsServiceContext) {
               ...base,
               allowedActions: await resolveDocumentAllowedActionsForActor({
                 accountingPeriods,
-                moduleDb,
+                moduleRuntime,
                 registry,
                 policy,
                 log,

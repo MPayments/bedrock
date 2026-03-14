@@ -1,24 +1,27 @@
 import { and, eq } from "drizzle-orm";
 
+import type { CurrenciesService } from "@bedrock/currencies";
 import {
   normalizeFinancialLine,
   type FinancialLine,
 } from "@bedrock/documents/contracts";
-import { createDocumentsQueries } from "@bedrock/documents/queries";
 import { schema as fxSchema } from "@bedrock/fx/schema";
-import { DocumentValidationError, type DocumentModule } from "@bedrock/plugin-documents-sdk";
-import type { CurrenciesService } from "@bedrock/currencies";
+import { sha256Hex } from "@bedrock/platform/crypto";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
+import {
+  DocumentValidationError,
+  type DocumentModuleRuntime,
+} from "@bedrock/plugin-documents-sdk";
 import type { RequisitesService } from "@bedrock/requisites";
 import { canonicalJson } from "@bedrock/shared/core/canon";
-import { sha256Hex } from "@bedrock/platform/crypto";
 import { isUuidLike } from "@bedrock/shared/core/uuid";
 import { minorToAmountString } from "@bedrock/shared/money";
 
+import type { CommercialModuleDeps } from "../documents/internal/types";
 import type { QuoteSnapshot } from "../validation";
 import { QuoteSnapshotSchema } from "../validation";
-import type { CommercialModuleDeps } from "../documents/internal/types";
 
-type Queryable = Parameters<DocumentModule["canPost"]>[0]["db"];
+type Queryable = Database | Transaction;
 
 const INVOICE_DOC_TYPE = "invoice";
 const EXCHANGE_DOC_TYPE = "exchange";
@@ -29,16 +32,16 @@ function buildQuoteSnapshotHash(snapshot: Record<string, unknown>) {
 }
 
 async function loadDocumentByType(input: {
-  db: Queryable;
+  runtime: DocumentModuleRuntime;
   documentId: string;
   docType: string;
   forUpdate?: boolean;
 }) {
-  const document = await createDocumentsQueries({ db: input.db }).getDocumentByType({
-      documentId: input.documentId,
-      docType: input.docType,
-      forUpdate: input.forUpdate,
-    });
+  const document = await input.runtime.documents.getDocumentByType({
+    documentId: input.documentId,
+    docType: input.docType,
+    forUpdate: input.forUpdate,
+  });
 
   if (!document) {
     throw new DocumentValidationError(
@@ -49,24 +52,37 @@ async function loadDocumentByType(input: {
   return document;
 }
 
+async function withQueryable<TResult>(
+  runtime: DocumentModuleRuntime,
+  run: (db: Queryable) => Promise<TResult>,
+) {
+  return runtime.withQueryable((queryable) => run(queryable as Queryable));
+}
+
 async function loadQuoteRecordByRef(input: {
-  db: Queryable;
+  runtime: DocumentModuleRuntime;
   quoteRef: string;
 }) {
-  const { db, quoteRef } = input;
+  const { quoteRef } = input;
   let quote: typeof fxSchema.fxQuotes.$inferSelect | null = null;
 
   if (isUuidLike(quoteRef)) {
-    const [byId] = await db
-      .select()
-      .from(fxSchema.fxQuotes)
-      .where(eq(fxSchema.fxQuotes.id, quoteRef))
-      .limit(1);
-    const [byIdempotency] = await db
-      .select()
-      .from(fxSchema.fxQuotes)
-      .where(eq(fxSchema.fxQuotes.idempotencyKey, quoteRef))
-      .limit(1);
+    const [byId, byIdempotency] = await withQueryable(
+      input.runtime,
+      async (db) => {
+        const [recordById] = await db
+          .select()
+          .from(fxSchema.fxQuotes)
+          .where(eq(fxSchema.fxQuotes.id, quoteRef))
+          .limit(1);
+        const [recordByIdempotency] = await db
+          .select()
+          .from(fxSchema.fxQuotes)
+          .where(eq(fxSchema.fxQuotes.idempotencyKey, quoteRef))
+          .limit(1);
+        return [recordById ?? null, recordByIdempotency ?? null] as const;
+      },
+    );
 
     if (byId && byIdempotency && byId.id !== byIdempotency.id) {
       throw new DocumentValidationError(
@@ -76,12 +92,14 @@ async function loadQuoteRecordByRef(input: {
 
     quote = byId ?? byIdempotency ?? null;
   } else {
-    const [byIdempotency] = await db
-      .select()
-      .from(fxSchema.fxQuotes)
-      .where(eq(fxSchema.fxQuotes.idempotencyKey, quoteRef))
-      .limit(1);
-    quote = byIdempotency ?? null;
+    quote = await withQueryable(input.runtime, async (db) => {
+      const [record] = await db
+        .select()
+        .from(fxSchema.fxQuotes)
+        .where(eq(fxSchema.fxQuotes.idempotencyKey, quoteRef))
+        .limit(1);
+      return record ?? null;
+    });
   }
 
   if (!quote) {
@@ -95,25 +113,35 @@ async function loadQuoteRecordByRef(input: {
 }
 
 async function buildQuoteSnapshotBase(input: {
-  db: Queryable;
+  runtime: DocumentModuleRuntime;
   currenciesService: CurrenciesService;
   quote: typeof fxSchema.fxQuotes.$inferSelect;
 }) {
-  const { db, currenciesService, quote } = input;
+  const { currenciesService, quote } = input;
   const [fromCurrency, toCurrency] = await Promise.all([
     currenciesService.findById(quote.fromCurrencyId),
     currenciesService.findById(quote.toCurrencyId),
   ]);
-  const legs = await db
-    .select()
-    .from(fxSchema.fxQuoteLegs)
-    .where(eq(fxSchema.fxQuoteLegs.quoteId, quote.id))
-    .orderBy(fxSchema.fxQuoteLegs.idx);
-  const financialLineRows = await db
-    .select()
-    .from(fxSchema.fxQuoteFinancialLines)
-    .where(eq(fxSchema.fxQuoteFinancialLines.quoteId, quote.id))
-    .orderBy(fxSchema.fxQuoteFinancialLines.idx);
+  const { legs, financialLineRows } = await withQueryable(
+    input.runtime,
+    async (db) => {
+      const quoteLegs = await db
+        .select()
+        .from(fxSchema.fxQuoteLegs)
+        .where(eq(fxSchema.fxQuoteLegs.quoteId, quote.id))
+        .orderBy(fxSchema.fxQuoteLegs.idx);
+      const quoteFinancialLineRows = await db
+        .select()
+        .from(fxSchema.fxQuoteFinancialLines)
+        .where(eq(fxSchema.fxQuoteFinancialLines.quoteId, quote.id))
+        .orderBy(fxSchema.fxQuoteFinancialLines.idx);
+
+      return {
+        legs: quoteLegs,
+        financialLineRows: quoteFinancialLineRows,
+      };
+    },
+  );
   const uniqueCurrencyIds = [
     ...new Set([
       ...legs.flatMap((leg) => [leg.fromCurrencyId, leg.toCurrencyId]),
@@ -188,13 +216,13 @@ async function buildQuoteSnapshotBase(input: {
 }
 
 async function loadQuoteSnapshotRecord(input: {
-  db: Queryable;
+  runtime: DocumentModuleRuntime;
   currenciesService: CurrenciesService;
   quoteRef: string;
 }): Promise<QuoteSnapshot> {
   const { quote, resolvedRef } = await loadQuoteRecordByRef(input);
   const snapshotWithoutHash = await buildQuoteSnapshotBase({
-    db: input.db,
+    runtime: input.runtime,
     currenciesService: input.currenciesService,
     quote,
   });
@@ -210,18 +238,21 @@ async function loadQuoteSnapshotRecord(input: {
 }
 
 async function markQuoteUsedForRef(input: {
-  db: Queryable;
+  runtime: DocumentModuleRuntime;
   quoteId: string;
   usedByRef: string;
   at: Date;
   contextLabel: string;
 }) {
-  const { db, quoteId, usedByRef, at, contextLabel } = input;
-  const [quote] = await db
-    .select()
-    .from(fxSchema.fxQuotes)
-    .where(eq(fxSchema.fxQuotes.id, quoteId))
-    .limit(1);
+  const { quoteId, usedByRef, at, contextLabel } = input;
+  const quote = await withQueryable(input.runtime, async (db) => {
+    const [record] = await db
+      .select()
+      .from(fxSchema.fxQuotes)
+      .where(eq(fxSchema.fxQuotes.id, quoteId))
+      .limit(1);
+    return record ?? null;
+  });
 
   if (!quote) {
     throw new DocumentValidationError(`Quote not found: ${quoteId}`);
@@ -241,27 +272,33 @@ async function markQuoteUsedForRef(input: {
     throw new DocumentValidationError(`Quote ${quoteId} is expired`);
   }
 
-  const [updated] = await db
-    .update(fxSchema.fxQuotes)
-    .set({
-      status: "used",
-      usedByRef,
-      usedAt: at,
-    })
-    .where(
-      and(eq(fxSchema.fxQuotes.id, quoteId), eq(fxSchema.fxQuotes.status, "active")),
-    )
-    .returning();
+  const updated = await withQueryable(input.runtime, async (db) => {
+    const [record] = await db
+      .update(fxSchema.fxQuotes)
+      .set({
+        status: "used",
+        usedByRef,
+        usedAt: at,
+      })
+      .where(
+        and(eq(fxSchema.fxQuotes.id, quoteId), eq(fxSchema.fxQuotes.status, "active")),
+      )
+      .returning();
+    return record ?? null;
+  });
 
   if (updated) {
     return;
   }
 
-  const [reloaded] = await db
-    .select()
-    .from(fxSchema.fxQuotes)
-    .where(eq(fxSchema.fxQuotes.id, quoteId))
-    .limit(1);
+  const reloaded = await withQueryable(input.runtime, async (db) => {
+    const [record] = await db
+      .select()
+      .from(fxSchema.fxQuotes)
+      .where(eq(fxSchema.fxQuotes.id, quoteId))
+      .limit(1);
+    return record ?? null;
+  });
 
   if (!reloaded) {
     throw new DocumentValidationError(`Quote not found: ${quoteId}`);
@@ -290,9 +327,9 @@ export function createCommercialDocumentDeps(input: {
 
   return {
     quoteSnapshot: {
-      async loadQuoteSnapshot({ db, quoteRef }) {
+      async loadQuoteSnapshot({ runtime, quoteRef }) {
         return loadQuoteSnapshotRecord({
-          db,
+          runtime,
           currenciesService,
           quoteRef,
         });
@@ -300,13 +337,13 @@ export function createCommercialDocumentDeps(input: {
     },
     quoteUsage: {
       async markQuoteUsedForInvoice({
-        db,
+        runtime,
         quoteId,
         invoiceDocumentId,
         at,
       }) {
         await markQuoteUsedForRef({
-          db,
+          runtime,
           quoteId,
           usedByRef: `invoice:${invoiceDocumentId}`,
           at,
@@ -324,30 +361,30 @@ export function createCommercialDocumentDeps(input: {
       },
     },
     documentRelations: {
-      loadInvoice({ db, invoiceDocumentId, forUpdate = false }) {
+      loadInvoice({ runtime, invoiceDocumentId, forUpdate = false }) {
         return loadDocumentByType({
-          db,
+          runtime,
           documentId: invoiceDocumentId,
           docType: INVOICE_DOC_TYPE,
           forUpdate,
         });
       },
-      async getInvoiceExchangeChild({ db, invoiceDocumentId }) {
-        return createDocumentsQueries({ db }).findIncomingLinkedDocument({
+      async getInvoiceExchangeChild({ runtime, invoiceDocumentId }) {
+        return runtime.documents.findIncomingLinkedDocument({
           toDocumentId: invoiceDocumentId,
           linkType: "parent",
           fromDocType: EXCHANGE_DOC_TYPE,
         });
       },
-      async getInvoiceAcceptanceChild({ db, invoiceDocumentId }) {
-        return createDocumentsQueries({ db }).findIncomingLinkedDocument({
+      async getInvoiceAcceptanceChild({ runtime, invoiceDocumentId }) {
+        return runtime.documents.findIncomingLinkedDocument({
           toDocumentId: invoiceDocumentId,
           linkType: "parent",
           fromDocType: ACCEPTANCE_DOC_TYPE,
         });
       },
-      async getExchangeAcceptance({ db, exchangeDocumentId }) {
-        return createDocumentsQueries({ db }).findIncomingLinkedDocument({
+      async getExchangeAcceptance({ runtime, exchangeDocumentId }) {
+        return runtime.documents.findIncomingLinkedDocument({
           toDocumentId: exchangeDocumentId,
           linkType: "depends_on",
           fromDocType: ACCEPTANCE_DOC_TYPE,

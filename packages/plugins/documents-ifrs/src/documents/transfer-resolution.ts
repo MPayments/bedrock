@@ -95,7 +95,7 @@ export function createTransferResolutionDocumentModule(
     async canCreate(context, input) {
       await resolveTransferDependencyDocument(
         deps,
-        context.db,
+        context.runtime,
         input.transferDocumentId,
       );
     },
@@ -108,21 +108,21 @@ export function createTransferResolutionDocumentModule(
       const payload = parseDocumentPayload(TransferResolutionPayloadSchema, document);
       await resolveTransferDependencyDocument(
         deps,
-        context.db,
+        context.runtime,
         payload.transferDocumentId,
       );
-      await listPendingTransfers(deps, context.db, payload.transferDocumentId);
+      await listPendingTransfers(deps, context.runtime, payload.transferDocumentId);
     },
     async buildPostingPlan(context, document) {
       const payload = parseDocumentPayload(TransferResolutionPayloadSchema, document);
       const transferDocument = await resolveTransferDependencyDocument(
         deps,
-        context.db,
+        context.runtime,
         payload.transferDocumentId,
       );
       const pendingTransfers = await listPendingTransfers(
         deps,
-        context.db,
+        context.runtime,
         payload.transferDocumentId,
       );
       const pending = pendingTransfers[payload.pendingIndex];

@@ -1,54 +1,51 @@
 import { createHash } from "node:crypto";
 
-import {
-  normalizeFinancialLine,
-  type FinancialLine,
-  type FinancialLineBucket,
-} from "@bedrock/plugin-documents-commercial/contracts";
-import {
-  ACCOUNTING_SOURCE_ID,
-  OPERATION_CODE,
-  POSTING_TEMPLATE_KEY,
-} from "@bedrock/accounting/posting-contracts";
 import type {
   DocumentPostingPlanRequest,
 } from "@bedrock/accounting/packs";
 import {
-  buildDocumentPostingPlan,
-  buildDocumentPostingRequest,
-  parseDocumentPayload,
-} from "@bedrock/plugin-documents-sdk/module-kit";
+  OPERATION_CODE,
+  POSTING_TEMPLATE_KEY,
+} from "@bedrock/accounting/posting-contracts";
+import {
+  normalizeFinancialLine,
+  type FinancialLine,
+} from "@bedrock/plugin-documents-commercial/contracts";
 import {
   type Document,
   type DocumentModuleContext,
   DocumentValidationError,
 } from "@bedrock/plugin-documents-sdk";
+import {
+  buildDocumentPostingPlan,
+  buildDocumentPostingRequest,
+  parseDocumentPayload,
+} from "@bedrock/plugin-documents-sdk/module-kit";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 
+import type { CommercialDocumentRuntime, CommercialModuleDeps } from "./types";
 import {
   AcceptancePayloadSchema,
   ExchangePayloadSchema,
   InvoicePayloadSchema,
   QuoteSnapshotSchema,
-  type AcceptancePayload,
   type ExchangePayload,
   type InvoicePayload,
   type QuoteSnapshot,
 } from "../../validation";
-import type { CommercialDocumentDb, CommercialModuleDeps } from "./types";
 
 export function buildQuoteSnapshotHash(snapshot: Omit<QuoteSnapshot, "snapshotHash">) {
   return createHash("sha256").update(canonicalJson(snapshot)).digest("hex");
 }
 
 export async function loadQuoteSnapshot(input: {
-  db: CommercialDocumentDb;
+  runtime: CommercialDocumentRuntime;
   deps: Pick<CommercialModuleDeps, "quoteSnapshot">;
   quoteRef: string;
 }): Promise<QuoteSnapshot> {
   return QuoteSnapshotSchema.parse(
     await input.deps.quoteSnapshot.loadQuoteSnapshot({
-      db: input.db,
+      runtime: input.runtime,
       quoteRef: input.quoteRef,
     }),
   );
@@ -73,12 +70,12 @@ export async function resolveOrganizationBinding(
 
 export async function loadInvoice(
   deps: Pick<CommercialModuleDeps, "documentRelations">,
-  db: CommercialDocumentDb,
+  runtime: CommercialDocumentRuntime,
   invoiceDocumentId: string,
   forUpdate = false,
 ) {
   return deps.documentRelations.loadInvoice({
-    db,
+    runtime,
     invoiceDocumentId,
     forUpdate,
   });
@@ -86,33 +83,33 @@ export async function loadInvoice(
 
 export async function getInvoiceExchangeChild(
   deps: Pick<CommercialModuleDeps, "documentRelations">,
-  db: CommercialDocumentDb,
+  runtime: CommercialDocumentRuntime,
   invoiceDocumentId: string,
 ) {
   return deps.documentRelations.getInvoiceExchangeChild({
-    db,
+    runtime,
     invoiceDocumentId,
   });
 }
 
 export async function getInvoiceAcceptanceChild(
   deps: Pick<CommercialModuleDeps, "documentRelations">,
-  db: CommercialDocumentDb,
+  runtime: CommercialDocumentRuntime,
   invoiceDocumentId: string,
 ) {
   return deps.documentRelations.getInvoiceAcceptanceChild({
-    db,
+    runtime,
     invoiceDocumentId,
   });
 }
 
 export async function getExchangeAcceptance(
   deps: Pick<CommercialModuleDeps, "documentRelations">,
-  db: CommercialDocumentDb,
+  runtime: CommercialDocumentRuntime,
   exchangeDocumentId: string,
 ) {
   return deps.documentRelations.getExchangeAcceptance({
-    db,
+    runtime,
     exchangeDocumentId,
   });
 }
@@ -131,14 +128,14 @@ export function requirePostedDocument(
 }
 
 export async function markQuoteUsedForInvoice(input: {
-  db: CommercialDocumentDb;
+  runtime: CommercialDocumentRuntime;
   deps: Pick<CommercialModuleDeps, "quoteUsage">;
   quoteId: string;
   invoiceDocumentId: string;
   at: Date;
 }): Promise<void> {
   await input.deps.quoteUsage.markQuoteUsedForInvoice({
-    db: input.db,
+    runtime: input.runtime,
     quoteId: input.quoteId,
     invoiceDocumentId: input.invoiceDocumentId,
     at: input.at,
@@ -378,7 +375,7 @@ export async function buildExchangeInvoicePostingPlan(input: {
 }) {
   const chainId = `invoice:${input.document.id}`;
   await markQuoteUsedForInvoice({
-    db: input.context.db,
+    runtime: input.context.runtime,
     deps: input.deps,
     quoteId: input.payload.quoteSnapshot.quoteId,
     invoiceDocumentId: input.document.id,

@@ -21,7 +21,7 @@ export type {
 export { createDrizzleAccountingPeriodsRepository } from "./infra/drizzle/repos/periods-repository";
 export {
   createAccountingClosePackageSnapshotPort,
-  type AccountingPeriodsDocumentsQueries,
+  type AccountingPeriodsDocumentsReadModel,
 } from "./infra/periods/close-package-snapshot-port";
 
 import {

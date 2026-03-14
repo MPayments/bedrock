@@ -8,8 +8,9 @@ import type {
   DocumentActionPolicyService,
   DocumentApprovalMode,
   DocumentModule,
+  DocumentModuleRuntime,
   DocumentRegistry,
-} from "../src/types";
+} from "../src/plugins";
 
 const DEFAULT_DOCUMENT_PAYLOAD_SCHEMA = z.object({
   memo: z.string().optional(),
@@ -185,6 +186,7 @@ export function createDocumentsServiceDeps(
   modules: DocumentModule[] = [createTestDocumentModule()],
 ) {
   const moduleDb = createStubDb();
+  const moduleRuntime = createStubDocumentModuleRuntime(moduleDb);
   const repository = {
     findDocumentByType: vi.fn(),
     findDocumentWithPostingOperation: vi.fn(),
@@ -228,13 +230,13 @@ export function createDocumentsServiceDeps(
     ledgerReadService: {
       getOperationDetails: vi.fn(),
     },
-    moduleDb,
+    moduleRuntime,
     repository,
     registry: createTestDocumentRegistry(modules),
     transactions: {
       withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
         run({
-          moduleDb,
+          moduleRuntime,
           repository,
           ledger,
           idempotency,
@@ -242,4 +244,17 @@ export function createDocumentsServiceDeps(
       ),
     },
   } as any;
+}
+
+export function createStubDocumentModuleRuntime(
+  queryable: unknown = createStubDb(),
+): DocumentModuleRuntime {
+  return {
+    documents: {
+      findIncomingLinkedDocument: vi.fn(async () => null),
+      getDocumentByType: vi.fn(async () => null),
+      getDocumentOperationId: vi.fn(async () => null),
+    },
+    withQueryable: (run) => run(queryable),
+  };
 }

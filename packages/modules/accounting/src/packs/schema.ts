@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export type {
+  AccountSideTemplateDefinition,
+  AccountingPackDefinition,
+  CreatePostingTemplateDefinition,
+  PendingPostingTemplateDefinition,
+  RawPostingTemplateDefinition,
+  ValueBinding,
+} from "../domain/packs/pack-definition";
+
 const literalBindingSchema = z.object({
   kind: z.literal("literal"),
   value: z.string().min(1),
@@ -71,20 +80,3 @@ export const AccountingPackDefinitionSchema = z.object({
   version: z.number().int().positive(),
   templates: z.array(RawPostingTemplateDefinitionSchema),
 });
-
-export type ValueBinding = z.infer<typeof ValueBindingSchema>;
-export type AccountSideTemplateDefinition = z.infer<
-  typeof AccountSideTemplateDefinitionSchema
->;
-export type CreatePostingTemplateDefinition = z.infer<
-  typeof CreatePostingTemplateDefinitionSchema
->;
-export type PendingPostingTemplateDefinition = z.infer<
-  typeof PendingPostingTemplateDefinitionSchema
->;
-export type RawPostingTemplateDefinition = z.infer<
-  typeof RawPostingTemplateDefinitionSchema
->;
-export type AccountingPackDefinition = z.infer<
-  typeof AccountingPackDefinitionSchema
->;

@@ -5,7 +5,7 @@ import type {
   DocumentModule,
   DocumentModuleContext,
   DocumentPolicyDecision,
-} from "../../types";
+} from "../../plugins";
 
 export async function invokeDocumentModuleAction(input: {
   action: DocumentAction;

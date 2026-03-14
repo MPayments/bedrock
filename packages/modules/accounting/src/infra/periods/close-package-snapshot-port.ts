@@ -9,7 +9,7 @@ import type {
 } from "../../application/periods/ports";
 import type { AccountingReportQueries } from "../../application/reports/queries/reports";
 
-export interface AccountingPeriodsDocumentsQueries {
+export interface AccountingPeriodsDocumentsReadModel {
   listAdjustmentsForOrganizationPeriod: (input: {
     organizationId: string;
     periodStart: Date;
@@ -45,14 +45,14 @@ export function createAccountingClosePackageSnapshotPort(input: {
     AccountingReportQueries,
     "listCashFlow" | "listIncomeStatement" | "listTrialBalance"
   >;
-  documentsQueries: AccountingPeriodsDocumentsQueries;
+  documentsReadModel: AccountingPeriodsDocumentsReadModel;
 }): AccountingClosePackageSnapshotPort {
   const {
     repository,
     assertInternalLedgerOrganization,
     listBooksByOwnerId,
     reportQueries,
-    documentsQueries,
+    documentsReadModel,
   } = input;
 
   return {
@@ -116,7 +116,7 @@ export function createAccountingClosePackageSnapshotPort(input: {
             to: snapshotInput.periodEnd.toISOString(),
             method: "direct",
           }),
-          documentsQueries.listAdjustmentsForOrganizationPeriod({
+          documentsReadModel.listAdjustmentsForOrganizationPeriod({
             organizationId: snapshotInput.organizationId,
             periodStart: snapshotInput.periodStart,
             periodEnd: snapshotInput.periodEnd,
@@ -129,7 +129,7 @@ export function createAccountingClosePackageSnapshotPort(input: {
           }),
         ]);
 
-      const auditEvents = await documentsQueries.listAuditEventsByDocumentId(
+      const auditEvents = await documentsReadModel.listAuditEventsByDocumentId(
         adjustments.map((row) => row.documentId),
       );
 

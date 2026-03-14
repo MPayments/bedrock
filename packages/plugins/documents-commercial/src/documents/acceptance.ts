@@ -43,14 +43,14 @@ export function createAcceptanceDocumentModule(
     async createDraft(context, input) {
       const invoice = await loadInvoice(
         deps,
-        context.db,
+        context.runtime,
         input.invoiceDocumentId,
         true,
       );
       requirePostedDocument(invoice);
       const invoicePayload = parseInvoicePayload(invoice);
 
-      if (await getInvoiceAcceptanceChild(deps, context.db, invoice.id)) {
+      if (await getInvoiceAcceptanceChild(deps, context.runtime, invoice.id)) {
         throw new DocumentValidationError(
           "acceptance already exists for this invoice",
         );
@@ -58,7 +58,7 @@ export function createAcceptanceDocumentModule(
 
       const exchange = await getInvoiceExchangeChild(
         deps,
-        context.db,
+        context.runtime,
         invoice.id,
       );
       if (invoicePayload.mode === "exchange") {
@@ -107,13 +107,13 @@ export function createAcceptanceDocumentModule(
     async canCreate(context, input) {
       const invoice = await loadInvoice(
         deps,
-        context.db,
+        context.runtime,
         input.invoiceDocumentId,
         true,
       );
       requirePostedDocument(invoice);
       const invoicePayload = parseInvoicePayload(invoice);
-      if (await getInvoiceAcceptanceChild(deps, context.db, invoice.id)) {
+      if (await getInvoiceAcceptanceChild(deps, context.runtime, invoice.id)) {
         throw new DocumentValidationError(
           "acceptance already exists for this invoice",
         );
@@ -122,7 +122,7 @@ export function createAcceptanceDocumentModule(
       if (invoicePayload.mode === "exchange") {
         const exchange = await getInvoiceExchangeChild(
           deps,
-          context.db,
+          context.runtime,
           invoice.id,
         );
         if (!exchange) {
@@ -141,10 +141,10 @@ export function createAcceptanceDocumentModule(
     async canCancel() {},
     async buildInitialLinks(context, document) {
       const payload = parseDocumentPayload(AcceptancePayloadSchema, document);
-      const links: Array<{
+      const links: {
         toDocumentId: string;
         linkType: "parent" | "depends_on";
-      }> = [
+      }[] = [
         {
           toDocumentId: payload.invoiceDocumentId,
           linkType: "parent" as const,

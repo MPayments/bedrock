@@ -156,7 +156,7 @@ describe("ifrs fx modules", () => {
 
     await expect(
       module.canCreate?.(
-        { db: {} } as any,
+        { runtime: {} } as any,
         {
           occurredAt: new Date("2026-03-03T10:00:00.000Z"),
           sourceRequisiteId: "00000000-0000-4000-8000-000000000111",
@@ -172,10 +172,11 @@ describe("ifrs fx modules", () => {
   it("creates a draft from current rates and freezes the generated quote snapshot", async () => {
     const deps = createDeps();
     const module = createFxExecuteDocumentModule(deps as any);
+    const runtime = {} as any;
 
     const draft = await module.createDraft(
       {
-        db: {},
+        runtime,
         now: new Date("2026-03-03T10:00:00.000Z"),
         operationIdempotencyKey: "create-idem",
       } as any,
@@ -190,7 +191,7 @@ describe("ifrs fx modules", () => {
     );
 
     expect(deps.treasuryFxQuote.createQuoteSnapshot).toHaveBeenCalledWith({
-      db: {},
+      runtime,
       fromCurrency: "USD",
       toCurrency: "EUR",
       fromAmountMinor: "10000",
@@ -209,9 +210,10 @@ describe("ifrs fx modules", () => {
   it("builds an immediate treasury fx posting plan and locks the quote", async () => {
     const deps = createDeps();
     const module = createFxExecuteDocumentModule(deps as any);
+    const runtime = {} as any;
 
     const postingPlan = await module.buildPostingPlan?.(
-      { db: {}, now: new Date("2026-03-03T10:05:00.000Z") } as any,
+      { runtime, now: new Date("2026-03-03T10:05:00.000Z") } as any,
       {
         id: "00000000-0000-4000-8000-000000000601",
         docType: "fx_execute",
@@ -243,7 +245,7 @@ describe("ifrs fx modules", () => {
     expect(
       deps.quoteUsage.markQuoteUsedForFxExecute,
     ).toHaveBeenCalledWith({
-      db: {},
+      runtime,
       quoteId: "00000000-0000-4000-8000-000000000010",
       fxExecuteDocumentId: "00000000-0000-4000-8000-000000000601",
       at: new Date("2026-03-03T10:05:00.000Z"),
@@ -267,7 +269,7 @@ describe("ifrs fx modules", () => {
     };
 
     const postingPlan = await module.buildPostingPlan?.(
-      { db: {} } as any,
+      { runtime: {} } as any,
       document as any,
     );
 
@@ -283,7 +285,11 @@ describe("ifrs fx modules", () => {
       },
     });
     expect(
-      module.resolveAccountingSourceId?.({ db: {} } as any, document as any, postingPlan!),
+      module.resolveAccountingSourceId?.(
+        { runtime: {} } as any,
+        document as any,
+        postingPlan!,
+      ),
     ).toBe(ACCOUNTING_SOURCE_ID.TREASURY_FX_RESOLUTION_SETTLE);
   });
 
@@ -304,7 +310,7 @@ describe("ifrs fx modules", () => {
     };
 
     const postingPlan = await module.buildPostingPlan?.(
-      { db: {} } as any,
+      { runtime: {} } as any,
       document as any,
     );
 
@@ -312,10 +318,14 @@ describe("ifrs fx modules", () => {
       OPERATION_CODE.TREASURY_FX_VOID_PENDING,
     );
     expect(
-      module.resolveAccountingSourceId?.({ db: {} } as any, document as any, postingPlan!),
+      module.resolveAccountingSourceId?.(
+        { runtime: {} } as any,
+        document as any,
+        postingPlan!,
+      ),
     ).toBe(ACCOUNTING_SOURCE_ID.TREASURY_FX_RESOLUTION_VOID);
     await expect(
-      module.buildInitialLinks?.({ db: {} } as any, document as any),
+      module.buildInitialLinks?.({ runtime: {} } as any, document as any),
     ).resolves.toEqual([
       {
         toDocumentId: "00000000-0000-4000-8000-000000000601",

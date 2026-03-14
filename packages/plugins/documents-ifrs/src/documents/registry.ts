@@ -1,8 +1,8 @@
 import type { DocumentModule } from "@bedrock/plugin-documents-sdk";
 
 import { IFRS_DOCUMENT_TYPE_ORDER } from "../metadata";
-import { IFRS_DOCUMENT_MODULE_FACTORIES } from "./module-factories";
 import type { IfrsModuleDeps } from "./internal/types";
+import { IFRS_DOCUMENT_MODULE_FACTORIES } from "./module-factories";
 
 export function createIfrsDocumentModules(deps: IfrsModuleDeps): DocumentModule[] {
   return IFRS_DOCUMENT_TYPE_ORDER.map((docType) => {
