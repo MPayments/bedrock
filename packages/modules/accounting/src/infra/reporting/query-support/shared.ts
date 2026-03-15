@@ -2,9 +2,9 @@ import type { BalancesQueries } from "@bedrock/balances/queries";
 import type { LedgerQueries } from "@bedrock/ledger/queries";
 import type { OrganizationsQueries } from "@bedrock/organizations/queries";
 import type { CounterpartiesQueries } from "@bedrock/parties/queries";
+import { parseMinorAmountOrZero } from "@bedrock/shared/money";
 
 import {
-  parseMinorAmount,
   type LineMapping,
   type ReportAttributionMode,
   type ResolvedScope,
@@ -120,10 +120,10 @@ export function createReportsSharedHelpers(input: {
         ? (organizationNames.get(row.counterpartyId) ?? null)
         : null,
       currency: row.currency,
-      ledgerBalanceMinor: parseMinorAmount(row.ledgerBalanceMinor),
-      availableMinor: parseMinorAmount(row.availableMinor),
-      reservedMinor: parseMinorAmount(row.reservedMinor),
-      pendingMinor: parseMinorAmount(row.pendingMinor),
+      ledgerBalanceMinor: parseMinorAmountOrZero(row.ledgerBalanceMinor),
+      availableMinor: parseMinorAmountOrZero(row.availableMinor),
+      reservedMinor: parseMinorAmountOrZero(row.reservedMinor),
+      pendingMinor: parseMinorAmountOrZero(row.pendingMinor),
     }));
   }
 

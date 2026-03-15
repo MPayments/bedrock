@@ -9,7 +9,7 @@ import {
 import type { GroupHierarchy } from "./group-hierarchy";
 import {
   PARTY_KIND_VALUES,
-  parseCountryCode,
+  parseOptionalCountryCode,
   type CountryCode,
   type PartyKind,
 } from "./party-kind";
@@ -61,16 +61,6 @@ function normalizePartyKind(value: PartyKind | undefined): PartyKind {
   );
 
   return normalized;
-}
-
-function normalizeCountry(
-  value: string | null | undefined,
-): CountryCode | null {
-  if (value == null) {
-    return null;
-  }
-
-  return parseCountryCode(value);
 }
 
 function resolveGroups(input: {
@@ -127,7 +117,7 @@ export class Counterparty extends Entity<string> {
         "fullName",
       ),
       description: normalizeOptionalText(input.description),
-      country: normalizeCountry(input.country),
+      country: parseOptionalCountryCode(input.country),
       kind: normalizePartyKind(input.kind),
       groupIds: resolveGroups({
         groupIds: input.groupIds ?? [],
@@ -155,7 +145,7 @@ export class Counterparty extends Entity<string> {
         "fullName",
       ),
       description: normalizeOptionalText(snapshot.description),
-      country: snapshot.country ? normalizeCountry(snapshot.country) : null,
+      country: parseOptionalCountryCode(snapshot.country),
       kind: normalizePartyKind(snapshot.kind),
       groupIds: dedupeIds(snapshot.groupIds),
     });
@@ -217,7 +207,7 @@ export class Counterparty extends Entity<string> {
           : this.snapshot.description,
       country:
         input.country !== undefined
-          ? normalizeCountry(input.country)
+          ? parseOptionalCountryCode(input.country)
           : this.snapshot.country,
       kind:
         input.kind !== undefined

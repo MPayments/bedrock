@@ -5,6 +5,8 @@ import {
   amountValueSchema,
   minorToAmountString,
   normalizeMajorAmountInput,
+  parseMinorAmount,
+  parseMinorAmountOrZero,
   resolveCurrencyPrecision,
   signedMinorAmountSchema,
   toMinorAmountString,
@@ -63,5 +65,12 @@ describe("money helpers", () => {
     expect(() => signedMinorAmountSchema.parse("0")).toThrow(
       "amountMinor must be non-zero",
     );
+  });
+
+  it("parses minor amounts with nullable and zero-default variants", () => {
+    expect(parseMinorAmount("1250")).toBe(1250n);
+    expect(parseMinorAmount("bad")).toBeNull();
+    expect(parseMinorAmountOrZero("1250")).toBe(1250n);
+    expect(parseMinorAmountOrZero("bad")).toBe(0n);
   });
 });

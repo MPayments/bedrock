@@ -83,6 +83,18 @@ export function parseCountryCode(value: string): CountryCode {
   return CountryCodeValue.create(value).value;
 }
 
+export function normalizeOptionalCountryCode(
+  value: string | null | undefined,
+): string | null {
+  return CountryCodeValue.createOptional(value)?.value ?? null;
+}
+
+export function parseOptionalCountryCode(
+  value: string | null | undefined,
+): CountryCode | null {
+  return CountryCodeValue.createOptional(value)?.value ?? null;
+}
+
 export const CountryCodeSchema = z
   .string()
   .trim()

@@ -1,10 +1,10 @@
-export const PARTY_KIND_VALUES = ["legal_entity", "individual"] as const;
-
-export type PartyKind = (typeof PARTY_KIND_VALUES)[number];
+export { PARTY_KIND_VALUES, type PartyKind } from "@bedrock/shared/parties";
 
 export {
   isCountryCode,
   normalizeCountryCode,
+  normalizeOptionalCountryCode,
+  parseOptionalCountryCode,
   parseCountryCode,
   type CountryCode,
 } from "./country-code";

@@ -1,11 +1,14 @@
 import {
   Entity,
-  invariant,
   normalizeOptionalText,
   normalizeRequiredText,
 } from "@bedrock/shared/core/domain";
 
-import { parseCountryCode, type CountryCode, type PartyKind } from "./party-kind";
+import {
+  parseOptionalCountryCode,
+  type CountryCode,
+  type PartyKind,
+} from "./party-kind";
 
 export interface OrganizationSnapshot {
   id: string;
@@ -38,17 +41,6 @@ export interface UpdateOrganizationProps {
   kind?: PartyKind;
 }
 
-function normalizeCountry(
-  value: string | null | undefined,
-): CountryCode | null {
-  if (value == null) {
-    return null;
-  }
-
-  const normalized = value.trim();
-  return normalized.length > 0 ? parseCountryCode(normalized) : null;
-}
-
 export class Organization extends Entity<string> {
   private constructor(private readonly snapshot: OrganizationSnapshot) {
     super(snapshot.id);
@@ -69,7 +61,7 @@ export class Organization extends Entity<string> {
         "fullName",
       ),
       description: normalizeOptionalText(input.description),
-      country: normalizeCountry(input.country),
+      country: parseOptionalCountryCode(input.country),
       kind: input.kind,
       createdAt: now,
       updatedAt: now,
@@ -91,7 +83,7 @@ export class Organization extends Entity<string> {
         "fullName",
       ),
       description: normalizeOptionalText(snapshot.description),
-      country: normalizeCountry(snapshot.country),
+      country: parseOptionalCountryCode(snapshot.country),
     });
   }
 
@@ -124,7 +116,7 @@ export class Organization extends Entity<string> {
           : this.snapshot.description,
       country:
         input.country !== undefined
-          ? normalizeCountry(input.country)
+          ? parseOptionalCountryCode(input.country)
           : this.snapshot.country,
       kind: input.kind ?? this.snapshot.kind,
       updatedAt: now,

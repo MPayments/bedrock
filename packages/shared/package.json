@@ -8,6 +8,8 @@
     "./core/*": "./src/core/*.ts",
     "./money": "./src/money/index.ts",
     "./money/*": "./src/money/*.ts",
+    "./parties": "./src/parties/index.ts",
+    "./parties/*": "./src/parties/*.ts",
     "./requisites": "./src/requisites/index.ts",
     "./requisites/*": "./src/requisites/*.ts",
     "./reference-data": "./src/reference-data/index.ts",

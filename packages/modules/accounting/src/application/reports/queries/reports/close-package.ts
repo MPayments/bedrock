@@ -1,4 +1,5 @@
 import { ValidationError } from "@bedrock/shared/core/errors";
+import { parseMinorAmountOrZero } from "@bedrock/shared/money";
 
 import type {
   AccountingReportsContext,
@@ -7,9 +8,6 @@ import type {
   ClosePackageResult,
 } from "./types";
 import { normalizeMonthStart } from "../../../../domain/periods";
-import {
-  parseMinorAmount,
-} from "../../../../domain/reports";
 import {
   ClosePackageQuerySchema,
   type ClosePackageQuery,
@@ -57,12 +55,16 @@ export function createListClosePackageHandler(
           const value = item as Record<string, unknown>;
           return {
             currency: String(value.currency ?? ""),
-            openingDebitMinor: parseMinorAmount(value.openingDebitMinor),
-            openingCreditMinor: parseMinorAmount(value.openingCreditMinor),
-            periodDebitMinor: parseMinorAmount(value.periodDebitMinor),
-            periodCreditMinor: parseMinorAmount(value.periodCreditMinor),
-            closingDebitMinor: parseMinorAmount(value.closingDebitMinor),
-            closingCreditMinor: parseMinorAmount(value.closingCreditMinor),
+            openingDebitMinor: parseMinorAmountOrZero(value.openingDebitMinor),
+            openingCreditMinor: parseMinorAmountOrZero(
+              value.openingCreditMinor,
+            ),
+            periodDebitMinor: parseMinorAmountOrZero(value.periodDebitMinor),
+            periodCreditMinor: parseMinorAmountOrZero(value.periodCreditMinor),
+            closingDebitMinor: parseMinorAmountOrZero(value.closingDebitMinor),
+            closingCreditMinor: parseMinorAmountOrZero(
+              value.closingCreditMinor,
+            ),
           };
         })
       : [];
@@ -73,9 +75,9 @@ export function createListClosePackageHandler(
           const value = item as Record<string, unknown>;
           return {
             currency: String(value.currency ?? ""),
-            revenueMinor: parseMinorAmount(value.revenueMinor),
-            expenseMinor: parseMinorAmount(value.expenseMinor),
-            netMinor: parseMinorAmount(value.netMinor),
+            revenueMinor: parseMinorAmountOrZero(value.revenueMinor),
+            expenseMinor: parseMinorAmountOrZero(value.expenseMinor),
+            netMinor: parseMinorAmountOrZero(value.netMinor),
           };
         })
       : [];
@@ -86,36 +88,32 @@ export function createListClosePackageHandler(
           const value = item as Record<string, unknown>;
           return {
             currency: String(value.currency ?? ""),
-            netCashFlowMinor: parseMinorAmount(value.netCashFlowMinor),
+            netCashFlowMinor: parseMinorAmountOrZero(value.netCashFlowMinor),
           };
         })
       : [];
     const adjustments = Array.isArray(payload.adjustments)
-      ? payload.adjustments.map(
-          (item): ClosePackageAdjustment => {
-            const value = item as Record<string, unknown>;
-            return {
-              documentId: String(value.documentId ?? ""),
-              docType: String(value.docType ?? ""),
-              docNo: String(value.docNo ?? ""),
-              occurredAt: parseDateValue(value.occurredAt),
-              title: String(value.title ?? ""),
-            };
-          },
-        )
+      ? payload.adjustments.map((item): ClosePackageAdjustment => {
+          const value = item as Record<string, unknown>;
+          return {
+            documentId: String(value.documentId ?? ""),
+            docType: String(value.docType ?? ""),
+            docNo: String(value.docNo ?? ""),
+            occurredAt: parseDateValue(value.occurredAt),
+            title: String(value.title ?? ""),
+          };
+        })
       : [];
     const auditEvents = Array.isArray(payload.auditEvents)
-      ? payload.auditEvents.map(
-          (item): ClosePackageAuditEvent => {
-            const value = item as Record<string, unknown>;
-            return {
-              id: String(value.id ?? ""),
-              eventType: String(value.eventType ?? ""),
-              actorId: value.actorId ? String(value.actorId) : null,
-              createdAt: parseDateValue(value.createdAt),
-            };
-          },
-        )
+      ? payload.auditEvents.map((item): ClosePackageAuditEvent => {
+          const value = item as Record<string, unknown>;
+          return {
+            id: String(value.id ?? ""),
+            eventType: String(value.eventType ?? ""),
+            actorId: value.actorId ? String(value.actorId) : null,
+            createdAt: parseDateValue(value.createdAt),
+          };
+        })
       : [];
 
     return {

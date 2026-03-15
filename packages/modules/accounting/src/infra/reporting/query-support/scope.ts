@@ -6,6 +6,7 @@ import type {
 import type { OrganizationsQueries } from "@bedrock/organizations/queries";
 import type { CounterpartiesQueries } from "@bedrock/parties/queries";
 import { ValidationError } from "@bedrock/shared/core/errors";
+import { parseMinorAmountOrZero } from "@bedrock/shared/money";
 
 import type { AccountingReportsDocumentsPort } from "../../../application/reports/ports";
 import type {
@@ -16,7 +17,6 @@ import type {
   ResolvedScope,
   ScopedPosting,
 } from "../../../domain/reports";
-import { parseMinorAmount } from "../../../domain/reports";
 
 export function createReportsScopeHelpers(input: {
   counterpartiesQueries: CounterpartiesQueries;
@@ -183,7 +183,7 @@ export function createReportsScopeHelpers(input: {
       bookLabel: row.bookLabel,
       bookCounterpartyId: row.bookCounterpartyId,
       currency: row.currency,
-      amountMinor: parseMinorAmount(row.amountMinor),
+      amountMinor: parseMinorAmountOrZero(row.amountMinor),
       postingCode: row.postingCode,
       debitAccountNo: row.debitAccountNo,
       creditAccountNo: row.creditAccountNo,

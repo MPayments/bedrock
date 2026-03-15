@@ -144,6 +144,10 @@ export function parseMinorAmount(value: unknown): bigint | null {
   return null;
 }
 
+export function parseMinorAmountOrZero(value: unknown): bigint {
+  return parseMinorAmount(value) ?? 0n;
+}
+
 export function resolveCurrencyPrecision(currencyCode: unknown): number {
   if (typeof currencyCode !== "string") {
     return 2;
