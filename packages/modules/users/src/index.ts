@@ -1,5 +1,5 @@
-export { createUsersService } from "./users";
-export type { UsersService, UsersServiceDeps } from "./users";
+export { createUsersService } from "./service";
+export type { UsersService, UsersServiceDeps } from "./service";
 export {
   InvalidPasswordError,
   UserEmailConflictError,

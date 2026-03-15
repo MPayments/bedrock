@@ -1,5 +1,5 @@
-export { createCurrenciesService } from "./currencies";
-export type { CurrenciesService, CurrenciesServiceDeps } from "./currencies";
+export { createCurrenciesService } from "./service";
+export type { CurrenciesService, CurrenciesServiceDeps } from "./service";
 export {
   CurrencyDeleteConflictError,
   CurrencyError,

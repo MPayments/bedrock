@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import type { Database } from "@bedrock/platform/persistence";
 
-import type { ReconciliationPendingSourcesPort } from "../../../application/ports";
+import type { ReconciliationPendingSourcesPort } from "../../../application/exceptions/ports";
 import { schema } from "../schema";
 
 export function createDrizzlePendingSourcesQuerySupport(input: {

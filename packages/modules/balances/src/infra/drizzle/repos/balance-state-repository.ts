@@ -7,7 +7,7 @@ import type {
   Transaction,
 } from "@bedrock/platform/persistence";
 
-import type { BalancesStatePort } from "../../../application/ports";
+import type { BalancesStateRepository } from "../../../application/balances/ports";
 import type { BalanceEventInput } from "../../../domain/balance-events";
 import {
   toBalanceHoldSnapshot,
@@ -121,7 +121,7 @@ async function selectHold(
 
 export function createDrizzleBalancesStateRepository(
   db: Queryable,
-): BalancesStatePort {
+): BalancesStateRepository {
   return {
     getBalancePosition(subject) {
       return selectBalancePosition(db, subject, false);

@@ -226,7 +226,7 @@ export function fxRatesRoutes(ctx: AppContext) {
   return app
     .openapi(rateHistoryRoute, async (c) => {
       const { base, quote, limit, from } = c.req.valid("query");
-      const points = await ctx.fxService.getRateHistory({
+      const points = await ctx.fxService.rates.getRateHistory({
         base,
         quote,
         limit,
@@ -245,7 +245,7 @@ export function fxRatesRoutes(ctx: AppContext) {
       );
     })
     .openapi(pairsRoute, async (c) => {
-      const pairs = await ctx.fxService.listPairs();
+      const pairs = await ctx.fxService.rates.listPairs();
       return c.json(
         {
           data: pairs.map((pair) => ({
@@ -261,7 +261,7 @@ export function fxRatesRoutes(ctx: AppContext) {
     .openapi(setManualRateRoute, async (c) => {
       const body = c.req.valid("json");
       try {
-        await ctx.fxService.setManualRate({
+        await ctx.fxService.rates.setManualRate({
           base: body.base.trim().toUpperCase(),
           quote: body.quote.trim().toUpperCase(),
           rateNum: BigInt(body.rateNum),
@@ -280,7 +280,7 @@ export function fxRatesRoutes(ctx: AppContext) {
       const { base, quote, asOf } = c.req.valid("query");
 
       try {
-        const rate = await ctx.fxService.getLatestRate(
+        const rate = await ctx.fxService.rates.getLatestRate(
           base,
           quote,
           asOf ?? new Date(),
@@ -310,7 +310,7 @@ export function fxRatesRoutes(ctx: AppContext) {
       }
     })
     .openapi(sourceStatusesRoute, async (c) => {
-      const statuses = await ctx.fxService.getRateSourceStatuses();
+      const statuses = await ctx.fxService.rates.getRateSourceStatuses();
       return c.json(
         {
           data: statuses.map((status) => serializeSourceStatus(status)),
@@ -323,7 +323,7 @@ export function fxRatesRoutes(ctx: AppContext) {
       const { force } = c.req.valid("query");
 
       try {
-        const result = await ctx.fxService.syncRatesFromSource({
+        const result = await ctx.fxService.rates.syncRatesFromSource({
           source,
           force: force ?? false,
         });

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { schema } from "@bedrock/fx/schema";
 
 import { RateSourceSyncError } from "../src/errors";
-import { createFxService } from "../src/fx";
+import { createFxService } from "../src";
 import {
   createMockCurrenciesService,
   createNoopFeesService,
@@ -62,7 +62,7 @@ describe("fx source sync", () => {
     });
 
     await expect(
-      service.syncRatesFromSource({ source: "cbr", force: true, now: new Date("2026-01-02T00:00:00Z") }),
+      service.rates.syncRatesFromSource({ source: "cbr", force: true, now: new Date("2026-01-02T00:00:00Z") }),
     ).rejects.toThrow(RateSourceSyncError);
   });
 
@@ -107,7 +107,7 @@ describe("fx source sync", () => {
       rateSourceProviders: { cbr: provider },
     });
 
-    const result = await service.syncRatesFromSource({ source: "cbr", now });
+    const result = await service.rates.syncRatesFromSource({ source: "cbr", now });
 
     expect(result.synced).toBe(false);
     expect(result.rateCount).toBe(0);
@@ -142,7 +142,7 @@ describe("fx source sync", () => {
       },
     });
 
-    const statuses = await service.getRateSourceStatuses(now);
+    const statuses = await service.rates.getRateSourceStatuses(now);
 
     expect(statuses).toHaveLength(3);
     for (const status of statuses) {
@@ -222,7 +222,7 @@ describe("fx source sync", () => {
       rateSourceProviders: { investing: provider },
     });
 
-    const result = await service.syncRatesFromSource({
+    const result = await service.rates.syncRatesFromSource({
       source: "investing",
       force: true,
       now,
@@ -304,7 +304,7 @@ describe("fx source sync", () => {
       rateSourceProviders: { xe: provider },
     });
 
-    const result = await service.syncRatesFromSource({
+    const result = await service.rates.syncRatesFromSource({
       source: "xe",
       force: true,
       now,
@@ -386,7 +386,7 @@ describe("fx source sync", () => {
       rateSourceProviders: { cbr: provider },
     });
 
-    const result = await service.syncRatesFromSource({
+    const result = await service.rates.syncRatesFromSource({
       source: "cbr",
       force: true,
       now,

@@ -19,17 +19,19 @@ export type ReconciliationService = ReturnType<
 export function createReconciliationService(deps: ReconciliationServiceDeps) {
   const context = createReconciliationServiceContext(deps);
 
-  const ingestExternalRecord = createIngestExternalRecordHandler(context);
-  const runReconciliation = createRunReconciliationHandler(context);
-  const listExceptions = createListExceptionsHandler(context);
-  const explainMatch = createExplainMatchHandler(context);
-  const createAdjustmentDocument = createAdjustmentDocumentHandler(context);
-
   return {
-    ingestExternalRecord,
-    runReconciliation,
-    listExceptions,
-    explainMatch,
-    createAdjustmentDocument,
+    records: {
+      ingestExternalRecord: createIngestExternalRecordHandler(context),
+    },
+    runs: {
+      runReconciliation: createRunReconciliationHandler(context),
+    },
+    exceptions: {
+      listExceptions: createListExceptionsHandler(context),
+      explainMatch: createExplainMatchHandler(context),
+    },
+    adjustments: {
+      createAdjustmentDocument: createAdjustmentDocumentHandler(context),
+    },
   };
 }

@@ -4,12 +4,12 @@ import { RateNotFoundError } from "../../errors";
 import { getSourceOrder } from "../../domain/source-priority";
 import type {
   CrossRate,
-  FxRateSource,
   FxRateSourceStatus,
   RateHistoryPoint,
   RatePairView,
   RateRowRecord,
-} from "../ports";
+} from "./ports";
+import type { FxRateSource } from "../shared/external-ports";
 import type { FxServiceContext } from "../shared/context";
 
 export function createRateQueryHandlers(

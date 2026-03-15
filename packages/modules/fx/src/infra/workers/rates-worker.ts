@@ -5,7 +5,7 @@ import type {
   WorkerRunResult,
 } from "@bedrock/platform/worker-runtime";
 
-import type { FxService } from "../../fx";
+import type { FxService } from "../../service";
 import type { FxRateSource } from "../../domain/rate-source";
 
 export interface FxRatesWorkerSourceContext {
@@ -27,7 +27,7 @@ export function createFxRatesWorkerDefinition(deps: {
   const beforeSourceSync = deps.beforeSourceSync;
 
   async function runPass(now: Date) {
-    const statuses = await fxService.getRateSourceStatuses(now);
+    const statuses = await fxService.rates.getRateSourceStatuses(now);
 
     let processed = 0;
     for (const status of statuses) {
@@ -44,7 +44,7 @@ export function createFxRatesWorkerDefinition(deps: {
       }
 
       try {
-        await fxService.syncRatesFromSource({
+        await fxService.rates.syncRatesFromSource({
           source,
           now,
           force: true,

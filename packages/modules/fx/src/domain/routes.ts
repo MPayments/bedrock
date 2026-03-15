@@ -1,7 +1,7 @@
 import { mulDivFloor } from "@bedrock/shared/money/math";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
-import type { ComputedLeg } from "../application/ports";
+import type { ComputedLeg } from "../application/quotes/ports";
 
 interface RouteLegInput {
   fromCurrency: string;

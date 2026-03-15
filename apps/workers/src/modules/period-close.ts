@@ -337,7 +337,7 @@ function createDocumentsTransactions(input: {
           documentsCommand: createDrizzleDocumentsCommandRepository(tx),
           idempotency,
           ledger: {
-            commit: (intent) => input.ledger.commit(tx, intent),
+            commit: (intent) => input.ledger.commit.commit(tx, intent),
           },
         });
       });

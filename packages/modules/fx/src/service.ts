@@ -1,16 +1,16 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 
-import { createFxQuoteCommandHandlers } from "./application/quotes/commands";
-import { createFxQuoteQueryHandlers } from "./application/quotes/queries";
-import { createFxRateCommandHandlers } from "./application/rates/commands";
-import { createRateQueryHandlers } from "./application/rates/queries";
 import type {
   FxCurrenciesPort,
   FxQuoteFeesPort,
   FxRateSource,
   FxRateSourceProvider,
-} from "./application/ports";
+} from "./application/shared/external-ports";
+import { createFxQuoteCommandHandlers } from "./application/quotes/commands";
+import { createFxQuoteQueryHandlers } from "./application/quotes/queries";
+import { createFxRateCommandHandlers } from "./application/rates/commands";
+import { createRateQueryHandlers } from "./application/rates/queries";
 import { createFxServiceContext } from "./application/shared/context";
 import { createDrizzleFxQuoteFinancialLinesRepository } from "./infra/drizzle/repos/quote-financial-lines-repository";
 import { createDrizzleFxQuotesRepository } from "./infra/drizzle/repos/quotes-repository";
@@ -25,17 +25,13 @@ export interface FxServiceDeps {
 }
 
 export function createFxService(deps: FxServiceDeps) {
-  const quotesRepository = createDrizzleFxQuotesRepository(deps.db);
-  const ratesRepository = createDrizzleFxRatesRepository(deps.db);
-  const quoteFinancialLinesRepository =
-    createDrizzleFxQuoteFinancialLinesRepository(deps.db);
-
   const context = createFxServiceContext({
     feesService: deps.feesService,
     currenciesService: deps.currenciesService,
-    quotesRepository,
-    ratesRepository,
-    quoteFinancialLinesRepository,
+    quotesRepository: createDrizzleFxQuotesRepository(deps.db),
+    ratesRepository: createDrizzleFxRatesRepository(deps.db),
+    quoteFinancialLinesRepository:
+      createDrizzleFxQuoteFinancialLinesRepository(deps.db),
     transactions: {
       runInTransaction: (callback) =>
         deps.db.transaction((tx) => callback(tx as any)),
@@ -57,19 +53,27 @@ export function createFxService(deps: FxServiceDeps) {
     withQuoteCurrencyCodes: quoteQueries.withQuoteCurrencyCodes,
   });
 
-  return {
+  const rates = {
     setManualRate: rateCommands.setManualRate,
     syncRatesFromSource: rateCommands.syncRatesFromSource,
-    expireOldQuotes: rateCommands.expireOldQuotes,
     getLatestRate: rateQueries.getLatestRate,
     getCrossRate: rateQueries.getCrossRate,
     listPairs: rateQueries.listPairs,
     getRateHistory: rateQueries.getRateHistory,
     getRateSourceStatuses: rateQueries.getRateSourceStatuses,
+  };
+
+  const quotes = {
     quote: quoteCommands.quote,
     listQuotes: quoteQueries.listQuotes,
     getQuoteDetails: quoteQueries.getQuoteDetails,
     markQuoteUsed: quoteCommands.markQuoteUsed,
+    expireOldQuotes: rateCommands.expireOldQuotes,
+  };
+
+  return {
+    rates,
+    quotes,
   };
 }
 

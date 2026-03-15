@@ -3,10 +3,11 @@ import { noopLogger } from "@bedrock/platform/observability/logger";
 import type { Database } from "@bedrock/platform/persistence";
 
 import type {
-  FeesCurrenciesPort,
-  FeesQuoteSnapshotsRepositoryPort,
-  FeesRulesRepositoryPort,
-} from "../ports";
+  FeesQuoteSnapshotsCommandRepository,
+  FeesQuoteSnapshotsQueryRepository,
+} from "../quotes/ports";
+import type { FeesRulesRepository } from "../rules/ports";
+import type { FeesCurrenciesPort } from "./external-ports";
 
 export interface FeesServiceDeps {
   db: Database;
@@ -16,21 +17,24 @@ export interface FeesServiceDeps {
 
 export interface FeesServiceContext {
   currenciesService: FeesCurrenciesPort;
-  rulesRepository: FeesRulesRepositoryPort;
-  quoteSnapshotsRepository: FeesQuoteSnapshotsRepositoryPort;
+  rulesRepository: FeesRulesRepository;
+  quoteSnapshotsQueryRepository: FeesQuoteSnapshotsQueryRepository;
+  quoteSnapshotsCommandRepository: FeesQuoteSnapshotsCommandRepository;
   log: Logger;
 }
 
 export function createFeesServiceContext(input: {
   logger?: Logger;
   currenciesService: FeesCurrenciesPort;
-  rulesRepository: FeesRulesRepositoryPort;
-  quoteSnapshotsRepository: FeesQuoteSnapshotsRepositoryPort;
+  rulesRepository: FeesRulesRepository;
+  quoteSnapshotsQueryRepository: FeesQuoteSnapshotsQueryRepository;
+  quoteSnapshotsCommandRepository: FeesQuoteSnapshotsCommandRepository;
 }): FeesServiceContext {
   return {
     currenciesService: input.currenciesService,
     rulesRepository: input.rulesRepository,
-    quoteSnapshotsRepository: input.quoteSnapshotsRepository,
+    quoteSnapshotsQueryRepository: input.quoteSnapshotsQueryRepository,
+    quoteSnapshotsCommandRepository: input.quoteSnapshotsCommandRepository,
     log: input.logger?.child({ service: "fees" }) ?? noopLogger,
   };
 }

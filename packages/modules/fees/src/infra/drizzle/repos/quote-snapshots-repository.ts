@@ -1,18 +1,18 @@
 import { eq } from "drizzle-orm";
 
-import type { Database } from "@bedrock/platform/persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import type {
-  FeesDbExecutor,
   FeesQuoteComponentSnapshotRecord,
   FeesQuoteComponentSnapshotWriteModel,
-  FeesQuoteSnapshotsRepositoryPort,
-} from "../../../application/ports";
+  FeesQuoteSnapshotsCommandRepository,
+  FeesQuoteSnapshotsQueryRepository,
+} from "../../../application/quotes/ports";
 import { schema } from "../schema";
 
 export function createDrizzleFeesQuoteSnapshotsRepository(input: {
   db: Database;
-}): FeesQuoteSnapshotsRepositoryPort {
+}): FeesQuoteSnapshotsQueryRepository & FeesQuoteSnapshotsCommandRepository {
   const { db } = input;
 
   async function replaceQuoteFeeComponents(
@@ -20,9 +20,9 @@ export function createDrizzleFeesQuoteSnapshotsRepository(input: {
       quoteId: string;
       components: FeesQuoteComponentSnapshotWriteModel[];
     },
-    executor?: FeesDbExecutor,
+    tx?: Transaction,
   ): Promise<void> {
-    const queryExecutor = executor ?? db;
+    const queryExecutor = tx ?? db;
 
     await queryExecutor
       .delete(schema.fxQuoteFeeComponents)
@@ -53,9 +53,9 @@ export function createDrizzleFeesQuoteSnapshotsRepository(input: {
 
   async function listQuoteFeeComponents(
     quoteId: string,
-    executor?: FeesDbExecutor,
+    tx?: Transaction,
   ): Promise<FeesQuoteComponentSnapshotRecord[]> {
-    const queryExecutor = executor ?? db;
+    const queryExecutor = tx ?? db;
 
     return queryExecutor
       .select({

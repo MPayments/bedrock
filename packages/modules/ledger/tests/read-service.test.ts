@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createLedgerReadService } from "../src/read";
+import { createLedgerReadService } from "../src";
 
 function makeListRowsChain(rows: unknown[]) {
   return {

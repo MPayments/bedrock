@@ -4,11 +4,12 @@ import {
   type RunReconciliationInput,
 } from "../../contracts";
 import { extractCandidateReferences } from "../../domain/candidate-references";
-import { summarizeResolutions } from "../../domain/exceptions";
 import { RECONCILIATION_IDEMPOTENCY_SCOPE } from "../../domain/idempotency";
 import { resolveMatchFromCandidates } from "../../domain/matching";
+import { ReconciliationException } from "../../domain/reconciliation-exception";
+import { ReconciliationRun } from "../../domain/reconciliation-run";
 import { toReconciliationRunDto } from "../mappers";
-import type { ReconciliationExternalRecordRecord } from "../ports";
+import type { ReconciliationExternalRecordRecord } from "../records/ports";
 import type { ReconciliationServiceContext } from "../shared/context";
 
 async function findOperationById(
@@ -118,20 +119,15 @@ export function createRunReconciliationHandler(
             });
           }
 
-          const summary = summarizeResolutions(
-            resolutions.map((item) => item.resolution),
-          );
-
-          const createdRun = await runsRepo.create(tx, {
+          const plannedRun = ReconciliationRun.plan({
             source: validated.source,
             rulesetChecksum: validated.rulesetChecksum,
             inputQuery: validated.inputQuery,
-            resultSummary: summary,
-            requestId: validated.requestContext?.requestId ?? null,
-            correlationId: validated.requestContext?.correlationId ?? null,
-            traceId: validated.requestContext?.traceId ?? null,
-            causationId: validated.requestContext?.causationId ?? null,
+            resolutions: resolutions.map((item) => item.resolution),
+            requestContext: validated.requestContext,
           });
+
+          const createdRun = await runsRepo.create(tx, plannedRun.toDraft());
 
           if (resolutions.length > 0) {
             await matchesRepo.createMany(
@@ -153,13 +149,14 @@ export function createRunReconciliationHandler(
           if (exceptionResolutions.length > 0) {
             await exceptionsRepo.createMany(
               tx,
-              exceptionResolutions.map(({ record, resolution }) => ({
-                runId: createdRun.id,
-                externalRecordId: record.id,
-                reasonCode: resolution.exceptionReasonCode ?? "unmatched",
-                reasonMeta: resolution.exceptionReasonMeta ?? null,
-                state: "open",
-              })),
+              exceptionResolutions.map(({ record, resolution }) =>
+                ReconciliationException.open({
+                  runId: createdRun.id,
+                  externalRecordId: record.id,
+                  reasonCode: resolution.exceptionReasonCode ?? "unmatched",
+                  reasonMeta: resolution.exceptionReasonMeta ?? null,
+                }),
+              ),
             );
           }
 

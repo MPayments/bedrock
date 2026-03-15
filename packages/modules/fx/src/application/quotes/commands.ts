@@ -6,14 +6,17 @@ import {
   effectiveRateFromAmounts,
   mulDivFloor,
 } from "@bedrock/shared/money/math";
+import { DomainError } from "@bedrock/shared/core/domain";
 
 import { NotFoundError, QuoteExpiredError } from "../../errors";
 import { financialLineFromFeeComponent } from "../../domain/financial-lines";
+import { FxQuote } from "../../domain/fx-quote";
 import {
   buildAutoCrossTrace,
   computeExplicitRouteLegs,
 } from "../../domain/routes";
-import type { CrossRate, FxQuoteRecord } from "../ports";
+import type { FxQuoteRecord } from "./ports";
+import type { CrossRate } from "../rates/ports";
 import type { FxServiceContext } from "../shared/context";
 import {
   type MarkQuoteUsedInput,
@@ -248,12 +251,40 @@ export function createFxQuoteCommandHandlers(
       throw new NotFoundError("Quote", validated.quoteId);
     }
 
-    if (quoteRow.status !== "active") {
-      return deps.withQuoteCurrencyCodes(quoteRow);
+    let transition;
+    try {
+      transition = FxQuote.reconstitute({
+        id: quoteRow.id,
+        fromCurrencyId: quoteRow.fromCurrencyId,
+        toCurrencyId: quoteRow.toCurrencyId,
+        fromAmountMinor: quoteRow.fromAmountMinor,
+        toAmountMinor: quoteRow.toAmountMinor,
+        pricingMode: quoteRow.pricingMode,
+        pricingTrace: quoteRow.pricingTrace,
+        dealDirection: quoteRow.dealDirection,
+        dealForm: quoteRow.dealForm,
+        rateNum: quoteRow.rateNum,
+        rateDen: quoteRow.rateDen,
+        status: quoteRow.status,
+        usedByRef: quoteRow.usedByRef,
+        usedAt: quoteRow.usedAt,
+        expiresAt: quoteRow.expiresAt,
+        idempotencyKey: quoteRow.idempotencyKey,
+        createdAt: quoteRow.createdAt,
+      }).markUsed({
+        usedByRef: validated.usedByRef,
+        at: validated.at,
+      });
+    } catch (error) {
+      if (error instanceof DomainError && error.code === "fx.quote.expired") {
+        throw new QuoteExpiredError("Quote expired");
+      }
+
+      throw error;
     }
 
-    if (quoteRow.expiresAt.getTime() < validated.at.getTime()) {
-      throw new QuoteExpiredError("Quote expired");
+    if (transition.kind === "noop") {
+      return deps.withQuoteCurrencyCodes(quoteRow);
     }
 
     const updated = await quotesRepository.markQuoteUsedIfActive({

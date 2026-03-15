@@ -39,8 +39,6 @@ export function invariant(
   }
 }
 
-export const assertDomain = invariant;
-
 export type Brand<T, B extends string> = T & { readonly __brand: B };
 
 export function normalizeRequiredText(

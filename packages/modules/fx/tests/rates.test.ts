@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { schema } from "@bedrock/fx/schema";
 
 import { RateSourceStaleError } from "../src/errors";
-import { createFxService } from "../src/fx";
+import { createFxService } from "../src";
 import {
   createMockCurrenciesService,
   createNoopFeesService,
@@ -49,7 +49,7 @@ describe("FX rates priority + TTL", () => {
             rateSourceProviders: { cbr: provider },
         });
 
-        const rate = await service.getLatestRate("usd", "eur", new Date("2026-02-19T10:00:00Z"));
+        const rate = await service.rates.getLatestRate("usd", "eur", new Date("2026-02-19T10:00:00Z"));
 
         expect(rate.source).toBe("manual");
         expect(provider.fetchLatest).not.toHaveBeenCalled();
@@ -173,7 +173,7 @@ describe("FX rates priority + TTL", () => {
             rateSourceProviders: { cbr: provider },
         });
 
-        const rate = await service.getLatestRate("USD", "RUB", new Date("2026-02-19T10:00:00Z"));
+        const rate = await service.rates.getLatestRate("USD", "RUB", new Date("2026-02-19T10:00:00Z"));
 
         expect(rate.source).toBe("cbr");
         expect(provider.fetchLatest).toHaveBeenCalledTimes(1);
@@ -243,7 +243,7 @@ describe("FX rates priority + TTL", () => {
             rateSourceProviders: { cbr: provider },
         });
 
-        await expect(service.getLatestRate("USD", "RUB", new Date("2026-02-19T10:00:00Z"))).rejects.toThrow(RateSourceStaleError);
+        await expect(service.rates.getLatestRate("USD", "RUB", new Date("2026-02-19T10:00:00Z"))).rejects.toThrow(RateSourceStaleError);
     });
 
     it("uses investing when cbr has no matching pair", async () => {
@@ -339,7 +339,7 @@ describe("FX rates priority + TTL", () => {
             },
         });
 
-        const rate = await service.getLatestRate("USD", "RUB", now);
+        const rate = await service.rates.getLatestRate("USD", "RUB", now);
 
         expect(rate.source).toBe("investing");
         expect(rate.rateNum).toBe(91n);
@@ -364,7 +364,7 @@ describe("FX rates priority + TTL", () => {
             },
         });
 
-        await service.expireOldQuotes(new Date("2026-02-19T10:00:00Z"));
+        await service.quotes.expireOldQuotes(new Date("2026-02-19T10:00:00Z"));
 
         expect(db.execute).toHaveBeenCalledTimes(1);
     });

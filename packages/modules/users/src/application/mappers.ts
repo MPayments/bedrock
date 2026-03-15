@@ -4,7 +4,7 @@ import { toUserRoleOrNull } from "../domain/user-role";
 import type {
   UsersUserRecord,
   UsersUserWithLastSessionRecord,
-} from "./ports";
+} from "./users/ports";
 
 export function toUser(row: UsersUserRecord): User {
   return {

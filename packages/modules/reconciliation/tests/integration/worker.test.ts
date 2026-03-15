@@ -142,7 +142,7 @@ describe("reconciliation worker integration", () => {
       ledgerLookup,
     });
 
-    await reconciliation.ingestExternalRecord({
+    await reconciliation.records.ingestExternalRecord({
       source,
       sourceRecordId: "matched-record",
       rawPayload: { amountMinor: 100 },
@@ -151,7 +151,7 @@ describe("reconciliation worker integration", () => {
       idempotencyKey: `ingest:${source}:matched`,
     });
 
-    await reconciliation.ingestExternalRecord({
+    await reconciliation.records.ingestExternalRecord({
       source,
       sourceRecordId: "unmatched-record",
       rawPayload: { amountMinor: 200 },
@@ -229,7 +229,7 @@ describe("reconciliation worker integration", () => {
       postedAt: new Date("2026-02-28T08:15:00.000Z"),
     });
 
-    await reconciliation.ingestExternalRecord({
+    await reconciliation.records.ingestExternalRecord({
       source,
       sourceRecordId: "matched-record-2",
       rawPayload: { amountMinor: 300 },
@@ -305,7 +305,7 @@ describe("reconciliation worker integration", () => {
       ledgerLookup,
     });
 
-    await reconciliation.ingestExternalRecord({
+    await reconciliation.records.ingestExternalRecord({
       source,
       sourceRecordId: "ambiguous-record",
       rawPayload: { amountMinor: 100 },
@@ -316,13 +316,13 @@ describe("reconciliation worker integration", () => {
       idempotencyKey: `ingest:${source}:ambiguous`,
     });
 
-    const run = await reconciliation.runReconciliation({
+    const run = await reconciliation.runs.runReconciliation({
       source,
       rulesetChecksum: "core-default-v1",
       inputQuery: {},
       idempotencyKey: `run:${source}:1`,
     });
-    const replay = await reconciliation.runReconciliation({
+    const replay = await reconciliation.runs.runReconciliation({
       source,
       rulesetChecksum: "core-default-v1",
       inputQuery: {},
@@ -337,7 +337,7 @@ describe("reconciliation worker integration", () => {
     });
     expect(replay.id).toBe(run.id);
 
-    const exceptions = await reconciliation.listExceptions({
+    const exceptions = await reconciliation.exceptions.listExceptions({
       source,
       state: "open",
     });
@@ -353,7 +353,7 @@ describe("reconciliation worker integration", () => {
       .where(eq(schema.reconciliationMatches.runId, run.id))
       .limit(1);
 
-    await expect(reconciliation.explainMatch(match!.id)).resolves.toEqual({
+    await expect(reconciliation.exceptions.explainMatch(match!.id)).resolves.toEqual({
       reason: "multiple_candidates",
       candidateOperationIds: [candidateA, candidateB],
       candidateDocumentIds: [],
@@ -372,7 +372,7 @@ describe("reconciliation worker integration", () => {
       ledgerLookup,
     });
 
-    await reconciliation.ingestExternalRecord({
+    await reconciliation.records.ingestExternalRecord({
       source,
       sourceRecordId: "duplicate-record",
       rawPayload: { amountMinor: 100 },
@@ -382,7 +382,7 @@ describe("reconciliation worker integration", () => {
     });
 
     await expect(
-      reconciliation.ingestExternalRecord({
+      reconciliation.records.ingestExternalRecord({
         source,
         sourceRecordId: "duplicate-record",
         rawPayload: { amountMinor: 200 },

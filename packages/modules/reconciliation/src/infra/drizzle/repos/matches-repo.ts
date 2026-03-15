@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
 
-import type { ReconciliationMatchesRepositoryPort } from "../../../application/ports";
+import type { ReconciliationMatchesRepository } from "../../../application/runs/ports";
 import { schema } from "../schema";
 
-export function createDrizzleReconciliationMatchesRepository(): ReconciliationMatchesRepositoryPort {
+export function createDrizzleReconciliationMatchesRepository(): ReconciliationMatchesRepository {
   return {
     async findById(executor, id) {
       const [match] = await executor

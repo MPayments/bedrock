@@ -15,21 +15,22 @@ import type {
   FxQuoteLegRecord,
   FxQuoteLegWriteModel,
   FxQuoteRecord,
-  FxQuotesRepositoryPort,
   FxQuoteWriteModel,
-} from "../../../application/ports";
+  FxQuotesRepository,
+} from "../../../application/quotes/ports";
+import type { FxDbExecutor as Executor } from "../../../application/shared/external-ports";
 import { schema } from "../schema";
 
 export function createDrizzleFxQuotesRepository(
   db: Database,
-): FxQuotesRepositoryPort {
-  function executorOrDb(executor?: FxDbExecutor) {
+): FxQuotesRepository {
+  function executorOrDb(executor?: Executor) {
     return executor ?? db;
   }
 
   async function insertQuote(
     input: FxQuoteWriteModel,
-    executor?: FxDbExecutor,
+    executor?: Executor,
   ): Promise<FxQuoteRecord | null> {
     const inserted = await executorOrDb(executor)
       .insert(schema.fxQuotes)
@@ -44,7 +45,7 @@ export function createDrizzleFxQuotesRepository(
 
   async function insertQuoteLegs(
     input: FxQuoteLegWriteModel[],
-    executor?: FxDbExecutor,
+    executor?: Executor,
   ): Promise<void> {
     if (input.length === 0) {
       return;
@@ -116,7 +117,7 @@ export function createDrizzleFxQuotesRepository(
 
   async function findQuoteById(
     id: string,
-    executor?: FxDbExecutor,
+    executor?: Executor,
   ): Promise<FxQuoteRecord | undefined> {
     const [quote] = await executorOrDb(executor)
       .select()
@@ -129,7 +130,7 @@ export function createDrizzleFxQuotesRepository(
 
   async function findQuoteByIdempotencyKey(
     idempotencyKey: string,
-    executor?: FxDbExecutor,
+    executor?: Executor,
   ): Promise<FxQuoteRecord | undefined> {
     const [quote] = await executorOrDb(executor)
       .select()
@@ -142,7 +143,7 @@ export function createDrizzleFxQuotesRepository(
 
   async function listQuoteLegs(
     quoteId: string,
-    executor?: FxDbExecutor,
+    executor?: Executor,
   ): Promise<FxQuoteLegRecord[]> {
     const legs = await executorOrDb(executor)
       .select()

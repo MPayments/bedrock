@@ -4,15 +4,16 @@ import { type Database } from "@bedrock/platform/persistence/drizzle";
 
 import type {
   FxDbExecutor,
-  FxQuoteFinancialLinesRepositoryPort,
   FxQuoteFinancialLineWriteModel,
-} from "../../../application/ports";
+  FxQuoteFinancialLinesRepository,
+} from "../../../application/quotes/ports";
+import type { FxDbExecutor as Executor } from "../../../application/shared/external-ports";
 import { schema } from "../schema";
 
 export function createDrizzleFxQuoteFinancialLinesRepository(
   db: Database,
-): FxQuoteFinancialLinesRepositoryPort {
-  function executorOrDb(executor?: FxDbExecutor) {
+): FxQuoteFinancialLinesRepository {
+  function executorOrDb(executor?: Executor) {
     return executor ?? db;
   }
 
@@ -21,7 +22,7 @@ export function createDrizzleFxQuoteFinancialLinesRepository(
       quoteId: string;
       financialLines: FxQuoteFinancialLineWriteModel[];
     },
-    executor?: FxDbExecutor,
+    executor?: Executor,
   ): Promise<void> {
     const dbExecutor = executorOrDb(executor);
 
@@ -40,7 +41,7 @@ export function createDrizzleFxQuoteFinancialLinesRepository(
 
   async function listQuoteFinancialLines(
     quoteId: string,
-    executor?: FxDbExecutor,
+    executor?: Executor,
   ): Promise<FxQuoteFinancialLineWriteModel[]> {
     const rows = await executorOrDb(executor)
       .select()

@@ -2,5 +2,5 @@ export {
   createReconciliationService,
   type ReconciliationService,
   type ReconciliationServiceDeps,
-} from "./reconciliation";
+} from "./service";
 export * from "./errors";

@@ -4,6 +4,7 @@ import {
   createFeesServiceContext,
   type FeesServiceDeps,
 } from "./application/shared/context";
+import type { Transaction } from "@bedrock/platform/persistence";
 import type {
   AdjustmentComponent,
   ApplicableFeeRule,
@@ -32,19 +33,19 @@ export interface FeesService {
   upsertRule(input: UpsertFeeRuleInput): Promise<string>;
   listApplicableRules(
     input: ResolveFeeRulesInput,
-    executor?: unknown,
+    tx?: Transaction,
   ): Promise<ApplicableFeeRule[]>;
   calculateFxQuoteFeeComponents(
     input: CalculateFxQuoteFeeComponentsInput,
-    executor?: unknown,
+    tx?: Transaction,
   ): Promise<FeeComponent[]>;
   saveQuoteFeeComponents(
     input: SaveQuoteFeeComponentsInput,
-    executor?: unknown,
+    tx?: Transaction,
   ): Promise<void>;
   getQuoteFeeComponents(
     input: GetQuoteFeeComponentsInput,
-    executor?: unknown,
+    tx?: Transaction,
   ): Promise<FeeComponent[]>;
   mergeFeeComponents(input: MergeFeeComponentsInput): FeeComponent[];
   aggregateFeeComponents(components: FeeComponent[]): FeeComponent[];
@@ -61,15 +62,14 @@ export interface FeesService {
 }
 
 export function createFeesService(deps: FeesServiceDeps): FeesService {
-  const rulesRepository = createDrizzleFeesRulesRepository({ db: deps.db });
-  const quoteSnapshotsRepository = createDrizzleFeesQuoteSnapshotsRepository({
-    db: deps.db,
-  });
   const context = createFeesServiceContext({
     logger: deps.logger,
     currenciesService: deps.currenciesService,
-    rulesRepository,
-    quoteSnapshotsRepository,
+    rulesRepository: createDrizzleFeesRulesRepository({ db: deps.db }),
+    quoteSnapshotsQueryRepository:
+      createDrizzleFeesQuoteSnapshotsRepository({ db: deps.db }),
+    quoteSnapshotsCommandRepository:
+      createDrizzleFeesQuoteSnapshotsRepository({ db: deps.db }),
   });
 
   const commandHandlers = createFeesCommandHandlers(context);

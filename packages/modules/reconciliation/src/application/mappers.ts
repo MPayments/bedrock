@@ -6,9 +6,9 @@ import type {
 } from "../contracts";
 import type {
   ReconciliationExceptionListRow,
-  ReconciliationExternalRecordRecord,
-  ReconciliationRunRecord,
-} from "./ports";
+} from "./exceptions/ports";
+import type { ReconciliationExternalRecordRecord } from "./records/ports";
+import type { ReconciliationRunRecord } from "./runs/ports";
 
 export function toReconciliationExternalRecordDto(
   record: ReconciliationExternalRecordRecord,

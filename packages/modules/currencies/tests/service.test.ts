@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createCurrenciesService } from "../src/currencies";
+import { createCurrenciesService } from "../src/service";
 import {
   CurrencyDeleteConflictError,
   CurrencyNotFoundError,

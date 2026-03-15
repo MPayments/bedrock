@@ -8,7 +8,11 @@ export {
 } from "./domain/catalog";
 export {
   isValidCurrency,
+  isValidCurrencyCode,
   normalizeCurrency,
+  normalizeCurrencyCode,
   parseCurrency,
+  parseCurrencyCode,
+  type CurrencyCode,
   type Currency,
 } from "./domain/code";

@@ -147,17 +147,17 @@ describe("FX worker integration", () => {
         });
         const worker = createFxRatesWorkerDefinition({ fxService });
 
-        await fxService.syncRatesFromSource({
+        await fxService.rates.syncRatesFromSource({
             source: "cbr",
             force: true,
             now: initialNow,
         });
-        await fxService.syncRatesFromSource({
+        await fxService.rates.syncRatesFromSource({
             source: "investing",
             force: true,
             now: initialNow,
         });
-        await fxService.syncRatesFromSource({
+        await fxService.rates.syncRatesFromSource({
             source: "xe",
             force: true,
             now: initialNow,

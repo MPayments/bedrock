@@ -1,12 +1,18 @@
 import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
 import type {
   Database,
-  Queryable,
+  Transaction,
 } from "@bedrock/platform/persistence";
 
-import type { CurrenciesRepositoryPort } from "../ports";
+import type {
+  CurrenciesCommandRepository,
+  CurrenciesQueryRepository,
+} from "../currencies/ports";
 import { createCurrenciesCache, type CurrenciesCacheStore } from "./cache";
-import { createDrizzleCurrenciesRepository } from "../../infra/drizzle/repos/currencies-repository";
+import {
+  createDrizzleCurrenciesCommandRepository,
+  createDrizzleCurrenciesQueryRepository,
+} from "../../infra/drizzle/repos/currencies-repository";
 
 export interface CurrenciesServiceDeps {
   db: Database;
@@ -14,29 +20,31 @@ export interface CurrenciesServiceDeps {
 }
 
 export interface CurrenciesServiceContext {
-  repository: CurrenciesRepositoryPort;
+  commands: CurrenciesCommandRepository;
+  queries: CurrenciesQueryRepository;
   cache: CurrenciesCacheStore;
   log: Logger;
 }
 
 export interface CurrenciesQueriesContext {
-  repository: Pick<CurrenciesRepositoryPort, "listPrecisionsByCode">;
+  queries: Pick<CurrenciesQueryRepository, "listPrecisionsByCode">;
 }
 
 export function createCurrenciesServiceContext(
   deps: CurrenciesServiceDeps,
 ): CurrenciesServiceContext {
   return {
-    repository: createDrizzleCurrenciesRepository({ db: deps.db }),
+    commands: createDrizzleCurrenciesCommandRepository({ db: deps.db }),
+    queries: createDrizzleCurrenciesQueryRepository({ db: deps.db }),
     cache: createCurrenciesCache(),
     log: deps.logger?.child({ service: "currencies" }) ?? noopLogger,
   };
 }
 
 export function createCurrenciesQueriesContext(input: {
-  db: Queryable;
+  db: Database | Transaction;
 }): CurrenciesQueriesContext {
   return {
-    repository: createDrizzleCurrenciesRepository({ db: input.db }),
+    queries: createDrizzleCurrenciesQueryRepository({ db: input.db }),
   };
 }

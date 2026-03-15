@@ -375,7 +375,7 @@ export function createIfrsDocumentDeps(input: {
         asOf,
         idempotencyKey,
       }) {
-        const quote = await fxService.quote({
+        const quote = await fxService.quotes.quote({
           mode: "auto_cross",
           idempotencyKey,
           fromCurrency,

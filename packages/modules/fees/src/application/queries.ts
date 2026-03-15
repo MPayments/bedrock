@@ -6,7 +6,7 @@ import type {
   ResolveFeeRulesInput,
 } from "../contracts";
 import { calculateBpsAmount } from "../domain/math";
-import type { FeesDbExecutor } from "./ports";
+import type { Transaction } from "@bedrock/platform/persistence";
 import type { FeesServiceContext } from "./shared/context";
 import {
   validateFxQuoteFeeCalculation,
@@ -15,12 +15,15 @@ import {
 } from "./validation";
 
 export function createFeesQueryHandlers(context: FeesServiceContext) {
-  const { currenciesService, rulesRepository, quoteSnapshotsRepository } =
-    context;
+  const {
+    currenciesService,
+    rulesRepository,
+    quoteSnapshotsQueryRepository,
+  } = context;
 
   async function listApplicableRules(
     input: ResolveFeeRulesInput,
-    executor?: FeesDbExecutor,
+    _tx?: Transaction,
   ): Promise<ApplicableFeeRule[]> {
     const validated = validateResolveFeeRulesInput(input);
 
@@ -31,22 +34,19 @@ export function createFeesQueryHandlers(context: FeesServiceContext) {
       ? (await currenciesService.findByCode(validated.toCurrency)).id
       : null;
 
-    return rulesRepository.listApplicableRules(
-      {
-        operationKind: validated.operationKind,
-        at: validated.at,
-        dealDirection: validated.dealDirection,
-        dealForm: validated.dealForm,
-        fromCurrencyId,
-        toCurrencyId,
-      },
-      executor,
-    );
+    return rulesRepository.listApplicableRules({
+      operationKind: validated.operationKind,
+      at: validated.at,
+      dealDirection: validated.dealDirection,
+      dealForm: validated.dealForm,
+      fromCurrencyId,
+      toCurrencyId,
+    });
   }
 
   async function calculateFxQuoteFeeComponents(
     input: CalculateFxQuoteFeeComponentsInput,
-    executor?: FeesDbExecutor,
+    tx?: Transaction,
   ): Promise<FeeComponent[]> {
     const validated = validateFxQuoteFeeCalculation(input);
     const rules = await listApplicableRules(
@@ -58,7 +58,7 @@ export function createFeesQueryHandlers(context: FeesServiceContext) {
         dealDirection: validated.dealDirection,
         dealForm: validated.dealForm,
       },
-      executor,
+      tx,
     );
 
     const components: FeeComponent[] = [];
@@ -106,12 +106,12 @@ export function createFeesQueryHandlers(context: FeesServiceContext) {
 
   async function getQuoteFeeComponents(
     input: GetQuoteFeeComponentsInput,
-    executor?: FeesDbExecutor,
+    tx?: Transaction,
   ): Promise<FeeComponent[]> {
     const validated = validateGetQuoteFeeComponentsInput(input);
-    const rows = await quoteSnapshotsRepository.listQuoteFeeComponents(
+    const rows = await quoteSnapshotsQueryRepository.listQuoteFeeComponents(
       validated.quoteId,
-      executor,
+      tx,
     );
     const uniqueCurrencyIds = [...new Set(rows.map((row) => row.currencyId))];
     const currencyCodeById = new Map<string, string>();

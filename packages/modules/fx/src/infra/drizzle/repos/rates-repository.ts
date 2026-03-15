@@ -5,12 +5,12 @@ import { type Database } from "@bedrock/platform/persistence/drizzle";
 import type {
   FxRateSource,
   FxRateSourceRowRecord,
-  FxRatesRepositoryPort,
   RateHistoryPoint,
   RatePairView,
   RateRowRecord,
   SourceRateView,
-} from "../../../application/ports";
+  FxRatesRepository,
+} from "../../../application/rates/ports";
 import { getSourceOrder } from "../../../domain/source-priority";
 import { schema as fxSchema } from "../schema";
 
@@ -20,7 +20,7 @@ function computeRate(num: bigint, den: bigint): number {
 
 export function createDrizzleFxRatesRepository(
   db: Database,
-): FxRatesRepositoryPort {
+): FxRatesRepository {
   async function getSourceRow(
     source: FxRateSource,
   ): Promise<FxRateSourceRowRecord | null> {

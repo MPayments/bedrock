@@ -7,7 +7,7 @@ import type {
   FxQuoteDetailsRecord,
   FxQuoteLegRecord,
   FxQuoteRecord,
-} from "../ports";
+} from "./ports";
 import type { FxServiceContext } from "../shared/context";
 import {
   type GetQuoteDetailsInput,

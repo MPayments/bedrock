@@ -10,7 +10,10 @@ import {
   type SQL,
 } from "drizzle-orm";
 
-import type { Queryable } from "@bedrock/platform/persistence";
+import type {
+  Database,
+  Transaction,
+} from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,
   resolveSortValue,
@@ -18,7 +21,10 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 import type { RequisiteProvider } from "../../../contracts";
-import type { RequisiteProvidersRepository } from "../../../application/ports";
+import type {
+  RequisiteProvidersCommandRepository,
+  RequisiteProvidersQueryRepository,
+} from "../../../application/providers/ports";
 import {
   requisiteProviders,
   type RequisiteProviderRow,
@@ -31,10 +37,6 @@ const PROVIDERS_SORT_COLUMN_MAP = {
   createdAt: requisiteProviders.createdAt,
   updatedAt: requisiteProviders.updatedAt,
 } as const;
-
-function resolveDb(db: Queryable, queryable?: Queryable): Queryable {
-  return queryable ?? db;
-}
 
 function toPublicProvider(row: RequisiteProviderRow): RequisiteProvider {
   return {
@@ -53,12 +55,12 @@ function toPublicProvider(row: RequisiteProviderRow): RequisiteProvider {
   };
 }
 
-export function createDrizzleRequisiteProvidersRepository(
-  db: Queryable,
-): RequisiteProvidersRepository {
+export function createDrizzleRequisiteProvidersQueryRepository(
+  db: Database | Transaction,
+): RequisiteProvidersQueryRepository {
   return {
-    async findProviderById(id, queryable) {
-      const [row] = await resolveDb(db, queryable)
+    async findProviderById(id) {
+      const [row] = await db
         .select()
         .from(requisiteProviders)
         .where(eq(requisiteProviders.id, id))
@@ -66,8 +68,8 @@ export function createDrizzleRequisiteProvidersRepository(
 
       return row ? toPublicProvider(row) : null;
     },
-    async findActiveProviderById(id, queryable) {
-      const [row] = await resolveDb(db, queryable)
+    async findActiveProviderById(id) {
+      const [row] = await db
         .select()
         .from(requisiteProviders)
         .where(
@@ -80,8 +82,7 @@ export function createDrizzleRequisiteProvidersRepository(
 
       return row ? toPublicProvider(row) : null;
     },
-    async listProviders(input, queryable) {
-      const database = resolveDb(db, queryable);
+    async listProviders(input) {
       const conditions: SQL[] = [isNull(requisiteProviders.archivedAt)];
 
       if (input.name) {
@@ -108,14 +109,14 @@ export function createDrizzleRequisiteProvidersRepository(
       );
 
       const [rows, countRows] = await Promise.all([
-        database
+        db
           .select()
           .from(requisiteProviders)
           .where(where)
           .orderBy(orderByFn(orderByCol))
           .limit(input.limit)
           .offset(input.offset),
-        database
+        db
           .select({ total: sql<number>`count(*)::int` })
           .from(requisiteProviders)
           .where(where),
@@ -128,11 +129,18 @@ export function createDrizzleRequisiteProvidersRepository(
         offset: input.offset,
       } satisfies PaginatedList<RequisiteProvider>;
     },
-    async insertProvider(input, queryable) {
-      const database = resolveDb(db, queryable);
-      const [row] = await database
+  };
+}
+
+export function createDrizzleRequisiteProvidersCommandRepository(
+  db: Database | Transaction,
+): RequisiteProvidersCommandRepository {
+  return {
+    async insertProvider(input, tx) {
+      const [row] = await (tx ?? db)
         .insert(requisiteProviders)
         .values({
+          id: input.id,
           kind: input.kind,
           name: input.name,
           description: input.description ?? null,
@@ -150,9 +158,8 @@ export function createDrizzleRequisiteProvidersRepository(
 
       return toPublicProvider(row);
     },
-    async updateProvider(id, input, queryable) {
-      const database = resolveDb(db, queryable);
-      const [row] = await database
+    async updateProvider(input, tx) {
+      const [row] = await (tx ?? db)
         .update(requisiteProviders)
         .set({
           kind: input.kind,
@@ -163,20 +170,18 @@ export function createDrizzleRequisiteProvidersRepository(
           contact: input.contact,
           bic: input.bic,
           swift: input.swift,
-          updatedAt: new Date(),
         })
-        .where(eq(requisiteProviders.id, id))
+        .where(eq(requisiteProviders.id, input.id))
         .returning();
 
       return row ? toPublicProvider(row) : null;
     },
-    async archiveProvider(id, queryable) {
-      const database = resolveDb(db, queryable);
-      const [row] = await database
+    async archiveProvider(id, archivedAt, tx) {
+      const [row] = await (tx ?? db)
         .update(requisiteProviders)
         .set({
-          archivedAt: new Date(),
-          updatedAt: new Date(),
+          archivedAt,
+          updatedAt: archivedAt,
         })
         .where(eq(requisiteProviders.id, id))
         .returning({ id: requisiteProviders.id });

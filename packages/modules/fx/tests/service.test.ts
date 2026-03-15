@@ -4,7 +4,7 @@ import { schema } from "@bedrock/fx/schema";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
 import { NotFoundError, QuoteExpiredError } from "../src/errors";
-import { createFxService } from "../src/fx";
+import { createFxService } from "../src";
 import {
   createMockCurrenciesService,
   createNoopFeesService,
@@ -144,7 +144,7 @@ describe("createFxService", () => {
         } as any;
         const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
 
-        const quote = await service.quote({
+        const quote = await service.quotes.quote({
             mode: "explicit_route",
             idempotencyKey: "idem-route-1",
             fromCurrency: "RUB",
@@ -226,7 +226,7 @@ describe("createFxService", () => {
         } as any;
         const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
 
-        await expect(service.quote({
+        await expect(service.quotes.quote({
             mode: "explicit_route",
             idempotencyKey: "idem-route-bad",
             fromCurrency: "RUB",
@@ -323,7 +323,7 @@ describe("createFxService", () => {
         } as any;
         const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
 
-        const quote = await service.quote({
+        const quote = await service.quotes.quote({
             mode: "auto_cross",
             idempotencyKey: "idem-auto-1",
             fromCurrency: "USD",
@@ -377,7 +377,7 @@ describe("createFxService", () => {
         } as any;
         const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
 
-        const quote = await service.quote({
+        const quote = await service.quotes.quote({
             mode: "explicit_route",
             idempotencyKey: "idem-race-1",
             fromCurrency: "RUB",
@@ -433,7 +433,7 @@ describe("createFxService", () => {
             currenciesService: createMockCurrenciesService(),
         });
 
-        const result = await service.listQuotes({
+        const result = await service.quotes.listQuotes({
             limit: 20,
             offset: 0,
             status: ["active", "used"],
@@ -510,7 +510,7 @@ describe("createFxService", () => {
         } as any;
         const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
 
-        const details = await service.getQuoteDetails({ quoteRef: "idem-details-1" });
+        const details = await service.quotes.getQuoteDetails({ quoteRef: "idem-details-1" });
 
         expect(details.quote).toEqual(quote);
         expect(details.legs).toEqual(legs);
@@ -547,7 +547,7 @@ describe("createFxService", () => {
         } as any;
         const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
 
-        await expect(service.getQuoteDetails({ quoteRef: uuidQuoteRef })).rejects.toThrow(ValidationError);
+        await expect(service.quotes.getQuoteDetails({ quoteRef: uuidQuoteRef })).rejects.toThrow(ValidationError);
     });
 
     it("throws NotFoundError when markQuoteUsed cannot find quote", async () => {
@@ -562,7 +562,7 @@ describe("createFxService", () => {
         });
 
         await expect(
-            service.markQuoteUsed({
+            service.quotes.markQuoteUsed({
                 quoteId: QUOTE_ID,
                 usedByRef: "order:1:fx",
                 at: new Date("2026-02-14T00:00:00Z"),
@@ -587,7 +587,7 @@ describe("createFxService", () => {
             currenciesService: createMockCurrenciesService(),
         });
 
-        const result = await service.markQuoteUsed({
+        const result = await service.quotes.markQuoteUsed({
             quoteId: QUOTE_ID,
             usedByRef: "order:2:fx",
             at: new Date("2026-02-14T00:01:00Z"),
@@ -614,7 +614,7 @@ describe("createFxService", () => {
         });
 
         await expect(
-            service.markQuoteUsed({
+            service.quotes.markQuoteUsed({
                 quoteId: QUOTE_ID,
                 usedByRef: "order:3:fx",
                 at: new Date("2026-02-14T00:01:00Z"),
@@ -650,7 +650,7 @@ describe("createFxService", () => {
             currenciesService: createMockCurrenciesService(),
         });
 
-        const result = await service.markQuoteUsed({
+        const result = await service.quotes.markQuoteUsed({
             quoteId: QUOTE_ID,
             usedByRef: "order:4:fx",
             at: new Date("2026-02-14T00:01:00Z"),

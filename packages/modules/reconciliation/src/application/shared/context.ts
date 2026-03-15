@@ -1,4 +1,7 @@
-import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
+import {
+  noopLogger,
+  type Logger,
+} from "@bedrock/platform/observability/logger";
 import type { Database } from "@bedrock/platform/persistence";
 
 import { createDrizzlePendingSourcesQuerySupport } from "../../infra/drizzle/query-support/pending-sources";
@@ -10,7 +13,7 @@ import type {
   ReconciliationDocumentsPort,
   ReconciliationIdempotencyPort,
   ReconciliationLedgerLookupPort,
-} from "../ports";
+} from "./external-ports";
 
 export interface ReconciliationServiceDeps {
   db: Database;

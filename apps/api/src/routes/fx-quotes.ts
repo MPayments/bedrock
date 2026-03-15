@@ -18,11 +18,15 @@ import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
 
+type FxQuoteService = AppContext["fxService"]["quotes"];
+
 const QuoteRefParamsSchema = z.object({
   quoteRef: z.string().min(1).max(255),
 });
 
-function serializeQuote(quote: Awaited<ReturnType<AppContext["fxService"]["quote"]>>) {
+function serializeQuote(
+  quote: Awaited<ReturnType<FxQuoteService["quote"]>>,
+) {
   return {
     id: quote.id,
     fromCurrencyId: quote.fromCurrencyId,
@@ -47,7 +51,7 @@ function serializeQuote(quote: Awaited<ReturnType<AppContext["fxService"]["quote
 }
 
 function serializeQuoteListItem(
-  quote: Awaited<ReturnType<AppContext["fxService"]["quote"]>>,
+  quote: Awaited<ReturnType<FxQuoteService["quote"]>>,
 ) {
   return {
     ...serializeQuote(quote),
@@ -61,7 +65,7 @@ function serializeQuoteListItem(
 }
 
 function serializeQuoteDetails(
-  details: Awaited<ReturnType<AppContext["fxService"]["getQuoteDetails"]>>,
+  details: Awaited<ReturnType<FxQuoteService["getQuoteDetails"]>>,
 ) {
   return {
     quote: serializeQuote(details.quote),
@@ -225,7 +229,7 @@ export function fxQuotesRoutes(ctx: AppContext) {
   return app
     .openapi(listQuotesRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.fxService.listQuotes(query);
+      const result = await ctx.fxService.quotes.listQuotes(query);
 
       return c.json(
         {
@@ -240,7 +244,7 @@ export function fxQuotesRoutes(ctx: AppContext) {
     .openapi(createQuoteRoute, async (c) => {
       try {
         const body = c.req.valid("json");
-        const quote = await ctx.fxService.quote(toQuoteInput(body));
+        const quote = await ctx.fxService.quotes.quote(toQuoteInput(body));
         return c.json(serializeQuote(quote), 201);
       } catch (error) {
         if (error instanceof ValidationError) {
@@ -253,7 +257,7 @@ export function fxQuotesRoutes(ctx: AppContext) {
     .openapi(getQuoteRoute, async (c) => {
       try {
         const { quoteRef } = c.req.valid("param");
-        const details = await ctx.fxService.getQuoteDetails({ quoteRef });
+        const details = await ctx.fxService.quotes.getQuoteDetails({ quoteRef });
         return c.json(serializeQuoteDetails(details), 200);
       } catch (error) {
         if (error instanceof ValidationError) {

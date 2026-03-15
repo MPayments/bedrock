@@ -3,7 +3,6 @@ export { isUuidLike } from "./uuid";
 export { canonicalJson, stableStringify, makePlanKey } from "./canon";
 export {
   AggregateRoot,
-  assertDomain,
   brandId,
   dedupeIds,
   DomainError,
@@ -14,10 +13,7 @@ export {
   readCauseString,
   ValueObject,
 } from "./domain";
-export type {
-  Brand,
-  DomainEvent,
-} from "./domain";
+export type { Brand, DomainEvent } from "./domain";
 export {
   ValidationError,
   NotFoundError,

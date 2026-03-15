@@ -2,7 +2,10 @@ import type { Logger } from "@bedrock/platform/observability/logger";
 import { noopLogger } from "@bedrock/platform/observability/logger";
 import type { Database } from "@bedrock/platform/persistence";
 
-import type { RequisiteProvidersRepository } from "../ports";
+import type {
+  RequisiteProvidersCommandRepository,
+  RequisiteProvidersQueryRepository,
+} from "../providers/ports";
 
 export interface RequisiteProvidersServiceDeps {
   db: Database;
@@ -12,17 +15,20 @@ export interface RequisiteProvidersServiceDeps {
 export interface RequisiteProvidersServiceContext {
   db: Database;
   log: Logger;
-  providers: RequisiteProvidersRepository;
+  queries: RequisiteProvidersQueryRepository;
+  commands: RequisiteProvidersCommandRepository;
 }
 
 export function createRequisiteProvidersServiceContext(input: {
   db: Database;
   logger?: Logger;
-  providers: RequisiteProvidersRepository;
+  queries: RequisiteProvidersQueryRepository;
+  commands: RequisiteProvidersCommandRepository;
 }): RequisiteProvidersServiceContext {
   return {
     db: input.db,
     log: input.logger?.child({ service: "requisite-providers" }) ?? noopLogger,
-    providers: input.providers,
+    queries: input.queries,
+    commands: input.commands,
   };
 }

@@ -3,16 +3,15 @@ import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import type { Database } from "@bedrock/platform/persistence";
 
 import type {
-  FeesDbExecutor,
   FeesRuleRecord,
-  FeesRulesRepositoryPort,
   FeesRuleWriteModel,
-} from "../../../application/ports";
+  FeesRulesRepository,
+} from "../../../application/rules/ports";
 import { schema } from "../schema";
 
 export function createDrizzleFeesRulesRepository(input: {
   db: Database;
-}): FeesRulesRepositoryPort {
+}): FeesRulesRepository {
   const { db } = input;
 
   async function insertRule(input: FeesRuleWriteModel): Promise<string> {
@@ -56,10 +55,7 @@ export function createDrizzleFeesRulesRepository(input: {
       fromCurrencyId: string | null;
       toCurrencyId: string | null;
     },
-    executor?: FeesDbExecutor,
   ): Promise<FeesRuleRecord[]> {
-    const queryExecutor = executor ?? db;
-
     const directionCondition = input.dealDirection
       ? or(
           isNull(schema.feeRules.dealDirection),
@@ -88,7 +84,7 @@ export function createDrizzleFeesRulesRepository(input: {
         )
       : isNull(schema.feeRules.toCurrencyId);
 
-    return queryExecutor
+    return db
       .select({
         id: schema.feeRules.id,
         calcMethod: schema.feeRules.calcMethod,

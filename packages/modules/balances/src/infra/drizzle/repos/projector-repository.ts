@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import type { Transaction } from "@bedrock/platform/persistence";
 
-import type { BalancesProjectionPort } from "../../../application/ports";
+import type { BalancesProjectionRepository } from "../../../application/projection/ports";
 import {
   hasConsistentCursor,
   type BalanceProjectorCursor,
@@ -22,7 +22,7 @@ const BALANCE_EVENT_TYPE = "ledger_posted";
 
 export function createDrizzleBalancesProjectionRepository(
   tx: Transaction,
-): BalancesProjectionPort {
+): BalancesProjectionRepository {
   return {
     async ensureCursor(): Promise<BalanceProjectorCursor> {
       await tx

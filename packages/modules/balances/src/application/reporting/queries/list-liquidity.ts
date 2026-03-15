@@ -5,7 +5,7 @@ import type {
 } from "@bedrock/platform/persistence";
 
 import type { BalancesQueriesContext } from "../../shared/context";
-import type { BalancesReportingPort } from "../../ports";
+import type { BalancesReportingRepository } from "../ports";
 import type {
   ListOrganizationLiquidityRowsInput,
   LiquidityQueryRow,
@@ -19,7 +19,7 @@ export interface BalancesQueries {
 }
 
 export function createBalancesReportingQueries(input: {
-  reporting: BalancesReportingPort;
+  reporting: BalancesReportingRepository;
 }): BalancesQueries {
   return {
     listOrganizationLiquidityRows: createListOrganizationLiquidityRowsQuery(
@@ -29,7 +29,7 @@ export function createBalancesReportingQueries(input: {
 }
 
 export function createListOrganizationLiquidityRowsQuery(
-  reporting: BalancesReportingPort,
+  reporting: BalancesReportingRepository,
 ) {
   return async function listOrganizationLiquidityRows(
     input: ListOrganizationLiquidityRowsInput,

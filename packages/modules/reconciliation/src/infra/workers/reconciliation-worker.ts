@@ -13,7 +13,7 @@ import type {
   ReconciliationDocumentsPort,
   ReconciliationIdempotencyPort,
   ReconciliationLedgerLookupPort,
-} from "../../application/ports";
+} from "../../application/shared/external-ports";
 import {
   createProcessPendingSourcesHandler,
   type ReconciliationWorkerSourceGuard,

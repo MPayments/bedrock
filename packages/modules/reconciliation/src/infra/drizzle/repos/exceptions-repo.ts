@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 
-import type { ReconciliationExceptionsRepositoryPort } from "../../../application/ports";
+import type { ReconciliationExceptionsRepository } from "../../../application/exceptions/ports";
 import { ReconciliationRunSummarySchema } from "../../../contracts";
 import { schema } from "../schema";
 
@@ -11,7 +11,7 @@ function toRunRecord(run: typeof schema.reconciliationRuns.$inferSelect) {
   };
 }
 
-export function createDrizzleReconciliationExceptionsRepository(): ReconciliationExceptionsRepositoryPort {
+export function createDrizzleReconciliationExceptionsRepository(): ReconciliationExceptionsRepository {
   return {
     async findByIdForUpdate(executor, id) {
       const [exception] = await executor

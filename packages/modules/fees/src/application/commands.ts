@@ -15,7 +15,7 @@ import {
   normalizeComponent,
   resolveAccountingTreatment,
 } from "../domain/normalization";
-import type { FeesDbExecutor } from "./ports";
+import type { Transaction } from "@bedrock/platform/persistence";
 import type { FeesServiceContext } from "./shared/context";
 import {
   validateAdjustmentComponent,
@@ -35,8 +35,12 @@ function normalizeValidatedAdjustment(
 }
 
 export function createFeesCommandHandlers(context: FeesServiceContext) {
-  const { log, currenciesService, rulesRepository, quoteSnapshotsRepository } =
-    context;
+  const {
+    log,
+    currenciesService,
+    rulesRepository,
+    quoteSnapshotsCommandRepository,
+  } = context;
 
   async function upsertRule(input: UpsertFeeRuleInput): Promise<string> {
     const validated = validateUpsertFeeRuleInput(input);
@@ -85,14 +89,14 @@ export function createFeesCommandHandlers(context: FeesServiceContext) {
 
   async function saveQuoteFeeComponents(
     input: SaveQuoteFeeComponentsInput,
-    executor?: FeesDbExecutor,
+    tx?: Transaction,
   ): Promise<void> {
     const validated = validateSaveQuoteFeeComponentsInput(input);
 
     if (!validated.components.length) {
-      await quoteSnapshotsRepository.replaceQuoteFeeComponents(
+      await quoteSnapshotsCommandRepository.replaceQuoteFeeComponents(
         { quoteId: validated.quoteId, components: [] },
-        executor,
+        tx,
       );
       return;
     }
@@ -109,7 +113,7 @@ export function createFeesCommandHandlers(context: FeesServiceContext) {
       }),
     );
 
-    await quoteSnapshotsRepository.replaceQuoteFeeComponents(
+    await quoteSnapshotsCommandRepository.replaceQuoteFeeComponents(
       {
         quoteId: validated.quoteId,
         components: validated.components.map((raw, idx) => {
@@ -129,7 +133,7 @@ export function createFeesCommandHandlers(context: FeesServiceContext) {
           };
         }),
       },
-      executor,
+      tx,
     );
   }
 

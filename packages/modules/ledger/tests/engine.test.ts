@@ -14,7 +14,7 @@ import {
 } from "./helpers";
 import { OPERATION_TRANSFER_TYPE } from "../src/contracts";
 import { IdempotencyConflictError } from "../src/errors";
-import { createLedgerService } from "../src/ledger";
+import { createLedgerService } from "../src";
 
 function createCreateTransferTx(options?: {
   existingOperation?: boolean;
@@ -133,7 +133,7 @@ describe("createLedgerService", () => {
   describe("validation", () => {
     it("rejects empty transfers", async () => {
       const input = createTestEntry({ transfers: [] });
-      await expect(engine.commitStandalone(input)).rejects.toThrow(
+      await expect(engine.commit.commitStandalone(input)).rejects.toThrow(
         "lines must be a non-empty array",
       );
     });
@@ -147,7 +147,7 @@ describe("createLedgerService", () => {
         ],
       });
 
-      await expect(engine.commitStandalone(input)).rejects.toThrow(
+      await expect(engine.commit.commitStandalone(input)).rejects.toThrow(
         /accountNo must be a non-empty string/,
       );
     });
@@ -198,7 +198,7 @@ describe("createLedgerService", () => {
         ],
       });
 
-      await engine.commitStandalone(input);
+      await engine.commit.commitStandalone(input);
 
       expect(capturedRows).toHaveLength(1);
       expect(capturedRows[0].type).toBe(OPERATION_TRANSFER_TYPE.POST_PENDING);
@@ -226,7 +226,7 @@ describe("createLedgerService", () => {
         ],
       });
 
-      await expect(engine.commitStandalone(input)).resolves.toBeDefined();
+      await expect(engine.commit.commitStandalone(input)).resolves.toBeDefined();
     });
 
     it("rejects non-contiguous chains", async () => {
@@ -255,7 +255,7 @@ describe("createLedgerService", () => {
         ],
       });
 
-      await expect(engine.commitStandalone(input)).rejects.toThrow(
+      await expect(engine.commit.commitStandalone(input)).rejects.toThrow(
         /Non-contiguous chain block/,
       );
     });
@@ -330,7 +330,7 @@ describe("createLedgerService", () => {
         ],
       });
 
-      await engine.commitStandalone(input);
+      await engine.commit.commitStandalone(input);
 
       expect(capturedRows).toHaveLength(4);
       expect(capturedRows[0].isLinked).toBe(true);
@@ -381,7 +381,7 @@ describe("createLedgerService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
-      const result = await engine.commitStandalone(createPostPendingInput());
+      const result = await engine.commit.commitStandalone(createPostPendingInput());
       expect(result.operationId).toBe("existing-op");
     });
 
@@ -412,7 +412,7 @@ describe("createLedgerService", () => {
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
       await expect(
-        engine.commitStandalone(createPostPendingInput()),
+        engine.commit.commitStandalone(createPostPendingInput()),
       ).rejects.toThrow(IdempotencyConflictError);
     });
 
@@ -438,12 +438,12 @@ describe("createLedgerService", () => {
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
       await expect(
-        engine.commitStandalone(createPostPendingInput()),
+        engine.commit.commitStandalone(createPostPendingInput()),
       ).rejects.toThrow("Idempotency conflict but operation not found");
     });
 
     it("creates a new operation on first request", async () => {
-      const result = await engine.commitStandalone(createPostPendingInput());
+      const result = await engine.commit.commitStandalone(createPostPendingInput());
 
       expect(result.operationId).toBe("test-operation-id");
       expect(result.pendingTransferIdsByRef).toBeInstanceOf(Map);
@@ -485,7 +485,7 @@ describe("createLedgerService", () => {
 
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
-      await engine.commitStandalone(createVoidPendingInput());
+      await engine.commit.commitStandalone(createVoidPendingInput());
 
       expect(capturedRows).toHaveLength(1);
       expect(capturedRows[0].type).toBe(OPERATION_TRANSFER_TYPE.VOID_PENDING);
@@ -498,7 +498,7 @@ describe("createLedgerService", () => {
       const tx = createCreateTransferTx();
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
-      const result = await engine.commitStandalone(
+      const result = await engine.commit.commitStandalone(
         createTestEntry({
           transfers: [
             createTestTransferPlan({
@@ -517,7 +517,7 @@ describe("createLedgerService", () => {
       vi.mocked(db.transaction).mockImplementation(async (fn: any) => fn(tx));
 
       await expect(
-        engine.commitStandalone(
+        engine.commit.commitStandalone(
           createTestEntry({
             transfers: [
               createTestTransferPlan({

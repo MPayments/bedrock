@@ -1,7 +1,7 @@
 export {
   createRequisiteProvidersService,
   type RequisiteProvidersService,
-} from "./requisite-providers";
+} from "./service";
 export type {
   RequisiteProvidersServiceDeps,
 } from "./application/shared/context";

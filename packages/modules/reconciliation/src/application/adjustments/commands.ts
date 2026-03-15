@@ -6,6 +6,7 @@ import {
   type CreateAdjustmentDocumentInput,
   type CreateAdjustmentDocumentResult,
 } from "../../contracts";
+import { ReconciliationException } from "../../domain/reconciliation-exception";
 import { RECONCILIATION_IDEMPOTENCY_SCOPE } from "../../domain/idempotency";
 import { ReconciliationExceptionNotFoundError } from "../../errors";
 import { toCreateAdjustmentDocumentResult } from "../mappers";
@@ -46,10 +47,16 @@ export function createAdjustmentDocumentHandler(
             );
           }
 
-          if (exception.adjustmentDocumentId) {
+          const existingException = ReconciliationException.reconstitute(exception);
+          const existingResolution = existingException.resolveWithAdjustment({
+            adjustmentDocumentId: exception.adjustmentDocumentId ?? "",
+            resolvedAt: new Date(),
+          });
+
+          if (existingResolution.alreadyResolved) {
             return {
-              exceptionId: exception.id,
-              documentId: exception.adjustmentDocumentId,
+              exceptionId: existingResolution.exceptionId,
+              documentId: existingResolution.documentId,
             };
           }
 
@@ -72,15 +79,15 @@ export function createAdjustmentDocumentHandler(
             requestContext: validated.requestContext,
           });
 
-          await exceptionsRepo.markResolved(tx, {
-            id: exception.id,
+          const resolved = existingException.resolveWithAdjustment({
             adjustmentDocumentId: created.document.id,
             resolvedAt: new Date(),
           });
+          await exceptionsRepo.markResolved(tx, resolved.update!);
 
           return {
-            exceptionId: exception.id,
-            documentId: created.document.id,
+            exceptionId: resolved.exceptionId,
+            documentId: resolved.documentId,
           };
         },
       }),

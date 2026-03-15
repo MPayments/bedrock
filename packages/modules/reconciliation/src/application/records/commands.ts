@@ -6,6 +6,8 @@ import {
   type ReconciliationExternalRecordDto,
   type ReconciliationExternalRecordInput,
 } from "../../contracts";
+import { DomainError } from "@bedrock/shared/core/domain";
+import { ExternalRecord } from "../../domain/external-record";
 import { RECONCILIATION_IDEMPOTENCY_SCOPE } from "../../domain/idempotency";
 import { ExternalRecordConflictError } from "../../errors";
 import { toReconciliationExternalRecordDto } from "../mappers";
@@ -64,11 +66,22 @@ export function createIngestExternalRecordHandler(
             });
 
           if (existing) {
-            if (existing.payloadHash !== payloadHash) {
-              throw new ExternalRecordConflictError(
-                validated.source,
-                validated.sourceRecordId,
+            try {
+              ExternalRecord.reconstitute(existing).assertSamePayloadHash(
+                payloadHash,
               );
+            } catch (error) {
+              if (
+                error instanceof DomainError &&
+                error.code === "reconciliation.external_record.payload_conflict"
+              ) {
+                throw new ExternalRecordConflictError(
+                  validated.source,
+                  validated.sourceRecordId,
+                );
+              }
+
+              throw error;
             }
 
             return existing;

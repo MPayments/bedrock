@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { DomainError } from "@bedrock/shared/core/domain";
-import { InvalidStateError } from "@bedrock/shared/core/errors";
 
 import {
   buildTestDocument,
@@ -43,8 +42,10 @@ import { createDrizzleDocumentEventsRepository } from "../src/infra/drizzle/repo
 import { schema } from "../src/infra/drizzle/schema";
 import { toStoredJson } from "../src/infra/drizzle/stored-json";
 import type { DocumentModule } from "../src/plugins";
+
 const createModuleStub = () => createTestDocumentModule() as DocumentModule;
-const makeDocument = (overrides: Partial<Document> = {}) => buildTestDocument(overrides);
+const makeDocument = (overrides: Partial<Document> = {}) =>
+  buildTestDocument(overrides);
 
 describe("document helpers", () => {
   it("formats document numbers and normalizes search metadata", () => {
@@ -70,7 +71,9 @@ describe("document helpers", () => {
   });
 
   it("guards active-document actions", () => {
-    expect(() => assertDocumentIsActive(makeDocument(), "submitted")).not.toThrow();
+    expect(() =>
+      assertDocumentIsActive(makeDocument(), "submitted"),
+    ).not.toThrow();
     expect(() =>
       assertDocumentIsActive(
         makeDocument({ lifecycleStatus: "cancelled" }),
@@ -241,7 +244,9 @@ describe("document helpers", () => {
       }),
     );
 
-    await expect(repository.getLatestPostingArtifacts("doc-1")).resolves.toEqual({
+    await expect(
+      repository.getLatestPostingArtifacts("doc-1"),
+    ).resolves.toEqual({
       packChecksum: "pack-1",
     });
   });
@@ -411,7 +416,10 @@ describe("document internal policy", () => {
       withTransaction: vi.fn(),
     };
 
-    await persistDocumentPolicyDenial(transactions as any, new Error("plain failure"));
+    await persistDocumentPolicyDenial(
+      transactions as any,
+      new Error("plain failure"),
+    );
     expect(transactions.withTransaction).not.toHaveBeenCalled();
 
     const policy = createDocumentPolicyStub();

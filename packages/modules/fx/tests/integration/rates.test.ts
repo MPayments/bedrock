@@ -30,7 +30,7 @@ describe("FX rates integration", () => {
         };
         const service = createFxServiceWithProvider(provider);
 
-        await service.setManualRate({
+        await service.rates.setManualRate({
             base: "USD",
             quote: "EUR",
             rateNum: 101n,
@@ -38,12 +38,12 @@ describe("FX rates integration", () => {
             asOf: new Date("2026-02-18T00:00:00.000Z"),
         });
 
-        const first = await service.getLatestRate("USD", "EUR", new Date("2026-02-18T12:00:00.000Z"));
+        const first = await service.rates.getLatestRate("USD", "EUR", new Date("2026-02-18T12:00:00.000Z"));
         expect(first.source).toBe("manual");
         expect(first.rateNum).toBe(101n);
         expect(first.rateDen).toBe(100n);
 
-        await service.setManualRate({
+        await service.rates.setManualRate({
             base: "USD",
             quote: "EUR",
             rateNum: 102n,
@@ -51,7 +51,7 @@ describe("FX rates integration", () => {
             asOf: new Date("2026-02-19T00:00:00.000Z"),
         });
 
-        const second = await service.getLatestRate("USD", "EUR", new Date("2026-02-19T12:00:00.000Z"));
+        const second = await service.rates.getLatestRate("USD", "EUR", new Date("2026-02-19T12:00:00.000Z"));
         expect(second.source).toBe("manual");
         expect(second.rateNum).toBe(102n);
         expect(second.rateDen).toBe(100n);
@@ -101,7 +101,7 @@ describe("FX rates integration", () => {
         };
         const service = createFxServiceWithProvider(provider);
 
-        const rate = await service.getLatestRate("USD", "RUB", new Date("2026-02-19T12:00:00.000Z"));
+        const rate = await service.rates.getLatestRate("USD", "RUB", new Date("2026-02-19T12:00:00.000Z"));
         expect(rate.source).toBe("cbr");
         expect(rate.rateNum).toBe(90n);
         expect(rate.rateDen).toBe(1n);
@@ -162,7 +162,7 @@ describe("FX rates integration", () => {
         };
         const service = createFxServiceWithProvider(provider);
 
-        await expect(service.getLatestRate("USD", "RUB", new Date("2026-02-19T12:00:00.000Z")))
+        await expect(service.rates.getLatestRate("USD", "RUB", new Date("2026-02-19T12:00:00.000Z")))
             .rejects
             .toThrow(RateSourceStaleError);
 

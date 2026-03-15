@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createReconciliationService } from "../src/reconciliation";
+import { createReconciliationService } from "../src";
 
 const EXCEPTION_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -84,7 +84,7 @@ describe("reconciliation service", () => {
   it("creates adjustment documents through the documents port and resolves the exception", async () => {
     const { service, documents, idempotency, updateSet } = createServiceContext();
 
-    const result = await service.createAdjustmentDocument({
+    const result = await service.adjustments.createAdjustmentDocument({
       exceptionId: EXCEPTION_ID,
       docType: "transfer_intra",
       payload: { amountMinor: "1000", currency: "USD" },
@@ -128,7 +128,7 @@ describe("reconciliation service", () => {
     );
 
     await expect(
-      service.createAdjustmentDocument({
+      service.adjustments.createAdjustmentDocument({
         exceptionId: EXCEPTION_ID,
         docType: "transfer_intra",
         payload: { amountMinor: "1000" },

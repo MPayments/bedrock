@@ -18,5 +18,5 @@ export type {
   FxRateSourceProvider,
   FxRateSourceStatus,
   FxRateSourceSyncResult,
-} from "./application/ports";
+} from "./application/shared/external-ports";
 export type { FxRateSource } from "./domain/rate-source";

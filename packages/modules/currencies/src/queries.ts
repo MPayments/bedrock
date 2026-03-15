@@ -1,4 +1,7 @@
-import type { Queryable } from "@bedrock/platform/persistence";
+import type {
+  Database,
+  Transaction,
+} from "@bedrock/platform/persistence";
 
 import { createListCurrencyPrecisionsByCodeHandler } from "./application/queries";
 import { createCurrenciesQueriesContext } from "./application/shared/context";
@@ -8,7 +11,7 @@ export interface CurrenciesQueries {
 }
 
 export function createCurrenciesQueries(input: {
-  db: Queryable;
+  db: Database | Transaction;
 }): CurrenciesQueries {
   const context = createCurrenciesQueriesContext(input);
 

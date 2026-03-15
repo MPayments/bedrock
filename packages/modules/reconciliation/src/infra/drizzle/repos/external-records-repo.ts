@@ -2,10 +2,10 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
-import type { ReconciliationExternalRecordsRepositoryPort } from "../../../application/ports";
+import type { ReconciliationExternalRecordsRepository } from "../../../application/records/ports";
 import { schema } from "../schema";
 
-export function createDrizzleReconciliationExternalRecordsRepository(): ReconciliationExternalRecordsRepositoryPort {
+export function createDrizzleReconciliationExternalRecordsRepository(): ReconciliationExternalRecordsRepository {
   return {
     async findBySourceAndSourceRecordId(executor, input) {
       const [record] = await executor

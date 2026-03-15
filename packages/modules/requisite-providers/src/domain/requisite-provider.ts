@@ -1,0 +1,174 @@
+import {
+  Entity,
+  invariant,
+  normalizeOptionalText,
+  normalizeRequiredText,
+} from "@bedrock/shared/core/domain";
+
+import { normalizeCountryCode } from "./country-code";
+import {
+  isBankLikeRequisiteKind,
+  type RequisiteKind,
+} from "./requisite-kind";
+
+export interface RequisiteProviderSnapshot {
+  id: string;
+  kind: RequisiteKind;
+  name: string;
+  description: string | null;
+  country: string | null;
+  address: string | null;
+  contact: string | null;
+  bic: string | null;
+  swift: string | null;
+  archivedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RequisiteProviderDetails {
+  kind: RequisiteKind;
+  name: string;
+  description?: string | null;
+  country?: string | null;
+  address?: string | null;
+  contact?: string | null;
+  bic?: string | null;
+  swift?: string | null;
+}
+
+export function validateRequisiteProviderDetails(
+  input: RequisiteProviderDetails,
+) {
+  const kind = input.kind;
+  const country = normalizeCountryCode(input.country);
+  const bic = normalizeOptionalText(input.bic);
+  const swift = normalizeOptionalText(input.swift);
+
+  normalizeRequiredText(
+    input.name,
+    "requisite_provider.name.required",
+    "name",
+  );
+
+  if (isBankLikeRequisiteKind(kind)) {
+    invariant(
+      country !== null,
+      "requisite_provider.country.required",
+      `country is required for ${kind} providers`,
+      { field: "country", kind },
+    );
+  }
+
+  if (kind === "bank") {
+    if (country === "RU") {
+      invariant(
+        bic !== null,
+        "requisite_provider.bic.required",
+        "bic is required for Russian banks",
+        { field: "bic", kind, country },
+      );
+    } else if (country !== null) {
+      invariant(
+        swift !== null,
+        "requisite_provider.swift.required",
+        "swift is required for non-Russian banks",
+        { field: "swift", kind, country },
+      );
+    }
+  } else {
+    invariant(
+      bic === null,
+      "requisite_provider.bic.not_allowed",
+      "bic is only allowed for bank providers",
+      { field: "bic", kind },
+    );
+    invariant(
+      !(kind === "blockchain" && swift !== null),
+      "requisite_provider.swift.not_allowed",
+      "swift is not applicable for blockchain providers",
+      { field: "swift", kind },
+    );
+  }
+}
+
+function normalizeDetails(
+  input: RequisiteProviderDetails,
+): Omit<RequisiteProviderSnapshot, "id" | "archivedAt" | "createdAt" | "updatedAt"> {
+  validateRequisiteProviderDetails(input);
+
+  return {
+    kind: input.kind,
+    name: normalizeRequiredText(
+      input.name,
+      "requisite_provider.name.required",
+      "name",
+    ),
+    description: normalizeOptionalText(input.description),
+    country: normalizeCountryCode(input.country),
+    address: normalizeOptionalText(input.address),
+    contact: normalizeOptionalText(input.contact),
+    bic: normalizeOptionalText(input.bic),
+    swift: normalizeOptionalText(input.swift),
+  };
+}
+
+export class RequisiteProvider extends Entity<string> {
+  private constructor(private readonly snapshot: RequisiteProviderSnapshot) {
+    super(snapshot.id);
+  }
+
+  static create(input: {
+    id: string;
+    now: Date;
+  } & RequisiteProviderDetails): RequisiteProvider {
+    return new RequisiteProvider({
+      id: input.id,
+      ...normalizeDetails(input),
+      archivedAt: null,
+      createdAt: input.now,
+      updatedAt: input.now,
+    });
+  }
+
+  static reconstitute(snapshot: RequisiteProviderSnapshot): RequisiteProvider {
+    return new RequisiteProvider({ ...snapshot });
+  }
+
+  update(
+    input: Partial<RequisiteProviderDetails> & { now: Date },
+  ): RequisiteProvider {
+    return new RequisiteProvider({
+      ...this.snapshot,
+      ...normalizeDetails({
+        kind: input.kind ?? this.snapshot.kind,
+        name: input.name ?? this.snapshot.name,
+        description:
+          input.description !== undefined
+            ? input.description
+            : this.snapshot.description,
+        country:
+          input.country !== undefined ? input.country : this.snapshot.country,
+        address:
+          input.address !== undefined ? input.address : this.snapshot.address,
+        contact:
+          input.contact !== undefined ? input.contact : this.snapshot.contact,
+        bic: input.bic !== undefined ? input.bic : this.snapshot.bic,
+        swift: input.swift !== undefined ? input.swift : this.snapshot.swift,
+      }),
+      updatedAt: input.now,
+    });
+  }
+
+  archive(now: Date): RequisiteProvider {
+    return new RequisiteProvider({
+      ...this.snapshot,
+      archivedAt: this.snapshot.archivedAt ?? now,
+      updatedAt: now,
+    });
+  }
+
+  toSnapshot(): RequisiteProviderSnapshot {
+    return { ...this.snapshot };
+  }
+}

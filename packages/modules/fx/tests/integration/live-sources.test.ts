@@ -26,7 +26,7 @@ describeExternal("FX live sources integration", () => {
         const service = createLiveFxService();
         const now = new Date();
 
-        const result = await service.syncRatesFromSource({
+        const result = await service.rates.syncRatesFromSource({
             source: "cbr",
             force: true,
             now,
@@ -51,7 +51,7 @@ describeExternal("FX live sources integration", () => {
         expect(statusRow!.lastError).toBeNull();
 
         const cbrAsOf = new Date(result.publishedAt!.getTime() + 60_000);
-        const liveRate = await service.getLatestRate("USD", "RUB", cbrAsOf);
+        const liveRate = await service.rates.getLatestRate("USD", "RUB", cbrAsOf);
         expect(liveRate.source).toBe("cbr");
         expect(liveRate.rateNum > 0n).toBe(true);
         expect(liveRate.rateDen > 0n).toBe(true);
@@ -61,7 +61,7 @@ describeExternal("FX live sources integration", () => {
         const service = createLiveFxService();
         const now = new Date();
 
-        const result = await service.syncRatesFromSource({
+        const result = await service.rates.syncRatesFromSource({
             source: "investing",
             force: true,
             now,
@@ -100,7 +100,7 @@ describeExternal("FX live sources integration", () => {
         const service = createLiveFxService();
         const now = new Date();
 
-        const result = await service.syncRatesFromSource({
+        const result = await service.rates.syncRatesFromSource({
             source: "xe",
             force: true,
             now,

@@ -12,10 +12,10 @@ import { toUser, toUserWithLastSession } from "./mappers";
 import type { UsersServiceContext } from "./shared/context";
 
 export function createGetUserHandler(context: UsersServiceContext) {
-  const { identityStore } = context;
+  const { identityQueries } = context;
 
   return async function getUser(id: string): Promise<UserWithLastSession> {
-    const row = await identityStore.getUserWithLastSession(id);
+    const row = await identityQueries.getUserWithLastSession(id);
 
     if (!row) {
       throw new UserNotFoundError(id);
@@ -26,13 +26,13 @@ export function createGetUserHandler(context: UsersServiceContext) {
 }
 
 export function createListUsersHandler(context: UsersServiceContext) {
-  const { identityStore } = context;
+  const { identityQueries } = context;
 
   return async function listUsers(
     input?: ListUsersQuery,
   ): Promise<PaginatedList<User>> {
     const query = ListUsersQuerySchema.parse(input ?? {});
-    const result = await identityStore.listUsers({
+    const result = await identityQueries.listUsers({
       limit: query.limit,
       offset: query.offset,
       sortBy: query.sortBy,

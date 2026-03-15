@@ -1,26 +1,32 @@
 import { eq, inArray } from "drizzle-orm";
 
-import type { Queryable } from "@bedrock/platform/persistence";
+import type {
+  Database,
+  Transaction,
+} from "@bedrock/platform/persistence";
 
-import type { CurrenciesRepositoryPort } from "../../../application/ports";
+import type {
+  CurrenciesCommandRepository,
+  CurrenciesQueryRepository,
+} from "../../../application/currencies/ports";
 import type {
   CreateCurrencyInput,
   UpdateCurrencyInput,
 } from "../../../contracts";
 import { schema } from "../schema";
 
-export function createDrizzleCurrenciesRepository(input: {
-  db: Queryable;
-}): CurrenciesRepositoryPort {
+export function createDrizzleCurrenciesQueryRepository(input: {
+  db: Database | Transaction;
+}): CurrenciesQueryRepository {
   const { db } = input;
 
   return {
-    async listAll(executor = db) {
-      return executor.select().from(schema.currencies);
+    async listAll() {
+      return db.select().from(schema.currencies);
     },
 
-    async findById(id, executor = db) {
-      const [row] = await executor
+    async findById(id) {
+      const [row] = await db
         .select()
         .from(schema.currencies)
         .where(eq(schema.currencies.id, id))
@@ -29,8 +35,8 @@ export function createDrizzleCurrenciesRepository(input: {
       return row ?? null;
     },
 
-    async findByCode(code, executor = db) {
-      const [row] = await executor
+    async findByCode(code) {
+      const [row] = await db
         .select()
         .from(schema.currencies)
         .where(eq(schema.currencies.code, code.toUpperCase()))
@@ -39,36 +45,8 @@ export function createDrizzleCurrenciesRepository(input: {
       return row ?? null;
     },
 
-    async create(inputValue: CreateCurrencyInput, executor = db) {
-      const [row] = await executor
-        .insert(schema.currencies)
-        .values(inputValue)
-        .returning();
-
-      return row!;
-    },
-
-    async update(id, inputValue: UpdateCurrencyInput, executor = db) {
-      const [row] = await executor
-        .update(schema.currencies)
-        .set(inputValue)
-        .where(eq(schema.currencies.id, id))
-        .returning();
-
-      return row ?? null;
-    },
-
-    async remove(id, executor = db) {
-      const [deleted] = await executor
-        .delete(schema.currencies)
-        .where(eq(schema.currencies.id, id))
-        .returning({ id: schema.currencies.id });
-
-      return Boolean(deleted);
-    },
-
-    async listPrecisionsByCode(codes, executor = db) {
-      const rows = await executor
+    async listPrecisionsByCode(codes) {
+      const rows = await db
         .select({
           code: schema.currencies.code,
           precision: schema.currencies.precision,
@@ -77,6 +55,42 @@ export function createDrizzleCurrenciesRepository(input: {
         .where(inArray(schema.currencies.code, codes));
 
       return new Map(rows.map((row) => [row.code, row.precision]));
+    },
+  };
+}
+
+export function createDrizzleCurrenciesCommandRepository(input: {
+  db: Database | Transaction;
+}): CurrenciesCommandRepository {
+  const { db } = input;
+
+  return {
+    async create(inputValue: CreateCurrencyInput, tx) {
+      const [row] = await (tx ?? db)
+        .insert(schema.currencies)
+        .values(inputValue)
+        .returning();
+
+      return row!;
+    },
+
+    async update(id, inputValue: UpdateCurrencyInput, tx) {
+      const [row] = await (tx ?? db)
+        .update(schema.currencies)
+        .set(inputValue)
+        .where(eq(schema.currencies.id, id))
+        .returning();
+
+      return row ?? null;
+    },
+
+    async remove(id, tx) {
+      const [deleted] = await (tx ?? db)
+        .delete(schema.currencies)
+        .where(eq(schema.currencies.id, id))
+        .returning({ id: schema.currencies.id });
+
+      return Boolean(deleted);
     },
   };
 }

@@ -7,6 +7,7 @@ import {
   type ReserveBalanceInput,
 } from "../../../contracts";
 import { BALANCES_IDEMPOTENCY_SCOPE } from "../../../domain/idempotency";
+import { BalanceState } from "../../../domain/balance-state";
 import { toBalanceHoldSnapshot } from "../../../domain/balance-hold";
 import type { BalancesContext } from "../../shared/context";
 
@@ -36,52 +37,61 @@ export function createReserveBalanceHandler(context: BalancesContext) {
             validated.subject,
             validated.holdRef,
           );
+          const state = BalanceState.reconstitute({
+            balance: position,
+            holds: existingHold ? [existingHold] : [],
+          });
 
-          if (existingHold) {
-            if (existingHold.amountMinor !== validated.amountMinor) {
-              throw new BalanceHoldConflictError(validated.holdRef);
+          let plan;
+          try {
+            plan = state.reserve({
+              holdRef: validated.holdRef,
+              amountMinor: validated.amountMinor,
+              reason: validated.reason,
+              actorId: validated.actorId,
+              requestContext: validated.requestContext,
+            });
+          } catch (error) {
+            if (error instanceof Error && "code" in error) {
+              if ((error as { code: string }).code === "balances.hold.conflict") {
+                throw new BalanceHoldConflictError(validated.holdRef);
+              }
+
+              if (
+                (error as { code: string }).code ===
+                "balances.insufficient_available"
+              ) {
+                throw new InsufficientAvailableBalanceError(
+                  position.available,
+                  validated.amountMinor,
+                );
+              }
             }
 
+            throw error;
+          }
+
+          if (plan.kind === "replay") {
             return repository.loadMutationReplayResult(
               validated.subject,
               validated.holdRef,
             );
           }
 
-          if (position.available < validated.amountMinor) {
-            throw new InsufficientAvailableBalanceError(
-              position.available,
-              validated.amountMinor,
-            );
+          if (plan.kind !== "reserve") {
+            throw new Error(`Unexpected balance reserve plan: ${plan.kind}`);
           }
 
           const updatedPosition = await repository.updateBalancePosition({
             subject: validated.subject,
-            delta: {
-              deltaAvailable: -validated.amountMinor,
-              deltaReserved: validated.amountMinor,
-            },
+            delta: plan.delta,
           });
-          const hold = await repository.createHold({
-            subject: validated.subject,
-            holdRef: validated.holdRef,
-            amountMinor: validated.amountMinor,
-            state: "active",
-            reason: validated.reason ?? null,
-            actorId: validated.actorId ?? null,
-            requestContext: validated.requestContext,
-          });
+          const hold = await repository.createHold(plan.hold);
 
           await repository.appendBalanceEvent({
             subject: validated.subject,
-            eventType: "reserve",
             version: updatedPosition.version,
-            holdRef: validated.holdRef,
-            deltaAvailable: -validated.amountMinor,
-            deltaReserved: validated.amountMinor,
-            actorId: validated.actorId,
-            requestContext: validated.requestContext,
-            meta: validated.reason ? { reason: validated.reason } : null,
+            ...plan.event,
           });
 
           return {

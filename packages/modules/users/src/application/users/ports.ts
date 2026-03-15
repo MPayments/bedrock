@@ -28,7 +28,7 @@ export interface UsersUserWithLastSessionRecord {
   lastSessionIp: string | null;
 }
 
-export interface UsersIdentityStorePort {
+export interface UsersIdentityQueryRepository {
   listUsers(input: {
     limit: number;
     offset: number;
@@ -41,6 +41,13 @@ export interface UsersIdentityStorePort {
   }): Promise<PaginatedList<UsersUserRecord>>;
   findUserById(id: string): Promise<UsersUserRecord | null>;
   findUserByEmail(email: string): Promise<UsersUserRecord | null>;
+  getCredentialByUserId(userId: string): Promise<UsersCredentialRecord | null>;
+  getUserWithLastSession(
+    userId: string,
+  ): Promise<UsersUserWithLastSessionRecord | null>;
+}
+
+export interface UsersIdentityCommandRepository {
   createUserWithCredential(input: {
     name: string;
     email: string;
@@ -55,23 +62,14 @@ export interface UsersIdentityStorePort {
     email?: string;
     role?: string | null;
   }): Promise<UsersUserRecord | null>;
-  getCredentialByUserId(userId: string): Promise<UsersCredentialRecord | null>;
   updateCredentialPassword(input: {
     userId: string;
     passwordHash: string;
   }): Promise<UsersCredentialRecord | null>;
-  getUserWithLastSession(
-    userId: string,
-  ): Promise<UsersUserWithLastSessionRecord | null>;
   banUser(input: {
     id: string;
     banReason?: string | null;
     banExpires?: Date | null;
   }): Promise<UsersUserRecord | null>;
   unbanUser(userId: string): Promise<UsersUserRecord | null>;
-}
-
-export interface UsersPasswordHasherPort {
-  hash(password: string): Promise<string>;
-  verify(input: { hash: string; password: string }): Promise<boolean>;
 }

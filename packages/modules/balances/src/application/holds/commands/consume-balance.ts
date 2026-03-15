@@ -6,7 +6,9 @@ import {
   validateConsumeBalanceInput,
   type ConsumeBalanceInput,
 } from "../../../contracts";
+import { DomainError, readCauseString } from "@bedrock/shared/core/domain";
 import { BALANCES_IDEMPOTENCY_SCOPE } from "../../../domain/idempotency";
+import { BalanceState } from "../../../domain/balance-state";
 import { toBalanceHoldSnapshot } from "../../../domain/balance-hold";
 import type { BalancesContext } from "../../shared/context";
 
@@ -31,55 +33,67 @@ export function createConsumeBalanceHandler(context: BalancesContext) {
             .loadMutationReplayResult(validated.subject, validated.holdRef),
         handler: async () => {
           const repository = context.createStateRepository(tx);
+          const position = await repository.ensureBalancePosition(validated.subject);
           const hold = await repository.getHoldForUpdate(
             validated.subject,
             validated.holdRef,
           );
+          const state = BalanceState.reconstitute({
+            balance: position,
+            holds: hold ? [hold] : [],
+          });
 
-          if (!hold) {
-            throw new BalanceHoldNotFoundError(validated.holdRef);
+          let plan;
+          try {
+            plan = state.consume({
+              holdRef: validated.holdRef,
+              reason: validated.reason,
+              actorId: validated.actorId,
+              requestContext: validated.requestContext,
+              now: new Date(),
+            });
+          } catch (error) {
+            if (error instanceof DomainError) {
+              if (error.code === "balances.hold.not_found") {
+                throw new BalanceHoldNotFoundError(validated.holdRef);
+              }
+
+              if (error.code === "balances.hold.invalid_state") {
+                throw new BalanceHoldStateError(
+                  validated.holdRef,
+                  readCauseString(error, "state") ?? "unknown",
+                  readCauseString(error, "action") ?? "consume",
+                );
+              }
+            }
+
+            throw error;
           }
 
-          if (hold.state === "consumed") {
+          if (plan.kind === "replay") {
             return repository.loadMutationReplayResult(
               validated.subject,
               validated.holdRef,
             );
           }
 
-          if (hold.state !== "active") {
-            throw new BalanceHoldStateError(
-              validated.holdRef,
-              hold.state,
-              "consume",
-            );
+          if (plan.kind !== "update") {
+            throw new Error(`Unexpected balance consume plan: ${plan.kind}`);
           }
 
-          await repository.ensureBalancePosition(validated.subject);
           const updatedPosition = await repository.updateBalancePosition({
             subject: validated.subject,
-            delta: {
-              deltaReserved: -hold.amountMinor,
-              deltaPending: hold.amountMinor,
-            },
+            delta: plan.delta,
           });
-          const updatedHold = await repository.updateHold(hold.id, {
-            state: "consumed",
-            reason: validated.reason ?? hold.reason,
-            actorId: validated.actorId ?? hold.actorId,
-            consumedAt: new Date(),
-          });
+          const updatedHold = await repository.updateHold(
+            plan.holdId,
+            plan.holdUpdate,
+          );
 
           await repository.appendBalanceEvent({
             subject: validated.subject,
-            eventType: "consume",
             version: updatedPosition.version,
-            holdRef: validated.holdRef,
-            deltaReserved: -hold.amountMinor,
-            deltaPending: hold.amountMinor,
-            actorId: validated.actorId,
-            requestContext: validated.requestContext,
-            meta: validated.reason ? { reason: validated.reason } : null,
+            ...plan.event,
           });
 
           return {

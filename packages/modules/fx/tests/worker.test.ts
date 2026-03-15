@@ -16,19 +16,21 @@ async function runWorkerOnce(
 describe("createFxRatesWorkerDefinition", () => {
     it("skips non-expired sources", async () => {
         const fxService = {
-            getRateSourceStatuses: vi.fn(async () => [
-                {
-                    source: "cbr",
-                    ttlSeconds: 86400,
-                    lastSyncedAt: new Date("2026-02-19T00:00:00Z"),
-                    lastPublishedAt: new Date("2026-02-19T00:00:00Z"),
-                    lastStatus: "ok",
-                    lastError: null,
-                    expiresAt: new Date("2026-02-20T00:00:00Z"),
-                    isExpired: false,
-                },
-            ]),
-            syncRatesFromSource: vi.fn(async () => ({ synced: true })),
+            rates: {
+                getRateSourceStatuses: vi.fn(async () => [
+                    {
+                        source: "cbr",
+                        ttlSeconds: 86400,
+                        lastSyncedAt: new Date("2026-02-19T00:00:00Z"),
+                        lastPublishedAt: new Date("2026-02-19T00:00:00Z"),
+                        lastStatus: "ok",
+                        lastError: null,
+                        expiresAt: new Date("2026-02-20T00:00:00Z"),
+                        isExpired: false,
+                    },
+                ]),
+                syncRatesFromSource: vi.fn(async () => ({ synced: true })),
+            },
         } as any;
 
         const worker = createFxRatesWorkerDefinition({ fxService });
@@ -38,24 +40,26 @@ describe("createFxRatesWorkerDefinition", () => {
         );
 
         expect(processed).toBe(0);
-        expect(fxService.syncRatesFromSource).not.toHaveBeenCalled();
+        expect(fxService.rates.syncRatesFromSource).not.toHaveBeenCalled();
     });
 
     it("syncs only expired sources", async () => {
         const fxService = {
-            getRateSourceStatuses: vi.fn(async () => [
-                {
-                    source: "cbr",
-                    ttlSeconds: 86400,
-                    lastSyncedAt: new Date("2026-02-17T00:00:00Z"),
-                    lastPublishedAt: new Date("2026-02-17T00:00:00Z"),
-                    lastStatus: "ok",
-                    lastError: null,
-                    expiresAt: new Date("2026-02-18T00:00:00Z"),
-                    isExpired: true,
-                },
-            ]),
-            syncRatesFromSource: vi.fn(async () => ({ synced: true })),
+            rates: {
+                getRateSourceStatuses: vi.fn(async () => [
+                    {
+                        source: "cbr",
+                        ttlSeconds: 86400,
+                        lastSyncedAt: new Date("2026-02-17T00:00:00Z"),
+                        lastPublishedAt: new Date("2026-02-17T00:00:00Z"),
+                        lastStatus: "ok",
+                        lastError: null,
+                        expiresAt: new Date("2026-02-18T00:00:00Z"),
+                        isExpired: true,
+                    },
+                ]),
+                syncRatesFromSource: vi.fn(async () => ({ synced: true })),
+            },
         } as any;
 
         const worker = createFxRatesWorkerDefinition({ fxService });
@@ -65,7 +69,7 @@ describe("createFxRatesWorkerDefinition", () => {
         );
 
         expect(processed).toBe(1);
-        expect(fxService.syncRatesFromSource).toHaveBeenCalledWith({
+        expect(fxService.rates.syncRatesFromSource).toHaveBeenCalledWith({
             source: "cbr",
             now: new Date("2026-02-19T00:00:00Z"),
             force: true,
@@ -75,21 +79,23 @@ describe("createFxRatesWorkerDefinition", () => {
     it("continues processing when source sync fails", async () => {
         const logger = { error: vi.fn() } as any;
         const fxService = {
-            getRateSourceStatuses: vi.fn(async () => [
-                {
-                    source: "cbr",
-                    ttlSeconds: 86400,
-                    lastSyncedAt: null,
-                    lastPublishedAt: null,
-                    lastStatus: "idle",
-                    lastError: null,
-                    expiresAt: null,
-                    isExpired: true,
-                },
-            ]),
-            syncRatesFromSource: vi.fn(async () => {
-                throw new Error("boom");
-            }),
+            rates: {
+                getRateSourceStatuses: vi.fn(async () => [
+                    {
+                        source: "cbr",
+                        ttlSeconds: 86400,
+                        lastSyncedAt: null,
+                        lastPublishedAt: null,
+                        lastStatus: "idle",
+                        lastError: null,
+                        expiresAt: null,
+                        isExpired: true,
+                    },
+                ]),
+                syncRatesFromSource: vi.fn(async () => {
+                    throw new Error("boom");
+                }),
+            },
         } as any;
 
         const worker = createFxRatesWorkerDefinition({ fxService, logger });
@@ -101,19 +107,21 @@ describe("createFxRatesWorkerDefinition", () => {
 
     it("skips source sync when per-item guard blocks source", async () => {
         const fxService = {
-            getRateSourceStatuses: vi.fn(async () => [
-                {
-                    source: "cbr",
-                    ttlSeconds: 86400,
-                    lastSyncedAt: null,
-                    lastPublishedAt: null,
-                    lastStatus: "idle",
-                    lastError: null,
-                    expiresAt: null,
-                    isExpired: true,
-                },
-            ]),
-            syncRatesFromSource: vi.fn(async () => ({ synced: true })),
+            rates: {
+                getRateSourceStatuses: vi.fn(async () => [
+                    {
+                        source: "cbr",
+                        ttlSeconds: 86400,
+                        lastSyncedAt: null,
+                        lastPublishedAt: null,
+                        lastStatus: "idle",
+                        lastError: null,
+                        expiresAt: null,
+                        isExpired: true,
+                    },
+                ]),
+                syncRatesFromSource: vi.fn(async () => ({ synced: true })),
+            },
         } as any;
         const beforeSourceSync = vi.fn(async () => false);
 
@@ -125,6 +133,6 @@ describe("createFxRatesWorkerDefinition", () => {
 
         expect(processed).toBe(0);
         expect(beforeSourceSync).toHaveBeenCalledTimes(1);
-        expect(fxService.syncRatesFromSource).not.toHaveBeenCalled();
+        expect(fxService.rates.syncRatesFromSource).not.toHaveBeenCalled();
     });
 });

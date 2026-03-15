@@ -3,12 +3,15 @@ import { DAY_IN_SECONDS } from "@bedrock/shared/money/math";
 import { RateSourceStaleError, RateSourceSyncError } from "../../errors";
 import { FX_RATE_SOURCES } from "../../domain/rate-source";
 import type {
-  FxRateSource,
   FxRateSourceRowRecord,
   FxRateSourceStatus,
   FxRateSourceSyncResult,
   RateRowRecord,
-} from "../ports";
+} from "./ports";
+import type {
+  FxRateSource,
+  FxRateSourceProvider,
+} from "../shared/external-ports";
 import type { FxServiceContext } from "../shared/context";
 import {
   type SetManualRateInput,
@@ -76,10 +79,7 @@ export function createFxRateCommandHandlers(context: FxServiceContext) {
     return row.lastPublishedAt ?? row.lastSyncedAt;
   }
 
-  function toStatus(
-    row: FxRateSourceRowRecord,
-    now: Date,
-  ): FxRateSourceStatus {
+  function toStatus(row: FxRateSourceRowRecord, now: Date): FxRateSourceStatus {
     const freshnessBase = getFreshnessBase(row);
     const expiresAt = freshnessBase
       ? new Date(freshnessBase.getTime() + row.ttlSeconds * 1000)

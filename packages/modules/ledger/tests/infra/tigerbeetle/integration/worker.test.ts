@@ -34,7 +34,7 @@ describe("Worker Integration Tests", () => {
   const worker = createLedgerWorkerDefinition({ db, tb });
 
   it("posts create operation to TigerBeetle", async () => {
-    const { operationId } = await engine.commitStandalone({
+    const { operationId } = await engine.commit.commitStandalone({
       source: { type: "payment", id: "pay-001" },
       operationCode: "TEST.WORKER.CREATE",
       idempotencyKey: randomIdempotencyKey(),
@@ -82,7 +82,7 @@ describe("Worker Integration Tests", () => {
   });
 
   it("posts pending create with timeout", async () => {
-    const { operationId } = await engine.commitStandalone({
+    const { operationId } = await engine.commit.commitStandalone({
       source: { type: "reservation", id: "res-001" },
       operationCode: "TEST.WORKER.PENDING",
       idempotencyKey: randomIdempotencyKey(),
@@ -125,7 +125,7 @@ describe("Worker Integration Tests", () => {
     const orgId = randomOrgId();
     const operationIds: string[] = [];
     for (let i = 0; i < 3; i++) {
-      const { operationId } = await engine.commitStandalone({
+      const { operationId } = await engine.commit.commitStandalone({
         source: { type: "payment", id: `pay-batch-${i}` },
         operationCode: "TEST.WORKER.BATCH",
         idempotencyKey: randomIdempotencyKey(),

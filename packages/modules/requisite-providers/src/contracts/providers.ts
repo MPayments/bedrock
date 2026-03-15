@@ -4,7 +4,9 @@ import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
 } from "@bedrock/shared/core/pagination";
+import { DomainError, readCauseString } from "@bedrock/shared/core/domain";
 
+import { validateRequisiteProviderDetails } from "../domain/requisite-provider";
 import { CountryCodeSchema, RequisiteKindSchema } from "./shared";
 
 export const RequisiteProviderSchema = z.object({
@@ -82,52 +84,25 @@ function refineProviderRules(
   },
   ctx: z.RefinementCtx,
 ) {
-  if (
-    value.kind === "bank" ||
-    value.kind === "exchange" ||
-    value.kind === "custodian"
-  ) {
-    if (!value.country) {
+  try {
+    validateRequisiteProviderDetails({
+      kind: value.kind as never,
+      name: "validated",
+      country: value.country,
+      bic: value.bic,
+      swift: value.swift,
+    });
+  } catch (error) {
+    if (error instanceof DomainError) {
       ctx.addIssue({
         code: "custom",
-        path: ["country"],
-        message: `country is required for ${value.kind} providers`,
+        path: [readCauseString(error, "field") ?? "kind"],
+        message: error.message,
       });
-    }
-  }
-
-  if (value.kind === "bank") {
-    if (value.country === "RU") {
-      if (!value.bic) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["bic"],
-          message: "bic is required for Russian banks",
-        });
-      }
-    } else if (value.country && !value.swift) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["swift"],
-        message: "swift is required for non-Russian banks",
-      });
-    }
-  } else {
-    if (value.bic) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["bic"],
-        message: "bic is only allowed for bank providers",
-      });
+      return;
     }
 
-    if (value.swift && value.kind === "blockchain") {
-      ctx.addIssue({
-        code: "custom",
-        path: ["swift"],
-        message: "swift is not applicable for blockchain providers",
-      });
-    }
+    throw error;
   }
 }
 

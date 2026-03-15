@@ -2,11 +2,11 @@ import { sql } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
-import type { BalancesReportingPort } from "../../../application/ports";
+import type { BalancesReportingRepository } from "../../../application/reporting/ports";
 
 export function createDrizzleBalancesReportingRepository(
   db: Queryable,
-): BalancesReportingPort {
+): BalancesReportingRepository {
   return {
     async listOrganizationLiquidityRows(query) {
       const conditions = [sql`bp.subject_type = 'organization_requisite'`];

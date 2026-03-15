@@ -23,7 +23,7 @@ describe("Engine Integration Tests", () => {
     const orgId = randomOrgId();
     const idempotencyKey = randomIdempotencyKey();
 
-    const { operationId } = await engine.commitStandalone({
+    const { operationId } = await engine.commit.commitStandalone({
       source: { type: "payment", id: "pay-123" },
       operationCode: "TEST.ENGINE.CREATE",
       idempotencyKey,
@@ -94,8 +94,8 @@ describe("Engine Integration Tests", () => {
       ],
     };
 
-    const first = await engine.commitStandalone(input);
-    const second = await engine.commitStandalone(input);
+    const first = await engine.commit.commitStandalone(input);
+    const second = await engine.commit.commitStandalone(input);
 
     expect(second.operationId).toBe(first.operationId);
 
@@ -107,7 +107,7 @@ describe("Engine Integration Tests", () => {
     const orgId = randomOrgId();
     const idempotencyKey = randomIdempotencyKey();
 
-    await engine.commitStandalone({
+    await engine.commit.commitStandalone({
       source: { type: "payment", id: "pay-999" },
       operationCode: "TEST.ENGINE.CONFLICT",
       idempotencyKey,
@@ -134,7 +134,7 @@ describe("Engine Integration Tests", () => {
     });
 
     await expect(
-      engine.commitStandalone({
+      engine.commit.commitStandalone({
         source: { type: "payment", id: "pay-999" },
         operationCode: "TEST.ENGINE.CONFLICT",
         idempotencyKey,
@@ -163,7 +163,7 @@ describe("Engine Integration Tests", () => {
   });
 
   it("creates non-posting plans for post/void pending", async () => {
-    const { operationId } = await engine.commitStandalone({
+    const { operationId } = await engine.commit.commitStandalone({
       source: { type: "pending", id: "pending-ops" },
       operationCode: "TEST.ENGINE.PENDING",
       idempotencyKey: randomIdempotencyKey(),

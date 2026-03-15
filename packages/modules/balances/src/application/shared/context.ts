@@ -2,11 +2,9 @@ import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
-import type {
-  BalancesProjectionPort,
-  BalancesReportingPort,
-  BalancesStatePort,
-} from "../ports";
+import type { BalancesStateRepository } from "../balances/ports";
+import type { BalancesProjectionRepository } from "../projection/ports";
+import type { BalancesReportingRepository } from "../reporting/ports";
 
 export interface BalancesServiceDeps {
   db: Database;
@@ -18,13 +16,15 @@ export interface BalancesContext {
   db: Database;
   idempotency: IdempotencyPort;
   log: Logger;
-  createStateRepository: (db: Database | Transaction) => BalancesStatePort;
+  createStateRepository: (
+    db: Database | Transaction,
+  ) => BalancesStateRepository;
 }
 
 export interface BalancesQueriesContext {
   createReportingRepository: (
     db: Database | Transaction,
-  ) => BalancesReportingPort;
+  ) => BalancesReportingRepository;
 }
 
 export interface BalancesWorkerContext {
@@ -32,14 +32,16 @@ export interface BalancesWorkerContext {
   log: Logger;
   createProjectionRepository: (
     tx: Transaction,
-  ) => BalancesProjectionPort;
+  ) => BalancesProjectionRepository;
 }
 
 export function createBalancesContext(input: {
   db: Database;
   idempotency: IdempotencyPort;
   logger?: Logger;
-  createStateRepository: (db: Database | Transaction) => BalancesStatePort;
+  createStateRepository: (
+    db: Database | Transaction,
+  ) => BalancesStateRepository;
 }): BalancesContext {
   return {
     db: input.db,
@@ -52,7 +54,7 @@ export function createBalancesContext(input: {
 export function createBalancesQueriesContext(input: {
   createReportingRepository: (
     db: Database | Transaction,
-  ) => BalancesReportingPort;
+  ) => BalancesReportingRepository;
 }): BalancesQueriesContext {
   return input;
 }
@@ -60,7 +62,9 @@ export function createBalancesQueriesContext(input: {
 export function createBalancesWorkerContext(input: {
   db: Database;
   logger?: Logger;
-  createProjectionRepository: (tx: Transaction) => BalancesProjectionPort;
+  createProjectionRepository: (
+    tx: Transaction,
+  ) => BalancesProjectionRepository;
 }): BalancesWorkerContext {
   return {
     db: input.db,

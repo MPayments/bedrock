@@ -16,25 +16,29 @@ import {
   type UpdateUserInput,
   type User,
 } from "../contracts";
+import { UserAccount } from "../domain/user-account";
+import { toUserRoleOrNull } from "../domain/user-role";
 
 import { toUser } from "./mappers";
 import type { UsersServiceContext } from "./shared/context";
 
 export function createCreateUserHandler(context: UsersServiceContext) {
-  const { identityStore, passwordHasher, log } = context;
+  const { identityQueries, identityCommands, passwordHasher, log } = context;
 
   return async function createUser(input: CreateUserInput): Promise<User> {
     const validated = CreateUserInputSchema.parse(input);
-    const existing = await identityStore.findUserByEmail(validated.email);
+    const email = UserAccount.normalizeEmail(validated.email);
+    const name = UserAccount.normalizeName(validated.name);
+    const existing = await identityQueries.findUserByEmail(email);
 
     if (existing) {
-      throw new UserEmailConflictError(validated.email);
+      throw new UserEmailConflictError(email);
     }
 
     const passwordHash = await passwordHasher.hash(validated.password);
-    const created = await identityStore.createUserWithCredential({
-      name: validated.name,
-      email: validated.email,
+    const created = await identityCommands.createUserWithCredential({
+      name,
+      email,
       role: validated.role,
       passwordHash,
       emailVerified: true,
@@ -47,39 +51,54 @@ export function createCreateUserHandler(context: UsersServiceContext) {
 }
 
 export function createUpdateUserHandler(context: UsersServiceContext) {
-  const { identityStore, log } = context;
+  const { identityQueries, identityCommands, log } = context;
 
   return async function updateUser(
     id: string,
     input: UpdateUserInput,
   ): Promise<User> {
     const validated = UpdateUserInputSchema.parse(input);
-    const existing = await identityStore.findUserById(id);
+    const existing = await identityQueries.findUserById(id);
 
     if (!existing) {
       throw new UserNotFoundError(id);
     }
 
-    if (validated.email && validated.email !== existing.email) {
-      const conflict = await identityStore.findUserByEmail(validated.email);
+    const existingAccount = UserAccount.reconstitute({
+      ...existing,
+      role: toUserRoleOrNull(existing.role),
+      banned: existing.banned ?? false,
+      banExpires: existing.banExpires ?? null,
+      twoFactorEnabled: existing.twoFactorEnabled ?? false,
+    });
+    const updatedAccount = existingAccount.updateProfile({
+      name: validated.name,
+      email: validated.email,
+      role: validated.role,
+      now: new Date(),
+    });
+    const updatedSnapshot = updatedAccount.toSnapshot();
+
+    if (updatedSnapshot.email !== existing.email) {
+      const conflict = await identityQueries.findUserByEmail(updatedSnapshot.email);
       if (conflict && conflict.id !== id) {
-        throw new UserEmailConflictError(validated.email);
+        throw new UserEmailConflictError(updatedSnapshot.email);
       }
     }
 
     if (
-      validated.name === undefined &&
-      validated.email === undefined &&
-      validated.role === undefined
+      updatedSnapshot.name === existing.name &&
+      updatedSnapshot.email === existing.email &&
+      updatedSnapshot.role === existing.role
     ) {
       return toUser(existing);
     }
 
-    const updated = await identityStore.updateUser({
+    const updated = await identityCommands.updateUser({
       id,
-      name: validated.name,
-      email: validated.email,
-      role: validated.role,
+      name: updatedSnapshot.name,
+      email: updatedSnapshot.email,
+      role: updatedSnapshot.role,
     });
 
     if (!updated) {
@@ -92,21 +111,21 @@ export function createUpdateUserHandler(context: UsersServiceContext) {
 }
 
 export function createChangePasswordHandler(context: UsersServiceContext) {
-  const { identityStore, passwordHasher, log } = context;
+  const { identityQueries, identityCommands, passwordHasher, log } = context;
 
   return async function changePassword(
     userId: string,
     input: ChangePasswordInput,
   ): Promise<void> {
     const validated = ChangePasswordInputSchema.parse(input);
-    const existingUser = await identityStore.findUserById(userId);
+    const existingUser = await identityQueries.findUserById(userId);
 
     if (!existingUser) {
       throw new UserNotFoundError(userId);
     }
 
     const passwordHash = await passwordHasher.hash(validated.newPassword);
-    const updated = await identityStore.updateCredentialPassword({
+    const updated = await identityCommands.updateCredentialPassword({
       userId,
       passwordHash,
     });
@@ -120,14 +139,14 @@ export function createChangePasswordHandler(context: UsersServiceContext) {
 }
 
 export function createChangeOwnPasswordHandler(context: UsersServiceContext) {
-  const { identityStore, passwordHasher, log } = context;
+  const { identityQueries, identityCommands, passwordHasher, log } = context;
 
   return async function changeOwnPassword(
     userId: string,
     input: ChangeOwnPasswordInput,
   ): Promise<void> {
     const validated = ChangeOwnPasswordInputSchema.parse(input);
-    const credentialAccount = await identityStore.getCredentialByUserId(userId);
+    const credentialAccount = await identityQueries.getCredentialByUserId(userId);
 
     if (!credentialAccount || !credentialAccount.password) {
       throw new UserNotFoundError(userId);
@@ -143,21 +162,40 @@ export function createChangeOwnPasswordHandler(context: UsersServiceContext) {
     }
 
     const passwordHash = await passwordHasher.hash(validated.newPassword);
-    await identityStore.updateCredentialPassword({ userId, passwordHash });
+    await identityCommands.updateCredentialPassword({ userId, passwordHash });
 
     log.info("User changed own password", { userId });
   };
 }
 
 export function createBanUserHandler(context: UsersServiceContext) {
-  const { identityStore, log } = context;
+  const { identityQueries, identityCommands, log } = context;
 
   return async function banUser(id: string, input: BanUserInput): Promise<User> {
     const validated = BanUserInputSchema.parse(input);
-    const updated = await identityStore.banUser({
+    const existing = await identityQueries.findUserById(id);
+
+    if (!existing) {
+      throw new UserNotFoundError(id);
+    }
+
+    const updatedAccount = UserAccount.reconstitute({
+      ...existing,
+      role: toUserRoleOrNull(existing.role),
+      banned: existing.banned ?? false,
+      banExpires: existing.banExpires ?? null,
+      twoFactorEnabled: existing.twoFactorEnabled ?? false,
+    }).ban({
+      reason: validated.banReason,
+      expiresAt: validated.banExpires,
+      now: new Date(),
+    });
+
+    const updatedSnapshot = updatedAccount.toSnapshot();
+    const updated = await identityCommands.banUser({
       id,
-      banReason: validated.banReason ?? null,
-      banExpires: validated.banExpires ?? null,
+      banReason: updatedSnapshot.banReason,
+      banExpires: updatedSnapshot.banExpires,
     });
 
     if (!updated) {
@@ -170,10 +208,24 @@ export function createBanUserHandler(context: UsersServiceContext) {
 }
 
 export function createUnbanUserHandler(context: UsersServiceContext) {
-  const { identityStore, log } = context;
+  const { identityQueries, identityCommands, log } = context;
 
   return async function unbanUser(id: string): Promise<User> {
-    const updated = await identityStore.unbanUser(id);
+    const existing = await identityQueries.findUserById(id);
+
+    if (!existing) {
+      throw new UserNotFoundError(id);
+    }
+
+    const updatedAccount = UserAccount.reconstitute({
+      ...existing,
+      role: toUserRoleOrNull(existing.role),
+      banned: existing.banned ?? false,
+      banExpires: existing.banExpires ?? null,
+      twoFactorEnabled: existing.twoFactorEnabled ?? false,
+    }).unban(new Date());
+
+    const updated = await identityCommands.unbanUser(updatedAccount.id);
 
     if (!updated) {
       throw new UserNotFoundError(id);
