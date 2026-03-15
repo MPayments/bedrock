@@ -34,7 +34,7 @@
         "@bedrock/plugin-documents-commercial": "workspace:*",
         "@bedrock/plugin-documents-ifrs": "workspace:*",
         "@bedrock/plugin-documents-sdk": "workspace:*",
-        "@bedrock/requisites": "workspace:*",
+        "@bedrock/requisite-providers": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "@bedrock/users": "workspace:*",
         "@hono/node-server": "^1.19.9",
@@ -70,7 +70,7 @@
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
         "@bedrock/reconciliation": "workspace:*",
-        "@bedrock/requisites": "workspace:*",
+        "@bedrock/requisite-providers": "workspace:*",
         "better-auth": "^1.4.18",
         "dotenv": "^17.3.1",
         "drizzle-orm": "^0.45.1",
@@ -98,7 +98,7 @@
         "@bedrock/plugin-documents-commercial": "workspace:*",
         "@bedrock/plugin-documents-ifrs": "workspace:*",
         "@bedrock/plugin-documents-sdk": "workspace:*",
-        "@bedrock/requisites": "workspace:*",
+        "@bedrock/requisite-providers": "workspace:*",
         "@bedrock/sdk-api-client": "workspace:*",
         "@bedrock/sdk-ui": "workspace:*",
         "@bedrock/shared": "workspace:*",
@@ -169,7 +169,6 @@
         "@bedrock/organizations": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
-        "@bedrock/requisites": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
@@ -231,9 +230,9 @@
         "@bedrock/accounting": "workspace:*",
         "@bedrock/currencies": "workspace:*",
         "@bedrock/ledger": "workspace:*",
+        "@bedrock/organizations": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
-        "@bedrock/requisites": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
@@ -320,8 +319,11 @@
       "name": "@bedrock/organizations",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/currencies": "workspace:*",
         "@bedrock/ledger": "workspace:*",
+        "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
+        "@bedrock/requisite-providers": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
@@ -341,7 +343,9 @@
       "name": "@bedrock/parties",
       "version": "0.0.0",
       "dependencies": {
+        "@bedrock/currencies": "workspace:*",
         "@bedrock/platform": "workspace:*",
+        "@bedrock/requisite-providers": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "zod": "^4.1.11",
@@ -378,14 +382,10 @@
         "vitest": "^4.0.18",
       },
     },
-    "packages/modules/requisites": {
-      "name": "@bedrock/requisites",
+    "packages/modules/requisite-providers": {
+      "name": "@bedrock/requisite-providers",
       "version": "0.0.0",
       "dependencies": {
-        "@bedrock/currencies": "workspace:*",
-        "@bedrock/ledger": "workspace:*",
-        "@bedrock/organizations": "workspace:*",
-        "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "drizzle-orm": "^0.45.1",
@@ -675,7 +675,7 @@
 
     "@bedrock/reconciliation": ["@bedrock/reconciliation@workspace:packages/modules/reconciliation"],
 
-    "@bedrock/requisites": ["@bedrock/requisites@workspace:packages/modules/requisites"],
+    "@bedrock/requisite-providers": ["@bedrock/requisite-providers@workspace:packages/modules/requisite-providers"],
 
     "@bedrock/sdk-api-client": ["@bedrock/sdk-api-client@workspace:packages/sdk/api-client"],
 
@@ -2115,7 +2115,7 @@
 
     "@bedrock/reconciliation/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
-    "@bedrock/requisites/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+    "@bedrock/requisite-providers/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/sdk-ui/@types/node": ["@types/node@22.19.11", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w=="],
 
@@ -2245,7 +2245,7 @@
 
     "@bedrock/reconciliation/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
-    "@bedrock/requisites/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+    "@bedrock/requisite-providers/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/sdk-ui/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
 

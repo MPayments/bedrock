@@ -3,10 +3,7 @@ import { z } from "zod";
 
 import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
 import { OrganizationOptionsResponseSchema } from "@bedrock/organizations/contracts";
-import {
-  REQUISITES_LIST_CONTRACT,
-  RequisiteProviderOptionsResponseSchema,
-} from "@bedrock/requisites/contracts";
+import { RequisiteProviderOptionsResponseSchema } from "@bedrock/requisite-providers/contracts";
 
 import {
   getRequisiteKindLabel,
@@ -14,6 +11,7 @@ import {
   type RequisiteKind,
   type SerializedRequisite,
 } from "@/features/entities/requisites-shared/lib/constants";
+import { REQUISITES_LIST_CONTRACT } from "@/features/entities/requisites-shared/lib/contracts";
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import {

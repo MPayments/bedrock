@@ -19,8 +19,8 @@ import {
   postings,
   tbTransferPlans,
 } from "@bedrock/ledger/schema";
+import { organizationRequisites } from "@bedrock/organizations/schema";
 import { user } from "@bedrock/platform/auth-model/schema";
-import { requisites } from "@bedrock/requisites/schema";
 
 export type DocumentSubmissionStatus = "draft" | "submitted";
 export type DocumentApprovalStatus =
@@ -79,7 +79,7 @@ export const documents = pgTable(
       onDelete: "set null",
     }),
     organizationRequisiteId: uuid("organization_requisite_id").references(
-      () => requisites.id,
+      () => organizationRequisites.id,
       { onDelete: "set null" },
     ),
     searchText: text("search_text").notNull().default(""),

@@ -42,6 +42,10 @@ import {
   type OrganizationsService,
 } from "@bedrock/organizations";
 import { createOrganizationsQueries } from "@bedrock/organizations/queries";
+import {
+  createRequisiteProvidersService,
+  type RequisiteProvidersService,
+} from "@bedrock/requisite-providers";
 import type {
   Database,
   Queryable,
@@ -50,17 +54,17 @@ import type {
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
-import {
-  createRequisitesService,
-  type RequisitesService,
-} from "@bedrock/requisites";
-import { createRequisitesQueries } from "@bedrock/requisites/queries";
 
 import type { ApiCoreServices } from "./core";
 import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
+import {
+  createRequisitesFacadeService,
+  type ApiRequisitesFacadeService,
+} from "./requisites-facade";
+import { createApiRequisitesReadModel } from "./requisites-read-model";
 import { db } from "../db/client";
 
 function createDocumentsModuleRuntime(
@@ -80,7 +84,8 @@ export interface ApiApplicationServices {
   feesService: FeesService;
   fxService: FxService;
   organizationsService: OrganizationsService;
-  requisitesService: RequisitesService;
+  requisiteProvidersService: RequisiteProvidersService;
+  requisitesFacadeService: ApiRequisitesFacadeService;
   documentsService: DocumentsService;
 }
 
@@ -277,12 +282,11 @@ export function createApplicationServices(
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
   const currenciesQueries = createCurrenciesQueries({ db });
   const partiesQueries = createPartiesQueries({ db });
-  const requisitesQueries = createRequisitesQueries({ db });
   const accountingReportRuntime = createAccountingReportRuntime(db);
   const dimensionRegistry = createBedrockDimensionRegistry({
     counterpartiesQueries: partiesQueries.counterparties,
     customersQueries: partiesQueries.customers,
-    requisitesQueries,
+    organizationsQueries: accountingReportRuntime.organizationsQueries,
     documentsReadModel,
   });
   const accountingReportsService = createAccountingReportsService({
@@ -324,7 +328,13 @@ export function createApplicationServices(
     ledgerBooks: createLedgerBooksService(),
     logger,
   });
-  const requisitesService = createRequisitesService({
+  const requisitesReadModel = createApiRequisitesReadModel({ db });
+  const requisitesFacadeService = createRequisitesFacadeService({
+    readModel: requisitesReadModel,
+    organizationsService,
+    partiesService,
+  });
+  const requisiteProvidersService = createRequisiteProvidersService({
     db,
     logger,
   });
@@ -332,14 +342,14 @@ export function createApplicationServices(
     ...createCommercialDocumentModules(
       createCommercialDocumentDeps({
         currenciesService,
-        requisitesService: requisitesService.requisites,
+        requisitesService: requisitesFacadeService,
       }),
     ),
     ...createIfrsDocumentModules(
       createIfrsDocumentDeps({
         currenciesService,
         fxService,
-        requisitesService: requisitesService.requisites,
+        requisitesService: requisitesFacadeService,
       }),
     ),
   ]);
@@ -366,7 +376,8 @@ export function createApplicationServices(
     feesService,
     fxService,
     organizationsService,
-    requisitesService,
+    requisiteProvidersService,
+    requisitesFacadeService,
     documentsService,
   };
 }

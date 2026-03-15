@@ -15,6 +15,7 @@ import {
 import { COUNTRY_ALPHA2_CODES } from "@bedrock/shared/reference-data/countries/contracts";
 
 import { PARTY_KIND_VALUES } from "../../../domain/party-kind";
+import { counterpartyRequisites } from "./requisites";
 
 export const counterpartyKindEnum = pgEnum(
   "counterparty_kind",
@@ -115,6 +116,7 @@ export const schema = {
   counterparties,
   counterpartyGroups,
   counterpartyGroupMemberships,
+  counterpartyRequisites,
 };
 
 export type CustomerRow = typeof customers.$inferSelect;
@@ -125,3 +127,8 @@ export type CounterpartyGroupRow = typeof counterpartyGroups.$inferSelect;
 export type CounterpartyGroupInsert = typeof counterpartyGroups.$inferInsert;
 export type CounterpartyGroupMembershipRow =
   typeof counterpartyGroupMemberships.$inferSelect;
+export { counterpartyRequisites } from "./requisites";
+export type {
+  CounterpartyRequisiteInsert,
+  CounterpartyRequisiteRow,
+} from "./requisites";

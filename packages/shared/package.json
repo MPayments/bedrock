@@ -8,6 +8,8 @@
     "./core/*": "./src/core/*.ts",
     "./money": "./src/money/index.ts",
     "./money/*": "./src/money/*.ts",
+    "./requisites": "./src/requisites/index.ts",
+    "./requisites/*": "./src/requisites/*.ts",
     "./reference-data": "./src/reference-data/index.ts",
     "./reference-data/*": "./src/reference-data/*.ts",
     "./reference-data/countries": "./src/reference-data/countries/index.ts",

@@ -4,10 +4,7 @@ import { z } from "zod";
 import { CounterpartyOptionsResponseSchema } from "@bedrock/parties/contracts";
 import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
 import { OrganizationOptionsResponseSchema } from "@bedrock/organizations/contracts";
-import {
-  REQUISITES_LIST_CONTRACT,
-  RequisiteProviderOptionsResponseSchema,
-} from "@bedrock/requisites/contracts";
+import { RequisiteProviderOptionsResponseSchema } from "@bedrock/requisite-providers/contracts";
 
 import {
   getRequisiteKindLabel,
@@ -15,6 +12,7 @@ import {
   type RequisiteKind,
   type SerializedRequisite,
 } from "@/features/entities/requisites-shared/lib/constants";
+import { REQUISITES_LIST_CONTRACT } from "@/features/entities/requisites-shared/lib/contracts";
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import {
@@ -52,13 +50,6 @@ const RequisiteApiSchema = z.object({
 });
 
 const RequisitesResponseSchema = createPaginatedResponseSchema(RequisiteApiSchema);
-
-const RequisiteSummarySchema = z.object({
-  id: z.uuid(),
-  ownerType: z.enum(["organization", "counterparty"]),
-  ownerId: z.uuid(),
-  label: z.string(),
-});
 
 function createListQuery(search: RequisitesSearchParams) {
   return createResourceListQuery(REQUISITES_LIST_CONTRACT, search);
@@ -219,7 +210,7 @@ const getRequisiteByIdUncached = async (id: string) => {
         { init: { cache: "no-store" } },
       );
     },
-    schema: RequisiteSummarySchema,
+    schema: RequisiteApiSchema,
   });
 };
 

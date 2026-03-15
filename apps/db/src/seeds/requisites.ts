@@ -6,7 +6,7 @@ import {
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
 } from "@bedrock/ledger/ids";
-import { schema as partiesLedgerSchema } from "@bedrock/requisites/schema";
+import { schema as organizationsSchema } from "@bedrock/organizations/schema";
 
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema-registry";
@@ -109,7 +109,7 @@ async function upsertRequisites(
     }
 
     await db
-      .insert(schema.requisites)
+      .insert(organizationsSchema.organizationRequisites)
       .values({
         id: requisite.id,
         ownerType: requisite.ownerType,
@@ -142,7 +142,7 @@ async function upsertRequisites(
         isDefault: requisite.isDefault ?? false,
       })
       .onConflictDoUpdate({
-        target: schema.requisites.id,
+        target: organizationsSchema.organizationRequisites.id,
         set: {
           ownerType: requisite.ownerType,
           organizationId:
@@ -237,7 +237,7 @@ async function upsertOrganizationBindings(
     }
 
     await db
-      .insert(partiesLedgerSchema.requisiteAccountingBindings)
+      .insert(organizationsSchema.organizationRequisiteBindings)
       .values({
         requisiteId: requisite.id,
         bookId,
@@ -245,7 +245,7 @@ async function upsertOrganizationBindings(
         postingAccountNo: requisite.postingAccountNo ?? ACCOUNT_NO.BANK,
       })
       .onConflictDoUpdate({
-        target: partiesLedgerSchema.requisiteAccountingBindings.requisiteId,
+        target: organizationsSchema.organizationRequisiteBindings.requisiteId,
         set: {
           bookId,
           bookAccountInstanceId: instance.id,

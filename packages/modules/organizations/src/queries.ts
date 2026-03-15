@@ -6,6 +6,7 @@ import {
   type OrganizationsQueries,
 } from "./application/internal-ledger/queries";
 import { createDrizzleOrganizationsRepository } from "./infra/drizzle/repos/organizations-repository";
+import { createDrizzleOrganizationRequisitesRepository } from "./infra/drizzle/repos/organization-requisites-repository";
 
 export function createOrganizationsQueries(input: {
   db: Queryable;
@@ -15,6 +16,7 @@ export function createOrganizationsQueries(input: {
 
   return createOrganizationQueries({
     organizations,
+    requisites: createDrizzleOrganizationRequisitesRepository(input.db),
     ledgerRead: {
       listBooksById: ledgerQueries.listBooksById,
     },

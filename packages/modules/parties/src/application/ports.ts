@@ -2,17 +2,23 @@ import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
 import type {
+  CounterpartyRequisite,
+  CounterpartyRequisiteOption,
+  CreateCounterpartyRequisiteInput,
   Counterparty,
   CounterpartyGroup,
   CreateCounterpartyInput,
   CreateCounterpartyGroupInput,
   CreateCustomerInput,
+  ListCounterpartyRequisiteOptionsQuery,
+  ListCounterpartyRequisitesQuery,
   Customer,
   ListCounterpartiesQuery,
   ListCounterpartyGroupsQuery,
   ListCustomersQuery,
   UpdateCounterpartyGroupInput,
   UpdateCounterpartyInput,
+  UpdateCounterpartyRequisiteInput,
   UpdateCustomerInput,
 } from "../contracts";
 import type { GroupNode } from "../domain/group-rules";
@@ -22,6 +28,15 @@ export interface PartiesDocumentsReadPort {
     customerId: string,
     queryable?: Queryable,
   ) => Promise<boolean>;
+}
+
+export interface PartiesCurrenciesPort {
+  assertCurrencyExists: (id: string) => Promise<void>;
+  listCodesById: (ids: string[]) => Promise<Map<string, string>>;
+}
+
+export interface PartiesRequisiteProvidersPort {
+  assertProviderActive: (id: string) => Promise<void>;
 }
 
 export type StoredCounterparty = Omit<Counterparty, "groupIds">;
@@ -192,4 +207,87 @@ export interface PartiesRepository {
     tx: Transaction,
     id: string,
   ) => Promise<boolean>;
+}
+
+export interface CounterpartyRequisiteOptionRecord
+  extends CounterpartyRequisiteOption {
+  currencyCode: string;
+  beneficiaryName: string | null;
+  institutionName: string | null;
+  institutionCountry: string | null;
+  accountNo: string | null;
+  corrAccount: string | null;
+  iban: string | null;
+  bic: string | null;
+  swift: string | null;
+  bankAddress: string | null;
+  network: string | null;
+  assetCode: string | null;
+  address: string | null;
+  memoTag: string | null;
+  accountRef: string | null;
+  subaccountRef: string | null;
+  contact: string | null;
+  notes: string | null;
+}
+
+export interface CounterpartyRequisitesRepository {
+  findRequisiteById: (
+    id: string,
+    queryable?: Queryable,
+  ) => Promise<CounterpartyRequisite | null>;
+  findActiveRequisiteById: (
+    id: string,
+    queryable?: Queryable,
+  ) => Promise<CounterpartyRequisite | null>;
+  listRequisites: (
+    input: ListCounterpartyRequisitesQuery,
+    queryable?: Queryable,
+  ) => Promise<PaginatedList<CounterpartyRequisite>>;
+  listRequisiteOptions: (
+    input: ListCounterpartyRequisiteOptionsQuery,
+    queryable?: Queryable,
+  ) => Promise<CounterpartyRequisiteOptionRecord[]>;
+  listLabelsById: (
+    ids: string[],
+    queryable?: Queryable,
+  ) => Promise<Map<string, string>>;
+  countActiveRequisitesByCounterpartyCurrency: (
+    input: {
+      counterpartyId: string;
+      currencyId: string;
+    },
+    queryable?: Queryable,
+  ) => Promise<number>;
+  clearOtherDefaultsTx: (
+    tx: Transaction,
+    input: {
+      counterpartyId: string;
+      currencyId: string;
+      currentId: string;
+    },
+  ) => Promise<void>;
+  promoteNextDefaultTx: (
+    tx: Transaction,
+    input: {
+      counterpartyId: string;
+      currencyId: string;
+      excludeId: string;
+    },
+  ) => Promise<void>;
+  insertRequisiteTx: (
+    tx: Transaction,
+    input: CreateCounterpartyRequisiteInput & { isDefault: boolean },
+  ) => Promise<CounterpartyRequisite>;
+  updateRequisiteTx: (
+    tx: Transaction,
+    id: string,
+    input: UpdateCounterpartyRequisiteInput & {
+      providerId: string;
+      currencyId: string;
+      kind: CounterpartyRequisite["kind"];
+      isDefault: boolean;
+    },
+  ) => Promise<CounterpartyRequisite | null>;
+  archiveRequisiteTx: (tx: Transaction, id: string) => Promise<boolean>;
 }

@@ -55,3 +55,19 @@ export type {
   UpdateCounterpartyGroupInput,
   CounterpartyGroupOption,
 } from "./group";
+export {
+  COUNTERPARTY_REQUISITES_LIST_CONTRACT,
+  CounterpartyRequisiteOptionSchema,
+  CounterpartyRequisiteOptionsResponseSchema,
+  CounterpartyRequisiteSchema,
+  CreateCounterpartyRequisiteInputSchema,
+  ListCounterpartyRequisiteOptionsQuerySchema,
+  ListCounterpartyRequisitesQuerySchema,
+  UpdateCounterpartyRequisiteInputSchema,
+  type CounterpartyRequisite,
+  type CounterpartyRequisiteOption,
+  type CreateCounterpartyRequisiteInput,
+  type ListCounterpartyRequisiteOptionsQuery,
+  type ListCounterpartyRequisitesQuery,
+  type UpdateCounterpartyRequisiteInput,
+} from "./requisites";

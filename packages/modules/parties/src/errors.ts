@@ -1,4 +1,7 @@
 import { ServiceError } from "@bedrock/shared/core/errors";
+export {
+  RequisiteProviderNotActiveError,
+} from "@bedrock/requisite-providers";
 
 export class CustomerError extends ServiceError {}
 
@@ -70,4 +73,12 @@ export class CounterpartyNotInternalLedgerEntityError extends CounterpartyError 
 
 export class InternalLedgerInvariantViolationError extends CounterpartyError {
   name = "InternalLedgerInvariantViolationError";
+}
+
+export class CounterpartyRequisiteNotFoundError extends CounterpartyError {
+  name = "CounterpartyRequisiteNotFoundError";
+
+  constructor(id: string) {
+    super(`Counterparty requisite not found: ${id}`);
+  }
 }

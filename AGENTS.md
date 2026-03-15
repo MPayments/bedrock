@@ -261,7 +261,7 @@ export class OrderNotFoundError extends ServiceError {
 - Drizzle ORM with PostgreSQL.
 - Schema uses `snake_case` column naming convention.
 - Runtime table definitions must be colocated in the owning package under `src/schema.ts` or `src/schema/**`.
-- Runtime code imports schemas through package exports such as `@bedrock/ledger/schema`, `@bedrock/counterparties/schema`, or `@bedrock/requisites/schema`.
+- Runtime code imports schemas through package exports such as `@bedrock/ledger/schema`, `@bedrock/organizations/schema`, or `@bedrock/requisite-providers/schema`.
 - Runtime code imports shared database connection types from `@bedrock/platform/persistence` or `@bedrock/platform/persistence/drizzle`.
 - In new and refactored packages, application/domain code should depend on ports and domain types; concrete Drizzle queries belong in `infra/`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.

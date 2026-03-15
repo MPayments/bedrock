@@ -32,22 +32,20 @@ function createOrganizationsServiceStub() {
   };
 }
 
-function createRequisitesServiceStub() {
+function createRequisiteProvidersServiceStub() {
   return {
-    providers: {
-      list: vi.fn().mockResolvedValue({
-        data: [
-          {
-            id: "22222222-2222-4222-8222-222222222222",
-            kind: "bank",
-            name: "Core Bank",
-          },
-        ],
-        total: 1,
-        limit: 1,
-        offset: 0,
-      }),
-    },
+    list: vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          kind: "bank",
+          name: "Core Bank",
+        },
+      ],
+      total: 1,
+      limit: 1,
+      offset: 0,
+    }),
   };
 }
 
@@ -96,15 +94,15 @@ describe("options routes", () => {
   });
 
   it("bounds requisite provider options requests to the validated page size", async () => {
-    const requisitesService = createRequisitesServiceStub();
+    const requisiteProvidersService = createRequisiteProvidersServiceStub();
     const app = createTestApp(() =>
-      requisiteProvidersRoutes({ requisitesService } as any),
+      requisiteProvidersRoutes({ requisiteProvidersService } as any),
     );
 
     const response = await app.request("http://localhost/options");
 
     expect(response.status).toBe(200);
-    expect(requisitesService.providers.list).toHaveBeenCalledWith({
+    expect(requisiteProvidersService.list).toHaveBeenCalledWith({
       limit: 200,
       offset: 0,
       sortBy: "name",

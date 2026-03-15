@@ -7,6 +7,7 @@ import {
 } from "../../errors";
 import type {
   OrganizationsLedgerReadPort,
+  OrganizationRequisitesRepository,
   OrganizationsRepository,
 } from "../ports";
 
@@ -24,13 +25,17 @@ export interface OrganizationsQueries {
   assertBooksBelongToInternalLedgerOrganizations: (
     bookIds: string[],
   ) => Promise<void>;
+  requisites: {
+    listLabelsById: (ids: string[]) => Promise<Map<string, string>>;
+  };
 }
 
 export function createOrganizationQueries(input: {
   organizations: OrganizationsRepository;
+  requisites: OrganizationRequisitesRepository;
   ledgerRead: OrganizationsLedgerReadPort;
 }): OrganizationsQueries {
-  const { ledgerRead, organizations } = input;
+  const { ledgerRead, organizations, requisites } = input;
 
   return {
     async listInternalLedgerOrganizations() {
@@ -88,6 +93,11 @@ export function createOrganizationQueries(input: {
           `Ledger book ${violation.bookId} is owned by non-organization ${violation.ownerId}`,
         );
       }
+    },
+    requisites: {
+      listLabelsById(ids: string[]) {
+        return requisites.listLabelsById(ids);
+      },
     },
   };
 }

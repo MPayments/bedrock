@@ -1,32 +1,38 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { CounterpartyNotFoundError } from "@bedrock/parties";
-import { OrganizationNotFoundError } from "@bedrock/organizations";
 import {
-  RequisiteBindingNotFoundError,
-  RequisiteBindingOwnerTypeError,
-  RequisiteNotFoundError,
-  RequisiteProviderNotActiveError,
-} from "@bedrock/requisites";
+  CounterpartyNotFoundError,
+  CounterpartyRequisiteNotFoundError,
+} from "@bedrock/parties";
 import {
-  CreateRequisiteInputSchema,
-  ListRequisiteOptionsQuerySchema,
-  ListRequisitesQuerySchema,
-  RequisiteAccountingBindingSchema,
-  RequisiteOptionSchema,
-  RequisiteOptionsResponseSchema,
-  RequisiteSchema,
-  UpdateRequisiteInputSchema,
-  UpsertRequisiteAccountingBindingInputSchema,
-} from "@bedrock/requisites/contracts";
+  OrganizationNotFoundError,
+  OrganizationRequisiteBindingNotFoundError,
+  OrganizationRequisiteNotFoundError,
+} from "@bedrock/organizations";
+import { RequisiteProviderNotActiveError } from "@bedrock/requisite-providers";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
+import {
+  RequisiteBindingOwnerTypeError,
+  RequisiteNotFoundError,
+} from "../composition/requisites-facade";
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
 import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
+import {
+  CreateRequisiteInputSchema,
+  ListRequisiteOptionsQuerySchema,
+  ListRequisitesQuerySchema,
+  RequisiteAccountingBindingSchema,
+  RequisiteOptionsResponseSchema,
+  RequisiteOptionSchema,
+  RequisiteSchema,
+  UpdateRequisiteInputSchema,
+  UpsertRequisiteAccountingBindingInputSchema,
+} from "./contracts/requisites";
 
 const PaginatedRequisitesSchema = createPaginatedListSchema(RequisiteSchema);
 
@@ -308,7 +314,9 @@ export function requisitesRoutes(ctx: AppContext) {
     if (
       error instanceof RequisiteNotFoundError ||
       error instanceof OrganizationNotFoundError ||
-      error instanceof CounterpartyNotFoundError
+      error instanceof CounterpartyNotFoundError ||
+      error instanceof OrganizationRequisiteNotFoundError ||
+      error instanceof CounterpartyRequisiteNotFoundError
     ) {
       return { status: 404 as const, body: { error: error.message } };
     }
@@ -319,12 +327,12 @@ export function requisitesRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.requisitesService.requisites.list(query);
+      const result = await ctx.requisitesFacadeService.list(query);
       return c.json(result, 200);
     })
     .openapi(optionsRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.requisitesService.requisites.listOptions({
+      const result = await ctx.requisitesFacadeService.listOptions({
         ownerType: query.ownerType,
         ownerId: query.ownerId,
       });
@@ -338,7 +346,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const requisite = await ctx.requisitesService.requisites.create(input);
+        const requisite = await ctx.requisitesFacadeService.create(input);
         return c.json(requisite, 201);
       } catch (error) {
         const handled = handleMutationError(error);
@@ -352,7 +360,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const requisite = await ctx.requisitesService.requisites.findById(id);
+        const requisite = await ctx.requisitesFacadeService.findById(id);
         return c.json(requisite, 200);
       } catch (error) {
         if (error instanceof RequisiteNotFoundError) {
@@ -366,7 +374,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const requisite = await ctx.requisitesService.requisites.update(id, input);
+        const requisite = await ctx.requisitesFacadeService.update(id, input);
         return c.json(requisite, 200);
       } catch (error) {
         const handled = handleMutationError(error);
@@ -380,7 +388,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        await ctx.requisitesService.requisites.remove(id);
+        await ctx.requisitesFacadeService.remove(id);
         return c.json({ deleted: true }, 200);
       } catch (error) {
         if (error instanceof RequisiteNotFoundError) {
@@ -393,12 +401,12 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const binding = await ctx.requisitesService.requisites.getBinding(id);
+        const binding = await ctx.requisitesFacadeService.getBinding(id);
         return c.json(binding, 200);
       } catch (error) {
         if (
           error instanceof RequisiteNotFoundError ||
-          error instanceof RequisiteBindingNotFoundError
+          error instanceof OrganizationRequisiteBindingNotFoundError
         ) {
           return c.json({ error: error.message }, 404);
         }
@@ -410,7 +418,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const binding = await ctx.requisitesService.requisites.upsertBinding(
+        const binding = await ctx.requisitesFacadeService.upsertBinding(
           id,
           input,
         );
