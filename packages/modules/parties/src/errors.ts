@@ -1,7 +1,5 @@
 import { ServiceError } from "@bedrock/shared/core/errors";
-export {
-  RequisiteProviderNotActiveError,
-} from "@bedrock/requisite-providers";
+export { RequisiteProviderNotActiveError } from "@bedrock/requisite-providers";
 
 export class CustomerError extends ServiceError {}
 

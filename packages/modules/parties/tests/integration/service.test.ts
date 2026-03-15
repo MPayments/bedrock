@@ -1,15 +1,14 @@
-import { and, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { db, pool } from "./setup";
+import { db } from "./setup";
 import {
   CounterpartySystemGroupDeleteError,
   CustomerDeleteConflictError,
   createPartiesService,
 } from "../../src";
-import { createPartiesQueries } from "../../src/queries";
 import { schema as partiesSchema } from "../../src/infra/drizzle/schema";
+import { createPartiesQueries } from "../../src/queries";
 
 function createRuntime(options?: {
   hasDocumentsForCustomer?: (customerId: string) => Promise<boolean>;

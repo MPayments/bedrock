@@ -1,16 +1,20 @@
-import type { Queryable } from "@bedrock/platform/persistence";
+import type { Database } from "@bedrock/platform/persistence";
 
 import {
   createPartiesQueryHandlers,
   type PartiesQueries,
 } from "./application/queries";
-import { createDrizzlePartiesRepository } from "./infra/drizzle/repos/parties-repository";
+import { createDrizzleCounterpartiesQueryRepository } from "./infra/drizzle/repos/counterparties-repository";
+import { createDrizzleCustomersQueryRepository } from "./infra/drizzle/repos/customers-repository";
 
 export function createPartiesQueries(input: {
-  db: Queryable;
+  db: Database;
 }): PartiesQueries {
   return createPartiesQueryHandlers({
-    parties: createDrizzlePartiesRepository(input.db),
+    parties: {
+      ...createDrizzleCustomersQueryRepository(input.db),
+      ...createDrizzleCounterpartiesQueryRepository(input.db),
+    },
   });
 }
 

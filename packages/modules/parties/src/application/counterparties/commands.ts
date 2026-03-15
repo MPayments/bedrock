@@ -1,111 +1,128 @@
-import type { PaginatedList } from "@bedrock/shared/core/pagination";
+import { randomUUID } from "node:crypto";
 
+import type { Transaction } from "@bedrock/platform/persistence";
+
+import type {
+  Counterparty as CounterpartyDto,
+  CreateCounterpartyInput,
+  UpdateCounterpartyInput,
+} from "../../contracts";
 import {
   CreateCounterpartyInputSchema,
-  ListCounterpartiesQuerySchema,
   UpdateCounterpartyInputSchema,
-  type Counterparty,
-  type CreateCounterpartyInput,
-  type ListCounterpartiesQuery,
-  type UpdateCounterpartyInput,
 } from "../../contracts";
+import { Counterparty } from "../../domain/counterparty";
+import { GroupHierarchy } from "../../domain/group-hierarchy";
 import {
   CounterpartyCustomerNotFoundError,
   CounterpartyNotFoundError,
 } from "../../errors";
-import {
-  createGroupNodeMap,
-  dedupeIds,
-  enforceCustomerLinkRules,
-  resolveGroupMembershipClassification,
-  withoutCustomerScopedGroups,
-} from "../../domain/group-rules";
 import type { PartiesServiceContext } from "../shared/context";
+import { rethrowCounterpartyMembershipDomainError } from "../shared/map-domain-error";
 
 async function assertCustomerExists(
   context: PartiesServiceContext,
   customerId: string,
+  tx?: Transaction,
 ) {
-  const existingCustomerIds = await context.parties.listExistingCustomerIds([
-    customerId,
-  ]);
+  const existingCustomerIds = await context.customers.listExistingCustomerIds(
+    [customerId],
+    tx,
+  );
   if (!existingCustomerIds.includes(customerId)) {
     throw new CounterpartyCustomerNotFoundError(customerId);
   }
 }
 
-export function createListCounterpartiesHandler(
-  context: PartiesServiceContext,
-) {
-  const { parties } = context;
-
-  return async function listCounterparties(
-    input?: ListCounterpartiesQuery,
-  ): Promise<PaginatedList<Counterparty>> {
-    const query = ListCounterpartiesQuerySchema.parse(input ?? {});
-    return parties.listCounterparties(query);
-  };
+function toPublicCounterparty(counterparty: Counterparty): CounterpartyDto {
+  return counterparty.toSnapshot();
 }
 
-export function createFindCounterpartyByIdHandler(
-  context: PartiesServiceContext,
-) {
-  const { parties } = context;
-
-  return async function findCounterpartyById(id: string): Promise<Counterparty> {
-    const counterparty = await parties.findCounterpartyById(id);
-    if (!counterparty) {
-      throw new CounterpartyNotFoundError(id);
-    }
-
-    return counterparty;
-  };
+function membershipsChanged(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  return (
+    left.length !== right.length ||
+    left.some((groupId, index) => groupId !== right[index])
+  );
 }
 
 export function createCreateCounterpartyHandler(
   context: PartiesServiceContext,
 ) {
-  const { db, log, parties } = context;
+  const { counterparties, customers, db, log } = context;
 
   return async function createCounterparty(
     input: CreateCounterpartyInput,
-  ): Promise<Counterparty> {
+  ): Promise<CounterpartyDto> {
     const validated = CreateCounterpartyInputSchema.parse(input);
 
     return db.transaction(async (tx) => {
-      let groupIds = dedupeIds(validated.groupIds);
+      let managedGroupId: string | null = null;
 
       if (validated.customerId) {
-        await assertCustomerExists(context, validated.customerId);
-        const customerGroup = await parties.ensureManagedCustomerGroupTx(tx, {
+        await assertCustomerExists(context, validated.customerId, tx);
+        const customer = await customers.findCustomerSnapshotById(
+          validated.customerId,
+          tx,
+        );
+        const customerGroup = await customers.ensureManagedCustomerGroupTx(tx, {
           customerId: validated.customerId,
-          displayName: (await parties.findCustomerById(validated.customerId, tx))!
-            .displayName,
+          displayName: customer!.displayName,
         });
-        groupIds = dedupeIds([...groupIds, customerGroup.id]);
+        managedGroupId = customerGroup.id;
       }
 
-      const classification = resolveGroupMembershipClassification({
-        groupMap: createGroupNodeMap(await parties.listGroupNodes(tx)),
-        rawGroupIds: groupIds,
-      });
-      enforceCustomerLinkRules(classification, validated.customerId ?? null);
+      const hierarchy = GroupHierarchy.create(
+        await counterparties.listGroupHierarchyNodes(tx),
+      );
 
-      const created = await parties.insertCounterpartyTx(tx, {
-        ...validated,
-        customerId: validated.customerId ?? null,
+      let draft: Counterparty;
+      try {
+        draft = Counterparty.create(
+          {
+            id: randomUUID(),
+            shortName: validated.shortName,
+            fullName: validated.fullName,
+            kind: validated.kind,
+            country: validated.country,
+            externalId: validated.externalId,
+            description: validated.description,
+            customerId: validated.customerId ?? null,
+            groupIds: validated.groupIds,
+          },
+          {
+            hierarchy,
+            managedGroupId,
+            now: context.now(),
+          },
+        );
+      } catch (error) {
+        rethrowCounterpartyMembershipDomainError(error);
+      }
+
+      const createdSnapshot = await counterparties.insertCounterpartyTx(
+        tx,
+        draft.toSnapshot(),
+      );
+      await counterparties.replaceMembershipsTx(
+        tx,
+        createdSnapshot.id,
+        draft.toSnapshot().groupIds,
+      );
+
+      const created = Counterparty.reconstitute({
+        ...createdSnapshot,
+        groupIds: draft.toSnapshot().groupIds,
       });
-      await parties.replaceMembershipsTx(tx, created.id, groupIds);
 
       log.info("Counterparty created", {
         id: created.id,
-        shortName: created.shortName,
+        shortName: created.toSnapshot().shortName,
       });
 
-      return {
-        ...created,
-        groupIds,
-      };
+      return toPublicCounterparty(created);
     });
   };
 }
@@ -113,120 +130,84 @@ export function createCreateCounterpartyHandler(
 export function createUpdateCounterpartyHandler(
   context: PartiesServiceContext,
 ) {
-  const { db, log, parties } = context;
+  const { counterparties, customers, db, log } = context;
 
   return async function updateCounterparty(
     id: string,
     input: UpdateCounterpartyInput,
-  ): Promise<Counterparty> {
+  ): Promise<CounterpartyDto> {
     const validated = UpdateCounterpartyInputSchema.parse(input);
 
     return db.transaction(async (tx) => {
-      const existing = await parties.findCounterpartyById(id, tx);
-      if (!existing) {
+      const existingSnapshot =
+        await counterparties.findCounterpartySnapshotById(id, tx);
+      if (!existingSnapshot) {
         throw new CounterpartyNotFoundError(id);
       }
 
-      const groupMap = createGroupNodeMap(await parties.listGroupNodes(tx));
-      const currentGroupIds = dedupeIds(existing.groupIds);
-      let nextGroupIds =
-        validated.groupIds !== undefined
-          ? dedupeIds(validated.groupIds)
-          : currentGroupIds;
+      const existing = Counterparty.reconstitute(existingSnapshot);
       const nextCustomerId =
         validated.customerId !== undefined
           ? validated.customerId
-          : existing.customerId;
+          : existingSnapshot.customerId;
 
-      if (validated.groupIds === undefined && validated.customerId !== undefined) {
-        nextGroupIds = withoutCustomerScopedGroups({
-          groupMap,
-          rawGroupIds: nextGroupIds,
-        });
-      }
-
+      let managedGroupId: string | null = null;
       if (nextCustomerId) {
-        await assertCustomerExists(context, nextCustomerId);
-        const customer = await parties.findCustomerById(nextCustomerId, tx);
-        const customerGroup = await parties.ensureManagedCustomerGroupTx(tx, {
+        await assertCustomerExists(context, nextCustomerId, tx);
+        const customer = await customers.findCustomerSnapshotById(
+          nextCustomerId,
+          tx,
+        );
+        const customerGroup = await customers.ensureManagedCustomerGroupTx(tx, {
           customerId: nextCustomerId,
           displayName: customer!.displayName,
         });
-        nextGroupIds = dedupeIds([...nextGroupIds, customerGroup.id]);
+        managedGroupId = customerGroup.id;
       }
 
-      const classification = resolveGroupMembershipClassification({
-        groupMap,
-        rawGroupIds: nextGroupIds,
-      });
-      enforceCustomerLinkRules(classification, nextCustomerId);
+      const hierarchy = GroupHierarchy.create(
+        await counterparties.listGroupHierarchyNodes(tx),
+      );
 
-      const nextGroupIdSet = new Set(nextGroupIds);
-      const membershipChanged =
-        currentGroupIds.length !== nextGroupIds.length ||
-        currentGroupIds.some((groupId) => !nextGroupIdSet.has(groupId));
-
-      const fields: Partial<{
-        shortName: string;
-        fullName: string;
-        kind: Counterparty["kind"];
-        country: Counterparty["country"];
-        externalId: string | null;
-        description: string | null;
-        customerId: string | null;
-      }> = {};
-
-      if (validated.shortName !== undefined) {
-        fields.shortName = validated.shortName;
-      }
-      if (validated.fullName !== undefined) {
-        fields.fullName = validated.fullName;
-      }
-      if (validated.kind !== undefined) {
-        fields.kind = validated.kind;
-      }
-      if (validated.country !== undefined) {
-        fields.country = validated.country;
-      }
-      if (validated.externalId !== undefined) {
-        fields.externalId = validated.externalId;
-      }
-      if (validated.description !== undefined) {
-        fields.description = validated.description;
-      }
-      if (validated.customerId !== undefined) {
-        fields.customerId = validated.customerId;
+      let next: Counterparty;
+      try {
+        next = existing.update(validated, {
+          hierarchy,
+          managedGroupId,
+          now: context.now(),
+        });
+      } catch (error) {
+        rethrowCounterpartyMembershipDomainError(error);
       }
 
-      const updated =
-        Object.keys(fields).length > 0
-          ? await parties.updateCounterpartyTx(tx, id, fields)
-          : {
-              id: existing.id,
-              externalId: existing.externalId,
-              customerId: existing.customerId,
-              shortName: existing.shortName,
-              fullName: existing.fullName,
-              description: existing.description,
-              country: existing.country,
-              kind: existing.kind,
-              createdAt: existing.createdAt,
-              updatedAt: existing.updatedAt,
-            };
+      const persistedSnapshot = existing.sameState(next)
+        ? existingSnapshot
+        : await counterparties.updateCounterpartyTx(tx, next.toSnapshot());
 
-      if (!updated) {
+      if (!persistedSnapshot) {
         throw new CounterpartyNotFoundError(id);
       }
 
-      if (validated.groupIds !== undefined || membershipChanged) {
-        await parties.replaceMembershipsTx(tx, id, nextGroupIds);
+      if (
+        membershipsChanged(
+          existingSnapshot.groupIds,
+          next.toSnapshot().groupIds,
+        )
+      ) {
+        await counterparties.replaceMembershipsTx(
+          tx,
+          id,
+          next.toSnapshot().groupIds,
+        );
       }
 
+      const updated = Counterparty.reconstitute({
+        ...persistedSnapshot,
+        groupIds: next.toSnapshot().groupIds,
+      });
+
       log.info("Counterparty updated", { id });
-      return {
-        ...updated,
-        groupIds: nextGroupIds,
-      };
+      return toPublicCounterparty(updated);
     });
   };
 }
@@ -234,10 +215,10 @@ export function createUpdateCounterpartyHandler(
 export function createRemoveCounterpartyHandler(
   context: PartiesServiceContext,
 ) {
-  const { log, parties } = context;
+  const { counterparties, log } = context;
 
   return async function removeCounterparty(id: string): Promise<void> {
-    const deleted = await parties.removeCounterparty(id);
+    const deleted = await counterparties.removeCounterparty(id);
     if (!deleted) {
       throw new CounterpartyNotFoundError(id);
     }

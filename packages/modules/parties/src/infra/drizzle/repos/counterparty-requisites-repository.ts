@@ -6,24 +6,25 @@ import {
   ilike,
   inArray,
   isNull,
-  ne,
   sql,
   type SQL,
 } from "drizzle-orm";
 
-import type { Queryable } from "@bedrock/platform/persistence";
+import { currencies } from "@bedrock/currencies/schema";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,
   resolveSortValue,
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import type { CounterpartyRequisite } from "../../../contracts";
 import type {
   CounterpartyRequisiteOptionRecord,
-  CounterpartyRequisitesRepository,
-} from "../../../application/ports";
-import { currencies } from "@bedrock/currencies/schema";
+  CounterpartyRequisitesCommandRepository,
+  CounterpartyRequisitesQueryRepository,
+} from "../../../application/requisites/ports";
+import type { CounterpartyRequisite } from "../../../contracts";
+import type { CounterpartyRequisiteSnapshot } from "../../../domain/counterparty-requisite";
 import {
   counterpartyRequisites,
   type CounterpartyRequisiteRow,
@@ -36,15 +37,12 @@ const REQUISITES_SORT_COLUMN_MAP = {
   updatedAt: counterpartyRequisites.updatedAt,
 } as const;
 
-function resolveDb(db: Queryable, queryable?: Queryable): Queryable {
-  return queryable ?? db;
-}
-
-function toPublicRequisite(row: CounterpartyRequisiteRow): CounterpartyRequisite {
+function toSnapshot(
+  row: CounterpartyRequisiteRow,
+): CounterpartyRequisiteSnapshot {
   return {
     id: row.id,
-    ownerType: "counterparty",
-    ownerId: row.counterpartyId!,
+    counterpartyId: row.counterpartyId!,
     providerId: row.providerId,
     currencyId: row.currencyId,
     kind: row.kind,
@@ -74,66 +72,109 @@ function toPublicRequisite(row: CounterpartyRequisiteRow): CounterpartyRequisite
   };
 }
 
-export function createDrizzleCounterpartyRequisitesRepository(
-  db: Queryable,
-): CounterpartyRequisitesRepository {
+function toPublicRequisite(
+  snapshot: CounterpartyRequisiteSnapshot,
+): CounterpartyRequisite {
   return {
-    async findRequisiteById(id, queryable) {
-      const [row] = await resolveDb(db, queryable)
-        .select()
-        .from(counterpartyRequisites)
-        .where(
-          and(
-            eq(counterpartyRequisites.id, id),
-            eq(counterpartyRequisites.ownerType, "counterparty"),
-          ),
-        )
-        .limit(1);
+    id: snapshot.id,
+    ownerType: "counterparty",
+    ownerId: snapshot.counterpartyId,
+    providerId: snapshot.providerId,
+    currencyId: snapshot.currencyId,
+    kind: snapshot.kind,
+    label: snapshot.label,
+    description: snapshot.description,
+    beneficiaryName: snapshot.beneficiaryName,
+    institutionName: snapshot.institutionName,
+    institutionCountry: snapshot.institutionCountry,
+    accountNo: snapshot.accountNo,
+    corrAccount: snapshot.corrAccount,
+    iban: snapshot.iban,
+    bic: snapshot.bic,
+    swift: snapshot.swift,
+    bankAddress: snapshot.bankAddress,
+    network: snapshot.network,
+    assetCode: snapshot.assetCode,
+    address: snapshot.address,
+    memoTag: snapshot.memoTag,
+    accountRef: snapshot.accountRef,
+    subaccountRef: snapshot.subaccountRef,
+    contact: snapshot.contact,
+    notes: snapshot.notes,
+    isDefault: snapshot.isDefault,
+    createdAt: snapshot.createdAt,
+    updatedAt: snapshot.updatedAt,
+    archivedAt: snapshot.archivedAt,
+  };
+}
 
-      return row ? toPublicRequisite(row) : null;
-    },
-    async findActiveRequisiteById(id, queryable) {
-      const [row] = await resolveDb(db, queryable)
-        .select()
-        .from(counterpartyRequisites)
-        .where(
-          and(
-            eq(counterpartyRequisites.id, id),
-            eq(counterpartyRequisites.ownerType, "counterparty"),
-            isNull(counterpartyRequisites.archivedAt),
-          ),
-        )
-        .limit(1);
+async function findActiveRequisiteSnapshot(
+  db: Database,
+  id: string,
+  tx?: Transaction,
+): Promise<CounterpartyRequisiteSnapshot | null> {
+  const database = tx ?? db;
+  const [row] = await database
+    .select()
+    .from(counterpartyRequisites)
+    .where(
+      and(
+        eq(counterpartyRequisites.id, id),
+        eq(counterpartyRequisites.ownerType, "counterparty"),
+        isNull(counterpartyRequisites.archivedAt),
+      ),
+    )
+    .limit(1);
 
-      return row ? toPublicRequisite(row) : null;
+  return row ? toSnapshot(row) : null;
+}
+
+export function createDrizzleCounterpartyRequisitesQueryRepository(
+  db: Database,
+): CounterpartyRequisitesQueryRepository {
+  return {
+    async findActiveRequisiteById(id) {
+      const snapshot = await findActiveRequisiteSnapshot(db, id);
+      return snapshot ? toPublicRequisite(snapshot) : null;
     },
-    async listRequisites(input, queryable) {
-      const database = resolveDb(db, queryable);
+    async listRequisites(input) {
+      const database = db;
       const conditions: SQL[] = [
         eq(counterpartyRequisites.ownerType, "counterparty"),
         isNull(counterpartyRequisites.archivedAt),
       ];
 
       if (input.label) {
-        conditions.push(ilike(counterpartyRequisites.label, `%${input.label}%`));
+        conditions.push(
+          ilike(counterpartyRequisites.label, `%${input.label}%`),
+        );
       }
 
       if (input.counterpartyId) {
-        conditions.push(eq(counterpartyRequisites.counterpartyId, input.counterpartyId));
+        conditions.push(
+          eq(counterpartyRequisites.counterpartyId, input.counterpartyId),
+        );
       }
 
       if (input.currencyId?.length) {
-        conditions.push(inArray(counterpartyRequisites.currencyId, input.currencyId));
+        conditions.push(
+          inArray(counterpartyRequisites.currencyId, input.currencyId),
+        );
       }
 
       if (input.kind?.length) {
         conditions.push(
-          inArray(counterpartyRequisites.kind, input.kind as CounterpartyRequisite["kind"][]),
+          inArray(
+            counterpartyRequisites.kind,
+            input.kind as CounterpartyRequisite["kind"][],
+          ),
         );
       }
 
       if (input.providerId?.length) {
-        conditions.push(inArray(counterpartyRequisites.providerId, input.providerId));
+        conditions.push(
+          inArray(counterpartyRequisites.providerId, input.providerId),
+        );
       }
 
       const where = and(...conditions);
@@ -160,21 +201,23 @@ export function createDrizzleCounterpartyRequisitesRepository(
       ]);
 
       return {
-        data: rows.map(toPublicRequisite),
+        data: rows.map((row) => toPublicRequisite(toSnapshot(row))),
         total: countRows[0]?.total ?? 0,
         limit: input.limit,
         offset: input.offset,
       } satisfies PaginatedList<CounterpartyRequisite>;
     },
-    async listRequisiteOptions(input, queryable) {
-      const database = resolveDb(db, queryable);
+    async listRequisiteOptions(input) {
+      const database = db;
       const conditions: SQL[] = [
         eq(counterpartyRequisites.ownerType, "counterparty"),
         isNull(counterpartyRequisites.archivedAt),
       ];
 
       if (input.counterpartyId) {
-        conditions.push(eq(counterpartyRequisites.counterpartyId, input.counterpartyId));
+        conditions.push(
+          eq(counterpartyRequisites.counterpartyId, input.counterpartyId),
+        );
       }
 
       const rows = await database
@@ -205,13 +248,18 @@ export function createDrizzleCounterpartyRequisitesRepository(
           currencyCode: currencies.code,
         })
         .from(counterpartyRequisites)
-        .innerJoin(currencies, eq(currencies.id, counterpartyRequisites.currencyId))
+        .innerJoin(
+          currencies,
+          eq(currencies.id, counterpartyRequisites.currencyId),
+        )
         .where(and(...conditions))
-        .orderBy(asc(counterpartyRequisites.label), asc(counterpartyRequisites.createdAt));
+        .orderBy(
+          asc(counterpartyRequisites.label),
+          asc(counterpartyRequisites.createdAt),
+        );
 
       return rows.map((row) => ({
         id: row.id,
-        ownerType: "counterparty",
         ownerId: row.ownerId!,
         currencyId: row.currencyId,
         providerId: row.providerId,
@@ -237,13 +285,14 @@ export function createDrizzleCounterpartyRequisitesRepository(
         currencyCode: row.currencyCode,
       })) satisfies CounterpartyRequisiteOptionRecord[];
     },
-    async listLabelsById(ids, queryable) {
+    async listLabelsById(ids) {
       const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
       if (uniqueIds.length === 0) {
         return new Map();
       }
 
-      const rows = await resolveDb(db, queryable)
+      const database = db;
+      const rows = await database
         .select({
           id: counterpartyRequisites.id,
           label: counterpartyRequisites.label,
@@ -258,9 +307,20 @@ export function createDrizzleCounterpartyRequisitesRepository(
 
       return new Map(rows.map((row) => [row.id, row.label]));
     },
-    async countActiveRequisitesByCounterpartyCurrency(input, queryable) {
-      const [row] = await resolveDb(db, queryable)
-        .select({ total: sql<number>`count(*)::int` })
+  };
+}
+
+export function createDrizzleCounterpartyRequisitesCommandRepository(
+  db: Database,
+): CounterpartyRequisitesCommandRepository {
+  return {
+    async findActiveRequisiteSnapshotById(id, tx) {
+      return findActiveRequisiteSnapshot(db, id, tx);
+    },
+    async listActiveRequisitesByCounterpartyCurrency(input, tx) {
+      const database = tx ?? db;
+      const rows = await database
+        .select()
         .from(counterpartyRequisites)
         .where(
           and(
@@ -268,147 +328,136 @@ export function createDrizzleCounterpartyRequisitesRepository(
             eq(counterpartyRequisites.counterpartyId, input.counterpartyId),
             eq(counterpartyRequisites.currencyId, input.currencyId),
             isNull(counterpartyRequisites.archivedAt),
-          ),
-        );
-
-      return row?.total ?? 0;
-    },
-    async clearOtherDefaultsTx(tx, input) {
-      await tx
-        .update(counterpartyRequisites)
-        .set({ isDefault: false })
-        .where(
-          and(
-            eq(counterpartyRequisites.ownerType, "counterparty"),
-            eq(counterpartyRequisites.counterpartyId, input.counterpartyId),
-            eq(counterpartyRequisites.currencyId, input.currencyId),
-            isNull(counterpartyRequisites.archivedAt),
-            ne(counterpartyRequisites.id, input.currentId),
-          ),
-        );
-
-      await tx
-        .update(counterpartyRequisites)
-        .set({ isDefault: true })
-        .where(eq(counterpartyRequisites.id, input.currentId));
-    },
-    async promoteNextDefaultTx(tx, input) {
-      const [replacement] = await tx
-        .select({ id: counterpartyRequisites.id })
-        .from(counterpartyRequisites)
-        .where(
-          and(
-            eq(counterpartyRequisites.ownerType, "counterparty"),
-            eq(counterpartyRequisites.counterpartyId, input.counterpartyId),
-            eq(counterpartyRequisites.currencyId, input.currencyId),
-            isNull(counterpartyRequisites.archivedAt),
-            ne(counterpartyRequisites.id, input.excludeId),
           ),
         )
-        .limit(1);
+        .orderBy(
+          asc(counterpartyRequisites.createdAt),
+          asc(counterpartyRequisites.id),
+        );
 
-      if (!replacement) {
-        return;
-      }
-
-      await tx
-        .update(counterpartyRequisites)
-        .set({ isDefault: true, updatedAt: sql`now()` })
-        .where(eq(counterpartyRequisites.id, replacement.id));
+      return rows.map(toSnapshot);
     },
-    async insertRequisiteTx(tx, input) {
+    async insertRequisiteTx(tx, requisite) {
       const [created] = await tx
         .insert(counterpartyRequisites)
         .values({
+          id: requisite.id,
           ownerType: "counterparty",
           organizationId: null,
-          counterpartyId: input.counterpartyId,
-          providerId: input.providerId,
-          currencyId: input.currencyId,
-          kind: input.kind,
-          label: input.label,
-          description: input.description ?? null,
-          beneficiaryName: input.beneficiaryName ?? null,
-          institutionName: input.institutionName ?? null,
-          institutionCountry: input.institutionCountry ?? null,
-          accountNo: input.accountNo ?? null,
-          corrAccount: input.corrAccount ?? null,
-          iban: input.iban ?? null,
-          bic: input.bic ?? null,
-          swift: input.swift ?? null,
-          bankAddress: input.bankAddress ?? null,
-          network: input.network ?? null,
-          assetCode: input.assetCode ?? null,
-          address: input.address ?? null,
-          memoTag: input.memoTag ?? null,
-          accountRef: input.accountRef ?? null,
-          subaccountRef: input.subaccountRef ?? null,
-          contact: input.contact ?? null,
-          notes: input.notes ?? null,
-          isDefault: input.isDefault,
+          counterpartyId: requisite.counterpartyId,
+          providerId: requisite.providerId,
+          currencyId: requisite.currencyId,
+          kind: requisite.kind,
+          label: requisite.label,
+          description: requisite.description,
+          beneficiaryName: requisite.beneficiaryName,
+          institutionName: requisite.institutionName,
+          institutionCountry: requisite.institutionCountry,
+          accountNo: requisite.accountNo,
+          corrAccount: requisite.corrAccount,
+          iban: requisite.iban,
+          bic: requisite.bic,
+          swift: requisite.swift,
+          bankAddress: requisite.bankAddress,
+          network: requisite.network,
+          assetCode: requisite.assetCode,
+          address: requisite.address,
+          memoTag: requisite.memoTag,
+          accountRef: requisite.accountRef,
+          subaccountRef: requisite.subaccountRef,
+          contact: requisite.contact,
+          notes: requisite.notes,
+          isDefault: requisite.isDefault,
+          archivedAt: requisite.archivedAt,
         })
         .returning();
 
-      return toPublicRequisite(created!);
+      return toSnapshot(created!);
     },
-    async updateRequisiteTx(tx, id, input) {
+    async updateRequisiteTx(tx, requisite) {
       const [updated] = await tx
         .update(counterpartyRequisites)
         .set({
-          providerId: input.providerId,
-          currencyId: input.currencyId,
-          kind: input.kind,
-          label: input.label,
-          description: input.description !== undefined ? (input.description ?? null) : undefined,
-          beneficiaryName:
-            input.beneficiaryName !== undefined ? (input.beneficiaryName ?? null) : undefined,
-          institutionName:
-            input.institutionName !== undefined ? (input.institutionName ?? null) : undefined,
-          institutionCountry:
-            input.institutionCountry !== undefined
-              ? (input.institutionCountry ?? null)
-              : undefined,
-          accountNo: input.accountNo !== undefined ? (input.accountNo ?? null) : undefined,
-          corrAccount:
-            input.corrAccount !== undefined ? (input.corrAccount ?? null) : undefined,
-          iban: input.iban !== undefined ? (input.iban ?? null) : undefined,
-          bic: input.bic !== undefined ? (input.bic ?? null) : undefined,
-          swift: input.swift !== undefined ? (input.swift ?? null) : undefined,
-          bankAddress:
-            input.bankAddress !== undefined ? (input.bankAddress ?? null) : undefined,
-          network: input.network !== undefined ? (input.network ?? null) : undefined,
-          assetCode: input.assetCode !== undefined ? (input.assetCode ?? null) : undefined,
-          address: input.address !== undefined ? (input.address ?? null) : undefined,
-          memoTag: input.memoTag !== undefined ? (input.memoTag ?? null) : undefined,
-          accountRef: input.accountRef !== undefined ? (input.accountRef ?? null) : undefined,
-          subaccountRef:
-            input.subaccountRef !== undefined ? (input.subaccountRef ?? null) : undefined,
-          contact: input.contact !== undefined ? (input.contact ?? null) : undefined,
-          notes: input.notes !== undefined ? (input.notes ?? null) : undefined,
-          isDefault: input.isDefault,
+          providerId: requisite.providerId,
+          currencyId: requisite.currencyId,
+          kind: requisite.kind,
+          label: requisite.label,
+          description: requisite.description,
+          beneficiaryName: requisite.beneficiaryName,
+          institutionName: requisite.institutionName,
+          institutionCountry: requisite.institutionCountry,
+          accountNo: requisite.accountNo,
+          corrAccount: requisite.corrAccount,
+          iban: requisite.iban,
+          bic: requisite.bic,
+          swift: requisite.swift,
+          bankAddress: requisite.bankAddress,
+          network: requisite.network,
+          assetCode: requisite.assetCode,
+          address: requisite.address,
+          memoTag: requisite.memoTag,
+          accountRef: requisite.accountRef,
+          subaccountRef: requisite.subaccountRef,
+          contact: requisite.contact,
+          notes: requisite.notes,
+          isDefault: requisite.isDefault,
+          archivedAt: requisite.archivedAt,
           updatedAt: sql`now()`,
         })
         .where(
           and(
-            eq(counterpartyRequisites.id, id),
+            eq(counterpartyRequisites.id, requisite.id),
             eq(counterpartyRequisites.ownerType, "counterparty"),
           ),
         )
         .returning();
 
-      return updated ? toPublicRequisite(updated) : null;
+      return updated ? toSnapshot(updated) : null;
     },
-    async archiveRequisiteTx(tx, id) {
+    async setDefaultStateTx(tx, input) {
+      const demotedIds = input.demotedIds.filter(
+        (id) => id !== input.defaultId,
+      );
+
+      if (demotedIds.length > 0) {
+        await tx
+          .update(counterpartyRequisites)
+          .set({
+            isDefault: false,
+            updatedAt: sql`now()`,
+          })
+          .where(
+            and(
+              eq(counterpartyRequisites.ownerType, "counterparty"),
+              eq(counterpartyRequisites.counterpartyId, input.counterpartyId),
+              eq(counterpartyRequisites.currencyId, input.currencyId),
+              isNull(counterpartyRequisites.archivedAt),
+              inArray(counterpartyRequisites.id, demotedIds),
+            ),
+          );
+      }
+
+      if (input.defaultId) {
+        await tx
+          .update(counterpartyRequisites)
+          .set({
+            isDefault: true,
+            updatedAt: sql`now()`,
+          })
+          .where(eq(counterpartyRequisites.id, input.defaultId));
+      }
+    },
+    async archiveRequisiteTx(tx, input) {
       const [updated] = await tx
         .update(counterpartyRequisites)
         .set({
-          archivedAt: sql`now()`,
+          archivedAt: input.archivedAt,
           isDefault: false,
           updatedAt: sql`now()`,
         })
         .where(
           and(
-            eq(counterpartyRequisites.id, id),
+            eq(counterpartyRequisites.id, input.requisiteId),
             eq(counterpartyRequisites.ownerType, "counterparty"),
           ),
         )

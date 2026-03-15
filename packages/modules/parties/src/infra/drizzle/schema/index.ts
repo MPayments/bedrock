@@ -14,8 +14,8 @@ import {
 
 import { COUNTRY_ALPHA2_CODES } from "@bedrock/shared/reference-data/countries/contracts";
 
-import { PARTY_KIND_VALUES } from "../../../domain/party-kind";
 import { counterpartyRequisites } from "./requisites";
+import { PARTY_KIND_VALUES } from "../../../domain/party-kind";
 
 export const counterpartyKindEnum = pgEnum(
   "counterparty_kind",

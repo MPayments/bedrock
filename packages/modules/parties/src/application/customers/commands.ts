@@ -1,139 +1,104 @@
-import type { PaginatedList } from "@bedrock/shared/core/pagination";
+import { randomUUID } from "node:crypto";
 
+import type { CreateCustomerInput, Customer as CustomerDto, UpdateCustomerInput } from "../../contracts";
 import {
   CreateCustomerInputSchema,
-  ListCustomersQuerySchema,
   UpdateCustomerInputSchema,
-  type CreateCustomerInput,
-  type Customer,
-  type ListCustomersQuery,
-  type UpdateCustomerInput,
 } from "../../contracts";
+import { Customer } from "../../domain/customer";
+import { GroupHierarchy } from "../../domain/group-hierarchy";
 import {
-  CounterpartyCustomerNotFoundError,
   CustomerDeleteConflictError,
   CustomerNotFoundError,
 } from "../../errors";
-import {
-  createGroupNodeMap,
-  listGroupSubtreeIds,
-  planCustomerDetachment,
-} from "../../domain/group-rules";
 import type { PartiesServiceContext } from "../shared/context";
 
-async function assertCustomerExists(
-  context: PartiesServiceContext,
-  customerId: string,
-) {
-  const existingCustomerIds = await context.parties.listExistingCustomerIds([
-    customerId,
-  ]);
-  if (!existingCustomerIds.includes(customerId)) {
-    throw new CounterpartyCustomerNotFoundError(customerId);
-  }
-}
-
-export function createListCustomersHandler(context: PartiesServiceContext) {
-  const { parties } = context;
-
-  return async function listCustomers(
-    input?: ListCustomersQuery,
-  ): Promise<PaginatedList<Customer>> {
-    const query = ListCustomersQuerySchema.parse(input ?? {});
-    return parties.listCustomers(query);
-  };
-}
-
-export function createFindCustomerByIdHandler(context: PartiesServiceContext) {
-  const { parties } = context;
-
-  return async function findCustomerById(id: string): Promise<Customer> {
-    const customer = await parties.findCustomerById(id);
-    if (!customer) {
-      throw new CustomerNotFoundError(id);
-    }
-
-    return customer;
-  };
+function toPublicCustomer(customer: Customer): CustomerDto {
+  return customer.toSnapshot();
 }
 
 export function createCreateCustomerHandler(context: PartiesServiceContext) {
-  const { db, log, parties } = context;
+  const { customers, db, log } = context;
 
   return async function createCustomer(
     input: CreateCustomerInput,
-  ): Promise<Customer> {
+  ): Promise<CustomerDto> {
     const validated = CreateCustomerInputSchema.parse(input);
+    const draft = Customer.create({
+      id: randomUUID(),
+      externalRef: validated.externalRef,
+      displayName: validated.displayName,
+      description: validated.description,
+    }, context.now());
 
     return db.transaction(async (tx) => {
-      const created = await parties.insertCustomerTx(tx, validated);
+      const created = Customer.reconstitute(
+        await customers.insertCustomerTx(tx, draft.toSnapshot()),
+      );
 
-      await parties.ensureManagedCustomerGroupTx(tx, {
+      await customers.ensureManagedCustomerGroupTx(tx, {
         customerId: created.id,
-        displayName: created.displayName,
+        displayName: created.toSnapshot().displayName,
       });
 
       log.info("Customer created", {
         id: created.id,
-        displayName: created.displayName,
+        displayName: created.toSnapshot().displayName,
       });
 
-      return created;
+      return toPublicCustomer(created);
     });
   };
 }
 
 export function createUpdateCustomerHandler(context: PartiesServiceContext) {
-  const { db, log, parties } = context;
+  const { customers, db, log } = context;
 
   return async function updateCustomer(
     id: string,
     input: UpdateCustomerInput,
-  ): Promise<Customer> {
+  ): Promise<CustomerDto> {
     const validated = UpdateCustomerInputSchema.parse(input);
 
     return db.transaction(async (tx) => {
-      const existing = await parties.findCustomerById(id, tx);
-      if (!existing) {
+      const existingSnapshot = await customers.findCustomerSnapshotById(id, tx);
+      if (!existingSnapshot) {
         throw new CustomerNotFoundError(id);
       }
 
-      const updated =
-        Object.keys(validated).length > 0
-          ? await parties.updateCustomerTx(tx, id, validated)
-          : existing;
+      const existing = Customer.reconstitute(existingSnapshot);
+      const next = existing.update(validated, context.now());
+      const persistedSnapshot = existing.sameState(next)
+        ? existingSnapshot
+        : await customers.updateCustomerTx(tx, next.toSnapshot());
 
-      if (!updated) {
+      if (!persistedSnapshot) {
         throw new CustomerNotFoundError(id);
       }
 
-      if (
-        validated.displayName !== undefined &&
-        validated.displayName !== existing.displayName
-      ) {
-        await assertCustomerExists(context, id);
-        await parties.ensureManagedCustomerGroupTx(tx, {
+      if (next.displayNameChangedComparedTo(existing)) {
+        await customers.ensureManagedCustomerGroupTx(tx, {
           customerId: id,
-          displayName: updated.displayName,
+          displayName: next.toSnapshot().displayName,
         });
-        await parties.renameManagedCustomerGroupTx(tx, {
+        await customers.renameManagedCustomerGroupTx(tx, {
           customerId: id,
-          displayName: updated.displayName,
+          displayName: next.toSnapshot().displayName,
         });
       }
 
       log.info("Customer updated", { id });
-      return updated;
+      return toPublicCustomer(Customer.reconstitute(persistedSnapshot));
     });
   };
 }
 
 export function createRemoveCustomerHandler(context: PartiesServiceContext) {
-  const { db, documents, log, parties } = context;
+  const { customers, db, documents, log } = context;
 
   return async function removeCustomer(id: string): Promise<void> {
     await db.transaction(async (tx) => {
-      const existing = await parties.findCustomerById(id, tx);
+      const existing = await customers.findCustomerSnapshotById(id, tx);
       if (!existing) {
         throw new CustomerNotFoundError(id);
       }
@@ -143,43 +108,42 @@ export function createRemoveCustomerHandler(context: PartiesServiceContext) {
         throw new CustomerDeleteConflictError(id);
       }
 
-      const linkedCounterparties = await parties.listCounterpartiesByCustomerId(id, tx);
-      const managedGroup = await parties.findManagedCustomerGroup(id, tx);
-      const groups = await parties.listGroupNodes(tx);
-      const groupMap = createGroupNodeMap(groups);
+      const linkedCounterparties = await customers.listCounterpartiesByCustomerId(id, tx);
+      const managedGroup = await customers.findManagedCustomerGroup(id, tx);
+      const hierarchy = GroupHierarchy.create(
+        await customers.listGroupHierarchyNodes(tx),
+      );
       const linkedCounterpartyIds = linkedCounterparties.map((row) => row.id);
 
       if (linkedCounterpartyIds.length > 0) {
-        const memberships = await parties.listMembershipRowsByCounterpartyIds(
+        const memberships = await customers.listMembershipRowsByCounterpartyIds(
           linkedCounterpartyIds,
           tx,
         );
-        const detachment = planCustomerDetachment({
+        const detachment = hierarchy.planCustomerDetachment({
           customerId: id,
           linkedCounterpartyIds,
           memberships,
-          groups,
         });
 
-        await parties.deleteMembershipsByCounterpartyAndGroupIdsTx(tx, {
+        await customers.deleteMembershipsByCounterpartyAndGroupIdsTx(tx, {
           counterpartyIds: detachment.linkedCounterpartyIds,
           groupIds: detachment.removableGroupIds,
         });
-        await parties.clearCounterpartyCustomerLinkTx(
+        await customers.clearCounterpartyCustomerLinkTx(
           tx,
           detachment.linkedCounterpartyIds,
         );
       }
 
       if (managedGroup) {
-        const subtreeIds = listGroupSubtreeIds({
-          groups: Array.from(groupMap.values()),
-          rootGroupId: managedGroup.id,
-        });
-        await parties.deleteCounterpartyGroupsByIdsTx(tx, subtreeIds);
+        await customers.deleteCounterpartyGroupsByIdsTx(
+          tx,
+          hierarchy.listSubtreeIds(managedGroup.id),
+        );
       }
 
-      const deleted = await parties.removeCustomerTx(tx, id);
+      const deleted = await customers.removeCustomerTx(tx, id);
       if (!deleted) {
         throw new CustomerNotFoundError(id);
       }

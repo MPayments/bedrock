@@ -1,11 +1,15 @@
 import { z } from "zod";
 
-import { COUNTRY_ALPHA2_SET } from "@bedrock/shared/reference-data/countries";
-
-import { PARTY_KIND_VALUES } from "../domain/party-kind";
+import {
+  isCountryCode,
+  normalizeCountryCode,
+  PARTY_KIND_VALUES,
+  type CountryCode as DomainCountryCode,
+  type PartyKind as DomainPartyKind,
+} from "../domain/party-kind";
 
 export const PartyKindSchema = z.enum(PARTY_KIND_VALUES);
-export type PartyKind = z.infer<typeof PartyKindSchema>;
+export type PartyKind = DomainPartyKind;
 
 export const CounterpartyKindSchema = PartyKindSchema;
 export type CounterpartyKind = PartyKind;
@@ -13,10 +17,10 @@ export type CounterpartyKind = PartyKind;
 export const CountryCodeSchema = z
   .string()
   .trim()
-  .transform((value) => value.toUpperCase())
+  .transform((value) => normalizeCountryCode(value))
   .refine(
-    (value) => COUNTRY_ALPHA2_SET.has(value),
+    (value) => isCountryCode(value),
     "country must be a valid ISO 3166-1 alpha-2 code",
   );
 
-export type CountryCode = z.infer<typeof CountryCodeSchema>;
+export type CountryCode = DomainCountryCode;

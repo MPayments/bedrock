@@ -14,21 +14,28 @@ describe("parties handlers", () => {
         ),
       },
       log: { info: vi.fn() },
+      now: () => new Date("2026-01-01T00:00:00.000Z"),
       documents: {
         hasDocumentsForCustomer: vi.fn(),
       },
-      parties: {
+      customers: {
         listExistingCustomerIds: vi.fn(async () => [
           "00000000-0000-4000-8000-000000000901",
         ]),
-        findCustomerById: vi.fn(async () => ({
+        findCustomerSnapshotById: vi.fn(async () => ({
           id: "00000000-0000-4000-8000-000000000901",
+          externalRef: null,
           displayName: "Acme Corp",
+          description: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
         })),
         ensureManagedCustomerGroupTx: vi.fn(async () => ({
           id: "00000000-0000-4000-8000-000000000912",
         })),
-        listGroupNodes: vi.fn(async () => [
+      },
+      counterparties: {
+        listGroupHierarchyNodes: vi.fn(async () => [
           {
             id: "00000000-0000-4000-8000-000000000911",
             code: "shared-group",
@@ -42,15 +49,8 @@ describe("parties handlers", () => {
             customerId: "00000000-0000-4000-8000-000000000901",
           },
         ]),
-        insertCounterpartyTx: vi.fn(async () => ({
-          id: "cp-1",
-          externalId: null,
-          customerId: "00000000-0000-4000-8000-000000000901",
-          shortName: "Acme",
-          fullName: "Acme Corp",
-          description: null,
-          country: null,
-          kind: "legal_entity",
+        insertCounterpartyTx: vi.fn(async (_tx: unknown, counterparty: any) => ({
+          ...counterparty,
           createdAt: new Date("2026-01-01T00:00:00.000Z"),
           updatedAt: new Date("2026-01-01T00:00:00.000Z"),
         })),
@@ -70,9 +70,9 @@ describe("parties handlers", () => {
       "00000000-0000-4000-8000-000000000911",
       "00000000-0000-4000-8000-000000000912",
     ]);
-    expect(context.parties.replaceMembershipsTx).toHaveBeenCalledWith(
+    expect(context.counterparties.replaceMembershipsTx).toHaveBeenCalledWith(
       tx,
-      "cp-1",
+      expect.any(String),
       [
         "00000000-0000-4000-8000-000000000911",
         "00000000-0000-4000-8000-000000000912",
@@ -89,11 +89,12 @@ describe("parties handlers", () => {
         ),
       },
       log: { info: vi.fn() },
+      now: () => new Date("2026-01-01T00:00:00.000Z"),
       documents: {
         hasDocumentsForCustomer: vi.fn(async () => true),
       },
-      parties: {
-        findCustomerById: vi.fn(async () => ({
+      customers: {
+        findCustomerSnapshotById: vi.fn(async () => ({
           id: "cust-1",
           externalRef: null,
           displayName: "Acme Corp",

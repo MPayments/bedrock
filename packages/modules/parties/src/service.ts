@@ -3,32 +3,38 @@ import { createRequisiteProvidersService } from "@bedrock/requisite-providers";
 
 import {
   createCreateCounterpartyHandler,
-  createFindCounterpartyByIdHandler,
-  createListCounterpartiesHandler,
   createRemoveCounterpartyHandler,
   createUpdateCounterpartyHandler,
 } from "./application/counterparties/commands";
 import {
+  createFindCounterpartyByIdHandler,
+  createListCounterpartiesHandler,
+} from "./application/counterparties/queries";
+import {
   createCreateCustomerHandler,
-  createFindCustomerByIdHandler,
-  createListCustomersHandler,
   createRemoveCustomerHandler,
   createUpdateCustomerHandler,
 } from "./application/customers/commands";
 import {
+  createFindCustomerByIdHandler,
+  createListCustomersHandler,
+} from "./application/customers/queries";
+import {
   createCreateCounterpartyGroupHandler,
-  createListCounterpartyGroupsHandler,
   createRemoveCounterpartyGroupHandler,
   createUpdateCounterpartyGroupHandler,
 } from "./application/groups/commands";
+import { createListCounterpartyGroupsHandler } from "./application/groups/queries";
 import {
   createCreateCounterpartyRequisiteHandler,
-  createFindCounterpartyRequisiteByIdHandler,
-  createListCounterpartyRequisiteOptionsHandler,
-  createListCounterpartyRequisitesHandler,
   createRemoveCounterpartyRequisiteHandler,
   createUpdateCounterpartyRequisiteHandler,
 } from "./application/requisites/commands";
+import {
+  createFindCounterpartyRequisiteByIdHandler,
+  createListCounterpartyRequisiteOptionsHandler,
+  createListCounterpartyRequisitesHandler,
+} from "./application/requisites/queries";
 import {
   createPartiesServiceContext,
   type PartiesServiceDeps,
@@ -36,9 +42,23 @@ import {
 import type {
   PartiesCurrenciesPort,
   PartiesRequisiteProvidersPort,
-} from "./application/ports";
-import { createDrizzlePartiesRepository } from "./infra/drizzle/repos/parties-repository";
-import { createDrizzleCounterpartyRequisitesRepository } from "./infra/drizzle/repos/counterparty-requisites-repository";
+} from "./application/shared/external-ports";
+import {
+  createDrizzleCounterpartiesCommandRepository,
+  createDrizzleCounterpartiesQueryRepository,
+} from "./infra/drizzle/repos/counterparties-repository";
+import {
+  createDrizzleCounterpartyGroupsCommandRepository,
+  createDrizzleCounterpartyGroupsQueryRepository,
+} from "./infra/drizzle/repos/counterparty-groups-repository";
+import {
+  createDrizzleCounterpartyRequisitesCommandRepository,
+  createDrizzleCounterpartyRequisitesQueryRepository,
+} from "./infra/drizzle/repos/counterparty-requisites-repository";
+import {
+  createDrizzleCustomersCommandRepository,
+  createDrizzleCustomersQueryRepository,
+} from "./infra/drizzle/repos/customers-repository";
 
 export type PartiesService = ReturnType<typeof createPartiesService>;
 
@@ -72,8 +92,14 @@ export function createPartiesService(deps: PartiesServiceDeps) {
     ...deps,
     currencies,
     requisiteProviders,
-    parties: createDrizzlePartiesRepository(deps.db),
-    requisites: createDrizzleCounterpartyRequisitesRepository(deps.db),
+    customers: createDrizzleCustomersCommandRepository(deps.db),
+    customerQueries: createDrizzleCustomersQueryRepository(deps.db),
+    counterparties: createDrizzleCounterpartiesCommandRepository(deps.db),
+    counterpartyQueries: createDrizzleCounterpartiesQueryRepository(deps.db),
+    groups: createDrizzleCounterpartyGroupsCommandRepository(deps.db),
+    groupQueries: createDrizzleCounterpartyGroupsQueryRepository(deps.db),
+    requisites: createDrizzleCounterpartyRequisitesCommandRepository(deps.db),
+    requisiteQueries: createDrizzleCounterpartyRequisitesQueryRepository(deps.db),
   });
 
   return {

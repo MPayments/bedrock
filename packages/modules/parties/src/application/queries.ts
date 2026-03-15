@@ -1,4 +1,14 @@
-import type { PartiesRepository } from "./ports";
+import type { CounterpartiesQueryRepository } from "./counterparties/ports";
+import type { CustomersQueryRepository } from "./customers/ports";
+
+type PartiesQueriesRepository = Pick<
+  CustomersQueryRepository,
+  "listCustomerDisplayNamesById"
+> &
+  Pick<
+    CounterpartiesQueryRepository,
+    "listCounterpartyShortNamesById" | "listGroupMembers"
+  >;
 
 export interface PartiesQueries {
   customers: {
@@ -22,7 +32,7 @@ export type CustomersQueries = PartiesQueries["customers"];
 export type CounterpartiesQueries = PartiesQueries["counterparties"];
 
 export function createPartiesQueryHandlers(input: {
-  parties: PartiesRepository;
+  parties: PartiesQueriesRepository;
 }): PartiesQueries {
   const { parties } = input;
 

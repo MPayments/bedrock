@@ -18,7 +18,10 @@ import {
   REQUISITE_OWNER_TYPE_VALUES,
 } from "@bedrock/shared/requisites";
 
-export const requisiteKindEnum = pgEnum("requisite_kind", REQUISITE_KIND_VALUES);
+export const requisiteKindEnum = pgEnum(
+  "requisite_kind",
+  REQUISITE_KIND_VALUES,
+);
 export const requisiteOwnerTypeEnum = pgEnum(
   "requisite_owner_type",
   REQUISITE_OWNER_TYPE_VALUES,
@@ -93,6 +96,7 @@ export const counterpartyRequisites = pgTable(
   ],
 );
 
-export type CounterpartyRequisiteRow = typeof counterpartyRequisites.$inferSelect;
+export type CounterpartyRequisiteRow =
+  typeof counterpartyRequisites.$inferSelect;
 export type CounterpartyRequisiteInsert =
   typeof counterpartyRequisites.$inferInsert;
