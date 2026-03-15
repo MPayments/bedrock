@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
@@ -25,6 +25,35 @@ export function createDrizzleAccountingPeriodsRepository(
         .limit(1);
 
       return lock ?? null;
+    },
+    listClosedOrganizationIdsForPeriod: async ({
+      organizationIds,
+      periodStart,
+    }) => {
+      const uniqueOrganizationIds = Array.from(
+        new Set(organizationIds.filter(Boolean)),
+      );
+      if (uniqueOrganizationIds.length === 0) {
+        return [];
+      }
+
+      const rows = await db
+        .select({
+          organizationId: schema.accountingPeriodLocks.organizationId,
+        })
+        .from(schema.accountingPeriodLocks)
+        .where(
+          and(
+            inArray(
+              schema.accountingPeriodLocks.organizationId,
+              uniqueOrganizationIds,
+            ),
+            eq(schema.accountingPeriodLocks.periodStart, periodStart),
+            eq(schema.accountingPeriodLocks.state, "closed"),
+          ),
+        );
+
+      return rows.map((row) => row.organizationId);
     },
     upsertClosedPeriodLock: async (input) => {
       const [lock] = await db

@@ -7,7 +7,7 @@ import {
 } from "../../contracts/validation";
 import {
   buildDocumentWithOperationId,
-  resolveDocumentAllowedActionsForActor,
+  resolveDocumentsAllowedActionsForActor,
 } from "../shared/actions";
 import type { DocumentsServiceContext } from "../shared/context";
 
@@ -21,30 +21,27 @@ export function createListDocumentsQuery(context: DocumentsServiceContext) {
   ): Promise<PaginatedList<DocumentWithOperationId>> {
     const query = ListDocumentsQuerySchema.parse(input ?? {});
     const { rows, total } = await repository.listDocuments(query);
+    const allowedActionsByDocumentId = actorUserId
+      ? await resolveDocumentsAllowedActionsForActor({
+          accountingPeriods,
+          moduleRuntime,
+          registry,
+          policy,
+          log,
+          actorUserId,
+          documents: rows.map((row) => row.document),
+        })
+      : null;
 
     const data = actorUserId
-      ? await Promise.all(
-          rows.map(async (row) => {
-            const base = buildDocumentWithOperationId({
-              registry,
-              document: row.document,
-              postingOperationId: row.postingOperationId,
-            });
-
-            return {
-              ...base,
-              allowedActions: await resolveDocumentAllowedActionsForActor({
-                accountingPeriods,
-                moduleRuntime,
-                registry,
-                policy,
-                log,
-                actorUserId,
-                document: row.document,
-              }),
-            };
+      ? rows.map((row) => ({
+          ...buildDocumentWithOperationId({
+            registry,
+            document: row.document,
+            postingOperationId: row.postingOperationId,
           }),
-        )
+          allowedActions: allowedActionsByDocumentId?.get(row.document.id) ?? [],
+        }))
       : rows.map((row) =>
           buildDocumentWithOperationId({
             registry,

@@ -41,6 +41,14 @@ function createRepositoryStub(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function createAccountingPeriodsStub(overrides: Record<string, unknown> = {}) {
+  return {
+    isOrganizationPeriodClosed: vi.fn(async () => false),
+    listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
+    ...overrides,
+  };
+}
+
 describe("documents queries", () => {
   it("loads a single document with its posting operation id", async () => {
     const document = makeDocument();
@@ -125,9 +133,7 @@ describe("documents queries", () => {
       getDocumentModule: vi.fn(() => module),
     };
     const getDocument = createGetDocumentQuery({
-      accountingPeriods: {
-        isOrganizationPeriodClosed: vi.fn(async () => false),
-      },
+      accountingPeriods: createAccountingPeriodsStub(),
       log: {} as any,
       moduleRuntime: {} as any,
       policy,
@@ -271,19 +277,26 @@ describe("documents queries", () => {
       findDocumentSnapshot: vi.fn(async () => snapshot),
     });
     const ledgerReadService = {
-      getOperationDetails: vi.fn(async (operationId: string) => ({
-        id: operationId,
-        status: "posted",
-      })),
+      listOperationDetails: vi.fn(async () =>
+        new Map([
+          [
+            "op-1",
+            {
+              operation: { id: "op-1", status: "posted" },
+              postings: [],
+              tbPlans: [],
+            },
+          ],
+        ]),
+      ),
+      getOperationDetails: vi.fn(),
     };
     const registry = {
       getDocumentModule: vi.fn(() => createModuleStub()),
     };
 
     const getDetails = createGetDocumentDetailsQuery({
-      accountingPeriods: {
-        isOrganizationPeriodClosed: vi.fn(async () => false),
-      },
+      accountingPeriods: createAccountingPeriodsStub(),
       ledgerReadService,
       log: {} as any,
       moduleRuntime: {} as any,
@@ -301,7 +314,14 @@ describe("documents queries", () => {
     expect(result.allowedActions).toEqual(["edit", "submit", "cancel"]);
     expect(result.events).toEqual(events);
     expect(result.snapshot).toEqual(snapshot);
-    expect(result.ledgerOperations).toEqual([{ id: "op-1", status: "posted" }]);
+    expect(result.ledgerOperations).toEqual([
+      {
+        operation: { id: "op-1", status: "posted" },
+        postings: [],
+        tbPlans: [],
+      },
+    ]);
+    expect(ledgerReadService.listOperationDetails).toHaveBeenCalledWith(["op-1"]);
     expect(result.computed).toEqual({ label: "computed" });
     expect(result.extra).toEqual({ source: "module" });
   });
@@ -312,6 +332,7 @@ describe("documents queries", () => {
       findDocumentByType: vi.fn(async () => document),
     });
     const ledgerReadService = {
+      listOperationDetails: vi.fn(async () => new Map()),
       getOperationDetails: vi.fn(),
     };
     const warn = vi.fn();
@@ -325,9 +346,7 @@ describe("documents queries", () => {
     };
 
     const getDetails = createGetDocumentDetailsQuery({
-      accountingPeriods: {
-        isOrganizationPeriodClosed: vi.fn(async () => false),
-      },
+      accountingPeriods: createAccountingPeriodsStub(),
       ledgerReadService,
       log: { warn } as any,
       moduleRuntime: {} as any,
@@ -349,5 +368,54 @@ describe("documents queries", () => {
         error: "details boom",
       }),
     );
+  });
+
+  it("batches period-lock lookups when listing documents for an actor", async () => {
+    const first = makeDocument({
+      id: "11111111-1111-4111-8111-111111111111",
+      payload: { organizationId: "org-1" },
+      occurredAt: new Date("2026-03-01T00:00:00.000Z"),
+    });
+    const second = makeDocument({
+      id: "22222222-2222-4222-8222-222222222222",
+      payload: { organizationId: "org-2" },
+      occurredAt: new Date("2026-03-15T00:00:00.000Z"),
+    });
+    const accountingPeriods = createAccountingPeriodsStub({
+      listClosedOrganizationIdsForPeriod: vi.fn(async () => ["org-2"]),
+    });
+    const repository = createRepositoryStub({
+      listDocuments: vi.fn(async () => ({
+        rows: [
+          { document: first, postingOperationId: null },
+          { document: second, postingOperationId: null },
+        ],
+        total: 2,
+      })),
+    });
+
+    const listDocuments = createListDocumentsQuery({
+      accountingPeriods,
+      log: {} as any,
+      moduleRuntime: {} as any,
+      registry: {
+        getDocumentModule: vi.fn(() => createModuleStub()),
+      },
+      repository,
+    } as any);
+
+    const result = await listDocuments(undefined, "checker-1");
+
+    expect(
+      accountingPeriods.listClosedOrganizationIdsForPeriod,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      accountingPeriods.listClosedOrganizationIdsForPeriod,
+    ).toHaveBeenCalledWith({
+      organizationIds: ["org-1", "org-2"],
+      occurredAt: first.occurredAt,
+    });
+    expect(result.data[0]?.allowedActions).toEqual(["edit", "submit", "cancel"]);
+    expect(result.data[1]?.allowedActions).toEqual([]);
   });
 });

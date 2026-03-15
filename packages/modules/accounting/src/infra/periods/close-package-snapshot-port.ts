@@ -1,8 +1,8 @@
 import { sha256Hex } from "@bedrock/platform/crypto";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import { ValidationError } from "@bedrock/shared/core/errors";
+import { toJsonSafe } from "@bedrock/shared/core/json";
 
-import { toJsonSafeValue } from "../../application/periods/json-safe-value";
 import type {
   AccountingClosePackageSnapshotPort,
   AccountingPeriodsRepository,
@@ -133,7 +133,7 @@ export function createAccountingClosePackageSnapshotPort(input: {
         adjustments.map((row) => row.documentId),
       );
 
-      const payload = toJsonSafeValue({
+      const payload = toJsonSafe({
         trialBalanceSummaryByCurrency: trialBalance.summaryByCurrency,
         incomeStatementSummaryByCurrency: incomeStatement.summaryByCurrency,
         cashFlowSummaryByCurrency: cashFlow.summaryByCurrency,

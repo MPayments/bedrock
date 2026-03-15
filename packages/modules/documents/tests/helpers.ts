@@ -225,9 +225,11 @@ export function createDocumentsServiceDeps(
       assertOrganizationPeriodsOpen: vi.fn(async () => undefined),
       closePeriod: vi.fn(async () => undefined),
       isOrganizationPeriodClosed: vi.fn(async () => false),
+      listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
       reopenPeriod: vi.fn(async () => undefined),
     },
     ledgerReadService: {
+      listOperationDetails: vi.fn(async () => new Map()),
       getOperationDetails: vi.fn(),
     },
     moduleRuntime,

@@ -7,7 +7,10 @@ import type {
   AccountingClosePackageSnapshotPort,
   AccountingPeriodsRepository,
 } from "./ports";
-import { createIsOrganizationPeriodClosedQuery } from "./queries";
+import {
+  createIsOrganizationPeriodClosedQuery,
+  createListClosedOrganizationIdsForPeriodQuery,
+} from "./queries";
 import { getPreviousCalendarMonthRange } from "../../domain/periods";
 
 export interface AccountingPeriodsService {
@@ -15,6 +18,10 @@ export interface AccountingPeriodsService {
     organizationId: string;
     occurredAt: Date;
   }) => Promise<boolean>;
+  listClosedOrganizationIdsForPeriod: (input: {
+    organizationIds: string[];
+    occurredAt: Date;
+  }) => Promise<string[]>;
   assertOrganizationPeriodsOpen: (input: {
     occurredAt: Date;
     organizationIds: string[];
@@ -53,6 +60,10 @@ export function createAccountingPeriodsHandlers(input: {
   const isOrganizationPeriodClosed = createIsOrganizationPeriodClosedQuery({
     repository,
   });
+  const listClosedOrganizationIdsForPeriod =
+    createListClosedOrganizationIdsForPeriodQuery({
+      repository,
+    });
   const assertOrganizationPeriodsOpen =
     createAssertOrganizationPeriodsOpenCommand({
       isOrganizationPeriodClosed,
@@ -69,6 +80,7 @@ export function createAccountingPeriodsHandlers(input: {
     assertOrganizationPeriodsOpen,
     closePeriod,
     isOrganizationPeriodClosed,
+    listClosedOrganizationIdsForPeriod,
     reopenPeriod,
   };
 }

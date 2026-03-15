@@ -421,9 +421,19 @@ export function documentsRoutes(ctx: AppContext) {
           id,
           user.id,
         );
-        const actionPermissions = await resolveDocumentActionPermissions(
-          user.id,
-        );
+        const [actionPermissions, ledgerOperationDetailsById] = await Promise.all([
+          resolveDocumentActionPermissions(user.id),
+          ctx.accountingReportsService.listOperationDetailsWithLabels(
+            details.documentOperations.map((operation) => operation.operationId),
+          ),
+        ]);
+        const ledgerOperations = details.documentOperations.map((operation) => {
+          const operationDetails = ledgerOperationDetailsById.get(
+            operation.operationId,
+          );
+
+          return operationDetails ? mapOperationDetailsDto(operationDetails) : null;
+        });
 
         return c.json(
           toDocumentDetailsDto(
@@ -432,6 +442,9 @@ export function documentsRoutes(ctx: AppContext) {
               role: user.role,
               actionPermissions,
             }),
+            {
+              ledgerOperations,
+            },
           ),
         );
       } catch (error) {

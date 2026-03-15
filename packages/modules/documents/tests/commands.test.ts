@@ -195,10 +195,13 @@ function createContext(options: {
         isOrganizationPeriodClosed: vi.fn(
           async () => options.periodClosed ?? false,
         ),
+        listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
         reopenPeriod: vi.fn(async () => undefined),
       },
       moduleRuntime: {} as any,
-      ledgerReadService: {} as any,
+      ledgerReadService: {
+        listOperationDetails: vi.fn(async () => new Map()),
+      } as any,
       log: {
         debug: vi.fn(),
       },

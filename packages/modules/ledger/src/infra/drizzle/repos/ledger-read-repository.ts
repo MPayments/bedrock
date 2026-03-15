@@ -8,14 +8,14 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 import type { LedgerReadPort } from "../../../application/operations/ports";
-import type {
-  LedgerOperationDetails,
-  LedgerOperationListRow,
-} from "../../../contracts/dto";
 import {
   ListLedgerOperationsInputSchema,
   type ListLedgerOperationsInput,
 } from "../../../contracts";
+import type {
+  LedgerOperationDetails,
+  LedgerOperationListRow,
+} from "../../../contracts/dto";
 import type { Dimensions } from "../../../domain/dimensions";
 import { schema } from "../schema";
 
@@ -35,7 +35,7 @@ function inArraySafe<T>(column: any, values: readonly T[] | undefined) {
 
 function normalizeDimensionFilters(
   input?: Record<string, string[]>,
-): Array<readonly [string, string[]]> {
+): readonly (readonly [string, string[]])[] {
   if (!input) {
     return [];
   }
@@ -56,6 +56,186 @@ function normalizeDimensionFilters(
 export function createDrizzleLedgerReadRepository(
   db: Queryable,
 ): LedgerReadPort {
+  async function listOperationDetailsByIds(
+    operationIds: string[],
+  ): Promise<Map<string, LedgerOperationDetails>> {
+    const uniqueOperationIds = Array.from(new Set(operationIds.filter(Boolean)));
+    if (uniqueOperationIds.length === 0) {
+      return new Map();
+    }
+
+    const operations = await db
+      .select({
+        id: schema.ledgerOperations.id,
+        sourceType: schema.ledgerOperations.sourceType,
+        sourceId: schema.ledgerOperations.sourceId,
+        operationCode: schema.ledgerOperations.operationCode,
+        operationVersion: schema.ledgerOperations.operationVersion,
+        postingDate: schema.ledgerOperations.postingDate,
+        status: schema.ledgerOperations.status,
+        error: schema.ledgerOperations.error,
+        postedAt: schema.ledgerOperations.postedAt,
+        outboxAttempts: schema.ledgerOperations.outboxAttempts,
+        lastOutboxErrorAt: schema.ledgerOperations.lastOutboxErrorAt,
+        createdAt: schema.ledgerOperations.createdAt,
+        postingCount: sql<number>`count(${schema.postings.id})::int`,
+        bookIds: sql<
+          string[]
+        >`coalesce(array_agg(distinct ${schema.postings.bookId}) filter (where ${schema.postings.bookId} is not null), '{}')`,
+        currencies: sql<
+          string[]
+        >`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
+      })
+      .from(schema.ledgerOperations)
+      .leftJoin(
+        schema.postings,
+        eq(schema.postings.operationId, schema.ledgerOperations.id),
+      )
+      .where(inArray(schema.ledgerOperations.id, uniqueOperationIds))
+      .groupBy(
+        schema.ledgerOperations.id,
+        schema.ledgerOperations.sourceType,
+        schema.ledgerOperations.sourceId,
+        schema.ledgerOperations.operationCode,
+        schema.ledgerOperations.operationVersion,
+        schema.ledgerOperations.postingDate,
+        schema.ledgerOperations.status,
+        schema.ledgerOperations.error,
+        schema.ledgerOperations.postedAt,
+        schema.ledgerOperations.outboxAttempts,
+        schema.ledgerOperations.lastOutboxErrorAt,
+        schema.ledgerOperations.createdAt,
+      );
+    if (operations.length === 0) {
+      return new Map();
+    }
+
+    const postingRows = await db
+      .select()
+      .from(schema.postings)
+      .where(inArray(schema.postings.operationId, uniqueOperationIds))
+      .orderBy(schema.postings.operationId, schema.postings.lineNo);
+    const tbPlans = await db
+      .select()
+      .from(schema.tbTransferPlans)
+      .where(inArray(schema.tbTransferPlans.operationId, uniqueOperationIds))
+      .orderBy(schema.tbTransferPlans.operationId, schema.tbTransferPlans.lineNo);
+
+    const instanceIds = Array.from(
+      new Set(
+        postingRows.flatMap((posting) => [
+          posting.debitInstanceId,
+          posting.creditInstanceId,
+        ]),
+      ),
+    );
+    const instances =
+      instanceIds.length === 0
+        ? []
+        : await db
+            .select({
+              id: schema.bookAccountInstances.id,
+              accountNo: schema.bookAccountInstances.accountNo,
+              dimensions: schema.bookAccountInstances.dimensions,
+            })
+            .from(schema.bookAccountInstances)
+            .where(inArray(schema.bookAccountInstances.id, instanceIds));
+
+    const instanceById = new Map(instances.map((inst) => [inst.id, inst]));
+    const bookIds = Array.from(new Set(postingRows.map((posting) => posting.bookId)));
+    const bookRows =
+      bookIds.length === 0
+        ? []
+        : await db
+            .select({
+              id: schema.books.id,
+              name: schema.books.name,
+            })
+            .from(schema.books)
+            .where(inArray(schema.books.id, bookIds));
+    const bookNameById = new Map(bookRows.map((book) => [book.id, book.name]));
+    const postingsByOperationId = new Map<
+      string,
+      (typeof postingRows)[number][]
+    >();
+    for (const posting of postingRows) {
+      const bucket = postingsByOperationId.get(posting.operationId) ?? [];
+      bucket.push(posting);
+      postingsByOperationId.set(posting.operationId, bucket);
+    }
+    const tbPlansByOperationId = new Map<string, (typeof tbPlans)[number][]>();
+    for (const tbPlan of tbPlans) {
+      const bucket = tbPlansByOperationId.get(tbPlan.operationId) ?? [];
+      bucket.push(tbPlan);
+      tbPlansByOperationId.set(tbPlan.operationId, bucket);
+    }
+
+    const operationById = new Map(operations.map((operation) => [operation.id, operation]));
+    const detailsById = new Map<string, LedgerOperationDetails>();
+    for (const operationId of uniqueOperationIds) {
+      const operation = operationById.get(operationId);
+      if (!operation) {
+        continue;
+      }
+
+      const operationPostings = postingsByOperationId.get(operationId) ?? [];
+      const operationTbPlans = tbPlansByOperationId.get(operationId) ?? [];
+
+      detailsById.set(operationId, {
+        operation: {
+          ...operation,
+          bookIds: operation.bookIds ?? [],
+          currencies: operation.currencies ?? [],
+        },
+        postings: operationPostings.map((posting) => {
+          const debitInstance = instanceById.get(posting.debitInstanceId);
+          const creditInstance = instanceById.get(posting.creditInstanceId);
+
+          return {
+            id: posting.id,
+            lineNo: posting.lineNo,
+            bookId: posting.bookId,
+            bookName: bookNameById.get(posting.bookId) ?? null,
+            debitInstanceId: posting.debitInstanceId,
+            debitAccountNo: debitInstance?.accountNo ?? null,
+            debitDimensions: (debitInstance?.dimensions as Dimensions) ?? null,
+            creditInstanceId: posting.creditInstanceId,
+            creditAccountNo: creditInstance?.accountNo ?? null,
+            creditDimensions:
+              (creditInstance?.dimensions as Dimensions) ?? null,
+            postingCode: posting.postingCode,
+            currency: posting.currency,
+            amountMinor: posting.amountMinor,
+            memo: posting.memo,
+            context: posting.context as Record<string, string> | null,
+            createdAt: posting.createdAt,
+          };
+        }),
+        tbPlans: operationTbPlans.map((plan) => ({
+          id: plan.id,
+          lineNo: plan.lineNo,
+          type: plan.type,
+          transferId: plan.transferId,
+          debitTbAccountId: plan.debitTbAccountId,
+          creditTbAccountId: plan.creditTbAccountId,
+          tbLedger: plan.tbLedger,
+          amount: plan.amount,
+          code: plan.code,
+          pendingRef: plan.pendingRef,
+          pendingId: plan.pendingId,
+          isLinked: plan.isLinked,
+          isPending: plan.isPending,
+          timeoutSeconds: plan.timeoutSeconds,
+          status: plan.status,
+          error: plan.error,
+          createdAt: plan.createdAt,
+        })),
+      });
+    }
+
+    return detailsById;
+  }
+
   return {
     async listOperations(
       input?: ListLedgerOperationsInput,
@@ -229,156 +409,15 @@ export function createDrizzleLedgerReadRepository(
         offset,
       };
     },
+    listOperationDetails(
+      operationIds: string[],
+    ): Promise<Map<string, LedgerOperationDetails>> {
+      return listOperationDetailsByIds(operationIds);
+    },
     async getOperationDetails(
       operationId: string,
     ): Promise<LedgerOperationDetails | null> {
-      const [operation] = await db
-        .select({
-          id: schema.ledgerOperations.id,
-          sourceType: schema.ledgerOperations.sourceType,
-          sourceId: schema.ledgerOperations.sourceId,
-          operationCode: schema.ledgerOperations.operationCode,
-          operationVersion: schema.ledgerOperations.operationVersion,
-          postingDate: schema.ledgerOperations.postingDate,
-          status: schema.ledgerOperations.status,
-          error: schema.ledgerOperations.error,
-          postedAt: schema.ledgerOperations.postedAt,
-          outboxAttempts: schema.ledgerOperations.outboxAttempts,
-          lastOutboxErrorAt: schema.ledgerOperations.lastOutboxErrorAt,
-          createdAt: schema.ledgerOperations.createdAt,
-          postingCount: sql<number>`count(${schema.postings.id})::int`,
-          bookIds: sql<
-            string[]
-          >`coalesce(array_agg(distinct ${schema.postings.bookId}) filter (where ${schema.postings.bookId} is not null), '{}')`,
-          currencies: sql<
-            string[]
-          >`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
-        })
-        .from(schema.ledgerOperations)
-        .leftJoin(
-          schema.postings,
-          eq(schema.postings.operationId, schema.ledgerOperations.id),
-        )
-        .where(eq(schema.ledgerOperations.id, operationId))
-        .groupBy(
-          schema.ledgerOperations.id,
-          schema.ledgerOperations.sourceType,
-          schema.ledgerOperations.sourceId,
-          schema.ledgerOperations.operationCode,
-          schema.ledgerOperations.operationVersion,
-          schema.ledgerOperations.postingDate,
-          schema.ledgerOperations.status,
-          schema.ledgerOperations.error,
-          schema.ledgerOperations.postedAt,
-          schema.ledgerOperations.outboxAttempts,
-          schema.ledgerOperations.lastOutboxErrorAt,
-          schema.ledgerOperations.createdAt,
-        )
-        .limit(1);
-
-      if (!operation) {
-        return null;
-      }
-
-      const postingRows = await db
-        .select()
-        .from(schema.postings)
-        .where(eq(schema.postings.operationId, operationId))
-        .orderBy(schema.postings.lineNo);
-      const tbPlans = await db
-        .select()
-        .from(schema.tbTransferPlans)
-        .where(eq(schema.tbTransferPlans.operationId, operationId))
-        .orderBy(schema.tbTransferPlans.lineNo);
-
-      const instanceIds = Array.from(
-        new Set(
-          postingRows.flatMap((posting) => [
-            posting.debitInstanceId,
-            posting.creditInstanceId,
-          ]),
-        ),
-      );
-      const instances =
-        instanceIds.length === 0
-          ? []
-          : await db
-              .select({
-                id: schema.bookAccountInstances.id,
-                accountNo: schema.bookAccountInstances.accountNo,
-                dimensions: schema.bookAccountInstances.dimensions,
-              })
-              .from(schema.bookAccountInstances)
-              .where(inArray(schema.bookAccountInstances.id, instanceIds));
-
-      const instanceById = new Map(instances.map((inst) => [inst.id, inst]));
-      const bookIds = Array.from(
-        new Set(postingRows.map((posting) => posting.bookId)),
-      );
-      const bookRows =
-        bookIds.length === 0
-          ? []
-          : await db
-              .select({
-                id: schema.books.id,
-                name: schema.books.name,
-              })
-              .from(schema.books)
-              .where(inArray(schema.books.id, bookIds));
-      const bookNameById = new Map(
-        bookRows.map((book) => [book.id, book.name]),
-      );
-
-      return {
-        operation: {
-          ...operation,
-          bookIds: operation.bookIds ?? [],
-          currencies: operation.currencies ?? [],
-        },
-        postings: postingRows.map((posting) => {
-          const debitInstance = instanceById.get(posting.debitInstanceId);
-          const creditInstance = instanceById.get(posting.creditInstanceId);
-
-          return {
-            id: posting.id,
-            lineNo: posting.lineNo,
-            bookId: posting.bookId,
-            bookName: bookNameById.get(posting.bookId) ?? null,
-            debitInstanceId: posting.debitInstanceId,
-            debitAccountNo: debitInstance?.accountNo ?? null,
-            debitDimensions: (debitInstance?.dimensions as Dimensions) ?? null,
-            creditInstanceId: posting.creditInstanceId,
-            creditAccountNo: creditInstance?.accountNo ?? null,
-            creditDimensions:
-              (creditInstance?.dimensions as Dimensions) ?? null,
-            postingCode: posting.postingCode,
-            currency: posting.currency,
-            amountMinor: posting.amountMinor,
-            memo: posting.memo,
-            context: posting.context as Record<string, string> | null,
-            createdAt: posting.createdAt,
-          };
-        }),
-        tbPlans: tbPlans.map((plan) => ({
-          id: plan.id,
-          lineNo: plan.lineNo,
-          type: plan.type,
-          transferId: plan.transferId,
-          debitTbAccountId: plan.debitTbAccountId,
-          creditTbAccountId: plan.creditTbAccountId,
-          tbLedger: plan.tbLedger,
-          amount: plan.amount,
-          code: plan.code,
-          pendingRef: plan.pendingRef,
-          pendingId: plan.pendingId,
-          isLinked: plan.isLinked,
-          isPending: plan.isPending,
-          timeoutSeconds: plan.timeoutSeconds,
-          status: plan.status,
-          error: plan.error,
-          createdAt: plan.createdAt,
-        })),
-      };
+      return (await listOperationDetailsByIds([operationId])).get(operationId) ?? null;
     },
   };
 }

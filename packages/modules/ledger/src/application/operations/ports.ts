@@ -8,6 +8,9 @@ export interface LedgerReadPort {
   listOperations: (
     input?: ListLedgerOperationsInput,
   ) => Promise<LedgerOperationList>;
+  listOperationDetails: (
+    operationIds: string[],
+  ) => Promise<Map<string, LedgerOperationDetails>>;
   getOperationDetails: (
     operationId: string,
   ) => Promise<LedgerOperationDetails | null>;

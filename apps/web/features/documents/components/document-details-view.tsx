@@ -21,7 +21,6 @@ import {
   getSubmissionStatusLabel,
 } from "@/features/documents/lib/status-labels";
 import { formatAmountByCurrency, formatDate } from "@/lib/format";
-import type { OperationDetailsDto } from "@/features/operations/journal/lib/queries";
 import {
   type DocumentDetailsDto,
   type DocumentDto,
@@ -127,13 +126,11 @@ function buildDocumentHref(
 export function DocumentDetailsView({
   details,
   documentBasePath,
-  journalOperations,
   userRole,
   formOptions,
 }: {
   details: DocumentDetailsDto;
   documentBasePath: string;
-  journalOperations: Record<string, OperationDetailsDto | null>;
   userRole: UserRole;
   formOptions: DocumentFormOptions;
 }) {
@@ -143,6 +140,11 @@ export function DocumentDetailsView({
   const separateFeeComponents = Array.isArray(computed?.separateFeeComponents)
     ? computed.separateFeeComponents
     : null;
+  const journalOperationsById = new Map(
+    details.ledgerOperations
+      .filter((operation) => Boolean(operation))
+      .map((operation) => [operation!.operation.id, operation!] as const),
+  );
 
   return (
     <div className="space-y-6">
@@ -433,9 +435,9 @@ export function DocumentDetailsView({
             details.documentOperations.map((operation, index) => (
               <div key={operation.id} className="space-y-4">
                 {index > 0 ? <Separator /> : null}
-                {journalOperations[operation.operationId] ? (
+                {journalOperationsById.get(operation.operationId) ? (
                   <OperationDetailsCards
-                    details={journalOperations[operation.operationId]!}
+                    details={journalOperationsById.get(operation.operationId)!}
                     showTbPlan={false}
                     title={
                       <Link

@@ -1,12 +1,11 @@
-import { minorToAmountString } from "@bedrock/shared/money";
-
 import type {
   DocumentDetails as DocumentDetailsResult,
   DocumentWithOperationId,
 } from "@bedrock/documents/contracts";
+import { toJsonSafe } from "@bedrock/shared/core/json";
+import { minorToAmountString } from "@bedrock/shared/money";
 
 import { normalizeMoneyFields } from "../../common/amount";
-import { toJsonSafe } from "../../common/json";
 
 export function toDocumentDto(input: DocumentWithOperationId) {
   const { document } = input;
@@ -68,7 +67,12 @@ export function queryObjectFromUrl(requestUrl: string) {
   return query;
 }
 
-export function toDocumentDetailsDto(details: DocumentDetailsResult) {
+export function toDocumentDetailsDto(
+  details: DocumentDetailsResult,
+  input?: {
+    ledgerOperations?: unknown[];
+  },
+) {
   return toJsonSafe(
     normalizeMoneyFields({
       document: toDocumentDto({
@@ -151,7 +155,7 @@ export function toDocumentDetailsDto(details: DocumentDetailsResult) {
             createdAt: details.snapshot.createdAt.toISOString(),
           }
         : null,
-      ledgerOperations: details.ledgerOperations,
+      ledgerOperations: input?.ledgerOperations ?? details.ledgerOperations,
       computed: details.computed,
       extra: details.extra,
     }),

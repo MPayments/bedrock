@@ -3,12 +3,12 @@ export function toJsonSafe(value: unknown): unknown {
     return value.toString();
   }
 
-  if (Array.isArray(value)) {
-    return value.map((item) => toJsonSafe(item));
-  }
-
   if (value instanceof Date) {
     return value.toISOString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => toJsonSafe(item));
   }
 
   if (value && typeof value === "object") {

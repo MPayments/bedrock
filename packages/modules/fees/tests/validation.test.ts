@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { FeeValidationError, FeesError } from "../src/errors";
 import * as feesApi from "../src/index";
+import * as feesContracts from "../src/contracts";
 import {
   validateFeeComponent,
   validateFxQuoteFeeCalculation,
@@ -11,7 +12,7 @@ import {
   validateResolveFeeRulesInput,
   validateSaveQuoteFeeComponentsInput,
   validateUpsertFeeRuleInput,
-} from "../src/validation";
+} from "../src/application/validation";
 
 const VALID_QUOTE_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -138,9 +139,10 @@ describe("fees validation", () => {
 
     expect(typeof feesApi.createFeesService).toBe("function");
     expect(feesApi.FeeValidationError).toBe(FeeValidationError);
-    expect(feesApi.feeCalcMethodSchema.parse("bps")).toBe("bps");
+    expect("feeCalcMethodSchema" in feesApi).toBe(false);
+    expect(feesContracts.feeCalcMethodSchema.parse("bps")).toBe("bps");
 
-    const validPayload = feesApi.getQuoteFeeComponentsSchema.parse({
+    const validPayload = feesContracts.getQuoteFeeComponentsSchema.parse({
       quoteId: VALID_QUOTE_ID,
     });
     expect(validPayload.quoteId).toBe(VALID_QUOTE_ID);

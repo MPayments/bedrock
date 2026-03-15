@@ -3,7 +3,10 @@ import { z } from "zod";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 import { parseMinorAmount } from "@bedrock/shared/money";
 import { FINANCIAL_LINE_BUCKETS } from "@bedrock/documents/contracts";
-import { feeDealDirectionSchema, feeDealFormSchema } from "@bedrock/fees";
+import {
+  feeDealDirectionSchema,
+  feeDealFormSchema,
+} from "@bedrock/fees/contracts";
 export {
   FX_QUOTES_LIST_CONTRACT,
   ListFxQuotesQuerySchema,

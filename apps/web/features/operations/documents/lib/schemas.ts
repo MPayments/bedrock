@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
+import { OperationDetailsSchema } from "@/features/operations/journal/lib/queries";
 
 export const DocumentSchema = z.object({
   id: z.uuid(),
@@ -77,7 +78,7 @@ export const DocumentDetailsSchema = z.object({
   dependsOn: z.array(DocumentSchema),
   compensates: z.array(DocumentSchema),
   documentOperations: z.array(DocumentOperationSchema),
-  ledgerOperations: z.array(z.unknown()),
+  ledgerOperations: z.array(OperationDetailsSchema.nullable()),
   computed: z.unknown().optional(),
   extra: z.unknown().optional(),
 });

@@ -66,7 +66,7 @@ const OperationTbPlanSchema = z.object({
   createdAt: z.iso.datetime(),
 });
 
-const OperationDetailsSchema = z.object({
+export const OperationDetailsSchema = z.object({
   operation: OperationSummarySchema,
   postings: z.array(OperationPostingSchema),
   tbPlans: z.array(OperationTbPlanSchema),

@@ -19,3 +19,24 @@ export function createIsOrganizationPeriodClosedQuery(input: {
     );
   };
 }
+
+export function createListClosedOrganizationIdsForPeriodQuery(input: {
+  repository: AccountingPeriodsRepository;
+}) {
+  const { repository } = input;
+
+  return async function listClosedOrganizationIdsForPeriod(query: {
+    organizationIds: string[];
+    occurredAt: Date;
+  }): Promise<string[]> {
+    if (query.organizationIds.length === 0) {
+      return [];
+    }
+
+    const periodStart = normalizeMonthStart(query.occurredAt);
+    return repository.listClosedOrganizationIdsForPeriod({
+      organizationIds: query.organizationIds,
+      periodStart,
+    });
+  };
+}

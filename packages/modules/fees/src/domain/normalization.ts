@@ -1,13 +1,13 @@
-import type { AdjustmentComponent, FeeComponent } from "../types";
-import {
-  validateAdjustmentComponent,
-  validateFeeComponent,
-} from "../validation";
+import type {
+  AdjustmentComponent,
+  FeeAccountingTreatment,
+  FeeComponent,
+} from "../contracts";
 
-function resolveAccountingTreatment(input: {
-  accountingTreatment?: FeeComponent["accountingTreatment"];
+export function resolveAccountingTreatment(input: {
+  accountingTreatment?: FeeAccountingTreatment;
   settlementMode?: FeeComponent["settlementMode"];
-}): FeeComponent["accountingTreatment"] {
+}): FeeAccountingTreatment {
   if (input.accountingTreatment) {
     return input.accountingTreatment;
   }
@@ -20,21 +20,19 @@ function resolveAccountingTreatment(input: {
 }
 
 export function normalizeComponent(input: FeeComponent): FeeComponent {
-  const validated = validateFeeComponent(input);
   return {
-    ...validated,
-    settlementMode: validated.settlementMode ?? "in_ledger",
-    accountingTreatment: resolveAccountingTreatment(validated),
+    ...input,
+    settlementMode: input.settlementMode ?? "in_ledger",
+    accountingTreatment: resolveAccountingTreatment(input),
   };
 }
 
 export function normalizeAdjustment(
   input: AdjustmentComponent,
 ): AdjustmentComponent {
-  const validated = validateAdjustmentComponent(input);
   return {
-    ...validated,
-    settlementMode: validated.settlementMode ?? "in_ledger",
+    ...input,
+    settlementMode: input.settlementMode ?? "in_ledger",
   };
 }
 

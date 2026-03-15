@@ -76,21 +76,93 @@ async function isDocumentLockedByOrganizationPeriod(input: {
   accountingPeriods: DocumentsServiceContext["accountingPeriods"];
   document: Document;
 }): Promise<boolean> {
-  const organizationIds = collectDocumentOrganizationIds({
-    payload: input.document.payload,
-  });
+  return (
+    (
+      await resolveDocumentPeriodLockMap({
+        accountingPeriods: input.accountingPeriods,
+        documents: [input.document],
+      })
+    ).get(input.document.id) ?? false
+  );
+}
 
-  for (const organizationId of organizationIds) {
-    const closed = await input.accountingPeriods.isOrganizationPeriodClosed({
-      organizationId,
-      occurredAt: input.document.occurredAt,
-    });
-    if (closed) {
-      return true;
-    }
+function normalizeMonthStartUtc(input: Date): Date {
+  return new Date(Date.UTC(input.getUTCFullYear(), input.getUTCMonth(), 1));
+}
+
+function periodKey(input: Date): string {
+  return normalizeMonthStartUtc(input).toISOString();
+}
+
+async function resolveDocumentPeriodLockMap(input: {
+  accountingPeriods: DocumentsServiceContext["accountingPeriods"];
+  documents: Document[];
+}): Promise<Map<string, boolean>> {
+  if (input.documents.length === 0) {
+    return new Map();
   }
 
-  return false;
+  const organizationIdsByDocumentId = new Map<string, string[]>();
+  const periodBuckets = new Map<
+    string,
+    {
+      occurredAt: Date;
+      organizationIds: Set<string>;
+    }
+  >();
+
+  for (const document of input.documents) {
+    const organizationIds = Array.from(
+      new Set(
+        collectDocumentOrganizationIds({
+          payload: document.payload,
+        }),
+      ),
+    );
+    organizationIdsByDocumentId.set(document.id, organizationIds);
+
+    if (organizationIds.length === 0) {
+      continue;
+    }
+
+    const key = periodKey(document.occurredAt);
+    const bucket = periodBuckets.get(key) ?? {
+      occurredAt: document.occurredAt,
+      organizationIds: new Set<string>(),
+    };
+    for (const organizationId of organizationIds) {
+      bucket.organizationIds.add(organizationId);
+    }
+    periodBuckets.set(key, bucket);
+  }
+
+  const closedOrganizationIdsByPeriodKey = new Map<string, Set<string>>();
+  await Promise.all(
+    [...periodBuckets.entries()].map(async ([key, bucket]) => {
+      const closedOrganizationIds =
+        await input.accountingPeriods.listClosedOrganizationIdsForPeriod({
+          organizationIds: [...bucket.organizationIds],
+          occurredAt: bucket.occurredAt,
+        });
+      closedOrganizationIdsByPeriodKey.set(key, new Set(closedOrganizationIds));
+    }),
+  );
+
+  return new Map(
+    input.documents.map((document) => {
+      const closedOrganizationIds =
+        closedOrganizationIdsByPeriodKey.get(periodKey(document.occurredAt)) ??
+        new Set<string>();
+      const organizationIds = organizationIdsByDocumentId.get(document.id) ?? [];
+
+      return [
+        document.id,
+        organizationIds.some((organizationId) =>
+          closedOrganizationIds.has(organizationId),
+        ),
+      ] as const;
+    }),
+  );
 }
 
 async function isActionAllowedByModule(input: {
@@ -140,6 +212,31 @@ export async function resolveDocumentAllowedActionsForActor(input: {
   log: Logger;
   document: Document;
 }): Promise<DocumentAction[]> {
+  const periodLocked = await isDocumentLockedByOrganizationPeriod({
+    accountingPeriods: input.accountingPeriods,
+    document: input.document,
+  });
+
+  return resolveDocumentAllowedActionsForActorWithPeriodLock({
+    moduleRuntime: input.moduleRuntime,
+    registry: input.registry,
+    policy: input.policy,
+    actorUserId: input.actorUserId,
+    log: input.log,
+    document: input.document,
+    periodLocked,
+  });
+}
+
+async function resolveDocumentAllowedActionsForActorWithPeriodLock(input: {
+  moduleRuntime: DocumentsServiceContext["moduleRuntime"];
+  registry?: DocumentRegistry;
+  policy?: DocumentActionPolicyService;
+  actorUserId: string;
+  log: Logger;
+  document: Document;
+  periodLocked: boolean;
+}): Promise<DocumentAction[]> {
   let module: DocumentModule | null = null;
   if (input.registry) {
     try {
@@ -172,10 +269,6 @@ export async function resolveDocumentAllowedActionsForActor(input: {
     return [];
   }
 
-  const periodLocked = await isDocumentLockedByOrganizationPeriod({
-    accountingPeriods: input.accountingPeriods,
-    document: input.document,
-  });
   const moduleContext = createModuleContext({
     actorUserId: input.actorUserId,
     runtime: input.moduleRuntime,
@@ -186,7 +279,7 @@ export async function resolveDocumentAllowedActionsForActor(input: {
 
   const filtered: DocumentAction[] = [];
   for (const action of stateActions) {
-    if (periodLocked && PERIOD_LOCKED_ACTIONS.has(action)) {
+    if (input.periodLocked && PERIOD_LOCKED_ACTIONS.has(action)) {
       continue;
     }
 
@@ -218,6 +311,41 @@ export async function resolveDocumentAllowedActionsForActor(input: {
   }
 
   return filtered;
+}
+
+export async function resolveDocumentsAllowedActionsForActor(input: {
+  accountingPeriods: DocumentsServiceContext["accountingPeriods"];
+  moduleRuntime: DocumentsServiceContext["moduleRuntime"];
+  registry?: DocumentRegistry;
+  policy?: DocumentActionPolicyService;
+  actorUserId: string;
+  log: Logger;
+  documents: Document[];
+}): Promise<Map<string, DocumentAction[]>> {
+  if (input.documents.length === 0) {
+    return new Map();
+  }
+
+  const periodLockedByDocumentId = await resolveDocumentPeriodLockMap({
+    accountingPeriods: input.accountingPeriods,
+    documents: input.documents,
+  });
+  const actionEntries = await Promise.all(
+    input.documents.map(async (document) => [
+      document.id,
+      await resolveDocumentAllowedActionsForActorWithPeriodLock({
+        moduleRuntime: input.moduleRuntime,
+        registry: input.registry,
+        policy: input.policy,
+        actorUserId: input.actorUserId,
+        log: input.log,
+        document,
+        periodLocked: periodLockedByDocumentId.get(document.id) ?? false,
+      }),
+    ] as const),
+  );
+
+  return new Map(actionEntries);
 }
 
 export async function loadDocumentOrThrow(

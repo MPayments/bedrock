@@ -99,8 +99,11 @@ function createContext(document: Document, module: ReturnType<typeof createModul
       accounting,
       accountingPeriods: {
         assertOrganizationPeriodsOpen: vi.fn(async () => undefined),
+        listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
       },
-      ledgerReadService: {} as any,
+      ledgerReadService: {
+        listOperationDetails: vi.fn(async () => new Map()),
+      } as any,
       moduleRuntime: {} as any,
       policy: undefined,
       registry,

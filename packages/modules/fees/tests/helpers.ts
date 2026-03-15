@@ -2,8 +2,9 @@ import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
 import { schema as currenciesSchema } from "@bedrock/currencies/schema";
-import { createFeesService } from "../src/service";
 import { createStubDb } from "@bedrock/test-utils";
+
+import { createFeesService } from "../src";
 
 interface CurrencyFixture {
   id: string;

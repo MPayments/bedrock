@@ -94,11 +94,11 @@ export function createGetDocumentDetailsQuery(
       repository.findDocumentSnapshot(document.id),
     ]);
     const relatedById = new Map(relatedDocs.map((item) => [item.id, item]));
-
-    const ledgerOperations = await Promise.all(
-      documentOperations.map(async (operation) =>
-        ledgerReadService.getOperationDetails(operation.operationId),
-      ),
+    const ledgerOperationsById = await ledgerReadService.listOperationDetails(
+      documentOperations.map((operation) => operation.operationId),
+    );
+    const ledgerOperations = documentOperations.map(
+      (operation) => ledgerOperationsById.get(operation.operationId) ?? null,
     );
 
     let details:

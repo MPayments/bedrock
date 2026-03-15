@@ -6,6 +6,7 @@ import {
   createGetOperationDetailsWithLabelsQuery,
   type LedgerOperationDetailsWithLabels,
 } from "./queries/get-operation-details-with-labels";
+import { createListOperationDetailsWithLabelsQuery } from "./queries/list-operation-details-with-labels";
 import {
   createListOperationsWithLabelsQuery,
   type LedgerOperationListWithLabels,
@@ -33,6 +34,12 @@ export function createAccountingReportsHandlers(input: {
     listCurrencyPrecisionsByCode,
     resolveDimensionLabelsFromRecords,
   });
+  const listOperationDetailsWithLabels =
+    createListOperationDetailsWithLabelsQuery({
+      ledgerReadPort,
+      listCurrencyPrecisionsByCode,
+      resolveDimensionLabelsFromRecords,
+    });
   const listOperationsWithLabels = createListOperationsWithLabelsQuery({
     ledgerReadPort,
     listBookNamesById,
@@ -43,6 +50,10 @@ export function createAccountingReportsHandlers(input: {
       operationId: string,
     ): Promise<LedgerOperationDetailsWithLabels | null> =>
       getOperationDetailsWithLabels(operationId),
+    listOperationDetailsWithLabels: (
+      operationIds: string[],
+    ): Promise<Map<string, LedgerOperationDetailsWithLabels>> =>
+      listOperationDetailsWithLabels(operationIds),
     listOperationsWithLabels: (
       query?: Parameters<
         AccountingReportsLedgerPort["listOperations"]

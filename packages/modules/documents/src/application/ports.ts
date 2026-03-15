@@ -37,6 +37,10 @@ export interface DocumentsAccountingPeriodsPort {
     organizationIds: string[];
     docType: string;
   }): Promise<void>;
+  listClosedOrganizationIdsForPeriod(input: {
+    organizationIds: string[];
+    occurredAt: Date;
+  }): Promise<string[]>;
   closePeriod(input: {
     organizationId: string;
     periodStart: Date;
@@ -63,6 +67,9 @@ export interface DocumentsLedgerCommitPort {
 }
 
 export interface DocumentsLedgerReadPort {
+  listOperationDetails(
+    operationIds: string[],
+  ): Promise<Map<string, LedgerOperationDetails>>;
   getOperationDetails(operationId: string): Promise<LedgerOperationDetails | null>;
 }
 

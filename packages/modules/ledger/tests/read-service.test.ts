@@ -33,9 +33,7 @@ function makeDetailsOperationChain(rows: unknown[]) {
     from: vi.fn(() => ({
       leftJoin: vi.fn(() => ({
         where: vi.fn(() => ({
-          groupBy: vi.fn(() => ({
-            limit: vi.fn(async () => rows),
-          })),
+          groupBy: vi.fn(async () => rows),
         })),
       })),
     })),
@@ -207,6 +205,7 @@ describe("createLedgerReadService", () => {
           makeWhereOrderByChain([
             {
               id: "posting-1",
+              operationId: "op-1",
               lineNo: 1,
               bookId: "org-1",
               debitInstanceId: "ba-1",
@@ -224,6 +223,7 @@ describe("createLedgerReadService", () => {
           makeWhereOrderByChain([
             {
               id: "plan-1",
+              operationId: "op-1",
               lineNo: 1,
               type: "create",
               transferId: 10n,
@@ -269,6 +269,149 @@ describe("createLedgerReadService", () => {
     expect(details!.tbPlans[0]!.transferId).toBe(10n);
   });
 
+  it("lists operation details in a single batched read", async () => {
+    const db = {
+      select: vi
+        .fn()
+        .mockImplementationOnce(() =>
+          makeDetailsOperationChain([
+            {
+              id: "op-1",
+              sourceType: "payment",
+              sourceId: "pay-1",
+              operationCode: "OP.CODE",
+              operationVersion: 1,
+              postingDate: new Date("2026-01-01T00:00:00Z"),
+              status: "posted",
+              error: null,
+              postedAt: new Date("2026-01-01T00:01:00Z"),
+              outboxAttempts: 0,
+              lastOutboxErrorAt: null,
+              createdAt: new Date("2026-01-01T00:00:00Z"),
+              postingCount: 1,
+              bookIds: ["org-1"],
+              currencies: ["USD"],
+            },
+            {
+              id: "op-2",
+              sourceType: "payment",
+              sourceId: "pay-2",
+              operationCode: "OP.CODE",
+              operationVersion: 1,
+              postingDate: new Date("2026-01-02T00:00:00Z"),
+              status: "posted",
+              error: null,
+              postedAt: new Date("2026-01-02T00:01:00Z"),
+              outboxAttempts: 0,
+              lastOutboxErrorAt: null,
+              createdAt: new Date("2026-01-02T00:00:00Z"),
+              postingCount: 1,
+              bookIds: ["org-2"],
+              currencies: ["EUR"],
+            },
+          ]),
+        )
+        .mockImplementationOnce(() =>
+          makeWhereOrderByChain([
+            {
+              id: "posting-1",
+              operationId: "op-1",
+              lineNo: 1,
+              bookId: "org-1",
+              debitInstanceId: "ba-1",
+              creditInstanceId: "ba-2",
+              postingCode: "PCODE",
+              currency: "USD",
+              amountMinor: 100n,
+              memo: null,
+              context: null,
+              createdAt: new Date("2026-01-01T00:00:00Z"),
+            },
+            {
+              id: "posting-2",
+              operationId: "op-2",
+              lineNo: 1,
+              bookId: "org-2",
+              debitInstanceId: "ba-3",
+              creditInstanceId: "ba-4",
+              postingCode: "PCODE",
+              currency: "EUR",
+              amountMinor: 50n,
+              memo: null,
+              context: null,
+              createdAt: new Date("2026-01-02T00:00:00Z"),
+            },
+          ]),
+        )
+        .mockImplementationOnce(() =>
+          makeWhereOrderByChain([
+            {
+              id: "plan-1",
+              operationId: "op-1",
+              lineNo: 1,
+              type: "create",
+              transferId: 10n,
+              debitTbAccountId: 11n,
+              creditTbAccountId: 12n,
+              tbLedger: 100,
+              amount: 100n,
+              code: 1,
+              pendingRef: null,
+              pendingId: null,
+              isLinked: false,
+              isPending: false,
+              timeoutSeconds: 0,
+              status: "posted",
+              error: null,
+              createdAt: new Date("2026-01-01T00:00:00Z"),
+            },
+            {
+              id: "plan-2",
+              operationId: "op-2",
+              lineNo: 1,
+              type: "create",
+              transferId: 20n,
+              debitTbAccountId: 21n,
+              creditTbAccountId: 22n,
+              tbLedger: 200,
+              amount: 50n,
+              code: 1,
+              pendingRef: null,
+              pendingId: null,
+              isLinked: false,
+              isPending: false,
+              timeoutSeconds: 0,
+              status: "posted",
+              error: null,
+              createdAt: new Date("2026-01-02T00:00:00Z"),
+            },
+          ]),
+        )
+        .mockImplementationOnce(() =>
+          makeWhereChain([
+            { id: "ba-1", accountNo: "1110", dimensions: {} },
+            { id: "ba-2", accountNo: "2110", dimensions: {} },
+            { id: "ba-3", accountNo: "1120", dimensions: {} },
+            { id: "ba-4", accountNo: "2120", dimensions: {} },
+          ]),
+        )
+        .mockImplementationOnce(() =>
+          makeWhereChain([
+            { id: "org-1", name: "Org One" },
+            { id: "org-2", name: "Org Two" },
+          ]),
+        ),
+    } as any;
+
+    const service = createLedgerReadService({ db });
+    const detailsById = await service.listOperationDetails(["op-1", "op-2"]);
+
+    expect(detailsById.size).toBe(2);
+    expect(detailsById.get("op-1")?.operation.id).toBe("op-1");
+    expect(detailsById.get("op-2")?.postings[0]?.bookName).toBe("Org Two");
+    expect(db.select).toHaveBeenCalledTimes(5);
+  });
+
   it("returns details for operation without postings", async () => {
     const db = {
       select: vi
@@ -299,6 +442,7 @@ describe("createLedgerReadService", () => {
           makeWhereOrderByChain([
             {
               id: "plan-void",
+              operationId: "op-2",
               lineNo: 1,
               type: "void_pending",
               transferId: 20n,

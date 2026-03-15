@@ -133,6 +133,22 @@ function isBalancesSchemaImportAllowed(relFile) {
   return false;
 }
 
+function isFeesSchemaImportAllowed(relFile) {
+  if (relFile.startsWith("apps/db/")) {
+    return true;
+  }
+
+  if (/(^|\/)tests\//.test(relFile)) {
+    return true;
+  }
+
+  if (isSchemaDefinitionFile(relFile)) {
+    return true;
+  }
+
+  return false;
+}
+
 function isOrganizationsSchemaImportAllowed(relFile) {
   if (relFile.startsWith("apps/db/")) {
     return true;
@@ -380,6 +396,12 @@ for (const root of SOURCE_ROOTS) {
     }
 
     if (
+      /^packages\/modules\/fees\/src\/internal\//.test(relFile)
+    ) {
+      recordViolation("fees-internal-folder", relFile, relFile);
+    }
+
+    if (
       /^packages\/modules\/users\/src\//.test(relFile) &&
       (
         content.includes("@bedrock/platform/auth-model/schema") ||
@@ -533,6 +555,14 @@ for (const root of SOURCE_ROOTS) {
         }
 
         if (
+          owner?.name !== "@bedrock/fees" &&
+          /^packages\/modules\/fees\/src\/internal\//.test(relTargetPath)
+        ) {
+          recordViolation("fees-internal-import", relFile, specifier);
+          continue;
+        }
+
+        if (
           owner?.name !== "@bedrock/parties" &&
           /^packages\/modules\/parties\/src\/internal\//.test(relTargetPath)
         ) {
@@ -652,6 +682,16 @@ for (const root of SOURCE_ROOTS) {
       }
 
       if (
+        normalized.packageName === "@bedrock/fees" &&
+        (
+          normalized.subpath === "./validation" ||
+          normalized.subpath.startsWith("./validation/")
+        )
+      ) {
+        recordViolation("fees-removed-subpath", relFile, specifier);
+      }
+
+      if (
         normalized.packageName === "@bedrock/documents" &&
         (
           normalized.subpath === "./module-kit" ||
@@ -706,6 +746,21 @@ for (const root of SOURCE_ROOTS) {
       ) {
         recordViolation(
           "accounting-app-or-domain-imports-foreign-schema",
+          relFile,
+          specifier,
+        );
+      }
+
+      if (
+        normalized.packageName === "@bedrock/fees" &&
+        (
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        ) &&
+        !isFeesSchemaImportAllowed(relFile)
+      ) {
+        recordViolation(
+          "fees-schema-import-outside-allowed-zones",
           relFile,
           specifier,
         );
@@ -812,6 +867,21 @@ for (const root of SOURCE_ROOTS) {
         )
       ) {
         recordViolation("users-self-import", relFile, specifier);
+      }
+
+      if (
+        owner?.name === "@bedrock/fees" &&
+        isRuntimeSourceFile &&
+        targetPkg.name === owner.name &&
+        (
+          normalized.subpath === "." ||
+          normalized.subpath === "./contracts" ||
+          normalized.subpath.startsWith("./contracts/") ||
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        )
+      ) {
+        recordViolation("fees-self-import", relFile, specifier);
       }
 
       if (

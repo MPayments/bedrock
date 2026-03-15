@@ -9,10 +9,7 @@ import {
   createInMemoryAccountingCompiledPackCache,
 } from "@bedrock/accounting/packs";
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
-import {
-  createBalancesService,
-  type BalancesService,
-} from "@bedrock/balances";
+import { createBalancesService, type BalancesService } from "@bedrock/balances";
 import {
   createLedgerService,
   createLedgerReadService,
@@ -21,15 +18,16 @@ import {
 } from "@bedrock/ledger";
 import { createOrganizationsQueries } from "@bedrock/organizations/queries";
 import { createBetterAuthPasswordHasher } from "@bedrock/platform/auth-betterauth";
+import { createDrizzleAuthIdentityStore } from "@bedrock/platform/auth-model/infra/drizzle";
 import {
-  createDrizzleAuthIdentityStore,
-} from "@bedrock/platform/auth-model/infra/drizzle";
-import { createIdempotencyService, type IdempotencyPort } from "@bedrock/platform/idempotency-postgres";
-import { createConsoleLogger, type Logger } from "@bedrock/platform/observability/logger";
+  createIdempotencyService,
+  type IdempotencyPort,
+} from "@bedrock/platform/idempotency-postgres";
 import {
-  createUsersService,
-  type UsersService,
-} from "@bedrock/users";
+  createConsoleLogger,
+  type Logger,
+} from "@bedrock/platform/observability/logger";
+import { createUsersService, type UsersService } from "@bedrock/users";
 
 import { db } from "../db/client";
 

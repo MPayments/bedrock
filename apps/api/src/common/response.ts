@@ -1,5 +1,6 @@
+import { toJsonSafe } from "@bedrock/shared/core/json";
+
 import { normalizeMoneyFields } from "./amount";
-import { toJsonSafe } from "./json";
 
 interface ApiJsonOptions {
   normalizeMoney?: boolean;

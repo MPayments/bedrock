@@ -4,7 +4,7 @@ import type {
   FeeComponent,
   GetQuoteFeeComponentsInput,
   SaveQuoteFeeComponentsInput,
-} from "@bedrock/fees";
+} from "@bedrock/fees/contracts";
 
 export interface FxCurrencyCatalogPort {
   findById(id: string): Promise<Currency>;

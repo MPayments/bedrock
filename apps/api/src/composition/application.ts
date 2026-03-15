@@ -161,6 +161,16 @@ function createAccountingPeriodsPort(
           }),
       });
     },
+    listClosedOrganizationIdsForPeriod(input) {
+      return runWithService({
+        db: (input as { db?: Queryable }).db,
+        run: (service) =>
+          service.listClosedOrganizationIdsForPeriod({
+            organizationIds: input.organizationIds,
+            occurredAt: input.occurredAt,
+          }),
+      });
+    },
     assertOrganizationPeriodsOpen(input) {
       return runWithService({
         db: (input as { db?: Queryable }).db,
