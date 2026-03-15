@@ -45,14 +45,20 @@ class CustomerAggregate extends AggregateRoot<string> {
 
 describe("shared core domain primitives", () => {
   it("compares value objects by value", () => {
-    expect(EmailAddress.create("USER@example.com").equals(
-      EmailAddress.create("user@example.com"),
-    )).toBe(true);
+    expect(
+      EmailAddress.create("USER@example.com").equals(
+        EmailAddress.create("user@example.com"),
+      ),
+    ).toBe(true);
   });
 
   it("compares entities by id and type", () => {
-    expect(Customer.create("cust-1").equals(Customer.create("cust-1"))).toBe(true);
-    expect(Customer.create("cust-1").equals(Customer.create("cust-2"))).toBe(false);
+    expect(Customer.create("cust-1").equals(Customer.create("cust-1"))).toBe(
+      true,
+    );
+    expect(Customer.create("cust-1").equals(Customer.create("cust-2"))).toBe(
+      false,
+    );
   });
 
   it("brands ids and rejects empty values", () => {
@@ -81,22 +87,24 @@ describe("shared core domain primitives", () => {
     expect(() =>
       normalizeRequiredText("   ", "customer.invalid", "displayName"),
     ).toThrow(DomainError);
+    expect(() =>
+      normalizeRequiredText(
+        undefined as unknown as string,
+        "customer.invalid",
+        "displayName",
+      ),
+    ).toThrow(DomainError);
   });
 
   it("deduplicates ids and drops empty values", () => {
-    expect(dedupeIds(["b", "a", "b", "", "a", "c"])).toEqual([
-      "b",
-      "a",
-      "c",
-    ]);
+    expect(dedupeIds(["b", "a", "b", "", "a", "c"])).toEqual(["b", "a", "c"]);
   });
 
   it("reads string values from domain error causes", () => {
-    const error = new DomainError(
-      "customer.invalid",
-      "Customer is invalid",
-      { customerId: "cust-1", count: 1 },
-    );
+    const error = new DomainError("customer.invalid", "Customer is invalid", {
+      customerId: "cust-1",
+      count: 1,
+    });
 
     expect(readCauseString(error, "customerId")).toBe("cust-1");
     expect(readCauseString(error, "count")).toBeNull();

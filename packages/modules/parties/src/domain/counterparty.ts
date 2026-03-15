@@ -81,9 +81,36 @@ function resolveGroups(input: {
   return nextGroupIds;
 }
 
+function normalizeCounterpartySnapshot(
+  snapshot: CounterpartySnapshot,
+): CounterpartySnapshot {
+  return {
+    ...snapshot,
+    externalId: normalizeOptionalText(snapshot.externalId),
+    customerId: snapshot.customerId ?? null,
+    shortName: normalizeRequiredText(
+      snapshot.shortName,
+      "counterparty.short_name_required",
+      "shortName",
+    ),
+    fullName: normalizeRequiredText(
+      snapshot.fullName,
+      "counterparty.full_name_required",
+      "fullName",
+    ),
+    description: normalizeOptionalText(snapshot.description),
+    country: parseOptionalCountryCode(snapshot.country),
+    kind: normalizePartyKind(snapshot.kind),
+    groupIds: dedupeIds(snapshot.groupIds),
+  };
+}
+
 export class Counterparty extends Entity<string> {
-  private constructor(private readonly snapshot: CounterpartySnapshot) {
+  private readonly snapshot: CounterpartySnapshot;
+
+  private constructor(snapshot: CounterpartySnapshot) {
     super(snapshot.id);
+    this.snapshot = normalizeCounterpartySnapshot(snapshot);
   }
 
   static create(
@@ -131,24 +158,7 @@ export class Counterparty extends Entity<string> {
   }
 
   static reconstitute(snapshot: CounterpartySnapshot): Counterparty {
-    return new Counterparty({
-      ...snapshot,
-      externalId: normalizeOptionalText(snapshot.externalId),
-      shortName: normalizeRequiredText(
-        snapshot.shortName,
-        "counterparty.short_name_required",
-        "shortName",
-      ),
-      fullName: normalizeRequiredText(
-        snapshot.fullName,
-        "counterparty.full_name_required",
-        "fullName",
-      ),
-      description: normalizeOptionalText(snapshot.description),
-      country: parseOptionalCountryCode(snapshot.country),
-      kind: normalizePartyKind(snapshot.kind),
-      groupIds: dedupeIds(snapshot.groupIds),
-    });
+    return new Counterparty({ ...snapshot });
   }
 
   update(

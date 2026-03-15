@@ -74,9 +74,31 @@ function resolveScopedCustomerId(input: {
   return null;
 }
 
+function normalizeCounterpartyGroupSnapshot(
+  snapshot: CounterpartyGroupSnapshot,
+): CounterpartyGroupSnapshot {
+  return {
+    ...snapshot,
+    code: normalizeRequiredText(
+      snapshot.code,
+      "counterparty_group.code_required",
+      "code",
+    ),
+    name: normalizeRequiredText(
+      snapshot.name,
+      "counterparty_group.name_required",
+      "name",
+    ),
+    description: normalizeOptionalText(snapshot.description),
+  };
+}
+
 export class CounterpartyGroup extends Entity<string> {
-  private constructor(private readonly snapshot: CounterpartyGroupSnapshot) {
+  private readonly snapshot: CounterpartyGroupSnapshot;
+
+  private constructor(snapshot: CounterpartyGroupSnapshot) {
     super(snapshot.id);
+    this.snapshot = normalizeCounterpartyGroupSnapshot(snapshot);
   }
 
   static create(
@@ -138,20 +160,7 @@ export class CounterpartyGroup extends Entity<string> {
   }
 
   static reconstitute(snapshot: CounterpartyGroupSnapshot): CounterpartyGroup {
-    return new CounterpartyGroup({
-      ...snapshot,
-      code: normalizeRequiredText(
-        snapshot.code,
-        "counterparty_group.code_required",
-        "code",
-      ),
-      name: normalizeRequiredText(
-        snapshot.name,
-        "counterparty_group.name_required",
-        "name",
-      ),
-      description: normalizeOptionalText(snapshot.description),
-    });
+    return new CounterpartyGroup({ ...snapshot });
   }
 
   update(

@@ -6,7 +6,7 @@ import { schema } from "@bedrock/fx/schema";
 import { DAY_IN_SECONDS } from "@bedrock/shared/money/math";
 
 import { db } from "./setup";
-import { createFxService } from "../../src/fx";
+import { createFxService } from "../../src";
 import { createFxRatesWorkerDefinition } from "../../src/worker";
 import { createNoopFeesService } from "../helpers";
 

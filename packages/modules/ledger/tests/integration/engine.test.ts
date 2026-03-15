@@ -14,7 +14,7 @@ import {
 } from "./helpers";
 import { OPERATION_TRANSFER_TYPE } from "../../src/contracts";
 import { IdempotencyConflictError } from "../../src/errors";
-import { createLedgerService } from "../../src/ledger";
+import { createLedgerService } from "../../src";
 
 describe("Engine Integration Tests", () => {
   const engine = createLedgerService({ db });

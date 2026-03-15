@@ -6,10 +6,7 @@ import {
 } from "@bedrock/shared/core/domain";
 
 import { normalizeCountryCode } from "./country-code";
-import {
-  isBankLikeRequisiteKind,
-  type RequisiteKind,
-} from "./requisite-kind";
+import { isBankLikeRequisiteKind, type RequisiteKind } from "./requisite-kind";
 
 export interface RequisiteProviderSnapshot {
   id: string;
@@ -45,11 +42,7 @@ export function validateRequisiteProviderDetails(
   const bic = normalizeOptionalText(input.bic);
   const swift = normalizeOptionalText(input.swift);
 
-  normalizeRequiredText(
-    input.name,
-    "requisite_provider.name.required",
-    "name",
-  );
+  normalizeRequiredText(input.name, "requisite_provider.name.required", "name");
 
   if (isBankLikeRequisiteKind(kind)) {
     invariant(
@@ -94,7 +87,10 @@ export function validateRequisiteProviderDetails(
 
 function normalizeDetails(
   input: RequisiteProviderDetails,
-): Omit<RequisiteProviderSnapshot, "id" | "archivedAt" | "createdAt" | "updatedAt"> {
+): Omit<
+  RequisiteProviderSnapshot,
+  "id" | "archivedAt" | "createdAt" | "updatedAt"
+> {
   validateRequisiteProviderDetails(input);
 
   return {
@@ -113,15 +109,30 @@ function normalizeDetails(
   };
 }
 
+function normalizeRequisiteProviderSnapshot(
+  snapshot: RequisiteProviderSnapshot,
+): RequisiteProviderSnapshot {
+  return {
+    ...snapshot,
+    ...normalizeDetails(snapshot),
+    archivedAt: snapshot.archivedAt ?? null,
+  };
+}
+
 export class RequisiteProvider extends Entity<string> {
-  private constructor(private readonly snapshot: RequisiteProviderSnapshot) {
+  private readonly snapshot: RequisiteProviderSnapshot;
+
+  private constructor(snapshot: RequisiteProviderSnapshot) {
     super(snapshot.id);
+    this.snapshot = normalizeRequisiteProviderSnapshot(snapshot);
   }
 
-  static create(input: {
-    id: string;
-    now: Date;
-  } & RequisiteProviderDetails): RequisiteProvider {
+  static create(
+    input: {
+      id: string;
+      now: Date;
+    } & RequisiteProviderDetails,
+  ): RequisiteProvider {
     return new RequisiteProvider({
       id: input.id,
       ...normalizeDetails(input),

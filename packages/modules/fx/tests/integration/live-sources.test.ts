@@ -6,7 +6,7 @@ import { schema } from "@bedrock/fx/schema";
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/providers";
 
 import { db } from "./setup";
-import { createFxService } from "../../src/fx";
+import { createFxService } from "../../src";
 import { createNoopFeesService } from "../helpers";
 
 const EXTERNAL_API_TESTS_ENABLED = process.env.ENABLE_EXTERNAL_API_TESTS === "1";

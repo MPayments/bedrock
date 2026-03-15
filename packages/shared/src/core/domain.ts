@@ -42,18 +42,21 @@ export function invariant(
 export type Brand<T, B extends string> = T & { readonly __brand: B };
 
 export function normalizeRequiredText(
-  value: string,
+  value: unknown,
   code: string,
   field: string,
 ): string {
+  invariant(typeof value === "string", code, `${field} is required`, {
+    field,
+    value,
+  });
+
   const normalized = value.trim();
 
-  invariant(
-    normalized.length > 0,
-    code,
-    `${field} is required`,
-    { field, value },
-  );
+  invariant(normalized.length > 0, code, `${field} is required`, {
+    field,
+    value,
+  });
 
   return normalized;
 }
@@ -112,9 +115,11 @@ export abstract class ValueObject<TProps extends object> {
   }
 
   equals(other?: ValueObject<TProps>): boolean {
-    return Boolean(other) &&
+    return (
+      Boolean(other) &&
       this.constructor === other!.constructor &&
-      isDeepStrictEqual(this.props, other!.props);
+      isDeepStrictEqual(this.props, other!.props)
+    );
   }
 }
 
@@ -122,13 +127,18 @@ export abstract class Entity<TId> {
   protected constructor(public readonly id: TId) {}
 
   equals(other?: Entity<TId>): boolean {
-    return Boolean(other) &&
+    return (
+      Boolean(other) &&
       this.constructor === other!.constructor &&
-      this.id === other!.id;
+      this.id === other!.id
+    );
   }
 }
 
-export interface DomainEvent<TType extends string = string, TPayload = unknown> {
+export interface DomainEvent<
+  TType extends string = string,
+  TPayload = unknown,
+> {
   readonly type: TType;
   readonly occurredAt: Date;
   readonly payload: TPayload;

@@ -41,9 +41,33 @@ export interface UpdateOrganizationProps {
   kind?: PartyKind;
 }
 
+function normalizeOrganizationSnapshot(
+  snapshot: OrganizationSnapshot,
+): OrganizationSnapshot {
+  return {
+    ...snapshot,
+    externalId: normalizeOptionalText(snapshot.externalId),
+    shortName: normalizeRequiredText(
+      snapshot.shortName,
+      "organization.short_name_required",
+      "shortName",
+    ),
+    fullName: normalizeRequiredText(
+      snapshot.fullName,
+      "organization.full_name_required",
+      "fullName",
+    ),
+    description: normalizeOptionalText(snapshot.description),
+    country: parseOptionalCountryCode(snapshot.country),
+  };
+}
+
 export class Organization extends Entity<string> {
-  private constructor(private readonly snapshot: OrganizationSnapshot) {
+  private readonly snapshot: OrganizationSnapshot;
+
+  private constructor(snapshot: OrganizationSnapshot) {
     super(snapshot.id);
+    this.snapshot = normalizeOrganizationSnapshot(snapshot);
   }
 
   static create(input: CreateOrganizationProps, now: Date): Organization {
@@ -69,22 +93,7 @@ export class Organization extends Entity<string> {
   }
 
   static reconstitute(snapshot: OrganizationSnapshot): Organization {
-    return new Organization({
-      ...snapshot,
-      externalId: normalizeOptionalText(snapshot.externalId),
-      shortName: normalizeRequiredText(
-        snapshot.shortName,
-        "organization.short_name_required",
-        "shortName",
-      ),
-      fullName: normalizeRequiredText(
-        snapshot.fullName,
-        "organization.full_name_required",
-        "fullName",
-      ),
-      description: normalizeOptionalText(snapshot.description),
-      country: parseOptionalCountryCode(snapshot.country),
-    });
+    return new Organization({ ...snapshot });
   }
 
   update(input: UpdateOrganizationProps, now: Date): Organization {
@@ -124,12 +133,14 @@ export class Organization extends Entity<string> {
   }
 
   sameState(other: Organization): boolean {
-    return this.snapshot.externalId === other.snapshot.externalId &&
+    return (
+      this.snapshot.externalId === other.snapshot.externalId &&
       this.snapshot.shortName === other.snapshot.shortName &&
       this.snapshot.fullName === other.snapshot.fullName &&
       this.snapshot.description === other.snapshot.description &&
       this.snapshot.country === other.snapshot.country &&
-      this.snapshot.kind === other.snapshot.kind;
+      this.snapshot.kind === other.snapshot.kind
+    );
   }
 
   toSnapshot(): OrganizationSnapshot {

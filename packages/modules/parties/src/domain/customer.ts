@@ -26,9 +26,27 @@ export interface UpdateCustomerProps {
   description?: string | null;
 }
 
+function normalizeCustomerSnapshot(
+  snapshot: CustomerSnapshot,
+): CustomerSnapshot {
+  return {
+    ...snapshot,
+    externalRef: normalizeOptionalText(snapshot.externalRef),
+    displayName: normalizeRequiredText(
+      snapshot.displayName,
+      "customer.display_name_required",
+      "displayName",
+    ),
+    description: normalizeOptionalText(snapshot.description),
+  };
+}
+
 export class Customer extends Entity<string> {
-  private constructor(private readonly snapshot: CustomerSnapshot) {
+  private readonly snapshot: CustomerSnapshot;
+
+  private constructor(snapshot: CustomerSnapshot) {
     super(snapshot.id);
+    this.snapshot = normalizeCustomerSnapshot(snapshot);
   }
 
   static create(input: CreateCustomerProps, now: Date): Customer {
@@ -47,16 +65,7 @@ export class Customer extends Entity<string> {
   }
 
   static reconstitute(snapshot: CustomerSnapshot): Customer {
-    return new Customer({
-      ...snapshot,
-      externalRef: normalizeOptionalText(snapshot.externalRef),
-      displayName: normalizeRequiredText(
-        snapshot.displayName,
-        "customer.display_name_required",
-        "displayName",
-      ),
-      description: normalizeOptionalText(snapshot.description),
-    });
+    return new Customer({ ...snapshot });
   }
 
   update(input: UpdateCustomerProps, now: Date): Customer {
@@ -83,9 +92,11 @@ export class Customer extends Entity<string> {
   }
 
   sameState(other: Customer): boolean {
-    return this.snapshot.externalRef === other.snapshot.externalRef &&
+    return (
+      this.snapshot.externalRef === other.snapshot.externalRef &&
       this.snapshot.displayName === other.snapshot.displayName &&
-      this.snapshot.description === other.snapshot.description;
+      this.snapshot.description === other.snapshot.description
+    );
   }
 
   displayNameChangedComparedTo(other: Customer): boolean {

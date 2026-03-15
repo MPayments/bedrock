@@ -9,8 +9,8 @@ import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
 
 import { ExternalRecordConflictError } from "../../src/errors";
-import { createReconciliationService } from "../../src/reconciliation";
-import { createReconciliationWorkerDefinition } from "../../src/worker";
+import { createReconciliationService } from "../../src";
+import { createReconciliationWorkerDefinition } from "../../src/infra/workers/reconciliation-worker";
 
 const schema = {
   ...reconciliationSchema,
