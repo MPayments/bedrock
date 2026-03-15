@@ -374,16 +374,23 @@ for (const root of SOURCE_ROOTS) {
     }
 
     if (
+      /^packages\/modules\/users\/src\/internal\//.test(relFile)
+    ) {
+      recordViolation("users-internal-folder", relFile, relFile);
+    }
+
+    if (
       /^packages\/modules\/users\/src\//.test(relFile) &&
       (
         content.includes("@bedrock/platform/auth-model/schema") ||
+        content.includes("@bedrock/platform/auth-model/infra/") ||
         content.includes("better-auth/crypto")
       )
     ) {
       recordViolation(
         "users-bypasses-identity-ports",
         relFile,
-        "@bedrock/platform/auth-model/schema|better-auth/crypto",
+        "@bedrock/platform/auth-model/schema|@bedrock/platform/auth-model/infra/*|better-auth/crypto",
       );
     }
 
@@ -792,6 +799,19 @@ for (const root of SOURCE_ROOTS) {
           relFile,
           specifier,
         );
+      }
+
+      if (
+        owner?.name === "@bedrock/users" &&
+        isRuntimeSourceFile &&
+        targetPkg.name === owner.name &&
+        (
+          normalized.subpath === "." ||
+          normalized.subpath === "./contracts" ||
+          normalized.subpath.startsWith("./contracts/")
+        )
+      ) {
+        recordViolation("users-self-import", relFile, specifier);
       }
 
       if (

@@ -1,18 +1,19 @@
-import type {
-  AuthIdentityStorePort,
-  PasswordHasherPort,
-} from "@bedrock/platform/auth-model";
 import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
 
+import type {
+  UsersIdentityStorePort,
+  UsersPasswordHasherPort,
+} from "../ports";
+
 export interface UsersServiceDeps {
-  authStore: AuthIdentityStorePort;
-  passwordHasher: PasswordHasherPort;
+  identityStore: UsersIdentityStorePort;
+  passwordHasher: UsersPasswordHasherPort;
   logger?: Logger;
 }
 
 export interface UsersServiceContext {
-  authStore: AuthIdentityStorePort;
-  passwordHasher: PasswordHasherPort;
+  identityStore: UsersIdentityStorePort;
+  passwordHasher: UsersPasswordHasherPort;
   log: Logger;
 }
 
@@ -20,7 +21,7 @@ export function createUsersServiceContext(
   deps: UsersServiceDeps,
 ): UsersServiceContext {
   return {
-    authStore: deps.authStore,
+    identityStore: deps.identityStore,
     passwordHasher: deps.passwordHasher,
     log: deps.logger?.child({ service: "users" }) ?? noopLogger,
   };

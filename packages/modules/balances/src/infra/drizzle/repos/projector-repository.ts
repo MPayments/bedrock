@@ -114,24 +114,35 @@ export function createDrizzleBalancesProjectionRepository(
               LIMIT ${batchSize}
             `);
 
-      return ((rows.rows ?? []) as {
-        id: string;
-        source_type: string;
-        source_id: string;
-        operation_code: string;
-        posted_at: Date | string;
-      }[]).map((row) => ({
+      return (
+        (rows.rows ?? []) as {
+          id: string;
+          source_type: string;
+          source_id: string;
+          operation_code: string;
+          posted_at: Date | string;
+        }[]
+      ).map((row) => ({
         id: row.id,
         sourceType: row.source_type,
         sourceId: row.source_id,
         operationCode: row.operation_code,
         postedAt:
-          row.posted_at instanceof Date ? row.posted_at : new Date(row.posted_at),
+          row.posted_at instanceof Date
+            ? row.posted_at
+            : new Date(row.posted_at),
       }));
     },
-    async listProjectionPostingRows(
-      operation,
-    ): Promise<ProjectionPostingRow[]> {
+    async listProjectionPostingRowsForOperations(
+      operations,
+    ): Promise<Map<string, ProjectionPostingRow[]>> {
+      if (operations.length === 0) {
+        return new Map();
+      }
+
+      const operationById = new Map(
+        operations.map((operation) => [operation.id, operation]),
+      );
       const rows = await tx.execute(sql`
         SELECT
           p.operation_id,
@@ -147,11 +158,19 @@ export function createDrizzleBalancesProjectionRepository(
           ON debit_inst.id = p.debit_instance_id
         INNER JOIN ${schema.bookAccountInstances} credit_inst
           ON credit_inst.id = p.credit_instance_id
-        WHERE p.operation_id = ${operation.id}
-        ORDER BY p.line_no ASC
+        WHERE p.operation_id IN (${sql.join(
+          operations.map((operation) => sql`${operation.id}::uuid`),
+          sql`, `,
+        )})
+        ORDER BY p.operation_id ASC, p.line_no ASC
       `);
 
-      return ((rows.rows ?? []) as {
+      const postingRowsByOperationId = new Map<
+        string,
+        ProjectionPostingRow[]
+      >();
+
+      for (const row of (rows.rows ?? []) as {
         operation_id: string;
         line_no: number;
         book_id: string;
@@ -160,22 +179,35 @@ export function createDrizzleBalancesProjectionRepository(
         posting_code: string;
         debit_dimensions: ProjectionPostingRow["debitDimensions"];
         credit_dimensions: ProjectionPostingRow["creditDimensions"];
-      }[]).map((row) => ({
-        operationId: row.operation_id,
-        sourceType: operation.sourceType,
-        sourceId: operation.sourceId,
-        operationCode: operation.operationCode,
-        lineNo: row.line_no,
-        bookId: row.book_id,
-        currency: row.currency,
-        amountMinor:
-          typeof row.amount_minor === "bigint"
-            ? row.amount_minor
-            : BigInt(row.amount_minor),
-        postingCode: row.posting_code,
-        debitDimensions: row.debit_dimensions,
-        creditDimensions: row.credit_dimensions,
-      }));
+      }[]) {
+        const operation = operationById.get(row.operation_id);
+
+        if (!operation) {
+          continue;
+        }
+
+        const postingRow = {
+          operationId: row.operation_id,
+          sourceType: operation.sourceType,
+          sourceId: operation.sourceId,
+          operationCode: operation.operationCode,
+          lineNo: row.line_no,
+          bookId: row.book_id,
+          currency: row.currency,
+          amountMinor:
+            typeof row.amount_minor === "bigint"
+              ? row.amount_minor
+              : BigInt(row.amount_minor),
+          postingCode: row.posting_code,
+          debitDimensions: row.debit_dimensions,
+          creditDimensions: row.credit_dimensions,
+        };
+        const bucket = postingRowsByOperationId.get(row.operation_id) ?? [];
+        bucket.push(postingRow);
+        postingRowsByOperationId.set(row.operation_id, bucket);
+      }
+
+      return postingRowsByOperationId;
     },
     async applyProjectedDelta(input) {
       await tx

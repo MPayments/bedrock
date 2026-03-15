@@ -7,7 +7,6 @@ import type {
 import type { BalanceEventInput } from "../domain/balance-events";
 import type {
   BalanceHoldRecord,
-  BalanceHoldSnapshot,
   BalanceHoldUpdate,
 } from "../domain/balance-hold";
 import type {
@@ -75,9 +74,9 @@ export interface BalancesProjectionPort {
     cursor: BalanceProjectorCursor,
     batchSize: number,
   ) => Promise<ProjectionOperationRow[]>;
-  listProjectionPostingRows: (
-    operation: ProjectionOperationRow,
-  ) => Promise<ProjectionPostingRow[]>;
+  listProjectionPostingRowsForOperations: (
+    operations: ProjectionOperationRow[],
+  ) => Promise<Map<string, ProjectionPostingRow[]>>;
   applyProjectedDelta: (
     input: ProjectedBalanceDelta & {
       operationId: string;

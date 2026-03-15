@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createUsersService } from "../src";
-import { InvalidPasswordError, UserEmailConflictError } from "../src/errors";
+import {
+  InvalidPasswordError,
+  UserEmailConflictError,
+  UserNotFoundError,
+} from "../src/errors";
 
 function createUsersTestDeps() {
-  const authStore = {
+  const identityStore = {
     listUsers: vi.fn(),
     findUserById: vi.fn(),
     findUserByEmail: vi.fn(),
@@ -23,10 +27,10 @@ function createUsersTestDeps() {
   };
 
   return {
-    authStore,
+    identityStore,
     passwordHasher,
     service: createUsersService({
-      authStore: authStore as any,
+      identityStore: identityStore as any,
       passwordHasher,
     }),
   };
@@ -34,9 +38,9 @@ function createUsersTestDeps() {
 
 describe("users service", () => {
   it("creates users through auth ports and hashes passwords outside the module", async () => {
-    const { authStore, passwordHasher, service } = createUsersTestDeps();
-    authStore.findUserByEmail.mockResolvedValue(null);
-    authStore.createUserWithCredential.mockResolvedValue({
+    const { identityStore, passwordHasher, service } = createUsersTestDeps();
+    identityStore.findUserByEmail.mockResolvedValue(null);
+    identityStore.createUserWithCredential.mockResolvedValue({
       id: "user-1",
       name: "Alice",
       email: "alice@example.com",
@@ -59,7 +63,7 @@ describe("users service", () => {
     });
 
     expect(passwordHasher.hash).toHaveBeenCalledWith("secret-123");
-    expect(authStore.createUserWithCredential).toHaveBeenCalledWith({
+    expect(identityStore.createUserWithCredential).toHaveBeenCalledWith({
       name: "Alice",
       email: "alice@example.com",
       role: "admin",
@@ -71,8 +75,8 @@ describe("users service", () => {
   });
 
   it("rejects duplicate emails before delegating user creation", async () => {
-    const { authStore, service } = createUsersTestDeps();
-    authStore.findUserByEmail.mockResolvedValue({
+    const { identityStore, service } = createUsersTestDeps();
+    identityStore.findUserByEmail.mockResolvedValue({
       id: "user-1",
       email: "alice@example.com",
     });
@@ -86,12 +90,12 @@ describe("users service", () => {
       }),
     ).rejects.toBeInstanceOf(UserEmailConflictError);
 
-    expect(authStore.createUserWithCredential).not.toHaveBeenCalled();
+    expect(identityStore.createUserWithCredential).not.toHaveBeenCalled();
   });
 
   it("verifies the current password through the injected hasher", async () => {
-    const { authStore, passwordHasher, service } = createUsersTestDeps();
-    authStore.getCredentialByUserId.mockResolvedValue({
+    const { identityStore, passwordHasher, service } = createUsersTestDeps();
+    identityStore.getCredentialByUserId.mockResolvedValue({
       id: "acc-1",
       userId: "user-1",
       providerId: "credential",
@@ -106,6 +110,59 @@ describe("users service", () => {
       }),
     ).rejects.toBeInstanceOf(InvalidPasswordError);
 
-    expect(authStore.updateCredentialPassword).not.toHaveBeenCalled();
+    expect(identityStore.updateCredentialPassword).not.toHaveBeenCalled();
+  });
+
+  it("propagates not found for ban and unban operations", async () => {
+    const { identityStore, service } = createUsersTestDeps();
+    identityStore.banUser.mockResolvedValue(null);
+    identityStore.unbanUser.mockResolvedValue(null);
+
+    await expect(
+      service.ban("missing", { banReason: "policy" }),
+    ).rejects.toBeInstanceOf(UserNotFoundError);
+    await expect(service.unban("missing")).rejects.toBeInstanceOf(
+      UserNotFoundError,
+    );
+  });
+
+  it("maps findById results with last session metadata", async () => {
+    const { identityStore, service } = createUsersTestDeps();
+    const now = new Date("2026-03-01T00:00:00.000Z");
+    identityStore.getUserWithLastSession.mockResolvedValue({
+      user: {
+        id: "user-1",
+        name: "Alice",
+        email: "alice@example.com",
+        emailVerified: true,
+        image: null,
+        role: "admin",
+        banned: null,
+        banReason: null,
+        banExpires: null,
+        twoFactorEnabled: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+      lastSessionAt: now,
+      lastSessionIp: "127.0.0.1",
+    });
+
+    await expect(service.findById("user-1")).resolves.toEqual({
+      id: "user-1",
+      name: "Alice",
+      email: "alice@example.com",
+      emailVerified: true,
+      image: null,
+      role: "admin",
+      banned: false,
+      banReason: null,
+      banExpires: null,
+      twoFactorEnabled: null,
+      createdAt: now,
+      updatedAt: now,
+      lastSessionAt: now,
+      lastSessionIp: "127.0.0.1",
+    });
   });
 });

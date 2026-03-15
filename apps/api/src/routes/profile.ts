@@ -1,12 +1,14 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
-  ChangeOwnPasswordInputSchema,
   InvalidPasswordError,
-  UpdateProfileInputSchema,
   UserEmailConflictError,
   UserNotFoundError,
 } from "@bedrock/users";
+import {
+  ChangeOwnPasswordInputSchema,
+  UpdateProfileInputSchema,
+} from "@bedrock/users/contracts";
 
 import { ErrorSchema } from "../common";
 import type { AppContext } from "../context";

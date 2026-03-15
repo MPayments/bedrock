@@ -81,7 +81,7 @@ export function createCoreServices(): ApiCoreServices {
   const ledgerReadService = createLedgerReadService({ db });
   const balancesService = createBalancesService({ db, idempotency, logger });
   const usersService = createUsersService({
-    authStore,
+    identityStore: authStore,
     passwordHasher,
     logger,
   });

@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./validation": "./src/validation.ts"
+    "./contracts": "./src/contracts/index.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

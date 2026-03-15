@@ -17,10 +17,12 @@ export function createRunProjectorPassHandler(input: {
         cursor,
         batchSize,
       );
+      const postingRowsByOperationId =
+        await projection.listProjectionPostingRowsForOperations(operations);
       let processed = 0;
 
       for (const operation of operations) {
-        const postingRows = await projection.listProjectionPostingRows(operation);
+        const postingRows = postingRowsByOperationId.get(operation.id) ?? [];
         const bookIds = [...new Set(postingRows.map((row) => row.bookId))];
 
         if (
