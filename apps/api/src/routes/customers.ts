@@ -3,11 +3,13 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import {
   CustomerDeleteConflictError,
   CustomerNotFoundError,
+} from "@bedrock/parties";
+import {
   CustomerSchema,
   CreateCustomerInputSchema,
   ListCustomersQuerySchema,
   UpdateCustomerInputSchema,
-} from "@bedrock/customers";
+} from "@bedrock/parties/contracts";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
@@ -183,19 +185,19 @@ export function customersRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.customersService.list(query);
+      const result = await ctx.partiesService.customers.list(query);
       return c.json(result, 200);
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");
-      const customer = await ctx.customersService.create(input);
+      const customer = await ctx.partiesService.customers.create(input);
       return c.json(customer, 201);
     })
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");
 
       try {
-        const customer = await ctx.customersService.findById(id);
+        const customer = await ctx.partiesService.customers.findById(id);
         return c.json(customer, 200);
       } catch (error) {
         if (error instanceof CustomerNotFoundError) {
@@ -210,7 +212,7 @@ export function customersRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const customer = await ctx.customersService.update(id, input);
+        const customer = await ctx.partiesService.customers.update(id, input);
         return c.json(customer, 200);
       } catch (error) {
         if (error instanceof CustomerNotFoundError) {
@@ -224,7 +226,7 @@ export function customersRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        await ctx.customersService.remove(id);
+        await ctx.partiesService.customers.remove(id);
         return c.json({ deleted: true }, 200);
       } catch (error) {
         if (error instanceof CustomerNotFoundError) {

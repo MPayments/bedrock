@@ -1,5 +1,5 @@
-import type { CounterpartiesQueries } from "@bedrock/counterparties/queries";
-import type { CustomersQueries } from "@bedrock/customers/queries";
+import type { CounterpartiesQueries } from "@bedrock/parties/queries";
+import type { CustomersQueries } from "@bedrock/parties/queries";
 import type { RequisitesQueries } from "@bedrock/requisites/queries";
 
 export type DimensionLabelResolver = (input: {

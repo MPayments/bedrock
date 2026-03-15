@@ -16,9 +16,9 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/parties": "workspace:*",
     "@bedrock/accounting": "workspace:*",
     "@bedrock/balances": "workspace:*",
-    "@bedrock/counterparties": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
@@ -30,8 +30,7 @@
     "@bedrock/workflow-period-close": "workspace:*",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
-    "@bedrock/platform": "workspace:*",
-    "@bedrock/shared": "workspace:*"
+    "@bedrock/platform": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",

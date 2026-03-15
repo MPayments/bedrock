@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { z } from "zod";
 
-import { CounterpartyOptionsResponseSchema } from "@bedrock/counterparties/contracts";
+import { CounterpartyOptionsResponseSchema } from "@bedrock/parties/contracts";
 import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
 import { OrganizationOptionsResponseSchema } from "@bedrock/organizations/contracts";
 import { REQUISITES_LIST_CONTRACT } from "@bedrock/requisites/contracts";

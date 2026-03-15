@@ -38,6 +38,9 @@ export interface DocumentsReadModel {
     kind: string;
   }) => Promise<string | null>;
   listDocumentLabelsById: (ids: string[]) => Promise<Map<string, string>>;
+  hasDocumentsForCustomer: (
+    customerId: string,
+  ) => Promise<boolean>;
   findDocumentIdByCreateIdempotencyKey: (input: {
     docType: string;
     createIdempotencyKey: string;

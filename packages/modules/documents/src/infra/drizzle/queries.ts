@@ -88,6 +88,15 @@ export function createDrizzleDocumentsReadModel(input: {
         ]),
       );
     },
+    async hasDocumentsForCustomer(customerId: string) {
+      const [row] = await db
+        .select({ id: schema.documents.id })
+        .from(schema.documents)
+        .where(eq(schema.documents.customerId, customerId))
+        .limit(1);
+
+      return Boolean(row);
+    },
     async findDocumentIdByCreateIdempotencyKey(query) {
       const [row] = await db
         .select({ id: schema.documents.id })

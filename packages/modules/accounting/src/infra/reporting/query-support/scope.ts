@@ -1,5 +1,5 @@
 
-import type { CounterpartiesQueries } from "@bedrock/counterparties/queries";
+import type { CounterpartiesQueries } from "@bedrock/parties/queries";
 import type {
   AccountingScopedPostingRow,
   LedgerQueries,

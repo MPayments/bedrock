@@ -5,7 +5,7 @@ import {
 import {
   CounterpartyGroupOptionsResponseSchema,
   CounterpartyOptionsResponseSchema,
-} from "@bedrock/counterparties/contracts";
+} from "@bedrock/parties/contracts";
 import {
   BalanceSheetResponseSchema,
   CashFlowResponseSchema,

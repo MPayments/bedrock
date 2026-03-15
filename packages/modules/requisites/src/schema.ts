@@ -14,7 +14,7 @@ import {
 import { requisiteKindEnum } from "./shared";
 import { currencies } from "@bedrock/currencies/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import { counterparties } from "@bedrock/counterparties/schema";
+import { counterparties } from "@bedrock/parties/schema";
 import { organizations } from "@bedrock/organizations/schema";
 
 import { requisiteProviders } from "./providers/schema";

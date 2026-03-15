@@ -1,5 +1,5 @@
 import type { BalancesQueries } from "@bedrock/balances/queries";
-import type { CounterpartiesQueries } from "@bedrock/counterparties/queries";
+import type { CounterpartiesQueries } from "@bedrock/parties/queries";
 import type { LedgerQueries } from "@bedrock/ledger/queries";
 import type { OrganizationsQueries } from "@bedrock/organizations/queries";
 

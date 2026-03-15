@@ -12,11 +12,10 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@bedrock/parties": "workspace:*",
     "@bedrock/accounting": "workspace:*",
     "@bedrock/sdk-api-client": "workspace:*",
-    "@bedrock/counterparties": "workspace:*",
     "@bedrock/currencies": "workspace:*",
-    "@bedrock/customers": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/plugin-documents-commercial": "workspace:*",
     "@bedrock/plugin-documents-ifrs": "workspace:*",

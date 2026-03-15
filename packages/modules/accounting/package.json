@@ -30,10 +30,9 @@
     "pack:activate": "tsx ./scripts/pack-activate.ts"
   },
   "dependencies": {
+    "@bedrock/parties": "workspace:*",
     "@bedrock/balances": "workspace:*",
-    "@bedrock/counterparties": "workspace:*",
     "@bedrock/currencies": "workspace:*",
-    "@bedrock/customers": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/organizations": "workspace:*",
     "@bedrock/requisites": "workspace:*",

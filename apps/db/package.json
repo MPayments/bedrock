@@ -24,11 +24,10 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@bedrock/parties": "workspace:*",
     "@bedrock/accounting": "workspace:*",
     "@bedrock/balances": "workspace:*",
-    "@bedrock/counterparties": "workspace:*",
     "@bedrock/currencies": "workspace:*",
-    "@bedrock/customers": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
@@ -42,7 +41,6 @@
     "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {
-    "@bedrock/eslint-config": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
     "drizzle-kit": "^0.31.9",

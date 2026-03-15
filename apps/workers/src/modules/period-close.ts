@@ -22,7 +22,7 @@ import {
   createDrizzleAccountingReportsRepository,
 } from "@bedrock/accounting/reports";
 import { createBalancesQueries } from "@bedrock/balances/queries";
-import { createCounterpartiesQueries } from "@bedrock/counterparties/queries";
+import { createPartiesQueries } from "@bedrock/parties/queries";
 import {
   createDocumentsService,
   type DocumentsIdempotencyPort,
@@ -144,14 +144,14 @@ async function createPeriodCloseForOrganization(input: {
 
 function createAccountingReportRuntime(queryable: Queryable) {
   const balancesQueries = createBalancesQueries({ db: queryable });
-  const counterpartiesQueries = createCounterpartiesQueries({ db: queryable });
+  const partiesQueries = createPartiesQueries({ db: queryable });
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: queryable });
   const ledgerQueries = createLedgerQueries({ db: queryable });
   const organizationsQueries = createOrganizationsQueries({ db: queryable });
   const reportsRepository = createDrizzleAccountingReportsRepository(queryable);
   const reportContext = createAccountingReportsContext({
     balancesQueries,
-    counterpartiesQueries,
+    counterpartiesQueries: partiesQueries.counterparties,
     documentsPort: documentsReadModel,
     ledgerQueries,
     organizationsQueries,

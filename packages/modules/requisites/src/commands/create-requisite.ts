@@ -1,6 +1,6 @@
 import { and, eq, isNull, ne } from "drizzle-orm";
 
-import { CounterpartyNotFoundError } from "@bedrock/counterparties";
+import { CounterpartyNotFoundError } from "@bedrock/parties";
 import { OrganizationNotFoundError } from "@bedrock/organizations";
 import type { Transaction } from "@bedrock/platform/persistence";
 

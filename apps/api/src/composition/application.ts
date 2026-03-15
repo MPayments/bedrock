@@ -14,21 +14,15 @@ import {
 } from "@bedrock/accounting/reports";
 import { createBalancesQueries } from "@bedrock/balances/queries";
 import {
-  createCustomerLifecycleSyncPort,
-  createCounterpartiesService,
-  type CounterpartiesService,
-} from "@bedrock/counterparties";
-import { createCounterpartiesQueries } from "@bedrock/counterparties/queries";
+  createPartiesService,
+  type PartiesService,
+} from "@bedrock/parties";
+import { createPartiesQueries } from "@bedrock/parties/queries";
 import {
   createCurrenciesService,
   type CurrenciesService,
 } from "@bedrock/currencies";
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
-import {
-  createCustomersService,
-  type CustomersService,
-} from "@bedrock/customers";
-import { createCustomersQueries } from "@bedrock/customers/queries";
 import {
   createDocumentsService,
   type DocumentsIdempotencyPort,
@@ -85,8 +79,7 @@ function createDocumentsModuleRuntime(
 export interface ApiApplicationServices {
   accountingReportsService: AccountingReportsService;
   accountingPeriodsService: AccountingPeriodsService;
-  counterpartiesService: CounterpartiesService;
-  customersService: CustomersService;
+  partiesService: PartiesService;
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
@@ -98,14 +91,14 @@ export interface ApiApplicationServices {
 
 function createAccountingReportRuntime(queryable: Queryable) {
   const balancesQueries = createBalancesQueries({ db: queryable });
-  const counterpartiesQueries = createCounterpartiesQueries({ db: queryable });
+  const partiesQueries = createPartiesQueries({ db: queryable });
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: queryable });
   const ledgerQueries = createLedgerQueries({ db: queryable });
   const organizationsQueries = createOrganizationsQueries({ db: queryable });
   const reportsRepository = createDrizzleAccountingReportsRepository(queryable);
   const reportContext = createAccountingReportsContext({
     balancesQueries,
-    counterpartiesQueries,
+    counterpartiesQueries: partiesQueries.counterparties,
     documentsPort: documentsReadModel,
     ledgerQueries,
     organizationsQueries,
@@ -113,7 +106,7 @@ function createAccountingReportRuntime(queryable: Queryable) {
   });
 
   return {
-    counterpartiesQueries,
+    partiesQueries,
     ledgerQueries,
     organizationsQueries,
     reportQueries: createAccountingReportQueries({
@@ -278,12 +271,12 @@ export function createApplicationServices(
 
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
   const currenciesQueries = createCurrenciesQueries({ db });
-  const customersQueries = createCustomersQueries({ db });
+  const partiesQueries = createPartiesQueries({ db });
   const requisitesQueries = createRequisitesQueries({ db });
   const accountingReportRuntime = createAccountingReportRuntime(db);
   const dimensionRegistry = createBedrockDimensionRegistry({
-    counterpartiesQueries: accountingReportRuntime.counterpartiesQueries,
-    customersQueries,
+    counterpartiesQueries: partiesQueries.counterparties,
+    customersQueries: partiesQueries.customers,
     requisitesQueries,
     documentsReadModel,
   });
@@ -301,11 +294,16 @@ export function createApplicationServices(
     reportQueries: accountingReportRuntime.reportQueries,
   });
   const accountingPeriodsService = createAccountingPeriodsPort(db);
-  const counterpartiesService = createCounterpartiesService({ db, logger });
-  const customersService = createCustomersService({
+  const partiesService = createPartiesService({
     db,
-    customerLifecycleSyncPort: createCustomerLifecycleSyncPort(),
     logger,
+    documents: {
+      hasDocumentsForCustomer(customerId, queryable) {
+        return createDrizzleDocumentsReadModel({
+          db: queryable ?? db,
+        }).hasDocumentsForCustomer(customerId);
+      },
+    },
   });
   const currenciesService = createCurrenciesService({ db, logger });
   const feesService = createFeesService({ db, logger, currenciesService });
@@ -362,8 +360,7 @@ export function createApplicationServices(
   return {
     accountingReportsService,
     accountingPeriodsService,
-    counterpartiesService,
-    customersService,
+    partiesService,
     currenciesService,
     feesService,
     fxService,

@@ -5,12 +5,11 @@ import type { FxService } from "@bedrock/fx";
 import type { AccountingService } from "@bedrock/accounting";
 import type { AccountingReportsService } from "@bedrock/accounting/reports";
 import type { BalancesService } from "@bedrock/balances";
-import type { CounterpartiesService } from "@bedrock/counterparties";
 import type { CurrenciesService } from "@bedrock/currencies";
-import type { CustomersService } from "@bedrock/customers";
 import type { DocumentsService } from "@bedrock/documents";
 import type { LedgerReadService } from "@bedrock/ledger";
 import type { OrganizationsService } from "@bedrock/organizations";
+import type { PartiesService } from "@bedrock/parties";
 import type { RequisiteProvidersService } from "@bedrock/requisites/providers";
 import type { RequisitesService } from "@bedrock/requisites";
 import type { UsersService } from "@bedrock/users";
@@ -57,8 +56,7 @@ export interface AppContext {
   logger: Logger;
   accountingService: AccountingService;
   accountingReportsService: AccountingReportsService;
-  counterpartiesService: CounterpartiesService;
-  customersService: CustomersService;
+  partiesService: PartiesService;
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
@@ -82,8 +80,7 @@ export function createAppContext(env: Env): AppContext {
     ledgerReadService: core.ledgerReadService,
     balancesService: core.balancesService,
     accountingReportsService: applicationServices.accountingReportsService,
-    counterpartiesService: applicationServices.counterpartiesService,
-    customersService: applicationServices.customersService,
+    partiesService: applicationServices.partiesService,
     currenciesService: applicationServices.currenciesService,
     feesService: applicationServices.feesService,
     fxService: applicationServices.fxService,

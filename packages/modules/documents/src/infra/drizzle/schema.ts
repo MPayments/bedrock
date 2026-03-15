@@ -12,8 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { counterparties } from "@bedrock/counterparties/schema";
-import { customers } from "@bedrock/customers/schema";
+import { counterparties, customers } from "@bedrock/parties/schema";
 import {
   ledgerOperations,
   outbox,

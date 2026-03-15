@@ -17,7 +17,6 @@
   "dependencies": {
     "drizzle-orm": "^0.45.1",
     "pg": "^8.18.0",
-    "zod": "^4.3.6",
     "@bedrock/platform": "workspace:*"
   },
   "peerDependencies": {

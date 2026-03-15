@@ -1,8 +1,7 @@
 import { schema as accountingSchema } from "@bedrock/accounting/schema";
 import { schema as balancesSchema } from "@bedrock/balances/schema";
-import { schema as counterpartiesSchema } from "@bedrock/counterparties/schema";
+import { schema as partiesSchema } from "@bedrock/parties/schema";
 import { schema as currenciesSchema } from "@bedrock/currencies/schema";
-import { schema as customersSchema } from "@bedrock/customers/schema";
 import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as feesSchema } from "@bedrock/fees/schema";
 import { schema as fxSchema } from "@bedrock/fx/schema";
@@ -39,8 +38,7 @@ export type Schema =
   & typeof authSchema
   & typeof ledgerSchema
   & typeof accountingSchema
-  & typeof counterpartiesSchema
-  & typeof customersSchema
+  & typeof partiesSchema
   & typeof documentsSchema
   & typeof idempotencySchema
   & typeof fxSchema
@@ -55,8 +53,7 @@ const schemaInternal: Schema = {
   ...authSchema,
   ...ledgerSchema,
   ...accountingSchema,
-  ...counterpartiesSchema,
-  ...customersSchema,
+  ...partiesSchema,
   ...documentsSchema,
   ...idempotencySchema,
   ...fxSchema,

@@ -17,11 +17,10 @@
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
+    "@bedrock/parties": "workspace:*",
     "@bedrock/accounting": "workspace:*",
     "@bedrock/balances": "workspace:*",
-    "@bedrock/counterparties": "workspace:*",
     "@bedrock/currencies": "workspace:*",
-    "@bedrock/customers": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",

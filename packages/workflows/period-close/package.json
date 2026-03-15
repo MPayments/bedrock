@@ -16,11 +16,9 @@
   },
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/platform": "workspace:*",
-    "@bedrock/shared": "workspace:*"
+    "@bedrock/platform": "workspace:*"
   },
   "devDependencies": {
-    "@bedrock/test-utils": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
     "eslint": "^9.31.0",

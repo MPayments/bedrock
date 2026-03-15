@@ -22,10 +22,9 @@
     "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
+    "@bedrock/parties": "workspace:*",
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/counterparties": "workspace:*",
     "@bedrock/currencies": "workspace:*",
-    "@bedrock/customers": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/requisites": "workspace:*",
     "drizzle-orm": "^0.45.1",

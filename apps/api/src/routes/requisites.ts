@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { CounterpartyNotFoundError } from "@bedrock/counterparties";
+import { CounterpartyNotFoundError } from "@bedrock/parties";
 import { OrganizationNotFoundError } from "@bedrock/organizations";
 import {
   CreateRequisiteInputSchema,

@@ -24,7 +24,7 @@
     "test:integration:watch": "vitest --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@bedrock/counterparties": "workspace:*",
+    "@bedrock/parties": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/organizations": "workspace:*",
