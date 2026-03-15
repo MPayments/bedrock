@@ -1,8 +1,4 @@
-import type {
-  Database,
-  Queryable,
-  Transaction,
-} from "@bedrock/platform/persistence";
+import type { Database } from "@bedrock/platform/persistence";
 
 import type { BalancesQueriesContext } from "../../shared/context";
 import type { BalancesReportingRepository } from "../ports";
@@ -41,7 +37,7 @@ export function createListOrganizationLiquidityRowsQuery(
 }
 
 export function createBalancesQueriesFromContext(
-  input: BalancesQueriesContext & { db: Queryable },
+  input: BalancesQueriesContext & { db: Database },
 ): BalancesQueries {
   return createBalancesReportingQueries({
     reporting: input.createReportingRepository(input.db),

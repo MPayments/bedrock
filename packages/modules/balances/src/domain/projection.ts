@@ -1,4 +1,4 @@
-import type { Dimensions } from "@bedrock/ledger/contracts";
+import type { Dimensions } from "@bedrock/ledger";
 
 export interface ProjectedBalanceDelta {
   bookId: string;

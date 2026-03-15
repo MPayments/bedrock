@@ -2,7 +2,7 @@ import type {
   AdjustmentComponent,
   FeeAccountingTreatment,
   FeeComponent,
-} from "../contracts";
+} from "./fee-types";
 
 export function resolveAccountingTreatment(input: {
   accountingTreatment?: FeeAccountingTreatment;

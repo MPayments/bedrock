@@ -1,4 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import type { ReconciliationExceptionsRepository } from "../../../application/exceptions/ports";
 import { ReconciliationRunSummarySchema } from "../../../contracts";
@@ -11,10 +12,12 @@ function toRunRecord(run: typeof schema.reconciliationRuns.$inferSelect) {
   };
 }
 
-export function createDrizzleReconciliationExceptionsRepository(): ReconciliationExceptionsRepository {
+export function createDrizzleReconciliationExceptionsRepository(
+  db: Database,
+): ReconciliationExceptionsRepository {
   return {
-    async findByIdForUpdate(executor, id) {
-      const [exception] = await executor
+    async findByIdForUpdateTx(tx: Transaction, id) {
+      const [exception] = await tx
         .select()
         .from(schema.reconciliationExceptions)
         .where(eq(schema.reconciliationExceptions.id, id))
@@ -24,15 +27,15 @@ export function createDrizzleReconciliationExceptionsRepository(): Reconciliatio
       return exception ?? null;
     },
 
-    async createMany(executor, input) {
+    async createManyTx(tx: Transaction, input) {
       if (input.length === 0) {
         return;
       }
 
-      await executor.insert(schema.reconciliationExceptions).values(input);
+      await tx.insert(schema.reconciliationExceptions).values(input);
     },
 
-    async list(executor, input) {
+    async list(input) {
       const filters = [];
 
       if (input.state) {
@@ -43,7 +46,7 @@ export function createDrizzleReconciliationExceptionsRepository(): Reconciliatio
         filters.push(eq(schema.reconciliationRuns.source, input.source));
       }
 
-      return executor
+      return db
         .select({
           exception: schema.reconciliationExceptions,
           run: schema.reconciliationRuns,
@@ -73,8 +76,8 @@ export function createDrizzleReconciliationExceptionsRepository(): Reconciliatio
         );
     },
 
-    async markResolved(executor, input) {
-      await executor
+    async markResolvedTx(tx: Transaction, input) {
+      await tx
         .update(schema.reconciliationExceptions)
         .set({
           state: "resolved",

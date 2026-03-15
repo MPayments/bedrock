@@ -1,18 +1,20 @@
 import type { FinancialLine } from "@bedrock/documents/contracts";
 
 import type { FeeComponent } from "@bedrock/fees/contracts";
+import type { Transaction } from "@bedrock/platform/persistence";
+import type {
+  ComputedLeg,
+  FxQuoteLegSourceKind,
+  FxQuotePricingMode,
+  FxQuoteStatus,
+} from "../../domain/quote-types";
 
-import type { FxDbExecutor } from "../shared/external-ports";
-export type { FxDbExecutor } from "../shared/external-ports";
-
-export type FxQuoteStatus = "active" | "used" | "expired" | "cancelled";
-export type FxQuotePricingMode = "auto_cross" | "explicit_route";
-export type FxQuoteLegSourceKind =
-  | "cb"
-  | "bank"
-  | "manual"
-  | "derived"
-  | "market";
+export type {
+  ComputedLeg,
+  FxQuoteLegSourceKind,
+  FxQuotePricingMode,
+  FxQuoteStatus,
+} from "../../domain/quote-types";
 
 export interface FxQuoteRecord {
   id: string;
@@ -63,20 +65,6 @@ export interface FxQuoteDetailsRecord {
   pricingTrace: Record<string, unknown>;
 }
 
-export interface ComputedLeg {
-  idx: number;
-  fromCurrency: string;
-  toCurrency: string;
-  fromAmountMinor: bigint;
-  toAmountMinor: bigint;
-  rateNum: bigint;
-  rateDen: bigint;
-  sourceKind: FxQuoteLegSourceKind;
-  sourceRef: string | null;
-  asOf: Date;
-  executionCounterpartyId: string | null;
-}
-
 export interface FxQuoteWriteModel {
   fromCurrencyId: string;
   toCurrencyId: string;
@@ -123,11 +111,11 @@ export interface FxQuoteFinancialLineWriteModel {
 export interface FxQuotesRepository {
   insertQuote(
     input: FxQuoteWriteModel,
-    executor?: FxDbExecutor,
+    tx?: Transaction,
   ): Promise<FxQuoteRecord | null>;
   insertQuoteLegs(
     input: FxQuoteLegWriteModel[],
-    executor?: FxDbExecutor,
+    tx?: Transaction,
   ): Promise<void>;
   listQuotes(input: {
     limit: number;
@@ -140,15 +128,15 @@ export interface FxQuotesRepository {
   }): Promise<{ rows: FxQuoteRecord[]; total: number }>;
   findQuoteById(
     id: string,
-    executor?: FxDbExecutor,
+    tx?: Transaction,
   ): Promise<FxQuoteRecord | undefined>;
   findQuoteByIdempotencyKey(
     idempotencyKey: string,
-    executor?: FxDbExecutor,
+    tx?: Transaction,
   ): Promise<FxQuoteRecord | undefined>;
   listQuoteLegs(
     quoteId: string,
-    executor?: FxDbExecutor,
+    tx?: Transaction,
   ): Promise<FxQuoteLegRecord[]>;
   markQuoteUsedIfActive(input: {
     quoteId: string;
@@ -164,10 +152,10 @@ export interface FxQuoteFinancialLinesRepository {
       quoteId: string;
       financialLines: FxQuoteFinancialLineWriteModel[];
     },
-    executor?: FxDbExecutor,
+    tx?: Transaction,
   ): Promise<void>;
   listQuoteFinancialLines(
     quoteId: string,
-    executor?: FxDbExecutor,
+    tx?: Transaction,
   ): Promise<FxQuoteFinancialLineWriteModel[]>;
 }

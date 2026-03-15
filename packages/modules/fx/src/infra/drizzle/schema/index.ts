@@ -22,7 +22,8 @@ export {
 
 export { type FxQuoteFinancialLine } from "./quote-financial-lines";
 export { type FxQuoteLeg } from "./quote-legs";
-export { type FxQuote, type FxQuoteStatus } from "./quotes";
+export { type FxQuote } from "./quotes";
+export { type FxQuoteStatus } from "../../../domain/quote-types";
 export {
   type FxRateSource,
   type FxRateSourceRow,

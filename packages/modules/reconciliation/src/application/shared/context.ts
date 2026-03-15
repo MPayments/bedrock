@@ -50,8 +50,8 @@ export function createReconciliationServiceContext(
     ledgerLookup: deps.ledgerLookup,
     externalRecordsRepo: createDrizzleReconciliationExternalRecordsRepository(),
     runsRepo: createDrizzleReconciliationRunsRepository(),
-    matchesRepo: createDrizzleReconciliationMatchesRepository(),
-    exceptionsRepo: createDrizzleReconciliationExceptionsRepository(),
+    matchesRepo: createDrizzleReconciliationMatchesRepository(deps.db),
+    exceptionsRepo: createDrizzleReconciliationExceptionsRepository(deps.db),
     pendingSources: createDrizzlePendingSourcesQuerySupport({ db: deps.db }),
     log: deps.logger?.child({ svc: "reconciliation" }) ?? noopLogger,
   };

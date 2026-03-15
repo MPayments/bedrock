@@ -4,16 +4,17 @@ import type {
   GetQuoteFeeComponentsInput,
   SaveQuoteFeeComponentsInput,
 } from "@bedrock/fees/contracts";
-import type { Queryable } from "@bedrock/platform/persistence";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 import type {
   FxRateSource,
   FxRateSourceSyncStatus,
 } from "../../domain/rate-source";
 
-export type { FxRateSource, FxRateSourceSyncStatus } from "../../domain/rate-source";
-
-export type FxDbExecutor = Queryable;
+export type {
+  FxRateSource,
+  FxRateSourceSyncStatus,
+} from "../../domain/rate-source";
 
 export interface FxCurrencyRecord {
   id: string;
@@ -28,21 +29,21 @@ export interface FxCurrenciesPort {
 export interface FxQuoteFeesPort {
   calculateFxQuoteFeeComponents(
     input: CalculateFxQuoteFeeComponentsInput,
-    executor?: FxDbExecutor,
+    tx?: Transaction,
   ): Promise<FeeComponent[]>;
   getQuoteFeeComponents(
     input: GetQuoteFeeComponentsInput,
-    executor?: FxDbExecutor,
+    tx?: Transaction,
   ): Promise<FeeComponent[]>;
   saveQuoteFeeComponents(
     input: SaveQuoteFeeComponentsInput,
-    executor?: FxDbExecutor,
+    tx?: Transaction,
   ): Promise<void>;
 }
 
 export interface FxTransactionsPort {
   runInTransaction<T>(
-    callback: (executor: FxDbExecutor) => Promise<T>,
+    callback: (tx: Transaction) => Promise<T>,
   ): Promise<T>;
 }
 

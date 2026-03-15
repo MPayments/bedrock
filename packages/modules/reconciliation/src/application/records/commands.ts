@@ -45,7 +45,7 @@ export function createIngestExternalRecordHandler(
         serializeResult: (result: { id: string }) => result,
         loadReplayResult: async () => {
           const existing =
-            await externalRecordsRepo.findBySourceAndSourceRecordId(tx, {
+            await externalRecordsRepo.findBySourceAndSourceRecordIdTx(tx, {
               source: validated.source,
               sourceRecordId: validated.sourceRecordId,
             });
@@ -60,7 +60,7 @@ export function createIngestExternalRecordHandler(
         },
         handler: async () => {
           const existing =
-            await externalRecordsRepo.findBySourceAndSourceRecordId(tx, {
+            await externalRecordsRepo.findBySourceAndSourceRecordIdTx(tx, {
               source: validated.source,
               sourceRecordId: validated.sourceRecordId,
             });
@@ -87,7 +87,7 @@ export function createIngestExternalRecordHandler(
             return existing;
           }
 
-          return externalRecordsRepo.create(tx, {
+          return externalRecordsRepo.createTx(tx, {
             source: validated.source,
             sourceRecordId: validated.sourceRecordId,
             rawPayload: validated.rawPayload,

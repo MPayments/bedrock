@@ -1,4 +1,4 @@
-import type { Queryable } from "@bedrock/platform/persistence";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 import type { ReconciliationExceptionState } from "../../contracts";
 import type { ReconciliationExternalRecordRecord } from "../records/ports";
@@ -30,21 +30,20 @@ export interface ReconciliationPendingSource {
 }
 
 export interface ReconciliationExceptionsRepository {
-  findByIdForUpdate(
-    executor: Queryable,
+  findByIdForUpdateTx(
+    tx: Transaction,
     id: string,
   ): Promise<ReconciliationExceptionRecord | null>;
-  createMany(
-    executor: Queryable,
+  createManyTx(
+    tx: Transaction,
     input: (
       Omit<
         ReconciliationExceptionRecord,
         "id" | "createdAt" | "resolvedAt" | "adjustmentDocumentId"
       >
-    )[],
+  )[],
   ): Promise<void>;
   list(
-    executor: Queryable,
     input: {
       source?: string;
       state?: ReconciliationExceptionState;
@@ -52,8 +51,8 @@ export interface ReconciliationExceptionsRepository {
       offset: number;
     },
   ): Promise<ReconciliationExceptionListRow[]>;
-  markResolved(
-    executor: Queryable,
+  markResolvedTx(
+    tx: Transaction,
     input: {
       id: string;
       adjustmentDocumentId: string;

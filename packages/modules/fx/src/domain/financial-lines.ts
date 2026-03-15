@@ -2,8 +2,8 @@ import {
   normalizeFinancialLine,
   type FinancialLine,
   type FinancialLineBucket,
-} from "@bedrock/documents/contracts";
-import type { FeeComponent } from "@bedrock/fees/contracts";
+} from "@bedrock/documents/model";
+import type { FeeComponent } from "@bedrock/fees";
 
 function resolveBucket(
   component: Pick<FeeComponent, "accountingTreatment" | "kind">,

@@ -3,10 +3,9 @@ import { bigint, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } f
 
 import { counterparties } from "@bedrock/parties/schema";
 import { currencies } from "@bedrock/currencies/schema";
+import type { FxQuoteLegSourceKind } from "../../../domain/quote-types";
 
 import { fxQuotes } from "./quotes";
-
-export type FxQuoteLegSourceKind = "cb" | "bank" | "manual" | "derived" | "market";
 
 export const fxQuoteLegs = pgTable(
     "fx_quote_legs",

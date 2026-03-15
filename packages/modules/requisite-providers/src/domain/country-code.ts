@@ -1,5 +1,5 @@
 import { invariant } from "@bedrock/shared/core/domain";
-import { COUNTRY_ALPHA2_SET } from "@bedrock/shared/reference-data/countries";
+import { CountryCodeValue } from "@bedrock/shared/requisites";
 
 export function normalizeCountryCode(
   country: string | null | undefined,
@@ -8,17 +8,19 @@ export function normalizeCountryCode(
     return null;
   }
 
-  const normalized = country.trim().toUpperCase();
+  const normalized = CountryCodeValue.normalize(country);
   if (normalized.length === 0) {
     return null;
   }
 
   invariant(
-    COUNTRY_ALPHA2_SET.has(normalized),
+    CountryCodeValue.is(normalized),
     "requisite_provider.country.invalid",
     "country must be a valid ISO 3166-1 alpha-2 code",
     { field: "country", value: country },
   );
 
-  return normalized;
+  return CountryCodeValue.create(normalized).value;
 }
+
+export { CountryCodeValue };

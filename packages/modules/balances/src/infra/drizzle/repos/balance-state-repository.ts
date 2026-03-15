@@ -3,7 +3,6 @@ import { and, eq, sql } from "drizzle-orm";
 import { pgNotify } from "@bedrock/platform/persistence/notify";
 import type {
   Database,
-  Queryable,
   Transaction,
 } from "@bedrock/platform/persistence";
 
@@ -70,7 +69,7 @@ function toBalanceHoldRecord(row: {
 }
 
 async function selectBalancePosition(
-  db: Queryable,
+  db: Database | Transaction,
   subject: BalanceSubject,
   forUpdate: boolean,
 ): Promise<BalanceSnapshot | null> {
@@ -94,7 +93,7 @@ async function selectBalancePosition(
 }
 
 async function selectHold(
-  db: Queryable,
+  db: Database | Transaction,
   subject: BalanceSubject,
   holdRef: string,
   forUpdate: boolean,
@@ -120,7 +119,7 @@ async function selectHold(
 }
 
 export function createDrizzleBalancesStateRepository(
-  db: Queryable,
+  db: Database | Transaction,
 ): BalancesStateRepository {
   return {
     getBalancePosition(subject) {

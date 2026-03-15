@@ -1,11 +1,11 @@
 import { sql } from "drizzle-orm";
 
-import type { Queryable } from "@bedrock/platform/persistence";
+import type { Database } from "@bedrock/platform/persistence";
 
 import type { BalancesReportingRepository } from "../../../application/reporting/ports";
 
 export function createDrizzleBalancesReportingRepository(
-  db: Queryable,
+  db: Database,
 ): BalancesReportingRepository {
   return {
     async listOrganizationLiquidityRows(query) {

@@ -23,7 +23,7 @@ export interface BalancesContext {
 
 export interface BalancesQueriesContext {
   createReportingRepository: (
-    db: Database | Transaction,
+    db: Database,
   ) => BalancesReportingRepository;
 }
 
@@ -52,9 +52,7 @@ export function createBalancesContext(input: {
 }
 
 export function createBalancesQueriesContext(input: {
-  createReportingRepository: (
-    db: Database | Transaction,
-  ) => BalancesReportingRepository;
+  createReportingRepository: (db: Database) => BalancesReportingRepository;
 }): BalancesQueriesContext {
   return input;
 }

@@ -80,8 +80,8 @@ export function createOrganizationsService(deps: OrganizationsServiceDeps) {
           organizationId: input.organizationId,
         },
       );
-      const bookAccounts = createLedgerBookAccountsService({ db: tx });
-      const bookAccount = await bookAccounts.ensureBookAccountInstance({
+      const bookAccounts = createLedgerBookAccountsService();
+      const bookAccount = await bookAccounts.ensureBookAccountInstance(tx, {
         bookId,
         accountNo: input.postingAccountNo,
         currency: input.currencyCode,

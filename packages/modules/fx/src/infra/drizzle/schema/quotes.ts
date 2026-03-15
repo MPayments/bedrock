@@ -2,9 +2,10 @@ import { sql } from "drizzle-orm";
 import { pgTable, uuid, text, timestamp, bigint, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 
 import { currencies } from "@bedrock/currencies/schema";
-
-export type FxQuoteStatus = "active" | "used" | "expired" | "cancelled";
-export type FxQuotePricingMode = "auto_cross" | "explicit_route";
+import type {
+    FxQuotePricingMode,
+    FxQuoteStatus,
+} from "../../../domain/quote-types";
 export type FxQuote = typeof fxQuotes.$inferSelect & {
     fromCurrency?: string;
     toCurrency?: string;

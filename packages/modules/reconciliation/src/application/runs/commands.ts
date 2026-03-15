@@ -92,7 +92,7 @@ export function createRunReconciliationHandler(
         actorId: validated.actorUserId,
         serializeResult: (result: { id: string }) => result,
         loadReplayResult: async ({ storedResult }) => {
-          const replayRun = await runsRepo.findById(
+          const replayRun = await runsRepo.findByIdTx(
             tx,
             String(storedResult?.id ?? ""),
           );
@@ -106,7 +106,7 @@ export function createRunReconciliationHandler(
           return replayRun;
         },
         handler: async () => {
-          const records = await externalRecordsRepo.listForRun(tx, {
+          const records = await externalRecordsRepo.listForRunTx(tx, {
             source: validated.source,
             externalRecordIds: validated.inputQuery.externalRecordIds,
           });
@@ -127,10 +127,10 @@ export function createRunReconciliationHandler(
             requestContext: validated.requestContext,
           });
 
-          const createdRun = await runsRepo.create(tx, plannedRun.toDraft());
+          const createdRun = await runsRepo.createTx(tx, plannedRun.toDraft());
 
           if (resolutions.length > 0) {
-            await matchesRepo.createMany(
+            await matchesRepo.createManyTx(
               tx,
               resolutions.map(({ record, resolution }) => ({
                 runId: createdRun.id,
@@ -147,7 +147,7 @@ export function createRunReconciliationHandler(
             ({ resolution }) => resolution.status !== "matched",
           );
           if (exceptionResolutions.length > 0) {
-            await exceptionsRepo.createMany(
+            await exceptionsRepo.createManyTx(
               tx,
               exceptionResolutions.map(({ record, resolution }) =>
                 ReconciliationException.open({

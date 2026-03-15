@@ -1,4 +1,4 @@
-import type { Queryable } from "@bedrock/platform/persistence";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 export interface ReconciliationExternalRecordRecord {
   id: string;
@@ -16,16 +16,16 @@ export interface ReconciliationExternalRecordRecord {
 }
 
 export interface ReconciliationExternalRecordsRepository {
-  findBySourceAndSourceRecordId(
-    executor: Queryable,
+  findBySourceAndSourceRecordIdTx(
+    tx: Transaction,
     input: { source: string; sourceRecordId: string },
   ): Promise<ReconciliationExternalRecordRecord | null>;
-  create(
-    executor: Queryable,
+  createTx(
+    tx: Transaction,
     input: Omit<ReconciliationExternalRecordRecord, "id" | "receivedAt">,
   ): Promise<ReconciliationExternalRecordRecord>;
-  listForRun(
-    executor: Queryable,
+  listForRunTx(
+    tx: Transaction,
     input: { source: string; externalRecordIds?: string[] },
   ): Promise<ReconciliationExternalRecordRecord[]>;
 }

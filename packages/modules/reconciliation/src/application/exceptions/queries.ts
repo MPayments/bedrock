@@ -12,13 +12,13 @@ import type { ReconciliationServiceContext } from "../shared/context";
 export function createListExceptionsHandler(
   context: ReconciliationServiceContext,
 ) {
-  const { db, exceptionsRepo } = context;
+  const { exceptionsRepo } = context;
 
   return async function listExceptions(
     input?: Partial<ListReconciliationExceptionsInput>,
   ): Promise<ReconciliationExceptionListItemDto[]> {
     const validated = ListReconciliationExceptionsInputSchema.parse(input);
-    const rows = await exceptionsRepo.list(db, validated);
+    const rows = await exceptionsRepo.list(validated);
 
     return rows.map(toReconciliationExceptionListItemDto);
   };
@@ -27,13 +27,13 @@ export function createListExceptionsHandler(
 export function createExplainMatchHandler(
   context: ReconciliationServiceContext,
 ) {
-  const { db, matchesRepo } = context;
+  const { matchesRepo } = context;
 
   return async function explainMatch(
     matchId: string,
   ): Promise<ReconciliationMatchExplanation> {
     const validated = ExplainReconciliationMatchInputSchema.parse({ matchId });
-    const match = await matchesRepo.findById(db, validated.matchId);
+    const match = await matchesRepo.findById(validated.matchId);
 
     if (!match) {
       throw new ReconciliationMatchNotFoundError(validated.matchId);

@@ -1,10 +1,10 @@
-import type { Queryable } from "@bedrock/platform/persistence";
+import type { Database } from "@bedrock/platform/persistence";
 
 import { createBalancesQueriesFromContext } from "./application/reporting/queries/list-liquidity";
 import { createBalancesQueriesContext } from "./application/shared/context";
 import { createDrizzleBalancesReportingRepository } from "./infra/drizzle/repos/balance-reporting-repository";
 
-export function createBalancesQueries(input: { db: Queryable }) {
+export function createBalancesQueries(input: { db: Database }) {
   return createBalancesQueriesFromContext({
     db: input.db,
     ...createBalancesQueriesContext({

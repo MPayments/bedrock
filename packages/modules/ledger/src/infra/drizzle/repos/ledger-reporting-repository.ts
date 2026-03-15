@@ -1,12 +1,12 @@
 import { sql } from "drizzle-orm";
 
-import type { Queryable } from "@bedrock/platform/persistence";
+import type { Database } from "@bedrock/platform/persistence";
 
 import type { LedgerReportingPort } from "../../../application/reporting/ports";
 import type { AccountingScopedPostingRow } from "../../../contracts/dto";
 
 export function createDrizzleLedgerReportingRepository(
-  db: Queryable,
+  db: Database,
 ): LedgerReportingPort {
   return {
     async listBooksById(ids: string[]) {

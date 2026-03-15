@@ -1,13 +1,10 @@
 import {
   Entity,
-  invariant,
-  normalizeOptionalText,
   normalizeRequiredText,
 } from "@bedrock/shared/core/domain";
-import {
-  validateRequisiteFields,
-  type RequisiteKind,
-} from "@bedrock/shared/requisites";
+import { type RequisiteKind } from "@bedrock/shared/requisites";
+
+import { CounterpartyRequisiteDetails } from "./counterparty-requisite-details";
 
 export interface CounterpartyRequisiteSnapshot {
   id: string;
@@ -119,6 +116,8 @@ function normalizeSnapshot(
       notes?: string | null;
     },
 ): CounterpartyRequisiteSnapshot {
+  const details = CounterpartyRequisiteDetails.create(snapshot);
+
   const normalized: CounterpartyRequisiteSnapshot = {
     ...snapshot,
     label: normalizeRequiredText(
@@ -126,46 +125,8 @@ function normalizeSnapshot(
       "counterparty_requisite.label_required",
       "label",
     ),
-    description: normalizeOptionalText(snapshot.description),
-    beneficiaryName: normalizeOptionalText(snapshot.beneficiaryName),
-    institutionName: normalizeOptionalText(snapshot.institutionName),
-    institutionCountry: normalizeOptionalText(snapshot.institutionCountry),
-    accountNo: normalizeOptionalText(snapshot.accountNo),
-    corrAccount: normalizeOptionalText(snapshot.corrAccount),
-    iban: normalizeOptionalText(snapshot.iban),
-    bic: normalizeOptionalText(snapshot.bic),
-    swift: normalizeOptionalText(snapshot.swift),
-    bankAddress: normalizeOptionalText(snapshot.bankAddress),
-    network: normalizeOptionalText(snapshot.network),
-    assetCode: normalizeOptionalText(snapshot.assetCode),
-    address: normalizeOptionalText(snapshot.address),
-    memoTag: normalizeOptionalText(snapshot.memoTag),
-    accountRef: normalizeOptionalText(snapshot.accountRef),
-    subaccountRef: normalizeOptionalText(snapshot.subaccountRef),
-    contact: normalizeOptionalText(snapshot.contact),
-    notes: normalizeOptionalText(snapshot.notes),
+    ...details.toFields(),
   };
-
-  validateRequisiteFields({
-    kind: normalized.kind,
-    beneficiaryName: normalized.beneficiaryName,
-    institutionName: normalized.institutionName,
-    institutionCountry: normalized.institutionCountry,
-    accountNo: normalized.accountNo,
-    corrAccount: normalized.corrAccount,
-    iban: normalized.iban,
-    bic: normalized.bic,
-    swift: normalized.swift,
-    bankAddress: normalized.bankAddress,
-    network: normalized.network,
-    assetCode: normalized.assetCode,
-    address: normalized.address,
-    memoTag: normalized.memoTag,
-    accountRef: normalized.accountRef,
-    subaccountRef: normalized.subaccountRef,
-    contact: normalized.contact,
-    notes: normalized.notes,
-  });
 
   return normalized;
 }

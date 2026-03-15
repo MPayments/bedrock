@@ -1,4 +1,4 @@
-import type { Queryable, Transaction } from "@bedrock/platform/persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import type { EnsureDefaultOrganizationBookInput } from "./application/books/ports";
 import type { BookAccountIdentityInput } from "./domain/book-account-identity";
@@ -32,7 +32,10 @@ export interface LedgerCommitService {
 }
 
 export interface LedgerBookAccountsService {
-  ensureBookAccountInstance: (input: BookAccountIdentityInput) => Promise<{
+  ensureBookAccountInstance: (
+    tx: Transaction,
+    input: BookAccountIdentityInput,
+  ) => Promise<{
     id: string;
     dimensionsHash: string;
     tbLedger: number;
@@ -80,23 +83,24 @@ export function createLedgerCommitService(
 }
 
 export function createLedgerReadService(input: {
-  db: Queryable;
+  db: Database;
 }): LedgerReadService {
   return createLedgerReadQueries({
     reads: createDrizzleLedgerReadRepository(input.db),
   });
 }
 
-export function createLedgerBookAccountsService(input: {
-  db: Queryable;
-}): LedgerBookAccountsService {
+export function createLedgerBookAccountsService(): LedgerBookAccountsService {
   const ensureBookAccountInstanceTx = createEnsureBookAccountInstanceHandler({
     bookAccounts: createDrizzleLedgerBookAccountsRepository(),
   });
 
   return {
-    ensureBookAccountInstance(identity: BookAccountIdentityInput) {
-      return ensureBookAccountInstanceTx(input.db as Transaction, identity);
+    ensureBookAccountInstance(
+      tx: Transaction,
+      identity: BookAccountIdentityInput,
+    ) {
+      return ensureBookAccountInstanceTx(tx, identity);
     },
   };
 }
@@ -117,7 +121,7 @@ export function createLedgerService(deps: LedgerServiceDeps): LedgerService {
   return {
     commit: createLedgerCommitService(deps),
     read: createLedgerReadService({ db: deps.db }),
-    bookAccounts: createLedgerBookAccountsService({ db: deps.db }),
+    bookAccounts: createLedgerBookAccountsService(),
     books: createLedgerBooksService(),
   };
 }

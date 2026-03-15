@@ -1,6 +1,6 @@
 import { TransferCodes } from "@bedrock/accounting/constants";
 
-import type { FeeComponentDefaults } from "../contracts";
+import type { FeeComponentDefaults } from "./fee-types";
 
 export function getComponentDefaults(kind: string): FeeComponentDefaults {
   switch (kind) {

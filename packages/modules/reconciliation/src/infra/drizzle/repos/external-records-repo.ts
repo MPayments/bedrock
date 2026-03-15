@@ -1,14 +1,13 @@
 import { and, eq, inArray } from "drizzle-orm";
-
-import type { Queryable } from "@bedrock/platform/persistence";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 import type { ReconciliationExternalRecordsRepository } from "../../../application/records/ports";
 import { schema } from "../schema";
 
 export function createDrizzleReconciliationExternalRecordsRepository(): ReconciliationExternalRecordsRepository {
   return {
-    async findBySourceAndSourceRecordId(executor, input) {
-      const [record] = await executor
+    async findBySourceAndSourceRecordIdTx(tx, input) {
+      const [record] = await tx
         .select()
         .from(schema.reconciliationExternalRecords)
         .where(
@@ -25,8 +24,8 @@ export function createDrizzleReconciliationExternalRecordsRepository(): Reconcil
       return record ?? null;
     },
 
-    async create(executor, input) {
-      const [record] = await executor
+    async createTx(tx, input) {
+      const [record] = await tx
         .insert(schema.reconciliationExternalRecords)
         .values(input)
         .returning();
@@ -34,7 +33,7 @@ export function createDrizzleReconciliationExternalRecordsRepository(): Reconcil
       return record!;
     },
 
-    async listForRun(executor: Queryable, input) {
+    async listForRunTx(tx: Transaction, input) {
       const filters = [eq(schema.reconciliationExternalRecords.source, input.source)];
 
       if (input.externalRecordIds?.length) {
@@ -46,7 +45,7 @@ export function createDrizzleReconciliationExternalRecordsRepository(): Reconcil
         );
       }
 
-      return executor
+      return tx
         .select()
         .from(schema.reconciliationExternalRecords)
         .where(and(...filters))

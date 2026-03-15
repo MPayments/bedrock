@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
-import type { Queryable } from "@bedrock/platform/persistence";
+import type { Database } from "@bedrock/platform/persistence";
 import {
   type PaginatedList,
   resolveSortOrder,
@@ -54,7 +54,7 @@ function normalizeDimensionFilters(
 }
 
 export function createDrizzleLedgerReadRepository(
-  db: Queryable,
+  db: Database,
 ): LedgerReadPort {
   async function listOperationDetailsByIds(
     operationIds: string[],

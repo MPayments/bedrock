@@ -9,30 +9,26 @@ import {
 } from "drizzle-orm";
 
 import { type Database } from "@bedrock/platform/persistence/drizzle";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 import type {
-  FxDbExecutor,
   FxQuoteLegRecord,
   FxQuoteLegWriteModel,
   FxQuoteRecord,
   FxQuoteWriteModel,
   FxQuotesRepository,
 } from "../../../application/quotes/ports";
-import type { FxDbExecutor as Executor } from "../../../application/shared/external-ports";
 import { schema } from "../schema";
 
 export function createDrizzleFxQuotesRepository(
   db: Database,
 ): FxQuotesRepository {
-  function executorOrDb(executor?: Executor) {
-    return executor ?? db;
-  }
-
   async function insertQuote(
     input: FxQuoteWriteModel,
-    executor?: Executor,
+    tx?: Transaction,
   ): Promise<FxQuoteRecord | null> {
-    const inserted = await executorOrDb(executor)
+    const database = tx ?? db;
+    const inserted = await database
       .insert(schema.fxQuotes)
       .values(input)
       .onConflictDoNothing({
@@ -45,13 +41,14 @@ export function createDrizzleFxQuotesRepository(
 
   async function insertQuoteLegs(
     input: FxQuoteLegWriteModel[],
-    executor?: Executor,
+    tx?: Transaction,
   ): Promise<void> {
     if (input.length === 0) {
       return;
     }
 
-    await executorOrDb(executor).insert(schema.fxQuoteLegs).values(input);
+    const database = tx ?? db;
+    await database.insert(schema.fxQuoteLegs).values(input);
   }
 
   async function listQuotes(input: {
@@ -117,9 +114,10 @@ export function createDrizzleFxQuotesRepository(
 
   async function findQuoteById(
     id: string,
-    executor?: Executor,
+    tx?: Transaction,
   ): Promise<FxQuoteRecord | undefined> {
-    const [quote] = await executorOrDb(executor)
+    const database = tx ?? db;
+    const [quote] = await database
       .select()
       .from(schema.fxQuotes)
       .where(eq(schema.fxQuotes.id, id))
@@ -130,9 +128,10 @@ export function createDrizzleFxQuotesRepository(
 
   async function findQuoteByIdempotencyKey(
     idempotencyKey: string,
-    executor?: Executor,
+    tx?: Transaction,
   ): Promise<FxQuoteRecord | undefined> {
-    const [quote] = await executorOrDb(executor)
+    const database = tx ?? db;
+    const [quote] = await database
       .select()
       .from(schema.fxQuotes)
       .where(eq(schema.fxQuotes.idempotencyKey, idempotencyKey))
@@ -143,9 +142,10 @@ export function createDrizzleFxQuotesRepository(
 
   async function listQuoteLegs(
     quoteId: string,
-    executor?: Executor,
+    tx?: Transaction,
   ): Promise<FxQuoteLegRecord[]> {
-    const legs = await executorOrDb(executor)
+    const database = tx ?? db;
+    const legs = await database
       .select()
       .from(schema.fxQuoteLegs)
       .where(eq(schema.fxQuoteLegs.quoteId, quoteId))

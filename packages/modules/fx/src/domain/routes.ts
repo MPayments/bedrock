@@ -1,14 +1,14 @@
 import { mulDivFloor } from "@bedrock/shared/money/math";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
-import type { ComputedLeg } from "../application/quotes/ports";
+import type { ComputedLeg, FxQuoteLegSourceKind } from "./quote-types";
 
 interface RouteLegInput {
   fromCurrency: string;
   toCurrency: string;
   rateNum: bigint;
   rateDen: bigint;
-  sourceKind: ComputedLeg["sourceKind"];
+  sourceKind: FxQuoteLegSourceKind;
   sourceRef?: string;
   asOf?: Date;
   executionCounterpartyId?: string;

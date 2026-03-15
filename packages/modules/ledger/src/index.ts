@@ -11,4 +11,5 @@ export {
   type LedgerService,
   type LedgerServiceDeps,
 } from "./service";
+export type { Dimensions } from "./contracts";
 export * from "./errors";

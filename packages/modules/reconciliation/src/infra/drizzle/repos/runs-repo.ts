@@ -13,8 +13,8 @@ function toRunRecord(run: typeof schema.reconciliationRuns.$inferSelect) {
 
 export function createDrizzleReconciliationRunsRepository(): ReconciliationRunsRepository {
   return {
-    async findById(executor, id) {
-      const [run] = await executor
+    async findByIdTx(tx, id) {
+      const [run] = await tx
         .select()
         .from(schema.reconciliationRuns)
         .where(eq(schema.reconciliationRuns.id, id))
@@ -23,8 +23,8 @@ export function createDrizzleReconciliationRunsRepository(): ReconciliationRunsR
       return run ? toRunRecord(run) : null;
     },
 
-    async create(executor, input) {
-      const [run] = await executor
+    async createTx(tx, input) {
+      const [run] = await tx
         .insert(schema.reconciliationRuns)
         .values(input)
         .returning();

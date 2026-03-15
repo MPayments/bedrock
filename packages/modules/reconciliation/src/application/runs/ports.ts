@@ -1,4 +1,4 @@
-import type { Queryable } from "@bedrock/platform/persistence";
+import type { Transaction } from "@bedrock/platform/persistence";
 
 import type {
   ReconciliationMatchExplanation,
@@ -31,20 +31,17 @@ export interface ReconciliationMatchRecord {
 }
 
 export interface ReconciliationRunsRepository {
-  findById(executor: Queryable, id: string): Promise<ReconciliationRunRecord | null>;
-  create(
-    executor: Queryable,
+  findByIdTx(tx: Transaction, id: string): Promise<ReconciliationRunRecord | null>;
+  createTx(
+    tx: Transaction,
     input: Omit<ReconciliationRunRecord, "id" | "createdAt">,
   ): Promise<ReconciliationRunRecord>;
 }
 
 export interface ReconciliationMatchesRepository {
-  findById(
-    executor: Queryable,
-    id: string,
-  ): Promise<ReconciliationMatchRecord | null>;
-  createMany(
-    executor: Queryable,
+  findById(id: string): Promise<ReconciliationMatchRecord | null>;
+  createManyTx(
+    tx: Transaction,
     input: Omit<ReconciliationMatchRecord, "id" | "createdAt">[],
   ): Promise<void>;
 }

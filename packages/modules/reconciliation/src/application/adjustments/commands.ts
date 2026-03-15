@@ -36,7 +36,7 @@ export function createAdjustmentDocumentHandler(
           documentId: String(storedResult?.documentId ?? ""),
         }),
         handler: async () => {
-          const exception = await exceptionsRepo.findByIdForUpdate(
+          const exception = await exceptionsRepo.findByIdForUpdateTx(
             tx,
             validated.exceptionId,
           );
@@ -83,7 +83,7 @@ export function createAdjustmentDocumentHandler(
             adjustmentDocumentId: created.document.id,
             resolvedAt: new Date(),
           });
-          await exceptionsRepo.markResolved(tx, resolved.update!);
+          await exceptionsRepo.markResolvedTx(tx, resolved.update!);
 
           return {
             exceptionId: resolved.exceptionId,

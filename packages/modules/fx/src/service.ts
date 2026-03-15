@@ -33,8 +33,7 @@ export function createFxService(deps: FxServiceDeps) {
     quoteFinancialLinesRepository:
       createDrizzleFxQuoteFinancialLinesRepository(deps.db),
     transactions: {
-      runInTransaction: (callback) =>
-        deps.db.transaction((tx) => callback(tx as any)),
+      runInTransaction: (callback) => deps.db.transaction((tx) => callback(tx)),
     },
     logger: deps.logger,
     rateSourceProviders: deps.rateSourceProviders,

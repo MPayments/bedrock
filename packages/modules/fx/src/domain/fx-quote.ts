@@ -3,7 +3,7 @@ import { AggregateRoot, DomainError } from "@bedrock/shared/core/domain";
 import type {
   FxQuotePricingMode,
   FxQuoteStatus,
-} from "../application/quotes/ports";
+} from "./quote-types";
 
 export interface FxQuoteSnapshot {
   id: string;

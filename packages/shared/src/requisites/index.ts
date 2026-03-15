@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { invariant, normalizeOptionalText, ValueObject } from "../core/domain";
 import { ValidationError } from "../core/errors";
 import { COUNTRY_ALPHA2_SET } from "../reference-data/countries";
 
@@ -22,12 +23,72 @@ export type RequisiteOwnerType = (typeof REQUISITE_OWNER_TYPE_VALUES)[number];
 export const RequisiteKindSchema = z.enum(REQUISITE_KIND_VALUES);
 export const RequisiteOwnerTypeSchema = z.enum(REQUISITE_OWNER_TYPE_VALUES);
 
+export type CountryCode = string;
+
+export class CountryCodeValue extends ValueObject<{ value: string }> {
+  private constructor(value: string) {
+    super({ value });
+  }
+
+  static normalize(value: string): string {
+    return value.trim().toUpperCase();
+  }
+
+  static is(value: string): boolean {
+    return COUNTRY_ALPHA2_SET.has(CountryCodeValue.normalize(value));
+  }
+
+  static create(value: string): CountryCodeValue {
+    const normalized = CountryCodeValue.normalize(value);
+
+    invariant(
+      COUNTRY_ALPHA2_SET.has(normalized),
+      "country.invalid",
+      `country must be a valid ISO 3166-1 alpha-2 code: ${value}`,
+      { value },
+    );
+
+    return new CountryCodeValue(normalized);
+  }
+
+  static createOptional(
+    value: string | null | undefined,
+  ): CountryCodeValue | null {
+    if (value == null) {
+      return null;
+    }
+
+    const normalized = value.trim();
+    return normalized.length > 0 ? CountryCodeValue.create(normalized) : null;
+  }
+
+  get value(): string {
+    return this.props.value;
+  }
+
+  toString(): string {
+    return this.props.value;
+  }
+}
+
+export function normalizeCountryCode(value: string): string {
+  return CountryCodeValue.normalize(value);
+}
+
+export function isCountryCode(value: string): boolean {
+  return CountryCodeValue.is(value);
+}
+
+export function parseCountryCode(value: string): CountryCode {
+  return CountryCodeValue.create(value).value;
+}
+
 export const CountryCodeSchema = z
   .string()
   .trim()
-  .transform((value) => value.toUpperCase())
+  .transform((value) => CountryCodeValue.normalize(value))
   .refine(
-    (value) => COUNTRY_ALPHA2_SET.has(value),
+    (value) => CountryCodeValue.is(value),
     "country must be a valid ISO 3166-1 alpha-2 code",
   );
 
@@ -52,8 +113,90 @@ export interface RequisiteFieldsInput {
   notes?: string | null;
 }
 
+export interface RequisiteDetailsFields {
+  kind: RequisiteKind;
+  description: string | null;
+  beneficiaryName: string | null;
+  institutionName: string | null;
+  institutionCountry: string | null;
+  accountNo: string | null;
+  corrAccount: string | null;
+  iban: string | null;
+  bic: string | null;
+  swift: string | null;
+  bankAddress: string | null;
+  network: string | null;
+  assetCode: string | null;
+  address: string | null;
+  memoTag: string | null;
+  accountRef: string | null;
+  subaccountRef: string | null;
+  contact: string | null;
+  notes: string | null;
+}
+
 function hasText(value: string | null | undefined): boolean {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function normalizeRequisiteDetails(
+  input: RequisiteFieldsInput & { description?: string | null },
+): RequisiteDetailsFields {
+  const normalized: RequisiteDetailsFields = {
+    kind: input.kind,
+    description: normalizeOptionalText(input.description),
+    beneficiaryName: normalizeOptionalText(input.beneficiaryName),
+    institutionName: normalizeOptionalText(input.institutionName),
+    institutionCountry: normalizeOptionalText(input.institutionCountry),
+    accountNo: normalizeOptionalText(input.accountNo),
+    corrAccount: normalizeOptionalText(input.corrAccount),
+    iban: normalizeOptionalText(input.iban),
+    bic: normalizeOptionalText(input.bic),
+    swift: normalizeOptionalText(input.swift),
+    bankAddress: normalizeOptionalText(input.bankAddress),
+    network: normalizeOptionalText(input.network),
+    assetCode: normalizeOptionalText(input.assetCode),
+    address: normalizeOptionalText(input.address),
+    memoTag: normalizeOptionalText(input.memoTag),
+    accountRef: normalizeOptionalText(input.accountRef),
+    subaccountRef: normalizeOptionalText(input.subaccountRef),
+    contact: normalizeOptionalText(input.contact),
+    notes: normalizeOptionalText(input.notes),
+  };
+
+  validateRequisiteFields(normalized);
+
+  return normalized;
+}
+
+export class RequisiteDetails extends ValueObject<RequisiteDetailsFields> {
+  private constructor(fields: RequisiteDetailsFields) {
+    super(fields);
+  }
+
+  static create(
+    input: RequisiteFieldsInput & { description?: string | null },
+  ): RequisiteDetails {
+    return new RequisiteDetails(normalizeRequisiteDetails(input));
+  }
+
+  toFields(): RequisiteDetailsFields {
+    return { ...this.props };
+  }
+
+  resolveIdentity(): string {
+    return resolveRequisiteIdentity(this.props);
+  }
+
+  buildOptionLabel(input: {
+    label: string;
+    currencyCode?: string | null;
+  }): string {
+    return buildRequisiteOptionLabel({
+      ...input,
+      ...this.props,
+    });
+  }
 }
 
 export function collectRequisiteFieldIssues(
@@ -129,10 +272,12 @@ export function resolveRequisiteIdentity(input: RequisiteFieldsInput): string {
   }
 }
 
-export function buildRequisiteOptionLabel(input: {
-  label: string;
-  currencyCode?: string | null;
-} & RequisiteFieldsInput): string {
+export function buildRequisiteOptionLabel(
+  input: {
+    label: string;
+    currencyCode?: string | null;
+  } & RequisiteFieldsInput,
+): string {
   const identity = resolveRequisiteIdentity(input);
   const parts = [input.label.trim()];
 
@@ -173,9 +318,11 @@ export function validateRequisiteFields(input: RequisiteFieldsInput) {
   }
 }
 
-export function buildRequisiteDisplayLabel(input: {
-  label: string;
-  currencyCode?: string | null;
-} & RequisiteFieldsInput) {
+export function buildRequisiteDisplayLabel(
+  input: {
+    label: string;
+    currencyCode?: string | null;
+  } & RequisiteFieldsInput,
+) {
   return buildRequisiteOptionLabel(input);
 }
