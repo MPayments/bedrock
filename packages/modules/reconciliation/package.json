@@ -5,8 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema.ts",
-    "./worker": "./src/worker.ts"
+    "./contracts": "./src/contracts/index.ts",
+    "./schema": "./src/infra/drizzle/schema/index.ts",
+    "./worker": "./src/infra/workers/reconciliation-worker.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

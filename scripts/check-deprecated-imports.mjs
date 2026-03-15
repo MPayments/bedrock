@@ -9,7 +9,7 @@ import {
 } from "./lib/workspace-packages.mjs";
 
 const LEGACY_SPECIFIER_PATTERN =
-  /@bedrock\/(?:platform-[^"'/]+(?:\/|["'])|(?:core|money|reference-data)(?:\/|["'])|(?:application|runtime|modules)(?:\/|["'])|(?:(adapter|integration|extension)-[^"'/]+)|(?:party-types|query-accounting-reporting|observability|persistence|identity|client-api|ui)(?:\/|["'])|(?:customers|counterparties)(?:\/|["'])|users\/validation(?:\/|["'])|organizations\/validation(?:\/|["'])|balances\/validation(?:\/|["'])|fees\/validation(?:\/|["'])|fx\/(?:validation|infra\/providers|infra\/providers\/sources\/[^"'/]+)(?:\/|["'])|parties\/validation(?:\/|["'])|requisites\/(?:validation|providers|providers\/contracts|providers\/validation)(?:\/|["'])|documents\/(?:module-kit|financial-lines|validation|state-machine|form-types)(?:\/|["'])|ledger\/infra\/tigerbeetle(?:\/|["']))/g;
+  /@bedrock\/(?:platform-[^"'/]+(?:\/|["'])|(?:core|money|reference-data)(?:\/|["'])|(?:application|runtime|modules)(?:\/|["'])|(?:(adapter|integration|extension)-[^"'/]+)|(?:party-types|query-accounting-reporting|observability|persistence|identity|client-api|ui)(?:\/|["'])|(?:customers|counterparties)(?:\/|["'])|users\/validation(?:\/|["'])|organizations\/validation(?:\/|["'])|balances\/validation(?:\/|["'])|fees\/validation(?:\/|["'])|fx\/(?:validation|infra\/providers|infra\/providers\/sources\/[^"'/]+)(?:\/|["'])|parties\/validation(?:\/|["'])|reconciliation\/validation(?:\/|["'])|requisites\/(?:validation|providers|providers\/contracts|providers\/validation)(?:\/|["'])|documents\/(?:module-kit|financial-lines|validation|state-machine|form-types)(?:\/|["'])|ledger\/infra\/tigerbeetle(?:\/|["']))/g;
 
 const SOURCE_ROOTS = [
   join(ROOT, "apps"),

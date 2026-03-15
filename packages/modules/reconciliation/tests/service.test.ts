@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createReconciliationService } from "../src/service";
+import { createReconciliationService } from "../src/reconciliation";
 
 const EXCEPTION_ID = "11111111-1111-4111-8111-111111111111";
 

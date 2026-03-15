@@ -217,6 +217,22 @@ function isRequisitesSchemaImportAllowed(relFile) {
   return false;
 }
 
+function isReconciliationSchemaImportAllowed(relFile) {
+  if (relFile.startsWith("apps/db/")) {
+    return true;
+  }
+
+  if (/(^|\/)tests\//.test(relFile)) {
+    return true;
+  }
+
+  if (isSchemaDefinitionFile(relFile)) {
+    return true;
+  }
+
+  return false;
+}
+
 function isLedgerSchemaImportAllowed(relFile) {
   if (relFile.startsWith("apps/db/")) {
     return true;
@@ -612,18 +628,26 @@ for (const root of SOURCE_ROOTS) {
           continue;
         }
 
-      if (
-        owner?.name !== "@bedrock/organizations" &&
-        /^packages\/modules\/organizations\/src\/internal\//.test(relTargetPath)
-      ) {
-        recordViolation("organizations-internal-import", relFile, specifier);
-        continue;
-      }
+        if (
+          owner?.name !== "@bedrock/organizations" &&
+          /^packages\/modules\/organizations\/src\/internal\//.test(relTargetPath)
+        ) {
+          recordViolation("organizations-internal-import", relFile, specifier);
+          continue;
+        }
 
-      if (
-        owner?.name !== "@bedrock/ledger" &&
-        /^packages\/modules\/ledger\/src\/internal\//.test(relTargetPath)
-      ) {
+        if (
+          owner?.name !== "@bedrock/reconciliation" &&
+          /^packages\/modules\/reconciliation\/src\/internal\//.test(relTargetPath)
+        ) {
+          recordViolation("reconciliation-internal-import", relFile, specifier);
+          continue;
+        }
+
+        if (
+          owner?.name !== "@bedrock/ledger" &&
+          /^packages\/modules\/ledger\/src\/internal\//.test(relTargetPath)
+        ) {
           recordViolation("ledger-internal-import", relFile, specifier);
           continue;
         }
@@ -683,6 +707,16 @@ for (const root of SOURCE_ROOTS) {
         )
       ) {
         recordViolation("requisites-removed-subpath", relFile, specifier);
+      }
+
+      if (
+        normalized.packageName === "@bedrock/reconciliation" &&
+        (
+          normalized.subpath === "./validation" ||
+          normalized.subpath.startsWith("./validation/")
+        )
+      ) {
+        recordViolation("reconciliation-removed-subpath", relFile, specifier);
       }
 
       if (
@@ -845,6 +879,21 @@ for (const root of SOURCE_ROOTS) {
       }
 
       if (
+        normalized.packageName === "@bedrock/reconciliation" &&
+        (
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        ) &&
+        !isReconciliationSchemaImportAllowed(relFile)
+      ) {
+        recordViolation(
+          "reconciliation-schema-import-outside-allowed-zones",
+          relFile,
+          specifier,
+        );
+      }
+
+      if (
         normalized.packageName === "@bedrock/parties" &&
         (
           normalized.subpath === "./schema" ||
@@ -977,6 +1026,23 @@ for (const root of SOURCE_ROOTS) {
         )
       ) {
         recordViolation("requisites-self-import", relFile, specifier);
+      }
+
+      if (
+        owner?.name === "@bedrock/reconciliation" &&
+        isRuntimeSourceFile &&
+        targetPkg.name === owner.name &&
+        (
+          normalized.subpath === "." ||
+          normalized.subpath === "./contracts" ||
+          normalized.subpath.startsWith("./contracts/") ||
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/") ||
+          normalized.subpath === "./worker" ||
+          normalized.subpath.startsWith("./worker/")
+        )
+      ) {
+        recordViolation("reconciliation-self-import", relFile, specifier);
       }
 
       if (

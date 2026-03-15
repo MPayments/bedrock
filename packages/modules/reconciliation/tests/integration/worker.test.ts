@@ -4,12 +4,12 @@ import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
+import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
 
 import { ExternalRecordConflictError } from "../../src/errors";
-import { createReconciliationService } from "../../src/service";
+import { createReconciliationService } from "../../src/reconciliation";
 import { createReconciliationWorkerDefinition } from "../../src/worker";
 
 const schema = {

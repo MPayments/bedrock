@@ -13,8 +13,8 @@ import {
 import { documents } from "@bedrock/documents/schema";
 import { ledgerOperations } from "@bedrock/ledger/schema";
 
-export type ReconciliationMatchStatus = "matched" | "unmatched" | "ambiguous";
-export type ReconciliationExceptionState = "open" | "resolved" | "ignored";
+import type { ReconciliationExceptionState } from "../../../domain/exceptions";
+import type { ReconciliationMatchStatus } from "../../../domain/matching";
 
 export const reconciliationExternalRecords = pgTable(
   "reconciliation_external_records",
@@ -36,12 +36,15 @@ export const reconciliationExternalRecords = pgTable(
       .notNull()
       .default(sql`now()`),
   },
-  (t) => [
+  (table) => [
     uniqueIndex("recon_external_records_source_id_uq").on(
-      t.source,
-      t.sourceRecordId,
+      table.source,
+      table.sourceRecordId,
     ),
-    index("recon_external_records_source_received_idx").on(t.source, t.receivedAt),
+    index("recon_external_records_source_received_idx").on(
+      table.source,
+      table.receivedAt,
+    ),
   ],
 );
 
@@ -63,7 +66,7 @@ export const reconciliationRuns = pgTable(
       .notNull()
       .default(sql`now()`),
   },
-  (t) => [index("recon_runs_source_created_idx").on(t.source, t.createdAt)],
+  (table) => [index("recon_runs_source_created_idx").on(table.source, table.createdAt)],
 );
 
 export const reconciliationMatches = pgTable(
@@ -91,9 +94,9 @@ export const reconciliationMatches = pgTable(
       .notNull()
       .default(sql`now()`),
   },
-  (t) => [
-    index("recon_matches_run_idx").on(t.runId),
-    index("recon_matches_external_record_idx").on(t.externalRecordId),
+  (table) => [
+    index("recon_matches_run_idx").on(table.runId),
+    index("recon_matches_external_record_idx").on(table.externalRecordId),
   ],
 );
 
@@ -123,9 +126,9 @@ export const reconciliationExceptions = pgTable(
       .default(sql`now()`),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   },
-  (t) => [
-    index("recon_exceptions_run_idx").on(t.runId),
-    index("recon_exceptions_state_created_idx").on(t.state, t.createdAt),
+  (table) => [
+    index("recon_exceptions_run_idx").on(table.runId),
+    index("recon_exceptions_state_created_idx").on(table.state, table.createdAt),
   ],
 );
 

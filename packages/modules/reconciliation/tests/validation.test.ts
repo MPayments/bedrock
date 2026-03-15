@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { validateRunReconciliationInput } from "../src/validation";
+import { RunReconciliationInputSchema } from "../src/contracts";
 
 describe("reconciliation validation", () => {
   it("requires source on runs", () => {
     expect(() =>
-      validateRunReconciliationInput({
+      RunReconciliationInputSchema.parse({
         rulesetChecksum: "ruleset-1",
         inputQuery: {},
+        idempotencyKey: "idem-1",
       }),
     ).toThrow();
   });
