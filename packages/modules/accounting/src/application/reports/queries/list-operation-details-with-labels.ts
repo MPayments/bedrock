@@ -1,4 +1,4 @@
-import { getDefaultPrecision } from "@bedrock/currencies";
+import { getDefaultPrecision } from "@bedrock/currencies/catalog";
 
 import type {
   AccountingReportsLedgerPort,

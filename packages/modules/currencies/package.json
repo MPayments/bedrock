@@ -5,9 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./contracts": "./src/contracts.ts",
+    "./contracts": "./src/contracts/index.ts",
     "./queries": "./src/queries.ts",
-    "./schema": "./src/schema.ts",
+    "./schema": "./src/infra/drizzle/schema/index.ts",
     "./catalog": "./src/catalog.ts"
   },
   "scripts": {

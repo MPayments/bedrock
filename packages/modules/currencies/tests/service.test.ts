@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { createCurrenciesService } from "../src/currencies";
 import {
   CurrencyDeleteConflictError,
   CurrencyNotFoundError,
 } from "../src/errors";
-import { createCurrenciesService } from "../src/service";
 
 function makeCurrency(overrides: Record<string, unknown> = {}) {
   return {

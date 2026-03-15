@@ -2,15 +2,15 @@ import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 
 import {
   CurrencyDeleteConflictError,
-  CurrencySchema,
-  ListCurrenciesQuerySchema,
-  CreateCurrencyInputSchema,
-  UpdateCurrencyInputSchema,
   CurrencyNotFoundError,
 } from "@bedrock/currencies";
 import {
+  CreateCurrencyInputSchema,
+  CurrencySchema,
   CurrencyOptionSchema,
   CurrencyOptionsResponseSchema,
+  ListCurrenciesQuerySchema,
+  UpdateCurrencyInputSchema,
 } from "@bedrock/currencies/contracts";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 

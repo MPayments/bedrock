@@ -233,6 +233,22 @@ function isReconciliationSchemaImportAllowed(relFile) {
   return false;
 }
 
+function isCurrenciesSchemaImportAllowed(relFile) {
+  if (relFile.startsWith("apps/db/")) {
+    return true;
+  }
+
+  if (/(^|\/)tests\//.test(relFile)) {
+    return true;
+  }
+
+  if (isSchemaDefinitionFile(relFile)) {
+    return true;
+  }
+
+  return false;
+}
+
 function isLedgerSchemaImportAllowed(relFile) {
   if (relFile.startsWith("apps/db/")) {
     return true;
@@ -581,6 +597,14 @@ for (const root of SOURCE_ROOTS) {
         }
 
         if (
+          owner?.name !== "@bedrock/currencies" &&
+          /^packages\/modules\/currencies\/src\/internal\//.test(relTargetPath)
+        ) {
+          recordViolation("currencies-internal-import", relFile, specifier);
+          continue;
+        }
+
+        if (
           owner?.name !== "@bedrock/requisites" &&
           /^packages\/modules\/requisites\/src\/internal\//.test(relTargetPath)
         ) {
@@ -691,6 +715,16 @@ for (const root of SOURCE_ROOTS) {
         )
       ) {
         recordViolation("plugin-imports-foreign-schema", relFile, specifier);
+      }
+
+      if (
+        normalized.packageName === "@bedrock/currencies" &&
+        (
+          normalized.subpath === "./validation" ||
+          normalized.subpath.startsWith("./validation/")
+        )
+      ) {
+        recordViolation("currencies-removed-subpath", relFile, specifier);
       }
 
       if (
@@ -834,6 +868,21 @@ for (const root of SOURCE_ROOTS) {
       }
 
       if (
+        normalized.packageName === "@bedrock/currencies" &&
+        (
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        ) &&
+        !isCurrenciesSchemaImportAllowed(relFile)
+      ) {
+        recordViolation(
+          "currencies-schema-import-outside-allowed-zones",
+          relFile,
+          specifier,
+        );
+      }
+
+      if (
         normalized.packageName === "@bedrock/fees" &&
         (
           normalized.subpath === "./schema" ||
@@ -966,6 +1015,25 @@ for (const root of SOURCE_ROOTS) {
           relFile,
           specifier,
         );
+      }
+
+      if (
+        owner?.name === "@bedrock/currencies" &&
+        isRuntimeSourceFile &&
+        targetPkg.name === owner.name &&
+        (
+          normalized.subpath === "." ||
+          normalized.subpath === "./contracts" ||
+          normalized.subpath.startsWith("./contracts/") ||
+          normalized.subpath === "./queries" ||
+          normalized.subpath.startsWith("./queries/") ||
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/") ||
+          normalized.subpath === "./catalog" ||
+          normalized.subpath.startsWith("./catalog/")
+        )
+      ) {
+        recordViolation("currencies-self-import", relFile, specifier);
       }
 
       if (

@@ -1,5 +1,6 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
+import { sql } from "drizzle-orm";
 import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 
@@ -118,11 +119,7 @@ app.get("/health", async (c) => {
   const pgStart = Date.now();
   try {
     const { db } = await import("./db/client");
-    const { schema } = await import("@bedrock/currencies/schema");
-    await db
-      .select({ id: schema.currencies.id })
-      .from(schema.currencies)
-      .limit(1);
+    await db.execute(sql`select 1`);
     checks.postgres = { status: "up", latencyMs: Date.now() - pgStart };
   } catch (error) {
     healthy = false;

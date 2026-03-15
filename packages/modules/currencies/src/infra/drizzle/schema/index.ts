@@ -28,9 +28,9 @@ export const currencies = pgTable(
       .default(sql`now()`)
       .$onUpdateFn(() => new Date()),
   },
-  (t) => [
-    uniqueIndex("currencies_code_uq").on(t.code),
-    check("currencies_precision_non_negative", sql`${t.precision} >= 0`),
+  (table) => [
+    uniqueIndex("currencies_code_uq").on(table.code),
+    check("currencies_precision_non_negative", sql`${table.precision} >= 0`),
   ],
 );
 

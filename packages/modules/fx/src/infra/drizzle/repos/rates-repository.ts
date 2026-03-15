@@ -1,6 +1,5 @@
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
-import { schema as currenciesSchema } from "@bedrock/currencies/schema";
 import { type Database } from "@bedrock/platform/persistence/drizzle";
 
 import type {
@@ -14,11 +13,6 @@ import type {
 } from "../../../application/ports";
 import { getSourceOrder } from "../../../domain/source-priority";
 import { schema as fxSchema } from "../schema";
-
-const joinedSchema = {
-  ...fxSchema,
-  ...currenciesSchema,
-};
 
 function computeRate(num: bigint, den: bigint): number {
   return Number(num) / Number(den);
@@ -227,8 +221,7 @@ export function createDrizzleFxRatesRepository(
   }
 
   async function listPairs(): Promise<RatePairView[]> {
-    const fr = joinedSchema.fxRates;
-    const curr = joinedSchema.currencies;
+    const fr = fxSchema.fxRates;
 
     const rows = await db.execute<{
       source: string;
@@ -262,8 +255,8 @@ export function createDrizzleFxRatesRepository(
         qc.code AS quote_code,
         r.rn::text AS rn
       FROM ranked r
-      JOIN ${curr} bc ON bc.id = r.base_currency_id
-      JOIN ${curr} qc ON qc.id = r.quote_currency_id
+      JOIN "currencies" bc ON bc.id = r.base_currency_id
+      JOIN "currencies" qc ON qc.id = r.quote_currency_id
       WHERE r.rn <= 2
       ORDER BY base_code, quote_code, r.source, r.rn
     `);
@@ -373,8 +366,7 @@ export function createDrizzleFxRatesRepository(
     limit?: number;
     from?: Date;
   }): Promise<RateHistoryPoint[]> {
-    const fr = joinedSchema.fxRates;
-    const curr = joinedSchema.currencies;
+    const fr = fxSchema.fxRates;
 
     const rows = await db.execute<{
       source: string;
@@ -388,8 +380,8 @@ export function createDrizzleFxRatesRepository(
         r.rate_den::text AS rate_den,
         r.as_of
       FROM ${fr} r
-      JOIN ${curr} bc ON bc.id = r.base_currency_id
-      JOIN ${curr} qc ON qc.id = r.quote_currency_id
+      JOIN "currencies" bc ON bc.id = r.base_currency_id
+      JOIN "currencies" qc ON qc.id = r.quote_currency_id
       WHERE bc.code = ${input.base.trim().toUpperCase()}
         AND qc.code = ${input.quote.trim().toUpperCase()}
         AND (${input.from ?? null}::timestamptz IS NULL OR r.as_of >= ${input.from ?? null}::timestamptz)

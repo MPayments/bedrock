@@ -1,34 +1,22 @@
-import { inArray } from "drizzle-orm";
-
 import type { Queryable } from "@bedrock/platform/persistence";
 
-import { schema } from "./schema";
+import { createListCurrencyPrecisionsByCodeHandler } from "./application/queries";
+import { createCurrenciesQueriesContext } from "./application/shared/context";
 
 export interface CurrenciesQueries {
   listPrecisionsByCode: (codes: string[]) => Promise<Map<string, number>>;
 }
 
-export function createCurrenciesQueries(input: { db: Queryable }): CurrenciesQueries {
-  const { db } = input;
+export function createCurrenciesQueries(input: {
+  db: Queryable;
+}): CurrenciesQueries {
+  const context = createCurrenciesQueriesContext(input);
+
+  const listPrecisionsByCode = createListCurrencyPrecisionsByCodeHandler(
+    context,
+  );
 
   return {
-    async listPrecisionsByCode(codes: string[]) {
-      const uniqueCodes = Array.from(
-        new Set(codes.map((code) => code.trim()).filter(Boolean)),
-      );
-      if (uniqueCodes.length === 0) {
-        return new Map();
-      }
-
-      const rows = await db
-        .select({
-          code: schema.currencies.code,
-          precision: schema.currencies.precision,
-        })
-        .from(schema.currencies)
-        .where(inArray(schema.currencies.code, uniqueCodes));
-
-      return new Map(rows.map((row) => [row.code, row.precision]));
-    },
+    listPrecisionsByCode,
   };
 }
