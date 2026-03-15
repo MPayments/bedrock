@@ -7,7 +7,7 @@ import type {
   Document,
   DocumentInitialLink,
   DocumentLinkType,
-} from "../../domain/types";
+} from "../../domain/document";
 import { DocumentGraphError } from "../../errors";
 
 async function assertNoLinkCycle(

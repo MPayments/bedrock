@@ -1,14 +1,14 @@
 import type { LedgerOperationDetails } from "@bedrock/ledger/contracts";
 import type { CorrelationContext } from "@bedrock/shared/core/correlation";
 
-import type { DocumentAction } from "../domain/state-machine";
 import type {
   Document,
   DocumentEvent,
   DocumentLink,
   DocumentOperation,
-  DocumentSnapshot,
-} from "../domain/types";
+  DocumentPostingSnapshot as DocumentSnapshot,
+} from "../domain/document";
+import type { DocumentAction } from "../domain/document-workflow";
 
 export type DocumentRequestContext = CorrelationContext;
 

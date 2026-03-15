@@ -1,4 +1,4 @@
-import type { Document } from "../../domain/types";
+import type { Document } from "../../domain/document";
 import type {
   DocumentActionPolicyService,
   DocumentApprovalMode,

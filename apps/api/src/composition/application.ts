@@ -30,7 +30,14 @@ import {
 } from "@bedrock/documents";
 import type { DocumentModuleRuntime } from "@bedrock/documents/plugins";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
-import { createDrizzleDocumentsRepository } from "@bedrock/documents/repository";
+import {
+  createDrizzleDocumentEventsRepository,
+  createDrizzleDocumentLinksRepository,
+  createDrizzleDocumentOperationsRepository,
+  createDrizzleDocumentSnapshotsRepository,
+  createDrizzleDocumentsCommandRepository,
+  createDrizzleDocumentsQueryRepository,
+} from "@bedrock/documents/repository";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/providers";
@@ -262,7 +269,10 @@ function createDocumentsTransactions(input: {
 
         return run({
           moduleRuntime: createDocumentsModuleRuntime(tx),
-          repository: createDrizzleDocumentsRepository(tx),
+          documentEvents: createDrizzleDocumentEventsRepository(tx),
+          documentLinks: createDrizzleDocumentLinksRepository(tx),
+          documentOperations: createDrizzleDocumentOperationsRepository(tx),
+          documentsCommand: createDrizzleDocumentsCommandRepository(tx),
           idempotency,
           ledger: {
             commit: (intent) => input.ledger.commit(tx, intent),
@@ -353,12 +363,21 @@ export function createApplicationServices(
       }),
     ),
   ]);
+  const documentsQuery = createDrizzleDocumentsQueryRepository(db);
+  const documentEvents = createDrizzleDocumentEventsRepository(db);
+  const documentLinks = createDrizzleDocumentLinksRepository(db);
+  const documentOperations = createDrizzleDocumentOperationsRepository(db);
+  const documentSnapshots = createDrizzleDocumentSnapshotsRepository(db);
   const documentsService = createDocumentsService({
     accounting: accountingService.packs,
     accountingPeriods: accountingPeriodsService,
+    documentEvents,
+    documentLinks,
+    documentOperations,
+    documentSnapshots,
+    documentsQuery,
     ledgerReadService,
     moduleRuntime: createDocumentsModuleRuntime(db),
-    repository: createDrizzleDocumentsRepository(db),
     registry: documentRegistry,
     transactions: createDocumentsTransactions({
       database: db,

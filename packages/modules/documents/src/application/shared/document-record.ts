@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
-import { buildDocNo } from "../../domain/document-state";
-import type { Document } from "../../domain/types";
+import type { Document } from "../../domain/document";
+import { buildDocNo } from "../../domain/document";
 
 export function createDocumentInsertBase(params: {
   id?: string;

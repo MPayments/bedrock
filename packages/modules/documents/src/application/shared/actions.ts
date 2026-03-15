@@ -9,14 +9,18 @@ import {
   resolveModuleForDocument,
 } from "./module-resolution";
 import type { DocumentWithOperationId } from "../../contracts/service";
-import { collectDocumentOrganizationIds } from "../../domain/accounting-periods";
+import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
 import {
   resolveDocumentAllowedActions,
   type DocumentAction,
-} from "../../domain/state-machine";
-import type { Document } from "../../domain/types";
+} from "../../domain/document-workflow";
+import type { Document } from "../../domain/document";
 import { DocumentNotFoundError } from "../../errors";
-import type { DocumentsRepository } from "../ports";
+import type {
+  DocumentOperationsRepository,
+  DocumentsCommandRepository,
+  DocumentsQueryRepository,
+} from "../documents/ports";
 import type { DocumentsServiceContext } from "./context";
 import type {
   DocumentActionPolicyService,
@@ -210,6 +214,7 @@ export async function resolveDocumentAllowedActionsForActor(input: {
   policy?: DocumentActionPolicyService;
   actorUserId: string;
   log: Logger;
+  now: () => Date;
   document: Document;
 }): Promise<DocumentAction[]> {
   const periodLocked = await isDocumentLockedByOrganizationPeriod({
@@ -223,6 +228,7 @@ export async function resolveDocumentAllowedActionsForActor(input: {
     policy: input.policy,
     actorUserId: input.actorUserId,
     log: input.log,
+    now: input.now,
     document: input.document,
     periodLocked,
   });
@@ -234,6 +240,7 @@ async function resolveDocumentAllowedActionsForActorWithPeriodLock(input: {
   policy?: DocumentActionPolicyService;
   actorUserId: string;
   log: Logger;
+  now: () => Date;
   document: Document;
   periodLocked: boolean;
 }): Promise<DocumentAction[]> {
@@ -272,7 +279,7 @@ async function resolveDocumentAllowedActionsForActorWithPeriodLock(input: {
   const moduleContext = createModuleContext({
     actorUserId: input.actorUserId,
     runtime: input.moduleRuntime,
-    now: new Date(),
+    now: input.now(),
     log: input.log,
     operationIdempotencyKey: null,
   });
@@ -320,6 +327,7 @@ export async function resolveDocumentsAllowedActionsForActor(input: {
   policy?: DocumentActionPolicyService;
   actorUserId: string;
   log: Logger;
+  now: () => Date;
   documents: Document[];
 }): Promise<Map<string, DocumentAction[]>> {
   if (input.documents.length === 0) {
@@ -339,6 +347,7 @@ export async function resolveDocumentsAllowedActionsForActor(input: {
         policy: input.policy,
         actorUserId: input.actorUserId,
         log: input.log,
+        now: input.now,
         document,
         periodLocked: periodLockedByDocumentId.get(document.id) ?? false,
       }),
@@ -349,7 +358,8 @@ export async function resolveDocumentsAllowedActionsForActor(input: {
 }
 
 export async function loadDocumentOrThrow(
-  repository: DocumentsRepository,
+  repository: Pick<DocumentsQueryRepository, "findDocumentByType"> |
+    Pick<DocumentsCommandRepository, "findDocumentByType">,
   input: {
     documentId: string;
     docType: string;
@@ -365,7 +375,12 @@ export async function loadDocumentOrThrow(
 }
 
 export async function loadDocumentWithOperationId(
-  repository: DocumentsRepository,
+  repositories: {
+    documents:
+      | Pick<DocumentsQueryRepository, "findDocumentByType">
+      | Pick<DocumentsCommandRepository, "findDocumentByType">;
+    documentOperations: Pick<DocumentOperationsRepository, "findPostingOperationId">;
+  },
   input: {
     docType: string;
     documentId: string;
@@ -373,7 +388,7 @@ export async function loadDocumentWithOperationId(
     registry?: DocumentRegistry;
   },
 ): Promise<DocumentWithOperationId> {
-  const document = await loadDocumentOrThrow(repository, {
+  const document = await loadDocumentOrThrow(repositories.documents, {
     documentId: input.documentId,
     docType: input.docType,
   });
@@ -383,6 +398,8 @@ export async function loadDocumentWithOperationId(
     document,
     postingOperationId:
       input.postingOperationId ??
-      (await repository.findPostingOperationId({ documentId: document.id })),
+      (await repositories.documentOperations.findPostingOperationId({
+        documentId: document.id,
+      })),
   });
 }

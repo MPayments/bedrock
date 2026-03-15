@@ -1,5 +1,5 @@
-import type { DocumentAction } from "../../domain/state-machine";
-import type { Document } from "../../domain/types";
+import type { Document } from "../../domain/document";
+import type { DocumentAction } from "../../domain/document-workflow";
 import type {
   DocumentActionPolicyService,
   DocumentModule,

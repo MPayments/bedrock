@@ -7,15 +7,22 @@ import {
 import type { DocumentsServiceContext } from "../shared/context";
 
 export function createGetDocumentQuery(context: DocumentsServiceContext) {
-  const { accountingPeriods, log, moduleRuntime, policy, registry, repository } =
-    context;
+  const {
+    accountingPeriods,
+    documentsQuery,
+    log,
+    moduleRuntime,
+    now,
+    policy,
+    registry,
+  } = context;
 
   return async function getDocument(
     docType: string,
     documentId: string,
     actorUserId?: string,
   ): Promise<DocumentWithOperationId> {
-    const row = await repository.findDocumentWithPostingOperation({
+    const row = await documentsQuery.findDocumentWithPostingOperation({
       documentId,
       docType,
     });
@@ -42,6 +49,7 @@ export function createGetDocumentQuery(context: DocumentsServiceContext) {
         registry,
         policy,
         log,
+        now,
         actorUserId,
         document: row.document,
       }),

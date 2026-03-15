@@ -3,19 +3,18 @@ import type {
   DocumentWithOperationId,
 } from "../../contracts/service";
 import { validateInput } from "../../contracts/validation";
-import { collectDocumentOrganizationIds } from "../../domain/accounting-periods";
-import { buildDocumentEventState } from "../../domain/document-state";
-import { buildSummary } from "../../domain/document-summary";
-import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "../../domain/idempotency";
-import { isDocumentActionAllowed } from "../../domain/state-machine";
-import { DocumentValidationError } from "../../errors";
+import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
+import { DocumentAggregate } from "../../domain/document";
 import {
   buildDocumentWithOperationId,
   loadDocumentOrThrow,
   loadDocumentWithOperationId,
 } from "../shared/actions";
 import type { DocumentsServiceContext } from "../shared/context";
+import { buildDocumentEventState } from "../shared/document-event-state";
+import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "../shared/documents-idempotency";
 import { buildDefaultActionIdempotencyKey } from "../shared/idempotency-key";
+import { mapDocumentDomainError } from "../shared/map-domain-error";
 import {
   createModuleContext,
   resolveModuleForDocument,
@@ -26,7 +25,7 @@ import {
 } from "../shared/policy";
 
 export function createUpdateDraftHandler(context: DocumentsServiceContext) {
-  const { accountingPeriods, log, policy, registry, transactions } = context;
+  const { accountingPeriods, log, now, policy, registry, transactions } = context;
 
   return async function updateDraft(input: {
     docType: string;
@@ -51,10 +50,17 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
 
     try {
       return await transactions.withTransaction(
-        async ({ idempotency, moduleRuntime, repository }) => {
+        async ({
+          documentEvents,
+          documentOperations,
+          documentsCommand,
+          idempotency,
+          moduleRuntime,
+        }) => {
+          const currentNow = now();
           const moduleContext = createModuleContext({
             actorUserId: input.actorUserId,
-            now: new Date(),
+            now: currentNow,
             log,
             operationIdempotencyKey: idempotencyKey,
             runtime: moduleRuntime,
@@ -73,44 +79,34 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
             serializeResult: (result: DocumentWithOperationId) => ({
               documentId: result.document.id,
             }),
-            loadReplayResult: async ({
-              storedResult,
-            }: {
-              storedResult: { documentId?: string } | null;
-            }) =>
-              loadDocumentWithOperationId(repository, {
-                docType: input.docType,
-                documentId: String(storedResult?.documentId ?? input.documentId),
-                postingOperationId: null,
-                registry,
-              }),
+            loadReplayResult: async ({ storedResult }) =>
+              loadDocumentWithOperationId(
+                {
+                  documents: documentsCommand,
+                  documentOperations,
+                },
+                {
+                  docType: input.docType,
+                  documentId: String(
+                    storedResult?.documentId ?? input.documentId,
+                  ),
+                  postingOperationId: null,
+                  registry,
+                },
+              ),
             handler: async () => {
-              const document = await loadDocumentOrThrow(repository, {
+              const document = await loadDocumentOrThrow(documentsCommand, {
                 documentId: input.documentId,
                 docType: input.docType,
                 forUpdate: true,
               });
+              const aggregate = DocumentAggregate.reconstitute(document);
               const module = resolveModuleForDocument(registry, document);
               const validatedUpdateInput = validateInput(
                 module.updateSchema,
                 input.payload,
                 `${input.docType}.update`,
               );
-
-              if (
-                !isDocumentActionAllowed({
-                  action: "edit",
-                  document,
-                  module: {
-                    postingRequired: module.postingRequired,
-                    allowDirectPostFromDraft: module.allowDirectPostFromDraft,
-                  },
-                })
-              ) {
-                throw new DocumentValidationError(
-                  "Only active draft documents can be updated",
-                );
-              }
               const currentOrganizationIds = collectDocumentOrganizationIds({
                 payload: document.payload,
               });
@@ -143,7 +139,6 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
                 `${input.docType}.payload`,
               );
               const nextOccurredAt = updated.occurredAt ?? document.occurredAt;
-
               const next = {
                 ...document,
                 payload,
@@ -152,9 +147,7 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
               const approvalStatus = module.approvalRequired(next)
                 ? "pending"
                 : "not_required";
-              const summary = buildSummary(
-                module.deriveSummary({ ...next, approvalStatus }),
-              );
+              const summary = module.deriveSummary({ ...next, approvalStatus });
               const nextOrganizationIds = collectDocumentOrganizationIds({
                 payload,
               });
@@ -164,21 +157,30 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
                 docType: input.docType,
               });
 
-              const stored = await repository.updateDocument({
+              const nextDocument = aggregate.updateDraft({
+                payload,
+                occurredAt: nextOccurredAt,
+                approvalStatus,
+                summary,
+                now: currentNow,
+              }).toSnapshot();
+
+              const stored = await documentsCommand.updateDocument({
                 documentId: document.id,
                 docType: input.docType,
                 patch: {
-                  payload,
-                  occurredAt: nextOccurredAt,
-                  approvalStatus,
-                  title: summary.title,
-                  amountMinor: summary.amountMinor,
-                  currency: summary.currency,
-                  memo: summary.memo,
-                  counterpartyId: summary.counterpartyId,
-                  customerId: summary.customerId,
-                  organizationRequisiteId: summary.organizationRequisiteId,
-                  searchText: summary.searchText,
+                  payload: nextDocument.payload,
+                  occurredAt: nextDocument.occurredAt,
+                  approvalStatus: nextDocument.approvalStatus,
+                  title: nextDocument.title,
+                  amountMinor: nextDocument.amountMinor,
+                  currency: nextDocument.currency,
+                  memo: nextDocument.memo,
+                  counterpartyId: nextDocument.counterpartyId,
+                  customerId: nextDocument.customerId,
+                  organizationRequisiteId: nextDocument.organizationRequisiteId,
+                  searchText: nextDocument.searchText,
+                  updatedAt: nextDocument.updatedAt,
                 },
               });
 
@@ -186,7 +188,7 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
                 throw new Error("Failed to update document draft");
               }
 
-              await repository.insertDocumentEvent({
+              await documentEvents.insertDocumentEvent({
                 documentId: document.id,
                 eventType: "update",
                 actorId: input.actorUserId,
@@ -209,7 +211,10 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
       );
     } catch (error) {
       await persistDocumentPolicyDenial(transactions, error);
-      throw error;
+      throw mapDocumentDomainError(error, {
+        documentId: input.documentId,
+        docType: input.docType,
+      });
     }
   };
 }

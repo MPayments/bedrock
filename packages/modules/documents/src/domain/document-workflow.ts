@@ -1,10 +1,10 @@
 import type {
-  Document,
   DocumentApprovalStatus,
   DocumentLifecycleStatus,
   DocumentPostingStatus,
+  DocumentSnapshot,
   DocumentSubmissionStatus,
-} from "./types";
+} from "./document";
 
 export const DOCUMENT_ACTIONS = [
   "edit",
@@ -30,7 +30,7 @@ export interface DocumentModuleWorkflowConfig {
   allowDirectPostFromDraft?: boolean;
 }
 
-function canEdit(state: DocumentWorkflowState) {
+function canEdit(state: DocumentWorkflowState): boolean {
   return (
     state.lifecycleStatus === "active" &&
     state.submissionStatus === "draft"
@@ -40,7 +40,7 @@ function canEdit(state: DocumentWorkflowState) {
 function canSubmit(
   state: DocumentWorkflowState,
   module: DocumentModuleWorkflowConfig,
-) {
+): boolean {
   return (
     state.lifecycleStatus === "active" &&
     state.submissionStatus === "draft" &&
@@ -48,7 +48,7 @@ function canSubmit(
   );
 }
 
-function canApproveOrReject(state: DocumentWorkflowState) {
+function canApproveOrReject(state: DocumentWorkflowState): boolean {
   return (
     state.lifecycleStatus === "active" &&
     state.submissionStatus === "submitted" &&
@@ -59,36 +59,41 @@ function canApproveOrReject(state: DocumentWorkflowState) {
 function canPost(
   state: DocumentWorkflowState,
   module: DocumentModuleWorkflowConfig,
-) {
+): boolean {
   if (state.lifecycleStatus !== "active") {
     return false;
   }
+
   if (!module.postingRequired || state.postingStatus === "not_required") {
     return false;
   }
+
   if (state.postingStatus !== "unposted") {
     return false;
   }
+
   if (state.submissionStatus === "draft") {
     return module.allowDirectPostFromDraft === true;
   }
+
   if (state.submissionStatus !== "submitted") {
     return false;
   }
+
   return (
     state.approvalStatus === "approved" ||
     state.approvalStatus === "not_required"
   );
 }
 
-function canCancel(state: DocumentWorkflowState) {
+function canCancel(state: DocumentWorkflowState): boolean {
   return (
     state.lifecycleStatus === "active" &&
     (state.postingStatus === "unposted" || state.postingStatus === "failed")
   );
 }
 
-function canRepost(state: DocumentWorkflowState) {
+function canRepost(state: DocumentWorkflowState): boolean {
   return (
     state.lifecycleStatus === "active" && state.postingStatus === "failed"
   );
@@ -96,7 +101,7 @@ function canRepost(state: DocumentWorkflowState) {
 
 export function resolveDocumentAllowedActions(input: {
   document: Pick<
-    Document,
+    DocumentSnapshot,
     | "submissionStatus"
     | "approvalStatus"
     | "postingStatus"
@@ -110,19 +115,18 @@ export function resolveDocumentAllowedActions(input: {
     postingStatus: input.document.postingStatus,
     lifecycleStatus: input.document.lifecycleStatus,
   };
-  const module = input.module;
   const actions: DocumentAction[] = [];
 
   if (canEdit(state)) {
     actions.push("edit");
   }
-  if (canSubmit(state, module)) {
+  if (canSubmit(state, input.module)) {
     actions.push("submit");
   }
   if (canApproveOrReject(state)) {
     actions.push("approve", "reject");
   }
-  if (canPost(state, module)) {
+  if (canPost(state, input.module)) {
     actions.push("post");
   }
   if (canCancel(state)) {
@@ -138,14 +142,14 @@ export function resolveDocumentAllowedActions(input: {
 export function isDocumentActionAllowed(input: {
   action: DocumentAction;
   document: Pick<
-    Document,
+    DocumentSnapshot,
     | "submissionStatus"
     | "approvalStatus"
     | "postingStatus"
     | "lifecycleStatus"
   >;
   module: DocumentModuleWorkflowConfig;
-}) {
+}): boolean {
   return resolveDocumentAllowedActions({
     document: input.document,
     module: input.module,

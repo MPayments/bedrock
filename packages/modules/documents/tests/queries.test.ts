@@ -9,8 +9,8 @@ import type {
   DocumentEvent,
   DocumentLink,
   DocumentOperation,
-  DocumentSnapshot,
-} from "../src/domain/types";
+  DocumentPostingSnapshot as DocumentSnapshot,
+} from "../src/domain/document";
 import { DocumentNotFoundError } from "../src/errors";
 import type { DocumentModule } from "../src/plugins";
 
@@ -49,6 +49,20 @@ function createAccountingPeriodsStub(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function createQueryContext(repository: ReturnType<typeof createRepositoryStub>) {
+  return {
+    accountingPeriods: createAccountingPeriodsStub(),
+    documentEvents: repository,
+    documentLinks: repository,
+    documentOperations: repository,
+    documentSnapshots: repository,
+    documentsQuery: repository,
+    log: {} as any,
+    moduleRuntime: {} as any,
+    now: () => new Date("2026-03-03T00:00:00.000Z"),
+  };
+}
+
 describe("documents queries", () => {
   it("loads a single document with its posting operation id", async () => {
     const document = makeDocument();
@@ -59,7 +73,7 @@ describe("documents queries", () => {
       })),
     });
 
-    const getDocument = createGetDocumentQuery({ repository } as any);
+    const getDocument = createGetDocumentQuery(createQueryContext(repository) as any);
 
     await expect(
       getDocument(document.docType, document.id),
@@ -75,7 +89,7 @@ describe("documents queries", () => {
       findDocumentWithPostingOperation: vi.fn(async () => null),
     });
 
-    const getDocument = createGetDocumentQuery({ repository } as any);
+    const getDocument = createGetDocumentQuery(createQueryContext(repository) as any);
     await expect(getDocument("test_document", "missing")).rejects.toThrow(
       DocumentNotFoundError,
     );
@@ -133,12 +147,9 @@ describe("documents queries", () => {
       getDocumentModule: vi.fn(() => module),
     };
     const getDocument = createGetDocumentQuery({
-      accountingPeriods: createAccountingPeriodsStub(),
-      log: {} as any,
-      moduleRuntime: {} as any,
+      ...createQueryContext(repository),
       policy,
       registry,
-      repository,
     } as any);
 
     const result = await getDocument(document.docType, document.id, "maker-1");
@@ -159,7 +170,9 @@ describe("documents queries", () => {
       })),
     });
 
-    const listDocuments = createListDocumentsQuery({ repository } as any);
+    const listDocuments = createListDocumentsQuery(
+      createQueryContext(repository) as any,
+    );
     const result = await listDocuments({
       query: "test",
       limit: 5,
@@ -296,12 +309,9 @@ describe("documents queries", () => {
     };
 
     const getDetails = createGetDocumentDetailsQuery({
-      accountingPeriods: createAccountingPeriodsStub(),
+      ...createQueryContext(repository),
       ledgerReadService,
-      log: {} as any,
-      moduleRuntime: {} as any,
       registry,
-      repository,
     } as any);
 
     const result = await getDetails(document.docType, document.id, "checker-1");
@@ -346,12 +356,10 @@ describe("documents queries", () => {
     };
 
     const getDetails = createGetDocumentDetailsQuery({
-      accountingPeriods: createAccountingPeriodsStub(),
+      ...createQueryContext(repository),
       ledgerReadService,
       log: { warn } as any,
-      moduleRuntime: {} as any,
       registry,
-      repository,
     } as any);
 
     const result = await getDetails(document.docType, document.id, "checker-1");
@@ -395,13 +403,11 @@ describe("documents queries", () => {
     });
 
     const listDocuments = createListDocumentsQuery({
+      ...createQueryContext(repository),
       accountingPeriods,
-      log: {} as any,
-      moduleRuntime: {} as any,
       registry: {
         getDocumentModule: vi.fn(() => createModuleStub()),
       },
-      repository,
     } as any);
 
     const result = await listDocuments(undefined, "checker-1");

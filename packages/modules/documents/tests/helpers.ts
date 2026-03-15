@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { createStubDb } from "@bedrock/test-utils";
 
-import type { Document } from "../src/domain/types";
+import type { Document } from "../src/domain/document";
 import type {
   DocumentActionPolicyService,
   DocumentApprovalMode,
@@ -228,18 +228,27 @@ export function createDocumentsServiceDeps(
       listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
       reopenPeriod: vi.fn(async () => undefined),
     },
+    documentEvents: repository,
+    documentLinks: repository,
+    documentOperations: repository,
+    documentSnapshots: repository,
+    documentsQuery: repository,
     ledgerReadService: {
       listOperationDetails: vi.fn(async () => new Map()),
       getOperationDetails: vi.fn(),
     },
     moduleRuntime,
+    now: () => new Date("2026-03-03T00:00:00.000Z"),
     repository,
     registry: createTestDocumentRegistry(modules),
     transactions: {
       withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
         run({
+          documentEvents: repository,
+          documentLinks: repository,
+          documentOperations: repository,
+          documentsCommand: repository,
           moduleRuntime,
-          repository,
           ledger,
           idempotency,
         }),

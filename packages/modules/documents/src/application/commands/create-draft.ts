@@ -1,21 +1,23 @@
+import { randomUUID } from "node:crypto";
+
 import type {
   DocumentRequestContext,
   DocumentWithOperationId,
 } from "../../contracts/service";
 import { validateInput } from "../../contracts/validation";
-import { collectDocumentOrganizationIds } from "../../domain/accounting-periods";
-import { isSystemOnlyDocumentType } from "../../domain/doc-type-rules";
-import { buildDocumentEventState } from "../../domain/document-state";
-import { buildSummary } from "../../domain/document-summary";
-import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "../../domain/idempotency";
-import type { Document } from "../../domain/types";
+import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
+import { buildDocNo } from "../../domain/document";
+import { isSystemOnlyDocumentType } from "../../domain/doc-type";
+import { DocumentAggregate, type Document } from "../../domain/document";
 import { DocumentValidationError } from "../../errors";
 import {
   buildDocumentWithOperationId,
   loadDocumentWithOperationId,
 } from "../shared/actions";
 import type { DocumentsServiceContext } from "../shared/context";
-import { createDocumentInsertBase } from "../shared/document-record";
+import { buildDocumentEventState } from "../shared/document-event-state";
+import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "../shared/documents-idempotency";
+import { mapDocumentDomainError } from "../shared/map-domain-error";
 import {
   createModuleContext,
   resolveDocumentModuleIdentity,
@@ -51,7 +53,8 @@ function readPayloadDate(
 }
 
 export function createCreateDraftHandler(context: DocumentsServiceContext) {
-  const { accountingPeriods, log, policy, registry, transactions } = context;
+  const { accountingPeriods, log, now, policy, registry, transactions } =
+    context;
 
   return async function createDraft(input: {
     docType: string;
@@ -69,15 +72,24 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
 
     try {
       return await transactions.withTransaction(
-        async ({ idempotency, moduleRuntime, repository }) => {
+        async ({
+          documentEvents,
+          documentLinks,
+          documentOperations,
+          documentsCommand,
+          idempotency,
+          moduleRuntime,
+        }) => {
+          const currentNow = now();
           const moduleContext = createModuleContext({
             actorUserId: input.actorUserId,
-            now: new Date(),
+            now: currentNow,
             log,
             operationIdempotencyKey: input.createIdempotencyKey,
             runtime: moduleRuntime,
           });
-          const { moduleId, moduleVersion } = resolveDocumentModuleIdentity(module);
+          const { moduleId, moduleVersion } =
+            resolveDocumentModuleIdentity(module);
 
           return idempotency.withIdempotency({
             scope: DOCUMENTS_IDEMPOTENCY_SCOPE.CREATE_DRAFT,
@@ -92,16 +104,12 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
             serializeResult: (result: DocumentWithOperationId) => ({
               documentId: result.document.id,
             }),
-            loadReplayResult: async ({
-              storedResult: _storedResult,
-            }: {
-              storedResult: { documentId?: string } | null;
-            }) => {
+            loadReplayResult: async () => {
               const replay =
-                (await repository.findDocumentByCreateIdempotencyKey({
+                await documentsCommand.findDocumentByCreateIdempotencyKey({
                   docType: input.docType,
                   createIdempotencyKey: input.createIdempotencyKey,
-                })) ?? null;
+                });
               if (!replay) {
                 throw new Error("Document replay is missing for createDraft");
               }
@@ -113,17 +121,24 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
               });
             },
             handler: async () => {
-              const replay = await repository.findDocumentByCreateIdempotencyKey({
-                docType: input.docType,
-                createIdempotencyKey: input.createIdempotencyKey,
-              });
-              if (replay) {
-                return loadDocumentWithOperationId(repository, {
+              const replay =
+                await documentsCommand.findDocumentByCreateIdempotencyKey({
                   docType: input.docType,
-                  documentId: replay.id,
-                  postingOperationId: null,
-                  registry,
+                  createIdempotencyKey: input.createIdempotencyKey,
                 });
+              if (replay) {
+                return loadDocumentWithOperationId(
+                  {
+                    documents: documentsCommand,
+                    documentOperations,
+                  },
+                  {
+                    docType: input.docType,
+                    documentId: replay.id,
+                    postingOperationId: null,
+                    registry,
+                  },
+                );
               }
 
               await module.canCreate(moduleContext, validatedCreateInput);
@@ -146,29 +161,58 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                 draft.payload,
                 `${input.docType}.payload`,
               );
-
-              const base = createDocumentInsertBase({
+              const documentId = randomUUID();
+              const postingStatus = module.postingRequired
+                ? "unposted"
+                : "not_required";
+              const draftCandidate: Document = {
+                id: documentId,
                 docType: module.docType,
-                docNoPrefix: module.docNoPrefix,
+                docNo: buildDocNo(module.docNoPrefix, documentId),
                 moduleId,
                 moduleVersion,
                 payloadVersion: module.payloadVersion,
                 payload,
+                title: "",
                 occurredAt: draft.occurredAt,
-                createIdempotencyKey: input.createIdempotencyKey,
-                createdBy: input.actorUserId,
+                submissionStatus: "draft",
                 approvalStatus: "not_required",
-                postingStatus: module.postingRequired ? "unposted" : "not_required",
-              });
-
-              const transient: Document = {
-                ...base,
-                approvalStatus: module.approvalRequired(base)
-                  ? "pending"
-                  : "not_required",
+                postingStatus,
+                lifecycleStatus: "active",
+                createIdempotencyKey: input.createIdempotencyKey,
+                amountMinor: null,
+                currency: null,
+                memo: null,
+                counterpartyId: null,
+                customerId: null,
+                organizationRequisiteId: null,
+                searchText: "",
+                createdBy: input.actorUserId,
+                submittedBy: null,
+                submittedAt: null,
+                approvedBy: null,
+                approvedAt: null,
+                rejectedBy: null,
+                rejectedAt: null,
+                cancelledBy: null,
+                cancelledAt: null,
+                postingStartedAt: null,
+                postedAt: null,
+                postingError: null,
+                createdAt: currentNow,
+                updatedAt: currentNow,
+                version: 1,
               };
-              const summary = buildSummary(module.deriveSummary(transient));
-              const organizationIds = collectDocumentOrganizationIds({ payload });
+              const approvalStatus = module.approvalRequired(draftCandidate)
+                ? "pending"
+                : "not_required";
+              const summary = module.deriveSummary({
+                ...draftCandidate,
+                approvalStatus,
+              });
+              const organizationIds = collectDocumentOrganizationIds({
+                payload,
+              });
 
               if (!isSystemOnlyDocumentType(input.docType)) {
                 await accountingPeriods.assertOrganizationPeriodsOpen({
@@ -178,12 +222,26 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                 });
               }
 
+              const draftDocument = DocumentAggregate.createDraft({
+                id: documentId,
+                docType: module.docType,
+                docNoPrefix: module.docNoPrefix,
+                moduleId,
+                moduleVersion,
+                payloadVersion: module.payloadVersion,
+                payload,
+                occurredAt: draft.occurredAt,
+                createIdempotencyKey: input.createIdempotencyKey,
+                createdBy: input.actorUserId,
+                approvalStatus,
+                postingStatus,
+                summary,
+                now: currentNow,
+              }).toSnapshot();
+
               const document =
-                (await repository.insertDocument({
-                  ...transient,
-                  ...summary,
-                })) ??
-                (await repository.findDocumentByCreateIdempotencyKey({
+                (await documentsCommand.insertDocument(draftDocument)) ??
+                (await documentsCommand.findDocumentByCreateIdempotencyKey({
                   docType: input.docType,
                   createIdempotencyKey: input.createIdempotencyKey,
                 }));
@@ -197,11 +255,14 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                 document,
               );
               if (links && links.length > 0) {
-                await repository.insertInitialLinks({ document, links });
+                await documentLinks.insertInitialLinks({ document, links });
               }
 
               if (document.docType === "period_close") {
-                const organizationId = readPayloadString(payload, "organizationId");
+                const organizationId = readPayloadString(
+                  payload,
+                  "organizationId",
+                );
                 if (!organizationId) {
                   throw new DocumentValidationError(
                     "period_close payload requires organizationId",
@@ -224,7 +285,10 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                   closeDocumentId: document.id,
                 });
               } else if (document.docType === "period_reopen") {
-                const organizationId = readPayloadString(payload, "organizationId");
+                const organizationId = readPayloadString(
+                  payload,
+                  "organizationId",
+                );
                 if (!organizationId) {
                   throw new DocumentValidationError(
                     "period_reopen payload requires organizationId",
@@ -243,7 +307,7 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                 });
               }
 
-              await repository.insertDocumentEvent({
+              await documentEvents.insertDocumentEvent({
                 documentId: document.id,
                 eventType: "create",
                 actorId: input.actorUserId,
@@ -266,7 +330,7 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
       );
     } catch (error) {
       await persistDocumentPolicyDenial(transactions, error);
-      throw error;
+      throw mapDocumentDomainError(error);
     }
   };
 }

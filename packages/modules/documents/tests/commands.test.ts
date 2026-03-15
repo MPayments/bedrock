@@ -6,7 +6,7 @@ import { InvalidStateError } from "@bedrock/shared/core/errors";
 import { createCreateDraftHandler } from "../src/application/commands/create-draft";
 import { createTransitionHandler } from "../src/application/commands/transition";
 import { createUpdateDraftHandler } from "../src/application/commands/update-draft";
-import type { Document } from "../src/domain/types";
+import type { Document } from "../src/domain/document";
 import type { DocumentModule } from "../src/plugins";
 
 function makeDocument(overrides: Partial<Document> = {}): Document {
@@ -202,6 +202,7 @@ function createContext(options: {
       ledgerReadService: {
         listOperationDetails: vi.fn(async () => new Map()),
       } as any,
+      now: () => now,
       log: {
         debug: vi.fn(),
       },
@@ -215,14 +216,21 @@ function createContext(options: {
         canPost: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
         canCancel: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
       },
-      repository,
+      documentEvents: repository,
+      documentLinks: repository,
+      documentOperations: repository,
+      documentSnapshots: repository,
+      documentsQuery: repository,
       registry,
       transactions: {
         withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
           run({
+            documentEvents: repository,
+            documentLinks: repository,
+            documentOperations: repository,
+            documentsCommand: repository,
             idempotency,
             moduleRuntime: {} as any,
-            repository,
             ledger,
           }),
         ),

@@ -4,26 +4,31 @@ import type {
   DocumentTransitionInput,
   DocumentWithOperationId,
 } from "../../contracts/service";
-import type { DocumentsIdempotencyScope } from "../../domain/idempotency";
-import type { Document } from "../../domain/types";
+import type { Document } from "../../domain/document";
+import type { DocumentModule } from "../../plugins";
 import type {
-  DocumentModule,
-} from "../../plugins";
-import type {
-  DocumentsLedgerCommitPort,
-  DocumentsRepository,
-} from "../ports";
+  DocumentEventsRepository,
+  DocumentOperationsRepository,
+  DocumentsCommandRepository,
+} from "../documents/ports";
+import type { DocumentsLedgerCommitPort } from "../posting/ports";
 import {
   buildDocumentWithOperationId,
   loadDocumentOrThrow,
   loadDocumentWithOperationId,
 } from "../shared/actions";
 import type { DocumentsServiceContext } from "../shared/context";
-import { createModuleContext, resolveModuleForDocument } from "../shared/module-resolution";
+import { mapDocumentDomainError } from "../shared/map-domain-error";
+import {
+  createModuleContext,
+  resolveModuleForDocument,
+} from "../shared/module-resolution";
+import type { DocumentsIdempotencyScope } from "../shared/documents-idempotency";
 import { persistDocumentPolicyDenial } from "../shared/policy";
 
 export interface DocumentTransitionIdempotencyContext {
-  repository: DocumentsRepository;
+  documentsCommand: DocumentsCommandRepository;
+  documentOperations: DocumentOperationsRepository;
   document: Document;
   module: DocumentModule;
 }
@@ -43,7 +48,9 @@ export interface DocumentTransitionExecutionResult {
 
 export interface DocumentTransitionExecutionContext {
   services: DocumentsServiceContext;
-  repository: DocumentsRepository;
+  documentsCommand: DocumentsCommandRepository;
+  documentEvents: DocumentEventsRepository;
+  documentOperations: DocumentOperationsRepository;
   ledger: DocumentsLedgerCommitPort;
   input: DocumentTransitionInput;
   moduleContext: ReturnType<typeof createModuleContext>;
@@ -69,13 +76,13 @@ export type DocumentTransitionSpecs = Record<
 >;
 
 async function insertTransitionEvents(input: {
-  repository: DocumentsRepository;
+  documentEvents: DocumentEventsRepository;
   transition: DocumentTransitionInput;
   events: DocumentTransitionEvent[];
   requestContext?: DocumentRequestContext;
 }) {
   for (const event of input.events) {
-    await input.repository.insertDocumentEvent({
+    await input.documentEvents.insertDocumentEvent({
       documentId: input.transition.documentId,
       eventType: event.eventType,
       actorId: input.transition.actorUserId,
@@ -99,18 +106,26 @@ export async function runDocumentTransition(input: {
 
   try {
     return await services.transactions.withTransaction(
-      async ({ idempotency, ledger, moduleRuntime, repository }) => {
+      async ({
+        documentEvents,
+        documentOperations,
+        documentsCommand,
+        idempotency,
+        ledger,
+        moduleRuntime,
+      }) => {
         let preparedForIdempotency: DocumentTransitionIdempotencyContext | null =
           null;
 
         if (spec.needsDocumentForIdempotencyKey) {
-          const document = await loadDocumentOrThrow(repository, {
+          const document = await loadDocumentOrThrow(documentsCommand, {
             documentId: transition.documentId,
             docType: transition.docType,
             forUpdate: true,
           });
           preparedForIdempotency = {
-            repository,
+            documentsCommand,
+            documentOperations,
             document,
             module: resolveModuleForDocument(services.registry, document),
           };
@@ -123,7 +138,7 @@ export async function runDocumentTransition(input: {
 
         const moduleContext = createModuleContext({
           actorUserId: transition.actorUserId,
-          now: new Date(),
+          now: services.now(),
           log: services.log,
           operationIdempotencyKey: null,
           runtime: moduleRuntime,
@@ -144,26 +159,26 @@ export async function runDocumentTransition(input: {
             documentId: result.document.id,
             postingOperationId: result.postingOperationId,
           }),
-          loadReplayResult: async ({
-            storedResult,
-          }: {
-            storedResult:
-              | { documentId?: string; postingOperationId?: string | null }
-              | null;
-          }) =>
-            loadDocumentWithOperationId(repository, {
-              docType: transition.docType,
-              documentId: String(storedResult?.documentId ?? transition.documentId),
-              postingOperationId:
-                typeof storedResult?.postingOperationId === "string"
-                  ? storedResult.postingOperationId
-                  : null,
-              registry: services.registry,
-            }),
+          loadReplayResult: async ({ storedResult }) =>
+            loadDocumentWithOperationId(
+              {
+                documents: documentsCommand,
+                documentOperations,
+              },
+              {
+                docType: transition.docType,
+                documentId: String(storedResult?.documentId ?? transition.documentId),
+                postingOperationId:
+                  typeof storedResult?.postingOperationId === "string"
+                    ? storedResult.postingOperationId
+                    : null,
+                registry: services.registry,
+              },
+            ),
           handler: async () => {
             const document =
               preparedForIdempotency?.document ??
-              (await loadDocumentOrThrow(repository, {
+              (await loadDocumentOrThrow(documentsCommand, {
                 documentId: transition.documentId,
                 docType: transition.docType,
                 forUpdate: true,
@@ -174,7 +189,9 @@ export async function runDocumentTransition(input: {
 
             const result = await spec.execute({
               services,
-              repository,
+              documentsCommand,
+              documentEvents,
+              documentOperations,
               ledger,
               input: transition,
               moduleContext,
@@ -184,7 +201,7 @@ export async function runDocumentTransition(input: {
 
             if (result.events && result.events.length > 0) {
               await insertTransitionEvents({
-                repository,
+                documentEvents,
                 transition,
                 events: result.events,
                 requestContext: transition.requestContext,
@@ -202,6 +219,9 @@ export async function runDocumentTransition(input: {
     );
   } catch (error) {
     await persistDocumentPolicyDenial(services.transactions, error);
-    throw error;
+    throw mapDocumentDomainError(error, {
+      documentId: transition.documentId,
+      docType: transition.docType,
+    });
   }
 }

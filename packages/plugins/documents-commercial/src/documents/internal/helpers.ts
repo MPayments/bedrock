@@ -73,19 +73,25 @@ export async function loadInvoice(
   runtime: CommercialDocumentRuntime,
   invoiceDocumentId: string,
   forUpdate = false,
-) {
-  return deps.documentRelations.loadInvoice({
+): Promise<Document> {
+  const invoice = await deps.documentRelations.loadInvoice({
     runtime,
     invoiceDocumentId,
     forUpdate,
   });
+
+  if (!invoice) {
+    throw new DocumentValidationError("invoice document is missing");
+  }
+
+  return invoice;
 }
 
 export async function getInvoiceExchangeChild(
   deps: Pick<CommercialModuleDeps, "documentRelations">,
   runtime: CommercialDocumentRuntime,
   invoiceDocumentId: string,
-) {
+): Promise<Document | null> {
   return deps.documentRelations.getInvoiceExchangeChild({
     runtime,
     invoiceDocumentId,
@@ -96,7 +102,7 @@ export async function getInvoiceAcceptanceChild(
   deps: Pick<CommercialModuleDeps, "documentRelations">,
   runtime: CommercialDocumentRuntime,
   invoiceDocumentId: string,
-) {
+): Promise<Document | null> {
   return deps.documentRelations.getInvoiceAcceptanceChild({
     runtime,
     invoiceDocumentId,
@@ -107,7 +113,7 @@ export async function getExchangeAcceptance(
   deps: Pick<CommercialModuleDeps, "documentRelations">,
   runtime: CommercialDocumentRuntime,
   exchangeDocumentId: string,
-) {
+): Promise<Document | null> {
   return deps.documentRelations.getExchangeAcceptance({
     runtime,
     exchangeDocumentId,

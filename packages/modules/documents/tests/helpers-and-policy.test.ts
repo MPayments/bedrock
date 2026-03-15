@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { DomainError } from "@bedrock/shared/core/domain";
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
 import {
@@ -19,16 +20,14 @@ import {
   enforceDocumentPolicy,
   persistDocumentPolicyDenial,
 } from "../src/application/shared/policy";
-import {
-  assertDocumentIsActive,
-  buildDocNo,
-  buildDocumentEventState,
-} from "../src/domain/document-state";
+import { buildDocumentEventState } from "../src/application/shared/document-event-state";
+import { assertDocumentIsActive } from "../src/domain/document";
+import { buildDocNo } from "../src/domain/document";
 import {
   buildSummary,
   normalizeSearchText,
 } from "../src/domain/document-summary";
-import type { Document } from "../src/domain/types";
+import type { Document } from "../src/domain/document";
 import {
   DocumentGraphError,
   DocumentPolicyDeniedError,
@@ -40,7 +39,7 @@ import {
   inArraySafe,
   resolveDocumentsSort,
 } from "../src/infra/drizzle/query-helpers";
-import { createDrizzleDocumentsRepository } from "../src/infra/drizzle/repository";
+import { createDrizzleDocumentEventsRepository } from "../src/infra/drizzle/repository";
 import { schema } from "../src/infra/drizzle/schema";
 import { toStoredJson } from "../src/infra/drizzle/stored-json";
 import type { DocumentModule } from "../src/plugins";
@@ -77,7 +76,7 @@ describe("document helpers", () => {
         makeDocument({ lifecycleStatus: "cancelled" }),
         "submitted",
       ),
-    ).toThrow(InvalidStateError);
+    ).toThrow(DomainError);
   });
 
   it("resolves modules and wraps registry misses", () => {
@@ -222,7 +221,7 @@ describe("document helpers", () => {
         })),
       })),
     };
-    const repository = createDrizzleDocumentsRepository(tx as any);
+    const repository = createDrizzleDocumentEventsRepository(tx as any);
 
     await repository.insertDocumentEvent({
       documentId: "doc-1",
@@ -355,7 +354,7 @@ describe("document internal policy", () => {
     const transactions = {
       withTransaction: vi.fn(async (fn: (context: unknown) => Promise<void>) =>
         fn({
-          repository: createDrizzleDocumentsRepository(tx as any),
+          documentEvents: createDrizzleDocumentEventsRepository(tx as any),
         }),
       ),
     };

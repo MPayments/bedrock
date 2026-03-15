@@ -12,12 +12,17 @@ export function createGetDocumentDetailsQuery(
 ) {
   const {
     accountingPeriods,
+    documentEvents,
+    documentLinks,
+    documentOperations,
+    documentSnapshots,
+    documentsQuery,
     ledgerReadService,
     log,
     moduleRuntime,
+    now,
     policy,
     registry,
-    repository,
   } = context;
 
   return async function getDocumentDetails(
@@ -25,7 +30,7 @@ export function createGetDocumentDetailsQuery(
     documentId: string,
     actorUserId = "system",
   ): Promise<DocumentDetails> {
-    const document = await repository.findDocumentByType({
+    const document = await documentsQuery.findDocumentByType({
       documentId,
       docType,
     });
@@ -50,14 +55,14 @@ export function createGetDocumentDetailsQuery(
     const moduleContext = module
       ? createModuleContext({
           actorUserId,
-          now: new Date(),
+          now: now(),
           log,
           operationIdempotencyKey: null,
           runtime: moduleRuntime,
         })
       : null;
 
-    const links = await repository.listDocumentLinks(document.id);
+    const links = await documentLinks.listDocumentLinks(document.id);
     const parentIds = links
       .filter(
         (link) =>
@@ -87,17 +92,17 @@ export function createGetDocumentDetailsQuery(
     const relatedIds = Array.from(
       new Set([...parentIds, ...dependsOnIds, ...compensatesIds, ...childIds]),
     );
-    const [relatedDocs, documentOperations, events, snapshot] = await Promise.all([
-      repository.listDocumentsByIds(relatedIds),
-      repository.listDocumentOperations(document.id),
-      repository.listDocumentEvents(document.id),
-      repository.findDocumentSnapshot(document.id),
+    const [relatedDocs, operations, events, snapshot] = await Promise.all([
+      documentsQuery.listDocumentsByIds(relatedIds),
+      documentOperations.listDocumentOperations(document.id),
+      documentEvents.listDocumentEvents(document.id),
+      documentSnapshots.findDocumentSnapshot(document.id),
     ]);
     const relatedById = new Map(relatedDocs.map((item) => [item.id, item]));
     const ledgerOperationsById = await ledgerReadService.listOperationDetails(
-      documentOperations.map((operation) => operation.operationId),
+      operations.map((operation) => operation.operationId),
     );
-    const ledgerOperations = documentOperations.map(
+    const ledgerOperations = operations.map(
       (operation) => ledgerOperationsById.get(operation.operationId) ?? null,
     );
 
@@ -119,7 +124,7 @@ export function createGetDocumentDetailsQuery(
       }
     }
     const postingOperationId =
-      documentOperations.find((operation) => operation.kind === "post")
+      operations.find((operation) => operation.kind === "post")
         ?.operationId ?? null;
     const allowedActions = await resolveDocumentAllowedActionsForActor({
       accountingPeriods,
@@ -127,6 +132,7 @@ export function createGetDocumentDetailsQuery(
       registry,
       policy,
       log,
+      now,
       actorUserId,
       document,
     });
@@ -148,7 +154,7 @@ export function createGetDocumentDetailsQuery(
       compensates: compensatesIds
         .map((id) => relatedById.get(id))
         .filter(Boolean) as typeof relatedDocs,
-      documentOperations,
+      documentOperations: operations,
       ledgerOperations,
       computed: details?.computed,
       extra: details?.extra,

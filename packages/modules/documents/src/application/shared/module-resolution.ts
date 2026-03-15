@@ -1,7 +1,7 @@
 import type { DocumentPostingPlan } from "@bedrock/accounting";
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
-import type { Document } from "../../domain/types";
+import type { Document } from "../../domain/document";
 import { DocumentRegistryError } from "../../errors";
 import type {
   DocumentModule,

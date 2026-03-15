@@ -12,15 +12,22 @@ import {
 import type { DocumentsServiceContext } from "../shared/context";
 
 export function createListDocumentsQuery(context: DocumentsServiceContext) {
-  const { accountingPeriods, log, moduleRuntime, policy, registry, repository } =
-    context;
+  const {
+    accountingPeriods,
+    documentsQuery,
+    log,
+    moduleRuntime,
+    now,
+    policy,
+    registry,
+  } = context;
 
   return async function listDocuments(
     input?: ListDocumentsQuery,
     actorUserId?: string,
   ): Promise<PaginatedList<DocumentWithOperationId>> {
     const query = ListDocumentsQuerySchema.parse(input ?? {});
-    const { rows, total } = await repository.listDocuments(query);
+    const { rows, total } = await documentsQuery.listDocuments(query);
     const allowedActionsByDocumentId = actorUserId
       ? await resolveDocumentsAllowedActionsForActor({
           accountingPeriods,
@@ -28,6 +35,7 @@ export function createListDocumentsQuery(context: DocumentsServiceContext) {
           registry,
           policy,
           log,
+          now,
           actorUserId,
           documents: rows.map((row) => row.document),
         })

@@ -2,13 +2,13 @@ export {
   DOCUMENT_ACTIONS,
   isDocumentActionAllowed,
   resolveDocumentAllowedActions,
-} from "./domain/state-machine";
-export type { DocumentAction } from "./domain/state-machine";
+} from "./domain/document-workflow";
+export type { DocumentAction } from "./domain/document-workflow";
 
 export {
   SYSTEM_ONLY_DOCUMENT_TYPES,
   isSystemOnlyDocumentType,
-} from "./domain/doc-type-rules";
+} from "./domain/doc-type";
 
 export type { DocumentSummaryFields } from "./domain/document-summary";
 export type {
@@ -21,6 +21,8 @@ export type {
   DocumentLinkType,
   DocumentOperation,
   DocumentPostingStatus,
-  DocumentSnapshot,
   DocumentSubmissionStatus,
-} from "./domain/types";
+} from "./domain/document";
+export type {
+  DocumentPostingSnapshot as DocumentSnapshot,
+} from "./domain/document";

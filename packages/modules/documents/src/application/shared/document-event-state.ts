@@ -1,20 +1,6 @@
-import { InvalidStateError } from "@bedrock/shared/core/errors";
+import type { DocumentSnapshot } from "../../domain/document";
 
-import type { Document } from "./types";
-
-export function buildDocNo(prefix: string, documentId: string) {
-  return `${prefix}-${documentId.slice(0, 8).toUpperCase()}`;
-}
-
-export function assertDocumentIsActive(document: Document, action: string) {
-  if (document.lifecycleStatus !== "active") {
-    throw new InvalidStateError(
-      `Only active documents can be ${action}`,
-    );
-  }
-}
-
-export function buildDocumentEventState(document: Document) {
+export function buildDocumentEventState(document: DocumentSnapshot) {
   return {
     id: document.id,
     docType: document.docType,

@@ -4,9 +4,9 @@ import type { DocumentPostingPlan } from "@bedrock/accounting";
 import type { Logger } from "@bedrock/platform/observability/logger";
 
 import type { DocumentsReadModel } from "./contracts/read-model";
+import type { Document, DocumentInitialLink } from "./domain/document";
 import type { DocumentSummaryFields } from "./domain/document-summary";
-import type { DocumentAction } from "./domain/state-machine";
-import type { Document, DocumentInitialLink } from "./domain/types";
+import type { DocumentAction } from "./domain/document-workflow";
 
 export interface DocumentModuleRuntime {
   documents: Pick<

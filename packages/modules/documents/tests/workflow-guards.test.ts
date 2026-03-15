@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
 import { createTransitionHandler } from "../src/application/commands/transition";
-import type { Document } from "../src/domain/types";
+import type { Document } from "../src/domain/document";
 
 function makeDocument(overrides: Partial<Document> = {}): Document {
   return {
@@ -101,20 +101,37 @@ function createContext(document: Document, module: ReturnType<typeof createModul
         assertOrganizationPeriodsOpen: vi.fn(async () => undefined),
         listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
       },
+      documentEvents: repository,
+      documentLinks: repository,
+      documentOperations: repository,
+      documentSnapshots: repository,
+      documentsQuery: repository,
       ledgerReadService: {
         listOperationDetails: vi.fn(async () => new Map()),
       } as any,
       moduleRuntime: {} as any,
-      policy: undefined,
+      now: () => new Date("2026-03-03T00:00:00.000Z"),
+      policy: {
+        canCreate: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+        canEdit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+        canSubmit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+        canApprove: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+        canReject: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+        canPost: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+        canCancel: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+        approvalMode: vi.fn(),
+      },
       registry,
-      repository,
       transactions: {
         withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
           run({
+            documentEvents: repository,
+            documentLinks: repository,
+            documentOperations: repository,
+            documentsCommand: repository,
             idempotency,
             ledger,
             moduleRuntime: {} as any,
-            repository,
           }),
         ),
       },

@@ -1,4 +1,4 @@
-import type { Document, DocumentLinkType } from "../domain/types";
+import type { Document, DocumentLinkType } from "../domain/document";
 
 export interface DocumentOperationRef {
   operationId: string;

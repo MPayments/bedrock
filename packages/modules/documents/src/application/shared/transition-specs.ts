@@ -1,18 +1,14 @@
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
-import {
-  buildDefaultActionIdempotencyKey,
-} from "./idempotency-key";
+import { buildDefaultActionIdempotencyKey } from "./idempotency-key";
 import { resolveDocumentAccountingSourceId } from "./module-resolution";
 import { enforceDocumentPolicy } from "./policy";
 import type {
   DocumentTransitionAction,
   DocumentTransitionInput,
 } from "../../contracts/service";
-import { collectDocumentOrganizationIds } from "../../domain/accounting-periods";
-import { assertDocumentIsActive, buildDocumentEventState } from "../../domain/document-state";
-import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "../../domain/idempotency";
-import { isDocumentActionAllowed } from "../../domain/state-machine";
+import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
+import { DocumentAggregate } from "../../domain/document";
 import { DocumentPostingNotRequiredError } from "../../errors";
 import type {
   DocumentTransitionEvent,
@@ -20,6 +16,8 @@ import type {
   DocumentTransitionExecutionResult,
   DocumentTransitionSpecs,
 } from "../commands/transition-runtime";
+import { buildDocumentEventState } from "./document-event-state";
+import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "./documents-idempotency";
 
 function buildActionIdempotencyKey(
   action: DocumentTransitionAction,
@@ -46,6 +44,13 @@ function buildTransitionEvent(input: {
   };
 }
 
+function buildWorkflowConfig(context: DocumentTransitionExecutionContext) {
+  return {
+    postingRequired: context.module.postingRequired,
+    allowDirectPostFromDraft: context.module.allowDirectPostFromDraft,
+  };
+}
+
 async function assertOrganizationPeriodsOpenForDocument(input: {
   context: DocumentTransitionExecutionContext;
   document: DocumentTransitionExecutionContext["document"];
@@ -62,30 +67,14 @@ async function assertOrganizationPeriodsOpenForDocument(input: {
 }
 
 async function runSubmit(context: DocumentTransitionExecutionContext) {
-  assertDocumentIsActive(context.document, "submitted");
-
-  const canSubmit = isDocumentActionAllowed({
-    action: "submit",
-    document: context.document,
-    module: {
-      postingRequired: context.module.postingRequired,
-      allowDirectPostFromDraft: context.module.allowDirectPostFromDraft,
-    },
-  });
-
-  if (!canSubmit) {
-    if (
-      context.module.allowDirectPostFromDraft &&
-      context.document.submissionStatus === "draft" &&
-      context.document.lifecycleStatus === "active"
-    ) {
-      throw new InvalidStateError(
-        "Submit action is disabled for this document type; use post",
-      );
-    }
-
-    throw new InvalidStateError("Only draft documents can be submitted");
-  }
+  const before = buildDocumentEventState(context.document);
+  const nextDocument = DocumentAggregate.reconstitute(context.document)
+    .submit({
+      actorUserId: context.input.actorUserId,
+      now: context.services.now(),
+      module: buildWorkflowConfig(context),
+    })
+    .toSnapshot();
 
   await assertOrganizationPeriodsOpenForDocument({
     context,
@@ -103,14 +92,14 @@ async function runSubmit(context: DocumentTransitionExecutionContext) {
     requestContext: context.input.requestContext,
   });
 
-  const before = buildDocumentEventState(context.document);
-  const stored = await context.repository.updateDocument({
+  const stored = await context.documentsCommand.updateDocument({
     documentId: context.document.id,
     docType: context.input.docType,
     patch: {
-      submissionStatus: "submitted",
-      submittedBy: context.input.actorUserId,
-      submittedAt: new Date(),
+      submissionStatus: nextDocument.submissionStatus,
+      submittedBy: nextDocument.submittedBy,
+      submittedAt: nextDocument.submittedAt,
+      updatedAt: nextDocument.updatedAt,
     },
   });
 
@@ -135,20 +124,20 @@ async function runApproveOrReject(
   context: DocumentTransitionExecutionContext,
   mode: "approve" | "reject",
 ) {
-  assertDocumentIsActive(context.document, `${mode}d`);
-
-  if (
-    !isDocumentActionAllowed({
-      action: mode,
-      document: context.document,
-      module: {
-        postingRequired: context.module.postingRequired,
-        allowDirectPostFromDraft: context.module.allowDirectPostFromDraft,
-      },
-    })
-  ) {
-    throw new InvalidStateError("Document is not awaiting approval");
-  }
+  const before = buildDocumentEventState(context.document);
+  const aggregate = DocumentAggregate.reconstitute(context.document);
+  const nextDocument =
+    mode === "approve"
+      ? aggregate.approve({
+          actorUserId: context.input.actorUserId,
+          now: context.services.now(),
+          module: buildWorkflowConfig(context),
+        }).toSnapshot()
+      : aggregate.reject({
+          actorUserId: context.input.actorUserId,
+          now: context.services.now(),
+          module: buildWorkflowConfig(context),
+        }).toSnapshot();
 
   if (mode === "approve") {
     await context.module.canApprove(context.moduleContext, context.document);
@@ -166,21 +155,22 @@ async function runApproveOrReject(
     requestContext: context.input.requestContext,
   });
 
-  const before = buildDocumentEventState(context.document);
-  const stored = await context.repository.updateDocument({
+  const stored = await context.documentsCommand.updateDocument({
     documentId: context.document.id,
     docType: context.input.docType,
     patch:
       mode === "approve"
         ? {
-            approvalStatus: "approved",
-            approvedBy: context.input.actorUserId,
-            approvedAt: new Date(),
+            approvalStatus: nextDocument.approvalStatus,
+            approvedBy: nextDocument.approvedBy,
+            approvedAt: nextDocument.approvedAt,
+            updatedAt: nextDocument.updatedAt,
           }
         : {
-            approvalStatus: "rejected",
-            rejectedBy: context.input.actorUserId,
-            rejectedAt: new Date(),
+            approvalStatus: nextDocument.approvalStatus,
+            rejectedBy: nextDocument.rejectedBy,
+            rejectedAt: nextDocument.rejectedAt,
+            updatedAt: nextDocument.updatedAt,
           },
   });
 
@@ -206,20 +196,14 @@ async function runApproveOrReject(
 }
 
 async function runCancel(context: DocumentTransitionExecutionContext) {
-  if (
-    !isDocumentActionAllowed({
-      action: "cancel",
-      document: context.document,
-      module: {
-        postingRequired: context.module.postingRequired,
-        allowDirectPostFromDraft: context.module.allowDirectPostFromDraft,
-      },
+  const before = buildDocumentEventState(context.document);
+  const nextDocument = DocumentAggregate.reconstitute(context.document)
+    .cancel({
+      actorUserId: context.input.actorUserId,
+      now: context.services.now(),
+      module: buildWorkflowConfig(context),
     })
-  ) {
-    throw new InvalidStateError(
-      "Only active documents in unposted or failed status can be cancelled",
-    );
-  }
+    .toSnapshot();
 
   await assertOrganizationPeriodsOpenForDocument({
     context,
@@ -237,14 +221,14 @@ async function runCancel(context: DocumentTransitionExecutionContext) {
     requestContext: context.input.requestContext,
   });
 
-  const before = buildDocumentEventState(context.document);
-  const stored = await context.repository.updateDocument({
+  const stored = await context.documentsCommand.updateDocument({
     documentId: context.document.id,
     docType: context.input.docType,
     patch: {
-      lifecycleStatus: "cancelled",
-      cancelledBy: context.input.actorUserId,
-      cancelledAt: new Date(),
+      lifecycleStatus: nextDocument.lifecycleStatus,
+      cancelledBy: nextDocument.cancelledBy,
+      cancelledAt: nextDocument.cancelledAt,
+      updatedAt: nextDocument.updatedAt,
     },
   });
 
@@ -271,25 +255,12 @@ async function runRepost(context: DocumentTransitionExecutionContext) {
     docType: context.input.docType,
   });
 
-  if (
-    !isDocumentActionAllowed({
-      action: "repost",
-      document: context.document,
-      module: {
-        postingRequired: context.module.postingRequired,
-        allowDirectPostFromDraft: context.module.allowDirectPostFromDraft,
-      },
-    })
-  ) {
-    throw new InvalidStateError("Only failed documents can be reposted");
-  }
-
   await assertOrganizationPeriodsOpenForDocument({
     context,
     document: context.document,
   });
 
-  const operationId = await context.repository.findPostingOperationId({
+  const operationId = await context.documentOperations.findPostingOperationId({
     documentId: context.document.id,
   });
   if (!operationId) {
@@ -298,16 +269,23 @@ async function runRepost(context: DocumentTransitionExecutionContext) {
     );
   }
 
-  await context.repository.resetPostingOperation({ operationId });
+  await context.documentOperations.resetPostingOperation({ operationId });
 
   const before = buildDocumentEventState(context.document);
-  const stored = await context.repository.updateDocument({
+  const nextDocument = DocumentAggregate.reconstitute(context.document)
+    .resetForRepost({
+      now: context.services.now(),
+    })
+    .toSnapshot();
+
+  const stored = await context.documentsCommand.updateDocument({
     documentId: context.document.id,
     docType: context.input.docType,
     patch: {
-      postingStatus: "posting",
-      postingStartedAt: new Date(),
-      postingError: null,
+      postingStatus: nextDocument.postingStatus,
+      postingStartedAt: nextDocument.postingStartedAt,
+      postingError: nextDocument.postingError,
+      updatedAt: nextDocument.updatedAt,
     },
   });
 
@@ -332,8 +310,6 @@ async function runRepost(context: DocumentTransitionExecutionContext) {
 }
 
 async function runPost(context: DocumentTransitionExecutionContext) {
-  assertDocumentIsActive(context.document, "posted");
-
   const events: DocumentTransitionEvent[] = [];
   let postingDocument = context.document;
 
@@ -353,17 +329,29 @@ async function runPost(context: DocumentTransitionExecutionContext) {
     });
 
     const beforeSubmit = buildDocumentEventState(postingDocument);
-    const submitted = await context.repository.updateDocument({
+    const submitted = DocumentAggregate.reconstitute(postingDocument)
+      .submit({
+        actorUserId: context.input.actorUserId,
+        now: context.services.now(),
+        module: {
+          postingRequired: context.module.postingRequired,
+          allowDirectPostFromDraft: false,
+        },
+      })
+      .toSnapshot();
+
+    const storedSubmitted = await context.documentsCommand.updateDocument({
       documentId: postingDocument.id,
       docType: context.input.docType,
       patch: {
-        submissionStatus: "submitted",
-        submittedBy: context.input.actorUserId,
-        submittedAt: new Date(),
+        submissionStatus: submitted.submissionStatus,
+        submittedBy: submitted.submittedBy,
+        submittedAt: submitted.submittedAt,
+        updatedAt: submitted.updatedAt,
       },
     });
 
-    if (!submitted) {
+    if (!storedSubmitted) {
       throw new InvalidStateError("Failed to submit document before posting");
     }
 
@@ -371,35 +359,24 @@ async function runPost(context: DocumentTransitionExecutionContext) {
       buildTransitionEvent({
         eventType: "submit",
         before: beforeSubmit,
-        after: buildDocumentEventState(submitted),
+        after: buildDocumentEventState(storedSubmitted),
       }),
     );
 
-    postingDocument = submitted;
+    postingDocument = storedSubmitted;
   }
 
-  if (
-    !isDocumentActionAllowed({
-      action: "post",
-      document: postingDocument,
+  const startedPosting = DocumentAggregate.reconstitute(postingDocument)
+    .startPosting({
+      actorUserId: context.input.actorUserId,
+      now: context.services.now(),
       module: {
         postingRequired: context.module.postingRequired,
-        allowDirectPostFromDraft: context.module.allowDirectPostFromDraft,
+        allowDirectPostFromDraft: false,
       },
     })
-  ) {
-    if (
-      !context.module.postingRequired ||
-      postingDocument.postingStatus === "not_required"
-    ) {
-      throw new DocumentPostingNotRequiredError(
-        context.document.id,
-        context.document.docType,
-      );
-    }
-
-    throw new InvalidStateError("Document is not ready for posting");
-  }
+    .document
+    .toSnapshot();
 
   if (!context.module.buildPostingPlan) {
     throw new DocumentPostingNotRequiredError(
@@ -408,13 +385,11 @@ async function runPost(context: DocumentTransitionExecutionContext) {
     );
   }
 
-  const existingOperationId = await context.repository.findPostingOperationId({
+  const existingOperationId = await context.documentOperations.findPostingOperationId({
     documentId: postingDocument.id,
   });
   if (existingOperationId) {
-    throw new InvalidStateError(
-      "Document already has a posting operation",
-    );
+    throw new InvalidStateError("Document already has a posting operation");
   }
 
   await assertOrganizationPeriodsOpenForDocument({
@@ -458,20 +433,22 @@ async function runPost(context: DocumentTransitionExecutionContext) {
   });
 
   const ledgerResult = await context.ledger.commit(resolved.intent);
-  await context.repository.insertDocumentOperation({
+  await context.documentOperations.insertDocumentOperation({
     documentId: postingDocument.id,
     operationId: ledgerResult.operationId,
     kind: "post",
   });
 
   const beforePost = buildDocumentEventState(postingDocument);
-  const stored = await context.repository.updateDocument({
+
+  const stored = await context.documentsCommand.updateDocument({
     documentId: postingDocument.id,
     docType: context.input.docType,
     patch: {
-      postingStatus: "posting",
-      postingStartedAt: new Date(),
-      postingError: null,
+      postingStatus: startedPosting.postingStatus,
+      postingStartedAt: startedPosting.postingStartedAt,
+      postingError: startedPosting.postingError,
+      updatedAt: startedPosting.updatedAt,
     },
   });
 

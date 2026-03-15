@@ -1,3 +1,5 @@
+import { dedupeIds } from "@bedrock/shared/core/domain";
+
 const ORGANIZATION_ID_PAYLOAD_KEYS = [
   "organizationId",
   "sourceOrganizationId",
@@ -11,12 +13,12 @@ function readOrganizationIdsFromPayload(
     return [];
   }
 
-  const ids = ORGANIZATION_ID_PAYLOAD_KEYS.flatMap((key) => {
-    const value = payload[key];
-    return typeof value === "string" && value.trim().length > 0 ? [value] : [];
-  });
-
-  return [...new Set(ids)];
+  return dedupeIds(
+    ORGANIZATION_ID_PAYLOAD_KEYS.flatMap((key) => {
+      const value = payload[key];
+      return typeof value === "string" && value.trim().length > 0 ? [value] : [];
+    }),
+  );
 }
 
 export function collectDocumentOrganizationIds(input: {

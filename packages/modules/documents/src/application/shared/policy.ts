@@ -1,14 +1,14 @@
 import { resolveDocumentPolicyDecision } from "./action-dispatch";
 import type { DocumentRequestContext } from "../../contracts/service";
-import { buildDocumentEventState } from "../../domain/document-state";
-import type { Document } from "../../domain/types";
+import type { Document } from "../../domain/document";
 import { DocumentPolicyDeniedError } from "../../errors";
 import type {
   DocumentActionPolicyService,
   DocumentModule,
   DocumentModuleContext,
 } from "../../plugins";
-import type { DocumentsTransactionsPort } from "../ports";
+import type { DocumentsTransactionsPort } from "../shared/external-ports";
+import { buildDocumentEventState } from "./document-event-state";
 
 interface EnforceDocumentPolicyInput {
   policy: DocumentActionPolicyService;
@@ -70,8 +70,8 @@ export async function persistDocumentPolicyDenial(
     return;
   }
 
-  await transactions.withTransaction(async ({ repository }) => {
-    await repository.insertDocumentEvent({
+  await transactions.withTransaction(async ({ documentEvents }) => {
+    await documentEvents.insertDocumentEvent({
       documentId: error.documentId!,
       eventType: "policy_denied",
       actorId: error.actorUserId ?? null,

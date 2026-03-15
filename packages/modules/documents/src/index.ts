@@ -1,13 +1,24 @@
-export { createDocumentsService } from "./documents";
-export type { DocumentsService } from "./documents";
+export { createDocumentsService } from "./service";
+export type { DocumentsService } from "./service";
+export type {
+  DocumentEventsRepository,
+  DocumentLinksRepository,
+  DocumentOperationsRepository,
+  DocumentSnapshotsRepository,
+  DocumentsCommandRepository,
+  DocumentsRepositoryEventInput,
+  DocumentWithPostingOperationRow as DocumentsRepositoryRow,
+  DocumentsQueryRepository,
+} from "./application/documents/ports";
 export type {
   DocumentsAccountingPeriodsPort,
   DocumentsAccountingPort,
-  DocumentsIdempotencyPort,
   DocumentsLedgerCommitPort,
   DocumentsLedgerReadPort,
-  DocumentsRepository,
+} from "./application/posting/ports";
+export type {
+  DocumentsIdempotencyPort,
   DocumentsTransactionsPort,
-} from "./application/ports";
+} from "./application/shared/external-ports";
 export { createDefaultDocumentActionPolicyService } from "./application/policy/default-action-policy";
 export * from "./errors";
