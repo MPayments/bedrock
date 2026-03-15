@@ -2,15 +2,16 @@ import {
   createActivatePackForScopeCommand,
   createStoreCompiledPackVersionCommand,
 } from "./commands";
+import { type AccountingPacksContext } from "./context";
+import { rethrowAccountingPacksDomainError } from "./map-domain-error";
 import type { AccountingPacksServicePorts } from "./ports";
 import {
   createLoadActiveCompiledPackForBookQuery,
   createLoadCompiledPackByChecksumQuery,
   createResolvePostingPlanQuery,
 } from "./queries";
-import { type AccountingPacksContext } from "./types";
 import {
-  compilePack,
+  compilePack as compileDomainPack,
   type AccountingPackDefinition,
   type CompiledPack,
   type ResolvePostingPlanInput,
@@ -46,7 +47,15 @@ export interface AccountingPacksService {
   validatePackDefinition: typeof validatePackDefinition;
 }
 
-export { compilePack, validatePackDefinition };
+export function compilePack(definition: AccountingPackDefinition): CompiledPack {
+  try {
+    return compileDomainPack(definition);
+  } catch (error) {
+    rethrowAccountingPacksDomainError(error);
+  }
+}
+
+export { validatePackDefinition };
 
 export function createAccountingPacksHandlers(
   deps: {
@@ -57,8 +66,10 @@ export function createAccountingPacksHandlers(
   const context: AccountingPacksContext = {
     defaultCompiledPack,
     cache: deps.cache,
-    repository: deps.repository,
-    withTransaction: deps.withTransaction,
+    queries: deps.queries,
+    commands: deps.commands,
+    runInTransaction: deps.runInTransaction,
+    now: deps.now ?? (() => new Date()),
     assertBooksBelongToInternalLedgerOrganizations:
       deps.assertBooksBelongToInternalLedgerOrganizations,
   };

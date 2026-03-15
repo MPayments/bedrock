@@ -1,8 +1,8 @@
-import type { AccountingPeriodsRepository } from "./ports";
+import type { AccountingPeriodsQueryRepository } from "./ports";
 import { normalizeMonthStart } from "../../domain/periods";
 
 export function createIsOrganizationPeriodClosedQuery(input: {
-  repository: AccountingPeriodsRepository;
+  repository: AccountingPeriodsQueryRepository;
 }) {
   const { repository } = input;
 
@@ -21,7 +21,7 @@ export function createIsOrganizationPeriodClosedQuery(input: {
 }
 
 export function createListClosedOrganizationIdsForPeriodQuery(input: {
-  repository: AccountingPeriodsRepository;
+  repository: AccountingPeriodsQueryRepository;
 }) {
   const { repository } = input;
 

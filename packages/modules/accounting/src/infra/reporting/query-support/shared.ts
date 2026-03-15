@@ -1,7 +1,7 @@
 import type { BalancesQueries } from "@bedrock/balances/queries";
-import type { CounterpartiesQueries } from "@bedrock/parties/queries";
 import type { LedgerQueries } from "@bedrock/ledger/queries";
 import type { OrganizationsQueries } from "@bedrock/organizations/queries";
+import type { CounterpartiesQueries } from "@bedrock/parties/queries";
 
 import {
   parseMinorAmount,

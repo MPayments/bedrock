@@ -2,7 +2,7 @@ import type {
   CompiledPack,
   ResolvePostingPlanInput,
   ResolvePostingPlanResult,
-} from "@bedrock/accounting/packs";
+} from "@bedrock/accounting";
 import type {
   CommitResult,
   LedgerOperationDetails,

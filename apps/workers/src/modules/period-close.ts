@@ -2,25 +2,19 @@ import { asc, eq } from "drizzle-orm";
 
 import {
   createAccountingService,
-  createDrizzleAccountingChartRepository,
-} from "@bedrock/accounting";
-import {
+  createAccountingChartService,
   createAccountingPacksService,
-  createDrizzleAccountingPacksRepository,
-  createInMemoryAccountingCompiledPackCache,
-} from "@bedrock/accounting/packs";
-import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
-import {
   createAccountingClosePackageSnapshotPort,
   createAccountingPeriodsService,
-  createDrizzleAccountingPeriodsRepository,
-  type AccountingPeriodsService,
-} from "@bedrock/accounting/periods";
-import {
   createAccountingReportQueries,
   createAccountingReportsContext,
+  createInMemoryAccountingCompiledPackCache,
+  createDrizzleAccountingPeriodsCommandRepository,
+  createDrizzleAccountingPeriodsQueryRepository,
   createDrizzleAccountingReportsRepository,
-} from "@bedrock/accounting/reports";
+  type AccountingPeriodsService,
+} from "@bedrock/accounting";
+import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { createBalancesQueries } from "@bedrock/balances/queries";
 import { createPartiesQueries } from "@bedrock/parties/queries";
 import {
@@ -40,7 +34,7 @@ import { createOrganizationsQueries } from "@bedrock/organizations/queries";
 import { user } from "@bedrock/platform/auth-model/schema";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Queryable, Transaction } from "@bedrock/platform/persistence";
+import type { Transaction } from "@bedrock/platform/persistence";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 import type { BedrockWorker } from "@bedrock/platform/worker-runtime";
 import { createPeriodCloseDocumentModule } from "@bedrock/plugin-documents-ifrs";
@@ -51,11 +45,11 @@ import {
 } from "@bedrock/workflow-period-close";
 
 function createDocumentsModuleRuntime(
-  queryable: Queryable,
+  database: Database | Transaction,
 ): DocumentModuleRuntime {
   return {
-    documents: createDrizzleDocumentsReadModel({ db: queryable }),
-    withQueryable: (run) => run(queryable),
+    documents: createDrizzleDocumentsReadModel({ db: database }),
+    withQueryable: (run) => run(database),
   };
 }
 
@@ -142,13 +136,13 @@ async function createPeriodCloseForOrganization(input: {
   return true;
 }
 
-function createAccountingReportRuntime(queryable: Queryable) {
-  const balancesQueries = createBalancesQueries({ db: queryable });
-  const partiesQueries = createPartiesQueries({ db: queryable });
-  const documentsReadModel = createDrizzleDocumentsReadModel({ db: queryable });
-  const ledgerQueries = createLedgerQueries({ db: queryable });
-  const organizationsQueries = createOrganizationsQueries({ db: queryable });
-  const reportsRepository = createDrizzleAccountingReportsRepository(queryable);
+function createAccountingReportRuntime(database: Database | Transaction) {
+  const balancesQueries = createBalancesQueries({ db: database });
+  const partiesQueries = createPartiesQueries({ db: database });
+  const documentsReadModel = createDrizzleDocumentsReadModel({ db: database });
+  const ledgerQueries = createLedgerQueries({ db: database });
+  const organizationsQueries = createOrganizationsQueries({ db: database });
+  const reportsRepository = createDrizzleAccountingReportsRepository(database);
   const reportContext = createAccountingReportsContext({
     balancesQueries,
     counterpartiesQueries: partiesQueries.counterparties,
@@ -168,31 +162,33 @@ function createAccountingReportRuntime(queryable: Queryable) {
 }
 
 function createAccountingPeriodsPort(db: Database): AccountingPeriodsService {
-  function buildService(queryable: Queryable): AccountingPeriodsService {
+  function buildService(database: Database | Transaction): AccountingPeriodsService {
     const { ledgerQueries, organizationsQueries, reportQueries } =
-      createAccountingReportRuntime(queryable);
-    const repository = createDrizzleAccountingPeriodsRepository(queryable);
+      createAccountingReportRuntime(database);
+    const queries = createDrizzleAccountingPeriodsQueryRepository(database);
+    const commands = createDrizzleAccountingPeriodsCommandRepository(database);
 
     return createAccountingPeriodsService({
-      repository,
+      queries,
+      commands,
       closePackageSnapshotPort: createAccountingClosePackageSnapshotPort({
-        repository,
+        repository: commands,
         assertInternalLedgerOrganization:
           organizationsQueries.assertInternalLedgerOrganization,
         listBooksByOwnerId: ledgerQueries.listBooksByOwnerId,
         reportQueries,
-        documentsReadModel: createDrizzleDocumentsReadModel({ db: queryable }),
+        documentsReadModel: createDrizzleDocumentsReadModel({ db: database }),
       }),
     });
   }
 
   async function runWithService<T>(input: {
-    db?: Queryable;
+    db?: Database | Transaction;
     transactional?: boolean;
     run: (service: AccountingPeriodsService) => Promise<T>;
   }) {
-    const execute = (queryable: Queryable) =>
-      input.run(buildService(queryable));
+    const execute = (database: Database | Transaction) =>
+      input.run(buildService(database));
 
     if (input.db) {
       return execute(input.db);
@@ -208,7 +204,7 @@ function createAccountingPeriodsPort(db: Database): AccountingPeriodsService {
   return {
     isOrganizationPeriodClosed(input) {
       return runWithService({
-        db: (input as { db?: Queryable }).db,
+        db: (input as { db?: Database | Transaction }).db,
         run: (service) =>
           service.isOrganizationPeriodClosed({
             organizationId: input.organizationId,
@@ -218,7 +214,7 @@ function createAccountingPeriodsPort(db: Database): AccountingPeriodsService {
     },
     listClosedOrganizationIdsForPeriod(input) {
       return runWithService({
-        db: (input as { db?: Queryable }).db,
+        db: (input as { db?: Database | Transaction }).db,
         run: (service) =>
           service.listClosedOrganizationIdsForPeriod({
             organizationIds: input.organizationIds,
@@ -228,7 +224,7 @@ function createAccountingPeriodsPort(db: Database): AccountingPeriodsService {
     },
     assertOrganizationPeriodsOpen(input) {
       return runWithService({
-        db: (input as { db?: Queryable }).db,
+        db: (input as { db?: Database | Transaction }).db,
         run: (service) =>
           service.assertOrganizationPeriodsOpen({
             occurredAt: input.occurredAt,
@@ -239,7 +235,7 @@ function createAccountingPeriodsPort(db: Database): AccountingPeriodsService {
     },
     closePeriod(input) {
       return runWithService({
-        db: (input as { db?: Queryable }).db,
+        db: (input as { db?: Database | Transaction }).db,
         transactional: true,
         run: (service) =>
           service.closePeriod({
@@ -254,7 +250,7 @@ function createAccountingPeriodsPort(db: Database): AccountingPeriodsService {
     },
     reopenPeriod(input) {
       return runWithService({
-        db: (input as { db?: Queryable }).db,
+        db: (input as { db?: Database | Transaction }).db,
         transactional: true,
         run: (service) =>
           service.reopenPeriod({
@@ -272,20 +268,16 @@ function createAccountingPeriodsPort(db: Database): AccountingPeriodsService {
 function createPeriodCloseAccountingService(db: Database) {
   const organizationsQueries = createOrganizationsQueries({ db });
   const packsService = createAccountingPacksService({
+    db,
     defaultPackDefinition: rawPackDefinition,
     cache: createInMemoryAccountingCompiledPackCache(),
-    repository: createDrizzleAccountingPacksRepository(db),
-    withTransaction: async (run) =>
-      db.transaction(async (tx) =>
-        run(createDrizzleAccountingPacksRepository(tx)),
-      ),
     assertBooksBelongToInternalLedgerOrganizations:
       organizationsQueries.assertBooksBelongToInternalLedgerOrganizations,
   });
 
   return createAccountingService({
-    repository: createDrizzleAccountingChartRepository(db),
-    packsService,
+    chart: createAccountingChartService({ db }),
+    packs: packsService,
   });
 }
 
@@ -363,8 +355,9 @@ export function createPeriodCloseWorkerDefinition(deps: {
         bookIds,
       ),
   });
+  const accountingService = createPeriodCloseAccountingService(deps.db);
   const documentsService = createDocumentsService({
-    accounting: createPeriodCloseAccountingService(deps.db),
+    accounting: accountingService.packs,
     accountingPeriods,
     ledgerReadService: createLedgerReadService({ db: deps.db }),
     moduleRuntime: createDocumentsModuleRuntime(deps.db),

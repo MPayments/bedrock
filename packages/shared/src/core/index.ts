@@ -5,9 +5,12 @@ export {
   AggregateRoot,
   assertDomain,
   brandId,
+  dedupeIds,
   DomainError,
   Entity,
   invariant,
+  normalizeOptionalText,
+  normalizeRequiredText,
   readCauseString,
   ValueObject,
 } from "./domain";

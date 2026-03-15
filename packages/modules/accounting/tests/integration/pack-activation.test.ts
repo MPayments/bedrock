@@ -6,8 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
   createAccountingPacksService,
-  createDrizzleAccountingPacksRepository,
-} from "@bedrock/accounting/packs";
+} from "@bedrock/accounting";
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { schema as accountingSchema } from "@bedrock/accounting/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
@@ -76,12 +75,8 @@ describe("accounting pack activation integration", () => {
 
   it("stores, activates, and loads a compiled pack for a book scope", async () => {
     const packsService = createAccountingPacksService({
+      db,
       defaultPackDefinition: rawPackDefinition,
-      repository: createDrizzleAccountingPacksRepository(db),
-      withTransaction: async (run) =>
-        db.transaction(async (tx) =>
-          run(createDrizzleAccountingPacksRepository(tx)),
-        ),
     });
     const bookId = randomUUID();
     const internalOrganizationId = await resolveInternalLedgerOrganizationId();
@@ -130,12 +125,8 @@ describe("accounting pack activation integration", () => {
 
   it("resolves the active pack by effective date", async () => {
     const packsService = createAccountingPacksService({
+      db,
       defaultPackDefinition: rawPackDefinition,
-      repository: createDrizzleAccountingPacksRepository(db),
-      withTransaction: async (run) =>
-        db.transaction(async (tx) =>
-          run(createDrizzleAccountingPacksRepository(tx)),
-        ),
     });
     const bookId = randomUUID();
     const internalOrganizationId = await resolveInternalLedgerOrganizationId();

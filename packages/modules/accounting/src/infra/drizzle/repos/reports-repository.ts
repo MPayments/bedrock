@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
-import type { Queryable } from "@bedrock/platform/persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import type { AccountingClosePackageRecord } from "../../../domain/periods";
 import type { LineMapping } from "../../../domain/reports";
@@ -27,7 +27,7 @@ export interface AccountingReportsRepository {
 }
 
 export function createDrizzleAccountingReportsRepository(
-  db: Queryable,
+  db: Database | Transaction,
 ): AccountingReportsRepository {
   return {
     async fetchAccountMeta(accountNos) {

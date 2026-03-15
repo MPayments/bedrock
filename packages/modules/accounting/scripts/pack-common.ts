@@ -10,9 +10,8 @@ import {
   type AccountingPackDefinition,
   compilePack,
   createAccountingPacksService,
-  createDrizzleAccountingPacksRepository,
   type CompiledPack,
-} from "../src/packs";
+} from "../src";
 import { PACK_PACKAGE_NAME } from "../src/packs/bedrock-core-default";
 import { AccountingPackDefinitionSchema } from "../src/packs/schema";
 
@@ -93,12 +92,8 @@ export function createPacksService(
   defaultPackDefinition: AccountingPackDefinition,
 ) {
   return createAccountingPacksService({
+    db,
     defaultPackDefinition,
-    repository: createDrizzleAccountingPacksRepository(db),
-    withTransaction: async (run) =>
-      db.transaction(async (tx) =>
-        run(createDrizzleAccountingPacksRepository(tx)),
-      ),
   });
 }
 

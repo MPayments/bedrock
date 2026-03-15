@@ -2,8 +2,7 @@ import { z } from "zod";
 
 import type { FeesService } from "@bedrock/fees";
 import type { FxService } from "@bedrock/fx";
-import type { AccountingService } from "@bedrock/accounting";
-import type { AccountingReportsService } from "@bedrock/accounting/reports";
+import type { AccountingReportsService, AccountingService } from "@bedrock/accounting";
 import type { BalancesService } from "@bedrock/balances";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DocumentsService } from "@bedrock/documents";

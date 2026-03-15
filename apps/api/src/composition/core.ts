@@ -1,13 +1,10 @@
 import {
   createAccountingService,
-  createDrizzleAccountingChartRepository,
+  createAccountingChartService,
+  createAccountingPacksService,
+  createInMemoryAccountingCompiledPackCache,
   type AccountingService,
 } from "@bedrock/accounting";
-import {
-  createAccountingPacksService,
-  createDrizzleAccountingPacksRepository,
-  createInMemoryAccountingCompiledPackCache,
-} from "@bedrock/accounting/packs";
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { createBalancesService, type BalancesService } from "@bedrock/balances";
 import {
@@ -43,22 +40,17 @@ export interface ApiCoreServices {
 
 function createApiAccountingService(): AccountingService {
   const organizationsQueries = createOrganizationsQueries({ db });
-  const packsRepository = createDrizzleAccountingPacksRepository(db);
   const packsService = createAccountingPacksService({
+    db,
     defaultPackDefinition: rawPackDefinition,
     cache: createInMemoryAccountingCompiledPackCache(),
-    repository: packsRepository,
-    withTransaction: async (run) =>
-      db.transaction(async (tx) =>
-        run(createDrizzleAccountingPacksRepository(tx)),
-      ),
     assertBooksBelongToInternalLedgerOrganizations:
       organizationsQueries.assertBooksBelongToInternalLedgerOrganizations,
   });
 
   return createAccountingService({
-    repository: createDrizzleAccountingChartRepository(db),
-    packsService,
+    chart: createAccountingChartService({ db }),
+    packs: packsService,
   });
 }
 

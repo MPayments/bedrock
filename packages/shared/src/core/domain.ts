@@ -43,6 +43,38 @@ export const assertDomain = invariant;
 
 export type Brand<T, B extends string> = T & { readonly __brand: B };
 
+export function normalizeRequiredText(
+  value: string,
+  code: string,
+  field: string,
+): string {
+  const normalized = value.trim();
+
+  invariant(
+    normalized.length > 0,
+    code,
+    `${field} is required`,
+    { field, value },
+  );
+
+  return normalized;
+}
+
+export function normalizeOptionalText(
+  value: string | null | undefined,
+): string | null {
+  if (value == null) {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+export function dedupeIds(ids: readonly string[]): string[] {
+  return Array.from(new Set(ids.filter(Boolean)));
+}
+
 export function brandId<TBrand extends string>(
   value: string,
   label: TBrand,

@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
 import type { Database, Transaction } from "@bedrock/platform/persistence";
+import { dedupeIds } from "@bedrock/shared/core/domain";
 import {
   resolveSortOrder,
   resolveSortValue,
@@ -15,7 +16,6 @@ import type { Customer } from "../../../contracts";
 import type { CustomerSnapshot } from "../../../domain/customer";
 import {
   buildManagedCustomerGroupCode,
-  dedupeIds,
   type GroupHierarchyNodeSnapshot,
 } from "../../../domain/group-hierarchy";
 import { schema } from "../schema";

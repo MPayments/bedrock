@@ -3,7 +3,7 @@ import type {
   WorkerRunContext,
   WorkerRunResult,
 } from "@bedrock/platform/worker-runtime";
-import { getPreviousCalendarMonthRange } from "@bedrock/accounting/periods";
+import { getPreviousCalendarMonthRange } from "@bedrock/accounting";
 
 function formatPeriodLabel(periodStart: Date): string {
   return periodStart.toISOString().slice(0, 7);

@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-import type { DocumentPostingPlan } from "@bedrock/accounting/packs";
+import type { DocumentPostingPlan } from "@bedrock/accounting";
 import type { Logger } from "@bedrock/platform/observability/logger";
 
 import type { DocumentsReadModel } from "./contracts/read-model";

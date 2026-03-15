@@ -1,11 +1,6 @@
 import { ServiceError } from "@bedrock/shared/core/errors";
 
-export class AccountingError extends ServiceError {
-  constructor(message: string) {
-    super(message);
-    this.name = "AccountingError";
-  }
-}
+export class AccountingError extends ServiceError {}
 
 export class CorrespondenceRuleNotFoundError extends AccountingError {
   constructor(
@@ -16,21 +11,14 @@ export class CorrespondenceRuleNotFoundError extends AccountingError {
     super(
       `Correspondence rule not found for postingCode=${postingCode}, debit=${debitAccountNo}, credit=${creditAccountNo}`,
     );
-    this.name = "CorrespondenceRuleNotFoundError";
   }
 }
 
-export class AccountingPackCompilationError extends AccountingError {
-  constructor(errors: string[]) {
-    super(`Accounting pack compilation failed: ${errors.join("; ")}`);
-    this.name = "AccountingPackCompilationError";
-  }
-}
+export class AccountingPackCompilationError extends AccountingError {}
 
 export class UnknownPostingTemplateError extends AccountingError {
   constructor(templateKey: string) {
     super(`Unknown posting template: ${templateKey}`);
-    this.name = "UnknownPostingTemplateError";
   }
 }
 
@@ -39,21 +27,14 @@ export class AccountingTemplateAccessError extends AccountingError {
     super(
       `Accounting source ${accountingSourceId} is not allowed to use template ${templateKey}`,
     );
-    this.name = "AccountingTemplateAccessError";
   }
 }
 
-export class AccountingPostingPlanValidationError extends AccountingError {
-  constructor(message: string) {
-    super(message);
-    this.name = "AccountingPostingPlanValidationError";
-  }
-}
+export class AccountingPostingPlanValidationError extends AccountingError {}
 
 export class AccountingPackNotFoundError extends AccountingError {
   constructor(checksum: string) {
     super(`Compiled accounting pack not found: ${checksum}`);
-    this.name = "AccountingPackNotFoundError";
   }
 }
 
@@ -67,6 +48,5 @@ export class AccountingPackVersionConflictError extends AccountingError {
     super(
       `Accounting pack ${packKey}@${version} already exists with checksum ${existingChecksum}; cannot replace with ${nextChecksum} because existing checksum is already assigned`,
     );
-    this.name = "AccountingPackVersionConflictError";
   }
 }

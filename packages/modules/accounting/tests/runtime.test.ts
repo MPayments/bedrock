@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createAccountingPacksService,
   type DocumentPostingPlan,
-} from "@bedrock/accounting/packs";
+} from "@bedrock/accounting";
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { POSTING_TEMPLATE_KEY } from "@bedrock/accounting/posting-contracts";
 

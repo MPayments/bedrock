@@ -1,4 +1,4 @@
-import { DomainError } from "@bedrock/shared/core/domain";
+import { dedupeIds, DomainError } from "@bedrock/shared/core/domain";
 
 export interface GroupHierarchyNodeSnapshot {
   id: string;
@@ -13,10 +13,6 @@ export interface GroupMembershipClassificationSnapshot {
 }
 
 export const MANAGED_CUSTOMER_GROUP_PREFIX = "customer:";
-
-export function dedupeIds(ids: readonly string[]): string[] {
-  return Array.from(new Set(ids.filter(Boolean)));
-}
 
 export function buildManagedCustomerGroupCode(customerId: string): string {
   return `${MANAGED_CUSTOMER_GROUP_PREFIX}${customerId}`;

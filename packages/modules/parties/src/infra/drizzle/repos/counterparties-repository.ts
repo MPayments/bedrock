@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
 import type { Database, Transaction } from "@bedrock/platform/persistence";
+import { dedupeIds } from "@bedrock/shared/core/domain";
 import {
   resolveSortOrder,
   resolveSortValue,
@@ -15,10 +16,7 @@ import type {
 import type { Counterparty } from "../../../contracts";
 import { CountryCodeSchema, CounterpartyKindSchema } from "../../../contracts";
 import type { CounterpartySnapshot } from "../../../domain/counterparty";
-import {
-  dedupeIds,
-  type GroupHierarchyNodeSnapshot,
-} from "../../../domain/group-hierarchy";
+import type { GroupHierarchyNodeSnapshot } from "../../../domain/group-hierarchy";
 import { schema } from "../schema";
 import { readMembershipIds, readMembershipMap } from "./shared";
 

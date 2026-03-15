@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm";
 
 import type { Database, Transaction } from "@bedrock/platform/persistence";
+import { dedupeIds } from "@bedrock/shared/core/domain";
 import {
   resolveSortOrder,
   resolveSortValue,
@@ -34,10 +35,6 @@ const SORT_COLUMN_MAP = {
   createdAt: schema.organizations.createdAt,
   updatedAt: schema.organizations.updatedAt,
 } as const;
-
-function dedupeIds(ids: string[]): string[] {
-  return Array.from(new Set(ids.filter(Boolean)));
-}
 
 function toSnapshot(row: OrganizationRow): OrganizationSnapshot {
   return row;

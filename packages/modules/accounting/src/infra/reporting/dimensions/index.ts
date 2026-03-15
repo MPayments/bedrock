@@ -1,6 +1,6 @@
+import type { OrganizationsQueries } from "@bedrock/organizations/queries";
 import type { CounterpartiesQueries } from "@bedrock/parties/queries";
 import type { CustomersQueries } from "@bedrock/parties/queries";
-import type { OrganizationsQueries } from "@bedrock/organizations/queries";
 
 export type DimensionLabelResolver = (input: {
   values: string[];

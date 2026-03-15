@@ -1,6 +1,11 @@
-import { Entity, invariant } from "@bedrock/shared/core/domain";
+import {
+  dedupeIds,
+  Entity,
+  invariant,
+  normalizeOptionalText,
+  normalizeRequiredText,
+} from "@bedrock/shared/core/domain";
 
-import { dedupeIds } from "./group-hierarchy";
 import type { GroupHierarchy } from "./group-hierarchy";
 import {
   PARTY_KIND_VALUES,
@@ -44,31 +49,6 @@ export interface UpdateCounterpartyProps {
   description?: string | null;
   customerId?: string | null;
   groupIds?: string[];
-}
-
-function normalizeRequiredText(
-  value: string,
-  code: string,
-  field: string,
-): string {
-  const normalized = value.trim();
-  invariant(normalized.length > 0, code, `${field} is required`, {
-    field,
-    value,
-  });
-
-  return normalized;
-}
-
-function normalizeOptionalText(
-  value: string | null | undefined,
-): string | null {
-  if (value == null) {
-    return null;
-  }
-
-  const normalized = value.trim();
-  return normalized.length > 0 ? normalized : null;
 }
 
 function normalizePartyKind(value: PartyKind | undefined): PartyKind {

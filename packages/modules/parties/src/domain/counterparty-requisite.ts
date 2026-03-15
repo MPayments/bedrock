@@ -1,4 +1,9 @@
-import { Entity, invariant } from "@bedrock/shared/core/domain";
+import {
+  Entity,
+  invariant,
+  normalizeOptionalText,
+  normalizeRequiredText,
+} from "@bedrock/shared/core/domain";
 import {
   validateRequisiteFields,
   type RequisiteKind,
@@ -87,31 +92,6 @@ export interface UpdateCounterpartyRequisiteProps {
   contact?: string | null;
   notes?: string | null;
   isDefault: boolean;
-}
-
-function normalizeRequiredText(
-  value: string,
-  code: string,
-  field: string,
-): string {
-  const normalized = value.trim();
-  invariant(
-    normalized.length > 0,
-    code,
-    `${field} is required`,
-    { field, value },
-  );
-
-  return normalized;
-}
-
-function normalizeOptionalText(value: string | null | undefined): string | null {
-  if (value == null) {
-    return null;
-  }
-
-  const normalized = value.trim();
-  return normalized.length > 0 ? normalized : null;
 }
 
 function normalizeSnapshot(

@@ -1,35 +1,40 @@
-import type { AccountingPacksService } from "../packs";
 import { createReplaceCorrespondenceRulesCommand } from "./commands";
-import type { AccountingChartRepository } from "./ports";
+import type {
+  AccountingChartCommandRepository,
+  AccountingChartQueryRepository,
+} from "./ports";
 import {
   createListCorrespondenceRulesQuery,
   createListTemplateAccountsQuery,
   createValidatePostingMatrixQuery,
 } from "./queries";
 
-export type AccountingService = ReturnType<
+export type AccountingChartService = ReturnType<
   typeof createAccountingChartHandlers
 >;
 
 export function createAccountingChartHandlers(input: {
-  repository: AccountingChartRepository;
-  packsService: AccountingPacksService;
+  queries: AccountingChartQueryRepository;
+  commands: AccountingChartCommandRepository;
+  now?: () => Date;
 }) {
-  const { repository, packsService } = input;
+  const { commands, queries } = input;
 
-  const listTemplateAccounts = createListTemplateAccountsQuery({ repository });
+  const listTemplateAccounts = createListTemplateAccountsQuery({
+    repository: queries,
+  });
   const listCorrespondenceRules = createListCorrespondenceRulesQuery({
-    repository,
+    repository: queries,
   });
   const replaceCorrespondenceRules = createReplaceCorrespondenceRulesCommand({
-    repository,
+    repository: commands,
+    now: input.now,
   });
   const validatePostingMatrix = createValidatePostingMatrixQuery({
-    repository,
+    repository: queries,
   });
 
   return {
-    ...packsService,
     listTemplateAccounts,
     listCorrespondenceRules,
     replaceCorrespondenceRules,

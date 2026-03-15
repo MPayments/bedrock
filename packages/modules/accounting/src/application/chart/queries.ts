@@ -1,34 +1,40 @@
-import type { AccountingChartRepository } from "./ports";
-import { validatePostingMatrix as validatePostingMatrixRules } from "../../domain/chart";
+import type { AccountingChartQueryRepository } from "./ports";
+import {
+  ChartTemplateAccount,
+  CorrespondenceRule,
+  PostingMatrix,
+} from "../../domain/chart";
 
 export function createListTemplateAccountsQuery(input: {
-  repository: AccountingChartRepository;
+  repository: AccountingChartQueryRepository;
 }) {
   const { repository } = input;
 
   return async function listTemplateAccounts() {
-    return repository.listTemplateAccounts();
+    const rows = await repository.listTemplateAccountSnapshots();
+    return rows.map((row) => ChartTemplateAccount.reconstitute(row).toSnapshot());
   };
 }
 
 export function createListCorrespondenceRulesQuery(input: {
-  repository: AccountingChartRepository;
+  repository: AccountingChartQueryRepository;
 }) {
   const { repository } = input;
 
   return async function listCorrespondenceRules() {
-    return repository.listCorrespondenceRules();
+    const rows = await repository.listCorrespondenceRuleSnapshots();
+    return rows.map((row) => CorrespondenceRule.reconstitute(row).toSnapshot());
   };
 }
 
 export function createValidatePostingMatrixQuery(input: {
-  repository: AccountingChartRepository;
+  repository: AccountingChartQueryRepository;
 }) {
   const { repository } = input;
 
   return async function validatePostingMatrix() {
-    return validatePostingMatrixRules(
+    return new PostingMatrix(
       await repository.readPostingMatrixValidationInput(),
-    );
+    ).validate();
   };
 }

@@ -1,3 +1,5 @@
+import { dedupeIds } from "@bedrock/shared/core/domain";
+
 export interface OrganizationLedgerBookRow {
   id: string;
   ownerId: string | null;
@@ -11,10 +13,6 @@ export interface OrganizationBookOwnershipViolation {
 export interface OrganizationBookOwnershipViolations {
   missingBookIds: string[];
   nonOrganizationOwners: OrganizationBookOwnershipViolation[];
-}
-
-function dedupeIds(ids: string[]): string[] {
-  return Array.from(new Set(ids.filter(Boolean)));
 }
 
 export function findOrganizationBookOwnershipViolations(input: {

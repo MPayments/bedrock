@@ -102,7 +102,7 @@ export function accountingCorrespondenceRoutes(ctx: AppContext) {
 
   return app
     .openapi(listRulesRoute, async (c) => {
-      const rows = await ctx.accountingService.listCorrespondenceRules();
+      const rows = await ctx.accountingService.chart.listCorrespondenceRules();
       return c.json(
         rows.map((row: (typeof rows)[number]) => ({
           id: row.id,
@@ -120,7 +120,7 @@ export function accountingCorrespondenceRoutes(ctx: AppContext) {
       try {
         const body = c.req.valid("json");
         const rows =
-          await ctx.accountingService.replaceCorrespondenceRules(body);
+          await ctx.accountingService.chart.replaceCorrespondenceRules(body);
         return c.json(
           rows.map((row: (typeof rows)[number]) => ({
             id: row.id,
@@ -138,7 +138,7 @@ export function accountingCorrespondenceRoutes(ctx: AppContext) {
       }
     })
     .openapi(validatePostingMatrixRoute, async (c) => {
-      const result = await ctx.accountingService.validatePostingMatrix();
+      const result = await ctx.accountingService.chart.validatePostingMatrix();
       return c.json(result, 200);
     });
 }

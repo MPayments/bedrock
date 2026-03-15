@@ -1,14 +1,11 @@
 import {
   PACK_SCOPE_TYPE_BOOK,
   readCachedPack,
-  requireRepository,
+  requirePacksQueryRepository,
   writeCachedPack,
   type AccountingPacksContext,
-} from "./types";
-import {
-  AccountingPackNotFoundError,
-  AccountingPostingPlanValidationError,
-} from "../../domain/errors";
+} from "./context";
+import { rethrowAccountingPacksDomainError } from "./map-domain-error";
 import {
   hydrateCompiledPack,
   readRequiredBookId,
@@ -17,6 +14,10 @@ import {
   type CompiledPack,
   type ResolvePostingPlanInput,
 } from "../../domain/packs";
+import {
+  AccountingPackNotFoundError,
+  AccountingPostingPlanValidationError,
+} from "../../errors";
 
 export function createLoadCompiledPackByChecksumQuery(input: {
   context: AccountingPacksContext;
@@ -24,24 +25,28 @@ export function createLoadCompiledPackByChecksumQuery(input: {
   const { context } = input;
 
   return async function loadCompiledPackByChecksum(checksum: string) {
-    const runtimeRepository = requireRepository(context);
-    const cached = readCachedPack(context, checksum);
-    if (typeof cached !== "undefined") {
-      return cached;
-    }
+    try {
+      const repository = requirePacksQueryRepository(context);
+      const cached = readCachedPack(context, checksum);
+      if (typeof cached !== "undefined") {
+        return cached;
+      }
 
-    const row = await runtimeRepository.findPackByChecksum(checksum);
-    if (!row) {
-      writeCachedPack(context, checksum, null);
-      return null;
-    }
+      const row = await repository.findPackByChecksum(checksum);
+      if (!row) {
+        writeCachedPack(context, checksum, null);
+        return null;
+      }
 
-    const pack = hydrateCompiledPack(row.compiledJson);
-    writeCachedPack(context, checksum, pack);
-    if (pack.checksum !== checksum) {
-      writeCachedPack(context, pack.checksum, pack);
+      const pack = hydrateCompiledPack(row.compiledJson);
+      writeCachedPack(context, checksum, pack);
+      if (pack.checksum !== checksum) {
+        writeCachedPack(context, pack.checksum, pack);
+      }
+      return pack;
+    } catch (error) {
+      rethrowAccountingPacksDomainError(error);
     }
-    return pack;
   };
 }
 
@@ -61,18 +66,18 @@ export function createLoadActiveCompiledPackForBookQuery(input: {
       );
     }
 
-    if (!context.repository) {
+    if (!context.queries) {
       return context.defaultCompiledPack;
     }
 
-    const at = query.at ?? new Date();
+    const at = query.at ?? context.now();
     const scopeCacheKey = `scope:${PACK_SCOPE_TYPE_BOOK}:${query.bookId}:${at.toISOString()}`;
     const cached = readCachedPack(context, scopeCacheKey);
     if (typeof cached !== "undefined" && cached) {
       return cached;
     }
 
-    const assignment = await context.repository.findActivePackAssignment({
+    const assignment = await context.queries.findActivePackAssignment({
       scopeType: PACK_SCOPE_TYPE_BOOK,
       scopeId: query.bookId,
       effectiveAt: at,
@@ -103,23 +108,27 @@ export function createResolvePostingPlanQuery(input: {
   const { context, loadActiveCompiledPackForBook } = input;
 
   return async function resolvePostingPlan(query: ResolvePostingPlanInput) {
-    const bookId = resolveBookIdContext(query);
+    try {
+      const bookId = resolveBookIdContext(query);
 
-    if (context.assertBooksBelongToInternalLedgerOrganizations) {
-      const requestBookIds = Array.from(
-        new Set(query.plan.requests.map((request) => readRequiredBookId(request))),
-      );
-      await context.assertBooksBelongToInternalLedgerOrganizations(
-        requestBookIds,
-      );
+      if (context.assertBooksBelongToInternalLedgerOrganizations) {
+        const requestBookIds = Array.from(
+          new Set(query.plan.requests.map((request) => readRequiredBookId(request))),
+        );
+        await context.assertBooksBelongToInternalLedgerOrganizations(
+          requestBookIds,
+        );
+      }
+
+      const pack =
+        query.pack ??
+        (await loadActiveCompiledPackForBook({
+          bookId,
+          at: query.at ?? query.postingDate,
+        }));
+      return resolveDomainPostingPlan(query, pack);
+    } catch (error) {
+      rethrowAccountingPacksDomainError(error);
     }
-
-    const pack =
-      query.pack ??
-      (await loadActiveCompiledPackForBook({
-        bookId,
-        at: query.at ?? query.postingDate,
-      }));
-    return resolveDomainPostingPlan(query, pack);
   };
 }

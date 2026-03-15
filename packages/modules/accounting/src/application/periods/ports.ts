@@ -4,7 +4,7 @@ import type {
   AccountingPeriodLockRecord,
 } from "../../domain/periods";
 
-export interface AccountingPeriodsRepository {
+export interface AccountingPeriodsQueryRepository {
   findClosedPeriodLock: (input: {
     organizationId: string;
     periodStart: Date;
@@ -13,6 +13,9 @@ export interface AccountingPeriodsRepository {
     organizationIds: string[];
     periodStart: Date;
   }) => Promise<string[]>;
+}
+
+export interface AccountingPeriodsCommandRepository {
   upsertClosedPeriodLock: (input: {
     organizationId: string;
     periodStart: Date;
@@ -33,7 +36,7 @@ export interface AccountingPeriodsRepository {
   findLatestClosePackage: (input: {
     organizationId: string;
     periodStart: Date;
-  }) => Promise<Pick<AccountingClosePackageRecord, "id"> | null>;
+  }) => Promise<AccountingClosePackageRecord | null>;
   markClosePackageSuperseded: (input: {
     id: string;
     reopenDocumentId?: string | null;

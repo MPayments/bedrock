@@ -1,4 +1,9 @@
-import { Entity, invariant } from "@bedrock/shared/core/domain";
+import {
+  Entity,
+  invariant,
+  normalizeOptionalText,
+  normalizeRequiredText,
+} from "@bedrock/shared/core/domain";
 
 import { parseCountryCode, type CountryCode, type PartyKind } from "./party-kind";
 
@@ -31,32 +36,6 @@ export interface UpdateOrganizationProps {
   description?: string | null;
   country?: string | null;
   kind?: PartyKind;
-}
-
-function normalizeRequiredText(
-  value: string,
-  code: string,
-  field: string,
-): string {
-  const normalized = value.trim();
-
-  invariant(
-    normalized.length > 0,
-    code,
-    `${field} is required`,
-    { field, value },
-  );
-
-  return normalized;
-}
-
-function normalizeOptionalText(value: string | null | undefined): string | null {
-  if (value == null) {
-    return null;
-  }
-
-  const normalized = value.trim();
-  return normalized.length > 0 ? normalized : null;
 }
 
 function normalizeCountry(

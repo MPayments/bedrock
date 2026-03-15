@@ -5,7 +5,7 @@ import { toJsonSafe } from "@bedrock/shared/core/json";
 
 import type {
   AccountingClosePackageSnapshotPort,
-  AccountingPeriodsRepository,
+  AccountingPeriodsCommandRepository,
 } from "../../application/periods/ports";
 import type { AccountingReportQueries } from "../../application/reports/queries/reports";
 
@@ -36,7 +36,7 @@ export interface AccountingPeriodsDocumentsReadModel {
 
 export function createAccountingClosePackageSnapshotPort(input: {
   repository: Pick<
-    AccountingPeriodsRepository,
+    AccountingPeriodsCommandRepository,
     "findMaxClosePackageRevision" | "insertClosePackage"
   >;
   assertInternalLedgerOrganization: (organizationId: string) => Promise<void>;

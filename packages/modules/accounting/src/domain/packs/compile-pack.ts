@@ -1,10 +1,11 @@
 import { sha256Hex } from "@bedrock/platform/crypto";
 import { canonicalJson } from "@bedrock/shared/core/canon";
+import { DomainError } from "@bedrock/shared/core/domain";
 
-import type {
+import {
   CompiledPack,
-  CompiledPostingTemplate,
-  StoredCompiledPack,
+  type CompiledPostingTemplate,
+  type StoredCompiledPack,
 } from "./compiled-pack";
 import type {
   AccountingPackDefinition,
@@ -13,7 +14,6 @@ import type {
   ValueBinding,
 } from "./pack-definition";
 import type { PackValidationResult } from "./pack-validation";
-import { AccountingPackCompilationError } from "../errors";
 
 interface CompiledPackSerializable {
   packKey: string;
@@ -157,7 +157,15 @@ export function compilePack(
 ): CompiledPack {
   const validation = validatePackDefinition(definition);
   if (!validation.ok) {
-    throw new AccountingPackCompilationError(validation.errors);
+    throw new DomainError(
+      "accounting_pack.compilation_failed",
+      `Accounting pack compilation failed: ${validation.errors.join("; ")}`,
+      {
+        errors: validation.errors,
+        packKey: definition.packKey,
+        version: String(definition.version),
+      },
+    );
   }
 
   const templates = [...definition.templates]
@@ -170,23 +178,18 @@ export function compilePack(
     templates,
   };
 
-  return {
+  return new CompiledPack({
     ...serializable,
     checksum: sha256Hex(canonicalJson(serializable)),
-    templateLookup: new Map(
-      templates.map((template) => [template.key, template]),
-    ),
-  };
+  });
 }
 
 export function serializeCompiledPack(pack: CompiledPack): StoredCompiledPack {
   return {
     checksum: pack.checksum,
     compiledJson: {
-      packKey: pack.packKey,
-      version: pack.version,
+      ...pack.toSerializable(),
       checksum: pack.checksum,
-      templates: pack.templates,
     },
   };
 }
@@ -219,16 +222,20 @@ export function hydrateCompiledPack(
   const checksum = sha256Hex(canonicalJson(serializable));
 
   if (checksumHint && checksum !== checksumHint) {
-    throw new AccountingPackCompilationError([
+    throw new DomainError(
+      "accounting_pack.checksum_mismatch",
       `Compiled pack checksum mismatch for ${packKey}@${version}`,
-    ]);
+      {
+        packKey,
+        version: String(version),
+        checksumHint,
+        checksum,
+      },
+    );
   }
 
-  return {
+  return new CompiledPack({
     ...serializable,
     checksum,
-    templateLookup: new Map(
-      templates.map((template) => [template.key, template]),
-    ),
-  };
+  });
 }

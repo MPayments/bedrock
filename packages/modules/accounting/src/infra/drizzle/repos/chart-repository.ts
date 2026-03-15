@@ -2,19 +2,22 @@ import { eq } from "drizzle-orm";
 
 import type { Database } from "@bedrock/platform/persistence";
 
-import type { AccountingChartRepository } from "../../../application/chart/ports";
+import type {
+  AccountingChartCommandRepository,
+  AccountingChartQueryRepository,
+} from "../../../application/chart/ports";
 import { schema } from "../schema";
 
-export function createDrizzleAccountingChartRepository(
+export function createDrizzleAccountingChartQueryRepository(
   db: Database,
-): AccountingChartRepository {
+): AccountingChartQueryRepository {
   return {
-    listTemplateAccounts: async () =>
+    listTemplateAccountSnapshots: async () =>
       db
         .select()
         .from(schema.chartTemplateAccounts)
         .orderBy(schema.chartTemplateAccounts.accountNo),
-    listCorrespondenceRules: async () =>
+    listCorrespondenceRuleSnapshots: async () =>
       db
         .select()
         .from(schema.correspondenceRules)
@@ -23,26 +26,6 @@ export function createDrizzleAccountingChartRepository(
           schema.correspondenceRules.debitAccountNo,
           schema.correspondenceRules.creditAccountNo,
         ),
-    replaceCorrespondenceRules: async (rules) =>
-      db.transaction(async (tx) => {
-        await tx.delete(schema.correspondenceRules);
-
-        if (rules.length === 0) {
-          return [];
-        }
-
-        return tx
-          .insert(schema.correspondenceRules)
-          .values(
-            rules.map((rule) => ({
-              postingCode: rule.postingCode,
-              debitAccountNo: rule.debitAccountNo,
-              creditAccountNo: rule.creditAccountNo,
-              enabled: rule.enabled,
-            })),
-          )
-          .returning();
-      }),
     readPostingMatrixValidationInput: async () => {
       const [rules, accounts, accountDimPolicies, postingCodeDimPolicies] =
         await Promise.all([
@@ -65,5 +48,32 @@ export function createDrizzleAccountingChartRepository(
         postingCodeDimPolicies,
       };
     },
+  };
+}
+
+export function createDrizzleAccountingChartCommandRepository(
+  db: Database,
+): AccountingChartCommandRepository {
+  return {
+    replaceCorrespondenceRules: async (rules) =>
+      db.transaction(async (tx) => {
+        await tx.delete(schema.correspondenceRules);
+
+        if (rules.length === 0) {
+          return [];
+        }
+
+        return tx
+          .insert(schema.correspondenceRules)
+          .values(
+            rules.map((rule) => ({
+              postingCode: rule.postingCode,
+              debitAccountNo: rule.debitAccountNo,
+              creditAccountNo: rule.creditAccountNo,
+              enabled: rule.enabled,
+            })),
+          )
+          .returning();
+      }),
   };
 }

@@ -1,22 +1,25 @@
 import type { ReplaceCorrespondenceRulesInput } from "../../contracts/commands";
 import type {
   ChartAccountDimensionPolicyRecord,
-  ChartTemplateAccountRecord,
-  CorrespondenceRuleRecord,
+  ChartTemplateAccountSnapshot,
+  CorrespondenceRuleSnapshot,
   PostingCodeDimensionPolicyRecord,
   PostingMatrixValidationInput,
 } from "../../domain/chart";
 
-export interface AccountingChartRepository {
-  listTemplateAccounts: () => Promise<ChartTemplateAccountRecord[]>;
-  listCorrespondenceRules: () => Promise<CorrespondenceRuleRecord[]>;
-  replaceCorrespondenceRules: (
-    rules: ReplaceCorrespondenceRulesInput["rules"],
-  ) => Promise<CorrespondenceRuleRecord[]>;
+export interface AccountingChartQueryRepository {
+  listTemplateAccountSnapshots: () => Promise<ChartTemplateAccountSnapshot[]>;
+  listCorrespondenceRuleSnapshots: () => Promise<CorrespondenceRuleSnapshot[]>;
   readPostingMatrixValidationInput: () => Promise<
     PostingMatrixValidationInput & {
       accountDimPolicies: ChartAccountDimensionPolicyRecord[];
       postingCodeDimPolicies: PostingCodeDimensionPolicyRecord[];
     }
   >;
+}
+
+export interface AccountingChartCommandRepository {
+  replaceCorrespondenceRules: (
+    rules: ReplaceCorrespondenceRulesInput["rules"],
+  ) => Promise<CorrespondenceRuleSnapshot[]>;
 }

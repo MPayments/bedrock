@@ -1,5 +1,6 @@
 import { sha256Hex } from "@bedrock/platform/crypto";
 import { canonicalJson, makePlanKey } from "@bedrock/shared/core/canon";
+import { DomainError } from "@bedrock/shared/core/domain";
 
 import { isCompiledCreateTemplate } from "./compile-pack";
 import type { CompiledPack, CompiledPostingTemplate } from "./compiled-pack";
@@ -17,11 +18,6 @@ import type {
   VoidPendingIntentLine,
 } from "./operation-intent";
 import type { ValueBinding } from "./pack-definition";
-import {
-  AccountingPostingPlanValidationError,
-  AccountingTemplateAccessError,
-  UnknownPostingTemplateError,
-} from "../errors";
 
 const OPERATION_TRANSFER_TYPE = {
   CREATE: "create",
@@ -42,8 +38,10 @@ function resolveBindingValue(
   if (binding.kind === "dimension") {
     const value = request.dimensions[binding.key];
     if (!value) {
-      throw new AccountingPostingPlanValidationError(
+      throw new DomainError(
+        "accounting_pack.posting_plan_invalid",
         `Missing dimension "${binding.key}" for template ${request.templateKey}`,
+        { templateKey: request.templateKey, dimensionKey: binding.key },
       );
     }
     return value;
@@ -52,8 +50,10 @@ function resolveBindingValue(
   if (binding.kind === "ref") {
     const value = request.refs?.[binding.key];
     if (!value) {
-      throw new AccountingPostingPlanValidationError(
+      throw new DomainError(
+        "accounting_pack.posting_plan_invalid",
         `Missing ref "${binding.key}" for template ${request.templateKey}`,
+        { templateKey: request.templateKey, refKey: binding.key },
       );
     }
     return value;
@@ -61,8 +61,10 @@ function resolveBindingValue(
 
   const value = request.bookRefs[binding.key];
   if (!value) {
-    throw new AccountingPostingPlanValidationError(
+    throw new DomainError(
+      "accounting_pack.posting_plan_invalid",
       `Missing bookRef "${binding.key}" for template ${request.templateKey}`,
+      { templateKey: request.templateKey, bookRefKey: binding.key },
     );
   }
   return value;
@@ -83,8 +85,10 @@ function buildPlanRef(request: DocumentPostingPlanRequest): string {
 export function readRequiredBookId(request: DocumentPostingPlanRequest): string {
   const bookId = request.bookRefs[BOOK_REF_BOOK_ID];
   if (!bookId) {
-    throw new AccountingPostingPlanValidationError(
+    throw new DomainError(
+      "accounting_pack.posting_plan_invalid",
       `Posting plan requires bookRefs.${BOOK_REF_BOOK_ID}`,
+      { bookRefKey: BOOK_REF_BOOK_ID },
     );
   }
 
@@ -93,7 +97,8 @@ export function readRequiredBookId(request: DocumentPostingPlanRequest): string 
 
 export function resolveBookIdContext(input: ResolvePostingPlanInput): string {
   if (input.plan.requests.length === 0) {
-    throw new AccountingPostingPlanValidationError(
+    throw new DomainError(
+      "accounting_pack.posting_plan_invalid",
       "Posting plan must include at least one request",
     );
   }
@@ -104,8 +109,10 @@ export function resolveBookIdContext(input: ResolvePostingPlanInput): string {
 
   if (input.bookIdContext) {
     if (!requestBookIds.includes(input.bookIdContext)) {
-      throw new AccountingPostingPlanValidationError(
+      throw new DomainError(
+        "accounting_pack.posting_plan_invalid",
         `Posting plan ${BOOK_REF_BOOK_ID} set must include bookIdContext`,
+        { bookIdContext: input.bookIdContext },
       );
     }
 
@@ -121,44 +128,56 @@ function validateRequestShape(
 ) {
   for (const key of template.requiredBookRefs) {
     if (!request.bookRefs[key]) {
-      throw new AccountingPostingPlanValidationError(
+      throw new DomainError(
+        "accounting_pack.posting_plan_invalid",
         `Template ${template.key} requires bookRef "${key}"`,
+        { templateKey: template.key, bookRefKey: key },
       );
     }
   }
 
   for (const key of template.requiredDimensions) {
     if (!request.dimensions[key]) {
-      throw new AccountingPostingPlanValidationError(
+      throw new DomainError(
+        "accounting_pack.posting_plan_invalid",
         `Template ${template.key} requires dimension "${key}"`,
+        { templateKey: template.key, dimensionKey: key },
       );
     }
   }
 
   for (const key of template.requiredRefs) {
     if (!request.refs?.[key]) {
-      throw new AccountingPostingPlanValidationError(
+      throw new DomainError(
+        "accounting_pack.posting_plan_invalid",
         `Template ${template.key} requires ref "${key}"`,
+        { templateKey: template.key, refKey: key },
       );
     }
   }
 
   if (isCompiledCreateTemplate(template)) {
     if (request.amountMinor <= 0n) {
-      throw new AccountingPostingPlanValidationError(
+      throw new DomainError(
+        "accounting_pack.posting_plan_invalid",
         `Template ${template.key} requires amountMinor > 0`,
+        { templateKey: template.key },
       );
     }
 
     if (template.pendingMode === "required" && !request.pending?.timeoutSeconds) {
-      throw new AccountingPostingPlanValidationError(
+      throw new DomainError(
+        "accounting_pack.posting_plan_invalid",
         `Template ${template.key} requires pending.timeoutSeconds`,
+        { templateKey: template.key },
       );
     }
 
     if (template.pendingMode === "forbidden" && request.pending) {
-      throw new AccountingPostingPlanValidationError(
+      throw new DomainError(
+        "accounting_pack.posting_plan_invalid",
         `Template ${template.key} does not allow pending config`,
+        { templateKey: template.key },
       );
     }
 
@@ -166,8 +185,10 @@ function validateRequestShape(
   }
 
   if (!request.pending?.pendingId || request.pending.pendingId <= 0n) {
-    throw new AccountingPostingPlanValidationError(
+    throw new DomainError(
+      "accounting_pack.posting_plan_invalid",
       `Template ${template.key} requires pending.pendingId`,
+      { templateKey: template.key },
     );
   }
 }
@@ -253,13 +274,21 @@ export function resolvePostingPlan(
   for (const [requestIndex, request] of plan.requests.entries()) {
     const template = compiledPack.templateLookup.get(request.templateKey);
     if (!template) {
-      throw new UnknownPostingTemplateError(request.templateKey);
+      throw new DomainError(
+        "accounting_pack.unknown_template",
+        `Unknown posting template: ${request.templateKey}`,
+        { templateKey: request.templateKey },
+      );
     }
 
     if (!template.allowSources.includes(accountingSourceId)) {
-      throw new AccountingTemplateAccessError(
-        request.templateKey,
-        accountingSourceId,
+      throw new DomainError(
+        "accounting_pack.template_access_forbidden",
+        `Accounting source ${accountingSourceId} is not allowed to use template ${request.templateKey}`,
+        {
+          accountingSourceId,
+          templateKey: request.templateKey,
+        },
       );
     }
 

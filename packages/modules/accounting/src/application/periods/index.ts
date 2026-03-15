@@ -5,7 +5,8 @@ import {
 } from "./commands";
 import type {
   AccountingClosePackageSnapshotPort,
-  AccountingPeriodsRepository,
+  AccountingPeriodsCommandRepository,
+  AccountingPeriodsQueryRepository,
 } from "./ports";
 import {
   createIsOrganizationPeriodClosedQuery,
@@ -35,7 +36,9 @@ export interface AccountingPeriodsService {
     closeReason?: string | null;
     closeDocumentId: string;
   }) => Promise<{
-    lock: Awaited<ReturnType<AccountingPeriodsRepository["upsertClosedPeriodLock"]>>;
+    lock: Awaited<
+      ReturnType<AccountingPeriodsCommandRepository["upsertClosedPeriodLock"]>
+    >;
     closePackage: Awaited<
       ReturnType<AccountingClosePackageSnapshotPort["generateClosePackageSnapshot"]>
     >;
@@ -47,33 +50,39 @@ export interface AccountingPeriodsService {
     reopenReason?: string | null;
     reopenDocumentId?: string | null;
   }) => Promise<
-    Awaited<ReturnType<AccountingPeriodsRepository["upsertReopenedPeriodLock"]>>
+    Awaited<
+      ReturnType<AccountingPeriodsCommandRepository["upsertReopenedPeriodLock"]>
+    >
   >;
 }
 
 export function createAccountingPeriodsHandlers(input: {
-  repository: AccountingPeriodsRepository;
+  queries: AccountingPeriodsQueryRepository;
+  commands: AccountingPeriodsCommandRepository;
   closePackageSnapshotPort: AccountingClosePackageSnapshotPort;
+  now?: () => Date;
 }): AccountingPeriodsService {
-  const { repository, closePackageSnapshotPort } = input;
+  const { closePackageSnapshotPort } = input;
 
   const isOrganizationPeriodClosed = createIsOrganizationPeriodClosedQuery({
-    repository,
+    repository: input.queries,
   });
   const listClosedOrganizationIdsForPeriod =
     createListClosedOrganizationIdsForPeriodQuery({
-      repository,
+      repository: input.queries,
     });
   const assertOrganizationPeriodsOpen =
     createAssertOrganizationPeriodsOpenCommand({
       isOrganizationPeriodClosed,
     });
   const closePeriod = createClosePeriodCommand({
-    repository,
+    repository: input.commands,
     closePackageSnapshotPort,
+    now: input.now,
   });
   const reopenPeriod = createReopenPeriodCommand({
-    repository,
+    repository: input.commands,
+    now: input.now,
   });
 
   return {

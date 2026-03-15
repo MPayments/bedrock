@@ -1,15 +1,18 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 
-import type { Queryable } from "@bedrock/platform/persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 
-import type { AccountingPeriodsRepository } from "../../../application/periods/ports";
+import type {
+  AccountingPeriodsCommandRepository,
+  AccountingPeriodsQueryRepository,
+} from "../../../application/periods/ports";
 import { schema } from "../schema";
 
-export function createDrizzleAccountingPeriodsRepository(
-  db: Queryable,
-): AccountingPeriodsRepository {
+export function createDrizzleAccountingPeriodsQueryRepository(
+  db: Database | Transaction,
+): AccountingPeriodsQueryRepository {
   return {
-    findClosedPeriodLock: async ({ organizationId, periodStart }) => {
+    async findClosedPeriodLock({ organizationId, periodStart }) {
       const [lock] = await db
         .select({
           id: schema.accountingPeriodLocks.id,
@@ -26,10 +29,7 @@ export function createDrizzleAccountingPeriodsRepository(
 
       return lock ?? null;
     },
-    listClosedOrganizationIdsForPeriod: async ({
-      organizationIds,
-      periodStart,
-    }) => {
+    async listClosedOrganizationIdsForPeriod({ organizationIds, periodStart }) {
       const uniqueOrganizationIds = Array.from(
         new Set(organizationIds.filter(Boolean)),
       );
@@ -55,7 +55,14 @@ export function createDrizzleAccountingPeriodsRepository(
 
       return rows.map((row) => row.organizationId);
     },
-    upsertClosedPeriodLock: async (input) => {
+  };
+}
+
+export function createDrizzleAccountingPeriodsCommandRepository(
+  db: Database | Transaction,
+): AccountingPeriodsCommandRepository {
+  return {
+    async upsertClosedPeriodLock(input) {
       const [lock] = await db
         .insert(schema.accountingPeriodLocks)
         .values({
@@ -92,7 +99,7 @@ export function createDrizzleAccountingPeriodsRepository(
 
       return lock!;
     },
-    upsertReopenedPeriodLock: async (input) => {
+    async upsertReopenedPeriodLock(input) {
       const [lock] = await db
         .insert(schema.accountingPeriodLocks)
         .values({
@@ -124,10 +131,21 @@ export function createDrizzleAccountingPeriodsRepository(
 
       return lock!;
     },
-    findLatestClosePackage: async ({ organizationId, periodStart }) => {
+    async findLatestClosePackage({ organizationId, periodStart }) {
       const [closePackage] = await db
         .select({
           id: schema.accountingClosePackages.id,
+          organizationId: schema.accountingClosePackages.organizationId,
+          periodStart: schema.accountingClosePackages.periodStart,
+          periodEnd: schema.accountingClosePackages.periodEnd,
+          revision: schema.accountingClosePackages.revision,
+          state: schema.accountingClosePackages.state,
+          closeDocumentId: schema.accountingClosePackages.closeDocumentId,
+          reopenDocumentId: schema.accountingClosePackages.reopenDocumentId,
+          checksum: schema.accountingClosePackages.checksum,
+          payload: schema.accountingClosePackages.payload,
+          generatedAt: schema.accountingClosePackages.generatedAt,
+          createdAt: schema.accountingClosePackages.createdAt,
         })
         .from(schema.accountingClosePackages)
         .where(
@@ -141,7 +159,7 @@ export function createDrizzleAccountingPeriodsRepository(
 
       return closePackage ?? null;
     },
-    markClosePackageSuperseded: async ({ id, reopenDocumentId }) => {
+    async markClosePackageSuperseded({ id, reopenDocumentId }) {
       await db
         .update(schema.accountingClosePackages)
         .set({
@@ -150,7 +168,7 @@ export function createDrizzleAccountingPeriodsRepository(
         })
         .where(eq(schema.accountingClosePackages.id, id));
     },
-    findMaxClosePackageRevision: async ({ organizationId, periodStart }) => {
+    async findMaxClosePackageRevision({ organizationId, periodStart }) {
       const [row] = await db
         .select({
           revision: schema.accountingClosePackages.revision,
@@ -167,7 +185,7 @@ export function createDrizzleAccountingPeriodsRepository(
 
       return row?.revision ?? 0;
     },
-    insertClosePackage: async (input) => {
+    async insertClosePackage(input) {
       const [closePackage] = await db
         .insert(schema.accountingClosePackages)
         .values({

@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   AggregateRoot,
   brandId,
+  dedupeIds,
   DomainError,
   Entity,
   invariant,
+  normalizeOptionalText,
+  normalizeRequiredText,
   readCauseString,
   ValueObject,
 } from "../../src/core/domain";
@@ -66,6 +69,26 @@ describe("shared core domain primitives", () => {
         message: "Customer is invalid",
       }),
     );
+  });
+
+  it("normalizes required and optional text", () => {
+    expect(
+      normalizeRequiredText("  Acme  ", "customer.invalid", "displayName"),
+    ).toBe("Acme");
+    expect(normalizeOptionalText("  memo  ")).toBe("memo");
+    expect(normalizeOptionalText("   ")).toBeNull();
+    expect(normalizeOptionalText(null)).toBeNull();
+    expect(() =>
+      normalizeRequiredText("   ", "customer.invalid", "displayName"),
+    ).toThrow(DomainError);
+  });
+
+  it("deduplicates ids and drops empty values", () => {
+    expect(dedupeIds(["b", "a", "b", "", "a", "c"])).toEqual([
+      "b",
+      "a",
+      "c",
+    ]);
   });
 
   it("reads string values from domain error causes", () => {

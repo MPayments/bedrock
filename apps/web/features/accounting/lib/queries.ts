@@ -3,10 +3,6 @@ import {
   AccountingTemplateAccountSchema,
 } from "@bedrock/accounting/contracts";
 import {
-  CounterpartyGroupOptionsResponseSchema,
-  CounterpartyOptionsResponseSchema,
-} from "@bedrock/parties/contracts";
-import {
   BalanceSheetResponseSchema,
   CashFlowResponseSchema,
   ClosePackageResponseSchema,
@@ -16,7 +12,11 @@ import {
   IncomeStatementResponseSchema,
   LiquidityResponseSchema,
   TrialBalanceResponseSchema,
-} from "@bedrock/accounting/reports";
+} from "@bedrock/accounting";
+import {
+  CounterpartyGroupOptionsResponseSchema,
+  CounterpartyOptionsResponseSchema,
+} from "@bedrock/parties/contracts";
 import { z } from "zod";
 
 import { getServerApiClient } from "@/lib/api/server-client";

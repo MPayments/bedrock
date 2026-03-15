@@ -2,11 +2,12 @@ import { ValidationError } from "@bedrock/shared/core/errors";
 
 import type {
   AccountingClosePackageSnapshotPort,
-  AccountingPeriodsRepository,
+  AccountingPeriodsCommandRepository,
 } from "./ports";
 import {
+  AccountingPeriod,
+  CalendarMonth,
   formatPeriodLabel,
-  normalizeMonthEndExclusive,
   normalizeMonthStart,
 } from "../../domain/periods";
 
@@ -47,8 +48,9 @@ export function createAssertOrganizationPeriodsOpenCommand(input: {
 }
 
 export function createClosePeriodCommand(input: {
-  repository: AccountingPeriodsRepository;
+  repository: AccountingPeriodsCommandRepository;
   closePackageSnapshotPort: AccountingClosePackageSnapshotPort;
+  now?: () => Date;
 }) {
   const { repository, closePackageSnapshotPort } = input;
 
@@ -60,24 +62,29 @@ export function createClosePeriodCommand(input: {
     closeReason?: string | null;
     closeDocumentId: string;
   }) {
-    const periodStart = normalizeMonthStart(command.periodStart);
-    const periodEnd = normalizeMonthEndExclusive(command.periodEnd);
+    const month = CalendarMonth.fromDate(command.periodStart);
+    const period = AccountingPeriod.reconstitute({
+      organizationId: command.organizationId,
+      month,
+      lock: null,
+      latestClosePackage: null,
+    });
+    const closePlan = period.planClose({
+      closeDocumentId: command.closeDocumentId,
+      closeReason: command.closeReason,
+      closedBy: command.closedBy,
+      closedAt: input.now?.() ?? new Date(),
+    });
 
     const lock = await repository.upsertClosedPeriodLock({
-      organizationId: command.organizationId,
-      periodStart,
-      periodEnd,
-      closeDocumentId: command.closeDocumentId,
-      closeReason: command.closeReason ?? null,
-      closedBy: command.closedBy,
-      closedAt: new Date(),
+      ...closePlan,
     });
 
     const closePackage =
       await closePackageSnapshotPort.generateClosePackageSnapshot({
-        organizationId: command.organizationId,
-        periodStart,
-        periodEnd,
+        organizationId: closePlan.organizationId,
+        periodStart: closePlan.periodStart,
+        periodEnd: closePlan.periodEnd,
         closeDocumentId: command.closeDocumentId,
       });
 
@@ -89,7 +96,8 @@ export function createClosePeriodCommand(input: {
 }
 
 export function createReopenPeriodCommand(input: {
-  repository: AccountingPeriodsRepository;
+  repository: AccountingPeriodsCommandRepository;
+  now?: () => Date;
 }) {
   const { repository } = input;
 
@@ -100,26 +108,33 @@ export function createReopenPeriodCommand(input: {
     reopenReason?: string | null;
     reopenDocumentId?: string | null;
   }) {
-    const periodStart = normalizeMonthStart(command.periodStart);
-
-    const lock = await repository.upsertReopenedPeriodLock({
-      organizationId: command.organizationId,
-      periodStart,
-      periodEnd: normalizeMonthEndExclusive(periodStart),
-      reopenedBy: command.reopenedBy,
-      reopenReason: command.reopenReason ?? null,
-      reopenedAt: new Date(),
-    });
-
+    const month = CalendarMonth.fromDate(command.periodStart);
     const latestClosePackage = await repository.findLatestClosePackage({
       organizationId: command.organizationId,
-      periodStart,
+      periodStart: month.start,
+    });
+    const period = AccountingPeriod.reconstitute({
+      organizationId: command.organizationId,
+      month,
+      lock: null,
+      latestClosePackage,
+    });
+    const reopenPlan = period.planReopen({
+      reopenedBy: command.reopenedBy,
+      reopenReason: command.reopenReason,
+      reopenedAt: input.now?.() ?? new Date(),
+      reopenDocumentId: command.reopenDocumentId,
     });
 
-    if (latestClosePackage) {
+    const lock = await repository.upsertReopenedPeriodLock({
+      ...reopenPlan.lock,
+    });
+
+    if (reopenPlan.supersededClosePackage) {
       await repository.markClosePackageSuperseded({
-        id: latestClosePackage.id,
-        reopenDocumentId: command.reopenDocumentId ?? null,
+        id: reopenPlan.supersededClosePackage.id,
+        reopenDocumentId:
+          reopenPlan.supersededClosePackage.reopenDocumentId ?? null,
       });
     }
 

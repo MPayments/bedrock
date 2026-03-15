@@ -1,18 +1,32 @@
-import type { AccountingChartRepository } from "./ports";
+import type { AccountingChartCommandRepository } from "./ports";
 import {
   replaceCorrespondenceRulesSchema,
   type ReplaceCorrespondenceRulesInput,
 } from "../../contracts/commands";
+import {
+  CorrespondenceRule,
+  type CorrespondenceRuleSnapshot,
+} from "../../domain/chart";
 
 export function createReplaceCorrespondenceRulesCommand(input: {
-  repository: AccountingChartRepository;
+  repository: AccountingChartCommandRepository;
+  now?: () => Date;
 }) {
   const { repository } = input;
 
   return async function replaceCorrespondenceRules(
     command: ReplaceCorrespondenceRulesInput,
-  ) {
+  ): Promise<CorrespondenceRuleSnapshot[]> {
     const validated = replaceCorrespondenceRulesSchema.parse(command);
-    return repository.replaceCorrespondenceRules(validated.rules);
+    const now = input.now?.() ?? new Date();
+    const rows = await repository.replaceCorrespondenceRules(validated.rules);
+
+    return rows.map((row) =>
+      CorrespondenceRule.reconstitute({
+        ...row,
+        createdAt: row.createdAt ?? now,
+        updatedAt: row.updatedAt ?? now,
+      }).toSnapshot(),
+    );
   };
 }
