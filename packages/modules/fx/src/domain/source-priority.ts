@@ -1,4 +1,4 @@
-import { type FxRateSource } from "../source-providers";
+import type { FxRateSource } from "./rate-source";
 
 const RUB_ORDER: FxRateSource[] = ["cbr", "xe", "investing"];
 const USD_ORDER: FxRateSource[] = ["xe", "cbr", "investing"];

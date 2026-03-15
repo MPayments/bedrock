@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createRateQueryHandlers } from "../src/commands/rates/query";
+import { createRateQueryHandlers } from "../src/application/rates/queries";
 import { RateNotFoundError } from "../src/errors";
 
 interface RateRow {
@@ -38,7 +38,19 @@ function createHarness() {
         getLatestRateBySource: vi.fn(async (baseId: string, quoteId: string, _asOf: Date, source: "cbr" | "investing" | "xe") => sourceRates.get(sourcePairKey(source, baseId, quoteId))),
     };
 
-    const handlers = createRateQueryHandlers({ currenciesService } as any, deps);
+    const handlers = createRateQueryHandlers(
+        {
+            currenciesService,
+            ratesRepository: {
+                listPairs: vi.fn(),
+                getRateHistory: vi.fn(),
+            },
+        } as any,
+        {
+            ...deps,
+            getRateSourceStatuses: vi.fn(async () => []),
+        },
+    );
 
     return {
         handlers,

@@ -1,8 +1,15 @@
 import { sql } from "drizzle-orm";
 import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
-export type FxRateSource = "cbr" | "investing" | "xe";
-export type FxRateSourceSyncStatus = "idle" | "ok" | "error";
+import type {
+  FxRateSource,
+  FxRateSourceSyncStatus,
+} from "../../../domain/rate-source";
+export type {
+  FxRateSource,
+  FxRateSourceSyncStatus,
+} from "../../../domain/rate-source";
+
 export type FxRateSourceRow = typeof fxRateSources.$inferSelect;
 
 export const fxRateSources = pgTable("fx_rate_sources", {

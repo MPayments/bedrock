@@ -7,7 +7,7 @@ import { createFeesService } from "@bedrock/fees";
 import {
   createFxService,
 } from "@bedrock/fx";
-import { createDefaultFxRateSourceProviders } from "@bedrock/fx/infra/providers";
+import { createDefaultFxRateSourceProviders } from "@bedrock/fx/providers";
 import { createFxRatesWorkerDefinition } from "@bedrock/fx/worker";
 import {
   createLedgerWorkerDefinition,

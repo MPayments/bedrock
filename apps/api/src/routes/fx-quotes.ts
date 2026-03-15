@@ -1,14 +1,16 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 
 import {
+  NotFoundError,
+  ValidationError,
+} from "@bedrock/fx";
+import {
   CreateFxQuoteInputSchema,
   FxQuoteDetailsResponseSchema,
   FxQuoteListResponseSchema,
   FxQuoteSchema,
   ListFxQuotesQuerySchema,
-  NotFoundError,
-  ValidationError,
-} from "@bedrock/fx";
+} from "@bedrock/fx/contracts";
 import { minorToAmountString } from "@bedrock/shared/money";
 
 import { ErrorSchema } from "../common";

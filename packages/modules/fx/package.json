@@ -5,11 +5,10 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./contracts": "./src/contracts.ts",
-    "./schema": "./src/schema/index.ts",
+    "./contracts": "./src/contracts/index.ts",
+    "./schema": "./src/infra/drizzle/schema/index.ts",
     "./worker": "./src/worker.ts",
-    "./infra/providers": "./src/infra/providers/index.ts",
-    "./infra/providers/sources/xe": "./src/infra/providers/sources/xe.ts"
+    "./providers": "./src/providers.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { schema } from "@bedrock/fx/schema";
 
 import { RateSourceStaleError } from "../src/errors";
-import { createFxService } from "../src/service";
+import { createFxService } from "../src/fx";
 import {
   createMockCurrenciesService,
   createNoopFeesService,

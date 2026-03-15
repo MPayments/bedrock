@@ -11,7 +11,7 @@ vi.mock("soap", () => ({
 import {
     createCbrRateSourceProvider,
     RateSourceSyncError,
-} from "@bedrock/fx/infra/providers";
+} from "@bedrock/fx/providers";
 
 describe("createCbrRateSourceProvider", () => {
     it("uses default SOAP client factory", async () => {

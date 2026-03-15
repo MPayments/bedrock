@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createListPairsHandler } from "../src/commands/rates/list-pairs";
+import { createDrizzleFxRatesRepository } from "../src/infra/drizzle/repos/rates-repository";
 
-describe("list pairs handler", () => {
+describe("list pairs repository", () => {
   it("groups pair rows, computes changes and sorts sources by priority", async () => {
     const db = {
       execute: vi.fn(async () => ({
@@ -47,8 +47,8 @@ describe("list pairs handler", () => {
       })),
     } as any;
 
-    const handler = createListPairsHandler({ db } as any);
-    const pairs = await handler.listPairs();
+    const repository = createDrizzleFxRatesRepository(db);
+    const pairs = await repository.listPairs();
 
     expect(pairs).toHaveLength(1);
     expect(pairs[0]!.baseCurrencyCode).toBe("USD");
@@ -89,26 +89,24 @@ describe("list pairs handler", () => {
       })),
     } as any;
 
-    const handler = createListPairsHandler({ db } as any);
-    const pairs = await handler.listPairs();
+    const repository = createDrizzleFxRatesRepository(db);
+    const pairs = await repository.listPairs();
 
     expect(pairs[0]!.rates[0]!.change).toBeNull();
     expect(pairs[0]!.rates[0]!.changePercent).toBeNull();
   });
 
   it("returns empty list when no rates are present", async () => {
-    const db = {
+    const repository = createDrizzleFxRatesRepository({
       execute: vi.fn(async () => ({ rows: [] })),
-    } as any;
+    } as any);
 
-    const handler = createListPairsHandler({ db } as any);
-    const pairs = await handler.listPairs();
-
+    const pairs = await repository.listPairs();
     expect(pairs).toEqual([]);
   });
 
   it("sorts resulting pairs by base and quote currency codes", async () => {
-    const db = {
+    const repository = createDrizzleFxRatesRepository({
       execute: vi.fn(async () => ({
         rows: [
           {
@@ -131,19 +129,17 @@ describe("list pairs handler", () => {
           },
         ],
       })),
-    } as any;
+    } as any);
 
-    const handler = createListPairsHandler({ db } as any);
-    const pairs = await handler.listPairs();
+    const pairs = await repository.listPairs();
 
-    expect(pairs.map((pair) => `${pair.baseCurrencyCode}/${pair.quoteCurrencyCode}`)).toEqual([
-      "EUR/USD",
-      "USD/RUB",
-    ]);
+    expect(
+      pairs.map((pair) => `${pair.baseCurrencyCode}/${pair.quoteCurrencyCode}`),
+    ).toEqual(["EUR/USD", "USD/RUB"]);
   });
 
   it("throws for unknown source in result set", async () => {
-    const db = {
+    const repository = createDrizzleFxRatesRepository({
       execute: vi.fn(async () => ({
         rows: [
           {
@@ -166,11 +162,9 @@ describe("list pairs handler", () => {
           },
         ],
       })),
-    } as any;
+    } as any);
 
-    const handler = createListPairsHandler({ db } as any);
-
-    await expect(handler.listPairs()).rejects.toThrow(
+    await expect(repository.listPairs()).rejects.toThrow(
       "Unknown FX rate source: unknown",
     );
   });

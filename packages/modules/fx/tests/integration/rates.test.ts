@@ -7,8 +7,8 @@ import { DAY_IN_SECONDS } from "@bedrock/shared/money/math";
 
 import { db } from "./setup";
 import { RateSourceStaleError } from "../../src/errors";
-import { type FxRateSourceProvider } from "../../src/source-providers";
-import { createFxService } from "../../src/service";
+import { type FxRateSourceProvider } from "../../src/providers";
+import { createFxService } from "../../src/fx";
 import { createNoopFeesService, currencyIdForCode } from "../helpers";
 
 function createFxServiceWithProvider(provider: FxRateSourceProvider) {

@@ -7,17 +7,9 @@ import {
   feeDealDirectionSchema,
   feeDealFormSchema,
 } from "@bedrock/fees/contracts";
-export {
-  FX_QUOTES_LIST_CONTRACT,
-  ListFxQuotesQuerySchema,
-} from "./validation";
 
-export const FxRateSourceSchema = z.enum(["cbr", "investing", "xe"]);
-const financialLineSourceSchema = z.enum(["rule", "manual"]);
-const financialLineSettlementModeSchema = z.enum([
-  "in_ledger",
-  "separate_payment_order",
-]);
+import { FX_RATE_SOURCES } from "../domain/rate-source";
+
 function parseStrictMinorAmountString(value: string): bigint | null {
   if (value !== value.trim()) {
     return null;
@@ -36,10 +28,9 @@ const positiveMinorAmountStringSchema = z
       const parsed = parseStrictMinorAmountString(value);
       return parsed !== null && parsed > 0n;
     },
-    {
-      message: "Must be greater than zero",
-    },
+    { message: "Must be greater than zero" },
   );
+
 const signedMinorAmountStringSchema = z
   .string()
   .refine((value) => parseStrictMinorAmountString(value) !== null, {
@@ -48,6 +39,14 @@ const signedMinorAmountStringSchema = z
   .refine((value) => parseStrictMinorAmountString(value) !== 0n, {
     message: "Must be non-zero",
   });
+
+const financialLineSourceSchema = z.enum(["rule", "manual"]);
+const financialLineSettlementModeSchema = z.enum([
+  "in_ledger",
+  "separate_payment_order",
+]);
+
+export const FxRateSourceSchema = z.enum(FX_RATE_SOURCES);
 
 export const FxRateSchema = z.object({
   source: z.string(),
@@ -240,14 +239,3 @@ export const FxQuoteDetailsResponseSchema = z.object({
 export const FxQuoteListResponseSchema = createPaginatedListSchema(
   FxQuoteListItemSchema,
 );
-
-export type FxRatePair = z.infer<typeof FxRatePairSchema>;
-export type FxRateHistoryPoint = z.infer<typeof FxRateHistoryPointSchema>;
-export type FxRateSourceStatus = z.infer<typeof FxRateSourceStatusSchema>;
-export type SetManualRateInput = z.infer<typeof SetManualRateInputSchema>;
-export type CreateFxQuoteInput = z.infer<typeof CreateFxQuoteInputSchema>;
-export type FxQuoteListItem = z.infer<typeof FxQuoteListItemSchema>;
-export type FxQuoteListResponse = z.infer<typeof FxQuoteListResponseSchema>;
-export type FxQuoteDetailsResponse = z.infer<
-  typeof FxQuoteDetailsResponseSchema
->;

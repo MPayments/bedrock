@@ -1,17 +1,21 @@
-import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
-
-import type { FxRate, FxRateSourceRow } from "@bedrock/fx/schema";
-import { schema } from "@bedrock/fx/schema";
 import { DAY_IN_SECONDS } from "@bedrock/shared/money/math";
 
 import { RateSourceStaleError, RateSourceSyncError } from "../../errors";
-import { type FxServiceContext } from "../../internal/context";
+import { FX_RATE_SOURCES } from "../../domain/rate-source";
+import type {
+  FxRateSource,
+  FxRateSourceRowRecord,
+  FxRateSourceStatus,
+  FxRateSourceSyncResult,
+  RateRowRecord,
+} from "../ports";
+import type { FxServiceContext } from "../shared/context";
 import {
-  type FxRateSource,
-  type FxRateSourceStatus,
-  type FxRateSourceSyncResult,
-} from "../../source-providers";
-import { validateSyncRatesFromSourceInput } from "../../validation";
+  type SetManualRateInput,
+  type SyncRatesFromSourceInput,
+  validateSetManualRateInput,
+  validateSyncRatesFromSourceInput,
+} from "../validation";
 
 const DEFAULT_SOURCE_TTL_SECONDS: Record<FxRateSource, number> = {
   cbr: DAY_IN_SECONDS,
@@ -19,16 +23,16 @@ const DEFAULT_SOURCE_TTL_SECONDS: Record<FxRateSource, number> = {
   xe: 300,
 };
 
-// FIXME: Use redis/valkey for caching in the future
-export function createRateSourceHandlers(context: FxServiceContext) {
-  const { db, currenciesService, log, rateSourceProviders } = context;
+export function createFxRateCommandHandlers(context: FxServiceContext) {
+  const { currenciesService, ratesRepository, log, rateSourceProviders } =
+    context;
   const syncInFlight = new Map<FxRateSource, Promise<FxRateSourceSyncResult>>();
-  const sourceStatusBySource = new Map<FxRateSource, FxRateSourceRow>();
-  const sourceRateRowsByPair = new Map<string, FxRate[]>();
-  const manualRateRowsByPair = new Map<string, FxRate[]>();
+  const sourceStatusBySource = new Map<FxRateSource, FxRateSourceRowRecord>();
+  const sourceRateRowsByPair = new Map<string, RateRowRecord[]>();
+  const manualRateRowsByPair = new Map<string, RateRowRecord[]>();
 
   function configuredSources(): FxRateSource[] {
-    return Object.keys(rateSourceProviders) as FxRateSource[];
+    return [...FX_RATE_SOURCES];
   }
 
   function pairKey(baseCurrencyId: string, quoteCurrencyId: string) {
@@ -48,11 +52,11 @@ export function createRateSourceHandlers(context: FxServiceContext) {
     manualRateRowsByPair.clear();
   }
 
-  function setCachedSourceRow(row: FxRateSourceRow) {
+  function setCachedSourceRow(row: FxRateSourceRowRecord) {
     sourceStatusBySource.set(row.source, row);
   }
 
-  function buildDefaultSourceRow(source: FxRateSource): FxRateSourceRow {
+  function buildDefaultSourceRow(source: FxRateSource): FxRateSourceRowRecord {
     return {
       source,
       ttlSeconds: DEFAULT_SOURCE_TTL_SECONDS[source],
@@ -64,18 +68,18 @@ export function createRateSourceHandlers(context: FxServiceContext) {
     };
   }
 
-  function getFreshnessBase(row: FxRateSourceRow) {
+  function getFreshnessBase(row: FxRateSourceRowRecord) {
     if (row.source === "investing" || row.source === "xe") {
       return row.lastSyncedAt ?? row.lastPublishedAt;
     }
 
-    // CBR freshness should follow publication time, not sync time.
-    // If a sync happened late in the day, anchoring TTL to lastSyncedAt
-    // can keep yesterday's publication "fresh" for too long.
     return row.lastPublishedAt ?? row.lastSyncedAt;
   }
 
-  function toStatus(row: FxRateSourceRow, now: Date): FxRateSourceStatus {
+  function toStatus(
+    row: FxRateSourceRowRecord,
+    now: Date,
+  ): FxRateSourceStatus {
     const freshnessBase = getFreshnessBase(row);
     const expiresAt = freshnessBase
       ? new Date(freshnessBase.getTime() + row.ttlSeconds * 1000)
@@ -95,69 +99,53 @@ export function createRateSourceHandlers(context: FxServiceContext) {
 
   async function getSourceRow(
     source: FxRateSource,
-  ): Promise<FxRateSourceRow | null> {
+  ): Promise<FxRateSourceRowRecord | null> {
     const cached = sourceStatusBySource.get(source);
-    if (cached) return cached;
+    if (cached) {
+      return cached;
+    }
 
-    const [row] = await db
-      .select()
-      .from(schema.fxRateSources)
-      .where(eq(schema.fxRateSources.source, source))
-      .limit(1);
-
+    const row = await ratesRepository.getSourceRow(source);
     if (row) {
       setCachedSourceRow(row);
     }
 
-    return row ?? null;
+    return row;
   }
 
   async function getOrCreateSourceRow(
     source: FxRateSource,
-  ): Promise<FxRateSourceRow> {
+  ): Promise<FxRateSourceRowRecord> {
     const existing = await getSourceRow(source);
-    if (existing) return existing;
-
-    const [inserted] = await db
-      .insert(schema.fxRateSources)
-      .values({
-        source,
-        ttlSeconds: DEFAULT_SOURCE_TTL_SECONDS[source],
-        lastStatus: "idle",
-      })
-      .onConflictDoNothing({
-        target: schema.fxRateSources.source,
-      })
-      .returning();
-
-    if (inserted) {
-      setCachedSourceRow(inserted);
-      return inserted;
+    if (existing) {
+      return existing;
     }
 
-    const raced = await getSourceRow(source);
-    if (!raced) {
+    const row = await ratesRepository.initializeSourceRow(
+      source,
+      DEFAULT_SOURCE_TTL_SECONDS[source],
+    );
+
+    if (!row) {
       throw new RateSourceSyncError(
         source,
         "cannot initialize source status row",
       );
     }
 
-    return raced;
+    setCachedSourceRow(row);
+    return row;
   }
 
   async function getRateSourceStatuses(
     now = new Date(),
   ): Promise<FxRateSourceStatus[]> {
     const sources = configuredSources();
-    if (!sources.length) return [];
+    if (sources.length === 0) {
+      return [];
+    }
 
-    const rows = await db
-      .select()
-      .from(schema.fxRateSources)
-      .where(inArray(schema.fxRateSources.source, sources))
-      .orderBy(schema.fxRateSources.source);
-
+    const rows = await ratesRepository.listSourceRows(sources);
     for (const row of rows) {
       setCachedSourceRow(row);
     }
@@ -170,14 +158,9 @@ export function createRateSourceHandlers(context: FxServiceContext) {
     );
   }
 
-  function findLatestRate(rows: FxRate[], asOf: Date) {
+  function findLatestRate(rows: RateRowRecord[], asOf: Date) {
     const asOfMs = asOf.getTime();
-    for (const row of rows) {
-      if (row.asOf.getTime() <= asOfMs) {
-        return row;
-      }
-    }
-    return undefined;
+    return rows.find((row) => row.asOf.getTime() <= asOfMs);
   }
 
   async function getSourceRateRows(
@@ -187,20 +170,15 @@ export function createRateSourceHandlers(context: FxServiceContext) {
   ) {
     const key = sourcePairKey(source, baseCurrencyId, quoteCurrencyId);
     const cached = sourceRateRowsByPair.get(key);
-    if (cached) return cached;
+    if (cached) {
+      return cached;
+    }
 
-    const rows = await db
-      .select()
-      .from(schema.fxRates)
-      .where(
-        and(
-          eq(schema.fxRates.source, source),
-          eq(schema.fxRates.baseCurrencyId, baseCurrencyId),
-          eq(schema.fxRates.quoteCurrencyId, quoteCurrencyId),
-        ),
-      )
-      .orderBy(desc(schema.fxRates.asOf), desc(schema.fxRates.createdAt));
-
+    const rows = await ratesRepository.listSourceRateRows(
+      source,
+      baseCurrencyId,
+      quoteCurrencyId,
+    );
     sourceRateRowsByPair.set(key, rows);
     return rows;
   }
@@ -211,35 +189,27 @@ export function createRateSourceHandlers(context: FxServiceContext) {
   ) {
     const key = pairKey(baseCurrencyId, quoteCurrencyId);
     const cached = manualRateRowsByPair.get(key);
-    if (cached) return cached;
+    if (cached) {
+      return cached;
+    }
 
-    const rows = await db
-      .select()
-      .from(schema.fxRates)
-      .where(
-        and(
-          ne(schema.fxRates.source, "cbr"),
-          ne(schema.fxRates.source, "investing"),
-          ne(schema.fxRates.source, "xe"),
-          eq(schema.fxRates.baseCurrencyId, baseCurrencyId),
-          eq(schema.fxRates.quoteCurrencyId, quoteCurrencyId),
-        ),
-      )
-      .orderBy(desc(schema.fxRates.asOf), desc(schema.fxRates.createdAt));
-
+    const rows = await ratesRepository.listManualRateRows(
+      baseCurrencyId,
+      quoteCurrencyId,
+    );
     manualRateRowsByPair.set(key, rows);
     return rows;
   }
 
   async function persistRates(
     source: FxRateSource,
-    rates: {
+    rates: Array<{
       base: string;
       quote: string;
       rateNum: bigint;
       rateDen: bigint;
       asOf: Date;
-    }[],
+    }>,
   ): Promise<number> {
     const dedupedMap = new Map<string, (typeof rates)[number]>();
     for (const rate of rates) {
@@ -248,8 +218,8 @@ export function createRateSourceHandlers(context: FxServiceContext) {
         rate,
       );
     }
-    const dedupedRates = [...dedupedMap.values()];
 
+    const dedupedRates = [...dedupedMap.values()];
     const currencyCodes = [
       ...new Set(dedupedRates.flatMap((rate) => [rate.base, rate.quote])),
     ];
@@ -271,37 +241,23 @@ export function createRateSourceHandlers(context: FxServiceContext) {
       (rate) =>
         currencyIdByCode.has(rate.base) && currencyIdByCode.has(rate.quote),
     );
-    if (!validRows.length) {
+    if (validRows.length === 0) {
       throw new RateSourceSyncError(
         source,
         "provider returned no rates for known currencies",
       );
     }
 
-    await db
-      .insert(schema.fxRates)
-      .values(
-        validRows.map((rate) => ({
-          source,
-          baseCurrencyId: currencyIdByCode.get(rate.base)!,
-          quoteCurrencyId: currencyIdByCode.get(rate.quote)!,
-          rateNum: rate.rateNum,
-          rateDen: rate.rateDen,
-          asOf: rate.asOf,
-        })),
-      )
-      .onConflictDoUpdate({
-        target: [
-          schema.fxRates.source,
-          schema.fxRates.baseCurrencyId,
-          schema.fxRates.quoteCurrencyId,
-          schema.fxRates.asOf,
-        ],
-        set: {
-          rateNum: sql`excluded.rate_num`,
-          rateDen: sql`excluded.rate_den`,
-        },
-      });
+    await ratesRepository.upsertSourceRates(
+      source,
+      validRows.map((rate) => ({
+        baseCurrencyId: currencyIdByCode.get(rate.base)!,
+        quoteCurrencyId: currencyIdByCode.get(rate.quote)!,
+        rateNum: rate.rateNum,
+        rateDen: rate.rateDen,
+        asOf: rate.asOf,
+      })),
+    );
 
     invalidateRateCache();
     return validRows.length;
@@ -312,28 +268,13 @@ export function createRateSourceHandlers(context: FxServiceContext) {
     now: Date,
     publishedAt: Date,
   ) {
-    await db
-      .insert(schema.fxRateSources)
-      .values({
-        source,
-        ttlSeconds: DEFAULT_SOURCE_TTL_SECONDS[source],
-        lastSyncedAt: now,
-        lastPublishedAt: publishedAt,
-        lastStatus: "ok",
-        lastError: null,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: schema.fxRateSources.source,
-        set: {
-          ttlSeconds: DEFAULT_SOURCE_TTL_SECONDS[source],
-          lastSyncedAt: now,
-          lastPublishedAt: publishedAt,
-          lastStatus: "ok",
-          lastError: null,
-          updatedAt: now,
-        },
-      });
+    await ratesRepository.upsertSourceSuccess({
+      source,
+      ttlSeconds: DEFAULT_SOURCE_TTL_SECONDS[source],
+      lastSyncedAt: now,
+      lastPublishedAt: publishedAt,
+      updatedAt: now,
+    });
 
     setCachedSourceRow({
       source,
@@ -353,23 +294,12 @@ export function createRateSourceHandlers(context: FxServiceContext) {
   ) {
     const message = extractErrorMessage(error);
 
-    await db
-      .insert(schema.fxRateSources)
-      .values({
-        source,
-        ttlSeconds: DEFAULT_SOURCE_TTL_SECONDS[source],
-        lastStatus: "error",
-        lastError: message,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: schema.fxRateSources.source,
-        set: {
-          lastStatus: "error",
-          lastError: message,
-          updatedAt: now,
-        },
-      });
+    await ratesRepository.upsertSourceFailure({
+      source,
+      ttlSeconds: DEFAULT_SOURCE_TTL_SECONDS[source],
+      lastError: message,
+      updatedAt: now,
+    });
 
     const previous =
       sourceStatusBySource.get(source) ?? buildDefaultSourceRow(source);
@@ -423,15 +353,13 @@ export function createRateSourceHandlers(context: FxServiceContext) {
     }
   }
 
-  async function syncRatesFromSource(input: {
-    source: FxRateSource;
-    force?: boolean;
-    now?: Date;
-  }): Promise<FxRateSourceSyncResult> {
+  async function syncRatesFromSource(
+    input: SyncRatesFromSourceInput,
+  ): Promise<FxRateSourceSyncResult> {
     const validated = validateSyncRatesFromSourceInput(input);
     const now = validated.now ?? new Date();
-
     const existing = syncInFlight.get(validated.source);
+
     if (existing) {
       return existing;
     }
@@ -495,9 +423,36 @@ export function createRateSourceHandlers(context: FxServiceContext) {
     return findLatestRate(rows, asOf);
   }
 
+  async function setManualRate(input: SetManualRateInput): Promise<void> {
+    const validated = validateSetManualRateInput(input);
+    const { id: baseCurrencyId } = await currenciesService.findByCode(
+      validated.base,
+    );
+    const { id: quoteCurrencyId } = await currenciesService.findByCode(
+      validated.quote,
+    );
+
+    await ratesRepository.insertManualRate({
+      baseCurrencyId,
+      quoteCurrencyId,
+      rateNum: validated.rateNum,
+      rateDen: validated.rateDen,
+      asOf: validated.asOf,
+      source: validated.source ?? "manual",
+    });
+
+    invalidateRateCache();
+  }
+
+  async function expireOldQuotes(now: Date): Promise<void> {
+    await context.quotesRepository.expireOldQuotes(now);
+  }
+
   return {
-    getRateSourceStatuses,
+    setManualRate,
     syncRatesFromSource,
+    expireOldQuotes,
+    getRateSourceStatuses,
     ensureSourceFresh,
     getLatestRateBySource,
     getLatestManualRate,

@@ -3,12 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createXeRateSourceProvider,
   RateSourceSyncError,
-} from "@bedrock/fx/infra/providers";
+  type XeRateSourceProviderDeps,
+} from "@bedrock/fx/providers";
 import {
   parseRateFromHtml,
   parseRateFromText,
   parseTimestampFromHtml,
-} from "@bedrock/fx/infra/providers/sources/xe";
+} from "../src/infra/providers/sources/xe";
 
 function makeHtml(rate: string, base: string, quote: string, time = "13:39") {
     return `

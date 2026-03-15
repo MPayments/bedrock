@@ -1,11 +1,36 @@
 import { mulDivFloor } from "@bedrock/shared/money/math";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
-import { type QuoteInput } from "../validation";
-import { type ComputedLeg } from "./types";
+import type { ComputedLeg } from "../application/ports";
+
+interface RouteLegInput {
+  fromCurrency: string;
+  toCurrency: string;
+  rateNum: bigint;
+  rateDen: bigint;
+  sourceKind: ComputedLeg["sourceKind"];
+  sourceRef?: string;
+  asOf?: Date;
+  executionCounterpartyId?: string;
+}
+
+type AutoCrossQuoteInput = {
+  fromCurrency: string;
+  toCurrency: string;
+  asOf: Date;
+  anchor?: string;
+};
+
+type ExplicitRouteQuoteInput = {
+  fromCurrency: string;
+  toCurrency: string;
+  fromAmountMinor: bigint;
+  asOf: Date;
+  legs: RouteLegInput[];
+};
 
 export function buildAutoCrossTrace(
-  input: QuoteInput & { mode: "auto_cross"; anchor?: string },
+  input: AutoCrossQuoteInput,
   rateNum: bigint,
   rateDen: bigint,
 ) {
@@ -28,7 +53,7 @@ export function buildAutoCrossTrace(
 }
 
 export function computeExplicitRouteLegs(
-  input: QuoteInput & { mode: "explicit_route" },
+  input: ExplicitRouteQuoteInput,
 ): ComputedLeg[] {
   if (input.legs[0]!.fromCurrency !== input.fromCurrency) {
     throw new ValidationError(

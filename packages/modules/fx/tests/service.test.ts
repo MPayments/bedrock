@@ -4,7 +4,7 @@ import { schema } from "@bedrock/fx/schema";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
 import { NotFoundError, QuoteExpiredError } from "../src/errors";
-import { createFxService } from "../src/service";
+import { createFxService } from "../src/fx";
 import {
   createMockCurrenciesService,
   createNoopFeesService,
