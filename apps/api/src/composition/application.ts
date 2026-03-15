@@ -48,7 +48,11 @@ import {
   type OrganizationsService,
 } from "@bedrock/organizations";
 import { createOrganizationsQueries } from "@bedrock/organizations/queries";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type {
+  Database,
+  Queryable,
+  Transaction,
+} from "@bedrock/platform/persistence";
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
@@ -69,9 +73,9 @@ import {
 } from "./document-plugin-adapters";
 import { db } from "../db/client";
 
-type Queryable = Database | Transaction;
-
-function createDocumentsModuleRuntime(queryable: Queryable): DocumentModuleRuntime {
+function createDocumentsModuleRuntime(
+  queryable: Queryable,
+): DocumentModuleRuntime {
   return {
     documents: createDrizzleDocumentsReadModel({ db: queryable }),
     withQueryable: (run) => run(queryable),
@@ -118,7 +122,9 @@ function createAccountingReportRuntime(queryable: Queryable) {
   };
 }
 
-function createAccountingPeriodsPort(database: Database): AccountingPeriodsService {
+function createAccountingPeriodsPort(
+  database: Database,
+): AccountingPeriodsService {
   function buildService(queryable: Queryable): AccountingPeriodsService {
     const { ledgerQueries, organizationsQueries, reportQueries } =
       createAccountingReportRuntime(queryable);
@@ -142,7 +148,8 @@ function createAccountingPeriodsPort(database: Database): AccountingPeriodsServi
     transactional?: boolean;
     run: (service: AccountingPeriodsService) => Promise<T>;
   }) {
-    const execute = (queryable: Queryable) => input.run(buildService(queryable));
+    const execute = (queryable: Queryable) =>
+      input.run(buildService(queryable));
 
     if (input.db) {
       return execute(input.db);
@@ -218,20 +225,21 @@ function createDocumentsTransactions(input: {
     async withTransaction(run) {
       return input.database.transaction(async (tx: Transaction) => {
         const idempotency: DocumentsIdempotencyPort = {
-          withIdempotency<TResult, TStoredResult = Record<string, unknown>>(
-            params: {
-              scope: string;
-              idempotencyKey: string;
-              request: unknown;
-              actorId?: string | null;
-              handler: () => Promise<TResult>;
-              serializeResult: (result: TResult) => TStoredResult;
-              loadReplayResult: (params: {
-                storedResult: TStoredResult | null;
-              }) => Promise<TResult>;
-              serializeError?: (error: unknown) => Record<string, unknown>;
-            },
-          ) {
+          withIdempotency<
+            TResult,
+            TStoredResult = Record<string, unknown>,
+          >(params: {
+            scope: string;
+            idempotencyKey: string;
+            request: unknown;
+            actorId?: string | null;
+            handler: () => Promise<TResult>;
+            serializeResult: (result: TResult) => TStoredResult;
+            loadReplayResult: (params: {
+              storedResult: TStoredResult | null;
+            }) => Promise<TResult>;
+            serializeError?: (error: unknown) => Record<string, unknown>;
+          }) {
             return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
               tx,
               scope: params.scope,

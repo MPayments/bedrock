@@ -9,7 +9,7 @@ import {
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import type { CorrelationContext } from "@bedrock/shared/core/correlation";
 import { sha256Hex } from "@bedrock/platform/crypto";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable } from "@bedrock/platform/persistence";
 
 import { RECONCILIATION_IDEMPOTENCY_SCOPE } from "./idempotency";
 import type {
@@ -36,8 +36,6 @@ import {
 const schema = {
   ...reconciliationSchema,
 };
-
-type Queryable = Database | Transaction;
 
 interface MatchResolution {
   status: ReconciliationMatchStatus;

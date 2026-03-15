@@ -1,10 +1,8 @@
 import { inArray } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable } from "@bedrock/platform/persistence";
 
 import { schema } from "./schema";
-
-type Queryable = Database | Transaction;
 
 export interface CustomersQueries {
   listDisplayNamesById: (ids: string[]) => Promise<Map<string, string>>;

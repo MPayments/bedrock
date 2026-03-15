@@ -1,7 +1,11 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { pgNotify } from "@bedrock/platform/persistence/notify";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type {
+  Database,
+  Queryable,
+  Transaction,
+} from "@bedrock/platform/persistence";
 
 import type { BalancesStatePort } from "../../../application/ports";
 import type { BalanceEventInput } from "../../../domain/balance-events";
@@ -16,8 +20,6 @@ import {
 } from "../../../domain/balance-position";
 import type { BalanceSubject } from "../../../domain/balance-subject";
 import { schema } from "../schema";
-
-type Queryable = Database | Transaction;
 
 function toBalanceSnapshot(row: {
   bookId: string;
@@ -268,7 +270,9 @@ export function createDrizzleBalancesStateRepository(
       const position =
         (await selectBalancePosition(db, subject, false)) ??
         createZeroBalanceSnapshot(subject);
-      const hold = holdRef ? await selectHold(db, subject, holdRef, false) : null;
+      const hold = holdRef
+        ? await selectHold(db, subject, holdRef, false)
+        : null;
 
       return {
         balance: position,

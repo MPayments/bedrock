@@ -1,10 +1,8 @@
 import { inArray } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable } from "@bedrock/platform/persistence";
 
 import { schema } from "./schema";
-
-type Queryable = Database | Transaction;
 
 export interface RequisiteQueryRecord {
   id: string;
@@ -19,7 +17,9 @@ export interface RequisitesQueries {
   listLabelsById: (ids: string[]) => Promise<Map<string, string>>;
 }
 
-export function createRequisitesQueries(input: { db: Queryable }): RequisitesQueries {
+export function createRequisitesQueries(input: {
+  db: Queryable;
+}): RequisitesQueries {
   const { db } = input;
 
   async function listRequisitesById(ids: string[]) {

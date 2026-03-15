@@ -1,25 +1,19 @@
 import {
   createCreateOrganizationHandler,
-} from "./application/organizations/commands/create-organization";
-import {
   createFindOrganizationByIdHandler,
-} from "./application/organizations/commands/find-organization-by-id";
-import {
   createListOrganizationsHandler,
-} from "./application/organizations/commands/list-organizations";
-import {
   createRemoveOrganizationHandler,
-} from "./application/organizations/commands/remove-organization";
-import {
   createUpdateOrganizationHandler,
-} from "./application/organizations/commands/update-organization";
+} from "./application/organizations/commands";
 import {
   createOrganizationsServiceContext,
   type OrganizationsServiceDeps,
 } from "./application/shared/context";
 import { createDrizzleOrganizationsRepository } from "./infra/drizzle/repos/organizations-repository";
 
-export type OrganizationsService = ReturnType<typeof createOrganizationsService>;
+export type OrganizationsService = ReturnType<
+  typeof createOrganizationsService
+>;
 
 export function createOrganizationsService(deps: OrganizationsServiceDeps) {
   const context = createOrganizationsServiceContext({

@@ -1,6 +1,6 @@
 import { and, count, desc, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 import { pgNotify } from "@bedrock/platform/persistence/notify";
 
 import { insertInitialLinks } from "./graph";
@@ -12,8 +12,6 @@ import type {
   DocumentsRepositoryEventInput,
 } from "../../application/ports";
 import type { ListDocumentsQuery } from "../../contracts/validation";
-
-type Queryable = Database | Transaction;
 
 function readRecordStringField(
   record: Record<string, unknown> | null | undefined,

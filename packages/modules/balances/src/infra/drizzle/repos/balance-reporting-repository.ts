@@ -1,10 +1,8 @@
 import { sql } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable } from "@bedrock/platform/persistence";
 
 import type { BalancesReportingPort } from "../../../application/ports";
-
-type Queryable = Database | Transaction;
 
 export function createDrizzleBalancesReportingRepository(
   db: Queryable,
@@ -28,8 +26,8 @@ export function createDrizzleBalancesReportingRepository(
 
       if (query.scopeType === "counterparty" || query.scopeType === "group") {
         if (query.attributionMode === "book_org") {
-          const scopedOrganizationIds = query.resolvedCounterpartyIds.filter((id) =>
-            query.internalLedgerOrganizationIds.includes(id),
+          const scopedOrganizationIds = query.resolvedCounterpartyIds.filter(
+            (id) => query.internalLedgerOrganizationIds.includes(id),
           );
 
           if (scopedOrganizationIds.length === 0) {
@@ -94,15 +92,17 @@ export function createDrizzleBalancesReportingRepository(
           bp.currency
       `);
 
-      return ((result.rows ?? []) as {
-        book_id: string;
-        counterparty_id: string | null;
-        currency: string;
-        ledger_balance_minor: string;
-        available_minor: string;
-        reserved_minor: string;
-        pending_minor: string;
-      }[]).map((row) => ({
+      return (
+        (result.rows ?? []) as {
+          book_id: string;
+          counterparty_id: string | null;
+          currency: string;
+          ledger_balance_minor: string;
+          available_minor: string;
+          reserved_minor: string;
+          pending_minor: string;
+        }[]
+      ).map((row) => ({
         bookId: row.book_id,
         counterpartyId: row.counterparty_id,
         currency: row.currency,

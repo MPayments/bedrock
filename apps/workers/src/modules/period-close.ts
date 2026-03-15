@@ -40,7 +40,7 @@ import { createOrganizationsQueries } from "@bedrock/organizations/queries";
 import { user } from "@bedrock/platform/auth-model/schema";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 import type { BedrockWorker } from "@bedrock/platform/worker-runtime";
 import { createPeriodCloseDocumentModule } from "@bedrock/plugin-documents-ifrs";
@@ -50,16 +50,19 @@ import {
   type PeriodCloseWorkerOrganizationContext,
 } from "@bedrock/workflow-period-close";
 
-type Queryable = Database | Transaction;
-
-function createDocumentsModuleRuntime(queryable: Queryable): DocumentModuleRuntime {
+function createDocumentsModuleRuntime(
+  queryable: Queryable,
+): DocumentModuleRuntime {
   return {
     documents: createDrizzleDocumentsReadModel({ db: queryable }),
     withQueryable: (run) => run(queryable),
   };
 }
 
-function buildPeriodCloseIdempotencyKey(organizationId: string, periodStart: Date) {
+function buildPeriodCloseIdempotencyKey(
+  organizationId: string,
+  periodStart: Date,
+) {
   return `period_close:${organizationId}:${periodStart.toISOString().slice(0, 7)}`;
 }
 
@@ -188,7 +191,8 @@ function createAccountingPeriodsPort(db: Database): AccountingPeriodsService {
     transactional?: boolean;
     run: (service: AccountingPeriodsService) => Promise<T>;
   }) {
-    const execute = (queryable: Queryable) => input.run(buildService(queryable));
+    const execute = (queryable: Queryable) =>
+      input.run(buildService(queryable));
 
     if (input.db) {
       return execute(input.db);
@@ -284,20 +288,21 @@ function createDocumentsTransactions(input: {
     async withTransaction(run) {
       return input.database.transaction(async (tx: Transaction) => {
         const idempotency: DocumentsIdempotencyPort = {
-          withIdempotency<TResult, TStoredResult = Record<string, unknown>>(
-            params: {
-              scope: string;
-              idempotencyKey: string;
-              request: unknown;
-              actorId?: string | null;
-              handler: () => Promise<TResult>;
-              serializeResult: (result: TResult) => TStoredResult;
-              loadReplayResult: (params: {
-                storedResult: TStoredResult | null;
-              }) => Promise<TResult>;
-              serializeError?: (error: unknown) => Record<string, unknown>;
-            },
-          ) {
+          withIdempotency<
+            TResult,
+            TStoredResult = Record<string, unknown>,
+          >(params: {
+            scope: string;
+            idempotencyKey: string;
+            request: unknown;
+            actorId?: string | null;
+            handler: () => Promise<TResult>;
+            serializeResult: (result: TResult) => TStoredResult;
+            loadReplayResult: (params: {
+              storedResult: TStoredResult | null;
+            }) => Promise<TResult>;
+            serializeError?: (error: unknown) => Record<string, unknown>;
+          }) {
             return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
               tx,
               scope: params.scope,

@@ -1,11 +1,9 @@
 import { sql } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable } from "@bedrock/platform/persistence";
 
 import type { LedgerReportingPort } from "../../../application/reporting/ports";
 import type { AccountingScopedPostingRow } from "../../../contracts/dto";
-
-type Queryable = Database | Transaction;
 
 export function createDrizzleLedgerReportingRepository(
   db: Queryable,
@@ -23,14 +21,19 @@ export function createDrizzleLedgerReportingRepository(
           b.name,
           b.owner_id::text AS owner_id
         FROM "books" b
-        WHERE b.id IN (${sql.join(uniqueIds.map((id) => sql`${id}::uuid`), sql`, `)})
+        WHERE b.id IN (${sql.join(
+          uniqueIds.map((id) => sql`${id}::uuid`),
+          sql`, `,
+        )})
       `);
 
-      return ((result.rows ?? []) as {
-        id: string;
-        name: string | null;
-        owner_id: string | null;
-      }[]).map((row) => ({
+      return (
+        (result.rows ?? []) as {
+          id: string;
+          name: string | null;
+          owner_id: string | null;
+        }[]
+      ).map((row) => ({
         id: row.id,
         name: row.name,
         ownerId: row.owner_id,
@@ -46,11 +49,13 @@ export function createDrizzleLedgerReportingRepository(
         WHERE b.owner_id = ${ownerId}::uuid
       `);
 
-      return ((result.rows ?? []) as {
-        id: string;
-        name: string | null;
-        owner_id: string | null;
-      }[]).map((row) => ({
+      return (
+        (result.rows ?? []) as {
+          id: string;
+          name: string | null;
+          owner_id: string | null;
+        }[]
+      ).map((row) => ({
         id: row.id,
         name: row.name,
         ownerId: row.owner_id,
@@ -121,9 +126,10 @@ export function createDrizzleLedgerReportingRepository(
             )})`,
           );
         } else {
-          const bookScopedOrganizationIds = query.resolvedCounterpartyIds.filter(
-            (id) => query.internalLedgerOrganizationIds.includes(id),
-          );
+          const bookScopedOrganizationIds =
+            query.resolvedCounterpartyIds.filter((id) =>
+              query.internalLedgerOrganizationIds.includes(id),
+            );
           if (bookScopedOrganizationIds.length === 0) {
             return [];
           }
@@ -190,39 +196,43 @@ export function createDrizzleLedgerReportingRepository(
         ORDER BY lo.posting_date, p.operation_id, p.line_no
       `);
 
-      return ((result.rows ?? []) as {
-        operation_id: string;
-        source_type: string;
-        source_id: string;
-        line_no: number;
-        posting_date: Date;
-        status: "pending" | "posted" | "failed";
-        book_id: string;
-        book_name: string | null;
-        book_counterparty_id: string | null;
-        currency: string;
-        amount_minor: string;
-        posting_code: string;
-        debit_account_no: string;
-        credit_account_no: string;
-        analytic_counterparty_id: string | null;
-      }[]).map((row): AccountingScopedPostingRow => ({
-        operationId: row.operation_id,
-        sourceType: row.source_type,
-        sourceId: row.source_id,
-        lineNo: row.line_no,
-        postingDate: row.posting_date,
-        status: row.status,
-        bookId: row.book_id,
-        bookLabel: row.book_name,
-        bookCounterpartyId: row.book_counterparty_id,
-        currency: row.currency,
-        amountMinor: row.amount_minor,
-        postingCode: row.posting_code,
-        debitAccountNo: row.debit_account_no,
-        creditAccountNo: row.credit_account_no,
-        analyticCounterpartyId: row.analytic_counterparty_id,
-      }));
+      return (
+        (result.rows ?? []) as {
+          operation_id: string;
+          source_type: string;
+          source_id: string;
+          line_no: number;
+          posting_date: Date;
+          status: "pending" | "posted" | "failed";
+          book_id: string;
+          book_name: string | null;
+          book_counterparty_id: string | null;
+          currency: string;
+          amount_minor: string;
+          posting_code: string;
+          debit_account_no: string;
+          credit_account_no: string;
+          analytic_counterparty_id: string | null;
+        }[]
+      ).map(
+        (row): AccountingScopedPostingRow => ({
+          operationId: row.operation_id,
+          sourceType: row.source_type,
+          sourceId: row.source_id,
+          lineNo: row.line_no,
+          postingDate: row.posting_date,
+          status: row.status,
+          bookId: row.book_id,
+          bookLabel: row.book_name,
+          bookCounterpartyId: row.book_counterparty_id,
+          currency: row.currency,
+          amountMinor: row.amount_minor,
+          postingCode: row.posting_code,
+          debitAccountNo: row.debit_account_no,
+          creditAccountNo: row.credit_account_no,
+          analyticCounterpartyId: row.analytic_counterparty_id,
+        }),
+      );
     },
   };
 }

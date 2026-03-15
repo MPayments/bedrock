@@ -1,14 +1,10 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable } from "@bedrock/platform/persistence";
 
-import type {
-  AccountingClosePackageRecord,
-} from "../../../domain/periods";
+import type { AccountingClosePackageRecord } from "../../../domain/periods";
 import type { LineMapping } from "../../../domain/reports";
 import { schema } from "../schema";
-
-type Queryable = Database | Transaction;
 
 export interface AccountingReportsRepository {
   fetchAccountMeta: (

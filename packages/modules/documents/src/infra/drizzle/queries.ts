@@ -1,11 +1,9 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable } from "@bedrock/platform/persistence";
 
 import { schema } from "./schema";
 import type { DocumentsReadModel } from "../../contracts/read-model";
-
-type Queryable = Database | Transaction;
 
 export function createDrizzleDocumentsReadModel(input: {
   db: Queryable;

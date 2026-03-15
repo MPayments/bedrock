@@ -6,20 +6,20 @@ import { createLedgerBooksService } from "@bedrock/ledger";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 
 import {
-  OrganizationDeleteConflictError,
-  OrganizationInternalLedgerInvariantError,
-  OrganizationNotFoundError,
-} from "../../src/errors";
-import { schema as organizationsSchema } from "../../src/infra/drizzle/schema";
-import { createOrganizationsQueries } from "../../src/queries";
-import { createOrganizationsService } from "../../src/service";
-import {
   db,
   ensureDeleteGuardTable,
   pool,
   trackBookId,
   trackOrganizationId,
 } from "./setup";
+import {
+  OrganizationDeleteConflictError,
+  OrganizationInternalLedgerInvariantError,
+  OrganizationNotFoundError,
+} from "../../src/errors";
+import { schema as organizationsSchema } from "../../src/infra/drizzle/schema";
+import { createOrganizationsService } from "../../src/organizations";
+import { createOrganizationsQueries } from "../../src/queries";
 
 const ledgerBooks = createLedgerBooksService();
 

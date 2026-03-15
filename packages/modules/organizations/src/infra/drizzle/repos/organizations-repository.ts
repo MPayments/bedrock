@@ -10,8 +10,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 
-import type { Transaction } from "@bedrock/platform/persistence";
-import type { Database } from "@bedrock/platform/persistence";
+import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,
   resolveSortValue,
@@ -25,8 +24,6 @@ import type {
 } from "../../../contracts";
 import type { PartyKind } from "../../../domain/party-kind";
 import { schema } from "../schema";
-
-type Queryable = Database | Transaction;
 
 const SORT_COLUMN_MAP = {
   shortName: schema.organizations.shortName,
@@ -50,7 +47,9 @@ function buildWhere(input: ListOrganizationsQuery): SQL | undefined {
   }
 
   if (input.fullName) {
-    conditions.push(ilike(schema.organizations.fullName, `%${input.fullName}%`));
+    conditions.push(
+      ilike(schema.organizations.fullName, `%${input.fullName}%`),
+    );
   }
 
   if (input.country?.length) {
@@ -58,7 +57,9 @@ function buildWhere(input: ListOrganizationsQuery): SQL | undefined {
   }
 
   if (input.kind?.length) {
-    conditions.push(inArray(schema.organizations.kind, input.kind as PartyKind[]));
+    conditions.push(
+      inArray(schema.organizations.kind, input.kind as PartyKind[]),
+    );
   }
 
   return conditions.length > 0 ? and(...conditions) : undefined;
@@ -68,7 +69,10 @@ export function createDrizzleOrganizationsRepository(
   db: Queryable,
 ): OrganizationsRepository {
   return {
-    async insertOrganizationTx(tx: Transaction, input: CreateOrganizationInput) {
+    async insertOrganizationTx(
+      tx: Transaction,
+      input: CreateOrganizationInput,
+    ) {
       const [created] = await tx
         .insert(schema.organizations)
         .values({
@@ -94,7 +98,8 @@ export function createDrizzleOrganizationsRepository(
     },
     async listOrganizations(input: ListOrganizationsQuery) {
       const where = buildWhere(input);
-      const orderByFn = resolveSortOrder(input.sortOrder) === "desc" ? desc : asc;
+      const orderByFn =
+        resolveSortOrder(input.sortOrder) === "desc" ? desc : asc;
       const orderByCol = resolveSortValue(
         input.sortBy,
         SORT_COLUMN_MAP,

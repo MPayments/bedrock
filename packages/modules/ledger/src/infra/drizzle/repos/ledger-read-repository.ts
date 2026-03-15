@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable } from "@bedrock/platform/persistence";
 import {
   type PaginatedList,
   resolveSortOrder,
@@ -18,8 +18,6 @@ import {
 } from "../../../contracts";
 import type { Dimensions } from "../../../domain/dimensions";
 import { schema } from "../schema";
-
-type Queryable = Database | Transaction;
 
 const OPERATION_SORT_COLUMN_MAP = {
   createdAt: schema.ledgerOperations.createdAt,
@@ -43,10 +41,15 @@ function normalizeDimensionFilters(
   }
 
   return Object.entries(input)
-    .map(([key, values]) => [
-      key.trim(),
-      Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))),
-    ] as const)
+    .map(
+      ([key, values]) =>
+        [
+          key.trim(),
+          Array.from(
+            new Set(values.map((value) => value.trim()).filter(Boolean)),
+          ),
+        ] as const,
+    )
     .filter(([key, values]) => key.length > 0 && values.length > 0);
 }
 
@@ -94,7 +97,10 @@ export function createDrizzleLedgerReadRepository(
         )`);
       }
 
-      const statusCondition = inArraySafe(schema.ledgerOperations.status, status);
+      const statusCondition = inArraySafe(
+        schema.ledgerOperations.status,
+        status,
+      );
       if (statusCondition) {
         conditions.push(statusCondition);
       }
@@ -176,8 +182,12 @@ export function createDrizzleLedgerReadRepository(
             lastOutboxErrorAt: schema.ledgerOperations.lastOutboxErrorAt,
             createdAt: schema.ledgerOperations.createdAt,
             postingCount: sql<number>`count(${schema.postings.id})::int`,
-            bookIds: sql<string[]>`coalesce(array_agg(distinct ${schema.postings.bookId}) filter (where ${schema.postings.bookId} is not null), '{}')`,
-            currencies: sql<string[]>`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
+            bookIds: sql<
+              string[]
+            >`coalesce(array_agg(distinct ${schema.postings.bookId}) filter (where ${schema.postings.bookId} is not null), '{}')`,
+            currencies: sql<
+              string[]
+            >`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
           })
           .from(schema.ledgerOperations)
           .leftJoin(
@@ -237,8 +247,12 @@ export function createDrizzleLedgerReadRepository(
           lastOutboxErrorAt: schema.ledgerOperations.lastOutboxErrorAt,
           createdAt: schema.ledgerOperations.createdAt,
           postingCount: sql<number>`count(${schema.postings.id})::int`,
-          bookIds: sql<string[]>`coalesce(array_agg(distinct ${schema.postings.bookId}) filter (where ${schema.postings.bookId} is not null), '{}')`,
-          currencies: sql<string[]>`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
+          bookIds: sql<
+            string[]
+          >`coalesce(array_agg(distinct ${schema.postings.bookId}) filter (where ${schema.postings.bookId} is not null), '{}')`,
+          currencies: sql<
+            string[]
+          >`coalesce(array_agg(distinct ${schema.postings.currency}) filter (where ${schema.postings.currency} is not null), '{}')`,
         })
         .from(schema.ledgerOperations)
         .leftJoin(
@@ -278,10 +292,12 @@ export function createDrizzleLedgerReadRepository(
         .orderBy(schema.tbTransferPlans.lineNo);
 
       const instanceIds = Array.from(
-        new Set(postingRows.flatMap((posting) => [
-          posting.debitInstanceId,
-          posting.creditInstanceId,
-        ])),
+        new Set(
+          postingRows.flatMap((posting) => [
+            posting.debitInstanceId,
+            posting.creditInstanceId,
+          ]),
+        ),
       );
       const instances =
         instanceIds.length === 0
@@ -296,7 +312,9 @@ export function createDrizzleLedgerReadRepository(
               .where(inArray(schema.bookAccountInstances.id, instanceIds));
 
       const instanceById = new Map(instances.map((inst) => [inst.id, inst]));
-      const bookIds = Array.from(new Set(postingRows.map((posting) => posting.bookId)));
+      const bookIds = Array.from(
+        new Set(postingRows.map((posting) => posting.bookId)),
+      );
       const bookRows =
         bookIds.length === 0
           ? []
@@ -307,7 +325,9 @@ export function createDrizzleLedgerReadRepository(
               })
               .from(schema.books)
               .where(inArray(schema.books.id, bookIds));
-      const bookNameById = new Map(bookRows.map((book) => [book.id, book.name]));
+      const bookNameById = new Map(
+        bookRows.map((book) => [book.id, book.name]),
+      );
 
       return {
         operation: {
@@ -329,7 +349,8 @@ export function createDrizzleLedgerReadRepository(
             debitDimensions: (debitInstance?.dimensions as Dimensions) ?? null,
             creditInstanceId: posting.creditInstanceId,
             creditAccountNo: creditInstance?.accountNo ?? null,
-            creditDimensions: (creditInstance?.dimensions as Dimensions) ?? null,
+            creditDimensions:
+              (creditInstance?.dimensions as Dimensions) ?? null,
             postingCode: posting.postingCode,
             currency: posting.currency,
             amountMinor: posting.amountMinor,

@@ -9,16 +9,17 @@ import type { FxService } from "@bedrock/fx";
 import { schema as fxSchema } from "@bedrock/fx/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { sha256Hex } from "@bedrock/platform/crypto";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
-import { DocumentValidationError, type DocumentModuleRuntime } from "@bedrock/plugin-documents-sdk";
+import type { Queryable } from "@bedrock/platform/persistence";
+import {
+  DocumentValidationError,
+  type DocumentModuleRuntime,
+} from "@bedrock/plugin-documents-sdk";
 import type { RequisitesService } from "@bedrock/requisites";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import { minorToAmountString } from "@bedrock/shared/money";
 
 import type { IfrsModuleDeps } from "../documents/internal/types";
 import { FxExecuteQuoteSnapshotSchema } from "../validation";
-
-type Queryable = Database | Transaction;
 
 const FX_EXECUTE_DOC_TYPE = "fx_execute";
 const TRANSFER_DOC_TYPES = ["transfer_intra", "transfer_intercompany"] as const;
@@ -322,7 +323,10 @@ export function createIfrsDocumentDeps(input: {
       },
     },
     fxExecuteLookup: {
-      async resolveFxExecuteDependencyDocument({ runtime, fxExecuteDocumentId }) {
+      async resolveFxExecuteDependencyDocument({
+        runtime,
+        fxExecuteDocumentId,
+      }) {
         const dependency = await runtime.documents.getDocumentByType({
           documentId: fxExecuteDocumentId,
           docType: FX_EXECUTE_DOC_TYPE,

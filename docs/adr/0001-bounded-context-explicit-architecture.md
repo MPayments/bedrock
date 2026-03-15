@@ -38,7 +38,7 @@ Bedrock uses:
 3. ports defined by the application core and implemented by adapters in `infra`
 4. thin apps and workflows that compose and trigger use cases instead of owning business logic
 
-This is a repo-specific adaptation of Explicit Architecture, not a literal framework import. Bedrock keeps closure-based service factories and thin `service.ts` facades where that is the established package API.
+This is a repo-specific adaptation of Explicit Architecture, not a literal framework import. Bedrock keeps closure-based service factories and thin root facade entrypoints where that is the established package API.
 
 ## Package Kinds
 
@@ -63,6 +63,7 @@ New and refactored runtime packages should follow this internal structure:
 ```text
 src/
   index.ts
+  [capability].ts   # optional public facade entrypoints such as reports.ts or ledger.ts
   contracts/
     commands.ts
     queries.ts
@@ -198,9 +199,9 @@ Deep imports into non-exported files are forbidden.
 
 - Do not create new generic `internal/` directories in runtime packages.
 - Do not place public DTO/Zod schemas under DB schema folders.
-- `service.ts` is a public facade/composition helper.
-- Internal package code must not route through `service.ts`.
-- `service.ts` must not contain business rules, raw SQL, or tool-specific logic that belongs in `infra`.
+- Root facade entrypoints such as `ledger.ts`, `documents.ts`, `organizations.ts`, `reports.ts`, or `periods.ts` are public facade/composition helpers.
+- Internal package code must not route through root facade entrypoints.
+- Root facade entrypoints must not contain business rules, raw SQL, or tool-specific logic that belongs in `infra`.
 
 ## Ownership Rules
 

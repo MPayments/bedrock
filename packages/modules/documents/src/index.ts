@@ -1,5 +1,5 @@
-export { createDocumentsService } from "./service";
-export type { DocumentsService } from "./service";
+export { createDocumentsService } from "./documents";
+export type { DocumentsService } from "./documents";
 export type {
   DocumentsAccountingPeriodsPort,
   DocumentsAccountingPort,

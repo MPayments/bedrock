@@ -1,20 +1,16 @@
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type {
+  Database,
+  Queryable,
+  Transaction,
+} from "@bedrock/platform/persistence";
 
-import type {
-  BalancesQueriesContext,
-} from "../../shared/context";
-import type {
-  BalancesReportingPort,
-} from "../../ports";
+import type { BalancesQueriesContext } from "../../shared/context";
+import type { BalancesReportingPort } from "../../ports";
 import type {
   ListOrganizationLiquidityRowsInput,
   LiquidityQueryRow,
 } from "../../../contracts";
-import {
-  validateListOrganizationLiquidityRowsInput,
-} from "../../../contracts";
-
-type Queryable = Database | Transaction;
+import { validateListOrganizationLiquidityRowsInput } from "../../../contracts";
 
 export interface BalancesQueries {
   listOrganizationLiquidityRows: (

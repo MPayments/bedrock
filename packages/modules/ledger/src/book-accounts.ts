@@ -1,17 +1,11 @@
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 
-import {
-  createEnsureBookAccountInstanceHandler,
-} from "./application/book-accounts/ensure-book-account-instance";
+import { createEnsureBookAccountInstanceHandler } from "./application/book-accounts/ensure-book-account-instance";
 import type { BookAccountIdentityInput } from "./domain/book-account-identity";
 import { createDrizzleLedgerBookAccountsRepository } from "./infra/drizzle/repos/book-account-instances-repository";
 
-type Queryable = Database | Transaction;
-
 export interface LedgerBookAccountsService {
-  ensureBookAccountInstance: (
-    input: BookAccountIdentityInput,
-  ) => Promise<{
+  ensureBookAccountInstance: (input: BookAccountIdentityInput) => Promise<{
     id: string;
     dimensionsHash: string;
     tbLedger: number;

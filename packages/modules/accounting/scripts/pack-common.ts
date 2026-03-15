@@ -6,15 +6,15 @@ import { Pool } from "pg";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 
-import { PACK_PACKAGE_NAME } from "../src/packs/bedrock-core-default";
-import { AccountingPackDefinitionSchema } from "../src/packs/schema";
 import {
   type AccountingPackDefinition,
   compilePack,
   createAccountingPacksService,
   createDrizzleAccountingPacksRepository,
   type CompiledPack,
-} from "../src/packs-service";
+} from "../src/packs";
+import { PACK_PACKAGE_NAME } from "../src/packs/bedrock-core-default";
+import { AccountingPackDefinitionSchema } from "../src/packs/schema";
 
 const DEFAULT_PACK_URL = new URL(
   "../src/packs/bedrock-core-default.ts",

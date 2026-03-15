@@ -1,10 +1,8 @@
 import { inArray, sql } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable } from "@bedrock/platform/persistence";
 
 import { schema } from "./schema";
-
-type Queryable = Database | Transaction;
 
 export interface CounterpartiesQueries {
   listShortNamesById: (ids: string[]) => Promise<Map<string, string>>;
@@ -67,10 +65,12 @@ export function createCounterpartiesQueries(input: {
             ON m.group_id = sg.root_group_id
         `);
 
-        return ((result.rows ?? []) as {
-          root_group_id: string;
-          counterparty_id: string;
-        }[]).map((row) => ({
+        return (
+          (result.rows ?? []) as {
+            root_group_id: string;
+            counterparty_id: string;
+          }[]
+        ).map((row) => ({
           rootGroupId: row.root_group_id,
           counterpartyId: row.counterparty_id,
         }));
@@ -99,10 +99,12 @@ export function createCounterpartiesQueries(input: {
           ON m.group_id = gt.group_id
       `);
 
-      return ((result.rows ?? []) as {
-        root_group_id: string;
-        counterparty_id: string;
-      }[]).map((row) => ({
+      return (
+        (result.rows ?? []) as {
+          root_group_id: string;
+          counterparty_id: string;
+        }[]
+      ).map((row) => ({
         rootGroupId: row.root_group_id,
         counterpartyId: row.counterparty_id,
       }));

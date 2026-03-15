@@ -12,9 +12,9 @@ import {
   createTestTransferPlan,
   type StubDatabase,
 } from "./helpers";
-import { IdempotencyConflictError } from "../src/errors";
 import { OPERATION_TRANSFER_TYPE } from "../src/contracts";
-import { createLedgerService } from "../src/service";
+import { IdempotencyConflictError } from "../src/errors";
+import { createLedgerService } from "../src/ledger";
 
 function createCreateTransferTx(options?: {
   existingOperation?: boolean;

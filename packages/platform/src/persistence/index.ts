@@ -5,6 +5,7 @@ import type {
 
 export type Database = DrizzleDatabase;
 export type Transaction = DrizzleTransaction;
+export type Queryable = Database | Transaction;
 
 export interface TransactionRunner {
   runInTransaction<TResult>(

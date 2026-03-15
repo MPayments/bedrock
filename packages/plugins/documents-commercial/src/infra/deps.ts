@@ -7,7 +7,11 @@ import {
 } from "@bedrock/documents/contracts";
 import { schema as fxSchema } from "@bedrock/fx/schema";
 import { sha256Hex } from "@bedrock/platform/crypto";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type {
+  Database,
+  Queryable,
+  Transaction,
+} from "@bedrock/platform/persistence";
 import {
   DocumentValidationError,
   type DocumentModuleRuntime,
@@ -20,8 +24,6 @@ import { minorToAmountString } from "@bedrock/shared/money";
 import type { CommercialModuleDeps } from "../documents/internal/types";
 import type { QuoteSnapshot } from "../validation";
 import { QuoteSnapshotSchema } from "../validation";
-
-type Queryable = Database | Transaction;
 
 const INVOICE_DOC_TYPE = "invoice";
 const EXCHANGE_DOC_TYPE = "exchange";
@@ -281,7 +283,10 @@ async function markQuoteUsedForRef(input: {
         usedAt: at,
       })
       .where(
-        and(eq(fxSchema.fxQuotes.id, quoteId), eq(fxSchema.fxQuotes.status, "active")),
+        and(
+          eq(fxSchema.fxQuotes.id, quoteId),
+          eq(fxSchema.fxQuotes.status, "active"),
+        ),
       )
       .returning();
     return record ?? null;
