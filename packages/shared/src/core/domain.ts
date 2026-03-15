@@ -12,6 +12,22 @@ export class DomainError extends ServiceError {
   }
 }
 
+export function readCauseString(
+  error: DomainError,
+  key: string,
+): string | null {
+  if (
+    error.cause &&
+    typeof error.cause === "object" &&
+    key in error.cause &&
+    typeof (error.cause as Record<string, unknown>)[key] === "string"
+  ) {
+    return (error.cause as Record<string, string | undefined>)[key] ?? null;
+  }
+
+  return null;
+}
+
 export function invariant(
   condition: unknown,
   code: string,

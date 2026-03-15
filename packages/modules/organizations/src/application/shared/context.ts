@@ -4,16 +4,23 @@ import type { Database } from "@bedrock/platform/persistence";
 
 import type {
   OrganizationsCurrenciesPort,
-  OrganizationsLedgerBooksPort,
   OrganizationsLedgerBindingsPort,
-  OrganizationsRepository,
+  OrganizationsLedgerBooksPort,
   OrganizationsRequisiteProvidersPort,
-  OrganizationRequisitesRepository,
-} from "../ports";
+} from "./external-ports";
+import type {
+  OrganizationsCommandRepository,
+  OrganizationsQueryRepository,
+} from "../organizations/ports";
+import type {
+  OrganizationRequisitesCommandRepository,
+  OrganizationRequisitesQueryRepository,
+} from "../requisites/ports";
 
 export interface OrganizationsServiceDeps {
   db: Database;
   logger?: Logger;
+  now?: () => Date;
   ledgerBooks: OrganizationsLedgerBooksPort;
   currencies?: OrganizationsCurrenciesPort;
   ledgerBindings?: OrganizationsLedgerBindingsPort;
@@ -23,32 +30,41 @@ export interface OrganizationsServiceDeps {
 export interface OrganizationsServiceContext {
   db: Database;
   log: Logger;
+  now: () => Date;
   ledgerBooks: OrganizationsLedgerBooksPort;
   currencies: OrganizationsCurrenciesPort;
   ledgerBindings: OrganizationsLedgerBindingsPort;
   requisiteProviders: OrganizationsRequisiteProvidersPort;
-  organizations: OrganizationsRepository;
-  requisites: OrganizationRequisitesRepository;
+  organizations: OrganizationsCommandRepository;
+  organizationQueries: OrganizationsQueryRepository;
+  requisites: OrganizationRequisitesCommandRepository;
+  requisiteQueries: OrganizationRequisitesQueryRepository;
 }
 
 export function createOrganizationsServiceContext(input: {
   db: Database;
   logger?: Logger;
+  now?: () => Date;
   ledgerBooks: OrganizationsLedgerBooksPort;
   currencies: OrganizationsCurrenciesPort;
   ledgerBindings: OrganizationsLedgerBindingsPort;
   requisiteProviders: OrganizationsRequisiteProvidersPort;
-  organizations: OrganizationsRepository;
-  requisites: OrganizationRequisitesRepository;
+  organizations: OrganizationsCommandRepository;
+  organizationQueries: OrganizationsQueryRepository;
+  requisites: OrganizationRequisitesCommandRepository;
+  requisiteQueries: OrganizationRequisitesQueryRepository;
 }): OrganizationsServiceContext {
   return {
     db: input.db,
     log: input.logger?.child({ service: "organizations" }) ?? noopLogger,
+    now: input.now ?? (() => new Date()),
     ledgerBooks: input.ledgerBooks,
     currencies: input.currencies,
     ledgerBindings: input.ledgerBindings,
     requisiteProviders: input.requisiteProviders,
     organizations: input.organizations,
+    organizationQueries: input.organizationQueries,
     requisites: input.requisites,
+    requisiteQueries: input.requisiteQueries,
   };
 }

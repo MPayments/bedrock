@@ -8,6 +8,7 @@ export {
   DomainError,
   Entity,
   invariant,
+  readCauseString,
   ValueObject,
 } from "./domain";
 export type {

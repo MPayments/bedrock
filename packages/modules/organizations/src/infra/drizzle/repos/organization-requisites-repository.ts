@@ -6,12 +6,12 @@ import {
   ilike,
   inArray,
   isNull,
-  ne,
   sql,
   type SQL,
 } from "drizzle-orm";
 
-import type { Queryable } from "@bedrock/platform/persistence";
+import { currencies } from "@bedrock/currencies/schema";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,
   resolveSortValue,
@@ -19,20 +19,21 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 import type {
+  OrganizationRequisiteOptionRecord,
+  OrganizationRequisitesCommandRepository,
+  OrganizationRequisitesQueryRepository,
+  OrganizationsRequisiteBindingResolution,
+} from "../../../application/requisites/ports";
+import type {
   OrganizationRequisite,
   OrganizationRequisiteAccountingBinding,
 } from "../../../contracts";
-import type {
-  OrganizationRequisiteOptionRecord,
-  OrganizationsRequisiteBindingResolution,
-  OrganizationRequisitesRepository,
-} from "../../../application/ports";
+import type { OrganizationRequisiteSnapshot } from "../../../domain/organization-requisite";
 import {
   organizationRequisiteBindings,
   organizationRequisites,
   type OrganizationRequisiteRow,
 } from "../schema";
-import { currencies } from "@bedrock/currencies/schema";
 
 const REQUISITES_SORT_COLUMN_MAP = {
   label: organizationRequisites.label,
@@ -41,17 +42,12 @@ const REQUISITES_SORT_COLUMN_MAP = {
   updatedAt: organizationRequisites.updatedAt,
 } as const;
 
-function resolveDb(db: Queryable, queryable?: Queryable): Queryable {
-  return queryable ?? db;
-}
-
-function toPublicRequisite(
+function toSnapshot(
   row: OrganizationRequisiteRow,
-): OrganizationRequisite {
+): OrganizationRequisiteSnapshot {
   return {
     id: row.id,
-    ownerType: "organization",
-    ownerId: row.organizationId!,
+    organizationId: row.organizationId!,
     providerId: row.providerId,
     currencyId: row.currencyId,
     kind: row.kind,
@@ -81,50 +77,146 @@ function toPublicRequisite(
   };
 }
 
-export function createDrizzleOrganizationRequisitesRepository(
-  db: Queryable,
-): OrganizationRequisitesRepository {
+function toPublicRequisite(
+  snapshot: OrganizationRequisiteSnapshot,
+): OrganizationRequisite {
   return {
-    async findRequisiteById(id, queryable) {
-      const [row] = await resolveDb(db, queryable)
-        .select()
-        .from(organizationRequisites)
-        .where(
-          and(
-            eq(organizationRequisites.id, id),
-            eq(organizationRequisites.ownerType, "organization"),
-          ),
-        )
-        .limit(1);
+    id: snapshot.id,
+    ownerType: "organization",
+    ownerId: snapshot.organizationId,
+    providerId: snapshot.providerId,
+    currencyId: snapshot.currencyId,
+    kind: snapshot.kind,
+    label: snapshot.label,
+    description: snapshot.description,
+    beneficiaryName: snapshot.beneficiaryName,
+    institutionName: snapshot.institutionName,
+    institutionCountry: snapshot.institutionCountry,
+    accountNo: snapshot.accountNo,
+    corrAccount: snapshot.corrAccount,
+    iban: snapshot.iban,
+    bic: snapshot.bic,
+    swift: snapshot.swift,
+    bankAddress: snapshot.bankAddress,
+    network: snapshot.network,
+    assetCode: snapshot.assetCode,
+    address: snapshot.address,
+    memoTag: snapshot.memoTag,
+    accountRef: snapshot.accountRef,
+    subaccountRef: snapshot.subaccountRef,
+    contact: snapshot.contact,
+    notes: snapshot.notes,
+    isDefault: snapshot.isDefault,
+    createdAt: snapshot.createdAt,
+    updatedAt: snapshot.updatedAt,
+    archivedAt: snapshot.archivedAt,
+  };
+}
 
-      return row ? toPublicRequisite(row) : null;
-    },
-    async findActiveRequisiteById(id, queryable) {
-      const [row] = await resolveDb(db, queryable)
-        .select()
-        .from(organizationRequisites)
-        .where(
-          and(
-            eq(organizationRequisites.id, id),
-            eq(organizationRequisites.ownerType, "organization"),
-            isNull(organizationRequisites.archivedAt),
-          ),
-        )
-        .limit(1);
+async function findRequisiteSnapshot(
+  db: Database,
+  id: string,
+  tx?: Transaction,
+): Promise<OrganizationRequisiteSnapshot | null> {
+  const database = tx ?? db;
+  const [row] = await database
+    .select()
+    .from(organizationRequisites)
+    .where(
+      and(
+        eq(organizationRequisites.id, id),
+        eq(organizationRequisites.ownerType, "organization"),
+      ),
+    )
+    .limit(1);
 
-      return row ? toPublicRequisite(row) : null;
+  return row ? toSnapshot(row) : null;
+}
+
+async function findActiveRequisiteSnapshot(
+  db: Database,
+  id: string,
+  tx?: Transaction,
+): Promise<OrganizationRequisiteSnapshot | null> {
+  const database = tx ?? db;
+  const [row] = await database
+    .select()
+    .from(organizationRequisites)
+    .where(
+      and(
+        eq(organizationRequisites.id, id),
+        eq(organizationRequisites.ownerType, "organization"),
+        isNull(organizationRequisites.archivedAt),
+      ),
+    )
+    .limit(1);
+
+  return row ? toSnapshot(row) : null;
+}
+
+async function findBinding(
+  db: Database,
+  requisiteId: string,
+  tx?: Transaction,
+): Promise<OrganizationRequisiteAccountingBinding | null> {
+  const database = tx ?? db;
+  const [binding] = await database
+    .select({
+      requisiteId: organizationRequisiteBindings.requisiteId,
+      organizationId: organizationRequisites.organizationId,
+      bookId: organizationRequisiteBindings.bookId,
+      bookAccountInstanceId:
+        organizationRequisiteBindings.bookAccountInstanceId,
+      postingAccountNo: organizationRequisiteBindings.postingAccountNo,
+      createdAt: organizationRequisiteBindings.createdAt,
+      updatedAt: organizationRequisiteBindings.updatedAt,
+    })
+    .from(organizationRequisiteBindings)
+    .innerJoin(
+      organizationRequisites,
+      eq(
+        organizationRequisiteBindings.requisiteId,
+        organizationRequisites.id,
+      ),
+    )
+    .where(eq(organizationRequisiteBindings.requisiteId, requisiteId))
+    .limit(1);
+
+  if (!binding || !binding.organizationId) {
+    return null;
+  }
+
+  return {
+    requisiteId: binding.requisiteId,
+    organizationId: binding.organizationId,
+    bookId: binding.bookId,
+    bookAccountInstanceId: binding.bookAccountInstanceId,
+    postingAccountNo: binding.postingAccountNo,
+    createdAt: binding.createdAt,
+    updatedAt: binding.updatedAt,
+  };
+}
+
+export function createDrizzleOrganizationRequisitesQueryRepository(
+  db: Database,
+): OrganizationRequisitesQueryRepository {
+  return {
+    async findRequisiteById(id) {
+      const snapshot = await findRequisiteSnapshot(db, id);
+      return snapshot ? toPublicRequisite(snapshot) : null;
     },
-    async listRequisites(input, queryable) {
-      const database = resolveDb(db, queryable);
+    async findActiveRequisiteById(id) {
+      const snapshot = await findActiveRequisiteSnapshot(db, id);
+      return snapshot ? toPublicRequisite(snapshot) : null;
+    },
+    async listRequisites(input) {
       const conditions: SQL[] = [
         eq(organizationRequisites.ownerType, "organization"),
         isNull(organizationRequisites.archivedAt),
       ];
 
       if (input.label) {
-        conditions.push(
-          ilike(organizationRequisites.label, `%${input.label}%`),
-        );
+        conditions.push(ilike(organizationRequisites.label, `%${input.label}%`));
       }
 
       if (input.organizationId) {
@@ -164,28 +256,27 @@ export function createDrizzleOrganizationRequisitesRepository(
       );
 
       const [rows, countRows] = await Promise.all([
-        database
+        db
           .select()
           .from(organizationRequisites)
           .where(where)
           .orderBy(orderByFn(orderByCol))
           .limit(input.limit)
           .offset(input.offset),
-        database
+        db
           .select({ total: sql<number>`count(*)::int` })
           .from(organizationRequisites)
           .where(where),
       ]);
 
       return {
-        data: rows.map(toPublicRequisite),
+        data: rows.map((row) => toPublicRequisite(toSnapshot(row))),
         total: countRows[0]?.total ?? 0,
         limit: input.limit,
         offset: input.offset,
       } satisfies PaginatedList<OrganizationRequisite>;
     },
-    async listRequisiteOptions(input, queryable) {
-      const database = resolveDb(db, queryable);
+    async listRequisiteOptions(input) {
       const conditions: SQL[] = [
         eq(organizationRequisites.ownerType, "organization"),
         isNull(organizationRequisites.archivedAt),
@@ -197,7 +288,7 @@ export function createDrizzleOrganizationRequisitesRepository(
         );
       }
 
-      const rows = await database
+      const rows = await db
         .select({
           id: organizationRequisites.id,
           ownerId: organizationRequisites.organizationId,
@@ -237,7 +328,6 @@ export function createDrizzleOrganizationRequisitesRepository(
 
       return rows.map((row) => ({
         id: row.id,
-        ownerType: "organization",
         ownerId: row.ownerId!,
         currencyId: row.currencyId,
         providerId: row.providerId,
@@ -263,13 +353,14 @@ export function createDrizzleOrganizationRequisitesRepository(
         currencyCode: row.currencyCode,
       })) satisfies OrganizationRequisiteOptionRecord[];
     },
-    async listLabelsById(ids, queryable) {
+    async listLabelsById(ids) {
       const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+
       if (uniqueIds.length === 0) {
         return new Map();
       }
 
-      const rows = await resolveDb(db, queryable)
+      const rows = await db
         .select({
           id: organizationRequisites.id,
           label: organizationRequisites.label,
@@ -284,254 +375,17 @@ export function createDrizzleOrganizationRequisitesRepository(
 
       return new Map(rows.map((row) => [row.id, row.label]));
     },
-    async countActiveRequisitesByOrganizationCurrency(input, queryable) {
-      const [row] = await resolveDb(db, queryable)
-        .select({ total: sql<number>`count(*)::int` })
-        .from(organizationRequisites)
-        .where(
-          and(
-            eq(organizationRequisites.ownerType, "organization"),
-            eq(organizationRequisites.organizationId, input.organizationId),
-            eq(organizationRequisites.currencyId, input.currencyId),
-            isNull(organizationRequisites.archivedAt),
-          ),
-        );
-
-      return row?.total ?? 0;
+    async findBindingByRequisiteId(requisiteId) {
+      return findBinding(db, requisiteId);
     },
-    async clearOtherDefaultsTx(tx, input) {
-      await tx
-        .update(organizationRequisites)
-        .set({ isDefault: false })
-        .where(
-          and(
-            eq(organizationRequisites.ownerType, "organization"),
-            eq(organizationRequisites.organizationId, input.organizationId),
-            eq(organizationRequisites.currencyId, input.currencyId),
-            isNull(organizationRequisites.archivedAt),
-            ne(organizationRequisites.id, input.currentId),
-          ),
-        );
-
-      await tx
-        .update(organizationRequisites)
-        .set({ isDefault: true })
-        .where(eq(organizationRequisites.id, input.currentId));
-    },
-    async promoteNextDefaultTx(tx, input) {
-      const [replacement] = await tx
-        .select({ id: organizationRequisites.id })
-        .from(organizationRequisites)
-        .where(
-          and(
-            eq(organizationRequisites.ownerType, "organization"),
-            eq(organizationRequisites.organizationId, input.organizationId),
-            eq(organizationRequisites.currencyId, input.currencyId),
-            isNull(organizationRequisites.archivedAt),
-            ne(organizationRequisites.id, input.excludeId),
-          ),
-        )
-        .limit(1);
-
-      if (!replacement) {
-        return;
-      }
-
-      await tx
-        .update(organizationRequisites)
-        .set({ isDefault: true, updatedAt: sql`now()` })
-        .where(eq(organizationRequisites.id, replacement.id));
-    },
-    async insertRequisiteTx(tx, input) {
-      const [created] = await tx
-        .insert(organizationRequisites)
-        .values({
-          ownerType: "organization",
-          organizationId: input.organizationId,
-          counterpartyId: null,
-          providerId: input.providerId,
-          currencyId: input.currencyId,
-          kind: input.kind,
-          label: input.label,
-          description: input.description ?? null,
-          beneficiaryName: input.beneficiaryName ?? null,
-          institutionName: input.institutionName ?? null,
-          institutionCountry: input.institutionCountry ?? null,
-          accountNo: input.accountNo ?? null,
-          corrAccount: input.corrAccount ?? null,
-          iban: input.iban ?? null,
-          bic: input.bic ?? null,
-          swift: input.swift ?? null,
-          bankAddress: input.bankAddress ?? null,
-          network: input.network ?? null,
-          assetCode: input.assetCode ?? null,
-          address: input.address ?? null,
-          memoTag: input.memoTag ?? null,
-          accountRef: input.accountRef ?? null,
-          subaccountRef: input.subaccountRef ?? null,
-          contact: input.contact ?? null,
-          notes: input.notes ?? null,
-          isDefault: input.isDefault,
-        })
-        .returning();
-
-      return toPublicRequisite(created!);
-    },
-    async updateRequisiteTx(tx, id, input) {
-      const [updated] = await tx
-        .update(organizationRequisites)
-        .set({
-          providerId: input.providerId,
-          currencyId: input.currencyId,
-          kind: input.kind,
-          label: input.label,
-          description:
-            input.description !== undefined
-              ? (input.description ?? null)
-              : undefined,
-          beneficiaryName:
-            input.beneficiaryName !== undefined
-              ? (input.beneficiaryName ?? null)
-              : undefined,
-          institutionName:
-            input.institutionName !== undefined
-              ? (input.institutionName ?? null)
-              : undefined,
-          institutionCountry:
-            input.institutionCountry !== undefined
-              ? (input.institutionCountry ?? null)
-              : undefined,
-          accountNo:
-            input.accountNo !== undefined
-              ? (input.accountNo ?? null)
-              : undefined,
-          corrAccount:
-            input.corrAccount !== undefined
-              ? (input.corrAccount ?? null)
-              : undefined,
-          iban: input.iban !== undefined ? (input.iban ?? null) : undefined,
-          bic: input.bic !== undefined ? (input.bic ?? null) : undefined,
-          swift: input.swift !== undefined ? (input.swift ?? null) : undefined,
-          bankAddress:
-            input.bankAddress !== undefined
-              ? (input.bankAddress ?? null)
-              : undefined,
-          network:
-            input.network !== undefined ? (input.network ?? null) : undefined,
-          assetCode:
-            input.assetCode !== undefined
-              ? (input.assetCode ?? null)
-              : undefined,
-          address:
-            input.address !== undefined ? (input.address ?? null) : undefined,
-          memoTag:
-            input.memoTag !== undefined ? (input.memoTag ?? null) : undefined,
-          accountRef:
-            input.accountRef !== undefined
-              ? (input.accountRef ?? null)
-              : undefined,
-          subaccountRef:
-            input.subaccountRef !== undefined
-              ? (input.subaccountRef ?? null)
-              : undefined,
-          contact:
-            input.contact !== undefined ? (input.contact ?? null) : undefined,
-          notes: input.notes !== undefined ? (input.notes ?? null) : undefined,
-          isDefault: input.isDefault,
-          updatedAt: sql`now()`,
-        })
-        .where(
-          and(
-            eq(organizationRequisites.id, id),
-            eq(organizationRequisites.ownerType, "organization"),
-          ),
-        )
-        .returning();
-
-      return updated ? toPublicRequisite(updated) : null;
-    },
-    async archiveRequisiteTx(tx, id) {
-      const [updated] = await tx
-        .update(organizationRequisites)
-        .set({
-          archivedAt: sql`now()`,
-          isDefault: false,
-          updatedAt: sql`now()`,
-        })
-        .where(
-          and(
-            eq(organizationRequisites.id, id),
-            eq(organizationRequisites.ownerType, "organization"),
-          ),
-        )
-        .returning({ id: organizationRequisites.id });
-
-      return Boolean(updated);
-    },
-    async findBindingByRequisiteId(requisiteId, queryable) {
-      const [binding] = await resolveDb(db, queryable)
-        .select({
-          requisiteId: organizationRequisiteBindings.requisiteId,
-          organizationId: organizationRequisites.organizationId,
-          bookId: organizationRequisiteBindings.bookId,
-          bookAccountInstanceId:
-            organizationRequisiteBindings.bookAccountInstanceId,
-          postingAccountNo: organizationRequisiteBindings.postingAccountNo,
-          createdAt: organizationRequisiteBindings.createdAt,
-          updatedAt: organizationRequisiteBindings.updatedAt,
-        })
-        .from(organizationRequisiteBindings)
-        .innerJoin(
-          organizationRequisites,
-          eq(
-            organizationRequisiteBindings.requisiteId,
-            organizationRequisites.id,
-          ),
-        )
-        .where(eq(organizationRequisiteBindings.requisiteId, requisiteId))
-        .limit(1);
-
-      if (!binding || !binding.organizationId) {
-        return null;
-      }
-
-      return {
-        requisiteId: binding.requisiteId,
-        organizationId: binding.organizationId,
-        bookId: binding.bookId,
-        bookAccountInstanceId: binding.bookAccountInstanceId,
-        postingAccountNo: binding.postingAccountNo,
-        createdAt: binding.createdAt,
-        updatedAt: binding.updatedAt,
-      } satisfies OrganizationRequisiteAccountingBinding;
-    },
-    async upsertBindingTx(tx, input) {
-      await tx
-        .insert(organizationRequisiteBindings)
-        .values({
-          requisiteId: input.requisiteId,
-          bookId: input.bookId,
-          bookAccountInstanceId: input.bookAccountInstanceId,
-          postingAccountNo: input.postingAccountNo,
-        })
-        .onConflictDoUpdate({
-          target: organizationRequisiteBindings.requisiteId,
-          set: {
-            bookId: input.bookId,
-            bookAccountInstanceId: input.bookAccountInstanceId,
-            postingAccountNo: input.postingAccountNo,
-          },
-        });
-
-      return this.findBindingByRequisiteId(input.requisiteId, tx);
-    },
-    async listResolvedBindingsById(requisiteIds, queryable) {
+    async listResolvedBindingsById(requisiteIds) {
       const uniqueIds = Array.from(new Set(requisiteIds.filter(Boolean)));
+
       if (uniqueIds.length === 0) {
         return [];
       }
 
-      const rows = await resolveDb(db, queryable)
+      const rows = await db
         .select({
           requisiteId: organizationRequisites.id,
           organizationId: organizationRequisites.organizationId,
@@ -570,6 +424,188 @@ export function createDrizzleOrganizationRequisitesRepository(
         currencyCode: row.currencyCode,
         postingAccountNo: row.postingAccountNo,
       })) satisfies OrganizationsRequisiteBindingResolution[];
+    },
+  };
+}
+
+export function createDrizzleOrganizationRequisitesCommandRepository(
+  db: Database,
+): OrganizationRequisitesCommandRepository {
+  return {
+    async findRequisiteSnapshotById(id, tx) {
+      return findRequisiteSnapshot(db, id, tx);
+    },
+    async findActiveRequisiteSnapshotById(id, tx) {
+      return findActiveRequisiteSnapshot(db, id, tx);
+    },
+    async listActiveRequisitesByOrganizationCurrency(input, tx) {
+      const database = tx ?? db;
+      const rows = await database
+        .select()
+        .from(organizationRequisites)
+        .where(
+          and(
+            eq(organizationRequisites.ownerType, "organization"),
+            eq(organizationRequisites.organizationId, input.organizationId),
+            eq(organizationRequisites.currencyId, input.currencyId),
+            isNull(organizationRequisites.archivedAt),
+          ),
+        )
+        .orderBy(
+          asc(organizationRequisites.createdAt),
+          asc(organizationRequisites.id),
+        );
+
+      return rows.map(toSnapshot);
+    },
+    async insertRequisiteTx(tx, requisite) {
+      const [created] = await tx
+        .insert(organizationRequisites)
+        .values({
+          id: requisite.id,
+          ownerType: "organization",
+          organizationId: requisite.organizationId,
+          counterpartyId: null,
+          providerId: requisite.providerId,
+          currencyId: requisite.currencyId,
+          kind: requisite.kind,
+          label: requisite.label,
+          description: requisite.description,
+          beneficiaryName: requisite.beneficiaryName,
+          institutionName: requisite.institutionName,
+          institutionCountry: requisite.institutionCountry,
+          accountNo: requisite.accountNo,
+          corrAccount: requisite.corrAccount,
+          iban: requisite.iban,
+          bic: requisite.bic,
+          swift: requisite.swift,
+          bankAddress: requisite.bankAddress,
+          network: requisite.network,
+          assetCode: requisite.assetCode,
+          address: requisite.address,
+          memoTag: requisite.memoTag,
+          accountRef: requisite.accountRef,
+          subaccountRef: requisite.subaccountRef,
+          contact: requisite.contact,
+          notes: requisite.notes,
+          isDefault: requisite.isDefault,
+          archivedAt: requisite.archivedAt,
+        })
+        .returning();
+
+      return toSnapshot(created!);
+    },
+    async updateRequisiteTx(tx, requisite) {
+      const [updated] = await tx
+        .update(organizationRequisites)
+        .set({
+          providerId: requisite.providerId,
+          currencyId: requisite.currencyId,
+          kind: requisite.kind,
+          label: requisite.label,
+          description: requisite.description,
+          beneficiaryName: requisite.beneficiaryName,
+          institutionName: requisite.institutionName,
+          institutionCountry: requisite.institutionCountry,
+          accountNo: requisite.accountNo,
+          corrAccount: requisite.corrAccount,
+          iban: requisite.iban,
+          bic: requisite.bic,
+          swift: requisite.swift,
+          bankAddress: requisite.bankAddress,
+          network: requisite.network,
+          assetCode: requisite.assetCode,
+          address: requisite.address,
+          memoTag: requisite.memoTag,
+          accountRef: requisite.accountRef,
+          subaccountRef: requisite.subaccountRef,
+          contact: requisite.contact,
+          notes: requisite.notes,
+          isDefault: requisite.isDefault,
+          archivedAt: requisite.archivedAt,
+          updatedAt: sql`now()`,
+        })
+        .where(
+          and(
+            eq(organizationRequisites.id, requisite.id),
+            eq(organizationRequisites.ownerType, "organization"),
+          ),
+        )
+        .returning();
+
+      return updated ? toSnapshot(updated) : null;
+    },
+    async setDefaultStateTx(tx, input) {
+      const demotedIds = input.demotedIds.filter((id) => id !== input.defaultId);
+
+      if (demotedIds.length > 0) {
+        await tx
+          .update(organizationRequisites)
+          .set({
+            isDefault: false,
+            updatedAt: sql`now()`,
+          })
+          .where(
+            and(
+              eq(organizationRequisites.ownerType, "organization"),
+              eq(organizationRequisites.organizationId, input.organizationId),
+              eq(organizationRequisites.currencyId, input.currencyId),
+              isNull(organizationRequisites.archivedAt),
+              inArray(organizationRequisites.id, demotedIds),
+            ),
+          );
+      }
+
+      if (input.defaultId) {
+        await tx
+          .update(organizationRequisites)
+          .set({
+            isDefault: true,
+            updatedAt: sql`now()`,
+          })
+          .where(eq(organizationRequisites.id, input.defaultId));
+      }
+    },
+    async archiveRequisiteTx(tx, input) {
+      const [updated] = await tx
+        .update(organizationRequisites)
+        .set({
+          archivedAt: input.archivedAt,
+          isDefault: false,
+          updatedAt: sql`now()`,
+        })
+        .where(
+          and(
+            eq(organizationRequisites.id, input.requisiteId),
+            eq(organizationRequisites.ownerType, "organization"),
+          ),
+        )
+        .returning({ id: organizationRequisites.id });
+
+      return Boolean(updated);
+    },
+    async findBindingByRequisiteId(requisiteId, tx) {
+      return findBinding(db, requisiteId, tx);
+    },
+    async upsertBindingTx(tx, input) {
+      await tx
+        .insert(organizationRequisiteBindings)
+        .values({
+          requisiteId: input.requisiteId,
+          bookId: input.bookId,
+          bookAccountInstanceId: input.bookAccountInstanceId,
+          postingAccountNo: input.postingAccountNo,
+        })
+        .onConflictDoUpdate({
+          target: organizationRequisiteBindings.requisiteId,
+          set: {
+            bookId: input.bookId,
+            bookAccountInstanceId: input.bookAccountInstanceId,
+            postingAccountNo: input.postingAccountNo,
+          },
+        });
+
+      return findBinding(db, input.requisiteId, tx);
     },
   };
 }

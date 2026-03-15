@@ -7,9 +7,9 @@ import {
 } from "../../errors";
 import type {
   OrganizationsLedgerReadPort,
-  OrganizationRequisitesRepository,
-  OrganizationsRepository,
-} from "../ports";
+} from "../shared/external-ports";
+import type { OrganizationsQueryRepository } from "../organizations/ports";
+import type { OrganizationRequisitesQueryRepository } from "../requisites/ports";
 
 export interface OrganizationsQueries {
   listInternalLedgerOrganizations: () => Promise<
@@ -31,8 +31,8 @@ export interface OrganizationsQueries {
 }
 
 export function createOrganizationQueries(input: {
-  organizations: OrganizationsRepository;
-  requisites: OrganizationRequisitesRepository;
+  organizations: OrganizationsQueryRepository;
+  requisites: OrganizationRequisitesQueryRepository;
   ledgerRead: OrganizationsLedgerReadPort;
 }): OrganizationsQueries {
   const { ledgerRead, organizations, requisites } = input;

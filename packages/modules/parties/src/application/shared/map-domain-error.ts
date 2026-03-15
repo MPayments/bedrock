@@ -1,4 +1,4 @@
-import { DomainError } from "@bedrock/shared/core/domain";
+import { DomainError, readCauseString } from "@bedrock/shared/core/domain";
 
 import {
   CounterpartyGroupNotFoundError,
@@ -6,19 +6,6 @@ import {
   CounterpartyRequisiteNotFoundError,
   CounterpartySystemGroupDeleteError,
 } from "../../errors";
-
-function readCauseString(error: DomainError, key: string): string | null {
-  if (
-    error.cause &&
-    typeof error.cause === "object" &&
-    key in error.cause &&
-    typeof (error.cause as Record<string, unknown>)[key] === "string"
-  ) {
-    return (error.cause as Record<string, string | undefined>)[key] ?? null;
-  }
-
-  return null;
-}
 
 export function rethrowCounterpartyGroupDomainError(error: unknown): never {
   if (!(error instanceof DomainError)) {

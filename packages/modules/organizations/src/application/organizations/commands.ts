@@ -1,74 +1,23 @@
-import type { PaginatedList } from "@bedrock/shared/core/pagination";
+import { randomUUID } from "node:crypto";
 
+import type {
+  CreateOrganizationInput,
+  Organization as OrganizationDto,
+  UpdateOrganizationInput,
+} from "../../contracts";
 import {
   CreateOrganizationInputSchema,
-  ListOrganizationsQuerySchema,
   UpdateOrganizationInputSchema,
-  type CreateOrganizationInput,
-  type ListOrganizationsQuery,
-  type Organization,
-  type UpdateOrganizationInput,
 } from "../../contracts";
+import { Organization } from "../../domain/organization";
 import {
   OrganizationDeleteConflictError,
   OrganizationNotFoundError,
 } from "../../errors";
 import type { OrganizationsServiceContext } from "../shared/context";
 
-export function createCreateOrganizationHandler(
-  context: OrganizationsServiceContext,
-) {
-  const { db, ledgerBooks, log, organizations } = context;
-
-  return async function createOrganization(
-    input: CreateOrganizationInput,
-  ): Promise<Organization> {
-    const validated = CreateOrganizationInputSchema.parse(input);
-
-    return db.transaction(async (tx) => {
-      const created = await organizations.insertOrganizationTx(tx, validated);
-
-      await ledgerBooks.ensureDefaultOrganizationBook(tx, {
-        organizationId: created.id,
-      });
-
-      log.info("Organization created", {
-        id: created.id,
-        shortName: created.shortName,
-      });
-
-      return created;
-    });
-  };
-}
-
-export function createFindOrganizationByIdHandler(
-  context: OrganizationsServiceContext,
-) {
-  const { organizations } = context;
-
-  return async function findOrganizationById(id: string): Promise<Organization> {
-    const organization = await organizations.findOrganizationById(id);
-
-    if (!organization) {
-      throw new OrganizationNotFoundError(id);
-    }
-
-    return organization;
-  };
-}
-
-export function createListOrganizationsHandler(
-  context: OrganizationsServiceContext,
-) {
-  const { organizations } = context;
-
-  return async function listOrganizations(
-    input?: ListOrganizationsQuery,
-  ): Promise<PaginatedList<Organization>> {
-    const query = ListOrganizationsQuerySchema.parse(input ?? {});
-    return organizations.listOrganizations(query);
-  };
+function toPublicOrganization(organization: Organization): OrganizationDto {
+  return organization.toSnapshot();
 }
 
 function hasForeignKeyViolation(error: unknown): boolean {
@@ -84,18 +33,95 @@ function hasForeignKeyViolation(error: unknown): boolean {
   return hasForeignKeyViolation(candidate.cause);
 }
 
+export function createCreateOrganizationHandler(
+  context: OrganizationsServiceContext,
+) {
+  const { db, ledgerBooks, log, organizations } = context;
+
+  return async function createOrganization(
+    input: CreateOrganizationInput,
+  ): Promise<OrganizationDto> {
+    const validated = CreateOrganizationInputSchema.parse(input);
+    const draft = Organization.create({
+      id: randomUUID(),
+      externalId: validated.externalId,
+      shortName: validated.shortName,
+      fullName: validated.fullName,
+      description: validated.description,
+      country: validated.country,
+      kind: validated.kind,
+    }, context.now());
+
+    return db.transaction(async (tx) => {
+      const created = Organization.reconstitute(
+        await organizations.insertOrganizationTx(tx, draft.toSnapshot()),
+      );
+
+      await ledgerBooks.ensureDefaultOrganizationBook(tx, {
+        organizationId: created.id,
+      });
+
+      log.info("Organization created", {
+        id: created.id,
+        shortName: created.toSnapshot().shortName,
+      });
+
+      return toPublicOrganization(created);
+    });
+  };
+}
+
+export function createUpdateOrganizationHandler(
+  context: OrganizationsServiceContext,
+) {
+  const { db, log, organizations } = context;
+
+  return async function updateOrganization(
+    id: string,
+    input: UpdateOrganizationInput,
+  ): Promise<OrganizationDto> {
+    const validated = UpdateOrganizationInputSchema.parse(input);
+
+    return db.transaction(async (tx) => {
+      const existingSnapshot = await organizations.findOrganizationSnapshotById(
+        id,
+        tx,
+      );
+
+      if (!existingSnapshot) {
+        throw new OrganizationNotFoundError(id);
+      }
+
+      const existing = Organization.reconstitute(existingSnapshot);
+      const next = existing.update(validated, context.now());
+      const persistedSnapshot = existing.sameState(next)
+        ? existingSnapshot
+        : await organizations.updateOrganizationTx(tx, next.toSnapshot());
+
+      if (!persistedSnapshot) {
+        throw new OrganizationNotFoundError(id);
+      }
+
+      log.info("Organization updated", { id });
+      return toPublicOrganization(Organization.reconstitute(persistedSnapshot));
+    });
+  };
+}
+
 export function createRemoveOrganizationHandler(
   context: OrganizationsServiceContext,
 ) {
-  const { log, organizations } = context;
+  const { db, log, organizations } = context;
 
   return async function removeOrganization(id: string): Promise<void> {
     try {
-      const deleted = await organizations.removeOrganization(id);
+      await db.transaction(async (tx) => {
+        const deleted = await organizations.removeOrganizationTx(tx, id);
 
-      if (!deleted) {
-        throw new OrganizationNotFoundError(id);
-      }
+        if (!deleted) {
+          throw new OrganizationNotFoundError(id);
+        }
+      });
     } catch (error) {
       if (error instanceof OrganizationNotFoundError) {
         throw error;
@@ -109,33 +135,5 @@ export function createRemoveOrganizationHandler(
     }
 
     log.info("Organization deleted", { id });
-  };
-}
-
-export function createUpdateOrganizationHandler(
-  context: OrganizationsServiceContext,
-) {
-  const { log, organizations } = context;
-
-  return async function updateOrganization(
-    id: string,
-    input: UpdateOrganizationInput,
-  ): Promise<Organization> {
-    const existing = await organizations.findOrganizationById(id);
-
-    if (!existing) {
-      throw new OrganizationNotFoundError(id);
-    }
-
-    const validated = UpdateOrganizationInputSchema.parse(input);
-    const updated = await organizations.updateOrganization(id, validated);
-
-    if (!updated) {
-      throw new OrganizationNotFoundError(id);
-    }
-
-    log.info("Organization updated", { id });
-
-    return updated;
   };
 }

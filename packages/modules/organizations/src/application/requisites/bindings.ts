@@ -58,18 +58,18 @@ export async function ensureOrganizationRequisiteAccountingBindingTx(
 export function createGetOrganizationRequisiteAccountingBindingHandler(
   context: OrganizationsServiceContext,
 ) {
-  const { requisites } = context;
+  const { requisiteQueries } = context;
 
   return async function getOrganizationRequisiteAccountingBinding(
     requisiteId: string,
   ) {
-    const requisite = await requisites.findRequisiteById(requisiteId);
+    const requisite = await requisiteQueries.findRequisiteById(requisiteId);
 
     if (!requisite) {
       throw new OrganizationRequisiteNotFoundError(requisiteId);
     }
 
-    const binding = await requisites.findBindingByRequisiteId(requisiteId);
+    const binding = await requisiteQueries.findBindingByRequisiteId(requisiteId);
 
     if (!binding) {
       throw new OrganizationRequisiteBindingNotFoundError(requisiteId);
@@ -82,13 +82,13 @@ export function createGetOrganizationRequisiteAccountingBindingHandler(
 export function createResolveOrganizationRequisiteBindingsHandler(
   context: OrganizationsServiceContext,
 ) {
-  const { log, requisites } = context;
+  const { log, requisiteQueries } = context;
 
   return async function resolveOrganizationRequisiteBindings(input: {
     requisiteIds: string[];
   }) {
     const uniqueIds = [...new Set(input.requisiteIds)];
-    const rows = await requisites.listResolvedBindingsById(uniqueIds);
+    const rows = await requisiteQueries.listResolvedBindingsById(uniqueIds);
 
     if (rows.length !== uniqueIds.length) {
       const found = new Set(rows.map((row) => row.requisiteId));
@@ -120,7 +120,10 @@ export function createUpsertOrganizationRequisiteAccountingBindingHandler(
       UpsertOrganizationRequisiteAccountingBindingInputSchema.parse(input);
 
     const binding = await db.transaction(async (tx) => {
-      const requisite = await requisites.findRequisiteById(requisiteId, tx);
+      const requisite = await requisites.findRequisiteSnapshotById(
+        requisiteId,
+        tx,
+      );
 
       if (!requisite) {
         throw new OrganizationRequisiteNotFoundError(requisiteId);
@@ -128,7 +131,7 @@ export function createUpsertOrganizationRequisiteAccountingBindingHandler(
 
       return ensureOrganizationRequisiteAccountingBindingTx(context, tx, {
         requisiteId,
-        organizationId: requisite.ownerId,
+        organizationId: requisite.organizationId,
         currencyId: requisite.currencyId,
         postingAccountNo: validated.postingAccountNo,
       });

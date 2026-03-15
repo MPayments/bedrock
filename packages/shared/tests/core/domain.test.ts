@@ -6,6 +6,7 @@ import {
   DomainError,
   Entity,
   invariant,
+  readCauseString,
   ValueObject,
 } from "../../src/core/domain";
 
@@ -65,6 +66,18 @@ describe("shared core domain primitives", () => {
         message: "Customer is invalid",
       }),
     );
+  });
+
+  it("reads string values from domain error causes", () => {
+    const error = new DomainError(
+      "customer.invalid",
+      "Customer is invalid",
+      { customerId: "cust-1", count: 1 },
+    );
+
+    expect(readCauseString(error, "customerId")).toBe("cust-1");
+    expect(readCauseString(error, "count")).toBeNull();
+    expect(readCauseString(error, "missing")).toBeNull();
   });
 
   it("records and drains aggregate events", () => {

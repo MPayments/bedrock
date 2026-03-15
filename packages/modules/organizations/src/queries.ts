@@ -1,22 +1,26 @@
 import { createLedgerQueries } from "@bedrock/ledger/queries";
-import type { Queryable } from "@bedrock/platform/persistence";
+import type { Database } from "@bedrock/platform/persistence";
 
 import {
   createOrganizationQueries,
   type OrganizationsQueries,
 } from "./application/internal-ledger/queries";
-import { createDrizzleOrganizationsRepository } from "./infra/drizzle/repos/organizations-repository";
-import { createDrizzleOrganizationRequisitesRepository } from "./infra/drizzle/repos/organization-requisites-repository";
+import {
+  createDrizzleOrganizationRequisitesQueryRepository,
+} from "./infra/drizzle/repos/organization-requisites-repository";
+import {
+  createDrizzleOrganizationsQueryRepository,
+} from "./infra/drizzle/repos/organizations-repository";
 
 export function createOrganizationsQueries(input: {
-  db: Queryable;
+  db: Database;
 }): OrganizationsQueries {
-  const organizations = createDrizzleOrganizationsRepository(input.db);
+  const organizations = createDrizzleOrganizationsQueryRepository(input.db);
   const ledgerQueries = createLedgerQueries({ db: input.db });
 
   return createOrganizationQueries({
     organizations,
-    requisites: createDrizzleOrganizationRequisitesRepository(input.db),
+    requisites: createDrizzleOrganizationRequisitesQueryRepository(input.db),
     ledgerRead: {
       listBooksById: ledgerQueries.listBooksById,
     },

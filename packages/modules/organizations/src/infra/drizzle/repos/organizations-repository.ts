@@ -10,20 +10,21 @@ import {
   type SQL,
 } from "drizzle-orm";
 
-import type { Queryable, Transaction } from "@bedrock/platform/persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,
   resolveSortValue,
+  type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import type { OrganizationsRepository } from "../../../application/ports";
 import type {
-  CreateOrganizationInput,
-  ListOrganizationsQuery,
-  UpdateOrganizationInput,
-} from "../../../contracts";
+  OrganizationsCommandRepository,
+  OrganizationsQueryRepository,
+} from "../../../application/organizations/ports";
+import type { ListOrganizationsQuery, Organization } from "../../../contracts";
+import type { OrganizationSnapshot } from "../../../domain/organization";
 import type { PartyKind } from "../../../domain/party-kind";
-import { schema } from "../schema";
+import { schema, type OrganizationRow } from "../schema";
 
 const SORT_COLUMN_MAP = {
   shortName: schema.organizations.shortName,
@@ -33,6 +34,18 @@ const SORT_COLUMN_MAP = {
   createdAt: schema.organizations.createdAt,
   updatedAt: schema.organizations.updatedAt,
 } as const;
+
+function dedupeIds(ids: string[]): string[] {
+  return Array.from(new Set(ids.filter(Boolean)));
+}
+
+function toSnapshot(row: OrganizationRow): OrganizationSnapshot {
+  return row;
+}
+
+function toPublicOrganization(snapshot: OrganizationSnapshot): Organization {
+  return snapshot;
+}
 
 function buildWhere(input: ListOrganizationsQuery): SQL | undefined {
   const conditions: SQL[] = [];
@@ -65,38 +78,30 @@ function buildWhere(input: ListOrganizationsQuery): SQL | undefined {
   return conditions.length > 0 ? and(...conditions) : undefined;
 }
 
-export function createDrizzleOrganizationsRepository(
-  db: Queryable,
-): OrganizationsRepository {
+async function findOrganizationSnapshot(
+  db: Database,
+  id: string,
+  tx?: Transaction,
+): Promise<OrganizationSnapshot | null> {
+  const database = tx ?? db;
+  const [row] = await database
+    .select()
+    .from(schema.organizations)
+    .where(eq(schema.organizations.id, id))
+    .limit(1);
+
+  return row ? toSnapshot(row) : null;
+}
+
+export function createDrizzleOrganizationsQueryRepository(
+  db: Database,
+): OrganizationsQueryRepository {
   return {
-    async insertOrganizationTx(
-      tx: Transaction,
-      input: CreateOrganizationInput,
-    ) {
-      const [created] = await tx
-        .insert(schema.organizations)
-        .values({
-          shortName: input.shortName,
-          fullName: input.fullName,
-          kind: input.kind,
-          country: input.country ?? null,
-          externalId: input.externalId ?? null,
-          description: input.description ?? null,
-        })
-        .returning();
-
-      return created!;
+    async findOrganizationById(id) {
+      const snapshot = await findOrganizationSnapshot(db, id);
+      return snapshot ? toPublicOrganization(snapshot) : null;
     },
-    async findOrganizationById(id: string) {
-      const [row] = await db
-        .select()
-        .from(schema.organizations)
-        .where(eq(schema.organizations.id, id))
-        .limit(1);
-
-      return row ?? null;
-    },
-    async listOrganizations(input: ListOrganizationsQuery) {
+    async listOrganizations(input) {
       const where = buildWhere(input);
       const orderByFn =
         resolveSortOrder(input.sortOrder) === "desc" ? desc : asc;
@@ -121,60 +126,11 @@ export function createDrizzleOrganizationsRepository(
       ]);
 
       return {
-        data: rows,
+        data: rows.map((row) => toPublicOrganization(toSnapshot(row))),
         total: countRows[0]?.total ?? 0,
         limit: input.limit,
         offset: input.offset,
-      };
-    },
-    async updateOrganization(id: string, input: UpdateOrganizationInput) {
-      const fields: Record<string, unknown> = {};
-
-      if (input.shortName !== undefined) {
-        fields.shortName = input.shortName;
-      }
-
-      if (input.fullName !== undefined) {
-        fields.fullName = input.fullName;
-      }
-
-      if (input.kind !== undefined) {
-        fields.kind = input.kind;
-      }
-
-      if (input.country !== undefined) {
-        fields.country = input.country;
-      }
-
-      if (input.externalId !== undefined) {
-        fields.externalId = input.externalId;
-      }
-
-      if (input.description !== undefined) {
-        fields.description = input.description;
-      }
-
-      if (Object.keys(fields).length === 0) {
-        return this.findOrganizationById(id);
-      }
-
-      fields.updatedAt = sql`now()`;
-
-      const [updated] = await db
-        .update(schema.organizations)
-        .set(fields)
-        .where(eq(schema.organizations.id, id))
-        .returning();
-
-      return updated ?? null;
-    },
-    async removeOrganization(id: string) {
-      const [deleted] = await db
-        .delete(schema.organizations)
-        .where(eq(schema.organizations.id, id))
-        .returning({ id: schema.organizations.id });
-
-      return Boolean(deleted);
+      } satisfies PaginatedList<Organization>;
     },
     async listInternalLedgerOrganizations() {
       return db
@@ -185,8 +141,9 @@ export function createDrizzleOrganizationsRepository(
         .from(schema.organizations)
         .orderBy(schema.organizations.shortName);
     },
-    async listShortNamesById(ids: string[]) {
-      const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+    async listShortNamesById(ids) {
+      const uniqueIds = dedupeIds(ids);
+
       if (uniqueIds.length === 0) {
         return new Map();
       }
@@ -201,8 +158,9 @@ export function createDrizzleOrganizationsRepository(
 
       return new Map(rows.map((row) => [row.id, row.shortName]));
     },
-    async listExistingOrganizationIds(ids: string[]) {
-      const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+    async listExistingOrganizationIds(ids) {
+      const uniqueIds = dedupeIds(ids);
+
       if (uniqueIds.length === 0) {
         return [];
       }
@@ -213,6 +171,57 @@ export function createDrizzleOrganizationsRepository(
         .where(inArray(schema.organizations.id, uniqueIds));
 
       return rows.map((row) => row.id);
+    },
+  };
+}
+
+export function createDrizzleOrganizationsCommandRepository(
+  db: Database,
+): OrganizationsCommandRepository {
+  return {
+    async findOrganizationSnapshotById(id, tx) {
+      return findOrganizationSnapshot(db, id, tx);
+    },
+    async insertOrganizationTx(tx, organization) {
+      const [created] = await tx
+        .insert(schema.organizations)
+        .values({
+          id: organization.id,
+          shortName: organization.shortName,
+          fullName: organization.fullName,
+          kind: organization.kind,
+          country: organization.country,
+          externalId: organization.externalId,
+          description: organization.description,
+        })
+        .returning();
+
+      return toSnapshot(created!);
+    },
+    async updateOrganizationTx(tx, organization) {
+      const [updated] = await tx
+        .update(schema.organizations)
+        .set({
+          shortName: organization.shortName,
+          fullName: organization.fullName,
+          kind: organization.kind,
+          country: organization.country,
+          externalId: organization.externalId,
+          description: organization.description,
+          updatedAt: sql`now()`,
+        })
+        .where(eq(schema.organizations.id, organization.id))
+        .returning();
+
+      return updated ? toSnapshot(updated) : null;
+    },
+    async removeOrganizationTx(tx, id) {
+      const [deleted] = await tx
+        .delete(schema.organizations)
+        .where(eq(schema.organizations.id, id))
+        .returning({ id: schema.organizations.id });
+
+      return Boolean(deleted);
     },
   };
 }
