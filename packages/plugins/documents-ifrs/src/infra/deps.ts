@@ -14,7 +14,6 @@ import {
   DocumentValidationError,
   type DocumentModuleRuntime,
 } from "@bedrock/plugin-documents-sdk";
-import type { RequisitesService } from "@bedrock/requisites";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import { minorToAmountString } from "@bedrock/shared/money";
 
@@ -267,7 +266,7 @@ async function markQuoteUsedForRef(input: {
 export function createIfrsDocumentDeps(input: {
   currenciesService: CurrenciesService;
   fxService: FxService;
-  requisitesService: RequisitesService;
+  requisitesService: IfrsModuleDeps["requisitesService"];
 }): IfrsModuleDeps {
   const { currenciesService, fxService, requisitesService } = input;
 

@@ -5,13 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./contracts": "./src/contracts.ts",
+    "./contracts": "./src/contracts/index.ts",
     "./queries": "./src/queries.ts",
-    "./schema": "./src/schema.ts",
-    "./validation": "./src/validation.ts",
-    "./providers": "./src/providers/index.ts",
-    "./providers/contracts": "./src/providers/contracts.ts",
-    "./providers/validation": "./src/providers/validation.ts"
+    "./schema": "./src/infra/drizzle/schema/index.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -3,8 +3,10 @@ import { z } from "zod";
 
 import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
 import { OrganizationOptionsResponseSchema } from "@bedrock/organizations/contracts";
-import { RequisiteProviderOptionsResponseSchema } from "@bedrock/requisites/providers/contracts";
-import { REQUISITES_LIST_CONTRACT } from "@bedrock/requisites/contracts";
+import {
+  REQUISITES_LIST_CONTRACT,
+  RequisiteProviderOptionsResponseSchema,
+} from "@bedrock/requisites/contracts";
 
 import {
   getRequisiteKindLabel,

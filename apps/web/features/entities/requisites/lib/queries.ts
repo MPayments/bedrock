@@ -4,8 +4,10 @@ import { z } from "zod";
 import { CounterpartyOptionsResponseSchema } from "@bedrock/parties/contracts";
 import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
 import { OrganizationOptionsResponseSchema } from "@bedrock/organizations/contracts";
-import { REQUISITES_LIST_CONTRACT } from "@bedrock/requisites/contracts";
-import { RequisiteProviderOptionsResponseSchema } from "@bedrock/requisites/providers/contracts";
+import {
+  REQUISITES_LIST_CONTRACT,
+  RequisiteProviderOptionsResponseSchema,
+} from "@bedrock/requisites/contracts";
 
 import {
   getRequisiteKindLabel,

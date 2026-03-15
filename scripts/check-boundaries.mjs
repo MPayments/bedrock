@@ -165,6 +165,22 @@ function isPartiesSchemaImportAllowed(relFile) {
   return false;
 }
 
+function isRequisitesSchemaImportAllowed(relFile) {
+  if (relFile.startsWith("apps/db/")) {
+    return true;
+  }
+
+  if (/(^|\/)tests\//.test(relFile)) {
+    return true;
+  }
+
+  if (isSchemaDefinitionFile(relFile)) {
+    return true;
+  }
+
+  return false;
+}
+
 function isLedgerSchemaImportAllowed(relFile) {
   if (relFile.startsWith("apps/db/")) {
     return true;
@@ -494,6 +510,14 @@ for (const root of SOURCE_ROOTS) {
         }
 
         if (
+          owner?.name !== "@bedrock/requisites" &&
+          /^packages\/modules\/requisites\/src\/internal\//.test(relTargetPath)
+        ) {
+          recordViolation("requisites-internal-import", relFile, specifier);
+          continue;
+        }
+
+        if (
           owner?.name !== "@bedrock/balances" &&
           /^packages\/modules\/balances\/src\/internal\//.test(relTargetPath)
         ) {
@@ -572,6 +596,22 @@ for (const root of SOURCE_ROOTS) {
         )
       ) {
         recordViolation("plugin-imports-foreign-schema", relFile, specifier);
+      }
+
+      if (
+        normalized.packageName === "@bedrock/requisites" &&
+        (
+          normalized.subpath === "./validation" ||
+          normalized.subpath.startsWith("./validation/") ||
+          normalized.subpath === "./providers" ||
+          normalized.subpath.startsWith("./providers/") ||
+          normalized.subpath === "./providers/contracts" ||
+          normalized.subpath.startsWith("./providers/contracts/") ||
+          normalized.subpath === "./providers/validation" ||
+          normalized.subpath.startsWith("./providers/validation/")
+        )
+      ) {
+        recordViolation("requisites-removed-subpath", relFile, specifier);
       }
 
       if (
@@ -665,6 +705,21 @@ for (const root of SOURCE_ROOTS) {
       }
 
       if (
+        normalized.packageName === "@bedrock/requisites" &&
+        (
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        ) &&
+        !isRequisitesSchemaImportAllowed(relFile)
+      ) {
+        recordViolation(
+          "requisites-schema-import-outside-allowed-zones",
+          relFile,
+          specifier,
+        );
+      }
+
+      if (
         normalized.packageName === "@bedrock/parties" &&
         (
           normalized.subpath === "./schema" ||
@@ -737,6 +792,21 @@ for (const root of SOURCE_ROOTS) {
           relFile,
           specifier,
         );
+      }
+
+      if (
+        owner?.name === "@bedrock/requisites" &&
+        isRuntimeSourceFile &&
+        targetPkg.name === owner.name &&
+        (
+          normalized.subpath === "." ||
+          normalized.subpath === "./contracts" ||
+          normalized.subpath.startsWith("./contracts/") ||
+          normalized.subpath === "./schema" ||
+          normalized.subpath.startsWith("./schema/")
+        )
+      ) {
+        recordViolation("requisites-self-import", relFile, specifier);
       }
 
       if (

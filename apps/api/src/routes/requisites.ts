@@ -3,21 +3,21 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { CounterpartyNotFoundError } from "@bedrock/parties";
 import { OrganizationNotFoundError } from "@bedrock/organizations";
 import {
-  CreateRequisiteInputSchema,
-  ListRequisitesQuerySchema,
-  ListRequisiteOptionsQuerySchema,
   RequisiteBindingNotFoundError,
   RequisiteBindingOwnerTypeError,
   RequisiteNotFoundError,
   RequisiteProviderNotActiveError,
-  RequisiteSchema,
-  UpdateRequisiteInputSchema,
-  UpsertRequisiteAccountingBindingInputSchema,
 } from "@bedrock/requisites";
 import {
+  CreateRequisiteInputSchema,
+  ListRequisiteOptionsQuerySchema,
+  ListRequisitesQuerySchema,
   RequisiteAccountingBindingSchema,
   RequisiteOptionSchema,
   RequisiteOptionsResponseSchema,
+  RequisiteSchema,
+  UpdateRequisiteInputSchema,
+  UpsertRequisiteAccountingBindingInputSchema,
 } from "@bedrock/requisites/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
@@ -319,12 +319,12 @@ export function requisitesRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.requisitesService.list(query);
+      const result = await ctx.requisitesService.requisites.list(query);
       return c.json(result, 200);
     })
     .openapi(optionsRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.requisitesService.listOptions({
+      const result = await ctx.requisitesService.requisites.listOptions({
         ownerType: query.ownerType,
         ownerId: query.ownerId,
       });
@@ -338,7 +338,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const requisite = await ctx.requisitesService.create(input);
+        const requisite = await ctx.requisitesService.requisites.create(input);
         return c.json(requisite, 201);
       } catch (error) {
         const handled = handleMutationError(error);
@@ -352,7 +352,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const requisite = await ctx.requisitesService.findById(id);
+        const requisite = await ctx.requisitesService.requisites.findById(id);
         return c.json(requisite, 200);
       } catch (error) {
         if (error instanceof RequisiteNotFoundError) {
@@ -366,7 +366,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const requisite = await ctx.requisitesService.update(id, input);
+        const requisite = await ctx.requisitesService.requisites.update(id, input);
         return c.json(requisite, 200);
       } catch (error) {
         const handled = handleMutationError(error);
@@ -380,7 +380,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        await ctx.requisitesService.remove(id);
+        await ctx.requisitesService.requisites.remove(id);
         return c.json({ deleted: true }, 200);
       } catch (error) {
         if (error instanceof RequisiteNotFoundError) {
@@ -393,7 +393,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const binding = await ctx.requisitesService.getBinding(id);
+        const binding = await ctx.requisitesService.requisites.getBinding(id);
         return c.json(binding, 200);
       } catch (error) {
         if (
@@ -410,7 +410,10 @@ export function requisitesRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const binding = await ctx.requisitesService.upsertBinding(id, input);
+        const binding = await ctx.requisitesService.requisites.upsertBinding(
+          id,
+          input,
+        );
         return c.json(binding, 200);
       } catch (error) {
         const handled = handleMutationError(error);

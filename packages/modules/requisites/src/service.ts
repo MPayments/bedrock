@@ -1,41 +1,66 @@
-import { createCreateRequisiteHandler } from "./commands/create-requisite";
-import { createFindRequisiteByIdHandler } from "./commands/find-requisite-by-id";
-import { createGetRequisiteAccountingBindingHandler } from "./commands/get-requisite-accounting-binding";
-import { createListRequisiteOptionsHandler } from "./commands/list-requisite-options";
-import { createListRequisitesHandler } from "./commands/list-requisites";
-import { createRemoveRequisiteHandler } from "./commands/remove-requisite";
-import { createResolveRequisiteBindingsHandler } from "./commands/resolve-requisite-bindings";
-import { createUpdateRequisiteHandler } from "./commands/update-requisite";
-import { createUpsertRequisiteAccountingBindingHandler } from "./commands/upsert-requisite-accounting-binding";
+import {
+  createGetRequisiteAccountingBindingHandler,
+  createResolveRequisiteBindingsHandler,
+  createUpsertRequisiteAccountingBindingHandler,
+} from "./application/bindings/commands";
+import {
+  createCreateRequisiteProviderHandler,
+  createFindRequisiteProviderByIdHandler,
+  createListRequisiteProvidersHandler,
+  createRemoveRequisiteProviderHandler,
+  createUpdateRequisiteProviderHandler,
+} from "./application/providers/commands";
+import {
+  createCreateRequisiteHandler,
+  createFindRequisiteByIdHandler,
+  createListRequisiteOptionsHandler,
+  createListRequisitesHandler,
+  createRemoveRequisiteHandler,
+  createUpdateRequisiteHandler,
+} from "./application/requisites/commands";
 import {
   createRequisitesServiceContext,
   type RequisitesServiceDeps,
-} from "./internal/context";
+} from "./application/shared/context";
+import {
+  createDrizzleRequisitesCurrenciesPort,
+  createDrizzleRequisitesOwnersPort,
+  createLedgerRequisitesBindingsPort,
+} from "./infra/drizzle/adapters/foreign-ports";
+import { createDrizzleRequisitesRepository } from "./infra/drizzle/repos/requisites-repository";
 
 export type RequisitesService = ReturnType<typeof createRequisitesService>;
 
 export function createRequisitesService(deps: RequisitesServiceDeps) {
-  const context = createRequisitesServiceContext(deps);
-
-  const list = createListRequisitesHandler(context);
-  const findById = createFindRequisiteByIdHandler(context);
-  const create = createCreateRequisiteHandler(context);
-  const update = createUpdateRequisiteHandler(context);
-  const remove = createRemoveRequisiteHandler(context);
-  const listOptions = createListRequisiteOptionsHandler(context);
-  const getBinding = createGetRequisiteAccountingBindingHandler(context);
-  const upsertBinding = createUpsertRequisiteAccountingBindingHandler(context);
-  const resolveBindings = createResolveRequisiteBindingsHandler(context);
+  const context = createRequisitesServiceContext({
+    db: deps.db,
+    logger: deps.logger,
+    owners: deps.owners ?? createDrizzleRequisitesOwnersPort({ db: deps.db }),
+    currencies:
+      deps.currencies ?? createDrizzleRequisitesCurrenciesPort({ db: deps.db }),
+    ledgerBindings:
+      deps.ledgerBindings ?? createLedgerRequisitesBindingsPort(),
+    requisites: createDrizzleRequisitesRepository(deps.db),
+  });
 
   return {
-    list,
-    findById,
-    create,
-    update,
-    remove,
-    listOptions,
-    getBinding,
-    upsertBinding,
-    resolveBindings,
+    requisites: {
+      list: createListRequisitesHandler(context),
+      findById: createFindRequisiteByIdHandler(context),
+      create: createCreateRequisiteHandler(context),
+      update: createUpdateRequisiteHandler(context),
+      remove: createRemoveRequisiteHandler(context),
+      listOptions: createListRequisiteOptionsHandler(context),
+      getBinding: createGetRequisiteAccountingBindingHandler(context),
+      upsertBinding: createUpsertRequisiteAccountingBindingHandler(context),
+      resolveBindings: createResolveRequisiteBindingsHandler(context),
+    },
+    providers: {
+      list: createListRequisiteProvidersHandler(context),
+      findById: createFindRequisiteProviderByIdHandler(context),
+      create: createCreateRequisiteProviderHandler(context),
+      update: createUpdateRequisiteProviderHandler(context),
+      remove: createRemoveRequisiteProviderHandler(context),
+    },
   };
 }

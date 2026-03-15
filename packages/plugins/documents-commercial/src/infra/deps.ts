@@ -16,7 +16,6 @@ import {
   DocumentValidationError,
   type DocumentModuleRuntime,
 } from "@bedrock/plugin-documents-sdk";
-import type { RequisitesService } from "@bedrock/requisites";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import { isUuidLike } from "@bedrock/shared/core/uuid";
 import { minorToAmountString } from "@bedrock/shared/money";
@@ -326,7 +325,20 @@ async function markQuoteUsedForRef(input: {
 
 export function createCommercialDocumentDeps(input: {
   currenciesService: CurrenciesService;
-  requisitesService: RequisitesService;
+  requisitesService: {
+    resolveBindings(input: {
+      requisiteIds: string[];
+    }): Promise<
+      {
+        requisiteId: string;
+        bookId: string;
+        organizationId: string;
+        currencyCode: string;
+        postingAccountNo: string;
+        bookAccountInstanceId: string;
+      }[]
+    >;
+  };
 }): CommercialModuleDeps {
   const { currenciesService, requisitesService } = input;
 

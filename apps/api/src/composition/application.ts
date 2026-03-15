@@ -54,10 +54,6 @@ import {
   createRequisitesService,
   type RequisitesService,
 } from "@bedrock/requisites";
-import {
-  createRequisiteProvidersService,
-  type RequisiteProvidersService,
-} from "@bedrock/requisites/providers";
 import { createRequisitesQueries } from "@bedrock/requisites/queries";
 
 import type { ApiCoreServices } from "./core";
@@ -84,7 +80,6 @@ export interface ApiApplicationServices {
   feesService: FeesService;
   fxService: FxService;
   organizationsService: OrganizationsService;
-  requisiteProvidersService: RequisiteProvidersService;
   requisitesService: RequisitesService;
   documentsService: DocumentsService;
 }
@@ -319,10 +314,6 @@ export function createApplicationServices(
     ledgerBooks: createLedgerBooksService(),
     logger,
   });
-  const requisiteProvidersService = createRequisiteProvidersService({
-    db,
-    logger,
-  });
   const requisitesService = createRequisitesService({
     db,
     logger,
@@ -331,14 +322,14 @@ export function createApplicationServices(
     ...createCommercialDocumentModules(
       createCommercialDocumentDeps({
         currenciesService,
-        requisitesService,
+        requisitesService: requisitesService.requisites,
       }),
     ),
     ...createIfrsDocumentModules(
       createIfrsDocumentDeps({
         currenciesService,
         fxService,
-        requisitesService,
+        requisitesService: requisitesService.requisites,
       }),
     ),
   ]);
@@ -365,7 +356,6 @@ export function createApplicationServices(
     feesService,
     fxService,
     organizationsService,
-    requisiteProvidersService,
     requisitesService,
     documentsService,
   };

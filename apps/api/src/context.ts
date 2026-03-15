@@ -10,7 +10,6 @@ import type { DocumentsService } from "@bedrock/documents";
 import type { LedgerReadService } from "@bedrock/ledger";
 import type { OrganizationsService } from "@bedrock/organizations";
 import type { PartiesService } from "@bedrock/parties";
-import type { RequisiteProvidersService } from "@bedrock/requisites/providers";
 import type { RequisitesService } from "@bedrock/requisites";
 import type { UsersService } from "@bedrock/users";
 import type { Logger } from "@bedrock/platform/observability/logger";
@@ -61,7 +60,6 @@ export interface AppContext {
   feesService: FeesService;
   fxService: FxService;
   organizationsService: OrganizationsService;
-  requisiteProvidersService: RequisiteProvidersService;
   requisitesService: RequisitesService;
   usersService: UsersService;
   ledgerReadService: LedgerReadService;
@@ -85,7 +83,6 @@ export function createAppContext(env: Env): AppContext {
     feesService: applicationServices.feesService,
     fxService: applicationServices.fxService,
     organizationsService: applicationServices.organizationsService,
-    requisiteProvidersService: applicationServices.requisiteProvidersService,
     requisitesService: applicationServices.requisitesService,
     usersService: core.usersService,
     documentsService: applicationServices.documentsService,

@@ -33,3 +33,13 @@ export class RequisiteBindingOwnerTypeError extends RequisiteError {
     super(`Only organization requisites can have accounting binding: ${requisiteId}`);
   }
 }
+
+export class RequisiteProviderError extends RequisiteError {}
+
+export class RequisiteProviderNotFoundError extends RequisiteProviderError {
+  name = "RequisiteProviderNotFoundError";
+
+  constructor(id: string) {
+    super(`Requisite provider not found: ${id}`);
+  }
+}

@@ -7,8 +7,15 @@ import { createLedgerBooksService } from "@bedrock/ledger";
 import { schema as organizationsSchema } from "@bedrock/organizations/schema";
 import { schema as requisitesSchema } from "@bedrock/requisites/schema";
 
-import { ensureRequisiteAccountingBindingTx } from "../../src/internal/bindings";
-import { schema } from "../../src/schema";
+import { ensureRequisiteAccountingBindingTx } from "../../src/application/bindings/commands";
+import { createRequisitesServiceContext } from "../../src/application/shared/context";
+import {
+  createDrizzleRequisitesCurrenciesPort,
+  createDrizzleRequisitesOwnersPort,
+  createLedgerRequisitesBindingsPort,
+} from "../../src/infra/drizzle/adapters/foreign-ports";
+import { createDrizzleRequisitesRepository } from "../../src/infra/drizzle/repos/requisites-repository";
+import { schema } from "../../src/infra/drizzle/schema";
 import { db } from "./setup";
 
 async function seedOrganizationRequisiteFixture() {
@@ -61,11 +68,20 @@ async function seedOrganizationRequisiteFixture() {
   return {
     organizationId,
     requisiteId,
+    currencyId,
     currencyCode,
   };
 }
 
 describe("requisites integration", () => {
+  const context = createRequisitesServiceContext({
+    db,
+    owners: createDrizzleRequisitesOwnersPort({ db }),
+    currencies: createDrizzleRequisitesCurrenciesPort({ db }),
+    ledgerBindings: createLedgerRequisitesBindingsPort(),
+    requisites: createDrizzleRequisitesRepository(db),
+  });
+
   it("creates one default organization book and reuses it on repeated resolution", async () => {
     const organizationId = randomUUID();
     const ledgerBooks = createLedgerBooksService();
@@ -104,19 +120,19 @@ describe("requisites integration", () => {
     const fixture = await seedOrganizationRequisiteFixture();
 
     const first = await db.transaction((tx) =>
-      ensureRequisiteAccountingBindingTx(tx, {
+      ensureRequisiteAccountingBindingTx(context, tx, {
         requisiteId: fixture.requisiteId,
         organizationId: fixture.organizationId,
-        currencyCode: fixture.currencyCode,
+        currencyId: fixture.currencyId,
         postingAccountNo: "1010",
       }),
     );
 
     const second = await db.transaction((tx) =>
-      ensureRequisiteAccountingBindingTx(tx, {
+      ensureRequisiteAccountingBindingTx(context, tx, {
         requisiteId: fixture.requisiteId,
         organizationId: fixture.organizationId,
-        currencyCode: fixture.currencyCode,
+        currencyId: fixture.currencyId,
         postingAccountNo: "2020",
       }),
     );
