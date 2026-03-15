@@ -4,12 +4,12 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import type {
-  Currency,
-  ListCurrenciesQuery,
-} from "../contracts";
+import type { Currency, ListCurrenciesQuery } from "../contracts";
 import { ListCurrenciesQuerySchema } from "../contracts";
-import type { CurrenciesQueriesContext, CurrenciesServiceContext } from "./shared/context";
+import type {
+  CurrenciesQueriesContext,
+  CurrenciesServiceContext,
+} from "./shared/context";
 
 const SORT_COLUMN_MAP = {
   code: (currency: Currency) => currency.code,
@@ -89,7 +89,9 @@ export function createFindCurrencyByIdHandler(
 export function createFindCurrencyByCodeHandler(
   context: CurrenciesServiceContext,
 ) {
-  return async function findCurrencyByCode(code: string): Promise<Currency | null> {
+  return async function findCurrencyByCode(
+    code: string,
+  ): Promise<Currency | null> {
     const cache = await warmCache(context);
     return cache.byCode.get(code.toUpperCase()) ?? null;
   };

@@ -26,7 +26,6 @@
     "@bedrock/ledger": "workspace:*",
     "@bedrock/platform": "workspace:*",
     "@bedrock/plugin-documents-sdk": "workspace:*",
-    "@bedrock/requisites": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11",
     "@bedrock/shared": "workspace:*"
