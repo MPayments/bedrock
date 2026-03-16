@@ -46,12 +46,12 @@ import type { Database } from "@bedrock/platform/persistence/drizzle";
 import type { BedrockWorker } from "@bedrock/platform/worker-runtime";
 import { createPeriodCloseDocumentModule } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
+import { createDocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
 import {
   createPeriodCloseWorkflow,
   createPeriodCloseWorkerRunner,
   type PeriodCloseWorkerOrganizationContext,
 } from "@bedrock/workflow-period-close";
-import { createDocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
 
 function createDocumentsModuleRuntime(
   database: Database | Transaction,

@@ -4,16 +4,14 @@ import {
   type DocumentsService,
 } from "@bedrock/documents";
 import type { DocumentTransitionInput } from "@bedrock/documents/contracts";
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { LedgerCommitService } from "@bedrock/ledger";
+import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
-export interface CreateDocumentPostingService {
-  (
-    tx: Transaction,
-    idempotency: DocumentsIdempotencyPort,
-  ): Pick<DocumentsService, "get" | "posting">;
-}
+export type CreateDocumentPostingService = (
+  tx: Transaction,
+  idempotency: DocumentsIdempotencyPort,
+) => Pick<DocumentsService, "get" | "posting">;
 
 export type DocumentPostingWorkflowInput = Omit<
   DocumentTransitionInput,

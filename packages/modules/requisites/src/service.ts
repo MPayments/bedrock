@@ -2,31 +2,31 @@ import type { Logger } from "@bedrock/platform/observability/logger";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 import type { RunInPersistenceSession } from "@bedrock/shared/core/persistence";
 
+import { createUpsertRequisiteAccountingBindingHandler } from "./application/bindings/commands";
 import {
   createGetRequisiteAccountingBindingHandler,
   createResolveRequisiteAccountingBindingsHandler,
 } from "./application/bindings/queries";
-import { createUpsertRequisiteAccountingBindingHandler } from "./application/bindings/commands";
-import {
-  createCreateRequisiteHandler,
-  createRemoveRequisiteHandler,
-  createUpdateRequisiteHandler,
-} from "./application/requisites/commands";
 import {
   createCreateRequisiteProviderHandler,
   createRemoveRequisiteProviderHandler,
   createUpdateRequisiteProviderHandler,
 } from "./application/providers/commands";
 import {
-  createFindRequisiteByIdHandler,
-  createListRequisiteOptionsHandler,
-  createListRequisitesHandler,
-} from "./application/requisites/queries";
-import {
   createAssertActiveRequisiteProviderHandler,
   createFindRequisiteProviderByIdHandler,
   createListRequisiteProvidersHandler,
 } from "./application/providers/queries";
+import {
+  createCreateRequisiteHandler,
+  createRemoveRequisiteHandler,
+  createUpdateRequisiteHandler,
+} from "./application/requisites/commands";
+import {
+  createFindRequisiteByIdHandler,
+  createListRequisiteOptionsHandler,
+  createListRequisitesHandler,
+} from "./application/requisites/queries";
 import {
   createRequisitesServiceContext,
 } from "./application/shared/context";
@@ -39,13 +39,13 @@ import {
   createDrizzleRequisiteAccountingBindingsQueryRepository,
 } from "./infra/drizzle/repos/requisite-bindings-repository";
 import {
-  createDrizzleRequisitesCommandRepository,
-  createDrizzleRequisitesQueryRepository,
-} from "./infra/drizzle/repos/requisites-repository";
-import {
   createDrizzleRequisiteProvidersCommandRepository,
   createDrizzleRequisiteProvidersQueryRepository,
 } from "./infra/drizzle/repos/requisite-providers-repository";
+import {
+  createDrizzleRequisitesCommandRepository,
+  createDrizzleRequisitesQueryRepository,
+} from "./infra/drizzle/repos/requisites-repository";
 
 export type RequisitesService = ReturnType<typeof createRequisitesService>;
 export interface RequisitesServiceDeps {

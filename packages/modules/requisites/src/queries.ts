@@ -1,8 +1,8 @@
 import type { Queryable } from "@bedrock/platform/persistence";
 
 import { createDrizzleRequisiteAccountingBindingsQueryRepository } from "./infra/drizzle/repos/requisite-bindings-repository";
-import { createDrizzleRequisitesQueryRepository } from "./infra/drizzle/repos/requisites-repository";
 import { createDrizzleRequisiteProvidersQueryRepository } from "./infra/drizzle/repos/requisite-providers-repository";
+import { createDrizzleRequisitesQueryRepository } from "./infra/drizzle/repos/requisites-repository";
 
 export function createRequisitesQueries(input: { db: Queryable }) {
   const requisites = createDrizzleRequisitesQueryRepository(input.db);

@@ -1,10 +1,10 @@
-import { ValidationError } from "@bedrock/shared/core/errors";
-
 import {
   invariant,
   normalizeOptionalText,
   ValueObject,
 } from "@bedrock/shared/core/domain";
+import { ValidationError } from "@bedrock/shared/core/errors";
+
 
 import { normalizeCountryCode } from "./country-code";
 import type { RequisiteKind } from "./requisite-kind";

@@ -90,16 +90,6 @@ function buildTransitionEvent(input: {
   };
 }
 
-function buildWorkflowConfig(context: {
-  postingRequired: boolean;
-  allowDirectPostFromDraft: boolean;
-}) {
-  return {
-    postingRequired: context.postingRequired,
-    allowDirectPostFromDraft: context.allowDirectPostFromDraft,
-  };
-}
-
 async function assertOrganizationPeriodsOpenForDocument(input: {
   context: DocumentsServiceContext;
   document: Document;

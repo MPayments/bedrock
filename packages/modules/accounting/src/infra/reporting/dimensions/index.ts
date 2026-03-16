@@ -159,7 +159,6 @@ export function createBedrockDimensionRegistry(input: {
   const {
     counterpartiesQueries,
     customersQueries,
-    organizationsQueries,
     requisitesQueries,
     documentsReadModel,
   } = input;

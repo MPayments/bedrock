@@ -8,7 +8,6 @@ import { isSystemOnlyDocumentType } from "../../domain/doc-type";
 import { buildDocNo } from "../../domain/document";
 import { DocumentAggregate, type Document } from "../../domain/document";
 import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
-import { DocumentValidationError } from "../../errors";
 import { validateInput } from "../../validation";
 import {
   buildDocumentWithOperationId,

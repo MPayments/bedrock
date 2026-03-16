@@ -1,8 +1,8 @@
 import { Entity, normalizeRequiredText } from "@bedrock/shared/core/domain";
 
-import type { RequisiteKind } from "./requisite-kind";
-import { RequisiteDetails, type RequisiteDetailsFields } from "./requisite-details";
 import { RequisiteOwner } from "./owner";
+import { RequisiteDetails, type RequisiteDetailsFields } from "./requisite-details";
+import type { RequisiteKind } from "./requisite-kind";
 
 export interface RequisiteSnapshot {
   id: string;

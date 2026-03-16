@@ -7,12 +7,10 @@ import {
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
-export interface CreateDocumentDraftService {
-  (
-    tx: Transaction,
-    idempotency: DocumentsIdempotencyPort,
-  ): Pick<DocumentsService, "createDraft">;
-}
+export type CreateDocumentDraftService = (
+  tx: Transaction,
+  idempotency: DocumentsIdempotencyPort,
+) => Pick<DocumentsService, "createDraft">;
 
 export interface DocumentDraftWorkflowDeps {
   db: Database;

@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { InvalidStateError } from "@bedrock/shared/core/errors";
-
 import { createCreateDraftHandler } from "../src/application/commands/create-draft";
 import { createTransitionHandler } from "../src/application/commands/transition";
 import { createUpdateDraftHandler } from "../src/application/commands/update-draft";

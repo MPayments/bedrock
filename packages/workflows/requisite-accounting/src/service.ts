@@ -5,8 +5,6 @@ import type {
 } from "@bedrock/ledger";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
-import { InvalidStateError } from "@bedrock/shared/core/errors";
-
 import {
   createRequisitesServiceFromTransaction,
   RequisiteAccountingBindingOwnerTypeError,
@@ -14,6 +12,7 @@ import {
   type RequisitesServiceDeps,
 } from "@bedrock/requisites";
 import { createRequisitesQueries } from "@bedrock/requisites/queries";
+import { InvalidStateError } from "@bedrock/shared/core/errors";
 
 export interface RequisiteAccountingWorkflowDeps {
   db: Database;
@@ -167,8 +166,9 @@ export function createRequisiteAccountingWorkflow(
       input: { postingAccountNo?: string },
     ) {
       return deps.db.transaction(async (tx) => {
-        const subject =
-          await createRequisitesQueries({ db: tx }).findSubjectById(requisiteId);
+        const subject = await createRequisitesQueries({
+          db: tx,
+        }).findSubjectById(requisiteId);
 
         if (!subject) {
           throw new RequisiteNotFoundError(requisiteId);

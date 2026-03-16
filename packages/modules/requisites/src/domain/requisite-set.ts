@@ -1,10 +1,10 @@
 import { DomainError } from "@bedrock/shared/core/domain";
 
+import type { RequisiteOwnerType } from "./owner";
 import {
   Requisite,
   type RequisiteSnapshot,
 } from "./requisite";
-import type { RequisiteOwnerType } from "./owner";
 
 export class RequisiteSet {
   private constructor(

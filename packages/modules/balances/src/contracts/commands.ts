@@ -3,7 +3,7 @@ import type { z } from "zod";
 import type { CorrelationContext } from "@bedrock/shared/core/correlation";
 
 import type { BalanceHoldSnapshot, BalanceSnapshot } from "./dto";
-import {
+import type {
   BalanceSubjectSchema,
   ConsumeBalanceInputSchema,
   ReleaseBalanceInputSchema,

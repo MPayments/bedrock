@@ -3,7 +3,6 @@ import type { Transaction } from "@bedrock/platform/persistence";
 import { createDocumentsHandlers } from "./application";
 import type { DocumentsServiceDeps } from "./application/service-deps";
 import type { DocumentsIdempotencyPort } from "./application/shared/external-ports";
-import { createDrizzleDocumentsReadModel } from "./read-model";
 import {
   createDrizzleDocumentEventsRepository,
   createDrizzleDocumentLinksRepository,
@@ -12,6 +11,7 @@ import {
   createDrizzleDocumentsCommandRepository,
   createDrizzleDocumentsQueryRepository,
 } from "./infra/drizzle/repository";
+import { createDrizzleDocumentsReadModel } from "./read-model";
 
 export function createDocumentsService(deps: DocumentsServiceDeps) {
   return createDocumentsHandlers(deps);

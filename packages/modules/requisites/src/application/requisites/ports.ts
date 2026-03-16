@@ -7,8 +7,8 @@ import type {
   Requisite,
   RequisiteOption,
 } from "../../contracts";
-import type { RequisiteSnapshot } from "../../domain/requisite";
 import type { RequisiteOwnerType } from "../../domain/owner";
+import type { RequisiteSnapshot } from "../../domain/requisite";
 
 export interface RequisiteOptionRecord extends Omit<RequisiteOption, "label"> {
   label: string;

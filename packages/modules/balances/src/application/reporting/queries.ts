@@ -1,10 +1,10 @@
+import type { BalancesReportingRepository } from "./ports";
 import {
   type ListOrganizationLiquidityRowsInput,
   type LiquidityQueryRow,
   ListOrganizationLiquidityRowsInputSchema,
 } from "../../contracts";
 import type { BalancesQueriesContext } from "../shared/context";
-import type { BalancesReportingRepository } from "./ports";
 
 export interface BalancesQueries {
   listOrganizationLiquidityRows: (

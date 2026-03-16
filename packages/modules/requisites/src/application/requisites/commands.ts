@@ -13,9 +13,9 @@ import {
   CreateRequisiteInputSchema,
   UpdateRequisiteInputSchema,
 } from "../../contracts";
-import { Requisite, type RequisiteSnapshot } from "../../domain/requisite";
-import { RequisiteSet } from "../../domain/requisite-set";
 import { RequisiteOwner } from "../../domain/owner";
+import { Requisite } from "../../domain/requisite";
+import { RequisiteSet } from "../../domain/requisite-set";
 import {
   RequisiteNotFoundError,
   RequisiteProviderNotActiveError,

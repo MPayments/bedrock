@@ -1,5 +1,6 @@
-import { ACCOUNT_NO } from "@bedrock/accounting/constants";
 import { describe, expect, it, vi } from "vitest";
+
+import { ACCOUNT_NO } from "@bedrock/accounting/constants";
 
 const create = vi.fn(async () => ({
   id: "req-1",

@@ -2,42 +2,40 @@ import type {
   DocumentsIdempotencyPort,
   DocumentsService,
 } from "@bedrock/documents";
+import type { IdempotencyPort } from "@bedrock/platform/idempotency";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 import {
   CreateAdjustmentDocumentInputSchema,
   type CreateAdjustmentDocumentInput,
   type CreateAdjustmentDocumentResult,
 } from "@bedrock/reconciliation/contracts";
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import { sha256Hex } from "@bedrock/shared/core/crypto";
 
-export interface CreateReconciliationAdjustmentDocumentsService {
-  (
-    tx: Transaction,
-    idempotency: DocumentsIdempotencyPort,
-  ): Pick<DocumentsService, "createDraft">;
-}
+export type CreateReconciliationAdjustmentDocumentsService = (
+  tx: Transaction,
+  idempotency: DocumentsIdempotencyPort,
+) => Pick<DocumentsService, "createDraft">;
 
-export interface CreateReconciliationAdjustmentReconciliationService {
-  (tx: Transaction): {
-    exceptions: {
-      getAdjustmentResolution(exceptionId: string): Promise<{
-        exceptionId: string;
-        documentId: string;
-        alreadyResolved: boolean;
-      }>;
-      resolveWithAdjustment(input: {
-        exceptionId: string;
-        adjustmentDocumentId: string;
-      }): Promise<{
-        exceptionId: string;
-        documentId: string;
-        alreadyResolved: boolean;
-      }>;
-    };
+export type CreateReconciliationAdjustmentReconciliationService = (
+  tx: Transaction,
+) => {
+  exceptions: {
+    getAdjustmentResolution(exceptionId: string): Promise<{
+      exceptionId: string;
+      documentId: string;
+      alreadyResolved: boolean;
+    }>;
+    resolveWithAdjustment(input: {
+      exceptionId: string;
+      adjustmentDocumentId: string;
+    }): Promise<{
+      exceptionId: string;
+      documentId: string;
+      alreadyResolved: boolean;
+    }>;
   };
-}
+};
 
 export interface ReconciliationAdjustmentsWorkflowDeps {
   db: Database;
