@@ -13,9 +13,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@bedrock/ui/components/table";
+} from "@bedrock/sdk-ui/components/table";
 import { getCommonPinningStyles } from "@/lib/data-table";
-import { cn } from "@bedrock/ui/lib/utils";
+import { cn } from "@bedrock/sdk-ui/lib/utils";
 
 interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   table: TanstackTable<TData>;

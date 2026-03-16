@@ -4,17 +4,38 @@ import {
   CounterpartyCustomerNotFoundError,
   CounterpartyGroupNotFoundError,
   CounterpartyGroupRuleError,
-  CounterpartyGroupSchema,
   CounterpartySystemGroupDeleteError,
+} from "@bedrock/parties";
+import {
+  CounterpartyGroupSchema,
   CreateCounterpartyGroupInputSchema,
   ListCounterpartyGroupsQuerySchema,
   UpdateCounterpartyGroupInputSchema,
-} from "@bedrock/counterparties";
+} from "@bedrock/parties/contracts";
+import {
+  CounterpartyGroupOptionSchema,
+  CounterpartyGroupOptionsResponseSchema,
+} from "@bedrock/parties/contracts";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
+import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
+
+function buildCounterpartyGroupOptionLabel(group: {
+  name: string;
+  customerLabel?: string | null;
+}) {
+  const name = group.name.trim();
+  const customerLabel = group.customerLabel?.trim();
+
+  if (customerLabel && customerLabel.length > 0 && customerLabel !== name) {
+    return `${name} · ${customerLabel}`;
+  }
+
+  return name;
+}
 
 export function counterpartyGroupsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -80,6 +101,24 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
           },
         },
         description: "Parent group or customer not found",
+      },
+    },
+  });
+
+  const optionsRoute = createRoute({
+    middleware: [requirePermission({ counterparties: ["list"] })],
+    method: "get",
+    path: "/options",
+    tags: ["Counterparty Groups"],
+    summary: "List counterparty groups for select inputs",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CounterpartyGroupOptionsResponseSchema,
+          },
+        },
+        description: "Counterparty group option list",
       },
     },
   });
@@ -159,7 +198,7 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
   });
 
   const deleteRoute = createRoute({
-    // middleware: [requirePermission({ counterparties: ["delete"] })],
+    middleware: [requirePermission({ counterparties: ["delete"] })],
     method: "delete",
     path: "/{id}",
     tags: ["Counterparty Groups"],
@@ -198,14 +237,35 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const groups = await ctx.counterpartiesService.listGroups(query);
+      const groups = await ctx.partiesService.groups.list(query);
       return c.json(groups, 200);
+    })
+    .openapi(optionsRoute, async (c) => {
+      const groups = await ctx.partiesService.groups.list({
+        includeSystem: true,
+      });
+
+      return c.json(
+        buildOptionsResponse(groups, (group) =>
+          CounterpartyGroupOptionSchema.parse({
+            id: group.id,
+            code: group.code,
+            name: group.name,
+            parentId: group.parentId,
+            customerId: group.customerId,
+            customerLabel: group.customerLabel ?? null,
+            isSystem: group.isSystem,
+            label: buildCounterpartyGroupOptionLabel(group),
+          }),
+        ),
+        200,
+      );
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");
 
       try {
-        const group = await ctx.counterpartiesService.createGroup(input);
+        const group = await ctx.partiesService.groups.create(input);
         return c.json(group, 201);
       } catch (err) {
         if (
@@ -225,7 +285,7 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const group = await ctx.counterpartiesService.updateGroup(id, input);
+        const group = await ctx.partiesService.groups.update(id, input);
         return c.json(group, 200);
       } catch (err) {
         if (
@@ -244,7 +304,7 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        await ctx.counterpartiesService.removeGroup(id);
+        await ctx.partiesService.groups.remove(id);
         return c.json({ deleted: true }, 200);
       } catch (err) {
         if (err instanceof CounterpartyGroupNotFoundError) {

@@ -1,0 +1,427 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { buildTestDocument, createTestDocumentModule } from "./helpers";
+import { createGetDocumentQuery } from "../src/application/queries/get-document";
+import { createGetDocumentDetailsQuery } from "../src/application/queries/get-document-details";
+import { createListDocumentsQuery } from "../src/application/queries/list-documents";
+import type {
+  Document,
+  DocumentEvent,
+  DocumentLink,
+  DocumentOperation,
+  DocumentPostingSnapshot as DocumentSnapshot,
+} from "../src/domain/document";
+import { DocumentNotFoundError } from "../src/errors";
+import type { DocumentModule } from "../src/plugins";
+
+const makeDocument = (overrides: Partial<Document> = {}) =>
+  buildTestDocument(overrides);
+const createModuleStub = () => createTestDocumentModule() as DocumentModule;
+
+function createRepositoryStub(overrides: Record<string, unknown> = {}) {
+  return {
+    findDocumentByType: vi.fn(),
+    findDocumentWithPostingOperation: vi.fn(),
+    findDocumentByCreateIdempotencyKey: vi.fn(),
+    findPostingOperationId: vi.fn(),
+    insertDocument: vi.fn(),
+    updateDocument: vi.fn(),
+    insertDocumentOperation: vi.fn(),
+    resetPostingOperation: vi.fn(),
+    insertDocumentEvent: vi.fn(),
+    insertInitialLinks: vi.fn(),
+    listDocuments: vi.fn(async () => ({ rows: [], total: 0 })),
+    listDocumentLinks: vi.fn(async () => []),
+    listDocumentsByIds: vi.fn(async () => []),
+    listDocumentOperations: vi.fn(async () => []),
+    listDocumentEvents: vi.fn(async () => []),
+    findDocumentSnapshot: vi.fn(async () => null),
+    getLatestPostingArtifacts: vi.fn(async () => null),
+    ...overrides,
+  };
+}
+
+function createAccountingPeriodsStub(overrides: Record<string, unknown> = {}) {
+  return {
+    isOrganizationPeriodClosed: vi.fn(async () => false),
+    listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
+    ...overrides,
+  };
+}
+
+function createQueryContext(repository: ReturnType<typeof createRepositoryStub>) {
+  return {
+    accountingPeriods: createAccountingPeriodsStub(),
+    documentEvents: repository,
+    documentLinks: repository,
+    documentOperations: repository,
+    documentSnapshots: repository,
+    documentsQuery: repository,
+    log: {} as any,
+    moduleRuntime: {} as any,
+    now: () => new Date("2026-03-03T00:00:00.000Z"),
+  };
+}
+
+describe("documents queries", () => {
+  it("loads a single document with its posting operation id", async () => {
+    const document = makeDocument();
+    const repository = createRepositoryStub({
+      findDocumentWithPostingOperation: vi.fn(async () => ({
+        document,
+        postingOperationId: "op-1",
+      })),
+    });
+
+    const getDocument = createGetDocumentQuery(createQueryContext(repository) as any);
+
+    await expect(
+      getDocument(document.docType, document.id),
+    ).resolves.toEqual({
+      document,
+      postingOperationId: "op-1",
+      allowedActions: [],
+    });
+  });
+
+  it("raises not found for missing document queries", async () => {
+    const repository = createRepositoryStub({
+      findDocumentWithPostingOperation: vi.fn(async () => null),
+    });
+
+    const getDocument = createGetDocumentQuery(createQueryContext(repository) as any);
+    await expect(getDocument("test_document", "missing")).rejects.toThrow(
+      DocumentNotFoundError,
+    );
+  });
+
+  it("hides direct-post actions when submit policy denies the draft precondition", async () => {
+    const document = makeDocument({
+      submissionStatus: "draft",
+      approvalStatus: "not_required",
+      postingStatus: "unposted",
+      counterpartyId: null,
+      customerId: null,
+      organizationRequisiteId: null,
+      payload: {},
+    });
+    const module = {
+      ...createModuleStub(),
+      allowDirectPostFromDraft: true,
+      canSubmit: vi.fn(async () => undefined),
+      canPost: vi.fn(async () => undefined),
+    };
+    const repository = createRepositoryStub({
+      findDocumentWithPostingOperation: vi.fn(async () => ({
+        document,
+        postingOperationId: null,
+      })),
+    });
+    const policy = {
+      approvalMode: vi.fn(),
+      canCreate: vi.fn(),
+      canEdit: vi.fn(async () => ({
+        allow: true,
+        reasonCode: "allowed",
+        reasonMeta: null,
+      })),
+      canSubmit: vi.fn(async () => ({
+        allow: false,
+        reasonCode: "maker_only",
+        reasonMeta: null,
+      })),
+      canApprove: vi.fn(),
+      canReject: vi.fn(),
+      canPost: vi.fn(async () => ({
+        allow: true,
+        reasonCode: "allowed",
+        reasonMeta: null,
+      })),
+      canCancel: vi.fn(async () => ({
+        allow: true,
+        reasonCode: "allowed",
+        reasonMeta: null,
+      })),
+    };
+    const registry = {
+      getDocumentModule: vi.fn(() => module),
+    };
+    const getDocument = createGetDocumentQuery({
+      ...createQueryContext(repository),
+      policy,
+      registry,
+    } as any);
+
+    const result = await getDocument(document.docType, document.id, "maker-1");
+
+    expect(result.allowedActions).toEqual(["edit", "cancel"]);
+    expect(module.canSubmit).toHaveBeenCalledTimes(1);
+    expect(module.canPost).toHaveBeenCalledTimes(1);
+    expect(policy.canSubmit).toHaveBeenCalledTimes(1);
+    expect(policy.canPost).not.toHaveBeenCalled();
+  });
+
+  it("lists documents with the current pagination mapping", async () => {
+    const document = makeDocument();
+    const repository = createRepositoryStub({
+      listDocuments: vi.fn(async () => ({
+        rows: [{ document, postingOperationId: null }],
+        total: 1,
+      })),
+    });
+
+    const listDocuments = createListDocumentsQuery(
+      createQueryContext(repository) as any,
+    );
+    const result = await listDocuments({
+      query: "test",
+      limit: 5,
+      offset: 10,
+      sortBy: "createdAt",
+      sortOrder: "asc",
+    });
+
+    expect(result).toEqual({
+      data: [{ document, postingOperationId: null, allowedActions: [] }],
+      total: 1,
+      limit: 5,
+      offset: 10,
+    });
+  });
+
+  it("loads document details, related documents, snapshots, and ledger operations", async () => {
+    const document = makeDocument();
+    const parent = makeDocument({
+      id: "22222222-2222-4222-8222-222222222222",
+      docNo: "TST-22222222",
+    });
+    const child = makeDocument({
+      id: "33333333-3333-4333-8333-333333333333",
+      docNo: "TST-33333333",
+    });
+    const dependsOn = makeDocument({
+      id: "44444444-4444-4444-8444-444444444444",
+      docNo: "TST-44444444",
+    });
+    const compensates = makeDocument({
+      id: "55555555-5555-4555-8555-555555555555",
+      docNo: "TST-55555555",
+    });
+    const links: DocumentLink[] = [
+      {
+        id: "link-1",
+        fromDocumentId: document.id,
+        toDocumentId: parent.id,
+        linkType: "parent",
+        role: null,
+        createdAt: new Date("2026-03-01T10:00:00.000Z"),
+      },
+      {
+        id: "link-2",
+        fromDocumentId: document.id,
+        toDocumentId: dependsOn.id,
+        linkType: "depends_on",
+        role: null,
+        createdAt: new Date("2026-03-01T10:00:00.000Z"),
+      },
+      {
+        id: "link-3",
+        fromDocumentId: document.id,
+        toDocumentId: compensates.id,
+        linkType: "compensates",
+        role: null,
+        createdAt: new Date("2026-03-01T10:00:00.000Z"),
+      },
+      {
+        id: "link-4",
+        fromDocumentId: child.id,
+        toDocumentId: document.id,
+        linkType: "parent",
+        role: null,
+        createdAt: new Date("2026-03-01T10:00:00.000Z"),
+      },
+    ];
+    const documentOperations: DocumentOperation[] = [
+      {
+        documentId: document.id,
+        operationId: "op-1",
+        kind: "post",
+        createdAt: new Date("2026-03-01T10:00:00.000Z"),
+      },
+    ];
+    const events: DocumentEvent[] = [
+      {
+        id: "evt-1",
+        documentId: document.id,
+        eventType: "create",
+        actorId: "maker-1",
+        requestId: null,
+        correlationId: null,
+        traceId: null,
+        causationId: null,
+        reasonCode: null,
+        reasonMeta: null,
+        before: null,
+        after: null,
+        createdAt: new Date("2026-03-01T10:00:00.000Z"),
+      },
+    ];
+    const snapshot: DocumentSnapshot = {
+      id: "snap-1",
+      documentId: document.id,
+      payload: document.payload,
+      payloadVersion: document.payloadVersion,
+      moduleId: document.moduleId,
+      moduleVersion: document.moduleVersion,
+      packChecksum: "pack-1",
+      postingPlanChecksum: "plan-1",
+      journalIntentChecksum: "intent-1",
+      postingPlan: {},
+      journalIntent: {},
+      resolvedTemplates: null,
+      createdAt: new Date("2026-03-01T10:00:00.000Z"),
+    };
+    const repository = createRepositoryStub({
+      findDocumentByType: vi.fn(async () => document),
+      listDocumentLinks: vi.fn(async () => links),
+      listDocumentsByIds: vi.fn(async () => [parent, child, dependsOn, compensates]),
+      listDocumentOperations: vi.fn(async () => documentOperations),
+      listDocumentEvents: vi.fn(async () => events),
+      findDocumentSnapshot: vi.fn(async () => snapshot),
+    });
+    const ledgerReadService = {
+      listOperationDetails: vi.fn(async () =>
+        new Map([
+          [
+            "op-1",
+            {
+              operation: { id: "op-1", status: "posted" },
+              postings: [],
+              tbPlans: [],
+            },
+          ],
+        ]),
+      ),
+      getOperationDetails: vi.fn(),
+    };
+    const registry = {
+      getDocumentModule: vi.fn(() => createModuleStub()),
+    };
+
+    const getDetails = createGetDocumentDetailsQuery({
+      ...createQueryContext(repository),
+      ledgerReadService,
+      registry,
+    } as any);
+
+    const result = await getDetails(document.docType, document.id, "checker-1");
+
+    expect(result.parent?.id).toBe(parent.id);
+    expect(result.children.map((item) => item.id)).toEqual([child.id]);
+    expect(result.dependsOn.map((item) => item.id)).toEqual([dependsOn.id]);
+    expect(result.compensates.map((item) => item.id)).toEqual([compensates.id]);
+    expect(result.postingOperationId).toBe("op-1");
+    expect(result.allowedActions).toEqual(["edit", "submit", "cancel"]);
+    expect(result.events).toEqual(events);
+    expect(result.snapshot).toEqual(snapshot);
+    expect(result.ledgerOperations).toEqual([
+      {
+        operation: { id: "op-1", status: "posted" },
+        postings: [],
+        tbPlans: [],
+      },
+    ]);
+    expect(ledgerReadService.listOperationDetails).toHaveBeenCalledWith(["op-1"]);
+    expect(result.computed).toEqual({ label: "computed" });
+    expect(result.extra).toEqual({ source: "module" });
+  });
+
+  it("returns base details when module details builder fails", async () => {
+    const document = makeDocument();
+    const repository = createRepositoryStub({
+      findDocumentByType: vi.fn(async () => document),
+    });
+    const ledgerReadService = {
+      listOperationDetails: vi.fn(async () => new Map()),
+      getOperationDetails: vi.fn(),
+    };
+    const warn = vi.fn();
+    const registry = {
+      getDocumentModule: vi.fn(() => ({
+        ...createModuleStub(),
+        buildDetails: vi.fn(async () => {
+          throw new Error("details boom");
+        }),
+      })),
+    };
+
+    const getDetails = createGetDocumentDetailsQuery({
+      ...createQueryContext(repository),
+      ledgerReadService,
+      log: { warn } as any,
+      registry,
+    } as any);
+
+    const result = await getDetails(document.docType, document.id, "checker-1");
+
+    expect(result.document.id).toBe(document.id);
+    expect(result.allowedActions).toEqual(["edit", "submit", "cancel"]);
+    expect(result.computed).toBeUndefined();
+    expect(result.extra).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(
+      "documents get details: failed to build module details",
+      expect.objectContaining({
+        docType: document.docType,
+        documentId: document.id,
+        error: "details boom",
+      }),
+    );
+  });
+
+  it("batches period-lock lookups when listing documents for an actor", async () => {
+    const first = makeDocument({
+      id: "11111111-1111-4111-8111-111111111111",
+      payload: { organizationId: "org-1" },
+      occurredAt: new Date("2026-03-01T00:00:00.000Z"),
+    });
+    const second = makeDocument({
+      id: "22222222-2222-4222-8222-222222222222",
+      payload: { organizationId: "org-2" },
+      occurredAt: new Date("2026-03-15T00:00:00.000Z"),
+    });
+    const accountingPeriods = createAccountingPeriodsStub({
+      listClosedOrganizationIdsForPeriod: vi.fn(async () => ["org-2"]),
+    });
+    const repository = createRepositoryStub({
+      listDocuments: vi.fn(async () => ({
+        rows: [
+          { document: first, postingOperationId: null },
+          { document: second, postingOperationId: null },
+        ],
+        total: 2,
+      })),
+    });
+
+    const listDocuments = createListDocumentsQuery({
+      ...createQueryContext(repository),
+      accountingPeriods,
+      registry: {
+        getDocumentModule: vi.fn(() => createModuleStub()),
+      },
+    } as any);
+
+    const result = await listDocuments(undefined, "checker-1");
+
+    expect(
+      accountingPeriods.listClosedOrganizationIdsForPeriod,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      accountingPeriods.listClosedOrganizationIdsForPeriod,
+    ).toHaveBeenCalledWith({
+      organizationIds: ["org-1", "org-2"],
+      occurredAt: first.occurredAt,
+    });
+    expect(result.data[0]?.allowedActions).toEqual(["edit", "submit", "cancel"]);
+    expect(result.data[1]?.allowedActions).toEqual([]);
+  });
+});

@@ -2,15 +2,20 @@ import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 
 import {
   CurrencyDeleteConflictError,
-  CurrencySchema,
-  ListCurrenciesQuerySchema,
-  CreateCurrencyInputSchema,
-  UpdateCurrencyInputSchema,
   CurrencyNotFoundError,
 } from "@bedrock/currencies";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+import {
+  CreateCurrencyInputSchema,
+  CurrencySchema,
+  CurrencyOptionSchema,
+  CurrencyOptionsResponseSchema,
+  ListCurrenciesQuerySchema,
+  UpdateCurrencyInputSchema,
+} from "@bedrock/currencies/contracts";
+import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
+import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
@@ -37,6 +42,24 @@ export function currenciesRoutes(ctx: AppContext) {
           },
         },
         description: "Paginated list of currencies",
+      },
+    },
+  });
+
+  const optionsRoute = createRoute({
+    middleware: [requirePermission({ currencies: ["list"] })],
+    method: "get",
+    path: "/options",
+    tags: ["Currencies"],
+    summary: "List currencies for select inputs",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CurrencyOptionsResponseSchema,
+          },
+        },
+        description: "Currency option list",
       },
     },
   });
@@ -185,6 +208,26 @@ export function currenciesRoutes(ctx: AppContext) {
       const query = c.req.valid("query");
       const result = await ctx.currenciesService.list(query);
       return c.json(result, 200);
+    })
+    .openapi(optionsRoute, async (c) => {
+      const result = await ctx.currenciesService.list({
+        limit: 200,
+        offset: 0,
+        sortBy: "code",
+        sortOrder: "asc",
+      });
+
+      return c.json(
+        buildOptionsResponse(result, (currency) =>
+          CurrencyOptionSchema.parse({
+            id: currency.id,
+            code: currency.code,
+            name: currency.name,
+            label: `${currency.code} - ${currency.name}`,
+          }),
+        ),
+        200,
+      );
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");

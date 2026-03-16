@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { DollarSign, Plus } from "lucide-react";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 
-import { CurrenciesTable } from "./(table)";
-import { getCurrencies } from "./lib/queries";
-import { searchParamsCache } from "./lib/validations";
+import { CurrenciesTable } from "@/features/entities/currencies/components/table";
+import { getCurrencies } from "@/features/entities/currencies/lib/queries";
+import { searchParamsCache } from "@/features/entities/currencies/lib/validations";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

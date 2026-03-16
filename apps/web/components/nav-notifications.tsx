@@ -3,19 +3,19 @@
 import { Fragment, useState } from "react";
 import { Stone, X } from "lucide-react";
 
-import { SidebarMenuButton } from "@bedrock/ui/components/sidebar";
+import { SidebarMenuButton } from "@bedrock/sdk-ui/components/sidebar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@bedrock/ui/components/popover";
+} from "@bedrock/sdk-ui/components/popover";
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@bedrock/ui/components/avatar";
-import { Badge } from "@bedrock/ui/components/badge";
-import { Separator } from "@bedrock/ui/components/separator";
+} from "@bedrock/sdk-ui/components/avatar";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
 
 type Notification = {
   id: number;

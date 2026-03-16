@@ -1,0 +1,85 @@
+name: Integration Tests
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_NAME: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      TB_CLUSTER_ID: "1"
+      TB_ADDRESS: "3000"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.6"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Start TigerBeetle
+        run: |
+          docker run -d \
+            --name tigerbeetle \
+            -p 3000:3000 \
+            -v "$GITHUB_WORKSPACE/ops/infra/data:/data" \
+            --security-opt seccomp=unconfined \
+            --cap-add IPC_LOCK \
+            ghcr.io/tigerbeetle/tigerbeetle \
+            start --addresses=0.0.0.0:3000 /data/0_0.tigerbeetle
+
+      - name: Wait for TigerBeetle
+        run: |
+          for i in $(seq 1 30); do
+            if nc -z 127.0.0.1 3000; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs tigerbeetle
+          exit 1
+
+      - name: Prepare integration database
+        run: |
+          bun run db:nuke
+          bun run db:migrate
+          bun run db:seed
+
+      - name: Run integration tests
+        run: bun run test:integration

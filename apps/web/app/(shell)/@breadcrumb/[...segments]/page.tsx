@@ -1,8 +1,20 @@
-import { getAccountById } from "@/app/(shell)/entities/accounts/lib/queries";
-import { getCounterpartyById } from "@/app/(shell)/entities/counterparties/lib/queries";
-import { getCurrencyById } from "@/app/(shell)/entities/currencies/lib/queries";
-import { getCustomerById } from "@/app/(shell)/entities/customers/lib/queries";
-import { getProviderById } from "@/app/(shell)/entities/providers/lib/queries";
+import { getCounterpartyById } from "@/features/entities/counterparties/lib/queries";
+import { getCurrencyById } from "@/features/entities/currencies/lib/queries";
+import { getCustomerById } from "@/features/entities/customers/lib/queries";
+import { getOrganizationById } from "@/features/entities/organizations/lib/queries";
+import { getRequisiteProviderById } from "@/features/entities/requisite-providers/lib/queries";
+import { getRequisiteById } from "@/features/entities/requisites/lib/queries";
+import {
+  getDocumentTypeLabel,
+  isKnownDocumentType,
+} from "@/features/documents/lib/doc-types";
+import {
+  buildDocumentDetailsBreadcrumbItems,
+  getDocumentDetailsBreadcrumbParams,
+  resolveDocumentCreateBreadcrumbItems,
+} from "@/features/documents/lib/breadcrumbs";
+import { getDocumentDetails } from "@/features/operations/documents/lib/queries";
+import { getUserById } from "@/app/(shell)/users/lib/queries";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import { resolveBreadcrumbItems } from "@/lib/breadcrumbs";
 
@@ -34,7 +46,23 @@ function createResourceSegmentResolver<TEntity>(
   };
 }
 
+function resolvePairSegment({ segment }: { segment: string }) {
+  const parts = segment.split("-");
+  if (parts.length === 2 && parts[0] && parts[1]) {
+    const base = parts[0].toUpperCase();
+    const quote = parts[1].toUpperCase();
+
+    return {
+      label: `${base} / ${quote}`,
+      href: `/fx/rates/${base}-${quote}`,
+    };
+  }
+
+  return null;
+}
+
 const dynamicResolvers = {
+  rates: resolvePairSegment,
   counterparties: createResourceSegmentResolver({
     singularLabel: "Контрагент",
     hrefPrefix: "/entities/counterparties",
@@ -49,6 +77,13 @@ const dynamicResolvers = {
     getLabel: (customer) => customer.displayName,
     getId: (customer) => customer.id,
   }),
+  organizations: createResourceSegmentResolver({
+    singularLabel: "Организация",
+    hrefPrefix: "/entities/organizations",
+    getById: getOrganizationById,
+    getLabel: (organization) => organization.shortName,
+    getId: (organization) => organization.id,
+  }),
   currencies: createResourceSegmentResolver({
     singularLabel: "Валюта",
     hrefPrefix: "/entities/currencies",
@@ -56,19 +91,56 @@ const dynamicResolvers = {
     getLabel: (currency) => currency.name,
     getId: (currency) => currency.id,
   }),
-  providers: createResourceSegmentResolver({
-    singularLabel: "Провайдер",
-    hrefPrefix: "/entities/providers",
-    getById: getProviderById,
+  requisites: createResourceSegmentResolver({
+    singularLabel: "Реквизит",
+    hrefPrefix: "/entities/requisites",
+    getById: getRequisiteById,
+    getLabel: (requisite) => requisite.label,
+    getId: (requisite) => requisite.id,
+  }),
+  "requisite-providers": createResourceSegmentResolver({
+    singularLabel: "Провайдер реквизитов",
+    hrefPrefix: "/entities/requisite-providers",
+    getById: getRequisiteProviderById,
     getLabel: (provider) => provider.name,
     getId: (provider) => provider.id,
   }),
-  accounts: createResourceSegmentResolver({
-    singularLabel: "Счёт",
-    hrefPrefix: "/entities/accounts",
-    getById: getAccountById,
-    getLabel: (account) => account.label,
-    getId: (account) => account.id,
+  documents: async ({ segment }: { segment: string }) => {
+    if (!isKnownDocumentType(segment)) {
+      return null;
+    }
+
+    return {
+      label: getDocumentTypeLabel(segment),
+      href: `/documents/${segment}`,
+    };
+  },
+  create: async ({
+    segment,
+    segments,
+  }: {
+    segment: string;
+    segments: string[];
+  }) => {
+    if (
+      segments.length >= 3 &&
+      segments[0] === "documents" &&
+      isKnownDocumentType(segment)
+    ) {
+      return {
+        label: getDocumentTypeLabel(segment),
+        href: `/documents/create/${segment}`,
+      };
+    }
+
+    return null;
+  },
+  users: createResourceSegmentResolver({
+    singularLabel: "Пользователь",
+    hrefPrefix: "/users",
+    getById: getUserById,
+    getLabel: (user) => user.name,
+    getId: (user) => user.id,
   }),
 };
 
@@ -80,6 +152,27 @@ export default async function BreadcrumbSegmentsPage({
   params,
 }: BreadcrumbSegmentsPageProps) {
   const { segments } = await params;
+  const documentCreateItems = resolveDocumentCreateBreadcrumbItems(segments);
+
+  if (documentCreateItems) {
+    return <DynamicBreadcrumb items={documentCreateItems} />;
+  }
+
+  const documentDetailsParams = getDocumentDetailsBreadcrumbParams(segments);
+  if (documentDetailsParams) {
+    const details = await getDocumentDetails(
+      documentDetailsParams.docType,
+      documentDetailsParams.id,
+    );
+
+    if (details) {
+      return (
+        <DynamicBreadcrumb
+          items={buildDocumentDetailsBreadcrumbItems(details.document)}
+        />
+      );
+    }
+  }
 
   const items = await resolveBreadcrumbItems(segments, {
     resolvers: dynamicResolvers,

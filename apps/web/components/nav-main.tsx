@@ -3,20 +3,20 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, type LucideIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@bedrock/ui/components/collapsible";
+} from "@bedrock/sdk-ui/components/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@bedrock/ui/components/dropdown-menu";
+} from "@bedrock/sdk-ui/components/dropdown-menu";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -27,18 +27,11 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   useSidebar,
-} from "@bedrock/ui/components/sidebar";
+} from "@bedrock/sdk-ui/components/sidebar";
 
-export type NavMainItem = {
-  title: string;
-  url: string;
-  icon?: LucideIcon;
-  items?: {
-    title: string;
-    url: string;
-    icon?: LucideIcon;
-  }[];
-};
+import type { AppNavItem } from "@/lib/navigation/config";
+import { resolveAppIcon } from "@/lib/icons";
+
 
 function normalizePath(path: string) {
   if (path.length > 1 && path.endsWith("/")) {
@@ -68,15 +61,16 @@ function NavCollapsibleItem({
   item,
   pathname,
 }: {
-  item: NavMainItem;
+  item: AppNavItem;
   pathname: string;
 }) {
   const { state, isMobile } = useSidebar();
-  const subItems = item.items ?? [];
+  const subItems = item.children ?? [];
   const isActive =
-    isPathActive(pathname, item.url) ||
-    subItems.some((sub) => isPathActive(pathname, sub.url));
+    isPathActive(pathname, item.href) ||
+    subItems.some((sub) => isPathActive(pathname, sub.href));
   const [open, setOpen] = useState(isActive);
+  const Icon = resolveAppIcon(item.icon);
 
   // Auto-open the group when a sub-item becomes active via navigation
   useEffect(() => {
@@ -93,7 +87,7 @@ function NavCollapsibleItem({
           <DropdownMenuTrigger
             render={<SidebarMenuButton tooltip={item.title} />}
           >
-            {item.icon && <item.icon />}
+            {Icon && <Icon />}
             <span>{item.title}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -104,13 +98,7 @@ function NavCollapsibleItem({
           >
             <DropdownMenuGroup>
               {subItems.map((subItem) => (
-                <DropdownMenuItem
-                  key={subItem.title}
-                  render={<Link href={subItem.url} />}
-                >
-                  {subItem.icon && <subItem.icon className="size-4" />}
-                  <span>{subItem.title}</span>
-                </DropdownMenuItem>
+                <NavDropdownItem key={subItem.id} item={subItem} />
               ))}
             </DropdownMenuGroup>
           </DropdownMenuContent>
@@ -128,22 +116,18 @@ function NavCollapsibleItem({
     >
       <SidebarMenuItem>
         <CollapsibleTrigger render={<SidebarMenuButton tooltip={item.title} />}>
-          {item.icon && <item.icon />}
+          {Icon && <Icon />}
           <span>{item.title}</span>
           <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarMenuSub>
             {subItems.map((subItem) => (
-              <SidebarMenuSubItem key={subItem.title}>
-                <SidebarMenuSubButton
-                  render={<Link href={subItem.url} />}
-                  isActive={isPathActive(pathname, subItem.url)}
-                >
-                  {subItem.icon && <subItem.icon className="size-4" />}
-                  <span>{subItem.title}</span>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
+              <NavSubItem
+                key={subItem.id}
+                item={subItem}
+                pathname={pathname}
+              />
             ))}
           </SidebarMenuSub>
         </CollapsibleContent>
@@ -152,7 +136,40 @@ function NavCollapsibleItem({
   );
 }
 
-export function NavMain({ items }: { items: NavMainItem[] }) {
+function NavDropdownItem({ item }: { item: AppNavItem }) {
+  const Icon = resolveAppIcon(item.icon);
+
+  return (
+    <DropdownMenuItem render={<Link href={item.href} />}>
+      {Icon && <Icon className="size-4" />}
+      <span>{item.title}</span>
+    </DropdownMenuItem>
+  );
+}
+
+function NavSubItem({
+  item,
+  pathname,
+}: {
+  item: AppNavItem;
+  pathname: string;
+}) {
+  const Icon = resolveAppIcon(item.icon);
+
+  return (
+    <SidebarMenuSubItem>
+      <SidebarMenuSubButton
+        render={<Link href={item.href} />}
+        isActive={isPathActive(pathname, item.href)}
+      >
+        {Icon && <Icon className="size-4" />}
+        <span>{item.title}</span>
+      </SidebarMenuSubButton>
+    </SidebarMenuSubItem>
+  );
+}
+
+export function NavMain({ items }: { items: AppNavItem[] }) {
   const pathname = usePathname();
 
   return (
@@ -160,22 +177,23 @@ export function NavMain({ items }: { items: NavMainItem[] }) {
       <SidebarGroupLabel>Разделы</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
-          const hasSubItems = Boolean(item.items?.length);
-          const subItems = item.items ?? [];
+          const hasSubItems = Boolean(item.children?.length);
+          const subItems = item.children ?? [];
           const isActive = hasSubItems
-            ? isPathActive(pathname, item.url) ||
-              subItems.some((sub) => isPathActive(pathname, sub.url))
-            : isPathActive(pathname, item.url);
+            ? isPathActive(pathname, item.href) ||
+              subItems.some((sub) => isPathActive(pathname, sub.href))
+            : isPathActive(pathname, item.href);
+          const Icon = resolveAppIcon(item.icon);
 
           if (!hasSubItems) {
             return (
-              <SidebarMenuItem key={item.title}>
+              <SidebarMenuItem key={item.id}>
                 <SidebarMenuButton
-                  render={<Link href={item.url} />}
+                  render={<Link href={item.href} />}
                   isActive={isActive}
                   tooltip={item.title}
                 >
-                  {item.icon && <item.icon />}
+                  {Icon && <Icon />}
                   <span>{item.title}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -184,7 +202,7 @@ export function NavMain({ items }: { items: NavMainItem[] }) {
 
           return (
             <NavCollapsibleItem
-              key={item.title}
+              key={item.id}
               item={item}
               pathname={pathname}
             />

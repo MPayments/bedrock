@@ -1,6 +1,6 @@
 "use client";
 
-import { useCounterpartyDraftName } from "@/app/(shell)/entities/counterparties/lib/create-draft-name-context";
+import { useCounterpartyDraftName } from "@/features/entities/counterparties/lib/create-draft-name-context";
 import { EntityCreateBreadcrumb } from "@/components/entities/entity-breadcrumb";
 
 export default function CreateCounterpartyBreadcrumbPage() {

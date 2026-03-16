@@ -1,0 +1,45 @@
+{
+  "name": "@bedrock/plugin-documents-commercial",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contracts": "./src/contracts.ts",
+    "./validation": "./src/validation.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.ts\" --no-error-on-unmatched-pattern --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@bedrock/accounting": "workspace:*",
+    "@bedrock/currencies": "workspace:*",
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/fx": "workspace:*",
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/plugin-documents-sdk": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "zod": "^4.1.11",
+    "@bedrock/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "plugin",
+    "tags": [
+      "plugin",
+      "documents",
+      "commercial"
+    ]
+  }
+}

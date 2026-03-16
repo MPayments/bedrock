@@ -37,7 +37,7 @@ function extractValidationMessage(details: unknown): string | null {
   return null;
 }
 
-export function extractApiErrorMessage(payload: unknown): string | null {
+function extractApiErrorMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") {
     return null;
   }

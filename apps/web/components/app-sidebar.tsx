@@ -1,10 +1,11 @@
-"use client";
-
-import * as React from "react";
 import Link from "next/link";
 import { Stone } from "lucide-react";
 
-import { navMainItems, navSecondaryItems } from "@/config/navigation";
+import type { UserSessionSnapshot } from "@/lib/auth/types";
+import type {
+  AppNavItem,
+  AppSecondaryNavItem,
+} from "@/lib/navigation/config";
 
 import { NavMain } from "./nav-main";
 import { NavSecondary } from "./nav-secondary";
@@ -18,9 +19,18 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@bedrock/ui/components/sidebar";
+} from "@bedrock/sdk-ui/components/sidebar";
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  items,
+  secondaryItems,
+  session,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & {
+  items: AppNavItem[];
+  secondaryItems: AppSecondaryNavItem[];
+  session: UserSessionSnapshot;
+}) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -36,18 +46,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <Stone className="size-6" />
               </div>
               <div className="grid flex-1 text-left text-xl leading-tight">
-                <span className="truncate font-semibold">Bedrock Finance</span>
+                <span className="truncate font-semibold">Multihansa Finance</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMainItems} />
-        <NavSecondary items={navSecondaryItems} className="mt-auto" />
+        <NavMain items={items} />
+        <NavSecondary items={secondaryItems} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser />
+        <NavUser session={session} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

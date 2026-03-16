@@ -1,126 +1,118 @@
-# Turborepo + Hono starter
+# Bedrock
 
-## What's inside?
+Bedrock is a financial platform monorepo (ledger, balances, FX, reconciliation).
 
-This Turborepo includes the following packages/apps:
+## Workspace Topology
 
-### Apps and Packages
+- `packages/shared` - stable shared primitives exposed as `@bedrock/shared/core`, `@bedrock/shared/money`, and `@bedrock/shared/reference-data`
+- `packages/modules/*` - write-side business capabilities published as flat `@bedrock/<name>` packages
+- `packages/workflows/*` - cross-module orchestration such as `@bedrock/workflow-period-close`
+- `packages/platform` - technical runtime infrastructure exposed as `@bedrock/platform/persistence`, `@bedrock/platform/worker-runtime`, and related subpaths
+- `packages/plugins/*` - document plugins and plugin SDK packages
+- `packages/sdk/*` - downstream-consumer SDK and reusable UI packages such as `@bedrock/sdk-ui`
+- `apps/*` - API/Web/Workers/DB composition
+- `ops/*` - infra entrypoints
 
-- `api`: a [Hono](https://hono.dev/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@bedrock/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@bedrock/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@bedrock/typescript-config`: `tsconfig.json`s used throughout the monorepo
+Runtime import contract:
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+- Runtime packages publish flat imports such as `@bedrock/ledger` and `@bedrock/counterparties`, plus merged package subpaths such as `@bedrock/platform/auth-model` and `@bedrock/platform/worker-runtime`.
+- Domain schemas stay with the owning package and are imported through package exports such as `@bedrock/ledger/schema`, `@bedrock/organizations/schema`, or `@bedrock/requisite-providers/schema`.
+- `apps/db` owns schema aggregation, migrations, DB reset, and seed/bootstrap scripts.
+- Use DB connection types from `@bedrock/platform/persistence` or `@bedrock/platform/persistence/drizzle`.
 
-### Utilities
+## Architecture
 
-This Turborepo has some additional tools already setup for you:
+The repo architecture is documented in:
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+- [docs/adr/0001-bounded-context-explicit-architecture.md](/Users/alexey.eramasov/dev/ledger/docs/adr/0001-bounded-context-explicit-architecture.md)
 
-### Build
+The short version:
 
-To build all apps and packages, run the following command:
+- workspace packages are organized by bounded context and package kind
+- runtime packages use explicit `contracts`, `application`, `domain`, and `infra` layers
+- package exports define the only supported runtime entrypoints
+- apps and workflows do composition and delivery; they do not own core business logic
 
-```
-cd my-turborepo
+## Stack
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
+- Runtime: Node.js 24.x
+- Package manager: Bun
+- Monorepo: Turborepo
+- API: Hono
+- Web: Next.js
+- Storage: PostgreSQL + TigerBeetle
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
-```
+## Apps
 
-You can build a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+- `apps/api` - API adapter (`http://localhost:3002`)
+- `apps/db` - DB tooling and seed runners
+- `apps/web` - Web app (`http://localhost:3001`)
+- `apps/workers` - Background loops (monitoring on `http://localhost:8081`)
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
+## Local Setup
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+Start infrastructure:
 
-### Develop
-
-To develop all apps and packages, run the following commands:
-
-```
-cd my-turborepo
-vc link --repo # Connect your repository to Vercel
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
+```bash
+docker compose -f ops/infra/docker-compose.yml up -d
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+Install dependencies:
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+```bash
+bun install
 ```
 
-### Remote Caching
+## Run
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+Run all apps:
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
+```bash
+bun run dev
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+Run workers:
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
+```bash
+bun run --cwd apps/workers worker:all
+bun run --cwd apps/workers worker:ledger
+bun run --cwd apps/workers worker:documents
+bun run --cwd apps/workers worker:balances
+bun run --cwd apps/workers worker:fx-rates
+bun run --cwd apps/workers worker:reconciliation
 ```
 
-## Useful Links
+## Build and Quality
 
-Learn more about the power of Turborepo:
+Build everything:
 
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+```bash
+bun run build
+```
+
+Checks:
+
+```bash
+bun run lint
+bun run check-types
+bun run test
+bun run test:integration
+```
+
+## DB Cutover Sequence
+
+This repo now uses a baseline-only migration chain. Legacy DB states are unsupported.
+
+```bash
+bun run db:nuke
+bun run db:migrate
+bun run db:seed
+```
+
+## Documentation Source of Truth
+
+Canonical documentation lives in:
+
+- `README.md`
+- `AGENTS.md`
+- `docs/adr/**`

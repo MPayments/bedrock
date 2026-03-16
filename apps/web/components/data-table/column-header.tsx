@@ -15,8 +15,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@bedrock/ui/components/dropdown-menu";
-import { cn } from "@bedrock/ui/lib/utils";
+} from "@bedrock/sdk-ui/components/dropdown-menu";
+import { cn } from "@bedrock/sdk-ui/lib/utils";
 
 interface DataTableColumnHeaderProps<
   TData,

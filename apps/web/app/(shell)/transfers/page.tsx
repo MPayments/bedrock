@@ -1,5 +1,5 @@
-import { SectionPlaceholderPage } from "@/components/section-placeholder-page";
+import { redirect } from "next/navigation";
 
-export default function TransfersPage() {
-  return <SectionPlaceholderPage title="Переводы" />;
+export default function TransfersOverviewPage() {
+  redirect("/documents/transfers");
 }

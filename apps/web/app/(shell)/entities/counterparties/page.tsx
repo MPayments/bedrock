@@ -4,21 +4,21 @@ import { Building2, ChevronDown, FolderPlus, Plus } from "lucide-react";
 import {
   ButtonGroup,
   ButtonGroupSeparator,
-} from "@bedrock/ui/components/button-group";
-import { Button } from "@bedrock/ui/components/button";
+} from "@bedrock/sdk-ui/components/button-group";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@bedrock/ui/components/dropdown-menu";
+} from "@bedrock/sdk-ui/components/dropdown-menu";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 
-import { CounterpartiesTable } from "./components/counterparties-table";
-import { getCounterparties, getCounterpartyGroups } from "./lib/queries";
-import { searchParamsCache } from "./lib/validations";
+import { CounterpartiesTable } from "@/features/entities/counterparties/components/counterparties-table";
+import { getCounterparties, getCounterpartyGroups } from "@/features/entities/counterparties/lib/queries";
+import { searchParamsCache } from "@/features/entities/counterparties/lib/validations";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

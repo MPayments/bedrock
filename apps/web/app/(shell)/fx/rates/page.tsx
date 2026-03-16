@@ -1,40 +1,33 @@
-import { Suspense } from "react";
 import { ChartCandlestick } from "lucide-react";
 
-import { Separator } from "@bedrock/ui/components/separator";
-import { Skeleton } from "@bedrock/ui/components/skeleton";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
+import { Skeleton } from "@bedrock/sdk-ui/components/skeleton";
 
-import { RateSourcesPanel } from "./components/rate-sources-panel";
-import { RatePairsList } from "./components/rate-pairs-list";
-import { getCurrencyOptions, getRatePairs, getRateSources } from "./lib/queries";
+import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
+import { CreateManualRateDialog } from "@/features/fx/rates/components/create-manual-rate-dialog";
+import { RatePairsList } from "@/features/fx/rates/components/rate-pairs-list";
+import { RateSourcesPanel } from "@/features/fx/rates/components/rate-sources-panel";
+import {
+  getCurrencyOptions,
+  getRatePairs,
+  getRateSources,
+} from "@/features/fx/rates/lib/queries";
 
-export default function RatesPage() {
+export default async function RatesPage() {
+  const currencies = await getCurrencyOptions();
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-start gap-3">
-        <div className="bg-muted rounded-lg p-2.5">
-          <ChartCandlestick className="text-muted-foreground h-5 w-5" />
-        </div>
-        <div>
-          <h3 className="mb-1 text-xl font-semibold">Курсы</h3>
-          <p className="text-muted-foreground text-sm hidden md:block">
-            Источники курсов валют, пары и ручные курсы.
-          </p>
-        </div>
-      </div>
-
+    <EntityListPageShell
+      icon={ChartCandlestick}
+      title="Курсы"
+      description="Источники курсов валют, пары и ручные курсы."
+      actions={<CreateManualRateDialog currencies={currencies} />}
+      fallback={<RatesPageSkeleton />}
+    >
+      <RateSourcesLoader />
       <Separator className="w-full h-px" />
-
-      <Suspense fallback={<SourcesPanelSkeleton />}>
-        <RateSourcesLoader />
-      </Suspense>
-
-      <Separator className="w-full h-px" />
-
-      <Suspense fallback={<PairsListSkeleton />}>
-        <RatePairsLoader />
-      </Suspense>
-    </div>
+      <RatePairsLoader currencies={currencies} />
+    </EntityListPageShell>
   );
 }
 
@@ -43,11 +36,13 @@ async function RateSourcesLoader() {
   return <RateSourcesPanel initialSources={sources} />;
 }
 
-async function RatePairsLoader() {
-  const [pairs, currencies] = await Promise.all([
-    getRatePairs(),
-    getCurrencyOptions(),
-  ]);
+async function RatePairsLoader({
+  currencies,
+}: {
+  currencies: Awaited<ReturnType<typeof getCurrencyOptions>>;
+}) {
+  const pairs = await getRatePairs();
+
   return <RatePairsList initialPairs={pairs} currencies={currencies} />;
 }
 
@@ -62,16 +57,20 @@ function SourcesPanelSkeleton() {
 
 function PairsListSkeleton() {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-7 w-32" />
-        <Skeleton className="h-9 w-36" />
-      </div>
-      <div className="space-y-2">
-        <Skeleton className="h-14 rounded-md" />
-        <Skeleton className="h-14 rounded-md" />
-        <Skeleton className="h-14 rounded-md" />
-      </div>
+    <div className="space-y-2">
+      <Skeleton className="h-14 rounded-md" />
+      <Skeleton className="h-14 rounded-md" />
+      <Skeleton className="h-14 rounded-md" />
+    </div>
+  );
+}
+
+function RatesPageSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <SourcesPanelSkeleton />
+      <Separator className="w-full h-px" />
+      <PairsListSkeleton />
     </div>
   );
 }

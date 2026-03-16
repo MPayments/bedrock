@@ -1,4 +1,4 @@
-import { Skeleton } from "@bedrock/ui/components/skeleton";
+import { Skeleton } from "@bedrock/sdk-ui/components/skeleton";
 import {
   Table,
   TableBody,
@@ -6,8 +6,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@bedrock/ui/components/table";
-import { cn } from "@bedrock/ui/lib/utils";
+} from "@bedrock/sdk-ui/components/table";
+import { cn } from "@bedrock/sdk-ui/lib/utils";
 
 interface DataTableSkeletonProps extends React.ComponentProps<"div"> {
   columnCount: number;

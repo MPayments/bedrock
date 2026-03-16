@@ -1,4 +1,4 @@
-import { getCounterpartyById } from "@/app/(shell)/entities/counterparties/lib/queries";
+import { getCounterpartyById } from "@/features/entities/counterparties/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 import { EditCounterpartyBreadcrumb } from "./edit-counterparty-breadcrumb";

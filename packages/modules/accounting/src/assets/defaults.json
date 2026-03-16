@@ -1,0 +1,1234 @@
+{
+  "chartTemplateAccounts": [
+    {
+      "accountNo": "1000",
+      "name": "Активы",
+      "kind": "asset",
+      "normalSide": "debit",
+      "postingAllowed": false,
+      "enabled": true,
+      "parentAccountNo": null
+    },
+    {
+      "accountNo": "1100",
+      "name": "Денежные средства и эквиваленты",
+      "kind": "asset",
+      "normalSide": "debit",
+      "postingAllowed": false,
+      "enabled": true,
+      "parentAccountNo": "1000"
+    },
+    {
+      "accountNo": "1200",
+      "name": "Операционные активы",
+      "kind": "asset",
+      "normalSide": "debit",
+      "postingAllowed": false,
+      "enabled": true,
+      "parentAccountNo": "1000"
+    },
+    {
+      "accountNo": "1300",
+      "name": "Внутригрупповые расчеты",
+      "kind": "active_passive",
+      "normalSide": "both",
+      "postingAllowed": false,
+      "enabled": true,
+      "parentAccountNo": "1000"
+    },
+    {
+      "accountNo": "1310",
+      "name": "Клиринг",
+      "kind": "active_passive",
+      "normalSide": "both",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "1300"
+    },
+    {
+      "accountNo": "2000",
+      "name": "Обязательства",
+      "kind": "liability",
+      "normalSide": "credit",
+      "postingAllowed": false,
+      "enabled": true,
+      "parentAccountNo": null
+    },
+    {
+      "accountNo": "2100",
+      "name": "Операционные обязательства",
+      "kind": "liability",
+      "normalSide": "credit",
+      "postingAllowed": false,
+      "enabled": true,
+      "parentAccountNo": "2000"
+    },
+    {
+      "accountNo": "2210",
+      "name": "Займ от учредителя/инвестора",
+      "kind": "liability",
+      "normalSide": "credit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "2000"
+    },
+    {
+      "accountNo": "3000",
+      "name": "Капитал",
+      "kind": "equity",
+      "normalSide": "credit",
+      "postingAllowed": false,
+      "enabled": true,
+      "parentAccountNo": null
+    },
+    {
+      "accountNo": "3110",
+      "name": "Вклад учредителя",
+      "kind": "equity",
+      "normalSide": "credit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "3000"
+    },
+    {
+      "accountNo": "3120",
+      "name": "Инвестиции в капитал",
+      "kind": "equity",
+      "normalSide": "credit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "3000"
+    },
+    {
+      "accountNo": "3200",
+      "name": "Балансирующий капитал",
+      "kind": "equity",
+      "normalSide": "credit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "3000"
+    },
+    {
+      "accountNo": "4000",
+      "name": "Доходы",
+      "kind": "revenue",
+      "normalSide": "credit",
+      "postingAllowed": false,
+      "enabled": true,
+      "parentAccountNo": null
+    },
+    {
+      "accountNo": "5000",
+      "name": "Расходы",
+      "kind": "expense",
+      "normalSide": "debit",
+      "postingAllowed": false,
+      "enabled": true,
+      "parentAccountNo": null
+    },
+    {
+      "accountNo": "1110",
+      "name": "Банк",
+      "kind": "asset",
+      "normalSide": "debit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "1100"
+    },
+    {
+      "accountNo": "1220",
+      "name": "Транзит",
+      "kind": "asset",
+      "normalSide": "debit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "1200"
+    },
+    {
+      "accountNo": "2110",
+      "name": "Кошелек клиента",
+      "kind": "liability",
+      "normalSide": "credit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "2100"
+    },
+    {
+      "accountNo": "2120",
+      "name": "Клиринг комиссий",
+      "kind": "liability",
+      "normalSide": "credit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "2100"
+    },
+    {
+      "accountNo": "2130",
+      "name": "Обязательство по выплате",
+      "kind": "liability",
+      "normalSide": "credit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "2100"
+    },
+    {
+      "accountNo": "2140",
+      "name": "Резерв по ордерам",
+      "kind": "liability",
+      "normalSide": "credit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "2100"
+    },
+    {
+      "accountNo": "4110",
+      "name": "Доход от комиссий",
+      "kind": "revenue",
+      "normalSide": "credit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "4000"
+    },
+    {
+      "accountNo": "4120",
+      "name": "Доход от спреда",
+      "kind": "revenue",
+      "normalSide": "credit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "4000"
+    },
+    {
+      "accountNo": "4130",
+      "name": "Доход от корректировок",
+      "kind": "revenue",
+      "normalSide": "credit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "4000"
+    },
+    {
+      "accountNo": "5110",
+      "name": "Расход по корректировкам",
+      "kind": "expense",
+      "normalSide": "debit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "5000"
+    },
+    {
+      "accountNo": "5120",
+      "name": "Расход по комиссии провайдера",
+      "kind": "expense",
+      "normalSide": "debit",
+      "postingAllowed": true,
+      "enabled": true,
+      "parentAccountNo": "5000"
+    }
+  ],
+  "accountDimensionPolicies": [
+    {
+      "accountNo": "1110",
+      "dimensionKey": "organizationRequisiteId",
+      "mode": "required"
+    },
+    {
+      "accountNo": "1110",
+      "dimensionKey": "orderId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "1110",
+      "dimensionKey": "customerId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "1110",
+      "dimensionKey": "feeBucket",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "1110",
+      "dimensionKey": "clearingKind",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "1110",
+      "dimensionKey": "counterpartyId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2110",
+      "dimensionKey": "customerId",
+      "mode": "required"
+    },
+    {
+      "accountNo": "2110",
+      "dimensionKey": "organizationRequisiteId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2110",
+      "dimensionKey": "feeBucket",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2110",
+      "dimensionKey": "clearingKind",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "1310",
+      "dimensionKey": "clearingKind",
+      "mode": "required"
+    },
+    {
+      "accountNo": "1310",
+      "dimensionKey": "counterpartyId",
+      "mode": "optional"
+    },
+    {
+      "accountNo": "1310",
+      "dimensionKey": "orderId",
+      "mode": "optional"
+    },
+    {
+      "accountNo": "1310",
+      "dimensionKey": "organizationRequisiteId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "1310",
+      "dimensionKey": "feeBucket",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "1310",
+      "dimensionKey": "customerId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2140",
+      "dimensionKey": "orderId",
+      "mode": "required"
+    },
+    {
+      "accountNo": "2140",
+      "dimensionKey": "customerId",
+      "mode": "optional"
+    },
+    {
+      "accountNo": "2140",
+      "dimensionKey": "organizationRequisiteId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2140",
+      "dimensionKey": "feeBucket",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2140",
+      "dimensionKey": "clearingKind",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2120",
+      "dimensionKey": "feeBucket",
+      "mode": "required"
+    },
+    {
+      "accountNo": "2120",
+      "dimensionKey": "orderId",
+      "mode": "required"
+    },
+    {
+      "accountNo": "2120",
+      "dimensionKey": "counterpartyId",
+      "mode": "optional"
+    },
+    {
+      "accountNo": "2120",
+      "dimensionKey": "organizationRequisiteId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2120",
+      "dimensionKey": "clearingKind",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2120",
+      "dimensionKey": "customerId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2130",
+      "dimensionKey": "orderId",
+      "mode": "required"
+    },
+    {
+      "accountNo": "2130",
+      "dimensionKey": "counterpartyId",
+      "mode": "optional"
+    },
+    {
+      "accountNo": "2130",
+      "dimensionKey": "organizationRequisiteId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2130",
+      "dimensionKey": "feeBucket",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2130",
+      "dimensionKey": "clearingKind",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2130",
+      "dimensionKey": "customerId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2210",
+      "dimensionKey": "counterpartyId",
+      "mode": "required"
+    },
+    {
+      "accountNo": "2210",
+      "dimensionKey": "organizationRequisiteId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2210",
+      "dimensionKey": "orderId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2210",
+      "dimensionKey": "customerId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2210",
+      "dimensionKey": "feeBucket",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "2210",
+      "dimensionKey": "clearingKind",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "3110",
+      "dimensionKey": "counterpartyId",
+      "mode": "required"
+    },
+    {
+      "accountNo": "3110",
+      "dimensionKey": "organizationRequisiteId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "3110",
+      "dimensionKey": "orderId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "3110",
+      "dimensionKey": "customerId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "3110",
+      "dimensionKey": "feeBucket",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "3110",
+      "dimensionKey": "clearingKind",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "3120",
+      "dimensionKey": "counterpartyId",
+      "mode": "required"
+    },
+    {
+      "accountNo": "3120",
+      "dimensionKey": "organizationRequisiteId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "3120",
+      "dimensionKey": "orderId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "3120",
+      "dimensionKey": "customerId",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "3120",
+      "dimensionKey": "feeBucket",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "3120",
+      "dimensionKey": "clearingKind",
+      "mode": "forbidden"
+    },
+    {
+      "accountNo": "5120",
+      "dimensionKey": "feeBucket",
+      "mode": "required"
+    },
+    {
+      "accountNo": "5120",
+      "dimensionKey": "orderId",
+      "mode": "required"
+    },
+    {
+      "accountNo": "5120",
+      "dimensionKey": "counterpartyId",
+      "mode": "optional"
+    }
+  ],
+  "postingCodeDimensionPolicies": [
+    {
+      "postingCode": "TR.INTRA.IMMEDIATE",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TR.INTRA.PENDING",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TR.CROSS.SOURCE.IMMEDIATE",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TR.CROSS.SOURCE.IMMEDIATE",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TR.CROSS.DEST.IMMEDIATE",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TR.CROSS.DEST.IMMEDIATE",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TR.CROSS.SOURCE.PENDING",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TR.CROSS.SOURCE.PENDING",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TR.CROSS.DEST.PENDING",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TR.CROSS.DEST.PENDING",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.2101",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.2101",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.2101",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.2102",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.2102",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.2102",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.2103",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.2103",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.2103",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.2104",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.2104",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.2104",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.1001",
+      "dimensionKey": "customerId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.1001",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.9001",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.9001",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.9002",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.9002",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.9003",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.9003",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.9005",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.2001",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.2001",
+      "dimensionKey": "customerId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.2009",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.2009",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.2009",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.2010",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.2010",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.2010",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.2005",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3001",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3001",
+      "dimensionKey": "customerId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3001",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3002",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3002",
+      "dimensionKey": "customerId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3002",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3004",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3004",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3005",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3005",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3003",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3003",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3008",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3008",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3008",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3011",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3011",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3011",
+      "dimensionKey": "counterpartyId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3011",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3101",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3101",
+      "dimensionKey": "organizationRequisiteId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3201",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3201",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3201",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3202",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3202",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3202",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3203",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3203",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3203",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3204",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3204",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3204",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3205",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3205",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3205",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3206",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3206",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3206",
+      "dimensionKey": "clearingKind",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3006",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3006",
+      "dimensionKey": "customerId",
+      "required": true,
+      "scope": "debit"
+    },
+    {
+      "postingCode": "TC.3006",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3009",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3009",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3007",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3007",
+      "dimensionKey": "customerId",
+      "required": true,
+      "scope": "credit"
+    },
+    {
+      "postingCode": "TC.3007",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3010",
+      "dimensionKey": "orderId",
+      "required": true,
+      "scope": "line"
+    },
+    {
+      "postingCode": "TC.3010",
+      "dimensionKey": "feeBucket",
+      "required": true,
+      "scope": "line"
+    }
+  ],
+  "globalCorrespondenceRules": [
+    {
+      "postingCode": "TR.INTRA.IMMEDIATE",
+      "debitAccountNo": "1110",
+      "creditAccountNo": "1110"
+    },
+    {
+      "postingCode": "TR.INTRA.PENDING",
+      "debitAccountNo": "1110",
+      "creditAccountNo": "1110"
+    },
+    {
+      "postingCode": "TR.CROSS.SOURCE.IMMEDIATE",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "1110"
+    },
+    {
+      "postingCode": "TR.CROSS.DEST.IMMEDIATE",
+      "debitAccountNo": "1110",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TR.CROSS.SOURCE.PENDING",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "1110"
+    },
+    {
+      "postingCode": "TR.CROSS.DEST.PENDING",
+      "debitAccountNo": "1110",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TC.2101",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "1110"
+    },
+    {
+      "postingCode": "TC.2102",
+      "debitAccountNo": "1110",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TC.2103",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "1110"
+    },
+    {
+      "postingCode": "TC.2104",
+      "debitAccountNo": "1110",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TC.1001",
+      "debitAccountNo": "1110",
+      "creditAccountNo": "2110"
+    },
+    {
+      "postingCode": "TC.9001",
+      "debitAccountNo": "1110",
+      "creditAccountNo": "3110"
+    },
+    {
+      "postingCode": "TC.9002",
+      "debitAccountNo": "1110",
+      "creditAccountNo": "3120"
+    },
+    {
+      "postingCode": "TC.9003",
+      "debitAccountNo": "1110",
+      "creditAccountNo": "2210"
+    },
+    {
+      "postingCode": "TC.9005",
+      "debitAccountNo": "1110",
+      "creditAccountNo": "3200"
+    },
+    {
+      "postingCode": "TC.2001",
+      "debitAccountNo": "2110",
+      "creditAccountNo": "2140"
+    },
+    {
+      "postingCode": "TC.2009",
+      "debitAccountNo": "2140",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TC.2010",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "2140"
+    },
+    {
+      "postingCode": "TC.2005",
+      "debitAccountNo": "2140",
+      "creditAccountNo": "2130"
+    },
+    {
+      "postingCode": "TC.3001",
+      "debitAccountNo": "2110",
+      "creditAccountNo": "4110"
+    },
+    {
+      "postingCode": "TC.3002",
+      "debitAccountNo": "2110",
+      "creditAccountNo": "4120"
+    },
+    {
+      "postingCode": "TC.3004",
+      "debitAccountNo": "2120",
+      "creditAccountNo": "4110"
+    },
+    {
+      "postingCode": "TC.3005",
+      "debitAccountNo": "2120",
+      "creditAccountNo": "4120"
+    },
+    {
+      "postingCode": "TC.3003",
+      "debitAccountNo": "2110",
+      "creditAccountNo": "2120"
+    },
+    {
+      "postingCode": "TC.3008",
+      "debitAccountNo": "5120",
+      "creditAccountNo": "2120"
+    },
+    {
+      "postingCode": "TC.3011",
+      "debitAccountNo": "2120",
+      "creditAccountNo": "1110"
+    },
+    {
+      "postingCode": "TC.3201",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "4110"
+    },
+    {
+      "postingCode": "TC.3202",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "4120"
+    },
+    {
+      "postingCode": "TC.3203",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "2120"
+    },
+    {
+      "postingCode": "TC.3203",
+      "debitAccountNo": "2120",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TC.3204",
+      "debitAccountNo": "5120",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TC.3204",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "5120"
+    },
+    {
+      "postingCode": "TC.3205",
+      "debitAccountNo": "1310",
+      "creditAccountNo": "4130"
+    },
+    {
+      "postingCode": "TC.3206",
+      "debitAccountNo": "5110",
+      "creditAccountNo": "1310"
+    },
+    {
+      "postingCode": "TC.3101",
+      "debitAccountNo": "2130",
+      "creditAccountNo": "1110"
+    },
+    {
+      "postingCode": "TC.3006",
+      "debitAccountNo": "2110",
+      "creditAccountNo": "4130"
+    },
+    {
+      "postingCode": "TC.3009",
+      "debitAccountNo": "2120",
+      "creditAccountNo": "4130"
+    },
+    {
+      "postingCode": "TC.3007",
+      "debitAccountNo": "5110",
+      "creditAccountNo": "2110"
+    },
+    {
+      "postingCode": "TC.3010",
+      "debitAccountNo": "5110",
+      "creditAccountNo": "2120"
+    }
+  ]
+}

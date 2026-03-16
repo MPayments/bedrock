@@ -2,17 +2,24 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import {
   CounterpartyCustomerNotFoundError,
-  CounterpartyNotFoundError,
   CounterpartyGroupNotFoundError,
   CounterpartyGroupRuleError,
+  CounterpartyNotFoundError,
+} from "@bedrock/parties";
+import {
   CounterpartySchema,
   CreateCounterpartyInputSchema,
   ListCounterpartiesQuerySchema,
   UpdateCounterpartyInputSchema,
-} from "@bedrock/counterparties";
-import { createPaginatedListSchema } from "@bedrock/kernel/pagination";
+} from "@bedrock/parties/contracts";
+import {
+  CounterpartyOptionSchema,
+  CounterpartyOptionsResponseSchema,
+} from "@bedrock/parties/contracts";
+import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
 import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
+import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";
@@ -84,6 +91,24 @@ export function counterpartiesRoutes(ctx: AppContext) {
           },
         },
         description: "Referenced group not found",
+      },
+    },
+  });
+
+  const optionsRoute = createRoute({
+    middleware: [requirePermission({ counterparties: ["list"] })],
+    method: "get",
+    path: "/options",
+    tags: ["Counterparties"],
+    summary: "List counterparties for select inputs",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: CounterpartyOptionsResponseSchema,
+          },
+        },
+        description: "Counterparty option list",
       },
     },
   });
@@ -194,13 +219,32 @@ export function counterpartiesRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.counterpartiesService.list(query);
+      const result = await ctx.partiesService.counterparties.list(query);
       return c.json(result, 200);
+    })
+    .openapi(optionsRoute, async (c) => {
+      const result = await ctx.partiesService.counterparties.list({
+        limit: 200,
+        offset: 0,
+        sortBy: "shortName",
+        sortOrder: "asc",
+      });
+
+      return c.json(
+        buildOptionsResponse(result, (counterparty) =>
+          CounterpartyOptionSchema.parse({
+            id: counterparty.id,
+            shortName: counterparty.shortName,
+            label: counterparty.shortName,
+          }),
+        ),
+        200,
+      );
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");
       try {
-        const counterparty = await ctx.counterpartiesService.create(input);
+        const counterparty = await ctx.partiesService.counterparties.create(input);
         return c.json(counterparty, 201);
       } catch (err) {
         if (
@@ -218,7 +262,7 @@ export function counterpartiesRoutes(ctx: AppContext) {
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");
       try {
-        const counterparty = await ctx.counterpartiesService.findById(id);
+        const counterparty = await ctx.partiesService.counterparties.findById(id);
         return c.json(counterparty, 200);
       } catch (err) {
         if (err instanceof CounterpartyNotFoundError) {
@@ -231,7 +275,7 @@ export function counterpartiesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
       try {
-        const counterparty = await ctx.counterpartiesService.update(id, input);
+        const counterparty = await ctx.partiesService.counterparties.update(id, input);
         return c.json(counterparty, 200);
       } catch (err) {
         if (
@@ -250,7 +294,7 @@ export function counterpartiesRoutes(ctx: AppContext) {
     .openapi(deleteRoute, async (c) => {
       const { id } = c.req.valid("param");
       try {
-        await ctx.counterpartiesService.remove(id);
+        await ctx.partiesService.counterparties.remove(id);
         return c.json({ deleted: true }, 200);
       } catch (err) {
         if (err instanceof CounterpartyNotFoundError) {

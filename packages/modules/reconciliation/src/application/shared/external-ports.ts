@@ -1,0 +1,20 @@
+import type { DocumentWithOperationId } from "@bedrock/documents/contracts";
+import type { IdempotencyPort } from "@bedrock/platform/idempotency";
+import type { CorrelationContext } from "@bedrock/shared/core/correlation";
+
+export interface ReconciliationDocumentsPort {
+  createDraft(input: {
+    docType: string;
+    createIdempotencyKey: string;
+    payload: unknown;
+    actorUserId: string;
+    requestContext?: CorrelationContext;
+  }): Promise<DocumentWithOperationId>;
+  existsById(documentId: string): Promise<boolean>;
+}
+
+export interface ReconciliationLedgerLookupPort {
+  operationExists(operationId: string): Promise<boolean>;
+}
+
+export type ReconciliationIdempotencyPort = IdempotencyPort;

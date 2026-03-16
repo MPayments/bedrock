@@ -1,5 +1,2 @@
-import { Client, createClient } from "api/client";
-
-export const apiClient: Client = createClient(
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002",
-);
+export { apiClient } from "@/lib/api/browser-client";
+export type { Client } from "@bedrock/sdk-api-client";

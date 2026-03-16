@@ -1,20 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ArrowRightLeft,
-  BookOpen,
-  Building2,
-  ChartCandlestick,
-  CreditCard,
-  Currency,
-  DollarSign,
-  Home,
-  Landmark,
-  Users,
-  Wallet,
-  type LucideIcon,
-} from "lucide-react";
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -22,23 +9,10 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@bedrock/ui/components/breadcrumb";
+} from "@bedrock/sdk-ui/components/breadcrumb";
 
-import type { BreadcrumbIconName, BreadcrumbItem as AppBreadcrumbItem } from "@/lib/breadcrumbs";
-
-const iconMap: Record<BreadcrumbIconName, LucideIcon> = {
-  home: Home,
-  landmark: Landmark,
-  currency: Currency,
-  "credit-card": CreditCard,
-  "arrow-right-left": ArrowRightLeft,
-  "building-2": Building2,
-  users: Users,
-  "book-open": BookOpen,
-  "dollar-sign": DollarSign,
-  "chart-candlestick": ChartCandlestick,
-  wallet: Wallet,
-};
+import type { BreadcrumbItem as AppBreadcrumbItem } from "@/lib/breadcrumbs";
+import { resolveAppIcon } from "@/lib/icons";
 
 type DynamicBreadcrumbProps = {
   items: AppBreadcrumbItem[];
@@ -52,7 +26,7 @@ export function DynamicBreadcrumb({ items }: DynamicBreadcrumbProps) {
       <BreadcrumbList>
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
-          const Icon = item.icon ? iconMap[item.icon] : undefined;
+          const Icon = item.icon ? resolveAppIcon(item.icon) : undefined;
           const label = Icon ? (
             <span className="hidden md:inline">{item.label}</span>
           ) : (

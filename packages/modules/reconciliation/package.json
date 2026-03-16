@@ -1,0 +1,46 @@
+{
+  "name": "@bedrock/reconciliation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contracts": "./src/contracts/index.ts",
+    "./schema": "./src/infra/drizzle/schema/index.ts",
+    "./worker": "./src/infra/workers/reconciliation-worker.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.ts\" --no-error-on-unmatched-pattern --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration:watch": "vitest --config vitest.integration.config.ts"
+  },
+  "dependencies": {
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "zod": "^4.1.11",
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "@types/pg": "^8.16.0",
+    "eslint": "^9.31.0",
+    "pg": "^8.18.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "module",
+    "tags": [
+      "module",
+      "reconciliation"
+    ]
+  }
+}

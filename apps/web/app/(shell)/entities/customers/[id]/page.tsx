@@ -1,5 +1,5 @@
-import { EditCustomerFormClient } from "../components/edit-customer-form-client";
-import { getCustomerById } from "../lib/queries";
+import { EditCustomerFormClient } from "@/features/entities/customers/components/edit-customer-form-client";
+import { getCustomerById } from "@/features/entities/customers/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 interface CustomerPageProps {

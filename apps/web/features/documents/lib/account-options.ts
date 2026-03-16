@@ -1,0 +1,72 @@
+import { z } from "zod";
+
+import { createPaginatedResponseSchema } from "@/lib/api/schemas";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
+
+const RequisiteListItemSchema = z.object({
+  id: z.uuid(),
+  ownerType: z.enum(["organization", "counterparty"]),
+  ownerId: z.uuid(),
+  currencyId: z.uuid(),
+  providerId: z.uuid(),
+  label: z.string(),
+  accountNo: z.string().nullable(),
+  iban: z.string().nullable(),
+  address: z.string().nullable().optional(),
+  accountRef: z.string().nullable().optional(),
+});
+
+const RequisitesResponseSchema = createPaginatedResponseSchema(
+  RequisiteListItemSchema,
+);
+
+export type RequisiteOption = {
+  id: string;
+  label: string;
+  currencyId: string;
+};
+
+function buildRequisiteIdentity(item: z.infer<typeof RequisiteListItemSchema>) {
+  return item.accountNo ?? item.iban ?? item.accountRef ?? item.address ?? item.id;
+}
+
+export async function fetchRequisiteOptions(input: {
+  ownerId: string;
+  ownerType: "counterparty" | "organization";
+  currencyLabelById: Map<string, string>;
+}): Promise<RequisiteOption[]> {
+  const query = new URLSearchParams({
+    limit: "200",
+    offset: "0",
+    ownerType: input.ownerType,
+    ownerId: input.ownerId,
+    sortBy: "createdAt",
+    sortOrder: "desc",
+  });
+
+  const response = await fetch(
+    `${API_URL}/v1/requisites?${query.toString()}`,
+    {
+      credentials: "include",
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Не удалось загрузить реквизиты");
+  }
+
+  const payload = RequisitesResponseSchema.parse(await response.json());
+
+  return payload.data.map((item) => {
+    const currencyLabel = input.currencyLabelById.get(item.currencyId) ?? "";
+    const identity = buildRequisiteIdentity(item);
+
+    return {
+      id: item.id,
+      currencyId: item.currencyId,
+      label: `${item.label} · ${identity}${currencyLabel ? ` · ${currencyLabel}` : ""}`,
+    };
+  });
+}

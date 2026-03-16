@@ -1,14 +1,14 @@
 import Link from "next/link";
-import { Plus, Users } from "lucide-react";
+import { Handshake, Plus } from "lucide-react";
 
-import { Button } from "@bedrock/ui/components/button";
+import { Button } from "@bedrock/sdk-ui/components/button";
 
 import { DataTableSkeleton } from "@/components/data-table/skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 
-import { CustomersTable } from "./components/customers-table";
-import { getCustomers } from "./lib/queries";
-import { searchParamsCache } from "./lib/validations";
+import { CustomersTable } from "@/features/entities/customers/components/customers-table";
+import { getCustomers } from "@/features/entities/customers/lib/queries";
+import { searchParamsCache } from "@/features/entities/customers/lib/validations";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -20,7 +20,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
 
   return (
     <EntityListPageShell
-      icon={Users}
+      icon={Handshake}
       title="Клиенты"
       description="Управление клиентами и связанной контрагентской привязкой."
       actions={
@@ -33,7 +33,9 @@ export default async function CustomersPage({ searchParams }: PageProps) {
           <span className="hidden md:block">Добавить</span>
         </Button>
       }
-      fallback={<DataTableSkeleton columnCount={4} rowCount={10} filterCount={2} />}
+      fallback={
+        <DataTableSkeleton columnCount={4} rowCount={10} filterCount={2} />
+      }
     >
       <CustomersTable promise={promise} />
     </EntityListPageShell>

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { LucideIcon } from "lucide-react";
 
-import { Separator } from "@bedrock/ui/components/separator";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
 
 type EntityListPageShellProps = {
   icon: LucideIcon;

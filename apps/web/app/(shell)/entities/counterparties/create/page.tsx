@@ -1,5 +1,5 @@
-import { CreateCounterpartyFormClient } from "./create-counterparty-form-client";
-import { getCounterpartyGroups } from "../lib/queries";
+import { CreateCounterpartyFormClient } from "@/features/entities/counterparties/components/create-counterparty-form-client";
+import { getCounterpartyGroups } from "@/features/entities/counterparties/lib/queries";
 
 export default async function CreateCounterpartyPage() {
   try {

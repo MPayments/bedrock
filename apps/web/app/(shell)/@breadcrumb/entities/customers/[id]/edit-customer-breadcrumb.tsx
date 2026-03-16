@@ -1,6 +1,6 @@
 "use client";
 
-import { useCustomerDraftName } from "@/app/(shell)/entities/customers/lib/create-draft-name-context";
+import { useCustomerDraftName } from "@/features/entities/customers/lib/create-draft-name-context";
 import { EntityEditBreadcrumb } from "@/components/entities/entity-breadcrumb";
 
 type EditCustomerBreadcrumbProps = {
@@ -18,7 +18,7 @@ export function EditCustomerBreadcrumb({
     <EntityEditBreadcrumb
       entityLabel="Клиенты"
       entityHref="/entities/customers"
-      entityIcon="users"
+      entityIcon="handshake"
       currentLabel={meta.getEditLabel(customerId, initialLabel)}
       currentHref={`/entities/customers/${customerId}`}
     />

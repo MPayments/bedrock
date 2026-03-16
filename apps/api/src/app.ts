@@ -1,43 +1,55 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
+import { sql } from "drizzle-orm";
 import { cors } from "hono/cors";
 import { csrf } from "hono/csrf";
 
-import auth from "@bedrock/auth";
-import { AppError } from "@bedrock/kernel";
-
-import { createAppContext, type Env } from "./context";
+import auth from "./auth";
+import { createAppContext, parseEnv, type AppContext } from "./context";
 import {
   authMiddleware,
   requireAuth,
   type AuthVariables,
 } from "./middleware/auth";
+import { requestContextMiddleware } from "./middleware/request-context";
 import {
-  accountProvidersRoutes,
-  accountsRoutes,
+  accountingRoutes,
+  balancesRoutes,
   counterpartiesRoutes,
   counterpartyGroupsRoutes,
   customersRoutes,
   currenciesRoutes,
+  documentsRoutes,
+  fxQuotesRoutes,
   fxRatesRoutes,
-} from "./routes/index";
+  organizationsRoutes,
+  profileRoutes,
+  requisiteProvidersRoutes,
+  requisitesRoutes,
+  usersRoutes,
+} from "./routes";
 
-const env: Env = {
-  DATABASE_URL: process.env.DATABASE_URL!,
-  TB_ADDRESS: process.env.TB_ADDRESS!,
-  TB_CLUSTER_ID: Number(process.env.TB_CLUSTER_ID!),
-  BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
-  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL!,
-  BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS!,
-};
+const env = parseEnv();
 
 const ctx = createAppContext(env);
+void ctx.documentsService
+  .validateAccountingSourceCoverage()
+  .catch((error: unknown) => {
+    ctx.logger.error(
+      "Active accounting pack is incompatible with document sources",
+      {
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
+    process.exitCode = 1;
+    setImmediate(() => process.exit(1));
+  });
+
 const configuredAuthOrigins = env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
   .map((origin) => origin.trim())
   .filter((origin) => origin.length > 0);
 const authAllowedOriginSet = new Set(configuredAuthOrigins);
 
-// Create OpenAPIHono app with default error handler
 const app = new OpenAPIHono<{ Variables: AuthVariables }>({
   defaultHook: (result, c) => {
     if (!result.success) {
@@ -52,16 +64,7 @@ const app = new OpenAPIHono<{ Variables: AuthVariables }>({
   },
 });
 
-// Global error handler for non-validation errors
 app.onError((err, c) => {
-  if (AppError.is(err)) {
-    ctx.logger.warn("Application error", {
-      code: err.code,
-      message: err.message,
-    });
-    return c.json({ error: err.message, code: err.code }, 500);
-  }
-
   ctx.logger.error("Unexpected error", {
     error: String(err),
     cause: err.cause ? String(err.cause) : undefined,
@@ -72,10 +75,16 @@ app.onError((err, c) => {
 app.use(
   "*",
   cors({
-    origin: (origin) => (authAllowedOriginSet.has(origin) ? origin : undefined),
-    allowHeaders: ["Content-Type", "Authorization"],
+    origin: (origin: string) =>
+      authAllowedOriginSet.has(origin) ? origin : undefined,
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Idempotency-Key",
+      "X-Book-Id",
+    ],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["set-cookie"],
+    exposeHeaders: ["set-cookie", "Retry-After"],
     credentials: true,
   }),
 );
@@ -92,34 +101,70 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => {
 });
 
 app.use("*", authMiddleware());
+app.use("*", requestContextMiddleware());
 app.use("/v1/*", requireAuth());
 
-// Health check
 app.get("/", (c) => {
   return c.json({ status: "ok", service: "ledger-api" });
 });
 
-// Mount routes under /v1 — all require an authenticated session
-const v1 = new OpenAPIHono<{ Variables: AuthVariables }>()
-  .route("/account-providers", accountProvidersRoutes(ctx))
-  .route("/accounts", accountsRoutes(ctx))
-  .route("/counterparties", counterpartiesRoutes(ctx))
-  .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
-  .route("/customers", customersRoutes(ctx))
-  .route("/currencies", currenciesRoutes(ctx))
-  .route("/fx/rates", fxRatesRoutes(ctx));
+app.get("/health", async (c) => {
+  const checks: Record<
+    string,
+    { status: string; latencyMs?: number; error?: string }
+  > = {};
+  let healthy = true;
 
-const _routes = app.route("/v1", v1);
+  // PostgreSQL check
+  const pgStart = Date.now();
+  try {
+    const { db } = await import("./db/client");
+    await db.execute(sql`select 1`);
+    checks.postgres = { status: "up", latencyMs: Date.now() - pgStart };
+  } catch (error) {
+    healthy = false;
+    checks.postgres = {
+      status: "down",
+      latencyMs: Date.now() - pgStart,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  const status = healthy ? 200 : 503;
+  return c.json({ status: healthy ? "healthy" : "degraded", checks }, status);
+});
+
+function createV1Routes(ctx: AppContext) {
+  return new OpenAPIHono<{ Variables: AuthVariables }>()
+    .route("/accounting", accountingRoutes(ctx))
+    .route("/balances", balancesRoutes(ctx))
+    .route("/counterparties", counterpartiesRoutes(ctx))
+    .route("/counterparty-groups", counterpartyGroupsRoutes(ctx))
+    .route("/customers", customersRoutes(ctx))
+    .route("/currencies", currenciesRoutes(ctx))
+    .route("/documents", documentsRoutes(ctx))
+    .route("/fx/quotes", fxQuotesRoutes(ctx))
+    .route("/organizations", organizationsRoutes(ctx))
+    .route("/requisite-providers", requisiteProvidersRoutes(ctx))
+    .route("/requisites", requisitesRoutes(ctx))
+    .route("/fx/rates", fxRatesRoutes(ctx))
+    .route("/users", usersRoutes(ctx))
+    .route("/me", profileRoutes(ctx));
+}
+
+const v1 = createV1Routes(ctx);
+const _routes = new OpenAPIHono<{ Variables: AuthVariables }>().route("/v1", v1);
+
+app.route("/v1", v1);
 
 const openApiInfo = {
   info: {
     title: "Bedrock API",
     version: "1.0.0",
-    description: "Double-entry ledger API powered by TigerBeetle",
+    description: "Deterministic financial API",
   },
 };
 
-// OpenAPI documentation
 app.doc31("/api/open-api", (c) => ({
   openapi: "3.1.0",
   ...openApiInfo,

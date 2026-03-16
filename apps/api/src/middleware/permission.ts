@@ -1,7 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 
-import auth, { type ResourcePermissions } from "@bedrock/auth";
-
+import auth, { type ResourcePermissions } from "../auth";
 import type { AuthVariables } from "./auth";
 
 export function requirePermission(

@@ -1,4 +1,41 @@
-const MONEY_LOCALE = "ru-RU";
+export function formatMajorAmount(amount: string | number | bigint): string {
+  const normalized = String(amount).trim().replace(",", ".");
+  const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(normalized);
+  if (!match) {
+    return String(amount);
+  }
+
+  const [, signRaw = "", integerRaw = "", fractionRaw = ""] = match;
+  const normalizedInteger = integerRaw.replace(/^0+(?=\d)/, "");
+
+  let integerPart: string;
+  try {
+    integerPart = BigInt(
+      normalizedInteger.length > 0 ? normalizedInteger : "0",
+    ).toLocaleString("ru-RU");
+  } catch {
+    integerPart = normalizedInteger.length > 0 ? normalizedInteger : "0";
+  }
+
+  if (fractionRaw.length === 0) {
+    return `${signRaw}${integerPart}`;
+  }
+
+  const fractionPart = fractionRaw.replace(/0+$/, "");
+  if (fractionPart.length === 0) {
+    return `${signRaw}${integerPart}`;
+  }
+
+  return `${signRaw}${integerPart},${fractionPart}`;
+}
+
+export function formatAmountByCurrency(
+  amount: string | number | bigint,
+  currencyCode: string | null | undefined,
+): string {
+  void currencyCode;
+  return formatMajorAmount(amount);
+}
 
 export function formatDate(date: Date | string | number | undefined) {
   if (!date) return "";
@@ -15,22 +52,4 @@ export function formatDate(date: Date | string | number | undefined) {
   const year = normalizedDate.getFullYear();
 
   return `${hours}:${minutes} ${day}.${month}.${year}`;
-}
-
-export function formatMoney(amount: number, currency: string) {
-  try {
-    return new Intl.NumberFormat(MONEY_LOCALE, {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch {
-    const value = new Intl.NumberFormat(MONEY_LOCALE, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-
-    return `${value} ${currency}`;
-  }
 }

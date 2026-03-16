@@ -1,0 +1,55 @@
+{
+  "name": "@bedrock/platform",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./auth-betterauth": "./src/auth-betterauth/index.ts",
+    "./auth-betterauth/*": "./src/auth-betterauth/*.ts",
+    "./auth-model": "./src/auth-model/index.ts",
+    "./auth-model/*": "./src/auth-model/*.ts",
+    "./crypto": "./src/crypto/index.ts",
+    "./crypto/*": "./src/crypto/*.ts",
+    "./idempotency": "./src/idempotency/index.ts",
+    "./idempotency/*": "./src/idempotency/*.ts",
+    "./idempotency-postgres": "./src/idempotency-postgres/index.ts",
+    "./idempotency-postgres/*": "./src/idempotency-postgres/*.ts",
+    "./observability": "./src/observability/index.ts",
+    "./observability/*": "./src/observability/*.ts",
+    "./persistence": "./src/persistence/index.ts",
+    "./persistence/*": "./src/persistence/*.ts",
+    "./worker-runtime": "./src/worker-runtime/index.ts",
+    "./worker-runtime/*": "./src/worker-runtime/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.ts\" --no-error-on-unmatched-pattern --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@bedrock/shared": "workspace:*",
+    "better-auth": "^1.4.18",
+    "drizzle-orm": "^0.45.1",
+    "pg": "^8.17.2",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "@types/pg": "^8.16.0",
+    "eslint": "^9.31.0",
+    "pino-pretty": "^13.1.3",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "platform",
+    "tags": [
+      "platform"
+    ]
+  }
+}

@@ -1,5 +1,5 @@
-import { EditCurrencyFormClient } from "../components/edit-currency-form-client";
-import { getCurrencyById } from "../lib/queries";
+import { EditCurrencyFormClient } from "@/features/entities/currencies/components/edit-currency-form-client";
+import { getCurrencyById } from "@/features/entities/currencies/lib/queries";
 import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 interface CurrencyPageProps {

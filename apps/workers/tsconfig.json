@@ -1,0 +1,9 @@
+{
+  "extends": "@bedrock/typescript-config/base.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src"]
+}

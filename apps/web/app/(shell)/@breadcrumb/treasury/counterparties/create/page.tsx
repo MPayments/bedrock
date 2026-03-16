@@ -1,6 +1,6 @@
 "use client";
 
-import { useCounterpartyDraftName } from "@/app/(shell)/entities/counterparties/lib/create-draft-name-context";
+import { useCounterpartyDraftName } from "@/features/entities/counterparties/lib/create-draft-name-context";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 
 export default function TreasuryCreateCounterpartyBreadcrumbPage() {
@@ -14,13 +14,13 @@ export default function TreasuryCreateCounterpartyBreadcrumbPage() {
           icon: "landmark",
         },
         {
-          label: "Контрагенты",
-          href: "/treasury/counterparties",
-          icon: "building-2",
+          label: "Организации",
+          href: "/treasury/organizations",
+          icon: "landmark",
         },
         {
           label: state.createLabel,
-          href: "/treasury/counterparties/create",
+          href: "/treasury/organizations/create",
         },
       ]}
     />

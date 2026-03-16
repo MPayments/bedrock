@@ -1,0 +1,425 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+index 8f700c3cfaf6fb0534677516d2b49f4693a3bb47..58894112a0cce568653cb4642a7cc60e31c7612a 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -114,6 +114,7 @@ var import_node_path2 = __toESM(require("path"), 1);
+ var import_node_fs2 = __toESM(require("fs"), 1);
+ var import_node_fetch = __toESM(require("node-fetch"), 1);
+ var import_node_os2 = __toESM(require("os"), 1);
++var import_node_stream_promises = require("stream/promises");
+ var import_worker_threads = require("worker_threads");
+ var import_node_url2 = require("url");
+ var import_meta = {};
+@@ -161,22 +162,70 @@ var ModuleClient = class {
+     this.TLS_LIB_PATH = libPath;
+     this.maxThreads = options?.maxThreads ?? Math.max(import_node_os2.default.cpus()?.length ?? 12, 1) * 2;
+   }
++  getMetadataPath() {
++    return `${this.TLS_LIB_PATH}.metadata.json`;
++  }
++  getPartialDownloadPath() {
++    return `${this.TLS_LIB_PATH}.download`;
++  }
+   /**
+    * @description Checks if the TLS library exists.
+    * @returns {boolean} True if the library exists, false otherwise.
+    */
+   libraryExists() {
+-    return import_node_fs2.default.existsSync(import_node_path2.default.join(this.TLS_LIB_PATH));
++    return import_node_fs2.default.existsSync(this.TLS_LIB_PATH);
++  }
++  getLibrarySize() {
++    if (!this.libraryExists()) {
++      return null;
++    }
++    return import_node_fs2.default.statSync(this.TLS_LIB_PATH).size;
++  }
++  readDownloadMetadata() {
++    try {
++      const metadata = JSON.parse(import_node_fs2.default.readFileSync(this.getMetadataPath(), "utf8"));
++      if (typeof metadata.contentLength === "number" && Number.isFinite(metadata.contentLength) && metadata.contentLength > 0) {
++        return { contentLength: metadata.contentLength };
++      }
++    } catch {
++      return null;
++    }
++    return null;
++  }
++  hasValidDownloadedLibrary() {
++    const metadata = this.readDownloadMetadata();
++    const librarySize = this.getLibrarySize();
++    if (!metadata || librarySize === null) {
++      return false;
++    }
++    return librarySize === metadata.contentLength;
++  }
++  async removeFileIfExists(filePath) {
++    if (!import_node_fs2.default.existsSync(filePath)) {
++      return;
++    }
++    await import_node_fs2.default.promises.rm(filePath, { force: true });
+   }
+   /**
+    * @description Downloads the TLS library if it does not exist.
+    * @returns {Promise<void>} Promise that resolves when the library is downloaded
+    */
+   async downloadLibrary() {
+-    if (this.libraryExists()) return;
+     if (this.customPath) {
++      if (this.libraryExists()) {
++        return;
++      }
+       throw new Error("Custom path provided but library does not exist: " + this.TLS_LIB_PATH);
+     }
++    if (this.hasValidDownloadedLibrary()) {
++      return;
++    }
++    await this.removeFileIfExists(this.getPartialDownloadPath());
++    await this.removeFileIfExists(this.getMetadataPath());
++    if (this.libraryExists()) {
++      console.log("[tlsClient] Removing invalid cached TLS library");
++      await this.removeFileIfExists(this.TLS_LIB_PATH);
++    }
+     console.log("[tlsClient] Detected missing TLS library");
+     console.log("[tlsClient] DownloadPath: " + this.tlsDependencyPath?.DOWNLOAD_PATH);
+     console.log("[tlsClient] DestinationPath: " + this.TLS_LIB_PATH);
+@@ -189,15 +238,28 @@ var ModuleClient = class {
+     if (!response.ok) {
+       throw new Error(`Unexpected response ${response.statusText}`);
+     }
+-    const fileStream = import_node_fs2.default.createWriteStream(this.TLS_LIB_PATH);
+-    response.body?.pipe(fileStream);
+-    return new Promise((resolve, reject) => {
+-      fileStream.on("finish", () => {
+-        console.log("[tlsClient] Successfully downloaded TLS library");
+-        resolve();
+-      });
+-      fileStream.on("error", reject);
+-    });
++    if (!response.body) {
++      throw new Error("TLS library download returned an empty response body");
++    }
++    const partialPath = this.getPartialDownloadPath();
++    const fileStream = import_node_fs2.default.createWriteStream(partialPath);
++    const contentLengthHeader = response.headers.get("content-length");
++    const parsedContentLength = contentLengthHeader ? Number.parseInt(contentLengthHeader, 10) : NaN;
++    const expectedContentLength = Number.isFinite(parsedContentLength) ? parsedContentLength : null;
++    try {
++      await (0, import_node_stream_promises.pipeline)(response.body, fileStream);
++      const downloadedSize = import_node_fs2.default.statSync(partialPath).size;
++      if (expectedContentLength !== null && expectedContentLength > 0 && downloadedSize !== expectedContentLength) {
++        throw new Error(`TLS library download was incomplete: expected ${expectedContentLength} bytes, got ${downloadedSize}`);
++      }
++      await import_node_fs2.default.promises.rename(partialPath, this.TLS_LIB_PATH);
++      await import_node_fs2.default.promises.writeFile(this.getMetadataPath(), JSON.stringify({ contentLength: downloadedSize }), "utf8");
++      console.log("[tlsClient] Successfully downloaded TLS library");
++    } catch (error) {
++      fileStream.destroy();
++      await this.removeFileIfExists(partialPath);
++      throw error;
++    }
+   }
+   /**
+    * @description Opens the TLS library and initializes the worker pool.
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 762960da6f6cb1c35e8392e1120a3f6366150ed7..96e66a6682dd733d9546449ee8a50c24f3fdbb81 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -84,6 +84,7 @@ import path2 from "path";
+ import fs2 from "fs";
+ import fetch from "node-fetch";
+ import os2 from "os";
++import { pipeline } from "stream/promises";
+ import { isMainThread } from "worker_threads";
+ import { fileURLToPath } from "url";
+ function getWorkerPath() {
+@@ -130,22 +131,70 @@ var ModuleClient = class {
+     this.TLS_LIB_PATH = libPath;
+     this.maxThreads = options?.maxThreads ?? Math.max(os2.cpus()?.length ?? 12, 1) * 2;
+   }
++  getMetadataPath() {
++    return `${this.TLS_LIB_PATH}.metadata.json`;
++  }
++  getPartialDownloadPath() {
++    return `${this.TLS_LIB_PATH}.download`;
++  }
+   /**
+    * @description Checks if the TLS library exists.
+    * @returns {boolean} True if the library exists, false otherwise.
+    */
+   libraryExists() {
+-    return fs2.existsSync(path2.join(this.TLS_LIB_PATH));
++    return fs2.existsSync(this.TLS_LIB_PATH);
++  }
++  getLibrarySize() {
++    if (!this.libraryExists()) {
++      return null;
++    }
++    return fs2.statSync(this.TLS_LIB_PATH).size;
++  }
++  readDownloadMetadata() {
++    try {
++      const metadata = JSON.parse(fs2.readFileSync(this.getMetadataPath(), "utf8"));
++      if (typeof metadata.contentLength === "number" && Number.isFinite(metadata.contentLength) && metadata.contentLength > 0) {
++        return { contentLength: metadata.contentLength };
++      }
++    } catch {
++      return null;
++    }
++    return null;
++  }
++  hasValidDownloadedLibrary() {
++    const metadata = this.readDownloadMetadata();
++    const librarySize = this.getLibrarySize();
++    if (!metadata || librarySize === null) {
++      return false;
++    }
++    return librarySize === metadata.contentLength;
++  }
++  async removeFileIfExists(filePath) {
++    if (!fs2.existsSync(filePath)) {
++      return;
++    }
++    await fs2.promises.rm(filePath, { force: true });
+   }
+   /**
+    * @description Downloads the TLS library if it does not exist.
+    * @returns {Promise<void>} Promise that resolves when the library is downloaded
+    */
+   async downloadLibrary() {
+-    if (this.libraryExists()) return;
+     if (this.customPath) {
++      if (this.libraryExists()) {
++        return;
++      }
+       throw new Error("Custom path provided but library does not exist: " + this.TLS_LIB_PATH);
+     }
++    if (this.hasValidDownloadedLibrary()) {
++      return;
++    }
++    await this.removeFileIfExists(this.getPartialDownloadPath());
++    await this.removeFileIfExists(this.getMetadataPath());
++    if (this.libraryExists()) {
++      console.log("[tlsClient] Removing invalid cached TLS library");
++      await this.removeFileIfExists(this.TLS_LIB_PATH);
++    }
+     console.log("[tlsClient] Detected missing TLS library");
+     console.log("[tlsClient] DownloadPath: " + this.tlsDependencyPath?.DOWNLOAD_PATH);
+     console.log("[tlsClient] DestinationPath: " + this.TLS_LIB_PATH);
+@@ -158,15 +207,28 @@ var ModuleClient = class {
+     if (!response.ok) {
+       throw new Error(`Unexpected response ${response.statusText}`);
+     }
+-    const fileStream = fs2.createWriteStream(this.TLS_LIB_PATH);
+-    response.body?.pipe(fileStream);
+-    return new Promise((resolve, reject) => {
+-      fileStream.on("finish", () => {
+-        console.log("[tlsClient] Successfully downloaded TLS library");
+-        resolve();
+-      });
+-      fileStream.on("error", reject);
+-    });
++    if (!response.body) {
++      throw new Error("TLS library download returned an empty response body");
++    }
++    const partialPath = this.getPartialDownloadPath();
++    const fileStream = fs2.createWriteStream(partialPath);
++    const contentLengthHeader = response.headers.get("content-length");
++    const parsedContentLength = contentLengthHeader ? Number.parseInt(contentLengthHeader, 10) : NaN;
++    const expectedContentLength = Number.isFinite(parsedContentLength) ? parsedContentLength : null;
++    try {
++      await pipeline(response.body, fileStream);
++      const downloadedSize = fs2.statSync(partialPath).size;
++      if (expectedContentLength !== null && expectedContentLength > 0 && downloadedSize !== expectedContentLength) {
++        throw new Error(`TLS library download was incomplete: expected ${expectedContentLength} bytes, got ${downloadedSize}`);
++      }
++      await fs2.promises.rename(partialPath, this.TLS_LIB_PATH);
++      await fs2.promises.writeFile(this.getMetadataPath(), JSON.stringify({ contentLength: downloadedSize }), "utf8");
++      console.log("[tlsClient] Successfully downloaded TLS library");
++    } catch (error) {
++      fileStream.destroy();
++      await this.removeFileIfExists(partialPath);
++      throw error;
++    }
+   }
+   /**
+    * @description Opens the TLS library and initializes the worker pool.
+diff --git a/src/utils/client.ts b/src/utils/client.ts
+index d009038e47349eb204516628d6603b49fa4fa5a4..1cfad967c497f0306fc81581706c0b59e3fc4323 100644
+--- a/src/utils/client.ts
++++ b/src/utils/client.ts
+@@ -4,6 +4,7 @@ import path from 'node:path';
+ import fs from 'node:fs';
+ import fetch from 'node-fetch';
+ import os from 'node:os';
++import { pipeline } from 'node:stream/promises';
+ import { isMainThread } from 'worker_threads';
+ import { fileURLToPath } from 'node:url';
+ 
+@@ -59,6 +60,10 @@ export interface PoolStats {
+     threads: number;
+ }
+ 
++interface DownloadMetadata {
++    contentLength: number;
++}
++
+ /**
+  * @classdesc Manages the TLS library and worker pool.
+  */
+@@ -71,6 +76,14 @@ class ModuleClient {
+ 
+     public pool: Piscina | null = null;
+ 
++    private getMetadataPath(): string {
++        return `${this.TLS_LIB_PATH}.metadata.json`;
++    }
++
++    private getPartialDownloadPath(): string {
++        return `${this.TLS_LIB_PATH}.download`;
++    }
++
+     /**
+      * @description Creates a new ModuleClient instance.
+      * @param {ModuleClientOptions} [options] - Configuration options for the ModuleClient
+@@ -94,7 +107,54 @@ class ModuleClient {
+      * @returns {boolean} True if the library exists, false otherwise.
+      */
+     private libraryExists(): boolean {
+-        return fs.existsSync(path.join(this.TLS_LIB_PATH));
++        return fs.existsSync(this.TLS_LIB_PATH);
++    }
++
++    private getLibrarySize(): number | null {
++        if (!this.libraryExists()) {
++            return null;
++        }
++
++        return fs.statSync(this.TLS_LIB_PATH).size;
++    }
++
++    private readDownloadMetadata(): DownloadMetadata | null {
++        try {
++            const metadata = JSON.parse(
++                fs.readFileSync(this.getMetadataPath(), 'utf8'),
++            ) as Partial<DownloadMetadata>;
++
++            if (
++                typeof metadata.contentLength === 'number' &&
++                Number.isFinite(metadata.contentLength) &&
++                metadata.contentLength > 0
++            ) {
++                return { contentLength: metadata.contentLength };
++            }
++        } catch {
++            return null;
++        }
++
++        return null;
++    }
++
++    private hasValidDownloadedLibrary(): boolean {
++        const metadata = this.readDownloadMetadata();
++        const librarySize = this.getLibrarySize();
++
++        if (!metadata || librarySize === null) {
++            return false;
++        }
++
++        return librarySize === metadata.contentLength;
++    }
++
++    private async removeFileIfExists(filePath: string): Promise<void> {
++        if (!fs.existsSync(filePath)) {
++            return;
++        }
++
++        await fs.promises.rm(filePath, { force: true });
+     }
+ 
+     /**
+@@ -102,12 +162,26 @@ class ModuleClient {
+      * @returns {Promise<void>} Promise that resolves when the library is downloaded
+      */
+     private async downloadLibrary(): Promise<void> {
+-        if (this.libraryExists()) return;
+-
+         if (this.customPath) {
++            if (this.libraryExists()) {
++                return;
++            }
++
+             throw new Error('Custom path provided but library does not exist: ' + this.TLS_LIB_PATH);
+         }
+ 
++        if (this.hasValidDownloadedLibrary()) {
++            return;
++        }
++
++        await this.removeFileIfExists(this.getPartialDownloadPath());
++        await this.removeFileIfExists(this.getMetadataPath());
++
++        if (this.libraryExists()) {
++            console.log('[tlsClient] Removing invalid cached TLS library');
++            await this.removeFileIfExists(this.TLS_LIB_PATH);
++        }
++
+         console.log('[tlsClient] Detected missing TLS library');
+         console.log('[tlsClient] DownloadPath: ' + this.tlsDependencyPath?.DOWNLOAD_PATH);
+         console.log('[tlsClient] DestinationPath: ' + this.TLS_LIB_PATH);
+@@ -123,16 +197,46 @@ class ModuleClient {
+             throw new Error(`Unexpected response ${response.statusText}`);
+         }
+ 
+-        const fileStream = fs.createWriteStream(this.TLS_LIB_PATH);
+-        response.body?.pipe(fileStream);
++        if (!response.body) {
++            throw new Error('TLS library download returned an empty response body');
++        }
+ 
+-        return new Promise<void>((resolve, reject) => {
+-            fileStream.on('finish', () => {
+-                console.log('[tlsClient] Successfully downloaded TLS library');
+-                resolve();
+-            });
+-            fileStream.on('error', reject);
+-        });
++        const partialPath = this.getPartialDownloadPath();
++        const fileStream = fs.createWriteStream(partialPath);
++        const contentLengthHeader = response.headers.get('content-length');
++        const expectedContentLength =
++            contentLengthHeader && Number.isFinite(Number.parseInt(contentLengthHeader, 10))
++                ? Number.parseInt(contentLengthHeader, 10)
++                : null;
++
++        try {
++            await pipeline(response.body, fileStream);
++
++            const downloadedSize = fs.statSync(partialPath).size;
++
++            if (
++                expectedContentLength !== null &&
++                expectedContentLength > 0 &&
++                downloadedSize !== expectedContentLength
++            ) {
++                throw new Error(
++                    `TLS library download was incomplete: expected ${expectedContentLength} bytes, got ${downloadedSize}`,
++                );
++            }
++
++            await fs.promises.rename(partialPath, this.TLS_LIB_PATH);
++            await fs.promises.writeFile(
++                this.getMetadataPath(),
++                JSON.stringify({ contentLength: downloadedSize }),
++                'utf8',
++            );
++
++            console.log('[tlsClient] Successfully downloaded TLS library');
++        } catch (error) {
++            fileStream.destroy();
++            await this.removeFileIfExists(partialPath);
++            throw error;
++        }
+     }
+ 
+     /**

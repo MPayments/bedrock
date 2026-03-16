@@ -1,0 +1,146 @@
+import { randomUUID } from "node:crypto";
+
+import { resolveOrganizationUpdateInput } from "./inputs";
+import type {
+  CreateOrganizationInput,
+  Organization as OrganizationDto,
+  UpdateOrganizationInput,
+} from "../../contracts";
+import {
+  CreateOrganizationInputSchema,
+  UpdateOrganizationInputSchema,
+} from "../../contracts";
+import { Organization } from "../../domain/organization";
+import {
+  OrganizationDeleteConflictError,
+  OrganizationNotFoundError,
+} from "../../errors";
+import type { OrganizationsServiceContext } from "../shared/context";
+
+function toPublicOrganization(organization: Organization): OrganizationDto {
+  return organization.toSnapshot();
+}
+
+function hasForeignKeyViolation(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as { code?: unknown; cause?: unknown };
+  if (candidate.code === "23503") {
+    return true;
+  }
+
+  return hasForeignKeyViolation(candidate.cause);
+}
+
+export function createCreateOrganizationHandler(
+  context: OrganizationsServiceContext,
+) {
+  const { db, ledgerBooks, log, organizations } = context;
+
+  return async function createOrganization(
+    input: CreateOrganizationInput,
+  ): Promise<OrganizationDto> {
+    const validated = CreateOrganizationInputSchema.parse(input);
+    const draft = Organization.create(
+      {
+        id: randomUUID(),
+        externalId: validated.externalId,
+        shortName: validated.shortName,
+        fullName: validated.fullName,
+        description: validated.description,
+        country: validated.country,
+        kind: validated.kind,
+      },
+      context.now(),
+    );
+
+    return db.transaction(async (tx) => {
+      const created = Organization.reconstitute(
+        await organizations.insertOrganizationTx(tx, draft.toSnapshot()),
+      );
+
+      await ledgerBooks.ensureDefaultOrganizationBook(tx, {
+        organizationId: created.id,
+      });
+
+      log.info("Organization created", {
+        id: created.id,
+        shortName: created.toSnapshot().shortName,
+      });
+
+      return toPublicOrganization(created);
+    });
+  };
+}
+
+export function createUpdateOrganizationHandler(
+  context: OrganizationsServiceContext,
+) {
+  const { db, log, organizations } = context;
+
+  return async function updateOrganization(
+    id: string,
+    input: UpdateOrganizationInput,
+  ): Promise<OrganizationDto> {
+    const validated = UpdateOrganizationInputSchema.parse(input);
+
+    return db.transaction(async (tx) => {
+      const existingSnapshot = await organizations.findOrganizationSnapshotById(
+        id,
+        tx,
+      );
+
+      if (!existingSnapshot) {
+        throw new OrganizationNotFoundError(id);
+      }
+
+      const existing = Organization.reconstitute(existingSnapshot);
+      const next = existing.update(
+        resolveOrganizationUpdateInput(existing.toSnapshot(), validated),
+        context.now(),
+      );
+      const persistedSnapshot = existing.sameState(next)
+        ? existingSnapshot
+        : await organizations.updateOrganizationTx(tx, next.toSnapshot());
+
+      if (!persistedSnapshot) {
+        throw new OrganizationNotFoundError(id);
+      }
+
+      log.info("Organization updated", { id });
+      return toPublicOrganization(Organization.reconstitute(persistedSnapshot));
+    });
+  };
+}
+
+export function createRemoveOrganizationHandler(
+  context: OrganizationsServiceContext,
+) {
+  const { db, log, organizations } = context;
+
+  return async function removeOrganization(id: string): Promise<void> {
+    try {
+      await db.transaction(async (tx) => {
+        const deleted = await organizations.removeOrganizationTx(tx, id);
+
+        if (!deleted) {
+          throw new OrganizationNotFoundError(id);
+        }
+      });
+    } catch (error) {
+      if (error instanceof OrganizationNotFoundError) {
+        throw error;
+      }
+
+      if (hasForeignKeyViolation(error)) {
+        throw new OrganizationDeleteConflictError(id);
+      }
+
+      throw error;
+    }
+
+    log.info("Organization deleted", { id });
+  };
+}

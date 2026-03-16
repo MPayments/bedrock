@@ -1,6 +1,6 @@
 "use client";
 
-import { useCurrencyDraftName } from "@/app/(shell)/entities/currencies/lib/create-draft-name-context";
+import { useCurrencyDraftName } from "@/features/entities/currencies/lib/create-draft-name-context";
 import { EntityEditBreadcrumb } from "@/components/entities/entity-breadcrumb";
 
 type EditCurrencyBreadcrumbProps = {

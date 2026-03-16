@@ -4,40 +4,57 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./client": {
-      "types": "./dist/client.d.ts",
-      "default": "./src/client.ts"
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
     }
   },
   "scripts": {
-    "build": "tsgo",
-    "dev": "bun run --hot src/index.ts",
-    "start": "bun run src/index.ts",
-    "worker:fx-rates": "bun run src/workers/fx-rates.ts",
-    "check-types": "tsgo --noEmit",
+    "build": "tsgo --project tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "check-types": "tsgo --noEmit --project tsconfig.json",
     "lint": "eslint src/**/*.ts --max-warnings 0"
   },
   "dependencies": {
-    "@bedrock/accounts": "workspace:*",
-    "@bedrock/auth": "workspace:*",
+    "@bedrock/parties": "workspace:*",
+    "@bedrock/accounting": "workspace:*",
+    "@bedrock/balances": "workspace:*",
     "@bedrock/currencies": "workspace:*",
-    "@bedrock/db": "workspace:*",
+    "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",
     "@bedrock/fx": "workspace:*",
-    "@bedrock/kernel": "workspace:*",
-    "@bedrock/counterparties": "workspace:*",
-    "@bedrock/customers": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
+    "@bedrock/organizations": "workspace:*",
+    "@bedrock/plugin-documents-commercial": "workspace:*",
+    "@bedrock/plugin-documents-ifrs": "workspace:*",
+    "@bedrock/plugin-documents-sdk": "workspace:*",
+    "@bedrock/requisite-providers": "workspace:*",
+    "@bedrock/users": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "@hono/zod-openapi": "^1.2.2",
     "@scalar/hono-api-reference": "^0.9.44",
+    "better-auth": "^1.4.18",
     "dotenv": "^17.3.1",
-    "hono": "^4.12.2"
+    "drizzle-orm": "^0.45.1",
+    "hono": "^4.12.2",
+    "zod": "^4.3.6",
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/shared": "workspace:*"
   },
   "devDependencies": {
-    "@bedrock/typescript-config": "*",
-    "@types/node": "^24",
-    "typescript": "^5.8.3",
     "@bedrock/eslint-config": "workspace:*",
-    "eslint": "^9.31.0"
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3"
+  },
+  "bedrock": {
+    "kind": "app",
+    "tags": [
+      "app",
+      "api"
+    ]
   }
 }

@@ -1,7 +1,7 @@
 import { createAuthClient } from "better-auth/react";
+import { twoFactorClient } from "better-auth/client/plugins";
 
-export const authClient: ReturnType<typeof createAuthClient> = createAuthClient(
-  {
-    basePath: "/api/auth",
-  },
-);
+export const authClient = createAuthClient({
+  basePath: "/api/auth",
+  plugins: [twoFactorClient()],
+});

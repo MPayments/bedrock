@@ -1,0 +1,50 @@
+{
+  "name": "workers",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts all",
+    "worker:all": "tsx src/main.ts all",
+    "worker:ledger": "tsx src/main.ts ledger",
+    "worker:documents": "tsx src/main.ts documents",
+    "worker:documents-period-close": "tsx src/main.ts documents-period-close",
+    "worker:balances": "tsx src/main.ts balances",
+    "worker:fx-rates": "tsx src/main.ts fx-rates",
+    "build": "tsgo",
+    "check-types": "tsgo --noEmit",
+    "lint": "eslint src/**/*.ts --max-warnings 0"
+  },
+  "dependencies": {
+    "@bedrock/parties": "workspace:*",
+    "@bedrock/accounting": "workspace:*",
+    "@bedrock/balances": "workspace:*",
+    "@bedrock/currencies": "workspace:*",
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/fees": "workspace:*",
+    "@bedrock/fx": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
+    "@bedrock/organizations": "workspace:*",
+    "@bedrock/plugin-documents-ifrs": "workspace:*",
+    "@bedrock/plugin-documents-sdk": "workspace:*",
+    "@bedrock/workflow-period-close": "workspace:*",
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.1",
+    "@bedrock/platform": "workspace:*"
+  },
+  "devDependencies": {
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3"
+  },
+  "bedrock": {
+    "kind": "app",
+    "tags": [
+      "app",
+      "workers"
+    ]
+  }
+}
