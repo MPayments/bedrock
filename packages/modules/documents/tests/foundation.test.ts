@@ -191,6 +191,13 @@ describe("documents foundations", () => {
       createDraft: expect.any(Function),
       updateDraft: expect.any(Function),
       transition: expect.any(Function),
+      posting: {
+        resolveIdempotencyKey: expect.any(Function),
+        preparePost: expect.any(Function),
+        prepareRepost: expect.any(Function),
+        finalizeSuccess: expect.any(Function),
+        finalizeFailure: expect.any(Function),
+      },
       list: expect.any(Function),
       get: expect.any(Function),
       getDetails: expect.any(Function),

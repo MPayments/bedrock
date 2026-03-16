@@ -27,6 +27,7 @@
     "@bedrock/organizations": "workspace:*",
     "@bedrock/plugin-documents-ifrs": "workspace:*",
     "@bedrock/plugin-documents-sdk": "workspace:*",
+    "@bedrock/workflow-document-drafts": "workspace:*",
     "@bedrock/workflow-period-close": "workspace:*",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",

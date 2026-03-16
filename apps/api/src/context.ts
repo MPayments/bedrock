@@ -10,14 +10,15 @@ import type { DocumentsService } from "@bedrock/documents";
 import type { FeesService } from "@bedrock/fees";
 import type { FxService } from "@bedrock/fx";
 import type { LedgerReadService } from "@bedrock/ledger";
+import type { OrganizationsService } from "@bedrock/organizations";
 import type { PartiesService } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
+import type { RequisitesService } from "@bedrock/requisites";
 import type { UsersService } from "@bedrock/users";
-
-import type {
-  ApiOrganizationsService,
-  ApiRequisitesService,
-} from "./composition/application";
+import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
+import type { DocumentPostingWorkflow } from "@bedrock/workflow-document-posting";
+import type { OrganizationBootstrapWorkflow } from "@bedrock/workflow-organization-bootstrap";
+import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-accounting";
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";
 
@@ -63,12 +64,16 @@ export interface AppContext {
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
-  organizationsService: ApiOrganizationsService;
-  requisitesService: ApiRequisitesService;
+  organizationsService: OrganizationsService;
+  organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
+  requisitesService: RequisitesService;
+  requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   usersService: UsersService;
   ledgerReadService: LedgerReadService;
   balancesService: BalancesService;
   documentsService: DocumentsService;
+  documentDraftWorkflow: DocumentDraftWorkflow;
+  documentPostingWorkflow: DocumentPostingWorkflow;
 }
 
 export function createAppContext(env: Env): AppContext {
@@ -87,8 +92,14 @@ export function createAppContext(env: Env): AppContext {
     feesService: applicationServices.feesService,
     fxService: applicationServices.fxService,
     organizationsService: applicationServices.organizationsService,
+    organizationBootstrapWorkflow:
+      applicationServices.organizationBootstrapWorkflow,
     requisitesService: applicationServices.requisitesService,
+    requisiteAccountingWorkflow:
+      applicationServices.requisiteAccountingWorkflow,
     usersService: core.usersService,
     documentsService: applicationServices.documentsService,
+    documentDraftWorkflow: applicationServices.documentDraftWorkflow,
+    documentPostingWorkflow: applicationServices.documentPostingWorkflow,
   };
 }

@@ -18,6 +18,7 @@ import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-defaul
 import { createBalancesQueries } from "@bedrock/balances/queries";
 import {
   createDocumentsService,
+  createDocumentsServiceFromTransaction,
   type DocumentsIdempotencyPort,
   type DocumentsTransactionsPort,
 } from "@bedrock/documents";
@@ -34,7 +35,7 @@ import {
   createDrizzleDocumentsCommandRepository,
   createDrizzleDocumentsQueryRepository,
 } from "@bedrock/documents/repository";
-import { createLedgerReadService, createLedgerService } from "@bedrock/ledger";
+import { createLedgerReadService } from "@bedrock/ledger";
 import { createLedgerQueries } from "@bedrock/ledger/queries";
 import { createOrganizationsQueries } from "@bedrock/organizations/queries";
 import { createPartiesQueries } from "@bedrock/parties/queries";
@@ -50,6 +51,7 @@ import {
   createPeriodCloseWorkerRunner,
   type PeriodCloseWorkerOrganizationContext,
 } from "@bedrock/workflow-period-close";
+import { createDocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
 
 function createDocumentsModuleRuntime(
   database: Database | Transaction,
@@ -96,6 +98,7 @@ async function listOrganizationIds(db: Database): Promise<string[]> {
 
 async function createPeriodCloseForOrganization(input: {
   documentsReadModel: DocumentsReadModel;
+  documentDraftWorkflow: ReturnType<typeof createDocumentDraftWorkflow>;
   documentsService: ReturnType<typeof createDocumentsService>;
   actorUserId: string;
   organizationId: string;
@@ -117,7 +120,7 @@ async function createPeriodCloseForOrganization(input: {
     return false;
   }
 
-  const draft = await input.documentsService.createDraft({
+  const draft = await input.documentDraftWorkflow.createDraft({
     docType: "period_close",
     createIdempotencyKey,
     actorUserId: input.actorUserId,
@@ -293,7 +296,6 @@ function createPeriodCloseAccountingService(db: Database) {
 function createDocumentsTransactions(input: {
   database: Database;
   idempotency: ReturnType<typeof createIdempotencyService>;
-  ledger: ReturnType<typeof createLedgerService>;
 }): DocumentsTransactionsPort {
   return {
     async withTransaction(run) {
@@ -338,9 +340,6 @@ function createDocumentsTransactions(input: {
           documentOperations: createDrizzleDocumentOperationsRepository(tx),
           documentsCommand: createDrizzleDocumentsCommandRepository(tx),
           idempotency,
-          ledger: {
-            commit: (intent) => input.ledger.commit.commit(tx, intent),
-          },
         });
       });
     },
@@ -359,20 +358,16 @@ export function createPeriodCloseWorkerDefinition(deps: {
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: deps.db });
   const accountingPeriods = createAccountingPeriodsPort(deps.db);
   const idempotency = createIdempotencyService({ logger: deps.logger });
-  const organizationsQueries = createOrganizationsQueries({ db: deps.db });
-  const ledger = createLedgerService({
-    db: deps.db,
-    assertInternalLedgerBooks: async ({ bookIds }) =>
-      organizationsQueries.assertBooksBelongToInternalLedgerOrganizations(
-        bookIds,
-      ),
-  });
   const accountingService = createPeriodCloseAccountingService(deps.db);
   const documentsQuery = createDrizzleDocumentsQueryRepository(deps.db);
   const documentEvents = createDrizzleDocumentEventsRepository(deps.db);
   const documentLinks = createDrizzleDocumentLinksRepository(deps.db);
   const documentOperations = createDrizzleDocumentOperationsRepository(deps.db);
   const documentSnapshots = createDrizzleDocumentSnapshotsRepository(deps.db);
+  const ledgerReadService = createLedgerReadService({ db: deps.db });
+  const documentRegistry = createDocumentRegistry([
+    createPeriodCloseDocumentModule(),
+  ]);
   const documentsService = createDocumentsService({
     accounting: accountingService.packs,
     accountingPeriods,
@@ -381,15 +376,29 @@ export function createPeriodCloseWorkerDefinition(deps: {
     documentOperations,
     documentSnapshots,
     documentsQuery,
-    ledgerReadService: createLedgerReadService({ db: deps.db }),
+    ledgerReadService,
     moduleRuntime: createDocumentsModuleRuntime(deps.db),
-    registry: createDocumentRegistry([createPeriodCloseDocumentModule()]),
+    registry: documentRegistry,
     transactions: createDocumentsTransactions({
       database: deps.db,
       idempotency,
-      ledger,
     }),
     logger: deps.logger,
+  });
+  const documentDraftWorkflow = createDocumentDraftWorkflow({
+    db: deps.db,
+    idempotency,
+    accountingPeriods,
+    createDocumentsService: (tx, txIdempotency) =>
+      createDocumentsServiceFromTransaction({
+        tx,
+        idempotency: txIdempotency,
+        accounting: accountingService.packs,
+        accountingPeriods,
+        ledgerReadService,
+        registry: documentRegistry,
+        logger: deps.logger,
+      }),
   });
   const runOnce = createPeriodCloseWorkerRunner({
     logger: deps.logger,
@@ -399,6 +408,7 @@ export function createPeriodCloseWorkerDefinition(deps: {
     createPeriodCloseForOrganization: (input) =>
       createPeriodCloseForOrganization({
         documentsReadModel,
+        documentDraftWorkflow,
         documentsService,
         actorUserId: input.actorUserId,
         organizationId: input.organizationId,

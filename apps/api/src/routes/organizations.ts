@@ -242,7 +242,8 @@ export function organizationsRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const organization = await ctx.organizationsService.create(input);
+        const organization =
+          await ctx.organizationBootstrapWorkflow.create(input);
         return c.json(organization, 201);
       } catch (error) {
         if (error instanceof ValidationError) {

@@ -231,13 +231,25 @@ export function documentsRoutes(ctx: AppContext) {
           role: c.get("user")?.role,
         });
 
-        return ctx.documentsService.transition({
-          action: config.action,
+        const transitionInput = {
           docType,
           documentId: id,
           actorUserId,
           idempotencyKey,
           requestContext,
+        };
+
+        if (config.action === "post") {
+          return ctx.documentPostingWorkflow.post(transitionInput);
+        }
+
+        if (config.action === "repost") {
+          return ctx.documentPostingWorkflow.repost(transitionInput);
+        }
+
+        return ctx.documentsService.transition({
+          action: config.action,
+          ...transitionInput,
         });
       },
       respond: (c, result) => jsonOk(c, toDocumentDto(result)),
@@ -329,7 +341,7 @@ export function documentsRoutes(ctx: AppContext) {
           role: c.get("user")?.role,
         });
         const body = CreateDocumentInputSchema.parse(await c.req.json());
-        const result = await ctx.documentsService.createDraft({
+        const result = await ctx.documentDraftWorkflow.createDraft({
           docType,
           createIdempotencyKey: body.createIdempotencyKey,
           payload: body.input,

@@ -40,6 +40,10 @@
         "@bedrock/requisites": "workspace:*",
         "@bedrock/shared": "workspace:*",
         "@bedrock/users": "workspace:*",
+        "@bedrock/workflow-document-drafts": "workspace:*",
+        "@bedrock/workflow-document-posting": "workspace:*",
+        "@bedrock/workflow-organization-bootstrap": "workspace:*",
+        "@bedrock/workflow-requisite-accounting": "workspace:*",
         "@hono/node-server": "^1.19.9",
         "@hono/zod-openapi": "^1.2.2",
         "@scalar/hono-api-reference": "^0.9.44",
@@ -150,6 +154,7 @@
         "@bedrock/platform": "workspace:*",
         "@bedrock/plugin-documents-ifrs": "workspace:*",
         "@bedrock/plugin-documents-sdk": "workspace:*",
+        "@bedrock/workflow-document-drafts": "workspace:*",
         "@bedrock/workflow-period-close": "workspace:*",
         "dotenv": "^17.3.1",
         "drizzle-orm": "^0.45.1",
@@ -610,12 +615,95 @@
       "name": "@bedrock/typescript-config",
       "version": "0.0.0",
     },
+    "packages/workflows/document-drafts": {
+      "name": "@bedrock/workflow-document-drafts",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/accounting": "workspace:*",
+        "@bedrock/documents": "workspace:*",
+        "@bedrock/platform": "workspace:*",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/workflows/document-posting": {
+      "name": "@bedrock/workflow-document-posting",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/documents": "workspace:*",
+        "@bedrock/ledger": "workspace:*",
+        "@bedrock/platform": "workspace:*",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/workflows/organization-bootstrap": {
+      "name": "@bedrock/workflow-organization-bootstrap",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/ledger": "workspace:*",
+        "@bedrock/organizations": "workspace:*",
+        "@bedrock/platform": "workspace:*",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
     "packages/workflows/period-close": {
       "name": "@bedrock/workflow-period-close",
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
         "@bedrock/platform": "workspace:*",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/workflows/reconciliation-adjustments": {
+      "name": "@bedrock/workflow-reconciliation-adjustments",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/documents": "workspace:*",
+        "@bedrock/platform": "workspace:*",
+        "@bedrock/reconciliation": "workspace:*",
+        "@bedrock/shared": "workspace:*",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^9.31.0",
+        "typescript": "^5.8.3",
+        "vitest": "^4.0.18",
+      },
+    },
+    "packages/workflows/requisite-accounting": {
+      "name": "@bedrock/workflow-requisite-accounting",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/accounting": "workspace:*",
+        "@bedrock/ledger": "workspace:*",
+        "@bedrock/platform": "workspace:*",
+        "@bedrock/requisites": "workspace:*",
+        "@bedrock/shared": "workspace:*",
       },
       "devDependencies": {
         "@bedrock/typescript-config": "workspace:*",
@@ -694,7 +782,17 @@
 
     "@bedrock/users": ["@bedrock/users@workspace:packages/modules/users"],
 
+    "@bedrock/workflow-document-drafts": ["@bedrock/workflow-document-drafts@workspace:packages/workflows/document-drafts"],
+
+    "@bedrock/workflow-document-posting": ["@bedrock/workflow-document-posting@workspace:packages/workflows/document-posting"],
+
+    "@bedrock/workflow-organization-bootstrap": ["@bedrock/workflow-organization-bootstrap@workspace:packages/workflows/organization-bootstrap"],
+
     "@bedrock/workflow-period-close": ["@bedrock/workflow-period-close@workspace:packages/workflows/period-close"],
+
+    "@bedrock/workflow-reconciliation-adjustments": ["@bedrock/workflow-reconciliation-adjustments@workspace:packages/workflows/reconciliation-adjustments"],
+
+    "@bedrock/workflow-requisite-accounting": ["@bedrock/workflow-requisite-accounting@workspace:packages/workflows/requisite-accounting"],
 
     "@better-auth/core": ["@better-auth/core@1.4.18", "", { "dependencies": { "@standard-schema/spec": "^1.0.0", "zod": "^4.3.5" }, "peerDependencies": { "@better-auth/utils": "0.3.0", "@better-fetch/fetch": "1.1.21", "better-call": "1.1.8", "jose": "^6.1.0", "kysely": "^0.28.5", "nanostores": "^1.0.1" } }, "sha512-q+awYgC7nkLEBdx2sW0iJjkzgSHlIxGnOpsN1r/O1+a4m7osJNHtfK2mKJSL1I+GfNyIlxJF8WvD/NLuYMpmcg=="],
 
@@ -2164,7 +2262,17 @@
 
     "@bedrock/users/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
+    "@bedrock/workflow-document-drafts/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/workflow-document-posting/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/workflow-organization-bootstrap/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
     "@bedrock/workflow-period-close/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/workflow-reconciliation-adjustments/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
+    "@bedrock/workflow-requisite-accounting/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@better-auth/core/@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
@@ -2302,7 +2410,17 @@
 
     "@bedrock/users/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
+    "@bedrock/workflow-document-drafts/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/workflow-document-posting/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/workflow-organization-bootstrap/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
     "@bedrock/workflow-period-close/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/workflow-reconciliation-adjustments/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/workflow-requisite-accounting/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@esbuild-kit/core-utils/esbuild/@esbuild/android-arm": ["@esbuild/android-arm@0.18.20", "", { "os": "android", "cpu": "arm" }, "sha512-fyi7TDI/ijKKNZTUJAQqiG5T7YjJXgnzkURqmGj13C6dCqckZBLdl4h7bkhHt/t0WP+zO9/zwroDvANaOqO5Sw=="],
 

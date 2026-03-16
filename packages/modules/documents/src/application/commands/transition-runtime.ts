@@ -11,7 +11,6 @@ import type {
   DocumentOperationsRepository,
   DocumentsCommandRepository,
 } from "../documents/ports";
-import type { DocumentsLedgerCommitPort } from "../posting/ports";
 import {
   buildDocumentWithOperationId,
   loadDocumentOrThrow,
@@ -51,7 +50,6 @@ export interface DocumentTransitionExecutionContext {
   documentsCommand: DocumentsCommandRepository;
   documentEvents: DocumentEventsRepository;
   documentOperations: DocumentOperationsRepository;
-  ledger: DocumentsLedgerCommitPort;
   input: DocumentTransitionInput;
   moduleContext: ReturnType<typeof createModuleContext>;
   document: Document;
@@ -71,7 +69,7 @@ export interface DocumentTransitionSpec {
 }
 
 export type DocumentTransitionSpecs = Record<
-  DocumentTransitionAction,
+  Exclude<DocumentTransitionAction, "post" | "repost">,
   DocumentTransitionSpec
 >;
 
@@ -106,14 +104,13 @@ export async function runDocumentTransition(input: {
 
   try {
     return await services.transactions.withTransaction(
-      async ({
-        documentEvents,
-        documentOperations,
-        documentsCommand,
-        idempotency,
-        ledger,
-        moduleRuntime,
-      }) => {
+        async ({
+          documentEvents,
+          documentOperations,
+          documentsCommand,
+          idempotency,
+          moduleRuntime,
+        }) => {
         let preparedForIdempotency: DocumentTransitionIdempotencyContext | null =
           null;
 
@@ -192,7 +189,6 @@ export async function runDocumentTransition(input: {
               documentsCommand,
               documentEvents,
               documentOperations,
-              ledger,
               input: transition,
               moduleContext,
               document,

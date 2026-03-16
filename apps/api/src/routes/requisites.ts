@@ -345,7 +345,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const requisite = await ctx.requisitesService.create(input);
+        const requisite = await ctx.requisiteAccountingWorkflow.create(input);
         return c.json(requisite, 201);
       } catch (error) {
         const handled = handleMutationError(error);
@@ -373,7 +373,10 @@ export function requisitesRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const requisite = await ctx.requisitesService.update(id, input);
+        const requisite = await ctx.requisiteAccountingWorkflow.update(
+          id,
+          input,
+        );
         return c.json(requisite, 200);
       } catch (error) {
         const handled = handleMutationError(error);
@@ -420,7 +423,10 @@ export function requisitesRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const binding = await ctx.requisitesService.bindings.upsert(id, input);
+        const binding = await ctx.requisiteAccountingWorkflow.upsertBinding(
+          id,
+          input,
+        );
         return c.json(binding, 200);
       } catch (error) {
         const handled = handleMutationError(error);
