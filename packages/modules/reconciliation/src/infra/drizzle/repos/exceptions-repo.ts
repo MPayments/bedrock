@@ -2,9 +2,42 @@ import { and, desc, eq } from "drizzle-orm";
 
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
-import type { ReconciliationExceptionsRepository } from "../../../application/exceptions/ports";
+import type {
+  ReconciliationExceptionListRow,
+  ReconciliationExceptionRecord,
+} from "../../../application/exceptions/ports";
 import { ReconciliationRunSummarySchema } from "../../../contracts";
 import { schema } from "../schema";
+
+interface DrizzleReconciliationExceptionsRepository {
+  findByIdForUpdateTx: (
+    tx: Transaction,
+    id: string,
+  ) => Promise<ReconciliationExceptionRecord | null>;
+  createManyTx: (
+    tx: Transaction,
+    input: (
+      Omit<
+        ReconciliationExceptionRecord,
+        "id" | "createdAt" | "resolvedAt" | "adjustmentDocumentId"
+      >
+    )[],
+  ) => Promise<void>;
+  list: (input: {
+    source?: string;
+    state?: ReconciliationExceptionRecord["state"];
+    limit: number;
+    offset: number;
+  }) => Promise<ReconciliationExceptionListRow[]>;
+  markResolvedTx: (
+    tx: Transaction,
+    input: {
+      id: string;
+      adjustmentDocumentId: string;
+      resolvedAt: Date;
+    },
+  ) => Promise<void>;
+}
 
 function toRunRecord(run: typeof schema.reconciliationRuns.$inferSelect) {
   return {
@@ -15,8 +48,8 @@ function toRunRecord(run: typeof schema.reconciliationRuns.$inferSelect) {
 
 export function createDrizzleReconciliationExceptionsRepository(
   db: Database,
-): ReconciliationExceptionsRepository {
-  return {
+) {
+  const repository: DrizzleReconciliationExceptionsRepository = {
     async findByIdForUpdateTx(tx: Transaction, id) {
       const [exception] = await tx
         .select()
@@ -88,4 +121,6 @@ export function createDrizzleReconciliationExceptionsRepository(
         .where(eq(schema.reconciliationExceptions.id, input.id));
     },
   };
+
+  return repository;
 }

@@ -1,5 +1,3 @@
-import type { Transaction } from "@bedrock/platform/persistence";
-
 import {
   UpsertOrganizationRequisiteAccountingBindingInputSchema,
   type UpsertOrganizationRequisiteAccountingBindingInput,
@@ -9,12 +7,13 @@ import {
   OrganizationRequisiteNotFoundError,
 } from "../../errors";
 import type { OrganizationsServiceContext } from "../shared/context";
+import type { OrganizationsTransactionContext } from "../shared/external-ports";
 
 const DEFAULT_REQUISITE_POSTING_ACCOUNT_NO = "1110";
 
-export async function ensureOrganizationRequisiteAccountingBindingTx(
+export async function ensureOrganizationRequisiteAccountingBinding(
   context: OrganizationsServiceContext,
-  tx: Transaction,
+  transaction: OrganizationsTransactionContext,
   input: {
     requisiteId: string;
     organizationId: string;
@@ -32,8 +31,7 @@ export async function ensureOrganizationRequisiteAccountingBindingTx(
     throw new Error(`Currency code not found for ${input.currencyId}`);
   }
 
-  const postingTarget = await context.ledgerBindings.ensureOrganizationPostingTarget(
-    tx,
+  const postingTarget = await transaction.ledgerBindings.ensureOrganizationPostingTarget(
     {
       organizationId: input.organizationId,
       currencyCode,
@@ -41,7 +39,7 @@ export async function ensureOrganizationRequisiteAccountingBindingTx(
     },
   );
 
-  const binding = await context.requisites.upsertBindingTx(tx, {
+  const binding = await transaction.requisites.upsertBinding({
     requisiteId: input.requisiteId,
     bookId: postingTarget.bookId,
     bookAccountInstanceId: postingTarget.bookAccountInstanceId,
@@ -110,7 +108,7 @@ export function createResolveOrganizationRequisiteBindingsHandler(
 export function createUpsertOrganizationRequisiteAccountingBindingHandler(
   context: OrganizationsServiceContext,
 ) {
-  const { db, log, requisites } = context;
+  const { log, transactions } = context;
 
   return async function upsertOrganizationRequisiteAccountingBinding(
     requisiteId: string,
@@ -119,17 +117,16 @@ export function createUpsertOrganizationRequisiteAccountingBindingHandler(
     const validated =
       UpsertOrganizationRequisiteAccountingBindingInputSchema.parse(input);
 
-    const binding = await db.transaction(async (tx) => {
-      const requisite = await requisites.findRequisiteSnapshotById(
+    const binding = await transactions.withTransaction(async (transaction) => {
+      const requisite = await transaction.requisites.findRequisiteSnapshotById(
         requisiteId,
-        tx,
       );
 
       if (!requisite) {
         throw new OrganizationRequisiteNotFoundError(requisiteId);
       }
 
-      return ensureOrganizationRequisiteAccountingBindingTx(context, tx, {
+      return ensureOrganizationRequisiteAccountingBinding(context, transaction, {
         requisiteId,
         organizationId: requisite.organizationId,
         currencyId: requisite.currencyId,

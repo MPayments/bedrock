@@ -6,9 +6,8 @@ import { createDrizzleBalancesReportingRepository } from "./infra/drizzle/repos/
 
 export function createBalancesQueries(input: { db: Database }) {
   return createBalancesQueriesFromContext({
-    db: input.db,
     ...createBalancesQueriesContext({
-      createReportingRepository: createDrizzleBalancesReportingRepository,
+      reporting: createDrizzleBalancesReportingRepository(input.db),
     }),
   });
 }

@@ -8,13 +8,13 @@ import {
 import type { FxService } from "@bedrock/fx";
 import { schema as fxSchema } from "@bedrock/fx/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import { sha256Hex } from "@bedrock/platform/crypto";
 import type { Queryable } from "@bedrock/platform/persistence";
 import {
   DocumentValidationError,
   type DocumentModuleRuntime,
 } from "@bedrock/plugin-documents-sdk";
 import { canonicalJson } from "@bedrock/shared/core/canon";
+import { sha256Hex } from "@bedrock/shared/core/crypto";
 import { minorToAmountString } from "@bedrock/shared/money";
 
 import type { IfrsModuleDeps } from "../documents/internal/types";

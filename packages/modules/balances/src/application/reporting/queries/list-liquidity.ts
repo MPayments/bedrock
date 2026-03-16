@@ -1,5 +1,3 @@
-import type { Database } from "@bedrock/platform/persistence";
-
 import type {
   ListOrganizationLiquidityRowsInput,
   LiquidityQueryRow,
@@ -37,9 +35,9 @@ export function createListOrganizationLiquidityRowsQuery(
 }
 
 export function createBalancesQueriesFromContext(
-  input: BalancesQueriesContext & { db: Database },
+  input: BalancesQueriesContext,
 ): BalancesQueries {
   return createBalancesReportingQueries({
-    reporting: input.createReportingRepository(input.db),
+    reporting: input.reporting,
   });
 }

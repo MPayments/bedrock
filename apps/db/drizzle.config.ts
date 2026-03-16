@@ -10,14 +10,7 @@ dotenv.config({ path: resolve(dir, "../../.env") });
 const dbCredentials = resolvePostgresConnectionConfig();
 
 export default defineConfig({
-  schema: [
-    "../../packages/platform/src/auth-model/schema.ts",
-    "../../packages/platform/src/idempotency-postgres/schema.ts",
-    "../../packages/modules/*/src/schema.ts",
-    "../../packages/modules/*/src/schema/**/*.ts",
-    "../../packages/modules/*/src/**/schema.ts",
-    "../../packages/modules/*/src/**/schema/**/*.ts",
-  ],
+  schema: "./src/drizzle-schema.ts",
   out: "./migrations",
   dialect: "postgresql",
   dbCredentials: {

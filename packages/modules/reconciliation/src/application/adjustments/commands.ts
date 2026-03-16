@@ -1,5 +1,5 @@
-import { sha256Hex } from "@bedrock/platform/crypto";
 import { canonicalJson } from "@bedrock/shared/core/canon";
+import { sha256Hex } from "@bedrock/shared/core/crypto";
 
 import {
   CreateAdjustmentDocumentInputSchema,
@@ -15,16 +15,16 @@ import type { ReconciliationServiceContext } from "../shared/context";
 export function createAdjustmentDocumentHandler(
   context: ReconciliationServiceContext,
 ) {
-  const { db, documents, exceptionsRepo, idempotency } = context;
+  const { documents, transactions } = context;
 
   return async function createAdjustmentDocument(
     input: CreateAdjustmentDocumentInput,
   ): Promise<CreateAdjustmentDocumentResult> {
     const validated = CreateAdjustmentDocumentInputSchema.parse(input);
 
-    const result = await db.transaction(async (tx) =>
-      idempotency.withIdempotencyTx({
-        tx,
+    const result = await transactions.withTransaction(
+      async ({ exceptions, idempotency }) =>
+        idempotency.withIdempotency({
         scope: RECONCILIATION_IDEMPOTENCY_SCOPE.CREATE_ADJUSTMENT_DOCUMENT,
         idempotencyKey: validated.idempotencyKey,
         request: validated,
@@ -36,10 +36,7 @@ export function createAdjustmentDocumentHandler(
           documentId: String(storedResult?.documentId ?? ""),
         }),
         handler: async () => {
-          const exception = await exceptionsRepo.findByIdForUpdateTx(
-            tx,
-            validated.exceptionId,
-          );
+          const exception = await exceptions.findByIdForUpdate(validated.exceptionId);
 
           if (!exception) {
             throw new ReconciliationExceptionNotFoundError(
@@ -83,7 +80,7 @@ export function createAdjustmentDocumentHandler(
             adjustmentDocumentId: created.document.id,
             resolvedAt: new Date(),
           });
-          await exceptionsRepo.markResolvedTx(tx, resolved.update!);
+          await exceptions.markResolved(resolved.update!);
 
           return {
             exceptionId: resolved.exceptionId,

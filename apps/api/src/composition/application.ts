@@ -36,22 +36,15 @@ import {
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/providers";
-import { createLedgerBooksService } from "@bedrock/ledger";
 import { createLedgerQueries } from "@bedrock/ledger/queries";
 import {
   createOrganizationsService,
   type OrganizationsService,
 } from "@bedrock/organizations";
 import { createOrganizationsQueries } from "@bedrock/organizations/queries";
-import {
-  createPartiesService,
-  type PartiesService,
-} from "@bedrock/parties";
+import { createPartiesService, type PartiesService } from "@bedrock/parties";
 import { createPartiesQueries } from "@bedrock/parties/queries";
-import type {
-  Database,
-  Transaction,
-} from "@bedrock/platform/persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
@@ -123,7 +116,9 @@ function createAccountingReportRuntime(database: Database | Transaction) {
 function createAccountingPeriodsPort(
   database: Database,
 ): AccountingPeriodsService {
-  function buildService(database: Database | Transaction): AccountingPeriodsService {
+  function buildService(
+    database: Database | Transaction,
+  ): AccountingPeriodsService {
     const { ledgerQueries, organizationsQueries, reportQueries } =
       createAccountingReportRuntime(database);
     const queries = createDrizzleAccountingPeriodsQueryRepository(database);
@@ -292,6 +287,30 @@ export function createApplicationServices(
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
   const currenciesQueries = createCurrenciesQueries({ db });
   const partiesQueries = createPartiesQueries({ db });
+  const currenciesService = createCurrenciesService({ db, logger });
+  const requisiteProvidersService = createRequisiteProvidersService({
+    db,
+    logger,
+  });
+  const currenciesPort = {
+    async assertCurrencyExists(id: string) {
+      await currenciesService.findById(id);
+    },
+    async listCodesById(ids: string[]) {
+      const rows = await Promise.all(
+        ids.map(
+          async (id) =>
+            [id, (await currenciesService.findById(id)).code] as const,
+        ),
+      );
+      return new Map(rows);
+    },
+  };
+  const requisiteProvidersPort = {
+    async assertProviderActive(id: string) {
+      await requisiteProvidersService.assertActive(id);
+    },
+  };
   const accountingReportRuntime = createAccountingReportRuntime(db);
   const dimensionRegistry = createBedrockDimensionRegistry({
     counterpartiesQueries: partiesQueries.counterparties,
@@ -313,18 +332,6 @@ export function createApplicationServices(
     reportQueries: accountingReportRuntime.reportQueries,
   });
   const accountingPeriodsService = createAccountingPeriodsPort(db);
-  const partiesService = createPartiesService({
-    db,
-    logger,
-    documents: {
-      hasDocumentsForCustomer(customerId, queryable) {
-        return createDrizzleDocumentsReadModel({
-          db: queryable ?? db,
-        }).hasDocumentsForCustomer(customerId);
-      },
-    },
-  });
-  const currenciesService = createCurrenciesService({ db, logger });
   const feesService = createFeesService({ db, logger, currenciesService });
   const fxService = createFxService({
     db,
@@ -333,20 +340,55 @@ export function createApplicationServices(
     currenciesService,
     rateSourceProviders: createDefaultFxRateSourceProviders(),
   });
-  const organizationsService = createOrganizationsService({
+  const partiesService = createPartiesService({
     db,
-    ledgerBooks: createLedgerBooksService(),
+    currencies: currenciesPort,
+    documents: {
+      hasDocumentsForCustomer(customerId, queryable) {
+        return createDrizzleDocumentsReadModel({
+          db: queryable ?? db,
+        }).hasDocumentsForCustomer(customerId);
+      },
+    },
     logger,
+    requisiteProviders: requisiteProvidersPort,
+  });
+  const organizationsService = createOrganizationsService({
+    currencies: currenciesPort,
+    db,
+    ledgerBindings: {
+      async ensureOrganizationPostingTarget(tx, input) {
+        const { bookId } = await ledger.books.ensureDefaultOrganizationBook(
+          tx,
+          {
+            organizationId: input.organizationId,
+          },
+        );
+        const bookAccount = await ledger.bookAccounts.ensureBookAccountInstance(
+          tx,
+          {
+            bookId,
+            accountNo: input.postingAccountNo,
+            currency: input.currencyCode,
+            dimensions: {},
+          },
+        );
+
+        return {
+          bookId,
+          bookAccountInstanceId: bookAccount.id,
+        };
+      },
+    },
+    ledgerBooks: ledger.books,
+    logger,
+    requisiteProviders: requisiteProvidersPort,
   });
   const requisitesReadModel = createApiRequisitesReadModel({ db });
   const requisitesFacadeService = createRequisitesFacadeService({
     readModel: requisitesReadModel,
     organizationsService,
     partiesService,
-  });
-  const requisiteProvidersService = createRequisiteProvidersService({
-    db,
-    logger,
   });
   const documentRegistry = createDocumentRegistry([
     ...createCommercialDocumentModules(

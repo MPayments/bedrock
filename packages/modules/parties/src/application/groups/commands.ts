@@ -26,10 +26,10 @@ async function assertCustomerExists(
   context: PartiesServiceContext,
   customerId: string,
 ) {
-  const existingCustomerIds = await context.customers.listExistingCustomerIds([
+  const existingCustomer = await context.customerQueries.findCustomerById(
     customerId,
-  ]);
-  if (!existingCustomerIds.includes(customerId)) {
+  );
+  if (!existingCustomer) {
     throw new CounterpartyCustomerNotFoundError(customerId);
   }
 }
@@ -149,14 +149,11 @@ export function createUpdateCounterpartyGroupHandler(
 export function createRemoveCounterpartyGroupHandler(
   context: PartiesServiceContext,
 ) {
-  const { db, groups, log } = context;
+  const { log, transactions } = context;
 
   return async function removeCounterpartyGroup(id: string): Promise<void> {
-    await db.transaction(async (tx) => {
-      const groupSnapshot = await groups.findCounterpartyGroupSnapshotById(
-        id,
-        tx,
-      );
+    await transactions.withTransaction(async ({ groups }) => {
+      const groupSnapshot = await groups.findCounterpartyGroupSnapshotById(id);
       if (!groupSnapshot) {
         throw new CounterpartyGroupNotFoundError(id);
       }
@@ -167,11 +164,11 @@ export function createRemoveCounterpartyGroupHandler(
         rethrowCounterpartyGroupDomainError(error);
       }
 
-      await groups.reparentCounterpartyChildrenTx(tx, {
+      await groups.reparentCounterpartyChildren({
         id,
         parentId: groupSnapshot.parentId,
       });
-      await groups.removeCounterpartyGroupTx(tx, id);
+      await groups.removeCounterpartyGroup(id);
     });
 
     log.info("Counterparty group deleted", { id });

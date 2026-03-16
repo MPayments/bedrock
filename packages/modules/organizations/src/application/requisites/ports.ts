@@ -1,4 +1,3 @@
-import type { Transaction } from "@bedrock/platform/persistence";
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
 import type {
@@ -65,57 +64,40 @@ export interface OrganizationRequisitesQueryRepository {
   ) => Promise<OrganizationsRequisiteBindingResolution[]>;
 }
 
-export interface OrganizationRequisitesCommandRepository {
+export interface OrganizationRequisitesCommandTxRepository {
   findRequisiteSnapshotById: (
     id: string,
-    tx?: Transaction,
   ) => Promise<OrganizationRequisiteSnapshot | null>;
   findActiveRequisiteSnapshotById: (
     id: string,
-    tx?: Transaction,
   ) => Promise<OrganizationRequisiteSnapshot | null>;
-  listActiveRequisitesByOrganizationCurrency: (
-    input: {
-      organizationId: string;
-      currencyId: string;
-    },
-    tx?: Transaction,
-  ) => Promise<OrganizationRequisiteSnapshot[]>;
-  insertRequisiteTx: (
-    tx: Transaction,
+  listActiveRequisitesByOrganizationCurrency: (input: {
+    organizationId: string;
+    currencyId: string;
+  }) => Promise<OrganizationRequisiteSnapshot[]>;
+  insertRequisite: (
     requisite: OrganizationRequisiteSnapshot,
   ) => Promise<OrganizationRequisiteSnapshot>;
-  updateRequisiteTx: (
-    tx: Transaction,
+  updateRequisite: (
     requisite: OrganizationRequisiteSnapshot,
   ) => Promise<OrganizationRequisiteSnapshot | null>;
-  setDefaultStateTx: (
-    tx: Transaction,
-    input: {
-      organizationId: string;
-      currencyId: string;
-      defaultId: string | null;
-      demotedIds: string[];
-    },
-  ) => Promise<void>;
-  archiveRequisiteTx: (
-    tx: Transaction,
-    input: {
-      requisiteId: string;
-      archivedAt: Date;
-    },
-  ) => Promise<boolean>;
+  setDefaultState: (input: {
+    organizationId: string;
+    currencyId: string;
+    defaultId: string | null;
+    demotedIds: string[];
+  }) => Promise<void>;
+  archiveRequisite: (input: {
+    requisiteId: string;
+    archivedAt: Date;
+  }) => Promise<boolean>;
   findBindingByRequisiteId: (
     requisiteId: string,
-    tx?: Transaction,
   ) => Promise<OrganizationRequisiteAccountingBinding | null>;
-  upsertBindingTx: (
-    tx: Transaction,
-    input: {
-      requisiteId: string;
-      bookId: string;
-      bookAccountInstanceId: string;
-      postingAccountNo: string;
-    },
-  ) => Promise<OrganizationRequisiteAccountingBinding | null>;
+  upsertBinding: (input: {
+    requisiteId: string;
+    bookId: string;
+    bookAccountInstanceId: string;
+    postingAccountNo: string;
+  }) => Promise<OrganizationRequisiteAccountingBinding | null>;
 }

@@ -2,6 +2,8 @@ import { organizations } from "./organizations";
 import {
   organizationRequisiteBindings,
   organizationRequisites,
+  requisiteKindEnum,
+  requisiteOwnerTypeEnum,
 } from "./requisites";
 
 export const schema = {
@@ -11,7 +13,12 @@ export const schema = {
 };
 
 export { organizations };
-export { organizationRequisiteBindings, organizationRequisites };
+export {
+  organizationRequisiteBindings,
+  organizationRequisites,
+  requisiteKindEnum,
+  requisiteOwnerTypeEnum,
+};
 export type { OrganizationInsert, OrganizationRow } from "./organizations";
 export type {
   OrganizationRequisiteBindingInsert,

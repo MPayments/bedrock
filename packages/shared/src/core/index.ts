@@ -1,4 +1,5 @@
 export type { CorrelationContext } from "./correlation";
+export { sha256Hex } from "./crypto";
 export { isUuidLike } from "./uuid";
 export { canonicalJson, stableStringify, makePlanKey } from "./canon";
 export {

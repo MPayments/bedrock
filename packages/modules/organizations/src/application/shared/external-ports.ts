@@ -1,11 +1,5 @@
-import type { Transaction } from "@bedrock/platform/persistence";
-
-export interface OrganizationsLedgerBooksPort {
-  ensureDefaultOrganizationBook: (
-    tx: Transaction,
-    input: { organizationId: string },
-  ) => Promise<{ bookId: string }>;
-}
+import type { OrganizationsCommandTxRepository } from "../organizations/ports";
+import type { OrganizationRequisitesCommandTxRepository } from "../requisites/ports";
 
 export interface OrganizationsLedgerReadPort {
   listBooksById: (
@@ -27,16 +21,32 @@ export interface OrganizationsRequisiteProvidersPort {
   assertProviderActive: (id: string) => Promise<void>;
 }
 
-export interface OrganizationsLedgerBindingsPort {
-  ensureOrganizationPostingTarget: (
-    tx: Transaction,
-    input: {
-      organizationId: string;
-      currencyCode: string;
-      postingAccountNo: string;
-    },
-  ) => Promise<{
+export interface OrganizationsLedgerBooksTxPort {
+  ensureDefaultOrganizationBook: (input: {
+    organizationId: string;
+  }) => Promise<{ bookId: string }>;
+}
+
+export interface OrganizationsLedgerBindingsTxPort {
+  ensureOrganizationPostingTarget: (input: {
+    organizationId: string;
+    currencyCode: string;
+    postingAccountNo: string;
+  }) => Promise<{
     bookId: string;
     bookAccountInstanceId: string;
   }>;
+}
+
+export interface OrganizationsTransactionContext {
+  organizations: OrganizationsCommandTxRepository;
+  requisites: OrganizationRequisitesCommandTxRepository;
+  ledgerBooks: OrganizationsLedgerBooksTxPort;
+  ledgerBindings: OrganizationsLedgerBindingsTxPort;
+}
+
+export interface OrganizationsTransactionsPort {
+  withTransaction<TResult>(
+    run: (context: OrganizationsTransactionContext) => Promise<TResult>,
+  ): Promise<TResult>;
 }

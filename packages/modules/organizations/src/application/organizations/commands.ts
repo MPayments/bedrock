@@ -37,7 +37,7 @@ function hasForeignKeyViolation(error: unknown): boolean {
 export function createCreateOrganizationHandler(
   context: OrganizationsServiceContext,
 ) {
-  const { db, ledgerBooks, log, organizations } = context;
+  const { log, transactions } = context;
 
   return async function createOrganization(
     input: CreateOrganizationInput,
@@ -56,12 +56,12 @@ export function createCreateOrganizationHandler(
       context.now(),
     );
 
-    return db.transaction(async (tx) => {
+    return transactions.withTransaction(async ({ ledgerBooks, organizations }) => {
       const created = Organization.fromSnapshot(
-        await organizations.insertOrganizationTx(tx, draft.toSnapshot()),
+        await organizations.insertOrganization(draft.toSnapshot()),
       );
 
-      await ledgerBooks.ensureDefaultOrganizationBook(tx, {
+      await ledgerBooks.ensureDefaultOrganizationBook({
         organizationId: created.id,
       });
 
@@ -78,7 +78,7 @@ export function createCreateOrganizationHandler(
 export function createUpdateOrganizationHandler(
   context: OrganizationsServiceContext,
 ) {
-  const { db, log, organizations } = context;
+  const { log, transactions } = context;
 
   return async function updateOrganization(
     id: string,
@@ -86,10 +86,9 @@ export function createUpdateOrganizationHandler(
   ): Promise<OrganizationDto> {
     const validated = UpdateOrganizationInputSchema.parse(input);
 
-    return db.transaction(async (tx) => {
+    return transactions.withTransaction(async ({ organizations }) => {
       const existingSnapshot = await organizations.findOrganizationSnapshotById(
         id,
-        tx,
       );
 
       if (!existingSnapshot) {
@@ -103,7 +102,7 @@ export function createUpdateOrganizationHandler(
       );
       const persistedSnapshot = existing.sameState(next)
         ? existingSnapshot
-        : await organizations.updateOrganizationTx(tx, next.toSnapshot());
+        : await organizations.updateOrganization(next.toSnapshot());
 
       if (!persistedSnapshot) {
         throw new OrganizationNotFoundError(id);
@@ -118,12 +117,12 @@ export function createUpdateOrganizationHandler(
 export function createRemoveOrganizationHandler(
   context: OrganizationsServiceContext,
 ) {
-  const { db, log, organizations } = context;
+  const { log, transactions } = context;
 
   return async function removeOrganization(id: string): Promise<void> {
     try {
-      await db.transaction(async (tx) => {
-        const deleted = await organizations.removeOrganizationTx(tx, id);
+      await transactions.withTransaction(async ({ organizations }) => {
+        const deleted = await organizations.removeOrganization(id);
 
         if (!deleted) {
           throw new OrganizationNotFoundError(id);

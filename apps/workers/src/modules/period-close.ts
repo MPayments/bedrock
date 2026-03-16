@@ -169,7 +169,9 @@ function createAccountingReportRuntime(database: Database | Transaction) {
 }
 
 function createAccountingPeriodsPort(db: Database): AccountingPeriodsService {
-  function buildService(database: Database | Transaction): AccountingPeriodsService {
+  function buildService(
+    database: Database | Transaction,
+  ): AccountingPeriodsService {
     const { ledgerQueries, organizationsQueries, reportQueries } =
       createAccountingReportRuntime(database);
     const queries = createDrizzleAccountingPeriodsQueryRepository(database);

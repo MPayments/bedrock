@@ -1,5 +1,5 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Database } from "@bedrock/platform/persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 import type {
   BedrockWorker,
   WorkerRunContext,
@@ -8,6 +8,7 @@ import type {
 
 import { createRunProjectorPassHandler } from "../../application/projection/commands/run-projector-pass";
 import { createBalancesWorkerContext } from "../../application/shared/context";
+import type { BalancesProjectionTransactionsPort } from "../../application/shared/external-ports";
 import type {
   BalancesWorkerOperationContext,
   BalancesWorkerOperationGuard,
@@ -23,13 +24,26 @@ interface BalancesProjectorWorkerDefinitionDeps {
   batchSize?: number;
 }
 
+function createBalancesProjectionTransactions(input: {
+  db: Database;
+}): BalancesProjectionTransactionsPort {
+  return {
+    async withTransaction(run) {
+      return input.db.transaction(async (tx: Transaction) =>
+        run({
+          projectionRepository: createDrizzleBalancesProjectionRepository(tx),
+        }),
+      );
+    },
+  };
+}
+
 export function createBalancesProjectorWorkerDefinition(
   deps: BalancesProjectorWorkerDefinitionDeps,
 ): BedrockWorker {
   const context = createBalancesWorkerContext({
-    db: deps.db,
     logger: deps.logger,
-    createProjectionRepository: createDrizzleBalancesProjectionRepository,
+    transactions: createBalancesProjectionTransactions({ db: deps.db }),
   });
   const runPass = createRunProjectorPassHandler({
     context,

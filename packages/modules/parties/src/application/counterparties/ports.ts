@@ -1,4 +1,3 @@
-import type { Transaction } from "@bedrock/platform/persistence";
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
 import type {
@@ -27,24 +26,23 @@ export interface CounterpartiesQueryRepository {
   >;
 }
 
-export interface CounterpartiesCommandRepository {
+export interface CounterpartiesMutationRepository {
+  removeCounterparty: (id: string) => Promise<boolean>;
+}
+
+export interface CounterpartiesCommandTxRepository {
   findCounterpartySnapshotById: (
     id: string,
-    tx?: Transaction,
   ) => Promise<CounterpartySnapshot | null>;
-  insertCounterpartyTx: (
-    tx: Transaction,
+  insertCounterparty: (
     counterparty: CounterpartySnapshot,
   ) => Promise<CounterpartySnapshot>;
-  updateCounterpartyTx: (
-    tx: Transaction,
+  updateCounterparty: (
     counterparty: CounterpartySnapshot,
   ) => Promise<CounterpartySnapshot | null>;
-  removeCounterparty: (id: string) => Promise<boolean>;
-  replaceMembershipsTx: (
-    tx: Transaction,
+  replaceMemberships: (
     counterpartyId: string,
     groupIds: string[],
   ) => Promise<void>;
-  listGroupHierarchyNodes: (tx?: Transaction) => Promise<GroupHierarchyNodeSnapshot[]>;
+  listGroupHierarchyNodes: () => Promise<GroupHierarchyNodeSnapshot[]>;
 }

@@ -15,7 +15,7 @@ import {
   OPERATION_TRANSFER_TYPE,
   type CommitResult,
 } from "../../domain/operation-intent";
-import { buildPlanRows } from "../../infra/drizzle/query-support/build-plan-rows";
+import { buildPlanRows } from "./build-plan-rows";
 import type { LedgerBookAccountsPort } from "../book-accounts/ports";
 import type { InternalLedgerBookGuard } from "../shared/context";
 

@@ -10,61 +10,62 @@ export function createRunProjectorPassHandler(input: {
   const beforeOperation = createBeforeOperationGuardProxy(input.beforeOperation);
 
   return async function runProjectorPass() {
-    return input.context.db.transaction(async (tx) => {
-      const projection = input.context.createProjectionRepository(tx);
-      const cursor = await projection.ensureCursor();
-      const operations = await projection.listOperationsAfterCursor(
-        cursor,
-        batchSize,
-      );
-      const postingRowsByOperationId =
-        await projection.listProjectionPostingRowsForOperations(operations);
-      let processed = 0;
+    return input.context.transactions.withTransaction(
+      async ({ projectionRepository: projection }) => {
+        const cursor = await projection.ensureCursor();
+        const operations = await projection.listOperationsAfterCursor(
+          cursor,
+          batchSize,
+        );
+        const postingRowsByOperationId =
+          await projection.listProjectionPostingRowsForOperations(operations);
+        let processed = 0;
 
-      for (const operation of operations) {
-        const postingRows = postingRowsByOperationId.get(operation.id) ?? [];
-        const bookIds = [...new Set(postingRows.map((row) => row.bookId))];
+        for (const operation of operations) {
+          const postingRows = postingRowsByOperationId.get(operation.id) ?? [];
+          const bookIds = [...new Set(postingRows.map((row) => row.bookId))];
 
-        if (
-          !(await beforeOperation({
+          if (
+            !(await beforeOperation({
+              operationId: operation.id,
+              sourceType: operation.sourceType,
+              sourceId: operation.sourceId,
+              operationCode: operation.operationCode,
+              bookIds,
+            }))
+          ) {
+            break;
+          }
+
+          const deltas = buildProjectedBalanceDeltas(postingRows);
+          for (const delta of deltas) {
+            await projection.applyProjectedDelta({
+              ...delta,
+              operationId: operation.id,
+              sourceType: operation.sourceType,
+              sourceId: operation.sourceId,
+              operationCode: operation.operationCode,
+              postedAt: operation.postedAt,
+            });
+          }
+
+          await projection.advanceCursor({
+            postedAt: operation.postedAt,
             operationId: operation.id,
-            sourceType: operation.sourceType,
-            sourceId: operation.sourceId,
-            operationCode: operation.operationCode,
-            bookIds,
-          }))
-        ) {
-          break;
+          });
+          processed += 1;
         }
 
-        const deltas = buildProjectedBalanceDeltas(postingRows);
-        for (const delta of deltas) {
-          await projection.applyProjectedDelta({
-            ...delta,
-            operationId: operation.id,
-            sourceType: operation.sourceType,
-            sourceId: operation.sourceId,
-            operationCode: operation.operationCode,
-            postedAt: operation.postedAt,
+        if (processed > 0) {
+          input.context.log.info("Projected ledger operations into balances", {
+            processed,
+            lastOperationId: operations[operations.length - 1]?.id ?? null,
           });
         }
 
-        await projection.advanceCursor({
-          postedAt: operation.postedAt,
-          operationId: operation.id,
-        });
-        processed += 1;
-      }
-
-      if (processed > 0) {
-        input.context.log.info("Projected ledger operations into balances", {
-          processed,
-          lastOperationId: operations[operations.length - 1]?.id ?? null,
-        });
-      }
-
-      return processed;
-    });
+        return processed;
+      },
+    );
   };
 }
 

@@ -1,5 +1,3 @@
-import type { Transaction } from "@bedrock/platform/persistence";
-
 import type {
   CounterpartyGroup,
   ListCounterpartyGroupsQuery,
@@ -11,20 +9,26 @@ export interface CounterpartyGroupsQueryRepository {
   listCounterpartyGroups: (input: ListCounterpartyGroupsQuery) => Promise<CounterpartyGroup[]>;
 }
 
-export interface CounterpartyGroupsCommandRepository {
+export interface CounterpartyGroupsMutableRepository {
   findCounterpartyGroupSnapshotById: (
     id: string,
-    tx?: Transaction,
   ) => Promise<CounterpartyGroupSnapshot | null>;
-  insertCounterpartyGroup: (group: CounterpartyGroupSnapshot) => Promise<CounterpartyGroupSnapshot>;
-  updateCounterpartyGroup: (group: CounterpartyGroupSnapshot) => Promise<CounterpartyGroupSnapshot | null>;
-  listGroupHierarchyNodes: (tx?: Transaction) => Promise<GroupHierarchyNodeSnapshot[]>;
-  reparentCounterpartyChildrenTx: (
-    tx: Transaction,
-    input: {
-      id: string;
-      parentId: string | null;
-    },
-  ) => Promise<void>;
-  removeCounterpartyGroupTx: (tx: Transaction, id: string) => Promise<boolean>;
+  insertCounterpartyGroup: (
+    group: CounterpartyGroupSnapshot,
+  ) => Promise<CounterpartyGroupSnapshot>;
+  updateCounterpartyGroup: (
+    group: CounterpartyGroupSnapshot,
+  ) => Promise<CounterpartyGroupSnapshot | null>;
+  listGroupHierarchyNodes: () => Promise<GroupHierarchyNodeSnapshot[]>;
+}
+
+export interface CounterpartyGroupsCommandTxRepository {
+  findCounterpartyGroupSnapshotById: (
+    id: string,
+  ) => Promise<CounterpartyGroupSnapshot | null>;
+  reparentCounterpartyChildren: (input: {
+    id: string;
+    parentId: string | null;
+  }) => Promise<void>;
+  removeCounterpartyGroup: (id: string) => Promise<boolean>;
 }

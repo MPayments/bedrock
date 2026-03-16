@@ -20,7 +20,6 @@ import {
 
 import type {
   OrganizationRequisiteOptionRecord,
-  OrganizationRequisitesCommandRepository,
   OrganizationRequisitesQueryRepository,
   OrganizationsRequisiteBindingResolution,
 } from "../../../application/requisites/ports";
@@ -111,6 +110,61 @@ function toPublicRequisite(
     updatedAt: snapshot.updatedAt,
     archivedAt: snapshot.archivedAt,
   };
+}
+
+interface DrizzleOrganizationRequisitesCommandRepository {
+  findRequisiteSnapshotById: (
+    id: string,
+    tx?: Transaction,
+  ) => Promise<OrganizationRequisiteSnapshot | null>;
+  findActiveRequisiteSnapshotById: (
+    id: string,
+    tx?: Transaction,
+  ) => Promise<OrganizationRequisiteSnapshot | null>;
+  listActiveRequisitesByOrganizationCurrency: (
+    input: {
+      organizationId: string;
+      currencyId: string;
+    },
+    tx?: Transaction,
+  ) => Promise<OrganizationRequisiteSnapshot[]>;
+  insertRequisiteTx: (
+    tx: Transaction,
+    requisite: OrganizationRequisiteSnapshot,
+  ) => Promise<OrganizationRequisiteSnapshot>;
+  updateRequisiteTx: (
+    tx: Transaction,
+    requisite: OrganizationRequisiteSnapshot,
+  ) => Promise<OrganizationRequisiteSnapshot | null>;
+  setDefaultStateTx: (
+    tx: Transaction,
+    input: {
+      organizationId: string;
+      currencyId: string;
+      defaultId: string | null;
+      demotedIds: string[];
+    },
+  ) => Promise<void>;
+  archiveRequisiteTx: (
+    tx: Transaction,
+    input: {
+      requisiteId: string;
+      archivedAt: Date;
+    },
+  ) => Promise<boolean>;
+  findBindingByRequisiteId: (
+    requisiteId: string,
+    tx?: Transaction,
+  ) => Promise<OrganizationRequisiteAccountingBinding | null>;
+  upsertBindingTx: (
+    tx: Transaction,
+    input: {
+      requisiteId: string;
+      bookId: string;
+      bookAccountInstanceId: string;
+      postingAccountNo: string;
+    },
+  ) => Promise<OrganizationRequisiteAccountingBinding | null>;
 }
 
 async function findRequisiteSnapshot(
@@ -430,8 +484,8 @@ export function createDrizzleOrganizationRequisitesQueryRepository(
 
 export function createDrizzleOrganizationRequisitesCommandRepository(
   db: Database,
-): OrganizationRequisitesCommandRepository {
-  return {
+) {
+  const repository: DrizzleOrganizationRequisitesCommandRepository = {
     async findRequisiteSnapshotById(id, tx) {
       return findRequisiteSnapshot(db, id, tx);
     },
@@ -608,4 +662,6 @@ export function createDrizzleOrganizationRequisitesCommandRepository(
       return findBinding(db, input.requisiteId, tx);
     },
   };
+
+  return repository;
 }

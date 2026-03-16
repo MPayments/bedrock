@@ -1,4 +1,3 @@
-import type { Transaction } from "@bedrock/platform/persistence";
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
 import type {
@@ -45,40 +44,28 @@ export interface CounterpartyRequisitesQueryRepository {
   listLabelsById: (ids: string[]) => Promise<Map<string, string>>;
 }
 
-export interface CounterpartyRequisitesCommandRepository {
+export interface CounterpartyRequisitesCommandTxRepository {
   findActiveRequisiteSnapshotById: (
     id: string,
-    tx?: Transaction,
   ) => Promise<CounterpartyRequisiteSnapshot | null>;
-  listActiveRequisitesByCounterpartyCurrency: (
-    input: {
-      counterpartyId: string;
-      currencyId: string;
-    },
-    tx?: Transaction,
-  ) => Promise<CounterpartyRequisiteSnapshot[]>;
-  insertRequisiteTx: (
-    tx: Transaction,
+  listActiveRequisitesByCounterpartyCurrency: (input: {
+    counterpartyId: string;
+    currencyId: string;
+  }) => Promise<CounterpartyRequisiteSnapshot[]>;
+  insertRequisite: (
     requisite: CounterpartyRequisiteSnapshot,
   ) => Promise<CounterpartyRequisiteSnapshot>;
-  updateRequisiteTx: (
-    tx: Transaction,
+  updateRequisite: (
     requisite: CounterpartyRequisiteSnapshot,
   ) => Promise<CounterpartyRequisiteSnapshot | null>;
-  setDefaultStateTx: (
-    tx: Transaction,
-    input: {
-      counterpartyId: string;
-      currencyId: string;
-      defaultId: string | null;
-      demotedIds: string[];
-    },
-  ) => Promise<void>;
-  archiveRequisiteTx: (
-    tx: Transaction,
-    input: {
-      requisiteId: string;
-      archivedAt: Date;
-    },
-  ) => Promise<boolean>;
+  setDefaultState: (input: {
+    counterpartyId: string;
+    currencyId: string;
+    defaultId: string | null;
+    demotedIds: string[];
+  }) => Promise<void>;
+  archiveRequisite: (input: {
+    requisiteId: string;
+    archivedAt: Date;
+  }) => Promise<boolean>;
 }

@@ -9,7 +9,6 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 import type {
-  CustomersCommandRepository,
   CustomersQueryRepository,
 } from "../../../application/customers/ports";
 import type { Customer } from "../../../contracts";
@@ -26,6 +25,75 @@ const CUSTOMER_SORT_COLUMN_MAP = {
   createdAt: schema.customers.createdAt,
   updatedAt: schema.customers.updatedAt,
 } as const;
+
+interface DrizzleCustomersCommandRepository {
+  findCustomerSnapshotById: (
+    id: string,
+    tx?: Transaction,
+  ) => Promise<CustomerSnapshot | null>;
+  insertCustomerTx: (
+    tx: Transaction,
+    customer: CustomerSnapshot,
+  ) => Promise<CustomerSnapshot>;
+  updateCustomerTx: (
+    tx: Transaction,
+    customer: CustomerSnapshot,
+  ) => Promise<CustomerSnapshot | null>;
+  removeCustomerTx: (tx: Transaction, id: string) => Promise<boolean>;
+  listExistingCustomerIds: (
+    ids: string[],
+    tx?: Transaction,
+  ) => Promise<string[]>;
+  findManagedCustomerGroup: (
+    customerId: string,
+    tx?: Transaction,
+  ) => Promise<{ id: string; name: string } | null>;
+  ensureManagedCustomerGroupTx: (
+    tx: Transaction,
+    input: {
+      customerId: string;
+      displayName: string;
+    },
+  ) => Promise<{ id: string }>;
+  renameManagedCustomerGroupTx: (
+    tx: Transaction,
+    input: {
+      customerId: string;
+      displayName: string;
+    },
+  ) => Promise<void>;
+  listCounterpartiesByCustomerId: (
+    customerId: string,
+    tx?: Transaction,
+  ) => Promise<{ id: string }[]>;
+  listGroupHierarchyNodes: (
+    tx?: Transaction,
+  ) => Promise<GroupHierarchyNodeSnapshot[]>;
+  listMembershipRowsByCounterpartyIds: (
+    counterpartyIds: string[],
+    tx?: Transaction,
+  ) => Promise<
+    {
+      counterpartyId: string;
+      groupId: string;
+    }[]
+  >;
+  deleteMembershipsByCounterpartyAndGroupIdsTx: (
+    tx: Transaction,
+    input: {
+      counterpartyIds: string[];
+      groupIds: string[];
+    },
+  ) => Promise<void>;
+  clearCounterpartyCustomerLinkTx: (
+    tx: Transaction,
+    counterpartyIds: string[],
+  ) => Promise<void>;
+  deleteCounterpartyGroupsByIdsTx: (
+    tx: Transaction,
+    groupIds: string[],
+  ) => Promise<void>;
+}
 
 async function findCustomerSnapshot(
   db: Database,
@@ -140,8 +208,8 @@ export function createDrizzleCustomersQueryRepository(
 
 export function createDrizzleCustomersCommandRepository(
   db: Database,
-): CustomersCommandRepository {
-  return {
+) {
+  const repository: DrizzleCustomersCommandRepository = {
     async findCustomerSnapshotById(id, tx) {
       return findCustomerSnapshot(db, id, tx);
     },
@@ -318,4 +386,6 @@ export function createDrizzleCustomersCommandRepository(
         .where(inArray(schema.counterpartyGroups.id, uniqueIds));
     },
   };
+
+  return repository;
 }

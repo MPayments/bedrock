@@ -22,10 +22,34 @@ import { createOrganizationsQueries } from "../../src/queries";
 import { createOrganizationsService } from "../../src/service";
 
 const ledgerBooks = createLedgerBooksService();
+const currencies = {
+  async assertCurrencyExists(_id: string) {
+    throw new Error("unexpected currencies port call");
+  },
+  async listCodesById(_ids: string[]) {
+    throw new Error("unexpected currencies port call");
+  },
+};
+const ledgerBindings = {
+  async ensureOrganizationPostingTarget(_tx: unknown, _input: unknown) {
+    throw new Error("unexpected ledger bindings port call");
+  },
+};
+const requisiteProviders = {
+  async assertProviderActive(_id: string) {
+    throw new Error("unexpected requisite providers port call");
+  },
+};
 
 function createOrganizationsRuntime() {
   return {
-    service: createOrganizationsService({ db, ledgerBooks }),
+    service: createOrganizationsService({
+      db,
+      currencies,
+      ledgerBindings,
+      ledgerBooks,
+      requisiteProviders,
+    }),
     queries: createOrganizationsQueries({ db }),
   };
 }
@@ -123,9 +147,9 @@ describe("organizations integration", () => {
       expect.arrayContaining([first.id, second.id]),
     );
 
-    await expect(
-      queries.isInternalLedgerOrganization(first.id),
-    ).resolves.toBe(true);
+    await expect(queries.isInternalLedgerOrganization(first.id)).resolves.toBe(
+      true,
+    );
     await expect(
       queries.assertInternalLedgerOrganization(first.id),
     ).resolves.toBeUndefined();
@@ -163,12 +187,15 @@ describe("organizations integration", () => {
   it("rolls back organization creation when default-book provisioning fails", async () => {
     const failureExternalId = `org-it-${randomUUID()}`;
     const service = createOrganizationsService({
+      currencies,
       db,
+      ledgerBindings,
       ledgerBooks: {
         async ensureDefaultOrganizationBook() {
           throw new Error("ledger books unavailable");
         },
       },
+      requisiteProviders,
     });
 
     await expect(
@@ -182,7 +209,9 @@ describe("organizations integration", () => {
     const rows = await db
       .select()
       .from(organizationsSchema.organizations)
-      .where(eq(organizationsSchema.organizations.externalId, failureExternalId));
+      .where(
+        eq(organizationsSchema.organizations.externalId, failureExternalId),
+      );
 
     expect(rows).toHaveLength(0);
   });

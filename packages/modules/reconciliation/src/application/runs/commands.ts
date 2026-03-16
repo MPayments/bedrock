@@ -69,33 +69,23 @@ async function resolveRecordMatch(
 export function createRunReconciliationHandler(
   context: ReconciliationServiceContext,
 ) {
-  const {
-    db,
-    externalRecordsRepo,
-    exceptionsRepo,
-    idempotency,
-    matchesRepo,
-    runsRepo,
-  } = context;
+  const { transactions } = context;
 
   return async function runReconciliation(
     input: RunReconciliationInput,
   ): Promise<ReconciliationRunDto> {
     const validated = RunReconciliationInputSchema.parse(input);
 
-    const run = await db.transaction(async (tx) =>
-      idempotency.withIdempotencyTx({
-        tx,
+    const run = await transactions.withTransaction(
+      async ({ exceptions, externalRecords, idempotency, matches, runs }) =>
+        idempotency.withIdempotency({
         scope: RECONCILIATION_IDEMPOTENCY_SCOPE.RUN,
         idempotencyKey: validated.idempotencyKey,
         request: validated,
         actorId: validated.actorUserId,
         serializeResult: (result: { id: string }) => result,
         loadReplayResult: async ({ storedResult }) => {
-          const replayRun = await runsRepo.findByIdTx(
-            tx,
-            String(storedResult?.id ?? ""),
-          );
+          const replayRun = await runs.findById(String(storedResult?.id ?? ""));
 
           if (!replayRun) {
             throw new Error(
@@ -106,7 +96,7 @@ export function createRunReconciliationHandler(
           return replayRun;
         },
         handler: async () => {
-          const records = await externalRecordsRepo.listForRunTx(tx, {
+          const records = await externalRecords.listForRun({
             source: validated.source,
             externalRecordIds: validated.inputQuery.externalRecordIds,
           });
@@ -127,11 +117,10 @@ export function createRunReconciliationHandler(
             requestContext: validated.requestContext,
           });
 
-          const createdRun = await runsRepo.createTx(tx, plannedRun.toDraft());
+          const createdRun = await runs.create(plannedRun.toDraft());
 
           if (resolutions.length > 0) {
-            await matchesRepo.createManyTx(
-              tx,
+            await matches.createMany(
               resolutions.map(({ record, resolution }) => ({
                 runId: createdRun.id,
                 externalRecordId: record.id,
@@ -147,8 +136,7 @@ export function createRunReconciliationHandler(
             ({ resolution }) => resolution.status !== "matched",
           );
           if (exceptionResolutions.length > 0) {
-            await exceptionsRepo.createManyTx(
-              tx,
+            await exceptions.createMany(
               exceptionResolutions.map(({ record, resolution }) =>
                 ReconciliationException.open({
                   runId: createdRun.id,

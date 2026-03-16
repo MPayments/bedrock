@@ -1,5 +1,3 @@
-import type { Transaction } from "@bedrock/platform/persistence";
-
 export interface ReconciliationExternalRecordRecord {
   id: string;
   source: string;
@@ -15,17 +13,16 @@ export interface ReconciliationExternalRecordRecord {
   receivedAt: Date;
 }
 
-export interface ReconciliationExternalRecordsRepository {
-  findBySourceAndSourceRecordIdTx(
-    tx: Transaction,
-    input: { source: string; sourceRecordId: string },
-  ): Promise<ReconciliationExternalRecordRecord | null>;
-  createTx(
-    tx: Transaction,
+export interface ReconciliationExternalRecordsTxRepository {
+  findBySourceAndSourceRecordId: (input: {
+    source: string;
+    sourceRecordId: string;
+  }) => Promise<ReconciliationExternalRecordRecord | null>;
+  create: (
     input: Omit<ReconciliationExternalRecordRecord, "id" | "receivedAt">,
-  ): Promise<ReconciliationExternalRecordRecord>;
-  listForRunTx(
-    tx: Transaction,
-    input: { source: string; externalRecordIds?: string[] },
-  ): Promise<ReconciliationExternalRecordRecord[]>;
+  ) => Promise<ReconciliationExternalRecordRecord>;
+  listForRun: (input: {
+    source: string;
+    externalRecordIds?: string[];
+  }) => Promise<ReconciliationExternalRecordRecord[]>;
 }

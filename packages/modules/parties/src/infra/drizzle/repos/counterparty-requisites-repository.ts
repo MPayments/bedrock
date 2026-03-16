@@ -20,7 +20,6 @@ import {
 
 import type {
   CounterpartyRequisiteOptionRecord,
-  CounterpartyRequisitesCommandRepository,
   CounterpartyRequisitesQueryRepository,
 } from "../../../application/requisites/ports";
 import type { CounterpartyRequisite } from "../../../contracts";
@@ -36,6 +35,44 @@ const REQUISITES_SORT_COLUMN_MAP = {
   createdAt: counterpartyRequisites.createdAt,
   updatedAt: counterpartyRequisites.updatedAt,
 } as const;
+
+interface DrizzleCounterpartyRequisitesCommandRepository {
+  findActiveRequisiteSnapshotById: (
+    id: string,
+    tx?: Transaction,
+  ) => Promise<CounterpartyRequisiteSnapshot | null>;
+  listActiveRequisitesByCounterpartyCurrency: (
+    input: {
+      counterpartyId: string;
+      currencyId: string;
+    },
+    tx?: Transaction,
+  ) => Promise<CounterpartyRequisiteSnapshot[]>;
+  insertRequisiteTx: (
+    tx: Transaction,
+    requisite: CounterpartyRequisiteSnapshot,
+  ) => Promise<CounterpartyRequisiteSnapshot>;
+  updateRequisiteTx: (
+    tx: Transaction,
+    requisite: CounterpartyRequisiteSnapshot,
+  ) => Promise<CounterpartyRequisiteSnapshot | null>;
+  setDefaultStateTx: (
+    tx: Transaction,
+    input: {
+      counterpartyId: string;
+      currencyId: string;
+      defaultId: string | null;
+      demotedIds: string[];
+    },
+  ) => Promise<void>;
+  archiveRequisiteTx: (
+    tx: Transaction,
+    input: {
+      requisiteId: string;
+      archivedAt: Date;
+    },
+  ) => Promise<boolean>;
+}
 
 function toSnapshot(
   row: CounterpartyRequisiteRow,
@@ -312,8 +349,8 @@ export function createDrizzleCounterpartyRequisitesQueryRepository(
 
 export function createDrizzleCounterpartyRequisitesCommandRepository(
   db: Database,
-): CounterpartyRequisitesCommandRepository {
-  return {
+) {
+  const repository: DrizzleCounterpartyRequisitesCommandRepository = {
     async findActiveRequisiteSnapshotById(id, tx) {
       return findActiveRequisiteSnapshot(db, id, tx);
     },
@@ -466,4 +503,6 @@ export function createDrizzleCounterpartyRequisitesCommandRepository(
       return Boolean(updated);
     },
   };
+
+  return repository;
 }

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { ensureOrganizationRequisiteAccountingBindingTx } from "./bindings";
+import { ensureOrganizationRequisiteAccountingBinding } from "./bindings";
 import { resolveOrganizationRequisiteUpdateInput } from "./inputs";
 import type {
   CreateOrganizationRequisiteInput,
@@ -73,7 +73,7 @@ function toPublicRequisite(
 export function createCreateOrganizationRequisiteHandler(
   context: OrganizationsServiceContext,
 ) {
-  const { currencies, db, log, requisites, requisiteProviders } = context;
+  const { currencies, log, requisiteProviders, transactions } = context;
 
   return async function createOrganizationRequisite(
     input: CreateOrganizationRequisiteInput,
@@ -87,15 +87,14 @@ export function createCreateOrganizationRequisiteHandler(
     ]);
 
     try {
-      return await db.transaction(async (tx) => {
+      return await transactions.withTransaction(async (transaction) => {
         const requisiteId = randomUUID();
         const activeSnapshots =
-          await requisites.listActiveRequisitesByOrganizationCurrency(
+          await transaction.requisites.listActiveRequisitesByOrganizationCurrency(
             {
               organizationId: validated.organizationId,
               currencyId: validated.currencyId,
             },
-            tx,
           );
         const activeSet = OrganizationRequisiteSet.fromSnapshot({
           organizationId: validated.organizationId,
@@ -108,7 +107,7 @@ export function createCreateOrganizationRequisiteHandler(
         );
 
         if (createPlan.candidateIsDefault && createPlan.demotedIds.length > 0) {
-          await requisites.setDefaultStateTx(tx, {
+          await transaction.requisites.setDefaultState({
             organizationId: validated.organizationId,
             currencyId: validated.currencyId,
             defaultId: null,
@@ -117,8 +116,7 @@ export function createCreateOrganizationRequisiteHandler(
         }
 
         const created = OrganizationRequisite.fromSnapshot(
-          await requisites.insertRequisiteTx(
-            tx,
+          await transaction.requisites.insertRequisite(
             OrganizationRequisite.create(
               {
                 id: requisiteId,
@@ -152,7 +150,7 @@ export function createCreateOrganizationRequisiteHandler(
           ),
         );
 
-        await ensureOrganizationRequisiteAccountingBindingTx(context, tx, {
+        await ensureOrganizationRequisiteAccountingBinding(context, transaction, {
           requisiteId: created.id,
           organizationId: validated.organizationId,
           currencyId: validated.currencyId,
@@ -174,7 +172,7 @@ export function createCreateOrganizationRequisiteHandler(
 export function createUpdateOrganizationRequisiteHandler(
   context: OrganizationsServiceContext,
 ) {
-  const { currencies, db, log, requisites, requisiteProviders } = context;
+  const { currencies, log, requisiteProviders, transactions } = context;
 
   return async function updateOrganizationRequisite(
     id: string,
@@ -183,9 +181,9 @@ export function createUpdateOrganizationRequisiteHandler(
     const validated = UpdateOrganizationRequisiteInputSchema.parse(input);
 
     try {
-      return await db.transaction(async (tx) => {
+      return await transactions.withTransaction(async (transaction) => {
         const existingSnapshot =
-          await requisites.findActiveRequisiteSnapshotById(id, tx);
+          await transaction.requisites.findActiveRequisiteSnapshotById(id);
 
         if (!existingSnapshot) {
           throw new OrganizationRequisiteNotFoundError(id);
@@ -211,12 +209,11 @@ export function createUpdateOrganizationRequisiteHandler(
           organizationId: current.organizationId,
           currencyId: current.currencyId,
           requisites:
-            await requisites.listActiveRequisitesByOrganizationCurrency(
+            await transaction.requisites.listActiveRequisitesByOrganizationCurrency(
               {
                 organizationId: current.organizationId,
                 currencyId: current.currencyId,
               },
-              tx,
             ),
         });
         const targetSet = currencyChanged
@@ -224,12 +221,11 @@ export function createUpdateOrganizationRequisiteHandler(
               organizationId: current.organizationId,
               currencyId: nextCurrencyId,
               requisites:
-                await requisites.listActiveRequisitesByOrganizationCurrency(
+                await transaction.requisites.listActiveRequisitesByOrganizationCurrency(
                   {
                     organizationId: current.organizationId,
                     currencyId: nextCurrencyId,
                   },
-                  tx,
                 ),
             })
           : sourceSet;
@@ -238,7 +234,7 @@ export function createUpdateOrganizationRequisiteHandler(
           const transferPlan = targetSet.planTransferIn({ nextIsDefault });
 
           if (transferPlan.demotedIds.length > 0) {
-            await requisites.setDefaultStateTx(tx, {
+            await transaction.requisites.setDefaultState({
               organizationId: current.organizationId,
               currencyId: nextCurrencyId,
               defaultId: null,
@@ -254,7 +250,7 @@ export function createUpdateOrganizationRequisiteHandler(
           });
 
           if (updatePlan.demotedIds.length > 0) {
-            await requisites.setDefaultStateTx(tx, {
+            await transaction.requisites.setDefaultState({
               organizationId: current.organizationId,
               currencyId: current.currencyId,
               defaultId: null,
@@ -267,7 +263,7 @@ export function createUpdateOrganizationRequisiteHandler(
 
         const persistedSnapshot = existing.sameState(next)
           ? existingSnapshot
-          : await requisites.updateRequisiteTx(tx, next.toSnapshot());
+          : await transaction.requisites.updateRequisite(next.toSnapshot());
 
         if (!persistedSnapshot) {
           throw new OrganizationRequisiteNotFoundError(id);
@@ -277,7 +273,7 @@ export function createUpdateOrganizationRequisiteHandler(
           const sourcePlan = sourceSet.planTransferOut(id);
 
           if (sourcePlan.promotedId) {
-            await requisites.setDefaultStateTx(tx, {
+            await transaction.requisites.setDefaultState({
               organizationId: current.organizationId,
               currencyId: current.currencyId,
               defaultId: sourcePlan.promotedId,
@@ -291,7 +287,7 @@ export function createUpdateOrganizationRequisiteHandler(
           });
 
           if (updatePlan.promotedId) {
-            await requisites.setDefaultStateTx(tx, {
+            await transaction.requisites.setDefaultState({
               organizationId: current.organizationId,
               currencyId: current.currencyId,
               defaultId: updatePlan.promotedId,
@@ -301,9 +297,9 @@ export function createUpdateOrganizationRequisiteHandler(
         }
 
         const persisted = OrganizationRequisite.fromSnapshot(persistedSnapshot);
-        const binding = await requisites.findBindingByRequisiteId(id, tx);
+        const binding = await transaction.requisites.findBindingByRequisiteId(id);
 
-        await ensureOrganizationRequisiteAccountingBindingTx(context, tx, {
+        await ensureOrganizationRequisiteAccountingBinding(context, transaction, {
           requisiteId: persisted.id,
           organizationId: persisted.toSnapshot().organizationId,
           currencyId: persisted.toSnapshot().currencyId,
@@ -324,13 +320,13 @@ export function createUpdateOrganizationRequisiteHandler(
 export function createRemoveOrganizationRequisiteHandler(
   context: OrganizationsServiceContext,
 ) {
-  const { db, log, requisites } = context;
+  const { log, transactions } = context;
 
   return async function removeOrganizationRequisite(id: string) {
     try {
-      return await db.transaction(async (tx) => {
+      return await transactions.withTransaction(async ({ requisites }) => {
         const existingSnapshot =
-          await requisites.findActiveRequisiteSnapshotById(id, tx);
+          await requisites.findActiveRequisiteSnapshotById(id);
 
         if (!existingSnapshot) {
           throw new OrganizationRequisiteNotFoundError(id);
@@ -347,19 +343,18 @@ export function createRemoveOrganizationRequisiteHandler(
                 organizationId: snapshot.organizationId,
                 currencyId: snapshot.currencyId,
               },
-              tx,
             ),
         });
         const archivePlan = activeSet.planArchive(id);
         const archived = existing.archive(context.now());
 
-        await requisites.archiveRequisiteTx(tx, {
+        await requisites.archiveRequisite({
           requisiteId: id,
           archivedAt: archived.toSnapshot().archivedAt!,
         });
 
         if (archivePlan.promotedId) {
-          await requisites.setDefaultStateTx(tx, {
+          await requisites.setDefaultState({
             organizationId: snapshot.organizationId,
             currencyId: snapshot.currencyId,
             defaultId: archivePlan.promotedId,

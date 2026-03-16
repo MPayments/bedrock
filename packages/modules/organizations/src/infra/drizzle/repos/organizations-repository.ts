@@ -18,10 +18,7 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import type {
-  OrganizationsCommandRepository,
-  OrganizationsQueryRepository,
-} from "../../../application/organizations/ports";
+import type { OrganizationsQueryRepository } from "../../../application/organizations/ports";
 import type { ListOrganizationsQuery, Organization } from "../../../contracts";
 import type { OrganizationSnapshot } from "../../../domain/organization";
 import type { PartyKind } from "../../../domain/party-kind";
@@ -73,6 +70,22 @@ function buildWhere(input: ListOrganizationsQuery): SQL | undefined {
   }
 
   return conditions.length > 0 ? and(...conditions) : undefined;
+}
+
+interface DrizzleOrganizationsCommandRepository {
+  findOrganizationSnapshotById: (
+    id: string,
+    tx?: Transaction,
+  ) => Promise<OrganizationSnapshot | null>;
+  insertOrganizationTx: (
+    tx: Transaction,
+    organization: OrganizationSnapshot,
+  ) => Promise<OrganizationSnapshot>;
+  updateOrganizationTx: (
+    tx: Transaction,
+    organization: OrganizationSnapshot,
+  ) => Promise<OrganizationSnapshot | null>;
+  removeOrganizationTx: (tx: Transaction, id: string) => Promise<boolean>;
 }
 
 async function findOrganizationSnapshot(
@@ -174,8 +187,8 @@ export function createDrizzleOrganizationsQueryRepository(
 
 export function createDrizzleOrganizationsCommandRepository(
   db: Database,
-): OrganizationsCommandRepository {
-  return {
+) {
+  const repository: DrizzleOrganizationsCommandRepository = {
     async findOrganizationSnapshotById(id, tx) {
       return findOrganizationSnapshot(db, id, tx);
     },
@@ -221,4 +234,6 @@ export function createDrizzleOrganizationsCommandRepository(
       return Boolean(deleted);
     },
   };
+
+  return repository;
 }

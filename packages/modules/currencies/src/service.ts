@@ -8,18 +8,28 @@ import {
   createFindCurrencyByIdHandler,
   createListCurrenciesHandler,
 } from "./application/queries";
+import { createCurrenciesCache } from "./application/shared/cache";
 import {
   createCurrenciesServiceContext,
   type CurrenciesServiceDeps,
 } from "./application/shared/context";
 import { CurrencyNotFoundError } from "./errors";
+import {
+  createDrizzleCurrenciesCommandRepository,
+  createDrizzleCurrenciesQueryRepository,
+} from "./infra/drizzle/repos/currencies-repository";
 
 export type { CurrenciesServiceDeps } from "./application/shared/context";
 
 export type CurrenciesService = ReturnType<typeof createCurrenciesService>;
 
 export function createCurrenciesService(deps: CurrenciesServiceDeps) {
-  const context = createCurrenciesServiceContext(deps);
+  const context = createCurrenciesServiceContext({
+    commands: createDrizzleCurrenciesCommandRepository({ db: deps.db }),
+    queries: createDrizzleCurrenciesQueryRepository({ db: deps.db }),
+    cache: createCurrenciesCache(),
+    logger: deps.logger,
+  });
 
   const list = createListCurrenciesHandler(context);
   const findByIdRecord = createFindCurrencyByIdHandler(context);

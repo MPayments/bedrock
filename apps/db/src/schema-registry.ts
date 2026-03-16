@@ -6,7 +6,12 @@ import { schema as feesSchema } from "@bedrock/fees/schema";
 import { schema as fxSchema } from "@bedrock/fx/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { schema as organizationsSchema } from "@bedrock/organizations/schema";
-import { schema as partiesSchema } from "@bedrock/parties/schema";
+import {
+  counterparties,
+  counterpartyGroupMemberships,
+  counterpartyGroups,
+  customers,
+} from "@bedrock/parties/schema";
 import {
   account,
   accountRelations,
@@ -32,6 +37,12 @@ const authSchema = {
   sessionRelations,
   accountRelations,
   twoFactorRelations,
+};
+const partiesSchema = {
+  customers,
+  counterparties,
+  counterpartyGroups,
+  counterpartyGroupMemberships,
 };
 
 export type Schema =

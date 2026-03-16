@@ -6,7 +6,6 @@ import {
   type FinancialLine,
 } from "@bedrock/documents/contracts";
 import { schema as fxSchema } from "@bedrock/fx/schema";
-import { sha256Hex } from "@bedrock/platform/crypto";
 import type {
   Queryable,
 } from "@bedrock/platform/persistence";
@@ -15,6 +14,7 @@ import {
   type DocumentModuleRuntime,
 } from "@bedrock/plugin-documents-sdk";
 import { canonicalJson } from "@bedrock/shared/core/canon";
+import { sha256Hex } from "@bedrock/shared/core/crypto";
 import { isUuidLike } from "@bedrock/shared/core/uuid";
 import { minorToAmountString } from "@bedrock/shared/money";
 

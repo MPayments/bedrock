@@ -1,6 +1,12 @@
 import type { DocumentWithOperationId } from "@bedrock/documents/contracts";
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { CorrelationContext } from "@bedrock/shared/core/correlation";
+
+import type { ReconciliationExceptionsTxRepository } from "../exceptions/ports";
+import type { ReconciliationExternalRecordsTxRepository } from "../records/ports";
+import type {
+  ReconciliationMatchesTxRepository,
+  ReconciliationRunsTxRepository,
+} from "../runs/ports";
 
 export interface ReconciliationDocumentsPort {
   createDraft(input: {
@@ -17,4 +23,33 @@ export interface ReconciliationLedgerLookupPort {
   operationExists(operationId: string): Promise<boolean>;
 }
 
-export type ReconciliationIdempotencyPort = IdempotencyPort;
+type JsonRecord = Record<string, unknown>;
+
+export interface ReconciliationTransactionIdempotencyPort {
+  withIdempotency<TResult, TStoredResult = JsonRecord>(input: {
+    scope: string;
+    idempotencyKey: string;
+    request: unknown;
+    actorId?: string | null;
+    handler: () => Promise<TResult>;
+    serializeResult: (result: TResult) => TStoredResult;
+    loadReplayResult: (params: {
+      storedResult: TStoredResult | null;
+    }) => Promise<TResult>;
+    serializeError?: (error: unknown) => JsonRecord;
+  }): Promise<TResult>;
+}
+
+export interface ReconciliationTransactionContext {
+  externalRecords: ReconciliationExternalRecordsTxRepository;
+  runs: ReconciliationRunsTxRepository;
+  matches: ReconciliationMatchesTxRepository;
+  exceptions: ReconciliationExceptionsTxRepository;
+  idempotency: ReconciliationTransactionIdempotencyPort;
+}
+
+export interface ReconciliationTransactionsPort {
+  withTransaction<TResult>(
+    run: (context: ReconciliationTransactionContext) => Promise<TResult>,
+  ): Promise<TResult>;
+}
