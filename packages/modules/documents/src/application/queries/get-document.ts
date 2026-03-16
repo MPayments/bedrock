@@ -1,4 +1,4 @@
-import type { DocumentWithOperationId } from "../../contracts/service";
+import type { DocumentWithOperationId } from "../../contracts/dto";
 import { DocumentNotFoundError } from "../../errors";
 import {
   buildDocumentWithOperationId,

@@ -1,5 +1,6 @@
 export const BPS_SCALE = 10000n;
 export const DAY_IN_SECONDS = 86400;
+export const FIVE_MIN_IN_SECONDS = 300;
 
 export interface Fraction {
   num: bigint;

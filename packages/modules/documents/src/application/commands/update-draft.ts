@@ -1,10 +1,10 @@
 import type {
   DocumentRequestContext,
   DocumentWithOperationId,
-} from "../../contracts/service";
-import { validateInput } from "../../contracts/validation";
-import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
+} from "../../contracts";
 import { DocumentAggregate } from "../../domain/document";
+import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
+import { validateInput } from "../../validation";
 import {
   buildDocumentWithOperationId,
   loadDocumentOrThrow,

@@ -1,10 +1,10 @@
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
-import type { DocumentWithOperationId } from "../../contracts/service";
+import type { DocumentWithOperationId } from "../../contracts/dto";
 import {
   ListDocumentsQuerySchema,
   type ListDocumentsQuery,
-} from "../../contracts/validation";
+} from "../../contracts/queries";
 import {
   buildDocumentWithOperationId,
   resolveDocumentsAllowedActionsForActor,

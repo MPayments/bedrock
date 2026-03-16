@@ -7,6 +7,7 @@ import {
 } from "@bedrock/accounting/posting-contracts";
 
 import { createTransferResolutionDocumentModule } from "../src/documents/transfer-resolution";
+import { FIVE_MIN_IN_SECONDS } from "@bedrock/shared/money";
 
 function createDeps() {
   return {
@@ -45,7 +46,7 @@ function createDeps() {
           organizationId: "00000000-0000-4000-8000-000000000311",
           sourceRequisiteId: "00000000-0000-4000-8000-000000000111",
           destinationRequisiteId: "00000000-0000-4000-8000-000000000112",
-          timeoutSeconds: 300,
+          timeoutSeconds: FIVE_MIN_IN_SECONDS,
           currency: "USD",
           amountMinor: "150",
           memo: "pending transfer",

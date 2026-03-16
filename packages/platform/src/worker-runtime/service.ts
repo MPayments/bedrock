@@ -79,6 +79,7 @@ export function startWorkerFleet(
   const loops = input.workers.map((worker) => {
     const controller = new AbortController();
     controllersByWorkerId.set(worker.id, controller);
+    const observer = input.createObserver?.(worker);
 
     return runWorkerLoop({
       appName: input.appName,
@@ -92,7 +93,7 @@ export function startWorkerFleet(
       },
       options: {
         intervalMs: worker.intervalMs,
-        observer: input.createObserver?.(worker),
+        ...(observer !== undefined ? { observer } : {}),
       },
     });
   });

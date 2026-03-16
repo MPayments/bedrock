@@ -15,11 +15,9 @@ import {
   createTestDocumentModule,
 } from "./helpers";
 import { createDocumentsServiceContext } from "../src/application/shared/context";
-import {
-  CreateDocumentInputSchema,
-  validateInput,
-} from "../src/contracts/validation";
+import { CreateDocumentInputSchema } from "../src/contracts";
 import type { DocumentModule } from "../src/plugins";
+import { validateInput } from "../src/validation";
 
 function createModuleStub(): DocumentModule<{ memo: string }, { memo: string }> {
   const payloadSchema = z.object({ memo: z.string() });

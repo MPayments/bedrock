@@ -1,4 +1,7 @@
-import { DAY_IN_SECONDS } from "@bedrock/shared/money/math";
+import {
+  DAY_IN_SECONDS,
+  FIVE_MIN_IN_SECONDS,
+} from "@bedrock/shared/money/math";
 
 import { RateSourceStaleError, RateSourceSyncError } from "../../errors";
 import { FX_RATE_SOURCES } from "../../domain/rate-source";
@@ -22,8 +25,8 @@ import {
 
 const DEFAULT_SOURCE_TTL_SECONDS: Record<FxRateSource, number> = {
   cbr: DAY_IN_SECONDS,
-  investing: 300,
-  xe: 300,
+  investing: FIVE_MIN_IN_SECONDS,
+  xe: FIVE_MIN_IN_SECONDS,
 };
 
 export function createFxRateCommandHandlers(context: FxServiceContext) {

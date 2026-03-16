@@ -3,10 +3,10 @@ import type { z } from "zod";
 import type { DocumentPostingPlan } from "@bedrock/accounting";
 import type { Logger } from "@bedrock/platform/observability/logger";
 
-import type { DocumentsReadModel } from "./contracts/read-model";
 import type { Document, DocumentInitialLink } from "./domain/document";
 import type { DocumentSummaryFields } from "./domain/document-summary";
 import type { DocumentAction } from "./domain/document-workflow";
+import type { DocumentsReadModel } from "./read-model";
 
 export interface DocumentModuleRuntime {
   documents: Pick<

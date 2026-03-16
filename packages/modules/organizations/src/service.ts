@@ -30,10 +30,6 @@ import {
   createOrganizationsServiceContext,
   type OrganizationsServiceDeps,
 } from "./application/shared/context";
-import type {
-  OrganizationsCurrenciesPort,
-  OrganizationsRequisiteProvidersPort,
-} from "./application/shared/external-ports";
 import {
   createDrizzleOrganizationRequisitesCommandRepository,
   createDrizzleOrganizationRequisitesQueryRepository,

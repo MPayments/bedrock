@@ -11,7 +11,7 @@ export {
   type XeRateSourceProviderDeps,
 } from "./infra/providers/sources/xe";
 export { createDefaultFxRateSourceProviders } from "./infra/providers/defaults";
-export { RateSourceSyncError } from "./infra/providers/errors";
+export { RateSourceSyncError } from "./infra/providers";
 export type {
   FxRateRecord,
   FxRateSourceFetchResult,

@@ -11,20 +11,22 @@ export {
 } from "./domain/doc-type";
 export {
   FINANCIAL_LINE_BUCKET_OPTIONS,
-  FINANCIAL_LINE_BUCKETS,
   aggregateFinancialLines,
-  financialLineBucketSchema,
-  financialLineSchema,
-  financialLineSettlementModeSchema,
-  financialLineSourceSchema,
   normalizeFinancialLine,
-} from "./contracts/financial-lines";
+} from "./contracts/dto";
 export type {
   FinancialLine,
   FinancialLineBucket,
   FinancialLineSettlementMode,
   FinancialLineSource,
-} from "./contracts/financial-lines";
+} from "./contracts/dto";
+export {
+  FINANCIAL_LINE_BUCKETS,
+  financialLineBucketSchema,
+  financialLineSchema,
+  financialLineSettlementModeSchema,
+  financialLineSourceSchema,
+} from "./contracts/zod";
 
 export type { DocumentSummaryFields } from "./domain/document-summary";
 export type {

@@ -78,7 +78,9 @@ export function createTestTransferPlan(
     },
     amountMinor: overrides.amountMinor ?? overrides.amount ?? 10000n,
     code: overrides.code ?? 1,
-    pending: overrides.pending,
+    ...(overrides.pending !== undefined
+      ? { pending: overrides.pending }
+      : {}),
     chain: overrides.chain ?? null,
     memo: overrides.memo ?? null,
     context: overrides.context ?? null,

@@ -4,29 +4,29 @@ import {
   invokeDocumentModuleAction,
   resolveDocumentPolicyDecision,
 } from "./action-dispatch";
+import type { DocumentsServiceContext } from "./context";
 import {
   createModuleContext,
   resolveModuleForDocument,
 } from "./module-resolution";
-import type { DocumentWithOperationId } from "../../contracts/service";
+import type { DocumentWithOperationId } from "../../contracts/dto";
+import type { Document } from "../../domain/document";
 import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
 import {
   resolveDocumentAllowedActions,
   type DocumentAction,
 } from "../../domain/document-workflow";
-import type { Document } from "../../domain/document";
 import { DocumentNotFoundError } from "../../errors";
-import type {
-  DocumentOperationsRepository,
-  DocumentsCommandRepository,
-  DocumentsQueryRepository,
-} from "../documents/ports";
-import type { DocumentsServiceContext } from "./context";
 import type {
   DocumentActionPolicyService,
   DocumentModule,
   DocumentRegistry,
 } from "../../plugins";
+import type {
+  DocumentOperationsRepository,
+  DocumentsCommandRepository,
+  DocumentsQueryRepository,
+} from "../documents/ports";
 
 export function resolveDocumentAllowedActionsForDocument(input: {
   registry?: DocumentRegistry;

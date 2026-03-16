@@ -3,7 +3,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Queryable } from "@bedrock/platform/persistence";
 
 import { schema } from "./schema";
-import type { DocumentsReadModel } from "../../contracts/read-model";
+import type { DocumentsReadModel } from "../../read-model";
 
 export function createDrizzleDocumentsReadModel(input: {
   db: Queryable;

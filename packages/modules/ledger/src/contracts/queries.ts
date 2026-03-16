@@ -2,7 +2,10 @@ import type { z } from "zod";
 
 import { ListLedgerOperationsInputSchema } from "./zod";
 
-export type ListLedgerOperationsInput = z.infer<
+export type ListLedgerOperationsInput = z.input<
+  typeof ListLedgerOperationsInputSchema
+>;
+export type ResolvedListLedgerOperationsInput = z.output<
   typeof ListLedgerOperationsInputSchema
 >;
 

@@ -19,7 +19,7 @@ const nonEmptyStringArraySchema = z.array(nonEmptyStringSchema).min(1);
 const idempotencyKeySchema = z.string().min(1).max(255);
 const sourceTypeSchema = z.string().min(1).max(100);
 const sourceIdSchema = z.string().min(1).max(255);
-const memoSchema = z.string().max(1000).optional().nullable();
+const memoSchema = z.string().max(1000).nullable().exactOptional();
 
 const currencySchema = z
   .string()
@@ -38,13 +38,13 @@ const accountNoSchema = z
 const positiveAmountSchema = z.bigint().positive();
 const nonNegativeAmountSchema = z.bigint().min(0n);
 const positiveTimeoutSchema = z.number().int().positive();
-const transferCodeSchema = z.number().int().min(0).optional();
-const chainIdSchema = z.string().min(1).optional().nullable();
+const transferCodeSchema = z.number().int().min(0).exactOptional();
+const chainIdSchema = z.string().min(1).nullable().exactOptional();
 
 const contextSchema = z
   .record(z.string().min(1), z.string())
-  .optional()
-  .nullable();
+  .nullable()
+  .exactOptional();
 
 const accountSideSchema = z.object({
   accountNo: accountNoSchema,
@@ -55,9 +55,9 @@ const accountSideSchema = z.object({
 const pendingConfigSchema = z
   .object({
     timeoutSeconds: positiveTimeoutSchema,
-    ref: z.string().min(1).max(255).optional().nullable(),
+    ref: z.string().min(1).max(255).nullable().exactOptional(),
   })
-  .optional();
+  .exactOptional();
 
 const baseIntentLineSchema = z.object({
   planRef: planRefSchema,
@@ -81,7 +81,7 @@ const postPendingIntentLineSchema = baseIntentLineSchema.extend({
   type: z.literal(OPERATION_TRANSFER_TYPE.POST_PENDING),
   currency: currencySchema,
   pendingId: z.bigint().positive(),
-  amount: nonNegativeAmountSchema.optional(),
+  amount: nonNegativeAmountSchema.exactOptional(),
 });
 
 const voidPendingIntentLineSchema = baseIntentLineSchema.extend({
@@ -96,31 +96,36 @@ export const IntentLineSchema = z.discriminatedUnion("type", [
   voidPendingIntentLineSchema,
 ]);
 
-export const OperationIntentSchema = z.object({
-  source: z.object({
-    type: sourceTypeSchema,
-    id: sourceIdSchema,
-  }),
-  operationCode: z.string().min(1).max(128),
-  operationVersion: z.number().int().positive().default(1),
-  payload: z.unknown().optional(),
-  idempotencyKey: idempotencyKeySchema,
-  postingDate: z.date(),
-  lines: z.array(IntentLineSchema).min(1, "lines must be a non-empty array"),
-});
+export const OperationIntentSchema = z
+  .object({
+    source: z.object({
+      type: sourceTypeSchema,
+      id: sourceIdSchema,
+    }),
+    operationCode: z.string().min(1).max(128),
+    operationVersion: z.number().int().positive().exactOptional(),
+    payload: z.unknown().exactOptional(),
+    idempotencyKey: idempotencyKeySchema,
+    postingDate: z.date(),
+    lines: z.array(IntentLineSchema).min(1, "lines must be a non-empty array"),
+  })
+  .transform(({ operationVersion, ...intent }) => ({
+    ...intent,
+    operationVersion: operationVersion ?? 1,
+  }));
 
 export const ListLedgerOperationsInputSchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(20),
   offset: z.coerce.number().int().min(0).default(0),
   sortBy: SortableLedgerOperationColumnSchema.default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
-  query: nonEmptyStringSchema.optional(),
-  status: z.array(LedgerOperationStatusSchema).min(1).optional(),
-  operationCode: nonEmptyStringArraySchema.optional(),
-  sourceType: nonEmptyStringArraySchema.optional(),
-  sourceId: nonEmptyStringSchema.optional(),
-  bookId: nonEmptyStringSchema.optional(),
+  query: nonEmptyStringSchema.exactOptional(),
+  status: z.array(LedgerOperationStatusSchema).min(1).exactOptional(),
+  operationCode: nonEmptyStringArraySchema.exactOptional(),
+  sourceType: nonEmptyStringArraySchema.exactOptional(),
+  sourceId: nonEmptyStringSchema.exactOptional(),
+  bookId: nonEmptyStringSchema.exactOptional(),
   dimensionFilters: z
     .record(nonEmptyStringSchema, nonEmptyStringArraySchema)
-    .optional(),
+    .exactOptional(),
 });

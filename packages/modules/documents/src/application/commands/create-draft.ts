@@ -3,13 +3,13 @@ import { randomUUID } from "node:crypto";
 import type {
   DocumentRequestContext,
   DocumentWithOperationId,
-} from "../../contracts/service";
-import { validateInput } from "../../contracts/validation";
-import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
-import { buildDocNo } from "../../domain/document";
+} from "../../contracts";
 import { isSystemOnlyDocumentType } from "../../domain/doc-type";
+import { buildDocNo } from "../../domain/document";
 import { DocumentAggregate, type Document } from "../../domain/document";
+import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
 import { DocumentValidationError } from "../../errors";
+import { validateInput } from "../../validation";
 import {
   buildDocumentWithOperationId,
   loadDocumentWithOperationId,

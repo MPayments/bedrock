@@ -1,6 +1,7 @@
 {
   "extends": "@bedrock/typescript-config/base.json",
   "compilerOptions": {
+    "exactOptionalPropertyTypes": true,
     "outDir": "dist",
     "rootDir": "src",
     "module": "ESNext",

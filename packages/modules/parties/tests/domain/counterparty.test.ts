@@ -2,6 +2,7 @@ import { DomainError } from "@bedrock/shared/core/domain";
 
 import { Counterparty } from "../../src/domain/counterparty";
 import { GroupHierarchy } from "../../src/domain/group-hierarchy";
+import { describe,expect,it } from "vitest";
 
 describe("Counterparty", () => {
   it("rejects poisoned required names when update keeps the current snapshot", () => {

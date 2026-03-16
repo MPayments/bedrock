@@ -3,23 +3,24 @@ export {
   ChangeOwnPasswordInputSchema,
   ChangePasswordInputSchema,
   CreateUserInputSchema,
-  ListUsersQuerySchema,
   UpdateProfileInputSchema,
   UpdateUserInputSchema,
-  UserRoleSchema,
+  type BanUserInput,
+  type ChangeOwnPasswordInput,
+  type ChangePasswordInput,
+  type CreateUserInput,
+  type UpdateProfileInput,
+  type UpdateUserInput,
+} from "./commands";
+export {
   UserSchema,
   UserWithLastSessionSchema,
+  type User,
+  type UserWithLastSession,
+} from "./dto";
+export {
   USERS_LIST_CONTRACT,
-} from "./users";
-export type {
-  BanUserInput,
-  ChangeOwnPasswordInput,
-  ChangePasswordInput,
-  CreateUserInput,
-  ListUsersQuery,
-  UpdateProfileInput,
-  UpdateUserInput,
-  User,
-  UserRole,
-  UserWithLastSession,
-} from "./users";
+  ListUsersQuerySchema,
+  type ListUsersQuery,
+} from "./queries";
+export { UserRoleSchema, type UserRole } from "./zod";

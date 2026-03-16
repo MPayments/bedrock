@@ -1,8 +1,7 @@
 import { runDocumentTransition } from "./transition-runtime";
-import type { DocumentTransitionInput } from "../../contracts/service";
+import type { DocumentTransitionInput } from "../../contracts/commands";
 import type { DocumentsServiceContext } from "../shared/context";
 import { DOCUMENT_TRANSITION_SPECS } from "../shared/transition-specs";
-
 
 export function createTransitionHandler(context: DocumentsServiceContext) {
   return async function transition(input: DocumentTransitionInput) {

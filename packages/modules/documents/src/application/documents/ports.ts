@@ -1,4 +1,4 @@
-import type { ListDocumentsQuery } from "../../contracts/validation";
+import type { ListDocumentsQuery } from "../../contracts/queries";
 import type {
   Document,
   DocumentEvent,

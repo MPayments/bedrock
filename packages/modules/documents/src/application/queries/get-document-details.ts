@@ -1,4 +1,4 @@
-import type { DocumentDetails } from "../../contracts/service";
+import type { DocumentDetails } from "../../contracts/dto";
 import { DocumentNotFoundError } from "../../errors";
 import { resolveDocumentAllowedActionsForActor } from "../shared/actions";
 import type { DocumentsServiceContext } from "../shared/context";

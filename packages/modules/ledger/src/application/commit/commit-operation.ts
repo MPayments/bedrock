@@ -1,6 +1,9 @@
 import type { Transaction } from "@bedrock/platform/persistence";
 
-import { validateOperationIntent } from "../../contracts/commands";
+import {
+  validateOperationIntent,
+  type OperationIntentInput,
+} from "../../contracts";
 import { validateChainBlocks } from "../../domain/chain-policy";
 import {
   buildReplayTransferMaps,
@@ -10,7 +13,6 @@ import {
 import {
   OPERATION_TRANSFER_TYPE,
   type CommitResult,
-  type OperationIntent,
 } from "../../domain/operation-intent";
 import type { LedgerBookAccountsPort } from "../book-accounts/ports";
 import type { LedgerOperationsWritePort } from "./ports";
@@ -26,7 +28,7 @@ export function createCommitOperationHandler(input: {
 
   return async function commit(
     tx: Transaction,
-    intent: OperationIntent,
+    intent: OperationIntentInput,
   ): Promise<CommitResult> {
     const validated = validateOperationIntent(intent);
     validateChainBlocks(validated.lines);

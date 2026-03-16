@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { ListLedgerOperationsInputSchema } from "../src/contracts";
 import { OPERATION_TRANSFER_TYPE } from "../src/contracts";
 import {
   OperationIntentSchema,
@@ -37,7 +38,16 @@ describe("validateOperationIntent", () => {
   it("accepts valid input", () => {
     const parsed = validateOperationIntent(validInput);
     expect(parsed.operationCode).toBe("ledger.payment");
+    expect(parsed.operationVersion).toBe(1);
     expect(parsed.lines).toHaveLength(1);
+  });
+
+  it("defaults operationVersion when omitted", () => {
+    const { operationVersion: _, ...input } = validInput;
+
+    const parsed = validateOperationIntent(input);
+
+    expect(parsed.operationVersion).toBe(1);
   });
 
   it("normalizes transfer currency to uppercase", () => {
@@ -114,5 +124,29 @@ describe("validateOperationIntent", () => {
   it("exposes schema for direct parsing", () => {
     const result = OperationIntentSchema.safeParse(validInput);
     expect(result.success).toBe(true);
+  });
+
+  it("rejects explicit undefined for exact-optional fields", () => {
+    const result = OperationIntentSchema.safeParse({
+      ...validInput,
+      lines: [
+        {
+          ...validInput.lines[0],
+          pending: undefined,
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("ListLedgerOperationsInputSchema", () => {
+  it("rejects explicit undefined filters", () => {
+    const result = ListLedgerOperationsInputSchema.safeParse({
+      query: undefined,
+    });
+
+    expect(result.success).toBe(false);
   });
 });

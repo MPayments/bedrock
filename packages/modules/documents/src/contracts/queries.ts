@@ -5,35 +5,12 @@ import {
   type ListQueryContract,
 } from "@bedrock/shared/core/pagination";
 
-import { DocumentValidationError } from "../errors";
-
-export const DOCUMENT_SUBMISSION_STATUSES = ["draft", "submitted"] as const;
-export const DOCUMENT_APPROVAL_STATUSES = [
-  "not_required",
-  "pending",
-  "approved",
-  "rejected",
-] as const;
-export const DOCUMENT_POSTING_STATUSES = [
-  "not_required",
-  "unposted",
-  "posting",
-  "posted",
-  "failed",
-] as const;
-export const DOCUMENT_LIFECYCLE_STATUSES = [
-  "active",
-  "cancelled",
-] as const;
-
-export const CreateDocumentInputSchema = z.object({
-  createIdempotencyKey: z.string().trim().min(1).max(255),
-  input: z.unknown(),
-});
-
-export const UpdateDocumentInputSchema = z.object({
-  input: z.unknown(),
-});
+import {
+  DOCUMENT_APPROVAL_STATUSES,
+  DOCUMENT_LIFECYCLE_STATUSES,
+  DOCUMENT_POSTING_STATUSES,
+  DOCUMENT_SUBMISSION_STATUSES,
+} from "./zod";
 
 const DOCUMENTS_SORTABLE_COLUMNS = [
   "createdAt",
@@ -119,24 +96,3 @@ export const ListDocumentsQuerySchema = createListQuerySchemaFromContract(
 });
 
 export type ListDocumentsQuery = z.infer<typeof ListDocumentsQuerySchema>;
-
-export function validateInput<T>(
-  schema: z.ZodSchema<T>,
-  input: unknown,
-  context?: string,
-): T {
-  const result = schema.safeParse(input);
-
-  if (!result.success) {
-    const issue = result.error.issues[0];
-    const path = issue?.path?.join(".");
-    const prefix = context ? `${context}: ` : "";
-    throw new DocumentValidationError(
-      path
-        ? `${prefix}${path}: ${issue?.message ?? result.error.message}`
-        : `${prefix}${issue?.message ?? result.error.message}`,
-    );
-  }
-
-  return result.data;
-}

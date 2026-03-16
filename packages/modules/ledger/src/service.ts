@@ -2,7 +2,7 @@ import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import type { EnsureDefaultOrganizationBookInput } from "./application/books/ports";
 import type { BookAccountIdentityInput } from "./domain/book-account-identity";
-import type { CommitResult, OperationIntent } from "./contracts";
+import type { CommitResult, OperationIntentInput } from "./contracts";
 import {
   createEnsureBookAccountInstanceHandler,
 } from "./application/book-accounts/ensure-book-account-instance";
@@ -27,8 +27,11 @@ import { createDrizzleLedgerReadRepository } from "./infra/drizzle/repos/ledger-
 import { createDrizzleLedgerReportingRepository } from "./infra/drizzle/repos/ledger-reporting-repository";
 
 export interface LedgerCommitService {
-  commit: (tx: Transaction, intent: OperationIntent) => Promise<CommitResult>;
-  commitStandalone: (intent: OperationIntent) => Promise<CommitResult>;
+  commit: (
+    tx: Transaction,
+    intent: OperationIntentInput,
+  ) => Promise<CommitResult>;
+  commitStandalone: (intent: OperationIntentInput) => Promise<CommitResult>;
 }
 
 export interface LedgerBookAccountsService {
@@ -62,7 +65,9 @@ export function createLedgerCommitService(
 ): LedgerCommitService {
   const context = createLedgerContext({
     db: deps.db,
-    assertInternalLedgerBooks: deps.assertInternalLedgerBooks,
+    ...(deps.assertInternalLedgerBooks
+      ? { assertInternalLedgerBooks: deps.assertInternalLedgerBooks }
+      : {}),
     bookAccounts: createDrizzleLedgerBookAccountsRepository(),
     operations: createDrizzleLedgerOperationsRepository(),
     reads: createDrizzleLedgerReadRepository(deps.db),
@@ -71,7 +76,7 @@ export function createLedgerCommitService(
   const commit = createCommitOperationHandler(context);
 
   async function commitStandalone(
-    intent: OperationIntent,
+    intent: OperationIntentInput,
   ): Promise<CommitResult> {
     return context.db.transaction((tx: Transaction) => commit(tx, intent));
   }

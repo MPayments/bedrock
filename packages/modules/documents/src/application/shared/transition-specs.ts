@@ -1,14 +1,16 @@
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
+import { buildDocumentEventState } from "./document-event-state";
+import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "./documents-idempotency";
 import { buildDefaultActionIdempotencyKey } from "./idempotency-key";
 import { resolveDocumentAccountingSourceId } from "./module-resolution";
 import { enforceDocumentPolicy } from "./policy";
 import type {
   DocumentTransitionAction,
   DocumentTransitionInput,
-} from "../../contracts/service";
-import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
+} from "../../contracts/commands";
 import { DocumentAggregate } from "../../domain/document";
+import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
 import { DocumentPostingNotRequiredError } from "../../errors";
 import type {
   DocumentTransitionEvent,
@@ -16,8 +18,6 @@ import type {
   DocumentTransitionExecutionResult,
   DocumentTransitionSpecs,
 } from "../commands/transition-runtime";
-import { buildDocumentEventState } from "./document-event-state";
-import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "./documents-idempotency";
 
 function buildActionIdempotencyKey(
   action: DocumentTransitionAction,

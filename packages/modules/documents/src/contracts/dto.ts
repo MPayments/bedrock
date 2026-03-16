@@ -1,18 +1,23 @@
-import { z } from "zod";
+import type { z } from "zod";
 
+import type { LedgerOperationDetails } from "@bedrock/ledger/contracts";
+
+import type {
+  financialLineBucketSchema,
+  financialLineSettlementModeSchema,
+  financialLineSourceSchema} from "./zod";
 import {
-  isValidCurrency,
-  normalizeCurrency,
-} from "@bedrock/currencies/catalog";
-import { signedMinorAmountSchema } from "@bedrock/shared/money";
-
-export const FINANCIAL_LINE_BUCKETS = [
-  "fee_revenue",
-  "spread_revenue",
-  "provider_fee_expense",
-  "pass_through",
-  "adjustment",
-] as const;
+  FINANCIAL_LINE_BUCKETS,
+  financialLineSchema
+} from "./zod";
+import type {
+  Document,
+  DocumentEvent,
+  DocumentLink,
+  DocumentOperation,
+  DocumentPostingSnapshot as DocumentSnapshot,
+} from "../domain/document";
+import type { DocumentAction } from "../domain/document-workflow";
 
 export const FINANCIAL_LINE_BUCKET_OPTIONS = [
   { value: "fee_revenue", label: "Комиссионный доход" },
@@ -22,38 +27,11 @@ export const FINANCIAL_LINE_BUCKET_OPTIONS = [
   { value: "adjustment", label: "Корректировка" },
 ] as const;
 
-export type FinancialLineBucket = (typeof FINANCIAL_LINE_BUCKETS)[number];
-export type FinancialLineSource = "rule" | "manual";
-export type FinancialLineSettlementMode =
-  | "in_ledger"
-  | "separate_payment_order";
-
-const currencySchema = z
-  .string()
-  .refine((value) => isValidCurrency(value), {
-    message:
-      "Currency must be 2-16 uppercase alphanumeric characters or underscores",
-  })
-  .transform((value) => normalizeCurrency(value));
-
-export const financialLineBucketSchema = z.enum(FINANCIAL_LINE_BUCKETS);
-export const financialLineSourceSchema = z.enum(["rule", "manual"]);
-export const financialLineSettlementModeSchema = z.enum([
-  "in_ledger",
-  "separate_payment_order",
-]);
-
-export const financialLineSchema = z.object({
-  id: z.string().trim().min(1).max(128),
-  bucket: financialLineBucketSchema,
-  currency: currencySchema,
-  amountMinor: signedMinorAmountSchema,
-  source: financialLineSourceSchema,
-  settlementMode: financialLineSettlementModeSchema.optional(),
-  memo: z.string().trim().max(1_000).optional(),
-  metadata: z.record(z.string(), z.string().max(255)).optional(),
-});
-
+export type FinancialLineBucket = z.infer<typeof financialLineBucketSchema>;
+export type FinancialLineSource = z.infer<typeof financialLineSourceSchema>;
+export type FinancialLineSettlementMode = z.infer<
+  typeof financialLineSettlementModeSchema
+>;
 export type FinancialLine = z.infer<typeof financialLineSchema>;
 
 function resolveSettlementMode(
@@ -77,7 +55,7 @@ export function normalizeFinancialLine(input: FinancialLine): FinancialLine {
   };
 }
 
-export function financialLineAggregateKey(line: FinancialLine): string {
+function financialLineAggregateKey(line: FinancialLine): string {
   return [
     line.bucket,
     line.currency,
@@ -116,3 +94,28 @@ export function aggregateFinancialLines(
 
   return [...grouped.values()];
 }
+
+export interface DocumentWithOperationId {
+  document: Document;
+  postingOperationId: string | null;
+  allowedActions: DocumentAction[];
+}
+
+export interface DocumentDetails {
+  document: Document;
+  postingOperationId: string | null;
+  allowedActions: DocumentAction[];
+  links: DocumentLink[];
+  events: DocumentEvent[];
+  snapshot: DocumentSnapshot | null;
+  parent: Document | null;
+  children: Document[];
+  dependsOn: Document[];
+  compensates: Document[];
+  documentOperations: DocumentOperation[];
+  ledgerOperations: (LedgerOperationDetails | null)[];
+  computed?: unknown;
+  extra?: unknown;
+}
+
+export { FINANCIAL_LINE_BUCKETS };

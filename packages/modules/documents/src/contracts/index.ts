@@ -1,43 +1,34 @@
 export {
+  CreateDocumentInputSchema,
+  UpdateDocumentInputSchema,
+  type DocumentRequestContext,
+  type DocumentTransitionAction,
+  type DocumentTransitionInput,
+} from "./commands";
+export {
+  DOCUMENTS_LIST_CONTRACT,
+  ListDocumentsQuerySchema,
+  type ListDocumentsQuery,
+} from "./queries";
+export {
   DOCUMENT_APPROVAL_STATUSES,
   DOCUMENT_LIFECYCLE_STATUSES,
   DOCUMENT_POSTING_STATUSES,
   DOCUMENT_SUBMISSION_STATUSES,
-  DOCUMENTS_LIST_CONTRACT,
-  CreateDocumentInputSchema,
-  ListDocumentsQuerySchema,
-  UpdateDocumentInputSchema,
-  validateInput,
-} from "./validation";
-
-export type { ListDocumentsQuery } from "./validation";
-export type {
-  DocumentDetails,
-  DocumentRequestContext,
-  DocumentTransitionAction,
-  DocumentTransitionInput,
-  DocumentWithOperationId,
-} from "./service";
-export type {
-  DocumentAdjustmentRow,
-  DocumentAuditEventRow,
-  DocumentOperationRef,
-  DocumentsReadModel,
-} from "./read-model";
-
-export {
-  FINANCIAL_LINE_BUCKET_OPTIONS,
   FINANCIAL_LINE_BUCKETS,
-  aggregateFinancialLines,
   financialLineBucketSchema,
   financialLineSchema,
   financialLineSettlementModeSchema,
   financialLineSourceSchema,
+} from "./zod";
+export {
+  FINANCIAL_LINE_BUCKET_OPTIONS,
+  aggregateFinancialLines,
   normalizeFinancialLine,
-} from "./financial-lines";
-export type {
-  FinancialLine,
-  FinancialLineBucket,
-  FinancialLineSettlementMode,
-  FinancialLineSource,
-} from "./financial-lines";
+  type DocumentDetails,
+  type DocumentWithOperationId,
+  type FinancialLine,
+  type FinancialLineBucket,
+  type FinancialLineSettlementMode,
+  type FinancialLineSource,
+} from "./dto";

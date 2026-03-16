@@ -1,20 +1,24 @@
 export {
+  CreateRequisiteProviderInputSchema,
+  UpdateRequisiteProviderInputSchema,
+  type CreateRequisiteProviderInput,
+  type UpdateRequisiteProviderInput,
+} from "./commands";
+export {
+  RequisiteProviderOptionSchema,
+  RequisiteProviderOptionsResponseSchema,
+  RequisiteProviderSchema,
+  type RequisiteProvider,
+  type RequisiteProviderOption,
+} from "./dto";
+export {
+  ListRequisiteProvidersQuerySchema,
+  REQUISITE_PROVIDERS_LIST_CONTRACT,
+  type ListRequisiteProvidersQuery,
+} from "./queries";
+export {
   CountryCodeSchema,
   RequisiteKindSchema,
   REQUISITE_KIND_VALUES,
   type RequisiteKind,
-} from "./shared";
-export {
-  CreateRequisiteProviderInputSchema,
-  ListRequisiteProvidersQuerySchema,
-  REQUISITE_PROVIDERS_LIST_CONTRACT,
-  RequisiteProviderOptionSchema,
-  RequisiteProviderOptionsResponseSchema,
-  RequisiteProviderSchema,
-  UpdateRequisiteProviderInputSchema,
-  type CreateRequisiteProviderInput,
-  type ListRequisiteProvidersQuery,
-  type RequisiteProvider,
-  type RequisiteProviderOption,
-  type UpdateRequisiteProviderInput,
-} from "./providers";
+} from "./zod";

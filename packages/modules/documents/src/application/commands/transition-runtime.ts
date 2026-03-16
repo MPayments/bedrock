@@ -2,8 +2,8 @@ import type {
   DocumentRequestContext,
   DocumentTransitionAction,
   DocumentTransitionInput,
-  DocumentWithOperationId,
-} from "../../contracts/service";
+} from "../../contracts/commands";
+import type { DocumentWithOperationId } from "../../contracts/dto";
 import type { Document } from "../../domain/document";
 import type { DocumentModule } from "../../plugins";
 import type {
@@ -18,12 +18,12 @@ import {
   loadDocumentWithOperationId,
 } from "../shared/actions";
 import type { DocumentsServiceContext } from "../shared/context";
+import type { DocumentsIdempotencyScope } from "../shared/documents-idempotency";
 import { mapDocumentDomainError } from "../shared/map-domain-error";
 import {
   createModuleContext,
   resolveModuleForDocument,
 } from "../shared/module-resolution";
-import type { DocumentsIdempotencyScope } from "../shared/documents-idempotency";
 import { persistDocumentPolicyDenial } from "../shared/policy";
 
 export interface DocumentTransitionIdempotencyContext {
