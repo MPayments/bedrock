@@ -1,13 +1,13 @@
 import {
-  createAssertActiveRequisiteProviderHandler,
-  createFindRequisiteProviderByIdHandler,
-  createListRequisiteProvidersHandler,
-} from "./application/providers/queries";
-import {
   createCreateRequisiteProviderHandler,
   createRemoveRequisiteProviderHandler,
   createUpdateRequisiteProviderHandler,
 } from "./application/providers/commands";
+import {
+  createAssertActiveRequisiteProviderHandler,
+  createFindRequisiteProviderByIdHandler,
+  createListRequisiteProvidersHandler,
+} from "./application/providers/queries";
 import {
   createRequisiteProvidersServiceContext,
   type RequisiteProvidersServiceDeps,

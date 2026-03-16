@@ -1,4 +1,3 @@
-import { requisiteKindEnum } from "./enums";
 import { requisiteProviders } from "./requisite-providers";
 
 export const schema = {

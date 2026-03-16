@@ -1,6 +1,7 @@
 import { DomainError } from "@bedrock/shared/core/domain";
 
 import { UserAccount } from "../../src/domain/user-account";
+import { describe, expect, it } from "vitest";
 
 describe("UserAccount", () => {
   it("rejects invalid required fields during reconstitution", () => {

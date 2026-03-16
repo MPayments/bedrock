@@ -20,11 +20,11 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import type { RequisiteProvider } from "../../../contracts";
 import type {
   RequisiteProvidersCommandRepository,
   RequisiteProvidersQueryRepository,
 } from "../../../application/providers/ports";
+import type { RequisiteProvider } from "../../../contracts";
 import {
   requisiteProviders,
   type RequisiteProviderRow,

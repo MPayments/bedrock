@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { resolveRequisiteProviderUpdateInput } from "./inputs";
 import {
   CreateRequisiteProviderInputSchema,
   UpdateRequisiteProviderInputSchema,
@@ -9,7 +10,6 @@ import {
 import { RequisiteProvider } from "../../domain/requisite-provider";
 import { RequisiteProviderNotFoundError } from "../../errors";
 import type { RequisiteProvidersServiceContext } from "../shared/context";
-import { resolveRequisiteProviderUpdateInput } from "./inputs";
 
 export function createCreateRequisiteProviderHandler(
   context: RequisiteProvidersServiceContext,

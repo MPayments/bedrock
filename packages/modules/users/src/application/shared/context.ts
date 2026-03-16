@@ -1,4 +1,7 @@
-import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
+import {
+  noopLogger,
+  type Logger,
+} from "@bedrock/platform/observability/logger";
 
 import type {
   UsersIdentityCommandRepository,

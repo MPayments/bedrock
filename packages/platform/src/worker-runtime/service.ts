@@ -1,11 +1,10 @@
-import { runWorkerLoop } from "./worker-loop";
-
 import type {
   BedrockWorker,
   StartedWorkerFleet,
   WorkerFleetBuildInput,
   WorkerFleetStartInput,
 } from "./types";
+import { runWorkerLoop } from "./worker-loop";
 
 export function createWorkerFleet(
   input: WorkerFleetBuildInput,
