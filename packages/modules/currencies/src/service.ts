@@ -1,3 +1,6 @@
+import type { Logger } from "@bedrock/platform/observability/logger";
+import type { Database } from "@bedrock/platform/persistence";
+
 import {
   createCreateCurrencyHandler,
   createRemoveCurrencyHandler,
@@ -11,7 +14,6 @@ import {
 import { createCurrenciesCache } from "./application/shared/cache";
 import {
   createCurrenciesServiceContext,
-  type CurrenciesServiceDeps,
 } from "./application/shared/context";
 import { CurrencyNotFoundError } from "./errors";
 import {
@@ -19,7 +21,10 @@ import {
   createDrizzleCurrenciesQueryRepository,
 } from "./infra/drizzle/repos/currencies-repository";
 
-export type { CurrenciesServiceDeps } from "./application/shared/context";
+export interface CurrenciesServiceDeps {
+  db: Database;
+  logger?: Logger;
+}
 
 export type CurrenciesService = ReturnType<typeof createCurrenciesService>;
 

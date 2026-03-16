@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   AdjustmentComponent,
@@ -90,7 +90,7 @@ export function createFeesCommandHandlers(context: FeesServiceContext) {
 
   async function saveQuoteFeeComponents(
     input: SaveQuoteFeeComponentsInput,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<void> {
     const validated = validateSaveQuoteFeeComponentsInput(input);
 

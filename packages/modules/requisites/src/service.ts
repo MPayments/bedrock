@@ -1,4 +1,6 @@
+import type { Logger } from "@bedrock/platform/observability/logger";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { RunInPersistenceSession } from "@bedrock/shared/core/persistence";
 
 import {
   createGetRequisiteAccountingBindingHandler,
@@ -27,8 +29,11 @@ import {
 } from "./application/providers/queries";
 import {
   createRequisitesServiceContext,
-  type RequisitesServiceDeps,
 } from "./application/shared/context";
+import type {
+  RequisitesCurrenciesPort,
+  RequisitesOwnersPort,
+} from "./application/shared/external-ports";
 import {
   createDrizzleRequisiteAccountingBindingsCommandRepository,
   createDrizzleRequisiteAccountingBindingsQueryRepository,
@@ -43,6 +48,14 @@ import {
 } from "./infra/drizzle/repos/requisite-providers-repository";
 
 export type RequisitesService = ReturnType<typeof createRequisitesService>;
+export interface RequisitesServiceDeps {
+  db: Database;
+  logger?: Logger;
+  now?: () => Date;
+  runInTransaction?: RunInPersistenceSession;
+  currencies: RequisitesCurrenciesPort;
+  owners: RequisitesOwnersPort;
+}
 export interface RequisitesServiceTransactionDeps extends Omit<
   RequisitesServiceDeps,
   "db" | "runInTransaction"

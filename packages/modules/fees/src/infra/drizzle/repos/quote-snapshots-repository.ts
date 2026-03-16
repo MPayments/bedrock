@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   FeesQuoteComponentSnapshotRecord,
@@ -20,9 +21,9 @@ export function createDrizzleFeesQuoteSnapshotsRepository(input: {
       quoteId: string;
       components: FeesQuoteComponentSnapshotWriteModel[];
     },
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<void> {
-    const queryExecutor = tx ?? db;
+    const queryExecutor = (tx as Transaction | undefined) ?? db;
 
     await queryExecutor
       .delete(schema.fxQuoteFeeComponents)
@@ -53,9 +54,9 @@ export function createDrizzleFeesQuoteSnapshotsRepository(input: {
 
   async function listQuoteFeeComponents(
     quoteId: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FeesQuoteComponentSnapshotRecord[]> {
-    const queryExecutor = tx ?? db;
+    const queryExecutor = (tx as Transaction | undefined) ?? db;
 
     return queryExecutor
       .select({

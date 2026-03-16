@@ -74,7 +74,6 @@ function createOrganizationsTransactions(input: {
     async withTransaction(run) {
       return (input.db as Database).transaction(async (tx: Transaction) =>
         run({
-          tx,
           organizations: createOrganizationsTxRepository({
             organizations: input.organizations,
             tx,
@@ -113,7 +112,6 @@ export function createOrganizationsServiceFromTransaction(
     transactions: {
       withTransaction: (run) =>
         run({
-          tx: deps.tx,
           organizations: createOrganizationsTxRepository({
             organizations,
             tx: deps.tx,

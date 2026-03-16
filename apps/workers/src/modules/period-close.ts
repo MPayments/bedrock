@@ -25,7 +25,6 @@ import {
 import type { DocumentModuleRuntime } from "@bedrock/documents/plugins";
 import {
   createDrizzleDocumentsReadModel,
-  type DocumentsReadModel,
 } from "@bedrock/documents/read-model";
 import {
   createDrizzleDocumentEventsRepository,
@@ -48,6 +47,7 @@ import type { BedrockWorker } from "@bedrock/platform/worker-runtime";
 import { createPeriodCloseDocumentModule } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
 import {
+  createPeriodCloseWorkflow,
   createPeriodCloseWorkerRunner,
   type PeriodCloseWorkerOrganizationContext,
 } from "@bedrock/workflow-period-close";
@@ -60,13 +60,6 @@ function createDocumentsModuleRuntime(
     documents: createDrizzleDocumentsReadModel({ db: database }),
     withQueryable: (run) => run(database),
   };
-}
-
-function buildPeriodCloseIdempotencyKey(
-  organizationId: string,
-  periodStart: Date,
-) {
-  return `period_close:${organizationId}:${periodStart.toISOString().slice(0, 7)}`;
 }
 
 async function resolveSystemActorUserId(db: Database): Promise<string | null> {
@@ -94,56 +87,6 @@ async function listOrganizationIds(db: Database): Promise<string[]> {
   const organizationsQueries = createOrganizationsQueries({ db });
   const rows = await organizationsQueries.listInternalLedgerOrganizations();
   return rows.map((row) => row.id);
-}
-
-async function createPeriodCloseForOrganization(input: {
-  documentsReadModel: DocumentsReadModel;
-  documentDraftWorkflow: ReturnType<typeof createDocumentDraftWorkflow>;
-  documentsService: ReturnType<typeof createDocumentsService>;
-  actorUserId: string;
-  organizationId: string;
-  periodStart: Date;
-  periodEnd: Date;
-  periodLabel: string;
-}): Promise<boolean> {
-  const createIdempotencyKey = buildPeriodCloseIdempotencyKey(
-    input.organizationId,
-    input.periodStart,
-  );
-  const existingDocumentId =
-    await input.documentsReadModel.findDocumentIdByCreateIdempotencyKey({
-      docType: "period_close",
-      createIdempotencyKey,
-    });
-
-  if (existingDocumentId) {
-    return false;
-  }
-
-  const draft = await input.documentDraftWorkflow.createDraft({
-    docType: "period_close",
-    createIdempotencyKey,
-    actorUserId: input.actorUserId,
-    payload: {
-      organizationId: input.organizationId,
-      periodStart: input.periodStart.toISOString(),
-      periodEnd: input.periodEnd.toISOString(),
-      occurredAt: input.periodEnd.toISOString(),
-      closeReason: "auto_monthly_close",
-    },
-  });
-
-  if (draft.document.submissionStatus === "draft") {
-    await input.documentsService.transition({
-      action: "submit",
-      docType: draft.document.docType,
-      documentId: draft.document.id,
-      actorUserId: input.actorUserId,
-      idempotencyKey: `${createIdempotencyKey}:submit`,
-    });
-  }
-
-  return true;
 }
 
 function createAccountingReportRuntime(database: Database | Transaction) {
@@ -400,22 +343,28 @@ export function createPeriodCloseWorkerDefinition(deps: {
         logger: deps.logger,
       }),
   });
+  const periodCloseWorkflow = createPeriodCloseWorkflow({
+    documents: {
+      findDocumentIdByCreateIdempotencyKey:
+        documentsReadModel.findDocumentIdByCreateIdempotencyKey,
+      createDraft: documentDraftWorkflow.createDraft,
+      submit: ({ actorUserId, docType, documentId, idempotencyKey }) =>
+        documentsService.transition({
+          action: "submit",
+          actorUserId,
+          docType,
+          documentId,
+          idempotencyKey,
+        }),
+    },
+  });
   const runOnce = createPeriodCloseWorkerRunner({
     logger: deps.logger,
     beforeOrganization: deps.beforeOrganization,
     resolveSystemActorUserId: () => resolveSystemActorUserId(deps.db),
     listOrganizationIds: () => listOrganizationIds(deps.db),
-    createPeriodCloseForOrganization: (input) =>
-      createPeriodCloseForOrganization({
-        documentsReadModel,
-        documentDraftWorkflow,
-        documentsService,
-        actorUserId: input.actorUserId,
-        organizationId: input.organizationId,
-        periodStart: input.periodStart,
-        periodEnd: input.periodEnd,
-        periodLabel: input.periodLabel,
-      }),
+    createPeriodCloseForOrganization:
+      periodCloseWorkflow.createPeriodCloseForOrganization,
   });
 
   return {

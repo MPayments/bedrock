@@ -1,6 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 
-import type { Queryable, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable } from "@bedrock/platform/persistence";
 
 import type {
   RequisiteAccountingBindingRecord,
@@ -30,7 +30,8 @@ export function createDrizzleRequisiteAccountingBindingsQueryRepository(
 ): RequisiteAccountingBindingsQueryRepository {
   return {
     async findBindingByRequisiteId(requisiteId, tx) {
-      const [row] = await (tx ?? db)
+      const queryable = (tx as Queryable | undefined) ?? db;
+      const [row] = await queryable
         .select()
         .from(organizationRequisiteBindings)
         .where(eq(organizationRequisiteBindings.requisiteId, requisiteId))
@@ -45,7 +46,8 @@ export function createDrizzleRequisiteAccountingBindingsQueryRepository(
         return [];
       }
 
-      const rows = await (tx ?? db)
+      const queryable = (tx as Queryable | undefined) ?? db;
+      const rows = await queryable
         .select()
         .from(organizationRequisiteBindings)
         .where(inArray(organizationRequisiteBindings.requisiteId, uniqueIds));
@@ -60,7 +62,7 @@ export function createDrizzleRequisiteAccountingBindingsCommandRepository(
 ): RequisiteAccountingBindingsCommandRepository {
   return {
     async upsertBinding(input, tx) {
-      const queryable = tx ?? db;
+      const queryable = (tx as Queryable | undefined) ?? db;
 
       await queryable
         .insert(organizationRequisiteBindings)

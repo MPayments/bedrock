@@ -1,5 +1,3 @@
-import type { Transaction } from "@bedrock/platform/persistence";
-
 import type { OrganizationsCommandTxRepository } from "../organizations/ports";
 
 export interface OrganizationsLedgerReadPort {
@@ -12,7 +10,6 @@ export interface OrganizationsLedgerReadPort {
 }
 
 export interface OrganizationsTransactionContext {
-  tx: Transaction;
   organizations: OrganizationsCommandTxRepository;
 }
 

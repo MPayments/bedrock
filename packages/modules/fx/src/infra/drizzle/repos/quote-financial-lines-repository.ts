@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import type { Transaction } from "@bedrock/platform/persistence";
 import { type Database } from "@bedrock/platform/persistence/drizzle";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   FxQuoteFinancialLineWriteModel,
@@ -17,9 +18,9 @@ export function createDrizzleFxQuoteFinancialLinesRepository(
       quoteId: string;
       financialLines: FxQuoteFinancialLineWriteModel[];
     },
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<void> {
-    const database = tx ?? db;
+    const database = (tx as Transaction | undefined) ?? db;
 
     await database
       .delete(schema.fxQuoteFinancialLines)
@@ -36,9 +37,9 @@ export function createDrizzleFxQuoteFinancialLinesRepository(
 
   async function listQuoteFinancialLines(
     quoteId: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FxQuoteFinancialLineWriteModel[]> {
-    const database = tx ?? db;
+    const database = (tx as Transaction | undefined) ?? db;
     const rows = await database
       .select()
       .from(schema.fxQuoteFinancialLines)

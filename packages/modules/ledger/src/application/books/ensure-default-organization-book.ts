@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   EnsureDefaultOrganizationBookInput,
@@ -11,7 +11,7 @@ export function createEnsureDefaultOrganizationBookHandler(input: {
   const { books } = input;
 
   return function ensureDefaultOrganizationBook(
-    tx: Transaction,
+    tx: PersistenceSession,
     payload: EnsureDefaultOrganizationBookInput,
   ) {
     return books.ensureDefaultOrganizationBookTx(tx, payload);

@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   BookAccountIdentityInput,
@@ -7,7 +7,7 @@ import type {
 
 export interface LedgerBookAccountsPort {
   ensureBookAccountInstanceTx: (
-    tx: Transaction,
+    tx: PersistenceSession,
     input: BookAccountIdentityInput,
   ) => Promise<BookAccountInstanceRef>;
 }

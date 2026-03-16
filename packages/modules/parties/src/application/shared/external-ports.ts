@@ -1,3 +1,5 @@
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
+
 import type { CounterpartiesCommandTxRepository } from "../counterparties/ports";
 import type { CustomersCommandTxRepository } from "../customers/ports";
 import type { CounterpartyGroupsCommandTxRepository } from "../groups/ports";
@@ -5,7 +7,7 @@ import type { CounterpartyGroupsCommandTxRepository } from "../groups/ports";
 export interface PartiesDocumentsReadPort {
   hasDocumentsForCustomer: (
     customerId: string,
-    tx?: import("@bedrock/platform/persistence").Transaction,
+    tx?: PersistenceSession,
   ) => Promise<boolean>;
 }
 

@@ -4,7 +4,10 @@ import type {
   GetQuoteFeeComponentsInput,
   SaveQuoteFeeComponentsInput,
 } from "@bedrock/fees/contracts";
-import type { Transaction } from "@bedrock/platform/persistence";
+import type {
+  PersistenceSession,
+  RunInPersistenceSession,
+} from "@bedrock/shared/core/persistence";
 
 import type {
   FxRateSource,
@@ -29,22 +32,20 @@ export interface FxCurrenciesPort {
 export interface FxQuoteFeesPort {
   calculateFxQuoteFeeComponents(
     input: CalculateFxQuoteFeeComponentsInput,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FeeComponent[]>;
   getQuoteFeeComponents(
     input: GetQuoteFeeComponentsInput,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FeeComponent[]>;
   saveQuoteFeeComponents(
     input: SaveQuoteFeeComponentsInput,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<void>;
 }
 
 export interface FxTransactionsPort {
-  runInTransaction<T>(
-    callback: (tx: Transaction) => Promise<T>,
-  ): Promise<T>;
+  runInTransaction: RunInPersistenceSession;
 }
 
 export interface FxRateSourceStatus {

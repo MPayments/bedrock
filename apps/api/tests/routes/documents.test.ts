@@ -64,11 +64,23 @@ function createDocumentWithOperation() {
 function createDocumentsServiceStub() {
   return {
     list: vi.fn(),
-    createDraft: vi.fn(),
     updateDraft: vi.fn(),
     get: vi.fn(),
     getDetails: vi.fn(),
     transition: vi.fn(),
+  };
+}
+
+function createDocumentDraftWorkflowStub() {
+  return {
+    createDraft: vi.fn(),
+  };
+}
+
+function createDocumentPostingWorkflowStub() {
+  return {
+    post: vi.fn(),
+    repost: vi.fn(),
   };
 }
 
@@ -82,6 +94,8 @@ function createTestApp(input?: {
       : "idem-1";
   const role = input?.role ?? "admin";
   const documentsService = createDocumentsServiceStub();
+  const documentDraftWorkflow = createDocumentDraftWorkflowStub();
+  const documentPostingWorkflow = createDocumentPostingWorkflowStub();
   const app = new OpenAPIHono();
 
   app.use("*", async (c, next) => {
@@ -95,9 +109,21 @@ function createTestApp(input?: {
     } as any);
     await next();
   });
-  app.route("/", documentsRoutes({ documentsService } as any));
+  app.route(
+    "/",
+    documentsRoutes({
+      documentsService,
+      documentDraftWorkflow,
+      documentPostingWorkflow,
+    } as any),
+  );
 
-  return { app, documentsService };
+  return {
+    app,
+    documentsService,
+    documentDraftWorkflow,
+    documentPostingWorkflow,
+  };
 }
 
 describe("documentsRoutes mutation actions", () => {
@@ -128,13 +154,19 @@ describe("documentsRoutes mutation actions", () => {
   });
 
   it("routes each mutation action to corresponding documents service call", async () => {
-    const { app, documentsService } = createTestApp();
+    const { app, documentsService, documentPostingWorkflow } = createTestApp();
     const documentId = "33333333-3333-4333-8333-333333333333";
     const expectedResult = createDocumentWithOperation();
     const actions = ["submit", "approve", "reject", "post", "cancel", "repost"] as const;
 
     for (const action of actions) {
-      documentsService.transition.mockResolvedValueOnce(expectedResult);
+      if (action === "post") {
+        documentPostingWorkflow.post.mockResolvedValueOnce(expectedResult);
+      } else if (action === "repost") {
+        documentPostingWorkflow.repost.mockResolvedValueOnce(expectedResult);
+      } else {
+        documentsService.transition.mockResolvedValueOnce(expectedResult);
+      }
 
       const response = await app.request(
         `http://localhost/transfer_intra/${documentId}/${action}`,
@@ -142,8 +174,7 @@ describe("documentsRoutes mutation actions", () => {
       );
 
       expect(response.status).toBe(200);
-      expect(documentsService.transition).toHaveBeenCalledWith({
-        action,
+      const expectedInput = {
         docType: "transfer_intra",
         documentId,
         actorUserId: "user-1",
@@ -152,7 +183,18 @@ describe("documentsRoutes mutation actions", () => {
           requestId: "req-1",
           correlationId: "corr-1",
         }),
-      });
+      };
+
+      if (action === "post") {
+        expect(documentPostingWorkflow.post).toHaveBeenCalledWith(expectedInput);
+      } else if (action === "repost") {
+        expect(documentPostingWorkflow.repost).toHaveBeenCalledWith(expectedInput);
+      } else {
+        expect(documentsService.transition).toHaveBeenCalledWith({
+          action,
+          ...expectedInput,
+        });
+      }
     }
   });
 
@@ -200,7 +242,7 @@ describe("documentsRoutes mutation actions", () => {
   });
 
   it("blocks system-only document creation for non-admin users", async () => {
-    const { app, documentsService } = createTestApp({ role: "operator" });
+    const { app, documentDraftWorkflow } = createTestApp({ role: "operator" });
 
     const response = await app.request("http://localhost/period_close", {
       method: "POST",
@@ -220,12 +262,14 @@ describe("documentsRoutes mutation actions", () => {
       error:
         'Document type "period_close" is system-only and cannot be mutated via public API',
     });
-    expect(documentsService.createDraft).not.toHaveBeenCalled();
+    expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
   });
 
   it("allows admins to create public period_reopen documents", async () => {
-    const { app, documentsService } = createTestApp({ role: "admin" });
-    documentsService.createDraft.mockResolvedValue(createDocumentWithOperation());
+    const { app, documentDraftWorkflow } = createTestApp({ role: "admin" });
+    documentDraftWorkflow.createDraft.mockResolvedValue(
+      createDocumentWithOperation(),
+    );
 
     const response = await app.request("http://localhost/period_reopen", {
       method: "POST",
@@ -241,7 +285,7 @@ describe("documentsRoutes mutation actions", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(documentsService.createDraft).toHaveBeenCalledWith({
+    expect(documentDraftWorkflow.createDraft).toHaveBeenCalledWith({
       docType: "period_reopen",
       createIdempotencyKey: "create-idem",
       payload: {
@@ -256,7 +300,7 @@ describe("documentsRoutes mutation actions", () => {
   });
 
   it("blocks public creation for system-only fx_resolution documents", async () => {
-    const { app, documentsService } = createTestApp({ role: "admin" });
+    const { app, documentDraftWorkflow } = createTestApp({ role: "admin" });
 
     const response = await app.request("http://localhost/fx_resolution", {
       method: "POST",
@@ -279,6 +323,6 @@ describe("documentsRoutes mutation actions", () => {
       error:
         'Document type "fx_resolution" is system-only and cannot be mutated via public API',
     });
-    expect(documentsService.createDraft).not.toHaveBeenCalled();
+    expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
   });
 });

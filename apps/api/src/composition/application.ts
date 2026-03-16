@@ -11,7 +11,6 @@ import {
   type AccountingPeriodsService,
   type AccountingReportsService,
 } from "@bedrock/accounting";
-import { ACCOUNT_NO } from "@bedrock/accounting/constants";
 import { createBalancesQueries } from "@bedrock/balances/queries";
 import {
   createCurrenciesService,
@@ -361,7 +360,7 @@ export function createApplicationServices(
     documents: {
       hasDocumentsForCustomer(customerId, queryable) {
         return createDrizzleDocumentsReadModel({
-          db: queryable ?? db,
+          db: (queryable as Database | undefined) ?? db,
         }).hasDocumentsForCustomer(customerId);
       },
     },
@@ -409,13 +408,15 @@ export function createApplicationServices(
     ...createCommercialDocumentModules(
       createCommercialDocumentDeps({
         currenciesService,
+        fxQuotes: fxService.quotes,
         requisitesService: documentRequisitesService,
       }),
     ),
     ...createIfrsDocumentModules(
       createIfrsDocumentDeps({
         currenciesService,
-        fxService,
+        fxQuotes: fxService.quotes,
+        ledgerReadService,
         requisitesService: documentRequisitesService,
       }),
     ),

@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 export interface EnsureDefaultOrganizationBookInput {
   organizationId: string;
@@ -6,7 +6,7 @@ export interface EnsureDefaultOrganizationBookInput {
 
 export interface LedgerBooksPort {
   ensureDefaultOrganizationBookTx: (
-    tx: Transaction,
+    tx: PersistenceSession,
     input: EnsureDefaultOrganizationBookInput,
   ) => Promise<{ bookId: string }>;
 }

@@ -570,7 +570,7 @@ describe("createFxService", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    it("returns quote as-is when markQuoteUsed is called for non-active quote", async () => {
+    it("returns quote as-is when markQuoteUsed is called for the same usedByRef", async () => {
         const quote = makeQuote({
             status: "used",
             usedByRef: "order:1:fx",
@@ -589,11 +589,38 @@ describe("createFxService", () => {
 
         const result = await service.quotes.markQuoteUsed({
             quoteId: QUOTE_ID,
-            usedByRef: "order:2:fx",
+            usedByRef: "order:1:fx",
             at: new Date("2026-02-14T00:01:00Z"),
         });
 
         expect(result).toEqual(quote);
+        expect(db.update).not.toHaveBeenCalled();
+    });
+
+    it("throws ValidationError when markQuoteUsed is called for a quote used by another ref", async () => {
+        const quote = makeQuote({
+            status: "used",
+            usedByRef: "order:1:fx",
+            usedAt: new Date("2026-02-14T00:00:00Z"),
+        });
+
+        const db = {
+            select: vi.fn(() => selectWhereLimit([quote])),
+            update: vi.fn(),
+        } as any;
+        const service = createFxService({
+            db,
+            feesService: createNoopFeesService(),
+            currenciesService: createMockCurrenciesService(),
+        });
+
+        await expect(
+            service.quotes.markQuoteUsed({
+                quoteId: QUOTE_ID,
+                usedByRef: "order:2:fx",
+                at: new Date("2026-02-14T00:01:00Z"),
+            }),
+        ).rejects.toThrow(ValidationError);
         expect(db.update).not.toHaveBeenCalled();
     });
 

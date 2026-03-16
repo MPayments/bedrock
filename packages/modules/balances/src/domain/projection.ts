@@ -1,4 +1,4 @@
-import type { Dimensions } from "@bedrock/ledger";
+type ProjectionDimensions = Record<string, string>;
 
 export interface ProjectedBalanceDelta {
   bookId: string;
@@ -39,8 +39,8 @@ export interface ProjectionPostingRow {
   currency: string;
   amountMinor: bigint;
   postingCode: string;
-  debitDimensions: Dimensions | null;
-  creditDimensions: Dimensions | null;
+  debitDimensions: ProjectionDimensions | null;
+  creditDimensions: ProjectionDimensions | null;
 }
 
 export interface BalanceProjectorCursor {
@@ -64,7 +64,7 @@ export function hasConsistentCursor(cursor: BalanceProjectorCursor) {
 }
 
 export function projectBalanceSubjects(
-  dimensions: Dimensions | null | undefined,
+  dimensions: ProjectionDimensions | null | undefined,
 ): { subjectType: string; subjectId: string }[] {
   if (!dimensions) {
     return [];

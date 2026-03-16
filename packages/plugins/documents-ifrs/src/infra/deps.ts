@@ -1,20 +1,11 @@
-import { and, asc, eq } from "drizzle-orm";
-
 import type { CurrenciesService } from "@bedrock/currencies";
-import {
-  normalizeFinancialLine,
-  type FinancialLine,
-} from "@bedrock/documents/contracts";
+import { normalizeFinancialLine } from "@bedrock/documents/contracts";
 import type { FxService } from "@bedrock/fx";
-import { schema as fxSchema } from "@bedrock/fx/schema";
-import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import type { Queryable } from "@bedrock/platform/persistence";
-import {
-  DocumentValidationError,
-  type DocumentModuleRuntime,
-} from "@bedrock/plugin-documents-sdk";
+import type { LedgerReadService } from "@bedrock/ledger";
+import { DocumentValidationError } from "@bedrock/plugin-documents-sdk";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import { sha256Hex } from "@bedrock/shared/core/crypto";
+import { ServiceError } from "@bedrock/shared/core/errors";
 import { minorToAmountString } from "@bedrock/shared/money";
 
 import type { IfrsModuleDeps } from "../documents/internal/types";
@@ -23,106 +14,89 @@ import { FxExecuteQuoteSnapshotSchema } from "../validation";
 const FX_EXECUTE_DOC_TYPE = "fx_execute";
 const TRANSFER_DOC_TYPES = ["transfer_intra", "transfer_intercompany"] as const;
 
+type IfrsFxQuotesPort = Pick<
+  FxService["quotes"],
+  "getQuoteDetails" | "markQuoteUsed" | "quote"
+>;
+
+type IfrsLedgerReadPort = Pick<LedgerReadService, "getOperationDetails">;
+
 function buildQuoteSnapshotHash(snapshot: Record<string, unknown>) {
   return sha256Hex(canonicalJson(snapshot));
 }
 
-async function loadQuoteRecordById(input: {
-  runtime: DocumentModuleRuntime;
-  quoteId: string;
-}) {
-  const quote = await withQueryable(input.runtime, async (db) => {
-    const [record] = await db
-      .select()
-      .from(fxSchema.fxQuotes)
-      .where(eq(fxSchema.fxQuotes.id, input.quoteId))
-      .limit(1);
-    return record ?? null;
-  });
-
-  if (!quote) {
-    throw new DocumentValidationError(`Quote not found: ${input.quoteId}`);
+function rethrowAsDocumentValidationError(error: unknown): never {
+  if (error instanceof DocumentValidationError) {
+    throw error;
   }
 
-  return quote;
+  if (error instanceof ServiceError) {
+    throw new DocumentValidationError(error.message);
+  }
+
+  throw error;
 }
 
-async function withQueryable<TResult>(
-  runtime: DocumentModuleRuntime,
-  run: (db: Queryable) => Promise<TResult>,
+async function buildCurrencyPrecisionMap(
+  currenciesService: Pick<CurrenciesService, "findByCode">,
+  currencyCodes: string[],
 ) {
-  return runtime.withQueryable((queryable) => run(queryable as Queryable));
-}
-
-async function buildQuoteSnapshotBase(input: {
-  runtime: DocumentModuleRuntime;
-  currenciesService: CurrenciesService;
-  quote: typeof fxSchema.fxQuotes.$inferSelect;
-}) {
-  const { currenciesService, quote } = input;
-  const [fromCurrency, toCurrency] = await Promise.all([
-    currenciesService.findById(quote.fromCurrencyId),
-    currenciesService.findById(quote.toCurrencyId),
-  ]);
-  const { financialLineRows, legs } = await withQueryable(
-    input.runtime,
-    async (db) => {
-      const quoteLegs = await db
-        .select()
-        .from(fxSchema.fxQuoteLegs)
-        .where(eq(fxSchema.fxQuoteLegs.quoteId, quote.id))
-        .orderBy(fxSchema.fxQuoteLegs.idx);
-      const quoteFinancialLineRows = await db
-        .select()
-        .from(fxSchema.fxQuoteFinancialLines)
-        .where(eq(fxSchema.fxQuoteFinancialLines.quoteId, quote.id))
-        .orderBy(fxSchema.fxQuoteFinancialLines.idx);
-
-      return {
-        financialLineRows: quoteFinancialLineRows,
-        legs: quoteLegs,
-      };
-    },
-  );
-  const uniqueCurrencyIds = [
-    ...new Set([
-      ...legs.flatMap((leg) => [leg.fromCurrencyId, leg.toCurrencyId]),
-      ...financialLineRows.map((row) => row.currencyId),
-    ]),
-  ];
-  const currencyById = new Map<string, { code: string; precision: number }>();
+  const uniqueCurrencyCodes = [...new Set(currencyCodes)];
+  const precisionByCode = new Map<string, number>();
 
   await Promise.all(
-    uniqueCurrencyIds.map(async (currencyId) => {
-      const currency =
-        currencyId === fromCurrency.id
-          ? fromCurrency
-          : currencyId === toCurrency.id
-            ? toCurrency
-            : await currenciesService.findById(currencyId);
-      currencyById.set(currencyId, {
-        code: currency.code,
-        precision: currency.precision,
-      });
+    uniqueCurrencyCodes.map(async (code) => {
+      const currency = await currenciesService.findByCode(code);
+      precisionByCode.set(code, currency.precision);
     }),
   );
 
+  return precisionByCode;
+}
+
+async function buildQuoteSnapshotBase(input: {
+  currenciesService: CurrenciesService;
+  details: Awaited<ReturnType<IfrsFxQuotesPort["getQuoteDetails"]>>;
+}) {
+  const { currenciesService, details } = input;
+  const fromCurrency = details.quote.fromCurrency;
+  const toCurrency = details.quote.toCurrency;
+
+  if (!fromCurrency || !toCurrency) {
+    throw new DocumentValidationError(
+      `Quote ${details.quote.id} is missing currency codes`,
+    );
+  }
+
+  const precisionByCode = await buildCurrencyPrecisionMap(
+    { findByCode: currenciesService.findByCode },
+    [
+      fromCurrency,
+      toCurrency,
+      ...details.legs.flatMap((leg) => [
+        leg.fromCurrency ?? fromCurrency,
+        leg.toCurrency ?? toCurrency,
+      ]),
+      ...details.financialLines.map((line) => line.currency),
+    ],
+  );
+
   return {
-    quoteId: quote.id,
-    idempotencyKey: quote.idempotencyKey,
-    fromCurrency: fromCurrency.code,
-    toCurrency: toCurrency.code,
-    fromAmountMinor: quote.fromAmountMinor.toString(),
-    toAmountMinor: quote.toAmountMinor.toString(),
-    pricingMode: quote.pricingMode,
-    rateNum: quote.rateNum.toString(),
-    rateDen: quote.rateDen.toString(),
-    expiresAt: quote.expiresAt.toISOString(),
-    pricingTrace: (quote.pricingTrace ?? {}) as Record<string, unknown>,
-    legs: legs.map((leg) => ({
+    quoteId: details.quote.id,
+    idempotencyKey: details.quote.idempotencyKey,
+    fromCurrency,
+    toCurrency,
+    fromAmountMinor: details.quote.fromAmountMinor.toString(),
+    toAmountMinor: details.quote.toAmountMinor.toString(),
+    pricingMode: details.quote.pricingMode,
+    rateNum: details.quote.rateNum.toString(),
+    rateDen: details.quote.rateDen.toString(),
+    expiresAt: details.quote.expiresAt.toISOString(),
+    pricingTrace: (details.quote.pricingTrace ?? {}) as Record<string, unknown>,
+    legs: details.legs.map((leg) => ({
       idx: leg.idx,
-      fromCurrency: currencyById.get(leg.fromCurrencyId)!.code,
-      toCurrency: currencyById.get(leg.toCurrencyId)!.code,
+      fromCurrency: leg.fromCurrency ?? fromCurrency,
+      toCurrency: leg.toCurrency ?? toCurrency,
       fromAmountMinor: leg.fromAmountMinor.toString(),
       toAmountMinor: leg.toAmountMinor.toString(),
       rateNum: leg.rateNum.toString(),
@@ -132,23 +106,20 @@ async function buildQuoteSnapshotBase(input: {
       asOf: leg.asOf.toISOString(),
       executionCounterpartyId: leg.executionCounterpartyId ?? null,
     })),
-    financialLines: financialLineRows.map((line) => {
-      const currency = currencyById.get(line.currencyId)!;
-      const normalizedLine = normalizeFinancialLine({
-        id: `quote_financial_line:${line.quoteId}:${line.idx}`,
-        bucket: line.bucket as FinancialLine["bucket"],
-        currency: currency.code,
-        amountMinor: line.amountMinor,
-        source: line.source as FinancialLine["source"],
-        settlementMode: line.settlementMode as FinancialLine["settlementMode"],
-        memo: line.memo ?? undefined,
-        metadata: line.metadata ?? undefined,
-      });
+    financialLines: details.financialLines.map((line) => {
+      const normalizedLine = normalizeFinancialLine(line);
+      const precision = precisionByCode.get(normalizedLine.currency);
+
+      if (precision === undefined) {
+        throw new DocumentValidationError(
+          `Missing currency precision for ${normalizedLine.currency}`,
+        );
+      }
 
       return {
         ...normalizedLine,
         amount: minorToAmountString(normalizedLine.amountMinor, {
-          precision: currency.precision,
+          precision,
         }),
         amountMinor: normalizedLine.amountMinor.toString(),
         settlementMode: normalizedLine.settlementMode ?? "in_ledger",
@@ -158,117 +129,75 @@ async function buildQuoteSnapshotBase(input: {
 }
 
 async function loadFxExecuteQuoteSnapshotById(input: {
-  runtime: DocumentModuleRuntime;
   currenciesService: CurrenciesService;
+  fxQuotes: IfrsFxQuotesPort;
   quoteId: string;
 }) {
-  const quote = await loadQuoteRecordById({
-    runtime: input.runtime,
-    quoteId: input.quoteId,
-  });
-  const snapshotWithoutHash = await buildQuoteSnapshotBase({
-    runtime: input.runtime,
-    currenciesService: input.currenciesService,
-    quote,
-  });
+  try {
+    const details = await input.fxQuotes.getQuoteDetails({
+      quoteRef: input.quoteId,
+    });
+    const snapshotWithoutHash = await buildQuoteSnapshotBase({
+      currenciesService: input.currenciesService,
+      details,
+    });
 
-  return FxExecuteQuoteSnapshotSchema.parse({
-    ...snapshotWithoutHash,
-    snapshotHash: buildQuoteSnapshotHash(snapshotWithoutHash),
-  });
+    return FxExecuteQuoteSnapshotSchema.parse({
+      ...snapshotWithoutHash,
+      snapshotHash: buildQuoteSnapshotHash(snapshotWithoutHash),
+    });
+  } catch (error) {
+    rethrowAsDocumentValidationError(error);
+  }
 }
 
 async function markQuoteUsedForRef(input: {
-  runtime: DocumentModuleRuntime;
+  fxQuotes: IfrsFxQuotesPort;
   quoteId: string;
   usedByRef: string;
   at: Date;
-  contextLabel: string;
 }) {
-  const { quoteId, usedByRef, at, contextLabel } = input;
-  const quote = await withQueryable(input.runtime, async (db) => {
-    const [record] = await db
-      .select()
-      .from(fxSchema.fxQuotes)
-      .where(eq(fxSchema.fxQuotes.id, quoteId))
-      .limit(1);
-    return record ?? null;
-  });
-
-  if (!quote) {
-    throw new DocumentValidationError(`Quote not found: ${quoteId}`);
+  try {
+    await input.fxQuotes.markQuoteUsed({
+      quoteId: input.quoteId,
+      usedByRef: input.usedByRef,
+      at: input.at,
+    });
+  } catch (error) {
+    rethrowAsDocumentValidationError(error);
   }
+}
 
-  if (quote.status === "used" && quote.usedByRef === usedByRef) {
-    return;
-  }
-
-  if (quote.status !== "active") {
-    throw new DocumentValidationError(
-      `Quote ${quoteId} is not active for ${contextLabel}`,
-    );
-  }
-
-  if (quote.expiresAt.getTime() < at.getTime()) {
-    throw new DocumentValidationError(`Quote ${quoteId} is expired`);
-  }
-
-  const updated = await withQueryable(input.runtime, async (db) => {
-    const [record] = await db
-      .update(fxSchema.fxQuotes)
-      .set({
-        status: "used",
-        usedByRef,
-        usedAt: at,
-      })
-      .where(
-        and(
-          eq(fxSchema.fxQuotes.id, quoteId),
-          eq(fxSchema.fxQuotes.status, "active"),
-        ),
-      )
-      .returning();
-    return record ?? null;
-  });
-
-  if (updated) {
-    return;
-  }
-
-  const reloaded = await withQueryable(input.runtime, async (db) => {
-    const [record] = await db
-      .select()
-      .from(fxSchema.fxQuotes)
-      .where(eq(fxSchema.fxQuotes.id, quoteId))
-      .limit(1);
-    return record ?? null;
-  });
-
-  if (!reloaded) {
-    throw new DocumentValidationError(`Quote not found: ${quoteId}`);
-  }
-
-  if (reloaded.status === "used" && reloaded.usedByRef === usedByRef) {
-    return;
-  }
-
-  if (reloaded.status === "used") {
-    throw new DocumentValidationError(
-      `Quote ${quoteId} is already used by ${reloaded.usedByRef ?? "another document"}`,
-    );
-  }
-
-  throw new DocumentValidationError(
-    `Quote ${quoteId} could not be locked for ${contextLabel}`,
+async function listPendingTransfersForOperation(input: {
+  ledgerReadService: IfrsLedgerReadPort;
+  operationId: string;
+}) {
+  const details = await input.ledgerReadService.getOperationDetails(
+    input.operationId,
   );
+
+  if (!details) {
+    return [];
+  }
+
+  return details.tbPlans
+    .filter((plan) => plan.isPending)
+    .sort((left, right) => left.lineNo - right.lineNo)
+    .map((plan) => ({
+      transferId: plan.transferId,
+      pendingRef: plan.pendingRef,
+      amountMinor: plan.amount,
+    }));
 }
 
 export function createIfrsDocumentDeps(input: {
   currenciesService: CurrenciesService;
-  fxService: FxService;
+  fxQuotes: IfrsFxQuotesPort;
+  ledgerReadService: IfrsLedgerReadPort;
   requisitesService: IfrsModuleDeps["requisitesService"];
 }): IfrsModuleDeps {
-  const { currenciesService, fxService, requisitesService } = input;
+  const { currenciesService, fxQuotes, ledgerReadService, requisitesService } =
+    input;
 
   return {
     requisitesService,
@@ -303,22 +232,10 @@ export function createIfrsDocumentDeps(input: {
           return [];
         }
 
-        return withQueryable(runtime, async (db) =>
-          db
-            .select({
-              transferId: ledgerSchema.tbTransferPlans.transferId,
-              pendingRef: ledgerSchema.tbTransferPlans.pendingRef,
-              amountMinor: ledgerSchema.tbTransferPlans.amount,
-            })
-            .from(ledgerSchema.tbTransferPlans)
-            .where(
-              and(
-                eq(ledgerSchema.tbTransferPlans.operationId, operationId),
-                eq(ledgerSchema.tbTransferPlans.isPending, true),
-              ),
-            )
-            .orderBy(asc(ledgerSchema.tbTransferPlans.lineNo)),
-        );
+        return listPendingTransfersForOperation({
+          ledgerReadService,
+          operationId,
+        });
       },
     },
     fxExecuteLookup: {
@@ -348,69 +265,58 @@ export function createIfrsDocumentDeps(input: {
           return [];
         }
 
-        return withQueryable(runtime, async (db) =>
-          db
-            .select({
-              transferId: ledgerSchema.tbTransferPlans.transferId,
-              pendingRef: ledgerSchema.tbTransferPlans.pendingRef,
-              amountMinor: ledgerSchema.tbTransferPlans.amount,
-            })
-            .from(ledgerSchema.tbTransferPlans)
-            .where(
-              and(
-                eq(ledgerSchema.tbTransferPlans.operationId, operationId),
-                eq(ledgerSchema.tbTransferPlans.isPending, true),
-              ),
-            )
-            .orderBy(asc(ledgerSchema.tbTransferPlans.lineNo)),
-        );
+        return listPendingTransfersForOperation({
+          ledgerReadService,
+          operationId,
+        });
       },
     },
     treasuryFxQuote: {
       async createQuoteSnapshot({
-        runtime,
         fromCurrency,
         toCurrency,
         fromAmountMinor,
         asOf,
         idempotencyKey,
       }) {
-        const quote = await fxService.quotes.quote({
-          mode: "auto_cross",
-          idempotencyKey,
-          fromCurrency,
-          toCurrency,
-          fromAmountMinor: BigInt(fromAmountMinor),
-          asOf,
-        });
+        try {
+          const quote = await fxQuotes.quote({
+            mode: "auto_cross",
+            idempotencyKey,
+            fromCurrency,
+            toCurrency,
+            fromAmountMinor: BigInt(fromAmountMinor),
+            asOf,
+          });
 
-        return loadFxExecuteQuoteSnapshotById({
-          runtime,
-          currenciesService,
-          quoteId: quote.id,
-        });
+          return loadFxExecuteQuoteSnapshotById({
+            currenciesService,
+            fxQuotes,
+            quoteId: quote.id,
+          });
+        } catch (error) {
+          rethrowAsDocumentValidationError(error);
+        }
       },
-      loadQuoteSnapshotById({ runtime, quoteId }) {
+      loadQuoteSnapshotById({ quoteId }) {
         return loadFxExecuteQuoteSnapshotById({
-          runtime,
           currenciesService,
+          fxQuotes,
           quoteId,
         });
       },
     },
     quoteUsage: {
       async markQuoteUsedForFxExecute({
-        runtime,
         quoteId,
         fxExecuteDocumentId,
         at,
       }) {
         await markQuoteUsedForRef({
-          runtime,
+          fxQuotes,
           quoteId,
           usedByRef: `fx_execute:${fxExecuteDocumentId}`,
           at,
-          contextLabel: "treasury FX posting",
         });
       },
     },

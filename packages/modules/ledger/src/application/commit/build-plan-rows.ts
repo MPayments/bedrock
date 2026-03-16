@@ -1,15 +1,15 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
-import type { LedgerBookAccountsPort } from "../book-accounts/ports";
 import type { LedgerPostingInsert, LedgerTransferPlanInsert } from "./ports";
 import {
   OPERATION_TRANSFER_TYPE,
   type IntentLine,
 } from "../../domain/operation-intent";
 import { tbLedgerForCurrency, tbTransferIdForOperation } from "../../ids";
+import type { LedgerBookAccountsPort } from "../book-accounts/ports";
 
 export async function buildPlanRows(input: {
-  tx: Transaction;
+  tx: PersistenceSession;
   operationId: string;
   lines: IntentLine[];
   linkedFlags: boolean[];

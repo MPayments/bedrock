@@ -1,21 +1,13 @@
-import { and, eq } from "drizzle-orm";
-
 import type { CurrenciesService } from "@bedrock/currencies";
-import {
-  normalizeFinancialLine,
-  type FinancialLine,
-} from "@bedrock/documents/contracts";
-import { schema as fxSchema } from "@bedrock/fx/schema";
-import type {
-  Queryable,
-} from "@bedrock/platform/persistence";
+import { normalizeFinancialLine } from "@bedrock/documents/contracts";
+import type { FxService } from "@bedrock/fx";
 import {
   DocumentValidationError,
   type DocumentModuleRuntime,
 } from "@bedrock/plugin-documents-sdk";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import { sha256Hex } from "@bedrock/shared/core/crypto";
-import { isUuidLike } from "@bedrock/shared/core/uuid";
+import { ServiceError } from "@bedrock/shared/core/errors";
 import { minorToAmountString } from "@bedrock/shared/money";
 
 import type { CommercialModuleDeps } from "../documents/internal/types";
@@ -29,6 +21,11 @@ const ACCEPTANCE_DOC_TYPE = "acceptance";
 function buildQuoteSnapshotHash(snapshot: Record<string, unknown>) {
   return sha256Hex(canonicalJson(snapshot));
 }
+
+type CommercialFxQuotesPort = Pick<
+  FxService["quotes"],
+  "getQuoteDetails" | "markQuoteUsed"
+>;
 
 async function loadDocumentByType(input: {
   runtime: DocumentModuleRuntime;
@@ -51,135 +48,78 @@ async function loadDocumentByType(input: {
   return document;
 }
 
-async function withQueryable<TResult>(
-  runtime: DocumentModuleRuntime,
-  run: (db: Queryable) => Promise<TResult>,
+function rethrowAsDocumentValidationError(error: unknown): never {
+  if (error instanceof DocumentValidationError) {
+    throw error;
+  }
+
+  if (error instanceof ServiceError) {
+    throw new DocumentValidationError(error.message);
+  }
+
+  throw error;
+}
+
+async function buildCurrencyPrecisionMap(
+  currenciesService: Pick<CurrenciesService, "findByCode">,
+  currencyCodes: string[],
 ) {
-  return runtime.withQueryable((queryable) => run(queryable as Queryable));
-}
-
-async function loadQuoteRecordByRef(input: {
-  runtime: DocumentModuleRuntime;
-  quoteRef: string;
-}) {
-  const { quoteRef } = input;
-  let quote: typeof fxSchema.fxQuotes.$inferSelect | null = null;
-
-  if (isUuidLike(quoteRef)) {
-    const [byId, byIdempotency] = await withQueryable(
-      input.runtime,
-      async (db) => {
-        const [recordById] = await db
-          .select()
-          .from(fxSchema.fxQuotes)
-          .where(eq(fxSchema.fxQuotes.id, quoteRef))
-          .limit(1);
-        const [recordByIdempotency] = await db
-          .select()
-          .from(fxSchema.fxQuotes)
-          .where(eq(fxSchema.fxQuotes.idempotencyKey, quoteRef))
-          .limit(1);
-        return [recordById ?? null, recordByIdempotency ?? null] as const;
-      },
-    );
-
-    if (byId && byIdempotency && byId.id !== byIdempotency.id) {
-      throw new DocumentValidationError(
-        `quoteRef ${quoteRef} is ambiguous between quote ID and idempotency key`,
-      );
-    }
-
-    quote = byId ?? byIdempotency ?? null;
-  } else {
-    quote = await withQueryable(input.runtime, async (db) => {
-      const [record] = await db
-        .select()
-        .from(fxSchema.fxQuotes)
-        .where(eq(fxSchema.fxQuotes.idempotencyKey, quoteRef))
-        .limit(1);
-      return record ?? null;
-    });
-  }
-
-  if (!quote) {
-    throw new DocumentValidationError(`Quote not found: ${quoteRef}`);
-  }
-
-  return {
-    quote,
-    resolvedRef: quoteRef,
-  };
-}
-
-async function buildQuoteSnapshotBase(input: {
-  runtime: DocumentModuleRuntime;
-  currenciesService: CurrenciesService;
-  quote: typeof fxSchema.fxQuotes.$inferSelect;
-}) {
-  const { currenciesService, quote } = input;
-  const [fromCurrency, toCurrency] = await Promise.all([
-    currenciesService.findById(quote.fromCurrencyId),
-    currenciesService.findById(quote.toCurrencyId),
-  ]);
-  const { legs, financialLineRows } = await withQueryable(
-    input.runtime,
-    async (db) => {
-      const quoteLegs = await db
-        .select()
-        .from(fxSchema.fxQuoteLegs)
-        .where(eq(fxSchema.fxQuoteLegs.quoteId, quote.id))
-        .orderBy(fxSchema.fxQuoteLegs.idx);
-      const quoteFinancialLineRows = await db
-        .select()
-        .from(fxSchema.fxQuoteFinancialLines)
-        .where(eq(fxSchema.fxQuoteFinancialLines.quoteId, quote.id))
-        .orderBy(fxSchema.fxQuoteFinancialLines.idx);
-
-      return {
-        legs: quoteLegs,
-        financialLineRows: quoteFinancialLineRows,
-      };
-    },
-  );
-  const uniqueCurrencyIds = [
-    ...new Set([
-      ...legs.flatMap((leg) => [leg.fromCurrencyId, leg.toCurrencyId]),
-      ...financialLineRows.map((row) => row.currencyId),
-    ]),
-  ];
-  const currencyById = new Map<string, { code: string; precision: number }>();
+  const uniqueCurrencyCodes = [...new Set(currencyCodes)];
+  const precisionByCode = new Map<string, number>();
 
   await Promise.all(
-    uniqueCurrencyIds.map(async (currencyId) => {
-      const currency =
-        currencyId === fromCurrency.id
-          ? fromCurrency
-          : currencyId === toCurrency.id
-            ? toCurrency
-            : await currenciesService.findById(currencyId);
-      currencyById.set(currencyId, {
-        code: currency.code,
-        precision: currency.precision,
-      });
+    uniqueCurrencyCodes.map(async (code) => {
+      const currency = await currenciesService.findByCode(code);
+      precisionByCode.set(code, currency.precision);
     }),
   );
 
+  return precisionByCode;
+}
+
+async function buildQuoteSnapshotBase(input: {
+  currenciesService: CurrenciesService;
+  details: Awaited<ReturnType<CommercialFxQuotesPort["getQuoteDetails"]>>;
+}) {
+  const { currenciesService, details } = input;
+  const fromCurrency = details.quote.fromCurrency;
+  const toCurrency = details.quote.toCurrency;
+
+  if (!fromCurrency || !toCurrency) {
+    throw new DocumentValidationError(
+      `Quote ${details.quote.id} is missing currency codes`,
+    );
+  }
+
+  const precisionByCode = await buildCurrencyPrecisionMap(
+    { findByCode: currenciesService.findByCode },
+    [
+      fromCurrency,
+      toCurrency,
+      ...details.legs.flatMap((leg) => [
+        leg.fromCurrency ?? fromCurrency,
+        leg.toCurrency ?? toCurrency,
+      ]),
+      ...details.financialLines.map((line) => line.currency),
+    ],
+  );
+
   return {
-    quoteId: quote.id,
-    idempotencyKey: quote.idempotencyKey,
-    fromCurrency: fromCurrency.code,
-    toCurrency: toCurrency.code,
-    fromAmountMinor: quote.fromAmountMinor.toString(),
-    toAmountMinor: quote.toAmountMinor.toString(),
-    pricingMode: quote.pricingMode,
-    rateNum: quote.rateNum.toString(),
-    rateDen: quote.rateDen.toString(),
-    expiresAt: quote.expiresAt.toISOString(),
-    pricingTrace: (quote.pricingTrace ?? {}) as Record<string, unknown>,
-    legs: legs.map((leg) => ({
+    quoteId: details.quote.id,
+    idempotencyKey: details.quote.idempotencyKey,
+    fromCurrency,
+    toCurrency,
+    fromAmountMinor: details.quote.fromAmountMinor.toString(),
+    toAmountMinor: details.quote.toAmountMinor.toString(),
+    pricingMode: details.quote.pricingMode,
+    rateNum: details.quote.rateNum.toString(),
+    rateDen: details.quote.rateDen.toString(),
+    expiresAt: details.quote.expiresAt.toISOString(),
+    pricingTrace: (details.quote.pricingTrace ?? {}) as Record<string, unknown>,
+    legs: details.legs.map((leg) => ({
       idx: leg.idx,
-      fromCurrency: currencyById.get(leg.fromCurrencyId)!.code,
-      toCurrency: currencyById.get(leg.toCurrencyId)!.code,
+      fromCurrency: leg.fromCurrency ?? fromCurrency,
+      toCurrency: leg.toCurrency ?? toCurrency,
       fromAmountMinor: leg.fromAmountMinor.toString(),
       toAmountMinor: leg.toAmountMinor.toString(),
       rateNum: leg.rateNum.toString(),
@@ -189,23 +129,20 @@ async function buildQuoteSnapshotBase(input: {
       asOf: leg.asOf.toISOString(),
       executionCounterpartyId: leg.executionCounterpartyId ?? null,
     })),
-    financialLines: financialLineRows.map((line) => {
-      const currency = currencyById.get(line.currencyId)!;
-      const normalizedLine = normalizeFinancialLine({
-        id: `quote_financial_line:${line.quoteId}:${line.idx}`,
-        bucket: line.bucket as FinancialLine["bucket"],
-        currency: currency.code,
-        amountMinor: line.amountMinor,
-        source: line.source as FinancialLine["source"],
-        settlementMode: line.settlementMode as FinancialLine["settlementMode"],
-        memo: line.memo ?? undefined,
-        metadata: line.metadata ?? undefined,
-      });
+    financialLines: details.financialLines.map((line) => {
+      const normalizedLine = normalizeFinancialLine(line);
+      const precision = precisionByCode.get(normalizedLine.currency);
+
+      if (precision === undefined) {
+        throw new DocumentValidationError(
+          `Missing currency precision for ${normalizedLine.currency}`,
+        );
+      }
 
       return {
         ...normalizedLine,
         amount: minorToAmountString(normalizedLine.amountMinor, {
-          precision: currency.precision,
+          precision,
         }),
         amountMinor: normalizedLine.amountMinor.toString(),
         settlementMode: normalizedLine.settlementMode ?? "in_ledger",
@@ -215,114 +152,52 @@ async function buildQuoteSnapshotBase(input: {
 }
 
 async function loadQuoteSnapshotRecord(input: {
-  runtime: DocumentModuleRuntime;
   currenciesService: CurrenciesService;
+  fxQuotes: CommercialFxQuotesPort;
   quoteRef: string;
 }): Promise<QuoteSnapshot> {
-  const { quote, resolvedRef } = await loadQuoteRecordByRef(input);
-  const snapshotWithoutHash = await buildQuoteSnapshotBase({
-    runtime: input.runtime,
-    currenciesService: input.currenciesService,
-    quote,
-  });
+  try {
+    const details = await input.fxQuotes.getQuoteDetails({
+      quoteRef: input.quoteRef,
+    });
+    const snapshotWithoutHash = await buildQuoteSnapshotBase({
+      currenciesService: input.currenciesService,
+      details,
+    });
 
-  return QuoteSnapshotSchema.parse({
-    ...snapshotWithoutHash,
-    quoteRef: resolvedRef,
-    snapshotHash: buildQuoteSnapshotHash({
+    return QuoteSnapshotSchema.parse({
       ...snapshotWithoutHash,
-      quoteRef: resolvedRef,
-    }),
-  });
+      quoteRef: input.quoteRef,
+      snapshotHash: buildQuoteSnapshotHash({
+        ...snapshotWithoutHash,
+        quoteRef: input.quoteRef,
+      }),
+    });
+  } catch (error) {
+    rethrowAsDocumentValidationError(error);
+  }
 }
 
 async function markQuoteUsedForRef(input: {
-  runtime: DocumentModuleRuntime;
+  fxQuotes: CommercialFxQuotesPort;
   quoteId: string;
   usedByRef: string;
   at: Date;
-  contextLabel: string;
 }) {
-  const { quoteId, usedByRef, at, contextLabel } = input;
-  const quote = await withQueryable(input.runtime, async (db) => {
-    const [record] = await db
-      .select()
-      .from(fxSchema.fxQuotes)
-      .where(eq(fxSchema.fxQuotes.id, quoteId))
-      .limit(1);
-    return record ?? null;
-  });
-
-  if (!quote) {
-    throw new DocumentValidationError(`Quote not found: ${quoteId}`);
+  try {
+    await input.fxQuotes.markQuoteUsed({
+      quoteId: input.quoteId,
+      usedByRef: input.usedByRef,
+      at: input.at,
+    });
+  } catch (error) {
+    rethrowAsDocumentValidationError(error);
   }
-
-  if (quote.status === "used" && quote.usedByRef === usedByRef) {
-    return;
-  }
-
-  if (quote.status !== "active") {
-    throw new DocumentValidationError(
-      `Quote ${quoteId} is not active for ${contextLabel}`,
-    );
-  }
-
-  if (quote.expiresAt.getTime() < at.getTime()) {
-    throw new DocumentValidationError(`Quote ${quoteId} is expired`);
-  }
-
-  const updated = await withQueryable(input.runtime, async (db) => {
-    const [record] = await db
-      .update(fxSchema.fxQuotes)
-      .set({
-        status: "used",
-        usedByRef,
-        usedAt: at,
-      })
-      .where(
-        and(
-          eq(fxSchema.fxQuotes.id, quoteId),
-          eq(fxSchema.fxQuotes.status, "active"),
-        ),
-      )
-      .returning();
-    return record ?? null;
-  });
-
-  if (updated) {
-    return;
-  }
-
-  const reloaded = await withQueryable(input.runtime, async (db) => {
-    const [record] = await db
-      .select()
-      .from(fxSchema.fxQuotes)
-      .where(eq(fxSchema.fxQuotes.id, quoteId))
-      .limit(1);
-    return record ?? null;
-  });
-
-  if (!reloaded) {
-    throw new DocumentValidationError(`Quote not found: ${quoteId}`);
-  }
-
-  if (reloaded.status === "used" && reloaded.usedByRef === usedByRef) {
-    return;
-  }
-
-  if (reloaded.status === "used") {
-    throw new DocumentValidationError(
-      `Quote ${quoteId} is already used by ${reloaded.usedByRef ?? "another document"}`,
-    );
-  }
-
-  throw new DocumentValidationError(
-    `Quote ${quoteId} could not be locked for ${contextLabel}`,
-  );
 }
 
 export function createCommercialDocumentDeps(input: {
   currenciesService: CurrenciesService;
+  fxQuotes: CommercialFxQuotesPort;
   requisitesService: {
     resolveBindings(input: {
       requisiteIds: string[];
@@ -338,31 +213,29 @@ export function createCommercialDocumentDeps(input: {
     >;
   };
 }): CommercialModuleDeps {
-  const { currenciesService, requisitesService } = input;
+  const { currenciesService, fxQuotes, requisitesService } = input;
 
   return {
     quoteSnapshot: {
-      async loadQuoteSnapshot({ runtime, quoteRef }) {
+      async loadQuoteSnapshot({ quoteRef }) {
         return loadQuoteSnapshotRecord({
-          runtime,
           currenciesService,
+          fxQuotes,
           quoteRef,
         });
       },
     },
     quoteUsage: {
       async markQuoteUsedForInvoice({
-        runtime,
         quoteId,
         invoiceDocumentId,
         at,
       }) {
         await markQuoteUsedForRef({
-          runtime,
+          fxQuotes,
           quoteId,
           usedByRef: `invoice:${invoiceDocumentId}`,
           at,
-          contextLabel: "invoice posting",
         });
       },
     },

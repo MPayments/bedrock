@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type { RequisiteAccountingBinding } from "../../contracts";
 import type { RequisitesQueryRepository } from "../requisites/ports";
@@ -15,11 +15,11 @@ export interface RequisiteAccountingBindingRecord {
 export interface RequisiteAccountingBindingsQueryRepository {
   findBindingByRequisiteId: (
     requisiteId: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<RequisiteAccountingBindingRecord | null>;
   listBindingsByRequisiteId: (
     requisiteIds: string[],
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<RequisiteAccountingBindingRecord[]>;
 }
 
@@ -31,11 +31,13 @@ export interface RequisiteAccountingBindingsCommandRepository {
       bookAccountInstanceId: string;
       postingAccountNo: string;
     },
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<RequisiteAccountingBindingRecord | null>;
 }
 
-export interface RequisiteBindingSubjectPort
-  extends Pick<RequisitesQueryRepository, "findSubjectById" | "listSubjectsById"> {}
+export type RequisiteBindingSubjectPort = Pick<
+  RequisitesQueryRepository,
+  "findSubjectById" | "listSubjectsById"
+>;
 
 export type RequisiteAccountingBindingDto = RequisiteAccountingBinding;

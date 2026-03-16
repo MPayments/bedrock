@@ -1,5 +1,5 @@
-import type { Transaction } from "@bedrock/platform/persistence";
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   ListRequisiteOptionsQuery,
@@ -42,41 +42,44 @@ export interface RequisiteSubjectRecord {
 }
 
 export interface RequisitesQueryRepository {
-  findRequisiteById: (id: string, tx?: Transaction) => Promise<Requisite | null>;
+  findRequisiteById: (
+    id: string,
+    tx?: PersistenceSession,
+  ) => Promise<Requisite | null>;
   findActiveRequisiteById: (
     id: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<Requisite | null>;
   listRequisites: (
     input: ListRequisitesQuery,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<PaginatedList<Requisite>>;
   listRequisiteOptions: (
     input: ListRequisiteOptionsQuery,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<RequisiteOptionRecord[]>;
   listLabelsById: (
     ids: string[],
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<Map<string, string>>;
   findSubjectById: (
     requisiteId: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<RequisiteSubjectRecord | null>;
   listSubjectsById: (
     requisiteIds: string[],
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<RequisiteSubjectRecord[]>;
 }
 
 export interface RequisitesCommandRepository {
   findRequisiteSnapshotById: (
     id: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<RequisiteSnapshot | null>;
   findActiveRequisiteSnapshotById: (
     id: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<RequisiteSnapshot | null>;
   listActiveRequisitesByOwnerCurrency: (
     input: {
@@ -84,15 +87,15 @@ export interface RequisitesCommandRepository {
       ownerId: string;
       currencyId: string;
     },
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<RequisiteSnapshot[]>;
   insertRequisite: (
     requisite: RequisiteSnapshot,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<RequisiteSnapshot>;
   updateRequisite: (
     requisite: RequisiteSnapshot,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<RequisiteSnapshot | null>;
   setDefaultState: (
     input: {
@@ -102,13 +105,13 @@ export interface RequisitesCommandRepository {
       defaultId: string | null;
       demotedIds: string[];
     },
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<void>;
   archiveRequisite: (
     input: {
       requisiteId: string;
       archivedAt: Date;
     },
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ) => Promise<boolean>;
 }

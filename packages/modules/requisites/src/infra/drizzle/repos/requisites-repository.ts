@@ -10,12 +10,13 @@ import {
   type SQL,
 } from "drizzle-orm";
 
-import type { Queryable, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,
   resolveSortValue,
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   RequisiteOptionRecord,
@@ -119,9 +120,9 @@ function ownerIdColumn(ownerType: RequisiteOwnerType) {
 async function findRequisiteSnapshot(
   db: Queryable,
   id: string,
-  tx?: Transaction,
+  tx?: PersistenceSession,
 ): Promise<RequisiteSnapshot | null> {
-  const database = tx ?? db;
+  const database = (tx as Queryable | undefined) ?? db;
   const [row] = await database
     .select()
     .from(requisites)
@@ -134,9 +135,9 @@ async function findRequisiteSnapshot(
 async function findActiveRequisiteSnapshot(
   db: Queryable,
   id: string,
-  tx?: Transaction,
+  tx?: PersistenceSession,
 ): Promise<RequisiteSnapshot | null> {
-  const database = tx ?? db;
+  const database = (tx as Queryable | undefined) ?? db;
   const [row] = await database
     .select()
     .from(requisites)
@@ -159,7 +160,7 @@ export function createDrizzleRequisitesQueryRepository(
       return snapshot ? toPublicRequisite(snapshot) : null;
     },
     async listRequisites(input, tx) {
-      const database = tx ?? db;
+      const database = (tx as Queryable | undefined) ?? db;
       const conditions: SQL[] = [isNull(requisites.archivedAt)];
 
       if (input.label) {
@@ -226,7 +227,7 @@ export function createDrizzleRequisitesQueryRepository(
       } satisfies PaginatedList<Requisite>;
     },
     async listRequisiteOptions(input, tx) {
-      const database = tx ?? db;
+      const database = (tx as Queryable | undefined) ?? db;
       const conditions: SQL[] = [isNull(requisites.archivedAt)];
 
       if (input.ownerType) {
@@ -285,7 +286,8 @@ export function createDrizzleRequisitesQueryRepository(
         return new Map();
       }
 
-      const rows = await (tx ?? db)
+      const queryable = (tx as Queryable | undefined) ?? db;
+      const rows = await queryable
         .select({
           id: requisites.id,
           label: requisites.label,
@@ -307,7 +309,8 @@ export function createDrizzleRequisitesQueryRepository(
         return [];
       }
 
-      return (tx ?? db)
+      const queryable = (tx as Queryable | undefined) ?? db;
+      return queryable
         .select({
           requisiteId: requisites.id,
           ownerType: requisites.ownerType,
@@ -333,7 +336,7 @@ export function createDrizzleRequisitesCommandRepository(
       return findActiveRequisiteSnapshot(db, id, tx);
     },
     async listActiveRequisitesByOwnerCurrency(input, tx) {
-      const database = tx ?? db;
+      const database = (tx as Queryable | undefined) ?? db;
       const rows = await database
         .select()
         .from(requisites)
@@ -350,7 +353,8 @@ export function createDrizzleRequisitesCommandRepository(
       return rows.map(toSnapshot);
     },
     async insertRequisite(requisite, tx) {
-      const [created] = await (tx ?? db)
+      const queryable = (tx as Queryable | undefined) ?? db;
+      const [created] = await queryable
         .insert(requisites)
         .values({
           id: requisite.id,
@@ -389,7 +393,8 @@ export function createDrizzleRequisitesCommandRepository(
       return toSnapshot(created!);
     },
     async updateRequisite(requisite, tx) {
-      const [updated] = await (tx ?? db)
+      const queryable = (tx as Queryable | undefined) ?? db;
+      const [updated] = await queryable
         .update(requisites)
         .set({
           providerId: requisite.providerId,
@@ -424,7 +429,7 @@ export function createDrizzleRequisitesCommandRepository(
       return updated ? toSnapshot(updated) : null;
     },
     async setDefaultState(input, tx) {
-      const database = tx ?? db;
+      const database = (tx as Queryable | undefined) ?? db;
       const demotedIds = input.demotedIds.filter(
         (id) => id !== input.defaultId,
       );
@@ -458,7 +463,8 @@ export function createDrizzleRequisitesCommandRepository(
       }
     },
     async archiveRequisite(input, tx) {
-      const [updated] = await (tx ?? db)
+      const queryable = (tx as Queryable | undefined) ?? db;
+      const [updated] = await queryable
         .update(requisites)
         .set({
           archivedAt: input.archivedAt,

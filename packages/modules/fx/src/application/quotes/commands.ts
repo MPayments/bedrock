@@ -3,13 +3,14 @@ import {
   type FinancialLine,
 } from "@bedrock/documents/contracts";
 import { DomainError } from "@bedrock/shared/core/domain";
+import { ValidationError } from "@bedrock/shared/core/errors";
 import {
   effectiveRateFromAmounts,
   mulDivFloor,
 } from "@bedrock/shared/money/math";
 
+import { financialLineFromFeeComponent } from "./fee-financial-lines";
 import type { FxQuoteRecord } from "./ports";
-import { financialLineFromFeeComponent } from "../../domain/financial-lines";
 import { FxQuote } from "../../domain/fx-quote";
 import {
   buildAutoCrossTrace,
@@ -35,6 +36,10 @@ interface QuoteHandlersDeps {
     anchor?: string,
   ) => Promise<CrossRate>;
   withQuoteCurrencyCodes: (quote: FxQuoteRecord) => Promise<FxQuoteRecord>;
+}
+
+function buildQuoteUsageConflictMessage(quote: FxQuoteRecord): string {
+  return `Quote ${quote.id} is already used by ${quote.usedByRef ?? "another document"}`;
 }
 
 export function createFxQuoteCommandHandlers(
@@ -251,6 +256,18 @@ export function createFxQuoteCommandHandlers(
       throw new NotFoundError("Quote", validated.quoteId);
     }
 
+    if (quoteRow.status === "used") {
+      if (quoteRow.usedByRef === validated.usedByRef) {
+        return deps.withQuoteCurrencyCodes(quoteRow);
+      }
+
+      throw new ValidationError(buildQuoteUsageConflictMessage(quoteRow));
+    }
+
+    if (quoteRow.status !== "active") {
+      throw new ValidationError(`Quote ${validated.quoteId} is not active`);
+    }
+
     let transition;
     try {
       transition = FxQuote.fromSnapshot({
@@ -293,7 +310,31 @@ export function createFxQuoteCommandHandlers(
       at: validated.at,
     });
 
-    return deps.withQuoteCurrencyCodes(updated ?? quoteRow);
+    if (updated) {
+      return deps.withQuoteCurrencyCodes(updated);
+    }
+
+    const reloaded = await quotesRepository.findQuoteById(validated.quoteId);
+
+    if (!reloaded) {
+      throw new NotFoundError("Quote", validated.quoteId);
+    }
+
+    if (reloaded.status === "used" && reloaded.usedByRef === validated.usedByRef) {
+      return deps.withQuoteCurrencyCodes(reloaded);
+    }
+
+    if (reloaded.status === "used") {
+      throw new ValidationError(buildQuoteUsageConflictMessage(reloaded));
+    }
+
+    if (reloaded.status !== "active") {
+      throw new ValidationError(`Quote ${validated.quoteId} is not active`);
+    }
+
+    throw new ValidationError(
+      `Quote ${validated.quoteId} could not be marked as used`,
+    );
   }
 
   return {

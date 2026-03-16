@@ -1,6 +1,3 @@
-import type { DocumentWithOperationId } from "@bedrock/documents/contracts";
-import type { CorrelationContext } from "@bedrock/shared/core/correlation";
-
 import type { ReconciliationExceptionsTxRepository } from "../exceptions/ports";
 import type { ReconciliationExternalRecordsTxRepository } from "../records/ports";
 import type {
@@ -10,16 +7,6 @@ import type {
 
 export interface ReconciliationDocumentsPort {
   existsById(documentId: string): Promise<boolean>;
-}
-
-export interface ReconciliationAdjustmentDocumentsPort extends ReconciliationDocumentsPort {
-  createDraft(input: {
-    docType: string;
-    createIdempotencyKey: string;
-    payload: unknown;
-    actorUserId: string;
-    requestContext?: CorrelationContext;
-  }): Promise<DocumentWithOperationId>;
 }
 
 export interface ReconciliationLedgerLookupPort {

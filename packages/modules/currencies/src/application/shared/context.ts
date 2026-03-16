@@ -2,18 +2,12 @@ import {
   noopLogger,
   type Logger,
 } from "@bedrock/platform/observability/logger";
-import type { Database } from "@bedrock/platform/persistence";
 
 import type { CurrenciesCacheStore } from "./cache";
 import type {
   CurrenciesCommandRepository,
   CurrenciesQueryRepository,
 } from "../currencies/ports";
-
-export interface CurrenciesServiceDeps {
-  db: Database;
-  logger?: Logger;
-}
 
 export interface CurrenciesServiceContext {
   commands: CurrenciesCommandRepository;

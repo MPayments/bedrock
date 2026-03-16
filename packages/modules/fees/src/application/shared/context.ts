@@ -1,6 +1,5 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
 import { noopLogger } from "@bedrock/platform/observability/logger";
-import type { Database } from "@bedrock/platform/persistence";
 
 import type { FeesCurrenciesPort } from "./external-ports";
 import type {
@@ -8,12 +7,6 @@ import type {
   FeesQuoteSnapshotsQueryRepository,
 } from "../quotes/ports";
 import type { FeesRulesRepository } from "../rules/ports";
-
-export interface FeesServiceDeps {
-  db: Database;
-  logger?: Logger;
-  currenciesService: FeesCurrenciesPort;
-}
 
 export interface FeesServiceContext {
   currenciesService: FeesCurrenciesPort;

@@ -1,5 +1,5 @@
-import type { Transaction } from "@bedrock/platform/persistence";
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   ListRequisiteProvidersQuery,
@@ -18,11 +18,15 @@ export interface RequisiteProvidersQueryRepository {
 export interface RequisiteProvidersCommandRepository {
   insertProvider(
     snapshot: RequisiteProviderSnapshot,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<RequisiteProvider>;
   updateProvider(
     snapshot: RequisiteProviderSnapshot,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<RequisiteProvider | null>;
-  archiveProvider(id: string, archivedAt: Date, tx?: Transaction): Promise<boolean>;
+  archiveProvider(
+    id: string,
+    archivedAt: Date,
+    tx?: PersistenceSession,
+  ): Promise<boolean>;
 }

@@ -16,3 +16,8 @@ export {
   ListCurrenciesQuerySchema,
   type ListCurrenciesQuery,
 } from "./queries";
+export { getDefaultPrecision } from "../domain/catalog";
+export {
+  isValidCurrency,
+  normalizeCurrency,
+} from "../domain/code";

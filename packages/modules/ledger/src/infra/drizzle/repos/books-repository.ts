@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type { LedgerBooksPort } from "../../../application/books/ports";
 import { schema } from "../schema";
@@ -18,10 +19,11 @@ function buildDefaultOrganizationBookName(organizationId: string): string {
 export function createDrizzleLedgerBooksRepository(): LedgerBooksPort {
   return {
     async ensureDefaultOrganizationBookTx(
-      tx: Transaction,
+      tx: PersistenceSession,
       input: { organizationId: string },
     ) {
-      const [defaultBook] = await tx
+      const transaction = tx as Transaction;
+      const [defaultBook] = await transaction
         .select({ id: schema.books.id })
         .from(schema.books)
         .where(
@@ -37,7 +39,7 @@ export function createDrizzleLedgerBooksRepository(): LedgerBooksPort {
       }
 
       const code = buildDefaultOrganizationBookCode(input.organizationId);
-      const [created] = await tx
+      const [created] = await transaction
         .insert(schema.books)
         .values({
           ownerId: input.organizationId,
@@ -54,7 +56,7 @@ export function createDrizzleLedgerBooksRepository(): LedgerBooksPort {
         return { bookId: created.id };
       }
 
-      const [byCode] = await tx
+      const [byCode] = await transaction
         .select({ id: schema.books.id })
         .from(schema.books)
         .where(eq(schema.books.code, code))

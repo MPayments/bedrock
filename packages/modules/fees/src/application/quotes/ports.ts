@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   FeeComponentKind,
@@ -35,7 +35,7 @@ export interface FeesQuoteComponentSnapshotRecord {
 export interface FeesQuoteSnapshotsQueryRepository {
   listQuoteFeeComponents(
     quoteId: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FeesQuoteComponentSnapshotRecord[]>;
 }
 
@@ -45,6 +45,6 @@ export interface FeesQuoteSnapshotsCommandRepository {
       quoteId: string;
       components: FeesQuoteComponentSnapshotWriteModel[];
     },
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<void>;
 }

@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type { CommitResult, IntentLine } from "../../domain/operation-intent";
 
@@ -47,22 +47,25 @@ export interface AcquireOperationIdInput {
 
 export interface LedgerOperationsWritePort {
   acquireOperationId: (
-    tx: Transaction,
+    tx: PersistenceSession,
     input: AcquireOperationIdInput,
   ) => Promise<{ operationId: string; isIdempotentReplay: boolean }>;
-  isReplayIncomplete: (tx: Transaction, input: {
+  isReplayIncomplete: (tx: PersistenceSession, input: {
     operationId: string;
     lines: IntentLine[];
   }) => Promise<boolean>;
   insertPostings: (
-    tx: Transaction,
+    tx: PersistenceSession,
     rows: LedgerPostingInsert[],
   ) => Promise<void>;
   insertTransferPlans: (
-    tx: Transaction,
+    tx: PersistenceSession,
     rows: LedgerTransferPlanInsert[],
   ) => Promise<void>;
-  enqueuePostOperation: (tx: Transaction, operationId: string) => Promise<void>;
+  enqueuePostOperation: (
+    tx: PersistenceSession,
+    operationId: string,
+  ) => Promise<void>;
 }
 
 export type LedgerCommitResult = CommitResult;

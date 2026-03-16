@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -39,22 +39,6 @@ function createOrganizationPayload(suffix = randomUUID()) {
     externalId: `org-it-${suffix}`,
     country: "us",
   };
-}
-
-async function findDefaultBookId(organizationId: string): Promise<string> {
-  const [book] = await db
-    .select({ id: ledgerSchema.books.id })
-    .from(ledgerSchema.books)
-    .where(
-      and(
-        eq(ledgerSchema.books.ownerId, organizationId),
-        eq(ledgerSchema.books.isDefault, true),
-      ),
-    )
-    .limit(1);
-
-  expect(book).toBeDefined();
-  return book!.id;
 }
 
 describe("organizations integration", () => {
@@ -201,9 +185,6 @@ describe("organizations integration", () => {
     const { service } = createOrganizationsRuntime();
     const created = await service.create(createOrganizationPayload());
     trackOrganizationId(created.id);
-
-    const defaultBookId = await findDefaultBookId(created.id);
-    trackBookId(defaultBookId);
 
     await pool.query(
       "INSERT INTO organizations_delete_guards (organization_id) VALUES ($1::uuid)",

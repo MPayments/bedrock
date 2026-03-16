@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-import { OperationIntentSchema } from "./zod";
+import type { OperationIntentSchema } from "./zod";
 import type {
   CommitResult,
   CreateIntentLine,

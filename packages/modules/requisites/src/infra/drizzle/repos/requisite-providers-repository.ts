@@ -134,7 +134,8 @@ export function createDrizzleRequisiteProvidersCommandRepository(
 ): RequisiteProvidersCommandRepository {
   return {
     async insertProvider(input, tx) {
-      const [row] = await (tx ?? db)
+      const queryable = (tx as Queryable | undefined) ?? db;
+      const [row] = await queryable
         .insert(requisiteProviders)
         .values({
           id: input.id,
@@ -156,7 +157,8 @@ export function createDrizzleRequisiteProvidersCommandRepository(
       return toPublicProvider(row);
     },
     async updateProvider(input, tx) {
-      const [row] = await (tx ?? db)
+      const queryable = (tx as Queryable | undefined) ?? db;
+      const [row] = await queryable
         .update(requisiteProviders)
         .set({
           kind: input.kind,
@@ -174,7 +176,8 @@ export function createDrizzleRequisiteProvidersCommandRepository(
       return row ? toPublicProvider(row) : null;
     },
     async archiveProvider(id, archivedAt, tx) {
-      const [row] = await (tx ?? db)
+      const queryable = (tx as Queryable | undefined) ?? db;
+      const [row] = await queryable
         .update(requisiteProviders)
         .set({
           archivedAt,

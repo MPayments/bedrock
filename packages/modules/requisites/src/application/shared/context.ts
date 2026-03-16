@@ -1,37 +1,28 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
 import { noopLogger } from "@bedrock/platform/observability/logger";
-import type { Queryable, Transaction } from "@bedrock/platform/persistence";
+import type { RunInPersistenceSession } from "@bedrock/shared/core/persistence";
 
+import type {
+  RequisitesCurrenciesPort,
+  RequisitesOwnersPort,
+} from "./external-ports";
 import type {
   RequisiteAccountingBindingsCommandRepository,
   RequisiteAccountingBindingsQueryRepository,
 } from "../bindings/ports";
 import type {
-  RequisitesCommandRepository,
-  RequisitesQueryRepository,
-} from "../requisites/ports";
-import type {
   RequisiteProvidersCommandRepository,
   RequisiteProvidersQueryRepository,
 } from "../providers/ports";
 import type {
-  RequisitesCurrenciesPort,
-  RequisitesOwnersPort,
-} from "./external-ports";
-
-export interface RequisitesServiceDeps {
-  db: Queryable;
-  logger?: Logger;
-  now?: () => Date;
-  runInTransaction?: <T>(run: (tx: Transaction) => Promise<T>) => Promise<T>;
-  currencies: RequisitesCurrenciesPort;
-  owners: RequisitesOwnersPort;
-}
+  RequisitesCommandRepository,
+  RequisitesQueryRepository,
+} from "../requisites/ports";
 
 export interface RequisitesServiceContext {
   log: Logger;
   now: () => Date;
-  runInTransaction: <T>(run: (tx: Transaction) => Promise<T>) => Promise<T>;
+  runInTransaction: RunInPersistenceSession;
   currencies: RequisitesCurrenciesPort;
   owners: RequisitesOwnersPort;
   requisiteQueries: RequisitesQueryRepository;
@@ -45,7 +36,7 @@ export interface RequisitesServiceContext {
 export function createRequisitesServiceContext(input: {
   logger?: Logger;
   now?: () => Date;
-  runInTransaction: <T>(run: (tx: Transaction) => Promise<T>) => Promise<T>;
+  runInTransaction: RunInPersistenceSession;
   currencies: RequisitesCurrenciesPort;
   owners: RequisitesOwnersPort;
   requisiteQueries: RequisitesQueryRepository;
