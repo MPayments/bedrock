@@ -131,10 +131,12 @@
       "devDependencies": {
         "@bedrock/eslint-config": "workspace:*",
         "@bedrock/typescript-config": "workspace:*",
+        "@tailwindcss/postcss": "^4.1.18",
         "@types/node": "^24",
         "@types/react": "^19",
         "@types/react-dom": "^19",
         "eslint": "^9.31.0",
+        "tailwindcss": "^4.1.18",
         "typescript": "^5",
       },
     },
