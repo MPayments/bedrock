@@ -1,14 +1,14 @@
-import type { Database } from "@bedrock/platform/persistence";
+import type { Queryable } from "@bedrock/platform/persistence";
 
-import {
-  createDrizzleRequisitesQueryRepository,
-} from "./infra/drizzle/repos/requisites-repository";
-import {
-  createDrizzleRequisiteProvidersQueryRepository,
-} from "./infra/drizzle/repos/requisite-providers-repository";
+import { createDrizzleRequisiteAccountingBindingsQueryRepository } from "./infra/drizzle/repos/requisite-bindings-repository";
+import { createDrizzleRequisitesQueryRepository } from "./infra/drizzle/repos/requisites-repository";
+import { createDrizzleRequisiteProvidersQueryRepository } from "./infra/drizzle/repos/requisite-providers-repository";
 
-export function createRequisitesQueries(input: { db: Database }) {
+export function createRequisitesQueries(input: { db: Queryable }) {
   const requisites = createDrizzleRequisitesQueryRepository(input.db);
+  const bindings = createDrizzleRequisiteAccountingBindingsQueryRepository(
+    input.db,
+  );
   const providers = createDrizzleRequisiteProvidersQueryRepository(input.db);
 
   return {
@@ -19,6 +19,10 @@ export function createRequisitesQueries(input: { db: Database }) {
     listLabelsById: requisites.listLabelsById,
     findSubjectById: requisites.findSubjectById,
     listSubjectsById: requisites.listSubjectsById,
+    bindings: {
+      findByRequisiteId: bindings.findBindingByRequisiteId,
+      listByRequisiteId: bindings.listBindingsByRequisiteId,
+    },
     providers: {
       findById: providers.findProviderById,
       findActiveById: providers.findActiveProviderById,

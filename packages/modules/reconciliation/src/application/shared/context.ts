@@ -12,9 +12,7 @@ import type {
   ReconciliationExceptionsQueryRepository,
   ReconciliationPendingSourcesPort,
 } from "../exceptions/ports";
-import type {
-  ReconciliationMatchesQueryRepository,
-} from "../runs/ports";
+import type { ReconciliationMatchesQueryRepository } from "../runs/ports";
 
 export interface ReconciliationServiceContext {
   documents: ReconciliationDocumentsPort;
@@ -26,17 +24,15 @@ export interface ReconciliationServiceContext {
   log: Logger;
 }
 
-export function createReconciliationServiceContext(
-  input: {
-    documents: ReconciliationDocumentsPort;
-    ledgerLookup: ReconciliationLedgerLookupPort;
-    matches: ReconciliationMatchesQueryRepository;
-    exceptions: ReconciliationExceptionsQueryRepository;
-    pendingSources: ReconciliationPendingSourcesPort;
-    transactions: ReconciliationTransactionsPort;
-    logger?: Logger;
-  },
-): ReconciliationServiceContext {
+export function createReconciliationServiceContext(input: {
+  documents: ReconciliationDocumentsPort;
+  ledgerLookup: ReconciliationLedgerLookupPort;
+  matches: ReconciliationMatchesQueryRepository;
+  exceptions: ReconciliationExceptionsQueryRepository;
+  pendingSources: ReconciliationPendingSourcesPort;
+  transactions: ReconciliationTransactionsPort;
+  logger?: Logger;
+}): ReconciliationServiceContext {
   return {
     documents: input.documents,
     ledgerLookup: input.ledgerLookup,

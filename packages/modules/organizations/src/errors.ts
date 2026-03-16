@@ -21,27 +21,3 @@ export class OrganizationDeleteConflictError extends OrganizationError {
 export class OrganizationInternalLedgerInvariantError extends OrganizationError {
   name = "OrganizationInternalLedgerInvariantError";
 }
-
-export class OrganizationRequisiteNotFoundError extends OrganizationError {
-  name = "OrganizationRequisiteNotFoundError";
-
-  constructor(id: string) {
-    super(`Organization requisite not found: ${id}`);
-  }
-}
-
-export class OrganizationRequisiteBindingNotFoundError extends OrganizationError {
-  name = "OrganizationRequisiteBindingNotFoundError";
-
-  constructor(id: string) {
-    super(`Organization requisite accounting binding not found: ${id}`);
-  }
-}
-
-export class OrganizationRequisiteBindingOwnerTypeError extends OrganizationError {
-  name = "OrganizationRequisiteBindingOwnerTypeError";
-
-  constructor(id: string) {
-    super(`Only organization requisites can have accounting binding: ${id}`);
-  }
-}

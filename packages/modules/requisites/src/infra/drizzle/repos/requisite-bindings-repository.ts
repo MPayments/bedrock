@@ -1,11 +1,12 @@
 import { eq, inArray } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 
 import type {
-  OrganizationRequisiteBindingRecord,
-  OrganizationRequisiteBindingsQueryRepository,
-} from "../../../application/requisites/ports";
+  RequisiteAccountingBindingRecord,
+  RequisiteAccountingBindingsCommandRepository,
+  RequisiteAccountingBindingsQueryRepository,
+} from "../../../application/bindings/ports";
 import {
   organizationRequisiteBindings,
   type OrganizationRequisiteBindingRow,
@@ -13,7 +14,7 @@ import {
 
 function toBindingRecord(
   row: OrganizationRequisiteBindingRow,
-): OrganizationRequisiteBindingRecord {
+): RequisiteAccountingBindingRecord {
   return {
     requisiteId: row.requisiteId,
     bookId: row.bookId,
@@ -24,9 +25,9 @@ function toBindingRecord(
   };
 }
 
-export function createDrizzleOrganizationRequisiteBindingsQueryRepository(
-  db: Database,
-): OrganizationRequisiteBindingsQueryRepository {
+export function createDrizzleRequisiteAccountingBindingsQueryRepository(
+  db: Queryable,
+): RequisiteAccountingBindingsQueryRepository {
   return {
     async findBindingByRequisiteId(requisiteId, tx) {
       const [row] = await (tx ?? db)
@@ -54,20 +55,14 @@ export function createDrizzleOrganizationRequisiteBindingsQueryRepository(
   };
 }
 
-export function createDrizzleOrganizationRequisiteBindingsCommandRepository(
-  db: Database,
-) {
+export function createDrizzleRequisiteAccountingBindingsCommandRepository(
+  db: Queryable,
+): RequisiteAccountingBindingsCommandRepository {
   return {
-    async upsertBindingTx(
-      tx: Transaction,
-      input: {
-        requisiteId: string;
-        bookId: string;
-        bookAccountInstanceId: string;
-        postingAccountNo: string;
-      },
-    ) {
-      await tx
+    async upsertBinding(input, tx) {
+      const queryable = tx ?? db;
+
+      await queryable
         .insert(organizationRequisiteBindings)
         .values({
           requisiteId: input.requisiteId,
@@ -84,7 +79,7 @@ export function createDrizzleOrganizationRequisiteBindingsCommandRepository(
           },
         });
 
-      const [row] = await tx
+      const [row] = await queryable
         .select()
         .from(organizationRequisiteBindings)
         .where(eq(organizationRequisiteBindings.requisiteId, input.requisiteId))

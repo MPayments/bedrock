@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@bedrock/currencies": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
     "@bedrock/organizations": "workspace:*",
     "@bedrock/parties": "workspace:*",
     "drizzle-orm": "^0.45.1",

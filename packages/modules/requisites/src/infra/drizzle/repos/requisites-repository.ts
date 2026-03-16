@@ -10,7 +10,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,
   resolveSortValue,
@@ -43,7 +43,10 @@ function toSnapshot(row: RequisiteRow): RequisiteSnapshot {
   return {
     id: row.id,
     ownerType: row.ownerType,
-    ownerId: row.ownerType === "organization" ? row.organizationId! : row.counterpartyId!,
+    ownerId:
+      row.ownerType === "organization"
+        ? row.organizationId!
+        : row.counterpartyId!,
     providerId: row.providerId,
     currencyId: row.currencyId,
     kind: row.kind,
@@ -114,7 +117,7 @@ function ownerIdColumn(ownerType: RequisiteOwnerType) {
 }
 
 async function findRequisiteSnapshot(
-  db: Database,
+  db: Queryable,
   id: string,
   tx?: Transaction,
 ): Promise<RequisiteSnapshot | null> {
@@ -129,7 +132,7 @@ async function findRequisiteSnapshot(
 }
 
 async function findActiveRequisiteSnapshot(
-  db: Database,
+  db: Queryable,
   id: string,
   tx?: Transaction,
 ): Promise<RequisiteSnapshot | null> {
@@ -144,7 +147,7 @@ async function findActiveRequisiteSnapshot(
 }
 
 export function createDrizzleRequisitesQueryRepository(
-  db: Database,
+  db: Queryable,
 ): RequisitesQueryRepository {
   return {
     async findRequisiteById(id, tx) {
@@ -171,7 +174,10 @@ export function createDrizzleRequisitesQueryRepository(
 
       if (input.ownerId && input.ownerType) {
         conditions.push(
-          eq(ownerIdColumn(input.ownerType as RequisiteOwnerType), input.ownerId),
+          eq(
+            ownerIdColumn(input.ownerType as RequisiteOwnerType),
+            input.ownerId,
+          ),
         );
       }
 
@@ -180,7 +186,9 @@ export function createDrizzleRequisitesQueryRepository(
       }
 
       if (input.kind?.length) {
-        conditions.push(inArray(requisites.kind, input.kind as Requisite["kind"][]));
+        conditions.push(
+          inArray(requisites.kind, input.kind as Requisite["kind"][]),
+        );
       }
 
       if (input.providerId?.length) {
@@ -229,7 +237,10 @@ export function createDrizzleRequisitesQueryRepository(
 
       if (input.ownerId && input.ownerType) {
         conditions.push(
-          eq(ownerIdColumn(input.ownerType as RequisiteOwnerType), input.ownerId),
+          eq(
+            ownerIdColumn(input.ownerType as RequisiteOwnerType),
+            input.ownerId,
+          ),
         );
       }
 
@@ -312,7 +323,7 @@ export function createDrizzleRequisitesQueryRepository(
 }
 
 export function createDrizzleRequisitesCommandRepository(
-  db: Database,
+  db: Queryable,
 ): RequisitesCommandRepository {
   return {
     async findRequisiteSnapshotById(id, tx) {
@@ -414,7 +425,9 @@ export function createDrizzleRequisitesCommandRepository(
     },
     async setDefaultState(input, tx) {
       const database = tx ?? db;
-      const demotedIds = input.demotedIds.filter((id) => id !== input.defaultId);
+      const demotedIds = input.demotedIds.filter(
+        (id) => id !== input.defaultId,
+      );
 
       if (demotedIds.length > 0) {
         await database

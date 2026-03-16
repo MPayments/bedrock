@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createReconciliationService } from "../src";
+import {
+  createReconciliationAdjustmentsService,
+  createReconciliationService,
+} from "../src";
 
 const EXCEPTION_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -43,8 +46,8 @@ function createServiceContext(exceptionRow = createExceptionRow()) {
     })),
   };
   const db = {
-    transaction: vi.fn(async (callback: (value: typeof tx) => Promise<unknown>) =>
-      callback(tx),
+    transaction: vi.fn(
+      async (callback: (value: typeof tx) => Promise<unknown>) => callback(tx),
     ),
   };
   const documents = {
@@ -56,8 +59,8 @@ function createServiceContext(exceptionRow = createExceptionRow()) {
     existsById: vi.fn(async () => false),
   };
   const idempotency = {
-    withIdempotencyTx: vi.fn(async ({ handler }: { handler: () => Promise<unknown> }) =>
-      handler(),
+    withIdempotencyTx: vi.fn(
+      async ({ handler }: { handler: () => Promise<unknown> }) => handler(),
     ),
   };
   const ledgerLookup = {
@@ -71,6 +74,11 @@ function createServiceContext(exceptionRow = createExceptionRow()) {
       idempotency: idempotency as any,
       ledgerLookup,
     }),
+    adjustments: createReconciliationAdjustmentsService({
+      db: db as any,
+      documents,
+      idempotency: idempotency as any,
+    }),
     db,
     documents,
     idempotency,
@@ -82,9 +90,10 @@ function createServiceContext(exceptionRow = createExceptionRow()) {
 
 describe("reconciliation service", () => {
   it("creates adjustment documents through the documents port and resolves the exception", async () => {
-    const { service, documents, idempotency, updateSet } = createServiceContext();
+    const { adjustments, documents, idempotency, updateSet } =
+      createServiceContext();
 
-    const result = await service.adjustments.createAdjustmentDocument({
+    const result = await adjustments.createAdjustmentDocument({
       exceptionId: EXCEPTION_ID,
       docType: "transfer_intra",
       payload: { amountMinor: "1000", currency: "USD" },
@@ -121,14 +130,14 @@ describe("reconciliation service", () => {
   });
 
   it("reuses an existing adjustment document without calling the documents port", async () => {
-    const { service, documents, updateSet } = createServiceContext(
+    const { adjustments, documents, updateSet } = createServiceContext(
       createExceptionRow({
         adjustmentDocumentId: "doc-existing",
       }),
     );
 
     await expect(
-      service.adjustments.createAdjustmentDocument({
+      adjustments.createAdjustmentDocument({
         exceptionId: EXCEPTION_ID,
         docType: "transfer_intra",
         payload: { amountMinor: "1000" },

@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import type { Transaction } from "@bedrock/platform/persistence";
-
-import { resolveCreateRequisiteProps, resolveRequisiteUpdateInput } from "./inputs";
+import {
+  resolveCreateRequisiteProps,
+  resolveRequisiteUpdateInput,
+} from "./inputs";
 import type {
   CreateRequisiteInput,
   Requisite as RequisiteDto,
@@ -37,35 +38,12 @@ async function assertProviderActive(
   context: RequisitesServiceContext,
   providerId: string,
 ) {
-  const provider = await context.providerQueries.findActiveProviderById(providerId);
+  const provider =
+    await context.providerQueries.findActiveProviderById(providerId);
 
   if (!provider) {
     throw new RequisiteProviderNotActiveError(providerId);
   }
-}
-
-async function syncOrganizationBinding(
-  context: RequisitesServiceContext,
-  tx: Transaction,
-  snapshot: RequisiteSnapshot,
-) {
-  if (snapshot.ownerType !== "organization") {
-    return;
-  }
-
-  const codes = await context.currencies.listCodesById([snapshot.currencyId]);
-  const currencyCode = codes.get(snapshot.currencyId);
-
-  if (!currencyCode) {
-    await context.currencies.assertCurrencyExists(snapshot.currencyId);
-    throw new Error(`Currency code not found for ${snapshot.currencyId}`);
-  }
-
-  await context.organizationBindings.syncOrganizationRequisiteBinding(tx, {
-    requisiteId: snapshot.id,
-    organizationId: snapshot.ownerId,
-    currencyCode,
-  });
 }
 
 function toPublicRequisite(requisite: Requisite): RequisiteDto {
@@ -104,8 +82,10 @@ function toPublicRequisite(requisite: Requisite): RequisiteDto {
   };
 }
 
-export function createCreateRequisiteHandler(context: RequisitesServiceContext) {
-  const { db, currencies, log, requisiteCommands } = context;
+export function createCreateRequisiteHandler(
+  context: RequisitesServiceContext,
+) {
+  const { currencies, log, requisiteCommands, runInTransaction } = context;
 
   return async function createRequisite(input: CreateRequisiteInput) {
     const validated = CreateRequisiteInputSchema.parse(input);
@@ -120,7 +100,7 @@ export function createCreateRequisiteHandler(context: RequisitesServiceContext) 
       assertProviderActive(context, validated.providerId),
     ]);
 
-    return db.transaction(async (tx) => {
+    return runInTransaction(async (tx) => {
       const requisiteId = randomUUID();
       const activeSnapshots =
         await requisiteCommands.listActiveRequisitesByOwnerCurrency(
@@ -168,8 +148,6 @@ export function createCreateRequisiteHandler(context: RequisitesServiceContext) 
         ),
       );
 
-      await syncOrganizationBinding(context, tx, created.toSnapshot());
-
       log.info("Requisite created", {
         id: created.id,
         ownerType: owner.type,
@@ -181,17 +159,20 @@ export function createCreateRequisiteHandler(context: RequisitesServiceContext) 
   };
 }
 
-export function createUpdateRequisiteHandler(context: RequisitesServiceContext) {
-  const { db, currencies, log, requisiteCommands } = context;
+export function createUpdateRequisiteHandler(
+  context: RequisitesServiceContext,
+) {
+  const { currencies, log, requisiteCommands, runInTransaction } = context;
 
-  return async function updateRequisite(id: string, input: UpdateRequisiteInput) {
+  return async function updateRequisite(
+    id: string,
+    input: UpdateRequisiteInput,
+  ) {
     const validated = UpdateRequisiteInputSchema.parse(input);
 
-    return db.transaction(async (tx) => {
-      const existingSnapshot = await requisiteCommands.findActiveRequisiteSnapshotById(
-        id,
-        tx,
-      );
+    return runInTransaction(async (tx) => {
+      const existingSnapshot =
+        await requisiteCommands.findActiveRequisiteSnapshotById(id, tx);
 
       if (!existingSnapshot) {
         throw new RequisiteNotFoundError(id);
@@ -225,14 +206,15 @@ export function createUpdateRequisiteHandler(context: RequisitesServiceContext) 
             ownerType: current.ownerType,
             ownerId: current.ownerId,
             currencyId: nextInput.currencyId,
-            requisites: await requisiteCommands.listActiveRequisitesByOwnerCurrency(
-              {
-                ownerType: current.ownerType,
-                ownerId: current.ownerId,
-                currencyId: nextInput.currencyId,
-              },
-              tx,
-            ),
+            requisites:
+              await requisiteCommands.listActiveRequisitesByOwnerCurrency(
+                {
+                  ownerType: current.ownerType,
+                  ownerId: current.ownerId,
+                  currencyId: nextInput.currencyId,
+                },
+                tx,
+              ),
           })
         : sourceSet;
 
@@ -320,7 +302,6 @@ export function createUpdateRequisiteHandler(context: RequisitesServiceContext) 
       }
 
       const updated = Requisite.fromSnapshot(persistedSnapshot);
-      await syncOrganizationBinding(context, tx, updated.toSnapshot());
 
       log.info("Requisite updated", {
         id,
@@ -333,15 +314,15 @@ export function createUpdateRequisiteHandler(context: RequisitesServiceContext) 
   };
 }
 
-export function createRemoveRequisiteHandler(context: RequisitesServiceContext) {
-  const { db, log, requisiteCommands } = context;
+export function createRemoveRequisiteHandler(
+  context: RequisitesServiceContext,
+) {
+  const { log, requisiteCommands, runInTransaction } = context;
 
   return async function removeRequisite(id: string) {
-    return db.transaction(async (tx) => {
-      const existingSnapshot = await requisiteCommands.findActiveRequisiteSnapshotById(
-        id,
-        tx,
-      );
+    return runInTransaction(async (tx) => {
+      const existingSnapshot =
+        await requisiteCommands.findActiveRequisiteSnapshotById(id, tx);
 
       if (!existingSnapshot) {
         throw new RequisiteNotFoundError(id);

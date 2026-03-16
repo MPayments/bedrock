@@ -22,33 +22,11 @@ import { createOrganizationsQueries } from "../../src/queries";
 import { createOrganizationsService } from "../../src/service";
 
 const ledgerBooks = createLedgerBooksService();
-const currencies = {
-  async assertCurrencyExists(_id: string) {
-    throw new Error("unexpected currencies port call");
-  },
-  async listCodesById(_ids: string[]) {
-    throw new Error("unexpected currencies port call");
-  },
-};
-const ledgerBindings = {
-  async ensureOrganizationPostingTarget(_tx: unknown, _input: unknown) {
-    throw new Error("unexpected ledger bindings port call");
-  },
-};
-const requisiteProviders = {
-  async assertProviderActive(_id: string) {
-    throw new Error("unexpected requisite providers port call");
-  },
-};
 
 function createOrganizationsRuntime() {
   return {
     service: createOrganizationsService({
       db,
-      currencies,
-      ledgerBindings,
-      ledgerBooks,
-      requisiteProviders,
     }),
     queries: createOrganizationsQueries({ db }),
   };
@@ -84,13 +62,10 @@ describe("organizations integration", () => {
     await ensureDeleteGuardTable();
   });
 
-  it("creates, lists, updates, finds, and removes organizations while provisioning a default book", async () => {
+  it("creates, lists, updates, finds, and removes organizations", async () => {
     const { service } = createOrganizationsRuntime();
     const created = await service.create(createOrganizationPayload());
     trackOrganizationId(created.id);
-
-    const defaultBookId = await findDefaultBookId(created.id);
-    trackBookId(defaultBookId);
 
     expect(created.country).toBe("US");
 
@@ -127,8 +102,17 @@ describe("organizations integration", () => {
     trackOrganizationId(first.id);
     trackOrganizationId(second.id);
 
-    const firstBookId = await findDefaultBookId(first.id);
-    const secondBookId = await findDefaultBookId(second.id);
+    const { bookId: firstBookId } = await db.transaction((tx) =>
+      ledgerBooks.ensureDefaultOrganizationBook(tx, {
+        organizationId: first.id,
+      }),
+    );
+    const { bookId: secondBookId } = await db.transaction((tx) =>
+      ledgerBooks.ensureDefaultOrganizationBook(tx, {
+        organizationId: second.id,
+      }),
+    );
+
     trackBookId(firstBookId);
     trackBookId(secondBookId);
 
@@ -184,36 +168,33 @@ describe("organizations integration", () => {
     ).rejects.toBeInstanceOf(OrganizationInternalLedgerInvariantError);
   });
 
-  it("rolls back organization creation when default-book provisioning fails", async () => {
+  it("does not provision a default book inside the core service", async () => {
     const failureExternalId = `org-it-${randomUUID()}`;
     const service = createOrganizationsService({
-      currencies,
       db,
-      ledgerBindings,
-      ledgerBooks: {
-        async ensureDefaultOrganizationBook() {
-          throw new Error("ledger books unavailable");
-        },
-      },
-      requisiteProviders,
     });
 
-    await expect(
-      service.create({
-        shortName: "Rollback Org",
-        fullName: "Rollback Organization",
-        externalId: failureExternalId,
-      }),
-    ).rejects.toThrow("ledger books unavailable");
+    const created = await service.create({
+      shortName: "Core Org",
+      fullName: "Core Organization",
+      externalId: failureExternalId,
+    });
+    trackOrganizationId(created.id);
 
-    const rows = await db
+    const organizationRows = await db
       .select()
       .from(organizationsSchema.organizations)
       .where(
         eq(organizationsSchema.organizations.externalId, failureExternalId),
       );
 
-    expect(rows).toHaveLength(0);
+    const bookRows = await db
+      .select({ id: ledgerSchema.books.id })
+      .from(ledgerSchema.books)
+      .where(eq(ledgerSchema.books.ownerId, created.id));
+
+    expect(organizationRows).toHaveLength(1);
+    expect(bookRows).toHaveLength(0);
   });
 
   it("returns delete conflict when a foreign key blocks organization deletion", async () => {

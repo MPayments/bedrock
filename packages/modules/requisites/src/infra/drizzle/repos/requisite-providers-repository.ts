@@ -10,10 +10,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 
-import type {
-  Database,
-  Transaction,
-} from "@bedrock/platform/persistence";
+import type { Queryable } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,
   resolveSortValue,
@@ -25,10 +22,7 @@ import type {
   RequisiteProvidersQueryRepository,
 } from "../../../application/providers/ports";
 import type { RequisiteProvider } from "../../../contracts";
-import {
-  requisiteProviders,
-  type RequisiteProviderRow,
-} from "../schema";
+import { requisiteProviders, type RequisiteProviderRow } from "../schema";
 
 const PROVIDERS_SORT_COLUMN_MAP = {
   name: requisiteProviders.name,
@@ -56,7 +50,7 @@ function toPublicProvider(row: RequisiteProviderRow): RequisiteProvider {
 }
 
 export function createDrizzleRequisiteProvidersQueryRepository(
-  db: Database | Transaction,
+  db: Queryable,
 ): RequisiteProvidersQueryRepository {
   return {
     async findProviderById(id) {
@@ -91,7 +85,10 @@ export function createDrizzleRequisiteProvidersQueryRepository(
 
       if (input.kind?.length) {
         conditions.push(
-          inArray(requisiteProviders.kind, input.kind as RequisiteProvider["kind"][]),
+          inArray(
+            requisiteProviders.kind,
+            input.kind as RequisiteProvider["kind"][],
+          ),
         );
       }
 
@@ -133,7 +130,7 @@ export function createDrizzleRequisiteProvidersQueryRepository(
 }
 
 export function createDrizzleRequisiteProvidersCommandRepository(
-  db: Database | Transaction,
+  db: Queryable,
 ): RequisiteProvidersCommandRepository {
   return {
     async insertProvider(input, tx) {

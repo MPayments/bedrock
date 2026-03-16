@@ -28,30 +28,6 @@ import {
   persistDocumentPolicyDenial,
 } from "../shared/policy";
 
-function readPayloadString(
-  payload: Record<string, unknown>,
-  key: string,
-): string | null {
-  const value = payload[key];
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
-}
-
-function readPayloadDate(
-  payload: Record<string, unknown>,
-  key: string,
-  fallback: Date,
-): Date {
-  const raw = payload[key];
-  if (typeof raw === "string" || raw instanceof Date) {
-    const parsed = new Date(raw);
-    if (!Number.isNaN(parsed.valueOf())) {
-      return parsed;
-    }
-  }
-
-  return fallback;
-}
-
 export function createCreateDraftHandler(context: DocumentsServiceContext) {
   const { accountingPeriods, log, now, policy, registry, transactions } =
     context;
@@ -256,55 +232,6 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
               );
               if (links && links.length > 0) {
                 await documentLinks.insertInitialLinks({ document, links });
-              }
-
-              if (document.docType === "period_close") {
-                const organizationId = readPayloadString(
-                  payload,
-                  "organizationId",
-                );
-                if (!organizationId) {
-                  throw new DocumentValidationError(
-                    "period_close payload requires organizationId",
-                  );
-                }
-                await accountingPeriods.closePeriod({
-                  organizationId,
-                  periodStart: readPayloadDate(
-                    payload,
-                    "periodStart",
-                    document.occurredAt,
-                  ),
-                  periodEnd: readPayloadDate(
-                    payload,
-                    "periodEnd",
-                    document.occurredAt,
-                  ),
-                  closedBy: input.actorUserId,
-                  closeReason: readPayloadString(payload, "closeReason"),
-                  closeDocumentId: document.id,
-                });
-              } else if (document.docType === "period_reopen") {
-                const organizationId = readPayloadString(
-                  payload,
-                  "organizationId",
-                );
-                if (!organizationId) {
-                  throw new DocumentValidationError(
-                    "period_reopen payload requires organizationId",
-                  );
-                }
-                await accountingPeriods.reopenPeriod({
-                  organizationId,
-                  periodStart: readPayloadDate(
-                    payload,
-                    "periodStart",
-                    document.occurredAt,
-                  ),
-                  reopenedBy: input.actorUserId,
-                  reopenReason: readPayloadString(payload, "reopenReason"),
-                  reopenDocumentId: document.id,
-                });
               }
 
               await documentEvents.insertDocumentEvent({

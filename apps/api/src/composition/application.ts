@@ -11,6 +11,7 @@ import {
   type AccountingPeriodsService,
   type AccountingReportsService,
 } from "@bedrock/accounting";
+import { ACCOUNT_NO } from "@bedrock/accounting/constants";
 import { createBalancesQueries } from "@bedrock/balances/queries";
 import {
   createCurrenciesService,
@@ -19,6 +20,7 @@ import {
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import {
   createDocumentsService,
+  DocumentValidationError,
   type DocumentsIdempotencyPort,
   type DocumentsService,
   type DocumentsTransactionsPort,
@@ -36,10 +38,11 @@ import {
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/providers";
+import type { OperationIntent } from "@bedrock/ledger/contracts";
 import { createLedgerQueries } from "@bedrock/ledger/queries";
 import {
   createOrganizationsService,
-  type OrganizationsService,
+  createOrganizationsServiceFromTransaction,
 } from "@bedrock/organizations";
 import { createOrganizationsQueries } from "@bedrock/organizations/queries";
 import { createPartiesService, type PartiesService } from "@bedrock/parties";
@@ -49,12 +52,12 @@ import { createCommercialDocumentModules } from "@bedrock/plugin-documents-comme
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
 import {
-  createRequisitesQueries,
-} from "@bedrock/requisites/queries";
-import {
   createRequisitesService,
-  type RequisitesService,
+  createRequisitesServiceFromTransaction,
+  RequisiteAccountingBindingOwnerTypeError,
+  RequisiteNotFoundError,
 } from "@bedrock/requisites";
+import { createRequisitesQueries } from "@bedrock/requisites/queries";
 
 import type { ApiCoreServices } from "./core";
 import {
@@ -79,9 +82,33 @@ export interface ApiApplicationServices {
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
-  organizationsService: OrganizationsService;
-  requisitesService: RequisitesService;
+  organizationsService: ApiOrganizationsService;
+  requisitesService: ApiRequisitesService;
   documentsService: DocumentsService;
+}
+
+export interface ApiOrganizationsService {
+  list: ReturnType<typeof createOrganizationsService>["list"];
+  findById: ReturnType<typeof createOrganizationsService>["findById"];
+  create: ReturnType<typeof createOrganizationsService>["create"];
+  update: ReturnType<typeof createOrganizationsService>["update"];
+  remove: ReturnType<typeof createOrganizationsService>["remove"];
+}
+
+export interface ApiRequisitesService extends Omit<
+  ReturnType<typeof createRequisitesService>,
+  "bindings"
+> {
+  bindings: {
+    get: ReturnType<typeof createRequisitesService>["bindings"]["get"];
+    resolve: ReturnType<typeof createRequisitesService>["bindings"]["resolve"];
+    upsert: (
+      requisiteId: string,
+      input: { postingAccountNo: string },
+    ) => ReturnType<
+      ReturnType<typeof createRequisitesService>["bindings"]["get"]
+    >;
+  };
 }
 
 function createAccountingReportRuntime(database: Database | Transaction) {
@@ -227,54 +254,90 @@ function createDocumentsTransactions(input: {
 }): DocumentsTransactionsPort {
   return {
     async withTransaction(run) {
-      return input.database.transaction(async (tx: Transaction) => {
-        const idempotency: DocumentsIdempotencyPort = {
-          withIdempotency<
-            TResult,
-            TStoredResult = Record<string, unknown>,
-          >(params: {
-            scope: string;
-            idempotencyKey: string;
-            request: unknown;
-            actorId?: string | null;
-            handler: () => Promise<TResult>;
-            serializeResult: (result: TResult) => TStoredResult;
-            loadReplayResult: (params: {
-              storedResult: TStoredResult | null;
-            }) => Promise<TResult>;
-            serializeError?: (error: unknown) => Record<string, unknown>;
-          }) {
-            return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
-              tx,
-              scope: params.scope,
-              idempotencyKey: params.idempotencyKey,
-              request: params.request,
-              actorId: params.actorId,
-              handler: params.handler,
-              serializeResult: params.serializeResult,
-              loadReplayResult: ({ storedResult }) =>
-                params.loadReplayResult({
-                  storedResult: (storedResult as TStoredResult | null) ?? null,
-                }),
-              serializeError: params.serializeError,
-            });
-          },
-        };
+      return input.database.transaction(async (tx: Transaction) =>
+        run(
+          createDocumentsTransactionContext({
+            tx,
+            idempotency: input.idempotency,
+            ledger: input.ledger,
+          }),
+        ),
+      );
+    },
+  };
+}
 
-        return run({
-          moduleRuntime: createDocumentsModuleRuntime(tx),
-          documentEvents: createDrizzleDocumentEventsRepository(tx),
-          documentLinks: createDrizzleDocumentLinksRepository(tx),
-          documentOperations: createDrizzleDocumentOperationsRepository(tx),
-          documentsCommand: createDrizzleDocumentsCommandRepository(tx),
-          idempotency,
-          ledger: {
-            commit: (intent) => input.ledger.commit.commit(tx, intent),
-          },
-        });
+function createDocumentsTransactionContext(input: {
+  tx: Transaction;
+  idempotency: ApiCoreServices["idempotency"];
+  ledger: ApiCoreServices["ledger"];
+}) {
+  const idempotency: DocumentsIdempotencyPort = {
+    withIdempotency<TResult, TStoredResult = Record<string, unknown>>(params: {
+      scope: string;
+      idempotencyKey: string;
+      request: unknown;
+      actorId?: string | null;
+      handler: () => Promise<TResult>;
+      serializeResult: (result: TResult) => TStoredResult;
+      loadReplayResult: (params: {
+        storedResult: TStoredResult | null;
+      }) => Promise<TResult>;
+      serializeError?: (error: unknown) => Record<string, unknown>;
+    }) {
+      return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
+        tx: input.tx,
+        scope: params.scope,
+        idempotencyKey: params.idempotencyKey,
+        request: params.request,
+        actorId: params.actorId,
+        handler: params.handler,
+        serializeResult: params.serializeResult,
+        loadReplayResult: ({ storedResult }) =>
+          params.loadReplayResult({
+            storedResult: (storedResult as TStoredResult | null) ?? null,
+          }),
+        serializeError: params.serializeError,
       });
     },
   };
+
+  return {
+    moduleRuntime: createDocumentsModuleRuntime(input.tx),
+    documentEvents: createDrizzleDocumentEventsRepository(input.tx),
+    documentLinks: createDrizzleDocumentLinksRepository(input.tx),
+    documentOperations: createDrizzleDocumentOperationsRepository(input.tx),
+    documentsCommand: createDrizzleDocumentsCommandRepository(input.tx),
+    idempotency,
+    ledger: {
+      commit: (intent: OperationIntent) =>
+        input.ledger.commit.commit(input.tx, intent),
+    },
+  };
+}
+
+function readDocumentPayloadString(
+  payload: Record<string, unknown>,
+  key: string,
+): string | null {
+  const value = payload[key];
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function readDocumentPayloadDate(
+  payload: Record<string, unknown>,
+  key: string,
+  fallback: Date,
+): Date {
+  const raw = payload[key];
+  if (typeof raw === "string" || raw instanceof Date) {
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.valueOf())) {
+      return parsed;
+    }
+  }
+
+  return fallback;
 }
 
 export function createApplicationServices(
@@ -286,7 +349,6 @@ export function createApplicationServices(
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
   const currenciesQueries = createCurrenciesQueries({ db });
   const partiesQueries = createPartiesQueries({ db });
-  const requisitesQueries = createRequisitesQueries({ db });
   const currenciesService = createCurrenciesService({ db, logger });
   const currenciesPort = {
     async assertCurrencyExists(id: string) {
@@ -343,64 +405,197 @@ export function createApplicationServices(
     },
     logger,
   });
-  const organizationsService = createOrganizationsService({
+  const organizationsCoreService = createOrganizationsService({
     db,
-    ledgerBindings: {
-      async ensureOrganizationPostingTarget(tx, input) {
-        const { bookId } = await ledger.books.ensureDefaultOrganizationBook(
-          tx,
-          {
-            organizationId: input.organizationId,
-          },
-        );
-        const bookAccount = await ledger.bookAccounts.ensureBookAccountInstance(
-          tx,
-          {
-            bookId,
-            accountNo: input.postingAccountNo,
-            currency: input.currencyCode,
-            dimensions: {},
-          },
-        );
-
-        return {
-          bookId,
-          bookAccountInstanceId: bookAccount.id,
-        };
-      },
-    },
-    ledgerBooks: ledger.books,
     logger,
-    requisiteSubjects: {
-      findRequisiteSubjectById(requisiteId, tx) {
-        return requisitesQueries.findSubjectById(requisiteId, tx);
-      },
-      listRequisiteSubjectsById(requisiteIds, tx) {
-        return requisitesQueries.listSubjectsById(requisiteIds, tx);
-      },
-    },
   });
-  const requisitesService = createRequisitesService({
+  const requisiteOwners = {
+    async assertOrganizationExists(organizationId: string) {
+      await organizationsCoreService.findById(organizationId);
+    },
+    async assertCounterpartyExists(counterpartyId: string) {
+      await partiesService.counterparties.findById(counterpartyId);
+    },
+  };
+  const requisitesCoreService = createRequisitesService({
     db,
     logger,
     currencies: currenciesPort,
-    owners: {
-      async assertOrganizationExists(organizationId) {
-        await organizationsService.findById(organizationId);
-      },
-      async assertCounterpartyExists(counterpartyId) {
-        await partiesService.counterparties.findById(counterpartyId);
-      },
-    },
-    organizationBindings: {
-      async syncOrganizationRequisiteBinding(tx, input) {
-        await organizationsService.requisiteBindings.sync(tx, input);
-      },
-    },
+    owners: requisiteOwners,
   });
+
+  async function upsertOrganizationRequisiteBindingTx(input: {
+    tx: Transaction;
+    requisiteId: string;
+    organizationId: string;
+    currencyCode: string;
+    postingAccountNo?: string;
+  }) {
+    const postingAccountNo = input.postingAccountNo ?? ACCOUNT_NO.BANK;
+    const { bookId } = await ledger.books.ensureDefaultOrganizationBook(
+      input.tx,
+      {
+        organizationId: input.organizationId,
+      },
+    );
+    const bookAccount = await ledger.bookAccounts.ensureBookAccountInstance(
+      input.tx,
+      {
+        bookId,
+        accountNo: postingAccountNo,
+        currency: input.currencyCode,
+        dimensions: {},
+      },
+    );
+
+    const txRequisitesService = createRequisitesServiceFromTransaction({
+      tx: input.tx,
+      logger,
+      currencies: currenciesPort,
+      owners: requisiteOwners,
+    });
+
+    await txRequisitesService.bindings.upsert({
+      requisiteId: input.requisiteId,
+      bookId,
+      bookAccountInstanceId: bookAccount.id,
+      postingAccountNo,
+    });
+
+    return txRequisitesService.bindings.get(input.requisiteId);
+  }
+
+  async function syncOrganizationRequisiteBindingForRequisiteTx(input: {
+    tx: Transaction;
+    requisite: Awaited<ReturnType<typeof requisitesCoreService.findById>>;
+    postingAccountNo?: string;
+  }) {
+    if (input.requisite.ownerType !== "organization") {
+      return null;
+    }
+
+    const currency = await currenciesService.findById(
+      input.requisite.currencyId,
+    );
+
+    return upsertOrganizationRequisiteBindingTx({
+      tx: input.tx,
+      requisiteId: input.requisite.id,
+      organizationId: input.requisite.ownerId,
+      currencyCode: currency.code,
+      postingAccountNo: input.postingAccountNo,
+    });
+  }
+
+  const organizationsService: ApiOrganizationsService = {
+    list: organizationsCoreService.list,
+    findById: organizationsCoreService.findById,
+    async create(input) {
+      return db.transaction(async (tx) => {
+        const txOrganizationsService =
+          createOrganizationsServiceFromTransaction({
+            tx,
+            logger,
+          });
+        const organization = await txOrganizationsService.create(input);
+
+        await ledger.books.ensureDefaultOrganizationBook(tx, {
+          organizationId: organization.id,
+        });
+
+        return organization;
+      });
+    },
+    async update(id, input) {
+      return db.transaction(async (tx) =>
+        createOrganizationsServiceFromTransaction({
+          tx,
+          logger,
+        }).update(id, input),
+      );
+    },
+    async remove(id) {
+      return db.transaction(async (tx) =>
+        createOrganizationsServiceFromTransaction({
+          tx,
+          logger,
+        }).remove(id),
+      );
+    },
+  };
+  const requisitesService: ApiRequisitesService = {
+    list: requisitesCoreService.list,
+    listOptions: requisitesCoreService.listOptions,
+    findById: requisitesCoreService.findById,
+    async create(input) {
+      return db.transaction(async (tx) => {
+        const txRequisitesService = createRequisitesServiceFromTransaction({
+          tx,
+          logger,
+          currencies: currenciesPort,
+          owners: requisiteOwners,
+        });
+        const requisite = await txRequisitesService.create(input);
+
+        await syncOrganizationRequisiteBindingForRequisiteTx({
+          tx,
+          requisite,
+        });
+
+        return requisite;
+      });
+    },
+    async update(id, input) {
+      return db.transaction(async (tx) => {
+        const txRequisitesService = createRequisitesServiceFromTransaction({
+          tx,
+          logger,
+          currencies: currenciesPort,
+          owners: requisiteOwners,
+        });
+        const requisite = await txRequisitesService.update(id, input);
+
+        await syncOrganizationRequisiteBindingForRequisiteTx({
+          tx,
+          requisite,
+        });
+
+        return requisite;
+      });
+    },
+    remove: requisitesCoreService.remove,
+    bindings: {
+      get: requisitesCoreService.bindings.get,
+      resolve: requisitesCoreService.bindings.resolve,
+      async upsert(requisiteId, input) {
+        return db.transaction(async (tx) => {
+          const txRequisitesQueries = createRequisitesQueries({ db: tx });
+          const subject =
+            await txRequisitesQueries.findSubjectById(requisiteId);
+
+          if (!subject) {
+            throw new RequisiteNotFoundError(requisiteId);
+          }
+
+          if (subject.ownerType !== "organization" || !subject.organizationId) {
+            throw new RequisiteAccountingBindingOwnerTypeError(requisiteId);
+          }
+
+          return upsertOrganizationRequisiteBindingTx({
+            tx,
+            requisiteId,
+            organizationId: subject.organizationId,
+            currencyCode: subject.currencyCode,
+            postingAccountNo: input.postingAccountNo,
+          });
+        });
+      },
+    },
+    providers: requisitesCoreService.providers,
+  };
   const documentRequisitesService = {
     findById: requisitesService.findById,
-    resolveBindings: organizationsService.requisiteBindings.resolve,
+    resolveBindings: requisitesService.bindings.resolve,
   };
   const documentRegistry = createDocumentRegistry([
     ...createCommercialDocumentModules(
@@ -422,7 +617,7 @@ export function createApplicationServices(
   const documentLinks = createDrizzleDocumentLinksRepository(db);
   const documentOperations = createDrizzleDocumentOperationsRepository(db);
   const documentSnapshots = createDrizzleDocumentSnapshotsRepository(db);
-  const documentsService = createDocumentsService({
+  const documentsCoreService = createDocumentsService({
     accounting: accountingService.packs,
     accountingPeriods: accountingPeriodsService,
     documentEvents,
@@ -440,6 +635,132 @@ export function createApplicationServices(
     }),
     logger,
   });
+
+  function createDocumentsServiceForTransaction(tx: Transaction) {
+    return createDocumentsService({
+      accounting: accountingService.packs,
+      accountingPeriods: accountingPeriodsService,
+      documentEvents: createDrizzleDocumentEventsRepository(tx),
+      documentLinks: createDrizzleDocumentLinksRepository(tx),
+      documentOperations: createDrizzleDocumentOperationsRepository(tx),
+      documentSnapshots: createDrizzleDocumentSnapshotsRepository(tx),
+      documentsQuery: createDrizzleDocumentsQueryRepository(tx),
+      ledgerReadService,
+      moduleRuntime: createDocumentsModuleRuntime(tx),
+      registry: documentRegistry,
+      transactions: {
+        withTransaction: (run) =>
+          run(
+            createDocumentsTransactionContext({
+              tx,
+              idempotency,
+              ledger,
+            }),
+          ),
+      },
+      logger,
+    });
+  }
+
+  async function applyDraftPeriodMutation(input: {
+    tx: Transaction;
+    actorUserId: string;
+    result: Awaited<ReturnType<typeof documentsCoreService.createDraft>>;
+  }) {
+    const payload = input.result.document.payload as Record<string, unknown>;
+
+    if (input.result.document.docType === "period_close") {
+      const organizationId = readDocumentPayloadString(
+        payload,
+        "organizationId",
+      );
+      if (!organizationId) {
+        throw new DocumentValidationError(
+          "period_close payload requires organizationId",
+        );
+      }
+
+      const closePeriodInput = {
+        organizationId,
+        periodStart: readDocumentPayloadDate(
+          payload,
+          "periodStart",
+          input.result.document.occurredAt,
+        ),
+        periodEnd: readDocumentPayloadDate(
+          payload,
+          "periodEnd",
+          input.result.document.occurredAt,
+        ),
+        closedBy: input.actorUserId,
+        closeReason: readDocumentPayloadString(payload, "closeReason"),
+        closeDocumentId: input.result.document.id,
+        db: input.tx,
+      } as Parameters<AccountingPeriodsService["closePeriod"]>[0];
+
+      await accountingPeriodsService.closePeriod(closePeriodInput);
+      return;
+    }
+
+    if (input.result.document.docType === "period_reopen") {
+      const organizationId = readDocumentPayloadString(
+        payload,
+        "organizationId",
+      );
+      if (!organizationId) {
+        throw new DocumentValidationError(
+          "period_reopen payload requires organizationId",
+        );
+      }
+
+      const reopenPeriodInput = {
+        organizationId,
+        periodStart: readDocumentPayloadDate(
+          payload,
+          "periodStart",
+          input.result.document.occurredAt,
+        ),
+        reopenedBy: input.actorUserId,
+        reopenReason: readDocumentPayloadString(payload, "reopenReason"),
+        reopenDocumentId: input.result.document.id,
+        db: input.tx,
+      } as Parameters<AccountingPeriodsService["reopenPeriod"]>[0];
+
+      await accountingPeriodsService.reopenPeriod(reopenPeriodInput);
+    }
+  }
+
+  const documentsService: DocumentsService = {
+    list: documentsCoreService.list,
+    get: documentsCoreService.get,
+    getDetails: documentsCoreService.getDetails,
+    validateAccountingSourceCoverage:
+      documentsCoreService.validateAccountingSourceCoverage,
+    async createDraft(input) {
+      return db.transaction(async (tx) => {
+        const txDocumentsService = createDocumentsServiceForTransaction(tx);
+        const result = await txDocumentsService.createDraft(input);
+
+        await applyDraftPeriodMutation({
+          tx,
+          actorUserId: input.actorUserId,
+          result,
+        });
+
+        return result;
+      });
+    },
+    async updateDraft(input) {
+      return db.transaction(async (tx) =>
+        createDocumentsServiceForTransaction(tx).updateDraft(input),
+      );
+    },
+    async transition(input) {
+      return db.transaction(async (tx) =>
+        createDocumentsServiceForTransaction(tx).transition(input),
+      );
+    },
+  };
 
   return {
     accountingReportsService,

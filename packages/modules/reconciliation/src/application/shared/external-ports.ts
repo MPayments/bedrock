@@ -9,6 +9,10 @@ import type {
 } from "../runs/ports";
 
 export interface ReconciliationDocumentsPort {
+  existsById(documentId: string): Promise<boolean>;
+}
+
+export interface ReconciliationAdjustmentDocumentsPort extends ReconciliationDocumentsPort {
   createDraft(input: {
     docType: string;
     createIdempotencyKey: string;
@@ -16,7 +20,6 @@ export interface ReconciliationDocumentsPort {
     actorUserId: string;
     requestContext?: CorrelationContext;
   }): Promise<DocumentWithOperationId>;
-  existsById(documentId: string): Promise<boolean>;
 }
 
 export interface ReconciliationLedgerLookupPort {

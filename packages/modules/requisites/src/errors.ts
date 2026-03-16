@@ -27,3 +27,19 @@ export class RequisiteProviderNotActiveError extends RequisiteProviderError {
     super(`Requisite provider is not active: ${id}`);
   }
 }
+
+export class RequisiteAccountingBindingNotFoundError extends RequisiteError {
+  name = "RequisiteAccountingBindingNotFoundError";
+
+  constructor(id: string) {
+    super(`Requisite accounting binding not found: ${id}`);
+  }
+}
+
+export class RequisiteAccountingBindingOwnerTypeError extends RequisiteError {
+  name = "RequisiteAccountingBindingOwnerTypeError";
+
+  constructor(id: string) {
+    super(`Only organization requisites can have accounting binding: ${id}`);
+  }
+}

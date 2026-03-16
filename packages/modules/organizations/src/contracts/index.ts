@@ -23,11 +23,3 @@ export {
   ORGANIZATIONS_LIST_CONTRACT,
   type ListOrganizationsQuery,
 } from "./organizations/queries";
-export {
-  UpsertOrganizationRequisiteAccountingBindingInputSchema,
-  type UpsertOrganizationRequisiteAccountingBindingInput,
-} from "./requisites/commands";
-export {
-  OrganizationRequisiteAccountingBindingSchema,
-  type OrganizationRequisiteAccountingBinding,
-} from "./requisites/dto";

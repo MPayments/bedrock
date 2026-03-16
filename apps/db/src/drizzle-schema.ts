@@ -43,10 +43,7 @@ export {
   postings,
   tbTransferPlans,
 } from "@bedrock/ledger/schema";
-export {
-  organizationRequisiteBindings,
-  organizations,
-} from "@bedrock/organizations/schema";
+export { organizations } from "@bedrock/organizations/schema";
 export {
   counterparties,
   counterpartyCountryCodeEnum,
@@ -56,6 +53,7 @@ export {
   customers,
 } from "@bedrock/parties/schema";
 export {
+  organizationRequisiteBindings,
   requisiteKindEnum,
   requisiteOwnerTypeEnum,
   requisiteProviders,

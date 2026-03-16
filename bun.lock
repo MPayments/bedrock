@@ -388,6 +388,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/currencies": "workspace:*",
+        "@bedrock/ledger": "workspace:*",
         "@bedrock/organizations": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",

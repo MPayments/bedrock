@@ -1,13 +1,10 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import {
-  OrganizationRequisiteBindingNotFoundError,
-  OrganizationRequisiteBindingOwnerTypeError,
-  OrganizationRequisiteNotFoundError,
-  OrganizationNotFoundError,
-} from "@bedrock/organizations";
+import { OrganizationNotFoundError } from "@bedrock/organizations";
 import { CounterpartyNotFoundError } from "@bedrock/parties";
 import {
+  RequisiteAccountingBindingNotFoundError,
+  RequisiteAccountingBindingOwnerTypeError,
   RequisiteNotFoundError,
   RequisiteProviderNotActiveError,
 } from "@bedrock/requisites";
@@ -311,7 +308,7 @@ export function requisitesRoutes(ctx: AppContext) {
     if (
       error instanceof ValidationError ||
       error instanceof RequisiteProviderNotActiveError ||
-      error instanceof OrganizationRequisiteBindingOwnerTypeError
+      error instanceof RequisiteAccountingBindingOwnerTypeError
     ) {
       return { status: 400 as const, body: { error: error.message } };
     }
@@ -338,7 +335,9 @@ export function requisitesRoutes(ctx: AppContext) {
       const result = await ctx.requisitesService.listOptions(query);
 
       return c.json(
-        buildOptionsResponse(result, (item) => RequisiteOptionSchema.parse(item)),
+        buildOptionsResponse(result, (item) =>
+          RequisiteOptionSchema.parse(item),
+        ),
         200,
       );
     })
@@ -401,16 +400,16 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const binding = await ctx.organizationsService.requisiteBindings.get(id);
+        const binding = await ctx.requisitesService.bindings.get(id);
         return c.json(binding, 200);
       } catch (error) {
         if (
-          error instanceof OrganizationRequisiteNotFoundError ||
-          error instanceof OrganizationRequisiteBindingNotFoundError
+          error instanceof RequisiteNotFoundError ||
+          error instanceof RequisiteAccountingBindingNotFoundError
         ) {
           return c.json({ error: error.message }, 404);
         }
-        if (error instanceof OrganizationRequisiteBindingOwnerTypeError) {
+        if (error instanceof RequisiteAccountingBindingOwnerTypeError) {
           return c.json({ error: error.message }, 400);
         }
         throw error;
@@ -421,10 +420,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const binding = await ctx.organizationsService.requisiteBindings.upsert(
-          id,
-          input,
-        );
+        const binding = await ctx.requisitesService.bindings.upsert(id, input);
         return c.json(binding, 200);
       } catch (error) {
         const handled = handleMutationError(error);

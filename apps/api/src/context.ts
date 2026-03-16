@@ -1,18 +1,23 @@
 import { z } from "zod";
 
-import type { AccountingReportsService, AccountingService } from "@bedrock/accounting";
+import type {
+  AccountingReportsService,
+  AccountingService,
+} from "@bedrock/accounting";
 import type { BalancesService } from "@bedrock/balances";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DocumentsService } from "@bedrock/documents";
 import type { FeesService } from "@bedrock/fees";
 import type { FxService } from "@bedrock/fx";
 import type { LedgerReadService } from "@bedrock/ledger";
-import type { OrganizationsService } from "@bedrock/organizations";
 import type { PartiesService } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { RequisitesService } from "@bedrock/requisites";
 import type { UsersService } from "@bedrock/users";
 
+import type {
+  ApiOrganizationsService,
+  ApiRequisitesService,
+} from "./composition/application";
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";
 
@@ -58,8 +63,8 @@ export interface AppContext {
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
-  organizationsService: OrganizationsService;
-  requisitesService: RequisitesService;
+  organizationsService: ApiOrganizationsService;
+  requisitesService: ApiRequisitesService;
   usersService: UsersService;
   ledgerReadService: LedgerReadService;
   balancesService: BalancesService;

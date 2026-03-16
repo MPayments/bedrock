@@ -2,26 +2,19 @@ import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
-import { createAdjustmentDocumentHandler } from "./application/adjustments/commands";
-import type {
-  ReconciliationExceptionsTxRepository,
-} from "./application/exceptions/ports";
+import type { ReconciliationExceptionsTxRepository } from "./application/exceptions/ports";
 import {
   createExplainMatchHandler,
   createListExceptionsHandler,
 } from "./application/exceptions/queries";
 import { createIngestExternalRecordHandler } from "./application/records/commands";
-import type {
-  ReconciliationExternalRecordsTxRepository,
-} from "./application/records/ports";
+import type { ReconciliationExternalRecordsTxRepository } from "./application/records/ports";
 import { createRunReconciliationHandler } from "./application/runs/commands";
 import type {
   ReconciliationMatchesTxRepository,
   ReconciliationRunsTxRepository,
 } from "./application/runs/ports";
-import {
-  createReconciliationServiceContext,
-} from "./application/shared/context";
+import { createReconciliationServiceContext } from "./application/shared/context";
 import type {
   ReconciliationDocumentsPort,
   ReconciliationLedgerLookupPort,
@@ -65,7 +58,9 @@ function createExternalRecordsTxRepository(input: {
 }
 
 function createRunsTxRepository(input: {
-  runs: ReturnType<typeof createDrizzleReconciliationServiceAdapters>["runsRepo"];
+  runs: ReturnType<
+    typeof createDrizzleReconciliationServiceAdapters
+  >["runsRepo"];
   tx: Transaction;
 }): ReconciliationRunsTxRepository {
   return {
@@ -79,7 +74,9 @@ function createRunsTxRepository(input: {
 }
 
 function createMatchesTxRepository(input: {
-  matches: ReturnType<typeof createDrizzleReconciliationServiceAdapters>["matchesRepo"];
+  matches: ReturnType<
+    typeof createDrizzleReconciliationServiceAdapters
+  >["matchesRepo"];
   tx: Transaction;
 }): ReconciliationMatchesTxRepository {
   return {
@@ -114,8 +111,12 @@ export function createReconciliationTransactions(input: {
   externalRecords: ReturnType<
     typeof createDrizzleReconciliationServiceAdapters
   >["externalRecordsRepo"];
-  runs: ReturnType<typeof createDrizzleReconciliationServiceAdapters>["runsRepo"];
-  matches: ReturnType<typeof createDrizzleReconciliationServiceAdapters>["matchesRepo"];
+  runs: ReturnType<
+    typeof createDrizzleReconciliationServiceAdapters
+  >["runsRepo"];
+  matches: ReturnType<
+    typeof createDrizzleReconciliationServiceAdapters
+  >["matchesRepo"];
   exceptions: ReturnType<
     typeof createDrizzleReconciliationServiceAdapters
   >["exceptionsRepo"];
@@ -124,20 +125,21 @@ export function createReconciliationTransactions(input: {
     async withTransaction(run) {
       return input.db.transaction(async (tx: Transaction) => {
         const idempotency: ReconciliationTransactionIdempotencyPort = {
-          withIdempotency<TResult, TStoredResult = Record<string, unknown>>(
-            params: {
-              scope: string;
-              idempotencyKey: string;
-              request: unknown;
-              actorId?: string | null;
-              handler: () => Promise<TResult>;
-              serializeResult: (result: TResult) => TStoredResult;
-              loadReplayResult: (params: {
-                storedResult: TStoredResult | null;
-              }) => Promise<TResult>;
-              serializeError?: (error: unknown) => Record<string, unknown>;
-            },
-          ) {
+          withIdempotency<
+            TResult,
+            TStoredResult = Record<string, unknown>,
+          >(params: {
+            scope: string;
+            idempotencyKey: string;
+            request: unknown;
+            actorId?: string | null;
+            handler: () => Promise<TResult>;
+            serializeResult: (result: TResult) => TStoredResult;
+            loadReplayResult: (params: {
+              storedResult: TStoredResult | null;
+            }) => Promise<TResult>;
+            serializeError?: (error: unknown) => Record<string, unknown>;
+          }) {
             return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
               tx,
               scope: params.scope,
@@ -208,9 +210,6 @@ export function createReconciliationService(deps: ReconciliationServiceDeps) {
     exceptions: {
       listExceptions: createListExceptionsHandler(context),
       explainMatch: createExplainMatchHandler(context),
-    },
-    adjustments: {
-      createAdjustmentDocument: createAdjustmentDocumentHandler(context),
     },
   };
 }

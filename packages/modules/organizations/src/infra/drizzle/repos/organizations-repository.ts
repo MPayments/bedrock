@@ -10,7 +10,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 import { dedupeIds } from "@bedrock/shared/core/domain";
 import {
   resolveSortOrder,
@@ -89,7 +89,7 @@ interface DrizzleOrganizationsCommandRepository {
 }
 
 async function findOrganizationSnapshot(
-  db: Database,
+  db: Queryable,
   id: string,
   tx?: Transaction,
 ): Promise<OrganizationSnapshot | null> {
@@ -104,7 +104,7 @@ async function findOrganizationSnapshot(
 }
 
 export function createDrizzleOrganizationsQueryRepository(
-  db: Database,
+  db: Queryable,
 ): OrganizationsQueryRepository {
   return {
     async findOrganizationById(id) {
@@ -185,9 +185,7 @@ export function createDrizzleOrganizationsQueryRepository(
   };
 }
 
-export function createDrizzleOrganizationsCommandRepository(
-  db: Database,
-) {
+export function createDrizzleOrganizationsCommandRepository(db: Queryable) {
   const repository: DrizzleOrganizationsCommandRepository = {
     async findOrganizationSnapshotById(id, tx) {
       return findOrganizationSnapshot(db, id, tx);

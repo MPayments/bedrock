@@ -43,7 +43,9 @@ const idempotency = createIdempotencyService();
 
 const reconciliationDocuments = {
   async createDraft() {
-    throw new Error("documents port is not configured in this integration test");
+    throw new Error(
+      "documents port is not configured in this integration test",
+    );
   },
   async existsById() {
     return false;
@@ -345,7 +347,9 @@ describe("reconciliation worker integration", () => {
     expect(exceptions).toHaveLength(1);
     expect(exceptions[0]?.exception.reasonCode).toBe("ambiguous_match");
     expect(exceptions[0]?.run.id).toBe(run.id);
-    expect(exceptions[0]?.externalRecord.sourceRecordId).toBe("ambiguous-record");
+    expect(exceptions[0]?.externalRecord.sourceRecordId).toBe(
+      "ambiguous-record",
+    );
 
     const [match] = await db
       .select()
@@ -353,7 +357,9 @@ describe("reconciliation worker integration", () => {
       .where(eq(schema.reconciliationMatches.runId, run.id))
       .limit(1);
 
-    await expect(reconciliation.exceptions.explainMatch(match!.id)).resolves.toEqual({
+    await expect(
+      reconciliation.exceptions.explainMatch(match!.id),
+    ).resolves.toEqual({
       reason: "multiple_candidates",
       candidateOperationIds: [candidateA, candidateB],
       candidateDocumentIds: [],

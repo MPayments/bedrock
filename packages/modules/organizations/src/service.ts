@@ -1,38 +1,22 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type {
+  Database,
+  Queryable,
+  Transaction,
+} from "@bedrock/platform/persistence";
 
 import {
   createCreateOrganizationHandler,
   createRemoveOrganizationHandler,
   createUpdateOrganizationHandler,
 } from "./application/organizations/commands";
-import type {
-  OrganizationsCommandTxRepository,
-} from "./application/organizations/ports";
+import type { OrganizationsCommandTxRepository } from "./application/organizations/ports";
 import {
   createFindOrganizationByIdHandler,
   createListOrganizationsHandler,
 } from "./application/organizations/queries";
-import {
-  createGetOrganizationRequisiteAccountingBindingHandler,
-  createResolveOrganizationRequisiteBindingsHandler,
-  createUpsertOrganizationRequisiteAccountingBindingHandler,
-  syncOrganizationRequisiteAccountingBinding,
-} from "./application/requisites/bindings";
-import type {
-  OrganizationRequisiteBindingsCommandTxRepository,
-  OrganizationsRequisiteSubjectsPort,
-} from "./application/requisites/ports";
-import {
-  createOrganizationsServiceContext,
-} from "./application/shared/context";
-import type {
-  OrganizationsTransactionsPort,
-} from "./application/shared/external-ports";
-import {
-  createDrizzleOrganizationRequisiteBindingsCommandRepository,
-  createDrizzleOrganizationRequisiteBindingsQueryRepository,
-} from "./infra/drizzle/repos/organization-requisites-repository";
+import { createOrganizationsServiceContext } from "./application/shared/context";
+import type { OrganizationsTransactionsPort } from "./application/shared/external-ports";
 import {
   createDrizzleOrganizationsCommandRepository,
   createDrizzleOrganizationsQueryRepository,
@@ -42,34 +26,17 @@ export type OrganizationsService = ReturnType<
   typeof createOrganizationsService
 >;
 
-export interface OrganizationsLedgerBooksPort {
-  ensureDefaultOrganizationBook: (
-    tx: Transaction,
-    input: { organizationId: string },
-  ) => Promise<{ bookId: string }>;
-}
-
-export interface OrganizationsLedgerBindingsPort {
-  ensureOrganizationPostingTarget: (
-    tx: Transaction,
-    input: {
-      organizationId: string;
-      currencyCode: string;
-      postingAccountNo: string;
-    },
-  ) => Promise<{
-    bookId: string;
-    bookAccountInstanceId: string;
-  }>;
-}
-
 export interface OrganizationsServiceDeps {
-  db: Database;
+  db: Queryable;
   logger?: Logger;
   now?: () => Date;
-  ledgerBooks: OrganizationsLedgerBooksPort;
-  ledgerBindings: OrganizationsLedgerBindingsPort;
-  requisiteSubjects: OrganizationsRequisiteSubjectsPort;
+  withTransaction?: OrganizationsTransactionsPort["withTransaction"];
+}
+
+export interface OrganizationsServiceTransactionDeps {
+  tx: Transaction;
+  logger?: Logger;
+  now?: () => Date;
 }
 
 function createOrganizationsTxRepository(input: {
@@ -92,54 +59,26 @@ function createOrganizationsTxRepository(input: {
   };
 }
 
-function createOrganizationRequisiteBindingsTxRepository(input: {
-  bindings: ReturnType<
-    typeof createDrizzleOrganizationRequisiteBindingsCommandRepository
-  >;
-  tx: Transaction;
-}): OrganizationRequisiteBindingsCommandTxRepository {
-  return {
-    upsertBinding(params) {
-      return input.bindings.upsertBindingTx(input.tx, params);
-    },
-  };
-}
-
 function createOrganizationsTransactions(input: {
-  db: Database;
+  db: Queryable;
   organizations: ReturnType<typeof createDrizzleOrganizationsCommandRepository>;
-  requisiteBindings: ReturnType<
-    typeof createDrizzleOrganizationRequisiteBindingsCommandRepository
-  >;
-  ledgerBooks: OrganizationsLedgerBooksPort;
-  ledgerBindings: OrganizationsLedgerBindingsPort;
+  withTransaction?: OrganizationsTransactionsPort["withTransaction"];
 }): OrganizationsTransactionsPort {
+  if (input.withTransaction) {
+    return {
+      withTransaction: input.withTransaction,
+    };
+  }
+
   return {
     async withTransaction(run) {
-      return input.db.transaction(async (tx: Transaction) =>
+      return (input.db as Database).transaction(async (tx: Transaction) =>
         run({
           tx,
           organizations: createOrganizationsTxRepository({
             organizations: input.organizations,
             tx,
           }),
-          requisiteBindings: createOrganizationRequisiteBindingsTxRepository({
-            bindings: input.requisiteBindings,
-            tx,
-          }),
-          ledgerBooks: {
-            ensureDefaultOrganizationBook(params) {
-              return input.ledgerBooks.ensureDefaultOrganizationBook(tx, params);
-            },
-          },
-          ledgerBindings: {
-            ensureOrganizationPostingTarget(params) {
-              return input.ledgerBindings.ensureOrganizationPostingTarget(
-                tx,
-                params,
-              );
-            },
-          },
         }),
       );
     },
@@ -148,22 +87,54 @@ function createOrganizationsTransactions(input: {
 
 export function createOrganizationsService(deps: OrganizationsServiceDeps) {
   const organizations = createDrizzleOrganizationsCommandRepository(deps.db);
-  const requisiteBindings =
-    createDrizzleOrganizationRequisiteBindingsCommandRepository(deps.db);
-  const context = createOrganizationsServiceContext({
+  return createOrganizationsServiceContextHandlers({
     logger: deps.logger,
     now: deps.now,
-    organizationQueries: createDrizzleOrganizationsQueryRepository(deps.db),
-    requisiteSubjects: deps.requisiteSubjects,
-    requisiteBindingQueries:
-      createDrizzleOrganizationRequisiteBindingsQueryRepository(deps.db),
+    db: deps.db,
+    organizations,
     transactions: createOrganizationsTransactions({
       db: deps.db,
       organizations,
-      requisiteBindings,
-      ledgerBooks: deps.ledgerBooks,
-      ledgerBindings: deps.ledgerBindings,
+      withTransaction: deps.withTransaction,
     }),
+  });
+}
+
+export function createOrganizationsServiceFromTransaction(
+  deps: OrganizationsServiceTransactionDeps,
+) {
+  const organizations = createDrizzleOrganizationsCommandRepository(deps.tx);
+
+  return createOrganizationsServiceContextHandlers({
+    logger: deps.logger,
+    now: deps.now,
+    db: deps.tx,
+    organizations,
+    transactions: {
+      withTransaction: (run) =>
+        run({
+          tx: deps.tx,
+          organizations: createOrganizationsTxRepository({
+            organizations,
+            tx: deps.tx,
+          }),
+        }),
+    },
+  });
+}
+
+function createOrganizationsServiceContextHandlers(input: {
+  db: Queryable;
+  logger?: Logger;
+  now?: () => Date;
+  organizations: ReturnType<typeof createDrizzleOrganizationsCommandRepository>;
+  transactions: OrganizationsTransactionsPort;
+}) {
+  const context = createOrganizationsServiceContext({
+    logger: input.logger,
+    now: input.now,
+    organizationQueries: createDrizzleOrganizationsQueryRepository(input.db),
+    transactions: input.transactions,
   });
 
   return {
@@ -172,44 +143,5 @@ export function createOrganizationsService(deps: OrganizationsServiceDeps) {
     create: createCreateOrganizationHandler(context),
     update: createUpdateOrganizationHandler(context),
     remove: createRemoveOrganizationHandler(context),
-    requisiteBindings: {
-      get: createGetOrganizationRequisiteAccountingBindingHandler(context),
-      upsert:
-        createUpsertOrganizationRequisiteAccountingBindingHandler(context),
-      resolve: createResolveOrganizationRequisiteBindingsHandler(context),
-      sync: (
-        tx: Transaction,
-        input: {
-          requisiteId: string;
-          organizationId: string;
-          currencyCode: string;
-          postingAccountNo?: string;
-        },
-      ) =>
-        syncOrganizationRequisiteAccountingBinding(context, {
-          tx,
-          organizations: createOrganizationsTxRepository({
-            organizations,
-            tx,
-          }),
-          requisiteBindings: createOrganizationRequisiteBindingsTxRepository({
-            bindings: requisiteBindings,
-            tx,
-          }),
-          ledgerBooks: {
-            ensureDefaultOrganizationBook(params) {
-              return deps.ledgerBooks.ensureDefaultOrganizationBook(tx, params);
-            },
-          },
-          ledgerBindings: {
-            ensureOrganizationPostingTarget(params) {
-              return deps.ledgerBindings.ensureOrganizationPostingTarget(
-                tx,
-                params,
-              );
-            },
-          },
-        }, input),
-    },
   };
 }

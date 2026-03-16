@@ -56,14 +56,10 @@ export function createCreateOrganizationHandler(
       context.now(),
     );
 
-    return transactions.withTransaction(async ({ ledgerBooks, organizations }) => {
+    return transactions.withTransaction(async ({ organizations }) => {
       const created = Organization.fromSnapshot(
         await organizations.insertOrganization(draft.toSnapshot()),
       );
-
-      await ledgerBooks.ensureDefaultOrganizationBook({
-        organizationId: created.id,
-      });
 
       log.info("Organization created", {
         id: created.id,
@@ -87,9 +83,8 @@ export function createUpdateOrganizationHandler(
     const validated = UpdateOrganizationInputSchema.parse(input);
 
     return transactions.withTransaction(async ({ organizations }) => {
-      const existingSnapshot = await organizations.findOrganizationSnapshotById(
-        id,
-      );
+      const existingSnapshot =
+        await organizations.findOrganizationSnapshotById(id);
 
       if (!existingSnapshot) {
         throw new OrganizationNotFoundError(id);
