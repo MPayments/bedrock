@@ -1,11 +1,11 @@
 import { and, eq } from "drizzle-orm";
 
-import { schema, type ActionReceipt } from "./schema";
 import { canonicalJson } from "@bedrock/shared/core/canon";
-import { sha256Hex } from "../crypto";
-import type { Transaction } from "../persistence/drizzle";
 
+import { schema, type ActionReceipt } from "./schema";
+import { sha256Hex } from "../crypto";
 import { ActionReceiptConflictError, ActionReceiptStoredError } from "./errors";
+import type { Transaction } from "../persistence/drizzle";
 import {
   createIdempotencyServiceContext,
   type IdempotencyServiceDeps,
