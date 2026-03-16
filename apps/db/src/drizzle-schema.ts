@@ -45,10 +45,7 @@ export {
 } from "@bedrock/ledger/schema";
 export {
   organizationRequisiteBindings,
-  organizationRequisites,
   organizations,
-  requisiteKindEnum,
-  requisiteOwnerTypeEnum,
 } from "@bedrock/organizations/schema";
 export {
   counterparties,
@@ -58,6 +55,12 @@ export {
   counterpartyKindEnum,
   customers,
 } from "@bedrock/parties/schema";
+export {
+  requisiteKindEnum,
+  requisiteOwnerTypeEnum,
+  requisiteProviders,
+  requisites,
+} from "@bedrock/requisites/schema";
 export {
   account,
   session,
@@ -72,4 +75,3 @@ export {
   reconciliationMatches,
   reconciliationRuns,
 } from "@bedrock/reconciliation/schema";
-export { requisiteProviders } from "@bedrock/requisite-providers/schema";

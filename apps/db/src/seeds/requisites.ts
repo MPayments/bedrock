@@ -7,6 +7,7 @@ import {
   tbLedgerForCurrency,
 } from "@bedrock/ledger/ids";
 import { schema as organizationsSchema } from "@bedrock/organizations/schema";
+import { schema as requisitesSchema } from "@bedrock/requisites/schema";
 
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema-registry";
@@ -109,7 +110,7 @@ async function upsertRequisites(
     }
 
     await db
-      .insert(organizationsSchema.organizationRequisites)
+      .insert(requisitesSchema.requisites)
       .values({
         id: requisite.id,
         ownerType: requisite.ownerType,
@@ -142,7 +143,7 @@ async function upsertRequisites(
         isDefault: requisite.isDefault ?? false,
       })
       .onConflictDoUpdate({
-        target: organizationsSchema.organizationRequisites.id,
+        target: requisitesSchema.requisites.id,
         set: {
           ownerType: requisite.ownerType,
           organizationId:

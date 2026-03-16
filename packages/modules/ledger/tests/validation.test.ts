@@ -2,10 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ListLedgerOperationsInputSchema } from "../src/contracts";
 import { OPERATION_TRANSFER_TYPE } from "../src/contracts";
-import {
-  OperationIntentSchema,
-  validateOperationIntent,
-} from "../src/contracts";
+import { OperationIntentSchema } from "../src/contracts";
 
 const validInput = {
   source: { type: "payment", id: "src-1" },
@@ -34,9 +31,9 @@ const validInput = {
   ],
 };
 
-describe("validateOperationIntent", () => {
+describe("validate Operation Intent", () => {
   it("accepts valid input", () => {
-    const parsed = validateOperationIntent(validInput);
+    const parsed = OperationIntentSchema.parse(validInput);
     expect(parsed.operationCode).toBe("ledger.payment");
     expect(parsed.operationVersion).toBe(1);
     expect(parsed.lines).toHaveLength(1);
@@ -45,13 +42,13 @@ describe("validateOperationIntent", () => {
   it("defaults operationVersion when omitted", () => {
     const { operationVersion: _, ...input } = validInput;
 
-    const parsed = validateOperationIntent(input);
+    const parsed = OperationIntentSchema.parse(input);
 
     expect(parsed.operationVersion).toBe(1);
   });
 
   it("normalizes transfer currency to uppercase", () => {
-    const parsed = validateOperationIntent({
+    const parsed = OperationIntentSchema.parse({
       ...validInput,
       lines: [
         {
@@ -67,7 +64,7 @@ describe("validateOperationIntent", () => {
   });
 
   it("accepts generic account identifiers", () => {
-    const parsed = validateOperationIntent({
+    const parsed = OperationIntentSchema.parse({
       ...validInput,
       lines: [
         {
@@ -91,7 +88,7 @@ describe("validateOperationIntent", () => {
 
   it("rejects empty lines", () => {
     expect(() =>
-      validateOperationIntent({
+      OperationIntentSchema.parse({
         ...validInput,
         lines: [],
       }),
@@ -100,7 +97,7 @@ describe("validateOperationIntent", () => {
 
   it("rejects invalid source.type", () => {
     expect(() =>
-      validateOperationIntent({
+      OperationIntentSchema.parse({
         ...validInput,
         source: { type: "", id: "src-1" },
       }),
@@ -109,7 +106,7 @@ describe("validateOperationIntent", () => {
 
   it("rejects invalid planRef", () => {
     expect(() =>
-      validateOperationIntent({
+      OperationIntentSchema.parse({
         ...validInput,
         lines: [
           {

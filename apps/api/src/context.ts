@@ -10,12 +10,11 @@ import type { LedgerReadService } from "@bedrock/ledger";
 import type { OrganizationsService } from "@bedrock/organizations";
 import type { PartiesService } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { RequisiteProvidersService } from "@bedrock/requisite-providers";
+import type { RequisitesService } from "@bedrock/requisites";
 import type { UsersService } from "@bedrock/users";
 
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";
-import type { ApiRequisitesFacadeService } from "./composition/requisites-facade";
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -60,8 +59,7 @@ export interface AppContext {
   feesService: FeesService;
   fxService: FxService;
   organizationsService: OrganizationsService;
-  requisiteProvidersService: RequisiteProvidersService;
-  requisitesFacadeService: ApiRequisitesFacadeService;
+  requisitesService: RequisitesService;
   usersService: UsersService;
   ledgerReadService: LedgerReadService;
   balancesService: BalancesService;
@@ -84,8 +82,7 @@ export function createAppContext(env: Env): AppContext {
     feesService: applicationServices.feesService,
     fxService: applicationServices.fxService,
     organizationsService: applicationServices.organizationsService,
-    requisiteProvidersService: applicationServices.requisiteProvidersService,
-    requisitesFacadeService: applicationServices.requisitesFacadeService,
+    requisitesService: applicationServices.requisitesService,
     usersService: core.usersService,
     documentsService: applicationServices.documentsService,
   };

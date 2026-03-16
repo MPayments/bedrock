@@ -160,7 +160,7 @@ export function createDoSomethingHandler(context: XxxServiceContext) {
     const { db, log } = context;
 
     return async function doSomething(input: DoSomethingInput) {
-        const validated = validateDoSomethingInput(input);
+        const validated = DoSomethingInput.parse(input);
         // ...
     };
 }

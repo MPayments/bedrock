@@ -25,7 +25,7 @@ import {
 } from "@bedrock/platform/auth-model/schema";
 import { schema as idempotencySchema } from "@bedrock/platform/idempotency-postgres/schema";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
-import { schema as requisiteProvidersSchema } from "@bedrock/requisite-providers/schema";
+import { schema as requisitesSchema } from "@bedrock/requisites/schema";
 
 const authSchema = {
   user,
@@ -57,7 +57,7 @@ export type Schema =
   & typeof currenciesSchema
   & typeof organizationsSchema
   & typeof balancesSchema
-  & typeof requisiteProvidersSchema
+  & typeof requisitesSchema
   & typeof reconciliationSchema;
 
 const schemaInternal: Schema = {
@@ -72,7 +72,7 @@ const schemaInternal: Schema = {
   ...currenciesSchema,
   ...organizationsSchema,
   ...balancesSchema,
-  ...requisiteProvidersSchema,
+  ...requisitesSchema,
   ...reconciliationSchema,
 };
 

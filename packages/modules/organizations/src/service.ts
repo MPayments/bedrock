@@ -17,31 +17,21 @@ import {
   createGetOrganizationRequisiteAccountingBindingHandler,
   createResolveOrganizationRequisiteBindingsHandler,
   createUpsertOrganizationRequisiteAccountingBindingHandler,
+  syncOrganizationRequisiteAccountingBinding,
 } from "./application/requisites/bindings";
-import {
-  createCreateOrganizationRequisiteHandler,
-  createRemoveOrganizationRequisiteHandler,
-  createUpdateOrganizationRequisiteHandler,
-} from "./application/requisites/commands";
 import type {
-  OrganizationRequisitesCommandTxRepository,
+  OrganizationRequisiteBindingsCommandTxRepository,
+  OrganizationsRequisiteSubjectsPort,
 } from "./application/requisites/ports";
-import {
-  createFindOrganizationRequisiteByIdHandler,
-  createListOrganizationRequisiteOptionsHandler,
-  createListOrganizationRequisitesHandler,
-} from "./application/requisites/queries";
 import {
   createOrganizationsServiceContext,
 } from "./application/shared/context";
 import type {
-  OrganizationsCurrenciesPort,
-  OrganizationsRequisiteProvidersPort,
   OrganizationsTransactionsPort,
 } from "./application/shared/external-ports";
 import {
-  createDrizzleOrganizationRequisitesCommandRepository,
-  createDrizzleOrganizationRequisitesQueryRepository,
+  createDrizzleOrganizationRequisiteBindingsCommandRepository,
+  createDrizzleOrganizationRequisiteBindingsQueryRepository,
 } from "./infra/drizzle/repos/organization-requisites-repository";
 import {
   createDrizzleOrganizationsCommandRepository,
@@ -78,9 +68,8 @@ export interface OrganizationsServiceDeps {
   logger?: Logger;
   now?: () => Date;
   ledgerBooks: OrganizationsLedgerBooksPort;
-  currencies: OrganizationsCurrenciesPort;
   ledgerBindings: OrganizationsLedgerBindingsPort;
-  requisiteProviders: OrganizationsRequisiteProvidersPort;
+  requisiteSubjects: OrganizationsRequisiteSubjectsPort;
 }
 
 function createOrganizationsTxRepository(input: {
@@ -103,42 +92,15 @@ function createOrganizationsTxRepository(input: {
   };
 }
 
-function createOrganizationRequisitesTxRepository(input: {
-  requisites: ReturnType<
-    typeof createDrizzleOrganizationRequisitesCommandRepository
+function createOrganizationRequisiteBindingsTxRepository(input: {
+  bindings: ReturnType<
+    typeof createDrizzleOrganizationRequisiteBindingsCommandRepository
   >;
   tx: Transaction;
-}): OrganizationRequisitesCommandTxRepository {
+}): OrganizationRequisiteBindingsCommandTxRepository {
   return {
-    findRequisiteSnapshotById(id) {
-      return input.requisites.findRequisiteSnapshotById(id, input.tx);
-    },
-    findActiveRequisiteSnapshotById(id) {
-      return input.requisites.findActiveRequisiteSnapshotById(id, input.tx);
-    },
-    listActiveRequisitesByOrganizationCurrency(params) {
-      return input.requisites.listActiveRequisitesByOrganizationCurrency(
-        params,
-        input.tx,
-      );
-    },
-    insertRequisite(requisite) {
-      return input.requisites.insertRequisiteTx(input.tx, requisite);
-    },
-    updateRequisite(requisite) {
-      return input.requisites.updateRequisiteTx(input.tx, requisite);
-    },
-    setDefaultState(params) {
-      return input.requisites.setDefaultStateTx(input.tx, params);
-    },
-    archiveRequisite(params) {
-      return input.requisites.archiveRequisiteTx(input.tx, params);
-    },
-    findBindingByRequisiteId(requisiteId) {
-      return input.requisites.findBindingByRequisiteId(requisiteId, input.tx);
-    },
     upsertBinding(params) {
-      return input.requisites.upsertBindingTx(input.tx, params);
+      return input.bindings.upsertBindingTx(input.tx, params);
     },
   };
 }
@@ -146,8 +108,8 @@ function createOrganizationRequisitesTxRepository(input: {
 function createOrganizationsTransactions(input: {
   db: Database;
   organizations: ReturnType<typeof createDrizzleOrganizationsCommandRepository>;
-  requisites: ReturnType<
-    typeof createDrizzleOrganizationRequisitesCommandRepository
+  requisiteBindings: ReturnType<
+    typeof createDrizzleOrganizationRequisiteBindingsCommandRepository
   >;
   ledgerBooks: OrganizationsLedgerBooksPort;
   ledgerBindings: OrganizationsLedgerBindingsPort;
@@ -156,12 +118,13 @@ function createOrganizationsTransactions(input: {
     async withTransaction(run) {
       return input.db.transaction(async (tx: Transaction) =>
         run({
+          tx,
           organizations: createOrganizationsTxRepository({
             organizations: input.organizations,
             tx,
           }),
-          requisites: createOrganizationRequisitesTxRepository({
-            requisites: input.requisites,
+          requisiteBindings: createOrganizationRequisiteBindingsTxRepository({
+            bindings: input.requisiteBindings,
             tx,
           }),
           ledgerBooks: {
@@ -185,20 +148,19 @@ function createOrganizationsTransactions(input: {
 
 export function createOrganizationsService(deps: OrganizationsServiceDeps) {
   const organizations = createDrizzleOrganizationsCommandRepository(deps.db);
-  const requisites = createDrizzleOrganizationRequisitesCommandRepository(deps.db);
+  const requisiteBindings =
+    createDrizzleOrganizationRequisiteBindingsCommandRepository(deps.db);
   const context = createOrganizationsServiceContext({
     logger: deps.logger,
     now: deps.now,
-    currencies: deps.currencies,
-    requisiteProviders: deps.requisiteProviders,
     organizationQueries: createDrizzleOrganizationsQueryRepository(deps.db),
-    requisiteQueries: createDrizzleOrganizationRequisitesQueryRepository(
-      deps.db,
-    ),
+    requisiteSubjects: deps.requisiteSubjects,
+    requisiteBindingQueries:
+      createDrizzleOrganizationRequisiteBindingsQueryRepository(deps.db),
     transactions: createOrganizationsTransactions({
       db: deps.db,
       organizations,
-      requisites,
+      requisiteBindings,
       ledgerBooks: deps.ledgerBooks,
       ledgerBindings: deps.ledgerBindings,
     }),
@@ -210,19 +172,44 @@ export function createOrganizationsService(deps: OrganizationsServiceDeps) {
     create: createCreateOrganizationHandler(context),
     update: createUpdateOrganizationHandler(context),
     remove: createRemoveOrganizationHandler(context),
-    requisites: {
-      list: createListOrganizationRequisitesHandler(context),
-      listOptions: createListOrganizationRequisiteOptionsHandler(context),
-      findById: createFindOrganizationRequisiteByIdHandler(context),
-      create: createCreateOrganizationRequisiteHandler(context),
-      update: createUpdateOrganizationRequisiteHandler(context),
-      remove: createRemoveOrganizationRequisiteHandler(context),
-      getBinding:
-        createGetOrganizationRequisiteAccountingBindingHandler(context),
-      upsertBinding:
+    requisiteBindings: {
+      get: createGetOrganizationRequisiteAccountingBindingHandler(context),
+      upsert:
         createUpsertOrganizationRequisiteAccountingBindingHandler(context),
-      resolveBindings:
-        createResolveOrganizationRequisiteBindingsHandler(context),
+      resolve: createResolveOrganizationRequisiteBindingsHandler(context),
+      sync: (
+        tx: Transaction,
+        input: {
+          requisiteId: string;
+          organizationId: string;
+          currencyCode: string;
+          postingAccountNo?: string;
+        },
+      ) =>
+        syncOrganizationRequisiteAccountingBinding(context, {
+          tx,
+          organizations: createOrganizationsTxRepository({
+            organizations,
+            tx,
+          }),
+          requisiteBindings: createOrganizationRequisiteBindingsTxRepository({
+            bindings: requisiteBindings,
+            tx,
+          }),
+          ledgerBooks: {
+            ensureDefaultOrganizationBook(params) {
+              return deps.ledgerBooks.ensureDefaultOrganizationBook(tx, params);
+            },
+          },
+          ledgerBindings: {
+            ensureOrganizationPostingTarget(params) {
+              return deps.ledgerBindings.ensureOrganizationPostingTarget(
+                tx,
+                params,
+              );
+            },
+          },
+        }, input),
     },
   };
 }

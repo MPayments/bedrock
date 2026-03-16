@@ -15,12 +15,6 @@ import { OPERATION_TRANSFER_TYPE } from "../domain/operation-intent";
 export type OperationIntentInput = z.input<typeof OperationIntentSchema>;
 export type ValidatedOperationIntent = z.output<typeof OperationIntentSchema>;
 
-export function validateOperationIntent(
-  input: unknown,
-): ValidatedOperationIntent {
-  return OperationIntentSchema.parse(input);
-}
-
 export { OPERATION_TRANSFER_TYPE };
 export type {
   CommitResult,

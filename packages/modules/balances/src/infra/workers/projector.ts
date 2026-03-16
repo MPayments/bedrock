@@ -6,7 +6,7 @@ import type {
   WorkerRunResult,
 } from "@bedrock/platform/worker-runtime";
 
-import { createRunProjectorPassHandler } from "../../application/projection/commands/run-projector-pass";
+import { createRunProjectorPassHandler } from "../../application/projection/commands";
 import { createBalancesWorkerContext } from "../../application/shared/context";
 import type { BalancesProjectionTransactionsPort } from "../../application/shared/external-ports";
 import type {

@@ -28,7 +28,7 @@ export function CreateRequisiteProviderFormClient() {
 
     const result = await executeMutation<CreatedRequisiteProvider>({
       request: () =>
-        apiClient.v1["requisite-providers"].$post({
+        apiClient.v1.requisites.providers.$post({
           json: {
             kind: values.kind,
             name: values.name,

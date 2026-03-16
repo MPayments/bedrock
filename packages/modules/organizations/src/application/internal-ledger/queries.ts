@@ -6,7 +6,6 @@ import {
   OrganizationNotFoundError,
 } from "../../errors";
 import type { OrganizationsQueryRepository } from "../organizations/ports";
-import type { OrganizationRequisitesQueryRepository } from "../requisites/ports";
 import type {
   OrganizationsLedgerReadPort,
 } from "../shared/external-ports";
@@ -25,17 +24,13 @@ export interface OrganizationsQueries {
   assertBooksBelongToInternalLedgerOrganizations: (
     bookIds: string[],
   ) => Promise<void>;
-  requisites: {
-    listLabelsById: (ids: string[]) => Promise<Map<string, string>>;
-  };
 }
 
 export function createOrganizationQueries(input: {
   organizations: OrganizationsQueryRepository;
-  requisites: OrganizationRequisitesQueryRepository;
   ledgerRead: OrganizationsLedgerReadPort;
 }): OrganizationsQueries {
-  const { ledgerRead, organizations, requisites } = input;
+  const { ledgerRead, organizations } = input;
 
   return {
     async listInternalLedgerOrganizations() {
@@ -93,11 +88,6 @@ export function createOrganizationQueries(input: {
           `Ledger book ${violation.bookId} is owned by non-organization ${violation.ownerId}`,
         );
       }
-    },
-    requisites: {
-      listLabelsById(ids: string[]) {
-        return requisites.listLabelsById(ids);
-      },
     },
   };
 }

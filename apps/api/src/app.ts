@@ -145,7 +145,7 @@ function createV1Routes(ctx: AppContext) {
     .route("/documents", documentsRoutes(ctx))
     .route("/fx/quotes", fxQuotesRoutes(ctx))
     .route("/organizations", organizationsRoutes(ctx))
-    .route("/requisite-providers", requisiteProvidersRoutes(ctx))
+    .route("/requisites/providers", requisiteProvidersRoutes(ctx))
     .route("/requisites", requisitesRoutes(ctx))
     .route("/fx/rates", fxRatesRoutes(ctx))
     .route("/users", usersRoutes(ctx))

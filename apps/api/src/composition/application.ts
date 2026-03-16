@@ -49,20 +49,18 @@ import { createCommercialDocumentModules } from "@bedrock/plugin-documents-comme
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
 import {
-  createRequisiteProvidersService,
-  type RequisiteProvidersService,
-} from "@bedrock/requisite-providers";
+  createRequisitesQueries,
+} from "@bedrock/requisites/queries";
+import {
+  createRequisitesService,
+  type RequisitesService,
+} from "@bedrock/requisites";
 
 import type { ApiCoreServices } from "./core";
 import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
-import {
-  createRequisitesFacadeService,
-  type ApiRequisitesFacadeService,
-} from "./requisites-facade";
-import { createApiRequisitesReadModel } from "./requisites-read-model";
 import { db } from "../db/client";
 
 function createDocumentsModuleRuntime(
@@ -82,8 +80,7 @@ export interface ApiApplicationServices {
   feesService: FeesService;
   fxService: FxService;
   organizationsService: OrganizationsService;
-  requisiteProvidersService: RequisiteProvidersService;
-  requisitesFacadeService: ApiRequisitesFacadeService;
+  requisitesService: RequisitesService;
   documentsService: DocumentsService;
 }
 
@@ -93,6 +90,7 @@ function createAccountingReportRuntime(database: Database | Transaction) {
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: database });
   const ledgerQueries = createLedgerQueries({ db: database });
   const organizationsQueries = createOrganizationsQueries({ db: database });
+  const requisitesQueries = createRequisitesQueries({ db: database });
   const reportsRepository = createDrizzleAccountingReportsRepository(database);
   const reportContext = createAccountingReportsContext({
     balancesQueries,
@@ -107,6 +105,7 @@ function createAccountingReportRuntime(database: Database | Transaction) {
     partiesQueries,
     ledgerQueries,
     organizationsQueries,
+    requisitesQueries,
     reportQueries: createAccountingReportQueries({
       context: reportContext,
     }),
@@ -287,11 +286,8 @@ export function createApplicationServices(
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
   const currenciesQueries = createCurrenciesQueries({ db });
   const partiesQueries = createPartiesQueries({ db });
+  const requisitesQueries = createRequisitesQueries({ db });
   const currenciesService = createCurrenciesService({ db, logger });
-  const requisiteProvidersService = createRequisiteProvidersService({
-    db,
-    logger,
-  });
   const currenciesPort = {
     async assertCurrencyExists(id: string) {
       await currenciesService.findById(id);
@@ -306,16 +302,12 @@ export function createApplicationServices(
       return new Map(rows);
     },
   };
-  const requisiteProvidersPort = {
-    async assertProviderActive(id: string) {
-      await requisiteProvidersService.assertActive(id);
-    },
-  };
   const accountingReportRuntime = createAccountingReportRuntime(db);
   const dimensionRegistry = createBedrockDimensionRegistry({
     counterpartiesQueries: partiesQueries.counterparties,
     customersQueries: partiesQueries.customers,
     organizationsQueries: accountingReportRuntime.organizationsQueries,
+    requisitesQueries: accountingReportRuntime.requisitesQueries,
     documentsReadModel,
   });
   const accountingReportsService = createAccountingReportsService({
@@ -342,7 +334,6 @@ export function createApplicationServices(
   });
   const partiesService = createPartiesService({
     db,
-    currencies: currenciesPort,
     documents: {
       hasDocumentsForCustomer(customerId, queryable) {
         return createDrizzleDocumentsReadModel({
@@ -351,10 +342,8 @@ export function createApplicationServices(
       },
     },
     logger,
-    requisiteProviders: requisiteProvidersPort,
   });
   const organizationsService = createOrganizationsService({
-    currencies: currenciesPort,
     db,
     ledgerBindings: {
       async ensureOrganizationPostingTarget(tx, input) {
@@ -382,26 +371,49 @@ export function createApplicationServices(
     },
     ledgerBooks: ledger.books,
     logger,
-    requisiteProviders: requisiteProvidersPort,
+    requisiteSubjects: {
+      findRequisiteSubjectById(requisiteId, tx) {
+        return requisitesQueries.findSubjectById(requisiteId, tx);
+      },
+      listRequisiteSubjectsById(requisiteIds, tx) {
+        return requisitesQueries.listSubjectsById(requisiteIds, tx);
+      },
+    },
   });
-  const requisitesReadModel = createApiRequisitesReadModel({ db });
-  const requisitesFacadeService = createRequisitesFacadeService({
-    readModel: requisitesReadModel,
-    organizationsService,
-    partiesService,
+  const requisitesService = createRequisitesService({
+    db,
+    logger,
+    currencies: currenciesPort,
+    owners: {
+      async assertOrganizationExists(organizationId) {
+        await organizationsService.findById(organizationId);
+      },
+      async assertCounterpartyExists(counterpartyId) {
+        await partiesService.counterparties.findById(counterpartyId);
+      },
+    },
+    organizationBindings: {
+      async syncOrganizationRequisiteBinding(tx, input) {
+        await organizationsService.requisiteBindings.sync(tx, input);
+      },
+    },
   });
+  const documentRequisitesService = {
+    findById: requisitesService.findById,
+    resolveBindings: organizationsService.requisiteBindings.resolve,
+  };
   const documentRegistry = createDocumentRegistry([
     ...createCommercialDocumentModules(
       createCommercialDocumentDeps({
         currenciesService,
-        requisitesService: requisitesFacadeService,
+        requisitesService: documentRequisitesService,
       }),
     ),
     ...createIfrsDocumentModules(
       createIfrsDocumentDeps({
         currenciesService,
         fxService,
-        requisitesService: requisitesFacadeService,
+        requisitesService: documentRequisitesService,
       }),
     ),
   ]);
@@ -437,8 +449,7 @@ export function createApplicationServices(
     feesService,
     fxService,
     organizationsService,
-    requisiteProvidersService,
-    requisitesFacadeService,
+    requisitesService,
     documentsService,
   };
 }

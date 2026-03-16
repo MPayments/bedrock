@@ -3,7 +3,6 @@ import { DomainError, readCauseString } from "@bedrock/shared/core/domain";
 import {
   CounterpartyGroupNotFoundError,
   CounterpartyGroupRuleError,
-  CounterpartyRequisiteNotFoundError,
   CounterpartySystemGroupDeleteError,
 } from "../../errors";
 
@@ -39,18 +38,4 @@ export function rethrowCounterpartyMembershipDomainError(error: unknown): never 
   }
 
   throw new CounterpartyGroupRuleError(error.message);
-}
-
-export function rethrowCounterpartyRequisiteDomainError(error: unknown): never {
-  if (!(error instanceof DomainError)) {
-    throw error;
-  }
-
-  if (error.code === "counterparty_requisite.not_found_in_set") {
-    throw new CounterpartyRequisiteNotFoundError(
-      readCauseString(error, "requisiteId") ?? error.message,
-    );
-  }
-
-  throw error;
 }

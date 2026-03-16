@@ -56,23 +56,3 @@ export {
   ListCounterpartyGroupsQuerySchema,
   type ListCounterpartyGroupsQuery,
 } from "./groups/queries";
-export {
-  CreateCounterpartyRequisiteInputSchema,
-  UpdateCounterpartyRequisiteInputSchema,
-  type CreateCounterpartyRequisiteInput,
-  type UpdateCounterpartyRequisiteInput,
-} from "./requisites/commands";
-export {
-  CounterpartyRequisiteOptionSchema,
-  CounterpartyRequisiteOptionsResponseSchema,
-  CounterpartyRequisiteSchema,
-  type CounterpartyRequisite,
-  type CounterpartyRequisiteOption,
-} from "./requisites/dto";
-export {
-  COUNTERPARTY_REQUISITES_LIST_CONTRACT,
-  ListCounterpartyRequisiteOptionsQuerySchema,
-  ListCounterpartyRequisitesQuerySchema,
-  type ListCounterpartyRequisiteOptionsQuery,
-  type ListCounterpartyRequisitesQuery,
-} from "./requisites/queries";

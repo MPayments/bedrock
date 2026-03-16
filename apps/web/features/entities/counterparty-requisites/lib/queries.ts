@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { CounterpartyOptionsResponseSchema } from "@bedrock/parties/contracts";
 import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
-import { RequisiteProviderOptionsResponseSchema } from "@bedrock/requisite-providers/contracts";
+import { RequisiteProviderOptionsResponseSchema } from "@bedrock/requisites/contracts";
 
 import {
   getRequisiteKindLabel,
@@ -149,7 +149,7 @@ async function getProviderLabelById() {
   const client = await getServerApiClient();
   const payload = await readOptionsList({
     request: () =>
-      client.v1["requisite-providers"].options.$get(
+      client.v1.requisites.providers.options.$get(
         {},
         { init: { cache: "force-cache" } },
       ),
@@ -303,7 +303,7 @@ export async function getCounterpartyRequisiteFormOptions(): Promise<Counterpart
     }),
     readOptionsList({
       request: () =>
-        client.v1["requisite-providers"].options.$get(
+        client.v1.requisites.providers.options.$get(
           {},
           { init: { cache: "force-cache" } },
         ),

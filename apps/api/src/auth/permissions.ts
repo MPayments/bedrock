@@ -26,8 +26,17 @@ const statements = {
   accounting: ["list", "manage_accounts", "manage_correspondence"],
   balances: ["get", "reserve", "release", "consume"],
   users: ["create", "list", "update", "delete"],
-  requisite_providers: ["create", "list", "update", "delete"],
-  requisites: ["create", "list", "update", "delete", "configure_binding"],
+  requisites: [
+    "create",
+    "list",
+    "update",
+    "delete",
+    "configure_binding",
+    "providers_list",
+    "providers_create",
+    "providers_update",
+    "providers_delete",
+  ],
 } as const;
 
 export type ResourcePermissions = {
@@ -57,8 +66,17 @@ export const admin = ac.newRole({
   accounting: ["list", "manage_accounts", "manage_correspondence"],
   balances: ["get", "reserve", "release", "consume"],
   users: ["create", "list", "update", "delete"],
-  requisite_providers: ["create", "list", "update", "delete"],
-  requisites: ["create", "list", "update", "delete", "configure_binding"],
+  requisites: [
+    "create",
+    "list",
+    "update",
+    "delete",
+    "configure_binding",
+    "providers_list",
+    "providers_create",
+    "providers_update",
+    "providers_delete",
+  ],
 });
 
 export const user = ac.newRole({
@@ -71,6 +89,5 @@ export const user = ac.newRole({
   documents: ["create", "list", "get", "update", "submit"],
   accounting: ["list"],
   balances: ["get"],
-  requisite_providers: ["list"],
-  requisites: ["list"],
+  requisites: ["list", "providers_list"],
 });

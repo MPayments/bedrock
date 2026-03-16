@@ -29,7 +29,7 @@
     "@bedrock/plugin-documents-commercial": "workspace:*",
     "@bedrock/plugin-documents-ifrs": "workspace:*",
     "@bedrock/plugin-documents-sdk": "workspace:*",
-    "@bedrock/requisite-providers": "workspace:*",
+    "@bedrock/requisites": "workspace:*",
     "@bedrock/users": "workspace:*",
     "@hono/node-server": "^1.19.9",
     "@hono/zod-openapi": "^1.2.2",

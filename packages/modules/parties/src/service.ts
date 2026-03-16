@@ -35,24 +35,10 @@ import type {
 } from "./application/groups/ports";
 import { createListCounterpartyGroupsHandler } from "./application/groups/queries";
 import {
-  createCreateCounterpartyRequisiteHandler,
-  createRemoveCounterpartyRequisiteHandler,
-  createUpdateCounterpartyRequisiteHandler,
-} from "./application/requisites/commands";
-import type {
-  CounterpartyRequisitesCommandTxRepository,
-} from "./application/requisites/ports";
-import {
-  createFindCounterpartyRequisiteByIdHandler,
-  createListCounterpartyRequisiteOptionsHandler,
-  createListCounterpartyRequisitesHandler,
-} from "./application/requisites/queries";
-import {
   createPartiesServiceContext,
 } from "./application/shared/context";
 import type {
-  PartiesCurrenciesPort,
-  PartiesRequisiteProvidersPort,
+  PartiesDocumentsReadPort,
   PartiesTransactionsPort,
 } from "./application/shared/external-ports";
 import {
@@ -64,30 +50,19 @@ import {
   createDrizzleCounterpartyGroupsQueryRepository,
 } from "./infra/drizzle/repos/counterparty-groups-repository";
 import {
-  createDrizzleCounterpartyRequisitesCommandRepository,
-  createDrizzleCounterpartyRequisitesQueryRepository,
-} from "./infra/drizzle/repos/counterparty-requisites-repository";
-import {
   createDrizzleCustomersCommandRepository,
   createDrizzleCustomersQueryRepository,
 } from "./infra/drizzle/repos/customers-repository";
 
 export type PartiesService = ReturnType<typeof createPartiesService>;
 
-export interface PartiesDocumentsReadPort {
-  hasDocumentsForCustomer: (
-    customerId: string,
-    tx?: Transaction,
-  ) => Promise<boolean>;
-}
+export { type PartiesDocumentsReadPort };
 
 export interface PartiesServiceDeps {
   db: Database;
   logger?: Logger;
   now?: () => Date;
   documents: PartiesDocumentsReadPort;
-  currencies: PartiesCurrenciesPort;
-  requisiteProviders: PartiesRequisiteProvidersPort;
 }
 
 function createCustomersTxRepository(input: {
@@ -193,45 +168,11 @@ function createCounterpartyGroupsTxRepository(input: {
   };
 }
 
-function createCounterpartyRequisitesTxRepository(input: {
-  requisites: ReturnType<
-    typeof createDrizzleCounterpartyRequisitesCommandRepository
-  >;
-  tx: Transaction;
-}): CounterpartyRequisitesCommandTxRepository {
-  return {
-    findActiveRequisiteSnapshotById(id) {
-      return input.requisites.findActiveRequisiteSnapshotById(id, input.tx);
-    },
-    listActiveRequisitesByCounterpartyCurrency(params) {
-      return input.requisites.listActiveRequisitesByCounterpartyCurrency(
-        params,
-        input.tx,
-      );
-    },
-    insertRequisite(requisite) {
-      return input.requisites.insertRequisiteTx(input.tx, requisite);
-    },
-    updateRequisite(requisite) {
-      return input.requisites.updateRequisiteTx(input.tx, requisite);
-    },
-    setDefaultState(params) {
-      return input.requisites.setDefaultStateTx(input.tx, params);
-    },
-    archiveRequisite(params) {
-      return input.requisites.archiveRequisiteTx(input.tx, params);
-    },
-  };
-}
-
 function createPartiesTransactions(input: {
   db: Database;
   customers: ReturnType<typeof createDrizzleCustomersCommandRepository>;
   counterparties: ReturnType<typeof createDrizzleCounterpartiesCommandRepository>;
   groups: ReturnType<typeof createDrizzleCounterpartyGroupsCommandRepository>;
-  requisites: ReturnType<
-    typeof createDrizzleCounterpartyRequisitesCommandRepository
-  >;
   documents: PartiesDocumentsReadPort;
 }): PartiesTransactionsPort {
   return {
@@ -250,10 +191,6 @@ function createPartiesTransactions(input: {
             groups: input.groups,
             tx,
           }),
-          requisites: createCounterpartyRequisitesTxRepository({
-            requisites: input.requisites,
-            tx,
-          }),
           documents: {
             hasDocumentsForCustomer(customerId) {
               return input.documents.hasDocumentsForCustomer(customerId, tx);
@@ -269,12 +206,9 @@ export function createPartiesService(deps: PartiesServiceDeps) {
   const customers = createDrizzleCustomersCommandRepository(deps.db);
   const counterparties = createDrizzleCounterpartiesCommandRepository(deps.db);
   const groups = createDrizzleCounterpartyGroupsCommandRepository(deps.db);
-  const requisites = createDrizzleCounterpartyRequisitesCommandRepository(deps.db);
   const context = createPartiesServiceContext({
     logger: deps.logger,
     now: deps.now,
-    currencies: deps.currencies,
-    requisiteProviders: deps.requisiteProviders,
     customerQueries: createDrizzleCustomersQueryRepository(deps.db),
     counterparties,
     counterpartyQueries: createDrizzleCounterpartiesQueryRepository(deps.db),
@@ -293,15 +227,11 @@ export function createPartiesService(deps: PartiesServiceDeps) {
       },
     },
     groupQueries: createDrizzleCounterpartyGroupsQueryRepository(deps.db),
-    requisiteQueries: createDrizzleCounterpartyRequisitesQueryRepository(
-      deps.db,
-    ),
     transactions: createPartiesTransactions({
       db: deps.db,
       customers,
       counterparties,
       groups,
-      requisites,
       documents: deps.documents,
     }),
   });
@@ -326,14 +256,6 @@ export function createPartiesService(deps: PartiesServiceDeps) {
       create: createCreateCounterpartyGroupHandler(context),
       update: createUpdateCounterpartyGroupHandler(context),
       remove: createRemoveCounterpartyGroupHandler(context),
-    },
-    requisites: {
-      list: createListCounterpartyRequisitesHandler(context),
-      listOptions: createListCounterpartyRequisiteOptionsHandler(context),
-      findById: createFindCounterpartyRequisiteByIdHandler(context),
-      create: createCreateCounterpartyRequisiteHandler(context),
-      update: createUpdateCounterpartyRequisiteHandler(context),
-      remove: createRemoveCounterpartyRequisiteHandler(context),
     },
   };
 }

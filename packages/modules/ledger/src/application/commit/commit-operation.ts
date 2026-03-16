@@ -2,7 +2,7 @@ import type { Transaction } from "@bedrock/platform/persistence";
 
 import type { LedgerOperationsWritePort } from "./ports";
 import {
-  validateOperationIntent,
+  OperationIntentSchema,
   type OperationIntentInput,
 } from "../../contracts";
 import { validateChainBlocks } from "../../domain/chain-policy";
@@ -30,7 +30,7 @@ export function createCommitOperationHandler(input: {
     tx: Transaction,
     intent: OperationIntentInput,
   ): Promise<CommitResult> {
-    const validated = validateOperationIntent(intent);
+    const validated = OperationIntentSchema.parse(input);
     validateChainBlocks(validated.lines);
 
     const createLineBookIds = Array.from(

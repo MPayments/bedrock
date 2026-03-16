@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { noopLogger } from "@bedrock/platform/observability/logger";
 
-import { createRunProjectorPassHandler } from "../src/application/projection/commands/run-projector-pass";
+import { createRunProjectorPassHandler } from "../src/application/projection/commands";
 import type { ProjectionOperationRow, ProjectionPostingRow } from "../src/domain/projection";
 
 function createOperation(

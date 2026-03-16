@@ -1,5 +1,10 @@
+import type { Transaction } from "@bedrock/platform/persistence";
+
 import type { OrganizationsCommandTxRepository } from "../organizations/ports";
-import type { OrganizationRequisitesCommandTxRepository } from "../requisites/ports";
+import type {
+  OrganizationRequisiteBindingsCommandTxRepository,
+  OrganizationsRequisiteSubjectsPort,
+} from "../requisites/ports";
 
 export interface OrganizationsLedgerReadPort {
   listBooksById: (
@@ -10,15 +15,6 @@ export interface OrganizationsLedgerReadPort {
       ownerId: string | null;
     }[]
   >;
-}
-
-export interface OrganizationsCurrenciesPort {
-  assertCurrencyExists: (id: string) => Promise<void>;
-  listCodesById: (ids: string[]) => Promise<Map<string, string>>;
-}
-
-export interface OrganizationsRequisiteProvidersPort {
-  assertProviderActive: (id: string) => Promise<void>;
 }
 
 export interface OrganizationsLedgerBooksTxPort {
@@ -39,8 +35,9 @@ export interface OrganizationsLedgerBindingsTxPort {
 }
 
 export interface OrganizationsTransactionContext {
+  tx: Transaction;
   organizations: OrganizationsCommandTxRepository;
-  requisites: OrganizationRequisitesCommandTxRepository;
+  requisiteBindings: OrganizationRequisiteBindingsCommandTxRepository;
   ledgerBooks: OrganizationsLedgerBooksTxPort;
   ledgerBindings: OrganizationsLedgerBindingsTxPort;
 }
@@ -50,3 +47,5 @@ export interface OrganizationsTransactionsPort {
     run: (context: OrganizationsTransactionContext) => Promise<TResult>,
   ): Promise<TResult>;
 }
+
+export type { OrganizationsRequisiteSubjectsPort };
