@@ -72,15 +72,15 @@ src/
     dto.ts
 
   application/
+    shared/
+      context.ts   # dependency/context normalization used by the module facade and handlers
     [capability]/ # or plain setup in application if no separable capabilities
       commands/
       queries/
       ports.ts
   domain/
-    entities/       # or [entity-name].ts
-    value-objects/  # or [value-object-name].ts
-    policies/       # or [policy-name].ts
-    events/         # or [event-name].ts
+    [capability]/   # preferred when the module is organized by capability
+    [concept].ts    # also acceptable when the module stays flat by domain concept
     errors.ts
   infra/
     drizzle/
@@ -89,6 +89,10 @@ src/
     integrations/
     workers/
 ```
+
+This is a shape guideline, not a requirement to introduce taxonomy-only folders. Bedrock modules are usually organized by capability or flat domain concepts first, and only introduce subfolders when they make the package clearer.
+
+`application/shared/context.ts` is the default place for package-local dependency normalization and logger/context setup. `service.ts` or another root facade composes handlers from that context and remains thin.
 
 Additional package-local folders are allowed when they are part of the public model or package assets, for example `packs/` in accounting.
 
@@ -104,10 +108,11 @@ Additional package-local folders are allowed when they are part of the public mo
   - application services
   - commands/queries
   - application ports
+  - shared service context and dependency normalization
   - orchestration of domain logic
 
 - `domain/`
-  - entities, value objects, enums, policies
+  - business concepts, aggregates, policies, and domain types
   - pure business rules
   - domain services
   - domain-only types
@@ -191,7 +196,17 @@ Default runtime exports are:
 - `"."`
 - `"./contracts"`
 
-Additional exports are allowed only when they represent a stable, intentional public surface.
+Common additional exports that are already part of the Bedrock module surface include:
+
+- `"./schema"` for runtime-owned Drizzle schema fragments
+- `"./queries"` for stable read/query entrypoints
+- `"./worker"` for worker definitions or worker adapter factories
+- `"./model"` or `"./read-model"` for intentional host/read-model types
+- `"./plugins"` for host module plugin APIs
+- `"./repository"` for narrow integration points intentionally consumed by apps/workflows
+- domain-specific stable subpaths such as `"./providers"`, `"./ids"`, `"./constants"`, or `"./packs/*"`
+
+Additional exports are allowed only when they represent a stable, intentional public surface with a clear owner and consumers.
 
 Deep imports into non-exported files are forbidden.
 
@@ -206,8 +221,11 @@ Deep imports into non-exported files are forbidden.
 ## Ownership Rules
 
 - A context owns its write model and runtime table definitions.
+- `apps/db` is the schema aggregator for migrations, reset, and seed/bootstrap orchestration; it composes schema exported by owning packages and must not become the owner of domain tables.
 - Cross-context reads are allowed only through exported query contracts, projections/read models,
   or narrowly scoped infra-level migration queries documented by the owning package.
+- `infra/drizzle/schema` may import another package's exported `./schema` surface when needed for foreign keys, references, or relational integrity.
+- Cross-context schema references are an infra concern only. They must not leak into `application/` or `domain/`.
 - Domain code must not read foreign-owned data directly.
 - Application write paths must not join or mutate foreign-owned tables.
 
@@ -218,30 +236,40 @@ Deep imports into non-exported files are forbidden.
 - Multi-context orchestration belongs in `workflows` or app composition.
 - Cross-context mutation is forbidden.
 
-## Canonical Example
+## Reference Set
 
-`@bedrock/accounting` is the current reference implementation for this architecture direction.
+No single module captures every approved pattern. Use this reference set instead:
 
 Examples:
 
-- pure domain rule:
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/domain/chart/validate-posting-matrix.ts`
+- context/service composition:
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/ledger/src/service.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/ledger/src/application/shared/context.ts`
 
-- domain pack logic:
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/domain/packs/compilation.ts`
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/domain/packs/posting-plan.ts`
+- small service facade using shared application context:
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/users/src/service.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/users/src/application/shared/context.ts`
+
+- rich domain and package-local assets:
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/domain/packs/compile-pack.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/domain/packs/resolve-posting-plan.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/packs/schema.ts`
 
 - application ports:
   - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/application/chart/ports.ts`
   - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/application/packs/ports.ts`
   - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/application/periods/ports.ts`
 
-- infra adapters:
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/infra/drizzle/repositories/accounting-repository.ts`
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/infra/reporting/query-support/shared.ts`
-  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/infra/reporting/query-support/scope.ts`
+- host module surfaces and intentional extra exports:
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/documents/package.json`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/documents/src/index.ts`
 
-This package is the template to follow for the next migrations, with one caveat: some adapter construction still happens in application services and should move outward over time.
+- infra adapters and schema cross-context references:
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/accounting/src/infra/drizzle/repos/chart-repository.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/documents/src/infra/drizzle/schema.ts`
+  - `/Users/alexey.eramasov/dev/ledger/packages/modules/organizations/src/infra/drizzle/schema/requisites.ts`
+
+Together these show the intended target architecture. New and refactored packages should align with these patterns without forcing every module into the exact same folder taxonomy.
 
 ## Consequences
 
