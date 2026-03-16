@@ -2,12 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { schema } from "@bedrock/fx/schema";
 
-import { RateSourceSyncError } from "../src/errors";
 import { createFxService } from "../src";
 import {
   createMockCurrenciesService,
   createNoopFeesService,
 } from "./helpers";
+import { RateSourceSyncError } from "../src/errors";
 
 function createSourceStatusRow(overrides: Partial<any> = {}) {
   return {

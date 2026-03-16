@@ -1,9 +1,8 @@
 import type { FinancialLine } from "@bedrock/documents/contracts";
-
 import type { FeeComponent } from "@bedrock/fees/contracts";
 import type { Transaction } from "@bedrock/platform/persistence";
+
 import type {
-  ComputedLeg,
   FxQuoteLegSourceKind,
   FxQuotePricingMode,
   FxQuoteStatus,

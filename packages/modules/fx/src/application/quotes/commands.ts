@@ -2,20 +2,20 @@ import {
   aggregateFinancialLines,
   type FinancialLine,
 } from "@bedrock/documents/contracts";
+import { DomainError } from "@bedrock/shared/core/domain";
 import {
   effectiveRateFromAmounts,
   mulDivFloor,
 } from "@bedrock/shared/money/math";
-import { DomainError } from "@bedrock/shared/core/domain";
 
-import { NotFoundError, QuoteExpiredError } from "../../errors";
+import type { FxQuoteRecord } from "./ports";
 import { financialLineFromFeeComponent } from "../../domain/financial-lines";
 import { FxQuote } from "../../domain/fx-quote";
 import {
   buildAutoCrossTrace,
   computeExplicitRouteLegs,
 } from "../../domain/routes";
-import type { FxQuoteRecord } from "./ports";
+import { NotFoundError, QuoteExpiredError } from "../../errors";
 import type { CrossRate } from "../rates/ports";
 import type { FxServiceContext } from "../shared/context";
 import {

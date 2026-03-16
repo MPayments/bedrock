@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, uuid, text, timestamp, bigint, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 
 import { currencies } from "@bedrock/currencies/schema";
+
 import type {
     FxQuotePricingMode,
     FxQuoteStatus,

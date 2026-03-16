@@ -1,15 +1,16 @@
-import {
-  BalanceHoldNotFoundError,
-  BalanceHoldStateError,
-} from "../../../errors";
+import { DomainError, readCauseString } from "@bedrock/shared/core/domain";
+
 import {
   validateConsumeBalanceInput,
   type ConsumeBalanceInput,
 } from "../../../contracts";
-import { DomainError, readCauseString } from "@bedrock/shared/core/domain";
-import { BALANCES_IDEMPOTENCY_SCOPE } from "../../../domain/idempotency";
-import { BalanceState } from "../../../domain/balance-state";
 import { toBalanceHoldSnapshot } from "../../../domain/balance-hold";
+import { BalanceState } from "../../../domain/balance-state";
+import { BALANCES_IDEMPOTENCY_SCOPE } from "../../../domain/idempotency";
+import {
+  BalanceHoldNotFoundError,
+  BalanceHoldStateError,
+} from "../../../errors";
 import type { BalancesContext } from "../../shared/context";
 
 export function createConsumeBalanceHandler(context: BalancesContext) {

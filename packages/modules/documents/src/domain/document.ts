@@ -363,11 +363,11 @@ export class DocumentAggregate extends Entity<string> {
     document: DocumentAggregate;
     submittedImplicitly: boolean;
   } {
-    let next: DocumentAggregate = this;
+    let nextSnapshot = this.snapshot;
     let submittedImplicitly = false;
 
     invariant(
-      next.snapshot.lifecycleStatus === "active",
+      nextSnapshot.lifecycleStatus === "active",
       "document.active_required",
       "Only active documents can be posted",
       { documentId: this.id },
@@ -375,28 +375,28 @@ export class DocumentAggregate extends Entity<string> {
 
     if (
       input.module.allowDirectPostFromDraft &&
-      next.snapshot.submissionStatus === "draft"
+      nextSnapshot.submissionStatus === "draft"
     ) {
-      next = new DocumentAggregate({
-        ...next.snapshot,
+      nextSnapshot = {
+        ...nextSnapshot,
         submissionStatus: "submitted",
         submittedBy: input.actorUserId,
         submittedAt: input.now,
         updatedAt: input.now,
-      });
+      };
       submittedImplicitly = true;
     }
 
     if (
       !isDocumentActionAllowed({
         action: "post",
-        document: next.snapshot,
+        document: nextSnapshot,
         module: input.module,
       })
     ) {
       invariant(
         input.module.postingRequired &&
-          next.snapshot.postingStatus !== "not_required",
+          nextSnapshot.postingStatus !== "not_required",
         "document.post_not_required",
         "Document does not support posting",
         { documentId: this.id },
@@ -412,7 +412,7 @@ export class DocumentAggregate extends Entity<string> {
 
     return {
       document: new DocumentAggregate({
-        ...next.snapshot,
+        ...nextSnapshot,
         postingStatus: "posting",
         postingStartedAt: input.now,
         postingError: null,

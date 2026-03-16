@@ -2,12 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { schema } from "@bedrock/fx/schema";
 
-import { RateSourceStaleError } from "../src/errors";
 import { createFxService } from "../src";
 import {
   createMockCurrenciesService,
   createNoopFeesService,
 } from "./helpers";
+import { RateSourceStaleError } from "../src/errors";
 
 function createSelectChain(limitImpl: () => Promise<any[]>) {
     return {

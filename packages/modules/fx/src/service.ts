@@ -1,17 +1,17 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 
+import { createFxQuoteCommandHandlers } from "./application/quotes/commands";
+import { createFxQuoteQueryHandlers } from "./application/quotes/queries";
+import { createFxRateCommandHandlers } from "./application/rates/commands";
+import { createRateQueryHandlers } from "./application/rates/queries";
+import { createFxServiceContext } from "./application/shared/context";
 import type {
   FxCurrenciesPort,
   FxQuoteFeesPort,
   FxRateSource,
   FxRateSourceProvider,
 } from "./application/shared/external-ports";
-import { createFxQuoteCommandHandlers } from "./application/quotes/commands";
-import { createFxQuoteQueryHandlers } from "./application/quotes/queries";
-import { createFxRateCommandHandlers } from "./application/rates/commands";
-import { createRateQueryHandlers } from "./application/rates/queries";
-import { createFxServiceContext } from "./application/shared/context";
 import { createDrizzleFxQuoteFinancialLinesRepository } from "./infra/drizzle/repos/quote-financial-lines-repository";
 import { createDrizzleFxQuotesRepository } from "./infra/drizzle/repos/quotes-repository";
 import { createDrizzleFxRatesRepository } from "./infra/drizzle/repos/rates-repository";

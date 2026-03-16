@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
 
+import {
+  resolveCreateCounterpartyRequisiteProps,
+  resolveUpdateCounterpartyRequisiteProps,
+} from "./inputs";
 import type {
   CreateCounterpartyRequisiteInput,
   CounterpartyRequisite as CounterpartyRequisiteDto,
@@ -15,10 +19,6 @@ import {
   CounterpartyNotFoundError,
   CounterpartyRequisiteNotFoundError,
 } from "../../errors";
-import {
-  resolveCreateCounterpartyRequisiteProps,
-  resolveUpdateCounterpartyRequisiteProps,
-} from "./inputs";
 import type { PartiesServiceContext } from "../shared/context";
 
 async function assertCounterpartyExists(

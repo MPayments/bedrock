@@ -6,11 +6,6 @@ export {
 import { vi } from "vitest";
 
 import {
-  OPERATION_TRANSFER_TYPE,
-  type CreateIntentLine,
-  type OperationIntent,
-} from "../src/contracts";
-import {
   createStubDb,
   createStubTx,
   TEST_DATES,
@@ -18,6 +13,12 @@ import {
   type StubDatabase,
   type StubTransaction,
 } from "@bedrock/test-utils";
+
+import {
+  OPERATION_TRANSFER_TYPE,
+  type CreateIntentLine,
+  type OperationIntent,
+} from "../src/contracts";
 
 interface TbClient {
   createAccounts: (...args: any[]) => Promise<any[]>;

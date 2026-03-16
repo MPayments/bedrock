@@ -8,6 +8,7 @@ import {
   createTestDocumentModule,
   createDocumentPolicyStub,
 } from "./helpers";
+import { buildDocumentEventState } from "../src/application/shared/document-event-state";
 import { createDocumentInsertBase } from "../src/application/shared/document-record";
 import { buildDefaultActionIdempotencyKey } from "../src/application/shared/idempotency-key";
 import {
@@ -19,14 +20,13 @@ import {
   enforceDocumentPolicy,
   persistDocumentPolicyDenial,
 } from "../src/application/shared/policy";
-import { buildDocumentEventState } from "../src/application/shared/document-event-state";
 import { assertDocumentIsActive } from "../src/domain/document";
 import { buildDocNo } from "../src/domain/document";
+import type { Document } from "../src/domain/document";
 import {
   buildSummary,
   normalizeSearchText,
 } from "../src/domain/document-summary";
-import type { Document } from "../src/domain/document";
 import {
   DocumentGraphError,
   DocumentPolicyDeniedError,

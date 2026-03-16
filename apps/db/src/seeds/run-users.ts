@@ -1,4 +1,5 @@
 import { hashPassword } from "better-auth/crypto";
+
 import { loadSeedEnv } from "./load-env";
 
 loadSeedEnv();

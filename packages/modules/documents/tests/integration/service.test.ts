@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-
 import { z } from "zod";
 
 import type { Database, Transaction } from "@bedrock/platform/persistence";

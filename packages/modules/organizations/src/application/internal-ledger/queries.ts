@@ -5,11 +5,11 @@ import {
   OrganizationInternalLedgerInvariantError,
   OrganizationNotFoundError,
 } from "../../errors";
+import type { OrganizationsQueryRepository } from "../organizations/ports";
+import type { OrganizationRequisitesQueryRepository } from "../requisites/ports";
 import type {
   OrganizationsLedgerReadPort,
 } from "../shared/external-ports";
-import type { OrganizationsQueryRepository } from "../organizations/ports";
-import type { OrganizationRequisitesQueryRepository } from "../requisites/ports";
 
 export interface OrganizationsQueries {
   listInternalLedgerOrganizations: () => Promise<

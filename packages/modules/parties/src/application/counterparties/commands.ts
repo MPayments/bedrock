@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import type { Transaction } from "@bedrock/platform/persistence";
 
+import {
+  resolveCreateCounterpartyProps,
+  resolveUpdateCounterpartyProps,
+} from "./inputs";
 import type {
   Counterparty as CounterpartyDto,
   CreateCounterpartyInput,
@@ -17,10 +21,6 @@ import {
   CounterpartyCustomerNotFoundError,
   CounterpartyNotFoundError,
 } from "../../errors";
-import {
-  resolveCreateCounterpartyProps,
-  resolveUpdateCounterpartyProps,
-} from "./inputs";
 import type { PartiesServiceContext } from "../shared/context";
 import { rethrowCounterpartyMembershipDomainError } from "../shared/map-domain-error";
 

@@ -2,9 +2,9 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { AccountingTemplateAccountSchema } from "@bedrock/accounting/contracts";
 
+import { createAccountingRouteApp } from "./report-route-kit";
 import type { AppContext } from "../../context";
 import { requirePermission } from "../../middleware/permission";
-import { createAccountingRouteApp } from "./report-route-kit";
 
 export function accountingTemplateRoutes(ctx: AppContext) {
   const app = createAccountingRouteApp();

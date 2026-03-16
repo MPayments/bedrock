@@ -1,12 +1,12 @@
 import type { Database } from "@bedrock/platform/persistence";
 
-import type { BalancesQueriesContext } from "../../shared/context";
-import type { BalancesReportingRepository } from "../ports";
 import type {
   ListOrganizationLiquidityRowsInput,
   LiquidityQueryRow,
 } from "../../../contracts";
 import { validateListOrganizationLiquidityRowsInput } from "../../../contracts";
+import type { BalancesQueriesContext } from "../../shared/context";
+import type { BalancesReportingRepository } from "../ports";
 
 export interface BalancesQueries {
   listOrganizationLiquidityRows: (

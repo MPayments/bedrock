@@ -2,6 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 import { dedupeIds } from "@bedrock/shared/core/domain";
+
 import { schema } from "../schema";
 
 export async function readMembershipIds(

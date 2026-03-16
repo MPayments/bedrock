@@ -1,9 +1,4 @@
 import {
-  InvalidPasswordError,
-  UserEmailConflictError,
-  UserNotFoundError,
-} from "../errors";
-import {
   BanUserInputSchema,
   ChangeOwnPasswordInputSchema,
   ChangePasswordInputSchema,
@@ -16,11 +11,15 @@ import {
   type UpdateUserInput,
   type User,
 } from "../contracts";
-import { UserAccount } from "../domain/user-account";
-import { toUserRoleOrNull } from "../domain/user-role";
-
 import { resolveBanUserInput, resolveUserUpdateInput } from "./inputs";
 import { toUser } from "./mappers";
+import { UserAccount } from "../domain/user-account";
+import { toUserRoleOrNull } from "../domain/user-role";
+import {
+  InvalidPasswordError,
+  UserEmailConflictError,
+  UserNotFoundError,
+} from "../errors";
 import type { UsersServiceContext } from "./shared/context";
 
 export function createCreateUserHandler(context: UsersServiceContext) {

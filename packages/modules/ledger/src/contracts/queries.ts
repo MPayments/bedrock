@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-import { ListLedgerOperationsInputSchema } from "./zod";
+import type { ListLedgerOperationsInputSchema } from "./zod";
 
 export type ListLedgerOperationsInput = z.input<
   typeof ListLedgerOperationsInputSchema
@@ -10,7 +10,7 @@ export type ResolvedListLedgerOperationsInput = z.output<
 >;
 
 export interface ListScopedPostingRowsInput {
-  statuses: Array<"pending" | "posted" | "failed">;
+  statuses: ("pending" | "posted" | "failed")[];
   from?: Date;
   to?: Date;
   asOf?: Date;

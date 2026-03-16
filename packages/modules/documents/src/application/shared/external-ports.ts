@@ -1,15 +1,15 @@
 import type {
+  DocumentActionPolicyService,
+  DocumentModuleRuntime,
+  DocumentRegistry,
+} from "../../plugins";
+import type {
   DocumentEventsRepository,
   DocumentLinksRepository,
   DocumentOperationsRepository,
   DocumentsCommandRepository,
 } from "../documents/ports";
 import type { DocumentsLedgerCommitPort } from "../posting/ports";
-import type {
-  DocumentActionPolicyService,
-  DocumentModuleRuntime,
-  DocumentRegistry,
-} from "../../plugins";
 
 export interface DocumentsIdempotencyPort {
   withIdempotency<TResult, TStoredResult = Record<string, unknown>>(input: {
@@ -42,6 +42,6 @@ export interface DocumentsTransactionsPort {
   ): Promise<TResult>;
 }
 
-export interface DocumentsPolicyPort extends DocumentActionPolicyService {}
+export type DocumentsPolicyPort = DocumentActionPolicyService;
 
-export interface DocumentsRegistryPort extends DocumentRegistry {}
+export type DocumentsRegistryPort = DocumentRegistry;

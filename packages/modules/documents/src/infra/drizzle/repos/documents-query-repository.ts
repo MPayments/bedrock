@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, type SQL, sql } from "drizzle-orm";
+import { and, count, eq, inArray, type SQL, sql } from "drizzle-orm";
 
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 import { dedupeIds } from "@bedrock/shared/core/domain";

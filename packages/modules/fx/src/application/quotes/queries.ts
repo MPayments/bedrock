@@ -1,13 +1,13 @@
-import { type PaginatedList } from "@bedrock/shared/core/pagination";
 import { ValidationError } from "@bedrock/shared/core/errors";
+import { type PaginatedList } from "@bedrock/shared/core/pagination";
 import { isUuidLike } from "@bedrock/shared/core/uuid";
 
-import { NotFoundError } from "../../errors";
 import type {
   FxQuoteDetailsRecord,
   FxQuoteLegRecord,
   FxQuoteRecord,
 } from "./ports";
+import { NotFoundError } from "../../errors";
 import type { FxServiceContext } from "../shared/context";
 import {
   type GetQuoteDetailsInput,

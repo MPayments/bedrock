@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { ensureOrganizationRequisiteAccountingBindingTx } from "./bindings";
+import { resolveOrganizationRequisiteUpdateInput } from "./inputs";
 import type {
   CreateOrganizationRequisiteInput,
   OrganizationRequisite as OrganizationRequisiteDto,
@@ -17,8 +19,6 @@ import {
 } from "../../errors";
 import type { OrganizationsServiceContext } from "../shared/context";
 import { rethrowOrganizationRequisiteDomainError } from "../shared/map-domain-error";
-import { ensureOrganizationRequisiteAccountingBindingTx } from "./bindings";
-import { resolveOrganizationRequisiteUpdateInput } from "./inputs";
 
 async function assertOrganizationExists(
   context: OrganizationsServiceContext,
@@ -199,7 +199,6 @@ export function createUpdateOrganizationRequisiteHandler(
         );
         const nextProviderId = resolvedInput.providerId;
         const nextCurrencyId = resolvedInput.currencyId;
-        const nextKind = resolvedInput.kind;
         const nextIsDefault = resolvedInput.isDefault;
         const currencyChanged = nextCurrencyId !== current.currencyId;
 

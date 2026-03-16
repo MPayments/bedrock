@@ -5,9 +5,7 @@ import type { LedgerOperationsWritePort } from "../commit/ports";
 import type { LedgerReadPort } from "../operations/ports";
 import type { LedgerReportingPort } from "../reporting/ports";
 
-export interface InternalLedgerBookGuard {
-  (input: { db: Database; bookIds: string[] }): Promise<void>;
-}
+export type InternalLedgerBookGuard = (input: { db: Database; bookIds: string[] }) => Promise<void>;
 
 export interface LedgerServiceDeps {
   db: Database;

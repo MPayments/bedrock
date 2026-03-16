@@ -1,3 +1,5 @@
+import type { Logger } from "@bedrock/platform/observability/logger";
+import type { Database } from "@bedrock/platform/persistence";
 import type {
   BedrockWorker,
   WorkerRunContext,
@@ -15,8 +17,8 @@ import { createDrizzleBalancesProjectionRepository } from "../drizzle/repos/proj
 interface BalancesProjectorWorkerDefinitionDeps {
   id?: string;
   intervalMs?: number;
-  db: import("@bedrock/platform/persistence").Database;
-  logger?: import("@bedrock/platform/observability/logger").Logger;
+  db: Database;
+  logger?: Logger;
   beforeOperation?: BalancesWorkerOperationGuard;
   batchSize?: number;
 }

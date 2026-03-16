@@ -115,13 +115,13 @@ export function createDrizzleFxRatesRepository(
 
   async function upsertSourceRates(
     source: FxRateSource,
-    rates: Array<{
+    rates: {
       baseCurrencyId: string;
       quoteCurrencyId: string;
       rateNum: bigint;
       rateDen: bigint;
       asOf: Date;
-    }>,
+    }[],
   ): Promise<void> {
     if (rates.length === 0) {
       return;

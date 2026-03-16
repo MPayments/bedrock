@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 
-import { schema } from "../drizzle/schema";
 import type {
   Database,
   Transaction,
@@ -10,8 +9,7 @@ import type {
   WorkerRunContext,
   WorkerRunResult,
 } from "@bedrock/platform/worker-runtime";
-import { isRetryableError } from "../../errors";
-import { OPERATION_TRANSFER_TYPE } from "../../domain/operation-intent";
+
 import {
   makeTbAccount,
   makeTbTransfer,
@@ -21,6 +19,9 @@ import {
   TB_AMOUNT_MAX,
   type TbClient,
 } from "./client";
+import { OPERATION_TRANSFER_TYPE } from "../../domain/operation-intent";
+import { isRetryableError } from "../../errors";
+import { schema } from "../drizzle/schema";
 
 function tbAccountCodeFromId(id: bigint): number {
   return Number(id % 65535n) + 1;

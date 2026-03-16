@@ -5,8 +5,8 @@ import type {
   WorkerRunResult,
 } from "@bedrock/platform/worker-runtime";
 
-import type { FxService } from "../../service";
 import type { FxRateSource } from "../../domain/rate-source";
+import type { FxService } from "../../service";
 
 export interface FxRatesWorkerSourceContext {
   source: FxRateSource;

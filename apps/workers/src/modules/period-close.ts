@@ -16,7 +16,6 @@ import {
 } from "@bedrock/accounting";
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { createBalancesQueries } from "@bedrock/balances/queries";
-import { createPartiesQueries } from "@bedrock/parties/queries";
 import {
   createDocumentsService,
   type DocumentsIdempotencyPort,
@@ -38,6 +37,7 @@ import {
 import { createLedgerReadService, createLedgerService } from "@bedrock/ledger";
 import { createLedgerQueries } from "@bedrock/ledger/queries";
 import { createOrganizationsQueries } from "@bedrock/organizations/queries";
+import { createPartiesQueries } from "@bedrock/parties/queries";
 import { user } from "@bedrock/platform/auth-model/schema";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import type { Logger } from "@bedrock/platform/observability/logger";

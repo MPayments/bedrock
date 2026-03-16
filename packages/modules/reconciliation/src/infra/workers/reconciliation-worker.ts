@@ -9,16 +9,16 @@ import type {
   WorkerRunResult,
 } from "@bedrock/platform/worker-runtime";
 
-import type {
-  ReconciliationDocumentsPort,
-  ReconciliationIdempotencyPort,
-  ReconciliationLedgerLookupPort,
-} from "../../application/shared/external-ports";
 import {
   createProcessPendingSourcesHandler,
   type ReconciliationWorkerSourceGuard,
 } from "../../application/processing/commands";
 import { createReconciliationServiceContext } from "../../application/shared/context";
+import type {
+  ReconciliationDocumentsPort,
+  ReconciliationIdempotencyPort,
+  ReconciliationLedgerLookupPort,
+} from "../../application/shared/external-ports";
 
 export function createReconciliationWorkerDefinition(deps: {
   id?: string;

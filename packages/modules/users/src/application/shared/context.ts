@@ -3,11 +3,11 @@ import {
   type Logger,
 } from "@bedrock/platform/observability/logger";
 
+import type { UsersPasswordHasherPort } from "./external-ports";
 import type {
   UsersIdentityCommandRepository,
   UsersIdentityQueryRepository,
 } from "../users/ports";
-import type { UsersPasswordHasherPort } from "./external-ports";
 
 export interface UsersServiceDeps {
   identityStore: UsersIdentityQueryRepository & UsersIdentityCommandRepository;

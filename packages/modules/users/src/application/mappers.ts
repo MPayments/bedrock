@@ -1,6 +1,5 @@
 import type { User, UserWithLastSession } from "../contracts";
 import { toUserRoleOrNull } from "../domain/user-role";
-
 import type {
   UsersUserRecord,
   UsersUserWithLastSessionRecord,

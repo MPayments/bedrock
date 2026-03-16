@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger/contracts";
+import {
+  type createLedgerWorkerDefinition as createLedgerWorkerDefinitionFactory,
+} from "@bedrock/ledger/worker";
+
 import {
   createStubDb,
   createMockTbClient,
   mockDbExecuteResult,
   type StubDatabase,
 } from "./helpers";
-import { OPERATION_TRANSFER_TYPE } from "@bedrock/ledger/contracts";
-import {
-  type createLedgerWorkerDefinition as createLedgerWorkerDefinitionFactory,
-} from "@bedrock/ledger/worker";
 import { TransferFlags } from "../../../src/infra/tigerbeetle/client";
 
 async function runWorkerOnce(

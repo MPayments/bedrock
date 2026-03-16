@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
 
+import {
+  resolveCreateCounterpartyGroupProps,
+  resolveUpdateCounterpartyGroupProps,
+} from "./inputs";
 import type {
   CounterpartyGroup as CounterpartyGroupDto,
   CreateCounterpartyGroupInput,
@@ -15,10 +19,6 @@ import {
   CounterpartyCustomerNotFoundError,
   CounterpartyGroupNotFoundError,
 } from "../../errors";
-import {
-  resolveCreateCounterpartyGroupProps,
-  resolveUpdateCounterpartyGroupProps,
-} from "./inputs";
 import type { PartiesServiceContext } from "../shared/context";
 import { rethrowCounterpartyGroupDomainError } from "../shared/map-domain-error";
 

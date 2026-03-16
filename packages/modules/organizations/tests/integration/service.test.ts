@@ -18,8 +18,8 @@ import {
   OrganizationNotFoundError,
 } from "../../src/errors";
 import { schema as organizationsSchema } from "../../src/infra/drizzle/schema";
-import { createOrganizationsService } from "../../src/service";
 import { createOrganizationsQueries } from "../../src/queries";
+import { createOrganizationsService } from "../../src/service";
 
 const ledgerBooks = createLedgerBooksService();
 

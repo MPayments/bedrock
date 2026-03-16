@@ -1,10 +1,10 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { pgNotify } from "@bedrock/platform/persistence/notify";
 import type {
   Database,
   Transaction,
 } from "@bedrock/platform/persistence";
+import { pgNotify } from "@bedrock/platform/persistence/notify";
 
 import type { BalancesStateRepository } from "../../../application/balances/ports";
 import type { BalanceEventInput } from "../../../domain/balance-events";

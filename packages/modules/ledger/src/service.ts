@@ -1,17 +1,9 @@
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
+import { createEnsureBookAccountInstanceHandler } from "./application/book-accounts/ensure-book-account-instance";
+import { createEnsureDefaultOrganizationBookHandler } from "./application/books/ensure-default-organization-book";
 import type { EnsureDefaultOrganizationBookInput } from "./application/books/ports";
-import type { BookAccountIdentityInput } from "./domain/book-account-identity";
-import type { CommitResult, OperationIntentInput } from "./contracts";
-import {
-  createEnsureBookAccountInstanceHandler,
-} from "./application/book-accounts/ensure-book-account-instance";
-import {
-  createEnsureDefaultOrganizationBookHandler,
-} from "./application/books/ensure-default-organization-book";
-import {
-  createCommitOperationHandler,
-} from "./application/commit/commit-operation";
+import { createCommitOperationHandler } from "./application/commit/commit-operation";
 import {
   createLedgerReadQueries,
   type LedgerReadService,
@@ -20,6 +12,8 @@ import {
   createLedgerContext,
   type LedgerServiceDeps,
 } from "./application/shared/context";
+import type { CommitResult, OperationIntentInput } from "./contracts";
+import type { BookAccountIdentityInput } from "./domain/book-account-identity";
 import { createDrizzleLedgerBookAccountsRepository } from "./infra/drizzle/repos/book-account-instances-repository";
 import { createDrizzleLedgerBooksRepository } from "./infra/drizzle/repos/books-repository";
 import { createDrizzleLedgerOperationsRepository } from "./infra/drizzle/repos/ledger-operations-repository";
@@ -111,11 +105,10 @@ export function createLedgerBookAccountsService(): LedgerBookAccountsService {
 }
 
 export function createLedgerBooksService(): LedgerBooksService {
-  const ensureDefaultOrganizationBook = createEnsureDefaultOrganizationBookHandler(
-    {
+  const ensureDefaultOrganizationBook =
+    createEnsureDefaultOrganizationBookHandler({
       books: createDrizzleLedgerBooksRepository(),
-    },
-  );
+    });
 
   return {
     ensureDefaultOrganizationBook,

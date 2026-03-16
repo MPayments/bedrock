@@ -1,7 +1,7 @@
 import type { Transaction } from "@bedrock/platform/persistence";
 
-import type { BookAccountIdentityInput } from "../../domain/book-account-identity";
 import type { LedgerBookAccountsPort } from "./ports";
+import type { BookAccountIdentityInput } from "../../domain/book-account-identity";
 
 export function createEnsureBookAccountInstanceHandler(input: {
   bookAccounts: LedgerBookAccountsPort;

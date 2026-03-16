@@ -1,12 +1,12 @@
 import { sha256Hex } from "@bedrock/platform/crypto";
 import { canonicalJson } from "@bedrock/shared/core/canon";
+import { DomainError } from "@bedrock/shared/core/domain";
 
 import {
   ReconciliationExternalRecordInputSchema,
   type ReconciliationExternalRecordDto,
   type ReconciliationExternalRecordInput,
 } from "../../contracts";
-import { DomainError } from "@bedrock/shared/core/domain";
 import { ExternalRecord } from "../../domain/external-record";
 import { RECONCILIATION_IDEMPOTENCY_SCOPE } from "../../domain/idempotency";
 import { ExternalRecordConflictError } from "../../errors";

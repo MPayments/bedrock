@@ -1,3 +1,5 @@
+import type { Transaction } from "@bedrock/platform/persistence";
+
 import type {
   AdjustmentComponent,
   FeeComponent,
@@ -15,7 +17,6 @@ import {
   normalizeComponent,
   resolveAccountingTreatment,
 } from "../domain/normalization";
-import type { Transaction } from "@bedrock/platform/persistence";
 import type { FeesServiceContext } from "./shared/context";
 import {
   validateAdjustmentComponent,

@@ -1,14 +1,14 @@
 import {
-  BalanceHoldConflictError,
-  InsufficientAvailableBalanceError,
-} from "../../../errors";
-import {
   validateReserveBalanceInput,
   type ReserveBalanceInput,
 } from "../../../contracts";
-import { BALANCES_IDEMPOTENCY_SCOPE } from "../../../domain/idempotency";
-import { BalanceState } from "../../../domain/balance-state";
 import { toBalanceHoldSnapshot } from "../../../domain/balance-hold";
+import { BalanceState } from "../../../domain/balance-state";
+import { BALANCES_IDEMPOTENCY_SCOPE } from "../../../domain/idempotency";
+import {
+  BalanceHoldConflictError,
+  InsufficientAvailableBalanceError,
+} from "../../../errors";
 import type { BalancesContext } from "../../shared/context";
 
 export function createReserveBalanceHandler(context: BalancesContext) {
@@ -32,7 +32,9 @@ export function createReserveBalanceHandler(context: BalancesContext) {
             .loadMutationReplayResult(validated.subject, validated.holdRef),
         handler: async () => {
           const repository = context.createStateRepository(tx);
-          const position = await repository.ensureBalancePosition(validated.subject);
+          const position = await repository.ensureBalancePosition(
+            validated.subject,
+          );
           const existingHold = await repository.getHoldForUpdate(
             validated.subject,
             validated.holdRef,
@@ -53,7 +55,9 @@ export function createReserveBalanceHandler(context: BalancesContext) {
             });
           } catch (error) {
             if (error instanceof Error && "code" in error) {
-              if ((error as { code: string }).code === "balances.hold.conflict") {
+              if (
+                (error as { code: string }).code === "balances.hold.conflict"
+              ) {
                 throw new BalanceHoldConflictError(validated.holdRef);
               }
 

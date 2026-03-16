@@ -4,15 +4,15 @@ import type {
   Transaction,
 } from "@bedrock/platform/persistence";
 
-import type {
-  CurrenciesCommandRepository,
-  CurrenciesQueryRepository,
-} from "../currencies/ports";
 import { createCurrenciesCache, type CurrenciesCacheStore } from "./cache";
 import {
   createDrizzleCurrenciesCommandRepository,
   createDrizzleCurrenciesQueryRepository,
 } from "../../infra/drizzle/repos/currencies-repository";
+import type {
+  CurrenciesCommandRepository,
+  CurrenciesQueryRepository,
+} from "../currencies/ports";
 
 export interface CurrenciesServiceDeps {
   db: Database;

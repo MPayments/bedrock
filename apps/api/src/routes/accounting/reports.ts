@@ -21,17 +21,7 @@ import {
   TrialBalanceResponseSchema,
 } from "@bedrock/accounting";
 
-import { ErrorSchema } from "../../common";
-import type { AppContext } from "../../context";
-import { requirePermission } from "../../middleware/permission";
 import { toReportCsvResponse } from "./csv";
-import {
-  createAccountingRouteApp,
-  handleAccountingRouteError,
-  logReportMetrics,
-  readAllPages,
-  type PaginatedPayload,
-} from "./report-route-kit";
 import {
   mapBalanceSheetDto,
   mapCashFlowDto,
@@ -43,17 +33,27 @@ import {
   mapLiquidityDto,
   mapTrialBalanceDto,
 } from "./mappers";
+import {
+  createAccountingRouteApp,
+  handleAccountingRouteError,
+  logReportMetrics,
+  readAllPages,
+  type PaginatedPayload,
+} from "./report-route-kit";
+import { ErrorSchema } from "../../common";
+import type { AppContext } from "../../context";
+import { requirePermission } from "../../middleware/permission";
 
-type ScopeMetaLike = {
+interface ScopeMetaLike {
   scopeType: string;
   attributionMode: string;
   resolvedCounterpartyIdsCount: number;
-};
+}
 
-type ScopedDataPayload = {
+interface ScopedDataPayload {
   data: Record<string, unknown>[];
   scopeMeta: ScopeMetaLike;
-};
+}
 
 type PaginatedScopedPayload = PaginatedPayload<Record<string, unknown>> &
   ScopedDataPayload;
@@ -66,11 +66,11 @@ type RouteQuerySchema =
   | z.ZodObject<z.ZodRawShape>
   | z.ZodPipe<z.ZodTypeAny, z.ZodTypeAny>;
 
-type PaginatedReportDescriptor<
+interface PaginatedReportDescriptor<
   TQuerySchema extends RouteQuerySchema,
   TResponseSchema extends z.ZodTypeAny,
   TLoadResult extends PaginatedReportLoadResult,
-> = {
+> {
   key: string;
   summary: string;
   exportSummary: string;
@@ -80,13 +80,13 @@ type PaginatedReportDescriptor<
   headers: string[];
   load: (query: z.infer<TQuerySchema>) => Promise<TLoadResult>;
   map: (result: TLoadResult) => PaginatedScopedPayload;
-};
+}
 
-type SimpleReportDescriptor<
+interface SimpleReportDescriptor<
   TQuerySchema extends RouteQuerySchema,
   TResponseSchema extends z.ZodTypeAny,
   TLoadResult,
-> = {
+> {
   key: string;
   summary: string;
   exportSummary: string;
@@ -96,7 +96,7 @@ type SimpleReportDescriptor<
   headers: string[];
   load: (query: z.infer<TQuerySchema>) => Promise<TLoadResult>;
   map: (result: TLoadResult) => ScopedDataPayload;
-};
+}
 
 const EXPORT_PAGE_SIZE = 200;
 

@@ -12,9 +12,9 @@ import {
   randomIdempotencyKey,
   randomOrgId,
 } from "./helpers";
+import { createLedgerService } from "../../src";
 import { OPERATION_TRANSFER_TYPE } from "../../src/contracts";
 import { IdempotencyConflictError } from "../../src/errors";
-import { createLedgerService } from "../../src";
 
 describe("Engine Integration Tests", () => {
   const engine = createLedgerService({ db });

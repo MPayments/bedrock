@@ -1,4 +1,3 @@
-import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
 import type {
   OrganizationsService,
@@ -7,11 +6,9 @@ import type {
   PartiesService,
 } from "@bedrock/parties";
 import { ServiceError } from "@bedrock/shared/core/errors";
+import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
-import {
-  ListRequisiteOptionsQuerySchema,
-  ListRequisitesQuerySchema,
-} from "../routes/contracts/requisites";
+import type { ApiRequisitesReadModel } from "./requisites-read-model";
 import type {
   CreateRequisiteInput,
   ListRequisiteOptionsQuery,
@@ -22,7 +19,10 @@ import type {
   UpdateRequisiteInput,
   UpsertRequisiteAccountingBindingInput,
 } from "../routes/contracts/requisites";
-import type { ApiRequisitesReadModel } from "./requisites-read-model";
+import {
+  ListRequisiteOptionsQuerySchema,
+  ListRequisitesQuerySchema,
+} from "../routes/contracts/requisites";
 
 export class RequisiteNotFoundError extends ServiceError {
   name = "RequisiteNotFoundError";

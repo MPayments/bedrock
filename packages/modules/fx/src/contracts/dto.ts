@@ -1,5 +1,6 @@
 import type { z } from "zod";
 
+import type { ListFxQuotesQuerySchema } from "./queries";
 import type {
   CreateFxQuoteInputSchema,
   FxQuoteDetailsResponseSchema,
@@ -17,7 +18,6 @@ import type {
   FxRateSourceStatusSchema,
   SetManualRateInputSchema,
 } from "./zod";
-import type { ListFxQuotesQuerySchema } from "./queries";
 
 export type FxRateSource = z.infer<typeof FxRateSourceSchema>;
 export type FxRatePair = z.infer<typeof FxRatePairSchema>;

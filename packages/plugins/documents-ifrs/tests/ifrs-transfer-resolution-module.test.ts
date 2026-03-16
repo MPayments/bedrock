@@ -5,9 +5,9 @@ import {
   OPERATION_CODE,
   POSTING_TEMPLATE_KEY,
 } from "@bedrock/accounting/posting-contracts";
+import { FIVE_MIN_IN_SECONDS } from "@bedrock/shared/money";
 
 import { createTransferResolutionDocumentModule } from "../src/documents/transfer-resolution";
-import { FIVE_MIN_IN_SECONDS } from "@bedrock/shared/money";
 
 function createDeps() {
   return {

@@ -3,12 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import { schema } from "@bedrock/fx/schema";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
-import { NotFoundError, QuoteExpiredError } from "../src/errors";
 import { createFxService } from "../src";
 import {
   createMockCurrenciesService,
   createNoopFeesService,
 } from "./helpers";
+import { NotFoundError, QuoteExpiredError } from "../src/errors";
 
 const QUOTE_ID = "550e8400-e29b-41d4-a716-446655440010";
 

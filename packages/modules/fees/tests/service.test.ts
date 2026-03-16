@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { schema } from "@bedrock/fees/schema";
 import { TransferCodes } from "@bedrock/accounting/constants";
+import { schema } from "@bedrock/fees/schema";
 
-import { FeeValidationError } from "../src/errors";
 import { createTestFeesService } from "./helpers";
+import { FeeValidationError } from "../src/errors";
 
 const QUOTE_ID = "11111111-1111-4111-8111-111111111111";
 

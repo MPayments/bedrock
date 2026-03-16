@@ -5,13 +5,14 @@ import {
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
 } from "@bedrock/ledger/ids";
+import { schema, type Dimensions } from "@bedrock/ledger/schema";
+import type { Database } from "@bedrock/platform/persistence/drizzle";
+
 import {
   makeTbAccount,
   tbCreateAccountsOrThrow,
   type TbClient,
 } from "../../../src/infra/tigerbeetle/client";
-import { schema, type Dimensions } from "@bedrock/ledger/schema";
-import type { Database } from "@bedrock/platform/persistence/drizzle";
 
 function accountCodeFromSeed(seed: string): number {
   const normalized = seed.trim().toLowerCase();

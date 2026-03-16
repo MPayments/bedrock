@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
-import { type Database } from "@bedrock/platform/persistence/drizzle";
 import type { Transaction } from "@bedrock/platform/persistence";
+import { type Database } from "@bedrock/platform/persistence/drizzle";
 
 import type {
   FxQuoteFinancialLineWriteModel,

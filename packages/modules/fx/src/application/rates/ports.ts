@@ -25,7 +25,7 @@ export interface RatePairView {
   rates: SourceRateView[];
 }
 
-export interface RateHistoryPoint extends RateRowRecord {}
+export type RateHistoryPoint = RateRowRecord;
 
 export interface FxRateSourceRowRecord {
   source: FxRateSource;
@@ -62,13 +62,13 @@ export interface FxRatesRepository {
   ): Promise<RateRowRecord[]>;
   upsertSourceRates(
     source: FxRateSource,
-    rates: Array<{
+    rates: {
       baseCurrencyId: string;
       quoteCurrencyId: string;
       rateNum: bigint;
       rateDen: bigint;
       asOf: Date;
-    }>,
+    }[],
   ): Promise<void>;
   upsertSourceSuccess(input: {
     source: FxRateSource;

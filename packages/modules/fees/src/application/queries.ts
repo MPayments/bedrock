@@ -1,3 +1,5 @@
+import type { Transaction } from "@bedrock/platform/persistence";
+
 import type {
   ApplicableFeeRule,
   CalculateFxQuoteFeeComponentsInput,
@@ -6,7 +8,6 @@ import type {
   ResolveFeeRulesInput,
 } from "../contracts";
 import { calculateBpsAmount } from "../domain/math";
-import type { Transaction } from "@bedrock/platform/persistence";
 import type { FeesServiceContext } from "./shared/context";
 import {
   validateFxQuoteFeeCalculation,

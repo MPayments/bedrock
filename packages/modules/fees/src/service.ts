@@ -1,10 +1,11 @@
+import type { Transaction } from "@bedrock/platform/persistence";
+
 import { createFeesCommandHandlers } from "./application/commands";
 import { createFeesQueryHandlers } from "./application/queries";
 import {
   createFeesServiceContext,
   type FeesServiceDeps,
 } from "./application/shared/context";
-import type { Transaction } from "@bedrock/platform/persistence";
 import type {
   AdjustmentComponent,
   ApplicableFeeRule,

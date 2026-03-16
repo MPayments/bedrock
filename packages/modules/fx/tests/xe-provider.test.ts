@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createXeRateSourceProvider,
   RateSourceSyncError,
-  type XeRateSourceProviderDeps,
 } from "@bedrock/fx/providers";
+
 import {
   parseRateFromHtml,
   parseRateFromText,

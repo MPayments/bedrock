@@ -8,9 +8,7 @@ import {
 import { schema as fxSchema } from "@bedrock/fx/schema";
 import { sha256Hex } from "@bedrock/platform/crypto";
 import type {
-  Database,
   Queryable,
-  Transaction,
 } from "@bedrock/platform/persistence";
 import {
   DocumentValidationError,

@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { schema } from "../../src/schema-registry";
-
 import { seedCounterparties } from "../../src/seeds/counterparties";
 import { COUNTERPARTIES, CUSTOMERS } from "../../src/seeds/fixtures";
 
@@ -18,8 +17,8 @@ describe("seedCounterparties", () => {
       ]),
     );
 
-    const customerGroupValues: Array<Record<string, unknown>> = [];
-    const membershipValues: Array<Record<string, unknown>> = [];
+    const customerGroupValues: Record<string, unknown>[] = [];
+    const membershipValues: Record<string, unknown>[] = [];
     const deleteTables: unknown[] = [];
 
     const db = {

@@ -3,19 +3,18 @@ import {
   FIVE_MIN_IN_SECONDS,
 } from "@bedrock/shared/money/math";
 
-import { RateSourceStaleError, RateSourceSyncError } from "../../errors";
-import { FX_RATE_SOURCES } from "../../domain/rate-source";
 import type {
   FxRateSourceRowRecord,
   FxRateSourceStatus,
   FxRateSourceSyncResult,
   RateRowRecord,
 } from "./ports";
+import { FX_RATE_SOURCES } from "../../domain/rate-source";
+import { RateSourceStaleError, RateSourceSyncError } from "../../errors";
+import type { FxServiceContext } from "../shared/context";
 import type {
   FxRateSource,
-  FxRateSourceProvider,
 } from "../shared/external-ports";
-import type { FxServiceContext } from "../shared/context";
 import {
   type SetManualRateInput,
   type SyncRatesFromSourceInput,
@@ -206,13 +205,13 @@ export function createFxRateCommandHandlers(context: FxServiceContext) {
 
   async function persistRates(
     source: FxRateSource,
-    rates: Array<{
+    rates: {
       base: string;
       quote: string;
       rateNum: bigint;
       rateDen: bigint;
       asOf: Date;
-    }>,
+    }[],
   ): Promise<number> {
     const dedupedMap = new Map<string, (typeof rates)[number]>();
     for (const rate of rates) {

@@ -2,7 +2,7 @@ import type { z } from "zod";
 
 import { resolvePatchValue } from "@bedrock/shared/core";
 
-import {
+import type {
   CreateCounterpartyRequisiteInputSchema,
   UpdateCounterpartyRequisiteInputSchema,
 } from "../../contracts";

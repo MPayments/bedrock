@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 
 import { TigerBeetleBatchError } from "@bedrock/ledger";
+
+import { createMockTbClient } from "./helpers";
 import {
   makeTbAccount,
   makeTbTransfer,
@@ -12,7 +14,6 @@ import {
   CreateTransferError,
 } from "../../../src/infra/tigerbeetle/client";
 
-import { createMockTbClient } from "./helpers";
 
 describe("TB_AMOUNT_MAX", () => {
   it("should be 2^128 - 1", () => {

@@ -153,7 +153,7 @@ function createV1Routes(ctx: AppContext) {
 }
 
 const v1 = createV1Routes(ctx);
-const routes = new OpenAPIHono<{ Variables: AuthVariables }>().route("/v1", v1);
+const _routes = new OpenAPIHono<{ Variables: AuthVariables }>().route("/v1", v1);
 
 app.route("/v1", v1);
 
@@ -188,4 +188,4 @@ app.get(
 );
 
 export { app };
-export type AppType = typeof routes;
+export type AppType = typeof _routes;

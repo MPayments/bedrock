@@ -12,6 +12,11 @@ import {
   createListOrganizationsHandler,
 } from "./application/organizations/queries";
 import {
+  createGetOrganizationRequisiteAccountingBindingHandler,
+  createResolveOrganizationRequisiteBindingsHandler,
+  createUpsertOrganizationRequisiteAccountingBindingHandler,
+} from "./application/requisites/bindings";
+import {
   createCreateOrganizationRequisiteHandler,
   createRemoveOrganizationRequisiteHandler,
   createUpdateOrganizationRequisiteHandler,
@@ -21,11 +26,6 @@ import {
   createListOrganizationRequisiteOptionsHandler,
   createListOrganizationRequisitesHandler,
 } from "./application/requisites/queries";
-import {
-  createGetOrganizationRequisiteAccountingBindingHandler,
-  createResolveOrganizationRequisiteBindingsHandler,
-  createUpsertOrganizationRequisiteAccountingBindingHandler,
-} from "./application/requisites/bindings";
 import {
   createOrganizationsServiceContext,
   type OrganizationsServiceDeps,

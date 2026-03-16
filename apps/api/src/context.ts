@@ -1,21 +1,21 @@
 import { z } from "zod";
 
-import type { FeesService } from "@bedrock/fees";
-import type { FxService } from "@bedrock/fx";
 import type { AccountingReportsService, AccountingService } from "@bedrock/accounting";
 import type { BalancesService } from "@bedrock/balances";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DocumentsService } from "@bedrock/documents";
+import type { FeesService } from "@bedrock/fees";
+import type { FxService } from "@bedrock/fx";
 import type { LedgerReadService } from "@bedrock/ledger";
 import type { OrganizationsService } from "@bedrock/organizations";
 import type { PartiesService } from "@bedrock/parties";
+import type { Logger } from "@bedrock/platform/observability/logger";
 import type { RequisiteProvidersService } from "@bedrock/requisite-providers";
 import type { UsersService } from "@bedrock/users";
-import type { Logger } from "@bedrock/platform/observability/logger";
 
 import { createApplicationServices } from "./composition/application";
-import type { ApiRequisitesFacadeService } from "./composition/requisites-facade";
 import { createCoreServices } from "./composition/core";
+import type { ApiRequisitesFacadeService } from "./composition/requisites-facade";
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),

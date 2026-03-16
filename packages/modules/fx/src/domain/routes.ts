@@ -1,5 +1,5 @@
-import { mulDivFloor } from "@bedrock/shared/money/math";
 import { ValidationError } from "@bedrock/shared/core/errors";
+import { mulDivFloor } from "@bedrock/shared/money/math";
 
 import type { ComputedLeg, FxQuoteLegSourceKind } from "./quote-types";
 
@@ -14,20 +14,20 @@ interface RouteLegInput {
   executionCounterpartyId?: string;
 }
 
-type AutoCrossQuoteInput = {
+interface AutoCrossQuoteInput {
   fromCurrency: string;
   toCurrency: string;
   asOf: Date;
   anchor?: string;
-};
+}
 
-type ExplicitRouteQuoteInput = {
+interface ExplicitRouteQuoteInput {
   fromCurrency: string;
   toCurrency: string;
   fromAmountMinor: bigint;
   asOf: Date;
   legs: RouteLegInput[];
-};
+}
 
 export function buildAutoCrossTrace(
   input: AutoCrossQuoteInput,

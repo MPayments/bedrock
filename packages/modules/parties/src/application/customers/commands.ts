@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
 
+import {
+  resolveCreateCustomerProps,
+  resolveUpdateCustomerProps,
+} from "./inputs";
 import type {
   CreateCustomerInput,
   Customer as CustomerDto,
@@ -15,10 +19,6 @@ import {
   CustomerDeleteConflictError,
   CustomerNotFoundError,
 } from "../../errors";
-import {
-  resolveCreateCustomerProps,
-  resolveUpdateCustomerProps,
-} from "./inputs";
 import type { PartiesServiceContext } from "../shared/context";
 
 function toPublicCustomer(customer: Customer): CustomerDto {

@@ -65,4 +65,4 @@ export interface LedgerOperationsWritePort {
   enqueuePostOperation: (tx: Transaction, operationId: string) => Promise<void>;
 }
 
-export interface LedgerCommitResult extends CommitResult {}
+export type LedgerCommitResult = CommitResult;

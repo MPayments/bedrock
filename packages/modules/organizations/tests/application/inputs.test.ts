@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveOrganizationRequisiteUpdateInput } from "../../src/application/requisites/inputs";
 import { resolveOrganizationUpdateInput } from "../../src/application/organizations/inputs";
+import { resolveOrganizationRequisiteUpdateInput } from "../../src/application/requisites/inputs";
 
 describe("organization inputs", () => {
   it("resolves organization patches without leaving undefined fields", () => {

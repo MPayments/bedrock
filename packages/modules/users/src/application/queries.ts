@@ -7,7 +7,6 @@ import {
   type UserWithLastSession,
 } from "../contracts";
 import { UserNotFoundError } from "../errors";
-
 import { toUser, toUserWithLastSession } from "./mappers";
 import type { UsersServiceContext } from "./shared/context";
 

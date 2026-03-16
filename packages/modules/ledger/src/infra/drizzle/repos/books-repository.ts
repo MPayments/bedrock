@@ -1,7 +1,8 @@
 import { and, eq } from "drizzle-orm";
 
-import type { LedgerBooksPort } from "../../../application/books/ports";
 import type { Transaction } from "@bedrock/platform/persistence";
+
+import type { LedgerBooksPort } from "../../../application/books/ports";
 import { schema } from "../schema";
 
 const DEFAULT_ORGANIZATION_BOOK_CODE_PREFIX = "organization-default";

@@ -1,11 +1,11 @@
 import { sql } from "drizzle-orm";
 import { bigint, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
-import { counterparties } from "@bedrock/parties/schema";
 import { currencies } from "@bedrock/currencies/schema";
-import type { FxQuoteLegSourceKind } from "../../../domain/quote-types";
+import { counterparties } from "@bedrock/parties/schema";
 
 import { fxQuotes } from "./quotes";
+import type { FxQuoteLegSourceKind } from "../../../domain/quote-types";
 
 export const fxQuoteLegs = pgTable(
     "fx_quote_legs",

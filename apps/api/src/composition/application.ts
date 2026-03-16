@@ -13,11 +13,6 @@ import {
 } from "@bedrock/accounting";
 import { createBalancesQueries } from "@bedrock/balances/queries";
 import {
-  createPartiesService,
-  type PartiesService,
-} from "@bedrock/parties";
-import { createPartiesQueries } from "@bedrock/parties/queries";
-import {
   createCurrenciesService,
   type CurrenciesService,
 } from "@bedrock/currencies";
@@ -49,9 +44,10 @@ import {
 } from "@bedrock/organizations";
 import { createOrganizationsQueries } from "@bedrock/organizations/queries";
 import {
-  createRequisiteProvidersService,
-  type RequisiteProvidersService,
-} from "@bedrock/requisite-providers";
+  createPartiesService,
+  type PartiesService,
+} from "@bedrock/parties";
+import { createPartiesQueries } from "@bedrock/parties/queries";
 import type {
   Database,
   Transaction,
@@ -59,6 +55,10 @@ import type {
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
+import {
+  createRequisiteProvidersService,
+  type RequisiteProvidersService,
+} from "@bedrock/requisite-providers";
 
 import type { ApiCoreServices } from "./core";
 import {

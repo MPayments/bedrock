@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
-import { stableStringify } from "@bedrock/shared/core/canon";
 import { sha256Hex } from "@bedrock/platform/crypto";
+import { stableStringify } from "@bedrock/shared/core/canon";
 
 export const TB_ID_MAX = (1n << 128n) - 1n;
 export const TB_ID_MAX_ALLOWED = TB_ID_MAX - 1n;

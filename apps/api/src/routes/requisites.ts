@@ -1,24 +1,24 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import {
-  CounterpartyNotFoundError,
-  CounterpartyRequisiteNotFoundError,
-} from "@bedrock/parties";
-import {
   OrganizationNotFoundError,
   OrganizationRequisiteBindingNotFoundError,
   OrganizationRequisiteNotFoundError,
 } from "@bedrock/organizations";
+import {
+  CounterpartyNotFoundError,
+  CounterpartyRequisiteNotFoundError,
+} from "@bedrock/parties";
 import { RequisiteProviderNotActiveError } from "@bedrock/requisite-providers";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
+import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
+import { buildOptionsResponse } from "../common/options";
 import {
   RequisiteBindingOwnerTypeError,
   RequisiteNotFoundError,
 } from "../composition/requisites-facade";
-import { ErrorSchema, DeletedSchema, IdParamSchema } from "../common";
-import { buildOptionsResponse } from "../common/options";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { requirePermission } from "../middleware/permission";

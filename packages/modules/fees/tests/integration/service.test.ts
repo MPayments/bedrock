@@ -6,9 +6,9 @@ import { schema as currenciesSchema } from "@bedrock/currencies/schema";
 import { schema as feesSchema } from "@bedrock/fees/schema";
 
 import { db } from "./setup";
+import { createFeesService } from "../../src";
 import { currencyIdForCode } from "../helpers";
 
-import { createFeesService } from "../../src";
 
 const schema = {
   ...feesSchema,

@@ -1,10 +1,10 @@
 import { Entity } from "@bedrock/shared/core/domain";
 
-import type { MatchResolution } from "./matching";
 import {
   summarizeResolutions,
   type ReconciliationRunSummary,
 } from "./exceptions";
+import type { MatchResolution } from "./matching";
 
 export interface ReconciliationRunDraft {
   source: string;

@@ -1,16 +1,17 @@
-import type { CorrelationContext } from "@bedrock/shared/core/correlation";
 import type { z } from "zod";
 
+import type { CorrelationContext } from "@bedrock/shared/core/correlation";
+
+import type {
+  BalanceHoldSnapshot,
+  BalanceSnapshot,
+} from "./dto";
 import {
   BalanceSubjectSchema,
   ConsumeBalanceInputSchema,
   ReleaseBalanceInputSchema,
   ReserveBalanceInputSchema,
 } from "./zod";
-import type {
-  BalanceHoldSnapshot,
-  BalanceSnapshot,
-} from "./dto";
 
 export interface BalanceMutationResult {
   balance: BalanceSnapshot;

@@ -1,6 +1,11 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
 
 import type {
+  DocumentActionPolicyService,
+  DocumentModuleRuntime,
+  DocumentRegistry,
+} from "../plugins";
+import type {
   DocumentEventsRepository,
   DocumentLinksRepository,
   DocumentOperationsRepository,
@@ -13,11 +18,6 @@ import type {
   DocumentsLedgerReadPort,
 } from "./posting/ports";
 import type { DocumentsTransactionsPort } from "./shared/external-ports";
-import type {
-  DocumentActionPolicyService,
-  DocumentModuleRuntime,
-  DocumentRegistry,
-} from "../plugins";
 
 export interface DocumentsServiceDeps {
   accounting: DocumentsAccountingPort;

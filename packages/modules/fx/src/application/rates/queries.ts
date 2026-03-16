@@ -1,7 +1,5 @@
 import { normalizeCurrency } from "@bedrock/currencies/catalog";
 
-import { RateNotFoundError } from "../../errors";
-import { getSourceOrder } from "../../domain/source-priority";
 import type {
   CrossRate,
   FxRateSourceStatus,
@@ -9,8 +7,10 @@ import type {
   RatePairView,
   RateRowRecord,
 } from "./ports";
-import type { FxRateSource } from "../shared/external-ports";
+import { getSourceOrder } from "../../domain/source-priority";
+import { RateNotFoundError } from "../../errors";
 import type { FxServiceContext } from "../shared/context";
+import type { FxRateSource } from "../shared/external-ports";
 
 export function createRateQueryHandlers(
   context: FxServiceContext,

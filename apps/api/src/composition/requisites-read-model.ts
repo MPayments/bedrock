@@ -10,8 +10,8 @@ import {
   type SQL,
 } from "drizzle-orm";
 
-import { organizationRequisites } from "@bedrock/organizations/schema";
 import { currencies } from "@bedrock/currencies/schema";
+import { organizationRequisites } from "@bedrock/organizations/schema";
 import type { Queryable } from "@bedrock/platform/persistence";
 import {
   resolveSortOrder,

@@ -1,10 +1,10 @@
-type CsvResponder = {
+interface CsvResponder {
   body: (
     body: string,
     status: number,
     headers: Record<string, string>,
   ) => Response;
-};
+}
 
 function asCsvCell(value: unknown): string {
   if (value === null || value === undefined) {

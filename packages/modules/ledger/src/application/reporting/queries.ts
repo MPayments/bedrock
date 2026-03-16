@@ -1,5 +1,5 @@
-import type { LedgerReadPort } from "../operations/ports";
 import type { LedgerReportingPort } from "./ports";
+import type { LedgerReadPort } from "../operations/ports";
 
 export interface LedgerQueries
   extends Pick<LedgerReadPort, "getOperationDetails" | "listOperations">,

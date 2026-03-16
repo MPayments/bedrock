@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { resolveOrganizationUpdateInput } from "./inputs";
 import type {
   CreateOrganizationInput,
   Organization as OrganizationDto,
@@ -15,7 +16,6 @@ import {
   OrganizationNotFoundError,
 } from "../../errors";
 import type { OrganizationsServiceContext } from "../shared/context";
-import { resolveOrganizationUpdateInput } from "./inputs";
 
 function toPublicOrganization(organization: Organization): OrganizationDto {
   return organization.toSnapshot();
