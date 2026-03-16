@@ -117,6 +117,11 @@ export function normalizeRequiredText(
   code: string,
   field: string,
 ): string {
+  invariant(typeof value === "string", code, `${field} is required`, {
+    field,
+    value,
+  });
+
   const normalized = value.trim();
 
   invariant(normalized.length > 0, code, `${field} is required`, {
@@ -134,7 +139,8 @@ export function trimToNull(
     return value;
   }
 
-  return value.length > 0 ? value : null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
 }
 
 /**
