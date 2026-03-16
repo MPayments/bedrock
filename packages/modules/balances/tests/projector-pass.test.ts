@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { noopLogger } from "@bedrock/platform/observability/logger";
 
-import { createRunProjectorPassHandler } from "../src/application/projection/commands/run-projector-pass";
+import { createRunProjectorPassHandler } from "../src/application/projection/commands";
 import type { ProjectionOperationRow, ProjectionPostingRow } from "../src/domain/projection";
 
 function createOperation(
@@ -60,14 +60,16 @@ describe("runProjectorPass", () => {
       applyProjectedDelta: vi.fn().mockResolvedValue(true),
       advanceCursor: vi.fn().mockResolvedValue(undefined),
     };
-    const transaction = vi.fn(async (run: (tx: unknown) => Promise<unknown>) =>
-      run({} as object),
+    const withTransaction = vi.fn(
+      async (
+        run: (context: { projectionRepository: typeof projection }) => Promise<unknown>,
+      ) =>
+        run({ projectionRepository: projection }),
     );
     const runProjectorPass = createRunProjectorPassHandler({
       context: {
-        db: { transaction } as never,
         log: noopLogger,
-        createProjectionRepository: vi.fn().mockReturnValue(projection),
+        transactions: { withTransaction },
       },
     });
 

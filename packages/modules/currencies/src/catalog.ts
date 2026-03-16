@@ -13,6 +13,5 @@ export {
   normalizeCurrencyCode,
   parseCurrency,
   parseCurrencyCode,
-  type CurrencyCode,
-  type Currency,
 } from "./domain/code";
+export type { Currency, CurrencyCode } from "./domain/code";

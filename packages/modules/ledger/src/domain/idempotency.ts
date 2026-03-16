@@ -1,5 +1,5 @@
-import { sha256Hex } from "@bedrock/platform/crypto";
 import { stableStringify } from "@bedrock/shared/core/canon";
+import { sha256Hex } from "@bedrock/shared/core/crypto";
 
 import { computeDimensionsHash, tbTransferIdForOperation } from "../ids";
 import {

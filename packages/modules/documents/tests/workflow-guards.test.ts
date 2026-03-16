@@ -172,17 +172,6 @@ describe("documents workflow lifecycle guards", () => {
       }),
       moduleMethod: "canReject",
     },
-    {
-      name: "post",
-      action: "post",
-      document: makeDocument({
-        lifecycleStatus: "cancelled",
-        submissionStatus: "submitted",
-        approvalStatus: "approved",
-        postingStatus: "unposted",
-      }),
-      moduleMethod: "canPost",
-    },
   ])("prevents $name on cancelled documents", async ({ action, document, moduleMethod }) => {
     const module = createModuleStub();
     const { context, ledger, repository } = createContext(document, module);

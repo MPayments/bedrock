@@ -7,7 +7,13 @@ import {
 export interface ChartTemplateAccountSnapshot {
   accountNo: string;
   name: string;
-  kind: "asset" | "liability" | "equity" | "revenue" | "expense" | "active_passive";
+  kind:
+    | "asset"
+    | "liability"
+    | "equity"
+    | "revenue"
+    | "expense"
+    | "active_passive";
   normalSide: "debit" | "credit" | "both";
   postingAllowed: boolean;
   enabled: boolean;
@@ -16,13 +22,11 @@ export interface ChartTemplateAccountSnapshot {
 }
 
 export class ChartTemplateAccount extends Entity<string> {
-  private constructor(
-    private readonly snapshot: ChartTemplateAccountSnapshot,
-  ) {
+  private constructor(private readonly snapshot: ChartTemplateAccountSnapshot) {
     super(snapshot.accountNo);
   }
 
-  static reconstitute(
+  static fromSnapshot(
     snapshot: ChartTemplateAccountSnapshot,
   ): ChartTemplateAccount {
     return new ChartTemplateAccount({

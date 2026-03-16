@@ -1,5 +1,3 @@
-import type { Transaction } from "@bedrock/platform/persistence";
-
 import type { ReconciliationExceptionState } from "../../contracts";
 import type { ReconciliationExternalRecordRecord } from "../records/ports";
 import type { ReconciliationRunRecord } from "../runs/ports";
@@ -29,36 +27,30 @@ export interface ReconciliationPendingSource {
   pendingRecordCount: number;
 }
 
-export interface ReconciliationExceptionsRepository {
-  findByIdForUpdateTx(
-    tx: Transaction,
-    id: string,
-  ): Promise<ReconciliationExceptionRecord | null>;
-  createManyTx(
-    tx: Transaction,
+export interface ReconciliationExceptionsQueryRepository {
+  list(input: {
+    source?: string;
+    state?: ReconciliationExceptionState;
+    limit: number;
+    offset: number;
+  }): Promise<ReconciliationExceptionListRow[]>;
+}
+
+export interface ReconciliationExceptionsTxRepository {
+  findByIdForUpdate: (id: string) => Promise<ReconciliationExceptionRecord | null>;
+  createMany: (
     input: (
       Omit<
         ReconciliationExceptionRecord,
         "id" | "createdAt" | "resolvedAt" | "adjustmentDocumentId"
       >
-  )[],
-  ): Promise<void>;
-  list(
-    input: {
-      source?: string;
-      state?: ReconciliationExceptionState;
-      limit: number;
-      offset: number;
-    },
-  ): Promise<ReconciliationExceptionListRow[]>;
-  markResolvedTx(
-    tx: Transaction,
-    input: {
-      id: string;
-      adjustmentDocumentId: string;
-      resolvedAt: Date;
-    },
-  ): Promise<void>;
+    )[],
+  ) => Promise<void>;
+  markResolved: (input: {
+    id: string;
+    adjustmentDocumentId: string;
+    resolvedAt: Date;
+  }) => Promise<void>;
 }
 
 export interface ReconciliationPendingSourcesPort {

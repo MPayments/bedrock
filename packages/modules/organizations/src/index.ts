@@ -1,3 +1,10 @@
-export { createOrganizationsService, type OrganizationsService } from "./service";
-export type { OrganizationsServiceDeps } from "./application/shared/context";
+export {
+  createOrganizationsService,
+  createOrganizationsServiceFromTransaction,
+  type OrganizationsService,
+} from "./service";
+export type {
+  OrganizationsServiceDeps,
+  OrganizationsServiceTransactionDeps,
+} from "./service";
 export * from "./errors";

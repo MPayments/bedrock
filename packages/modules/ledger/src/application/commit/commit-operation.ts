@@ -1,8 +1,9 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
+import { buildPlanRows } from "./build-plan-rows";
 import type { LedgerOperationsWritePort } from "./ports";
 import {
-  validateOperationIntent,
+  OperationIntentSchema,
   type OperationIntentInput,
 } from "../../contracts";
 import { validateChainBlocks } from "../../domain/chain-policy";
@@ -15,7 +16,6 @@ import {
   OPERATION_TRANSFER_TYPE,
   type CommitResult,
 } from "../../domain/operation-intent";
-import { buildPlanRows } from "../../infra/drizzle/query-support/build-plan-rows";
 import type { LedgerBookAccountsPort } from "../book-accounts/ports";
 import type { InternalLedgerBookGuard } from "../shared/context";
 
@@ -27,10 +27,10 @@ export function createCommitOperationHandler(input: {
   const { operations, bookAccounts, assertInternalLedgerBooks } = input;
 
   return async function commit(
-    tx: Transaction,
+    tx: PersistenceSession,
     intent: OperationIntentInput,
   ): Promise<CommitResult> {
-    const validated = validateOperationIntent(intent);
+    const validated = OperationIntentSchema.parse(intent);
     validateChainBlocks(validated.lines);
 
     const createLineBookIds = Array.from(
@@ -43,7 +43,6 @@ export function createCommitOperationHandler(input: {
 
     if (assertInternalLedgerBooks && createLineBookIds.length > 0) {
       await assertInternalLedgerBooks({
-        db: tx,
         bookIds: createLineBookIds,
       });
     }

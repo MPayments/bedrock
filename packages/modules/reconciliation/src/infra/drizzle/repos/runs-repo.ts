@@ -1,8 +1,21 @@
 import { eq } from "drizzle-orm";
 
-import type { ReconciliationRunsRepository } from "../../../application/runs/ports";
+import type { Transaction } from "@bedrock/platform/persistence";
+
+import type { ReconciliationRunRecord } from "../../../application/runs/ports";
 import { ReconciliationRunSummarySchema } from "../../../contracts";
 import { schema } from "../schema";
+
+interface DrizzleReconciliationRunsRepository {
+  findByIdTx: (
+    tx: Transaction,
+    id: string,
+  ) => Promise<ReconciliationRunRecord | null>;
+  createTx: (
+    tx: Transaction,
+    input: Omit<ReconciliationRunRecord, "id" | "createdAt">,
+  ) => Promise<ReconciliationRunRecord>;
+}
 
 function toRunRecord(run: typeof schema.reconciliationRuns.$inferSelect) {
   return {
@@ -11,8 +24,8 @@ function toRunRecord(run: typeof schema.reconciliationRuns.$inferSelect) {
   };
 }
 
-export function createDrizzleReconciliationRunsRepository(): ReconciliationRunsRepository {
-  return {
+export function createDrizzleReconciliationRunsRepository() {
+  const repository: DrizzleReconciliationRunsRepository = {
     async findByIdTx(tx, id) {
       const [run] = await tx
         .select()
@@ -32,4 +45,6 @@ export function createDrizzleReconciliationRunsRepository(): ReconciliationRunsR
       return toRunRecord(run!);
     },
   };
+
+  return repository;
 }

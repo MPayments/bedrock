@@ -1,5 +1,3 @@
-import type { Transaction } from "@bedrock/platform/persistence";
-
 import type {
   ReconciliationMatchExplanation,
   ReconciliationMatchStatus,
@@ -30,18 +28,19 @@ export interface ReconciliationMatchRecord {
   createdAt: Date;
 }
 
-export interface ReconciliationRunsRepository {
-  findByIdTx(tx: Transaction, id: string): Promise<ReconciliationRunRecord | null>;
-  createTx(
-    tx: Transaction,
+export interface ReconciliationRunsTxRepository {
+  findById: (id: string) => Promise<ReconciliationRunRecord | null>;
+  create: (
     input: Omit<ReconciliationRunRecord, "id" | "createdAt">,
-  ): Promise<ReconciliationRunRecord>;
+  ) => Promise<ReconciliationRunRecord>;
 }
 
-export interface ReconciliationMatchesRepository {
+export interface ReconciliationMatchesQueryRepository {
   findById(id: string): Promise<ReconciliationMatchRecord | null>;
-  createManyTx(
-    tx: Transaction,
+}
+
+export interface ReconciliationMatchesTxRepository {
+  createMany: (
     input: Omit<ReconciliationMatchRecord, "id" | "createdAt">[],
-  ): Promise<void>;
+  ) => Promise<void>;
 }

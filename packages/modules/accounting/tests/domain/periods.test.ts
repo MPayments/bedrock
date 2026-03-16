@@ -16,7 +16,7 @@ describe("accounting periods domain", () => {
 
   it("plans reopen transitions and supersedes the latest close package", () => {
     const month = CalendarMonth.fromDate(new Date("2026-03-10T00:00:00.000Z"));
-    const period = AccountingPeriod.reconstitute({
+    const period = AccountingPeriod.fromSnapshot({
       organizationId: "org-1",
       month,
       lock: null,

@@ -2,57 +2,44 @@ import {
   noopLogger,
   type Logger,
 } from "@bedrock/platform/observability/logger";
-import type { Database } from "@bedrock/platform/persistence";
 
 import type {
   ReconciliationDocumentsPort,
-  ReconciliationIdempotencyPort,
   ReconciliationLedgerLookupPort,
+  ReconciliationTransactionsPort,
 } from "./external-ports";
-import { createDrizzlePendingSourcesQuerySupport } from "../../infra/drizzle/query-support/pending-sources";
-import { createDrizzleReconciliationExceptionsRepository } from "../../infra/drizzle/repos/exceptions-repo";
-import { createDrizzleReconciliationExternalRecordsRepository } from "../../infra/drizzle/repos/external-records-repo";
-import { createDrizzleReconciliationMatchesRepository } from "../../infra/drizzle/repos/matches-repo";
-import { createDrizzleReconciliationRunsRepository } from "../../infra/drizzle/repos/runs-repo";
-
-export interface ReconciliationServiceDeps {
-  db: Database;
-  documents: ReconciliationDocumentsPort;
-  idempotency: ReconciliationIdempotencyPort;
-  ledgerLookup: ReconciliationLedgerLookupPort;
-  logger?: Logger;
-}
+import type {
+  ReconciliationExceptionsQueryRepository,
+  ReconciliationPendingSourcesPort,
+} from "../exceptions/ports";
+import type { ReconciliationMatchesQueryRepository } from "../runs/ports";
 
 export interface ReconciliationServiceContext {
-  db: Database;
   documents: ReconciliationDocumentsPort;
-  idempotency: ReconciliationIdempotencyPort;
   ledgerLookup: ReconciliationLedgerLookupPort;
-  externalRecordsRepo: ReturnType<
-    typeof createDrizzleReconciliationExternalRecordsRepository
-  >;
-  runsRepo: ReturnType<typeof createDrizzleReconciliationRunsRepository>;
-  matchesRepo: ReturnType<typeof createDrizzleReconciliationMatchesRepository>;
-  exceptionsRepo: ReturnType<
-    typeof createDrizzleReconciliationExceptionsRepository
-  >;
-  pendingSources: ReturnType<typeof createDrizzlePendingSourcesQuerySupport>;
+  matches: ReconciliationMatchesQueryRepository;
+  exceptions: ReconciliationExceptionsQueryRepository;
+  pendingSources: ReconciliationPendingSourcesPort;
+  transactions: ReconciliationTransactionsPort;
   log: Logger;
 }
 
-export function createReconciliationServiceContext(
-  deps: ReconciliationServiceDeps,
-): ReconciliationServiceContext {
+export function createReconciliationServiceContext(input: {
+  documents: ReconciliationDocumentsPort;
+  ledgerLookup: ReconciliationLedgerLookupPort;
+  matches: ReconciliationMatchesQueryRepository;
+  exceptions: ReconciliationExceptionsQueryRepository;
+  pendingSources: ReconciliationPendingSourcesPort;
+  transactions: ReconciliationTransactionsPort;
+  logger?: Logger;
+}): ReconciliationServiceContext {
   return {
-    db: deps.db,
-    documents: deps.documents,
-    idempotency: deps.idempotency,
-    ledgerLookup: deps.ledgerLookup,
-    externalRecordsRepo: createDrizzleReconciliationExternalRecordsRepository(),
-    runsRepo: createDrizzleReconciliationRunsRepository(),
-    matchesRepo: createDrizzleReconciliationMatchesRepository(deps.db),
-    exceptionsRepo: createDrizzleReconciliationExceptionsRepository(deps.db),
-    pendingSources: createDrizzlePendingSourcesQuerySupport({ db: deps.db }),
-    log: deps.logger?.child({ svc: "reconciliation" }) ?? noopLogger,
+    documents: input.documents,
+    ledgerLookup: input.ledgerLookup,
+    matches: input.matches,
+    exceptions: input.exceptions,
+    pendingSources: input.pendingSources,
+    transactions: input.transactions,
+    log: input.logger?.child({ svc: "reconciliation" }) ?? noopLogger,
   };
 }

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { isValidCurrency, normalizeCurrency } from "@bedrock/currencies/catalog";
+import { isValidCurrency, normalizeCurrency } from "@bedrock/currencies/contracts";
 
 const uuidSchema = z.uuid();
 const currencySchema = z

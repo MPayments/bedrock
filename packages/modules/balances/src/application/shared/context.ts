@@ -1,72 +1,51 @@
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
 
+import type {
+  BalancesProjectionTransactionsPort,
+  BalancesTransactionsPort,
+} from "./external-ports";
 import type { BalancesStateRepository } from "../balances/ports";
-import type { BalancesProjectionRepository } from "../projection/ports";
 import type { BalancesReportingRepository } from "../reporting/ports";
 
-export interface BalancesServiceDeps {
-  db: Database;
-  idempotency: IdempotencyPort;
-  logger?: Logger;
-}
-
 export interface BalancesContext {
-  db: Database;
-  idempotency: IdempotencyPort;
   log: Logger;
-  createStateRepository: (
-    db: Database | Transaction,
-  ) => BalancesStateRepository;
+  stateRepository: BalancesStateRepository;
+  transactions: BalancesTransactionsPort;
 }
 
 export interface BalancesQueriesContext {
-  createReportingRepository: (
-    db: Database,
-  ) => BalancesReportingRepository;
+  reporting: BalancesReportingRepository;
 }
 
 export interface BalancesWorkerContext {
-  db: Database;
   log: Logger;
-  createProjectionRepository: (
-    tx: Transaction,
-  ) => BalancesProjectionRepository;
+  transactions: BalancesProjectionTransactionsPort;
 }
 
 export function createBalancesContext(input: {
-  db: Database;
-  idempotency: IdempotencyPort;
   logger?: Logger;
-  createStateRepository: (
-    db: Database | Transaction,
-  ) => BalancesStateRepository;
+  stateRepository: BalancesStateRepository;
+  transactions: BalancesTransactionsPort;
 }): BalancesContext {
   return {
-    db: input.db,
-    idempotency: input.idempotency,
     log: input.logger?.child({ svc: "balances" }) ?? noopLogger,
-    createStateRepository: input.createStateRepository,
+    stateRepository: input.stateRepository,
+    transactions: input.transactions,
   };
 }
 
 export function createBalancesQueriesContext(input: {
-  createReportingRepository: (db: Database) => BalancesReportingRepository;
+  reporting: BalancesReportingRepository;
 }): BalancesQueriesContext {
   return input;
 }
 
 export function createBalancesWorkerContext(input: {
-  db: Database;
   logger?: Logger;
-  createProjectionRepository: (
-    tx: Transaction,
-  ) => BalancesProjectionRepository;
+  transactions: BalancesProjectionTransactionsPort;
 }): BalancesWorkerContext {
   return {
-    db: input.db,
     log: input.logger?.child({ svc: "balances-projector" }) ?? noopLogger,
-    createProjectionRepository: input.createProjectionRepository,
+    transactions: input.transactions,
   };
 }

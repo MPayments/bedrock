@@ -1,4 +1,5 @@
 import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import { createEnsureBookAccountInstanceHandler } from "./application/book-accounts/ensure-book-account-instance";
 import { createEnsureDefaultOrganizationBookHandler } from "./application/books/ensure-default-organization-book";
@@ -10,7 +11,7 @@ import {
 } from "./application/operations/read-queries";
 import {
   createLedgerContext,
-  type LedgerServiceDeps,
+  type InternalLedgerBookGuard,
 } from "./application/shared/context";
 import type { CommitResult, OperationIntentInput } from "./contracts";
 import type { BookAccountIdentityInput } from "./domain/book-account-identity";
@@ -54,11 +55,15 @@ export interface LedgerService {
   books: LedgerBooksService;
 }
 
+export interface LedgerServiceDeps {
+  db: Database;
+  assertInternalLedgerBooks?: InternalLedgerBookGuard;
+}
+
 export function createLedgerCommitService(
   deps: LedgerServiceDeps,
 ): LedgerCommitService {
   const context = createLedgerContext({
-    db: deps.db,
     ...(deps.assertInternalLedgerBooks
       ? { assertInternalLedgerBooks: deps.assertInternalLedgerBooks }
       : {}),
@@ -67,16 +72,20 @@ export function createLedgerCommitService(
     reads: createDrizzleLedgerReadRepository(deps.db),
     reporting: createDrizzleLedgerReportingRepository(deps.db),
   });
-  const commit = createCommitOperationHandler(context);
+  const commitInSession = createCommitOperationHandler(context);
 
   async function commitStandalone(
     intent: OperationIntentInput,
   ): Promise<CommitResult> {
-    return context.db.transaction((tx: Transaction) => commit(tx, intent));
+    return deps.db.transaction((tx: Transaction) =>
+      commitInSession(tx as PersistenceSession, intent),
+    );
   }
 
   return {
-    commit,
+    commit(tx, intent) {
+      return commitInSession(tx as PersistenceSession, intent);
+    },
     commitStandalone,
   };
 }
@@ -90,28 +99,37 @@ export function createLedgerReadService(input: {
 }
 
 export function createLedgerBookAccountsService(): LedgerBookAccountsService {
-  const ensureBookAccountInstanceTx = createEnsureBookAccountInstanceHandler({
-    bookAccounts: createDrizzleLedgerBookAccountsRepository(),
-  });
+  const ensureBookAccountInstanceInSession =
+    createEnsureBookAccountInstanceHandler({
+      bookAccounts: createDrizzleLedgerBookAccountsRepository(),
+    });
 
   return {
     ensureBookAccountInstance(
       tx: Transaction,
       identity: BookAccountIdentityInput,
     ) {
-      return ensureBookAccountInstanceTx(tx, identity);
+      return ensureBookAccountInstanceInSession(
+        tx as PersistenceSession,
+        identity,
+      );
     },
   };
 }
 
 export function createLedgerBooksService(): LedgerBooksService {
-  const ensureDefaultOrganizationBook =
+  const ensureDefaultOrganizationBookInSession =
     createEnsureDefaultOrganizationBookHandler({
       books: createDrizzleLedgerBooksRepository(),
     });
 
   return {
-    ensureDefaultOrganizationBook,
+    ensureDefaultOrganizationBook(tx, input) {
+      return ensureDefaultOrganizationBookInSession(
+        tx as PersistenceSession,
+        input,
+      );
+    },
   };
 }
 
@@ -124,4 +142,4 @@ export function createLedgerService(deps: LedgerServiceDeps): LedgerService {
   };
 }
 
-export type { LedgerReadService, LedgerServiceDeps };
+export type { LedgerReadService };

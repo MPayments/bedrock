@@ -12,7 +12,7 @@ export function createListTemplateAccountsQuery(input: {
 
   return async function listTemplateAccounts() {
     const rows = await repository.listTemplateAccountSnapshots();
-    return rows.map((row) => ChartTemplateAccount.reconstitute(row).toSnapshot());
+    return rows.map((row) => ChartTemplateAccount.fromSnapshot(row).toSnapshot());
   };
 }
 
@@ -23,7 +23,7 @@ export function createListCorrespondenceRulesQuery(input: {
 
   return async function listCorrespondenceRules() {
     const rows = await repository.listCorrespondenceRuleSnapshots();
-    return rows.map((row) => CorrespondenceRule.reconstitute(row).toSnapshot());
+    return rows.map((row) => CorrespondenceRule.fromSnapshot(row).toSnapshot());
   };
 }
 

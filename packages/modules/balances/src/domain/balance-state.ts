@@ -57,7 +57,7 @@ export class BalanceState extends Entity<string> {
     super(BalanceState.buildId(props.balance));
   }
 
-  static reconstitute(input: BalanceStateProps): BalanceState {
+  static fromSnapshot(input: BalanceStateProps): BalanceState {
     return new BalanceState({
       balance: { ...input.balance },
       holds: input.holds.map((hold) => ({ ...hold })),

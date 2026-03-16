@@ -92,7 +92,7 @@ export class Organization extends Entity<string> {
     });
   }
 
-  static reconstitute(snapshot: OrganizationSnapshot): Organization {
+  static fromSnapshot(snapshot: OrganizationSnapshot): Organization {
     return new Organization({ ...snapshot });
   }
 

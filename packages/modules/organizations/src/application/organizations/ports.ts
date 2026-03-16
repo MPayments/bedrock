@@ -1,4 +1,3 @@
-import type { Transaction } from "@bedrock/platform/persistence";
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
 import type {
@@ -22,18 +21,15 @@ export interface OrganizationsQueryRepository {
   listExistingOrganizationIds: (ids: string[]) => Promise<string[]>;
 }
 
-export interface OrganizationsCommandRepository {
+export interface OrganizationsCommandTxRepository {
   findOrganizationSnapshotById: (
     id: string,
-    tx?: Transaction,
   ) => Promise<OrganizationSnapshot | null>;
-  insertOrganizationTx: (
-    tx: Transaction,
+  insertOrganization: (
     organization: OrganizationSnapshot,
   ) => Promise<OrganizationSnapshot>;
-  updateOrganizationTx: (
-    tx: Transaction,
+  updateOrganization: (
     organization: OrganizationSnapshot,
   ) => Promise<OrganizationSnapshot | null>;
-  removeOrganizationTx: (tx: Transaction, id: string) => Promise<boolean>;
+  removeOrganization: (id: string) => Promise<boolean>;
 }

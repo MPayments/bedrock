@@ -26,7 +26,7 @@ function toPublicCustomer(customer: Customer): CustomerDto {
 }
 
 export function createCreateCustomerHandler(context: PartiesServiceContext) {
-  const { customers, db, log } = context;
+  const { log, transactions } = context;
 
   return async function createCustomer(
     input: CreateCustomerInput,
@@ -40,12 +40,12 @@ export function createCreateCustomerHandler(context: PartiesServiceContext) {
       context.now(),
     );
 
-    return db.transaction(async (tx) => {
-      const created = Customer.reconstitute(
-        await customers.insertCustomerTx(tx, draft.toSnapshot()),
+    return transactions.withTransaction(async ({ customers }) => {
+      const created = Customer.fromSnapshot(
+        await customers.insertCustomer(draft.toSnapshot()),
       );
 
-      await customers.ensureManagedCustomerGroupTx(tx, {
+      await customers.ensureManagedCustomerGroup({
         customerId: created.id,
         displayName: created.toSnapshot().displayName,
       });
@@ -61,7 +61,7 @@ export function createCreateCustomerHandler(context: PartiesServiceContext) {
 }
 
 export function createUpdateCustomerHandler(context: PartiesServiceContext) {
-  const { customers, db, log } = context;
+  const { log, transactions } = context;
 
   return async function updateCustomer(
     id: string,
@@ -69,69 +69,68 @@ export function createUpdateCustomerHandler(context: PartiesServiceContext) {
   ): Promise<CustomerDto> {
     const validated = UpdateCustomerInputSchema.parse(input);
 
-    return db.transaction(async (tx) => {
-      const existingSnapshot = await customers.findCustomerSnapshotById(id, tx);
+    return transactions.withTransaction(async ({ customers }) => {
+      const existingSnapshot = await customers.findCustomerSnapshotById(id);
       if (!existingSnapshot) {
         throw new CustomerNotFoundError(id);
       }
 
-      const existing = Customer.reconstitute(existingSnapshot);
+      const existing = Customer.fromSnapshot(existingSnapshot);
       const next = existing.update(
         resolveUpdateCustomerProps(existingSnapshot, validated),
         context.now(),
       );
       const persistedSnapshot = existing.sameState(next)
         ? existingSnapshot
-        : await customers.updateCustomerTx(tx, next.toSnapshot());
+        : await customers.updateCustomer(next.toSnapshot());
 
       if (!persistedSnapshot) {
         throw new CustomerNotFoundError(id);
       }
 
       if (next.displayNameChangedComparedTo(existing)) {
-        await customers.ensureManagedCustomerGroupTx(tx, {
+        await customers.ensureManagedCustomerGroup({
           customerId: id,
           displayName: next.toSnapshot().displayName,
         });
-        await customers.renameManagedCustomerGroupTx(tx, {
+        await customers.renameManagedCustomerGroup({
           customerId: id,
           displayName: next.toSnapshot().displayName,
         });
       }
 
       log.info("Customer updated", { id });
-      return toPublicCustomer(Customer.reconstitute(persistedSnapshot));
+      return toPublicCustomer(Customer.fromSnapshot(persistedSnapshot));
     });
   };
 }
 
 export function createRemoveCustomerHandler(context: PartiesServiceContext) {
-  const { customers, db, documents, log } = context;
+  const { log, transactions } = context;
 
   return async function removeCustomer(id: string): Promise<void> {
-    await db.transaction(async (tx) => {
-      const existing = await customers.findCustomerSnapshotById(id, tx);
+    await transactions.withTransaction(async ({ customers, documents }) => {
+      const existing = await customers.findCustomerSnapshotById(id);
       if (!existing) {
         throw new CustomerNotFoundError(id);
       }
 
-      const hasDocuments = await documents.hasDocumentsForCustomer(id, tx);
+      const hasDocuments = await documents.hasDocumentsForCustomer(id);
       if (hasDocuments) {
         throw new CustomerDeleteConflictError(id);
       }
 
       const linkedCounterparties =
-        await customers.listCounterpartiesByCustomerId(id, tx);
-      const managedGroup = await customers.findManagedCustomerGroup(id, tx);
+        await customers.listCounterpartiesByCustomerId(id);
+      const managedGroup = await customers.findManagedCustomerGroup(id);
       const hierarchy = GroupHierarchy.create(
-        await customers.listGroupHierarchyNodes(tx),
+        await customers.listGroupHierarchyNodes(),
       );
       const linkedCounterpartyIds = linkedCounterparties.map((row) => row.id);
 
       if (linkedCounterpartyIds.length > 0) {
         const memberships = await customers.listMembershipRowsByCounterpartyIds(
           linkedCounterpartyIds,
-          tx,
         );
         const detachment = hierarchy.planCustomerDetachment({
           customerId: id,
@@ -139,24 +138,22 @@ export function createRemoveCustomerHandler(context: PartiesServiceContext) {
           memberships,
         });
 
-        await customers.deleteMembershipsByCounterpartyAndGroupIdsTx(tx, {
+        await customers.deleteMembershipsByCounterpartyAndGroupIds({
           counterpartyIds: detachment.linkedCounterpartyIds,
           groupIds: detachment.removableGroupIds,
         });
-        await customers.clearCounterpartyCustomerLinkTx(
-          tx,
+        await customers.clearCounterpartyCustomerLink(
           detachment.linkedCounterpartyIds,
         );
       }
 
       if (managedGroup) {
-        await customers.deleteCounterpartyGroupsByIdsTx(
-          tx,
+        await customers.deleteCounterpartyGroupsByIds(
           hierarchy.listSubtreeIds(managedGroup.id),
         );
       }
 
-      const deleted = await customers.removeCustomerTx(tx, id);
+      const deleted = await customers.removeCustomer(id);
       if (!deleted) {
         throw new CustomerNotFoundError(id);
       }

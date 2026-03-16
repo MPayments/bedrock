@@ -26,7 +26,7 @@ export class AccountingClosePackage extends Entity<string> {
     super(snapshot.id);
   }
 
-  static reconstitute(snapshot: AccountingClosePackageSnapshot) {
+  static fromSnapshot(snapshot: AccountingClosePackageSnapshot) {
     invariant(
       snapshot.organizationId.trim().length > 0,
       "accounting_close_package.organization_required",

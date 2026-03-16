@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import type { AccountingReportsService, AccountingService } from "@bedrock/accounting";
+import type {
+  AccountingReportsService,
+  AccountingService,
+} from "@bedrock/accounting";
 import type { BalancesService } from "@bedrock/balances";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DocumentsService } from "@bedrock/documents";
@@ -10,12 +13,14 @@ import type { LedgerReadService } from "@bedrock/ledger";
 import type { OrganizationsService } from "@bedrock/organizations";
 import type { PartiesService } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { RequisiteProvidersService } from "@bedrock/requisite-providers";
+import type { RequisitesService } from "@bedrock/requisites";
 import type { UsersService } from "@bedrock/users";
-
+import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
+import type { DocumentPostingWorkflow } from "@bedrock/workflow-document-posting";
+import type { OrganizationBootstrapWorkflow } from "@bedrock/workflow-organization-bootstrap";
+import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-accounting";
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";
-import type { ApiRequisitesFacadeService } from "./composition/requisites-facade";
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -60,12 +65,15 @@ export interface AppContext {
   feesService: FeesService;
   fxService: FxService;
   organizationsService: OrganizationsService;
-  requisiteProvidersService: RequisiteProvidersService;
-  requisitesFacadeService: ApiRequisitesFacadeService;
+  organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
+  requisitesService: RequisitesService;
+  requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   usersService: UsersService;
   ledgerReadService: LedgerReadService;
   balancesService: BalancesService;
   documentsService: DocumentsService;
+  documentDraftWorkflow: DocumentDraftWorkflow;
+  documentPostingWorkflow: DocumentPostingWorkflow;
 }
 
 export function createAppContext(env: Env): AppContext {
@@ -84,9 +92,14 @@ export function createAppContext(env: Env): AppContext {
     feesService: applicationServices.feesService,
     fxService: applicationServices.fxService,
     organizationsService: applicationServices.organizationsService,
-    requisiteProvidersService: applicationServices.requisiteProvidersService,
-    requisitesFacadeService: applicationServices.requisitesFacadeService,
+    organizationBootstrapWorkflow:
+      applicationServices.organizationBootstrapWorkflow,
+    requisitesService: applicationServices.requisitesService,
+    requisiteAccountingWorkflow:
+      applicationServices.requisiteAccountingWorkflow,
     usersService: core.usersService,
     documentsService: applicationServices.documentsService,
+    documentDraftWorkflow: applicationServices.documentDraftWorkflow,
+    documentPostingWorkflow: applicationServices.documentPostingWorkflow,
   };
 }

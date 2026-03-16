@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type { LedgerOperationsWritePort } from "../../../application/commit/ports";
 import { IdempotencyConflictError } from "../../../errors";
@@ -8,8 +9,9 @@ import { schema } from "../schema";
 
 export function createDrizzleLedgerOperationsRepository(): LedgerOperationsWritePort {
   return {
-    async acquireOperationId(tx: Transaction, input) {
-      const inserted = await tx
+    async acquireOperationId(tx: PersistenceSession, input) {
+      const transaction = tx as Transaction;
+      const inserted = await transaction
         .insert(schema.ledgerOperations)
         .values({
           sourceType: input.source.type,
@@ -28,7 +30,7 @@ export function createDrizzleLedgerOperationsRepository(): LedgerOperationsWrite
         return { operationId: inserted[0]!.id, isIdempotentReplay: false };
       }
 
-      const [existing] = await tx
+      const [existing] = await transaction
         .select({
           id: schema.ledgerOperations.id,
           sourceType: schema.ledgerOperations.sourceType,
@@ -63,14 +65,15 @@ export function createDrizzleLedgerOperationsRepository(): LedgerOperationsWrite
 
       return { operationId: existing.id, isIdempotentReplay: true };
     },
-    async isReplayIncomplete(tx: Transaction, input) {
+    async isReplayIncomplete(tx: PersistenceSession, input) {
+      const transaction = tx as Transaction;
       const [[hasAnyPlan], [hasAnyPosting]] = await Promise.all([
-        tx
+        transaction
           .select({ id: schema.tbTransferPlans.id })
           .from(schema.tbTransferPlans)
           .where(eq(schema.tbTransferPlans.operationId, input.operationId))
           .limit(1),
-        tx
+        transaction
           .select({ id: schema.postings.id })
           .from(schema.postings)
           .where(eq(schema.postings.operationId, input.operationId))
@@ -80,14 +83,16 @@ export function createDrizzleLedgerOperationsRepository(): LedgerOperationsWrite
       const shouldHavePostings = input.lines.some((line) => line.type === "create");
       return !hasAnyPlan || (shouldHavePostings && !hasAnyPosting);
     },
-    async insertPostings(tx: Transaction, rows) {
-      await tx.insert(schema.postings).values(rows).onConflictDoNothing();
+    async insertPostings(tx: PersistenceSession, rows) {
+      await (tx as Transaction).insert(schema.postings).values(rows)
+        .onConflictDoNothing();
     },
-    async insertTransferPlans(tx: Transaction, rows) {
-      await tx.insert(schema.tbTransferPlans).values(rows).onConflictDoNothing();
+    async insertTransferPlans(tx: PersistenceSession, rows) {
+      await (tx as Transaction).insert(schema.tbTransferPlans).values(rows)
+        .onConflictDoNothing();
     },
-    async enqueuePostOperation(tx: Transaction, operationId: string) {
-      await tx
+    async enqueuePostOperation(tx: PersistenceSession, operationId: string) {
+      await (tx as Transaction)
         .insert(schema.outbox)
         .values({
           kind: "post_operation",

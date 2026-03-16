@@ -1,16 +1,14 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import {
-  RequisiteProviderNotFoundError,
-} from "@bedrock/requisite-providers";
+import { RequisiteProviderNotFoundError } from "@bedrock/requisites";
 import {
   CreateRequisiteProviderInputSchema,
   ListRequisiteProvidersQuerySchema,
-  RequisiteProviderSchema,
   RequisiteProviderOptionSchema,
   RequisiteProviderOptionsResponseSchema,
+  RequisiteProviderSchema,
   UpdateRequisiteProviderInputSchema,
-} from "@bedrock/requisite-providers/contracts";
+} from "@bedrock/requisites/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
@@ -29,7 +27,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
   const listRoute = createRoute({
-    middleware: [requirePermission({ requisite_providers: ["list"] })],
+    middleware: [requirePermission({ requisites: ["providers_list"] })],
     method: "get",
     path: "/",
     tags: ["Requisite Providers"],
@@ -50,7 +48,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
   });
 
   const optionsRoute = createRoute({
-    middleware: [requirePermission({ requisite_providers: ["list"] })],
+    middleware: [requirePermission({ requisites: ["providers_list"] })],
     method: "get",
     path: "/options",
     tags: ["Requisite Providers"],
@@ -68,7 +66,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
   });
 
   const createRoute_ = createRoute({
-    middleware: [requirePermission({ requisite_providers: ["create"] })],
+    middleware: [requirePermission({ requisites: ["providers_create"] })],
     method: "post",
     path: "/",
     tags: ["Requisite Providers"],
@@ -104,7 +102,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
   });
 
   const getRoute = createRoute({
-    middleware: [requirePermission({ requisite_providers: ["list"] })],
+    middleware: [requirePermission({ requisites: ["providers_list"] })],
     method: "get",
     path: "/{id}",
     tags: ["Requisite Providers"],
@@ -133,7 +131,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
   });
 
   const updateRoute = createRoute({
-    middleware: [requirePermission({ requisite_providers: ["update"] })],
+    middleware: [requirePermission({ requisites: ["providers_update"] })],
     method: "patch",
     path: "/{id}",
     tags: ["Requisite Providers"],
@@ -178,7 +176,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
   });
 
   const deleteRoute = createRoute({
-    middleware: [requirePermission({ requisite_providers: ["delete"] })],
+    middleware: [requirePermission({ requisites: ["providers_delete"] })],
     method: "delete",
     path: "/{id}",
     tags: ["Requisite Providers"],
@@ -209,11 +207,11 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.requisiteProvidersService.list(query);
+      const result = await ctx.requisitesService.providers.list(query);
       return c.json(result, 200);
     })
     .openapi(optionsRoute, async (c) => {
-      const result = await ctx.requisiteProvidersService.list({
+      const result = await ctx.requisitesService.providers.list({
         limit: OPTIONS_LIMIT,
         offset: 0,
         sortBy: "name",
@@ -236,7 +234,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const provider = await ctx.requisiteProvidersService.create(input);
+        const provider = await ctx.requisitesService.providers.create(input);
         return c.json(provider, 201);
       } catch (error) {
         if (error instanceof ValidationError) {
@@ -249,7 +247,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const provider = await ctx.requisiteProvidersService.findById(id);
+        const provider = await ctx.requisitesService.providers.findById(id);
         return c.json(provider, 200);
       } catch (error) {
         if (error instanceof RequisiteProviderNotFoundError) {
@@ -263,7 +261,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const provider = await ctx.requisiteProvidersService.update(id, input);
+        const provider = await ctx.requisitesService.providers.update(id, input);
         return c.json(provider, 200);
       } catch (error) {
         if (error instanceof RequisiteProviderNotFoundError) {
@@ -279,7 +277,7 @@ export function requisiteProvidersRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        await ctx.requisiteProvidersService.remove(id);
+        await ctx.requisitesService.providers.remove(id);
         return c.json({ deleted: true }, 200);
       } catch (error) {
         if (error instanceof RequisiteProviderNotFoundError) {

@@ -1,23 +1,13 @@
-import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
-import type {
-  Database,
-  Transaction,
-} from "@bedrock/platform/persistence";
-
-import { createCurrenciesCache, type CurrenciesCacheStore } from "./cache";
 import {
-  createDrizzleCurrenciesCommandRepository,
-  createDrizzleCurrenciesQueryRepository,
-} from "../../infra/drizzle/repos/currencies-repository";
+  noopLogger,
+  type Logger,
+} from "@bedrock/platform/observability/logger";
+
+import type { CurrenciesCacheStore } from "./cache";
 import type {
   CurrenciesCommandRepository,
   CurrenciesQueryRepository,
 } from "../currencies/ports";
-
-export interface CurrenciesServiceDeps {
-  db: Database;
-  logger?: Logger;
-}
 
 export interface CurrenciesServiceContext {
   commands: CurrenciesCommandRepository;
@@ -30,21 +20,24 @@ export interface CurrenciesQueriesContext {
   queries: Pick<CurrenciesQueryRepository, "listPrecisionsByCode">;
 }
 
-export function createCurrenciesServiceContext(
-  deps: CurrenciesServiceDeps,
-): CurrenciesServiceContext {
+export function createCurrenciesServiceContext(input: {
+  commands: CurrenciesCommandRepository;
+  queries: CurrenciesQueryRepository;
+  cache: CurrenciesCacheStore;
+  logger?: Logger;
+}): CurrenciesServiceContext {
   return {
-    commands: createDrizzleCurrenciesCommandRepository({ db: deps.db }),
-    queries: createDrizzleCurrenciesQueryRepository({ db: deps.db }),
-    cache: createCurrenciesCache(),
-    log: deps.logger?.child({ service: "currencies" }) ?? noopLogger,
+    commands: input.commands,
+    queries: input.queries,
+    cache: input.cache,
+    log: input.logger?.child({ service: "currencies" }) ?? noopLogger,
   };
 }
 
 export function createCurrenciesQueriesContext(input: {
-  db: Database | Transaction;
+  queries: Pick<CurrenciesQueryRepository, "listPrecisionsByCode">;
 }): CurrenciesQueriesContext {
   return {
-    queries: createDrizzleCurrenciesQueryRepository({ db: input.db }),
+    queries: input.queries,
   };
 }

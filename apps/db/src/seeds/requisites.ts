@@ -6,7 +6,7 @@ import {
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
 } from "@bedrock/ledger/ids";
-import { schema as organizationsSchema } from "@bedrock/organizations/schema";
+import { schema as requisitesSchema } from "@bedrock/requisites/schema";
 
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema-registry";
@@ -41,9 +41,7 @@ async function currencyIdByCodeMap(db: DbLike) {
   return out;
 }
 
-async function ensureDefaultBooks(
-  db: DbLike,
-): Promise<Map<string, string>> {
+async function ensureDefaultBooks(db: DbLike): Promise<Map<string, string>> {
   const out = new Map<string, string>();
 
   for (const organizationId of Object.values(ORGANIZATION_IDS)) {
@@ -109,7 +107,7 @@ async function upsertRequisites(
     }
 
     await db
-      .insert(organizationsSchema.organizationRequisites)
+      .insert(requisitesSchema.requisites)
       .values({
         id: requisite.id,
         ownerType: requisite.ownerType,
@@ -142,7 +140,7 @@ async function upsertRequisites(
         isDefault: requisite.isDefault ?? false,
       })
       .onConflictDoUpdate({
-        target: organizationsSchema.organizationRequisites.id,
+        target: requisitesSchema.requisites.id,
         set: {
           ownerType: requisite.ownerType,
           organizationId:
@@ -183,7 +181,9 @@ async function upsertOrganizationBindings(
   defaultBookIdByOrganizationId: ReadonlyMap<string, string>,
 ) {
   const organizationRequisites = REQUISITES.filter(
-    (requisite): requisite is SeedRequisiteFixture & { ownerType: "organization" } =>
+    (
+      requisite,
+    ): requisite is SeedRequisiteFixture & { ownerType: "organization" } =>
       requisite.ownerType === "organization",
   );
 
@@ -237,7 +237,7 @@ async function upsertOrganizationBindings(
     }
 
     await db
-      .insert(organizationsSchema.organizationRequisiteBindings)
+      .insert(requisitesSchema.organizationRequisiteBindings)
       .values({
         requisiteId: requisite.id,
         bookId,
@@ -245,7 +245,7 @@ async function upsertOrganizationBindings(
         postingAccountNo: requisite.postingAccountNo ?? ACCOUNT_NO.BANK,
       })
       .onConflictDoUpdate({
-        target: organizationsSchema.organizationRequisiteBindings.requisiteId,
+        target: requisitesSchema.organizationRequisiteBindings.requisiteId,
         set: {
           bookId,
           bookAccountInstanceId: instance.id,

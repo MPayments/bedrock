@@ -1,5 +1,5 @@
-import { sha256Hex } from "@bedrock/platform/crypto";
 import { canonicalJson, makePlanKey } from "@bedrock/shared/core/canon";
+import { sha256Hex } from "@bedrock/shared/core/crypto";
 import { DomainError } from "@bedrock/shared/core/domain";
 
 import { isCompiledCreateTemplate } from "./compile-pack";

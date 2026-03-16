@@ -1,4 +1,5 @@
 export type { CorrelationContext } from "./correlation";
+export { sha256Hex } from "./crypto";
 export { isUuidLike } from "./uuid";
 export { canonicalJson, stableStringify, makePlanKey } from "./canon";
 export {
@@ -27,4 +28,8 @@ export {
   resolveSortValue,
   createPaginatedListSchema,
 } from "./pagination";
+export type {
+  PersistenceSession,
+  RunInPersistenceSession,
+} from "./persistence";
 export { resolvePatchValue } from "./patch";

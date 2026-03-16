@@ -160,7 +160,7 @@ export function createDoSomethingHandler(context: XxxServiceContext) {
     const { db, log } = context;
 
     return async function doSomething(input: DoSomethingInput) {
-        const validated = validateDoSomethingInput(input);
+        const validated = DoSomethingInput.parse(input);
         // ...
     };
 }
@@ -213,6 +213,96 @@ Additional rules:
 - Query-support SQL helpers belong in `infra/**`, not in `domain/`.
 - Root facades may stay in `service.ts`, `reports.ts`, or `periods.ts`, but they should delegate rather than accumulate business logic.
 
+## Domain Modeling
+
+Model the domain the way the repo already does, not as an anemic DTO mirror of the database.
+
+### Snapshot-based entities and aggregates
+
+- Most domain roots are immutable wrappers around a normalized snapshot.
+- Common shape:
+  - private constructor taking a snapshot
+  - `create(...)` for new state
+  - `fromSnapshot(snapshot)` for persisted state
+  - mutation methods that return a new instance instead of mutating in place
+  - `toSnapshot()` for persistence handoff
+  - optional `sameState(other)` when application code wants to skip no-op writes
+- Examples:
+  - `packages/modules/organizations/src/domain/organization.ts`
+  - `packages/modules/documents/src/domain/document.ts`
+  - `packages/modules/parties/src/domain/counterparty.ts`
+
+```typescript
+export class Organization extends Entity<string> {
+    private constructor(private readonly snapshot: OrganizationSnapshot) {
+        super(snapshot.id);
+    }
+
+    static create(input: CreateOrganizationProps, now: Date): Organization {
+        return new Organization({ ...normalizedFields, createdAt: now, updatedAt: now });
+    }
+
+    static fromSnapshot(snapshot: OrganizationSnapshot): Organization {
+        return new Organization({ ...snapshot });
+    }
+
+    update(input: UpdateOrganizationProps, now: Date): Organization {
+        return new Organization({ ...this.snapshot, ...input, updatedAt: now });
+    }
+
+    toSnapshot(): OrganizationSnapshot {
+        return { ...this.snapshot };
+    }
+}
+```
+
+### Invariants stay in domain methods
+
+- Enforce business rules with `invariant(...)` or `DomainError` inside domain code.
+- Domain code must not query the database, call adapters, generate IDs by itself, or read the clock by itself.
+- Pass IDs, `now`, configs, and already-loaded related state in from application.
+- Examples:
+  - `packages/modules/documents/src/domain/document.ts`
+  - `packages/modules/users/src/domain/user-email.ts`
+  - `packages/modules/accounting/src/domain/periods/calendar-month.ts`
+
+### Model cross-entity rules as set or planning objects
+
+- When a rule depends on a loaded collection, model it as a domain set/policy/planner instead of burying the logic in application handlers.
+- These objects should compute decisions such as demotions, promotions, transfer plans, or validation results.
+- Examples:
+  - `packages/modules/organizations/src/domain/organization-requisite-set.ts`
+  - `packages/modules/parties/src/domain/counterparty-requisite-set.ts`
+  - `packages/modules/accounting/src/domain/chart/posting-matrix-policy.ts`
+
+```typescript
+const plan = sourceSet.planUpdate({
+    requisiteId: id,
+    nextIsDefault,
+});
+
+if (plan.promotedId) {
+    // application persists the domain decision
+}
+```
+
+### Use pure functions for deterministic domain calculations
+
+- Not all domain logic needs a class.
+- Use pure functions for calculations, normalization, policy resolution, compilation, and trace building when no identity/lifecycle is needed.
+- Examples:
+  - `packages/modules/fx/src/domain/routes.ts`
+  - `packages/modules/accounting/src/domain/packs/compile-pack.ts`
+  - `packages/modules/documents/src/domain/document-summary.ts`
+  - `packages/modules/fees/src/domain/normalization.ts`
+
+### Use value objects for constrained primitives
+
+- Wrap validated, normalized primitives in `ValueObject` when the concept has its own rules and behavior.
+- Examples:
+  - `packages/modules/users/src/domain/user-email.ts`
+  - `packages/modules/accounting/src/domain/periods/calendar-month.ts`
+
 ## Code Conventions
 
 ### Naming
@@ -227,6 +317,13 @@ Additional rules:
 - All packages use ESM (`"type": "module"` in package.json).
 - Client-reachable code must import only client-safe packages or subpaths. Safe examples include `@bedrock/shared/money/math`, `@bedrock/shared/core/uuid`, and `@bedrock/shared/core/canon`. Server-only helpers live under `@bedrock/platform/observability/logger`, `@bedrock/platform/crypto`, and `@bedrock/platform/worker-runtime/worker-loop`.
 
+### Linting
+
+- Workspace linting uses ESLint flat config.
+- Backend apps and packages that run `eslint` from their own cwd must provide a local `eslint.config.js` that re-exports `@bedrock/eslint-config/backend`.
+- `apps/web` must keep its local `eslint.config.js` based on `@bedrock/eslint-config/next-js`.
+- Any workspace package that imports `@bedrock/eslint-config/*` from a local ESLint config must declare `@bedrock/eslint-config` in `devDependencies`.
+
 ### Import order
 
 1. External packages (`drizzle-orm`, `zod`, etc.)
@@ -234,6 +331,14 @@ Additional rules:
 3. Local relative imports (`./`, `../`)
 
 Separate each group with a blank line.
+Do not leave blank lines inside a group.
+Keep imports alphabetized within each group.
+Type-only imports follow the same ordering rules as value imports.
+
+### Types
+
+- Prefer `type X = Y` over empty passthrough interfaces such as `interface X extends Y {}`.
+- Prefer `T[]` over `Array<T>` for ordinary collection types.
 
 ### Error handling
 

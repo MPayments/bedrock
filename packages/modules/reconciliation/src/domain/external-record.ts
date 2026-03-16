@@ -20,7 +20,7 @@ export class ExternalRecord extends Entity<string> {
     super(snapshot.id);
   }
 
-  static reconstitute(snapshot: ExternalRecordSnapshot): ExternalRecord {
+  static fromSnapshot(snapshot: ExternalRecordSnapshot): ExternalRecord {
     return new ExternalRecord({ ...snapshot });
   }
 

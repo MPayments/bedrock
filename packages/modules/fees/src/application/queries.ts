@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   ApplicableFeeRule,
@@ -24,7 +24,7 @@ export function createFeesQueryHandlers(context: FeesServiceContext) {
 
   async function listApplicableRules(
     input: ResolveFeeRulesInput,
-    _tx?: Transaction,
+    _tx?: PersistenceSession,
   ): Promise<ApplicableFeeRule[]> {
     const validated = validateResolveFeeRulesInput(input);
 
@@ -47,7 +47,7 @@ export function createFeesQueryHandlers(context: FeesServiceContext) {
 
   async function calculateFxQuoteFeeComponents(
     input: CalculateFxQuoteFeeComponentsInput,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FeeComponent[]> {
     const validated = validateFxQuoteFeeCalculation(input);
     const rules = await listApplicableRules(
@@ -107,7 +107,7 @@ export function createFeesQueryHandlers(context: FeesServiceContext) {
 
   async function getQuoteFeeComponents(
     input: GetQuoteFeeComponentsInput,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FeeComponent[]> {
     const validated = validateGetQuoteFeeComponentsInput(input);
     const rows = await quoteSnapshotsQueryRepository.listQuoteFeeComponents(

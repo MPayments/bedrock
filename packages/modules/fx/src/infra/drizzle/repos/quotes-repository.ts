@@ -10,6 +10,7 @@ import {
 
 import type { Transaction } from "@bedrock/platform/persistence";
 import { type Database } from "@bedrock/platform/persistence/drizzle";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   FxQuoteLegRecord,
@@ -25,9 +26,9 @@ export function createDrizzleFxQuotesRepository(
 ): FxQuotesRepository {
   async function insertQuote(
     input: FxQuoteWriteModel,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FxQuoteRecord | null> {
-    const database = tx ?? db;
+    const database = (tx as Transaction | undefined) ?? db;
     const inserted = await database
       .insert(schema.fxQuotes)
       .values(input)
@@ -41,13 +42,13 @@ export function createDrizzleFxQuotesRepository(
 
   async function insertQuoteLegs(
     input: FxQuoteLegWriteModel[],
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<void> {
     if (input.length === 0) {
       return;
     }
 
-    const database = tx ?? db;
+    const database = (tx as Transaction | undefined) ?? db;
     await database.insert(schema.fxQuoteLegs).values(input);
   }
 
@@ -114,9 +115,9 @@ export function createDrizzleFxQuotesRepository(
 
   async function findQuoteById(
     id: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FxQuoteRecord | undefined> {
-    const database = tx ?? db;
+    const database = (tx as Transaction | undefined) ?? db;
     const [quote] = await database
       .select()
       .from(schema.fxQuotes)
@@ -128,9 +129,9 @@ export function createDrizzleFxQuotesRepository(
 
   async function findQuoteByIdempotencyKey(
     idempotencyKey: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FxQuoteRecord | undefined> {
-    const database = tx ?? db;
+    const database = (tx as Transaction | undefined) ?? db;
     const [quote] = await database
       .select()
       .from(schema.fxQuotes)
@@ -142,9 +143,9 @@ export function createDrizzleFxQuotesRepository(
 
   async function listQuoteLegs(
     quoteId: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FxQuoteLegRecord[]> {
-    const database = tx ?? db;
+    const database = (tx as Transaction | undefined) ?? db;
     const legs = await database
       .select()
       .from(schema.fxQuoteLegs)

@@ -10,19 +10,36 @@ import {
 import { schema as partiesSchema } from "../../src/infra/drizzle/schema";
 import { createPartiesQueries } from "../../src/queries";
 
+const currencies = {
+  async assertCurrencyExists(_id: string) {
+    throw new Error("unexpected currencies port call");
+  },
+  async listCodesById(_ids: string[]) {
+    throw new Error("unexpected currencies port call");
+  },
+};
+const requisiteProviders = {
+  async assertProviderActive(_id: string) {
+    throw new Error("unexpected requisite providers port call");
+  },
+};
+
 function createRuntime(options?: {
   hasDocumentsForCustomer?: (customerId: string) => Promise<boolean>;
 }) {
   return {
     service: createPartiesService({
+      currencies,
       db,
       documents: {
         hasDocumentsForCustomer(customerId) {
           return (
-            options?.hasDocumentsForCustomer?.(customerId) ?? Promise.resolve(false)
+            options?.hasDocumentsForCustomer?.(customerId) ??
+            Promise.resolve(false)
           );
         },
       },
+      requisiteProviders,
     }),
     queries: createPartiesQueries({ db }),
   };
@@ -95,8 +112,12 @@ describe("parties integration", () => {
     expect(detached.groupIds).toEqual([sharedGroup.id]);
 
     const remainingGroups = await service.groups.list({ includeSystem: true });
-    expect(remainingGroups.map((group) => group.id)).not.toContain(managedGroup!.id);
-    expect(remainingGroups.map((group) => group.id)).not.toContain(nestedGroup.id);
+    expect(remainingGroups.map((group) => group.id)).not.toContain(
+      managedGroup!.id,
+    );
+    expect(remainingGroups.map((group) => group.id)).not.toContain(
+      nestedGroup.id,
+    );
   });
 
   it("blocks customer delete when documents read port reports references", async () => {

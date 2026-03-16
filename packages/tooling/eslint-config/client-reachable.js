@@ -1,7 +1,7 @@
 export const clientReachableCommonImportPaths = [
   {
-    name: "@bedrock/platform/crypto",
-    message: "@bedrock/platform/crypto is server-only.",
+    name: "@bedrock/shared/core/crypto",
+    message: "@bedrock/shared/core/crypto is server-only.",
   },
   {
     name: "@bedrock/platform/observability/logger",

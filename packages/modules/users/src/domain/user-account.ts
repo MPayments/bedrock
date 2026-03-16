@@ -44,7 +44,7 @@ export class UserAccount extends Entity<string> {
     this.snapshot = normalizeUserAccountSnapshot(snapshot);
   }
 
-  static reconstitute(snapshot: UserAccountSnapshot): UserAccount {
+  static fromSnapshot(snapshot: UserAccountSnapshot): UserAccount {
     return new UserAccount({ ...snapshot });
   }
 

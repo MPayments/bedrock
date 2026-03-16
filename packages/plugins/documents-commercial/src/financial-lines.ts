@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   isValidCurrency,
   normalizeCurrency,
-} from "@bedrock/currencies/catalog";
+} from "@bedrock/currencies/contracts";
 import { signedMinorAmountSchema } from "@bedrock/shared/money";
 
 export const FINANCIAL_LINE_BUCKETS = [

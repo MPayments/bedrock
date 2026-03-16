@@ -1,7 +1,4 @@
 import { ServiceError } from "@bedrock/shared/core/errors";
-export {
-  RequisiteProviderNotActiveError,
-} from "@bedrock/requisite-providers";
 
 export class OrganizationError extends ServiceError {}
 
@@ -23,20 +20,4 @@ export class OrganizationDeleteConflictError extends OrganizationError {
 
 export class OrganizationInternalLedgerInvariantError extends OrganizationError {
   name = "OrganizationInternalLedgerInvariantError";
-}
-
-export class OrganizationRequisiteNotFoundError extends OrganizationError {
-  name = "OrganizationRequisiteNotFoundError";
-
-  constructor(id: string) {
-    super(`Organization requisite not found: ${id}`);
-  }
-}
-
-export class OrganizationRequisiteBindingNotFoundError extends OrganizationError {
-  name = "OrganizationRequisiteBindingNotFoundError";
-
-  constructor(id: string) {
-    super(`Organization requisite accounting binding not found: ${id}`);
-  }
 }

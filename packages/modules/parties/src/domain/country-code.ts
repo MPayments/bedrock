@@ -1,9 +1,8 @@
 export {
-  CountryCodeValue,
   isCountryCode,
   normalizeCountryCode,
   normalizeOptionalCountryCode,
-  parseOptionalCountryCode,
   parseCountryCode,
+  parseOptionalCountryCode,
   type CountryCode,
 } from "@bedrock/shared/requisites";

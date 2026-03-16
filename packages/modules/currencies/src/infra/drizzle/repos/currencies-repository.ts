@@ -66,7 +66,8 @@ export function createDrizzleCurrenciesCommandRepository(input: {
 
   return {
     async create(inputValue: CreateCurrencyInput, tx) {
-      const [row] = await (tx ?? db)
+      const queryable = (tx as Transaction | undefined) ?? db;
+      const [row] = await queryable
         .insert(schema.currencies)
         .values(inputValue)
         .returning();
@@ -75,7 +76,8 @@ export function createDrizzleCurrenciesCommandRepository(input: {
     },
 
     async update(id, inputValue: UpdateCurrencyInput, tx) {
-      const [row] = await (tx ?? db)
+      const queryable = (tx as Transaction | undefined) ?? db;
+      const [row] = await queryable
         .update(schema.currencies)
         .set(inputValue)
         .where(eq(schema.currencies.id, id))
@@ -85,7 +87,8 @@ export function createDrizzleCurrenciesCommandRepository(input: {
     },
 
     async remove(id, tx) {
-      const [deleted] = await (tx ?? db)
+      const queryable = (tx as Transaction | undefined) ?? db;
+      const [deleted] = await queryable
         .delete(schema.currencies)
         .where(eq(schema.currencies.id, id))
         .returning({ id: schema.currencies.id });

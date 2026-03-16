@@ -23,6 +23,37 @@ export interface CreatePeriodCloseForOrganizationInput {
   periodLabel: string;
 }
 
+export interface PeriodCloseDraftResult {
+  document: {
+    id: string;
+    docType: string;
+    submissionStatus: string;
+  };
+}
+
+export interface PeriodCloseDocumentsPort {
+  findDocumentIdByCreateIdempotencyKey(input: {
+    docType: string;
+    createIdempotencyKey: string;
+  }): Promise<string | null>;
+  createDraft(input: {
+    docType: string;
+    createIdempotencyKey: string;
+    actorUserId: string;
+    payload: Record<string, unknown>;
+  }): Promise<PeriodCloseDraftResult>;
+  submit(input: {
+    docType: string;
+    documentId: string;
+    actorUserId: string;
+    idempotencyKey: string;
+  }): Promise<unknown>;
+}
+
+export interface PeriodCloseWorkflowDeps {
+  documents: PeriodCloseDocumentsPort;
+}
+
 type PeriodCloseWorkerOrganizationGuard = (
   input: PeriodCloseWorkerOrganizationContext,
 ) => Promise<boolean> | boolean;
@@ -40,6 +71,61 @@ export interface PeriodCloseWorkerRunnerDeps {
 export type PeriodCloseWorkerRunner = (
   context: WorkerRunContext,
 ) => Promise<WorkerRunResult>;
+
+function buildPeriodCloseIdempotencyKey(
+  organizationId: string,
+  periodStart: Date,
+) {
+  return `period_close:${organizationId}:${periodStart.toISOString().slice(0, 7)}`;
+}
+
+export function createPeriodCloseWorkflow(deps: PeriodCloseWorkflowDeps) {
+  return {
+    async createPeriodCloseForOrganization(
+      input: CreatePeriodCloseForOrganizationInput,
+    ): Promise<boolean> {
+      const createIdempotencyKey = buildPeriodCloseIdempotencyKey(
+        input.organizationId,
+        input.periodStart,
+      );
+      const existingDocumentId =
+        await deps.documents.findDocumentIdByCreateIdempotencyKey({
+          docType: "period_close",
+          createIdempotencyKey,
+        });
+
+      if (existingDocumentId) {
+        return false;
+      }
+
+      const draft = await deps.documents.createDraft({
+        docType: "period_close",
+        createIdempotencyKey,
+        actorUserId: input.actorUserId,
+        payload: {
+          organizationId: input.organizationId,
+          periodStart: input.periodStart.toISOString(),
+          periodEnd: input.periodEnd.toISOString(),
+          occurredAt: input.periodEnd.toISOString(),
+          closeReason: "auto_monthly_close",
+        },
+      });
+
+      if (draft.document.submissionStatus === "draft") {
+        await deps.documents.submit({
+          docType: draft.document.docType,
+          documentId: draft.document.id,
+          actorUserId: input.actorUserId,
+          idempotencyKey: `${createIdempotencyKey}:submit`,
+        });
+      }
+
+      return true;
+    },
+  };
+}
+
+export type PeriodCloseWorkflow = ReturnType<typeof createPeriodCloseWorkflow>;
 
 export function createPeriodCloseWorkerRunner(
   deps: PeriodCloseWorkerRunnerDeps,

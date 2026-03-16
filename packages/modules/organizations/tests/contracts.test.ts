@@ -3,11 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   CountryCodeSchema,
   CreateOrganizationInputSchema,
-  CreateOrganizationRequisiteInputSchema,
   OrganizationOptionSchema,
   PartyKindSchema,
   UpdateOrganizationInputSchema,
-  UpdateOrganizationRequisiteInputSchema,
 } from "../src/contracts";
 
 describe("organizations contracts", () => {
@@ -31,29 +29,6 @@ describe("organizations contracts", () => {
   it("rejects explicit undefined in organization update input", () => {
     expect(
       UpdateOrganizationInputSchema.safeParse({ shortName: undefined }).success,
-    ).toBe(false);
-  });
-
-  it("normalizes create requisite input into concrete values", () => {
-    const parsed = CreateOrganizationRequisiteInputSchema.parse({
-      organizationId: "550e8400-e29b-41d4-a716-446655440001",
-      providerId: "550e8400-e29b-41d4-a716-446655440002",
-      currencyId: "550e8400-e29b-41d4-a716-446655440003",
-      kind: "bank",
-      label: "  Main bank  ",
-      description: "   ",
-    });
-
-    expect(parsed.label).toBe("Main bank");
-    expect(parsed.description).toBeNull();
-    expect(parsed.isDefault).toBe(false);
-    expect(parsed.accountNo).toBeNull();
-  });
-
-  it("rejects explicit undefined in organization requisite update input", () => {
-    expect(
-      UpdateOrganizationRequisiteInputSchema.safeParse({ label: undefined })
-        .success,
     ).toBe(false);
   });
 

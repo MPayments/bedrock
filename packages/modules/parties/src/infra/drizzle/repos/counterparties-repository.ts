@@ -10,7 +10,6 @@ import {
 import { isUuidLike } from "@bedrock/shared/core/uuid";
 
 import type {
-  CounterpartiesCommandRepository,
   CounterpartiesQueryRepository,
 } from "../../../application/counterparties/ports";
 import type { Counterparty } from "../../../contracts";
@@ -28,6 +27,30 @@ const COUNTERPARTY_SORT_COLUMN_MAP = {
   createdAt: schema.counterparties.createdAt,
   updatedAt: schema.counterparties.updatedAt,
 } as const;
+
+interface DrizzleCounterpartiesCommandRepository {
+  findCounterpartySnapshotById: (
+    id: string,
+    tx?: Transaction,
+  ) => Promise<CounterpartySnapshot | null>;
+  insertCounterpartyTx: (
+    tx: Transaction,
+    counterparty: CounterpartySnapshot,
+  ) => Promise<CounterpartySnapshot>;
+  updateCounterpartyTx: (
+    tx: Transaction,
+    counterparty: CounterpartySnapshot,
+  ) => Promise<CounterpartySnapshot | null>;
+  removeCounterparty: (id: string) => Promise<boolean>;
+  replaceMembershipsTx: (
+    tx: Transaction,
+    counterpartyId: string,
+    groupIds: string[],
+  ) => Promise<void>;
+  listGroupHierarchyNodes: (
+    tx?: Transaction,
+  ) => Promise<GroupHierarchyNodeSnapshot[]>;
+}
 
 async function findCounterpartySnapshot(
   db: Database,
@@ -284,8 +307,8 @@ export function createDrizzleCounterpartiesQueryRepository(
 
 export function createDrizzleCounterpartiesCommandRepository(
   db: Database,
-): CounterpartiesCommandRepository {
-  return {
+) {
+  const repository: DrizzleCounterpartiesCommandRepository = {
     async findCounterpartySnapshotById(id, tx) {
       return findCounterpartySnapshot(db, id, tx);
     },
@@ -367,4 +390,6 @@ export function createDrizzleCounterpartiesCommandRepository(
       return listGroupHierarchyNodes(db, tx);
     },
   };
+
+  return repository;
 }

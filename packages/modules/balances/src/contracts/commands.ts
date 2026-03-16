@@ -2,11 +2,8 @@ import type { z } from "zod";
 
 import type { CorrelationContext } from "@bedrock/shared/core/correlation";
 
+import type { BalanceHoldSnapshot, BalanceSnapshot } from "./dto";
 import type {
-  BalanceHoldSnapshot,
-  BalanceSnapshot,
-} from "./dto";
-import {
   BalanceSubjectSchema,
   ConsumeBalanceInputSchema,
   ReleaseBalanceInputSchema,
@@ -57,25 +54,3 @@ export type ValidatedReleaseBalanceInput = z.infer<
 export type ValidatedConsumeBalanceInput = z.infer<
   typeof ConsumeBalanceInputSchema
 >;
-
-export function validateBalanceSubject(input: unknown): BalanceSubjectInput {
-  return BalanceSubjectSchema.parse(input);
-}
-
-export function validateReserveBalanceInput(
-  input: unknown,
-): ValidatedReserveBalanceInput {
-  return ReserveBalanceInputSchema.parse(input);
-}
-
-export function validateReleaseBalanceInput(
-  input: unknown,
-): ValidatedReleaseBalanceInput {
-  return ReleaseBalanceInputSchema.parse(input);
-}
-
-export function validateConsumeBalanceInput(
-  input: unknown,
-): ValidatedConsumeBalanceInput {
-  return ConsumeBalanceInputSchema.parse(input);
-}

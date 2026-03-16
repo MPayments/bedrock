@@ -26,10 +26,10 @@ async function assertCustomerExists(
   context: PartiesServiceContext,
   customerId: string,
 ) {
-  const existingCustomerIds = await context.customers.listExistingCustomerIds([
+  const existingCustomer = await context.customerQueries.findCustomerById(
     customerId,
-  ]);
-  if (!existingCustomerIds.includes(customerId)) {
+  );
+  if (!existingCustomer) {
     throw new CounterpartyCustomerNotFoundError(customerId);
   }
 }
@@ -72,7 +72,7 @@ export function createCreateCounterpartyGroupHandler(
       rethrowCounterpartyGroupDomainError(error);
     }
 
-    const created = CounterpartyGroup.reconstitute(
+    const created = CounterpartyGroup.fromSnapshot(
       await groups.insertCounterpartyGroup(draft.toSnapshot()),
     );
 
@@ -111,7 +111,7 @@ export function createUpdateCounterpartyGroupHandler(
       validated,
     );
     try {
-      next = CounterpartyGroup.reconstitute(existingSnapshot).update(
+      next = CounterpartyGroup.fromSnapshot(existingSnapshot).update(
         nextInput,
         {
           hierarchy,
@@ -130,7 +130,7 @@ export function createUpdateCounterpartyGroupHandler(
       await assertCustomerExists(context, next.toSnapshot().customerId!);
     }
 
-    const updatedSnapshot = CounterpartyGroup.reconstitute(
+    const updatedSnapshot = CounterpartyGroup.fromSnapshot(
       existingSnapshot,
     ).sameState(next)
       ? existingSnapshot
@@ -140,7 +140,7 @@ export function createUpdateCounterpartyGroupHandler(
       throw new CounterpartyGroupNotFoundError(id);
     }
 
-    const updated = CounterpartyGroup.reconstitute(updatedSnapshot);
+    const updated = CounterpartyGroup.fromSnapshot(updatedSnapshot);
     log.info("Counterparty group updated", { id });
     return toPublicGroup(updated);
   };
@@ -149,29 +149,26 @@ export function createUpdateCounterpartyGroupHandler(
 export function createRemoveCounterpartyGroupHandler(
   context: PartiesServiceContext,
 ) {
-  const { db, groups, log } = context;
+  const { log, transactions } = context;
 
   return async function removeCounterpartyGroup(id: string): Promise<void> {
-    await db.transaction(async (tx) => {
-      const groupSnapshot = await groups.findCounterpartyGroupSnapshotById(
-        id,
-        tx,
-      );
+    await transactions.withTransaction(async ({ groups }) => {
+      const groupSnapshot = await groups.findCounterpartyGroupSnapshotById(id);
       if (!groupSnapshot) {
         throw new CounterpartyGroupNotFoundError(id);
       }
 
       try {
-        CounterpartyGroup.reconstitute(groupSnapshot).assertRemovable();
+        CounterpartyGroup.fromSnapshot(groupSnapshot).assertRemovable();
       } catch (error) {
         rethrowCounterpartyGroupDomainError(error);
       }
 
-      await groups.reparentCounterpartyChildrenTx(tx, {
+      await groups.reparentCounterpartyChildren({
         id,
         parentId: groupSnapshot.parentId,
       });
-      await groups.removeCounterpartyGroupTx(tx, id);
+      await groups.removeCounterpartyGroup(id);
     });
 
     log.info("Counterparty group deleted", { id });

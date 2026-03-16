@@ -3,11 +3,35 @@ import { and, asc, eq, sql, type SQL } from "drizzle-orm";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 import type {
-  CounterpartyGroupsCommandRepository,
   CounterpartyGroupsQueryRepository,
 } from "../../../application/groups/ports";
+import type { CounterpartyGroupSnapshot } from "../../../domain/counterparty-group";
 import type { GroupHierarchyNodeSnapshot } from "../../../domain/group-hierarchy";
 import { schema } from "../schema";
+
+interface DrizzleCounterpartyGroupsCommandRepository {
+  findCounterpartyGroupSnapshotById: (
+    id: string,
+    tx?: Transaction,
+  ) => Promise<CounterpartyGroupSnapshot | null>;
+  insertCounterpartyGroup: (
+    group: CounterpartyGroupSnapshot,
+  ) => Promise<CounterpartyGroupSnapshot>;
+  updateCounterpartyGroup: (
+    group: CounterpartyGroupSnapshot,
+  ) => Promise<CounterpartyGroupSnapshot | null>;
+  listGroupHierarchyNodes: (
+    tx?: Transaction,
+  ) => Promise<GroupHierarchyNodeSnapshot[]>;
+  reparentCounterpartyChildrenTx: (
+    tx: Transaction,
+    input: {
+      id: string;
+      parentId: string | null;
+    },
+  ) => Promise<void>;
+  removeCounterpartyGroupTx: (tx: Transaction, id: string) => Promise<boolean>;
+}
 
 async function findCounterpartyGroupSnapshot(
   db: Database,
@@ -91,8 +115,8 @@ export function createDrizzleCounterpartyGroupsQueryRepository(
 
 export function createDrizzleCounterpartyGroupsCommandRepository(
   db: Database,
-): CounterpartyGroupsCommandRepository {
-  return {
+) {
+  const repository: DrizzleCounterpartyGroupsCommandRepository = {
     async findCounterpartyGroupSnapshotById(id, tx) {
       return findCounterpartyGroupSnapshot(db, id, tx);
     },
@@ -151,4 +175,6 @@ export function createDrizzleCounterpartyGroupsCommandRepository(
       return Boolean(deleted);
     },
   };
+
+  return repository;
 }

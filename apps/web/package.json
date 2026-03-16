@@ -22,7 +22,7 @@
     "@bedrock/plugin-documents-sdk": "workspace:*",
     "@bedrock/fx": "workspace:*",
     "@bedrock/organizations": "workspace:*",
-    "@bedrock/requisite-providers": "workspace:*",
+    "@bedrock/requisites": "workspace:*",
     "@bedrock/sdk-ui": "workspace:*",
     "@bedrock/users": "workspace:*",
     "@hookform/resolvers": "^5.2.2",

@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import { z as schemaBuilder } from "zod";
 
-import { isValidCurrency, normalizeCurrency } from "@bedrock/currencies/catalog";
+import { isValidCurrency, normalizeCurrency } from "@bedrock/currencies/contracts";
 import { financialLineSchema } from "@bedrock/documents/contracts";
 import {
   feeDealDirectionSchema,

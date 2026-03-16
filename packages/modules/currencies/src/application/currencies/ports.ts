@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   CreateCurrencyInput,
@@ -14,11 +14,11 @@ export interface CurrenciesQueryRepository {
 }
 
 export interface CurrenciesCommandRepository {
-  create(input: CreateCurrencyInput, tx?: Transaction): Promise<Currency>;
+  create(input: CreateCurrencyInput, tx?: PersistenceSession): Promise<Currency>;
   update(
     id: string,
     input: UpdateCurrencyInput,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<Currency | null>;
-  remove(id: string, tx?: Transaction): Promise<boolean>;
+  remove(id: string, tx?: PersistenceSession): Promise<boolean>;
 }

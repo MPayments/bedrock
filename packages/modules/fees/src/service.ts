@@ -1,11 +1,13 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { Logger } from "@bedrock/platform/observability/logger";
+import type { Database } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import { createFeesCommandHandlers } from "./application/commands";
 import { createFeesQueryHandlers } from "./application/queries";
 import {
   createFeesServiceContext,
-  type FeesServiceDeps,
 } from "./application/shared/context";
+import type { FeesCurrenciesPort } from "./application/shared/external-ports";
 import type {
   AdjustmentComponent,
   ApplicableFeeRule,
@@ -26,7 +28,11 @@ import { calculateBpsAmount } from "./domain/math";
 import { createDrizzleFeesQuoteSnapshotsRepository } from "./infra/drizzle/repos/quote-snapshots-repository";
 import { createDrizzleFeesRulesRepository } from "./infra/drizzle/repos/rules-repository";
 
-export type { FeesServiceDeps } from "./application/shared/context";
+export interface FeesServiceDeps {
+  db: Database;
+  logger?: Logger;
+  currenciesService: FeesCurrenciesPort;
+}
 
 export interface FeesService {
   calculateBpsAmount(amountMinor: bigint, bps: number): bigint;
@@ -34,19 +40,19 @@ export interface FeesService {
   upsertRule(input: UpsertFeeRuleInput): Promise<string>;
   listApplicableRules(
     input: ResolveFeeRulesInput,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<ApplicableFeeRule[]>;
   calculateFxQuoteFeeComponents(
     input: CalculateFxQuoteFeeComponentsInput,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FeeComponent[]>;
   saveQuoteFeeComponents(
     input: SaveQuoteFeeComponentsInput,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<void>;
   getQuoteFeeComponents(
     input: GetQuoteFeeComponentsInput,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FeeComponent[]>;
   mergeFeeComponents(input: MergeFeeComponentsInput): FeeComponent[];
   aggregateFeeComponents(components: FeeComponent[]): FeeComponent[];

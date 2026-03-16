@@ -60,7 +60,7 @@ export class Customer extends Entity<string> {
     });
   }
 
-  static reconstitute(snapshot: CustomerSnapshot): Customer {
+  static fromSnapshot(snapshot: CustomerSnapshot): Customer {
     return new Customer({ ...snapshot });
   }
 

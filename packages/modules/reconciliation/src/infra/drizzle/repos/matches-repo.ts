@@ -2,13 +2,21 @@ import { eq } from "drizzle-orm";
 
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
-import type { ReconciliationMatchesRepository } from "../../../application/runs/ports";
+import type { ReconciliationMatchRecord } from "../../../application/runs/ports";
 import { schema } from "../schema";
+
+interface DrizzleReconciliationMatchesRepository {
+  findById: (id: string) => Promise<ReconciliationMatchRecord | null>;
+  createManyTx: (
+    tx: Transaction,
+    input: Omit<ReconciliationMatchRecord, "id" | "createdAt">[],
+  ) => Promise<void>;
+}
 
 export function createDrizzleReconciliationMatchesRepository(
   db: Database,
-): ReconciliationMatchesRepository {
-  return {
+) {
+  const repository: DrizzleReconciliationMatchesRepository = {
     async findById(id) {
       const [match] = await db
         .select()
@@ -27,4 +35,6 @@ export function createDrizzleReconciliationMatchesRepository(
       await tx.insert(schema.reconciliationMatches).values(input);
     },
   };
+
+  return repository;
 }

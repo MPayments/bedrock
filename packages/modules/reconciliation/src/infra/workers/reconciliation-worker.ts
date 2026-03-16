@@ -1,3 +1,4 @@
+import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import {
   noopLogger,
   type Logger,
@@ -16,16 +17,17 @@ import {
 import { createReconciliationServiceContext } from "../../application/shared/context";
 import type {
   ReconciliationDocumentsPort,
-  ReconciliationIdempotencyPort,
   ReconciliationLedgerLookupPort,
 } from "../../application/shared/external-ports";
+import { createReconciliationTransactions } from "../../service";
+import { createDrizzleReconciliationServiceAdapters } from "../drizzle/context";
 
 export function createReconciliationWorkerDefinition(deps: {
   id?: string;
   intervalMs?: number;
   db: Database;
   documents: ReconciliationDocumentsPort;
-  idempotency: ReconciliationIdempotencyPort;
+  idempotency: IdempotencyPort;
   ledgerLookup: ReconciliationLedgerLookupPort;
   logger?: Logger;
   rulesetChecksum?: string;
@@ -36,12 +38,22 @@ export function createReconciliationWorkerDefinition(deps: {
   const batchSize = deps.batchSize ?? 25;
   const log =
     deps.logger?.child({ svc: "reconciliation-worker" }) ?? noopLogger;
+  const adapters = createDrizzleReconciliationServiceAdapters(deps.db);
   const context = createReconciliationServiceContext({
-    db: deps.db,
     documents: deps.documents,
-    idempotency: deps.idempotency,
     ledgerLookup: deps.ledgerLookup,
     logger: deps.logger,
+    matches: adapters.matchesRepo,
+    exceptions: adapters.exceptionsRepo,
+    pendingSources: adapters.pendingSources,
+    transactions: createReconciliationTransactions({
+      db: deps.db,
+      idempotency: deps.idempotency,
+      externalRecords: adapters.externalRecordsRepo,
+      runs: adapters.runsRepo,
+      matches: adapters.matchesRepo,
+      exceptions: adapters.exceptionsRepo,
+    }),
   });
   const processPendingSources = createProcessPendingSourcesHandler(context);
 

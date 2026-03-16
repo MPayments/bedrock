@@ -1,4 +1,3 @@
-import type { Transaction } from "@bedrock/platform/persistence";
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 
 import type {
@@ -14,60 +13,37 @@ export interface CustomersQueryRepository {
   listCustomerDisplayNamesById: (ids: string[]) => Promise<Map<string, string>>;
 }
 
-export interface CustomersCommandRepository {
-  findCustomerSnapshotById: (id: string, tx?: Transaction) => Promise<CustomerSnapshot | null>;
-  insertCustomerTx: (
-    tx: Transaction,
-    customer: CustomerSnapshot,
-  ) => Promise<CustomerSnapshot>;
-  updateCustomerTx: (
-    tx: Transaction,
-    customer: CustomerSnapshot,
-  ) => Promise<CustomerSnapshot | null>;
-  removeCustomerTx: (tx: Transaction, id: string) => Promise<boolean>;
-  listExistingCustomerIds: (ids: string[], tx?: Transaction) => Promise<string[]>;
+export interface CustomersCommandTxRepository {
+  findCustomerSnapshotById: (id: string) => Promise<CustomerSnapshot | null>;
+  insertCustomer: (customer: CustomerSnapshot) => Promise<CustomerSnapshot>;
+  updateCustomer: (customer: CustomerSnapshot) => Promise<CustomerSnapshot | null>;
+  removeCustomer: (id: string) => Promise<boolean>;
+  listExistingCustomerIds: (ids: string[]) => Promise<string[]>;
   findManagedCustomerGroup: (
     customerId: string,
-    tx?: Transaction,
   ) => Promise<{ id: string; name: string } | null>;
-  ensureManagedCustomerGroupTx: (
-    tx: Transaction,
-    input: {
-      customerId: string;
-      displayName: string;
-    },
-  ) => Promise<{ id: string }>;
-  renameManagedCustomerGroupTx: (
-    tx: Transaction,
-    input: {
-      customerId: string;
-      displayName: string;
-    },
-  ) => Promise<void>;
-  listCounterpartiesByCustomerId: (customerId: string, tx?: Transaction) => Promise<{ id: string }[]>;
-  listGroupHierarchyNodes: (tx?: Transaction) => Promise<GroupHierarchyNodeSnapshot[]>;
+  ensureManagedCustomerGroup: (input: {
+    customerId: string;
+    displayName: string;
+  }) => Promise<{ id: string }>;
+  renameManagedCustomerGroup: (input: {
+    customerId: string;
+    displayName: string;
+  }) => Promise<void>;
+  listCounterpartiesByCustomerId: (customerId: string) => Promise<{ id: string }[]>;
+  listGroupHierarchyNodes: () => Promise<GroupHierarchyNodeSnapshot[]>;
   listMembershipRowsByCounterpartyIds: (
     counterpartyIds: string[],
-    tx?: Transaction,
   ) => Promise<
     {
       counterpartyId: string;
       groupId: string;
     }[]
   >;
-  deleteMembershipsByCounterpartyAndGroupIdsTx: (
-    tx: Transaction,
-    input: {
-      counterpartyIds: string[];
-      groupIds: string[];
-    },
-  ) => Promise<void>;
-  clearCounterpartyCustomerLinkTx: (
-    tx: Transaction,
-    counterpartyIds: string[],
-  ) => Promise<void>;
-  deleteCounterpartyGroupsByIdsTx: (
-    tx: Transaction,
-    groupIds: string[],
-  ) => Promise<void>;
+  deleteMembershipsByCounterpartyAndGroupIds: (input: {
+    counterpartyIds: string[];
+    groupIds: string[];
+  }) => Promise<void>;
+  clearCounterpartyCustomerLink: (counterpartyIds: string[]) => Promise<void>;
+  deleteCounterpartyGroupsByIds: (groupIds: string[]) => Promise<void>;
 }

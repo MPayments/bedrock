@@ -25,7 +25,8 @@ import {
 } from "../shared/policy";
 
 export function createUpdateDraftHandler(context: DocumentsServiceContext) {
-  const { accountingPeriods, log, now, policy, registry, transactions } = context;
+  const { accountingPeriods, log, now, policy, registry, transactions } =
+    context;
 
   return async function updateDraft(input: {
     docType: string;
@@ -100,7 +101,7 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
                 docType: input.docType,
                 forUpdate: true,
               });
-              const aggregate = DocumentAggregate.reconstitute(document);
+              const aggregate = DocumentAggregate.fromSnapshot(document);
               const module = resolveModuleForDocument(registry, document);
               const validatedUpdateInput = validateInput(
                 module.updateSchema,
@@ -157,13 +158,15 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
                 docType: input.docType,
               });
 
-              const nextDocument = aggregate.updateDraft({
-                payload,
-                occurredAt: nextOccurredAt,
-                approvalStatus,
-                summary,
-                now: currentNow,
-              }).toSnapshot();
+              const nextDocument = aggregate
+                .updateDraft({
+                  payload,
+                  occurredAt: nextOccurredAt,
+                  approvalStatus,
+                  summary,
+                  now: currentNow,
+                })
+                .toSnapshot();
 
               const stored = await documentsCommand.updateDocument({
                 documentId: document.id,

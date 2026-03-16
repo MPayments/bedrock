@@ -35,7 +35,7 @@
     "@bedrock/organizations": "workspace:*",
     "@bedrock/platform": "workspace:*",
     "@bedrock/reconciliation": "workspace:*",
-    "@bedrock/requisite-providers": "workspace:*",
+    "@bedrock/requisites": "workspace:*",
     "better-auth": "^1.4.18",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1"

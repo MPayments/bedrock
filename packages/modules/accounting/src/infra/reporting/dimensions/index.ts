@@ -1,6 +1,7 @@
 import type { OrganizationsQueries } from "@bedrock/organizations/queries";
 import type { CounterpartiesQueries } from "@bedrock/parties/queries";
 import type { CustomersQueries } from "@bedrock/parties/queries";
+import type { RequisitesQueries } from "@bedrock/requisites/queries";
 
 export type DimensionLabelResolver = (input: {
   values: string[];
@@ -152,12 +153,13 @@ export function createBedrockDimensionRegistry(input: {
   counterpartiesQueries: CounterpartiesQueries;
   customersQueries: CustomersQueries;
   organizationsQueries: OrganizationsQueries;
+  requisitesQueries: RequisitesQueries;
   documentsReadModel?: DimensionDocumentsReadModel;
 }): DimensionRegistry {
   const {
     counterpartiesQueries,
     customersQueries,
-    organizationsQueries,
+    requisitesQueries,
     documentsReadModel,
   } = input;
 
@@ -168,8 +170,7 @@ export function createBedrockDimensionRegistry(input: {
     },
     {
       key: "organizationRequisiteId",
-      resolveLabels: ({ values }) =>
-        organizationsQueries.requisites.listLabelsById(values),
+      resolveLabels: ({ values }) => requisitesQueries.listLabelsById(values),
     },
     {
       key: "customerId",

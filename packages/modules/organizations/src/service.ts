@@ -1,39 +1,22 @@
-import { createCurrenciesService } from "@bedrock/currencies";
-import { createLedgerBookAccountsService } from "@bedrock/ledger";
-import { createRequisiteProvidersService } from "@bedrock/requisite-providers";
+import type { Logger } from "@bedrock/platform/observability/logger";
+import type {
+  Database,
+  Queryable,
+  Transaction,
+} from "@bedrock/platform/persistence";
 
 import {
   createCreateOrganizationHandler,
   createRemoveOrganizationHandler,
   createUpdateOrganizationHandler,
 } from "./application/organizations/commands";
+import type { OrganizationsCommandTxRepository } from "./application/organizations/ports";
 import {
   createFindOrganizationByIdHandler,
   createListOrganizationsHandler,
 } from "./application/organizations/queries";
-import {
-  createGetOrganizationRequisiteAccountingBindingHandler,
-  createResolveOrganizationRequisiteBindingsHandler,
-  createUpsertOrganizationRequisiteAccountingBindingHandler,
-} from "./application/requisites/bindings";
-import {
-  createCreateOrganizationRequisiteHandler,
-  createRemoveOrganizationRequisiteHandler,
-  createUpdateOrganizationRequisiteHandler,
-} from "./application/requisites/commands";
-import {
-  createFindOrganizationRequisiteByIdHandler,
-  createListOrganizationRequisiteOptionsHandler,
-  createListOrganizationRequisitesHandler,
-} from "./application/requisites/queries";
-import {
-  createOrganizationsServiceContext,
-  type OrganizationsServiceDeps,
-} from "./application/shared/context";
-import {
-  createDrizzleOrganizationRequisitesCommandRepository,
-  createDrizzleOrganizationRequisitesQueryRepository,
-} from "./infra/drizzle/repos/organization-requisites-repository";
+import { createOrganizationsServiceContext } from "./application/shared/context";
+import type { OrganizationsTransactionsPort } from "./application/shared/external-ports";
 import {
   createDrizzleOrganizationsCommandRepository,
   createDrizzleOrganizationsQueryRepository,
@@ -43,64 +26,113 @@ export type OrganizationsService = ReturnType<
   typeof createOrganizationsService
 >;
 
-export function createOrganizationsService(deps: OrganizationsServiceDeps) {
-  const currenciesService = createCurrenciesService({ db: deps.db });
-  const currencies = deps.currencies ?? {
-    async assertCurrencyExists(id) {
-      await currenciesService.findById(id);
-    },
-    async listCodesById(ids) {
-      const rows = await Promise.all(
-        ids.map(
-          async (id) =>
-            [id, (await currenciesService.findById(id)).code] as const,
-        ),
-      );
-      return new Map(rows);
-    },
-  };
-  const requisiteProvidersService = createRequisiteProvidersService({
-    db: deps.db,
-    logger: deps.logger,
-  });
-  const requisiteProviders = deps.requisiteProviders ?? {
-    async assertProviderActive(id) {
-      await requisiteProvidersService.assertActive(id);
-    },
-  };
-  const ledgerBindings = deps.ledgerBindings ?? {
-    async ensureOrganizationPostingTarget(tx, input) {
-      const { bookId } = await deps.ledgerBooks.ensureDefaultOrganizationBook(
-        tx,
-        {
-          organizationId: input.organizationId,
-        },
-      );
-      const bookAccounts = createLedgerBookAccountsService();
-      const bookAccount = await bookAccounts.ensureBookAccountInstance(tx, {
-        bookId,
-        accountNo: input.postingAccountNo,
-        currency: input.currencyCode,
-        dimensions: {},
-      });
+export interface OrganizationsServiceDeps {
+  db: Queryable;
+  logger?: Logger;
+  now?: () => Date;
+  withTransaction?: OrganizationsTransactionsPort["withTransaction"];
+}
 
-      return {
-        bookId,
-        bookAccountInstanceId: bookAccount.id,
-      };
+export interface OrganizationsServiceTransactionDeps {
+  tx: Transaction;
+  logger?: Logger;
+  now?: () => Date;
+}
+
+function createOrganizationsTxRepository(input: {
+  organizations: ReturnType<typeof createDrizzleOrganizationsCommandRepository>;
+  tx: Transaction;
+}): OrganizationsCommandTxRepository {
+  return {
+    findOrganizationSnapshotById(id) {
+      return input.organizations.findOrganizationSnapshotById(id, input.tx);
+    },
+    insertOrganization(organization) {
+      return input.organizations.insertOrganizationTx(input.tx, organization);
+    },
+    updateOrganization(organization) {
+      return input.organizations.updateOrganizationTx(input.tx, organization);
+    },
+    removeOrganization(id) {
+      return input.organizations.removeOrganizationTx(input.tx, id);
     },
   };
+}
+
+function createOrganizationsTransactions(input: {
+  db: Queryable;
+  organizations: ReturnType<typeof createDrizzleOrganizationsCommandRepository>;
+  withTransaction?: OrganizationsTransactionsPort["withTransaction"];
+}): OrganizationsTransactionsPort {
+  if (input.withTransaction) {
+    return {
+      withTransaction: input.withTransaction,
+    };
+  }
+
+  return {
+    async withTransaction(run) {
+      return (input.db as Database).transaction(async (tx: Transaction) =>
+        run({
+          organizations: createOrganizationsTxRepository({
+            organizations: input.organizations,
+            tx,
+          }),
+        }),
+      );
+    },
+  };
+}
+
+export function createOrganizationsService(deps: OrganizationsServiceDeps) {
+  const organizations = createDrizzleOrganizationsCommandRepository(deps.db);
+  return createOrganizationsServiceContextHandlers({
+    logger: deps.logger,
+    now: deps.now,
+    db: deps.db,
+    organizations,
+    transactions: createOrganizationsTransactions({
+      db: deps.db,
+      organizations,
+      withTransaction: deps.withTransaction,
+    }),
+  });
+}
+
+export function createOrganizationsServiceFromTransaction(
+  deps: OrganizationsServiceTransactionDeps,
+) {
+  const organizations = createDrizzleOrganizationsCommandRepository(deps.tx);
+
+  return createOrganizationsServiceContextHandlers({
+    logger: deps.logger,
+    now: deps.now,
+    db: deps.tx,
+    organizations,
+    transactions: {
+      withTransaction: (run) =>
+        run({
+          organizations: createOrganizationsTxRepository({
+            organizations,
+            tx: deps.tx,
+          }),
+        }),
+    },
+  });
+}
+
+function createOrganizationsServiceContextHandlers(input: {
+  db: Queryable;
+  logger?: Logger;
+  now?: () => Date;
+  organizations: ReturnType<typeof createDrizzleOrganizationsCommandRepository>;
+  transactions: OrganizationsTransactionsPort;
+}) {
   const context = createOrganizationsServiceContext({
-    ...deps,
-    currencies,
-    ledgerBindings,
-    requisiteProviders,
-    organizations: createDrizzleOrganizationsCommandRepository(deps.db),
-    organizationQueries: createDrizzleOrganizationsQueryRepository(deps.db),
-    requisites: createDrizzleOrganizationRequisitesCommandRepository(deps.db),
-    requisiteQueries: createDrizzleOrganizationRequisitesQueryRepository(
-      deps.db,
-    ),
+    logger: input.logger,
+    now: input.now,
+    organizationQueries: createDrizzleOrganizationsQueryRepository(input.db),
+    transactions: input.transactions,
   });
 
   return {
@@ -109,19 +141,5 @@ export function createOrganizationsService(deps: OrganizationsServiceDeps) {
     create: createCreateOrganizationHandler(context),
     update: createUpdateOrganizationHandler(context),
     remove: createRemoveOrganizationHandler(context),
-    requisites: {
-      list: createListOrganizationRequisitesHandler(context),
-      listOptions: createListOrganizationRequisiteOptionsHandler(context),
-      findById: createFindOrganizationRequisiteByIdHandler(context),
-      create: createCreateOrganizationRequisiteHandler(context),
-      update: createUpdateOrganizationRequisiteHandler(context),
-      remove: createRemoveOrganizationRequisiteHandler(context),
-      getBinding:
-        createGetOrganizationRequisiteAccountingBindingHandler(context),
-      upsertBinding:
-        createUpsertOrganizationRequisiteAccountingBindingHandler(context),
-      resolveBindings:
-        createResolveOrganizationRequisiteBindingsHandler(context),
-    },
   };
 }

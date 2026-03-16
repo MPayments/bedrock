@@ -3,13 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   CreateCounterpartyGroupInputSchema,
   CreateCounterpartyInputSchema,
-  CreateCounterpartyRequisiteInputSchema,
   CreateCustomerInputSchema,
   ListCounterpartiesQuerySchema,
   ListCustomersQuerySchema,
   UpdateCounterpartyGroupInputSchema,
   UpdateCounterpartyInputSchema,
-  UpdateCounterpartyRequisiteInputSchema,
   UpdateCustomerInputSchema,
 } from "../../src/contracts";
 
@@ -134,26 +132,4 @@ describe("parties contracts", () => {
     ).toBe(false);
   });
 
-  it("parses create counterparty requisite input into concrete values", () => {
-    const parsed = CreateCounterpartyRequisiteInputSchema.parse({
-      counterpartyId: "550e8400-e29b-41d4-a716-446655440001",
-      providerId: "550e8400-e29b-41d4-a716-446655440002",
-      currencyId: "550e8400-e29b-41d4-a716-446655440003",
-      kind: "bank",
-      label: "  Main bank  ",
-      description: "   ",
-    });
-
-    expect(parsed.label).toBe("Main bank");
-    expect(parsed.description).toBeNull();
-    expect(parsed.isDefault).toBe(false);
-    expect(parsed.accountNo).toBeNull();
-  });
-
-  it("rejects explicit undefined in update requisite input", () => {
-    expect(
-      UpdateCounterpartyRequisiteInputSchema.safeParse({ label: undefined })
-        .success,
-    ).toBe(false);
-  });
 });

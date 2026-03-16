@@ -1,6 +1,6 @@
 import type { FinancialLine } from "@bedrock/documents/contracts";
 import type { FeeComponent } from "@bedrock/fees/contracts";
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   FxQuoteLegSourceKind,
@@ -110,11 +110,11 @@ export interface FxQuoteFinancialLineWriteModel {
 export interface FxQuotesRepository {
   insertQuote(
     input: FxQuoteWriteModel,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FxQuoteRecord | null>;
   insertQuoteLegs(
     input: FxQuoteLegWriteModel[],
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<void>;
   listQuotes(input: {
     limit: number;
@@ -127,15 +127,15 @@ export interface FxQuotesRepository {
   }): Promise<{ rows: FxQuoteRecord[]; total: number }>;
   findQuoteById(
     id: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FxQuoteRecord | undefined>;
   findQuoteByIdempotencyKey(
     idempotencyKey: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FxQuoteRecord | undefined>;
   listQuoteLegs(
     quoteId: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FxQuoteLegRecord[]>;
   markQuoteUsedIfActive(input: {
     quoteId: string;
@@ -151,10 +151,10 @@ export interface FxQuoteFinancialLinesRepository {
       quoteId: string;
       financialLines: FxQuoteFinancialLineWriteModel[];
     },
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<void>;
   listQuoteFinancialLines(
     quoteId: string,
-    tx?: Transaction,
+    tx?: PersistenceSession,
   ): Promise<FxQuoteFinancialLineWriteModel[]>;
 }

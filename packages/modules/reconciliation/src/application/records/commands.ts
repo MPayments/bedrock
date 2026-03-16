@@ -1,5 +1,5 @@
-import { sha256Hex } from "@bedrock/platform/crypto";
 import { canonicalJson } from "@bedrock/shared/core/canon";
+import { sha256Hex } from "@bedrock/shared/core/crypto";
 import { DomainError } from "@bedrock/shared/core/domain";
 
 import {
@@ -16,7 +16,7 @@ import type { ReconciliationServiceContext } from "../shared/context";
 export function createIngestExternalRecordHandler(
   context: ReconciliationServiceContext,
 ) {
-  const { db, externalRecordsRepo, idempotency } = context;
+  const { transactions } = context;
 
   return async function ingestExternalRecord(
     input: ReconciliationExternalRecordInput,
@@ -32,9 +32,9 @@ export function createIngestExternalRecordHandler(
       }),
     );
 
-    const record = await db.transaction(async (tx) =>
-      idempotency.withIdempotencyTx({
-        tx,
+    const record = await transactions.withTransaction(
+      async ({ externalRecords, idempotency }) =>
+        idempotency.withIdempotency({
         scope: RECONCILIATION_IDEMPOTENCY_SCOPE.INGEST_EXTERNAL_RECORD,
         idempotencyKey: validated.idempotencyKey,
         request: {
@@ -45,7 +45,7 @@ export function createIngestExternalRecordHandler(
         serializeResult: (result: { id: string }) => result,
         loadReplayResult: async () => {
           const existing =
-            await externalRecordsRepo.findBySourceAndSourceRecordIdTx(tx, {
+            await externalRecords.findBySourceAndSourceRecordId({
               source: validated.source,
               sourceRecordId: validated.sourceRecordId,
             });
@@ -60,14 +60,14 @@ export function createIngestExternalRecordHandler(
         },
         handler: async () => {
           const existing =
-            await externalRecordsRepo.findBySourceAndSourceRecordIdTx(tx, {
+            await externalRecords.findBySourceAndSourceRecordId({
               source: validated.source,
               sourceRecordId: validated.sourceRecordId,
             });
 
           if (existing) {
             try {
-              ExternalRecord.reconstitute(existing).assertSamePayloadHash(
+              ExternalRecord.fromSnapshot(existing).assertSamePayloadHash(
                 payloadHash,
               );
             } catch (error) {
@@ -87,7 +87,7 @@ export function createIngestExternalRecordHandler(
             return existing;
           }
 
-          return externalRecordsRepo.createTx(tx, {
+          return externalRecords.create({
             source: validated.source,
             sourceRecordId: validated.sourceRecordId,
             rawPayload: validated.rawPayload,

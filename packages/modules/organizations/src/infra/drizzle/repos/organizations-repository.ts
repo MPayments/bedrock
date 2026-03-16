@@ -10,18 +10,16 @@ import {
   type SQL,
 } from "drizzle-orm";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 import { dedupeIds } from "@bedrock/shared/core/domain";
 import {
   resolveSortOrder,
   resolveSortValue,
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
-import type {
-  OrganizationsCommandRepository,
-  OrganizationsQueryRepository,
-} from "../../../application/organizations/ports";
+import type { OrganizationsQueryRepository } from "../../../application/organizations/ports";
 import type { ListOrganizationsQuery, Organization } from "../../../contracts";
 import type { OrganizationSnapshot } from "../../../domain/organization";
 import type { PartyKind } from "../../../domain/party-kind";
@@ -75,12 +73,31 @@ function buildWhere(input: ListOrganizationsQuery): SQL | undefined {
   return conditions.length > 0 ? and(...conditions) : undefined;
 }
 
+interface DrizzleOrganizationsCommandRepository {
+  findOrganizationSnapshotById: (
+    id: string,
+    tx?: PersistenceSession,
+  ) => Promise<OrganizationSnapshot | null>;
+  insertOrganizationTx: (
+    tx: PersistenceSession,
+    organization: OrganizationSnapshot,
+  ) => Promise<OrganizationSnapshot>;
+  updateOrganizationTx: (
+    tx: PersistenceSession,
+    organization: OrganizationSnapshot,
+  ) => Promise<OrganizationSnapshot | null>;
+  removeOrganizationTx: (
+    tx: PersistenceSession,
+    id: string,
+  ) => Promise<boolean>;
+}
+
 async function findOrganizationSnapshot(
-  db: Database,
+  db: Queryable,
   id: string,
-  tx?: Transaction,
+  tx?: PersistenceSession,
 ): Promise<OrganizationSnapshot | null> {
-  const database = tx ?? db;
+  const database = (tx as Queryable | undefined) ?? db;
   const [row] = await database
     .select()
     .from(schema.organizations)
@@ -91,7 +108,7 @@ async function findOrganizationSnapshot(
 }
 
 export function createDrizzleOrganizationsQueryRepository(
-  db: Database,
+  db: Queryable,
 ): OrganizationsQueryRepository {
   return {
     async findOrganizationById(id) {
@@ -172,15 +189,14 @@ export function createDrizzleOrganizationsQueryRepository(
   };
 }
 
-export function createDrizzleOrganizationsCommandRepository(
-  db: Database,
-): OrganizationsCommandRepository {
-  return {
+export function createDrizzleOrganizationsCommandRepository(db: Queryable) {
+  const repository: DrizzleOrganizationsCommandRepository = {
     async findOrganizationSnapshotById(id, tx) {
       return findOrganizationSnapshot(db, id, tx);
     },
     async insertOrganizationTx(tx, organization) {
-      const [created] = await tx
+      const transaction = tx as Transaction;
+      const [created] = await transaction
         .insert(schema.organizations)
         .values({
           id: organization.id,
@@ -196,7 +212,8 @@ export function createDrizzleOrganizationsCommandRepository(
       return toSnapshot(created!);
     },
     async updateOrganizationTx(tx, organization) {
-      const [updated] = await tx
+      const transaction = tx as Transaction;
+      const [updated] = await transaction
         .update(schema.organizations)
         .set({
           shortName: organization.shortName,
@@ -213,7 +230,8 @@ export function createDrizzleOrganizationsCommandRepository(
       return updated ? toSnapshot(updated) : null;
     },
     async removeOrganizationTx(tx, id) {
-      const [deleted] = await tx
+      const transaction = tx as Transaction;
+      const [deleted] = await transaction
         .delete(schema.organizations)
         .where(eq(schema.organizations.id, id))
         .returning({ id: schema.organizations.id });
@@ -221,4 +239,6 @@ export function createDrizzleOrganizationsCommandRepository(
       return Boolean(deleted);
     },
   };
+
+  return repository;
 }

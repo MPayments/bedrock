@@ -148,7 +148,7 @@ export class Counterparty extends Entity<string> {
     });
   }
 
-  static reconstitute(snapshot: CounterpartySnapshot): Counterparty {
+  static fromSnapshot(snapshot: CounterpartySnapshot): Counterparty {
     return new Counterparty({ ...snapshot });
   }
 

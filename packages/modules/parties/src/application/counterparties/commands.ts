@@ -1,7 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import type { Transaction } from "@bedrock/platform/persistence";
-
 import {
   resolveCreateCounterpartyProps,
   resolveUpdateCounterpartyProps,
@@ -21,18 +19,15 @@ import {
   CounterpartyCustomerNotFoundError,
   CounterpartyNotFoundError,
 } from "../../errors";
+import type { CustomersCommandTxRepository } from "../customers/ports";
 import type { PartiesServiceContext } from "../shared/context";
 import { rethrowCounterpartyMembershipDomainError } from "../shared/map-domain-error";
 
 async function assertCustomerExists(
-  context: PartiesServiceContext,
+  customers: Pick<CustomersCommandTxRepository, "listExistingCustomerIds">,
   customerId: string,
-  tx?: Transaction,
 ) {
-  const existingCustomerIds = await context.customers.listExistingCustomerIds(
-    [customerId],
-    tx,
-  );
+  const existingCustomerIds = await customers.listExistingCustomerIds([customerId]);
   if (!existingCustomerIds.includes(customerId)) {
     throw new CounterpartyCustomerNotFoundError(customerId);
   }
@@ -55,23 +50,22 @@ function membershipsChanged(
 export function createCreateCounterpartyHandler(
   context: PartiesServiceContext,
 ) {
-  const { counterparties, customers, db, log } = context;
+  const { log, transactions } = context;
 
   return async function createCounterparty(
     input: CreateCounterpartyInput,
   ): Promise<CounterpartyDto> {
     const validated = CreateCounterpartyInputSchema.parse(input);
 
-    return db.transaction(async (tx) => {
+    return transactions.withTransaction(async ({ counterparties, customers }) => {
       let managedGroupId: string | null = null;
 
       if (validated.customerId) {
-        await assertCustomerExists(context, validated.customerId, tx);
+        await assertCustomerExists(customers, validated.customerId);
         const customer = await customers.findCustomerSnapshotById(
           validated.customerId,
-          tx,
         );
-        const customerGroup = await customers.ensureManagedCustomerGroupTx(tx, {
+        const customerGroup = await customers.ensureManagedCustomerGroup({
           customerId: validated.customerId,
           displayName: customer!.displayName,
         });
@@ -79,7 +73,7 @@ export function createCreateCounterpartyHandler(
       }
 
       const hierarchy = GroupHierarchy.create(
-        await counterparties.listGroupHierarchyNodes(tx),
+        await counterparties.listGroupHierarchyNodes(),
       );
 
       let draft: Counterparty;
@@ -99,17 +93,15 @@ export function createCreateCounterpartyHandler(
         rethrowCounterpartyMembershipDomainError(error);
       }
 
-      const createdSnapshot = await counterparties.insertCounterpartyTx(
-        tx,
+      const createdSnapshot = await counterparties.insertCounterparty(
         draft.toSnapshot(),
       );
-      await counterparties.replaceMembershipsTx(
-        tx,
+      await counterparties.replaceMemberships(
         createdSnapshot.id,
         draft.toSnapshot().groupIds,
       );
 
-      const created = Counterparty.reconstitute({
+      const created = Counterparty.fromSnapshot({
         ...createdSnapshot,
         groupIds: draft.toSnapshot().groupIds,
       });
@@ -127,7 +119,7 @@ export function createCreateCounterpartyHandler(
 export function createUpdateCounterpartyHandler(
   context: PartiesServiceContext,
 ) {
-  const { counterparties, customers, db, log } = context;
+  const { log, transactions } = context;
 
   return async function updateCounterparty(
     id: string,
@@ -135,16 +127,16 @@ export function createUpdateCounterpartyHandler(
   ): Promise<CounterpartyDto> {
     const validated = UpdateCounterpartyInputSchema.parse(input);
 
-    return db.transaction(async (tx) => {
+    return transactions.withTransaction(async ({ counterparties, customers }) => {
       const existingSnapshot =
-        await counterparties.findCounterpartySnapshotById(id, tx);
+        await counterparties.findCounterpartySnapshotById(id);
       if (!existingSnapshot) {
         throw new CounterpartyNotFoundError(id);
       }
 
-      const existing = Counterparty.reconstitute(existingSnapshot);
+      const existing = Counterparty.fromSnapshot(existingSnapshot);
       const hierarchy = GroupHierarchy.create(
-        await counterparties.listGroupHierarchyNodes(tx),
+        await counterparties.listGroupHierarchyNodes(),
       );
       const nextInput = resolveUpdateCounterpartyProps(
         existingSnapshot,
@@ -155,12 +147,11 @@ export function createUpdateCounterpartyHandler(
 
       let managedGroupId: string | null = null;
       if (nextCustomerId) {
-        await assertCustomerExists(context, nextCustomerId, tx);
+        await assertCustomerExists(customers, nextCustomerId);
         const customer = await customers.findCustomerSnapshotById(
           nextCustomerId,
-          tx,
         );
-        const customerGroup = await customers.ensureManagedCustomerGroupTx(tx, {
+        const customerGroup = await customers.ensureManagedCustomerGroup({
           customerId: nextCustomerId,
           displayName: customer!.displayName,
         });
@@ -180,7 +171,7 @@ export function createUpdateCounterpartyHandler(
 
       const persistedSnapshot = existing.sameState(next)
         ? existingSnapshot
-        : await counterparties.updateCounterpartyTx(tx, next.toSnapshot());
+        : await counterparties.updateCounterparty(next.toSnapshot());
 
       if (!persistedSnapshot) {
         throw new CounterpartyNotFoundError(id);
@@ -192,14 +183,10 @@ export function createUpdateCounterpartyHandler(
           next.toSnapshot().groupIds,
         )
       ) {
-        await counterparties.replaceMembershipsTx(
-          tx,
-          id,
-          next.toSnapshot().groupIds,
-        );
+        await counterparties.replaceMemberships(id, next.toSnapshot().groupIds);
       }
 
-      const updated = Counterparty.reconstitute({
+      const updated = Counterparty.fromSnapshot({
         ...persistedSnapshot,
         groupIds: next.toSnapshot().groupIds,
       });

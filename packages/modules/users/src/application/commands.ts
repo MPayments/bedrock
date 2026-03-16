@@ -64,7 +64,7 @@ export function createUpdateUserHandler(context: UsersServiceContext) {
       throw new UserNotFoundError(id);
     }
 
-    const existingAccount = UserAccount.reconstitute({
+    const existingAccount = UserAccount.fromSnapshot({
       ...existing,
       role: toUserRoleOrNull(existing.role),
       banned: existing.banned ?? false,
@@ -183,7 +183,7 @@ export function createBanUserHandler(context: UsersServiceContext) {
       throw new UserNotFoundError(id);
     }
 
-    const updatedAccount = UserAccount.reconstitute({
+    const updatedAccount = UserAccount.fromSnapshot({
       ...existing,
       role: toUserRoleOrNull(existing.role),
       banned: existing.banned ?? false,
@@ -220,7 +220,7 @@ export function createUnbanUserHandler(context: UsersServiceContext) {
       throw new UserNotFoundError(id);
     }
 
-    const updatedAccount = UserAccount.reconstitute({
+    const updatedAccount = UserAccount.fromSnapshot({
       ...existing,
       role: toUserRoleOrNull(existing.role),
       banned: existing.banned ?? false,

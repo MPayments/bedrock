@@ -147,7 +147,7 @@ export class CounterpartyGroup extends Entity<string> {
     });
   }
 
-  static reconstitute(snapshot: CounterpartyGroupSnapshot): CounterpartyGroup {
+  static fromSnapshot(snapshot: CounterpartyGroupSnapshot): CounterpartyGroup {
     return new CounterpartyGroup({ ...snapshot });
   }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { validateReserveBalanceInput } from "../src/contracts";
+import { ReserveBalanceInputSchema } from "../src/contracts";
 
 describe("balances validation", () => {
   const subject = {
@@ -12,7 +12,7 @@ describe("balances validation", () => {
 
   it("rejects non-positive reserve amounts", () => {
     expect(() =>
-      validateReserveBalanceInput({
+      ReserveBalanceInputSchema.parse({
         subject,
         amount: "0",
         holdRef: "hold-1",
@@ -22,7 +22,7 @@ describe("balances validation", () => {
   });
 
   it("converts API amount to amountMinor inside validation", () => {
-    const validated = validateReserveBalanceInput({
+    const validated = ReserveBalanceInputSchema.parse({
       subject,
       amount: "10.25",
       holdRef: "hold-2",

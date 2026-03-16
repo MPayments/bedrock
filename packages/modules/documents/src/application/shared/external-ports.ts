@@ -9,7 +9,6 @@ import type {
   DocumentOperationsRepository,
   DocumentsCommandRepository,
 } from "../documents/ports";
-import type { DocumentsLedgerCommitPort } from "../posting/ports";
 
 export interface DocumentsIdempotencyPort {
   withIdempotency<TResult, TStoredResult = Record<string, unknown>>(input: {
@@ -29,7 +28,6 @@ export interface DocumentsIdempotencyPort {
 export interface DocumentsTransactionContext {
   moduleRuntime: DocumentModuleRuntime;
   idempotency: DocumentsIdempotencyPort;
-  ledger: DocumentsLedgerCommitPort;
   documentsCommand: DocumentsCommandRepository;
   documentEvents: DocumentEventsRepository;
   documentLinks: DocumentLinksRepository;

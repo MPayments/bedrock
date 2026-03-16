@@ -1,4 +1,4 @@
-import { normalizeCurrency } from "@bedrock/currencies/catalog";
+import { normalizeCurrency } from "@bedrock/currencies/contracts";
 
 import type {
   CrossRate,

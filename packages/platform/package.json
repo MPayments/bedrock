@@ -8,8 +8,6 @@
     "./auth-betterauth/*": "./src/auth-betterauth/*.ts",
     "./auth-model": "./src/auth-model/index.ts",
     "./auth-model/*": "./src/auth-model/*.ts",
-    "./crypto": "./src/crypto/index.ts",
-    "./crypto/*": "./src/crypto/*.ts",
     "./idempotency": "./src/idempotency/index.ts",
     "./idempotency/*": "./src/idempotency/*.ts",
     "./idempotency-postgres": "./src/idempotency-postgres/index.ts",

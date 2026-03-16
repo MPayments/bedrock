@@ -19,6 +19,7 @@ import {
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import {
   createDocumentsService,
+  createDocumentsServiceFromTransaction,
   type DocumentsIdempotencyPort,
   type DocumentsService,
   type DocumentsTransactionsPort,
@@ -36,40 +37,45 @@ import {
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/providers";
-import { createLedgerBooksService } from "@bedrock/ledger";
 import { createLedgerQueries } from "@bedrock/ledger/queries";
 import {
   createOrganizationsService,
   type OrganizationsService,
 } from "@bedrock/organizations";
 import { createOrganizationsQueries } from "@bedrock/organizations/queries";
-import {
-  createPartiesService,
-  type PartiesService,
-} from "@bedrock/parties";
+import { createPartiesService, type PartiesService } from "@bedrock/parties";
 import { createPartiesQueries } from "@bedrock/parties/queries";
-import type {
-  Database,
-  Transaction,
-} from "@bedrock/platform/persistence";
+import type { Database, Transaction } from "@bedrock/platform/persistence";
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
 import {
-  createRequisiteProvidersService,
-  type RequisiteProvidersService,
-} from "@bedrock/requisite-providers";
+  createRequisitesService,
+  type RequisitesService,
+} from "@bedrock/requisites";
+import { createRequisitesQueries } from "@bedrock/requisites/queries";
+import {
+  createDocumentDraftWorkflow,
+  type DocumentDraftWorkflow,
+} from "@bedrock/workflow-document-drafts";
+import {
+  createDocumentPostingWorkflow,
+  type DocumentPostingWorkflow,
+} from "@bedrock/workflow-document-posting";
+import {
+  createOrganizationBootstrapWorkflow,
+  type OrganizationBootstrapWorkflow,
+} from "@bedrock/workflow-organization-bootstrap";
+import {
+  createRequisiteAccountingWorkflow,
+  type RequisiteAccountingWorkflow,
+} from "@bedrock/workflow-requisite-accounting";
 
 import type { ApiCoreServices } from "./core";
 import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
-import {
-  createRequisitesFacadeService,
-  type ApiRequisitesFacadeService,
-} from "./requisites-facade";
-import { createApiRequisitesReadModel } from "./requisites-read-model";
 import { db } from "../db/client";
 
 function createDocumentsModuleRuntime(
@@ -89,9 +95,12 @@ export interface ApiApplicationServices {
   feesService: FeesService;
   fxService: FxService;
   organizationsService: OrganizationsService;
-  requisiteProvidersService: RequisiteProvidersService;
-  requisitesFacadeService: ApiRequisitesFacadeService;
+  organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
+  requisitesService: RequisitesService;
+  requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   documentsService: DocumentsService;
+  documentDraftWorkflow: DocumentDraftWorkflow;
+  documentPostingWorkflow: DocumentPostingWorkflow;
 }
 
 function createAccountingReportRuntime(database: Database | Transaction) {
@@ -100,6 +109,7 @@ function createAccountingReportRuntime(database: Database | Transaction) {
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: database });
   const ledgerQueries = createLedgerQueries({ db: database });
   const organizationsQueries = createOrganizationsQueries({ db: database });
+  const requisitesQueries = createRequisitesQueries({ db: database });
   const reportsRepository = createDrizzleAccountingReportsRepository(database);
   const reportContext = createAccountingReportsContext({
     balancesQueries,
@@ -114,6 +124,7 @@ function createAccountingReportRuntime(database: Database | Transaction) {
     partiesQueries,
     ledgerQueries,
     organizationsQueries,
+    requisitesQueries,
     reportQueries: createAccountingReportQueries({
       context: reportContext,
     }),
@@ -123,7 +134,9 @@ function createAccountingReportRuntime(database: Database | Transaction) {
 function createAccountingPeriodsPort(
   database: Database,
 ): AccountingPeriodsService {
-  function buildService(database: Database | Transaction): AccountingPeriodsService {
+  function buildService(
+    database: Database | Transaction,
+  ): AccountingPeriodsService {
     const { ledgerQueries, organizationsQueries, reportQueries } =
       createAccountingReportRuntime(database);
     const queries = createDrizzleAccountingPeriodsQueryRepository(database);
@@ -229,57 +242,62 @@ function createAccountingPeriodsPort(
 function createDocumentsTransactions(input: {
   database: Database;
   idempotency: ApiCoreServices["idempotency"];
-  ledger: ApiCoreServices["ledger"];
 }): DocumentsTransactionsPort {
   return {
     async withTransaction(run) {
-      return input.database.transaction(async (tx: Transaction) => {
-        const idempotency: DocumentsIdempotencyPort = {
-          withIdempotency<
-            TResult,
-            TStoredResult = Record<string, unknown>,
-          >(params: {
-            scope: string;
-            idempotencyKey: string;
-            request: unknown;
-            actorId?: string | null;
-            handler: () => Promise<TResult>;
-            serializeResult: (result: TResult) => TStoredResult;
-            loadReplayResult: (params: {
-              storedResult: TStoredResult | null;
-            }) => Promise<TResult>;
-            serializeError?: (error: unknown) => Record<string, unknown>;
-          }) {
-            return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
-              tx,
-              scope: params.scope,
-              idempotencyKey: params.idempotencyKey,
-              request: params.request,
-              actorId: params.actorId,
-              handler: params.handler,
-              serializeResult: params.serializeResult,
-              loadReplayResult: ({ storedResult }) =>
-                params.loadReplayResult({
-                  storedResult: (storedResult as TStoredResult | null) ?? null,
-                }),
-              serializeError: params.serializeError,
-            });
-          },
-        };
+      return input.database.transaction(async (tx: Transaction) =>
+        run(
+          createDocumentsTransactionContext({
+            tx,
+            idempotency: input.idempotency,
+          }),
+        ),
+      );
+    },
+  };
+}
 
-        return run({
-          moduleRuntime: createDocumentsModuleRuntime(tx),
-          documentEvents: createDrizzleDocumentEventsRepository(tx),
-          documentLinks: createDrizzleDocumentLinksRepository(tx),
-          documentOperations: createDrizzleDocumentOperationsRepository(tx),
-          documentsCommand: createDrizzleDocumentsCommandRepository(tx),
-          idempotency,
-          ledger: {
-            commit: (intent) => input.ledger.commit.commit(tx, intent),
-          },
-        });
+function createDocumentsTransactionContext(input: {
+  tx: Transaction;
+  idempotency: ApiCoreServices["idempotency"];
+}) {
+  const idempotency: DocumentsIdempotencyPort = {
+    withIdempotency<TResult, TStoredResult = Record<string, unknown>>(params: {
+      scope: string;
+      idempotencyKey: string;
+      request: unknown;
+      actorId?: string | null;
+      handler: () => Promise<TResult>;
+      serializeResult: (result: TResult) => TStoredResult;
+      loadReplayResult: (params: {
+        storedResult: TStoredResult | null;
+      }) => Promise<TResult>;
+      serializeError?: (error: unknown) => Record<string, unknown>;
+    }) {
+      return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
+        tx: input.tx,
+        scope: params.scope,
+        idempotencyKey: params.idempotencyKey,
+        request: params.request,
+        actorId: params.actorId,
+        handler: params.handler,
+        serializeResult: params.serializeResult,
+        loadReplayResult: ({ storedResult }) =>
+          params.loadReplayResult({
+            storedResult: (storedResult as TStoredResult | null) ?? null,
+          }),
+        serializeError: params.serializeError,
       });
     },
+  };
+
+  return {
+    moduleRuntime: createDocumentsModuleRuntime(input.tx),
+    documentEvents: createDrizzleDocumentEventsRepository(input.tx),
+    documentLinks: createDrizzleDocumentLinksRepository(input.tx),
+    documentOperations: createDrizzleDocumentOperationsRepository(input.tx),
+    documentsCommand: createDrizzleDocumentsCommandRepository(input.tx),
+    idempotency,
   };
 }
 
@@ -292,11 +310,27 @@ export function createApplicationServices(
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
   const currenciesQueries = createCurrenciesQueries({ db });
   const partiesQueries = createPartiesQueries({ db });
+  const currenciesService = createCurrenciesService({ db, logger });
+  const currenciesPort = {
+    async assertCurrencyExists(id: string) {
+      await currenciesService.findById(id);
+    },
+    async listCodesById(ids: string[]) {
+      const rows = await Promise.all(
+        ids.map(
+          async (id) =>
+            [id, (await currenciesService.findById(id)).code] as const,
+        ),
+      );
+      return new Map(rows);
+    },
+  };
   const accountingReportRuntime = createAccountingReportRuntime(db);
   const dimensionRegistry = createBedrockDimensionRegistry({
     counterpartiesQueries: partiesQueries.counterparties,
     customersQueries: partiesQueries.customers,
     organizationsQueries: accountingReportRuntime.organizationsQueries,
+    requisitesQueries: accountingReportRuntime.requisitesQueries,
     documentsReadModel,
   });
   const accountingReportsService = createAccountingReportsService({
@@ -313,18 +347,6 @@ export function createApplicationServices(
     reportQueries: accountingReportRuntime.reportQueries,
   });
   const accountingPeriodsService = createAccountingPeriodsPort(db);
-  const partiesService = createPartiesService({
-    db,
-    logger,
-    documents: {
-      hasDocumentsForCustomer(customerId, queryable) {
-        return createDrizzleDocumentsReadModel({
-          db: queryable ?? db,
-        }).hasDocumentsForCustomer(customerId);
-      },
-    },
-  });
-  const currenciesService = createCurrenciesService({ db, logger });
   const feesService = createFeesService({ db, logger, currenciesService });
   const fxService = createFxService({
     db,
@@ -333,33 +355,69 @@ export function createApplicationServices(
     currenciesService,
     rateSourceProviders: createDefaultFxRateSourceProviders(),
   });
-  const organizationsService = createOrganizationsService({
+  const partiesService = createPartiesService({
     db,
-    ledgerBooks: createLedgerBooksService(),
+    documents: {
+      hasDocumentsForCustomer(customerId, queryable) {
+        return createDrizzleDocumentsReadModel({
+          db: (queryable as Database | undefined) ?? db,
+        }).hasDocumentsForCustomer(customerId);
+      },
+    },
     logger,
   });
-  const requisitesReadModel = createApiRequisitesReadModel({ db });
-  const requisitesFacadeService = createRequisitesFacadeService({
-    readModel: requisitesReadModel,
-    organizationsService,
-    partiesService,
-  });
-  const requisiteProvidersService = createRequisiteProvidersService({
+  const organizationsCoreService = createOrganizationsService({
     db,
     logger,
   });
+  const requisiteOwners = {
+    async assertOrganizationExists(organizationId: string) {
+      await organizationsCoreService.findById(organizationId);
+    },
+    async assertCounterpartyExists(counterpartyId: string) {
+      await partiesService.counterparties.findById(counterpartyId);
+    },
+  };
+  const requisitesCoreService = createRequisitesService({
+    db,
+    logger,
+    currencies: currenciesPort,
+    owners: requisiteOwners,
+  });
+
+  const organizationsService = organizationsCoreService;
+  const organizationBootstrapWorkflow = createOrganizationBootstrapWorkflow({
+    db,
+    ledgerBooks: ledger.books,
+    logger,
+  });
+  const requisitesService = requisitesCoreService;
+  const requisiteAccountingWorkflow = createRequisiteAccountingWorkflow({
+    db,
+    ledgerBooks: ledger.books,
+    ledgerBookAccounts: ledger.bookAccounts,
+    currencies: currenciesPort,
+    owners: requisiteOwners,
+    logger,
+  });
+  const documentRequisitesService = {
+    findById: requisitesService.findById,
+    resolveBindings: requisitesService.bindings.resolve,
+  };
   const documentRegistry = createDocumentRegistry([
     ...createCommercialDocumentModules(
       createCommercialDocumentDeps({
         currenciesService,
-        requisitesService: requisitesFacadeService,
+        fxQuotes: fxService.quotes,
+        requisitesService: documentRequisitesService,
       }),
     ),
     ...createIfrsDocumentModules(
       createIfrsDocumentDeps({
         currenciesService,
-        fxService,
-        requisitesService: requisitesFacadeService,
+        fxQuotes: fxService.quotes,
+        ledgerReadService,
+        requisitesService: documentRequisitesService,
       }),
     ),
   ]);
@@ -368,7 +426,7 @@ export function createApplicationServices(
   const documentLinks = createDrizzleDocumentLinksRepository(db);
   const documentOperations = createDrizzleDocumentOperationsRepository(db);
   const documentSnapshots = createDrizzleDocumentSnapshotsRepository(db);
-  const documentsService = createDocumentsService({
+  const documentsCoreService = createDocumentsService({
     accounting: accountingService.packs,
     accountingPeriods: accountingPeriodsService,
     documentEvents,
@@ -382,9 +440,36 @@ export function createApplicationServices(
     transactions: createDocumentsTransactions({
       database: db,
       idempotency,
-      ledger,
     }),
     logger,
+  });
+
+  function createDocumentsServiceForTransaction(
+    tx: Transaction,
+    txIdempotency: DocumentsIdempotencyPort,
+  ) {
+    return createDocumentsServiceFromTransaction({
+      tx,
+      idempotency: txIdempotency,
+      accounting: accountingService.packs,
+      accountingPeriods: accountingPeriodsService,
+      ledgerReadService,
+      registry: documentRegistry,
+      logger,
+    });
+  }
+  const documentsService = documentsCoreService;
+  const documentDraftWorkflow = createDocumentDraftWorkflow({
+    db,
+    idempotency,
+    accountingPeriods: accountingPeriodsService,
+    createDocumentsService: createDocumentsServiceForTransaction,
+  });
+  const documentPostingWorkflow = createDocumentPostingWorkflow({
+    db,
+    idempotency,
+    ledgerCommit: ledger.commit,
+    createDocumentsService: createDocumentsServiceForTransaction,
   });
 
   return {
@@ -395,8 +480,11 @@ export function createApplicationServices(
     feesService,
     fxService,
     organizationsService,
-    requisiteProvidersService,
-    requisitesFacadeService,
+    organizationBootstrapWorkflow,
+    requisitesService,
+    requisiteAccountingWorkflow,
     documentsService,
+    documentDraftWorkflow,
+    documentPostingWorkflow,
   };
 }

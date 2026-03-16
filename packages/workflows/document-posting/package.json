@@ -1,0 +1,36 @@
+{
+  "name": "@bedrock/workflow-document-posting",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.test.ts\" --no-error-on-unmatched-pattern --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/ledger": "workspace:*",
+    "@bedrock/platform": "workspace:*"
+  },
+  "devDependencies": {
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9.31.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
+  },
+  "bedrock": {
+    "kind": "workflow",
+    "tags": [
+      "workflow",
+      "document-posting"
+    ]
+  }
+}

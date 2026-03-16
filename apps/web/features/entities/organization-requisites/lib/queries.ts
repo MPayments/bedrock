@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
 import { OrganizationOptionsResponseSchema } from "@bedrock/organizations/contracts";
-import { RequisiteProviderOptionsResponseSchema } from "@bedrock/requisite-providers/contracts";
+import { RequisiteProviderOptionsResponseSchema } from "@bedrock/requisites/contracts";
 
 import {
   getRequisiteKindLabel,
@@ -152,7 +152,7 @@ async function getProviderLabelById() {
   const client = await getServerApiClient();
   const payload = await readOptionsList({
     request: () =>
-      client.v1["requisite-providers"].options.$get(
+      client.v1.requisites.providers.options.$get(
         {},
         { init: { cache: "force-cache" } },
       ),
@@ -278,7 +278,7 @@ export async function getOrganizationRequisiteFormOptions(): Promise<Organizatio
     }),
     readOptionsList({
       request: () =>
-        client.v1["requisite-providers"].options.$get(
+        client.v1.requisites.providers.options.$get(
           {},
           { init: { cache: "force-cache" } },
         ),

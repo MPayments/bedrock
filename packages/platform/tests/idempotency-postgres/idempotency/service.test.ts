@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { sha256Hex } from "@bedrock/platform/crypto";
 import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
   createIdempotencyService,
 } from "@bedrock/platform/idempotency-postgres";
 import { canonicalJson } from "@bedrock/shared/core/canon";
+import { sha256Hex } from "@bedrock/shared/core/crypto";
 
 function createTxStub(options?: {
   insertedReceipt?: Record<string, unknown> | null;

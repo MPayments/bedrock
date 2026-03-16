@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import type { Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type { LedgerBookAccountsPort } from "../../../application/book-accounts/ports";
 import {
@@ -12,13 +13,14 @@ import { schema } from "../schema";
 export function createDrizzleLedgerBookAccountsRepository(): LedgerBookAccountsPort {
   return {
     async ensureBookAccountInstanceTx(
-      tx: Transaction,
+      tx: PersistenceSession,
       input: BookAccountIdentityInput,
     ) {
+      const transaction = tx as Transaction;
       const { dimensionsHash, tbLedger, tbAccountId } =
         computeBookAccountIdentity(input);
 
-      const inserted = await tx
+      const inserted = await transaction
         .insert(schema.bookAccountInstances)
         .values({
           bookId: input.bookId,
@@ -45,7 +47,7 @@ export function createDrizzleLedgerBookAccountsRepository(): LedgerBookAccountsP
         };
       }
 
-      const [existing] = await tx
+      const [existing] = await transaction
         .select({
           id: schema.bookAccountInstances.id,
           tbLedger: schema.bookAccountInstances.tbLedger,
