@@ -28,7 +28,6 @@
     "@bedrock/shared": "workspace:*"
   },
   "devDependencies": {
-    "@bedrock/test-utils": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
     "@types/pg": "^8.16.0",
