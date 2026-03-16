@@ -17,6 +17,10 @@ import {
   CounterpartyCustomerNotFoundError,
   CounterpartyNotFoundError,
 } from "../../errors";
+import {
+  resolveCreateCounterpartyProps,
+  resolveUpdateCounterpartyProps,
+} from "./inputs";
 import type { PartiesServiceContext } from "../shared/context";
 import { rethrowCounterpartyMembershipDomainError } from "../shared/map-domain-error";
 
@@ -81,17 +85,10 @@ export function createCreateCounterpartyHandler(
       let draft: Counterparty;
       try {
         draft = Counterparty.create(
-          {
+          resolveCreateCounterpartyProps({
             id: randomUUID(),
-            shortName: validated.shortName,
-            fullName: validated.fullName,
-            kind: validated.kind,
-            country: validated.country,
-            externalId: validated.externalId,
-            description: validated.description,
-            customerId: validated.customerId ?? null,
-            groupIds: validated.groupIds,
-          },
+            values: validated,
+          }),
           {
             hierarchy,
             managedGroupId,
@@ -146,10 +143,15 @@ export function createUpdateCounterpartyHandler(
       }
 
       const existing = Counterparty.reconstitute(existingSnapshot);
-      const nextCustomerId =
-        validated.customerId !== undefined
-          ? validated.customerId
-          : existingSnapshot.customerId;
+      const hierarchy = GroupHierarchy.create(
+        await counterparties.listGroupHierarchyNodes(tx),
+      );
+      const nextInput = resolveUpdateCounterpartyProps(
+        existingSnapshot,
+        validated,
+        hierarchy,
+      );
+      const nextCustomerId = nextInput.customerId;
 
       let managedGroupId: string | null = null;
       if (nextCustomerId) {
@@ -165,13 +167,9 @@ export function createUpdateCounterpartyHandler(
         managedGroupId = customerGroup.id;
       }
 
-      const hierarchy = GroupHierarchy.create(
-        await counterparties.listGroupHierarchyNodes(tx),
-      );
-
       let next: Counterparty;
       try {
-        next = existing.update(validated, {
+        next = existing.update(nextInput, {
           hierarchy,
           managedGroupId,
           now: context.now(),

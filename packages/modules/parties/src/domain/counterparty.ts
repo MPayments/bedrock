@@ -30,29 +30,29 @@ export interface CounterpartySnapshot {
 
 export interface CreateCounterpartyProps {
   id: string;
+  externalId: string | null;
+  customerId: string | null;
   shortName: string;
   fullName: string;
-  kind?: PartyKind;
-  country?: string | null;
-  externalId?: string | null;
-  description?: string | null;
-  customerId?: string | null;
-  groupIds?: string[];
+  description: string | null;
+  country: CountryCode | null;
+  kind: PartyKind;
+  groupIds: string[];
 }
 
 export interface UpdateCounterpartyProps {
-  shortName?: string;
-  fullName?: string;
-  kind?: PartyKind;
-  country?: string | null;
-  externalId?: string | null;
-  description?: string | null;
-  customerId?: string | null;
-  groupIds?: string[];
+  externalId: string | null;
+  customerId: string | null;
+  shortName: string;
+  fullName: string;
+  description: string | null;
+  country: CountryCode | null;
+  kind: PartyKind;
+  groupIds: string[];
 }
 
-function normalizePartyKind(value: PartyKind | undefined): PartyKind {
-  const normalized = value ?? "legal_entity";
+function normalizePartyKind(value: PartyKind): PartyKind {
+  const normalized = value;
   invariant(
     PARTY_KIND_VALUES.includes(normalized),
     "counterparty.kind_invalid",
@@ -121,35 +121,26 @@ export class Counterparty extends Entity<string> {
       now: Date;
     },
   ): Counterparty {
-    const customerId = input.customerId ?? null;
     invariant(
-      !customerId || deps.managedGroupId,
+      !input.customerId || deps.managedGroupId,
       "counterparty.managed_group_required",
       "managed customer group is required for customer-linked counterparties",
-      { customerId },
+      { customerId: input.customerId },
     );
 
     return new Counterparty({
       id: input.id,
-      externalId: normalizeOptionalText(input.externalId),
-      customerId,
-      shortName: normalizeRequiredText(
-        input.shortName,
-        "counterparty.short_name_required",
-        "shortName",
-      ),
-      fullName: normalizeRequiredText(
-        input.fullName,
-        "counterparty.full_name_required",
-        "fullName",
-      ),
-      description: normalizeOptionalText(input.description),
-      country: parseOptionalCountryCode(input.country),
-      kind: normalizePartyKind(input.kind),
+      externalId: input.externalId,
+      customerId: input.customerId,
+      shortName: input.shortName,
+      fullName: input.fullName,
+      description: input.description,
+      country: input.country,
+      kind: input.kind,
       groupIds: resolveGroups({
-        groupIds: input.groupIds ?? [],
+        groupIds: input.groupIds,
         hierarchy: deps.hierarchy,
-        customerId,
+        customerId: input.customerId,
         managedGroupId: deps.managedGroupId ?? null,
       }),
       createdAt: deps.now,
@@ -169,64 +160,20 @@ export class Counterparty extends Entity<string> {
       now: Date;
     },
   ): Counterparty {
-    const nextCustomerId =
-      input.customerId !== undefined
-        ? input.customerId
-        : this.snapshot.customerId;
-
-    const explicitGroupIds =
-      input.groupIds !== undefined
-        ? input.groupIds
-        : input.customerId !== undefined
-          ? deps.hierarchy.withoutCustomerScopedGroups(this.snapshot.groupIds)
-          : this.snapshot.groupIds;
-
     invariant(
-      !nextCustomerId || deps.managedGroupId,
+      !input.customerId || deps.managedGroupId,
       "counterparty.managed_group_required",
       "managed customer group is required for customer-linked counterparties",
-      { customerId: nextCustomerId },
+      { customerId: input.customerId },
     );
 
     return new Counterparty({
       ...this.snapshot,
-      externalId:
-        input.externalId !== undefined
-          ? normalizeOptionalText(input.externalId)
-          : this.snapshot.externalId,
-      customerId: nextCustomerId,
-      shortName:
-        input.shortName !== undefined
-          ? normalizeRequiredText(
-              input.shortName,
-              "counterparty.short_name_required",
-              "shortName",
-            )
-          : this.snapshot.shortName,
-      fullName:
-        input.fullName !== undefined
-          ? normalizeRequiredText(
-              input.fullName,
-              "counterparty.full_name_required",
-              "fullName",
-            )
-          : this.snapshot.fullName,
-      description:
-        input.description !== undefined
-          ? normalizeOptionalText(input.description)
-          : this.snapshot.description,
-      country:
-        input.country !== undefined
-          ? parseOptionalCountryCode(input.country)
-          : this.snapshot.country,
-      kind:
-        input.kind !== undefined
-          ? normalizePartyKind(input.kind)
-          : this.snapshot.kind,
+      ...input,
       groupIds: resolveGroups({
-        groupIds: explicitGroupIds,
+        groupIds: input.groupIds,
         hierarchy: deps.hierarchy,
-        customerId: nextCustomerId,
+        customerId: input.customerId,
         managedGroupId: deps.managedGroupId ?? null,
       }),
       updatedAt: deps.now,

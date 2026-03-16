@@ -19,6 +19,7 @@ import {
 import { UserAccount } from "../domain/user-account";
 import { toUserRoleOrNull } from "../domain/user-role";
 
+import { resolveBanUserInput, resolveUserUpdateInput } from "./inputs";
 import { toUser } from "./mappers";
 import type { UsersServiceContext } from "./shared/context";
 
@@ -72,15 +73,15 @@ export function createUpdateUserHandler(context: UsersServiceContext) {
       twoFactorEnabled: existing.twoFactorEnabled ?? false,
     });
     const updatedAccount = existingAccount.updateProfile({
-      name: validated.name,
-      email: validated.email,
-      role: validated.role,
+      ...resolveUserUpdateInput(existingAccount.toSnapshot(), validated),
       now: new Date(),
     });
     const updatedSnapshot = updatedAccount.toSnapshot();
 
     if (updatedSnapshot.email !== existing.email) {
-      const conflict = await identityQueries.findUserByEmail(updatedSnapshot.email);
+      const conflict = await identityQueries.findUserByEmail(
+        updatedSnapshot.email,
+      );
       if (conflict && conflict.id !== id) {
         throw new UserEmailConflictError(updatedSnapshot.email);
       }
@@ -146,7 +147,8 @@ export function createChangeOwnPasswordHandler(context: UsersServiceContext) {
     input: ChangeOwnPasswordInput,
   ): Promise<void> {
     const validated = ChangeOwnPasswordInputSchema.parse(input);
-    const credentialAccount = await identityQueries.getCredentialByUserId(userId);
+    const credentialAccount =
+      await identityQueries.getCredentialByUserId(userId);
 
     if (!credentialAccount || !credentialAccount.password) {
       throw new UserNotFoundError(userId);
@@ -171,7 +173,10 @@ export function createChangeOwnPasswordHandler(context: UsersServiceContext) {
 export function createBanUserHandler(context: UsersServiceContext) {
   const { identityQueries, identityCommands, log } = context;
 
-  return async function banUser(id: string, input: BanUserInput): Promise<User> {
+  return async function banUser(
+    id: string,
+    input: BanUserInput,
+  ): Promise<User> {
     const validated = BanUserInputSchema.parse(input);
     const existing = await identityQueries.findUserById(id);
 
@@ -186,8 +191,7 @@ export function createBanUserHandler(context: UsersServiceContext) {
       banExpires: existing.banExpires ?? null,
       twoFactorEnabled: existing.twoFactorEnabled ?? false,
     }).ban({
-      reason: validated.banReason,
-      expiresAt: validated.banExpires,
+      ...resolveBanUserInput(validated),
       now: new Date(),
     });
 

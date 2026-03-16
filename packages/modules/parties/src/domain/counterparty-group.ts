@@ -24,18 +24,18 @@ export interface CreateCounterpartyGroupProps {
   id: string;
   code: string;
   name: string;
-  description?: string | null;
-  parentId?: string | null;
-  customerId?: string | null;
-  isSystem?: boolean;
+  description: string | null;
+  parentId: string | null;
+  customerId: string | null;
+  isSystem: boolean;
 }
 
 export interface UpdateCounterpartyGroupProps {
-  code?: string;
-  name?: string;
-  description?: string | null;
-  parentId?: string | null;
-  customerId?: string | null;
+  code: string;
+  name: string;
+  description: string | null;
+  parentId: string | null;
+  customerId: string | null;
 }
 
 function resolveScopedCustomerId(input: {
@@ -108,39 +108,27 @@ export class CounterpartyGroup extends Entity<string> {
       now: Date;
     },
   ): CounterpartyGroup {
-    const code = normalizeRequiredText(
-      input.code,
-      "counterparty_group.code_required",
-      "code",
-    );
-    const name = normalizeRequiredText(
-      input.name,
-      "counterparty_group.name_required",
-      "name",
-    );
-    const parentId = input.parentId ?? null;
-
     invariant(
-      !parentId || Boolean(deps.parent),
+      !input.parentId || Boolean(deps.parent),
       "counterparty_group.not_found",
-      `Counterparty group not found: ${parentId}`,
-      { groupId: parentId },
+      `Counterparty group not found: ${input.parentId}`,
+      { groupId: input.parentId },
     );
 
     invariant(
-      !code.startsWith(MANAGED_CUSTOMER_GROUP_PREFIX),
+      !input.code.startsWith(MANAGED_CUSTOMER_GROUP_PREFIX),
       "counterparty_group.reserved_code",
       "Customer-generated group codes are reserved",
-      { code },
+      { code: input.code },
     );
 
     const customerId = resolveScopedCustomerId({
-      parent: parentId ? (deps.parent ?? null) : null,
-      customerId: input.customerId ?? null,
+      parent: input.parentId ? (deps.parent ?? null) : null,
+      customerId: input.customerId,
     });
 
     invariant(
-      parentId || !customerId,
+      input.parentId || !customerId,
       "counterparty_group.root_customer_forbidden",
       "Root custom groups cannot have customerId",
       { customerId },
@@ -148,12 +136,12 @@ export class CounterpartyGroup extends Entity<string> {
 
     return new CounterpartyGroup({
       id: input.id,
-      code,
-      name,
-      description: normalizeOptionalText(input.description),
-      parentId,
+      code: input.code,
+      name: input.name,
+      description: input.description,
+      parentId: input.parentId,
       customerId,
-      isSystem: input.isSystem ?? false,
+      isSystem: input.isSystem,
       createdAt: deps.now,
       updatedAt: deps.now,
     });
@@ -170,27 +158,21 @@ export class CounterpartyGroup extends Entity<string> {
       now: Date;
     },
   ): CounterpartyGroup {
-    const hasRequestedChanges =
-      input.code !== undefined ||
-      input.name !== undefined ||
-      input.description !== undefined ||
-      input.parentId !== undefined ||
-      input.customerId !== undefined;
+    const hasStateChanges =
+      input.code !== this.snapshot.code ||
+      input.name !== this.snapshot.name ||
+      input.description !== this.snapshot.description ||
+      input.parentId !== this.snapshot.parentId ||
+      input.customerId !== this.snapshot.customerId;
 
     invariant(
-      !(this.isManagedCustomerGroup() && hasRequestedChanges),
+      !(this.isManagedCustomerGroup() && hasStateChanges),
       "counterparty_group.system_immutable",
       "Customer-generated groups cannot be modified",
       { groupId: this.id },
     );
 
-    const nextParentId =
-      input.parentId !== undefined ? input.parentId : this.snapshot.parentId;
-    const currentCustomerId = this.snapshot.customerId;
-    const requestedCustomerId =
-      input.customerId !== undefined ? input.customerId : currentCustomerId;
-
-    if (input.code?.startsWith(MANAGED_CUSTOMER_GROUP_PREFIX)) {
+    if (input.code.startsWith(MANAGED_CUSTOMER_GROUP_PREFIX)) {
       invariant(
         this.isManagedCustomerGroup(),
         "counterparty_group.reserved_code",
@@ -199,86 +181,48 @@ export class CounterpartyGroup extends Entity<string> {
       );
     }
 
-    if (nextParentId) {
+    if (input.parentId) {
       invariant(
-        nextParentId !== this.id,
+        input.parentId !== this.id,
         "counterparty_group.self_parent",
         "Group cannot be parent of itself",
         { groupId: this.id },
       );
 
-      const parent = deps.hierarchy.require(nextParentId);
+      const parent = deps.hierarchy.require(input.parentId);
       invariant(
-        !deps.hierarchy.wouldCreateCycle(this.id, nextParentId),
+        !deps.hierarchy.wouldCreateCycle(this.id, input.parentId),
         "counterparty_group.descendant_parent",
         "Group cannot become a child of its own descendant",
-        { groupId: this.id, parentId: nextParentId },
+        { groupId: this.id, parentId: input.parentId },
       );
 
       const nextCustomerId = resolveScopedCustomerId({
         parent,
-        customerId: requestedCustomerId,
+        customerId: input.customerId,
       });
 
       return new CounterpartyGroup({
         ...this.snapshot,
-        code:
-          input.code !== undefined
-            ? normalizeRequiredText(
-                input.code,
-                "counterparty_group.code_required",
-                "code",
-              )
-            : this.snapshot.code,
-        name:
-          input.name !== undefined
-            ? normalizeRequiredText(
-                input.name,
-                "counterparty_group.name_required",
-                "name",
-              )
-            : this.snapshot.name,
-        description:
-          input.description !== undefined
-            ? normalizeOptionalText(input.description)
-            : this.snapshot.description,
-        parentId: nextParentId,
+        ...input,
+        parentId: input.parentId,
         customerId: nextCustomerId,
         updatedAt: deps.now,
       });
     }
 
     invariant(
-      !requestedCustomerId || this.isManagedCustomerGroup(),
+      !input.customerId || this.isManagedCustomerGroup(),
       "counterparty_group.root_customer_forbidden",
       "Root custom groups cannot have customerId",
-      { customerId: requestedCustomerId },
+      { customerId: input.customerId },
     );
 
     return new CounterpartyGroup({
       ...this.snapshot,
-      code:
-        input.code !== undefined
-          ? normalizeRequiredText(
-              input.code,
-              "counterparty_group.code_required",
-              "code",
-            )
-          : this.snapshot.code,
-      name:
-        input.name !== undefined
-          ? normalizeRequiredText(
-              input.name,
-              "counterparty_group.name_required",
-              "name",
-            )
-          : this.snapshot.name,
-      description:
-        input.description !== undefined
-          ? normalizeOptionalText(input.description)
-          : this.snapshot.description,
+      ...input,
       parentId: null,
-      customerId: requestedCustomerId ?? null,
+      customerId: input.customerId,
       updatedAt: deps.now,
     });
   }

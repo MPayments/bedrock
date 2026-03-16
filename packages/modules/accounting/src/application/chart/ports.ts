@@ -1,4 +1,4 @@
-import type { ReplaceCorrespondenceRulesInput } from "../../contracts/commands";
+import type { ReplaceCorrespondenceRulesInput } from "../../contracts/chart/commands";
 import type {
   ChartAccountDimensionPolicyRecord,
   ChartTemplateAccountSnapshot,

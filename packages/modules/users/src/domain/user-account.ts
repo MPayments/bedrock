@@ -57,39 +57,30 @@ export class UserAccount extends Entity<string> {
   }
 
   updateProfile(input: {
-    name?: string;
-    email?: string;
-    role?: string | null;
+    name: string;
+    email: string;
+    role: UserRole | null;
     now: Date;
   }): UserAccount {
     return new UserAccount({
       ...this.snapshot,
-      name:
-        input.name !== undefined
-          ? UserAccount.normalizeName(input.name)
-          : this.snapshot.name,
-      email:
-        input.email !== undefined
-          ? UserAccount.normalizeEmail(input.email)
-          : this.snapshot.email,
-      role:
-        input.role !== undefined
-          ? toUserRoleOrNull(input.role)
-          : this.snapshot.role,
+      name: UserAccount.normalizeName(input.name),
+      email: UserAccount.normalizeEmail(input.email),
+      role: toUserRoleOrNull(input.role),
       updatedAt: input.now,
     });
   }
 
   ban(input: {
-    reason?: string | null;
-    expiresAt?: Date | null;
+    reason: string | null;
+    expiresAt: Date | null;
     now: Date;
   }): UserAccount {
     return new UserAccount({
       ...this.snapshot,
       banned: true,
       banReason: normalizeOptionalText(input.reason),
-      banExpires: input.expiresAt ?? null,
+      banExpires: input.expiresAt,
       updatedAt: input.now,
     });
   }

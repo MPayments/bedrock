@@ -11,6 +11,7 @@ export {
   normalizeOptionalText,
   normalizeRequiredText,
   readCauseString,
+  trimToNull,
   ValueObject,
 } from "./domain";
 export type { Brand, DomainEvent } from "./domain";
@@ -26,3 +27,4 @@ export {
   resolveSortValue,
   createPaginatedListSchema,
 } from "./pagination";
+export { resolvePatchValue } from "./patch";

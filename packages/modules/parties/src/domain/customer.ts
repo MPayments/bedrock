@@ -15,15 +15,15 @@ export interface CustomerSnapshot {
 
 export interface CreateCustomerProps {
   id: string;
-  externalRef?: string | null;
+  externalRef: string | null;
   displayName: string;
-  description?: string | null;
+  description: string | null;
 }
 
 export interface UpdateCustomerProps {
-  externalRef?: string | null;
-  displayName?: string;
-  description?: string | null;
+  externalRef: string | null;
+  displayName: string;
+  description: string | null;
 }
 
 function normalizeCustomerSnapshot(
@@ -52,13 +52,9 @@ export class Customer extends Entity<string> {
   static create(input: CreateCustomerProps, now: Date): Customer {
     return new Customer({
       id: input.id,
-      externalRef: normalizeOptionalText(input.externalRef),
-      displayName: normalizeRequiredText(
-        input.displayName,
-        "customer.display_name_required",
-        "displayName",
-      ),
-      description: normalizeOptionalText(input.description),
+      externalRef: input.externalRef,
+      displayName: input.displayName,
+      description: input.description,
       createdAt: now,
       updatedAt: now,
     });
@@ -71,22 +67,7 @@ export class Customer extends Entity<string> {
   update(input: UpdateCustomerProps, now: Date): Customer {
     return new Customer({
       ...this.snapshot,
-      externalRef:
-        input.externalRef !== undefined
-          ? normalizeOptionalText(input.externalRef)
-          : this.snapshot.externalRef,
-      displayName:
-        input.displayName !== undefined
-          ? normalizeRequiredText(
-              input.displayName,
-              "customer.display_name_required",
-              "displayName",
-            )
-          : this.snapshot.displayName,
-      description:
-        input.description !== undefined
-          ? normalizeOptionalText(input.description)
-          : this.snapshot.description,
+      ...input,
       updatedAt: now,
     });
   }

@@ -35,12 +35,12 @@ export function createListUsersHandler(context: UsersServiceContext) {
     const result = await identityQueries.listUsers({
       limit: query.limit,
       offset: query.offset,
-      sortBy: query.sortBy,
-      sortOrder: query.sortOrder,
-      name: query.name,
-      email: query.email,
-      roles: query.role,
-      banned: query.banned,
+      ...(query.sortBy !== undefined && { sortBy: query.sortBy }),
+      ...(query.sortOrder !== undefined && { sortOrder: query.sortOrder }),
+      ...(query.name !== undefined && { name: query.name }),
+      ...(query.email !== undefined && { email: query.email }),
+      ...(query.role !== undefined && { roles: query.role }),
+      ...(query.banned !== undefined && { banned: query.banned }),
     });
 
     return {

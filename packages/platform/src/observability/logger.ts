@@ -21,16 +21,16 @@ export function createConsoleLogger(base?: Record<string, unknown>): Logger {
   const pinoLogger = pino({
     level: process.env.LOG_LEVEL ?? (isDev ? "debug" : "info"),
     ...(base && { base }),
-    transport: isDev
-      ? {
-          target: "pino-pretty",
-          options: {
-            colorize: true,
-            translateTime: "SYS:standard",
-            ignore: "pid,hostname",
-          },
-        }
-      : undefined,
+    ...(isDev && {
+      transport: {
+        target: "pino-pretty",
+        options: {
+          colorize: true,
+          translateTime: "SYS:standard",
+          ignore: "pid,hostname",
+        },
+      },
+    }),
   });
 
   return wrapPinoLogger(pinoLogger);

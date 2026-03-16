@@ -4,7 +4,11 @@ import {
   createListQuerySchemaFromContract,
   type ListQueryContract,
 } from "@bedrock/shared/core/pagination";
-import { DomainError, readCauseString } from "@bedrock/shared/core/domain";
+import {
+  DomainError,
+  readCauseString,
+  trimToNull,
+} from "@bedrock/shared/core/domain";
 
 import { validateRequisiteProviderDetails } from "../domain/requisite-provider";
 import { CountryCodeSchema, RequisiteKindSchema } from "./shared";
@@ -60,27 +64,54 @@ export type ListRequisiteProvidersQuery = z.infer<
   typeof ListRequisiteProvidersQuerySchema
 >;
 
-const optionalText = z.string().trim().max(500).nullish();
-const optionalShortText = z.string().trim().max(255).nullish();
-const optionalCountry = CountryCodeSchema.nullish();
+const nullableText = z
+  .string()
+  .trim()
+  .max(500)
+  .nullish()
+  .transform((value) => trimToNull(value) ?? null);
+const nullableShortText = z
+  .string()
+  .trim()
+  .max(255)
+  .nullish()
+  .transform((value) => trimToNull(value) ?? null);
+const nullableCountry = CountryCodeSchema.nullish().transform(
+  (value) => value ?? null,
+);
+const nullableTextPatch = z
+  .string()
+  .trim()
+  .max(500)
+  .nullable()
+  .transform((value) => trimToNull(value))
+  .exactOptional();
+const nullableShortTextPatch = z
+  .string()
+  .trim()
+  .max(255)
+  .nullable()
+  .transform((value) => trimToNull(value))
+  .exactOptional();
+const nullableCountryPatch = CountryCodeSchema.nullable().exactOptional();
 
 const providerFieldsSchema = z.object({
   kind: RequisiteKindSchema,
   name: z.string().trim().min(1).max(255),
-  description: optionalText,
-  country: optionalCountry,
-  address: optionalText,
-  contact: optionalText,
-  bic: optionalShortText,
-  swift: optionalShortText,
+  description: nullableText,
+  country: nullableCountry,
+  address: nullableText,
+  contact: nullableText,
+  bic: nullableShortText,
+  swift: nullableShortText,
 });
 
 function refineProviderRules(
   value: {
     kind: string;
-    country?: string | null;
-    bic?: string | null;
-    swift?: string | null;
+    country: string | null;
+    bic: string | null;
+    swift: string | null;
   },
   ctx: z.RefinementCtx,
 ) {
@@ -88,7 +119,10 @@ function refineProviderRules(
     validateRequisiteProviderDetails({
       kind: value.kind as never,
       name: "validated",
+      description: null,
       country: value.country,
+      address: null,
+      contact: null,
       bic: value.bic,
       swift: value.swift,
     });
@@ -108,37 +142,21 @@ function refineProviderRules(
 
 export const CreateRequisiteProviderInputSchema =
   providerFieldsSchema.superRefine(refineProviderRules);
-export type CreateRequisiteProviderInput = z.infer<
+export type CreateRequisiteProviderInput = z.input<
   typeof CreateRequisiteProviderInputSchema
 >;
 
-export const UpdateRequisiteProviderInputSchema = z
-  .object({
-    kind: RequisiteKindSchema.optional(),
-    name: z.string().trim().min(1).max(255).optional(),
-    description: optionalText.optional(),
-    country: optionalCountry.optional(),
-    address: optionalText.optional(),
-    contact: optionalText.optional(),
-    bic: optionalShortText.optional(),
-    swift: optionalShortText.optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (!value.kind) {
-      return;
-    }
-
-    refineProviderRules(
-      {
-        kind: value.kind,
-        country: value.country,
-        bic: value.bic,
-        swift: value.swift,
-      },
-      ctx,
-    );
-  });
-export type UpdateRequisiteProviderInput = z.infer<
+export const UpdateRequisiteProviderInputSchema = z.object({
+  kind: RequisiteKindSchema.exactOptional(),
+  name: z.string().trim().min(1).max(255).exactOptional(),
+  description: nullableTextPatch,
+  country: nullableCountryPatch,
+  address: nullableTextPatch,
+  contact: nullableTextPatch,
+  bic: nullableShortTextPatch,
+  swift: nullableShortTextPatch,
+});
+export type UpdateRequisiteProviderInput = z.input<
   typeof UpdateRequisiteProviderInputSchema
 >;
 

@@ -10,4 +10,4 @@ export type {
   FxRateSourceStatus,
   FxRateSourceSyncResult,
 } from "./sources/types";
-export { RateSourceSyncError } from "./errors";
+export { RateSourceSyncError } from "./sources/errors";

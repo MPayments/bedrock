@@ -10,6 +10,7 @@ import {
   normalizeOptionalText,
   normalizeRequiredText,
   readCauseString,
+  trimToNull,
   ValueObject,
 } from "../../src/core/domain";
 
@@ -94,6 +95,9 @@ describe("shared core domain primitives", () => {
         "displayName",
       ),
     ).toThrow(DomainError);
+    expect(trimToNull("memo")).toBe("memo");
+    expect(trimToNull("")).toBeNull();
+    expect(trimToNull(undefined)).toBeUndefined();
   });
 
   it("deduplicates ids and drops empty values", () => {

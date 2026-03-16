@@ -15,6 +15,10 @@ import {
   CounterpartyCustomerNotFoundError,
   CounterpartyGroupNotFoundError,
 } from "../../errors";
+import {
+  resolveCreateCounterpartyGroupProps,
+  resolveUpdateCounterpartyGroupProps,
+} from "./inputs";
 import type { PartiesServiceContext } from "../shared/context";
 import { rethrowCounterpartyGroupDomainError } from "../shared/map-domain-error";
 
@@ -55,15 +59,10 @@ export function createCreateCounterpartyGroupHandler(
     let draft: CounterpartyGroup;
     try {
       draft = CounterpartyGroup.create(
-        {
+        resolveCreateCounterpartyGroupProps({
           id: randomUUID(),
-          code: validated.code,
-          name: validated.name,
-          description: validated.description,
-          parentId: validated.parentId,
-          customerId: validated.customerId,
-          isSystem: false,
-        },
+          values: validated,
+        }),
         {
           parent,
           now: context.now(),
@@ -107,9 +106,13 @@ export function createUpdateCounterpartyGroupHandler(
     );
 
     let next: CounterpartyGroup;
+    const nextInput = resolveUpdateCounterpartyGroupProps(
+      existingSnapshot,
+      validated,
+    );
     try {
       next = CounterpartyGroup.reconstitute(existingSnapshot).update(
-        validated,
+        nextInput,
         {
           hierarchy,
           now: context.now(),
@@ -120,8 +123,8 @@ export function createUpdateCounterpartyGroupHandler(
     }
 
     if (
-      (validated.customerId !== undefined ||
-        validated.parentId !== undefined) &&
+      (nextInput.customerId !== existingSnapshot.customerId ||
+        nextInput.parentId !== existingSnapshot.parentId) &&
       next.toSnapshot().customerId
     ) {
       await assertCustomerExists(context, next.toSnapshot().customerId!);
@@ -150,7 +153,10 @@ export function createRemoveCounterpartyGroupHandler(
 
   return async function removeCounterpartyGroup(id: string): Promise<void> {
     await db.transaction(async (tx) => {
-      const groupSnapshot = await groups.findCounterpartyGroupSnapshotById(id, tx);
+      const groupSnapshot = await groups.findCounterpartyGroupSnapshotById(
+        id,
+        tx,
+      );
       if (!groupSnapshot) {
         throw new CounterpartyGroupNotFoundError(id);
       }

@@ -15,6 +15,7 @@ import {
   OrganizationNotFoundError,
 } from "../../errors";
 import type { OrganizationsServiceContext } from "../shared/context";
+import { resolveOrganizationUpdateInput } from "./inputs";
 
 function toPublicOrganization(organization: Organization): OrganizationDto {
   return organization.toSnapshot();
@@ -42,15 +43,18 @@ export function createCreateOrganizationHandler(
     input: CreateOrganizationInput,
   ): Promise<OrganizationDto> {
     const validated = CreateOrganizationInputSchema.parse(input);
-    const draft = Organization.create({
-      id: randomUUID(),
-      externalId: validated.externalId,
-      shortName: validated.shortName,
-      fullName: validated.fullName,
-      description: validated.description,
-      country: validated.country,
-      kind: validated.kind,
-    }, context.now());
+    const draft = Organization.create(
+      {
+        id: randomUUID(),
+        externalId: validated.externalId,
+        shortName: validated.shortName,
+        fullName: validated.fullName,
+        description: validated.description,
+        country: validated.country,
+        kind: validated.kind,
+      },
+      context.now(),
+    );
 
     return db.transaction(async (tx) => {
       const created = Organization.reconstitute(
@@ -93,7 +97,10 @@ export function createUpdateOrganizationHandler(
       }
 
       const existing = Organization.reconstitute(existingSnapshot);
-      const next = existing.update(validated, context.now());
+      const next = existing.update(
+        resolveOrganizationUpdateInput(existing.toSnapshot(), validated),
+        context.now(),
+      );
       const persistedSnapshot = existing.sameState(next)
         ? existingSnapshot
         : await organizations.updateOrganizationTx(tx, next.toSnapshot());

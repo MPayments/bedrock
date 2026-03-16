@@ -15,6 +15,10 @@ import {
   CounterpartyNotFoundError,
   CounterpartyRequisiteNotFoundError,
 } from "../../errors";
+import {
+  resolveCreateCounterpartyRequisiteProps,
+  resolveUpdateCounterpartyRequisiteProps,
+} from "./inputs";
 import type { PartiesServiceContext } from "../shared/context";
 
 async function assertCounterpartyExists(
@@ -112,33 +116,14 @@ export function createCreateCounterpartyRequisiteHandler(
       const created = CounterpartyRequisite.reconstitute(
         await requisites.insertRequisiteTx(
           tx,
-          CounterpartyRequisite.create({
-            id: requisiteId,
-            counterpartyId: validated.counterpartyId,
-            providerId: validated.providerId,
-            currencyId: validated.currencyId,
-            kind: validated.kind,
-            label: validated.label,
-            description: validated.description,
-            beneficiaryName: validated.beneficiaryName,
-            institutionName: validated.institutionName,
-            institutionCountry: validated.institutionCountry,
-            accountNo: validated.accountNo,
-            corrAccount: validated.corrAccount,
-            iban: validated.iban,
-            bic: validated.bic,
-            swift: validated.swift,
-            bankAddress: validated.bankAddress,
-            network: validated.network,
-            assetCode: validated.assetCode,
-            address: validated.address,
-            memoTag: validated.memoTag,
-            accountRef: validated.accountRef,
-            subaccountRef: validated.subaccountRef,
-            contact: validated.contact,
-            notes: validated.notes,
-            isDefault: createPlan.candidateIsDefault,
-          }, context.now()).toSnapshot(),
+          CounterpartyRequisite.create(
+            resolveCreateCounterpartyRequisiteProps({
+              id: requisiteId,
+              values: validated,
+              isDefault: createPlan.candidateIsDefault,
+            }),
+            context.now(),
+          ).toSnapshot(),
         ),
       );
 
@@ -164,7 +149,10 @@ export function createUpdateCounterpartyRequisiteHandler(
     const validated = UpdateCounterpartyRequisiteInputSchema.parse(input);
 
     return db.transaction(async (tx) => {
-      const existingSnapshot = await requisites.findActiveRequisiteSnapshotById(id, tx);
+      const existingSnapshot = await requisites.findActiveRequisiteSnapshotById(
+        id,
+        tx,
+      );
 
       if (!existingSnapshot) {
         throw new CounterpartyRequisiteNotFoundError(id);
@@ -172,15 +160,15 @@ export function createUpdateCounterpartyRequisiteHandler(
 
       const existing = CounterpartyRequisite.reconstitute(existingSnapshot);
       const current = existing.toSnapshot();
-      const nextProviderId = validated.providerId ?? current.providerId;
-      const nextCurrencyId = validated.currencyId ?? current.currencyId;
-      const nextKind = validated.kind ?? current.kind;
-      const nextIsDefault = validated.isDefault ?? current.isDefault;
-      const currencyChanged = nextCurrencyId !== current.currencyId;
+      const nextInput = resolveUpdateCounterpartyRequisiteProps(
+        current,
+        validated,
+      );
+      const currencyChanged = nextInput.currencyId !== current.currencyId;
 
       await Promise.all([
-        currencies.assertCurrencyExists(nextCurrencyId),
-        requisiteProviders.assertProviderActive(nextProviderId),
+        currencies.assertCurrencyExists(nextInput.currencyId),
+        requisiteProviders.assertProviderActive(nextInput.providerId),
       ]);
 
       const sourceSet = CounterpartyRequisiteSet.reconstitute({
@@ -197,34 +185,36 @@ export function createUpdateCounterpartyRequisiteHandler(
       const targetSet = currencyChanged
         ? CounterpartyRequisiteSet.reconstitute({
             counterpartyId: current.counterpartyId,
-            currencyId: nextCurrencyId,
+            currencyId: nextInput.currencyId,
             requisites:
               await requisites.listActiveRequisitesByCounterpartyCurrency(
                 {
                   counterpartyId: current.counterpartyId,
-                  currencyId: nextCurrencyId,
+                  currencyId: nextInput.currencyId,
                 },
                 tx,
               ),
           })
         : sourceSet;
 
-      if (currencyChanged && nextIsDefault) {
-        const transferPlan = targetSet.planTransferIn({ nextIsDefault });
+      if (currencyChanged && nextInput.isDefault) {
+        const transferPlan = targetSet.planTransferIn({
+          nextIsDefault: nextInput.isDefault,
+        });
         if (transferPlan.demotedIds.length > 0) {
           await requisites.setDefaultStateTx(tx, {
             counterpartyId: current.counterpartyId,
-            currencyId: nextCurrencyId,
+            currencyId: nextInput.currencyId,
             defaultId: null,
             demotedIds: transferPlan.demotedIds,
           });
         }
       }
 
-      if (!currencyChanged && nextIsDefault) {
+      if (!currencyChanged && nextInput.isDefault) {
         const updatePlan = sourceSet.planUpdate({
           requisiteId: id,
-          nextIsDefault,
+          nextIsDefault: nextInput.isDefault,
         });
         if (updatePlan.demotedIds.length > 0) {
           await requisites.setDefaultStateTx(tx, {
@@ -236,13 +226,7 @@ export function createUpdateCounterpartyRequisiteHandler(
         }
       }
 
-      const next = existing.update({
-        ...validated,
-        providerId: nextProviderId,
-        currencyId: nextCurrencyId,
-        kind: nextKind,
-        isDefault: nextIsDefault,
-      }, context.now());
+      const next = existing.update(nextInput, context.now());
 
       const persistedSnapshot = existing.sameState(next)
         ? existingSnapshot
@@ -262,10 +246,10 @@ export function createUpdateCounterpartyRequisiteHandler(
             demotedIds: [],
           });
         }
-      } else if (!nextIsDefault) {
+      } else if (!nextInput.isDefault) {
         const updatePlan = sourceSet.planUpdate({
           requisiteId: id,
-          nextIsDefault,
+          nextIsDefault: nextInput.isDefault,
         });
         if (updatePlan.promotedId) {
           await requisites.setDefaultStateTx(tx, {
@@ -292,7 +276,10 @@ export function createRemoveCounterpartyRequisiteHandler(
 
   return async function removeCounterpartyRequisite(id: string) {
     return db.transaction(async (tx) => {
-      const existingSnapshot = await requisites.findActiveRequisiteSnapshotById(id, tx);
+      const existingSnapshot = await requisites.findActiveRequisiteSnapshotById(
+        id,
+        tx,
+      );
 
       if (!existingSnapshot) {
         throw new CounterpartyRequisiteNotFoundError(id);

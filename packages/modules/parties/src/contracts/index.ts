@@ -2,72 +2,77 @@ export {
   CounterpartyKindSchema,
   CountryCodeSchema,
   PartyKindSchema,
-} from "./party-kind";
-export type {
-  CounterpartyKind,
-  CountryCode,
-  PartyKind,
-} from "./party-kind";
-
+  type CounterpartyKind,
+  type CountryCode,
+  type PartyKind,
+} from "./zod";
 export {
-  CustomerSchema,
-  CUSTOMERS_LIST_CONTRACT,
-  ListCustomersQuerySchema,
   CreateCustomerInputSchema,
   UpdateCustomerInputSchema,
-} from "./customer";
-export type {
-  Customer,
-  ListCustomersQuery,
-  CreateCustomerInput,
-  UpdateCustomerInput,
-} from "./customer";
-
+  type CreateCustomerInput,
+  type UpdateCustomerInput,
+} from "./customers/commands";
 export {
-  CounterpartySchema,
-  COUNTERPARTIES_LIST_CONTRACT,
-  ListCounterpartiesQuerySchema,
+  CustomerSchema,
+  type Customer,
+} from "./customers/dto";
+export {
+  CUSTOMERS_LIST_CONTRACT,
+  ListCustomersQuerySchema,
+  type ListCustomersQuery,
+} from "./customers/queries";
+export {
   CreateCounterpartyInputSchema,
   UpdateCounterpartyInputSchema,
+  type CreateCounterpartyInput,
+  type UpdateCounterpartyInput,
+} from "./counterparties/commands";
+export {
   CounterpartyOptionSchema,
   CounterpartyOptionsResponseSchema,
-} from "./counterparty";
-export type {
-  Counterparty,
-  ListCounterpartiesQuery,
-  CreateCounterpartyInput,
-  UpdateCounterpartyInput,
-  CounterpartyOption,
-} from "./counterparty";
-
+  CounterpartySchema,
+  type Counterparty,
+  type CounterpartyOption,
+} from "./counterparties/dto";
 export {
-  CounterpartyGroupSchema,
-  ListCounterpartyGroupsQuerySchema,
+  COUNTERPARTIES_LIST_CONTRACT,
+  ListCounterpartiesQuerySchema,
+  type ListCounterpartiesQuery,
+} from "./counterparties/queries";
+export {
   CreateCounterpartyGroupInputSchema,
   UpdateCounterpartyGroupInputSchema,
+  type CreateCounterpartyGroupInput,
+  type UpdateCounterpartyGroupInput,
+} from "./groups/commands";
+export {
   CounterpartyGroupOptionSchema,
   CounterpartyGroupOptionsResponseSchema,
-} from "./group";
-export type {
-  CounterpartyGroup,
-  ListCounterpartyGroupsQuery,
-  CreateCounterpartyGroupInput,
-  UpdateCounterpartyGroupInput,
-  CounterpartyGroupOption,
-} from "./group";
+  CounterpartyGroupSchema,
+  type CounterpartyGroup,
+  type CounterpartyGroupOption,
+} from "./groups/dto";
 export {
-  COUNTERPARTY_REQUISITES_LIST_CONTRACT,
+  ListCounterpartyGroupsQuerySchema,
+  type ListCounterpartyGroupsQuery,
+} from "./groups/queries";
+export {
+  CreateCounterpartyRequisiteInputSchema,
+  UpdateCounterpartyRequisiteInputSchema,
+  type CreateCounterpartyRequisiteInput,
+  type UpdateCounterpartyRequisiteInput,
+} from "./requisites/commands";
+export {
   CounterpartyRequisiteOptionSchema,
   CounterpartyRequisiteOptionsResponseSchema,
   CounterpartyRequisiteSchema,
-  CreateCounterpartyRequisiteInputSchema,
-  ListCounterpartyRequisiteOptionsQuerySchema,
-  ListCounterpartyRequisitesQuerySchema,
-  UpdateCounterpartyRequisiteInputSchema,
   type CounterpartyRequisite,
   type CounterpartyRequisiteOption,
-  type CreateCounterpartyRequisiteInput,
+} from "./requisites/dto";
+export {
+  COUNTERPARTY_REQUISITES_LIST_CONTRACT,
+  ListCounterpartyRequisiteOptionsQuerySchema,
+  ListCounterpartyRequisitesQuerySchema,
   type ListCounterpartyRequisiteOptionsQuery,
   type ListCounterpartyRequisitesQuery,
-  type UpdateCounterpartyRequisiteInput,
-} from "./requisites";
+} from "./requisites/queries";

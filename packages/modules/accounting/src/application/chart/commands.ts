@@ -2,7 +2,7 @@ import type { AccountingChartCommandRepository } from "./ports";
 import {
   replaceCorrespondenceRulesSchema,
   type ReplaceCorrespondenceRulesInput,
-} from "../../contracts/commands";
+} from "../../contracts/chart/commands";
 import {
   CorrespondenceRule,
   type CorrespondenceRuleSnapshot,

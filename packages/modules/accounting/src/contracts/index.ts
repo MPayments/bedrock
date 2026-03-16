@@ -3,6 +3,9 @@ export {
   replaceCorrespondenceRulesSchema,
   type CorrespondenceRuleInput,
   type ReplaceCorrespondenceRulesInput,
-} from "./commands";
-export { AccountingCorrespondenceRuleSchema, AccountingTemplateAccountSchema } from "./dto";
-export { accountNoSchema } from "./zod";
+} from "./chart/commands";
+export {
+  AccountingCorrespondenceRuleSchema,
+  AccountingTemplateAccountSchema,
+} from "./chart/dto";
+export { accountNoSchema } from "./chart/zod";

@@ -24,21 +24,21 @@ export interface OrganizationSnapshot {
 
 export interface CreateOrganizationProps {
   id: string;
-  externalId?: string | null;
+  externalId: string | null;
   shortName: string;
   fullName: string;
-  description?: string | null;
-  country?: string | null;
+  description: string | null;
+  country: string | null;
   kind: PartyKind;
 }
 
 export interface UpdateOrganizationProps {
-  externalId?: string | null;
-  shortName?: string;
-  fullName?: string;
-  description?: string | null;
-  country?: string | null;
-  kind?: PartyKind;
+  externalId: string | null;
+  shortName: string;
+  fullName: string;
+  description: string | null;
+  country: string | null;
+  kind: PartyKind;
 }
 
 function normalizeOrganizationSnapshot(
@@ -99,35 +99,12 @@ export class Organization extends Entity<string> {
   update(input: UpdateOrganizationProps, now: Date): Organization {
     return new Organization({
       ...this.snapshot,
-      externalId:
-        input.externalId !== undefined
-          ? normalizeOptionalText(input.externalId)
-          : this.snapshot.externalId,
-      shortName:
-        input.shortName !== undefined
-          ? normalizeRequiredText(
-              input.shortName,
-              "organization.short_name_required",
-              "shortName",
-            )
-          : this.snapshot.shortName,
-      fullName:
-        input.fullName !== undefined
-          ? normalizeRequiredText(
-              input.fullName,
-              "organization.full_name_required",
-              "fullName",
-            )
-          : this.snapshot.fullName,
-      description:
-        input.description !== undefined
-          ? normalizeOptionalText(input.description)
-          : this.snapshot.description,
-      country:
-        input.country !== undefined
-          ? parseOptionalCountryCode(input.country)
-          : this.snapshot.country,
-      kind: input.kind ?? this.snapshot.kind,
+      externalId: input.externalId,
+      shortName: input.shortName,
+      fullName: input.fullName,
+      description: input.description,
+      country: input.country,
+      kind: input.kind,
       updatedAt: now,
     });
   }

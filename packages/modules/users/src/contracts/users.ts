@@ -5,7 +5,10 @@ import {
   type ListQueryContract,
 } from "@bedrock/shared/core/pagination";
 
-import { USER_ROLE_VALUES, type UserRole as DomainUserRole } from "../domain/user-role";
+import {
+  USER_ROLE_VALUES,
+  type UserRole as DomainUserRole,
+} from "../domain/user-role";
 
 export const UserRoleSchema = z.enum(USER_ROLE_VALUES);
 export type UserRole = DomainUserRole;
@@ -63,21 +66,21 @@ export const ListUsersQuerySchema =
 export type ListUsersQuery = z.infer<typeof ListUsersQuerySchema>;
 
 export const CreateUserInputSchema = z.object({
-  name: z.string().min(1, "name is required"),
+  name: z.string().trim().min(1, "name is required"),
   email: z.email("invalid email"),
   password: z.string().min(6, "password must be at least 6 characters"),
   role: UserRoleSchema.default("user"),
 });
 
-export type CreateUserInput = z.infer<typeof CreateUserInputSchema>;
+export type CreateUserInput = z.input<typeof CreateUserInputSchema>;
 
 export const UpdateUserInputSchema = z.object({
-  name: z.string().min(1).optional(),
-  email: z.email().optional(),
-  role: UserRoleSchema.optional(),
+  name: z.string().trim().min(1).exactOptional(),
+  email: z.email().exactOptional(),
+  role: UserRoleSchema.exactOptional(),
 });
 
-export type UpdateUserInput = z.infer<typeof UpdateUserInputSchema>;
+export type UpdateUserInput = z.input<typeof UpdateUserInputSchema>;
 
 export const ChangePasswordInputSchema = z.object({
   newPassword: z.string().min(6, "password must be at least 6 characters"),
@@ -86,11 +89,11 @@ export const ChangePasswordInputSchema = z.object({
 export type ChangePasswordInput = z.infer<typeof ChangePasswordInputSchema>;
 
 export const UpdateProfileInputSchema = z.object({
-  name: z.string().min(1).optional(),
-  email: z.email().optional(),
+  name: z.string().trim().min(1).exactOptional(),
+  email: z.email().exactOptional(),
 });
 
-export type UpdateProfileInput = z.infer<typeof UpdateProfileInputSchema>;
+export type UpdateProfileInput = z.input<typeof UpdateProfileInputSchema>;
 
 export const ChangeOwnPasswordInputSchema = z.object({
   currentPassword: z.string().min(1, "current password is required"),
@@ -102,8 +105,8 @@ export type ChangeOwnPasswordInput = z.infer<
 >;
 
 export const BanUserInputSchema = z.object({
-  banReason: z.string().optional(),
-  banExpires: z.coerce.date().optional(),
+  banReason: z.string().trim().exactOptional(),
+  banExpires: z.coerce.date().exactOptional(),
 });
 
-export type BanUserInput = z.infer<typeof BanUserInputSchema>;
+export type BanUserInput = z.input<typeof BanUserInputSchema>;

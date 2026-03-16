@@ -18,6 +18,7 @@ import {
 import type { OrganizationsServiceContext } from "../shared/context";
 import { rethrowOrganizationRequisiteDomainError } from "../shared/map-domain-error";
 import { ensureOrganizationRequisiteAccountingBindingTx } from "./bindings";
+import { resolveOrganizationRequisiteUpdateInput } from "./inputs";
 
 async function assertOrganizationExists(
   context: OrganizationsServiceContext,
@@ -101,7 +102,10 @@ export function createCreateOrganizationRequisiteHandler(
           currencyId: validated.currencyId,
           requisites: activeSnapshots,
         });
-        const createPlan = activeSet.planCreate(requisiteId, validated.isDefault);
+        const createPlan = activeSet.planCreate(
+          requisiteId,
+          validated.isDefault,
+        );
 
         if (createPlan.candidateIsDefault && createPlan.demotedIds.length > 0) {
           await requisites.setDefaultStateTx(tx, {
@@ -115,33 +119,36 @@ export function createCreateOrganizationRequisiteHandler(
         const created = OrganizationRequisite.reconstitute(
           await requisites.insertRequisiteTx(
             tx,
-            OrganizationRequisite.create({
-              id: requisiteId,
-              organizationId: validated.organizationId,
-              providerId: validated.providerId,
-              currencyId: validated.currencyId,
-              kind: validated.kind,
-              label: validated.label,
-              description: validated.description,
-              beneficiaryName: validated.beneficiaryName,
-              institutionName: validated.institutionName,
-              institutionCountry: validated.institutionCountry,
-              accountNo: validated.accountNo,
-              corrAccount: validated.corrAccount,
-              iban: validated.iban,
-              bic: validated.bic,
-              swift: validated.swift,
-              bankAddress: validated.bankAddress,
-              network: validated.network,
-              assetCode: validated.assetCode,
-              address: validated.address,
-              memoTag: validated.memoTag,
-              accountRef: validated.accountRef,
-              subaccountRef: validated.subaccountRef,
-              contact: validated.contact,
-              notes: validated.notes,
-              isDefault: createPlan.candidateIsDefault,
-            }, context.now()).toSnapshot(),
+            OrganizationRequisite.create(
+              {
+                id: requisiteId,
+                organizationId: validated.organizationId,
+                providerId: validated.providerId,
+                currencyId: validated.currencyId,
+                label: validated.label,
+                kind: validated.kind,
+                description: validated.description,
+                beneficiaryName: validated.beneficiaryName,
+                institutionName: validated.institutionName,
+                institutionCountry: validated.institutionCountry,
+                accountNo: validated.accountNo,
+                corrAccount: validated.corrAccount,
+                iban: validated.iban,
+                bic: validated.bic,
+                swift: validated.swift,
+                bankAddress: validated.bankAddress,
+                network: validated.network,
+                assetCode: validated.assetCode,
+                address: validated.address,
+                memoTag: validated.memoTag,
+                accountRef: validated.accountRef,
+                subaccountRef: validated.subaccountRef,
+                contact: validated.contact,
+                notes: validated.notes,
+                isDefault: createPlan.candidateIsDefault,
+              },
+              context.now(),
+            ).toSnapshot(),
           ),
         );
 
@@ -177,10 +184,8 @@ export function createUpdateOrganizationRequisiteHandler(
 
     try {
       return await db.transaction(async (tx) => {
-        const existingSnapshot = await requisites.findActiveRequisiteSnapshotById(
-          id,
-          tx,
-        );
+        const existingSnapshot =
+          await requisites.findActiveRequisiteSnapshotById(id, tx);
 
         if (!existingSnapshot) {
           throw new OrganizationRequisiteNotFoundError(id);
@@ -188,10 +193,14 @@ export function createUpdateOrganizationRequisiteHandler(
 
         const existing = OrganizationRequisite.reconstitute(existingSnapshot);
         const current = existing.toSnapshot();
-        const nextProviderId = validated.providerId ?? current.providerId;
-        const nextCurrencyId = validated.currencyId ?? current.currencyId;
-        const nextKind = validated.kind ?? current.kind;
-        const nextIsDefault = validated.isDefault ?? current.isDefault;
+        const resolvedInput = resolveOrganizationRequisiteUpdateInput(
+          current,
+          validated,
+        );
+        const nextProviderId = resolvedInput.providerId;
+        const nextCurrencyId = resolvedInput.currencyId;
+        const nextKind = resolvedInput.kind;
+        const nextIsDefault = resolvedInput.isDefault;
         const currencyChanged = nextCurrencyId !== current.currencyId;
 
         await Promise.all([
@@ -255,13 +264,7 @@ export function createUpdateOrganizationRequisiteHandler(
           }
         }
 
-        const next = existing.update({
-          ...validated,
-          providerId: nextProviderId,
-          currencyId: nextCurrencyId,
-          kind: nextKind,
-          isDefault: nextIsDefault,
-        }, context.now());
+        const next = existing.update(resolvedInput, context.now());
 
         const persistedSnapshot = existing.sameState(next)
           ? existingSnapshot
@@ -298,15 +301,16 @@ export function createUpdateOrganizationRequisiteHandler(
           }
         }
 
-        const persisted =
-          OrganizationRequisite.reconstitute(persistedSnapshot);
+        const persisted = OrganizationRequisite.reconstitute(persistedSnapshot);
         const binding = await requisites.findBindingByRequisiteId(id, tx);
 
         await ensureOrganizationRequisiteAccountingBindingTx(context, tx, {
           requisiteId: persisted.id,
           organizationId: persisted.toSnapshot().organizationId,
           currencyId: persisted.toSnapshot().currencyId,
-          postingAccountNo: binding?.postingAccountNo,
+          ...(binding?.postingAccountNo !== undefined && {
+            postingAccountNo: binding.postingAccountNo,
+          }),
         });
 
         log.info("Organization requisite updated", { id });
@@ -326,10 +330,8 @@ export function createRemoveOrganizationRequisiteHandler(
   return async function removeOrganizationRequisite(id: string) {
     try {
       return await db.transaction(async (tx) => {
-        const existingSnapshot = await requisites.findActiveRequisiteSnapshotById(
-          id,
-          tx,
-        );
+        const existingSnapshot =
+          await requisites.findActiveRequisiteSnapshotById(id, tx);
 
         if (!existingSnapshot) {
           throw new OrganizationRequisiteNotFoundError(id);

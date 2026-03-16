@@ -9,8 +9,14 @@ describe("Counterparty", () => {
     const counterparty = Counterparty.create(
       {
         id: "counterparty-1",
+        externalId: null,
+        customerId: null,
         shortName: "Acme",
         fullName: "Acme LLC",
+        description: null,
+        country: null,
+        kind: "legal_entity",
+        groupIds: [],
       },
       {
         hierarchy,
@@ -22,10 +28,20 @@ describe("Counterparty", () => {
       ...counterparty.toSnapshot(),
       shortName: undefined,
     };
+    const poisonedSnapshot = (counterparty as any).snapshot;
 
     expect(() =>
       counterparty.update(
-        {},
+        {
+          externalId: poisonedSnapshot.externalId,
+          customerId: poisonedSnapshot.customerId,
+          shortName: poisonedSnapshot.shortName,
+          fullName: poisonedSnapshot.fullName,
+          description: poisonedSnapshot.description,
+          country: poisonedSnapshot.country,
+          kind: poisonedSnapshot.kind,
+          groupIds: poisonedSnapshot.groupIds,
+        },
         {
           hierarchy,
           now: new Date("2026-01-02T00:00:00.000Z"),

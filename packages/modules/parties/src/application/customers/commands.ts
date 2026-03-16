@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 
-import type { CreateCustomerInput, Customer as CustomerDto, UpdateCustomerInput } from "../../contracts";
+import type {
+  CreateCustomerInput,
+  Customer as CustomerDto,
+  UpdateCustomerInput,
+} from "../../contracts";
 import {
   CreateCustomerInputSchema,
   UpdateCustomerInputSchema,
@@ -11,6 +15,10 @@ import {
   CustomerDeleteConflictError,
   CustomerNotFoundError,
 } from "../../errors";
+import {
+  resolveCreateCustomerProps,
+  resolveUpdateCustomerProps,
+} from "./inputs";
 import type { PartiesServiceContext } from "../shared/context";
 
 function toPublicCustomer(customer: Customer): CustomerDto {
@@ -24,12 +32,13 @@ export function createCreateCustomerHandler(context: PartiesServiceContext) {
     input: CreateCustomerInput,
   ): Promise<CustomerDto> {
     const validated = CreateCustomerInputSchema.parse(input);
-    const draft = Customer.create({
-      id: randomUUID(),
-      externalRef: validated.externalRef,
-      displayName: validated.displayName,
-      description: validated.description,
-    }, context.now());
+    const draft = Customer.create(
+      resolveCreateCustomerProps({
+        id: randomUUID(),
+        values: validated,
+      }),
+      context.now(),
+    );
 
     return db.transaction(async (tx) => {
       const created = Customer.reconstitute(
@@ -67,7 +76,10 @@ export function createUpdateCustomerHandler(context: PartiesServiceContext) {
       }
 
       const existing = Customer.reconstitute(existingSnapshot);
-      const next = existing.update(validated, context.now());
+      const next = existing.update(
+        resolveUpdateCustomerProps(existingSnapshot, validated),
+        context.now(),
+      );
       const persistedSnapshot = existing.sameState(next)
         ? existingSnapshot
         : await customers.updateCustomerTx(tx, next.toSnapshot());
@@ -108,7 +120,8 @@ export function createRemoveCustomerHandler(context: PartiesServiceContext) {
         throw new CustomerDeleteConflictError(id);
       }
 
-      const linkedCounterparties = await customers.listCounterpartiesByCustomerId(id, tx);
+      const linkedCounterparties =
+        await customers.listCounterpartiesByCustomerId(id, tx);
       const managedGroup = await customers.findManagedCustomerGroup(id, tx);
       const hierarchy = GroupHierarchy.create(
         await customers.listGroupHierarchyNodes(tx),

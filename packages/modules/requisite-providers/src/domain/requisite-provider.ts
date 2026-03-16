@@ -26,12 +26,12 @@ export interface RequisiteProviderSnapshot {
 export interface RequisiteProviderDetails {
   kind: RequisiteKind;
   name: string;
-  description?: string | null;
-  country?: string | null;
-  address?: string | null;
-  contact?: string | null;
-  bic?: string | null;
-  swift?: string | null;
+  description: string | null;
+  country: string | null;
+  address: string | null;
+  contact: string | null;
+  bic: string | null;
+  swift: string | null;
 }
 
 export function validateRequisiteProviderDetails(
@@ -127,12 +127,7 @@ export class RequisiteProvider extends Entity<string> {
     this.snapshot = normalizeRequisiteProviderSnapshot(snapshot);
   }
 
-  static create(
-    input: {
-      id: string;
-      now: Date;
-    } & RequisiteProviderDetails,
-  ): RequisiteProvider {
+  static create(input: CreateRequisiteProviderProps): RequisiteProvider {
     return new RequisiteProvider({
       id: input.id,
       ...normalizeDetails(input),
@@ -146,27 +141,10 @@ export class RequisiteProvider extends Entity<string> {
     return new RequisiteProvider({ ...snapshot });
   }
 
-  update(
-    input: Partial<RequisiteProviderDetails> & { now: Date },
-  ): RequisiteProvider {
+  update(input: UpdateRequisiteProviderProps): RequisiteProvider {
     return new RequisiteProvider({
       ...this.snapshot,
-      ...normalizeDetails({
-        kind: input.kind ?? this.snapshot.kind,
-        name: input.name ?? this.snapshot.name,
-        description:
-          input.description !== undefined
-            ? input.description
-            : this.snapshot.description,
-        country:
-          input.country !== undefined ? input.country : this.snapshot.country,
-        address:
-          input.address !== undefined ? input.address : this.snapshot.address,
-        contact:
-          input.contact !== undefined ? input.contact : this.snapshot.contact,
-        bic: input.bic !== undefined ? input.bic : this.snapshot.bic,
-        swift: input.swift !== undefined ? input.swift : this.snapshot.swift,
-      }),
+      ...normalizeDetails(input),
       updatedAt: input.now,
     });
   }
@@ -182,4 +160,13 @@ export class RequisiteProvider extends Entity<string> {
   toSnapshot(): RequisiteProviderSnapshot {
     return { ...this.snapshot };
   }
+}
+
+export interface CreateRequisiteProviderProps extends RequisiteProviderDetails {
+  id: string;
+  now: Date;
+}
+
+export interface UpdateRequisiteProviderProps extends RequisiteProviderDetails {
+  now: Date;
 }

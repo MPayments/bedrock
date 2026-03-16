@@ -9,6 +9,7 @@ import {
 import { RequisiteProvider } from "../../domain/requisite-provider";
 import { RequisiteProviderNotFoundError } from "../../errors";
 import type { RequisiteProvidersServiceContext } from "../shared/context";
+import { resolveRequisiteProviderUpdateInput } from "./inputs";
 
 export function createCreateRequisiteProviderHandler(
   context: RequisiteProvidersServiceContext,
@@ -51,10 +52,11 @@ export function createUpdateRequisiteProviderHandler(
       throw new RequisiteProviderNotFoundError(id);
     }
 
-    const provider = RequisiteProvider.reconstitute({
+    const current = RequisiteProvider.reconstitute({
       ...existing,
-    }).update({
-      ...validated,
+    });
+    const provider = current.update({
+      ...resolveRequisiteProviderUpdateInput(current.toSnapshot(), validated),
       now: new Date(),
     });
 

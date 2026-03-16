@@ -26,7 +26,7 @@ export function createRequisiteProvidersService(
 ) {
   const context = createRequisiteProvidersServiceContext({
     db: deps.db,
-    logger: deps.logger,
+    ...(deps.logger !== undefined && { logger: deps.logger }),
     queries: createDrizzleRequisiteProvidersQueryRepository(deps.db),
     commands: createDrizzleRequisiteProvidersCommandRepository(deps.db),
   });

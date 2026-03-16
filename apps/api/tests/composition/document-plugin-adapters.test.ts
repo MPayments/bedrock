@@ -171,7 +171,9 @@ describe("document plugin adapters composition", () => {
         findById: vi.fn(),
       } as any,
       fxService: {
-        quote: vi.fn(),
+        quotes: {
+          quote: vi.fn(),
+        },
       } as any,
       requisitesService: {
         resolveBindings: vi.fn(async () => []),
@@ -296,11 +298,13 @@ describe("document plugin adapters composition", () => {
         }),
       } as any,
       fxService: {
-        quote: vi.fn(async () => ({
-          ...quote,
-          fromCurrency: "USD",
-          toCurrency: "EUR",
-        })),
+        quotes: {
+          quote: vi.fn(async () => ({
+            ...quote,
+            fromCurrency: "USD",
+            toCurrency: "EUR",
+          })),
+        },
       } as any,
       requisitesService: {
         resolveBindings: vi.fn(async () => []),
