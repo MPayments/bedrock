@@ -63,7 +63,7 @@ export function createClosePeriodCommand(input: {
     closeDocumentId: string;
   }) {
     const month = CalendarMonth.fromDate(command.periodStart);
-    const period = AccountingPeriod.reconstitute({
+    const period = AccountingPeriod.fromSnapshot({
       organizationId: command.organizationId,
       month,
       lock: null,
@@ -113,7 +113,7 @@ export function createReopenPeriodCommand(input: {
       organizationId: command.organizationId,
       periodStart: month.start,
     });
-    const period = AccountingPeriod.reconstitute({
+    const period = AccountingPeriod.fromSnapshot({
       organizationId: command.organizationId,
       month,
       lock: null,

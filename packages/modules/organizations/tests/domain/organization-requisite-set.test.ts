@@ -41,7 +41,7 @@ function makeRequisite(overrides: Partial<{
 
 describe("organization requisite set", () => {
   it("promotes the first requisite to default on create", () => {
-    const set = OrganizationRequisiteSet.reconstitute({
+    const set = OrganizationRequisiteSet.fromSnapshot({
       organizationId: "organization-1",
       currencyId: "currency-usd",
       requisites: [],
@@ -54,7 +54,7 @@ describe("organization requisite set", () => {
   });
 
   it("demotes existing defaults when a new default is requested", () => {
-    const set = OrganizationRequisiteSet.reconstitute({
+    const set = OrganizationRequisiteSet.fromSnapshot({
       organizationId: "organization-1",
       currencyId: "currency-usd",
       requisites: [makeRequisite({ id: "req-1", isDefault: true })],
@@ -67,7 +67,7 @@ describe("organization requisite set", () => {
   });
 
   it("promotes another requisite when the default is removed", () => {
-    const set = OrganizationRequisiteSet.reconstitute({
+    const set = OrganizationRequisiteSet.fromSnapshot({
       organizationId: "organization-1",
       currencyId: "currency-usd",
       requisites: [

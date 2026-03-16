@@ -67,7 +67,7 @@ export function createIngestExternalRecordHandler(
 
           if (existing) {
             try {
-              ExternalRecord.reconstitute(existing).assertSamePayloadHash(
+              ExternalRecord.fromSnapshot(existing).assertSamePayloadHash(
                 payloadHash,
               );
             } catch (error) {

@@ -109,7 +109,7 @@ export function createCreateCounterpartyHandler(
         draft.toSnapshot().groupIds,
       );
 
-      const created = Counterparty.reconstitute({
+      const created = Counterparty.fromSnapshot({
         ...createdSnapshot,
         groupIds: draft.toSnapshot().groupIds,
       });
@@ -142,7 +142,7 @@ export function createUpdateCounterpartyHandler(
         throw new CounterpartyNotFoundError(id);
       }
 
-      const existing = Counterparty.reconstitute(existingSnapshot);
+      const existing = Counterparty.fromSnapshot(existingSnapshot);
       const hierarchy = GroupHierarchy.create(
         await counterparties.listGroupHierarchyNodes(tx),
       );
@@ -199,7 +199,7 @@ export function createUpdateCounterpartyHandler(
         );
       }
 
-      const updated = Counterparty.reconstitute({
+      const updated = Counterparty.fromSnapshot({
         ...persistedSnapshot,
         groupIds: next.toSnapshot().groupIds,
       });

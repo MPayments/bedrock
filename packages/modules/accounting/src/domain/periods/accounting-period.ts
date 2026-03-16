@@ -35,7 +35,7 @@ export class AccountingPeriod extends AggregateRoot<string> {
     super(`${snapshot.organizationId}:${snapshot.month.label}`);
   }
 
-  static reconstitute(snapshot: AccountingPeriodSnapshot) {
+  static fromSnapshot(snapshot: AccountingPeriodSnapshot) {
     invariant(
       snapshot.organizationId.trim().length > 0,
       "accounting_period.organization_required",
@@ -67,7 +67,7 @@ export class AccountingPeriod extends AggregateRoot<string> {
 
   planReopen(input: ReopenAccountingPeriodInput) {
     const supersededClosePackage = this.snapshot.latestClosePackage
-      ? AccountingClosePackage.reconstitute(
+      ? AccountingClosePackage.fromSnapshot(
           this.snapshot.latestClosePackage,
         ).supersede(input.reopenDocumentId).toSnapshot()
       : null;

@@ -22,7 +22,7 @@ export function createReplaceCorrespondenceRulesCommand(input: {
     const rows = await repository.replaceCorrespondenceRules(validated.rules);
 
     return rows.map((row) =>
-      CorrespondenceRule.reconstitute({
+      CorrespondenceRule.fromSnapshot({
         ...row,
         createdAt: row.createdAt ?? now,
         updatedAt: row.updatedAt ?? now,

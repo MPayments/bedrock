@@ -137,7 +137,7 @@ export class RequisiteProvider extends Entity<string> {
     });
   }
 
-  static reconstitute(snapshot: RequisiteProviderSnapshot): RequisiteProvider {
+  static fromSnapshot(snapshot: RequisiteProviderSnapshot): RequisiteProvider {
     return new RequisiteProvider({ ...snapshot });
   }
 

@@ -30,7 +30,7 @@ export class FxQuote extends AggregateRoot<string> {
     super(snapshot.id);
   }
 
-  static reconstitute(snapshot: FxQuoteSnapshot): FxQuote {
+  static fromSnapshot(snapshot: FxQuoteSnapshot): FxQuote {
     return new FxQuote({ ...snapshot });
   }
 

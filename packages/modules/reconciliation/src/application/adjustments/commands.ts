@@ -47,7 +47,7 @@ export function createAdjustmentDocumentHandler(
             );
           }
 
-          const existingException = ReconciliationException.reconstitute(exception);
+          const existingException = ReconciliationException.fromSnapshot(exception);
           const existingResolution = existingException.resolveWithAdjustment({
             adjustmentDocumentId: exception.adjustmentDocumentId ?? "",
             resolvedAt: new Date(),

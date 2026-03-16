@@ -41,7 +41,7 @@ export function createCreateCustomerHandler(context: PartiesServiceContext) {
     );
 
     return db.transaction(async (tx) => {
-      const created = Customer.reconstitute(
+      const created = Customer.fromSnapshot(
         await customers.insertCustomerTx(tx, draft.toSnapshot()),
       );
 
@@ -75,7 +75,7 @@ export function createUpdateCustomerHandler(context: PartiesServiceContext) {
         throw new CustomerNotFoundError(id);
       }
 
-      const existing = Customer.reconstitute(existingSnapshot);
+      const existing = Customer.fromSnapshot(existingSnapshot);
       const next = existing.update(
         resolveUpdateCustomerProps(existingSnapshot, validated),
         context.now(),
@@ -100,7 +100,7 @@ export function createUpdateCustomerHandler(context: PartiesServiceContext) {
       }
 
       log.info("Customer updated", { id });
-      return toPublicCustomer(Customer.reconstitute(persistedSnapshot));
+      return toPublicCustomer(Customer.fromSnapshot(persistedSnapshot));
     });
   };
 }

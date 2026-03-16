@@ -68,7 +68,7 @@ async function assertOrganizationPeriodsOpenForDocument(input: {
 
 async function runSubmit(context: DocumentTransitionExecutionContext) {
   const before = buildDocumentEventState(context.document);
-  const nextDocument = DocumentAggregate.reconstitute(context.document)
+  const nextDocument = DocumentAggregate.fromSnapshot(context.document)
     .submit({
       actorUserId: context.input.actorUserId,
       now: context.services.now(),
@@ -125,7 +125,7 @@ async function runApproveOrReject(
   mode: "approve" | "reject",
 ) {
   const before = buildDocumentEventState(context.document);
-  const aggregate = DocumentAggregate.reconstitute(context.document);
+  const aggregate = DocumentAggregate.fromSnapshot(context.document);
   const nextDocument =
     mode === "approve"
       ? aggregate.approve({
@@ -197,7 +197,7 @@ async function runApproveOrReject(
 
 async function runCancel(context: DocumentTransitionExecutionContext) {
   const before = buildDocumentEventState(context.document);
-  const nextDocument = DocumentAggregate.reconstitute(context.document)
+  const nextDocument = DocumentAggregate.fromSnapshot(context.document)
     .cancel({
       actorUserId: context.input.actorUserId,
       now: context.services.now(),
@@ -272,7 +272,7 @@ async function runRepost(context: DocumentTransitionExecutionContext) {
   await context.documentOperations.resetPostingOperation({ operationId });
 
   const before = buildDocumentEventState(context.document);
-  const nextDocument = DocumentAggregate.reconstitute(context.document)
+  const nextDocument = DocumentAggregate.fromSnapshot(context.document)
     .resetForRepost({
       now: context.services.now(),
     })
@@ -329,7 +329,7 @@ async function runPost(context: DocumentTransitionExecutionContext) {
     });
 
     const beforeSubmit = buildDocumentEventState(postingDocument);
-    const submitted = DocumentAggregate.reconstitute(postingDocument)
+    const submitted = DocumentAggregate.fromSnapshot(postingDocument)
       .submit({
         actorUserId: context.input.actorUserId,
         now: context.services.now(),
@@ -366,7 +366,7 @@ async function runPost(context: DocumentTransitionExecutionContext) {
     postingDocument = storedSubmitted;
   }
 
-  const startedPosting = DocumentAggregate.reconstitute(postingDocument)
+  const startedPosting = DocumentAggregate.fromSnapshot(postingDocument)
     .startPosting({
       actorUserId: context.input.actorUserId,
       now: context.services.now(),

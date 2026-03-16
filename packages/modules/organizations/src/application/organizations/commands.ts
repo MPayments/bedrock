@@ -57,7 +57,7 @@ export function createCreateOrganizationHandler(
     );
 
     return db.transaction(async (tx) => {
-      const created = Organization.reconstitute(
+      const created = Organization.fromSnapshot(
         await organizations.insertOrganizationTx(tx, draft.toSnapshot()),
       );
 
@@ -96,7 +96,7 @@ export function createUpdateOrganizationHandler(
         throw new OrganizationNotFoundError(id);
       }
 
-      const existing = Organization.reconstitute(existingSnapshot);
+      const existing = Organization.fromSnapshot(existingSnapshot);
       const next = existing.update(
         resolveOrganizationUpdateInput(existing.toSnapshot(), validated),
         context.now(),
@@ -110,7 +110,7 @@ export function createUpdateOrganizationHandler(
       }
 
       log.info("Organization updated", { id });
-      return toPublicOrganization(Organization.reconstitute(persistedSnapshot));
+      return toPublicOrganization(Organization.fromSnapshot(persistedSnapshot));
     });
   };
 }

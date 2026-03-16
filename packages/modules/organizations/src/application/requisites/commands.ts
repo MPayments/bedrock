@@ -97,7 +97,7 @@ export function createCreateOrganizationRequisiteHandler(
             },
             tx,
           );
-        const activeSet = OrganizationRequisiteSet.reconstitute({
+        const activeSet = OrganizationRequisiteSet.fromSnapshot({
           organizationId: validated.organizationId,
           currencyId: validated.currencyId,
           requisites: activeSnapshots,
@@ -116,7 +116,7 @@ export function createCreateOrganizationRequisiteHandler(
           });
         }
 
-        const created = OrganizationRequisite.reconstitute(
+        const created = OrganizationRequisite.fromSnapshot(
           await requisites.insertRequisiteTx(
             tx,
             OrganizationRequisite.create(
@@ -191,7 +191,7 @@ export function createUpdateOrganizationRequisiteHandler(
           throw new OrganizationRequisiteNotFoundError(id);
         }
 
-        const existing = OrganizationRequisite.reconstitute(existingSnapshot);
+        const existing = OrganizationRequisite.fromSnapshot(existingSnapshot);
         const current = existing.toSnapshot();
         const resolvedInput = resolveOrganizationRequisiteUpdateInput(
           current,
@@ -207,7 +207,7 @@ export function createUpdateOrganizationRequisiteHandler(
           requisiteProviders.assertProviderActive(nextProviderId),
         ]);
 
-        const sourceSet = OrganizationRequisiteSet.reconstitute({
+        const sourceSet = OrganizationRequisiteSet.fromSnapshot({
           organizationId: current.organizationId,
           currencyId: current.currencyId,
           requisites:
@@ -220,7 +220,7 @@ export function createUpdateOrganizationRequisiteHandler(
             ),
         });
         const targetSet = currencyChanged
-          ? OrganizationRequisiteSet.reconstitute({
+          ? OrganizationRequisiteSet.fromSnapshot({
               organizationId: current.organizationId,
               currencyId: nextCurrencyId,
               requisites:
@@ -300,7 +300,7 @@ export function createUpdateOrganizationRequisiteHandler(
           }
         }
 
-        const persisted = OrganizationRequisite.reconstitute(persistedSnapshot);
+        const persisted = OrganizationRequisite.fromSnapshot(persistedSnapshot);
         const binding = await requisites.findBindingByRequisiteId(id, tx);
 
         await ensureOrganizationRequisiteAccountingBindingTx(context, tx, {
@@ -336,9 +336,9 @@ export function createRemoveOrganizationRequisiteHandler(
           throw new OrganizationRequisiteNotFoundError(id);
         }
 
-        const existing = OrganizationRequisite.reconstitute(existingSnapshot);
+        const existing = OrganizationRequisite.fromSnapshot(existingSnapshot);
         const snapshot = existing.toSnapshot();
-        const activeSet = OrganizationRequisiteSet.reconstitute({
+        const activeSet = OrganizationRequisiteSet.fromSnapshot({
           organizationId: snapshot.organizationId,
           currencyId: snapshot.currencyId,
           requisites:

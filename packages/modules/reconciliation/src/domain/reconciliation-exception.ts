@@ -19,7 +19,7 @@ export class ReconciliationException extends Entity<string> {
     super(snapshot.id);
   }
 
-  static reconstitute(
+  static fromSnapshot(
     snapshot: ReconciliationExceptionSnapshot,
   ): ReconciliationException {
     return new ReconciliationException({ ...snapshot });

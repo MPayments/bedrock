@@ -41,7 +41,7 @@ function makeRequisite(overrides: Partial<{
 
 describe("counterparty requisite set", () => {
   it("promotes the first requisite to default on create", () => {
-    const set = CounterpartyRequisiteSet.reconstitute({
+    const set = CounterpartyRequisiteSet.fromSnapshot({
       counterpartyId: "counterparty-1",
       currencyId: "currency-usd",
       requisites: [],
@@ -54,7 +54,7 @@ describe("counterparty requisite set", () => {
   });
 
   it("demotes existing defaults when a new default is requested", () => {
-    const set = CounterpartyRequisiteSet.reconstitute({
+    const set = CounterpartyRequisiteSet.fromSnapshot({
       counterpartyId: "counterparty-1",
       currencyId: "currency-usd",
       requisites: [makeRequisite({ id: "req-1", isDefault: true })],
@@ -67,7 +67,7 @@ describe("counterparty requisite set", () => {
   });
 
   it("promotes another requisite when the default is removed", () => {
-    const set = CounterpartyRequisiteSet.reconstitute({
+    const set = CounterpartyRequisiteSet.fromSnapshot({
       counterpartyId: "counterparty-1",
       currencyId: "currency-usd",
       requisites: [

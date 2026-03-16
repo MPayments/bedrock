@@ -12,13 +12,13 @@ export class CounterpartyRequisiteSet {
     private readonly requisites: CounterpartyRequisite[],
   ) {}
 
-  static reconstitute(input: {
+  static fromSnapshot(input: {
     counterpartyId: string;
     currencyId: string;
     requisites: readonly CounterpartyRequisiteSnapshot[];
   }): CounterpartyRequisiteSet {
     const requisites = input.requisites.map((snapshot) =>
-      CounterpartyRequisite.reconstitute(snapshot),
+      CounterpartyRequisite.fromSnapshot(snapshot),
     );
 
     for (const requisite of requisites) {

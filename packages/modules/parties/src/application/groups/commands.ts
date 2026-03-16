@@ -72,7 +72,7 @@ export function createCreateCounterpartyGroupHandler(
       rethrowCounterpartyGroupDomainError(error);
     }
 
-    const created = CounterpartyGroup.reconstitute(
+    const created = CounterpartyGroup.fromSnapshot(
       await groups.insertCounterpartyGroup(draft.toSnapshot()),
     );
 
@@ -111,7 +111,7 @@ export function createUpdateCounterpartyGroupHandler(
       validated,
     );
     try {
-      next = CounterpartyGroup.reconstitute(existingSnapshot).update(
+      next = CounterpartyGroup.fromSnapshot(existingSnapshot).update(
         nextInput,
         {
           hierarchy,
@@ -130,7 +130,7 @@ export function createUpdateCounterpartyGroupHandler(
       await assertCustomerExists(context, next.toSnapshot().customerId!);
     }
 
-    const updatedSnapshot = CounterpartyGroup.reconstitute(
+    const updatedSnapshot = CounterpartyGroup.fromSnapshot(
       existingSnapshot,
     ).sameState(next)
       ? existingSnapshot
@@ -140,7 +140,7 @@ export function createUpdateCounterpartyGroupHandler(
       throw new CounterpartyGroupNotFoundError(id);
     }
 
-    const updated = CounterpartyGroup.reconstitute(updatedSnapshot);
+    const updated = CounterpartyGroup.fromSnapshot(updatedSnapshot);
     log.info("Counterparty group updated", { id });
     return toPublicGroup(updated);
   };
@@ -162,7 +162,7 @@ export function createRemoveCounterpartyGroupHandler(
       }
 
       try {
-        CounterpartyGroup.reconstitute(groupSnapshot).assertRemovable();
+        CounterpartyGroup.fromSnapshot(groupSnapshot).assertRemovable();
       } catch (error) {
         rethrowCounterpartyGroupDomainError(error);
       }

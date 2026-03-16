@@ -100,7 +100,7 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
                 docType: input.docType,
                 forUpdate: true,
               });
-              const aggregate = DocumentAggregate.reconstitute(document);
+              const aggregate = DocumentAggregate.fromSnapshot(document);
               const module = resolveModuleForDocument(registry, document);
               const validatedUpdateInput = validateInput(
                 module.updateSchema,

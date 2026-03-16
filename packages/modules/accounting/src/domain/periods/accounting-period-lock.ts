@@ -37,7 +37,7 @@ export class AccountingPeriodLock extends Entity<string> {
     super(snapshot.id);
   }
 
-  static reconstitute(snapshot: AccountingPeriodLockSnapshot) {
+  static fromSnapshot(snapshot: AccountingPeriodLockSnapshot) {
     invariant(
       snapshot.organizationId.trim().length > 0,
       "accounting_period_lock.organization_required",

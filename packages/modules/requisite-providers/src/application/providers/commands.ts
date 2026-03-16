@@ -52,7 +52,7 @@ export function createUpdateRequisiteProviderHandler(
       throw new RequisiteProviderNotFoundError(id);
     }
 
-    const current = RequisiteProvider.reconstitute({
+    const current = RequisiteProvider.fromSnapshot({
       ...existing,
     });
     const provider = current.update({

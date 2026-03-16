@@ -12,13 +12,13 @@ export class OrganizationRequisiteSet {
     private readonly requisites: OrganizationRequisite[],
   ) {}
 
-  static reconstitute(input: {
+  static fromSnapshot(input: {
     organizationId: string;
     currencyId: string;
     requisites: readonly OrganizationRequisiteSnapshot[];
   }): OrganizationRequisiteSet {
     const requisites = input.requisites.map((snapshot) =>
-      OrganizationRequisite.reconstitute(snapshot),
+      OrganizationRequisite.fromSnapshot(snapshot),
     );
 
     for (const requisite of requisites) {

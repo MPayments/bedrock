@@ -205,7 +205,7 @@ export class DocumentAggregate extends Entity<string> {
     });
   }
 
-  static reconstitute(snapshot: DocumentSnapshot): DocumentAggregate {
+  static fromSnapshot(snapshot: DocumentSnapshot): DocumentAggregate {
     return new DocumentAggregate(cloneSnapshot(snapshot));
   }
 

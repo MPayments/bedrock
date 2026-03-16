@@ -97,7 +97,7 @@ export function createCreateCounterpartyRequisiteHandler(
           },
           tx,
         );
-      const activeSet = CounterpartyRequisiteSet.reconstitute({
+      const activeSet = CounterpartyRequisiteSet.fromSnapshot({
         counterpartyId: validated.counterpartyId,
         currencyId: validated.currencyId,
         requisites: activeSnapshots,
@@ -113,7 +113,7 @@ export function createCreateCounterpartyRequisiteHandler(
         });
       }
 
-      const created = CounterpartyRequisite.reconstitute(
+      const created = CounterpartyRequisite.fromSnapshot(
         await requisites.insertRequisiteTx(
           tx,
           CounterpartyRequisite.create(
@@ -158,7 +158,7 @@ export function createUpdateCounterpartyRequisiteHandler(
         throw new CounterpartyRequisiteNotFoundError(id);
       }
 
-      const existing = CounterpartyRequisite.reconstitute(existingSnapshot);
+      const existing = CounterpartyRequisite.fromSnapshot(existingSnapshot);
       const current = existing.toSnapshot();
       const nextInput = resolveUpdateCounterpartyRequisiteProps(
         current,
@@ -171,7 +171,7 @@ export function createUpdateCounterpartyRequisiteHandler(
         requisiteProviders.assertProviderActive(nextInput.providerId),
       ]);
 
-      const sourceSet = CounterpartyRequisiteSet.reconstitute({
+      const sourceSet = CounterpartyRequisiteSet.fromSnapshot({
         counterpartyId: current.counterpartyId,
         currencyId: current.currencyId,
         requisites: await requisites.listActiveRequisitesByCounterpartyCurrency(
@@ -183,7 +183,7 @@ export function createUpdateCounterpartyRequisiteHandler(
         ),
       });
       const targetSet = currencyChanged
-        ? CounterpartyRequisiteSet.reconstitute({
+        ? CounterpartyRequisiteSet.fromSnapshot({
             counterpartyId: current.counterpartyId,
             currencyId: nextInput.currencyId,
             requisites:
@@ -261,7 +261,7 @@ export function createUpdateCounterpartyRequisiteHandler(
         }
       }
 
-      const updated = CounterpartyRequisite.reconstitute(persistedSnapshot);
+      const updated = CounterpartyRequisite.fromSnapshot(persistedSnapshot);
 
       log.info("Counterparty requisite updated", { id });
       return toPublicRequisite(updated);
@@ -285,9 +285,9 @@ export function createRemoveCounterpartyRequisiteHandler(
         throw new CounterpartyRequisiteNotFoundError(id);
       }
 
-      const existing = CounterpartyRequisite.reconstitute(existingSnapshot);
+      const existing = CounterpartyRequisite.fromSnapshot(existingSnapshot);
       const snapshot = existing.toSnapshot();
-      const activeSet = CounterpartyRequisiteSet.reconstitute({
+      const activeSet = CounterpartyRequisiteSet.fromSnapshot({
         counterpartyId: snapshot.counterpartyId,
         currencyId: snapshot.currencyId,
         requisites: await requisites.listActiveRequisitesByCounterpartyCurrency(

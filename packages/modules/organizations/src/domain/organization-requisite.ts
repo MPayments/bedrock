@@ -111,7 +111,7 @@ export class OrganizationRequisite extends Entity<string> {
     );
   }
 
-  static reconstitute(
+  static fromSnapshot(
     snapshot: OrganizationRequisiteSnapshot,
   ): OrganizationRequisite {
     return new OrganizationRequisite(normalizeSnapshot(snapshot));

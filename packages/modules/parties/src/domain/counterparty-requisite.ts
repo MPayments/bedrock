@@ -126,7 +126,7 @@ export class CounterpartyRequisite extends Entity<string> {
     });
   }
 
-  static reconstitute(
+  static fromSnapshot(
     snapshot: CounterpartyRequisiteSnapshot,
   ): CounterpartyRequisite {
     return new CounterpartyRequisite({ ...snapshot });

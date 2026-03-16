@@ -7,7 +7,7 @@ import { UserAccount } from "../../src/domain/user-account";
 describe("UserAccount", () => {
   it("rejects invalid required fields during reconstitution", () => {
     expect(() =>
-      UserAccount.reconstitute({
+      UserAccount.fromSnapshot({
         id: "user-1",
         name: "Alice",
         email: undefined as any,

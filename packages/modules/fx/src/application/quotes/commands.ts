@@ -253,7 +253,7 @@ export function createFxQuoteCommandHandlers(
 
     let transition;
     try {
-      transition = FxQuote.reconstitute({
+      transition = FxQuote.fromSnapshot({
         id: quoteRow.id,
         fromCurrencyId: quoteRow.fromCurrencyId,
         toCurrencyId: quoteRow.toCurrencyId,

@@ -52,7 +52,7 @@ export class CorrespondenceRule extends Entity<string> {
     });
   }
 
-  static reconstitute(snapshot: CorrespondenceRuleSnapshot): CorrespondenceRule {
+  static fromSnapshot(snapshot: CorrespondenceRuleSnapshot): CorrespondenceRule {
     return new CorrespondenceRule({
       ...snapshot,
       postingCode: normalizeRequiredText(

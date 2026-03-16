@@ -39,7 +39,7 @@ export function createReserveBalanceHandler(context: BalancesContext) {
             validated.subject,
             validated.holdRef,
           );
-          const state = BalanceState.reconstitute({
+          const state = BalanceState.fromSnapshot({
             balance: position,
             holds: existingHold ? [existingHold] : [],
           });
