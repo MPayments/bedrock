@@ -6,6 +6,11 @@ import {
   financialLineSourceSchema,
 } from "@bedrock/documents/contracts";
 import {
+  compileManualFinancialLine,
+  formatPercentFromBps,
+  parseSignedPercentToBps,
+} from "@bedrock/plugin-documents-sdk/financial-lines";
+import {
   amountValueSchema,
   parseMinorAmount,
   toMinorAmountString,
@@ -19,10 +24,7 @@ import {
 } from "./shared";
 
 const uuidSchema = z.uuid();
-type FinancialLineSettlementMode = z.infer<
-  typeof financialLineSettlementModeSchema
->;
-type FinancialLineSource = z.infer<typeof financialLineSourceSchema>;
+const financialLineCalcMethodSchema = z.enum(["fixed", "percent"]);
 
 function parseStrictMinorAmountString(value: string): bigint | null {
   if (value !== value.trim()) {
@@ -30,18 +32,6 @@ function parseStrictMinorAmountString(value: string): bigint | null {
   }
 
   return parseMinorAmount(value);
-}
-
-function toSignedMinorAmountString(input: {
-  amount: string;
-  currency: string;
-}) {
-  const amountMinor = toMinorAmountString(input.amount, input.currency);
-  if (parseMinorAmount(amountMinor) === 0n) {
-    throw new Error("amount must be non-zero");
-  }
-
-  return amountMinor;
 }
 
 const signedMinorAmountStringSchema = z
@@ -68,41 +58,48 @@ const positiveMinorAmountStringSchema = z
     },
   );
 
-const fxExecuteFinancialLineInputSchema = z
+const fxExecuteFinancialLineFixedInputSchema = z
   .object({
+    calcMethod: z.literal("fixed").optional(),
     bucket: financialLineBucketSchema,
     currency: currencyCodeSchema,
     amount: amountValueSchema,
     memo: memoSchema,
   })
+  .transform((input) => ({
+    ...input,
+    calcMethod: "fixed" as const,
+  }));
+
+const fxExecuteFinancialLinePercentInputSchema = z
+  .object({
+    calcMethod: z.literal("percent"),
+    bucket: financialLineBucketSchema,
+    currency: currencyCodeSchema.optional(),
+    percent: z.string().trim().min(1).max(32),
+    memo: memoSchema,
+  })
   .transform((input, ctx) => {
     try {
-      const amountMinor = toSignedMinorAmountString(input);
-      const source: FinancialLineSource = "manual";
-      const settlementMode: FinancialLineSettlementMode =
-        input.bucket === "pass_through"
-          ? "separate_payment_order"
-          : "in_ledger";
-
       return {
-        id: `manual:${crypto.randomUUID()}`,
-        bucket: input.bucket,
-        currency: input.currency,
-        amount: input.amount,
-        amountMinor,
-        source,
-        settlementMode,
-        memo: input.memo,
-        metadata: undefined,
+        ...input,
+        percent: formatPercentFromBps(parseSignedPercentToBps(input.percent)),
       };
     } catch (error) {
       ctx.addIssue({
         code: "custom",
-        message: error instanceof Error ? error.message : "amount is invalid",
+        message:
+          error instanceof Error ? error.message : "percent is invalid",
+        path: ["percent"],
       });
       return z.NEVER;
     }
   });
+
+const fxExecuteFinancialLineInputSchema = z.union([
+  fxExecuteFinancialLineFixedInputSchema,
+  fxExecuteFinancialLinePercentInputSchema,
+]);
 
 export const FxExecuteFinancialLinePayloadSchema = z.object({
   id: z.string().trim().min(1).max(128),
@@ -114,6 +111,8 @@ export const FxExecuteFinancialLinePayloadSchema = z.object({
   settlementMode: financialLineSettlementModeSchema,
   memo: memoSchema,
   metadata: z.record(z.string(), z.string().max(255)).optional(),
+  calcMethod: financialLineCalcMethodSchema.optional(),
+  percentBps: z.number().int().optional(),
 });
 
 const quoteLegSnapshotSchema = z.object({
@@ -152,20 +151,119 @@ export const FxExecuteOwnershipModeSchema = z.enum([
   "cross_org",
 ]);
 
-export const FxExecuteInputSchema = baseOccurredAtSchema.extend({
-  sourceRequisiteId: uuidSchema,
-  destinationRequisiteId: uuidSchema,
-  amount: amountValueSchema,
-  executionRef: referenceSchema,
-  timeoutSeconds: z
-    .number()
-    .int()
-    .positive()
-    .max(7 * 24 * 60 * 60)
-    .optional(),
-  memo: memoSchema,
-  financialLines: z.array(fxExecuteFinancialLineInputSchema).default([]),
-});
+function resolveFxExecuteFinancialLineErrorPath(
+  error: unknown,
+  index: number,
+): [string, number, string] {
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("currency")) {
+    return ["financialLines", index, "currency"];
+  }
+
+  if (message.includes("percent")) {
+    return ["financialLines", index, "percent"];
+  }
+
+  return ["financialLines", index, "amount"];
+}
+
+export function compileFxExecuteManualFinancialLines(input: {
+  financialLines: FxExecuteFinancialLineInput[];
+  amountMinor: string;
+  currency: string;
+}) {
+  return input.financialLines.map((line) =>
+    FxExecuteFinancialLinePayloadSchema.parse(
+      compileManualFinancialLine({
+        line,
+        baseAmountMinor: input.amountMinor,
+        baseCurrency: input.currency,
+      }),
+    ),
+  );
+}
+
+export const FxExecuteInputSchema = baseOccurredAtSchema
+  .extend({
+    sourceRequisiteId: uuidSchema,
+    destinationRequisiteId: uuidSchema,
+    amount: amountValueSchema,
+    currency: z.string().trim().optional(),
+    executionRef: referenceSchema,
+    timeoutSeconds: z
+      .number()
+      .int()
+      .positive()
+      .max(7 * 24 * 60 * 60)
+      .optional(),
+    memo: memoSchema,
+    financialLines: z.array(fxExecuteFinancialLineInputSchema).default([]),
+  })
+  .transform((input, ctx) => {
+    if (input.currency === undefined) {
+      return input;
+    }
+
+    const baseCurrency = input.currency.trim().toUpperCase();
+    if (baseCurrency.length === 0) {
+      input.financialLines.forEach((line, index) => {
+        if (line.calcMethod !== "percent") {
+          return;
+        }
+
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "percent-based financial lines require a resolved base currency",
+          path: ["financialLines", index, "currency"],
+        });
+      });
+
+      return z.NEVER;
+    }
+
+    try {
+      const amountMinor = toMinorAmountString(input.amount, baseCurrency, {
+        requirePositive: true,
+      });
+
+      let hasFinancialLineIssue = false;
+      input.financialLines.forEach((line, index) => {
+        try {
+          compileManualFinancialLine({
+            line,
+            baseAmountMinor: amountMinor,
+            baseCurrency,
+            createId: () => `manual:validation:${index}`,
+          });
+        } catch (error) {
+          hasFinancialLineIssue = true;
+          ctx.addIssue({
+            code: "custom",
+            message:
+              error instanceof Error ? error.message : "financial line is invalid",
+            path: resolveFxExecuteFinancialLineErrorPath(error, index),
+          });
+        }
+      });
+
+      if (hasFinancialLineIssue) {
+        return z.NEVER;
+      }
+
+      return {
+        ...input,
+        currency: baseCurrency,
+      };
+    } catch (error) {
+      ctx.addIssue({
+        code: "custom",
+        message: error instanceof Error ? error.message : "amount is invalid",
+        path: ["amount"],
+      });
+      return z.NEVER;
+    }
+  });
 
 export const FxExecutePayloadSchema = baseOccurredAtSchema.extend({
   ownershipMode: FxExecuteOwnershipModeSchema,

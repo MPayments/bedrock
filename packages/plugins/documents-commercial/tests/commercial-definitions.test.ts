@@ -59,6 +59,9 @@ describe("commercial document definitions", () => {
     });
     expect(financialLines).toMatchObject({
       kind: "financialLines",
+      supportedCalcMethods: ["fixed", "percent"],
+      baseAmountFieldName: "amount",
+      baseCurrencyFieldName: "currency",
       visibleWhen: { fieldName: "mode", equals: ["direct"] },
     });
     expect(currency).toMatchObject({
@@ -73,6 +76,59 @@ describe("commercial document definitions", () => {
     expect(quoteRef).toMatchObject({
       kind: "text",
       visibleWhen: { fieldName: "mode", equals: ["exchange"] },
+    });
+  });
+
+  it("round-trips invoice percent rows through the typed definition", () => {
+    const invoice = getCommercialDocumentDefinition("invoice");
+    const formDefinition = invoice?.formDefinition;
+
+    const values = formDefinition?.fromPayload({
+      occurredAt: "2026-03-03T10:00:00.000Z",
+      mode: "direct",
+      customerId: "00000000-0000-4000-8000-000000000001",
+      counterpartyId: "00000000-0000-4000-8000-000000000002",
+      organizationId: "00000000-0000-4000-8000-000000000003",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000004",
+      amount: "100.00",
+      amountMinor: "10000",
+      currency: "USD",
+      financialLines: [
+        {
+          id: "manual:1",
+          bucket: "fee_revenue",
+          currency: "USD",
+          amount: "1.25",
+          amountMinor: "125",
+          source: "manual",
+          settlementMode: "in_ledger",
+          calcMethod: "percent",
+          percentBps: 125,
+        },
+      ],
+    });
+
+    expect(values?.financialLines).toEqual([
+      {
+        calcMethod: "percent",
+        bucket: "fee_revenue",
+        currency: "USD",
+        amount: "",
+        percent: "1.25",
+        memo: "",
+      },
+    ]);
+
+    expect(formDefinition?.toPayload(values ?? {})).toMatchObject({
+      mode: "direct",
+      financialLines: [
+        {
+          calcMethod: "percent",
+          bucket: "fee_revenue",
+          currency: "USD",
+          percent: "1.25",
+        },
+      ],
     });
   });
 });

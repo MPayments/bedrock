@@ -10,6 +10,7 @@ export type {
   DocumentFormDefinition,
   DocumentFormField,
   DocumentFormFieldOption,
+  FinancialLineCalcMethod,
   DocumentFormResponsiveCount,
   DocumentFormRow,
   DocumentFormRowField,

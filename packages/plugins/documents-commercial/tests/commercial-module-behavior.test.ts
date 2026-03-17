@@ -157,6 +157,46 @@ describe("commercial document modules", () => {
     );
   });
 
+  it("compiles percent financial lines into direct invoice draft payload", async () => {
+    const module = createInvoiceDocumentModule(createDeps() as any);
+
+    const draft = await module.createDraft?.(
+      { db: {} } as any,
+      {
+        occurredAt: new Date("2026-03-03T10:00:00.000Z"),
+        mode: "direct",
+        customerId: "00000000-0000-4000-8000-000000000301",
+        counterpartyId: "00000000-0000-4000-8000-000000000302",
+        organizationId: "00000000-0000-4000-8000-000000000113",
+        organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+        amount: "100.00",
+        amountMinor: "10000",
+        currency: "USD",
+        financialLines: [
+          {
+            calcMethod: "percent",
+            bucket: "fee_revenue",
+            currency: "USD",
+            percent: "1.25",
+          },
+        ],
+        memo: "invoice",
+      },
+    );
+
+    expect(draft?.payload).toMatchObject({
+      financialLines: [
+        {
+          calcMethod: "percent",
+          percentBps: 125,
+          currency: "USD",
+          amountMinor: "125",
+          source: "manual",
+        },
+      ],
+    });
+  });
+
   it("builds an exchange parent link from the draft payload", async () => {
     const module = createExchangeDocumentModule(createDeps() as any);
 

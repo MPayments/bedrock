@@ -36,6 +36,7 @@ export {
 } from "./contracts";
 
 export {
+  compileFxExecuteManualFinancialLines,
   AccrualAdjustmentInputSchema,
   AccrualAdjustmentSchema,
   CapitalFundingInputSchema,

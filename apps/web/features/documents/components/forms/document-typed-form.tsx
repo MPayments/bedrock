@@ -46,6 +46,11 @@ import {
   type DocumentFormField,
   type DocumentFormResponsiveCount,
 } from "@/features/documents/lib/document-form-registry";
+import {
+  createEmptyFinancialLineFormValue,
+  getLockedFinancialLineCurrency,
+  resolveFinancialLineCalcMethod,
+} from "@/features/documents/lib/financial-lines";
 import { resolveDocumentFormSectionRows } from "@/features/documents/lib/document-form-registry/layout";
 import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
 import {
@@ -259,6 +264,7 @@ function getResponsiveGridItemClassName(
 
 function FinancialLinesField({
   control,
+  setValue,
   field,
   currencySelectOptions,
   disabled,
@@ -267,6 +273,7 @@ function FinancialLinesField({
   className,
 }: {
   control: ReturnType<typeof useForm<DocumentFormValues>>["control"];
+  setValue: ReturnType<typeof useForm<DocumentFormValues>>["setValue"];
   field: Extract<DocumentFormField, { kind: "financialLines" }>;
   currencySelectOptions: Array<{ value: string; label: string }>;
   disabled: boolean;
@@ -278,6 +285,56 @@ function FinancialLinesField({
     control,
     name: field.name as never,
   });
+  const watchedFinancialLines = useWatch({
+    control,
+    name: field.name as never,
+  }) as unknown;
+  const financialLines = useMemo(
+    () =>
+      Array.isArray(watchedFinancialLines)
+        ? (watchedFinancialLines as Array<Record<string, unknown>>)
+        : [],
+    [watchedFinancialLines],
+  );
+  const baseAmount = readValueAsString(
+    useWatch({
+      control,
+      name: field.baseAmountFieldName as never,
+    }),
+  ).trim();
+  const baseCurrency = readValueAsString(
+    useWatch({
+      control,
+      name: field.baseCurrencyFieldName as never,
+    }),
+  )
+    .trim()
+    .toUpperCase();
+
+  useEffect(() => {
+    financialLines.forEach((line, index) => {
+      const calcMethod = resolveFinancialLineCalcMethod({
+        calcMethod: line.calcMethod,
+        supportedCalcMethods: field.supportedCalcMethods,
+      });
+      if (calcMethod !== "percent") {
+        return;
+      }
+
+      const lockedCurrency = getLockedFinancialLineCurrency({
+        calcMethod,
+        rowCurrency: line.currency,
+        baseCurrency,
+      });
+      if (readValueAsString(line.currency) === lockedCurrency) {
+        return;
+      }
+
+      setValue(`${field.name}.${index}.currency` as never, lockedCurrency as never, {
+        shouldDirty: false,
+      });
+    });
+  }, [baseCurrency, field.name, field.supportedCalcMethods, financialLines, setValue]);
 
   return (
     <Field key={field.name} className={className}>
@@ -293,14 +350,7 @@ function FinancialLinesField({
           variant="outline"
           size="sm"
           disabled={disabled || submitting}
-          onClick={() =>
-            append({
-              bucket: field.bucketOptions[0]?.value ?? "",
-              currency: "",
-              amount: "",
-              memo: "",
-            })
-          }
+          onClick={() => append(createEmptyFinancialLineFormValue(field))}
         >
           <Plus className="size-4" />
           Добавить строку
@@ -315,16 +365,72 @@ function FinancialLinesField({
         ) : null}
 
         {fields.map((item, index) => {
+          const currentLine = financialLines[index] ?? {};
+          const calcMethod = resolveFinancialLineCalcMethod({
+            calcMethod: currentLine.calcMethod,
+            supportedCalcMethods: field.supportedCalcMethods,
+          });
+          const isPercent = calcMethod === "percent";
+          const lockedCurrency = getLockedFinancialLineCurrency({
+            calcMethod,
+            rowCurrency: currentLine.currency,
+            baseCurrency,
+          });
+          const calcMethodPath = `${field.name}.${index}.calcMethod`;
           const bucketPath = `${field.name}.${index}.bucket`;
           const currencyPath = `${field.name}.${index}.currency`;
           const amountPath = `${field.name}.${index}.amount`;
+          const percentPath = `${field.name}.${index}.percent`;
           const memoPath = `${field.name}.${index}.memo`;
 
           return (
             <div
               key={item.id}
-              className="grid gap-3 rounded-sm border p-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto]"
+              className="grid gap-3 rounded-sm border p-3 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto]"
             >
+              {field.supportedCalcMethods.length > 1 ? (
+                <Field
+                  data-invalid={Boolean(fieldErrorMessage(errors, calcMethodPath))}
+                >
+                  <FieldLabel>Метод</FieldLabel>
+                  <Controller
+                    control={control}
+                    name={calcMethodPath as never}
+                    render={({ field: controlledField }) => (
+                      <Select
+                        value={calcMethod}
+                        disabled={disabled || submitting}
+                        onValueChange={(value) => {
+                          controlledField.onChange(value);
+                          if (value === "percent") {
+                            setValue(currencyPath, baseCurrency, {
+                              shouldDirty: true,
+                            });
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Выберите метод" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {field.supportedCalcMethods.includes("fixed") ? (
+                            <SelectItem value="fixed">Сумма</SelectItem>
+                          ) : null}
+                          {field.supportedCalcMethods.includes("percent") ? (
+                            <SelectItem value="percent">Процент</SelectItem>
+                          ) : null}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {fieldErrorMessage(errors, calcMethodPath) ? (
+                    <p className="text-sm text-destructive">
+                      {fieldErrorMessage(errors, calcMethodPath)}
+                    </p>
+                  ) : null}
+                </Field>
+              ) : null}
+
               <Field data-invalid={Boolean(fieldErrorMessage(errors, bucketPath))}>
                 <FieldLabel>Bucket</FieldLabel>
                 <Controller
@@ -363,33 +469,43 @@ function FinancialLinesField({
 
               <Field data-invalid={Boolean(fieldErrorMessage(errors, currencyPath))}>
                 <FieldLabel>Валюта</FieldLabel>
-                <Controller
-                  control={control}
-                  name={currencyPath as never}
-                  render={({ field: controlledField }) => (
-                    <Select
-                      value={readValueAsString(controlledField.value)}
-                      disabled={disabled || submitting}
-                      onValueChange={(value) => controlledField.onChange(value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите валюту">
-                          {findSelectedLabel(
-                            controlledField.value,
-                            currencySelectOptions,
-                          )}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {currencySelectOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
+                {isPercent ? (
+                  <Input
+                    type="text"
+                    value={lockedCurrency}
+                    placeholder="Валюта документа"
+                    disabled
+                    readOnly
+                  />
+                ) : (
+                  <Controller
+                    control={control}
+                    name={currencyPath as never}
+                    render={({ field: controlledField }) => (
+                      <Select
+                        value={readValueAsString(controlledField.value)}
+                        disabled={disabled || submitting}
+                        onValueChange={(value) => controlledField.onChange(value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Выберите валюту">
+                            {findSelectedLabel(
+                              controlledField.value,
+                              currencySelectOptions,
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {currencySelectOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                )}
                 {fieldErrorMessage(errors, currencyPath) ? (
                   <p className="text-sm text-destructive">
                     {fieldErrorMessage(errors, currencyPath)}
@@ -397,30 +513,73 @@ function FinancialLinesField({
                 ) : null}
               </Field>
 
-              <Field data-invalid={Boolean(fieldErrorMessage(errors, amountPath))}>
-                <FieldLabel>Сумма</FieldLabel>
-                <Controller
-                  control={control}
-                  name={amountPath as never}
-                  render={({ field: controlledField }) => (
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      value={readValueAsString(controlledField.value)}
-                      placeholder="0.00"
-                      disabled={disabled || submitting}
-                      onChange={(event) =>
-                        controlledField.onChange(event.target.value)
-                      }
-                    />
-                  )}
-                />
-                {fieldErrorMessage(errors, amountPath) ? (
-                  <p className="text-sm text-destructive">
-                    {fieldErrorMessage(errors, amountPath)}
-                  </p>
-                ) : null}
-              </Field>
+              {isPercent ? (
+                <Field
+                  data-invalid={Boolean(fieldErrorMessage(errors, percentPath))}
+                >
+                  <FieldLabel>Процент</FieldLabel>
+                  <FieldDescription>
+                    Процент от суммы документа
+                    {baseAmount || baseCurrency
+                      ? `: ${[baseAmount, baseCurrency].filter(Boolean).join(" ")}`
+                      : ""}
+                    .
+                  </FieldDescription>
+                  <Controller
+                    control={control}
+                    name={percentPath as never}
+                    render={({ field: controlledField }) => (
+                      <InputGroup>
+                        <InputGroupInput
+                          type="text"
+                          inputMode="decimal"
+                          value={readValueAsString(controlledField.value)}
+                          placeholder="1.25"
+                          disabled={disabled || submitting}
+                          onChange={(event) =>
+                            controlledField.onChange(event.target.value)
+                          }
+                        />
+                        <InputGroupAddon align="inline-end">
+                          <InputGroupText>%</InputGroupText>
+                        </InputGroupAddon>
+                      </InputGroup>
+                    )}
+                  />
+                  {fieldErrorMessage(errors, percentPath) ? (
+                    <p className="text-sm text-destructive">
+                      {fieldErrorMessage(errors, percentPath)}
+                    </p>
+                  ) : null}
+                </Field>
+              ) : (
+                <Field
+                  data-invalid={Boolean(fieldErrorMessage(errors, amountPath))}
+                >
+                  <FieldLabel>Сумма</FieldLabel>
+                  <Controller
+                    control={control}
+                    name={amountPath as never}
+                    render={({ field: controlledField }) => (
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        value={readValueAsString(controlledField.value)}
+                        placeholder="0.00"
+                        disabled={disabled || submitting}
+                        onChange={(event) =>
+                          controlledField.onChange(event.target.value)
+                        }
+                      />
+                    )}
+                  />
+                  {fieldErrorMessage(errors, amountPath) ? (
+                    <p className="text-sm text-destructive">
+                      {fieldErrorMessage(errors, amountPath)}
+                    </p>
+                  ) : null}
+                </Field>
+              )}
 
               <Field data-invalid={Boolean(fieldErrorMessage(errors, memoPath))}>
                 <FieldLabel>Комментарий</FieldLabel>
@@ -1294,6 +1453,7 @@ export function DocumentTypedForm({
                             <FinancialLinesField
                               key={field.name}
                               control={control}
+                              setValue={setValue}
                               field={field}
                               currencySelectOptions={currencySelectOptions}
                               disabled={disabled}

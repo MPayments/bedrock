@@ -15,6 +15,7 @@ import { COMMERCIAL_DOCUMENT_METADATA } from "../metadata";
 import {
   InvoiceInputSchema,
   InvoicePayloadSchema,
+  compileInvoiceDirectFinancialLines,
   type InvoiceInput,
 } from "../validation";
 import {
@@ -50,6 +51,11 @@ export function createInvoiceDocumentModule(
       if (input.mode === "direct") {
         return buildDocumentDraft(input, {
           ...serializeOccurredAt(input),
+          financialLines: compileInvoiceDirectFinancialLines({
+            financialLines: input.financialLines,
+            amountMinor: input.amountMinor,
+            currency: input.currency,
+          }),
           memo: input.memo,
         });
       }

@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import {
+  compileManualFinancialLine,
+  formatPercentFromBps,
+  parseSignedPercentToBps,
+} from "@bedrock/plugin-documents-sdk/financial-lines";
+import {
   baseOccurredAtSchema,
   currencyCodeSchema,
   memoSchema,
@@ -51,52 +56,50 @@ const positiveMinorAmountStringSchema = z
   );
 
 export const InvoiceModeSchema = z.enum(["direct", "exchange"]);
+const financialLineCalcMethodSchema = z.enum(["fixed", "percent"]);
 
-function toSignedMinorAmountString(input: {
-  amount: string;
-  currency: string;
-}) {
-  const amountMinor = toMinorAmountString(input.amount, input.currency);
-  if (parseMinorAmount(amountMinor) === 0n) {
-    throw new Error("amount must be non-zero");
-  }
-
-  return amountMinor;
-}
-
-const directFinancialLineInputSchema = z
+const directFinancialLineFixedInputSchema = z
   .object({
+    calcMethod: z.literal("fixed").optional(),
     bucket: financialLineBucketSchema,
     currency: currencyCodeSchema,
     amount: amountValueSchema,
     memo: memoSchema,
   })
+  .transform((input) => ({
+    ...input,
+    calcMethod: "fixed" as const,
+  }));
+
+const directFinancialLinePercentInputSchema = z
+  .object({
+    calcMethod: z.literal("percent"),
+    bucket: financialLineBucketSchema,
+    currency: currencyCodeSchema.optional(),
+    percent: z.string().trim().min(1).max(32),
+    memo: memoSchema,
+  })
   .transform((input, ctx) => {
     try {
-      const amountMinor = toSignedMinorAmountString(input);
-
       return {
-        id: `manual:${crypto.randomUUID()}`,
-        bucket: input.bucket,
-        currency: input.currency,
-        amount: input.amount,
-        amountMinor,
-        source: "manual" as const,
-        settlementMode:
-          input.bucket === "pass_through"
-            ? "separate_payment_order"
-            : "in_ledger",
-        memo: input.memo,
-        metadata: undefined,
+        ...input,
+        percent: formatPercentFromBps(parseSignedPercentToBps(input.percent)),
       };
     } catch (error) {
       ctx.addIssue({
         code: "custom",
-        message: error instanceof Error ? error.message : "amount is invalid",
+        message:
+          error instanceof Error ? error.message : "percent is invalid",
+        path: ["percent"],
       });
       return z.NEVER;
     }
   });
+
+const directFinancialLineInputSchema = z.union([
+  directFinancialLineFixedInputSchema,
+  directFinancialLinePercentInputSchema,
+]);
 
 const financialLinePayloadSchema = z.object({
   id: z.string().trim().min(1).max(128),
@@ -108,6 +111,8 @@ const financialLinePayloadSchema = z.object({
   settlementMode: financialLineSettlementModeSchema,
   memo: memoSchema,
   metadata: z.record(z.string(), z.string().max(255)).optional(),
+  calcMethod: financialLineCalcMethodSchema.optional(),
+  percentBps: z.number().int().optional(),
 });
 
 const quoteLegSnapshotSchema = z.object({
@@ -157,12 +162,67 @@ const invoiceDirectInputBaseSchema = invoiceBaseInputSchema.extend({
   financialLines: z.array(directFinancialLineInputSchema).default([]),
 });
 
-export const InvoiceDirectInputSchema = invoiceDirectInputBaseSchema.transform(
-  (input, ctx) => {
+function resolveDirectFinancialLineErrorPath(
+  error: unknown,
+  index: number,
+): [string, number, string] {
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("currency")) {
+    return ["financialLines", index, "currency"];
+  }
+
+  if (message.includes("percent")) {
+    return ["financialLines", index, "percent"];
+  }
+
+  return ["financialLines", index, "amount"];
+}
+
+export function compileInvoiceDirectFinancialLines(input: {
+  financialLines: DirectFinancialLineInput[];
+  amountMinor: string;
+  currency: string;
+}) {
+  return input.financialLines.map((line) =>
+    financialLinePayloadSchema.parse(
+      compileManualFinancialLine({
+        line,
+        baseAmountMinor: input.amountMinor,
+        baseCurrency: input.currency,
+      }),
+    ),
+  );
+}
+
+export const InvoiceDirectInputSchema = invoiceDirectInputBaseSchema.transform((input, ctx) => {
     try {
       const amountMinor = toMinorAmountString(input.amount, input.currency, {
         requirePositive: true,
       });
+
+      let hasFinancialLineIssue = false;
+      input.financialLines.forEach((line, index) => {
+        try {
+          compileManualFinancialLine({
+            line,
+            baseAmountMinor: amountMinor,
+            baseCurrency: input.currency,
+            createId: () => `manual:validation:${index}`,
+          });
+        } catch (error) {
+          hasFinancialLineIssue = true;
+          ctx.addIssue({
+            code: "custom",
+            message:
+              error instanceof Error ? error.message : "financial line is invalid",
+            path: resolveDirectFinancialLineErrorPath(error, index),
+          });
+        }
+      });
+
+      if (hasFinancialLineIssue) {
+        return z.NEVER;
+      }
 
       return {
         ...input,

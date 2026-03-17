@@ -7,6 +7,7 @@ import {
   readString,
   toOccurredAtIso,
 } from "@bedrock/plugin-documents-sdk/definitions/shared";
+import { formatPercentFromBps } from "@bedrock/plugin-documents-sdk/financial-lines";
 import { normalizeMajorAmountInput } from "@bedrock/shared/money";
 
 import { FINANCIAL_LINE_BUCKET_OPTIONS } from "../financial-lines";
@@ -54,14 +55,46 @@ export function mapPayloadFinancialLines(
   financialLines: FinancialLinePayload[] | undefined,
 ) {
   return (financialLines ?? []).map((line) => ({
+    calcMethod:
+      line.calcMethod === "percent" && typeof line.percentBps === "number"
+        ? "percent"
+        : "fixed",
     bucket: line.bucket,
     currency: line.currency,
     amount:
-      typeof line.amount === "string"
-        ? line.amount
-        : normalizeCommercialMajorAmountInput(line.amountMinor, line.currency),
+      line.calcMethod === "percent" && typeof line.percentBps === "number"
+        ? ""
+        : typeof line.amount === "string"
+          ? line.amount
+          : normalizeCommercialMajorAmountInput(line.amountMinor, line.currency),
+    percent:
+      line.calcMethod === "percent" && typeof line.percentBps === "number"
+        ? formatPercentFromBps(line.percentBps)
+        : "",
     memo: readString(line.memo),
   }));
+}
+
+function mapFinancialLineInput(
+  line: Record<string, unknown>,
+) {
+  const calcMethod =
+    readString(line.calcMethod).trim() === "percent" ? "percent" : "fixed";
+
+  return {
+    calcMethod,
+    bucket: readString(line.bucket).trim(),
+    currency: readString(line.currency).trim(),
+    amount:
+      calcMethod === "fixed"
+        ? normalizeCommercialMajorAmountInput(line.amount, line.currency)
+        : undefined,
+    percent:
+      calcMethod === "percent"
+        ? readString(line.percent).trim()
+        : undefined,
+    memo: optionalString(line.memo),
+  };
 }
 
 export function createInvoicePayload(values: Record<string, unknown>) {
@@ -76,17 +109,9 @@ export function createInvoicePayload(values: Record<string, unknown>) {
     currency: readString(values.currency).trim(),
     quoteRef: optionalString(values.quoteRef),
     financialLines: Array.isArray(values.financialLines)
-      ? values.financialLines.map((line) => ({
-          bucket: readString((line as Record<string, unknown>).bucket).trim(),
-          currency: readString(
-            (line as Record<string, unknown>).currency,
-          ).trim(),
-          amount: normalizeCommercialMajorAmountInput(
-            (line as Record<string, unknown>).amount,
-            (line as Record<string, unknown>).currency,
-          ),
-          memo: optionalString((line as Record<string, unknown>).memo),
-        }))
+      ? values.financialLines.map((line) =>
+          mapFinancialLineInput(line as Record<string, unknown>),
+        )
       : [],
     memo: optionalString(values.memo),
   });

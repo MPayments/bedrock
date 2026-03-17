@@ -498,6 +498,7 @@
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
         "@bedrock/documents": "workspace:*",
+        "@bedrock/shared": "workspace:*",
         "zod": "^4.1.11",
       },
       "devDependencies": {
