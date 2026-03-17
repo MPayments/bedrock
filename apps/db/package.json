@@ -38,15 +38,15 @@
     "@bedrock/requisites": "workspace:*",
     "better-auth": "^1.4.18",
     "dotenv": "^17.3.1",
-    "drizzle-orm": "^0.45.1"
+    "drizzle-kit": "^0.31.9",
+    "drizzle-orm": "^0.45.1",
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
-    "drizzle-kit": "^0.31.9",
     "eslint": "^9.31.0",
-    "tsx": "^4.21.0",
     "typescript": "^5.8.3",
     "vitest": "^4.0.18"
   },

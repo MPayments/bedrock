@@ -2,13 +2,13 @@
 # Bedrock — production compose for Dokploy/Traefik deployment
 #
 # Prerequisites:
-#   - External Postgres and TigerBeetle accessible from dokploy-network
-#   - .env with DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, TB_ADDRESS
+#   - External Postgres accessible from dokploy-network
+#   - .env with DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 #
 # Deployment:
 #   1. docker compose up db-migrate    # apply migrations
 #   2. docker compose up db-seed       # seed data (first deploy only)
-#   3. docker compose up -d api web workers
+#   3. docker compose up -d tigerbeetle api web workers
 #
 # Access: http://<SERVER_IP> (Traefik catch-all, priority=1)
 # ---------------------------------------------------------------------------
@@ -17,7 +17,27 @@ networks:
   dokploy-network:
     external: true
 
+volumes:
+  tigerbeetle-data:
+
 services:
+  # ---------------------------------------------------------------------------
+  # Infrastructure
+  # ---------------------------------------------------------------------------
+  tigerbeetle:
+    image: ghcr.io/tigerbeetle/tigerbeetle
+    container_name: bedrock-tigerbeetle
+    restart: unless-stopped
+    volumes:
+      - tigerbeetle-data:/data
+    command: "start --addresses=0.0.0.0:3000 /data/0_0.tigerbeetle"
+    security_opt:
+      - seccomp=unconfined
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - dokploy-network
+
   # ---------------------------------------------------------------------------
   # Init containers (run once per deploy, then exit)
   # ---------------------------------------------------------------------------
@@ -66,14 +86,17 @@ services:
     depends_on:
       db-migrate:
         condition: service_completed_successfully
+      tigerbeetle:
+        condition: service_started
     environment:
       PORT: 3002
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      TB_ADDRESS: ${TB_ADDRESS}
+      TB_ADDRESS: bedrock-tigerbeetle:3000
       TB_CLUSTER_ID: ${TB_CLUSTER_ID:-0}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL}
@@ -87,6 +110,8 @@ services:
     build:
       context: ..
       dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://bedrock-api:3002
     container_name: bedrock-web
     depends_on:
       - api
@@ -114,13 +139,15 @@ services:
     depends_on:
       db-migrate:
         condition: service_completed_successfully
+      tigerbeetle:
+        condition: service_started
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      TB_ADDRESS: ${TB_ADDRESS}
+      TB_ADDRESS: bedrock-tigerbeetle:3000
       TB_CLUSTER_ID: ${TB_CLUSTER_ID:-0}
       WORKERS_MONITORING_HOST: "0.0.0.0"
       WORKERS_MONITORING_PORT: 8081

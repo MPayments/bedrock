@@ -20,6 +20,13 @@ COPY --from=pruner /repo/out/json/ ./
 COPY --from=pruner /repo/patches/ ./patches/
 RUN bun install --frozen-lockfile
 
+# --- Bundle with esbuild ---
+FROM base AS builder
+WORKDIR /repo
+COPY --from=installer /repo/ ./
+COPY --from=pruner /repo/out/full/ ./
+RUN cd apps/workers && node build.mjs
+
 # --- Runner ---
 FROM base AS runner
 
@@ -29,12 +36,10 @@ RUN groupadd --gid 1001 bedrock && \
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY --from=installer /repo/ ./
-COPY --from=pruner /repo/out/full/ ./
+COPY --from=builder /repo/ ./
 
 USER bedrock
 
 EXPOSE 8081
 
-# Default: all workers. Override: ["node","--import=tsx","apps/workers/src/main.ts","ledger"]
-CMD ["node", "--import=tsx", "apps/workers/src/main.ts", "all"]
+CMD ["node", "apps/workers/dist/server.mjs", "all"]
