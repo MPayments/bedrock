@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { applyPatch } from "@bedrock/shared/core";
+
 import type {
   CreateCustomerInput,
   Customer as CustomerDto,
@@ -9,7 +11,7 @@ import {
   CreateCustomerInputSchema,
   UpdateCustomerInputSchema,
 } from "../../contracts";
-import { Customer } from "../../domain/customer";
+import { Customer, type UpdateCustomerProps } from "../../domain/customer";
 import { GroupHierarchy } from "../../domain/group-hierarchy";
 import {
   CustomerDeleteConflictError,
@@ -72,7 +74,8 @@ export function createUpdateCustomerHandler(context: PartiesServiceContext) {
       }
 
       const existing = Customer.fromSnapshot(existingSnapshot);
-      const next = existing.update(validated, context.now());
+      const current: UpdateCustomerProps = existing.toSnapshot();
+      const next = existing.update(applyPatch(current, validated), context.now());
       const persistedSnapshot = existing.sameState(next)
         ? existingSnapshot
         : await customers.updateCustomer(next.toSnapshot());

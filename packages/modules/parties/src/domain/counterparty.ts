@@ -1,5 +1,4 @@
 import {
-  applyPatch,
   dedupeIds,
   Entity,
   invariant,
@@ -154,39 +153,27 @@ export class Counterparty extends Entity<string> {
   }
 
   update(
-    input: Partial<UpdateCounterpartyProps>,
+    input: UpdateCounterpartyProps,
     deps: {
       hierarchy: GroupHierarchy;
       managedGroupId?: string | null;
       now: Date;
     },
   ): Counterparty {
-    const customerId =
-      input.customerId !== undefined ? input.customerId : this.snapshot.customerId;
-    const groupIds =
-      input.groupIds !== undefined
-        ? input.groupIds
-        : input.customerId !== undefined
-          ? deps.hierarchy.withoutCustomerScopedGroups(this.snapshot.groupIds)
-          : this.snapshot.groupIds;
-
     invariant(
-      !customerId || deps.managedGroupId,
+      !input.customerId || deps.managedGroupId,
       "counterparty.managed_group_required",
       "managed customer group is required for customer-linked counterparties",
-      { customerId },
+      { customerId: input.customerId },
     );
 
     return new Counterparty({
-      ...applyPatch<CounterpartySnapshot>(this.snapshot, {
-        ...(input as Partial<CounterpartySnapshot>),
-        customerId,
-        groupIds,
-      }),
+      ...this.snapshot,
+      ...input,
       groupIds: resolveGroups({
-        groupIds,
+        groupIds: input.groupIds,
         hierarchy: deps.hierarchy,
-        customerId,
+        customerId: input.customerId,
         managedGroupId: deps.managedGroupId ?? null,
       }),
       updatedAt: deps.now,

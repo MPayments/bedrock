@@ -1,4 +1,4 @@
-import { applyPatch, Entity, normalizeRequiredText } from "@bedrock/shared/core";
+import { Entity, normalizeRequiredText } from "@bedrock/shared/core";
 
 import { RequisiteOwner } from "./owner";
 import { RequisiteDetails, type RequisiteDetailsFields } from "./requisite-details";
@@ -119,13 +119,11 @@ export class Requisite extends Entity<string> {
     return new Requisite(normalizeSnapshot(snapshot));
   }
 
-  update(input: Partial<UpdateRequisiteProps>, now: Date): Requisite {
+  update(input: UpdateRequisiteProps, now: Date): Requisite {
     return new Requisite(
       normalizeSnapshot({
-        ...applyPatch<RequisiteSnapshot>(
-          this.snapshot,
-          input as Partial<RequisiteSnapshot>,
-        ),
+        ...this.snapshot,
+        ...input,
         updatedAt: now,
       }),
     );

@@ -1,5 +1,4 @@
 import {
-  applyPatch,
   Entity,
   normalizeOptionalText,
   normalizeRequiredText,
@@ -7,6 +6,17 @@ import {
 
 import { UserEmail } from "./user-email";
 import { type UserRole, toUserRoleOrNull } from "./user-role";
+
+export interface UpdateUserProfileProps {
+  name: string;
+  email: string;
+  role: UserRole | null;
+}
+
+export interface BanUserProps {
+  banReason: string | null;
+  banExpires: Date | null;
+}
 
 export interface UserAccountSnapshot {
   id: string;
@@ -57,41 +67,22 @@ export class UserAccount extends Entity<string> {
     return UserEmail.create(email).value;
   }
 
-  updateProfile(input: {
-    name?: string;
-    email?: string;
-    role?: UserRole | null;
-    now: Date;
-  }): UserAccount {
-    const next = applyPatch(this.snapshot, {
-      name:
-        input.name === undefined
-          ? undefined
-          : UserAccount.normalizeName(input.name),
-      email:
-        input.email === undefined
-          ? undefined
-          : UserAccount.normalizeEmail(input.email),
-      role:
-        input.role === undefined ? undefined : toUserRoleOrNull(input.role),
-    });
-
+  updateProfile(input: UpdateUserProfileProps & { now: Date }): UserAccount {
     return new UserAccount({
-      ...next,
+      ...this.snapshot,
+      name: UserAccount.normalizeName(input.name),
+      email: UserAccount.normalizeEmail(input.email),
+      role: toUserRoleOrNull(input.role),
       updatedAt: input.now,
     });
   }
 
-  ban(input: {
-    banReason?: string;
-    banExpires?: Date;
-    now: Date;
-  }): UserAccount {
+  ban(input: BanUserProps & { now: Date }): UserAccount {
     return new UserAccount({
       ...this.snapshot,
       banned: true,
       banReason: normalizeOptionalText(input.banReason),
-      banExpires: input.banExpires ?? null,
+      banExpires: input.banExpires,
       updatedAt: input.now,
     });
   }

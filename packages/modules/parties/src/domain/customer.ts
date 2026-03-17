@@ -1,5 +1,4 @@
 import {
-  applyPatch,
   Entity,
   normalizeOptionalText,
   normalizeRequiredText,
@@ -65,12 +64,10 @@ export class Customer extends Entity<string> {
     return new Customer({ ...snapshot });
   }
 
-  update(input: Partial<UpdateCustomerProps>, now: Date): Customer {
+  update(input: UpdateCustomerProps, now: Date): Customer {
     return new Customer({
-      ...applyPatch<CustomerSnapshot>(
-        this.snapshot,
-        input as Partial<CustomerSnapshot>,
-      ),
+      ...this.snapshot,
+      ...input,
       updatedAt: now,
     });
   }

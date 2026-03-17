@@ -1,3 +1,5 @@
+import { applyPatch } from "@bedrock/shared/core";
+
 import {
   BanUserInputSchema,
   ChangeOwnPasswordInputSchema,
@@ -12,7 +14,11 @@ import {
   type User,
 } from "../contracts";
 import { toUser } from "./mappers";
-import { UserAccount } from "../domain/user-account";
+import {
+  type BanUserProps,
+  UserAccount,
+  type UpdateUserProfileProps,
+} from "../domain/user-account";
 import { toUserRoleOrNull } from "../domain/user-role";
 import {
   InvalidPasswordError,
@@ -70,8 +76,9 @@ export function createUpdateUserHandler(context: UsersServiceContext) {
       banExpires: existing.banExpires ?? null,
       twoFactorEnabled: existing.twoFactorEnabled ?? false,
     });
+    const current: UpdateUserProfileProps = existingAccount.toSnapshot();
     const updatedAccount = existingAccount.updateProfile({
-      ...validated,
+      ...applyPatch(current, validated),
       now: new Date(),
     });
     const updatedSnapshot = updatedAccount.toSnapshot();
@@ -182,6 +189,10 @@ export function createBanUserHandler(context: UsersServiceContext) {
       throw new UserNotFoundError(id);
     }
 
+    const banInput: BanUserProps = {
+      banReason: validated.banReason ?? null,
+      banExpires: validated.banExpires ?? null,
+    };
     const updatedAccount = UserAccount.fromSnapshot({
       ...existing,
       role: toUserRoleOrNull(existing.role),
@@ -189,7 +200,7 @@ export function createBanUserHandler(context: UsersServiceContext) {
       banExpires: existing.banExpires ?? null,
       twoFactorEnabled: existing.twoFactorEnabled ?? false,
     }).ban({
-      ...validated,
+      ...banInput,
       now: new Date(),
     });
 

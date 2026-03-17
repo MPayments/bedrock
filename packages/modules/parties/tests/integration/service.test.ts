@@ -63,6 +63,40 @@ describe("parties integration", () => {
     expect(renamedGroups[0]!.name).toContain("Updated");
   });
 
+  it("drops customer-scoped memberships when clearing a counterparty customer link", async () => {
+    const { service } = createRuntime();
+    const customer = await service.customers.create({
+      displayName: uniqueLabel("Detach"),
+      externalRef: uniqueLabel("crm"),
+    });
+    const [managedGroup] = await service.groups.list({
+      customerId: customer.id,
+      includeSystem: true,
+    });
+    const nestedGroup = await service.groups.create({
+      code: uniqueLabel("nested"),
+      name: "Nested",
+      parentId: managedGroup!.id,
+    });
+    const sharedGroup = await service.groups.create({
+      code: uniqueLabel("shared"),
+      name: "Shared",
+    });
+    const counterparty = await service.counterparties.create({
+      shortName: "Acme CP",
+      fullName: "Acme Counterparty",
+      customerId: customer.id,
+      groupIds: [nestedGroup.id, sharedGroup.id],
+    });
+
+    const updated = await service.counterparties.update(counterparty.id, {
+      customerId: null,
+    });
+
+    expect(updated.customerId).toBeNull();
+    expect(updated.groupIds).toEqual([sharedGroup.id]);
+  });
+
   it("deletes customer-scoped group subtree and detaches counterparties on customer removal", async () => {
     const { service } = createRuntime();
     const customer = await service.customers.create({

@@ -1,5 +1,4 @@
 import {
-  applyPatch,
   Entity,
   invariant,
   normalizeOptionalText,
@@ -153,16 +152,16 @@ export class CounterpartyGroup extends Entity<string> {
   }
 
   update(
-    input: Partial<UpdateCounterpartyGroupProps>,
+    input: UpdateCounterpartyGroupProps,
     deps: {
       hierarchy: GroupHierarchy;
       now: Date;
     },
   ): CounterpartyGroup {
-    const next = applyPatch<CounterpartyGroupSnapshot>(
-      this.snapshot,
-      input as Partial<CounterpartyGroupSnapshot>,
-    );
+    const next = {
+      ...this.snapshot,
+      ...input,
+    };
     const hasStateChanges =
       next.code !== this.snapshot.code ||
       next.name !== this.snapshot.name ||
@@ -208,7 +207,6 @@ export class CounterpartyGroup extends Entity<string> {
       });
 
       return new CounterpartyGroup({
-        ...this.snapshot,
         ...next,
         parentId: next.parentId,
         customerId: nextCustomerId,
@@ -224,7 +222,6 @@ export class CounterpartyGroup extends Entity<string> {
     );
 
     return new CounterpartyGroup({
-      ...this.snapshot,
       ...next,
       parentId: null,
       customerId: next.customerId,

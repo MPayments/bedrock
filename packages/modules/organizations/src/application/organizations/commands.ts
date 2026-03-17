@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { applyPatch } from "@bedrock/shared/core";
+
 import type {
   CreateOrganizationInput,
   UpdateOrganizationInput,
@@ -14,6 +16,7 @@ import {
   OrganizationNotFoundError,
 } from "../../errors";
 import type { OrganizationsServiceContext } from "../shared/context";
+import type { UpdateOrganizationProps } from "../../domain/organization";
 
 function hasForeignKeyViolation(error: unknown): boolean {
   if (!error || typeof error !== "object") {
@@ -80,7 +83,11 @@ export function createUpdateOrganizationHandler(
       }
 
       const existing = Organization.fromSnapshot(existingSnapshot);
-      const next = existing.update(validated, context.now());
+      const current: UpdateOrganizationProps = existing.toSnapshot();
+      const next = existing.update(
+        applyPatch(current, validated),
+        context.now(),
+      );
       const persistedSnapshot = existing.sameState(next)
         ? existingSnapshot
         : await organizations.updateOrganization(next.toSnapshot());

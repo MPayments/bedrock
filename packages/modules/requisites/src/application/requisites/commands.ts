@@ -12,7 +12,7 @@ import {
   UpdateRequisiteInputSchema,
 } from "../../contracts";
 import { RequisiteOwner } from "../../domain/owner";
-import { Requisite, type RequisiteSnapshot } from "../../domain/requisite";
+import { Requisite, type UpdateRequisiteProps } from "../../domain/requisite";
 import { RequisiteSet } from "../../domain/requisite-set";
 import {
   RequisiteNotFoundError,
@@ -146,10 +146,8 @@ export function createUpdateRequisiteHandler(
 
       const existing = Requisite.fromSnapshot(existingSnapshot);
       const current = existing.toSnapshot();
-      const nextInput = applyPatch<RequisiteSnapshot>(
-        current,
-        validated as Partial<RequisiteSnapshot>,
-      );
+      const currentUpdate: UpdateRequisiteProps = current;
+      const nextInput = applyPatch(currentUpdate, validated);
       const currencyChanged = nextInput.currencyId !== current.currencyId;
 
       await Promise.all([
@@ -226,7 +224,7 @@ export function createUpdateRequisiteHandler(
         }
       }
 
-      const next = existing.update(validated, context.now());
+      const next = existing.update(nextInput, context.now());
       const persistedSnapshot = existing.sameState(next)
         ? existingSnapshot
         : await requisiteCommands.updateRequisite(next.toSnapshot(), tx);
