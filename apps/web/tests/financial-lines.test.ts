@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createEmptyFinancialLineFormValue,
+  getFinancialLinePercentAmountPreview,
   getLockedFinancialLineCurrency,
   resolveFinancialLineCalcMethod,
 } from "@/features/documents/lib/financial-lines";
@@ -60,5 +61,39 @@ describe("financial-lines form helpers", () => {
         supportedCalcMethods: ["fixed"],
       }),
     ).toBe("fixed");
+  });
+
+  it("builds a preview amount for percent rows", () => {
+    expect(
+      getFinancialLinePercentAmountPreview({
+        baseAmount: "300000",
+        baseCurrency: "USD",
+        percent: "1.25",
+      }),
+    ).toBe("3750 USD");
+    expect(
+      getFinancialLinePercentAmountPreview({
+        baseAmount: "300000",
+        baseCurrency: "USD",
+        percent: "-1.25",
+      }),
+    ).toBe("-3750 USD");
+  });
+
+  it("returns no preview for incomplete or invalid percent preview input", () => {
+    expect(
+      getFinancialLinePercentAmountPreview({
+        baseAmount: "",
+        baseCurrency: "USD",
+        percent: "1.25",
+      }),
+    ).toBeNull();
+    expect(
+      getFinancialLinePercentAmountPreview({
+        baseAmount: "300000",
+        baseCurrency: "USD",
+        percent: "bad",
+      }),
+    ).toBeNull();
   });
 });

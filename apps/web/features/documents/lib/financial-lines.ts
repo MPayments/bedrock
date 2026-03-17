@@ -1,3 +1,9 @@
+import {
+  calculatePercentAmountMinor,
+  parseSignedPercentToBps,
+} from "@bedrock/plugin-documents-sdk/financial-lines";
+import { minorToAmountString, toMinorAmountString } from "@bedrock/shared/money";
+
 import type {
   DocumentFormField,
   FinancialLineCalcMethod,
@@ -55,4 +61,39 @@ export function getLockedFinancialLineCurrency(input: {
   }
 
   return typeof input.baseCurrency === "string" ? input.baseCurrency : "";
+}
+
+export function getFinancialLinePercentAmountPreview(input: {
+  baseAmount: unknown;
+  baseCurrency: unknown;
+  percent: unknown;
+}): string | null {
+  const baseAmount =
+    typeof input.baseAmount === "string" ? input.baseAmount.trim() : "";
+  const baseCurrency =
+    typeof input.baseCurrency === "string"
+      ? input.baseCurrency.trim().toUpperCase()
+      : "";
+  const percent =
+    typeof input.percent === "string" ? input.percent.trim() : "";
+
+  if (baseAmount.length === 0 || baseCurrency.length === 0 || percent.length === 0) {
+    return null;
+  }
+
+  try {
+    const baseAmountMinor = BigInt(
+      toMinorAmountString(baseAmount, baseCurrency, { requirePositive: true }),
+    );
+    const previewAmountMinor = calculatePercentAmountMinor(
+      baseAmountMinor,
+      parseSignedPercentToBps(percent),
+    );
+
+    return `${minorToAmountString(previewAmountMinor, {
+      currency: baseCurrency,
+    })} ${baseCurrency}`;
+  } catch {
+    return null;
+  }
 }

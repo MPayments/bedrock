@@ -48,6 +48,7 @@ import {
 } from "@/features/documents/lib/document-form-registry";
 import {
   createEmptyFinancialLineFormValue,
+  getFinancialLinePercentAmountPreview,
   getLockedFinancialLineCurrency,
   resolveFinancialLineCalcMethod,
 } from "@/features/documents/lib/financial-lines";
@@ -376,6 +377,11 @@ function FinancialLinesField({
             rowCurrency: currentLine.currency,
             baseCurrency,
           });
+          const percentAmountPreview = getFinancialLinePercentAmountPreview({
+            baseAmount,
+            baseCurrency,
+            percent: currentLine.percent,
+          });
           const calcMethodPath = `${field.name}.${index}.calcMethod`;
           const bucketPath = `${field.name}.${index}.bucket`;
           const currencyPath = `${field.name}.${index}.currency`;
@@ -519,11 +525,9 @@ function FinancialLinesField({
                 >
                   <FieldLabel>Процент</FieldLabel>
                   <FieldDescription>
-                    Процент от суммы документа
-                    {baseAmount || baseCurrency
-                      ? `: ${[baseAmount, baseCurrency].filter(Boolean).join(" ")}`
-                      : ""}
-                    .
+                    {percentAmountPreview === null
+                      ? "Предпросмотр суммы появится после заполнения процента, суммы и валюты документа."
+                      : `Предпросмотр суммы: ${percentAmountPreview}.`}
                   </FieldDescription>
                   <Controller
                     control={control}
