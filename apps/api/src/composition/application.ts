@@ -71,8 +71,8 @@ import {
   type RequisiteAccountingWorkflow,
 } from "@bedrock/workflow-requisite-accounting";
 
-import type { ApiCoreServices } from "./core";
 import { relabelOrganizationBookNames } from "./book-labels";
+import type { ApiCoreServices } from "./core";
 import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
