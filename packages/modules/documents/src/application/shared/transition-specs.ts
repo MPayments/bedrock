@@ -1,24 +1,20 @@
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
+import { invokeDocumentModuleAction } from "./action-dispatch";
 import {
   assertOrganizationPeriodsOpenForDocument,
   buildDocumentActionEvent,
   buildDocumentActionIdempotencyKey,
 } from "./action-runtime";
+import { buildDocumentEventState } from "./document-event-state";
 import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "./documents-idempotency";
 import { enforceDocumentPolicy } from "./policy";
-import type {
-  DocumentTransitionAction,
-  DocumentTransitionInput,
-} from "../../contracts/commands";
 import { DocumentAggregate } from "../../domain/document";
 import type {
   DocumentTransitionExecutionContext,
   DocumentTransitionExecutionResult,
   DocumentTransitionSpecs,
 } from "../commands/transition-runtime";
-import { buildDocumentEventState } from "./document-event-state";
-import { invokeDocumentModuleAction } from "./action-dispatch";
 
 function buildWorkflowConfig(context: DocumentTransitionExecutionContext) {
   return {

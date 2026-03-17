@@ -15,13 +15,13 @@ import {
 import { createGetDocumentQuery } from "./queries/get-document";
 import { createGetDocumentDetailsQuery } from "./queries/get-document-details";
 import { createListDocumentsQuery } from "./queries/list-documents";
-import type { DocumentTransitionInput } from "../contracts/commands";
 import type { DocumentsServiceDeps } from "./service-deps";
 import { buildDocumentActionIdempotencyKey } from "./shared/action-runtime";
 import {
   createDocumentsServiceContext,
   type DocumentsServiceContext,
 } from "./shared/context";
+import type { DocumentTransitionInput } from "../contracts/commands";
 
 export type DocumentsService = ReturnType<typeof createDocumentsHandlers>;
 

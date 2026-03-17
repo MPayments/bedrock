@@ -1,9 +1,9 @@
 import { vi } from "vitest";
 import { z } from "zod";
 
-import { createStubDb } from "@bedrock/test-utils";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { PersistenceContext } from "@bedrock/platform/persistence";
+import { createStubDb } from "@bedrock/test-utils";
 
 import type { Document } from "../src/domain/document";
 import type {

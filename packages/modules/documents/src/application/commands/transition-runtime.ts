@@ -1,5 +1,4 @@
 import type {
-  DocumentRequestContext,
   DocumentTransitionAction,
   DocumentTransitionInput,
 } from "../../contracts/commands";
@@ -12,6 +11,10 @@ import type {
   DocumentsCommandRepository,
 } from "../documents/ports";
 import {
+  insertDocumentEvents,
+  type DocumentActionEvent,
+} from "../shared/action-runtime";
+import {
   buildDocumentWithOperationId,
   loadDocumentOrThrow,
   loadDocumentWithOperationId,
@@ -19,10 +22,6 @@ import {
 import type { DocumentsServiceContext } from "../shared/context";
 import type { DocumentsIdempotencyScope } from "../shared/documents-idempotency";
 import { mapDocumentDomainError } from "../shared/map-domain-error";
-import {
-  insertDocumentEvents,
-  type DocumentActionEvent,
-} from "../shared/action-runtime";
 import {
   createModuleContext,
   resolveModuleForDocument,

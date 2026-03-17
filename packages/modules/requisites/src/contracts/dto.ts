@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-import type { RequisiteProviderSnapshot } from "../domain/requisite-provider";
 import { RequisiteKindSchema } from "./zod";
+import type { RequisiteProviderSnapshot } from "../domain/requisite-provider";
+
 
 export const RequisiteProviderSchema = z.object({
   id: z.uuid(),

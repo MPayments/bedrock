@@ -1,9 +1,9 @@
+import type { DocumentsServiceContext } from "./context";
+import { buildDefaultActionIdempotencyKey } from "./idempotency-key";
 import type { DocumentRequestContext, DocumentTransitionAction } from "../../contracts/commands";
 import type { Document } from "../../domain/document";
 import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
 import type { DocumentEventsRepository } from "../documents/ports";
-import type { DocumentsServiceContext } from "./context";
-import { buildDefaultActionIdempotencyKey } from "./idempotency-key";
 
 export interface DocumentActionEvent {
   eventType: string;
