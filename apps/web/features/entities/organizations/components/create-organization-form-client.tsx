@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
+import {
+  OrganizationCreateGeneralForm,
+  type OrganizationGeneralFormValues,
+} from "./organization-form";
+import { useOrganizationDraftName } from "../lib/create-draft-name-context";
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";
-
-import {
-  OrganizationForm,
-  type OrganizationFormValues,
-} from "./organization-form";
 
 type CreatedOrganization = {
   id: string;
@@ -21,14 +21,24 @@ type CreateOrganizationFormClientProps = {
   detailsBasePath?: string;
 };
 
+const EMPTY_ORGANIZATION_VALUES: OrganizationGeneralFormValues = {
+  shortName: "",
+  fullName: "",
+  kind: "legal_entity",
+  country: "",
+  externalId: "",
+  description: "",
+};
+
 export function CreateOrganizationFormClient({
   detailsBasePath = "/entities/organizations",
 }: CreateOrganizationFormClientProps) {
   const router = useRouter();
+  const { actions } = useOrganizationDraftName();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(values: OrganizationFormValues) {
+  async function handleSubmit(values: OrganizationGeneralFormValues) {
     setError(null);
     setSubmitting(true);
 
@@ -61,12 +71,12 @@ export function CreateOrganizationFormClient({
   }
 
   return (
-    <OrganizationForm
+    <OrganizationCreateGeneralForm
+      initialValues={EMPTY_ORGANIZATION_VALUES}
       submitting={submitting}
       error={error}
       onSubmit={handleSubmit}
-      submitLabel="Создать"
-      submittingLabel="Создание..."
+      onShortNameChange={actions.setCreateName}
     />
   );
 }

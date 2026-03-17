@@ -37,8 +37,10 @@ import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 import {
   REQUISITE_KIND_OPTIONS,
+  REQUISITE_OWNER_TYPE_OPTIONS,
   type RelationOption,
   type RequisiteFormValues,
+  type RequisiteOwnerType,
 } from "../lib/constants";
 import { formatDate } from "@/lib/format";
 
@@ -48,9 +50,11 @@ type RequisiteFormSubmit =
   | void;
 
 type RequisiteFormProps = {
+  ownerType?: RequisiteOwnerType;
   ownerLabel: string;
   ownerDescription: string;
   ownerOptions: RelationOption[];
+  ownerTypeReadonly?: boolean;
   providerOptions: RelationOption[];
   currencyOptions: RelationOption[];
   initialValues?: Partial<RequisiteFormValues>;
@@ -62,6 +66,7 @@ type RequisiteFormProps = {
   onSubmit?: (values: RequisiteFormValues) => RequisiteFormSubmit;
   onDelete?: () => Promise<boolean | void> | boolean | void;
   onLabelChange?: (label: string) => void;
+  onOwnerTypeChange?: (ownerType: RequisiteOwnerType) => void;
   ownerReadonly?: boolean;
   kindReadonly?: boolean;
   deleteTitle?: string;
@@ -244,9 +249,11 @@ function resolveInitialValues(
 }
 
 export function RequisiteGeneralForm({
+  ownerType,
   ownerLabel,
   ownerDescription,
   ownerOptions,
+  ownerTypeReadonly = false,
   providerOptions,
   currencyOptions,
   initialValues,
@@ -258,6 +265,7 @@ export function RequisiteGeneralForm({
   onSubmit,
   onDelete,
   onLabelChange,
+  onOwnerTypeChange,
   ownerReadonly = false,
   kindReadonly = false,
   deleteTitle = "Удалить реквизит?",
@@ -280,6 +288,23 @@ export function RequisiteGeneralForm({
   useEffect(() => {
     form.reset(resolvedInitialValues);
   }, [form, resolvedInitialValues]);
+
+  useEffect(() => {
+    const ownerId = form.getValues("ownerId");
+
+    if (!ownerId) {
+      return;
+    }
+
+    const ownerExists = ownerOptions.some((option) => option.id === ownerId);
+
+    if (!ownerExists) {
+      form.setValue("ownerId", "", {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [form, ownerOptions]);
 
   const label = useWatch({ control: form.control, name: "label" });
   const kind = useWatch({ control: form.control, name: "kind" });
@@ -311,6 +336,16 @@ export function RequisiteGeneralForm({
       setDeleteError("Не удалось удалить реквизит");
     }
   }
+
+  const ownerTypeMissing =
+    onOwnerTypeChange !== undefined && ownerType === undefined;
+  const ownerSelectDisabled =
+    submitting ||
+    deleting ||
+    ownerReadonly ||
+    ownerType === undefined ||
+    ownerOptions.length === 0;
+  const submitDisabled = submitting || deleting || ownerTypeMissing;
 
   return (
     <Card>
@@ -346,6 +381,31 @@ export function RequisiteGeneralForm({
               </Field>
 
               <Field>
+                <FieldLabel>Тип владельца</FieldLabel>
+                <Select
+                  value={ownerType}
+                  onValueChange={(value) =>
+                    onOwnerTypeChange?.(value as RequisiteOwnerType)
+                  }
+                  disabled={submitting || deleting || ownerTypeReadonly}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите тип владельца" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REQUISITE_OWNER_TYPE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  Организация или контрагент, которому принадлежат реквизиты.
+                </FieldDescription>
+              </Field>
+
+              <Field>
                 <FieldLabel>{ownerLabel}</FieldLabel>
                 <Controller
                   control={form.control}
@@ -354,7 +414,7 @@ export function RequisiteGeneralForm({
                     <Select
                       value={field.value}
                       onValueChange={field.onChange}
-                      disabled={submitting || deleting || ownerReadonly}
+                      disabled={ownerSelectDisabled}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder={`Выберите: ${ownerLabel.toLowerCase()}`} />
@@ -705,7 +765,7 @@ export function RequisiteGeneralForm({
               ) : null}
             </div>
 
-            <Button type="submit" disabled={submitting || deleting}>
+            <Button type="submit" disabled={submitDisabled}>
               {submitting ? (
                 <Spinner className="h-4 w-4" />
               ) : (

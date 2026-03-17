@@ -1,20 +1,10 @@
-import Link from "next/link";
-import { Building2, Landmark, Wallet } from "lucide-react";
-
-import { Button } from "@bedrock/sdk-ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@bedrock/sdk-ui/components/card";
+import React from "react";
+import { Wallet } from "lucide-react";
 
 import { EntityWorkspaceLayout } from "@/components/entities/workspace-layout";
-import { CreateCounterpartyRequisiteFormClient } from "@/features/entities/counterparty-requisites/components/create-counterparty-requisite-form-client";
-import { getCounterpartyRequisiteFormOptions } from "@/features/entities/counterparty-requisites/lib/queries";
-import { CreateOrganizationRequisiteFormClient } from "@/features/entities/organization-requisites/components/create-organization-requisite-form-client";
-import { getOrganizationRequisiteFormOptions } from "@/features/entities/organization-requisites/lib/queries";
+import { CreateRequisiteFormClient } from "@/features/entities/requisites/components/create-requisite-form-client";
+import { getRequisiteFormOptions } from "@/features/entities/requisites/lib/queries";
+import type { RequisiteOwnerType } from "@/features/entities/requisites-shared/lib/constants";
 
 interface CreateRequisitePageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -40,82 +30,27 @@ export default async function CreateRequisitePage({
   searchParams,
 }: CreateRequisitePageProps) {
   const params = await searchParams;
-  const ownerType = readSingleSearchValue(params.ownerType);
+  const ownerTypeValue = readSingleSearchValue(params.ownerType);
   const ownerId = readSingleSearchValue(params.ownerId);
-
-  if (ownerType === "counterparty") {
-    const options = await getCounterpartyRequisiteFormOptions();
-
-    return (
-      <EntityWorkspaceLayout
-        title="Новый реквизит"
-        subtitle="Карточка реквизита контрагента"
-        icon={Wallet}
-      >
-        <CreateCounterpartyRequisiteFormClient
-          options={options}
-          initialValues={ownerId ? { ownerId } : undefined}
-          ownerReadonly={Boolean(ownerId)}
-        />
-      </EntityWorkspaceLayout>
-    );
-  }
-
-  if (ownerType === "organization") {
-    const options = await getOrganizationRequisiteFormOptions();
-
-    return (
-      <EntityWorkspaceLayout
-        title="Новый реквизит"
-        subtitle="Карточка реквизита организации"
-        icon={Wallet}
-      >
-        <CreateOrganizationRequisiteFormClient
-          options={options}
-          initialValues={ownerId ? { ownerId } : undefined}
-          ownerReadonly={Boolean(ownerId)}
-        />
-      </EntityWorkspaceLayout>
-    );
-  }
+  const ownerType: RequisiteOwnerType | undefined =
+    ownerTypeValue === "counterparty" || ownerTypeValue === "organization"
+      ? ownerTypeValue
+      : undefined;
+  const options = await getRequisiteFormOptions();
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Реквизит контрагента</CardTitle>
-          <CardDescription>
-            Для внешних получателей и контрагентов без бухгалтерской binding.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            nativeButton={false}
-            render={<Link href="/entities/requisites/create?ownerType=counterparty" />}
-          >
-            <Building2 className="h-4 w-4" />
-            Открыть форму
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Реквизит организации</CardTitle>
-          <CardDescription>
-            Для собственных организаций с возможной accounting binding.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            nativeButton={false}
-            render={<Link href="/entities/requisites/create?ownerType=organization" />}
-          >
-            <Landmark className="h-4 w-4" />
-            Открыть форму
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+    <EntityWorkspaceLayout
+      title="Новый реквизит"
+      subtitle="Карточка реквизита"
+      icon={Wallet}
+    >
+      <CreateRequisiteFormClient
+        options={options}
+        initialOwnerType={ownerType}
+        initialValues={ownerType && ownerId ? { ownerId } : undefined}
+        ownerReadonly={Boolean(ownerType && ownerId)}
+        ownerTypeReadonly={Boolean(ownerType && ownerId)}
+      />
+    </EntityWorkspaceLayout>
   );
 }

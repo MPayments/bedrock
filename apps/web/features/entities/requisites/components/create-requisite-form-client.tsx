@@ -6,40 +6,61 @@ import { useRouter } from "next/navigation";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { RequisiteGeneralForm } from "@/features/entities/requisites-shared/components/requisite-general-form";
-import type { RequisiteFormValues } from "@/features/entities/requisites-shared/lib/constants";
+import type {
+  RequisiteFormValues,
+  RequisiteOwnerType,
+} from "@/features/entities/requisites-shared/lib/constants";
 import { apiClient } from "@/lib/api-client";
 import { executeMutation } from "@/lib/resources/http";
 
-import type { OrganizationRequisiteFormOptions } from "../lib/types";
+import {
+  getRequisiteOwnerOptions,
+  getRequisiteOwnerPresentation,
+} from "../lib/owner-config";
+import type { RequisiteFormOptions } from "../lib/types";
 
-type CreatedOrganizationRequisite = {
+type CreatedRequisite = {
   id: string;
 };
 
-type CreateOrganizationRequisiteFormClientProps = {
-  options: OrganizationRequisiteFormOptions;
+type CreateRequisiteFormClientProps = {
+  options: RequisiteFormOptions;
+  initialOwnerType?: RequisiteOwnerType;
   initialValues?: Partial<RequisiteFormValues>;
   ownerReadonly?: boolean;
+  ownerTypeReadonly?: boolean;
 };
 
-export function CreateOrganizationRequisiteFormClient({
+export function CreateRequisiteFormClient({
   options,
+  initialOwnerType,
   initialValues,
   ownerReadonly = false,
-}: CreateOrganizationRequisiteFormClientProps) {
+  ownerTypeReadonly = false,
+}: CreateRequisiteFormClientProps) {
   const router = useRouter();
+  const [ownerType, setOwnerType] = useState<RequisiteOwnerType | undefined>(
+    initialOwnerType,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const ownerOptions = getRequisiteOwnerOptions(options, ownerType);
+  const ownerPresentation = getRequisiteOwnerPresentation(ownerType);
+
   async function handleSubmit(values: RequisiteFormValues) {
+    if (!ownerType) {
+      return;
+    }
+
     setError(null);
     setSubmitting(true);
 
-    const result = await executeMutation<CreatedOrganizationRequisite>({
+    const result = await executeMutation<CreatedRequisite>({
       request: () =>
         apiClient.v1.requisites.$post({
           json: {
-            ownerType: "organization",
+            ownerType,
             ownerId: values.ownerId,
             providerId: values.providerId,
             currencyId: values.currencyId,
@@ -66,9 +87,8 @@ export function CreateOrganizationRequisiteFormClient({
             isDefault: values.isDefault,
           },
         }),
-      fallbackMessage: "Не удалось создать реквизит организации",
-      parseData: async (response) =>
-        (await response.json()) as CreatedOrganizationRequisite,
+      fallbackMessage: "Не удалось создать реквизит",
+      parseData: async (response) => (await response.json()) as CreatedRequisite,
     });
 
     setSubmitting(false);
@@ -79,15 +99,17 @@ export function CreateOrganizationRequisiteFormClient({
       return;
     }
 
-    toast.success("Реквизит организации создан");
+    toast.success("Реквизит создан");
     router.push(`/entities/requisites/${result.data.id}`);
   }
 
   return (
     <RequisiteGeneralForm
-      ownerLabel="Организация"
-      ownerDescription="Внутренняя организация, для которой хранится расчётный реквизит."
-      ownerOptions={options.owners}
+      ownerType={ownerType}
+      ownerLabel={ownerPresentation.ownerLabel}
+      ownerDescription={ownerPresentation.ownerDescription}
+      ownerOptions={ownerOptions}
+      ownerTypeReadonly={ownerTypeReadonly}
       providerOptions={options.providers}
       currencyOptions={options.currencies}
       initialValues={initialValues}
@@ -95,6 +117,7 @@ export function CreateOrganizationRequisiteFormClient({
       submitting={submitting}
       error={error}
       onSubmit={handleSubmit}
+      onOwnerTypeChange={setOwnerType}
       submitLabel="Создать"
       submittingLabel="Создание..."
     />
