@@ -1,12 +1,7 @@
-import { readFileSync } from "node:fs";
-
 import { AccountingPackDefinitionSchema } from "./schema";
 
+import defaultPackRaw from "../assets/default-pack.json" with { type: "json" };
+
 export const rawPackDefinition = AccountingPackDefinitionSchema.parse(
-  JSON.parse(
-    readFileSync(
-      new URL("../assets/default-pack.json", import.meta.url),
-      "utf8",
-    ),
-  ) as unknown,
+  defaultPackRaw as unknown,
 );

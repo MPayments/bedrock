@@ -1,5 +1,6 @@
-import { readFileSync } from "node:fs";
 import { z } from "zod";
+
+import accountingDefaultsRaw from "./assets/defaults.json" with { type: "json" };
 
 const CHART_ACCOUNT_KIND_VALUES = [
   "asset",
@@ -216,9 +217,7 @@ const accountingDefaultsSchema = z.object({
 });
 
 const accountingDefaults = accountingDefaultsSchema.parse(
-  JSON.parse(
-    readFileSync(new URL("./assets/defaults.json", import.meta.url), "utf8"),
-  ) as unknown,
+  accountingDefaultsRaw as unknown,
 );
 
 export const DEFAULT_CHART_TEMPLATE_ACCOUNTS =

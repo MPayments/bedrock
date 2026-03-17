@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:17
+    ports: 
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - ./data/${DB_NAME}:/var/lib/postgresql/data
+
+  tigerbeetle:
+    image: ghcr.io/tigerbeetle/tigerbeetle
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+    command: "start --addresses=0.0.0.0:3000 /data/0_0.tigerbeetle"
+    security_opt:
+      - seccomp=unconfined
+    cap_add:
+      - IPC_LOCK
