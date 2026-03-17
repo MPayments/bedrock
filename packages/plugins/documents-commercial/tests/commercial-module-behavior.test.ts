@@ -65,6 +65,10 @@ function createDeps() {
         bookAccountInstanceId: "00000000-0000-4000-8000-000000000114",
       })),
     },
+    partyReferences: {
+      assertCustomerExists: vi.fn(async () => undefined),
+      assertCounterpartyExists: vi.fn(async () => undefined),
+    },
   };
 }
 
@@ -115,6 +119,42 @@ describe("commercial document modules", () => {
         },
       ),
     ).rejects.toThrow("Currency mismatch: quote=EUR, account=USD");
+  });
+
+  it("rejects invoice creation when referenced parties are missing", async () => {
+    const deps = createDeps();
+    deps.partyReferences.assertCounterpartyExists = vi.fn(async () => {
+      throw new Error("Counterparty not found: 00000000-0000-4000-8000-000000000302");
+    });
+
+    const module = createInvoiceDocumentModule(deps as any);
+
+    await expect(
+      module.canCreate?.(
+        { db: {} } as any,
+        {
+          occurredAt: new Date("2026-03-03T10:00:00.000Z"),
+          mode: "direct",
+          customerId: "00000000-0000-4000-8000-000000000301",
+          counterpartyId: "00000000-0000-4000-8000-000000000302",
+          organizationId: "00000000-0000-4000-8000-000000000113",
+          organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+          amount: "100.00",
+          currency: "USD",
+          financialLines: [],
+          memo: "invoice",
+          amountMinor: "10000",
+        },
+      ),
+    ).rejects.toThrow(
+      "Counterparty not found: 00000000-0000-4000-8000-000000000302",
+    );
+    expect(deps.partyReferences.assertCustomerExists).toHaveBeenCalledWith(
+      "00000000-0000-4000-8000-000000000301",
+    );
+    expect(deps.partyReferences.assertCounterpartyExists).toHaveBeenCalledWith(
+      "00000000-0000-4000-8000-000000000302",
+    );
   });
 
   it("builds an exchange parent link from the draft payload", async () => {

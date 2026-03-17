@@ -199,13 +199,27 @@ export function createIdempotencyService(
 
       return result;
     } catch (error) {
-      await completeActionReceiptTx({
-        tx: input.tx,
-        receiptId: receiptResult.receipt.id,
-        status:
-          error instanceof ActionReceiptConflictError ? "conflict" : "error",
-        errorJson: (input.serializeError ?? defaultSerializeError)(error),
-      });
+      try {
+        await completeActionReceiptTx({
+          tx: input.tx,
+          receiptId: receiptResult.receipt.id,
+          status:
+            error instanceof ActionReceiptConflictError ? "conflict" : "error",
+          errorJson: (input.serializeError ?? defaultSerializeError)(error),
+        });
+      } catch (receiptError) {
+        log.error("failed to persist action receipt outcome", {
+          scope: input.scope,
+          idempotencyKey: input.idempotencyKey,
+          receiptId: receiptResult.receipt.id,
+          cause:
+            receiptError instanceof Error
+              ? receiptError.message
+              : String(receiptError),
+          originalError:
+            error instanceof Error ? error.message : String(error),
+        });
+      }
 
       throw error;
     }

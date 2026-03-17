@@ -39,6 +39,11 @@ export interface CommercialRequisiteBindingsPort {
   ): Promise<OrganizationRequisiteBinding | null>;
 }
 
+export interface CommercialPartyReferencesPort {
+  assertCustomerExists(customerId: string): Promise<void>;
+  assertCounterpartyExists(counterpartyId: string): Promise<void>;
+}
+
 export interface CommercialDocumentRelationsPort {
   loadInvoice(input: {
     runtime: CommercialDocumentRuntime;
@@ -64,4 +69,5 @@ export interface CommercialModuleDeps {
   quoteSnapshot: CommercialQuoteSnapshotPort;
   quoteUsage: CommercialQuoteUsagePort;
   requisiteBindings: CommercialRequisiteBindingsPort;
+  partyReferences: CommercialPartyReferencesPort;
 }

@@ -114,6 +114,11 @@ export function createInvoiceDocumentModule(
       };
     },
     async canCreate(_context, input) {
+      await Promise.all([
+        deps.partyReferences.assertCustomerExists(input.customerId),
+        deps.partyReferences.assertCounterpartyExists(input.counterpartyId),
+      ]);
+
       const binding = await resolveOrganizationBinding(
         deps,
         input.organizationRequisiteId,

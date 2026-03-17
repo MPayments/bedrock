@@ -100,10 +100,19 @@ describe("document plugin adapters composition", () => {
       resolveBindings: vi.fn(async () => []),
       findById: vi.fn(),
     };
+    const partiesService = {
+      customers: {
+        findById: vi.fn(async (id: string) => ({ id })),
+      },
+      counterparties: {
+        findById: vi.fn(async (id: string) => ({ id })),
+      },
+    };
 
     const deps = createCommercialDocumentDeps({
       currenciesService: currenciesService as any,
       fxQuotes: fxQuotes as any,
+      partiesService: partiesService as any,
       requisitesService: requisitesService as any,
     });
 

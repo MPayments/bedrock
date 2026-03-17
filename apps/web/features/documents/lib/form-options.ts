@@ -55,7 +55,7 @@ export async function getDocumentFormOptions(): Promise<DocumentFormOptions> {
       request: () =>
         client.v1.counterparties.options.$get(
           {},
-          { init: { cache: "force-cache" } },
+          { init: { cache: "no-store" } },
         ),
       schema: CounterpartyOptionsResponseSchema,
       context: "Не удалось загрузить контрагентов",
@@ -69,7 +69,7 @@ export async function getDocumentFormOptions(): Promise<DocumentFormOptions> {
               perPage: 200,
             }),
           },
-          { init: { cache: "force-cache" } },
+          { init: { cache: "no-store" } },
         ),
       schema: CustomersListResponseSchema,
       context: "Не удалось загрузить клиентов",
@@ -78,7 +78,7 @@ export async function getDocumentFormOptions(): Promise<DocumentFormOptions> {
       request: () =>
         client.v1.organizations.options.$get(
           {},
-          { init: { cache: "force-cache" } },
+          { init: { cache: "no-store" } },
         ),
       schema: OrganizationOptionsResponseSchema,
       context: "Не удалось загрузить организации",
@@ -87,7 +87,7 @@ export async function getDocumentFormOptions(): Promise<DocumentFormOptions> {
       request: () =>
         client.v1.currencies.options.$get(
           {},
-          { init: { cache: "force-cache" } },
+          { init: { cache: "no-store" } },
         ),
       schema: CurrencyOptionsResponseSchema,
       context: "Не удалось загрузить валюты",

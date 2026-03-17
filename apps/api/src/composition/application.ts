@@ -331,6 +331,7 @@ export function createApplicationServices(
       createCommercialDocumentDeps({
         currenciesService,
         fxQuotes: fxService.quotes,
+        partiesService,
         requisitesService: documentRequisitesService,
       }),
     ),
