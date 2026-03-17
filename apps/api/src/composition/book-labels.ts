@@ -14,9 +14,13 @@ export function relabelOrganizationBookNames(input: {
       return book;
     }
 
+    if (!book.name.includes(book.ownerId)) {
+      return book;
+    }
+
     return {
       ...book,
-      name: shortName,
+      name: book.name.replaceAll(book.ownerId, shortName),
     };
   });
 }
