@@ -3,7 +3,10 @@ import {
   noopLogger,
   type Logger,
 } from "@bedrock/platform/observability/logger";
-import type { Database } from "@bedrock/platform/persistence";
+import {
+  createPersistenceContext,
+  type Database,
+} from "@bedrock/platform/persistence";
 import type {
   BedrockWorker,
   WorkerRunContext,
@@ -47,7 +50,7 @@ export function createReconciliationWorkerDefinition(deps: {
     exceptions: adapters.exceptionsRepo,
     pendingSources: adapters.pendingSources,
     transactions: createReconciliationTransactions({
-      db: deps.db,
+      persistence: createPersistenceContext(deps.db),
       idempotency: deps.idempotency,
       externalRecords: adapters.externalRecordsRepo,
       runs: adapters.runsRepo,

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
+import { createPersistenceContext } from "@bedrock/platform/persistence";
+
 import { db } from "./setup";
 import {
   CounterpartySystemGroupDeleteError,
@@ -10,27 +12,12 @@ import {
 import { schema as partiesSchema } from "../../src/infra/drizzle/schema";
 import { createPartiesQueries } from "../../src/queries";
 
-const currencies = {
-  async assertCurrencyExists(_id: string) {
-    throw new Error("unexpected currencies port call");
-  },
-  async listCodesById(_ids: string[]) {
-    throw new Error("unexpected currencies port call");
-  },
-};
-const requisiteProviders = {
-  async assertProviderActive(_id: string) {
-    throw new Error("unexpected requisite providers port call");
-  },
-};
-
 function createRuntime(options?: {
   hasDocumentsForCustomer?: (customerId: string) => Promise<boolean>;
 }) {
   return {
     service: createPartiesService({
-      currencies,
-      db,
+      persistence: createPersistenceContext(db),
       documents: {
         hasDocumentsForCustomer(customerId) {
           return (
@@ -39,7 +26,6 @@ function createRuntime(options?: {
           );
         },
       },
-      requisiteProviders,
     }),
     queries: createPartiesQueries({ db }),
   };

@@ -1,6 +1,10 @@
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type {
+  Database,
+  PersistenceContext,
+  Transaction,
+} from "@bedrock/platform/persistence";
 
 import {
   createGetAdjustmentResolutionHandler,
@@ -32,16 +36,11 @@ export type ReconciliationService = ReturnType<
 >;
 
 export interface ReconciliationServiceDeps {
-  db: Database;
+  persistence: PersistenceContext;
   documents: ReconciliationDocumentsPort;
   idempotency: IdempotencyPort;
   ledgerLookup: ReconciliationLedgerLookupPort;
   logger?: Logger;
-}
-
-export interface ReconciliationServiceTransactionDeps
-  extends Omit<ReconciliationServiceDeps, "db"> {
-  tx: Transaction;
 }
 
 function createExternalRecordsTxRepository(input: {
@@ -115,7 +114,7 @@ function createExceptionsTxRepository(input: {
 }
 
 export function createReconciliationTransactions(input: {
-  db: Database;
+  persistence: PersistenceContext;
   idempotency: IdempotencyPort;
   externalRecords: ReturnType<
     typeof createDrizzleReconciliationServiceAdapters
@@ -132,7 +131,7 @@ export function createReconciliationTransactions(input: {
 }): ReconciliationTransactionsPort {
   return {
     async withTransaction(run) {
-      return input.db.transaction(async (tx: Transaction) => {
+      return input.persistence.runInTransaction(async (tx: Transaction) => {
         const idempotency: ReconciliationTransactionIdempotencyPort = {
           withIdempotency<
             TResult,
@@ -190,75 +189,10 @@ export function createReconciliationTransactions(input: {
   };
 }
 
-function createReconciliationTransactionContext(input: {
-  tx: Transaction;
-  idempotency: IdempotencyPort;
-  externalRecords: ReturnType<
-    typeof createDrizzleReconciliationServiceAdapters
-  >["externalRecordsRepo"];
-  runs: ReturnType<
-    typeof createDrizzleReconciliationServiceAdapters
-  >["runsRepo"];
-  matches: ReturnType<
-    typeof createDrizzleReconciliationServiceAdapters
-  >["matchesRepo"];
-  exceptions: ReturnType<
-    typeof createDrizzleReconciliationServiceAdapters
-  >["exceptionsRepo"];
-}) {
-  const idempotency: ReconciliationTransactionIdempotencyPort = {
-    withIdempotency<TResult, TStoredResult = Record<string, unknown>>(params: {
-      scope: string;
-      idempotencyKey: string;
-      request: unknown;
-      actorId?: string | null;
-      handler: () => Promise<TResult>;
-      serializeResult: (result: TResult) => TStoredResult;
-      loadReplayResult: (params: {
-        storedResult: TStoredResult | null;
-      }) => Promise<TResult>;
-      serializeError?: (error: unknown) => Record<string, unknown>;
-    }) {
-      return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
-        tx: input.tx,
-        scope: params.scope,
-        idempotencyKey: params.idempotencyKey,
-        request: params.request,
-        actorId: params.actorId,
-        handler: params.handler,
-        serializeResult: params.serializeResult,
-        loadReplayResult: ({ storedResult }) =>
-          params.loadReplayResult({
-            storedResult: (storedResult as TStoredResult | null) ?? null,
-          }),
-        serializeError: params.serializeError,
-      });
-    },
-  };
-
-  return {
-    externalRecords: createExternalRecordsTxRepository({
-      externalRecords: input.externalRecords,
-      tx: input.tx,
-    }),
-    runs: createRunsTxRepository({
-      runs: input.runs,
-      tx: input.tx,
-    }),
-    matches: createMatchesTxRepository({
-      matches: input.matches,
-      tx: input.tx,
-    }),
-    exceptions: createExceptionsTxRepository({
-      exceptions: input.exceptions,
-      tx: input.tx,
-    }),
-    idempotency,
-  };
-}
-
 export function createReconciliationService(deps: ReconciliationServiceDeps) {
-  const adapters = createDrizzleReconciliationServiceAdapters(deps.db);
+  const adapters = createDrizzleReconciliationServiceAdapters(
+    deps.persistence.db as Database,
+  );
   return createReconciliationServiceFromContext({
     documents: deps.documents,
     ledgerLookup: deps.ledgerLookup,
@@ -267,41 +201,13 @@ export function createReconciliationService(deps: ReconciliationServiceDeps) {
     matches: adapters.matchesRepo,
     exceptions: adapters.exceptionsRepo,
     transactions: createReconciliationTransactions({
-      db: deps.db,
+      persistence: deps.persistence,
       idempotency: deps.idempotency,
       externalRecords: adapters.externalRecordsRepo,
       runs: adapters.runsRepo,
       matches: adapters.matchesRepo,
       exceptions: adapters.exceptionsRepo,
     }),
-  });
-}
-
-export function createReconciliationServiceFromTransaction(
-  deps: ReconciliationServiceTransactionDeps,
-) {
-  const adapters = createDrizzleReconciliationServiceAdapters(deps.tx);
-
-  return createReconciliationServiceFromContext({
-    documents: deps.documents,
-    ledgerLookup: deps.ledgerLookup,
-    logger: deps.logger,
-    pendingSources: adapters.pendingSources,
-    matches: adapters.matchesRepo,
-    exceptions: adapters.exceptionsRepo,
-    transactions: {
-      withTransaction: (run) =>
-        run(
-          createReconciliationTransactionContext({
-            tx: deps.tx,
-            idempotency: deps.idempotency,
-            externalRecords: adapters.externalRecordsRepo,
-            runs: adapters.runsRepo,
-            matches: adapters.matchesRepo,
-            exceptions: adapters.exceptionsRepo,
-          }),
-        ),
-    },
   });
 }
 

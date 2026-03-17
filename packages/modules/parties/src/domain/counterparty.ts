@@ -1,10 +1,11 @@
 import {
+  applyPatch,
   dedupeIds,
   Entity,
   invariant,
   normalizeOptionalText,
   normalizeRequiredText,
-} from "@bedrock/shared/core/domain";
+} from "@bedrock/shared/core";
 
 import type { GroupHierarchy } from "./group-hierarchy";
 import {
@@ -153,27 +154,39 @@ export class Counterparty extends Entity<string> {
   }
 
   update(
-    input: UpdateCounterpartyProps,
+    input: Partial<UpdateCounterpartyProps>,
     deps: {
       hierarchy: GroupHierarchy;
       managedGroupId?: string | null;
       now: Date;
     },
   ): Counterparty {
+    const customerId =
+      input.customerId !== undefined ? input.customerId : this.snapshot.customerId;
+    const groupIds =
+      input.groupIds !== undefined
+        ? input.groupIds
+        : input.customerId !== undefined
+          ? deps.hierarchy.withoutCustomerScopedGroups(this.snapshot.groupIds)
+          : this.snapshot.groupIds;
+
     invariant(
-      !input.customerId || deps.managedGroupId,
+      !customerId || deps.managedGroupId,
       "counterparty.managed_group_required",
       "managed customer group is required for customer-linked counterparties",
-      { customerId: input.customerId },
+      { customerId },
     );
 
     return new Counterparty({
-      ...this.snapshot,
-      ...input,
+      ...applyPatch<CounterpartySnapshot>(this.snapshot, {
+        ...(input as Partial<CounterpartySnapshot>),
+        customerId,
+        groupIds,
+      }),
       groupIds: resolveGroups({
-        groupIds: input.groupIds,
+        groupIds,
         hierarchy: deps.hierarchy,
-        customerId: input.customerId,
+        customerId,
         managedGroupId: deps.managedGroupId ?? null,
       }),
       updatedAt: deps.now,

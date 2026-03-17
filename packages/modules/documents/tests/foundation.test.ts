@@ -10,6 +10,7 @@ import {
   createDocumentsService,
 } from "../src";
 import {
+  createDocumentsPublicServiceDeps,
   createDocumentsServiceDeps,
   createTestDocumentRegistry,
   createTestDocumentModule,
@@ -185,16 +186,17 @@ describe("documents foundations", () => {
   });
 
   it("creates the documents service facade with the current handler surface", () => {
-    const service = createDocumentsService(createDocumentsServiceDeps([createModuleStub()]));
+    const service = createDocumentsService(
+      createDocumentsPublicServiceDeps([createModuleStub()]),
+    );
 
     expect(service).toEqual({
       createDraft: expect.any(Function),
       updateDraft: expect.any(Function),
-      transition: expect.any(Function),
-      posting: {
+      actions: {
+        execute: expect.any(Function),
         resolveIdempotencyKey: expect.any(Function),
-        preparePost: expect.any(Function),
-        prepareRepost: expect.any(Function),
+        prepare: expect.any(Function),
         finalizeSuccess: expect.any(Function),
         finalizeFailure: expect.any(Function),
       },

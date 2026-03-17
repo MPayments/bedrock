@@ -1,11 +1,5 @@
-export {
-  createDocumentsService,
-  createDocumentsServiceFromTransaction,
-} from "./service";
-export type {
-  DocumentsService,
-  DocumentsServiceTransactionDeps,
-} from "./service";
+export { createDocumentsService } from "./service";
+export type { DocumentsService, DocumentsServiceDeps } from "./service";
 export type {
   DocumentEventsRepository,
   DocumentLinksRepository,

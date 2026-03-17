@@ -1,60 +1,21 @@
 import type { AccountingPeriodsService } from "@bedrock/accounting";
 import {
   DocumentValidationError,
-  type DocumentsIdempotencyPort,
   type DocumentsService,
 } from "@bedrock/documents";
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
 export type CreateDocumentDraftService = (
   tx: Transaction,
-  idempotency: DocumentsIdempotencyPort,
 ) => Pick<DocumentsService, "createDraft">;
 
 export interface DocumentDraftWorkflowDeps {
   db: Database;
-  idempotency: IdempotencyPort;
   accountingPeriods: Pick<
     AccountingPeriodsService,
     "closePeriod" | "reopenPeriod"
   >;
   createDocumentsService: CreateDocumentDraftService;
-}
-
-function createDocumentsIdempotencyPort(input: {
-  tx: Transaction;
-  idempotency: IdempotencyPort;
-}): DocumentsIdempotencyPort {
-  return {
-    withIdempotency<TResult, TStoredResult = Record<string, unknown>>(params: {
-      scope: string;
-      idempotencyKey: string;
-      request: unknown;
-      actorId?: string | null;
-      handler: () => Promise<TResult>;
-      serializeResult: (result: TResult) => TStoredResult;
-      loadReplayResult: (params: {
-        storedResult: TStoredResult | null;
-      }) => Promise<TResult>;
-      serializeError?: (error: unknown) => Record<string, unknown>;
-    }) {
-      return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
-        tx: input.tx,
-        scope: params.scope,
-        idempotencyKey: params.idempotencyKey,
-        request: params.request,
-        actorId: params.actorId,
-        handler: params.handler,
-        serializeResult: params.serializeResult,
-        loadReplayResult: ({ storedResult }) =>
-          params.loadReplayResult({
-            storedResult: (storedResult as TStoredResult | null) ?? null,
-          }),
-        serializeError: params.serializeError,
-      });
-    },
-  };
 }
 
 function readDocumentPayloadString(
@@ -157,13 +118,7 @@ export function createDocumentDraftWorkflow(deps: DocumentDraftWorkflowDeps) {
       >[0],
     ) {
       return deps.db.transaction(async (tx) => {
-        const documents = deps.createDocumentsService(
-          tx,
-          createDocumentsIdempotencyPort({
-            tx,
-            idempotency: deps.idempotency,
-          }),
-        );
+        const documents = deps.createDocumentsService(tx);
         const result = await documents.createDraft(input);
 
         await applyDraftPeriodMutation({

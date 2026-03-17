@@ -1,9 +1,10 @@
 import {
+  applyPatch,
   Entity,
   invariant,
   normalizeOptionalText,
   normalizeRequiredText,
-} from "@bedrock/shared/core/domain";
+} from "@bedrock/shared/core";
 
 import {
   MANAGED_CUSTOMER_GROUP_PREFIX,
@@ -152,18 +153,22 @@ export class CounterpartyGroup extends Entity<string> {
   }
 
   update(
-    input: UpdateCounterpartyGroupProps,
+    input: Partial<UpdateCounterpartyGroupProps>,
     deps: {
       hierarchy: GroupHierarchy;
       now: Date;
     },
   ): CounterpartyGroup {
+    const next = applyPatch<CounterpartyGroupSnapshot>(
+      this.snapshot,
+      input as Partial<CounterpartyGroupSnapshot>,
+    );
     const hasStateChanges =
-      input.code !== this.snapshot.code ||
-      input.name !== this.snapshot.name ||
-      input.description !== this.snapshot.description ||
-      input.parentId !== this.snapshot.parentId ||
-      input.customerId !== this.snapshot.customerId;
+      next.code !== this.snapshot.code ||
+      next.name !== this.snapshot.name ||
+      next.description !== this.snapshot.description ||
+      next.parentId !== this.snapshot.parentId ||
+      next.customerId !== this.snapshot.customerId;
 
     invariant(
       !(this.isManagedCustomerGroup() && hasStateChanges),
@@ -172,57 +177,57 @@ export class CounterpartyGroup extends Entity<string> {
       { groupId: this.id },
     );
 
-    if (input.code.startsWith(MANAGED_CUSTOMER_GROUP_PREFIX)) {
+    if (next.code.startsWith(MANAGED_CUSTOMER_GROUP_PREFIX)) {
       invariant(
         this.isManagedCustomerGroup(),
         "counterparty_group.reserved_code",
         "Customer-generated group codes are reserved",
-        { code: input.code },
+        { code: next.code },
       );
     }
 
-    if (input.parentId) {
+    if (next.parentId) {
       invariant(
-        input.parentId !== this.id,
+        next.parentId !== this.id,
         "counterparty_group.self_parent",
         "Group cannot be parent of itself",
         { groupId: this.id },
       );
 
-      const parent = deps.hierarchy.require(input.parentId);
+      const parent = deps.hierarchy.require(next.parentId);
       invariant(
-        !deps.hierarchy.wouldCreateCycle(this.id, input.parentId),
+        !deps.hierarchy.wouldCreateCycle(this.id, next.parentId),
         "counterparty_group.descendant_parent",
         "Group cannot become a child of its own descendant",
-        { groupId: this.id, parentId: input.parentId },
+        { groupId: this.id, parentId: next.parentId },
       );
 
       const nextCustomerId = resolveScopedCustomerId({
         parent,
-        customerId: input.customerId,
+        customerId: next.customerId,
       });
 
       return new CounterpartyGroup({
         ...this.snapshot,
-        ...input,
-        parentId: input.parentId,
+        ...next,
+        parentId: next.parentId,
         customerId: nextCustomerId,
         updatedAt: deps.now,
       });
     }
 
     invariant(
-      !input.customerId || this.isManagedCustomerGroup(),
+      !next.customerId || this.isManagedCustomerGroup(),
       "counterparty_group.root_customer_forbidden",
       "Root custom groups cannot have customerId",
-      { customerId: input.customerId },
+      { customerId: next.customerId },
     );
 
     return new CounterpartyGroup({
       ...this.snapshot,
-      ...input,
+      ...next,
       parentId: null,
-      customerId: input.customerId,
+      customerId: next.customerId,
       updatedAt: deps.now,
     });
   }

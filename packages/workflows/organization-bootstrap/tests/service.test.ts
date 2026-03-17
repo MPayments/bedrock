@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const create = vi.fn(async () => ({ id: "org-1", shortName: "Acme" }));
 
 vi.mock("@bedrock/organizations", () => ({
-  createOrganizationsServiceFromTransaction: vi.fn(() => ({
+  createOrganizationsService: vi.fn(() => ({
     create,
   })),
 }));

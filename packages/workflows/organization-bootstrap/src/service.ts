@@ -1,30 +1,37 @@
 import type { LedgerBooksService } from "@bedrock/ledger";
 import {
-  createOrganizationsServiceFromTransaction,
-  type OrganizationsServiceTransactionDeps,
+  createOrganizationsService,
+  type OrganizationsServiceDeps,
 } from "@bedrock/organizations";
+import type {
+  CreateOrganizationInput,
+  Organization,
+} from "@bedrock/organizations/contracts";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Database } from "@bedrock/platform/persistence";
+import {
+  bindPersistenceSession,
+  type Database,
+} from "@bedrock/platform/persistence";
 
 export interface OrganizationBootstrapWorkflowDeps {
   db: Database;
   ledgerBooks: Pick<LedgerBooksService, "ensureDefaultOrganizationBook">;
   logger?: Logger;
-  now?: OrganizationsServiceTransactionDeps["now"];
+  now?: OrganizationsServiceDeps["now"];
+}
+
+export interface OrganizationBootstrapWorkflow {
+  create(input: CreateOrganizationInput): Promise<Organization>;
 }
 
 export function createOrganizationBootstrapWorkflow(
   deps: OrganizationBootstrapWorkflowDeps,
-) {
+): OrganizationBootstrapWorkflow {
   return {
-    async create(
-      input: Parameters<
-        ReturnType<typeof createOrganizationsServiceFromTransaction>["create"]
-      >[0],
-    ) {
+    async create(input) {
       return deps.db.transaction(async (tx) => {
-        const organizations = createOrganizationsServiceFromTransaction({
-          tx,
+        const organizations = createOrganizationsService({
+          persistence: bindPersistenceSession(tx),
           logger: deps.logger,
           now: deps.now,
         });
@@ -39,7 +46,3 @@ export function createOrganizationBootstrapWorkflow(
     },
   };
 }
-
-export type OrganizationBootstrapWorkflow = ReturnType<
-  typeof createOrganizationBootstrapWorkflow
->;

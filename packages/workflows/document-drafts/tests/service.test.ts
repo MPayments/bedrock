@@ -29,9 +29,6 @@ describe("document draft workflow", () => {
     }));
     const workflow = createDocumentDraftWorkflow({
       db: db as any,
-      idempotency: {
-        withIdempotencyTx: vi.fn(),
-      } as any,
       accountingPeriods: {
         closePeriod,
         reopenPeriod: vi.fn(),

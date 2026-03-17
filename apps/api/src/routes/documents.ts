@@ -247,7 +247,7 @@ export function documentsRoutes(ctx: AppContext) {
           return ctx.documentPostingWorkflow.repost(transitionInput);
         }
 
-        return ctx.documentsService.transition({
+        return ctx.documentsService.actions.execute({
           action: config.action,
           ...transitionInput,
         });

@@ -1,6 +1,5 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
-import type { RunInPersistenceSession } from "@bedrock/shared/core/persistence";
+import type { PersistenceContext } from "@bedrock/platform/persistence";
 
 import { createUpsertRequisiteAccountingBindingHandler } from "./application/bindings/commands";
 import {
@@ -49,18 +48,11 @@ import {
 
 export type RequisitesService = ReturnType<typeof createRequisitesService>;
 export interface RequisitesServiceDeps {
-  db: Database;
+  persistence: PersistenceContext;
   logger?: Logger;
   now?: () => Date;
-  runInTransaction?: RunInPersistenceSession;
   currencies: RequisitesCurrenciesPort;
   owners: RequisitesOwnersPort;
-}
-export interface RequisitesServiceTransactionDeps extends Omit<
-  RequisitesServiceDeps,
-  "db" | "runInTransaction"
-> {
-  tx: Transaction;
 }
 
 export function createRequisitesServiceFromContext(
@@ -93,33 +85,26 @@ export function createRequisitesService(deps: RequisitesServiceDeps) {
   const context = createRequisitesServiceContext({
     logger: deps.logger,
     now: deps.now,
-    runInTransaction:
-      deps.runInTransaction ??
-      ((run) =>
-        (deps.db as Database).transaction((tx: Transaction) => run(tx))),
+    runInTransaction: deps.persistence.runInTransaction,
     currencies: deps.currencies,
     owners: deps.owners,
-    requisiteQueries: createDrizzleRequisitesQueryRepository(deps.db),
-    requisiteCommands: createDrizzleRequisitesCommandRepository(deps.db),
+    requisiteQueries: createDrizzleRequisitesQueryRepository(deps.persistence.db),
+    requisiteCommands: createDrizzleRequisitesCommandRepository(
+      deps.persistence.db,
+    ),
     bindingQueries: createDrizzleRequisiteAccountingBindingsQueryRepository(
-      deps.db,
+      deps.persistence.db,
     ),
     bindingCommands: createDrizzleRequisiteAccountingBindingsCommandRepository(
-      deps.db,
+      deps.persistence.db,
     ),
-    providerQueries: createDrizzleRequisiteProvidersQueryRepository(deps.db),
-    providerCommands: createDrizzleRequisiteProvidersCommandRepository(deps.db),
+    providerQueries: createDrizzleRequisiteProvidersQueryRepository(
+      deps.persistence.db,
+    ),
+    providerCommands: createDrizzleRequisiteProvidersCommandRepository(
+      deps.persistence.db,
+    ),
   });
 
   return createRequisitesServiceFromContext(context);
-}
-
-export function createRequisitesServiceFromTransaction(
-  deps: RequisitesServiceTransactionDeps,
-) {
-  return createRequisitesService({
-    ...deps,
-    db: deps.tx,
-    runInTransaction: (run) => run(deps.tx),
-  });
 }

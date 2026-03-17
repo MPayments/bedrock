@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { schema } from "@bedrock/fx/schema";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
 import { createFxService } from "../src";
@@ -142,7 +143,7 @@ describe("createFxService", () => {
             saveQuoteFeeComponents: vi.fn(async () => undefined),
             getQuoteFeeComponents: vi.fn(async () => []),
         } as any;
-        const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
+        const service = createFxService({ persistence: createPersistenceContext(db), feesService, currenciesService: createMockCurrenciesService() });
 
         const quote = await service.quotes.quote({
             mode: "explicit_route",
@@ -224,7 +225,7 @@ describe("createFxService", () => {
             saveQuoteFeeComponents: vi.fn(async () => undefined),
             getQuoteFeeComponents: vi.fn(async () => []),
         } as any;
-        const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
+        const service = createFxService({ persistence: createPersistenceContext(db), feesService, currenciesService: createMockCurrenciesService() });
 
         await expect(service.quotes.quote({
             mode: "explicit_route",
@@ -321,7 +322,7 @@ describe("createFxService", () => {
             saveQuoteFeeComponents: vi.fn(async () => undefined),
             getQuoteFeeComponents: vi.fn(async () => []),
         } as any;
-        const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
+        const service = createFxService({ persistence: createPersistenceContext(db), feesService, currenciesService: createMockCurrenciesService() });
 
         const quote = await service.quotes.quote({
             mode: "auto_cross",
@@ -375,7 +376,7 @@ describe("createFxService", () => {
             saveQuoteFeeComponents: vi.fn(async () => undefined),
             getQuoteFeeComponents: vi.fn(async () => []),
         } as any;
-        const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
+        const service = createFxService({ persistence: createPersistenceContext(db), feesService, currenciesService: createMockCurrenciesService() });
 
         const quote = await service.quotes.quote({
             mode: "explicit_route",
@@ -428,7 +429,7 @@ describe("createFxService", () => {
                 .mockImplementationOnce(() => selectWhere([{ total: 2 }])),
         } as any;
         const service = createFxService({
-            db,
+            persistence: createPersistenceContext(db),
             feesService: createNoopFeesService(),
             currenciesService: createMockCurrenciesService(),
         });
@@ -508,7 +509,7 @@ describe("createFxService", () => {
             saveQuoteFeeComponents: vi.fn(async () => undefined),
             getQuoteFeeComponents: vi.fn(async () => feeComponents),
         } as any;
-        const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
+        const service = createFxService({ persistence: createPersistenceContext(db), feesService, currenciesService: createMockCurrenciesService() });
 
         const details = await service.quotes.getQuoteDetails({ quoteRef: "idem-details-1" });
 
@@ -545,7 +546,7 @@ describe("createFxService", () => {
             saveQuoteFeeComponents: vi.fn(async () => undefined),
             getQuoteFeeComponents: vi.fn(async () => []),
         } as any;
-        const service = createFxService({ db, feesService, currenciesService: createMockCurrenciesService() });
+        const service = createFxService({ persistence: createPersistenceContext(db), feesService, currenciesService: createMockCurrenciesService() });
 
         await expect(service.quotes.getQuoteDetails({ quoteRef: uuidQuoteRef })).rejects.toThrow(ValidationError);
     });
@@ -556,7 +557,7 @@ describe("createFxService", () => {
             update: vi.fn(),
         } as any;
         const service = createFxService({
-            db,
+            persistence: createPersistenceContext(db),
             feesService: createNoopFeesService(),
             currenciesService: createMockCurrenciesService(),
         });
@@ -582,7 +583,7 @@ describe("createFxService", () => {
             update: vi.fn(),
         } as any;
         const service = createFxService({
-            db,
+            persistence: createPersistenceContext(db),
             feesService: createNoopFeesService(),
             currenciesService: createMockCurrenciesService(),
         });
@@ -609,7 +610,7 @@ describe("createFxService", () => {
             update: vi.fn(),
         } as any;
         const service = createFxService({
-            db,
+            persistence: createPersistenceContext(db),
             feesService: createNoopFeesService(),
             currenciesService: createMockCurrenciesService(),
         });
@@ -635,7 +636,7 @@ describe("createFxService", () => {
             update: vi.fn(),
         } as any;
         const service = createFxService({
-            db,
+            persistence: createPersistenceContext(db),
             feesService: createNoopFeesService(),
             currenciesService: createMockCurrenciesService(),
         });
@@ -672,7 +673,7 @@ describe("createFxService", () => {
             })),
         } as any;
         const service = createFxService({
-            db,
+            persistence: createPersistenceContext(db),
             feesService: createNoopFeesService(),
             currenciesService: createMockCurrenciesService(),
         });

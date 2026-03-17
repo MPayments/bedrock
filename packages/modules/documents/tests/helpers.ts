@@ -2,6 +2,8 @@ import { vi } from "vitest";
 import { z } from "zod";
 
 import { createStubDb } from "@bedrock/test-utils";
+import type { IdempotencyPort } from "@bedrock/platform/idempotency";
+import type { PersistenceContext } from "@bedrock/platform/persistence";
 
 import type { Document } from "../src/domain/document";
 import type {
@@ -255,6 +257,42 @@ export function createDocumentsServiceDeps(
       ),
     },
   } as any;
+}
+
+export function createDocumentsPublicServiceDeps(
+  modules: DocumentModule[] = [createTestDocumentModule()],
+) {
+  const db = createStubDb();
+  const persistence: PersistenceContext = {
+    db: db as any,
+    runInTransaction: async (run) => run(db as any),
+  };
+  const idempotency: IdempotencyPort = {
+    withIdempotencyTx: async ({ handler }) => handler(),
+  };
+
+  return {
+    accounting: {
+      getDefaultCompiledPack: vi.fn(),
+      loadActiveCompiledPackForBook: vi.fn(),
+      resolvePostingPlan: vi.fn(),
+    },
+    accountingPeriods: {
+      assertOrganizationPeriodsOpen: vi.fn(async () => undefined),
+      closePeriod: vi.fn(async () => undefined),
+      isOrganizationPeriodClosed: vi.fn(async () => false),
+      listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
+      reopenPeriod: vi.fn(async () => undefined),
+    },
+    ledgerReadService: {
+      listOperationDetails: vi.fn(async () => new Map()),
+      getOperationDetails: vi.fn(),
+    },
+    persistence,
+    idempotency,
+    registry: createTestDocumentRegistry(modules),
+    now: () => new Date("2026-03-03T00:00:00.000Z"),
+  } as const;
 }
 
 export function createStubDocumentModuleRuntime(

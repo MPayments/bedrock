@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { CustomerSnapshot } from "../../domain/customer";
+
 export const CustomerSchema = z.object({
   id: z.uuid(),
   externalRef: z.string().nullable(),
@@ -9,4 +11,4 @@ export const CustomerSchema = z.object({
   updatedAt: z.date(),
 });
 
-export type Customer = z.infer<typeof CustomerSchema>;
+export type Customer = CustomerSnapshot;

@@ -1,8 +1,9 @@
 import {
+  applyPatch,
   Entity,
   normalizeOptionalText,
   normalizeRequiredText,
-} from "@bedrock/shared/core/domain";
+} from "@bedrock/shared/core";
 
 import { UserEmail } from "./user-email";
 import { type UserRole, toUserRoleOrNull } from "./user-role";
@@ -57,30 +58,40 @@ export class UserAccount extends Entity<string> {
   }
 
   updateProfile(input: {
-    name: string;
-    email: string;
-    role: UserRole | null;
+    name?: string;
+    email?: string;
+    role?: UserRole | null;
     now: Date;
   }): UserAccount {
+    const next = applyPatch(this.snapshot, {
+      name:
+        input.name === undefined
+          ? undefined
+          : UserAccount.normalizeName(input.name),
+      email:
+        input.email === undefined
+          ? undefined
+          : UserAccount.normalizeEmail(input.email),
+      role:
+        input.role === undefined ? undefined : toUserRoleOrNull(input.role),
+    });
+
     return new UserAccount({
-      ...this.snapshot,
-      name: UserAccount.normalizeName(input.name),
-      email: UserAccount.normalizeEmail(input.email),
-      role: toUserRoleOrNull(input.role),
+      ...next,
       updatedAt: input.now,
     });
   }
 
   ban(input: {
-    reason: string | null;
-    expiresAt: Date | null;
+    banReason?: string;
+    banExpires?: Date;
     now: Date;
   }): UserAccount {
     return new UserAccount({
       ...this.snapshot,
       banned: true,
-      banReason: normalizeOptionalText(input.reason),
-      banExpires: input.expiresAt,
+      banReason: normalizeOptionalText(input.banReason),
+      banExpires: input.banExpires ?? null,
       updatedAt: input.now,
     });
   }

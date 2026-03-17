@@ -8,6 +8,7 @@ import { schema as balancesSchema } from "@bedrock/balances/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import { schema as idempotencySchema } from "@bedrock/platform/idempotency-postgres/schema";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
 
 import { createBalancesService } from "../../src/service";
 
@@ -28,7 +29,10 @@ const pool = new Pool({
 
 const db = drizzle(pool, { schema });
 const idempotency = createIdempotencyService();
-const balances = createBalancesService({ db, idempotency });
+const balances = createBalancesService({
+  persistence: createPersistenceContext(db),
+  idempotency,
+});
 const createdBookIds = new Set<string>();
 const createdIdempotencyKeys = new Set<string>();
 

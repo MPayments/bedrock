@@ -6,6 +6,7 @@ import {
   type ListQueryContract,
 } from "@bedrock/shared/core/pagination";
 
+import type { RequisiteSnapshot } from "../domain/requisite";
 import {
   CountryCodeSchema,
   RequisiteKindSchema,
@@ -44,7 +45,7 @@ export const RequisiteSchema = z.object({
   archivedAt: z.date().nullable(),
 });
 
-export type Requisite = z.infer<typeof RequisiteSchema>;
+export type Requisite = RequisiteSnapshot;
 
 export const RequisiteAccountingBindingSchema = z.object({
   requisiteId: z.uuid(),

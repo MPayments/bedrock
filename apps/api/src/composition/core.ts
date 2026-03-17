@@ -24,6 +24,7 @@ import {
   createConsoleLogger,
   type Logger,
 } from "@bedrock/platform/observability/logger";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
 import { createUsersService, type UsersService } from "@bedrock/users";
 
 import { db } from "../db/client";
@@ -69,7 +70,11 @@ export function createCoreServices(): ApiCoreServices {
       ),
   });
   const ledgerReadService = createLedgerReadService({ db });
-  const balancesService = createBalancesService({ db, idempotency, logger });
+  const balancesService = createBalancesService({
+    persistence: createPersistenceContext(db),
+    idempotency,
+    logger,
+  });
   const usersService = createUsersService({
     identityStore: authStore,
     passwordHasher,

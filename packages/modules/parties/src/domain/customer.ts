@@ -1,8 +1,9 @@
 import {
+  applyPatch,
   Entity,
   normalizeOptionalText,
   normalizeRequiredText,
-} from "@bedrock/shared/core/domain";
+} from "@bedrock/shared/core";
 
 export interface CustomerSnapshot {
   id: string;
@@ -64,10 +65,12 @@ export class Customer extends Entity<string> {
     return new Customer({ ...snapshot });
   }
 
-  update(input: UpdateCustomerProps, now: Date): Customer {
+  update(input: Partial<UpdateCustomerProps>, now: Date): Customer {
     return new Customer({
-      ...this.snapshot,
-      ...input,
+      ...applyPatch<CustomerSnapshot>(
+        this.snapshot,
+        input as Partial<CustomerSnapshot>,
+      ),
       updatedAt: now,
     });
   }

@@ -1,9 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import {
-  resolveCreateCustomerProps,
-  resolveUpdateCustomerProps,
-} from "./inputs";
 import type {
   CreateCustomerInput,
   Customer as CustomerDto,
@@ -33,10 +29,10 @@ export function createCreateCustomerHandler(context: PartiesServiceContext) {
   ): Promise<CustomerDto> {
     const validated = CreateCustomerInputSchema.parse(input);
     const draft = Customer.create(
-      resolveCreateCustomerProps({
+      {
         id: randomUUID(),
-        values: validated,
-      }),
+        ...validated,
+      },
       context.now(),
     );
 
@@ -76,10 +72,7 @@ export function createUpdateCustomerHandler(context: PartiesServiceContext) {
       }
 
       const existing = Customer.fromSnapshot(existingSnapshot);
-      const next = existing.update(
-        resolveUpdateCustomerProps(existingSnapshot, validated),
-        context.now(),
-      );
+      const next = existing.update(validated, context.now());
       const persistedSnapshot = existing.sameState(next)
         ? existingSnapshot
         : await customers.updateCustomer(next.toSnapshot());

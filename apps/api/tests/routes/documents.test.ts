@@ -67,7 +67,9 @@ function createDocumentsServiceStub() {
     updateDraft: vi.fn(),
     get: vi.fn(),
     getDetails: vi.fn(),
-    transition: vi.fn(),
+    actions: {
+      execute: vi.fn(),
+    },
   };
 }
 
@@ -150,7 +152,7 @@ describe("documentsRoutes mutation actions", () => {
       });
     }
 
-    expect(documentsService.transition).not.toHaveBeenCalled();
+    expect(documentsService.actions.execute).not.toHaveBeenCalled();
   });
 
   it("routes each mutation action to corresponding documents service call", async () => {
@@ -165,7 +167,7 @@ describe("documentsRoutes mutation actions", () => {
       } else if (action === "repost") {
         documentPostingWorkflow.repost.mockResolvedValueOnce(expectedResult);
       } else {
-        documentsService.transition.mockResolvedValueOnce(expectedResult);
+        documentsService.actions.execute.mockResolvedValueOnce(expectedResult);
       }
 
       const response = await app.request(
@@ -190,7 +192,7 @@ describe("documentsRoutes mutation actions", () => {
       } else if (action === "repost") {
         expect(documentPostingWorkflow.repost).toHaveBeenCalledWith(expectedInput);
       } else {
-        expect(documentsService.transition).toHaveBeenCalledWith({
+        expect(documentsService.actions.execute).toHaveBeenCalledWith({
           action,
           ...expectedInput,
         });

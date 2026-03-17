@@ -1,9 +1,7 @@
 import { randomUUID } from "node:crypto";
 
-import {
-  resolveCreateRequisiteProps,
-  resolveRequisiteUpdateInput,
-} from "./inputs";
+import { applyPatch } from "@bedrock/shared/core";
+
 import type {
   CreateRequisiteInput,
   Requisite as RequisiteDto,
@@ -14,7 +12,7 @@ import {
   UpdateRequisiteInputSchema,
 } from "../../contracts";
 import { RequisiteOwner } from "../../domain/owner";
-import { Requisite } from "../../domain/requisite";
+import { Requisite, type RequisiteSnapshot } from "../../domain/requisite";
 import { RequisiteSet } from "../../domain/requisite-set";
 import {
   RequisiteNotFoundError,
@@ -47,39 +45,7 @@ async function assertProviderActive(
 }
 
 function toPublicRequisite(requisite: Requisite): RequisiteDto {
-  const snapshot = requisite.toSnapshot();
-
-  return {
-    id: snapshot.id,
-    ownerType: snapshot.ownerType,
-    ownerId: snapshot.ownerId,
-    providerId: snapshot.providerId,
-    currencyId: snapshot.currencyId,
-    kind: snapshot.kind,
-    label: snapshot.label,
-    description: snapshot.description,
-    beneficiaryName: snapshot.beneficiaryName,
-    institutionName: snapshot.institutionName,
-    institutionCountry: snapshot.institutionCountry,
-    accountNo: snapshot.accountNo,
-    corrAccount: snapshot.corrAccount,
-    iban: snapshot.iban,
-    bic: snapshot.bic,
-    swift: snapshot.swift,
-    bankAddress: snapshot.bankAddress,
-    network: snapshot.network,
-    assetCode: snapshot.assetCode,
-    address: snapshot.address,
-    memoTag: snapshot.memoTag,
-    accountRef: snapshot.accountRef,
-    subaccountRef: snapshot.subaccountRef,
-    contact: snapshot.contact,
-    notes: snapshot.notes,
-    isDefault: snapshot.isDefault,
-    createdAt: snapshot.createdAt,
-    updatedAt: snapshot.updatedAt,
-    archivedAt: snapshot.archivedAt,
-  };
+  return requisite.toSnapshot();
 }
 
 export function createCreateRequisiteHandler(
@@ -135,13 +101,13 @@ export function createCreateRequisiteHandler(
       const created = Requisite.fromSnapshot(
         await requisiteCommands.insertRequisite(
           Requisite.create(
-            resolveCreateRequisiteProps({
+            {
+              ...validated,
               id: requisiteId,
               ownerType: owner.type,
               ownerId: owner.id,
-              values: validated,
               isDefault: createPlan.candidateIsDefault,
-            }),
+            },
             context.now(),
           ).toSnapshot(),
           tx,
@@ -180,7 +146,10 @@ export function createUpdateRequisiteHandler(
 
       const existing = Requisite.fromSnapshot(existingSnapshot);
       const current = existing.toSnapshot();
-      const nextInput = resolveRequisiteUpdateInput(current, validated);
+      const nextInput = applyPatch<RequisiteSnapshot>(
+        current,
+        validated as Partial<RequisiteSnapshot>,
+      );
       const currencyChanged = nextInput.currencyId !== current.currencyId;
 
       await Promise.all([
@@ -257,7 +226,7 @@ export function createUpdateRequisiteHandler(
         }
       }
 
-      const next = existing.update(nextInput, context.now());
+      const next = existing.update(validated, context.now());
       const persistedSnapshot = existing.sameState(next)
         ? existingSnapshot
         : await requisiteCommands.updateRequisite(next.toSnapshot(), tx);

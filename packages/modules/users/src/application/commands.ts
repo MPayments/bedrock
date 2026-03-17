@@ -11,7 +11,6 @@ import {
   type UpdateUserInput,
   type User,
 } from "../contracts";
-import { resolveBanUserInput, resolveUserUpdateInput } from "./inputs";
 import { toUser } from "./mappers";
 import { UserAccount } from "../domain/user-account";
 import { toUserRoleOrNull } from "../domain/user-role";
@@ -72,7 +71,7 @@ export function createUpdateUserHandler(context: UsersServiceContext) {
       twoFactorEnabled: existing.twoFactorEnabled ?? false,
     });
     const updatedAccount = existingAccount.updateProfile({
-      ...resolveUserUpdateInput(existingAccount.toSnapshot(), validated),
+      ...validated,
       now: new Date(),
     });
     const updatedSnapshot = updatedAccount.toSnapshot();
@@ -190,7 +189,7 @@ export function createBanUserHandler(context: UsersServiceContext) {
       banExpires: existing.banExpires ?? null,
       twoFactorEnabled: existing.twoFactorEnabled ?? false,
     }).ban({
-      ...resolveBanUserInput(validated),
+      ...validated,
       now: new Date(),
     });
 

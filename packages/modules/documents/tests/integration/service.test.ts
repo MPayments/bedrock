@@ -1,23 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
 
 import { db, pool } from "./setup";
 import { createDocumentsService } from "../../src";
-import { createDrizzleDocumentsReadModel } from "../../src/infra/drizzle/queries";
-import {
-  createDrizzleDocumentEventsRepository,
-  createDrizzleDocumentLinksRepository,
-  createDrizzleDocumentOperationsRepository,
-  createDrizzleDocumentSnapshotsRepository,
-  createDrizzleDocumentsCommandRepository,
-  createDrizzleDocumentsQueryRepository,
-} from "../../src/infra/drizzle/repository";
 import type {
   DocumentActionPolicyService,
   DocumentModule,
-  DocumentModuleRuntime,
   DocumentRegistry,
 } from "../../src/plugins";
 
@@ -124,15 +114,6 @@ function createRegistry(modules: DocumentModule[]): DocumentRegistry {
   };
 }
 
-function createModuleRuntime(
-  database: Database | Transaction,
-): DocumentModuleRuntime {
-  return {
-    documents: createDrizzleDocumentsReadModel({ db: database }),
-    withQueryable: (run) => run(database),
-  };
-}
-
 function createPassThroughPolicy(): DocumentActionPolicyService | undefined {
   return undefined;
 }
@@ -163,11 +144,12 @@ function createDocumentsRuntime() {
       },
       async reopenPeriod() {},
     },
-    documentEvents: createDrizzleDocumentEventsRepository(db),
-    documentLinks: createDrizzleDocumentLinksRepository(db),
-    documentOperations: createDrizzleDocumentOperationsRepository(db),
-    documentSnapshots: createDrizzleDocumentSnapshotsRepository(db),
-    documentsQuery: createDrizzleDocumentsQueryRepository(db),
+    persistence: createPersistenceContext(db),
+    idempotency: {
+      async withIdempotencyTx(input) {
+        return input.handler();
+      },
+    },
     ledgerReadService: {
       async listOperationDetails() {
         return new Map();
@@ -176,33 +158,9 @@ function createDocumentsRuntime() {
         return null;
       },
     },
-    moduleRuntime: createModuleRuntime(db),
     policy: createPassThroughPolicy(),
     registry,
     now: () => new Date("2026-03-12T08:30:00.000Z"),
-    transactions: {
-      async withTransaction(run) {
-        return db.transaction(async (tx) =>
-          run({
-            moduleRuntime: createModuleRuntime(tx),
-            documentEvents: createDrizzleDocumentEventsRepository(tx),
-            documentLinks: createDrizzleDocumentLinksRepository(tx),
-            documentOperations: createDrizzleDocumentOperationsRepository(tx),
-            documentsCommand: createDrizzleDocumentsCommandRepository(tx),
-            idempotency: {
-              async withIdempotency(input) {
-                return input.handler();
-              },
-            },
-            ledger: {
-              async commit() {
-                throw new Error("Not used in documents integration tests");
-              },
-            },
-          }),
-        );
-      },
-    },
   });
 }
 
@@ -310,7 +268,7 @@ describe("documents integration", () => {
       actorUserId: ACTOR_ID,
     });
 
-    const submitted = await service.transition({
+    const submitted = await service.actions.execute({
       action: "submit",
       docType: DOC_TYPE,
       documentId: created.document.id,

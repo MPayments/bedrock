@@ -1,9 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import {
-  resolveCreateCounterpartyGroupProps,
-  resolveUpdateCounterpartyGroupProps,
-} from "./inputs";
 import type {
   CounterpartyGroup as CounterpartyGroupDto,
   CreateCounterpartyGroupInput,
@@ -59,10 +55,11 @@ export function createCreateCounterpartyGroupHandler(
     let draft: CounterpartyGroup;
     try {
       draft = CounterpartyGroup.create(
-        resolveCreateCounterpartyGroupProps({
+        {
           id: randomUUID(),
-          values: validated,
-        }),
+          isSystem: false,
+          ...validated,
+        },
         {
           parent,
           now: context.now(),
@@ -106,13 +103,9 @@ export function createUpdateCounterpartyGroupHandler(
     );
 
     let next: CounterpartyGroup;
-    const nextInput = resolveUpdateCounterpartyGroupProps(
-      existingSnapshot,
-      validated,
-    );
     try {
       next = CounterpartyGroup.fromSnapshot(existingSnapshot).update(
-        nextInput,
+        validated,
         {
           hierarchy,
           now: context.now(),
@@ -123,8 +116,7 @@ export function createUpdateCounterpartyGroupHandler(
     }
 
     if (
-      (nextInput.customerId !== existingSnapshot.customerId ||
-        nextInput.parentId !== existingSnapshot.parentId) &&
+      (validated.customerId !== undefined || validated.parentId !== undefined) &&
       next.toSnapshot().customerId
     ) {
       await assertCustomerExists(context, next.toSnapshot().customerId!);

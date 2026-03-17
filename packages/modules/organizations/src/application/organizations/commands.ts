@@ -1,9 +1,7 @@
 import { randomUUID } from "node:crypto";
 
-import { resolveOrganizationUpdateInput } from "./inputs";
 import type {
   CreateOrganizationInput,
-  Organization as OrganizationDto,
   UpdateOrganizationInput,
 } from "../../contracts";
 import {
@@ -16,10 +14,6 @@ import {
   OrganizationNotFoundError,
 } from "../../errors";
 import type { OrganizationsServiceContext } from "../shared/context";
-
-function toPublicOrganization(organization: Organization): OrganizationDto {
-  return organization.toSnapshot();
-}
 
 function hasForeignKeyViolation(error: unknown): boolean {
   if (!error || typeof error !== "object") {
@@ -41,17 +35,12 @@ export function createCreateOrganizationHandler(
 
   return async function createOrganization(
     input: CreateOrganizationInput,
-  ): Promise<OrganizationDto> {
+  ) {
     const validated = CreateOrganizationInputSchema.parse(input);
     const draft = Organization.create(
       {
         id: randomUUID(),
-        externalId: validated.externalId,
-        shortName: validated.shortName,
-        fullName: validated.fullName,
-        description: validated.description,
-        country: validated.country,
-        kind: validated.kind,
+        ...validated,
       },
       context.now(),
     );
@@ -66,7 +55,7 @@ export function createCreateOrganizationHandler(
         shortName: created.toSnapshot().shortName,
       });
 
-      return toPublicOrganization(created);
+      return created.toSnapshot();
     });
   };
 }
@@ -79,7 +68,7 @@ export function createUpdateOrganizationHandler(
   return async function updateOrganization(
     id: string,
     input: UpdateOrganizationInput,
-  ): Promise<OrganizationDto> {
+  ) {
     const validated = UpdateOrganizationInputSchema.parse(input);
 
     return transactions.withTransaction(async ({ organizations }) => {
@@ -91,10 +80,7 @@ export function createUpdateOrganizationHandler(
       }
 
       const existing = Organization.fromSnapshot(existingSnapshot);
-      const next = existing.update(
-        resolveOrganizationUpdateInput(existing.toSnapshot(), validated),
-        context.now(),
-      );
+      const next = existing.update(validated, context.now());
       const persistedSnapshot = existing.sameState(next)
         ? existingSnapshot
         : await organizations.updateOrganization(next.toSnapshot());
@@ -104,7 +90,7 @@ export function createUpdateOrganizationHandler(
       }
 
       log.info("Organization updated", { id });
-      return toPublicOrganization(Organization.fromSnapshot(persistedSnapshot));
+      return Organization.fromSnapshot(persistedSnapshot).toSnapshot();
     });
   };
 }

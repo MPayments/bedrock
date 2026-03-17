@@ -20,6 +20,10 @@ import type { DocumentsServiceContext } from "../shared/context";
 import type { DocumentsIdempotencyScope } from "../shared/documents-idempotency";
 import { mapDocumentDomainError } from "../shared/map-domain-error";
 import {
+  insertDocumentEvents,
+  type DocumentActionEvent,
+} from "../shared/action-runtime";
+import {
   createModuleContext,
   resolveModuleForDocument,
 } from "../shared/module-resolution";
@@ -32,17 +36,10 @@ export interface DocumentTransitionIdempotencyContext {
   module: DocumentModule;
 }
 
-export interface DocumentTransitionEvent {
-  eventType: string;
-  before: Record<string, unknown> | null;
-  after: Record<string, unknown> | null;
-  reasonMeta?: Record<string, unknown> | null;
-}
-
 export interface DocumentTransitionExecutionResult {
   document: Document;
   postingOperationId: string | null;
-  events?: DocumentTransitionEvent[];
+  events?: DocumentActionEvent[];
 }
 
 export interface DocumentTransitionExecutionContext {
@@ -72,28 +69,6 @@ export type DocumentTransitionSpecs = Record<
   Exclude<DocumentTransitionAction, "post" | "repost">,
   DocumentTransitionSpec
 >;
-
-async function insertTransitionEvents(input: {
-  documentEvents: DocumentEventsRepository;
-  transition: DocumentTransitionInput;
-  events: DocumentTransitionEvent[];
-  requestContext?: DocumentRequestContext;
-}) {
-  for (const event of input.events) {
-    await input.documentEvents.insertDocumentEvent({
-      documentId: input.transition.documentId,
-      eventType: event.eventType,
-      actorId: input.transition.actorUserId,
-      requestId: input.requestContext?.requestId,
-      correlationId: input.requestContext?.correlationId,
-      traceId: input.requestContext?.traceId,
-      causationId: input.requestContext?.causationId,
-      before: event.before,
-      after: event.after,
-      reasonMeta: event.reasonMeta ?? null,
-    });
-  }
-}
 
 export async function runDocumentTransition(input: {
   services: DocumentsServiceContext;
@@ -196,10 +171,11 @@ export async function runDocumentTransition(input: {
             });
 
             if (result.events && result.events.length > 0) {
-              await insertTransitionEvents({
+              await insertDocumentEvents({
                 documentEvents,
-                transition,
                 events: result.events,
+                documentId: transition.documentId,
+                actorUserId: transition.actorUserId,
                 requestContext: transition.requestContext,
               });
             }

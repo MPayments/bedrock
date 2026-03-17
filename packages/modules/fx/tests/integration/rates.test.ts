@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createCurrenciesService } from "@bedrock/currencies";
 import { schema } from "@bedrock/fx/schema";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
 import { DAY_IN_SECONDS } from "@bedrock/shared/money/math";
 
 import { db } from "./setup";
@@ -13,7 +14,7 @@ import { createNoopFeesService, currencyIdForCode } from "../helpers";
 
 function createFxServiceWithProvider(provider: FxRateSourceProvider) {
     return createFxService({
-        db,
+        persistence: createPersistenceContext(db),
         feesService: createNoopFeesService(),
         currenciesService: createCurrenciesService({ db }),
         rateSourceProviders: { cbr: provider },

@@ -1,9 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import {
-  resolveCreateCounterpartyProps,
-  resolveUpdateCounterpartyProps,
-} from "./inputs";
 import type {
   Counterparty as CounterpartyDto,
   CreateCounterpartyInput,
@@ -79,10 +75,10 @@ export function createCreateCounterpartyHandler(
       let draft: Counterparty;
       try {
         draft = Counterparty.create(
-          resolveCreateCounterpartyProps({
+          {
             id: randomUUID(),
-            values: validated,
-          }),
+            ...validated,
+          },
           {
             hierarchy,
             managedGroupId,
@@ -138,12 +134,10 @@ export function createUpdateCounterpartyHandler(
       const hierarchy = GroupHierarchy.create(
         await counterparties.listGroupHierarchyNodes(),
       );
-      const nextInput = resolveUpdateCounterpartyProps(
-        existingSnapshot,
-        validated,
-        hierarchy,
-      );
-      const nextCustomerId = nextInput.customerId;
+      const nextCustomerId =
+        validated.customerId !== undefined
+          ? validated.customerId
+          : existingSnapshot.customerId;
 
       let managedGroupId: string | null = null;
       if (nextCustomerId) {
@@ -160,7 +154,7 @@ export function createUpdateCounterpartyHandler(
 
       let next: Counterparty;
       try {
-        next = existing.update(nextInput, {
+        next = existing.update(validated, {
           hierarchy,
           managedGroupId,
           now: context.now(),
