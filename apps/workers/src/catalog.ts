@@ -10,7 +10,7 @@ export const WORKER_CATALOG = [
   {
     id: "documents",
     envKey: "DOCUMENTS_WORKER_INTERVAL_MS",
-    defaultIntervalMs: 5_000,
+    defaultIntervalMs: 250,
     description: "Завершает статусы проведения документов по результатам ledger.",
   },
   {

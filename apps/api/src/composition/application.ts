@@ -25,12 +25,19 @@ import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/providers";
-import { createLedgerQueries } from "@bedrock/ledger/queries";
+import {
+  createLedgerQueries,
+  type LedgerBookRow,
+  type LedgerQueries,
+} from "@bedrock/ledger/queries";
 import {
   createOrganizationsService,
   type OrganizationsService,
 } from "@bedrock/organizations";
-import { createOrganizationsQueries } from "@bedrock/organizations/queries";
+import {
+  createOrganizationsQueries,
+  type OrganizationsQueries,
+} from "@bedrock/organizations/queries";
 import { createPartiesService, type PartiesService } from "@bedrock/parties";
 import { createPartiesQueries } from "@bedrock/parties/queries";
 import {
@@ -65,6 +72,7 @@ import {
 } from "@bedrock/workflow-requisite-accounting";
 
 import type { ApiCoreServices } from "./core";
+import { relabelOrganizationBookNames } from "./book-labels";
 import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
@@ -87,12 +95,41 @@ export interface ApiApplicationServices {
   documentPostingWorkflow: DocumentPostingWorkflow;
 }
 
+async function listBooksWithLabels(input: {
+  ids: string[];
+  ledgerQueries: Pick<LedgerQueries, "listBooksById">;
+  organizationsQueries: Pick<OrganizationsQueries, "listShortNamesById">;
+}): Promise<LedgerBookRow[]> {
+  const books = await input.ledgerQueries.listBooksById(input.ids);
+  const ownerIds = Array.from(
+    new Set(books.map((book) => book.ownerId).filter(Boolean)),
+  ) as string[];
+  const organizationShortNamesById =
+    ownerIds.length === 0
+      ? new Map<string, string>()
+      : await input.organizationsQueries.listShortNamesById(ownerIds);
+
+  return relabelOrganizationBookNames({
+    books,
+    organizationShortNamesById,
+  });
+}
+
 function createAccountingReportRuntime(database: Database | Transaction) {
   const balancesQueries = createBalancesQueries({ db: database });
   const partiesQueries = createPartiesQueries({ db: database });
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: database });
-  const ledgerQueries = createLedgerQueries({ db: database });
   const organizationsQueries = createOrganizationsQueries({ db: database });
+  const rawLedgerQueries = createLedgerQueries({ db: database });
+  const ledgerQueries: LedgerQueries = {
+    ...rawLedgerQueries,
+    listBooksById: (ids) =>
+      listBooksWithLabels({
+        ids,
+        ledgerQueries: rawLedgerQueries,
+        organizationsQueries,
+      }),
+  };
   const requisitesQueries = createRequisitesQueries({ db: database });
   const reportsRepository = createDrizzleAccountingReportsRepository(database);
   const reportContext = createAccountingReportsContext({
