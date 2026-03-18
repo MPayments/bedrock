@@ -64,6 +64,7 @@ export function createFxService(deps: FxServiceDeps) {
   };
 
   const quotes = {
+    previewQuote: quoteCommands.previewQuote,
     quote: quoteCommands.quote,
     listQuotes: quoteQueries.listQuotes,
     getQuoteDetails: quoteQueries.getQuoteDetails,

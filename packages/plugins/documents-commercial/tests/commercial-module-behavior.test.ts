@@ -51,6 +51,7 @@ function createDeps() {
     },
     quoteSnapshot: {
       loadQuoteSnapshot: vi.fn(async () => createQuoteSnapshot()),
+      createQuoteSnapshot: vi.fn(async () => createQuoteSnapshot()),
     },
     quoteUsage: {
       markQuoteUsedForInvoice: vi.fn(async () => undefined),
@@ -194,6 +195,47 @@ describe("commercial document modules", () => {
           source: "manual",
         },
       ],
+    });
+  });
+
+  it("creates exchange invoice drafts from current rates when quoteRef is omitted", async () => {
+    const deps = createDeps();
+    const module = createInvoiceDocumentModule(deps as any);
+    const runtime = {} as any;
+
+    const draft = await module.createDraft?.(
+      {
+        runtime,
+        now: new Date("2026-03-03T10:00:00.000Z"),
+        operationIdempotencyKey: "create-idem",
+      } as any,
+      {
+        occurredAt: new Date("2026-03-03T10:00:00.000Z"),
+        mode: "exchange",
+        customerId: "00000000-0000-4000-8000-000000000301",
+        counterpartyId: "00000000-0000-4000-8000-000000000302",
+        organizationId: "00000000-0000-4000-8000-000000000113",
+        organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+        amount: "100.00",
+        amountMinor: "10000",
+        currency: "USD",
+        targetCurrency: "EUR",
+        memo: "exchange invoice",
+      },
+    );
+
+    expect(deps.quoteSnapshot.createQuoteSnapshot).toHaveBeenCalledWith({
+      runtime,
+      fromCurrency: "USD",
+      toCurrency: "EUR",
+      fromAmountMinor: "10000",
+      asOf: new Date("2026-03-03T10:00:00.000Z"),
+      idempotencyKey: "documents.invoice.exchange.quote:create-idem",
+    });
+    expect(draft?.payload).toMatchObject({
+      quoteSnapshot: expect.objectContaining({
+        quoteId: "00000000-0000-4000-8000-000000000010",
+      }),
     });
   });
 

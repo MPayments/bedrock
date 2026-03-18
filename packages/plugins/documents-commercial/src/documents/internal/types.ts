@@ -22,6 +22,14 @@ export interface CommercialQuoteSnapshotPort {
     runtime: CommercialDocumentRuntime;
     quoteRef: string;
   }): Promise<QuoteSnapshot>;
+  createQuoteSnapshot(input: {
+    runtime: CommercialDocumentRuntime;
+    fromCurrency: string;
+    toCurrency: string;
+    fromAmountMinor: string;
+    asOf: Date;
+    idempotencyKey: string;
+  }): Promise<QuoteSnapshot>;
 }
 
 export interface CommercialQuoteUsagePort {

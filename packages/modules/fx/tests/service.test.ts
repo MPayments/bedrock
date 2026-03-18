@@ -456,6 +456,76 @@ describe("createFxService", () => {
         });
     });
 
+    it("previews auto-cross quotes without persisting rows", async () => {
+        const db = {
+            select: vi
+                .fn()
+                .mockImplementationOnce(() => selectWhereLimit([{
+                    base: "USD",
+                    quote: "EUR",
+                    rateNum: 2n,
+                    rateDen: 1n,
+                    asOf: new Date("2026-02-14T00:00:00Z"),
+                    source: "manual",
+                }])),
+            transaction: vi.fn(async () => {
+                throw new Error("previewQuote must not open a transaction");
+            }),
+        } as any;
+        const feesService = {
+            calculateFxQuoteFeeComponents: vi.fn(async () => [{
+                id: "rule:fee-1",
+                kind: "fx_fee",
+                currency: "USD",
+                amountMinor: 125n,
+                source: "rule",
+                settlementMode: "in_ledger",
+            }]),
+            saveQuoteFeeComponents: vi.fn(async () => undefined),
+            getQuoteFeeComponents: vi.fn(async () => []),
+        } as any;
+        const service = createFxService({
+            persistence: createPersistenceContext(db),
+            feesService,
+            currenciesService: createMockCurrenciesService(),
+        });
+
+        const preview = await service.quotes.previewQuote({
+            fromCurrency: "USD",
+            toCurrency: "EUR",
+            fromAmountMinor: 10_000n,
+        });
+
+        expect(preview).toMatchObject({
+            fromCurrency: "USD",
+            toCurrency: "EUR",
+            fromAmountMinor: 10_000n,
+            toAmountMinor: 20_000n,
+            pricingMode: "auto_cross",
+            rateNum: 2n,
+            rateDen: 1n,
+        });
+        expect(preview.legs).toEqual([
+            expect.objectContaining({
+                idx: 1,
+                fromCurrency: "USD",
+                toCurrency: "EUR",
+                fromAmountMinor: 10_000n,
+                toAmountMinor: 20_000n,
+            }),
+        ]);
+        expect(preview.financialLines).toEqual([
+            expect.objectContaining({
+                bucket: "fee_revenue",
+                currency: "USD",
+                amountMinor: 125n,
+                source: "rule",
+            }),
+        ]);
+        expect(db.transaction).not.toHaveBeenCalled();
+        expect(feesService.saveQuoteFeeComponents).not.toHaveBeenCalled();
+    });
+
     it("returns quote details with legs, persisted fee snapshot, and pricing trace", async () => {
         const quote = makeQuote({ idempotencyKey: "idem-details-1" });
         const legs = [

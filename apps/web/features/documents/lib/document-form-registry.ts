@@ -11,6 +11,7 @@ export type {
   DocumentFormField,
   DocumentFormFieldOption,
   FinancialLineCalcMethod,
+  FxQuotePreviewRequestMode,
   DocumentFormResponsiveCount,
   DocumentFormRow,
   DocumentFormRowField,

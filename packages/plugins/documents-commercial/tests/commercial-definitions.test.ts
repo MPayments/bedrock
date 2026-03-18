@@ -46,8 +46,14 @@ describe("commercial document definitions", () => {
       (section) => section.id === "main",
     );
     const financialLines = fields.find((field) => field.name === "financialLines");
-    const quoteRef = fields.find((field) => field.name === "quoteRef");
-    const currency = fields.find((field) => field.name === "currency");
+    const exchangeSection = formDefinition!.sections.find(
+      (section) => section.id === "exchange",
+    );
+    const exchangePreview = fields.find((field) => field.name === "quotePreview");
+    const targetCurrency = fields.find((field) => field.name === "targetCurrency");
+    const exchangeCurrencies = fields.filter(
+      (field) => field.kind === "currency" && field.name === "currency",
+    );
 
     expect(mainSection?.layout?.rows).toContainEqual({
       columns: { base: 1, sm: 2 },
@@ -64,19 +70,32 @@ describe("commercial document definitions", () => {
       baseCurrencyFieldName: "currency",
       visibleWhen: { fieldName: "mode", equals: ["direct"] },
     });
-    expect(currency).toMatchObject({
+    expect(exchangeCurrencies).toContainEqual(
+      expect.objectContaining({
+        kind: "currency",
+        hidden: true,
+        deriveFrom: {
+          kind: "accountCurrency",
+          accountFieldNames: ["organizationRequisiteId"],
+        },
+      }),
+    );
+    expect(targetCurrency).toMatchObject({
       kind: "currency",
-      hidden: true,
-      deriveFrom: {
-        kind: "accountCurrency",
-        accountFieldNames: ["organizationRequisiteId"],
-      },
-      visibleWhen: { fieldName: "mode", equals: ["direct"] },
-    });
-    expect(quoteRef).toMatchObject({
-      kind: "text",
       visibleWhen: { fieldName: "mode", equals: ["exchange"] },
     });
+    expect(exchangePreview).toMatchObject({
+      kind: "fxQuotePreview",
+      requestMode: "auto_cross",
+      amountFieldName: "amount",
+      fromCurrencyFieldName: "currency",
+      toCurrencyFieldName: "targetCurrency",
+      visibleWhen: { fieldName: "mode", equals: ["exchange"] },
+    });
+    expect(exchangeSection?.layout?.rows).toEqual([
+      { fields: ["amount", "targetCurrency"] },
+      { fields: ["quotePreview"] },
+    ]);
   });
 
   it("round-trips invoice percent rows through the typed definition", () => {
@@ -129,6 +148,33 @@ describe("commercial document definitions", () => {
           percent: "1.25",
         },
       ],
+    });
+  });
+
+  it("restores generated exchange invoice inputs from stored quote snapshots", () => {
+    const invoice = getCommercialDocumentDefinition("invoice");
+    const formDefinition = invoice?.formDefinition;
+
+    expect(
+      formDefinition?.fromPayload({
+        occurredAt: "2026-03-03T10:00:00.000Z",
+        mode: "exchange",
+        customerId: "00000000-0000-4000-8000-000000000001",
+        counterpartyId: "00000000-0000-4000-8000-000000000002",
+        organizationId: "00000000-0000-4000-8000-000000000003",
+        organizationRequisiteId: "00000000-0000-4000-8000-000000000004",
+        quoteSnapshot: {
+          quoteRef: "550e8400-e29b-41d4-a716-446655440010",
+          fromCurrency: "USD",
+          toCurrency: "EUR",
+          fromAmountMinor: "10050",
+        },
+      }),
+    ).toMatchObject({
+      mode: "exchange",
+      amount: "100.5",
+      currency: "USD",
+      targetCurrency: "EUR",
     });
   });
 });

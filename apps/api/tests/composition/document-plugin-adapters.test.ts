@@ -25,6 +25,9 @@ function createRuntime(input: {
 describe("document plugin adapters composition", () => {
   it("builds commercial quote snapshots from FX and currency services", async () => {
     const fxQuotes = {
+      quote: vi.fn(async () => ({
+        id: "550e8400-e29b-41d4-a716-446655440010",
+      })),
       getQuoteDetails: vi.fn(async () => ({
         quote: {
           id: "550e8400-e29b-41d4-a716-446655440010",
@@ -131,6 +134,22 @@ describe("document plugin adapters composition", () => {
     expect(fxQuotes.getQuoteDetails).toHaveBeenCalledWith({
       quoteRef: "quote-ref-crypto",
     });
+
+    await expect(
+      deps.quoteSnapshot.createQuoteSnapshot({
+        runtime: createRuntime({}),
+        fromCurrency: "USD",
+        toCurrency: "USDT",
+        fromAmountMinor: "10000",
+        asOf: new Date("2026-03-03T10:00:00.000Z"),
+        idempotencyKey: "documents.invoice.exchange.quote:create-idem",
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        quoteId: "550e8400-e29b-41d4-a716-446655440010",
+        quoteRef: "550e8400-e29b-41d4-a716-446655440010",
+      }),
+    );
   });
 
   it("builds IFRS transfer lookup adapters from owner BC query ports", async () => {

@@ -25,6 +25,7 @@ function getDefaultFxExecuteValues() {
     destinationRequisiteId: "",
     amount: "",
     currency: "",
+    destinationCurrency: "",
     executionRef: "",
     timeoutSeconds: "",
     financialLines: [],
@@ -95,6 +96,16 @@ export const fxExecuteDocumentDefinition = {
             },
           },
           {
+            kind: "currency",
+            name: "destinationCurrency",
+            label: "Валюта назначения",
+            hidden: true,
+            deriveFrom: {
+              kind: "accountCurrency",
+              accountFieldNames: ["destinationRequisiteId"],
+            },
+          },
+          {
             kind: "text",
             name: "executionRef",
             label: "Референс исполнения",
@@ -133,6 +144,24 @@ export const fxExecuteDocumentDefinition = {
             },
             { fields: ["memo"] },
           ],
+        },
+      },
+      {
+        id: "quote",
+        title: "Текущая котировка",
+        fields: [
+          {
+            kind: "fxQuotePreview",
+            name: "quotePreview",
+            label: "Текущая котировка",
+            requestMode: "auto_cross",
+            amountFieldName: "amount",
+            fromCurrencyFieldName: "currency",
+            toCurrencyFieldName: "destinationCurrency",
+          },
+        ],
+        layout: {
+          rows: [{ fields: ["quotePreview"] }],
         },
       },
       {
@@ -177,6 +206,7 @@ export const fxExecuteDocumentDefinition = {
           RUSSIAN_MAJOR_AMOUNT_MESSAGES,
         ),
         currency: readString(quoteSnapshot?.fromCurrency),
+        destinationCurrency: readString(quoteSnapshot?.toCurrency),
         executionRef: readString(payload.executionRef),
         timeoutSeconds:
           typeof payload.timeoutSeconds === "number"

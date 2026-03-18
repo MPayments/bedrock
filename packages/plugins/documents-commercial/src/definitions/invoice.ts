@@ -1,3 +1,5 @@
+import { minorToAmountString } from "@bedrock/shared/money";
+
 import {
   FINANCIAL_LINE_BUCKET_OPTIONS,
   INVOICE_MODE_OPTIONS,
@@ -116,17 +118,47 @@ export const invoiceDocumentDefinition = {
       },
       {
         id: "exchange",
-        title: "FX-снимок",
+        title: "Текущая котировка",
         fields: [
           {
-            kind: "text",
-            name: "quoteRef",
-            label: "Quote ref",
+            kind: "amount",
+            name: "amount",
+            label: "Сумма",
+            visibleWhen: { fieldName: "mode", equals: ["exchange"] },
+          },
+          {
+            kind: "currency",
+            name: "currency",
+            label: "Валюта списания",
+            hidden: true,
+            deriveFrom: {
+              kind: "accountCurrency",
+              accountFieldNames: ["organizationRequisiteId"],
+            },
+            visibleWhen: { fieldName: "mode", equals: ["exchange"] },
+          },
+          {
+            kind: "currency",
+            name: "targetCurrency",
+            label: "Валюта выплаты",
+            visibleWhen: { fieldName: "mode", equals: ["exchange"] },
+          },
+          {
+            kind: "fxQuotePreview",
+            name: "quotePreview",
+            label: "Текущая котировка",
+            requestMode: "auto_cross",
+            amountFieldName: "amount",
+            fromCurrencyFieldName: "currency",
+            toCurrencyFieldName: "targetCurrency",
             visibleWhen: { fieldName: "mode", equals: ["exchange"] },
           },
         ],
         layout: {
-          rows: [{ fields: ["quoteRef"] }],
+          rows: [
+            { fields: ["amount", "targetCurrency"] },
+            { fields: ["quotePreview"] },
+          ],
         },
       },
     ],
@@ -146,9 +178,17 @@ export const invoiceDocumentDefinition = {
         counterpartyId: readString(payload.counterpartyId),
         organizationId: readString(payload.organizationId),
         organizationRequisiteId: readString(payload.organizationRequisiteId),
-        amount: readString(payload.amount),
-        currency: readString(payload.currency),
-        quoteRef: readString(quoteSnapshot?.quoteRef),
+        amount:
+          mode === "exchange"
+            ? minorToAmountString(quoteSnapshot?.fromAmountMinor, {
+                currency: readString(quoteSnapshot?.fromCurrency) || undefined,
+              })
+            : readString(payload.amount),
+        currency:
+          mode === "exchange"
+            ? readString(quoteSnapshot?.fromCurrency)
+            : readString(payload.currency),
+        targetCurrency: readString(quoteSnapshot?.toCurrency),
         financialLines: mapPayloadFinancialLines(
           Array.isArray(payload.financialLines)
             ? (payload.financialLines as any)

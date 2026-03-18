@@ -162,6 +162,14 @@ const invoiceDirectInputBaseSchema = invoiceBaseInputSchema.extend({
   financialLines: z.array(directFinancialLineInputSchema).default([]),
 });
 
+const invoiceExchangeInputBaseSchema = invoiceBaseInputSchema.extend({
+  mode: z.literal("exchange"),
+  quoteRef: z.string().trim().min(1).max(255).optional(),
+  amount: amountValueSchema.optional(),
+  currency: currencyCodeSchema.optional(),
+  targetCurrency: currencyCodeSchema.optional(),
+});
+
 function resolveDirectFinancialLineErrorPath(
   error: unknown,
   index: number,
@@ -238,10 +246,66 @@ export const InvoiceDirectInputSchema = invoiceDirectInputBaseSchema.transform((
   },
 );
 
-export const InvoiceExchangeInputSchema = invoiceBaseInputSchema.extend({
-  mode: z.literal("exchange"),
-  quoteRef: z.string().trim().min(1).max(255),
-});
+export const InvoiceExchangeInputSchema = invoiceExchangeInputBaseSchema.transform(
+  (input, ctx) => {
+    if (input.quoteRef) {
+      return input;
+    }
+
+    if (!input.amount) {
+      ctx.addIssue({
+        code: "custom",
+        message: "amount is required when quoteRef is not provided",
+        path: ["amount"],
+      });
+    }
+
+    if (!input.currency) {
+      ctx.addIssue({
+        code: "custom",
+        message: "currency is required when quoteRef is not provided",
+        path: ["currency"],
+      });
+    }
+
+    if (!input.targetCurrency) {
+      ctx.addIssue({
+        code: "custom",
+        message: "targetCurrency is required when quoteRef is not provided",
+        path: ["targetCurrency"],
+      });
+    }
+
+    if (!input.amount || !input.currency || !input.targetCurrency) {
+      return z.NEVER;
+    }
+
+    if (input.currency === input.targetCurrency) {
+      ctx.addIssue({
+        code: "custom",
+        message: "targetCurrency must differ from currency",
+        path: ["targetCurrency"],
+      });
+      return z.NEVER;
+    }
+
+    try {
+      return {
+        ...input,
+        amountMinor: toMinorAmountString(input.amount, input.currency, {
+          requirePositive: true,
+        }),
+      };
+    } catch (error) {
+      ctx.addIssue({
+        code: "custom",
+        message: error instanceof Error ? error.message : "amount is invalid",
+        path: ["amount"],
+      });
+      return z.NEVER;
+    }
+  },
+);
 
 export const InvoiceInputSchema = z.discriminatedUnion("mode", [
   InvoiceDirectInputSchema,

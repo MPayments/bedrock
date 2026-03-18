@@ -165,7 +165,7 @@ describe("commercial documents validation", () => {
     });
   });
 
-  it("accepts exchange invoice input without direct amount fields", () => {
+  it("accepts legacy exchange invoice input with quoteRef", () => {
     const parsed = InvoiceInputSchema.parse({
       mode: "exchange",
       occurredAt: "2026-03-03T10:00:00.000Z",
@@ -183,6 +183,31 @@ describe("commercial documents validation", () => {
       memo: "fx invoice",
     });
     expect("amountMinor" in parsed).toBe(false);
+  });
+
+  it("accepts generated exchange invoice input without quoteRef", () => {
+    const parsed = InvoiceInputSchema.parse({
+      mode: "exchange",
+      occurredAt: "2026-03-03T10:00:00.000Z",
+      customerId: CUSTOMER_ID,
+      counterpartyId: COUNTERPARTY_ID,
+      organizationId: ORGANIZATION_ID,
+      organizationRequisiteId: REQUISITE_ID,
+      amount: "100.50",
+      currency: "usd",
+      targetCurrency: "eur",
+      memo: "fx invoice",
+    });
+
+    expect(parsed).toMatchObject({
+      mode: "exchange",
+      amount: "100.5",
+      amountMinor: "10050",
+      currency: "USD",
+      targetCurrency: "EUR",
+      memo: "fx invoice",
+    });
+    expect(parsed.quoteRef).toBeUndefined();
   });
 
   it("keeps acceptance payload compatible with optional exchange linkage", () => {

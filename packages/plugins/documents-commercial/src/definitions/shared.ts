@@ -45,6 +45,7 @@ export function getDefaultInvoiceValues() {
     organizationRequisiteId: "",
     amount: "",
     currency: "",
+    targetCurrency: "",
     quoteRef: "",
     financialLines: [],
     memo: "",
@@ -98,21 +99,31 @@ function mapFinancialLineInput(
 }
 
 export function createInvoicePayload(values: Record<string, unknown>) {
+  const mode = readString(values.mode) === "exchange" ? "exchange" : "direct";
+
   return parseSchema(InvoiceInputSchema, {
-    mode: readString(values.mode) === "exchange" ? "exchange" : "direct",
+    mode,
     occurredAt: toOccurredAtIso(values.occurredAt),
     customerId: readString(values.customerId).trim(),
     counterpartyId: readString(values.counterpartyId).trim(),
     organizationId: optionalString(values.organizationId),
     organizationRequisiteId: readString(values.organizationRequisiteId).trim(),
-    amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
-    currency: readString(values.currency).trim(),
-    quoteRef: optionalString(values.quoteRef),
-    financialLines: Array.isArray(values.financialLines)
-      ? values.financialLines.map((line) =>
-          mapFinancialLineInput(line as Record<string, unknown>),
-        )
-      : [],
+    ...(mode === "direct"
+      ? {
+          amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
+          currency: readString(values.currency).trim(),
+          financialLines: Array.isArray(values.financialLines)
+            ? values.financialLines.map((line) =>
+                mapFinancialLineInput(line as Record<string, unknown>),
+              )
+            : [],
+        }
+      : {
+          amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
+          currency: readString(values.currency).trim(),
+          targetCurrency: readString(values.targetCurrency).trim(),
+          quoteRef: optionalString(values.quoteRef),
+        }),
     memo: optionalString(values.memo),
   });
 }
@@ -142,5 +153,6 @@ export {
   AcceptanceInputSchema,
   isoToDateTimeLocal,
   nowDateTimeLocal,
+  normalizeCommercialMajorAmountInput,
   readString,
 };

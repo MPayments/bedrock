@@ -82,6 +82,53 @@ describe("document form registry", () => {
     expect(fieldNames).not.toContain("quoteRef");
   });
 
+  it("exposes generated-quote fields for exchange invoice mode", () => {
+    const definition = getDocumentFormDefinitionForRole({
+      docType: "invoice",
+      role: "admin",
+    });
+
+    expect(definition).not.toBeNull();
+
+    const fieldNames =
+      definition?.sections.flatMap((section) =>
+        section.fields.map((field) => field.name),
+      ) ?? [];
+    const previewField = definition?.sections
+      .flatMap((section) => section.fields)
+      .find((field) => field.name === "quotePreview");
+
+    expect(fieldNames).toContain("amount");
+    expect(fieldNames).toContain("targetCurrency");
+    expect(fieldNames).not.toContain("quoteRef");
+    expect(previewField).toMatchObject({
+      kind: "fxQuotePreview",
+      requestMode: "auto_cross",
+      amountFieldName: "amount",
+      fromCurrencyFieldName: "currency",
+      toCurrencyFieldName: "targetCurrency",
+    });
+  });
+
+  it("exposes an auto-cross quote preview field for fx_execute", () => {
+    const definition = getDocumentFormDefinitionForRole({
+      docType: "fx_execute",
+      role: "admin",
+    });
+
+    const previewField = definition?.sections
+      .flatMap((section) => section.fields)
+      .find((field) => field.name === "quotePreview");
+
+    expect(previewField).toMatchObject({
+      kind: "fxQuotePreview",
+      requestMode: "auto_cross",
+      amountFieldName: "amount",
+      fromCurrencyFieldName: "currency",
+      toCurrencyFieldName: "destinationCurrency",
+    });
+  });
+
   it("exposes percent-enabled financial-lines metadata for invoice and fx_execute", () => {
     const definitions = [
       ...COMMERCIAL_DOCUMENT_DEFINITIONS,
