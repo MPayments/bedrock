@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect } from "react";
+import * as React from "react";
 
 import { useOrganizationDraftName } from "../lib/create-draft-name-context";
 import { OrganizationWorkspaceLayout } from "./organization-workspace-layout";
@@ -12,7 +12,7 @@ export function OrganizationCreateWorkspaceLayout({
 }) {
   const { state, actions } = useOrganizationDraftName();
 
-  useLayoutEffect(() => {
+  React.useLayoutEffect(() => {
     actions.resetCreateName();
   }, [actions]);
 
@@ -20,6 +20,7 @@ export function OrganizationCreateWorkspaceLayout({
     <OrganizationWorkspaceLayout
       title={state.createLabel}
       subtitle="Карточка организации"
+      disabledTabs={["accounts", "documents"]}
     >
       {children}
     </OrganizationWorkspaceLayout>

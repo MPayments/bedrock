@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Save, Trash2 } from "lucide-react";
+import { ChevronDown, Save, Trash2, X } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
@@ -16,6 +16,15 @@ import {
 } from "@bedrock/sdk-ui/components/card";
 import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@bedrock/sdk-ui/components/command";
+import {
   Field,
   FieldDescription,
   FieldError,
@@ -26,8 +35,14 @@ import {
 } from "@bedrock/sdk-ui/components/field";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@bedrock/sdk-ui/components/popover";
+import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -36,13 +51,18 @@ import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
 import {
+  COUNTERPARTY_COUNTRY_OPTIONS,
+  getCountryPresentation,
+} from "@/features/entities/counterparties/lib/countries";
+import { formatDate } from "@/lib/format";
+
+import {
   REQUISITE_KIND_OPTIONS,
   REQUISITE_OWNER_TYPE_OPTIONS,
   type RelationOption,
   type RequisiteFormValues,
   type RequisiteOwnerType,
 } from "../lib/constants";
-import { formatDate } from "@/lib/format";
 
 type RequisiteFormSubmit =
   | Promise<RequisiteFormValues | void>
@@ -102,6 +122,19 @@ const DEFAULT_VALUES: RequisiteFormValues = {
   notes: "",
   isDefault: false,
 };
+
+type SearchablePickerOption = {
+  value: string;
+  label: string;
+  search: string;
+};
+
+const COUNTRY_PICKER_OPTIONS: SearchablePickerOption[] =
+  COUNTERPARTY_COUNTRY_OPTIONS.map((option) => ({
+    value: option.value,
+    label: option.label,
+    search: option.search,
+  }));
 
 function createSchema() {
   return z
@@ -248,6 +281,106 @@ function resolveInitialValues(
   return { ...DEFAULT_VALUES, ...initialValues };
 }
 
+function toSearchableRelationOptions(
+  options: RelationOption[],
+): SearchablePickerOption[] {
+  return options.map((option) => ({
+    value: option.id,
+    label: option.label,
+    search: `${option.label} ${option.id}`.toLowerCase(),
+  }));
+}
+
+function SearchablePicker({
+  value,
+  onValueChange,
+  options,
+  placeholder,
+  searchPlaceholder,
+  emptyLabel,
+  disabled = false,
+  invalid = false,
+  clearable = false,
+  fallbackLabel,
+}: {
+  value: string;
+  onValueChange: (nextValue: string) => void;
+  options: SearchablePickerOption[];
+  placeholder: string;
+  searchPlaceholder: string;
+  emptyLabel: string;
+  disabled?: boolean;
+  invalid?: boolean;
+  clearable?: boolean;
+  fallbackLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedOption = options.find((option) => option.value === value);
+  const displayLabel =
+    selectedOption?.label ?? fallbackLabel ?? (value ? value.trim() : placeholder);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-between font-normal"
+            aria-invalid={invalid}
+            disabled={disabled}
+          />
+        }
+      >
+        <span
+          className={selectedOption || fallbackLabel || value ? "truncate" : "text-muted-foreground truncate"}
+        >
+          {displayLabel || placeholder}
+        </span>
+        <ChevronDown className="text-muted-foreground size-4" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-(--anchor-width) p-0">
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} />
+          <CommandList className="max-h-64">
+            <CommandEmpty>{emptyLabel}</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.search}
+                  data-checked={value === option.value || undefined}
+                  onSelect={() => {
+                    onValueChange(option.value);
+                    setOpen(false);
+                  }}
+                >
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            {clearable && value ? (
+              <>
+                <CommandSeparator />
+                <CommandGroup>
+                  <CommandItem
+                    onSelect={() => {
+                      onValueChange("");
+                      setOpen(false);
+                    }}
+                  >
+                    Очистить
+                  </CommandItem>
+                </CommandGroup>
+              </>
+            ) : null}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function RequisiteGeneralForm({
   ownerType,
   ownerLabel,
@@ -280,9 +413,22 @@ export function RequisiteGeneralForm({
     [initialValues],
   );
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const ownerSelectOptions = useMemo(
+    () => toSearchableRelationOptions(ownerOptions),
+    [ownerOptions],
+  );
+  const providerSelectOptions = useMemo(
+    () => toSearchableRelationOptions(providerOptions),
+    [providerOptions],
+  );
+  const currencySelectOptions = useMemo(
+    () => toSearchableRelationOptions(currencyOptions),
+    [currencyOptions],
+  );
   const form = useForm<RequisiteFormValues>({
     resolver: zodResolver(schema),
     defaultValues: resolvedInitialValues,
+    mode: "onChange",
   });
 
   useEffect(() => {
@@ -308,6 +454,14 @@ export function RequisiteGeneralForm({
 
   const label = useWatch({ control: form.control, name: "label" });
   const kind = useWatch({ control: form.control, name: "kind" });
+  const institutionCountryCode = useWatch({
+    control: form.control,
+    name: "institutionCountry",
+  });
+  const selectedInstitutionCountry = useMemo(
+    () => getCountryPresentation(institutionCountryCode),
+    [institutionCountryCode],
+  );
 
   useEffect(() => {
     onLabelChange?.(label ?? "");
@@ -346,19 +500,48 @@ export function RequisiteGeneralForm({
     ownerType === undefined ||
     ownerOptions.length === 0;
   const submitDisabled = submitting || deleting || ownerTypeMissing;
+  const resetDisabled = submitting || deleting || !form.formState.isDirty;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Общие сведения</CardTitle>
-        <CardDescription>
-          {createdAt || updatedAt
-            ? `Создан ${createdAt ? formatDate(createdAt) : "—"} · Обновлён ${updatedAt ? formatDate(updatedAt) : "—"}`
-            : "Настройте пользовательский реквизит без привязки к legacy account provider."}
-        </CardDescription>
+    <Card className="w-full rounded-sm">
+      <CardHeader className="border-b">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle>Общие сведения</CardTitle>
+            <CardDescription>
+              {createdAt || updatedAt
+                ? `Создан ${createdAt ? formatDate(createdAt) : "—"} · Обновлён ${updatedAt ? formatDate(updatedAt) : "—"}`
+                : "Настройте реквизит и проверьте владельца, валюту и провайдера перед созданием."}
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="submit"
+              form="requisite-general-form"
+              disabled={submitDisabled}
+            >
+              {submitting ? (
+                <Spinner className="h-4 w-4" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {submitting ? submittingLabel : submitLabel}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => form.reset(resolvedInitialValues)}
+              disabled={resetDisabled}
+            >
+              <X className="h-4 w-4" />
+              Отменить
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <form
+          id="requisite-general-form"
           onSubmit={form.handleSubmit(handleFormSubmit)}
           className="space-y-6"
         >
@@ -390,14 +573,22 @@ export function RequisiteGeneralForm({
                   disabled={submitting || deleting || ownerTypeReadonly}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Выберите тип владельца" />
+                    <SelectValue placeholder="Выберите тип владельца">
+                      {
+                        REQUISITE_OWNER_TYPE_OPTIONS.find(
+                          (option) => option.value === ownerType,
+                        )?.label
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {REQUISITE_OWNER_TYPE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      {REQUISITE_OWNER_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <FieldDescription>
@@ -411,22 +602,16 @@ export function RequisiteGeneralForm({
                   control={form.control}
                   name="ownerId"
                   render={({ field }) => (
-                    <Select
+                    <SearchablePicker
                       value={field.value}
                       onValueChange={field.onChange}
+                      options={ownerSelectOptions}
+                      placeholder={`Выберите ${ownerLabel.toLowerCase()}`}
+                      searchPlaceholder={`Поиск ${ownerLabel.toLowerCase()}...`}
+                      emptyLabel="Ничего не найдено"
                       disabled={ownerSelectDisabled}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={`Выберите: ${ownerLabel.toLowerCase()}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ownerOptions.map((option) => (
-                          <SelectItem key={option.id} value={option.id}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      invalid={Boolean(form.formState.errors.ownerId)}
+                    />
                   )}
                 />
                 <FieldDescription>{ownerDescription}</FieldDescription>
@@ -445,14 +630,22 @@ export function RequisiteGeneralForm({
                       disabled={submitting || deleting || kindReadonly}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Выберите вид" />
+                        <SelectValue placeholder="Выберите вид">
+                          {
+                            REQUISITE_KIND_OPTIONS.find(
+                              (option) => option.value === field.value,
+                            )?.label
+                          }
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {REQUISITE_KIND_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
+                        <SelectGroup>
+                          {REQUISITE_KIND_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
                       </SelectContent>
                     </Select>
                   )}
@@ -466,22 +659,16 @@ export function RequisiteGeneralForm({
                   control={form.control}
                   name="currencyId"
                   render={({ field }) => (
-                    <Select
+                    <SearchablePicker
                       value={field.value}
                       onValueChange={field.onChange}
+                      options={currencySelectOptions}
+                      placeholder="Выберите валюту"
+                      searchPlaceholder="Поиск валюты..."
+                      emptyLabel="Валюта не найдена"
                       disabled={submitting || deleting}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите валюту" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {currencyOptions.map((option) => (
-                          <SelectItem key={option.id} value={option.id}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      invalid={Boolean(form.formState.errors.currencyId)}
+                    />
                   )}
                 />
                 <FieldError>{form.formState.errors.currencyId?.message}</FieldError>
@@ -493,22 +680,16 @@ export function RequisiteGeneralForm({
                   control={form.control}
                   name="providerId"
                   render={({ field }) => (
-                    <Select
+                    <SearchablePicker
                       value={field.value}
                       onValueChange={field.onChange}
+                      options={providerSelectOptions}
+                      placeholder="Выберите провайдера"
+                      searchPlaceholder="Поиск провайдера..."
+                      emptyLabel="Провайдер не найден"
                       disabled={submitting || deleting}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите провайдера" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {providerOptions.map((option) => (
-                          <SelectItem key={option.id} value={option.id}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      invalid={Boolean(form.formState.errors.providerId)}
+                    />
                   )}
                 />
                 <FieldError>{form.formState.errors.providerId?.message}</FieldError>
@@ -580,10 +761,28 @@ export function RequisiteGeneralForm({
                 </Field>
                 <Field>
                   <FieldLabel>Страна банка</FieldLabel>
-                  <Input
-                    {...form.register("institutionCountry")}
-                    placeholder="AE"
-                    disabled={submitting || deleting}
+                  <Controller
+                    control={form.control}
+                    name="institutionCountry"
+                    render={({ field }) => (
+                      <SearchablePicker
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        options={COUNTRY_PICKER_OPTIONS}
+                        placeholder="Выберите страну банка"
+                        searchPlaceholder="Поиск страны..."
+                        emptyLabel="Страна не найдена"
+                        disabled={submitting || deleting}
+                        invalid={Boolean(
+                          form.formState.errors.institutionCountry,
+                        )}
+                        clearable
+                        fallbackLabel={
+                          selectedInstitutionCountry?.label ??
+                          (field.value ? field.value.trim().toUpperCase() : undefined)
+                        }
+                      />
+                    )}
                   />
                   <FieldError>
                     {form.formState.errors.institutionCountry?.message}
@@ -693,10 +892,28 @@ export function RequisiteGeneralForm({
                 </Field>
                 <Field>
                   <FieldLabel>Страна института</FieldLabel>
-                  <Input
-                    {...form.register("institutionCountry")}
-                    placeholder="AE"
-                    disabled={submitting || deleting}
+                  <Controller
+                    control={form.control}
+                    name="institutionCountry"
+                    render={({ field }) => (
+                      <SearchablePicker
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        options={COUNTRY_PICKER_OPTIONS}
+                        placeholder="Выберите страну института"
+                        searchPlaceholder="Поиск страны..."
+                        emptyLabel="Страна не найдена"
+                        disabled={submitting || deleting}
+                        invalid={Boolean(
+                          form.formState.errors.institutionCountry,
+                        )}
+                        clearable
+                        fallbackLabel={
+                          selectedInstitutionCountry?.label ??
+                          (field.value ? field.value.trim().toUpperCase() : undefined)
+                        }
+                      />
+                    )}
                   />
                   <FieldError>
                     {form.formState.errors.institutionCountry?.message}
@@ -746,34 +963,23 @@ export function RequisiteGeneralForm({
             </FieldGroup>
           </FieldSet>
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              {showDelete && onDelete ? (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => void handleDelete()}
-                  disabled={submitting || deleting}
-                >
-                  {deleting ? (
-                    <Spinner className="h-4 w-4" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  Удалить
-                </Button>
-              ) : null}
+          {showDelete && onDelete ? (
+            <div className="flex justify-start">
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => void handleDelete()}
+                disabled={submitting || deleting}
+              >
+                {deleting ? (
+                  <Spinner className="h-4 w-4" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                Удалить
+              </Button>
             </div>
-
-            <Button type="submit" disabled={submitDisabled}>
-              {submitting ? (
-                <Spinner className="h-4 w-4" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {submitting ? submittingLabel : submitLabel}
-            </Button>
-          </div>
+          ) : null}
         </form>
       </CardContent>
     </Card>

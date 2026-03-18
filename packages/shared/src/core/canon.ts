@@ -1,3 +1,5 @@
+import { sha256Hex } from "./crypto";
+
 function canonicalize(
   value: unknown,
   options: { undefinedMode: "throw" | "null" },
@@ -70,5 +72,5 @@ export function makePlanKey(
   operation: string,
   payload: Record<string, unknown>,
 ): string {
-  return `${operation}:${canonicalJson(payload)}`;
+  return `${operation}:${sha256Hex(canonicalJson(payload))}`;
 }

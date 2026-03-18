@@ -1,8 +1,7 @@
 import React from "react";
-import { Wallet } from "lucide-react";
 
-import { EntityWorkspaceLayout } from "@/components/entities/workspace-layout";
 import { CreateRequisiteFormClient } from "@/features/entities/requisites/components/create-requisite-form-client";
+import { RequisiteWorkspaceLayout } from "@/features/entities/requisites/components/requisite-workspace-layout";
 import { getRequisiteFormOptions } from "@/features/entities/requisites/lib/queries";
 import type { RequisiteOwnerType } from "@/features/entities/requisites-shared/lib/constants";
 
@@ -39,11 +38,7 @@ export default async function CreateRequisitePage({
   const options = await getRequisiteFormOptions();
 
   return (
-    <EntityWorkspaceLayout
-      title="Новый реквизит"
-      subtitle="Карточка реквизита"
-      icon={Wallet}
-    >
+    <RequisiteWorkspaceLayout title="Новый реквизит">
       <CreateRequisiteFormClient
         options={options}
         initialOwnerType={ownerType}
@@ -51,6 +46,6 @@ export default async function CreateRequisitePage({
         ownerReadonly={Boolean(ownerType && ownerId)}
         ownerTypeReadonly={Boolean(ownerType && ownerId)}
       />
-    </EntityWorkspaceLayout>
+    </RequisiteWorkspaceLayout>
   );
 }

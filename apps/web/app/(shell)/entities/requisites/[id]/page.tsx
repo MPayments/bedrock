@@ -1,9 +1,8 @@
 import React from "react";
 import { notFound } from "next/navigation";
-import { Wallet } from "lucide-react";
 
-import { EntityWorkspaceLayout } from "@/components/entities/workspace-layout";
 import { EditRequisiteFormClient } from "@/features/entities/requisites/components/edit-requisite-form-client";
+import { RequisiteWorkspaceLayout } from "@/features/entities/requisites/components/requisite-workspace-layout";
 import {
   getRequisiteById,
   getRequisiteFormOptions,
@@ -25,12 +24,8 @@ export default async function RequisitePage({ params }: RequisitePageProps) {
   }
 
   return (
-    <EntityWorkspaceLayout
-      title={requisite.label}
-      subtitle="Карточка реквизита"
-      icon={Wallet}
-    >
+    <RequisiteWorkspaceLayout title={requisite.label}>
       <EditRequisiteFormClient requisite={requisite} options={options} />
-    </EntityWorkspaceLayout>
+    </RequisiteWorkspaceLayout>
   );
 }
