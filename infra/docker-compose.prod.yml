@@ -103,6 +103,8 @@ services:
       BETTER_AUTH_URL: ${BETTER_AUTH_URL}
       BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS}
       NODE_ENV: production
+    security_opt:
+      - seccomp=unconfined
     networks:
       - dokploy-network
     restart: unless-stopped
@@ -158,6 +160,8 @@ services:
       BALANCES_WORKER_INTERVAL_MS: ${BALANCES_WORKER_INTERVAL_MS:-5000}
       FX_RATES_WORKER_INTERVAL_MS: ${FX_RATES_WORKER_INTERVAL_MS:-60000}
       NODE_ENV: production
+    security_opt:
+      - seccomp=unconfined
     networks:
       - dokploy-network
     restart: unless-stopped

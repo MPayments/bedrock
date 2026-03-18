@@ -12,7 +12,7 @@ describe("createTbClient", () => {
   it("forwards cluster id and address to tigerbeetle client", async () => {
     const { createTbClient } = await import("@bedrock/ledger/worker");
     const { createClient } = await import("tigerbeetle-node");
-    const client = createTbClient(10n, "127.0.0.1:3000");
+    const client = await createTbClient(10n, "127.0.0.1:3000");
 
     expect(createClient).toHaveBeenCalledWith({
       cluster_id: 10n,

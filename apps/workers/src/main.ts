@@ -1,12 +1,12 @@
 import "./env";
 
-import { createConsoleLogger } from "@bedrock/platform/observability/logger";
-import { installShutdownHandlers } from "@bedrock/platform/worker-runtime/worker-loop";
 import { createTbClient } from "@bedrock/ledger/worker";
+import { createConsoleLogger } from "@bedrock/platform/observability/logger";
 import {
   createWorkerFleet,
   startWorkerFleet,
 } from "@bedrock/platform/worker-runtime";
+import { installShutdownHandlers } from "@bedrock/platform/worker-runtime/worker-loop";
 
 import { WORKER_CATALOG } from "./catalog";
 import { db } from "./db/client";
@@ -16,7 +16,7 @@ import { createWorkerMonitoringRegistry, startWorkerMonitoringServer } from "./m
 import { parseSelectedWorkerIds } from "./selection";
 
 const logger = createConsoleLogger({ app: "bedrock-workers" });
-const tb = createTbClient(env.TB_CLUSTER_ID, env.TB_ADDRESS);
+const tb = await createTbClient(env.TB_CLUSTER_ID, env.TB_ADDRESS);
 const workerImplementations = createWorkerImplementations({
   db,
   logger,

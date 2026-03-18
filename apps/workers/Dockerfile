@@ -36,10 +36,14 @@ RUN groupadd --gid 1001 bedrock && \
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY --from=builder /repo/ ./
+# Copy only the esbuild bundle
+COPY --from=builder /repo/apps/workers/dist/server.mjs ./server.mjs
+
+# Install native external dependency (not bundled by esbuild)
+RUN npm install --no-save tigerbeetle-node@0.16.72
 
 USER bedrock
 
 EXPOSE 8081
 
-CMD ["node", "apps/workers/dist/server.mjs", "all"]
+CMD ["node", "server.mjs", "all"]
