@@ -4,16 +4,16 @@ import type { PersistenceContext } from "@bedrock/platform/persistence";
 import { createDocumentsHandlers } from "./application";
 import type { DocumentsServiceDeps as DocumentsHandlersDeps } from "./application/service-deps";
 import {
-  createDocumentsModuleRuntime,
-  createDocumentsTransactions,
-} from "./application/shared/transaction-context";
-import {
   createDrizzleDocumentEventsRepository,
   createDrizzleDocumentLinksRepository,
   createDrizzleDocumentOperationsRepository,
   createDrizzleDocumentSnapshotsRepository,
   createDrizzleDocumentsQueryRepository,
 } from "./infra/drizzle/repository";
+import {
+  createDocumentsModuleRuntime,
+  createDocumentsTransactions,
+} from "./infra/transaction-context";
 export interface DocumentsServiceDeps
   extends Omit<
     DocumentsHandlersDeps,

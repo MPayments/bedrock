@@ -6,12 +6,13 @@ import {
   type ListQueryContract,
 } from "@bedrock/shared/core/pagination";
 
-import type { RequisiteSnapshot } from "../domain/requisite";
 import {
   CountryCodeSchema,
   RequisiteKindSchema,
   RequisiteOwnerTypeSchema,
 } from "./zod";
+import type { RequisiteSnapshot } from "../domain/requisite";
+
 
 export const RequisiteSchema = z.object({
   id: z.uuid(),

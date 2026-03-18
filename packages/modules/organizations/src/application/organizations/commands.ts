@@ -10,13 +10,14 @@ import {
   CreateOrganizationInputSchema,
   UpdateOrganizationInputSchema,
 } from "../../contracts";
+import type { UpdateOrganizationProps } from "../../domain/organization";
 import { Organization } from "../../domain/organization";
 import {
   OrganizationDeleteConflictError,
   OrganizationNotFoundError,
 } from "../../errors";
 import type { OrganizationsServiceContext } from "../shared/context";
-import type { UpdateOrganizationProps } from "../../domain/organization";
+
 
 function hasForeignKeyViolation(error: unknown): boolean {
   if (!error || typeof error !== "object") {

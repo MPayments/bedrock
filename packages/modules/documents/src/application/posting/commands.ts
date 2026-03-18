@@ -8,7 +8,7 @@ import type {
 import type { DocumentWithOperationId } from "../../contracts/dto";
 import { DocumentAggregate, type Document } from "../../domain/document";
 import { DocumentPostingNotRequiredError } from "../../errors";
-import { buildDocumentWithOperationId, loadDocumentOrThrow } from "../shared/actions";
+import { invokeDocumentModuleAction } from "../shared/action-dispatch";
 import {
   assertOrganizationPeriodsOpenForDocument,
   buildDocumentActionEvent,
@@ -16,7 +16,7 @@ import {
   insertDocumentEvents,
   type DocumentActionEvent,
 } from "../shared/action-runtime";
-import { invokeDocumentModuleAction } from "../shared/action-dispatch";
+import { buildDocumentWithOperationId, loadDocumentOrThrow } from "../shared/actions";
 import type { DocumentsServiceContext } from "../shared/context";
 import { buildDocumentEventState } from "../shared/document-event-state";
 import {

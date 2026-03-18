@@ -5,19 +5,19 @@ import type {
   Transaction,
 } from "@bedrock/platform/persistence";
 
-import type { DocumentModuleRuntime } from "../../plugins";
 import {
   createDrizzleDocumentEventsRepository,
   createDrizzleDocumentLinksRepository,
   createDrizzleDocumentOperationsRepository,
   createDrizzleDocumentsCommandRepository,
-} from "../../infra/drizzle/repository";
-import { createDrizzleDocumentsReadModel } from "../../read-model";
+} from "./drizzle/repository";
 import type {
   DocumentsIdempotencyPort,
   DocumentsTransactionContext,
   DocumentsTransactionsPort,
-} from "./external-ports";
+} from "../application/shared/external-ports";
+import type { DocumentModuleRuntime } from "../plugins";
+import { createDrizzleDocumentsReadModel } from "../read-model";
 
 export function createDocumentsModuleRuntime(
   queryable: Queryable,
