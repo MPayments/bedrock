@@ -20,13 +20,11 @@ services:
       retries: 5
 
   tigerbeetle:
-    image: ghcr.io/tigerbeetle/tigerbeetle
+    build:
+      context: ./tigerbeetle
+      dockerfile: Dockerfile
+    container_name: bedrock-tigerbeetle
     restart: unless-stopped
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./data:/data
-    command: "start --addresses=0.0.0.0:3000 /data/0_0.tigerbeetle"
     security_opt:
       - seccomp=unconfined
     cap_add:
