@@ -39,8 +39,7 @@ describe("organization workspace layout", () => {
       createElement(OrganizationWorkspaceLayout, {
         title: "Bedrock",
         subtitle: "Карточка организации",
-        children: null,
-      }),
+      }, null),
     );
 
     expect(renderWorkspaceTabs.mock.calls[0]?.[0]).toEqual({
@@ -75,8 +74,7 @@ describe("organization workspace layout", () => {
       createElement(OrganizationWorkspaceLayout, {
         title: "Bedrock",
         subtitle: "Карточка организации",
-        children: null,
-      }),
+      }, null),
     );
 
     expect(renderWorkspaceTabs.mock.calls[1]?.[0]).toEqual({
@@ -111,8 +109,7 @@ describe("organization workspace layout", () => {
       createElement(OrganizationWorkspaceLayout, {
         title: "Bedrock",
         subtitle: "Карточка организации",
-        children: null,
-      }),
+      }, null),
     );
 
     expect(renderWorkspaceTabs.mock.calls[2]?.[0]).toEqual({
