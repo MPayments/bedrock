@@ -1,9 +1,7 @@
 import { randomUUID } from "node:crypto";
 
-import {
-  resolveCreateCounterpartyGroupProps,
-  resolveUpdateCounterpartyGroupProps,
-} from "./inputs";
+import { applyPatch } from "@bedrock/shared/core";
+
 import type {
   CounterpartyGroup as CounterpartyGroupDto,
   CreateCounterpartyGroupInput,
@@ -13,7 +11,10 @@ import {
   CreateCounterpartyGroupInputSchema,
   UpdateCounterpartyGroupInputSchema,
 } from "../../contracts";
-import { CounterpartyGroup } from "../../domain/counterparty-group";
+import {
+  CounterpartyGroup,
+  type UpdateCounterpartyGroupProps,
+} from "../../domain/counterparty-group";
 import { GroupHierarchy } from "../../domain/group-hierarchy";
 import {
   CounterpartyCustomerNotFoundError,
@@ -59,10 +60,11 @@ export function createCreateCounterpartyGroupHandler(
     let draft: CounterpartyGroup;
     try {
       draft = CounterpartyGroup.create(
-        resolveCreateCounterpartyGroupProps({
+        {
           id: randomUUID(),
-          values: validated,
-        }),
+          isSystem: false,
+          ...validated,
+        },
         {
           parent,
           now: context.now(),
@@ -101,23 +103,19 @@ export function createUpdateCounterpartyGroupHandler(
       throw new CounterpartyGroupNotFoundError(id);
     }
 
+    const existing = CounterpartyGroup.fromSnapshot(existingSnapshot);
     const hierarchy = GroupHierarchy.create(
       await groups.listGroupHierarchyNodes(),
     );
+    const current: UpdateCounterpartyGroupProps = existing.toSnapshot();
+    const nextInput = applyPatch(current, validated);
 
     let next: CounterpartyGroup;
-    const nextInput = resolveUpdateCounterpartyGroupProps(
-      existingSnapshot,
-      validated,
-    );
     try {
-      next = CounterpartyGroup.fromSnapshot(existingSnapshot).update(
-        nextInput,
-        {
-          hierarchy,
-          now: context.now(),
-        },
-      );
+      next = existing.update(nextInput, {
+        hierarchy,
+        now: context.now(),
+      });
     } catch (error) {
       rethrowCounterpartyGroupDomainError(error);
     }
@@ -130,9 +128,7 @@ export function createUpdateCounterpartyGroupHandler(
       await assertCustomerExists(context, next.toSnapshot().customerId!);
     }
 
-    const updatedSnapshot = CounterpartyGroup.fromSnapshot(
-      existingSnapshot,
-    ).sameState(next)
+    const updatedSnapshot = existing.sameState(next)
       ? existingSnapshot
       : await groups.updateCounterpartyGroup(next.toSnapshot());
 

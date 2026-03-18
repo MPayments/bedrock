@@ -1,5 +1,5 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Database } from "@bedrock/platform/persistence/drizzle";
+import type { Database, PersistenceContext } from "@bedrock/platform/persistence";
 
 import { createFxQuoteCommandHandlers } from "./application/quotes/commands";
 import { createFxQuoteQueryHandlers } from "./application/quotes/queries";
@@ -17,7 +17,7 @@ import { createDrizzleFxQuotesRepository } from "./infra/drizzle/repos/quotes-re
 import { createDrizzleFxRatesRepository } from "./infra/drizzle/repos/rates-repository";
 
 export interface FxServiceDeps {
-  db: Database;
+  persistence: PersistenceContext;
   feesService: FxQuoteFeesPort;
   currenciesService: FxCurrenciesPort;
   logger?: Logger;
@@ -25,15 +25,16 @@ export interface FxServiceDeps {
 }
 
 export function createFxService(deps: FxServiceDeps) {
+  const db = deps.persistence.db as Database;
   const context = createFxServiceContext({
     feesService: deps.feesService,
     currenciesService: deps.currenciesService,
-    quotesRepository: createDrizzleFxQuotesRepository(deps.db),
-    ratesRepository: createDrizzleFxRatesRepository(deps.db),
+    quotesRepository: createDrizzleFxQuotesRepository(db),
+    ratesRepository: createDrizzleFxRatesRepository(db),
     quoteFinancialLinesRepository:
-      createDrizzleFxQuoteFinancialLinesRepository(deps.db),
+      createDrizzleFxQuoteFinancialLinesRepository(db),
     transactions: {
-      runInTransaction: (callback) => deps.db.transaction((tx) => callback(tx)),
+      runInTransaction: deps.persistence.runInTransaction,
     },
     logger: deps.logger,
     rateSourceProviders: deps.rateSourceProviders,
@@ -63,6 +64,7 @@ export function createFxService(deps: FxServiceDeps) {
   };
 
   const quotes = {
+    previewQuote: quoteCommands.previewQuote,
     quote: quoteCommands.quote,
     listQuotes: quoteQueries.listQuotes,
     getQuoteDetails: quoteQueries.getQuoteDetails,

@@ -12,10 +12,6 @@ function buildDefaultOrganizationBookCode(organizationId: string): string {
   return `${DEFAULT_ORGANIZATION_BOOK_CODE_PREFIX}:${organizationId}`;
 }
 
-function buildDefaultOrganizationBookName(organizationId: string): string {
-  return `Organization ${organizationId} default book`;
-}
-
 export function createDrizzleLedgerBooksRepository(): LedgerBooksPort {
   return {
     async ensureDefaultOrganizationBookTx(
@@ -44,7 +40,7 @@ export function createDrizzleLedgerBooksRepository(): LedgerBooksPort {
         .values({
           ownerId: input.organizationId,
           code,
-          name: buildDefaultOrganizationBookName(input.organizationId),
+          name: input.organizationId,
           isDefault: true,
         })
         .onConflictDoNothing({

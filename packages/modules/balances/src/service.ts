@@ -1,6 +1,6 @@
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { PersistenceContext, Transaction } from "@bedrock/platform/persistence";
 
 import { createGetBalanceHandler } from "./application/balances/queries";
 import {
@@ -31,18 +31,18 @@ export interface BalancesService {
 }
 
 export interface BalancesServiceDeps {
-  db: Database;
+  persistence: PersistenceContext;
   idempotency: IdempotencyPort;
   logger?: Logger;
 }
 
 function createBalancesTransactions(input: {
-  db: Database;
+  persistence: PersistenceContext;
   idempotency: IdempotencyPort;
 }): BalancesTransactionsPort {
   return {
     async withTransaction(run) {
-      return input.db.transaction(async (tx: Transaction) => {
+      return input.persistence.runInTransaction(async (tx: Transaction) => {
         const idempotency: BalancesIdempotencyPort = {
           withIdempotency<
             TResult,
@@ -90,9 +90,9 @@ export function createBalancesService(
 ): BalancesService {
   const context = createBalancesContext({
     logger: deps.logger,
-    stateRepository: createDrizzleBalancesStateRepository(deps.db),
+    stateRepository: createDrizzleBalancesStateRepository(deps.persistence.db),
     transactions: createBalancesTransactions({
-      db: deps.db,
+      persistence: deps.persistence,
       idempotency: deps.idempotency,
     }),
   });

@@ -31,11 +31,21 @@ export interface PeriodCloseDraftResult {
   };
 }
 
+export interface PeriodCloseDocumentState {
+  id: string;
+  docType: string;
+  createIdempotencyKey: string | null;
+  submissionStatus: "draft" | "submitted";
+  approvalStatus: "not_required" | "pending" | "approved" | "rejected";
+  lifecycleStatus: "active" | "cancelled";
+}
+
 export interface PeriodCloseDocumentsPort {
-  findDocumentIdByCreateIdempotencyKey(input: {
-    docType: string;
-    createIdempotencyKey: string;
-  }): Promise<string | null>;
+  listPeriodCloseDocuments(input: {
+    organizationId: string;
+    periodStart: Date;
+    periodEnd: Date;
+  }): Promise<PeriodCloseDocumentState[]>;
   createDraft(input: {
     docType: string;
     createIdempotencyKey: string;
@@ -79,24 +89,70 @@ function buildPeriodCloseIdempotencyKey(
   return `period_close:${organizationId}:${periodStart.toISOString().slice(0, 7)}`;
 }
 
+function buildPeriodCloseCreateIdempotencyKey(input: {
+  organizationId: string;
+  periodStart: Date;
+  attempt: number;
+}) {
+  const baseKey = buildPeriodCloseIdempotencyKey(
+    input.organizationId,
+    input.periodStart,
+  );
+
+  return input.attempt <= 1 ? baseKey : `${baseKey}:retry:${input.attempt}`;
+}
+
 export function createPeriodCloseWorkflow(deps: PeriodCloseWorkflowDeps) {
   return {
     async createPeriodCloseForOrganization(
       input: CreatePeriodCloseForOrganizationInput,
     ): Promise<boolean> {
-      const createIdempotencyKey = buildPeriodCloseIdempotencyKey(
+      const baseCreateIdempotencyKey = buildPeriodCloseIdempotencyKey(
         input.organizationId,
         input.periodStart,
       );
-      const existingDocumentId =
-        await deps.documents.findDocumentIdByCreateIdempotencyKey({
-          docType: "period_close",
-          createIdempotencyKey,
-        });
+      const existingDocuments = await deps.documents.listPeriodCloseDocuments({
+        organizationId: input.organizationId,
+        periodStart: input.periodStart,
+        periodEnd: input.periodEnd,
+      });
+      const activeBlockingDocument = existingDocuments.find(
+        (document) =>
+          document.lifecycleStatus === "active" &&
+          document.submissionStatus === "submitted" &&
+          (document.approvalStatus === "approved" ||
+            document.approvalStatus === "pending" ||
+            document.approvalStatus === "not_required"),
+      );
 
-      if (existingDocumentId) {
+      if (activeBlockingDocument) {
         return false;
       }
+
+      const activeDraft = existingDocuments.find(
+        (document) =>
+          document.lifecycleStatus === "active" &&
+          document.submissionStatus === "draft",
+      );
+
+      if (activeDraft) {
+        await deps.documents.submit({
+          docType: activeDraft.docType,
+          documentId: activeDraft.id,
+          actorUserId: input.actorUserId,
+          idempotencyKey: `${
+            activeDraft.createIdempotencyKey ?? baseCreateIdempotencyKey
+          }:submit`,
+        });
+
+        return true;
+      }
+
+      const createIdempotencyKey = buildPeriodCloseCreateIdempotencyKey({
+        organizationId: input.organizationId,
+        periodStart: input.periodStart,
+        attempt: existingDocuments.length + 1,
+      });
 
       const draft = await deps.documents.createDraft({
         docType: "period_close",

@@ -1,4 +1,5 @@
 import { FINANCIAL_LINE_BUCKET_OPTIONS } from "@bedrock/documents/contracts";
+import { formatPercentFromBps } from "@bedrock/plugin-documents-sdk/financial-lines";
 import { normalizeMajorAmountInput } from "@bedrock/shared/money";
 
 import {
@@ -24,6 +25,7 @@ function getDefaultFxExecuteValues() {
     destinationRequisiteId: "",
     amount: "",
     currency: "",
+    destinationCurrency: "",
     executionRef: "",
     timeoutSeconds: "",
     financialLines: [],
@@ -94,6 +96,16 @@ export const fxExecuteDocumentDefinition = {
             },
           },
           {
+            kind: "currency",
+            name: "destinationCurrency",
+            label: "Валюта назначения",
+            hidden: true,
+            deriveFrom: {
+              kind: "accountCurrency",
+              accountFieldNames: ["destinationRequisiteId"],
+            },
+          },
+          {
             kind: "text",
             name: "executionRef",
             label: "Референс исполнения",
@@ -135,6 +147,24 @@ export const fxExecuteDocumentDefinition = {
         },
       },
       {
+        id: "quote",
+        title: "Текущая котировка",
+        fields: [
+          {
+            kind: "fxQuotePreview",
+            name: "quotePreview",
+            label: "Текущая котировка",
+            requestMode: "auto_cross",
+            amountFieldName: "amount",
+            fromCurrencyFieldName: "currency",
+            toCurrencyFieldName: "destinationCurrency",
+          },
+        ],
+        layout: {
+          rows: [{ fields: ["quotePreview"] }],
+        },
+      },
+      {
         id: "fees",
         title: "Финансовые строки",
         fields: [
@@ -143,6 +173,9 @@ export const fxExecuteDocumentDefinition = {
             name: "financialLines",
             label: "Дополнительные финансовые строки",
             bucketOptions: [...FINANCIAL_LINE_BUCKET_OPTIONS],
+            supportedCalcMethods: ["fixed", "percent"],
+            baseAmountFieldName: "amount",
+            baseCurrencyFieldName: "currency",
           },
         ],
         layout: {
@@ -173,6 +206,7 @@ export const fxExecuteDocumentDefinition = {
           RUSSIAN_MAJOR_AMOUNT_MESSAGES,
         ),
         currency: readString(quoteSnapshot?.fromCurrency),
+        destinationCurrency: readString(quoteSnapshot?.toCurrency),
         executionRef: readString(payload.executionRef),
         timeoutSeconds:
           typeof payload.timeoutSeconds === "number"
@@ -181,9 +215,23 @@ export const fxExecuteDocumentDefinition = {
         financialLines: payloadFinancialLines
           .filter((line) => readString(line.source) === "manual")
           .map((line) => ({
+            calcMethod:
+              readString(line.calcMethod) === "percent" &&
+              typeof line.percentBps === "number"
+                ? "percent"
+                : "fixed",
             bucket: readString(line.bucket),
             currency: readString(line.currency),
-            amount: readString(line.amount),
+            amount:
+              readString(line.calcMethod) === "percent" &&
+              typeof line.percentBps === "number"
+                ? ""
+                : readString(line.amount),
+            percent:
+              readString(line.calcMethod) === "percent" &&
+              typeof line.percentBps === "number"
+                ? formatPercentFromBps(line.percentBps)
+                : "",
             memo: readString(line.memo),
           })),
         memo: readString(payload.memo),
@@ -199,15 +247,32 @@ export const fxExecuteDocumentDefinition = {
           values.currency,
           RUSSIAN_MAJOR_AMOUNT_MESSAGES,
         ),
+        currency: readString(values.currency).trim(),
         executionRef: optionalString(values.executionRef),
         timeoutSeconds: optionalNumber(values.timeoutSeconds),
         financialLines: Array.isArray(values.financialLines)
-          ? values.financialLines.map((line) => ({
-              bucket: readString((line as Record<string, unknown>).bucket).trim(),
-              currency: readString((line as Record<string, unknown>).currency).trim(),
-              amount: readString((line as Record<string, unknown>).amount).trim(),
-              memo: optionalString((line as Record<string, unknown>).memo),
-            }))
+          ? values.financialLines.map((line) => {
+              const row = line as Record<string, unknown>;
+              const calcMethod =
+                readString(row.calcMethod).trim() === "percent"
+                  ? "percent"
+                  : "fixed";
+
+              return {
+                calcMethod,
+                bucket: readString(row.bucket).trim(),
+                currency: readString(row.currency).trim(),
+                amount:
+                  calcMethod === "fixed"
+                    ? readString(row.amount).trim()
+                    : undefined,
+                percent:
+                  calcMethod === "percent"
+                    ? readString(row.percent).trim()
+                    : undefined,
+                memo: optionalString(row.memo),
+              };
+            })
           : [],
         memo: optionalString(values.memo),
       });

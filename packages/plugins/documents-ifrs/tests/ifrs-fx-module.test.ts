@@ -207,6 +207,52 @@ describe("ifrs fx modules", () => {
     });
   });
 
+  it("preserves manual percent rows when building fx_execute drafts", async () => {
+    const deps = createDeps();
+    const module = createFxExecuteDocumentModule(deps as any);
+
+    const draft = await module.createDraft(
+      {
+        runtime: {} as any,
+        now: new Date("2026-03-03T10:00:00.000Z"),
+        operationIdempotencyKey: "create-idem",
+      } as any,
+      {
+        occurredAt: new Date("2026-03-03T10:00:00.000Z"),
+        sourceRequisiteId: "00000000-0000-4000-8000-000000000111",
+        destinationRequisiteId: "00000000-0000-4000-8000-000000000112",
+        amount: "100.00",
+        memo: "desk conversion",
+        financialLines: [
+          {
+            calcMethod: "percent",
+            bucket: "fee_revenue",
+            currency: "USD",
+            percent: "1.25",
+          },
+        ],
+      },
+    );
+
+    expect(draft.payload).toMatchObject({
+      financialLines: [
+        {
+          id: "quote-line-1",
+          source: "rule",
+          bucket: "spread_revenue",
+        },
+        {
+          calcMethod: "percent",
+          percentBps: 125,
+          source: "manual",
+          bucket: "fee_revenue",
+          currency: "USD",
+          amountMinor: "125",
+        },
+      ],
+    });
+  });
+
   it("builds an immediate treasury fx posting plan and locks the quote", async () => {
     const deps = createDeps();
     const module = createFxExecuteDocumentModule(deps as any);

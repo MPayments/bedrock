@@ -37,6 +37,7 @@ export interface DocumentsAccountingPeriodsPort {
     closedBy: string;
     closeReason?: string | null;
     closeDocumentId: string;
+    db?: unknown;
   }): Promise<unknown>;
   isOrganizationPeriodClosed(input: {
     organizationId: string;
@@ -48,6 +49,7 @@ export interface DocumentsAccountingPeriodsPort {
     reopenedBy: string;
     reopenReason?: string | null;
     reopenDocumentId?: string | null;
+    db?: unknown;
   }): Promise<unknown>;
 }
 

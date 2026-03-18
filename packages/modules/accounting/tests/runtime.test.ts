@@ -234,6 +234,103 @@ describe("accounting packs service", () => {
     ]);
   });
 
+  it("omits absent pending config from direct invoice intent lines", async () => {
+    const result = await packsService.resolvePostingPlan({
+      accountingSourceId: "invoice_direct",
+      source: { type: "documents/invoice/post", id: "doc-direct" },
+      idempotencyKey: "post:doc-direct",
+      postingDate: new Date("2026-03-03T10:00:00.000Z"),
+      plan: {
+        operationCode: "COMMERCIAL_INVOICE_DIRECT",
+        operationVersion: 1,
+        payload: { invoiceId: "doc-direct" },
+        requests: [
+          {
+            templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
+            effectiveAt: new Date("2026-03-03T10:00:00.000Z"),
+            currency: "USD",
+            amountMinor: 321_210n,
+            bookRefs: {
+              bookId: "00000000-0000-4000-8000-000000000001",
+            },
+            dimensions: {
+              customerId: "customer-1",
+              orderId: "order-1",
+            },
+            refs: {
+              quoteRef: "invoice:order-1",
+              chainId: "invoice:order-1",
+            },
+          },
+          {
+            templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PAYOUT_OBLIGATION,
+            effectiveAt: new Date("2026-03-03T10:00:00.000Z"),
+            currency: "USD",
+            amountMinor: 321_210n,
+            bookRefs: {
+              bookId: "00000000-0000-4000-8000-000000000001",
+            },
+            dimensions: {
+              orderId: "order-1",
+            },
+            refs: {
+              quoteRef: "invoice:order-1",
+              chainId: "invoice:order-1",
+              payoutCounterpartyId: "counterparty-1",
+            },
+          },
+        ],
+      },
+    });
+
+    expect(result.intent.lines).toHaveLength(2);
+    for (const line of result.intent.lines) {
+      expect("pending" in line).toBe(false);
+    }
+  });
+
+  it("omits absent transfer code from pending settlement lines", async () => {
+    const result = await packsService.resolvePostingPlan({
+      accountingSourceId: "payout_settle",
+      source: { type: "documents/payout/post", id: "doc-pending" },
+      idempotencyKey: "post:doc-pending",
+      postingDate: new Date("2026-03-03T10:00:00.000Z"),
+      plan: {
+        operationCode: "TREASURY_PAYOUT_SETTLE",
+        operationVersion: 1,
+        payload: { payoutId: "doc-pending" },
+        requests: [
+          {
+            templateKey: POSTING_TEMPLATE_KEY.PAYMENT_PAYOUT_SETTLE,
+            effectiveAt: new Date("2026-03-03T10:00:00.000Z"),
+            currency: "USD",
+            amountMinor: 1n,
+            bookRefs: {
+              bookId: "00000000-0000-4000-8000-000000000001",
+            },
+            dimensions: {},
+            refs: {
+              orderId: "order-1",
+              railRef: "rail-1",
+            },
+            pending: {
+              pendingId: 42n,
+            },
+          },
+        ],
+      },
+    });
+
+    expect(result.intent.lines).toEqual([
+      expect.objectContaining({
+        type: "post_pending",
+        pendingId: 42n,
+        amount: 0n,
+      }),
+    ]);
+    expect("code" in result.intent.lines[0]!).toBe(false);
+  });
+
   it("resolves treasury fx source postings into clearing and bank dimensions", async () => {
     const result = await packsService.resolvePostingPlan({
       accountingSourceId: "treasury_fx_execute",

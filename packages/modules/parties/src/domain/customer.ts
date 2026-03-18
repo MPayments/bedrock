@@ -2,7 +2,7 @@ import {
   Entity,
   normalizeOptionalText,
   normalizeRequiredText,
-} from "@bedrock/shared/core/domain";
+} from "@bedrock/shared/core";
 
 export interface CustomerSnapshot {
   id: string;

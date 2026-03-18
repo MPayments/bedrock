@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
 
 import { createReconciliationService } from "../../src";
@@ -138,7 +139,7 @@ describe("reconciliation worker integration", () => {
     });
 
     const reconciliation = createReconciliationService({
-      db,
+      persistence: createPersistenceContext(db),
       documents: reconciliationDocuments,
       idempotency,
       ledgerLookup,
@@ -301,7 +302,7 @@ describe("reconciliation worker integration", () => {
     createdSources.add(source);
 
     const reconciliation = createReconciliationService({
-      db,
+      persistence: createPersistenceContext(db),
       documents: reconciliationDocuments,
       idempotency,
       ledgerLookup,
@@ -372,7 +373,7 @@ describe("reconciliation worker integration", () => {
     createdSources.add(source);
 
     const reconciliation = createReconciliationService({
-      db,
+      persistence: createPersistenceContext(db),
       documents: reconciliationDocuments,
       idempotency,
       ledgerLookup,

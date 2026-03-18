@@ -14,6 +14,7 @@ import {
   type TbClient,
 } from "@bedrock/ledger/worker";
 import type { Logger } from "@bedrock/platform/observability/logger";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 import {
   type BedrockWorker,
@@ -95,7 +96,7 @@ export function createWorkerImplementations(
     currenciesService,
   });
   const fxService = createFxService({
-    db: deps.db,
+    persistence: createPersistenceContext(deps.db),
     logger: deps.logger,
     feesService,
     currenciesService,

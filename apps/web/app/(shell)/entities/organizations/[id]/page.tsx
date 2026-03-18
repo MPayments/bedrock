@@ -1,7 +1,6 @@
-import { notFound } from "next/navigation";
-
 import { EditOrganizationFormClient } from "@/features/entities/organizations/components/edit-organization-form-client";
 import { getOrganizationById } from "@/features/entities/organizations/lib/queries";
+import { loadResourceByIdParamOrNotFound } from "@/lib/resources/routes";
 
 interface OrganizationPageProps {
   params: Promise<{ id: string }>;
@@ -10,12 +9,10 @@ interface OrganizationPageProps {
 export default async function OrganizationPage({
   params,
 }: OrganizationPageProps) {
-  const { id } = await params;
-  const organization = await getOrganizationById(id);
-
-  if (!organization) {
-    notFound();
-  }
+  const { entity: organization } = await loadResourceByIdParamOrNotFound({
+    params,
+    getById: getOrganizationById,
+  });
 
   return <EditOrganizationFormClient organization={organization} />;
 }

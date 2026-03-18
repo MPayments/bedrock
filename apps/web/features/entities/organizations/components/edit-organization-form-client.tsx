@@ -1,37 +1,61 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
-import { apiClient } from "@/lib/api-client";
-import { executeMutation } from "@/lib/resources/http";
-
 import {
-  OrganizationForm,
-  type OrganizationFormValues,
+  OrganizationEditGeneralForm,
+  type OrganizationGeneralFormValues,
 } from "./organization-form";
 import type { SerializedOrganization } from "../lib/types";
+import { useOrganizationDraftName } from "../lib/create-draft-name-context";
+import { apiClient } from "@/lib/api-client";
+import { executeMutation } from "@/lib/resources/http";
 
 type EditOrganizationFormClientProps = {
   organization: SerializedOrganization;
   listPath?: string;
 };
 
+function toFormValues(
+  organization: SerializedOrganization,
+): OrganizationGeneralFormValues {
+  return {
+    shortName: organization.shortName,
+    fullName: organization.fullName,
+    kind: organization.kind,
+    country: organization.country ?? "",
+    externalId: organization.externalId ?? "",
+    description: organization.description ?? "",
+  };
+}
+
 export function EditOrganizationFormClient({
   organization,
   listPath = "/entities/organizations",
 }: EditOrganizationFormClientProps) {
   const router = useRouter();
+  const { actions } = useOrganizationDraftName();
   const [current, setCurrent] = useState(organization);
+  const [initialValues, setInitialValues] = useState(() =>
+    toFormValues(organization),
+  );
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const handleShortNameChange = useCallback(
+    (name: string) => {
+      actions.setEditName(current.id, name);
+    },
+    [actions, current.id],
+  );
+
   async function handleSubmit(
-    values: OrganizationFormValues,
-  ): Promise<OrganizationFormValues | void> {
+    values: OrganizationGeneralFormValues,
+  ): Promise<OrganizationGeneralFormValues | void> {
     setError(null);
     setSubmitting(true);
 
@@ -60,18 +84,13 @@ export function EditOrganizationFormClient({
       return;
     }
 
+    const nextValues = toFormValues(result.data);
     setCurrent(result.data);
+    setInitialValues(nextValues);
     toast.success("Организация обновлена");
     router.refresh();
 
-    return {
-      shortName: result.data.shortName,
-      fullName: result.data.fullName,
-      kind: result.data.kind,
-      country: result.data.country ?? "",
-      externalId: result.data.externalId ?? "",
-      description: result.data.description ?? "",
-    };
+    return nextValues;
   }
 
   async function handleDelete() {
@@ -96,20 +115,14 @@ export function EditOrganizationFormClient({
     }
 
     toast.success("Организация удалена");
+    actions.clearEdit(current.id);
     router.push(listPath.replace(/\/+$/, ""));
     return true;
   }
 
   return (
-    <OrganizationForm
-      initialValues={{
-        shortName: current.shortName,
-        fullName: current.fullName,
-        kind: current.kind,
-        country: current.country ?? "",
-        externalId: current.externalId ?? "",
-        description: current.description ?? "",
-      }}
+    <OrganizationEditGeneralForm
+      initialValues={initialValues}
       createdAt={current.createdAt}
       updatedAt={current.updatedAt}
       submitting={submitting}
@@ -117,9 +130,7 @@ export function EditOrganizationFormClient({
       error={error}
       onSubmit={handleSubmit}
       onDelete={handleDelete}
-      submitLabel="Сохранить"
-      submittingLabel="Сохранение..."
-      showDelete
+      onShortNameChange={handleShortNameChange}
     />
   );
 }

@@ -6,10 +6,12 @@ import {
 } from "@bedrock/fx";
 import {
   CreateFxQuoteInputSchema,
+  FxQuotePreviewResponseSchema,
   FxQuoteDetailsResponseSchema,
   FxQuoteListResponseSchema,
   FxQuoteSchema,
   ListFxQuotesQuerySchema,
+  PreviewFxQuoteInputSchema,
 } from "@bedrock/fx/contracts";
 import { minorToAmountString } from "@bedrock/shared/money";
 
@@ -99,6 +101,51 @@ function serializeQuoteDetails(
   };
 }
 
+function serializeQuotePreview(
+  preview: Awaited<ReturnType<FxQuoteService["previewQuote"]>>,
+) {
+  return {
+    fromCurrency: preview.fromCurrency,
+    toCurrency: preview.toCurrency,
+    fromAmountMinor: preview.fromAmountMinor.toString(),
+    toAmountMinor: preview.toAmountMinor.toString(),
+    fromAmount: minorToAmountString(preview.fromAmountMinor, {
+      currency: preview.fromCurrency,
+    }),
+    toAmount: minorToAmountString(preview.toAmountMinor, {
+      currency: preview.toCurrency,
+    }),
+    pricingMode: preview.pricingMode,
+    pricingTrace: preview.pricingTrace,
+    dealDirection: preview.dealDirection,
+    dealForm: preview.dealForm,
+    rateNum: preview.rateNum.toString(),
+    rateDen: preview.rateDen.toString(),
+    expiresAt: preview.expiresAt.toISOString(),
+    legs: preview.legs.map((leg) => ({
+      idx: leg.idx,
+      fromCurrency: leg.fromCurrency,
+      toCurrency: leg.toCurrency,
+      fromAmountMinor: leg.fromAmountMinor.toString(),
+      toAmountMinor: leg.toAmountMinor.toString(),
+      rateNum: leg.rateNum.toString(),
+      rateDen: leg.rateDen.toString(),
+      sourceKind: leg.sourceKind,
+      sourceRef: leg.sourceRef ?? null,
+      asOf: leg.asOf.toISOString(),
+      executionCounterpartyId: leg.executionCounterpartyId ?? null,
+    })),
+    feeComponents: preview.feeComponents.map((component) => ({
+      ...component,
+      amountMinor: component.amountMinor.toString(),
+    })),
+    financialLines: preview.financialLines.map((line) => ({
+      ...line,
+      amountMinor: line.amountMinor.toString(),
+    })),
+  };
+}
+
 function toQuoteInput(body: z.infer<typeof CreateFxQuoteInputSchema>) {
   if (body.mode === "auto_cross") {
     return {
@@ -126,6 +173,13 @@ function toQuoteInput(body: z.infer<typeof CreateFxQuoteInputSchema>) {
       rateDen: BigInt(leg.rateDen),
       asOf: leg.asOf ? new Date(leg.asOf) : undefined,
     })),
+  };
+}
+
+function toPreviewQuoteInput(body: z.infer<typeof PreviewFxQuoteInputSchema>) {
+  return {
+    ...body,
+    fromAmountMinor: BigInt(body.fromAmountMinor),
   };
 }
 
@@ -189,6 +243,42 @@ export function fxQuotesRoutes(ctx: AppContext) {
     },
   });
 
+  const previewQuoteRoute = createRoute({
+    middleware: [requirePermission({ documents: ["create"] })],
+    method: "post",
+    path: "/preview",
+    tags: ["FX"],
+    summary: "Preview FX quote",
+    request: {
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: PreviewFxQuoteInputSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: "FX quote preview",
+        content: {
+          "application/json": {
+            schema: FxQuotePreviewResponseSchema,
+          },
+        },
+      },
+      400: {
+        description: "Validation error",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+    },
+  });
+
   const getQuoteRoute = createRoute({
     middleware: [requirePermission({ documents: ["get"] })],
     method: "get",
@@ -246,6 +336,21 @@ export function fxQuotesRoutes(ctx: AppContext) {
         const body = c.req.valid("json");
         const quote = await ctx.fxService.quotes.quote(toQuoteInput(body));
         return c.json(serializeQuote(quote), 201);
+      } catch (error) {
+        if (error instanceof ValidationError) {
+          return c.json({ error: error.message }, 400);
+        }
+
+        throw error;
+      }
+    })
+    .openapi(previewQuoteRoute, async (c) => {
+      try {
+        const body = c.req.valid("json");
+        const preview = await ctx.fxService.quotes.previewQuote(
+          toPreviewQuoteInput(body),
+        );
+        return c.json(serializeQuotePreview(preview), 200);
       } catch (error) {
         if (error instanceof ValidationError) {
           return c.json({ error: error.message }, 400);

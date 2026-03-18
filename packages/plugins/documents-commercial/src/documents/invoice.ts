@@ -15,6 +15,7 @@ import { COMMERCIAL_DOCUMENT_METADATA } from "../metadata";
 import {
   InvoiceInputSchema,
   InvoicePayloadSchema,
+  compileInvoiceDirectFinancialLines,
   type InvoiceInput,
 } from "../validation";
 import {
@@ -31,6 +32,45 @@ import type { CommercialModuleDeps } from "./internal/types";
 export function createInvoiceDocumentModule(
   deps: CommercialModuleDeps,
 ): DocumentModule<InvoiceInput, InvoiceInput> {
+  function buildInvoiceExchangeQuoteIdempotencyKey(
+    operationIdempotencyKey: string | null,
+  ) {
+    if (!operationIdempotencyKey) {
+      throw new DocumentValidationError(
+        "invoice exchange quote generation requires an operation idempotency key",
+      );
+    }
+
+    return `documents.invoice.exchange.quote:${operationIdempotencyKey}`;
+  }
+
+  function getGeneratedExchangeInput(
+    input: Extract<InvoiceInput, { mode: "exchange" }>,
+  ): {
+    currency: string;
+    targetCurrency: string;
+    amountMinor: string;
+  } | null {
+    if (
+      !input.quoteRef &&
+      typeof input.currency === "string" &&
+      input.currency.length > 0 &&
+      typeof input.targetCurrency === "string" &&
+      input.targetCurrency.length > 0 &&
+      "amountMinor" in input &&
+      typeof input.amountMinor === "string" &&
+      input.amountMinor.length > 0
+    ) {
+      return {
+        currency: input.currency,
+        targetCurrency: input.targetCurrency,
+        amountMinor: input.amountMinor,
+      };
+    }
+
+    return null;
+  }
+
   return {
     moduleId: "invoice",
     accountingSourceIds: [
@@ -44,21 +84,45 @@ export function createInvoiceDocumentModule(
     updateSchema: InvoiceInputSchema,
     payloadSchema: InvoicePayloadSchema,
     postingRequired: true,
-    allowDirectPostFromDraft: true,
+    allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(_context, input) {
       if (input.mode === "direct") {
         return buildDocumentDraft(input, {
           ...serializeOccurredAt(input),
+          financialLines: compileInvoiceDirectFinancialLines({
+            financialLines: input.financialLines,
+            amountMinor: input.amountMinor,
+            currency: input.currency,
+          }),
           memo: input.memo,
         });
       }
 
-      const quoteSnapshot = await loadQuoteSnapshot({
-        runtime: _context.runtime,
-        deps,
-        quoteRef: input.quoteRef,
-      });
+      const generatedExchangeInput = getGeneratedExchangeInput(input);
+
+      if (!input.quoteRef && !generatedExchangeInput) {
+        throw new DocumentValidationError(
+          "exchange invoice quote input is incomplete",
+        );
+      }
+
+      const quoteSnapshot = input.quoteRef
+        ? await loadQuoteSnapshot({
+            runtime: _context.runtime,
+            deps,
+            quoteRef: input.quoteRef,
+          })
+        : await deps.quoteSnapshot.createQuoteSnapshot({
+            runtime: _context.runtime,
+            fromCurrency: generatedExchangeInput!.currency,
+            toCurrency: generatedExchangeInput!.targetCurrency,
+            fromAmountMinor: generatedExchangeInput!.amountMinor,
+            asOf: _context.now,
+            idempotencyKey: buildInvoiceExchangeQuoteIdempotencyKey(
+              _context.operationIdempotencyKey,
+            ),
+          });
 
       return buildDocumentDraft(input, {
         ...serializeOccurredAt(input),
@@ -114,6 +178,11 @@ export function createInvoiceDocumentModule(
       };
     },
     async canCreate(_context, input) {
+      await Promise.all([
+        deps.partyReferences.assertCustomerExists(input.customerId),
+        deps.partyReferences.assertCounterpartyExists(input.counterpartyId),
+      ]);
+
       const binding = await resolveOrganizationBinding(
         deps,
         input.organizationRequisiteId,
@@ -126,15 +195,21 @@ export function createInvoiceDocumentModule(
       }
 
       if (input.mode === "exchange") {
-        const quoteSnapshot = await loadQuoteSnapshot({
-          runtime: _context.runtime,
-          deps,
-          quoteRef: input.quoteRef,
-        });
+        if (input.quoteRef) {
+          const quoteSnapshot = await loadQuoteSnapshot({
+            runtime: _context.runtime,
+            deps,
+            quoteRef: input.quoteRef,
+          });
 
-        if (binding.currencyCode !== quoteSnapshot.fromCurrency) {
+          if (binding.currencyCode !== quoteSnapshot.fromCurrency) {
+            throw new DocumentValidationError(
+              `Currency mismatch: quote=${quoteSnapshot.fromCurrency}, account=${binding.currencyCode}`,
+            );
+          }
+        } else if (binding.currencyCode !== input.currency) {
           throw new DocumentValidationError(
-            `Currency mismatch: quote=${quoteSnapshot.fromCurrency}, account=${binding.currencyCode}`,
+            `Currency mismatch: invoice=${input.currency}, account=${binding.currencyCode}`,
           );
         }
       } else if (binding.currencyCode !== input.currency) {

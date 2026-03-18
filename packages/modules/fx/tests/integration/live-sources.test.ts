@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createCurrenciesService } from "@bedrock/currencies";
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/providers";
 import { schema } from "@bedrock/fx/schema";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
 
 import { db } from "./setup";
 import { createFxService } from "../../src";
@@ -14,7 +15,7 @@ const describeExternal = EXTERNAL_API_TESTS_ENABLED ? describe : describe.skip;
 
 function createLiveFxService() {
     return createFxService({
-        db,
+        persistence: createPersistenceContext(db),
         feesService: createNoopFeesService(),
         currenciesService: createCurrenciesService({ db }),
         rateSourceProviders: createDefaultFxRateSourceProviders(),

@@ -1,4 +1,5 @@
 export {
+  compileFxExecuteManualFinancialLines,
   AccrualAdjustmentInputSchema,
   AccrualAdjustmentSchema,
   CapitalFundingInputSchema,

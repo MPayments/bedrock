@@ -130,6 +130,18 @@ const quoteInputSchema = schemaBuilder
     message: "fromCurrency and toCurrency must be different",
   });
 
+const previewQuoteInputSchema = schemaBuilder
+  .object({
+    fromCurrency: currencySchema,
+    toCurrency: currencySchema,
+    fromAmountMinor: positiveAmountSchema,
+    dealDirection: feeDealDirectionSchema.optional(),
+    dealForm: feeDealFormSchema.optional(),
+  })
+  .refine((data) => data.fromCurrency !== data.toCurrency, {
+    message: "fromCurrency and toCurrency must be different",
+  });
+
 const markQuoteUsedInputSchema = schemaBuilder.object({
   quoteId: uuidSchema,
   usedByRef: schemaBuilder.string().min(1).max(255),
@@ -145,6 +157,7 @@ export type SyncRatesFromSourceInput = z.infer<
   typeof syncRatesFromSourceInputSchema
 >;
 export type QuoteInput = z.infer<typeof quoteInputSchema>;
+export type PreviewQuoteInput = z.infer<typeof previewQuoteInputSchema>;
 export type MarkQuoteUsedInput = z.infer<typeof markQuoteUsedInputSchema>;
 export type GetQuoteDetailsInput = z.infer<typeof getQuoteDetailsInputSchema>;
 export type ListFxQuotesQuery = z.infer<typeof ListFxQuotesQuerySchema>;
@@ -186,6 +199,10 @@ export function validateSyncRatesFromSourceInput(
 
 export function validateQuoteInput(input: unknown): QuoteInput {
   return validateInput(quoteInputSchema, input, "quote");
+}
+
+export function validatePreviewQuoteInput(input: unknown): PreviewQuoteInput {
+  return validateInput(previewQuoteInputSchema, input, "previewQuote");
 }
 
 export function validateMarkQuoteUsedInput(input: unknown): MarkQuoteUsedInput {

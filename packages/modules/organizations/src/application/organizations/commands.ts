@@ -1,15 +1,16 @@
 import { randomUUID } from "node:crypto";
 
-import { resolveOrganizationUpdateInput } from "./inputs";
+import { applyPatch } from "@bedrock/shared/core";
+
 import type {
   CreateOrganizationInput,
-  Organization as OrganizationDto,
   UpdateOrganizationInput,
 } from "../../contracts";
 import {
   CreateOrganizationInputSchema,
   UpdateOrganizationInputSchema,
 } from "../../contracts";
+import type { UpdateOrganizationProps } from "../../domain/organization";
 import { Organization } from "../../domain/organization";
 import {
   OrganizationDeleteConflictError,
@@ -17,9 +18,6 @@ import {
 } from "../../errors";
 import type { OrganizationsServiceContext } from "../shared/context";
 
-function toPublicOrganization(organization: Organization): OrganizationDto {
-  return organization.toSnapshot();
-}
 
 function hasForeignKeyViolation(error: unknown): boolean {
   if (!error || typeof error !== "object") {
@@ -41,17 +39,12 @@ export function createCreateOrganizationHandler(
 
   return async function createOrganization(
     input: CreateOrganizationInput,
-  ): Promise<OrganizationDto> {
+  ) {
     const validated = CreateOrganizationInputSchema.parse(input);
     const draft = Organization.create(
       {
         id: randomUUID(),
-        externalId: validated.externalId,
-        shortName: validated.shortName,
-        fullName: validated.fullName,
-        description: validated.description,
-        country: validated.country,
-        kind: validated.kind,
+        ...validated,
       },
       context.now(),
     );
@@ -66,7 +59,7 @@ export function createCreateOrganizationHandler(
         shortName: created.toSnapshot().shortName,
       });
 
-      return toPublicOrganization(created);
+      return created.toSnapshot();
     });
   };
 }
@@ -79,7 +72,7 @@ export function createUpdateOrganizationHandler(
   return async function updateOrganization(
     id: string,
     input: UpdateOrganizationInput,
-  ): Promise<OrganizationDto> {
+  ) {
     const validated = UpdateOrganizationInputSchema.parse(input);
 
     return transactions.withTransaction(async ({ organizations }) => {
@@ -91,8 +84,9 @@ export function createUpdateOrganizationHandler(
       }
 
       const existing = Organization.fromSnapshot(existingSnapshot);
+      const current: UpdateOrganizationProps = existing.toSnapshot();
       const next = existing.update(
-        resolveOrganizationUpdateInput(existing.toSnapshot(), validated),
+        applyPatch(current, validated),
         context.now(),
       );
       const persistedSnapshot = existing.sameState(next)
@@ -104,7 +98,7 @@ export function createUpdateOrganizationHandler(
       }
 
       log.info("Organization updated", { id });
-      return toPublicOrganization(Organization.fromSnapshot(persistedSnapshot));
+      return Organization.fromSnapshot(persistedSnapshot).toSnapshot();
     });
   };
 }

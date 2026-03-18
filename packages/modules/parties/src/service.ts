@@ -1,5 +1,5 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import type { Database, PersistenceContext, Transaction } from "@bedrock/platform/persistence";
 
 import {
   createCreateCounterpartyHandler,
@@ -59,7 +59,7 @@ export type PartiesService = ReturnType<typeof createPartiesService>;
 export { type PartiesDocumentsReadPort };
 
 export interface PartiesServiceDeps {
-  db: Database;
+  persistence: PersistenceContext;
   logger?: Logger;
   now?: () => Date;
   documents: PartiesDocumentsReadPort;
@@ -169,7 +169,7 @@ function createCounterpartyGroupsTxRepository(input: {
 }
 
 function createPartiesTransactions(input: {
-  db: Database;
+  persistence: PersistenceContext;
   customers: ReturnType<typeof createDrizzleCustomersCommandRepository>;
   counterparties: ReturnType<typeof createDrizzleCounterpartiesCommandRepository>;
   groups: ReturnType<typeof createDrizzleCounterpartyGroupsCommandRepository>;
@@ -177,7 +177,7 @@ function createPartiesTransactions(input: {
 }): PartiesTransactionsPort {
   return {
     async withTransaction(run) {
-      return input.db.transaction(async (tx: Transaction) =>
+      return input.persistence.runInTransaction(async (tx) =>
         run({
           customers: createCustomersTxRepository({
             customers: input.customers,
@@ -203,15 +203,16 @@ function createPartiesTransactions(input: {
 }
 
 export function createPartiesService(deps: PartiesServiceDeps) {
-  const customers = createDrizzleCustomersCommandRepository(deps.db);
-  const counterparties = createDrizzleCounterpartiesCommandRepository(deps.db);
-  const groups = createDrizzleCounterpartyGroupsCommandRepository(deps.db);
+  const db = deps.persistence.db as Database;
+  const customers = createDrizzleCustomersCommandRepository(db);
+  const counterparties = createDrizzleCounterpartiesCommandRepository(db);
+  const groups = createDrizzleCounterpartyGroupsCommandRepository(db);
   const context = createPartiesServiceContext({
     logger: deps.logger,
     now: deps.now,
-    customerQueries: createDrizzleCustomersQueryRepository(deps.db),
+    customerQueries: createDrizzleCustomersQueryRepository(db),
     counterparties,
-    counterpartyQueries: createDrizzleCounterpartiesQueryRepository(deps.db),
+    counterpartyQueries: createDrizzleCounterpartiesQueryRepository(db),
     groups: {
       findCounterpartyGroupSnapshotById(id) {
         return groups.findCounterpartyGroupSnapshotById(id);
@@ -226,9 +227,9 @@ export function createPartiesService(deps: PartiesServiceDeps) {
         return groups.listGroupHierarchyNodes();
       },
     },
-    groupQueries: createDrizzleCounterpartyGroupsQueryRepository(deps.db),
+    groupQueries: createDrizzleCounterpartyGroupsQueryRepository(db),
     transactions: createPartiesTransactions({
-      db: deps.db,
+      persistence: deps.persistence,
       customers,
       counterparties,
       groups,

@@ -20,6 +20,7 @@ export {
 } from "./transfer-resolution";
 
 export {
+  compileFxExecuteManualFinancialLines,
   FxExecuteFinancialLinePayloadSchema,
   FxExecuteInputSchema,
   FxExecuteOwnershipModeSchema,

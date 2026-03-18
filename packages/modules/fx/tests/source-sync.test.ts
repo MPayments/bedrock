@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { schema } from "@bedrock/fx/schema";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
 
 import { createFxService } from "../src";
 import {
@@ -49,7 +50,7 @@ describe("fx source sync", () => {
     } as any;
 
     const service = createFxService({
-      db,
+      persistence: createPersistenceContext(db),
       feesService: createNoopFeesService(),
       currenciesService: createMockCurrenciesService([
         { id: "cur-usd", code: "USD" },
@@ -98,7 +99,7 @@ describe("fx source sync", () => {
     } as any;
 
     const service = createFxService({
-      db,
+      persistence: createPersistenceContext(db),
       feesService: createNoopFeesService(),
       currenciesService: createMockCurrenciesService([
         { id: "cur-usd", code: "USD" },
@@ -130,7 +131,7 @@ describe("fx source sync", () => {
     } as any;
 
     const service = createFxService({
-      db,
+      persistence: createPersistenceContext(db),
       feesService: createNoopFeesService(),
       currenciesService: createMockCurrenciesService([
         { id: "cur-usd", code: "USD" },
@@ -216,7 +217,7 @@ describe("fx source sync", () => {
     } as any;
 
     const service = createFxService({
-      db,
+      persistence: createPersistenceContext(db),
       feesService: createNoopFeesService(),
       currenciesService: createMockCurrenciesService(),
       rateSourceProviders: { investing: provider },
@@ -298,7 +299,7 @@ describe("fx source sync", () => {
     } as any;
 
     const service = createFxService({
-      db,
+      persistence: createPersistenceContext(db),
       feesService: createNoopFeesService(),
       currenciesService: createMockCurrenciesService(),
       rateSourceProviders: { xe: provider },
@@ -380,7 +381,7 @@ describe("fx source sync", () => {
     } as any;
 
     const service = createFxService({
-      db,
+      persistence: createPersistenceContext(db),
       feesService: createNoopFeesService(),
       currenciesService: createMockCurrenciesService(),
       rateSourceProviders: { cbr: provider },

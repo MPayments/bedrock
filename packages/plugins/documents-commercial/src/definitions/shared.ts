@@ -7,6 +7,7 @@ import {
   readString,
   toOccurredAtIso,
 } from "@bedrock/plugin-documents-sdk/definitions/shared";
+import { formatPercentFromBps } from "@bedrock/plugin-documents-sdk/financial-lines";
 import { normalizeMajorAmountInput } from "@bedrock/shared/money";
 
 import { FINANCIAL_LINE_BUCKET_OPTIONS } from "../financial-lines";
@@ -44,6 +45,7 @@ export function getDefaultInvoiceValues() {
     organizationRequisiteId: "",
     amount: "",
     currency: "",
+    targetCurrency: "",
     quoteRef: "",
     financialLines: [],
     memo: "",
@@ -54,40 +56,74 @@ export function mapPayloadFinancialLines(
   financialLines: FinancialLinePayload[] | undefined,
 ) {
   return (financialLines ?? []).map((line) => ({
+    calcMethod:
+      line.calcMethod === "percent" && typeof line.percentBps === "number"
+        ? "percent"
+        : "fixed",
     bucket: line.bucket,
     currency: line.currency,
     amount:
-      typeof line.amount === "string"
-        ? line.amount
-        : normalizeCommercialMajorAmountInput(line.amountMinor, line.currency),
+      line.calcMethod === "percent" && typeof line.percentBps === "number"
+        ? ""
+        : typeof line.amount === "string"
+          ? line.amount
+          : normalizeCommercialMajorAmountInput(line.amountMinor, line.currency),
+    percent:
+      line.calcMethod === "percent" && typeof line.percentBps === "number"
+        ? formatPercentFromBps(line.percentBps)
+        : "",
     memo: readString(line.memo),
   }));
 }
 
+function mapFinancialLineInput(
+  line: Record<string, unknown>,
+) {
+  const calcMethod =
+    readString(line.calcMethod).trim() === "percent" ? "percent" : "fixed";
+
+  return {
+    calcMethod,
+    bucket: readString(line.bucket).trim(),
+    currency: readString(line.currency).trim(),
+    amount:
+      calcMethod === "fixed"
+        ? normalizeCommercialMajorAmountInput(line.amount, line.currency)
+        : undefined,
+    percent:
+      calcMethod === "percent"
+        ? readString(line.percent).trim()
+        : undefined,
+    memo: optionalString(line.memo),
+  };
+}
+
 export function createInvoicePayload(values: Record<string, unknown>) {
+  const mode = readString(values.mode) === "exchange" ? "exchange" : "direct";
+
   return parseSchema(InvoiceInputSchema, {
-    mode: readString(values.mode) === "exchange" ? "exchange" : "direct",
+    mode,
     occurredAt: toOccurredAtIso(values.occurredAt),
     customerId: readString(values.customerId).trim(),
     counterpartyId: readString(values.counterpartyId).trim(),
     organizationId: optionalString(values.organizationId),
     organizationRequisiteId: readString(values.organizationRequisiteId).trim(),
-    amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
-    currency: readString(values.currency).trim(),
-    quoteRef: optionalString(values.quoteRef),
-    financialLines: Array.isArray(values.financialLines)
-      ? values.financialLines.map((line) => ({
-          bucket: readString((line as Record<string, unknown>).bucket).trim(),
-          currency: readString(
-            (line as Record<string, unknown>).currency,
-          ).trim(),
-          amount: normalizeCommercialMajorAmountInput(
-            (line as Record<string, unknown>).amount,
-            (line as Record<string, unknown>).currency,
-          ),
-          memo: optionalString((line as Record<string, unknown>).memo),
-        }))
-      : [],
+    ...(mode === "direct"
+      ? {
+          amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
+          currency: readString(values.currency).trim(),
+          financialLines: Array.isArray(values.financialLines)
+            ? values.financialLines.map((line) =>
+                mapFinancialLineInput(line as Record<string, unknown>),
+              )
+            : [],
+        }
+      : {
+          amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
+          currency: readString(values.currency).trim(),
+          targetCurrency: readString(values.targetCurrency).trim(),
+          quoteRef: optionalString(values.quoteRef),
+        }),
     memo: optionalString(values.memo),
   });
 }
@@ -117,5 +153,6 @@ export {
   AcceptanceInputSchema,
   isoToDateTimeLocal,
   nowDateTimeLocal,
+  normalizeCommercialMajorAmountInput,
   readString,
 };

@@ -11,9 +11,11 @@ import { sha256Hex } from "@bedrock/shared/core/crypto";
 function createTxStub(options?: {
   insertedReceipt?: Record<string, unknown> | null;
   existingReceipt?: Record<string, unknown> | null;
+  updateError?: unknown;
 }) {
   const insertedReceipt = options?.insertedReceipt ?? null;
   const existingReceipt = options?.existingReceipt ?? null;
+  const updateError = options?.updateError ?? null;
 
   return {
     insert: vi.fn(() => ({
@@ -32,7 +34,13 @@ function createTxStub(options?: {
     })),
     update: vi.fn(() => ({
       set: vi.fn(() => ({
-        where: vi.fn(async () => undefined),
+        where: vi.fn(async () => {
+          if (updateError) {
+            throw updateError;
+          }
+
+          return undefined;
+        }),
       })),
     })),
   };
@@ -163,5 +171,41 @@ describe("createIdempotencyService", () => {
         loadReplayResult: vi.fn(),
       }),
     ).rejects.toBeInstanceOf(ActionReceiptStoredError);
+  });
+
+  it("preserves the original handler error when receipt finalization fails", async () => {
+    const tx = createTxStub({
+      insertedReceipt: {
+        id: "receipt-1",
+        scope: "documents.createDraft",
+        idempotencyKey: "idem-1",
+        requestHash,
+        status: "ok",
+        resultJson: null,
+        errorJson: null,
+        actorId: "user-1",
+        createdAt: new Date("2026-02-28T00:00:00.000Z"),
+      },
+      updateError: new Error(
+        "current transaction is aborted, commands ignored until end of transaction block",
+      ),
+    });
+    const service = createIdempotencyService();
+    const originalError = new Error("documents insert failed");
+
+    await expect(
+      service.withIdempotencyTx({
+        tx: tx as any,
+        scope: "documents.createDraft",
+        idempotencyKey: "idem-1",
+        request,
+        actorId: "user-1",
+        handler: async () => {
+          throw originalError;
+        },
+        serializeResult: (value) => value,
+        loadReplayResult: vi.fn(),
+      }),
+    ).rejects.toBe(originalError);
   });
 });

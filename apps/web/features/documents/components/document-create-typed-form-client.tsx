@@ -1,10 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save, X } from "lucide-react";
-
-import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardContent,
@@ -12,7 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
-import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 
 import type { UserRole } from "@/lib/auth/types";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
@@ -20,8 +15,12 @@ import type { DocumentFormOptions } from "@/features/documents/lib/form-options"
 import { buildDocumentDetailsHref } from "@/features/documents/lib/routes";
 
 import {
-  DocumentTypedForm,
-  type DocumentTypedFormActionState,
+  CreateDocumentTypedFormProvider,
+  DocumentTypedFormForm,
+  DocumentTypedFormFormError,
+  DocumentTypedFormResetButton,
+  DocumentTypedFormSections,
+  DocumentTypedFormSubmitButton,
 } from "./forms/document-typed-form";
 
 type DocumentCreateTypedFormClientProps = {
@@ -30,19 +29,7 @@ type DocumentCreateTypedFormClientProps = {
   options: DocumentFormOptions;
 };
 
-export function DocumentCreateTypedFormClient({
-  docType,
-  userRole,
-  options,
-}: DocumentCreateTypedFormClientProps) {
-  const router = useRouter();
-  const formId = `document-create-form-${docType}`;
-  const [actionState, setActionState] = useState<DocumentTypedFormActionState>({
-    submitting: false,
-    submitDisabled: true,
-    resetDisabled: true,
-  });
-
+function DocumentCreateTypedFormCard({ docType }: { docType: string }) {
   return (
     <Card className="rounded-sm">
       <CardHeader className="border-b">
@@ -54,47 +41,40 @@ export function DocumentCreateTypedFormClient({
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              type="submit"
-              form={formId}
-              disabled={actionState.submitDisabled}
-            >
-              {actionState.submitting ? (
-                <Spinner className="size-4" />
-              ) : (
-                <Save className="size-4" />
-              )}
-              {actionState.submitting ? "Создание..." : "Создать документ"}
-            </Button>
-            <Button
-              variant="outline"
-              type="reset"
-              form={formId}
-              disabled={actionState.resetDisabled}
-            >
-              <X className="size-4" />
-              Отменить
-            </Button>
+            <DocumentTypedFormSubmitButton />
+            <DocumentTypedFormResetButton />
           </div>
         </div>
       </CardHeader>
       <CardContent className="py-6">
-        <DocumentTypedForm
-          mode="create"
-          docType={docType}
-          userRole={userRole}
-          options={options}
-          formId={formId}
-          actionsPlacement="external"
-          onActionStateChange={setActionState}
-          onSuccess={(document) => {
-            router.push(
-              buildDocumentDetailsHref(document.docType, document.id) ??
-                "/documents",
-            );
-          }}
-        />
+        <DocumentTypedFormForm className="space-y-6">
+          <DocumentTypedFormSections />
+          <DocumentTypedFormFormError />
+        </DocumentTypedFormForm>
       </CardContent>
     </Card>
+  );
+}
+
+export function DocumentCreateTypedFormClient({
+  docType,
+  userRole,
+  options,
+}: DocumentCreateTypedFormClientProps) {
+  const router = useRouter();
+
+  return (
+    <CreateDocumentTypedFormProvider
+      docType={docType}
+      userRole={userRole}
+      options={options}
+      onSuccess={(document) => {
+        router.push(
+          buildDocumentDetailsHref(document.docType, document.id) ?? "/documents",
+        );
+      }}
+    >
+      <DocumentCreateTypedFormCard docType={docType} />
+    </CreateDocumentTypedFormProvider>
   );
 }

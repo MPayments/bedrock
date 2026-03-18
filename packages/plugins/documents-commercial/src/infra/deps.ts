@@ -24,7 +24,7 @@ function buildQuoteSnapshotHash(snapshot: Record<string, unknown>) {
 
 type CommercialFxQuotesPort = Pick<
   FxService["quotes"],
-  "getQuoteDetails" | "markQuoteUsed"
+  "getQuoteDetails" | "markQuoteUsed" | "quote"
 >;
 
 async function loadDocumentByType(input: {
@@ -212,8 +212,17 @@ export function createCommercialDocumentDeps(input: {
       }[]
     >;
   };
+  partiesService: {
+    customers: {
+      findById(customerId: string): Promise<{ id: string }>;
+    };
+    counterparties: {
+      findById(counterpartyId: string): Promise<{ id: string }>;
+    };
+  };
 }): CommercialModuleDeps {
-  const { currenciesService, fxQuotes, requisitesService } = input;
+  const { currenciesService, fxQuotes, requisitesService, partiesService } =
+    input;
 
   return {
     quoteSnapshot: {
@@ -223,6 +232,32 @@ export function createCommercialDocumentDeps(input: {
           fxQuotes,
           quoteRef,
         });
+      },
+      async createQuoteSnapshot({
+        fromCurrency,
+        toCurrency,
+        fromAmountMinor,
+        asOf,
+        idempotencyKey,
+      }) {
+        try {
+          const quote = await fxQuotes.quote({
+            mode: "auto_cross",
+            idempotencyKey,
+            fromCurrency,
+            toCurrency,
+            fromAmountMinor: BigInt(fromAmountMinor),
+            asOf,
+          });
+
+          return loadQuoteSnapshotRecord({
+            currenciesService,
+            fxQuotes,
+            quoteRef: quote.id,
+          });
+        } catch (error) {
+          rethrowAsDocumentValidationError(error);
+        }
       },
     },
     quoteUsage: {
@@ -246,6 +281,22 @@ export function createCommercialDocumentDeps(input: {
         });
 
         return binding ?? null;
+      },
+    },
+    partyReferences: {
+      async assertCustomerExists(customerId) {
+        try {
+          await partiesService.customers.findById(customerId);
+        } catch (error) {
+          rethrowAsDocumentValidationError(error);
+        }
+      },
+      async assertCounterpartyExists(counterpartyId) {
+        try {
+          await partiesService.counterparties.findById(counterpartyId);
+        } catch (error) {
+          rethrowAsDocumentValidationError(error);
+        }
       },
     },
     documentRelations: {

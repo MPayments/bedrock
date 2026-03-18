@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createDocumentDraftWorkflow } from "../src";
 
 describe("document draft workflow", () => {
-  it("applies period-close mutations in the same transaction", async () => {
+  it("creates drafts through the transactional documents seam only", async () => {
     const tx = { id: "tx-1" };
     const db = {
       transaction: vi.fn(async (run: (value: any) => Promise<unknown>) => run(tx)),
@@ -23,19 +23,8 @@ describe("document draft workflow", () => {
       postingOperationId: null,
       allowedActions: [],
     }));
-    const closePeriod = vi.fn(async () => ({
-      lock: {} as any,
-      closePackage: {} as any,
-    }));
     const workflow = createDocumentDraftWorkflow({
       db: db as any,
-      idempotency: {
-        withIdempotencyTx: vi.fn(),
-      } as any,
-      accountingPeriods: {
-        closePeriod,
-        reopenPeriod: vi.fn(),
-      },
       createDocumentsService: () => ({
         createDraft: createDraft as any,
       }),
@@ -48,12 +37,6 @@ describe("document draft workflow", () => {
     } as any);
 
     expect(createDraft).toHaveBeenCalledTimes(1);
-    expect(closePeriod).toHaveBeenCalledWith(
-      expect.objectContaining({
-        organizationId: "org-1",
-        closeDocumentId: "doc-1",
-        db: tx,
-      }),
-    );
+    expect(db.transaction).toHaveBeenCalledTimes(1);
   });
 });

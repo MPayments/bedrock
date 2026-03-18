@@ -10,7 +10,7 @@ export const WORKER_CATALOG = [
   {
     id: "documents",
     envKey: "DOCUMENTS_WORKER_INTERVAL_MS",
-    defaultIntervalMs: 5_000,
+    defaultIntervalMs: 250,
     description: "Завершает статусы проведения документов по результатам ledger.",
   },
   {
@@ -18,7 +18,7 @@ export const WORKER_CATALOG = [
     envKey: "DOCUMENTS_PERIOD_CLOSE_WORKER_INTERVAL_MS",
     defaultIntervalMs: 60_000,
     description:
-      "Генерирует ежемесячные документы period_close и закрывает периоды контрагентов.",
+      "Генерирует и отправляет на согласование ежемесячные документы period_close.",
   },
   {
     id: "balances",

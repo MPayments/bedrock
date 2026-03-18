@@ -4,13 +4,23 @@ import type {
   LedgerBooksService,
 } from "@bedrock/ledger";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
 import {
-  createRequisitesServiceFromTransaction,
+  bindPersistenceSession,
+  type Database,
+  type Transaction,
+} from "@bedrock/platform/persistence";
+import {
+  createRequisitesService,
   RequisiteAccountingBindingOwnerTypeError,
   RequisiteNotFoundError,
   type RequisitesServiceDeps,
 } from "@bedrock/requisites";
+import type {
+  CreateRequisiteInput,
+  Requisite,
+  RequisiteAccountingBinding,
+  UpdateRequisiteInput,
+} from "@bedrock/requisites/contracts";
 import { createRequisitesQueries } from "@bedrock/requisites/queries";
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
@@ -25,6 +35,15 @@ export interface RequisiteAccountingWorkflowDeps {
   owners: RequisitesServiceDeps["owners"];
   logger?: Logger;
   now?: RequisitesServiceDeps["now"];
+}
+
+export interface RequisiteAccountingWorkflow {
+  create(input: CreateRequisiteInput): Promise<Requisite>;
+  update(id: string, input: UpdateRequisiteInput): Promise<Requisite>;
+  upsertBinding(
+    requisiteId: string,
+    input: { postingAccountNo?: string },
+  ): Promise<RequisiteAccountingBinding>;
 }
 
 async function resolveCurrencyCode(
@@ -43,7 +62,7 @@ async function resolveCurrencyCode(
 
 export function createRequisiteAccountingWorkflow(
   deps: RequisiteAccountingWorkflowDeps,
-) {
+): RequisiteAccountingWorkflow {
   async function upsertOrganizationBindingTx(input: {
     tx: Transaction;
     requisiteId: string;
@@ -68,8 +87,8 @@ export function createRequisiteAccountingWorkflow(
       },
     );
 
-    const requisites = createRequisitesServiceFromTransaction({
-      tx: input.tx,
+    const requisites = createRequisitesService({
+      persistence: bindPersistenceSession(input.tx),
       logger: deps.logger,
       now: deps.now,
       currencies: deps.currencies,
@@ -90,7 +109,7 @@ export function createRequisiteAccountingWorkflow(
     tx: Transaction;
     requisite: Awaited<
       ReturnType<
-        ReturnType<typeof createRequisitesServiceFromTransaction>["findById"]
+        ReturnType<typeof createRequisitesService>["findById"]
       >
     >;
     postingAccountNo?: string;
@@ -114,14 +133,10 @@ export function createRequisiteAccountingWorkflow(
   }
 
   return {
-    async create(
-      input: Parameters<
-        ReturnType<typeof createRequisitesServiceFromTransaction>["create"]
-      >[0],
-    ) {
+    async create(input) {
       return deps.db.transaction(async (tx) => {
-        const requisites = createRequisitesServiceFromTransaction({
-          tx,
+        const requisites = createRequisitesService({
+          persistence: bindPersistenceSession(tx),
           logger: deps.logger,
           now: deps.now,
           currencies: deps.currencies,
@@ -137,15 +152,10 @@ export function createRequisiteAccountingWorkflow(
         return requisite;
       });
     },
-    async update(
-      id: string,
-      input: Parameters<
-        ReturnType<typeof createRequisitesServiceFromTransaction>["update"]
-      >[1],
-    ) {
+    async update(id, input) {
       return deps.db.transaction(async (tx) => {
-        const requisites = createRequisitesServiceFromTransaction({
-          tx,
+        const requisites = createRequisitesService({
+          persistence: bindPersistenceSession(tx),
           logger: deps.logger,
           now: deps.now,
           currencies: deps.currencies,
@@ -189,7 +199,3 @@ export function createRequisiteAccountingWorkflow(
     },
   };
 }
-
-export type RequisiteAccountingWorkflow = ReturnType<
-  typeof createRequisiteAccountingWorkflow
->;

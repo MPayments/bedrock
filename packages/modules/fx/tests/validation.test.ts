@@ -7,6 +7,7 @@ import {
     validateGetQuoteDetailsInput,
     validateInput,
     validateMarkQuoteUsedInput,
+    validatePreviewQuoteInput,
     validateQuoteInput,
     validateSetManualRateInput,
     validateSyncRatesFromSourceInput,
@@ -68,9 +69,16 @@ describe("FX validation", () => {
             at: new Date("2026-02-19T00:00:00.000Z"),
         });
         const detailsParsed = validateGetQuoteDetailsInput({ quoteRef: "idem-1" });
+        const previewParsed = validatePreviewQuoteInput({
+            fromCurrency: "usd",
+            toCurrency: "eur",
+            fromAmountMinor: 1000n,
+        });
 
         expect(markParsed.usedByRef).toBe("po:123");
         expect(detailsParsed.quoteRef).toBe("idem-1");
+        expect(previewParsed.fromCurrency).toBe("USD");
+        expect(previewParsed.toCurrency).toBe("EUR");
     });
 
     it("formats contextual validation error with field path", () => {

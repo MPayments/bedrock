@@ -1,5 +1,8 @@
 import type { z } from "zod";
 
+export type FinancialLineCalcMethod = "fixed" | "percent";
+export type FxQuotePreviewRequestMode = "auto_cross";
+
 export interface DocumentFormFieldOption {
   value: string;
   label: string;
@@ -63,6 +66,16 @@ export type DocumentFormField =
   | (DocumentFormFieldBase & {
       kind: "financialLines";
       bucketOptions: DocumentFormFieldOption[];
+      supportedCalcMethods: FinancialLineCalcMethod[];
+      baseAmountFieldName: string;
+      baseCurrencyFieldName: string;
+    })
+  | (DocumentFormFieldBase & {
+      kind: "fxQuotePreview";
+      requestMode: FxQuotePreviewRequestMode;
+      amountFieldName: string;
+      fromCurrencyFieldName: string;
+      toCurrencyFieldName: string;
     });
 
 export type DocumentFormBreakpoint = "base" | "sm" | "md" | "lg";

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
+import { createPersistenceContext } from "@bedrock/platform/persistence";
+
 import { db } from "./setup";
 import {
   CounterpartySystemGroupDeleteError,
@@ -10,27 +12,12 @@ import {
 import { schema as partiesSchema } from "../../src/infra/drizzle/schema";
 import { createPartiesQueries } from "../../src/queries";
 
-const currencies = {
-  async assertCurrencyExists(_id: string) {
-    throw new Error("unexpected currencies port call");
-  },
-  async listCodesById(_ids: string[]) {
-    throw new Error("unexpected currencies port call");
-  },
-};
-const requisiteProviders = {
-  async assertProviderActive(_id: string) {
-    throw new Error("unexpected requisite providers port call");
-  },
-};
-
 function createRuntime(options?: {
   hasDocumentsForCustomer?: (customerId: string) => Promise<boolean>;
 }) {
   return {
     service: createPartiesService({
-      currencies,
-      db,
+      persistence: createPersistenceContext(db),
       documents: {
         hasDocumentsForCustomer(customerId) {
           return (
@@ -39,7 +26,6 @@ function createRuntime(options?: {
           );
         },
       },
-      requisiteProviders,
     }),
     queries: createPartiesQueries({ db }),
   };
@@ -75,6 +61,40 @@ describe("parties integration", () => {
       includeSystem: true,
     });
     expect(renamedGroups[0]!.name).toContain("Updated");
+  });
+
+  it("drops customer-scoped memberships when clearing a counterparty customer link", async () => {
+    const { service } = createRuntime();
+    const customer = await service.customers.create({
+      displayName: uniqueLabel("Detach"),
+      externalRef: uniqueLabel("crm"),
+    });
+    const [managedGroup] = await service.groups.list({
+      customerId: customer.id,
+      includeSystem: true,
+    });
+    const nestedGroup = await service.groups.create({
+      code: uniqueLabel("nested"),
+      name: "Nested",
+      parentId: managedGroup!.id,
+    });
+    const sharedGroup = await service.groups.create({
+      code: uniqueLabel("shared"),
+      name: "Shared",
+    });
+    const counterparty = await service.counterparties.create({
+      shortName: "Acme CP",
+      fullName: "Acme Counterparty",
+      customerId: customer.id,
+      groupIds: [nestedGroup.id, sharedGroup.id],
+    });
+
+    const updated = await service.counterparties.update(counterparty.id, {
+      customerId: null,
+    });
+
+    expect(updated.customerId).toBeNull();
+    expect(updated.groupIds).toEqual([sharedGroup.id]);
   });
 
   it("deletes customer-scoped group subtree and detaches counterparties on customer removal", async () => {

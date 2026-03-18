@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import { resolveRequisiteProviderUpdateInput } from "./inputs";
 import {
   CreateRequisiteProviderInputSchema,
   UpdateRequisiteProviderInputSchema,
@@ -56,7 +55,7 @@ export function createUpdateRequisiteProviderHandler(
       ...existing,
     });
     const provider = current.update({
-      ...resolveRequisiteProviderUpdateInput(current.toSnapshot(), validated),
+      ...validated,
       now: now(),
     });
 

@@ -217,7 +217,7 @@ const navItems: AppNavItem[] = [
         id: "settings-profile",
         title: "Профиль",
         href: "/settings/profile",
-        icon: "settings",
+        icon: "user",
         audience: "shared",
       },
     ],

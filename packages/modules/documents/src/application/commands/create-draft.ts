@@ -8,6 +8,7 @@ import { isSystemOnlyDocumentType } from "../../domain/doc-type";
 import { buildDocNo } from "../../domain/document";
 import { DocumentAggregate, type Document } from "../../domain/document";
 import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
+import { buildSummary } from "../../domain/document-summary";
 import { validateInput } from "../../validation";
 import {
   buildDocumentWithOperationId,
@@ -178,11 +179,24 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                 updatedAt: currentNow,
                 version: 1,
               };
-              const approvalStatus = module.approvalRequired(draftCandidate)
-                ? "pending"
-                : "not_required";
-              const summary = module.deriveSummary({
+              const previewSummary = buildSummary(
+                module.deriveSummary(draftCandidate),
+              );
+              const approvalCandidate = {
                 ...draftCandidate,
+                ...previewSummary,
+              };
+              const approvalStatus =
+                (await policy.approvalMode({
+                  module,
+                  document: approvalCandidate,
+                  actorUserId: input.actorUserId,
+                  moduleContext,
+                })) === "maker_checker"
+                  ? "pending"
+                  : "not_required";
+              const summary = module.deriveSummary({
+                ...approvalCandidate,
                 approvalStatus,
               });
               const organizationIds = collectDocumentOrganizationIds({

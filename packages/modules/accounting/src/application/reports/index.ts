@@ -31,12 +31,14 @@ export function createAccountingReportsHandlers(input: {
 
   const getOperationDetailsWithLabels = createGetOperationDetailsWithLabelsQuery({
     ledgerReadPort,
+    listBookNamesById,
     listCurrencyPrecisionsByCode,
     resolveDimensionLabelsFromRecords,
   });
   const listOperationDetailsWithLabels =
     createListOperationDetailsWithLabelsQuery({
       ledgerReadPort,
+      listBookNamesById,
       listCurrencyPrecisionsByCode,
       resolveDimensionLabelsFromRecords,
     });

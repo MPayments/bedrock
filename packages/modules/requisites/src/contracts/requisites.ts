@@ -11,6 +11,8 @@ import {
   RequisiteKindSchema,
   RequisiteOwnerTypeSchema,
 } from "./zod";
+import type { RequisiteSnapshot } from "../domain/requisite";
+
 
 export const RequisiteSchema = z.object({
   id: z.uuid(),
@@ -44,7 +46,7 @@ export const RequisiteSchema = z.object({
   archivedAt: z.date().nullable(),
 });
 
-export type Requisite = z.infer<typeof RequisiteSchema>;
+export type Requisite = RequisiteSnapshot;
 
 export const RequisiteAccountingBindingSchema = z.object({
   requisiteId: z.uuid(),

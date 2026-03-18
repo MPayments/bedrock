@@ -40,7 +40,7 @@ export function createExchangeDocumentModule(
     updateSchema: ExchangeInputSchema,
     payloadSchema: ExchangePayloadSchema,
     postingRequired: true,
-    allowDirectPostFromDraft: true,
+    allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(context, input) {
       const invoice = await loadInvoice(

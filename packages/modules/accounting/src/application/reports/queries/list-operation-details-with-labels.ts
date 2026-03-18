@@ -33,11 +33,13 @@ function toDimensionLabels(
 
 export function createListOperationDetailsWithLabelsQuery(input: {
   ledgerReadPort: Pick<AccountingReportsLedgerPort, "listOperationDetails">;
+  listBookNamesById: AccountingReportsServicePorts["listBookNamesById"];
   listCurrencyPrecisionsByCode: AccountingReportsServicePorts["listCurrencyPrecisionsByCode"];
   resolveDimensionLabelsFromRecords: AccountingReportsServicePorts["resolveDimensionLabelsFromRecords"];
 }) {
   const {
     ledgerReadPort,
+    listBookNamesById,
     listCurrencyPrecisionsByCode,
     resolveDimensionLabelsFromRecords,
   } = input;
@@ -68,6 +70,15 @@ export function createListOperationDetailsWithLabelsQuery(input: {
         ]),
       ),
     });
+    const bookNamesById = await listBookNamesById(
+      Array.from(
+        new Set(
+          detailsList.flatMap((details) =>
+            details.postings.map((posting) => posting.bookId),
+          ),
+        ),
+      ),
+    );
     const dimensionLabels = toDimensionLabels(resolved);
 
     return new Map(
@@ -77,6 +88,7 @@ export function createListOperationDetailsWithLabelsQuery(input: {
           ...details,
           postings: details.postings.map((posting) => ({
             ...posting,
+            bookName: bookNamesById.get(posting.bookId) ?? posting.bookName,
             currencyPrecision:
               precisionByCode.get(posting.currency) ??
               getDefaultPrecision(posting.currency),
