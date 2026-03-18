@@ -147,7 +147,7 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      TB_ADDRESS: bedrock-tigerbeetle:3000
+      TB_ADDRESS: ${TB_ADDRESS}
       TB_CLUSTER_ID: ${TB_CLUSTER_ID:-0}
       WORKERS_MONITORING_HOST: "0.0.0.0"
       WORKERS_MONITORING_PORT: 8081
