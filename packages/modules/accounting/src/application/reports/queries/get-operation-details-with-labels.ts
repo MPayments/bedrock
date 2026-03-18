@@ -11,6 +11,7 @@ export { type LedgerOperationDetailsWithLabels };
 
 export function createGetOperationDetailsWithLabelsQuery(input: {
   ledgerReadPort: Pick<AccountingReportsLedgerPort, "listOperationDetails">;
+  listBookNamesById: AccountingReportsServicePorts["listBookNamesById"];
   listCurrencyPrecisionsByCode: AccountingReportsServicePorts["listCurrencyPrecisionsByCode"];
   resolveDimensionLabelsFromRecords: AccountingReportsServicePorts["resolveDimensionLabelsFromRecords"];
 }) {

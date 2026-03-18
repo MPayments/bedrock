@@ -1,9 +1,10 @@
 import {
+  applyPatch,
   Entity,
   invariant,
   normalizeOptionalText,
   normalizeRequiredText,
-} from "@bedrock/shared/core/domain";
+} from "@bedrock/shared/core";
 
 import { normalizeCountryCode } from "./country-code";
 import { isBankLikeRequisiteKind, type RequisiteKind } from "./requisite-kind";
@@ -141,11 +142,17 @@ export class RequisiteProvider extends Entity<string> {
     return new RequisiteProvider({ ...snapshot });
   }
 
-  update(input: UpdateRequisiteProviderProps): RequisiteProvider {
+  update(input: UpdateRequisiteProviderPatch): RequisiteProvider {
+    const { now, ...patch } = input;
+    const next = applyPatch<RequisiteProviderSnapshot>(
+      this.snapshot,
+      patch as Partial<RequisiteProviderSnapshot>,
+    );
+
     return new RequisiteProvider({
-      ...this.snapshot,
-      ...normalizeDetails(input),
-      updatedAt: input.now,
+      ...next,
+      ...normalizeDetails(next),
+      updatedAt: now,
     });
   }
 
@@ -168,5 +175,10 @@ export interface CreateRequisiteProviderProps extends RequisiteProviderDetails {
 }
 
 export interface UpdateRequisiteProviderProps extends RequisiteProviderDetails {
+  now: Date;
+}
+
+export interface UpdateRequisiteProviderPatch
+  extends Partial<RequisiteProviderDetails> {
   now: Date;
 }

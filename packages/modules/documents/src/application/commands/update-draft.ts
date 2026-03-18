@@ -4,6 +4,7 @@ import type {
 } from "../../contracts";
 import { DocumentAggregate } from "../../domain/document";
 import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
+import { buildSummary } from "../../domain/document-summary";
 import { validateInput } from "../../validation";
 import {
   buildDocumentWithOperationId,
@@ -145,10 +146,29 @@ export function createUpdateDraftHandler(context: DocumentsServiceContext) {
                 payload,
                 occurredAt: nextOccurredAt,
               };
-              const approvalStatus = module.approvalRequired(next)
-                ? "pending"
-                : "not_required";
-              const summary = module.deriveSummary({ ...next, approvalStatus });
+              const previewSummary = buildSummary(
+                module.deriveSummary({
+                  ...next,
+                  approvalStatus: "not_required",
+                }),
+              );
+              const approvalCandidate = {
+                ...next,
+                ...previewSummary,
+              };
+              const approvalStatus =
+                (await policy.approvalMode({
+                  module,
+                  document: approvalCandidate,
+                  actorUserId: input.actorUserId,
+                  moduleContext,
+                })) === "maker_checker"
+                  ? "pending"
+                  : "not_required";
+              const summary = module.deriveSummary({
+                ...approvalCandidate,
+                approvalStatus,
+              });
               const nextOrganizationIds = collectDocumentOrganizationIds({
                 payload,
               });

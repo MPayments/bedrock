@@ -1,9 +1,7 @@
 import { randomUUID } from "node:crypto";
 
-import {
-  resolveCreateCounterpartyProps,
-  resolveUpdateCounterpartyProps,
-} from "./inputs";
+import { applyPatch } from "@bedrock/shared/core";
+
 import type {
   Counterparty as CounterpartyDto,
   CreateCounterpartyInput,
@@ -13,7 +11,11 @@ import {
   CreateCounterpartyInputSchema,
   UpdateCounterpartyInputSchema,
 } from "../../contracts";
-import { Counterparty } from "../../domain/counterparty";
+import {
+  Counterparty,
+  type CounterpartySnapshot,
+  type UpdateCounterpartyProps,
+} from "../../domain/counterparty";
 import { GroupHierarchy } from "../../domain/group-hierarchy";
 import {
   CounterpartyCustomerNotFoundError,
@@ -45,6 +47,28 @@ function membershipsChanged(
     left.length !== right.length ||
     left.some((groupId, index) => groupId !== right[index])
   );
+}
+
+function resolveCounterpartyUpdateProps(
+  snapshot: CounterpartySnapshot,
+  patch: Partial<UpdateCounterpartyProps>,
+  hierarchy: GroupHierarchy,
+): UpdateCounterpartyProps {
+  const next: UpdateCounterpartyProps = applyPatch(snapshot, patch);
+  const customerId =
+    patch.customerId !== undefined ? patch.customerId : snapshot.customerId;
+  const groupIds =
+    patch.groupIds !== undefined
+      ? patch.groupIds
+      : patch.customerId !== undefined
+        ? hierarchy.withoutCustomerScopedGroups(snapshot.groupIds)
+        : snapshot.groupIds;
+
+  return {
+    ...next,
+    customerId,
+    groupIds,
+  };
 }
 
 export function createCreateCounterpartyHandler(
@@ -79,10 +103,10 @@ export function createCreateCounterpartyHandler(
       let draft: Counterparty;
       try {
         draft = Counterparty.create(
-          resolveCreateCounterpartyProps({
+          {
             id: randomUUID(),
-            values: validated,
-          }),
+            ...validated,
+          },
           {
             hierarchy,
             managedGroupId,
@@ -138,21 +162,20 @@ export function createUpdateCounterpartyHandler(
       const hierarchy = GroupHierarchy.create(
         await counterparties.listGroupHierarchyNodes(),
       );
-      const nextInput = resolveUpdateCounterpartyProps(
+      const nextInput = resolveCounterpartyUpdateProps(
         existingSnapshot,
         validated,
         hierarchy,
       );
-      const nextCustomerId = nextInput.customerId;
 
       let managedGroupId: string | null = null;
-      if (nextCustomerId) {
-        await assertCustomerExists(customers, nextCustomerId);
+      if (nextInput.customerId) {
+        await assertCustomerExists(customers, nextInput.customerId);
         const customer = await customers.findCustomerSnapshotById(
-          nextCustomerId,
+          nextInput.customerId,
         );
         const customerGroup = await customers.ensureManagedCustomerGroup({
-          customerId: nextCustomerId,
+          customerId: nextInput.customerId,
           displayName: customer!.displayName,
         });
         managedGroupId = customerGroup.id;
@@ -177,18 +200,19 @@ export function createUpdateCounterpartyHandler(
         throw new CounterpartyNotFoundError(id);
       }
 
+      const nextSnapshot = next.toSnapshot();
       if (
         membershipsChanged(
           existingSnapshot.groupIds,
-          next.toSnapshot().groupIds,
+          nextSnapshot.groupIds,
         )
       ) {
-        await counterparties.replaceMemberships(id, next.toSnapshot().groupIds);
+        await counterparties.replaceMemberships(id, nextSnapshot.groupIds);
       }
 
       const updated = Counterparty.fromSnapshot({
         ...persistedSnapshot,
-        groupIds: next.toSnapshot().groupIds,
+        groupIds: nextSnapshot.groupIds,
       });
 
       log.info("Counterparty updated", { id });

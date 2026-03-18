@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
@@ -19,9 +20,11 @@ import type { Option } from "@/types/data-table";
 
 function badgeVariant(
   value: string,
-): "default" | "secondary" | "destructive" | "outline" {
+  kind?: "approval" | "generic",
+): "default" | "secondary" | "destructive" | "outline" | "warning" {
   if (value === "posted" || value === "approved") return "default";
   if (value === "failed" || value === "rejected") return "destructive";
+  if (kind === "approval" && value === "pending") return "warning";
   if (value === "posting" || value === "pending") return "secondary";
   return "outline";
 }
@@ -122,7 +125,7 @@ export function getDocumentColumns(
         <DataTableColumnHeader column={column} label="Согласование" />
       ),
       cell: ({ row }) => (
-        <Badge variant={badgeVariant(row.original.approvalStatus)}>
+        <Badge variant={badgeVariant(row.original.approvalStatus, "approval")}>
           {getApprovalStatusLabel(row.original.approvalStatus)}
         </Badge>
       ),

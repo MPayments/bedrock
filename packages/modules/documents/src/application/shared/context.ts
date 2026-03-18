@@ -2,6 +2,7 @@ import { noopLogger, type Logger } from "@bedrock/platform/observability/logger"
 
 import { createDefaultDocumentActionPolicyService } from "../policy/default-action-policy";
 import type { DocumentsServiceDeps } from "../service-deps";
+import { createNoopDocumentTransitionEffectsService } from "./transition-effects";
 
 export interface DocumentsServiceContext {
   accounting: DocumentsServiceDeps["accounting"];
@@ -16,6 +17,7 @@ export interface DocumentsServiceContext {
   now: () => Date;
   policy: NonNullable<DocumentsServiceDeps["policy"]>;
   registry: DocumentsServiceDeps["registry"];
+  transitionEffects: NonNullable<DocumentsServiceDeps["transitionEffects"]>;
   transactions: DocumentsServiceDeps["transactions"];
   log: Logger;
 }
@@ -36,6 +38,8 @@ export function createDocumentsServiceContext(
     now: deps.now ?? (() => new Date()),
     policy: deps.policy ?? createDefaultDocumentActionPolicyService(),
     registry: deps.registry,
+    transitionEffects:
+      deps.transitionEffects ?? createNoopDocumentTransitionEffectsService(),
     transactions: deps.transactions,
     log: deps.logger?.child({ svc: "documents" }) ?? noopLogger,
   };

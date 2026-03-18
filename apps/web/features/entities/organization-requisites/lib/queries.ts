@@ -237,6 +237,37 @@ export async function getOrganizationRequisites(
   };
 }
 
+export async function getOrganizationRequisitesForOrganization(
+  organizationId: string,
+): Promise<SerializedRequisite[]> {
+  const client = await getServerApiClient();
+  const [{ data: payload }, ownerLabelById, providerLabelById, currencyLabelById] =
+    await Promise.all([
+      readPaginatedList({
+        request: () =>
+          client.v1.requisites.$get({
+            query: {
+              ownerType: "organization",
+              ownerId: organizationId,
+              limit: 100,
+              offset: 0,
+              sortBy: "createdAt",
+              sortOrder: "desc",
+            },
+          }),
+        schema: RequisitesListResponseSchema,
+        context: "Не удалось загрузить реквизиты организации",
+      }),
+      getOrganizationLabelById(),
+      getProviderLabelById(),
+      getCurrencyLabelById(),
+    ]);
+
+  return payload.data.map((row) =>
+    serializeRow(row, ownerLabelById, providerLabelById, currencyLabelById),
+  );
+}
+
 const getOrganizationRequisiteByIdUncached = async (
   id: string,
 ): Promise<OrganizationRequisiteDetails | null> => {

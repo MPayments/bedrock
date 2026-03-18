@@ -7,13 +7,18 @@ import type {
 } from "../../contracts/commands";
 import type { DocumentWithOperationId } from "../../contracts/dto";
 import { DocumentAggregate, type Document } from "../../domain/document";
-import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
 import { DocumentPostingNotRequiredError } from "../../errors";
-import type { DocumentTransitionEvent } from "../commands/transition-runtime";
+import { invokeDocumentModuleAction } from "../shared/action-dispatch";
+import {
+  assertOrganizationPeriodsOpenForDocument,
+  buildDocumentActionEvent,
+  buildDocumentActionIdempotencyKey,
+  insertDocumentEvents,
+  type DocumentActionEvent,
+} from "../shared/action-runtime";
 import { buildDocumentWithOperationId, loadDocumentOrThrow } from "../shared/actions";
 import type { DocumentsServiceContext } from "../shared/context";
 import { buildDocumentEventState } from "../shared/document-event-state";
-import { buildDefaultActionIdempotencyKey } from "../shared/idempotency-key";
 import {
   createModuleContext,
   resolveDocumentAccountingSourceId,
@@ -40,7 +45,7 @@ export interface PreparedDocumentPosting {
   actorUserId: string;
   requestContext?: DocumentRequestContext;
   postingOperationId: string | null;
-  successEvents: DocumentTransitionEvent[];
+  successEvents: DocumentActionEvent[];
   finalEvent: {
     eventType: "post" | "repost";
     before: Record<string, unknown> | null;
@@ -69,64 +74,7 @@ function buildActionIdempotencyKey(
     actorUserId: string;
   },
 ) {
-  return buildDefaultActionIdempotencyKey(`documents.${action}`, {
-    docType: input.docType,
-    documentId: input.documentId,
-    actorUserId: input.actorUserId,
-  });
-}
-
-function buildTransitionEvent(input: {
-  eventType: string;
-  before: Record<string, unknown> | null;
-  after: Record<string, unknown> | null;
-  reasonMeta?: Record<string, unknown> | null;
-}): DocumentTransitionEvent {
-  return {
-    eventType: input.eventType,
-    before: input.before,
-    after: input.after,
-    reasonMeta: input.reasonMeta,
-  };
-}
-
-async function assertOrganizationPeriodsOpenForDocument(input: {
-  context: DocumentsServiceContext;
-  document: Document;
-  docType: string;
-}) {
-  const organizationIds = collectDocumentOrganizationIds({
-    payload: input.document.payload,
-  });
-
-  await input.context.accountingPeriods.assertOrganizationPeriodsOpen({
-    occurredAt: input.document.occurredAt,
-    organizationIds,
-    docType: input.docType,
-  });
-}
-
-async function insertPreparedDocumentEvents(input: {
-  context: DocumentsServiceContext;
-  events: DocumentTransitionEvent[];
-  documentId: string;
-  actorUserId: string;
-  requestContext?: DocumentRequestContext;
-}) {
-  for (const event of input.events) {
-    await input.context.documentEvents.insertDocumentEvent({
-      documentId: input.documentId,
-      eventType: event.eventType,
-      actorId: input.actorUserId,
-      requestId: input.requestContext?.requestId,
-      correlationId: input.requestContext?.correlationId,
-      traceId: input.requestContext?.traceId,
-      causationId: input.requestContext?.causationId,
-      before: event.before,
-      after: event.after,
-      reasonMeta: event.reasonMeta ?? null,
-    });
-  }
+  return buildDocumentActionIdempotencyKey(action, input);
 }
 
 export function createResolveDocumentPostingIdempotencyKeyHandler(
@@ -181,14 +129,63 @@ export function createPrepareDocumentPostHandler(
           runtime: moduleRuntime,
         });
 
-        const successEvents: DocumentTransitionEvent[] = [];
+        const successEvents: DocumentActionEvent[] = [];
         let postingDocument = document;
+        const currentNow = context.now();
+        const actorApprovalMode = await context.policy.approvalMode({
+          module,
+          document: postingDocument,
+          actorUserId: input.actorUserId,
+          moduleContext,
+        });
+
+        if (
+          actorApprovalMode === "not_required" &&
+          postingDocument.submissionStatus === "submitted" &&
+          postingDocument.approvalStatus === "pending"
+        ) {
+          const beforeApprovalBypass = buildDocumentEventState(postingDocument);
+          const bypassedApproval = {
+            ...postingDocument,
+            approvalStatus: "not_required" as const,
+            updatedAt: currentNow,
+          };
+          const storedBypassedApproval = await documentsCommand.updateDocument({
+            documentId: postingDocument.id,
+            docType: input.docType,
+            patch: {
+              approvalStatus: bypassedApproval.approvalStatus,
+              updatedAt: bypassedApproval.updatedAt,
+            },
+          });
+
+          if (!storedBypassedApproval) {
+            throw new InvalidStateError(
+              "Failed to bypass document approval before posting",
+            );
+          }
+
+          successEvents.push(
+            buildDocumentActionEvent({
+              eventType: "approval_bypassed",
+              before: beforeApprovalBypass,
+              after: buildDocumentEventState(storedBypassedApproval),
+            }),
+          );
+
+          postingDocument = storedBypassedApproval;
+        }
 
         if (
           module.allowDirectPostFromDraft &&
           postingDocument.submissionStatus === "draft"
         ) {
-          await module.canSubmit(moduleContext, postingDocument);
+          await invokeDocumentModuleAction({
+            action: "submit",
+            module,
+            moduleContext,
+            document: postingDocument,
+          });
           await enforceDocumentPolicy({
             policy: context.policy,
             action: "submit",
@@ -203,7 +200,7 @@ export function createPrepareDocumentPostHandler(
           const submitted = DocumentAggregate.fromSnapshot(postingDocument)
             .submit({
               actorUserId: input.actorUserId,
-              now: context.now(),
+              now: currentNow,
               module: {
                 postingRequired: module.postingRequired,
                 allowDirectPostFromDraft: false,
@@ -229,7 +226,7 @@ export function createPrepareDocumentPostHandler(
           }
 
           successEvents.push(
-            buildTransitionEvent({
+            buildDocumentActionEvent({
               eventType: "submit",
               before: beforeSubmit,
               after: buildDocumentEventState(storedSubmitted),
@@ -242,7 +239,7 @@ export function createPrepareDocumentPostHandler(
         const startedPosting = DocumentAggregate.fromSnapshot(postingDocument)
           .startPosting({
             actorUserId: input.actorUserId,
-            now: context.now(),
+            now: currentNow,
             module: {
               postingRequired: module.postingRequired,
               allowDirectPostFromDraft: false,
@@ -271,7 +268,12 @@ export function createPrepareDocumentPostHandler(
           docType: input.docType,
         });
 
-        await module.canPost(moduleContext, postingDocument);
+        await invokeDocumentModuleAction({
+          action: "post",
+          module,
+          moduleContext,
+          document: postingDocument,
+        });
         await enforceDocumentPolicy({
           policy: context.policy,
           action: "post",
@@ -442,18 +444,18 @@ export function createFinalizeDocumentPostingSuccessHandler(
           kind: "post",
         });
 
-        await insertPreparedDocumentEvents({
-          context,
+        await insertDocumentEvents({
+          documentEvents: context.documentEvents,
           events: input.prepared.successEvents,
           documentId: input.prepared.document.id,
           actorUserId: input.prepared.actorUserId,
           requestContext: input.prepared.requestContext,
         });
 
-        await insertPreparedDocumentEvents({
-          context,
+        await insertDocumentEvents({
+          documentEvents: context.documentEvents,
           events: [
-            buildTransitionEvent({
+            buildDocumentActionEvent({
               eventType: input.prepared.finalEvent.eventType,
               before: input.prepared.finalEvent.before,
               after: input.prepared.finalEvent.after,
@@ -508,21 +510,21 @@ export function createFinalizeDocumentPostingFailureHandler(
         throw new InvalidStateError("Failed to mark document posting as failed");
       }
 
-      await insertPreparedDocumentEvents({
-        context,
-        events: input.prepared.successEvents,
-        documentId: stored.id,
-        actorUserId: input.prepared.actorUserId,
+        await insertDocumentEvents({
+          documentEvents: context.documentEvents,
+          events: input.prepared.successEvents,
+          documentId: stored.id,
+          actorUserId: input.prepared.actorUserId,
         requestContext: input.prepared.requestContext,
       });
 
-      await insertPreparedDocumentEvents({
-        context,
-        events: [
-          buildTransitionEvent({
-            eventType: "posting_failed",
-            before: buildDocumentEventState(input.prepared.document),
-            after: buildDocumentEventState(stored),
+        await insertDocumentEvents({
+          documentEvents: context.documentEvents,
+          events: [
+            buildDocumentActionEvent({
+              eventType: "posting_failed",
+              before: buildDocumentEventState(input.prepared.document),
+              after: buildDocumentEventState(stored),
             reasonMeta: {
               error: input.error,
               ...(input.operationId ? { operationId: input.operationId } : {}),

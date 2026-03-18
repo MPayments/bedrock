@@ -4,7 +4,7 @@ import {
   invariant,
   normalizeOptionalText,
   normalizeRequiredText,
-} from "@bedrock/shared/core/domain";
+} from "@bedrock/shared/core";
 
 import type { GroupHierarchy } from "./group-hierarchy";
 import {

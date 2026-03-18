@@ -1,5 +1,4 @@
 import type {
-  DocumentRequestContext,
   DocumentTransitionAction,
   DocumentTransitionInput,
 } from "../../contracts/commands";
@@ -11,6 +10,10 @@ import type {
   DocumentOperationsRepository,
   DocumentsCommandRepository,
 } from "../documents/ports";
+import {
+  insertDocumentEvents,
+  type DocumentActionEvent,
+} from "../shared/action-runtime";
 import {
   buildDocumentWithOperationId,
   loadDocumentOrThrow,
@@ -32,21 +35,15 @@ export interface DocumentTransitionIdempotencyContext {
   module: DocumentModule;
 }
 
-export interface DocumentTransitionEvent {
-  eventType: string;
-  before: Record<string, unknown> | null;
-  after: Record<string, unknown> | null;
-  reasonMeta?: Record<string, unknown> | null;
-}
-
 export interface DocumentTransitionExecutionResult {
   document: Document;
   postingOperationId: string | null;
-  events?: DocumentTransitionEvent[];
+  events?: DocumentActionEvent[];
 }
 
 export interface DocumentTransitionExecutionContext {
   services: DocumentsServiceContext;
+  transaction: unknown;
   documentsCommand: DocumentsCommandRepository;
   documentEvents: DocumentEventsRepository;
   documentOperations: DocumentOperationsRepository;
@@ -73,28 +70,6 @@ export type DocumentTransitionSpecs = Record<
   DocumentTransitionSpec
 >;
 
-async function insertTransitionEvents(input: {
-  documentEvents: DocumentEventsRepository;
-  transition: DocumentTransitionInput;
-  events: DocumentTransitionEvent[];
-  requestContext?: DocumentRequestContext;
-}) {
-  for (const event of input.events) {
-    await input.documentEvents.insertDocumentEvent({
-      documentId: input.transition.documentId,
-      eventType: event.eventType,
-      actorId: input.transition.actorUserId,
-      requestId: input.requestContext?.requestId,
-      correlationId: input.requestContext?.correlationId,
-      traceId: input.requestContext?.traceId,
-      causationId: input.requestContext?.causationId,
-      before: event.before,
-      after: event.after,
-      reasonMeta: event.reasonMeta ?? null,
-    });
-  }
-}
-
 export async function runDocumentTransition(input: {
   services: DocumentsServiceContext;
   transition: DocumentTransitionInput;
@@ -104,7 +79,8 @@ export async function runDocumentTransition(input: {
 
   try {
     return await services.transactions.withTransaction(
-        async ({
+      async ({
+        transaction,
           documentEvents,
           documentOperations,
           documentsCommand,
@@ -186,6 +162,7 @@ export async function runDocumentTransition(input: {
 
             const result = await spec.execute({
               services,
+              transaction,
               documentsCommand,
               documentEvents,
               documentOperations,
@@ -196,10 +173,11 @@ export async function runDocumentTransition(input: {
             });
 
             if (result.events && result.events.length > 0) {
-              await insertTransitionEvents({
+              await insertDocumentEvents({
                 documentEvents,
-                transition,
                 events: result.events,
+                documentId: transition.documentId,
+                actorUserId: transition.actorUserId,
                 requestContext: transition.requestContext,
               });
             }

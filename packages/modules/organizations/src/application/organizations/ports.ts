@@ -21,7 +21,7 @@ export interface OrganizationsQueryRepository {
   listExistingOrganizationIds: (ids: string[]) => Promise<string[]>;
 }
 
-export interface OrganizationsCommandTxRepository {
+export interface OrganizationsCommandRepository {
   findOrganizationSnapshotById: (
     id: string,
   ) => Promise<OrganizationSnapshot | null>;

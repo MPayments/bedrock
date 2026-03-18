@@ -62,7 +62,7 @@ export function createTransferResolutionDocumentModule(
     updateSchema: TransferResolutionInputSchema,
     payloadSchema: TransferResolutionPayloadSchema,
     postingRequired: true,
-    allowDirectPostFromDraft: true,
+    allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(_context, input) {
       return buildDocumentDraft(input, {

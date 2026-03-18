@@ -3,6 +3,7 @@ import type { FeeComponent } from "@bedrock/fees/contracts";
 import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
+  ComputedLeg,
   FxQuoteLegSourceKind,
   FxQuotePricingMode,
   FxQuoteStatus,
@@ -62,6 +63,23 @@ export interface FxQuoteDetailsRecord {
   feeComponents: FeeComponent[];
   financialLines: FinancialLine[];
   pricingTrace: Record<string, unknown>;
+}
+
+export interface FxQuotePreviewRecord {
+  fromCurrency: string;
+  toCurrency: string;
+  fromAmountMinor: bigint;
+  toAmountMinor: bigint;
+  pricingMode: FxQuotePricingMode;
+  pricingTrace: Record<string, unknown>;
+  dealDirection: string | null;
+  dealForm: string | null;
+  rateNum: bigint;
+  rateDen: bigint;
+  expiresAt: Date;
+  legs: ComputedLeg[];
+  feeComponents: FeeComponent[];
+  financialLines: FinancialLine[];
 }
 
 export interface FxQuoteWriteModel {

@@ -197,6 +197,13 @@ function resolveCreateLine(
   request: DocumentPostingPlanRequest,
   template: Extract<CompiledPostingTemplate, { lineType: "create" }>,
 ): CreateIntentLine {
+  const pending = request.pending
+    ? {
+        timeoutSeconds: request.pending.timeoutSeconds!,
+        ref: request.pending.ref ?? null,
+      }
+    : undefined;
+
   return {
     type: OPERATION_TRANSFER_TYPE.CREATE,
     planRef: buildPlanRef(request),
@@ -222,14 +229,9 @@ function resolveCreateLine(
     },
     amountMinor: request.amountMinor,
     code: template.transferCode,
-    pending: request.pending
-      ? {
-          timeoutSeconds: request.pending.timeoutSeconds!,
-          ref: request.pending.ref ?? null,
-        }
-      : undefined,
     chain: request.refs?.chainId ?? null,
     memo: request.memo ?? null,
+    ...(pending ? { pending } : {}),
   };
 }
 
@@ -244,7 +246,6 @@ function resolvePendingLine(
     planRef: buildPlanRef(request),
     currency: request.currency,
     pendingId: request.pending!.pendingId!,
-    code: undefined,
     chain: request.refs?.chainId ?? null,
     memo: request.memo ?? null,
   };

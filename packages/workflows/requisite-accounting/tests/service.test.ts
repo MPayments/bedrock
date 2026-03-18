@@ -16,7 +16,7 @@ const bindingsGet = vi.fn(async () => ({
 }));
 
 vi.mock("@bedrock/requisites", () => ({
-  createRequisitesServiceFromTransaction: vi.fn(() => ({
+  createRequisitesService: vi.fn(() => ({
     create,
     update,
     bindings: {

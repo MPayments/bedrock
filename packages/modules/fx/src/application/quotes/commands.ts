@@ -10,7 +10,7 @@ import {
 } from "@bedrock/shared/money/math";
 
 import { financialLineFromFeeComponent } from "./fee-financial-lines";
-import type { FxQuoteRecord } from "./ports";
+import type { FxQuotePreviewRecord, FxQuoteRecord } from "./ports";
 import { FxQuote } from "../../domain/fx-quote";
 import {
   buildAutoCrossTrace,
@@ -21,12 +21,25 @@ import type { CrossRate } from "../rates/ports";
 import type { FxServiceContext } from "../shared/context";
 import {
   type MarkQuoteUsedInput,
+  type PreviewQuoteInput,
   type QuoteInput,
   validateMarkQuoteUsedInput,
+  validatePreviewQuoteInput,
   validateQuoteInput,
 } from "../validation";
 
 const DEFAULT_QUOTE_TTL_SECONDS = 600;
+
+type QuoteComputationInput =
+  | QuoteInput
+  | (PreviewQuoteInput & {
+      mode: "auto_cross";
+      asOf: Date;
+      ttlSeconds?: number;
+      anchor?: string;
+      manualFinancialLines?: FinancialLine[];
+      pricingTrace?: Record<string, unknown>;
+    });
 
 interface QuoteHandlersDeps {
   getCrossRate: (
@@ -55,9 +68,9 @@ export function createFxQuoteCommandHandlers(
     transactions,
   } = context;
 
-  async function quote(input: QuoteInput): Promise<FxQuoteRecord> {
-    const validated = validateQuoteInput(input);
-
+  async function computeQuotePreview(
+    validated: QuoteComputationInput,
+  ): Promise<FxQuotePreviewRecord> {
     let legs = [] as ReturnType<typeof computeExplicitRouteLegs>;
     let toAmountMinor = 0n;
     let rateNum = 1n;
@@ -132,11 +145,33 @@ export function createFxQuoteCommandHandlers(
     const ttlSeconds = validated.ttlSeconds ?? DEFAULT_QUOTE_TTL_SECONDS;
     const expiresAt = new Date(validated.asOf.getTime() + ttlSeconds * 1000);
 
+    return {
+      fromCurrency: validated.fromCurrency,
+      toCurrency: validated.toCurrency,
+      fromAmountMinor: validated.fromAmountMinor,
+      toAmountMinor,
+      pricingMode: validated.mode,
+      pricingTrace,
+      dealDirection: validated.dealDirection ?? null,
+      dealForm: validated.dealForm ?? null,
+      rateNum,
+      rateDen,
+      expiresAt,
+      legs,
+      feeComponents,
+      financialLines,
+    };
+  }
+
+  async function quote(input: QuoteInput): Promise<FxQuoteRecord> {
+    const validated = validateQuoteInput(input);
+    const computed = await computeQuotePreview(validated);
+
     return transactions.runInTransaction(async (tx) => {
       const currencyCodes = [
-        validated.fromCurrency,
-        validated.toCurrency,
-        ...legs.flatMap((leg) => [leg.fromCurrency, leg.toCurrency]),
+        computed.fromCurrency,
+        computed.toCurrency,
+        ...computed.legs.flatMap((leg) => [leg.fromCurrency, leg.toCurrency]),
       ];
       const uniqueCurrencyCodes = [...new Set(currencyCodes)];
       const currencyIdByCode = new Map<string, string>();
@@ -149,17 +184,17 @@ export function createFxQuoteCommandHandlers(
 
       const created = await quotesRepository.insertQuote(
         {
-          fromCurrencyId: currencyIdByCode.get(validated.fromCurrency)!,
-          toCurrencyId: currencyIdByCode.get(validated.toCurrency)!,
-          fromAmountMinor: validated.fromAmountMinor,
-          toAmountMinor,
-          pricingMode: validated.mode,
-          pricingTrace,
-          dealDirection: validated.dealDirection ?? null,
-          dealForm: validated.dealForm ?? null,
-          rateNum,
-          rateDen,
-          expiresAt,
+          fromCurrencyId: currencyIdByCode.get(computed.fromCurrency)!,
+          toCurrencyId: currencyIdByCode.get(computed.toCurrency)!,
+          fromAmountMinor: computed.fromAmountMinor,
+          toAmountMinor: computed.toAmountMinor,
+          pricingMode: computed.pricingMode,
+          pricingTrace: computed.pricingTrace,
+          dealDirection: computed.dealDirection,
+          dealForm: computed.dealForm,
+          rateNum: computed.rateNum,
+          rateDen: computed.rateDen,
+          expiresAt: computed.expiresAt,
           status: "active",
           idempotencyKey: validated.idempotencyKey,
         },
@@ -168,7 +203,7 @@ export function createFxQuoteCommandHandlers(
 
       if (created) {
         await quotesRepository.insertQuoteLegs(
-          legs.map((leg) => ({
+          computed.legs.map((leg) => ({
             quoteId: created.id,
             idx: leg.idx,
             fromCurrencyId: currencyIdByCode.get(leg.fromCurrency)!,
@@ -188,12 +223,14 @@ export function createFxQuoteCommandHandlers(
         await feesService.saveQuoteFeeComponents(
           {
             quoteId: created.id,
-            components: feeComponents,
+            components: computed.feeComponents,
           },
           tx,
         );
 
-        const normalizedFinancialLines = aggregateFinancialLines(financialLines);
+        const normalizedFinancialLines = aggregateFinancialLines(
+          computed.financialLines,
+        );
         const financialLineCurrencyIds = new Map<string, string>();
         await Promise.all(
           [...new Set(normalizedFinancialLines.map((line) => line.currency))].map(
@@ -224,9 +261,9 @@ export function createFxQuoteCommandHandlers(
         log.info("FX quote created", {
           quoteId: created.id,
           mode: validated.mode,
-          legs: legs.length,
-          feeComponents: feeComponents.length,
-          financialLines: financialLines.length,
+          legs: computed.legs.length,
+          feeComponents: computed.feeComponents.length,
+          financialLines: computed.financialLines.length,
         });
         return deps.withQuoteCurrencyCodes(created);
       }
@@ -243,6 +280,16 @@ export function createFxQuoteCommandHandlers(
       }
 
       return deps.withQuoteCurrencyCodes(racedExisting);
+    });
+  }
+
+  async function previewQuote(input: PreviewQuoteInput): Promise<FxQuotePreviewRecord> {
+    const validated = validatePreviewQuoteInput(input);
+
+    return computeQuotePreview({
+      ...validated,
+      mode: "auto_cross",
+      asOf: new Date(),
     });
   }
 
@@ -338,6 +385,7 @@ export function createFxQuoteCommandHandlers(
   }
 
   return {
+    previewQuote,
     quote,
     markQuoteUsed,
   };

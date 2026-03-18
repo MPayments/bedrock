@@ -22,6 +22,14 @@ export interface CommercialQuoteSnapshotPort {
     runtime: CommercialDocumentRuntime;
     quoteRef: string;
   }): Promise<QuoteSnapshot>;
+  createQuoteSnapshot(input: {
+    runtime: CommercialDocumentRuntime;
+    fromCurrency: string;
+    toCurrency: string;
+    fromAmountMinor: string;
+    asOf: Date;
+    idempotencyKey: string;
+  }): Promise<QuoteSnapshot>;
 }
 
 export interface CommercialQuoteUsagePort {
@@ -37,6 +45,11 @@ export interface CommercialRequisiteBindingsPort {
   resolveBinding(
     organizationRequisiteId: string,
   ): Promise<OrganizationRequisiteBinding | null>;
+}
+
+export interface CommercialPartyReferencesPort {
+  assertCustomerExists(customerId: string): Promise<void>;
+  assertCounterpartyExists(counterpartyId: string): Promise<void>;
 }
 
 export interface CommercialDocumentRelationsPort {
@@ -64,4 +77,5 @@ export interface CommercialModuleDeps {
   quoteSnapshot: CommercialQuoteSnapshotPort;
   quoteUsage: CommercialQuoteUsagePort;
   requisiteBindings: CommercialRequisiteBindingsPort;
+  partyReferences: CommercialPartyReferencesPort;
 }

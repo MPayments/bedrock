@@ -4,6 +4,7 @@ export type {
   CommercialDocumentDb,
   CommercialDocumentRelationsPort,
   CommercialModuleDeps,
+  CommercialPartyReferencesPort,
   CommercialQuoteSnapshotPort,
   CommercialQuoteUsagePort,
   CommercialRequisiteBindingsPort,

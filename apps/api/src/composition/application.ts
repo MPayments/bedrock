@@ -18,34 +18,37 @@ import {
 } from "@bedrock/currencies";
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import {
+  createAccountingPeriodDocumentTransitionEffectsService,
   createDocumentsService,
-  createDocumentsServiceFromTransaction,
-  type DocumentsIdempotencyPort,
+  createRuleBasedDocumentActionPolicyService,
   type DocumentsService,
-  type DocumentsTransactionsPort,
+  type DocumentApprovalRule,
 } from "@bedrock/documents";
-import type { DocumentModuleRuntime } from "@bedrock/documents/plugins";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
-import {
-  createDrizzleDocumentEventsRepository,
-  createDrizzleDocumentLinksRepository,
-  createDrizzleDocumentOperationsRepository,
-  createDrizzleDocumentSnapshotsRepository,
-  createDrizzleDocumentsCommandRepository,
-  createDrizzleDocumentsQueryRepository,
-} from "@bedrock/documents/repository";
 import { createFeesService, type FeesService } from "@bedrock/fees";
 import { createFxService, type FxService } from "@bedrock/fx";
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/providers";
-import { createLedgerQueries } from "@bedrock/ledger/queries";
+import {
+  createLedgerQueries,
+  type LedgerBookRow,
+  type LedgerQueries,
+} from "@bedrock/ledger/queries";
 import {
   createOrganizationsService,
   type OrganizationsService,
 } from "@bedrock/organizations";
-import { createOrganizationsQueries } from "@bedrock/organizations/queries";
+import {
+  createOrganizationsQueries,
+  type OrganizationsQueries,
+} from "@bedrock/organizations/queries";
 import { createPartiesService, type PartiesService } from "@bedrock/parties";
 import { createPartiesQueries } from "@bedrock/parties/queries";
-import type { Database, Transaction } from "@bedrock/platform/persistence";
+import {
+  bindPersistenceSession,
+  createPersistenceContext,
+  type Database,
+  type Transaction,
+} from "@bedrock/platform/persistence";
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
@@ -54,6 +57,7 @@ import {
   type RequisitesService,
 } from "@bedrock/requisites";
 import { createRequisitesQueries } from "@bedrock/requisites/queries";
+import { UserNotFoundError } from "@bedrock/users";
 import {
   createDocumentDraftWorkflow,
   type DocumentDraftWorkflow,
@@ -71,21 +75,13 @@ import {
   type RequisiteAccountingWorkflow,
 } from "@bedrock/workflow-requisite-accounting";
 
+import { relabelOrganizationBookNames } from "./book-labels";
 import type { ApiCoreServices } from "./core";
 import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
 import { db } from "../db/client";
-
-function createDocumentsModuleRuntime(
-  database: Database | Transaction,
-): DocumentModuleRuntime {
-  return {
-    documents: createDrizzleDocumentsReadModel({ db: database }),
-    withQueryable: (run) => run(database),
-  };
-}
 
 export interface ApiApplicationServices {
   accountingReportsService: AccountingReportsService;
@@ -103,12 +99,61 @@ export interface ApiApplicationServices {
   documentPostingWorkflow: DocumentPostingWorkflow;
 }
 
+const DEFAULT_DOCUMENT_APPROVAL_RULES: DocumentApprovalRule[] = [
+  {
+    docTypes: ["period_close", "period_reopen"],
+    approvalMode: "maker_checker",
+  },
+  {
+    docTypes: [
+      "invoice",
+      "exchange",
+      "transfer_intra",
+      "transfer_intercompany",
+      "transfer_resolution",
+      "fx_execute",
+      "fx_resolution",
+      "capital_funding",
+    ],
+    approvalMode: "maker_checker",
+  },
+];
+
+async function listBooksWithLabels(input: {
+  ids: string[];
+  ledgerQueries: Pick<LedgerQueries, "listBooksById">;
+  organizationsQueries: Pick<OrganizationsQueries, "listShortNamesById">;
+}): Promise<LedgerBookRow[]> {
+  const books = await input.ledgerQueries.listBooksById(input.ids);
+  const ownerIds = Array.from(
+    new Set(books.map((book) => book.ownerId).filter(Boolean)),
+  ) as string[];
+  const organizationShortNamesById =
+    ownerIds.length === 0
+      ? new Map<string, string>()
+      : await input.organizationsQueries.listShortNamesById(ownerIds);
+
+  return relabelOrganizationBookNames({
+    books,
+    organizationShortNamesById,
+  });
+}
+
 function createAccountingReportRuntime(database: Database | Transaction) {
   const balancesQueries = createBalancesQueries({ db: database });
   const partiesQueries = createPartiesQueries({ db: database });
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: database });
-  const ledgerQueries = createLedgerQueries({ db: database });
   const organizationsQueries = createOrganizationsQueries({ db: database });
+  const rawLedgerQueries = createLedgerQueries({ db: database });
+  const ledgerQueries: LedgerQueries = {
+    ...rawLedgerQueries,
+    listBooksById: (ids) =>
+      listBooksWithLabels({
+        ids,
+        ledgerQueries: rawLedgerQueries,
+        organizationsQueries,
+      }),
+  };
   const requisitesQueries = createRequisitesQueries({ db: database });
   const reportsRepository = createDrizzleAccountingReportsRepository(database);
   const reportContext = createAccountingReportsContext({
@@ -239,72 +284,17 @@ function createAccountingPeriodsPort(
   };
 }
 
-function createDocumentsTransactions(input: {
-  database: Database;
-  idempotency: ApiCoreServices["idempotency"];
-}): DocumentsTransactionsPort {
-  return {
-    async withTransaction(run) {
-      return input.database.transaction(async (tx: Transaction) =>
-        run(
-          createDocumentsTransactionContext({
-            tx,
-            idempotency: input.idempotency,
-          }),
-        ),
-      );
-    },
-  };
-}
-
-function createDocumentsTransactionContext(input: {
-  tx: Transaction;
-  idempotency: ApiCoreServices["idempotency"];
-}) {
-  const idempotency: DocumentsIdempotencyPort = {
-    withIdempotency<TResult, TStoredResult = Record<string, unknown>>(params: {
-      scope: string;
-      idempotencyKey: string;
-      request: unknown;
-      actorId?: string | null;
-      handler: () => Promise<TResult>;
-      serializeResult: (result: TResult) => TStoredResult;
-      loadReplayResult: (params: {
-        storedResult: TStoredResult | null;
-      }) => Promise<TResult>;
-      serializeError?: (error: unknown) => Record<string, unknown>;
-    }) {
-      return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
-        tx: input.tx,
-        scope: params.scope,
-        idempotencyKey: params.idempotencyKey,
-        request: params.request,
-        actorId: params.actorId,
-        handler: params.handler,
-        serializeResult: params.serializeResult,
-        loadReplayResult: ({ storedResult }) =>
-          params.loadReplayResult({
-            storedResult: (storedResult as TStoredResult | null) ?? null,
-          }),
-        serializeError: params.serializeError,
-      });
-    },
-  };
-
-  return {
-    moduleRuntime: createDocumentsModuleRuntime(input.tx),
-    documentEvents: createDrizzleDocumentEventsRepository(input.tx),
-    documentLinks: createDrizzleDocumentLinksRepository(input.tx),
-    documentOperations: createDrizzleDocumentOperationsRepository(input.tx),
-    documentsCommand: createDrizzleDocumentsCommandRepository(input.tx),
-    idempotency,
-  };
-}
-
 export function createApplicationServices(
   platform: ApiCoreServices,
 ): ApiApplicationServices {
-  const { accountingService, idempotency, ledger, ledgerReadService, logger } =
+  const {
+    accountingService,
+    idempotency,
+    ledger,
+    ledgerReadService,
+    logger,
+    usersService,
+  } =
     platform;
 
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
@@ -349,14 +339,14 @@ export function createApplicationServices(
   const accountingPeriodsService = createAccountingPeriodsPort(db);
   const feesService = createFeesService({ db, logger, currenciesService });
   const fxService = createFxService({
-    db,
+    persistence: createPersistenceContext(db),
     logger,
     feesService,
     currenciesService,
     rateSourceProviders: createDefaultFxRateSourceProviders(),
   });
   const partiesService = createPartiesService({
-    db,
+    persistence: createPersistenceContext(db),
     documents: {
       hasDocumentsForCustomer(customerId, queryable) {
         return createDrizzleDocumentsReadModel({
@@ -367,7 +357,7 @@ export function createApplicationServices(
     logger,
   });
   const organizationsCoreService = createOrganizationsService({
-    db,
+    persistence: createPersistenceContext(db),
     logger,
   });
   const requisiteOwners = {
@@ -379,7 +369,7 @@ export function createApplicationServices(
     },
   };
   const requisitesCoreService = createRequisitesService({
-    db,
+    persistence: createPersistenceContext(db),
     logger,
     currencies: currenciesPort,
     owners: requisiteOwners,
@@ -409,6 +399,7 @@ export function createApplicationServices(
       createCommercialDocumentDeps({
         currenciesService,
         fxQuotes: fxService.quotes,
+        partiesService,
         requisitesService: documentRequisitesService,
       }),
     ),
@@ -421,48 +412,50 @@ export function createApplicationServices(
       }),
     ),
   ]);
-  const documentsQuery = createDrizzleDocumentsQueryRepository(db);
-  const documentEvents = createDrizzleDocumentEventsRepository(db);
-  const documentLinks = createDrizzleDocumentLinksRepository(db);
-  const documentOperations = createDrizzleDocumentOperationsRepository(db);
-  const documentSnapshots = createDrizzleDocumentSnapshotsRepository(db);
+  const documentsPolicy = createRuleBasedDocumentActionPolicyService({
+    rules: DEFAULT_DOCUMENT_APPROVAL_RULES,
+    async isActorExemptFromApproval({ actorUserId }) {
+      try {
+        return (await usersService.findById(actorUserId)).role === "admin";
+      } catch (error) {
+        if (error instanceof UserNotFoundError) {
+          return false;
+        }
+
+        throw error;
+      }
+    },
+  });
+  const documentTransitionEffects =
+    createAccountingPeriodDocumentTransitionEffectsService();
   const documentsCoreService = createDocumentsService({
+    persistence: createPersistenceContext(db),
+    idempotency,
     accounting: accountingService.packs,
     accountingPeriods: accountingPeriodsService,
-    documentEvents,
-    documentLinks,
-    documentOperations,
-    documentSnapshots,
-    documentsQuery,
     ledgerReadService,
-    moduleRuntime: createDocumentsModuleRuntime(db),
+    policy: documentsPolicy,
     registry: documentRegistry,
-    transactions: createDocumentsTransactions({
-      database: db,
-      idempotency,
-    }),
+    transitionEffects: documentTransitionEffects,
     logger,
   });
 
-  function createDocumentsServiceForTransaction(
-    tx: Transaction,
-    txIdempotency: DocumentsIdempotencyPort,
-  ) {
-    return createDocumentsServiceFromTransaction({
-      tx,
-      idempotency: txIdempotency,
+  function createDocumentsServiceForTransaction(tx: Transaction) {
+    return createDocumentsService({
+      persistence: bindPersistenceSession(tx),
+      idempotency,
       accounting: accountingService.packs,
       accountingPeriods: accountingPeriodsService,
       ledgerReadService,
+      policy: documentsPolicy,
       registry: documentRegistry,
+      transitionEffects: documentTransitionEffects,
       logger,
     });
   }
   const documentsService = documentsCoreService;
   const documentDraftWorkflow = createDocumentDraftWorkflow({
     db,
-    idempotency,
-    accountingPeriods: accountingPeriodsService,
     createDocumentsService: createDocumentsServiceForTransaction,
   });
   const documentPostingWorkflow = createDocumentPostingWorkflow({

@@ -18,6 +18,7 @@ import type {
   DocumentsLedgerReadPort,
 } from "./posting/ports";
 import type { DocumentsTransactionsPort } from "./shared/external-ports";
+import type { DocumentTransitionEffectsService } from "./shared/transition-effects";
 
 export interface DocumentsServiceDeps {
   accounting: DocumentsAccountingPort;
@@ -30,6 +31,7 @@ export interface DocumentsServiceDeps {
   ledgerReadService: DocumentsLedgerReadPort;
   moduleRuntime: DocumentModuleRuntime;
   policy?: DocumentActionPolicyService;
+  transitionEffects?: DocumentTransitionEffectsService;
   registry: DocumentRegistry;
   transactions: DocumentsTransactionsPort;
   logger?: Logger;

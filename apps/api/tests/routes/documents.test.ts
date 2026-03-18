@@ -61,13 +61,25 @@ function createDocumentWithOperation() {
   };
 }
 
+function createDocumentWithOperationFor(docType: string) {
+  return {
+    ...createDocumentWithOperation(),
+    document: {
+      ...createDocumentWithOperation().document,
+      docType,
+    },
+  };
+}
+
 function createDocumentsServiceStub() {
   return {
     list: vi.fn(),
     updateDraft: vi.fn(),
     get: vi.fn(),
     getDetails: vi.fn(),
-    transition: vi.fn(),
+    actions: {
+      execute: vi.fn(),
+    },
   };
 }
 
@@ -150,7 +162,7 @@ describe("documentsRoutes mutation actions", () => {
       });
     }
 
-    expect(documentsService.transition).not.toHaveBeenCalled();
+    expect(documentsService.actions.execute).not.toHaveBeenCalled();
   });
 
   it("routes each mutation action to corresponding documents service call", async () => {
@@ -165,7 +177,7 @@ describe("documentsRoutes mutation actions", () => {
       } else if (action === "repost") {
         documentPostingWorkflow.repost.mockResolvedValueOnce(expectedResult);
       } else {
-        documentsService.transition.mockResolvedValueOnce(expectedResult);
+        documentsService.actions.execute.mockResolvedValueOnce(expectedResult);
       }
 
       const response = await app.request(
@@ -190,7 +202,7 @@ describe("documentsRoutes mutation actions", () => {
       } else if (action === "repost") {
         expect(documentPostingWorkflow.repost).toHaveBeenCalledWith(expectedInput);
       } else {
-        expect(documentsService.transition).toHaveBeenCalledWith({
+        expect(documentsService.actions.execute).toHaveBeenCalledWith({
           action,
           ...expectedInput,
         });
@@ -268,7 +280,7 @@ describe("documentsRoutes mutation actions", () => {
   it("allows admins to create public period_reopen documents", async () => {
     const { app, documentDraftWorkflow } = createTestApp({ role: "admin" });
     documentDraftWorkflow.createDraft.mockResolvedValue(
-      createDocumentWithOperation(),
+      createDocumentWithOperationFor("period_reopen"),
     );
 
     const response = await app.request("http://localhost/period_reopen", {
@@ -324,5 +336,55 @@ describe("documentsRoutes mutation actions", () => {
         'Document type "fx_resolution" is system-only and cannot be mutated via public API',
     });
     expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
+  });
+
+  it("allows admins to approve period_close documents", async () => {
+    const { app, documentsService } = createTestApp({ role: "admin" });
+    documentsService.actions.execute.mockResolvedValue(
+      createDocumentWithOperationFor("period_close"),
+    );
+
+    const response = await app.request(
+      "http://localhost/period_close/11111111-1111-4111-8111-111111111111/approve",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(documentsService.actions.execute).toHaveBeenCalledWith({
+      action: "approve",
+      docType: "period_close",
+      documentId: "11111111-1111-4111-8111-111111111111",
+      actorUserId: "user-1",
+      idempotencyKey: "idem-1",
+      requestContext: expect.objectContaining({
+        requestId: "req-1",
+        correlationId: "corr-1",
+      }),
+    });
+  });
+
+  it("allows admins to submit period_reopen documents", async () => {
+    const { app, documentsService } = createTestApp({ role: "admin" });
+    documentsService.actions.execute.mockResolvedValue(
+      createDocumentWithOperationFor("period_reopen"),
+    );
+
+    const response = await app.request(
+      "http://localhost/period_reopen/11111111-1111-4111-8111-111111111111/submit",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(documentsService.actions.execute).toHaveBeenCalledWith({
+      action: "submit",
+      docType: "period_reopen",
+      documentId: "11111111-1111-4111-8111-111111111111",
+      actorUserId: "user-1",
+      idempotencyKey: "idem-1",
+      requestContext: expect.objectContaining({
+        requestId: "req-1",
+        correlationId: "corr-1",
+      }),
+    });
   });
 });

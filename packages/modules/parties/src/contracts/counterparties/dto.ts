@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { CounterpartySnapshot } from "../../domain/counterparty";
 import { CountryCodeSchema, CounterpartyKindSchema } from "../zod";
 
 export const CounterpartySchema = z.object({
@@ -16,7 +17,7 @@ export const CounterpartySchema = z.object({
   updatedAt: z.date(),
 });
 
-export type Counterparty = z.infer<typeof CounterpartySchema>;
+export type Counterparty = CounterpartySnapshot;
 
 export const CounterpartyOptionSchema = z.object({
   id: z.uuid(),

@@ -42,10 +42,10 @@ describe("document posting workflow", () => {
       } as any,
       createDocumentsService: () => ({
         get,
-        posting: {
+        actions: {
+          execute: vi.fn(),
           resolveIdempotencyKey: vi.fn(async () => "idem-post"),
-          preparePost: preparePost as any,
-          prepareRepost: vi.fn(),
+          prepare: preparePost as any,
           finalizeSuccess: finalizeSuccess as any,
           finalizeFailure: vi.fn(),
         },
@@ -95,10 +95,10 @@ describe("document posting workflow", () => {
       ledgerCommit: ledgerCommit as any,
       createDocumentsService: () => ({
         get: vi.fn(),
-        posting: {
+        actions: {
+          execute: vi.fn(),
           resolveIdempotencyKey: vi.fn(async () => "idem-repost"),
-          preparePost: vi.fn(),
-          prepareRepost: vi.fn(async () => ({
+          prepare: vi.fn(async () => ({
             document: { id: "doc-1" },
             successEvents: [],
             finalEvent: {

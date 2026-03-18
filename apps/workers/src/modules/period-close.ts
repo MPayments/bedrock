@@ -17,23 +17,14 @@ import {
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { createBalancesQueries } from "@bedrock/balances/queries";
 import {
+  createAccountingPeriodDocumentTransitionEffectsService,
   createDocumentsService,
-  createDocumentsServiceFromTransaction,
-  type DocumentsIdempotencyPort,
-  type DocumentsTransactionsPort,
+  createRuleBasedDocumentActionPolicyService,
+  type DocumentApprovalRule,
 } from "@bedrock/documents";
-import type { DocumentModuleRuntime } from "@bedrock/documents/plugins";
 import {
   createDrizzleDocumentsReadModel,
 } from "@bedrock/documents/read-model";
-import {
-  createDrizzleDocumentEventsRepository,
-  createDrizzleDocumentLinksRepository,
-  createDrizzleDocumentOperationsRepository,
-  createDrizzleDocumentSnapshotsRepository,
-  createDrizzleDocumentsCommandRepository,
-  createDrizzleDocumentsQueryRepository,
-} from "@bedrock/documents/repository";
 import { createLedgerReadService } from "@bedrock/ledger";
 import { createLedgerQueries } from "@bedrock/ledger/queries";
 import { createOrganizationsQueries } from "@bedrock/organizations/queries";
@@ -41,7 +32,11 @@ import { createPartiesQueries } from "@bedrock/parties/queries";
 import { user } from "@bedrock/platform/auth-model/schema";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { Transaction } from "@bedrock/platform/persistence";
+import {
+  bindPersistenceSession,
+  createPersistenceContext,
+  type Transaction,
+} from "@bedrock/platform/persistence";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
 import type { BedrockWorker } from "@bedrock/platform/worker-runtime";
 import { createPeriodCloseDocumentModule } from "@bedrock/plugin-documents-ifrs";
@@ -52,15 +47,6 @@ import {
   createPeriodCloseWorkerRunner,
   type PeriodCloseWorkerOrganizationContext,
 } from "@bedrock/workflow-period-close";
-
-function createDocumentsModuleRuntime(
-  database: Database | Transaction,
-): DocumentModuleRuntime {
-  return {
-    documents: createDrizzleDocumentsReadModel({ db: database }),
-    withQueryable: (run) => run(database),
-  };
-}
 
 async function resolveSystemActorUserId(db: Database): Promise<string | null> {
   const [admin] = await db
@@ -81,6 +67,19 @@ async function resolveSystemActorUserId(db: Database): Promise<string | null> {
     .limit(1);
 
   return fallback?.id ?? null;
+}
+
+async function isAdminActor(
+  db: Database,
+  actorUserId: string,
+): Promise<boolean> {
+  const [actor] = await db
+    .select({ role: user.role })
+    .from(user)
+    .where(eq(user.id, actorUserId))
+    .limit(1);
+
+  return actor?.role === "admin";
 }
 
 async function listOrganizationIds(db: Database): Promise<string[]> {
@@ -236,58 +235,12 @@ function createPeriodCloseAccountingService(db: Database) {
   });
 }
 
-function createDocumentsTransactions(input: {
-  database: Database;
-  idempotency: ReturnType<typeof createIdempotencyService>;
-}): DocumentsTransactionsPort {
-  return {
-    async withTransaction(run) {
-      return input.database.transaction(async (tx: Transaction) => {
-        const idempotency: DocumentsIdempotencyPort = {
-          withIdempotency<
-            TResult,
-            TStoredResult = Record<string, unknown>,
-          >(params: {
-            scope: string;
-            idempotencyKey: string;
-            request: unknown;
-            actorId?: string | null;
-            handler: () => Promise<TResult>;
-            serializeResult: (result: TResult) => TStoredResult;
-            loadReplayResult: (params: {
-              storedResult: TStoredResult | null;
-            }) => Promise<TResult>;
-            serializeError?: (error: unknown) => Record<string, unknown>;
-          }) {
-            return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
-              tx,
-              scope: params.scope,
-              idempotencyKey: params.idempotencyKey,
-              request: params.request,
-              actorId: params.actorId,
-              handler: params.handler,
-              serializeResult: params.serializeResult,
-              loadReplayResult: ({ storedResult }) =>
-                params.loadReplayResult({
-                  storedResult: (storedResult as TStoredResult | null) ?? null,
-                }),
-              serializeError: params.serializeError,
-            });
-          },
-        };
-
-        return run({
-          moduleRuntime: createDocumentsModuleRuntime(tx),
-          documentEvents: createDrizzleDocumentEventsRepository(tx),
-          documentLinks: createDrizzleDocumentLinksRepository(tx),
-          documentOperations: createDrizzleDocumentOperationsRepository(tx),
-          documentsCommand: createDrizzleDocumentsCommandRepository(tx),
-          idempotency,
-        });
-      });
-    },
-  };
-}
+const PERIOD_CLOSE_APPROVAL_RULES: DocumentApprovalRule[] = [
+  {
+    docTypes: ["period_close", "period_reopen"],
+    approvalMode: "maker_checker",
+  },
+];
 
 export function createPeriodCloseWorkerDefinition(deps: {
   id: string;
@@ -302,54 +255,68 @@ export function createPeriodCloseWorkerDefinition(deps: {
   const accountingPeriods = createAccountingPeriodsPort(deps.db);
   const idempotency = createIdempotencyService({ logger: deps.logger });
   const accountingService = createPeriodCloseAccountingService(deps.db);
-  const documentsQuery = createDrizzleDocumentsQueryRepository(deps.db);
-  const documentEvents = createDrizzleDocumentEventsRepository(deps.db);
-  const documentLinks = createDrizzleDocumentLinksRepository(deps.db);
-  const documentOperations = createDrizzleDocumentOperationsRepository(deps.db);
-  const documentSnapshots = createDrizzleDocumentSnapshotsRepository(deps.db);
   const ledgerReadService = createLedgerReadService({ db: deps.db });
   const documentRegistry = createDocumentRegistry([
     createPeriodCloseDocumentModule(),
   ]);
+  const documentsPolicy = createRuleBasedDocumentActionPolicyService({
+    rules: PERIOD_CLOSE_APPROVAL_RULES,
+    isActorExemptFromApproval: ({ actorUserId }) =>
+      isAdminActor(deps.db, actorUserId),
+  });
+  const documentTransitionEffects =
+    createAccountingPeriodDocumentTransitionEffectsService();
   const documentsService = createDocumentsService({
+    persistence: createPersistenceContext(deps.db),
+    idempotency,
     accounting: accountingService.packs,
     accountingPeriods,
-    documentEvents,
-    documentLinks,
-    documentOperations,
-    documentSnapshots,
-    documentsQuery,
     ledgerReadService,
-    moduleRuntime: createDocumentsModuleRuntime(deps.db),
+    policy: documentsPolicy,
     registry: documentRegistry,
-    transactions: createDocumentsTransactions({
-      database: deps.db,
-      idempotency,
-    }),
+    transitionEffects: documentTransitionEffects,
     logger: deps.logger,
   });
   const documentDraftWorkflow = createDocumentDraftWorkflow({
     db: deps.db,
-    idempotency,
-    accountingPeriods,
-    createDocumentsService: (tx, txIdempotency) =>
-      createDocumentsServiceFromTransaction({
-        tx,
-        idempotency: txIdempotency,
+    createDocumentsService: (tx) =>
+      createDocumentsService({
+        persistence: bindPersistenceSession(tx),
+        idempotency,
         accounting: accountingService.packs,
         accountingPeriods,
         ledgerReadService,
+        policy: documentsPolicy,
         registry: documentRegistry,
+        transitionEffects: documentTransitionEffects,
         logger: deps.logger,
       }),
   });
   const periodCloseWorkflow = createPeriodCloseWorkflow({
     documents: {
-      findDocumentIdByCreateIdempotencyKey:
-        documentsReadModel.findDocumentIdByCreateIdempotencyKey,
+      async listPeriodCloseDocuments(input) {
+        const documents =
+          await documentsReadModel.listAdjustmentsForOrganizationPeriod({
+            organizationId: input.organizationId,
+            periodStart: input.periodStart,
+            periodEnd: input.periodEnd,
+            docTypes: ["period_close"],
+          });
+
+        const loaded = await Promise.all(
+          documents.map((document) =>
+            documentsReadModel.getDocumentByType({
+              documentId: document.documentId,
+              docType: document.docType,
+            }),
+          ),
+        );
+
+        return loaded.filter((document) => document !== null);
+      },
       createDraft: documentDraftWorkflow.createDraft,
       submit: ({ actorUserId, docType, documentId, idempotencyKey }) =>
-        documentsService.transition({
+        documentsService.actions.execute({
           action: "submit",
           actorUserId,
           docType,

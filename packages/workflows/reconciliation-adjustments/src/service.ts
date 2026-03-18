@@ -1,5 +1,4 @@
 import type {
-  DocumentsIdempotencyPort,
   DocumentsService,
 } from "@bedrock/documents";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
@@ -14,7 +13,6 @@ import { sha256Hex } from "@bedrock/shared/core/crypto";
 
 export type CreateReconciliationAdjustmentDocumentsService = (
   tx: Transaction,
-  idempotency: DocumentsIdempotencyPort,
 ) => Pick<DocumentsService, "createDraft">;
 
 export type CreateReconciliationAdjustmentReconciliationService = (
@@ -44,41 +42,6 @@ export interface ReconciliationAdjustmentsWorkflowDeps {
   createReconciliationService: CreateReconciliationAdjustmentReconciliationService;
 }
 
-function createDocumentsIdempotencyPort(input: {
-  tx: Transaction;
-  idempotency: IdempotencyPort;
-}): DocumentsIdempotencyPort {
-  return {
-    withIdempotency<TResult, TStoredResult = Record<string, unknown>>(params: {
-      scope: string;
-      idempotencyKey: string;
-      request: unknown;
-      actorId?: string | null;
-      handler: () => Promise<TResult>;
-      serializeResult: (result: TResult) => TStoredResult;
-      loadReplayResult: (params: {
-        storedResult: TStoredResult | null;
-      }) => Promise<TResult>;
-      serializeError?: (error: unknown) => Record<string, unknown>;
-    }) {
-      return input.idempotency.withIdempotencyTx<TResult, TStoredResult>({
-        tx: input.tx,
-        scope: params.scope,
-        idempotencyKey: params.idempotencyKey,
-        request: params.request,
-        actorId: params.actorId,
-        handler: params.handler,
-        serializeResult: params.serializeResult,
-        loadReplayResult: ({ storedResult }) =>
-          params.loadReplayResult({
-            storedResult: (storedResult as TStoredResult | null) ?? null,
-          }),
-        serializeError: params.serializeError,
-      });
-    },
-  };
-}
-
 export function createReconciliationAdjustmentsWorkflow(
   deps: ReconciliationAdjustmentsWorkflowDeps,
 ) {
@@ -89,13 +52,7 @@ export function createReconciliationAdjustmentsWorkflow(
       const validated = CreateAdjustmentDocumentInputSchema.parse(input);
 
       return deps.db.transaction(async (tx) => {
-        const documents = deps.createDocumentsService(
-          tx,
-          createDocumentsIdempotencyPort({
-            tx,
-            idempotency: deps.idempotency,
-          }),
-        );
+        const documents = deps.createDocumentsService(tx);
         const reconciliation = deps.createReconciliationService(tx);
 
         return deps.idempotency.withIdempotencyTx({

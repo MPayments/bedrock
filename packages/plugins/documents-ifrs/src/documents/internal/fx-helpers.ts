@@ -3,7 +3,6 @@ import {
   type PostingTemplateKey,
 } from "@bedrock/accounting/posting-contracts";
 import {
-  aggregateFinancialLines,
   normalizeFinancialLine,
   type FinancialLine,
 } from "@bedrock/documents/contracts";
@@ -28,7 +27,10 @@ import type {
   FxExecutePayload,
   FxExecuteQuoteSnapshot,
 } from "../../validation";
-import { FxExecuteQuoteSnapshotSchema } from "../../validation";
+import {
+  compileFxExecuteManualFinancialLines,
+  FxExecuteQuoteSnapshotSchema,
+} from "../../validation";
 
 const FX_EXECUTE_DOC_TYPES = ["fx_execute"] as const;
 
@@ -180,43 +182,78 @@ function toFinancialLine(line: {
   });
 }
 
-function toPayloadFinancialLine(line: FinancialLine): FxExecuteFinancialLinePayload {
-  return {
-    id: line.id,
-    bucket: line.bucket,
-    currency: line.currency,
-    amount: minorToAmountString(line.amountMinor, {
-      currency: line.currency,
-    }),
-    amountMinor: line.amountMinor.toString(),
-    source: line.source,
-    settlementMode: line.settlementMode ?? "in_ledger",
-    memo: line.memo,
-    metadata: line.metadata,
-  };
+function resolvePayloadCalcMethod(line: FxExecuteFinancialLinePayload) {
+  if (line.source !== "manual") {
+    return undefined;
+  }
+
+  return line.calcMethod === "percent" ? "percent" : "fixed";
+}
+
+function financialLinePayloadAggregateKey(line: FxExecuteFinancialLinePayload) {
+  return [
+    line.bucket,
+    line.currency,
+    line.source,
+    line.settlementMode ?? "in_ledger",
+    line.memo ?? "",
+    resolvePayloadCalcMethod(line) ?? "",
+  ].join("|");
+}
+
+function aggregateFxExecuteFinancialLinePayloads(
+  lines: FxExecuteFinancialLinePayload[],
+) {
+  const grouped = new Map<string, FxExecuteFinancialLinePayload>();
+
+  for (const line of lines) {
+    const key = financialLinePayloadAggregateKey(line);
+    const existing = grouped.get(key);
+
+    if (!existing) {
+      grouped.set(key, line);
+      continue;
+    }
+
+    const amountMinor =
+      BigInt(existing.amountMinor) + BigInt(line.amountMinor);
+    if (amountMinor === 0n) {
+      grouped.delete(key);
+      continue;
+    }
+
+    const calcMethod = resolvePayloadCalcMethod(existing);
+    grouped.set(key, {
+      ...existing,
+      amount: minorToAmountString(amountMinor, {
+        currency: existing.currency,
+      }),
+      amountMinor: amountMinor.toString(),
+      calcMethod,
+      percentBps:
+        calcMethod === "percent"
+          ? (existing.percentBps ?? 0) + (line.percentBps ?? 0)
+          : undefined,
+      settlementMode: existing.settlementMode ?? "in_ledger",
+      metadata: existing.metadata ?? line.metadata,
+    });
+  }
+
+  return [...grouped.values()];
 }
 
 export function mergeFxExecuteFinancialLines(input: {
   quoteSnapshot: FxExecuteQuoteSnapshot;
   manualFinancialLines: FxExecuteFinancialLineInput[];
 }) {
-  const merged = aggregateFinancialLines([
-    ...input.quoteSnapshot.financialLines.map(toFinancialLine),
-    ...input.manualFinancialLines.map((line) =>
-      toFinancialLine({
-        id: line.id,
-        bucket: line.bucket,
-        currency: line.currency,
-        amountMinor: line.amountMinor,
-        source: line.source,
-        settlementMode: line.settlementMode,
-        memo: line.memo,
-        metadata: line.metadata,
-      }),
-    ),
+  return aggregateFxExecuteFinancialLinePayloads([
+    ...input.quoteSnapshot.financialLines,
+    ...compileFxExecuteManualFinancialLines({
+      financialLines: input.manualFinancialLines,
+      amountMinor: input.quoteSnapshot.fromAmountMinor,
+      currency: input.quoteSnapshot.fromCurrency,
+    }),
   ]);
-
-  return merged.map(toPayloadFinancialLine);
 }
 
 export function normalizeFxExecutePayload(

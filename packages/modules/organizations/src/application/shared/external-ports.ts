@@ -1,4 +1,4 @@
-import type { OrganizationsCommandTxRepository } from "../organizations/ports";
+import type { OrganizationsCommandRepository } from "../organizations/ports";
 
 export interface OrganizationsLedgerReadPort {
   listBooksById: (bookIds: string[]) => Promise<
@@ -10,7 +10,7 @@ export interface OrganizationsLedgerReadPort {
 }
 
 export interface OrganizationsTransactionContext {
-  organizations: OrganizationsCommandTxRepository;
+  organizations: OrganizationsCommandRepository;
 }
 
 export interface OrganizationsTransactionsPort {

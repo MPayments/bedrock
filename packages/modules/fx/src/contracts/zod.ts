@@ -169,6 +169,18 @@ export const CreateFxQuoteInputSchema = z.discriminatedUnion("mode", [
   }),
 ]);
 
+export const PreviewFxQuoteInputSchema = z
+  .object({
+    fromCurrency: z.string().min(2).max(16),
+    toCurrency: z.string().min(2).max(16),
+    fromAmountMinor: positiveMinorAmountStringSchema,
+    dealDirection: feeDealDirectionSchema.optional(),
+    dealForm: feeDealFormSchema.optional(),
+  })
+  .refine((data) => data.fromCurrency !== data.toCurrency, {
+    message: "fromCurrency and toCurrency must be different",
+  });
+
 export const FxQuoteSchema = z.object({
   id: z.uuid(),
   fromCurrencyId: z.uuid(),
@@ -215,6 +227,20 @@ export const FxQuoteLegSchema = z.object({
   createdAt: z.iso.datetime(),
 });
 
+export const FxQuotePreviewLegSchema = z.object({
+  idx: z.number().int().positive(),
+  fromCurrency: z.string(),
+  toCurrency: z.string(),
+  fromAmountMinor: z.string(),
+  toAmountMinor: z.string(),
+  rateNum: z.string(),
+  rateDen: z.string(),
+  sourceKind: z.enum(["cb", "bank", "manual", "derived", "market"]),
+  sourceRef: z.string().nullable(),
+  asOf: z.iso.datetime(),
+  executionCounterpartyId: z.uuid().nullable(),
+});
+
 export const FxQuoteFeeComponentSchema = z.object({
   id: z.string(),
   ruleId: z.string().optional(),
@@ -234,6 +260,25 @@ export const FxQuoteDetailsResponseSchema = z.object({
   feeComponents: z.array(FxQuoteFeeComponentSchema),
   financialLines: z.array(FxQuoteFinancialLineSchema),
   pricingTrace: z.record(z.string(), z.unknown()),
+});
+
+export const FxQuotePreviewResponseSchema = z.object({
+  fromCurrency: z.string(),
+  toCurrency: z.string(),
+  fromAmountMinor: z.string(),
+  toAmountMinor: z.string(),
+  fromAmount: z.string(),
+  toAmount: z.string(),
+  pricingMode: z.enum(["auto_cross", "explicit_route"]),
+  pricingTrace: z.record(z.string(), z.unknown()),
+  dealDirection: z.string().nullable(),
+  dealForm: z.string().nullable(),
+  rateNum: z.string(),
+  rateDen: z.string(),
+  expiresAt: z.iso.datetime(),
+  legs: z.array(FxQuotePreviewLegSchema),
+  feeComponents: z.array(FxQuoteFeeComponentSchema),
+  financialLines: z.array(FxQuoteFinancialLineSchema),
 });
 
 export const FxQuoteListResponseSchema = createPaginatedListSchema(

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { OrganizationSnapshot } from "../../domain/organization";
 import { CountryCodeSchema, PartyKindSchema, type PartyKind } from "../zod";
 
 export const OrganizationSchema = z.object({
@@ -14,7 +15,7 @@ export const OrganizationSchema = z.object({
   updatedAt: z.date(),
 });
 
-export type Organization = z.infer<typeof OrganizationSchema>;
+export type Organization = OrganizationSnapshot;
 export type OrganizationKind = PartyKind;
 
 export const OrganizationOptionSchema = z.object({

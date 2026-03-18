@@ -1,72 +1,67 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { IdempotencyPort } from "@bedrock/platform/idempotency";
+import type { PersistenceContext } from "@bedrock/platform/persistence";
 
 import { createDocumentsHandlers } from "./application";
-import type { DocumentsServiceDeps } from "./application/service-deps";
-import type { DocumentsIdempotencyPort } from "./application/shared/external-ports";
+import type { DocumentsServiceDeps as DocumentsHandlersDeps } from "./application/service-deps";
 import {
   createDrizzleDocumentEventsRepository,
   createDrizzleDocumentLinksRepository,
   createDrizzleDocumentOperationsRepository,
   createDrizzleDocumentSnapshotsRepository,
-  createDrizzleDocumentsCommandRepository,
   createDrizzleDocumentsQueryRepository,
 } from "./infra/drizzle/repository";
-import { createDrizzleDocumentsReadModel } from "./read-model";
+import {
+  createDocumentsModuleRuntime,
+  createDocumentsTransactions,
+} from "./infra/transaction-context";
+export interface DocumentsServiceDeps
+  extends Omit<
+    DocumentsHandlersDeps,
+    | "documentEvents"
+    | "documentLinks"
+    | "documentOperations"
+    | "documentSnapshots"
+    | "documentsQuery"
+    | "moduleRuntime"
+    | "transactions"
+  > {
+  persistence: PersistenceContext;
+  idempotency: IdempotencyPort;
+}
+
+function createDocumentsHandlerDeps(
+  deps: DocumentsServiceDeps,
+): DocumentsHandlersDeps {
+  return {
+    accounting: deps.accounting,
+    accountingPeriods: deps.accountingPeriods,
+    documentEvents: createDrizzleDocumentEventsRepository(deps.persistence.db),
+    documentLinks: createDrizzleDocumentLinksRepository(deps.persistence.db),
+    documentOperations: createDrizzleDocumentOperationsRepository(
+      deps.persistence.db,
+    ),
+    documentSnapshots: createDrizzleDocumentSnapshotsRepository(
+      deps.persistence.db,
+    ),
+    documentsQuery: createDrizzleDocumentsQueryRepository(deps.persistence.db),
+    ledgerReadService: deps.ledgerReadService,
+    moduleRuntime: createDocumentsModuleRuntime(deps.persistence.db),
+    policy: deps.policy,
+    registry: deps.registry,
+    transitionEffects: deps.transitionEffects,
+    transactions: createDocumentsTransactions({
+      persistence: deps.persistence,
+      idempotency: deps.idempotency,
+    }),
+    logger: deps.logger,
+    now: deps.now,
+  };
+}
 
 export function createDocumentsService(deps: DocumentsServiceDeps) {
-  return createDocumentsHandlers(deps);
+  return createDocumentsHandlers(createDocumentsHandlerDeps(deps));
 }
 
 export type DocumentsService = ReturnType<typeof createDocumentsService>;
-export interface DocumentsServiceTransactionDeps extends Omit<
-  DocumentsServiceDeps,
-  | "transactions"
-  | "documentEvents"
-  | "documentLinks"
-  | "documentOperations"
-  | "documentSnapshots"
-  | "documentsQuery"
-  | "moduleRuntime"
-> {
-  tx: Transaction;
-  idempotency: DocumentsIdempotencyPort;
-}
-
-export function createDocumentsServiceFromTransaction(
-  deps: DocumentsServiceTransactionDeps,
-) {
-  return createDocumentsHandlers({
-    accounting: deps.accounting,
-    accountingPeriods: deps.accountingPeriods,
-    documentEvents: createDrizzleDocumentEventsRepository(deps.tx),
-    documentLinks: createDrizzleDocumentLinksRepository(deps.tx),
-    documentOperations: createDrizzleDocumentOperationsRepository(deps.tx),
-    documentSnapshots: createDrizzleDocumentSnapshotsRepository(deps.tx),
-    documentsQuery: createDrizzleDocumentsQueryRepository(deps.tx),
-    ledgerReadService: deps.ledgerReadService,
-    moduleRuntime: {
-      documents: createDrizzleDocumentsReadModel({ db: deps.tx }),
-      withQueryable: (run) => run(deps.tx),
-    },
-    policy: deps.policy,
-    registry: deps.registry,
-    transactions: {
-      withTransaction: (run) =>
-        run({
-          moduleRuntime: {
-            documents: createDrizzleDocumentsReadModel({ db: deps.tx }),
-            withQueryable: (query) => query(deps.tx),
-          },
-          idempotency: deps.idempotency,
-          documentsCommand: createDrizzleDocumentsCommandRepository(deps.tx),
-          documentEvents: createDrizzleDocumentEventsRepository(deps.tx),
-          documentLinks: createDrizzleDocumentLinksRepository(deps.tx),
-          documentOperations: createDrizzleDocumentOperationsRepository(deps.tx),
-        }),
-    },
-    logger: deps.logger,
-    now: deps.now,
-  });
-}
 
 export type { DocumentsServiceContext } from "./application";

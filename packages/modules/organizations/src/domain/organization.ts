@@ -2,7 +2,7 @@ import {
   Entity,
   normalizeOptionalText,
   normalizeRequiredText,
-} from "@bedrock/shared/core/domain";
+} from "@bedrock/shared/core";
 
 import {
   parseOptionalCountryCode,
@@ -99,12 +99,7 @@ export class Organization extends Entity<string> {
   update(input: UpdateOrganizationProps, now: Date): Organization {
     return new Organization({
       ...this.snapshot,
-      externalId: input.externalId,
-      shortName: input.shortName,
-      fullName: input.fullName,
-      description: input.description,
-      country: input.country,
-      kind: input.kind,
+      ...input,
       updatedAt: now,
     });
   }

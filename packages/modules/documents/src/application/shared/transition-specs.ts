@@ -1,45 +1,39 @@
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
+import { invokeDocumentModuleAction } from "./action-dispatch";
+import {
+  assertOrganizationPeriodsOpenForDocument,
+  buildDocumentActionEvent,
+  buildDocumentActionIdempotencyKey,
+} from "./action-runtime";
 import { buildDocumentEventState } from "./document-event-state";
 import { DOCUMENTS_IDEMPOTENCY_SCOPE } from "./documents-idempotency";
-import { buildDefaultActionIdempotencyKey } from "./idempotency-key";
 import { enforceDocumentPolicy } from "./policy";
-import type {
-  DocumentTransitionAction,
-  DocumentTransitionInput,
-} from "../../contracts/commands";
 import { DocumentAggregate } from "../../domain/document";
-import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
 import type {
-  DocumentTransitionEvent,
   DocumentTransitionExecutionContext,
   DocumentTransitionExecutionResult,
   DocumentTransitionSpecs,
 } from "../commands/transition-runtime";
 
-function buildActionIdempotencyKey(
-  action: DocumentTransitionAction,
-  input: DocumentTransitionInput,
-) {
-  return buildDefaultActionIdempotencyKey(`documents.${action}`, {
-    docType: input.docType,
-    documentId: input.documentId,
-    actorUserId: input.actorUserId,
-  });
-}
-
-function buildTransitionEvent(input: {
-  eventType: string;
-  before: Record<string, unknown> | null;
-  after: Record<string, unknown> | null;
-  reasonMeta?: Record<string, unknown> | null;
-}): DocumentTransitionEvent {
-  return {
-    eventType: input.eventType,
+async function applyTransitionEffects(input: {
+  context: DocumentTransitionExecutionContext;
+  action: "submit" | "approve" | "reject" | "cancel";
+  before: DocumentTransitionExecutionContext["document"];
+  after: DocumentTransitionExecutionContext["document"];
+}) {
+  await input.context.services.transitionEffects.apply({
+    action: input.action,
     before: input.before,
     after: input.after,
-    reasonMeta: input.reasonMeta,
-  };
+    module: input.context.module,
+    moduleContext: input.context.moduleContext,
+    services: {
+      accountingPeriods: input.context.services.accountingPeriods,
+    },
+    transition: input.context.input,
+    transaction: input.context.transaction,
+  });
 }
 
 function buildWorkflowConfig(context: DocumentTransitionExecutionContext) {
@@ -47,21 +41,6 @@ function buildWorkflowConfig(context: DocumentTransitionExecutionContext) {
     postingRequired: context.module.postingRequired,
     allowDirectPostFromDraft: context.module.allowDirectPostFromDraft,
   };
-}
-
-async function assertOrganizationPeriodsOpenForDocument(input: {
-  context: DocumentTransitionExecutionContext;
-  document: DocumentTransitionExecutionContext["document"];
-}) {
-  const organizationIds = collectDocumentOrganizationIds({
-    payload: input.document.payload,
-  });
-
-  await input.context.services.accountingPeriods.assertOrganizationPeriodsOpen({
-    occurredAt: input.document.occurredAt,
-    organizationIds,
-    docType: input.context.input.docType,
-  });
 }
 
 async function runSubmit(context: DocumentTransitionExecutionContext) {
@@ -75,11 +54,17 @@ async function runSubmit(context: DocumentTransitionExecutionContext) {
     .toSnapshot();
 
   await assertOrganizationPeriodsOpenForDocument({
-    context,
+    context: context.services,
     document: context.document,
+    docType: context.input.docType,
   });
 
-  await context.module.canSubmit(context.moduleContext, context.document);
+  await invokeDocumentModuleAction({
+    action: "submit",
+    module: context.module,
+    moduleContext: context.moduleContext,
+    document: context.document,
+  });
   await enforceDocumentPolicy({
     policy: context.services.policy,
     action: "submit",
@@ -105,11 +90,18 @@ async function runSubmit(context: DocumentTransitionExecutionContext) {
     throw new InvalidStateError("Failed to submit document");
   }
 
+  await applyTransitionEffects({
+    context,
+    action: "submit",
+    before: context.document,
+    after: stored,
+  });
+
   return {
     document: stored,
     postingOperationId: null,
     events: [
-      buildTransitionEvent({
+      buildDocumentActionEvent({
         eventType: "submit",
         before,
         after: buildDocumentEventState(stored),
@@ -137,11 +129,12 @@ async function runApproveOrReject(
           module: buildWorkflowConfig(context),
         }).toSnapshot();
 
-  if (mode === "approve") {
-    await context.module.canApprove(context.moduleContext, context.document);
-  } else {
-    await context.module.canReject(context.moduleContext, context.document);
-  }
+  await invokeDocumentModuleAction({
+    action: mode,
+    module: context.module,
+    moduleContext: context.moduleContext,
+    document: context.document,
+  });
 
   await enforceDocumentPolicy({
     policy: context.services.policy,
@@ -180,11 +173,18 @@ async function runApproveOrReject(
     );
   }
 
+  await applyTransitionEffects({
+    context,
+    action: mode,
+    before: context.document,
+    after: stored,
+  });
+
   return {
     document: stored,
     postingOperationId: null,
     events: [
-      buildTransitionEvent({
+      buildDocumentActionEvent({
         eventType: mode,
         before,
         after: buildDocumentEventState(stored),
@@ -204,11 +204,17 @@ async function runCancel(context: DocumentTransitionExecutionContext) {
     .toSnapshot();
 
   await assertOrganizationPeriodsOpenForDocument({
-    context,
+    context: context.services,
     document: context.document,
+    docType: context.input.docType,
   });
 
-  await context.module.canCancel(context.moduleContext, context.document);
+  await invokeDocumentModuleAction({
+    action: "cancel",
+    module: context.module,
+    moduleContext: context.moduleContext,
+    document: context.document,
+  });
   await enforceDocumentPolicy({
     policy: context.services.policy,
     action: "cancel",
@@ -234,11 +240,18 @@ async function runCancel(context: DocumentTransitionExecutionContext) {
     throw new InvalidStateError("Failed to cancel document");
   }
 
+  await applyTransitionEffects({
+    context,
+    action: "cancel",
+    before: context.document,
+    after: stored,
+  });
+
   return {
     document: stored,
     postingOperationId: null,
     events: [
-      buildTransitionEvent({
+      buildDocumentActionEvent({
         eventType: "cancel",
         before,
         after: buildDocumentEventState(stored),
@@ -251,25 +264,29 @@ export const DOCUMENT_TRANSITION_SPECS: DocumentTransitionSpecs = {
   submit: {
     scope: DOCUMENTS_IDEMPOTENCY_SCOPE.SUBMIT,
     resolveIdempotencyKey: ({ transition }) =>
-      transition.idempotencyKey ?? buildActionIdempotencyKey("submit", transition),
+      transition.idempotencyKey ??
+      buildDocumentActionIdempotencyKey("submit", transition),
     execute: runSubmit,
   },
   approve: {
     scope: DOCUMENTS_IDEMPOTENCY_SCOPE.APPROVE,
     resolveIdempotencyKey: ({ transition }) =>
-      transition.idempotencyKey ?? buildActionIdempotencyKey("approve", transition),
+      transition.idempotencyKey ??
+      buildDocumentActionIdempotencyKey("approve", transition),
     execute: async (context) => runApproveOrReject(context, "approve"),
   },
   reject: {
     scope: DOCUMENTS_IDEMPOTENCY_SCOPE.REJECT,
     resolveIdempotencyKey: ({ transition }) =>
-      transition.idempotencyKey ?? buildActionIdempotencyKey("reject", transition),
+      transition.idempotencyKey ??
+      buildDocumentActionIdempotencyKey("reject", transition),
     execute: async (context) => runApproveOrReject(context, "reject"),
   },
   cancel: {
     scope: DOCUMENTS_IDEMPOTENCY_SCOPE.CANCEL,
     resolveIdempotencyKey: ({ transition }) =>
-      transition.idempotencyKey ?? buildActionIdempotencyKey("cancel", transition),
+      transition.idempotencyKey ??
+      buildDocumentActionIdempotencyKey("cancel", transition),
     execute: runCancel,
   },
 };

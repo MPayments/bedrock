@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./create-document-registry": "./src/create-document-registry.ts",
     "./definitions/shared": "./src/definitions/shared.ts",
+    "./financial-lines": "./src/financial-lines.ts",
     "./form-types": "./src/form-types.ts",
     "./module-kit": "./src/module-kit/index.ts",
     "./validation/shared": "./src/validation/shared.ts"
@@ -22,6 +23,7 @@
   "dependencies": {
     "@bedrock/accounting": "workspace:*",
     "@bedrock/documents": "workspace:*",
+    "@bedrock/shared": "workspace:*",
     "zod": "^4.1.11"
   },
   "devDependencies": {

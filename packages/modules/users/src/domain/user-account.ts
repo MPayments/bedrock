@@ -2,10 +2,21 @@ import {
   Entity,
   normalizeOptionalText,
   normalizeRequiredText,
-} from "@bedrock/shared/core/domain";
+} from "@bedrock/shared/core";
 
 import { UserEmail } from "./user-email";
 import { type UserRole, toUserRoleOrNull } from "./user-role";
+
+export interface UpdateUserProfileProps {
+  name: string;
+  email: string;
+  role: UserRole | null;
+}
+
+export interface BanUserProps {
+  banReason: string | null;
+  banExpires: Date | null;
+}
 
 export interface UserAccountSnapshot {
   id: string;
@@ -56,12 +67,7 @@ export class UserAccount extends Entity<string> {
     return UserEmail.create(email).value;
   }
 
-  updateProfile(input: {
-    name: string;
-    email: string;
-    role: UserRole | null;
-    now: Date;
-  }): UserAccount {
+  updateProfile(input: UpdateUserProfileProps & { now: Date }): UserAccount {
     return new UserAccount({
       ...this.snapshot,
       name: UserAccount.normalizeName(input.name),
@@ -71,16 +77,12 @@ export class UserAccount extends Entity<string> {
     });
   }
 
-  ban(input: {
-    reason: string | null;
-    expiresAt: Date | null;
-    now: Date;
-  }): UserAccount {
+  ban(input: BanUserProps & { now: Date }): UserAccount {
     return new UserAccount({
       ...this.snapshot,
       banned: true,
-      banReason: normalizeOptionalText(input.reason),
-      banExpires: input.expiresAt,
+      banReason: normalizeOptionalText(input.banReason),
+      banExpires: input.banExpires,
       updatedAt: input.now,
     });
   }

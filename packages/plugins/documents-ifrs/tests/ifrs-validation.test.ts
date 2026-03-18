@@ -6,6 +6,7 @@ import { RUSSIAN_MAJOR_AMOUNT_MESSAGES } from "../src/definitions/shared";
 import {
   CapitalFundingInputSchema,
   CapitalFundingPayloadSchema,
+  compileFxExecuteManualFinancialLines,
   FxExecuteInputSchema,
   FxExecutePayloadSchema,
   TransferIntraInputSchema,
@@ -83,27 +84,146 @@ describe("ifrs documents validation", () => {
     ).toThrow("Слишком много знаков после запятой для USD: максимум 2");
   });
 
-  it("accepts fx_execute manual financial lines and normalizes them", () => {
+  it("accepts fx_execute manual financial-line authoring rows and compiles them", () => {
     const parsed = FxExecuteInputSchema.parse({
       occurredAt: "2026-03-03T10:00:00.000Z",
       sourceRequisiteId: "00000000-0000-4000-8000-000000000001",
       destinationRequisiteId: "00000000-0000-4000-8000-000000000002",
       amount: "100.00",
+      currency: "usd",
       financialLines: [
         {
+          calcMethod: "percent",
           bucket: "fee_revenue",
           currency: "usd",
-          amount: "1.5",
+          percent: "1.5",
         },
       ],
     });
 
     expect(parsed.financialLines).toHaveLength(1);
     expect(parsed.financialLines[0]).toMatchObject({
+      calcMethod: "percent",
       bucket: "fee_revenue",
       currency: "USD",
-      amountMinor: "150",
-      source: "manual",
+      percent: "1.5",
+    });
+
+    expect(
+      compileFxExecuteManualFinancialLines({
+        financialLines: parsed.financialLines,
+        amountMinor: "10000",
+        currency: "USD",
+      }),
+    ).toMatchObject([
+      {
+        calcMethod: "percent",
+        percentBps: 150,
+        bucket: "fee_revenue",
+        currency: "USD",
+        amountMinor: "150",
+        source: "manual",
+      },
+    ]);
+  });
+
+  it("rejects invalid fx_execute percent rows when base currency is available", () => {
+    expect(() =>
+      FxExecuteInputSchema.parse({
+        occurredAt: "2026-03-03T10:00:00.000Z",
+        sourceRequisiteId: "00000000-0000-4000-8000-000000000001",
+        destinationRequisiteId: "00000000-0000-4000-8000-000000000002",
+        amount: "0.01",
+        currency: "usd",
+        financialLines: [
+          {
+            calcMethod: "percent",
+            bucket: "fee_revenue",
+            currency: "usd",
+            percent: "0.01",
+          },
+        ],
+      }),
+    ).toThrow("percent-based financial line must not resolve to zero");
+
+    expect(() =>
+      FxExecuteInputSchema.parse({
+        occurredAt: "2026-03-03T10:00:00.000Z",
+        sourceRequisiteId: "00000000-0000-4000-8000-000000000001",
+        destinationRequisiteId: "00000000-0000-4000-8000-000000000002",
+        amount: "100.00",
+        currency: "usd",
+        financialLines: [
+          {
+            calcMethod: "percent",
+            bucket: "fee_revenue",
+            currency: "eur",
+            percent: "1.25",
+          },
+        ],
+      }),
+    ).toThrow("percent-based financial line currency must match base currency USD");
+  });
+
+  it("keeps fx_execute payload parsing compatible with percent metadata", () => {
+    const parsed = FxExecutePayloadSchema.parse({
+      occurredAt: "2026-03-03T10:00:00.000Z",
+      ownershipMode: "cross_org",
+      sourceOrganizationId: "00000000-0000-4000-8000-000000000010",
+      sourceRequisiteId: "00000000-0000-4000-8000-000000000001",
+      destinationOrganizationId: "00000000-0000-4000-8000-000000000011",
+      destinationRequisiteId: "00000000-0000-4000-8000-000000000002",
+      amount: "100.00",
+      amountMinor: "10000",
+      quoteSnapshot: {
+        quoteId: "00000000-0000-4000-8000-000000000020",
+        idempotencyKey: "quote-ref-1",
+        fromCurrency: "USD",
+        toCurrency: "EUR",
+        fromAmountMinor: "10000",
+        toAmountMinor: "9200",
+        pricingMode: "explicit_route",
+        rateNum: "23",
+        rateDen: "25",
+        expiresAt: "2026-03-03T10:10:00.000Z",
+        pricingTrace: { version: "v1", mode: "explicit_route" },
+        legs: [
+          {
+            idx: 1,
+            fromCurrency: "USD",
+            toCurrency: "EUR",
+            fromAmountMinor: "10000",
+            toAmountMinor: "9200",
+            rateNum: "23",
+            rateDen: "25",
+            sourceKind: "manual",
+            sourceRef: "desk",
+            asOf: "2026-03-03T10:00:00.000Z",
+            executionCounterpartyId: null,
+          },
+        ],
+        financialLines: [],
+        snapshotHash:
+          "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      },
+      financialLines: [
+        {
+          id: "manual:1",
+          bucket: "fee_revenue",
+          currency: "USD",
+          amount: "1.25",
+          amountMinor: "125",
+          source: "manual",
+          settlementMode: "in_ledger",
+          calcMethod: "percent",
+          percentBps: 125,
+        },
+      ],
+    });
+
+    expect(parsed.financialLines[0]).toMatchObject({
+      calcMethod: "percent",
+      percentBps: 125,
     });
   });
 

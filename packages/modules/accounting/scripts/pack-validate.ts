@@ -1,9 +1,20 @@
 import { loadRawPackDefinition } from "./pack-common";
-import { validatePackDefinition } from "../src/packs";
+import {
+  DEFAULT_CHART_TEMPLATE_ACCOUNTS,
+  DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
+  validatePackDefinition,
+} from "../src";
 
 async function main() {
   const { packRef, definition } = await loadRawPackDefinition();
-  const result = validatePackDefinition(definition);
+  const result = validatePackDefinition(definition, {
+    knownAccountNos: DEFAULT_CHART_TEMPLATE_ACCOUNTS.map(
+      (account) => account.accountNo,
+    ),
+    knownPostingCodes: DEFAULT_GLOBAL_CORRESPONDENCE_RULES.map(
+      (rule) => rule.postingCode,
+    ),
+  });
 
   if (!result.ok) {
     console.error(`Pack validation failed for ${packRef}:`);

@@ -1,16 +1,15 @@
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type {
-  Database,
+  PersistenceContext,
   Queryable,
-  Transaction,
 } from "@bedrock/platform/persistence";
+import { createTransactionalPort as createTransactionalRepository } from "@bedrock/platform/persistence";
 
 import {
   createCreateOrganizationHandler,
   createRemoveOrganizationHandler,
   createUpdateOrganizationHandler,
 } from "./application/organizations/commands";
-import type { OrganizationsCommandTxRepository } from "./application/organizations/ports";
 import {
   createFindOrganizationByIdHandler,
   createListOrganizationsHandler,
@@ -27,97 +26,37 @@ export type OrganizationsService = ReturnType<
 >;
 
 export interface OrganizationsServiceDeps {
-  db: Queryable;
+  persistence: PersistenceContext;
   logger?: Logger;
   now?: () => Date;
-  withTransaction?: OrganizationsTransactionsPort["withTransaction"];
-}
-
-export interface OrganizationsServiceTransactionDeps {
-  tx: Transaction;
-  logger?: Logger;
-  now?: () => Date;
-}
-
-function createOrganizationsTxRepository(input: {
-  organizations: ReturnType<typeof createDrizzleOrganizationsCommandRepository>;
-  tx: Transaction;
-}): OrganizationsCommandTxRepository {
-  return {
-    findOrganizationSnapshotById(id) {
-      return input.organizations.findOrganizationSnapshotById(id, input.tx);
-    },
-    insertOrganization(organization) {
-      return input.organizations.insertOrganizationTx(input.tx, organization);
-    },
-    updateOrganization(organization) {
-      return input.organizations.updateOrganizationTx(input.tx, organization);
-    },
-    removeOrganization(id) {
-      return input.organizations.removeOrganizationTx(input.tx, id);
-    },
-  };
 }
 
 function createOrganizationsTransactions(input: {
-  db: Queryable;
-  organizations: ReturnType<typeof createDrizzleOrganizationsCommandRepository>;
-  withTransaction?: OrganizationsTransactionsPort["withTransaction"];
+  persistence: PersistenceContext;
 }): OrganizationsTransactionsPort {
-  if (input.withTransaction) {
-    return {
-      withTransaction: input.withTransaction,
-    };
-  }
+  const organizations = createTransactionalRepository(
+    input.persistence,
+    createDrizzleOrganizationsCommandRepository,
+  );
 
   return {
     async withTransaction(run) {
-      return (input.db as Database).transaction(async (tx: Transaction) =>
+      return organizations.withTransaction((transactionalOrganizations) =>
         run({
-          organizations: createOrganizationsTxRepository({
-            organizations: input.organizations,
-            tx,
-          }),
-        }),
-      );
+          organizations: transactionalOrganizations,
+        }));
     },
   };
 }
 
 export function createOrganizationsService(deps: OrganizationsServiceDeps) {
-  const organizations = createDrizzleOrganizationsCommandRepository(deps.db);
   return createOrganizationsServiceContextHandlers({
     logger: deps.logger,
     now: deps.now,
-    db: deps.db,
-    organizations,
+    db: deps.persistence.db,
     transactions: createOrganizationsTransactions({
-      db: deps.db,
-      organizations,
-      withTransaction: deps.withTransaction,
+      persistence: deps.persistence,
     }),
-  });
-}
-
-export function createOrganizationsServiceFromTransaction(
-  deps: OrganizationsServiceTransactionDeps,
-) {
-  const organizations = createDrizzleOrganizationsCommandRepository(deps.tx);
-
-  return createOrganizationsServiceContextHandlers({
-    logger: deps.logger,
-    now: deps.now,
-    db: deps.tx,
-    organizations,
-    transactions: {
-      withTransaction: (run) =>
-        run({
-          organizations: createOrganizationsTxRepository({
-            organizations,
-            tx: deps.tx,
-          }),
-        }),
-    },
   });
 }
 
@@ -125,7 +64,6 @@ function createOrganizationsServiceContextHandlers(input: {
   db: Queryable;
   logger?: Logger;
   now?: () => Date;
-  organizations: ReturnType<typeof createDrizzleOrganizationsCommandRepository>;
   transactions: OrganizationsTransactionsPort;
 }) {
   const context = createOrganizationsServiceContext({

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { schema } from "@bedrock/fx/schema";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
 
 import { createFxService } from "../src";
 import {
@@ -39,7 +40,7 @@ describe("FX rates priority + TTL", () => {
         } as any;
 
         const service = createFxService({
-            db,
+            persistence: createPersistenceContext(db),
             feesService: createNoopFeesService(),
             currenciesService: createMockCurrenciesService([
                 { id: "cur-usd", code: "USD" },
@@ -167,7 +168,7 @@ describe("FX rates priority + TTL", () => {
         } as any;
 
         const service = createFxService({
-            db,
+            persistence: createPersistenceContext(db),
             feesService: createNoopFeesService(),
             currenciesService: createMockCurrenciesService(),
             rateSourceProviders: { cbr: provider },
@@ -237,7 +238,7 @@ describe("FX rates priority + TTL", () => {
         } as any;
 
         const service = createFxService({
-            db,
+            persistence: createPersistenceContext(db),
             feesService: createNoopFeesService(),
             currenciesService: createMockCurrenciesService(),
             rateSourceProviders: { cbr: provider },
@@ -330,7 +331,7 @@ describe("FX rates priority + TTL", () => {
         } as any;
 
         const service = createFxService({
-            db,
+            persistence: createPersistenceContext(db),
             feesService: createNoopFeesService(),
             currenciesService: createMockCurrenciesService(),
             rateSourceProviders: {
@@ -355,7 +356,7 @@ describe("FX rates priority + TTL", () => {
         } as any;
 
         const service = createFxService({
-            db,
+            persistence: createPersistenceContext(db),
             feesService: createNoopFeesService(),
             currenciesService: createMockCurrenciesService(),
             rateSourceProviders: {

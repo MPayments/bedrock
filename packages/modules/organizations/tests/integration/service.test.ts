@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { createLedgerBooksService } from "@bedrock/ledger";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
 
 import {
   db,
@@ -26,7 +27,7 @@ const ledgerBooks = createLedgerBooksService();
 function createOrganizationsRuntime() {
   return {
     service: createOrganizationsService({
-      db,
+      persistence: createPersistenceContext(db),
     }),
     queries: createOrganizationsQueries({ db }),
   };
@@ -155,7 +156,7 @@ describe("organizations integration", () => {
   it("does not provision a default book inside the core service", async () => {
     const failureExternalId = `org-it-${randomUUID()}`;
     const service = createOrganizationsService({
-      db,
+      persistence: createPersistenceContext(db),
     });
 
     const created = await service.create({

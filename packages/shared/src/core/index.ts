@@ -32,4 +32,4 @@ export type {
   PersistenceSession,
   RunInPersistenceSession,
 } from "./persistence";
-export { resolvePatchValue } from "./patch";
+export { applyPatch, resolvePatchValue } from "./patch";

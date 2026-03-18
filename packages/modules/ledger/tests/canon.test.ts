@@ -122,10 +122,7 @@ describe("stableStringify", () => {
 describe("makePlanKey", () => {
   it("should create plan key with operation and payload", () => {
     const key = makePlanKey("transfer", { from: "A", to: "B", amount: 100n });
-    expect(key).toContain("transfer:");
-    expect(key).toContain('"from":"A"');
-    expect(key).toContain('"to":"B"');
-    expect(key).toContain('"amount":"100"');
+    expect(key).toMatch(/^transfer:[0-9a-f]{64}$/);
   });
 
   it("should produce deterministic keys regardless of payload order", () => {
@@ -139,8 +136,8 @@ describe("makePlanKey", () => {
     const key1 = makePlanKey("debit", payload);
     const key2 = makePlanKey("credit", payload);
     expect(key1).not.toBe(key2);
-    expect(key1).toContain("debit:");
-    expect(key2).toContain("credit:");
+    expect(key1).toMatch(/^debit:[0-9a-f]{64}$/);
+    expect(key2).toMatch(/^credit:[0-9a-f]{64}$/);
   });
 
   it("should produce different keys for different payloads", () => {
@@ -159,8 +156,32 @@ describe("makePlanKey", () => {
     };
 
     const key = makePlanKey("batch_transfer", payload);
-    expect(key).toContain("batch_transfer:");
-    expect(key).toContain("transfers");
-    expect(key).toContain("metadata");
+    expect(key).toMatch(/^batch_transfer:[0-9a-f]{64}$/);
+  });
+
+  it("should stay within ledger planRef length limits for large payloads", () => {
+    const key = makePlanKey("payment.fx.provider_fee_expense.reversal", {
+      amountMinor: 100n,
+      bookRefs: {
+        bookId: "11111111-1111-4111-8111-111111111111",
+      },
+      currency: "USD",
+      dimensions: {
+        customerId: "22222222-2222-4222-8222-222222222222",
+        orderId: "33333333-3333-4333-8333-333333333333",
+        counterpartyId: "44444444-4444-4444-8444-444444444444",
+        feeBucket: "provider_fee_expense",
+      },
+      effectiveAt: new Date("2026-03-18T00:00:00.000Z"),
+      pending: null,
+      refs: {
+        quoteRef: `invoice:${"a".repeat(128)}`,
+        chainId: `invoice:${"b".repeat(128)}`,
+        componentId: "manual:provider_fee_expense:" + "c".repeat(128),
+        componentIndex: "1",
+      },
+    });
+
+    expect(key.length).toBeLessThanOrEqual(512);
   });
 });

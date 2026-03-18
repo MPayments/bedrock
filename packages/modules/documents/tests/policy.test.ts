@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { createDefaultDocumentActionPolicyService } from "../src";
+import {
+  createDefaultDocumentActionPolicyService,
+  createRuleBasedDocumentActionPolicyService,
+} from "../src";
 import type { DocumentModule } from "../src/plugins";
 
 function createModuleStub(approvalRequired: boolean): DocumentModule {
@@ -71,5 +74,81 @@ describe("createDefaultDocumentActionPolicyService", () => {
 
     expect(decision.allow).toBe(false);
     expect(decision.reasonCode).toBe("maker_checker_denied");
+  });
+});
+
+describe("createRuleBasedDocumentActionPolicyService", () => {
+  it("uses the first matching approval rule", async () => {
+    const service = createRuleBasedDocumentActionPolicyService({
+      rules: [
+        {
+          docTypes: ["test.doc"],
+          channels: ["wire"],
+          approvalMode: "maker_checker",
+        },
+      ],
+    });
+    const module = createModuleStub(false);
+
+    const mode = await service.approvalMode({
+      module,
+      document: {
+        id: "doc-1",
+        docType: "test.doc",
+        payload: { channel: "wire" },
+        amountMinor: 100n,
+        currency: "USD",
+      } as any,
+      actorUserId: "user-2",
+      moduleContext: {} as any,
+    });
+
+    expect(mode).toBe("maker_checker");
+  });
+
+  it("falls back to module approval behavior when no rule matches", async () => {
+    const service = createRuleBasedDocumentActionPolicyService({
+      rules: [],
+    });
+    const module = createModuleStub(true);
+
+    const mode = await service.approvalMode({
+      module,
+      document: {
+        id: "doc-1",
+        docType: "test.doc",
+        payload: {},
+      } as any,
+      actorUserId: "user-2",
+      moduleContext: {} as any,
+    });
+
+    expect(mode).toBe("maker_checker");
+  });
+
+  it("treats admin actors as approval-exempt when configured", async () => {
+    const service = createRuleBasedDocumentActionPolicyService({
+      rules: [
+        {
+          docTypes: ["test.doc"],
+          approvalMode: "maker_checker",
+        },
+      ],
+      isActorExemptFromApproval: ({ actorUserId }) => actorUserId === "admin-1",
+    });
+    const module = createModuleStub(false);
+
+    const mode = await service.approvalMode({
+      module,
+      document: {
+        id: "doc-1",
+        docType: "test.doc",
+        payload: {},
+      } as any,
+      actorUserId: "admin-1",
+      moduleContext: {} as any,
+    });
+
+    expect(mode).toBe("not_required");
   });
 });
