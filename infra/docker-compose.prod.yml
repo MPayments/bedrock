@@ -123,13 +123,13 @@ services:
     restart: unless-stopped
     expose:
       - "3000"
-    labels:
-      - "traefik.enable=true"
+    labels:                                                                                                                                                                
+      - "traefik.enable=true"                                 
       - "traefik.docker.network=dokploy-network"
-      - "traefik.http.routers.bedrock-web.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.bedrock-web.priority=1"
-      - "traefik.http.routers.bedrock-web.entrypoints=web"
-      - "traefik.http.services.bedrock-web.loadbalancer.server.port=3000"
+      - "traefik.http.routers.bedrock-web.rule=Host(`103.90.73.0`) || PathPrefix(`/`)"                                                                                     
+      - "traefik.http.routers.bedrock-web.priority=1"                                                                                                                      
+      - "traefik.http.routers.bedrock-web.entrypoints=web"                                                                                                                 
+      - "traefik.http.services.bedrock-web.loadbalancer.server.port=3000" 
 
   workers:
     build:
