@@ -3,15 +3,12 @@
 #
 # Prerequisites:
 #   - External Postgres accessible from dokploy-network
-#   - TigerBeetle running as standalone container on dokploy-network
-#     (see README or ops docs for setup)
-#   - .env with DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD,
-#     TB_ADDRESS (e.g. bedrock-tigerbeetle:3000)
+#   - .env with DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 #
 # Deployment:
 #   1. docker compose up db-migrate    # apply migrations
 #   2. docker compose up db-seed       # seed data (first deploy only)
-#   3. docker compose up -d api web workers
+#   3. docker compose up -d tigerbeetle api web workers
 #
 # Access: http://<SERVER_IP> (Traefik catch-all, priority=1)
 # ---------------------------------------------------------------------------
@@ -20,7 +17,28 @@ networks:
   dokploy-network:
     external: true
 
+volumes:
+  tigerbeetle-data:
+
 services:
+  # ---------------------------------------------------------------------------
+  # Infrastructure
+  # ---------------------------------------------------------------------------
+  tigerbeetle:
+    build:
+      context: .
+      dockerfile: tigerbeetle/Dockerfile
+    container_name: bedrock-tigerbeetle
+    restart: unless-stopped
+    volumes:
+      - tigerbeetle-data:/data
+    security_opt:
+      - seccomp=unconfined
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - dokploy-network
+
   # ---------------------------------------------------------------------------
   # Init containers (run once per deploy, then exit)
   # ---------------------------------------------------------------------------
@@ -69,6 +87,8 @@ services:
     depends_on:
       db-migrate:
         condition: service_completed_successfully
+      tigerbeetle:
+        condition: service_started
     environment:
       PORT: 3002
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
@@ -120,6 +140,8 @@ services:
     depends_on:
       db-migrate:
         condition: service_completed_successfully
+      tigerbeetle:
+        condition: service_started
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-DATA_FILE="/data/0_0.tigerbeetle"
+DATA_FILE="/data/1_0.tigerbeetle"
 
 if [ ! -f "$DATA_FILE" ]; then
   echo "Data file not found — formatting..."
