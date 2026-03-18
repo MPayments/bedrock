@@ -453,7 +453,7 @@ function FinancialLinesField({
               ) : null}
 
               <Field data-invalid={Boolean(fieldErrorMessage(errors, bucketPath))}>
-                <FieldLabel>Bucket</FieldLabel>
+                <FieldLabel>Назначение</FieldLabel>
                 <Controller
                   control={control}
                   name={bucketPath as never}
@@ -464,7 +464,7 @@ function FinancialLinesField({
                       onValueChange={(value) => controlledField.onChange(value)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Выберите bucket">
+                        <SelectValue placeholder="Выберите назначение">
                           {findSelectedLabel(
                             controlledField.value,
                             field.bucketOptions,
