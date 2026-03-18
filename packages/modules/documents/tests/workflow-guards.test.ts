@@ -125,6 +125,7 @@ function createContext(document: Document, module: ReturnType<typeof createModul
       transactions: {
         withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
           run({
+            transaction: repository,
             documentEvents: repository,
             documentLinks: repository,
             documentOperations: repository,

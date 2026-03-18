@@ -18,7 +18,7 @@ export const WORKER_CATALOG = [
     envKey: "DOCUMENTS_PERIOD_CLOSE_WORKER_INTERVAL_MS",
     defaultIntervalMs: 60_000,
     description:
-      "Генерирует ежемесячные документы period_close и закрывает периоды контрагентов.",
+      "Генерирует и отправляет на согласование ежемесячные документы period_close.",
   },
   {
     id: "balances",

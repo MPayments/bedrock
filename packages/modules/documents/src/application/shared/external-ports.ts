@@ -26,6 +26,7 @@ export interface DocumentsIdempotencyPort {
 }
 
 export interface DocumentsTransactionContext {
+  transaction: unknown;
   moduleRuntime: DocumentModuleRuntime;
   idempotency: DocumentsIdempotencyPort;
   documentsCommand: DocumentsCommandRepository;

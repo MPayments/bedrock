@@ -57,7 +57,7 @@ export function createFxResolutionDocumentModule(
     updateSchema: FxResolutionInputSchema,
     payloadSchema: FxResolutionPayloadSchema,
     postingRequired: true,
-    allowDirectPostFromDraft: true,
+    allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(_context, input) {
       return buildDocumentDraft(input, {

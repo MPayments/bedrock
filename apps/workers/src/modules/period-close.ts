@@ -17,7 +17,10 @@ import {
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { createBalancesQueries } from "@bedrock/balances/queries";
 import {
+  createAccountingPeriodDocumentTransitionEffectsService,
   createDocumentsService,
+  createRuleBasedDocumentActionPolicyService,
+  type DocumentApprovalRule,
 } from "@bedrock/documents";
 import {
   createDrizzleDocumentsReadModel,
@@ -64,6 +67,19 @@ async function resolveSystemActorUserId(db: Database): Promise<string | null> {
     .limit(1);
 
   return fallback?.id ?? null;
+}
+
+async function isAdminActor(
+  db: Database,
+  actorUserId: string,
+): Promise<boolean> {
+  const [actor] = await db
+    .select({ role: user.role })
+    .from(user)
+    .where(eq(user.id, actorUserId))
+    .limit(1);
+
+  return actor?.role === "admin";
 }
 
 async function listOrganizationIds(db: Database): Promise<string[]> {
@@ -219,6 +235,13 @@ function createPeriodCloseAccountingService(db: Database) {
   });
 }
 
+const PERIOD_CLOSE_APPROVAL_RULES: DocumentApprovalRule[] = [
+  {
+    docTypes: ["period_close", "period_reopen"],
+    approvalMode: "maker_checker",
+  },
+];
+
 export function createPeriodCloseWorkerDefinition(deps: {
   id: string;
   intervalMs: number;
@@ -236,18 +259,26 @@ export function createPeriodCloseWorkerDefinition(deps: {
   const documentRegistry = createDocumentRegistry([
     createPeriodCloseDocumentModule(),
   ]);
+  const documentsPolicy = createRuleBasedDocumentActionPolicyService({
+    rules: PERIOD_CLOSE_APPROVAL_RULES,
+    isActorExemptFromApproval: ({ actorUserId }) =>
+      isAdminActor(deps.db, actorUserId),
+  });
+  const documentTransitionEffects =
+    createAccountingPeriodDocumentTransitionEffectsService();
   const documentsService = createDocumentsService({
     persistence: createPersistenceContext(deps.db),
     idempotency,
     accounting: accountingService.packs,
     accountingPeriods,
     ledgerReadService,
+    policy: documentsPolicy,
     registry: documentRegistry,
+    transitionEffects: documentTransitionEffects,
     logger: deps.logger,
   });
   const documentDraftWorkflow = createDocumentDraftWorkflow({
     db: deps.db,
-    accountingPeriods,
     createDocumentsService: (tx) =>
       createDocumentsService({
         persistence: bindPersistenceSession(tx),
@@ -255,14 +286,34 @@ export function createPeriodCloseWorkerDefinition(deps: {
         accounting: accountingService.packs,
         accountingPeriods,
         ledgerReadService,
+        policy: documentsPolicy,
         registry: documentRegistry,
+        transitionEffects: documentTransitionEffects,
         logger: deps.logger,
       }),
   });
   const periodCloseWorkflow = createPeriodCloseWorkflow({
     documents: {
-      findDocumentIdByCreateIdempotencyKey:
-        documentsReadModel.findDocumentIdByCreateIdempotencyKey,
+      async listPeriodCloseDocuments(input) {
+        const documents =
+          await documentsReadModel.listAdjustmentsForOrganizationPeriod({
+            organizationId: input.organizationId,
+            periodStart: input.periodStart,
+            periodEnd: input.periodEnd,
+            docTypes: ["period_close"],
+          });
+
+        const loaded = await Promise.all(
+          documents.map((document) =>
+            documentsReadModel.getDocumentByType({
+              documentId: document.documentId,
+              docType: document.docType,
+            }),
+          ),
+        );
+
+        return loaded.filter((document) => document !== null);
+      },
       createDraft: documentDraftWorkflow.createDraft,
       submit: ({ actorUserId, docType, documentId, idempotencyKey }) =>
         documentsService.actions.execute({

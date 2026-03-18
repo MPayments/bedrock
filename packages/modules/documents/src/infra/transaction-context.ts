@@ -68,6 +68,7 @@ export function createDocumentsTransactionContext(input: {
   idempotency: IdempotencyPort;
 }): DocumentsTransactionContext {
   return {
+    transaction: input.tx,
     moduleRuntime: createDocumentsModuleRuntime(input.tx),
     idempotency: createDocumentsIdempotencyPort(input),
     documentsCommand: createDrizzleDocumentsCommandRepository(input.tx),

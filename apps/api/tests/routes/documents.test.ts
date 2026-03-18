@@ -61,6 +61,16 @@ function createDocumentWithOperation() {
   };
 }
 
+function createDocumentWithOperationFor(docType: string) {
+  return {
+    ...createDocumentWithOperation(),
+    document: {
+      ...createDocumentWithOperation().document,
+      docType,
+    },
+  };
+}
+
 function createDocumentsServiceStub() {
   return {
     list: vi.fn(),
@@ -270,7 +280,7 @@ describe("documentsRoutes mutation actions", () => {
   it("allows admins to create public period_reopen documents", async () => {
     const { app, documentDraftWorkflow } = createTestApp({ role: "admin" });
     documentDraftWorkflow.createDraft.mockResolvedValue(
-      createDocumentWithOperation(),
+      createDocumentWithOperationFor("period_reopen"),
     );
 
     const response = await app.request("http://localhost/period_reopen", {
@@ -326,5 +336,55 @@ describe("documentsRoutes mutation actions", () => {
         'Document type "fx_resolution" is system-only and cannot be mutated via public API',
     });
     expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
+  });
+
+  it("allows admins to approve period_close documents", async () => {
+    const { app, documentsService } = createTestApp({ role: "admin" });
+    documentsService.actions.execute.mockResolvedValue(
+      createDocumentWithOperationFor("period_close"),
+    );
+
+    const response = await app.request(
+      "http://localhost/period_close/11111111-1111-4111-8111-111111111111/approve",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(documentsService.actions.execute).toHaveBeenCalledWith({
+      action: "approve",
+      docType: "period_close",
+      documentId: "11111111-1111-4111-8111-111111111111",
+      actorUserId: "user-1",
+      idempotencyKey: "idem-1",
+      requestContext: expect.objectContaining({
+        requestId: "req-1",
+        correlationId: "corr-1",
+      }),
+    });
+  });
+
+  it("allows admins to submit period_reopen documents", async () => {
+    const { app, documentsService } = createTestApp({ role: "admin" });
+    documentsService.actions.execute.mockResolvedValue(
+      createDocumentWithOperationFor("period_reopen"),
+    );
+
+    const response = await app.request(
+      "http://localhost/period_reopen/11111111-1111-4111-8111-111111111111/submit",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(documentsService.actions.execute).toHaveBeenCalledWith({
+      action: "submit",
+      docType: "period_reopen",
+      documentId: "11111111-1111-4111-8111-111111111111",
+      actorUserId: "user-1",
+      idempotencyKey: "idem-1",
+      requestContext: expect.objectContaining({
+        requestId: "req-1",
+        correlationId: "corr-1",
+      }),
+    });
   });
 });

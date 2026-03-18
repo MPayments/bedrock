@@ -15,6 +15,7 @@ export function createPeriodCloseDocumentModule(): DocumentModule<
     docType: "period_close",
     docNoPrefix: IFRS_DOCUMENT_METADATA.period_close.docNoPrefix,
     title: "Закрытие периода",
+    approvalRequired: true,
     createSchema: PeriodCloseSchema,
     updateSchema: PeriodCloseSchema,
     payloadSchema: PeriodCloseSchema,

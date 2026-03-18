@@ -123,7 +123,7 @@ export function createFxExecuteDocumentModule(
     updateSchema: FxExecuteInputSchema,
     payloadSchema: FxExecutePayloadSchema,
     postingRequired: true,
-    allowDirectPostFromDraft: true,
+    allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(context, input) {
       const payload = await prepareDraftPayload(deps, context, input);

@@ -1,0 +1,211 @@
+{
+  "reportLineMappings": [
+    {
+      "standard": "ifrs",
+      "reportKind": "balance_sheet",
+      "lineCode": "BS.CASH_EQUIV",
+      "lineLabel": "Cash and cash equivalents",
+      "section": "assets",
+      "accountNo": "1110",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "balance_sheet",
+      "lineCode": "BS.TRANSIT",
+      "lineLabel": "Transit balances",
+      "section": "assets",
+      "accountNo": "1220",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "balance_sheet",
+      "lineCode": "BS.CLEARING",
+      "lineLabel": "Clearing balances",
+      "section": "assets",
+      "accountNo": "1310",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "balance_sheet",
+      "lineCode": "BS.CUSTOMER_WALLET",
+      "lineLabel": "Customer wallet liabilities",
+      "section": "liabilities",
+      "accountNo": "2110",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "balance_sheet",
+      "lineCode": "BS.FEE_CLEARING",
+      "lineLabel": "Fee clearing liabilities",
+      "section": "liabilities",
+      "accountNo": "2120",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "balance_sheet",
+      "lineCode": "BS.PAYOUT_OBLIGATION",
+      "lineLabel": "Payout obligations",
+      "section": "liabilities",
+      "accountNo": "2130",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "balance_sheet",
+      "lineCode": "BS.ORDER_RESERVE",
+      "lineLabel": "Order reserves",
+      "section": "liabilities",
+      "accountNo": "2140",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "balance_sheet",
+      "lineCode": "BS.SHAREHOLDER_LOAN",
+      "lineLabel": "Shareholder loan",
+      "section": "liabilities",
+      "accountNo": "2210",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "balance_sheet",
+      "lineCode": "BS.FOUNDER_EQUITY",
+      "lineLabel": "Founder equity",
+      "section": "equity",
+      "accountNo": "3110",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "balance_sheet",
+      "lineCode": "BS.INVESTOR_EQUITY",
+      "lineLabel": "Investor equity",
+      "section": "equity",
+      "accountNo": "3120",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "balance_sheet",
+      "lineCode": "BS.OPENING_BAL_EQ",
+      "lineLabel": "Opening balance equity",
+      "section": "equity",
+      "accountNo": "3200",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "income_statement",
+      "lineCode": "IS.FEE_REVENUE",
+      "lineLabel": "Fee revenue",
+      "section": "revenue",
+      "accountNo": "4110",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "income_statement",
+      "lineCode": "IS.SPREAD_REVENUE",
+      "lineLabel": "Spread revenue",
+      "section": "revenue",
+      "accountNo": "4120",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "income_statement",
+      "lineCode": "IS.ADJ_REVENUE",
+      "lineLabel": "Adjustment revenue",
+      "section": "revenue",
+      "accountNo": "4130",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "income_statement",
+      "lineCode": "IS.ADJ_EXPENSE",
+      "lineLabel": "Adjustment expense",
+      "section": "expense",
+      "accountNo": "5110",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "income_statement",
+      "lineCode": "IS.PROVIDER_FEE_EXPENSE",
+      "lineLabel": "Provider fee expense",
+      "section": "expense",
+      "accountNo": "5120",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "cash_flow_direct",
+      "lineCode": "CFD.OPERATING_CASH",
+      "lineLabel": "Operating cash flow",
+      "section": "operating",
+      "accountNo": "1110",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "cash_flow_indirect",
+      "lineCode": "CFI.WORKING_CAPITAL",
+      "lineLabel": "Working capital adjustment",
+      "section": "adjustments",
+      "accountNo": "2140",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "fx_revaluation",
+      "lineCode": "FX.REVALUATION",
+      "lineLabel": "FX revaluation",
+      "section": "revaluation",
+      "accountNo": "4130",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "fx_revaluation",
+      "lineCode": "FX.REVALUATION_EXPENSE",
+      "lineLabel": "FX revaluation expense",
+      "section": "revaluation",
+      "accountNo": "5110",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "fee_revenue",
+      "lineCode": "FEE.REVENUE",
+      "lineLabel": "Fee revenue",
+      "section": "revenue",
+      "accountNo": "4110",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "fee_revenue",
+      "lineCode": "FEE.SPREAD",
+      "lineLabel": "Spread revenue",
+      "section": "revenue",
+      "accountNo": "4120",
+      "signMultiplier": 1
+    },
+    {
+      "standard": "ifrs",
+      "reportKind": "fee_revenue",
+      "lineCode": "FEE.PROVIDER_EXPENSE",
+      "lineLabel": "Provider fee expense",
+      "section": "expense",
+      "accountNo": "5120",
+      "signMultiplier": 1
+    }
+  ]
+}

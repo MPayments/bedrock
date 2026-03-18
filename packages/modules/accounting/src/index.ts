@@ -1,4 +1,15 @@
 export {
+  DEFAULT_ACCOUNT_DIMENSION_POLICIES,
+  DEFAULT_CHART_TEMPLATE_ACCOUNTS,
+  DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
+  DEFAULT_POSTING_CODE_DIMENSION_POLICIES,
+  DEFAULT_REPORT_LINE_MAPPINGS,
+  DEFAULT_REPORT_LINE_MAPPINGS_EFFECTIVE_FROM,
+  type AccountingReportLineMappingDefault,
+  type AccountDimensionPolicy,
+  type PostingCodeDimensionPolicyEntry,
+} from "./constants";
+export {
   createAccountingService,
   type AccountingService,
   type AccountingServiceDeps,

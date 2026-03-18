@@ -43,6 +43,7 @@ export interface DocumentTransitionExecutionResult {
 
 export interface DocumentTransitionExecutionContext {
   services: DocumentsServiceContext;
+  transaction: unknown;
   documentsCommand: DocumentsCommandRepository;
   documentEvents: DocumentEventsRepository;
   documentOperations: DocumentOperationsRepository;
@@ -78,7 +79,8 @@ export async function runDocumentTransition(input: {
 
   try {
     return await services.transactions.withTransaction(
-        async ({
+      async ({
+        transaction,
           documentEvents,
           documentOperations,
           documentsCommand,
@@ -160,6 +162,7 @@ export async function runDocumentTransition(input: {
 
             const result = await spec.execute({
               services,
+              transaction,
               documentsCommand,
               documentEvents,
               documentOperations,

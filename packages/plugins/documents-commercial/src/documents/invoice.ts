@@ -84,7 +84,7 @@ export function createInvoiceDocumentModule(
     updateSchema: InvoiceInputSchema,
     payloadSchema: InvoicePayloadSchema,
     postingRequired: true,
-    allowDirectPostFromDraft: true,
+    allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(_context, input) {
       if (input.mode === "direct") {

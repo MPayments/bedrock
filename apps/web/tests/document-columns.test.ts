@@ -17,4 +17,35 @@ describe("document columns", () => {
     expect(docTypeColumn?.meta?.options).toEqual(docTypeOptions);
     expect(docTypeColumn?.meta?.filterContentClassName).toBe("w-72");
   });
+
+  it("uses a warning badge for pending approval status", () => {
+    const columns = getDocumentColumns([]);
+    const approvalColumn = columns.find(
+      (column) =>
+        "accessorKey" in column && column.accessorKey === "approvalStatus",
+    );
+    expect(typeof approvalColumn?.cell).toBe("function");
+
+    if (typeof approvalColumn?.cell !== "function") {
+      throw new Error("approvalStatus column should provide a cell renderer");
+    }
+
+    const cellContext = {
+      row: {
+        original: {
+          approvalStatus: "pending",
+        },
+      },
+    } as Parameters<typeof approvalColumn.cell>[0];
+
+    const badge = approvalColumn.cell({
+      ...cellContext,
+    }) as {
+      props?: {
+        variant?: string;
+      };
+    };
+
+    expect(badge?.props?.variant).toBe("warning");
+  });
 });

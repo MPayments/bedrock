@@ -57,6 +57,16 @@ interface DocumentMutationConfig {
   action: DocumentTransitionAction;
 }
 
+type PublicDocumentMutationAction =
+  | "create"
+  | "update"
+  | "submit"
+  | "approve"
+  | "reject"
+  | "post"
+  | "cancel"
+  | "repost";
+
 const OperationParamSchema = z.object({
   operationId: z.uuid(),
 });
@@ -118,24 +128,29 @@ function parseJournalOperationsQuery(requestUrl: string) {
 
 export function documentsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+  const adminSystemOnlyActionsByDocType: Partial<
+    Record<string, Set<PublicDocumentMutationAction>>
+  > = {
+    period_close: new Set(["submit", "approve", "reject", "cancel"]),
+    period_reopen: new Set([
+      "create",
+      "update",
+      "submit",
+      "approve",
+      "reject",
+      "cancel",
+    ]),
+  };
 
   function assertPublicMutationAllowed(input: {
     docType: string;
-    action:
-      | "create"
-      | "update"
-      | "submit"
-      | "approve"
-      | "reject"
-      | "post"
-      | "cancel"
-      | "repost";
+    action: PublicDocumentMutationAction;
     role: string | null | undefined;
   }) {
+    const allowedAdminActions = adminSystemOnlyActionsByDocType[input.docType];
     if (
-      input.docType === "period_reopen" &&
-      input.action === "create" &&
-      input.role === "admin"
+      input.role === "admin" &&
+      allowedAdminActions?.has(input.action)
     ) {
       return;
     }

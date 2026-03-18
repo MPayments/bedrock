@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import accountingDefaultsRaw from "./assets/defaults.json" with { type: "json" };
+import accountingReportLineMappingsRaw from "./assets/report-line-mappings.json" with { type: "json" };
 
 const CHART_ACCOUNT_KIND_VALUES = [
   "asset",
@@ -13,6 +14,14 @@ const CHART_ACCOUNT_KIND_VALUES = [
 const CHART_NORMAL_SIDE_VALUES = ["debit", "credit", "both"] as const;
 const DIMENSION_MODE_VALUES = ["required", "optional", "forbidden"] as const;
 const DIMENSION_POLICY_SCOPE_VALUES = ["line", "debit", "credit"] as const;
+const REPORT_KIND_VALUES = [
+  "balance_sheet",
+  "income_statement",
+  "cash_flow_direct",
+  "cash_flow_indirect",
+  "fx_revaluation",
+  "fee_revenue",
+] as const;
 const ACCOUNT_NO_REGEX = /^[0-9]{4}$/;
 
 export const ACCOUNT_NO = {
@@ -74,6 +83,16 @@ export interface PostingCodeDimensionPolicyEntry {
 export interface ClearingKindDimensionRule {
   dimensionKey: string;
   mode: DimensionMode;
+}
+
+export interface AccountingReportLineMappingDefault {
+  standard: string;
+  reportKind: (typeof REPORT_KIND_VALUES)[number];
+  lineCode: string;
+  lineLabel: string;
+  section: string;
+  accountNo: string;
+  signMultiplier: number;
 }
 
 export const KNOWN_DIMENSION_KEYS = new Set<string>(Object.values(DIM));
@@ -220,6 +239,37 @@ const accountingDefaults = accountingDefaultsSchema.parse(
   accountingDefaultsRaw as unknown,
 );
 
+const accountingReportLineMappingsSchema = z.object({
+  reportLineMappings: z.array(
+    z.object({
+      standard: z.string().min(1),
+      reportKind: z.enum(REPORT_KIND_VALUES),
+      lineCode: z.string().min(1),
+      lineLabel: z.string().min(1),
+      section: z.string().min(1),
+      accountNo: accountNoSchema,
+      signMultiplier: z.number().int(),
+    }),
+  ),
+});
+
+const accountingReportLineMappings =
+  accountingReportLineMappingsSchema.parse(
+    accountingReportLineMappingsRaw as unknown,
+  );
+
+const defaultChartAccountNoSet = new Set(
+  accountingDefaults.chartTemplateAccounts.map((account) => account.accountNo),
+);
+
+for (const mapping of accountingReportLineMappings.reportLineMappings) {
+  if (!defaultChartAccountNoSet.has(mapping.accountNo)) {
+    throw new Error(
+      `Accounting report line mapping references unknown account ${mapping.accountNo}`,
+    );
+  }
+}
+
 export const DEFAULT_CHART_TEMPLATE_ACCOUNTS =
   accountingDefaults.chartTemplateAccounts;
 export const DEFAULT_ACCOUNT_DIMENSION_POLICIES: AccountDimensionPolicy[] =
@@ -228,3 +278,8 @@ export const DEFAULT_POSTING_CODE_DIMENSION_POLICIES: PostingCodeDimensionPolicy
   accountingDefaults.postingCodeDimensionPolicies;
 export const DEFAULT_GLOBAL_CORRESPONDENCE_RULES =
   accountingDefaults.globalCorrespondenceRules;
+export const DEFAULT_REPORT_LINE_MAPPINGS_EFFECTIVE_FROM = new Date(
+  "2000-01-01T00:00:00.000Z",
+);
+export const DEFAULT_REPORT_LINE_MAPPINGS: AccountingReportLineMappingDefault[] =
+  accountingReportLineMappings.reportLineMappings;

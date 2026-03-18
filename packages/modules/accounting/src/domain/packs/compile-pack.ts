@@ -21,6 +21,11 @@ interface CompiledPackSerializable {
   templates: CompiledPostingTemplate[];
 }
 
+export interface PackReferenceValidationInput {
+  knownAccountNos?: Iterable<string>;
+  knownPostingCodes?: Iterable<string>;
+}
+
 function isCreateTemplateDefinition(
   template: RawPostingTemplateDefinition,
 ): template is CreatePostingTemplateDefinition {
@@ -117,9 +122,16 @@ function validateBindings(
 
 export function validatePackDefinition(
   definition: AccountingPackDefinition,
+  referenceData?: PackReferenceValidationInput,
 ): PackValidationResult {
   const errors: string[] = [];
   const seen = new Set<string>();
+  const knownAccountNos = referenceData?.knownAccountNos
+    ? new Set(referenceData.knownAccountNos)
+    : null;
+  const knownPostingCodes = referenceData?.knownPostingCodes
+    ? new Set(referenceData.knownPostingCodes)
+    : null;
 
   if (!definition.packKey.trim()) {
     errors.push("packKey must be non-empty");
@@ -144,6 +156,32 @@ export function validatePackDefinition(
     }
 
     validateBindings(template, errors);
+
+    if (isCreateTemplateDefinition(template)) {
+      if (
+        knownPostingCodes &&
+        !knownPostingCodes.has(template.postingCode)
+      ) {
+        errors.push(
+          `${template.key}: postingCode references unknown code "${template.postingCode}"`,
+        );
+      }
+
+      if (knownAccountNos && !knownAccountNos.has(template.debit.accountNo)) {
+        errors.push(
+          `${template.key}: debit.accountNo references unknown account "${template.debit.accountNo}"`,
+        );
+      }
+
+      if (
+        knownAccountNos &&
+        !knownAccountNos.has(template.credit.accountNo)
+      ) {
+        errors.push(
+          `${template.key}: credit.accountNo references unknown account "${template.credit.accountNo}"`,
+        );
+      }
+    }
   }
 
   return {
@@ -154,8 +192,9 @@ export function validatePackDefinition(
 
 export function compilePack(
   definition: AccountingPackDefinition,
+  referenceData?: PackReferenceValidationInput,
 ): CompiledPack {
-  const validation = validatePackDefinition(definition);
+  const validation = validatePackDefinition(definition, referenceData);
   if (!validation.ok) {
     throw new DomainError(
       "accounting_pack.compilation_failed",

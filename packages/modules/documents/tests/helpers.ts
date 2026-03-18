@@ -246,6 +246,7 @@ export function createDocumentsServiceDeps(
     transactions: {
       withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
         run({
+          transaction: moduleDb,
           documentEvents: repository,
           documentLinks: repository,
           documentOperations: repository,

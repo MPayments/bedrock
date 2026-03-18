@@ -80,6 +80,9 @@ describe("document typed form helpers", () => {
       });
 
     expect(result.success).toBe(false);
+    if (result.success) {
+      throw new Error("Expected validation to fail");
+    }
 
     const mapped = mapDocumentFormZodError(result.error);
 
@@ -222,11 +225,16 @@ describe("document typed form helpers", () => {
 
     const dependencyNames = collectVisibilityDependencyNames(fields);
     const watchedValues = buildWatchedValueMap(dependencyNames, ["direct"]);
+    const [modeField, organizationField, currencyField] = fields;
+
+    if (!modeField || !organizationField || !currencyField) {
+      throw new Error("Expected fixture fields to be defined");
+    }
 
     expect(dependencyNames).toEqual(["mode"]);
-    expect(isFieldVisible(fields[0], watchedValues)).toBe(true);
-    expect(isFieldVisible(fields[1], watchedValues)).toBe(true);
-    expect(isFieldVisible(fields[2], watchedValues)).toBe(false);
+    expect(isFieldVisible(modeField, watchedValues)).toBe(true);
+    expect(isFieldVisible(organizationField, watchedValues)).toBe(true);
+    expect(isFieldVisible(currencyField, watchedValues)).toBe(false);
   });
 
   it("keeps the renderer registry aligned with declared renderer kinds", () => {

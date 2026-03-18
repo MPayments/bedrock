@@ -264,8 +264,34 @@ async function resolveDocumentAllowedActionsForActorWithPeriodLock(input: {
     return [];
   }
 
+  const moduleContext = createModuleContext({
+    actorUserId: input.actorUserId,
+    runtime: input.moduleRuntime,
+    now: input.now(),
+    log: input.log,
+    operationIdempotencyKey: null,
+  });
+
+  const effectiveApprovalMode = input.policy
+    ? await input.policy.approvalMode({
+        module,
+        document: input.document,
+        actorUserId: input.actorUserId,
+        moduleContext,
+      })
+    : null;
+  const effectiveDocument =
+    effectiveApprovalMode === "not_required" &&
+    input.document.submissionStatus === "submitted" &&
+    input.document.approvalStatus === "pending"
+      ? {
+          ...input.document,
+          approvalStatus: "not_required" as const,
+        }
+      : input.document;
+
   const stateActions = resolveDocumentAllowedActions({
-    document: input.document,
+    document: effectiveDocument,
     module: {
       postingRequired: module.postingRequired,
       allowDirectPostFromDraft: module.allowDirectPostFromDraft,
@@ -275,14 +301,6 @@ async function resolveDocumentAllowedActionsForActorWithPeriodLock(input: {
   if (stateActions.length === 0) {
     return [];
   }
-
-  const moduleContext = createModuleContext({
-    actorUserId: input.actorUserId,
-    runtime: input.moduleRuntime,
-    now: input.now(),
-    log: input.log,
-    operationIdempotencyKey: null,
-  });
 
   const filtered: DocumentAction[] = [];
   for (const action of stateActions) {
@@ -294,7 +312,7 @@ async function resolveDocumentAllowedActionsForActorWithPeriodLock(input: {
       action,
       module,
       moduleContext,
-      document: input.document,
+      document: effectiveDocument,
     });
     if (!moduleAllowed) {
       continue;
@@ -306,7 +324,7 @@ async function resolveDocumentAllowedActionsForActorWithPeriodLock(input: {
         policy: input.policy,
         module,
         moduleContext,
-        document: input.document,
+        document: effectiveDocument,
         actorUserId: input.actorUserId,
       });
       if (!policyAllowed) {

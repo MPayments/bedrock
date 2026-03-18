@@ -28,4 +28,15 @@ export type {
 } from "./application/shared/external-ports";
 export { DOCUMENTS_IDEMPOTENCY_SCOPE } from "./application/shared/documents-idempotency";
 export { createDefaultDocumentActionPolicyService } from "./application/policy/default-action-policy";
+export {
+  createRuleBasedDocumentActionPolicyService,
+  type DocumentApprovalRule,
+} from "./application/policy/rule-based-action-policy";
+export {
+  createAccountingPeriodDocumentTransitionEffectsService,
+  createNoopDocumentTransitionEffectsService,
+  type DocumentTransitionEffectsInput,
+  type DocumentTransitionEffectsService,
+  type DocumentTransitionEffectsServices,
+} from "./application/shared/transition-effects";
 export * from "./errors";

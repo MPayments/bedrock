@@ -75,7 +75,7 @@ export function createCapitalFundingDocumentModule(
     updateSchema: CapitalFundingInputSchema,
     payloadSchema: CapitalFundingPayloadSchema,
     postingRequired: true,
-    allowDirectPostFromDraft: true,
+    allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(_context, input) {
       return buildDocumentDraft(input, {

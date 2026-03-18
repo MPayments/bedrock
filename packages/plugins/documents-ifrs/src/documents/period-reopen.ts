@@ -15,6 +15,7 @@ export function createPeriodReopenDocumentModule(): DocumentModule<
     docType: "period_reopen",
     docNoPrefix: IFRS_DOCUMENT_METADATA.period_reopen.docNoPrefix,
     title: "Переоткрытие периода",
+    approvalRequired: true,
     createSchema: PeriodReopenSchema,
     updateSchema: PeriodReopenSchema,
     payloadSchema: PeriodReopenSchema,

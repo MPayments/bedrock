@@ -42,7 +42,8 @@ function StatusBadges({
 }) {
   function getStatusBadgeVariant(
     status: string,
-  ): "default" | "secondary" | "destructive" | "outline" | "success" {
+    kind: "submission" | "approval" | "posting" | "lifecycle",
+  ): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" {
     if (
       status === "approved" ||
       status === "posted" ||
@@ -51,9 +52,12 @@ function StatusBadges({
       return "success";
     }
 
+    if (kind === "approval" && status === "pending") {
+      return "warning";
+    }
+
     if (
       status === "submitted" ||
-      status === "pending" ||
       status === "posting"
     ) {
       return "default";
@@ -82,22 +86,22 @@ function StatusBadges({
     {
       label: "Статус",
       value: getSubmissionStatusLabel(submissionStatus),
-      variant: getStatusBadgeVariant(submissionStatus),
+      variant: getStatusBadgeVariant(submissionStatus, "submission"),
     },
     {
       label: "Согласование",
       value: getApprovalStatusLabel(approvalStatus),
-      variant: getStatusBadgeVariant(approvalStatus),
+      variant: getStatusBadgeVariant(approvalStatus, "approval"),
     },
     {
       label: "Учет",
       value: getPostingStatusLabel(postingStatus),
-      variant: getStatusBadgeVariant(postingStatus),
+      variant: getStatusBadgeVariant(postingStatus, "posting"),
     },
     {
       label: "Жизненный цикл",
       value: getLifecycleStatusLabel(lifecycleStatus),
-      variant: getStatusBadgeVariant(lifecycleStatus),
+      variant: getStatusBadgeVariant(lifecycleStatus, "lifecycle"),
     },
   ];
 

@@ -41,7 +41,7 @@ export function createTransferIntercompanyDocumentModule(
     updateSchema: TransferIntercompanyInputSchema,
     payloadSchema: TransferIntercompanyPayloadSchema,
     postingRequired: true,
-    allowDirectPostFromDraft: true,
+    allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(_context, input) {
       const bindings = await resolveTransferBindings(

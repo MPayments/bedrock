@@ -4,10 +4,11 @@ import { DomainError } from "@bedrock/shared/core/domain";
 
 import {
   buildTestDocument,
-  createStubDocumentModuleRuntime,
   createTestDocumentModule,
   createDocumentPolicyStub,
+  createStubDocumentModuleRuntime,
 } from "./helpers";
+import { resolveDocumentAllowedActionsForActor } from "../src/application/shared/actions";
 import { buildDocumentEventState } from "../src/application/shared/document-event-state";
 import { createDocumentInsertBase } from "../src/application/shared/document-record";
 import { buildDefaultActionIdempotencyKey } from "../src/application/shared/idempotency-key";
@@ -359,6 +360,7 @@ describe("document internal policy", () => {
     const transactions = {
       withTransaction: vi.fn(async (fn: (context: unknown) => Promise<void>) =>
         fn({
+          transaction: tx,
           documentEvents: createDrizzleDocumentEventsRepository(tx as any),
         }),
       ),
@@ -445,5 +447,38 @@ describe("document internal policy", () => {
 
     await persistDocumentPolicyDenial(transactions as any, error);
     expect(transactions.withTransaction).not.toHaveBeenCalled();
+  });
+
+  it("exposes post for approval-pending documents when actor approval is exempt", async () => {
+    const module = createModuleStub();
+    const registry = {
+      getDocumentModule: vi.fn(() => module),
+      getDocumentModules: vi.fn(() => [module]),
+    };
+    const policy = createDocumentPolicyStub();
+    policy.approvalMode.mockResolvedValue("not_required");
+
+    const actions = await resolveDocumentAllowedActionsForActor({
+      accountingPeriods: {
+        assertOrganizationPeriodsOpen: vi.fn(),
+        closePeriod: vi.fn(),
+        isOrganizationPeriodClosed: vi.fn(async () => false),
+        listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
+        reopenPeriod: vi.fn(),
+      } as any,
+      moduleRuntime: createStubDocumentModuleRuntime(),
+      registry: registry as any,
+      policy,
+      actorUserId: "admin-1",
+      log: {} as any,
+      now: () => new Date("2026-03-03T00:00:00.000Z"),
+      document: makeDocument({
+        submissionStatus: "submitted",
+        approvalStatus: "pending",
+      }),
+    });
+
+    expect(actions).toContain("post");
+    expect(actions).not.toContain("approve");
   });
 });

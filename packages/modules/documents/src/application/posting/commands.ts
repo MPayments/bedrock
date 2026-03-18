@@ -131,6 +131,50 @@ export function createPrepareDocumentPostHandler(
 
         const successEvents: DocumentActionEvent[] = [];
         let postingDocument = document;
+        const currentNow = context.now();
+        const actorApprovalMode = await context.policy.approvalMode({
+          module,
+          document: postingDocument,
+          actorUserId: input.actorUserId,
+          moduleContext,
+        });
+
+        if (
+          actorApprovalMode === "not_required" &&
+          postingDocument.submissionStatus === "submitted" &&
+          postingDocument.approvalStatus === "pending"
+        ) {
+          const beforeApprovalBypass = buildDocumentEventState(postingDocument);
+          const bypassedApproval = {
+            ...postingDocument,
+            approvalStatus: "not_required" as const,
+            updatedAt: currentNow,
+          };
+          const storedBypassedApproval = await documentsCommand.updateDocument({
+            documentId: postingDocument.id,
+            docType: input.docType,
+            patch: {
+              approvalStatus: bypassedApproval.approvalStatus,
+              updatedAt: bypassedApproval.updatedAt,
+            },
+          });
+
+          if (!storedBypassedApproval) {
+            throw new InvalidStateError(
+              "Failed to bypass document approval before posting",
+            );
+          }
+
+          successEvents.push(
+            buildDocumentActionEvent({
+              eventType: "approval_bypassed",
+              before: beforeApprovalBypass,
+              after: buildDocumentEventState(storedBypassedApproval),
+            }),
+          );
+
+          postingDocument = storedBypassedApproval;
+        }
 
         if (
           module.allowDirectPostFromDraft &&
@@ -156,7 +200,7 @@ export function createPrepareDocumentPostHandler(
           const submitted = DocumentAggregate.fromSnapshot(postingDocument)
             .submit({
               actorUserId: input.actorUserId,
-              now: context.now(),
+              now: currentNow,
               module: {
                 postingRequired: module.postingRequired,
                 allowDirectPostFromDraft: false,
@@ -195,7 +239,7 @@ export function createPrepareDocumentPostHandler(
         const startedPosting = DocumentAggregate.fromSnapshot(postingDocument)
           .startPosting({
             actorUserId: input.actorUserId,
-            now: context.now(),
+            now: currentNow,
             module: {
               postingRequired: module.postingRequired,
               allowDirectPostFromDraft: false,

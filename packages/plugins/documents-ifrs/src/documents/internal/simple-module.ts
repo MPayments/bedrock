@@ -17,6 +17,7 @@ export function createSimpleIfrsDocumentModule<
   docType: IfrsDocumentType;
   docNoPrefix: string;
   title: string;
+  approvalRequired?: boolean;
   payloadSchema: DocumentModule<TPayload, TPayload>["payloadSchema"];
   createSchema: DocumentModule<TPayload, TPayload>["createSchema"];
   updateSchema: DocumentModule<TPayload, TPayload>["updateSchema"];
@@ -32,7 +33,7 @@ export function createSimpleIfrsDocumentModule<
     payloadSchema: input.payloadSchema,
     postingRequired: false,
     allowDirectPostFromDraft: false,
-    approvalRequired: () => false,
+    approvalRequired: () => input.approvalRequired ?? false,
     async createDraft(_context, payload) {
       return buildDocumentDraft(payload, serializeOccurredAt(payload));
     },

@@ -48,6 +48,7 @@ function createDocumentsHandlerDeps(
     moduleRuntime: createDocumentsModuleRuntime(deps.persistence.db),
     policy: deps.policy,
     registry: deps.registry,
+    transitionEffects: deps.transitionEffects,
     transactions: createDocumentsTransactions({
       persistence: deps.persistence,
       idempotency: deps.idempotency,

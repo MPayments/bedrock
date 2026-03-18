@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createCreateDraftHandler } from "../src/application/commands/create-draft";
 import { createTransitionHandler } from "../src/application/commands/transition";
 import { createUpdateDraftHandler } from "../src/application/commands/update-draft";
+import { createPrepareDocumentPostHandler } from "../src/application/posting/commands";
 import type { Document } from "../src/domain/document";
 import type { DocumentModule } from "../src/plugins";
 
@@ -205,7 +206,7 @@ function createContext(options: {
         debug: vi.fn(),
       },
       policy: {
-        approvalMode: vi.fn(),
+        approvalMode: vi.fn(async () => "not_required"),
         canCreate: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
         canEdit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
         canSubmit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
@@ -220,9 +221,13 @@ function createContext(options: {
       documentSnapshots: repository,
       documentsQuery: repository,
       registry,
+      transitionEffects: {
+        apply: vi.fn(async () => undefined),
+      },
       transactions: {
         withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
           run({
+            transaction: repository,
             documentEvents: repository,
             documentLinks: repository,
             documentOperations: repository,
@@ -246,10 +251,8 @@ describe("documents command flows", () => {
   it("creates a draft document with derived summary fields", async () => {
     const { context, insertedRows, idempotency } = createContext({
       selectRows: [[]],
-      module: createModuleStub({
-        approvalRequired: () => true,
-      }),
     });
+    context.policy.approvalMode.mockResolvedValue("maker_checker");
     const handler = createCreateDraftHandler(context as any);
 
     const result = await handler({
@@ -279,10 +282,8 @@ describe("documents command flows", () => {
     const { context } = createContext({
       document,
       selectRows: [[document]],
-      module: createModuleStub({
-        approvalRequired: () => true,
-      }),
     });
+    context.policy.approvalMode.mockResolvedValue("maker_checker");
     const handler = createUpdateDraftHandler(context as any);
 
     const result = await handler({
@@ -337,6 +338,97 @@ describe("documents command flows", () => {
 
     expect(result.document.lifecycleStatus).toBe("cancelled");
     expect(result.document.cancelledBy).toBe("maker-1");
+  });
+
+  it("bypasses pending approval before posting when the actor is approval-exempt", async () => {
+    const document = makeDocument({
+      submissionStatus: "submitted",
+      approvalStatus: "pending",
+    });
+    const module = createModuleStub({
+      async buildPostingPlan() {
+        return {
+          operationCode: "TEST_POST",
+          payload: {},
+          requests: [
+            {
+              templateKey: "TC.1001",
+              effectiveAt: new Date("2026-03-01T10:00:00.000Z"),
+              currency: "USD",
+              amountMinor: 100n,
+              bookRefs: {
+                bookId: "book-1",
+              },
+              dimensions: {},
+            },
+          ],
+        };
+      },
+    });
+    const { context, repository } = createContext({
+      document,
+      module,
+      selectRows: [[document]],
+    });
+    let currentDocument = document;
+    repository.updateDocument.mockImplementation(
+      async ({ patch }: { patch: Record<string, unknown> }) => {
+        currentDocument = {
+          ...currentDocument,
+          ...patch,
+          updatedAt: context.now(),
+          version: currentDocument.version + 1,
+        } as Document;
+
+        return currentDocument;
+      },
+    );
+    context.policy.approvalMode.mockResolvedValue("not_required");
+    context.accounting.resolvePostingPlan.mockResolvedValue({
+      intent: {
+        idempotencyKey: "post-idem",
+        source: {
+          type: "documents/test_document/post",
+          id: document.id,
+        },
+        postings: [],
+      },
+      packChecksum: "pack-1",
+      postingPlanChecksum: "posting-plan-1",
+      journalIntentChecksum: "journal-intent-1",
+      appliedTemplates: [],
+    });
+
+    const handler = createPrepareDocumentPostHandler(context as any);
+    const result = await handler({
+      action: "post",
+      docType: document.docType,
+      documentId: document.id,
+      actorUserId: "admin-1",
+    });
+
+    expect(repository.updateDocument).toHaveBeenCalledTimes(2);
+    expect(repository.updateDocument.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        patch: expect.objectContaining({
+          approvalStatus: "not_required",
+        }),
+      }),
+    );
+    expect(repository.updateDocument.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        patch: expect.objectContaining({
+          postingStatus: "posting",
+        }),
+      }),
+    );
+    expect(result.document.approvalStatus).toBe("not_required");
+    expect(result.document.postingStatus).toBe("posting");
+    expect(result.successEvents).toEqual([
+      expect.objectContaining({
+        eventType: "approval_bypassed",
+      }),
+    ]);
   });
 
 });

@@ -16,6 +16,26 @@ import type {
   DocumentTransitionSpecs,
 } from "../commands/transition-runtime";
 
+async function applyTransitionEffects(input: {
+  context: DocumentTransitionExecutionContext;
+  action: "submit" | "approve" | "reject" | "cancel";
+  before: DocumentTransitionExecutionContext["document"];
+  after: DocumentTransitionExecutionContext["document"];
+}) {
+  await input.context.services.transitionEffects.apply({
+    action: input.action,
+    before: input.before,
+    after: input.after,
+    module: input.context.module,
+    moduleContext: input.context.moduleContext,
+    services: {
+      accountingPeriods: input.context.services.accountingPeriods,
+    },
+    transition: input.context.input,
+    transaction: input.context.transaction,
+  });
+}
+
 function buildWorkflowConfig(context: DocumentTransitionExecutionContext) {
   return {
     postingRequired: context.module.postingRequired,
@@ -69,6 +89,13 @@ async function runSubmit(context: DocumentTransitionExecutionContext) {
   if (!stored) {
     throw new InvalidStateError("Failed to submit document");
   }
+
+  await applyTransitionEffects({
+    context,
+    action: "submit",
+    before: context.document,
+    after: stored,
+  });
 
   return {
     document: stored,
@@ -146,6 +173,13 @@ async function runApproveOrReject(
     );
   }
 
+  await applyTransitionEffects({
+    context,
+    action: mode,
+    before: context.document,
+    after: stored,
+  });
+
   return {
     document: stored,
     postingOperationId: null,
@@ -205,6 +239,13 @@ async function runCancel(context: DocumentTransitionExecutionContext) {
   if (!stored) {
     throw new InvalidStateError("Failed to cancel document");
   }
+
+  await applyTransitionEffects({
+    context,
+    action: "cancel",
+    before: context.document,
+    after: stored,
+  });
 
   return {
     document: stored,

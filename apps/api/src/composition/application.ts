@@ -18,8 +18,11 @@ import {
 } from "@bedrock/currencies";
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import {
+  createAccountingPeriodDocumentTransitionEffectsService,
   createDocumentsService,
+  createRuleBasedDocumentActionPolicyService,
   type DocumentsService,
+  type DocumentApprovalRule,
 } from "@bedrock/documents";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import { createFeesService, type FeesService } from "@bedrock/fees";
@@ -54,6 +57,7 @@ import {
   type RequisitesService,
 } from "@bedrock/requisites";
 import { createRequisitesQueries } from "@bedrock/requisites/queries";
+import { UserNotFoundError } from "@bedrock/users";
 import {
   createDocumentDraftWorkflow,
   type DocumentDraftWorkflow,
@@ -94,6 +98,26 @@ export interface ApiApplicationServices {
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
 }
+
+const DEFAULT_DOCUMENT_APPROVAL_RULES: DocumentApprovalRule[] = [
+  {
+    docTypes: ["period_close", "period_reopen"],
+    approvalMode: "maker_checker",
+  },
+  {
+    docTypes: [
+      "invoice",
+      "exchange",
+      "transfer_intra",
+      "transfer_intercompany",
+      "transfer_resolution",
+      "fx_execute",
+      "fx_resolution",
+      "capital_funding",
+    ],
+    approvalMode: "maker_checker",
+  },
+];
 
 async function listBooksWithLabels(input: {
   ids: string[];
@@ -263,7 +287,14 @@ function createAccountingPeriodsPort(
 export function createApplicationServices(
   platform: ApiCoreServices,
 ): ApiApplicationServices {
-  const { accountingService, idempotency, ledger, ledgerReadService, logger } =
+  const {
+    accountingService,
+    idempotency,
+    ledger,
+    ledgerReadService,
+    logger,
+    usersService,
+  } =
     platform;
 
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
@@ -381,13 +412,31 @@ export function createApplicationServices(
       }),
     ),
   ]);
+  const documentsPolicy = createRuleBasedDocumentActionPolicyService({
+    rules: DEFAULT_DOCUMENT_APPROVAL_RULES,
+    async isActorExemptFromApproval({ actorUserId }) {
+      try {
+        return (await usersService.findById(actorUserId)).role === "admin";
+      } catch (error) {
+        if (error instanceof UserNotFoundError) {
+          return false;
+        }
+
+        throw error;
+      }
+    },
+  });
+  const documentTransitionEffects =
+    createAccountingPeriodDocumentTransitionEffectsService();
   const documentsCoreService = createDocumentsService({
     persistence: createPersistenceContext(db),
     idempotency,
     accounting: accountingService.packs,
     accountingPeriods: accountingPeriodsService,
     ledgerReadService,
+    policy: documentsPolicy,
     registry: documentRegistry,
+    transitionEffects: documentTransitionEffects,
     logger,
   });
 
@@ -398,14 +447,15 @@ export function createApplicationServices(
       accounting: accountingService.packs,
       accountingPeriods: accountingPeriodsService,
       ledgerReadService,
+      policy: documentsPolicy,
       registry: documentRegistry,
+      transitionEffects: documentTransitionEffects,
       logger,
     });
   }
   const documentsService = documentsCoreService;
   const documentDraftWorkflow = createDocumentDraftWorkflow({
     db,
-    accountingPeriods: accountingPeriodsService,
     createDocumentsService: createDocumentsServiceForTransaction,
   });
   const documentPostingWorkflow = createDocumentPostingWorkflow({
