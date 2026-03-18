@@ -26,8 +26,8 @@ services:
   # ---------------------------------------------------------------------------
   tigerbeetle:
     build:
-      context: .
-      dockerfile: tigerbeetle/Dockerfile
+      context: ./tigerbeetle
+      dockerfile: Dockerfile
     container_name: bedrock-tigerbeetle
     restart: unless-stopped
     volumes:
