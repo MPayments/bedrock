@@ -116,6 +116,10 @@ export function createDrizzleCounterpartiesQueryRepository(
         conditions.push(eq(schema.counterparties.customerId, input.customerId));
       }
 
+      if (input.externalId) {
+        conditions.push(eq(schema.counterparties.externalId, input.externalId));
+      }
+
       if (input.shortName) {
         conditions.push(
           ilike(schema.counterparties.shortName, `%${input.shortName}%`),

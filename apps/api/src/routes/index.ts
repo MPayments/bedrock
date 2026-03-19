@@ -11,4 +11,5 @@ export { organizationsRoutes } from "./organizations";
 export { profileRoutes } from "./profile";
 export { requisiteProvidersRoutes } from "./requisite-providers";
 export { requisitesRoutes } from "./requisites";
+export { integrationRoutes } from "./integration";
 export { usersRoutes } from "./users";

@@ -33,6 +33,7 @@
     "@bedrock/users": "workspace:*",
     "@bedrock/workflow-document-drafts": "workspace:*",
     "@bedrock/workflow-document-posting": "workspace:*",
+    "@bedrock/workflow-integration-mpayments": "workspace:*",
     "@bedrock/workflow-organization-bootstrap": "workspace:*",
     "@bedrock/workflow-requisite-accounting": "workspace:*",
     "@hono/node-server": "^1.19.9",

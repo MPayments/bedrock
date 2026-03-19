@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:17
     ports: 
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -11,12 +11,13 @@ services:
       - ./data/${DB_NAME}:/var/lib/postgresql/data
 
   tigerbeetle:
-    image: ghcr.io/tigerbeetle/tigerbeetle
+    build:
+      context: ./tigerbeetle
+      dockerfile: Dockerfile
+    container_name: bedrock-tigerbeetle
     ports:
-      - "3000:3000"
-    volumes:
-      - ./data:/data
-    command: "start --addresses=0.0.0.0:3000 /data/0_0.tigerbeetle"
+      - "3555:3000"
+    restart: unless-stopped
     security_opt:
       - seccomp=unconfined
     cap_add:
