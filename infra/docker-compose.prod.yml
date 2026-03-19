@@ -165,6 +165,8 @@ services:
       MPAYMENTS_INTEGRATION_PASSWORD: ${MPAYMENTS_INTEGRATION_PASSWORD}
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
+      REDIS_USER: ${REDIS_USER}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     security_opt:
       - seccomp=unconfined
     networks:

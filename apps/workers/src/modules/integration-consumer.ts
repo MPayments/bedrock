@@ -8,6 +8,8 @@ export interface IntegrationConsumerDeps {
   logger: Logger;
   redisHost: string;
   redisPort: number;
+  redisUser?: string;
+  redisPassword?: string;
 }
 
 export interface IntegrationConsumer {
@@ -32,6 +34,8 @@ export function createIntegrationConsumer(
       connection: {
         host: deps.redisHost,
         port: deps.redisPort,
+        username: deps.redisUser,
+        password: deps.redisPassword,
       },
     },
   );
