@@ -25,10 +25,13 @@
     "@bedrock/fx": "workspace:*",
     "@bedrock/ledger": "workspace:*",
     "@bedrock/organizations": "workspace:*",
+    "@bedrock/requisites": "workspace:*",
     "@bedrock/plugin-documents-ifrs": "workspace:*",
     "@bedrock/plugin-documents-sdk": "workspace:*",
     "@bedrock/workflow-document-drafts": "workspace:*",
+    "@bedrock/workflow-integration-mpayments": "workspace:*",
     "@bedrock/workflow-period-close": "workspace:*",
+    "bullmq": "^5.34.8",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "@bedrock/platform": "workspace:*"

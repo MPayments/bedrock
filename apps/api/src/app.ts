@@ -22,6 +22,7 @@ import {
   documentsRoutes,
   fxQuotesRoutes,
   fxRatesRoutes,
+  integrationRoutes,
   organizationsRoutes,
   profileRoutes,
   requisiteProvidersRoutes,
@@ -88,6 +89,17 @@ app.use(
     credentials: true,
   }),
 );
+
+if (ctx.integrationEventHandler && ctx.env.MPAYMENTS_INTEGRATION_USERNAME && ctx.env.MPAYMENTS_INTEGRATION_PASSWORD) {
+  app.route(
+    "/integration",
+    integrationRoutes({
+      integrationEventHandler: ctx.integrationEventHandler,
+      username: ctx.env.MPAYMENTS_INTEGRATION_USERNAME,
+      password: ctx.env.MPAYMENTS_INTEGRATION_PASSWORD,
+    }),
+  );
+}
 
 app.use(
   "*",
