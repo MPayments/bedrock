@@ -50,6 +50,16 @@ function buildDescription(data: {
   return lines.length > 0 ? lines.join("\n") : null;
 }
 
+function buildRequisiteLabel(bankName: string, account: string): string {
+  const normalizedBankName = bankName.trim();
+  const normalizedAccount = account.replace(/\s+/g, "").trim();
+  const accountSuffix = normalizedAccount.slice(-4);
+
+  return accountSuffix
+    ? `${normalizedBankName} •${accountSuffix}`
+    : normalizedBankName;
+}
+
 export function createClientCreatedHandler(deps: ClientCreatedHandlerDeps) {
   return async function handleClientCreated(
     event: IntegrationPayload,
@@ -173,7 +183,7 @@ export function createClientCreatedHandler(deps: ClientCreatedHandlerDeps) {
       providerId,
       currencyId: currency.id,
       kind: "bank",
-      label: data.bankName,
+      label: buildRequisiteLabel(data.bankName, data.account),
       description: null,
       beneficiaryName: data.orgName,
       institutionName: data.bankName,
