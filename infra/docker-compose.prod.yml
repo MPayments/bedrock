@@ -25,12 +25,13 @@ services:
   # Infrastructure
   # ---------------------------------------------------------------------------
   tigerbeetle:
-    image: ghcr.io/tigerbeetle/tigerbeetle
+    build:
+      context: ./tigerbeetle
+      dockerfile: Dockerfile
     container_name: bedrock-tigerbeetle
     restart: unless-stopped
     volumes:
       - tigerbeetle-data:/data
-    command: "start --addresses=0.0.0.0:3000 /data/0_0.tigerbeetle"
     security_opt:
       - seccomp=unconfined
     cap_add:
@@ -102,6 +103,8 @@ services:
       BETTER_AUTH_URL: ${BETTER_AUTH_URL}
       BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS}
       NODE_ENV: production
+    security_opt:
+      - seccomp=unconfined
     networks:
       - dokploy-network
     restart: unless-stopped
@@ -123,13 +126,13 @@ services:
     restart: unless-stopped
     expose:
       - "3000"
-    labels:
-      - "traefik.enable=true"
+    labels:                                                                                                                                                                
+      - "traefik.enable=true"                                 
       - "traefik.docker.network=dokploy-network"
-      - "traefik.http.routers.bedrock-web.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.bedrock-web.priority=1"
-      - "traefik.http.routers.bedrock-web.entrypoints=web"
-      - "traefik.http.services.bedrock-web.loadbalancer.server.port=3000"
+      - "traefik.http.routers.bedrock-web.rule=Host(`finance.multihansa.com`) || PathPrefix(`/`)"                                                                                     
+      - "traefik.http.routers.bedrock-web.priority=1"                                                                                                                      
+      - "traefik.http.routers.bedrock-web.entrypoints=web,websecure"                                                                                                                 
+      - "traefik.http.services.bedrock-web.loadbalancer.server.port=3000" 
 
   workers:
     build:
@@ -157,6 +160,8 @@ services:
       BALANCES_WORKER_INTERVAL_MS: ${BALANCES_WORKER_INTERVAL_MS:-5000}
       FX_RATES_WORKER_INTERVAL_MS: ${FX_RATES_WORKER_INTERVAL_MS:-60000}
       NODE_ENV: production
+    security_opt:
+      - seccomp=unconfined
     networks:
       - dokploy-network
     restart: unless-stopped

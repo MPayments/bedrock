@@ -20,13 +20,11 @@ services:
       retries: 5
 
   tigerbeetle:
-    image: ghcr.io/tigerbeetle/tigerbeetle
+    build:
+      context: ./tigerbeetle
+      dockerfile: Dockerfile
+    container_name: bedrock-tigerbeetle
     restart: unless-stopped
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./data:/data
-    command: "start --addresses=0.0.0.0:3000 /data/0_0.tigerbeetle"
     security_opt:
       - seccomp=unconfined
     cap_add:
@@ -89,12 +87,14 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      TB_ADDRESS: tigerbeetle:3000
+      TB_ADDRESS: bedrock-tigerbeetle:3000
       TB_CLUSTER_ID: ${TB_CLUSTER_ID:-0}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL}
       BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS}
       NODE_ENV: production
+    security_opt:
+      - seccomp=unconfined
 
   web:
     build:
@@ -129,7 +129,7 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      TB_ADDRESS: tigerbeetle:3000
+      TB_ADDRESS: bedrock-tigerbeetle:3000
       TB_CLUSTER_ID: ${TB_CLUSTER_ID:-0}
       WORKERS_MONITORING_HOST: "0.0.0.0"
       WORKERS_MONITORING_PORT: 8081
@@ -139,3 +139,5 @@ services:
       BALANCES_WORKER_INTERVAL_MS: ${BALANCES_WORKER_INTERVAL_MS:-5000}
       FX_RATES_WORKER_INTERVAL_MS: ${FX_RATES_WORKER_INTERVAL_MS:-60000}
       NODE_ENV: production
+    security_opt:
+      - seccomp=unconfined

@@ -17,8 +17,10 @@ import type { RequisitesService } from "@bedrock/requisites";
 import type { UsersService } from "@bedrock/users";
 import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
 import type { DocumentPostingWorkflow } from "@bedrock/workflow-document-posting";
+import type { IntegrationEventHandler } from "@bedrock/workflow-integration-mpayments";
 import type { OrganizationBootstrapWorkflow } from "@bedrock/workflow-organization-bootstrap";
 import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-accounting";
+
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";
 
@@ -27,10 +29,16 @@ const EnvSchema = z.object({
   TB_ADDRESS: z.string().min(1, "TB_ADDRESS is required"),
   TB_CLUSTER_ID: z.coerce.number().int().nonnegative(),
   BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
-  BETTER_AUTH_URL: z.string().url("BETTER_AUTH_URL must be a valid URL"),
+  BETTER_AUTH_URL: z.url("BETTER_AUTH_URL must be a valid URL"),
   BETTER_AUTH_TRUSTED_ORIGINS: z
     .string()
     .min(1, "BETTER_AUTH_TRUSTED_ORIGINS is required"),
+  MPAYMENTS_INTEGRATION_ENABLED: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
+  MPAYMENTS_INTEGRATION_USERNAME: z.string().optional(),
+  MPAYMENTS_INTEGRATION_PASSWORD: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -43,6 +51,9 @@ export function parseEnv(): Env {
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS,
+    MPAYMENTS_INTEGRATION_ENABLED: process.env.MPAYMENTS_INTEGRATION_ENABLED,
+    MPAYMENTS_INTEGRATION_USERNAME: process.env.MPAYMENTS_INTEGRATION_USERNAME,
+    MPAYMENTS_INTEGRATION_PASSWORD: process.env.MPAYMENTS_INTEGRATION_PASSWORD,
   });
 
   if (!result.success) {
@@ -74,11 +85,16 @@ export interface AppContext {
   documentsService: DocumentsService;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
+  integrationEventHandler: IntegrationEventHandler | null;
 }
 
 export function createAppContext(env: Env): AppContext {
   const core = createCoreServices();
   const applicationServices = createApplicationServices(core);
+
+  const integrationEventHandler = env.MPAYMENTS_INTEGRATION_ENABLED
+    ? applicationServices.integrationEventHandler
+    : null;
 
   return {
     env,
@@ -101,5 +117,6 @@ export function createAppContext(env: Env): AppContext {
     documentsService: applicationServices.documentsService,
     documentDraftWorkflow: applicationServices.documentDraftWorkflow,
     documentPostingWorkflow: applicationServices.documentPostingWorkflow,
+    integrationEventHandler,
   };
 }

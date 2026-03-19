@@ -1,3 +1,4 @@
+import { lookup } from "node:dns/promises";
 import {
   createClient,
   TransferFlags,
@@ -15,8 +16,20 @@ export { TransferFlags, AccountFlags, CreateAccountError, CreateTransferError };
 
 export const TB_AMOUNT_MAX = (1n << 128n) - 1n;
 
-export function createTbClient(clusterId: bigint, address: string) {
-  return createClient({ cluster_id: clusterId, replica_addresses: [address] });
+async function resolveAddress(address: string): Promise<string> {
+  const [host, port] = address.split(":");
+  if (!host || !port) return address;
+
+  // Already an IP — no resolution needed
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) return address;
+
+  const { address: ip } = await lookup(host);
+  return `${ip}:${port}`;
+}
+
+export async function createTbClient(clusterId: bigint, address: string) {
+  const resolved = await resolveAddress(address);
+  return createClient({ cluster_id: clusterId, replica_addresses: [resolved] });
 }
 
 export function makeTbAccount(

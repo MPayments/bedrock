@@ -67,6 +67,10 @@ import {
   type DocumentPostingWorkflow,
 } from "@bedrock/workflow-document-posting";
 import {
+  createIntegrationEventHandler,
+  type IntegrationEventHandler,
+} from "@bedrock/workflow-integration-mpayments";
+import {
   createOrganizationBootstrapWorkflow,
   type OrganizationBootstrapWorkflow,
 } from "@bedrock/workflow-organization-bootstrap";
@@ -97,6 +101,7 @@ export interface ApiApplicationServices {
   documentsService: DocumentsService;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
+  integrationEventHandler: IntegrationEventHandler;
 }
 
 const DEFAULT_DOCUMENT_APPROVAL_RULES: DocumentApprovalRule[] = [
@@ -465,6 +470,18 @@ export function createApplicationServices(
     createDocumentsService: createDocumentsServiceForTransaction,
   });
 
+  const integrationEventHandler = createIntegrationEventHandler({
+    createCustomer: partiesService.customers.create,
+    listCustomers: partiesService.customers.list,
+    createCounterparty: partiesService.counterparties.create,
+    listCounterparties: partiesService.counterparties.list,
+    createRequisite: requisitesCoreService.create,
+    listProviders: requisitesCoreService.providers.list,
+    createProvider: requisitesCoreService.providers.create,
+    findCurrencyByCode: currenciesService.findByCode,
+    logger,
+  });
+
   return {
     accountingReportsService,
     accountingPeriodsService,
@@ -479,5 +496,6 @@ export function createApplicationServices(
     documentsService,
     documentDraftWorkflow,
     documentPostingWorkflow,
+    integrationEventHandler,
   };
 }
