@@ -6,7 +6,7 @@ import {
 
 import { parseDecimalToFraction } from "@bedrock/shared/money/math";
 
-import { RateSourceSyncError } from "./errors";
+import { getRootCauseMessage, RateSourceSyncError } from "./errors";
 import {
   type FxRateSourceFetchResult,
   type FxRateSourceProvider,
@@ -240,9 +240,14 @@ async function fetchPairRateWithRetry(input: {
     }
   }
 
+  const rootCause =
+    getRootCauseMessage(lastError) ??
+    (lastError instanceof Error ? lastError.message : undefined);
+  const detail = rootCause ? `: ${rootCause}` : "";
+
   throw new RateSourceSyncError(
     "xe",
-    `all retries failed for pair ${input.mapping.base}/${input.mapping.quote}`,
+    `all retries failed for pair ${input.mapping.base}/${input.mapping.quote}${detail}`,
     lastError,
   );
 }
@@ -274,9 +279,11 @@ async function fetchPairRate(input: {
   }
 
   if (response.status < 200 || response.status >= 300) {
+    const body = response.status === 0 ? await response.getText() : undefined;
+    const bodySuffix = body?.trim() ? ` (${body.trim().slice(0, 200)})` : "";
     throw new RateSourceSyncError(
       "xe",
-      `HTTP ${response.status} for pair ${pairKey}`,
+      `HTTP ${response.status} for pair ${pairKey}${bodySuffix}`,
     );
   }
 

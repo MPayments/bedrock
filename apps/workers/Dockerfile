@@ -34,7 +34,9 @@ RUN cd apps/workers && node build.mjs
 # --- Runner ---
 FROM base AS runner
 
-RUN groupadd --gid 1001 bedrock && \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd --gid 1001 bedrock && \
     useradd --uid 1001 --gid bedrock --shell /bin/sh --create-home bedrock
 
 WORKDIR /app
