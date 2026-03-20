@@ -7,7 +7,7 @@ await esbuild.build({
   target: "node24",
   format: "esm",
   outfile: "dist/server.mjs",
-  external: ["tigerbeetle-node"],
+  external: ["tigerbeetle-node", "tlsclientwrapper"],
   banner: {
     js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
   },

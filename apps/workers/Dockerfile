@@ -39,8 +39,8 @@ ENV NODE_ENV=production
 # Copy only the esbuild bundle
 COPY --from=builder /repo/apps/workers/dist/server.mjs ./server.mjs
 
-# Install native external dependency (not bundled by esbuild)
-RUN npm install --no-save tigerbeetle-node@0.16.72
+# Install native/unbundleable external dependencies
+RUN npm install --no-save tigerbeetle-node tlsclientwrapper
 
 USER bedrock
 
