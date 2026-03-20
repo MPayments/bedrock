@@ -51,9 +51,14 @@ export function createFxRatesWorkerDefinition(deps: {
         });
         processed++;
       } catch (error) {
+        const cause =
+          error instanceof Error && error.cause instanceof Error
+            ? error.cause.message
+            : undefined;
         logger?.error("FX source sync failed", {
           source: status.source,
           error: error instanceof Error ? error.message : String(error),
+          cause,
         });
       }
     }

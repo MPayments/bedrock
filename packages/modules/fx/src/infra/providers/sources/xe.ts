@@ -107,6 +107,7 @@ export function createXeRateSourceProvider(
     const rates: FxRateSourceFetchResult["rates"] = [];
     let latestPublishedAt: Date | undefined;
     let lastError: unknown;
+    const pairErrors: string[] = [];
 
     try {
       for (const mapping of pairMappings) {
@@ -143,13 +144,16 @@ export function createXeRateSourceProvider(
           });
         } catch (error) {
           lastError = error;
+          pairErrors.push(
+            `${mapping.base}/${mapping.quote}: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
       }
 
       if (latestPublishedAt === undefined) {
         throw new RateSourceSyncError(
           "xe",
-          "provider returned no parseable rates",
+          `provider returned no parseable rates (${pairErrors.join("; ")})`,
           lastError,
         );
       }
