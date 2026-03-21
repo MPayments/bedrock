@@ -1,16 +1,13 @@
 import { inArray, sql } from "drizzle-orm";
 
 import type { Database } from "@bedrock/platform/persistence";
+import { dedupeStrings as dedupeIds } from "@bedrock/shared/core/domain";
 
 import {
   counterpartyGroupMemberships,
   counterpartyGroups,
   counterparties,
 } from "./schema";
-
-function dedupeIds(ids: readonly string[]): string[] {
-  return Array.from(new Set(ids));
-}
 
 export class DrizzleCounterpartiesQueries {
   constructor(private readonly db: Database) {}

@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
+import { dedupeStrings as dedupeIds } from "@bedrock/shared/core/domain";
 import type { PaginatedList } from "@bedrock/shared/core/pagination";
 import {
   resolveSortOrder,
@@ -16,10 +17,6 @@ import {
 import type { Counterparty } from "../../application/contracts/counterparty.dto";
 import type { ListCounterpartiesQuery } from "../../application/contracts/counterparty.queries";
 import type { CounterpartyReads } from "../../application/ports/counterparty.reads";
-
-function dedupeIds(ids: readonly string[]): string[] {
-  return Array.from(new Set(ids));
-}
 
 const COUNTERPARTY_SORT_COLUMN_MAP = {
   shortName: counterparties.shortName,

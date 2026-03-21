@@ -1,4 +1,8 @@
-import { AggregateRoot, invariant } from "@bedrock/shared/core/domain";
+import {
+  AggregateRoot,
+  dedupeStrings as dedupeIds,
+  invariant,
+} from "@bedrock/shared/core/domain";
 
 import type { GroupHierarchy } from "../../shared/domain/group-hierarchy";
 import {
@@ -7,10 +11,6 @@ import {
   type CountryCode,
   type PartyKind,
 } from "../../shared/domain/party-kind";
-
-function dedupeIds(ids: readonly string[]): string[] {
-  return Array.from(new Set(ids));
-}
 
 function normalizeOptionalText(
   value: string | null | undefined,

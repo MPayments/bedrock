@@ -4,6 +4,7 @@ import {
   AggregateRoot,
   brandId,
   dedupeIds,
+  dedupeStrings,
   DomainError,
   Entity,
   invariant,
@@ -102,6 +103,15 @@ describe("shared core domain primitives", () => {
 
   it("deduplicates ids and drops empty values", () => {
     expect(dedupeIds(["b", "a", "b", "", "a", "c"])).toEqual(["b", "a", "c"]);
+  });
+
+  it("deduplicates strings without trimming or dropping values", () => {
+    expect(dedupeStrings(["b", " a ", "b", "", " a ", "c"])).toEqual([
+      "b",
+      " a ",
+      "",
+      "c",
+    ]);
   });
 
   it("reads string values from domain error causes", () => {

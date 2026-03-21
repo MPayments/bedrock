@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, ilike, inArray, sql, type SQL } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
+import { dedupeStrings as dedupeIds } from "@bedrock/shared/core/domain";
 import {
   resolveSortOrder,
   resolveSortValue,
@@ -10,10 +11,6 @@ import {
 import { schema } from "./schema";
 import type { Customer } from "../../application/contracts/dto";
 import type { CustomerReads } from "../../application/ports/customer.reads";
-
-function dedupeIds(ids: readonly string[]): string[] {
-  return Array.from(new Set(ids));
-}
 
 const CUSTOMER_SORT_COLUMN_MAP = {
   displayName: schema.customers.displayName,

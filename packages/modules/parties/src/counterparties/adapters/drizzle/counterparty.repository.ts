@@ -1,14 +1,11 @@
 import { asc, eq, inArray, sql } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
+import { dedupeStrings as dedupeIds } from "@bedrock/shared/core/domain";
 
 import { counterpartyGroupMemberships, counterparties } from "./schema";
 import type { CounterpartyRepository } from "../../application/ports/counterparty.repository";
 import { Counterparty, type CounterpartySnapshot } from "../../domain/counterparty";
-
-function dedupeIds(ids: readonly string[]): string[] {
-  return Array.from(new Set(ids));
-}
 
 type CounterpartyRecord = Omit<CounterpartySnapshot, "groupIds">;
 

@@ -1,14 +1,13 @@
-import { invariant } from "@bedrock/shared/core/domain";
+import {
+  dedupeStrings as dedupeIds,
+  invariant,
+} from "@bedrock/shared/core/domain";
 
 export interface GroupHierarchyNodeSnapshot {
   id: string;
   code: string;
   parentId: string | null;
   customerId: string | null;
-}
-
-function dedupeIds(ids: readonly string[]): string[] {
-  return Array.from(new Set(ids));
 }
 
 export class GroupMembershipClassification {

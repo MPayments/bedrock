@@ -16,6 +16,7 @@ export {
   AggregateRoot,
   brandId,
   dedupeIds,
+  dedupeStrings,
   DomainError,
   Entity,
   invariant,
