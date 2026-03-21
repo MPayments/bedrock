@@ -1,9 +1,12 @@
 import { sql } from "drizzle-orm";
 import { pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
+import { schema as ledgerSchema } from "@bedrock/ledger/schema";
 import { COUNTRY_ALPHA2_CODES } from "@bedrock/shared/reference-data/countries/contracts";
 
 import { PARTY_KIND_VALUES } from "../../domain/party-kind";
+
+export const ledgerBooks = ledgerSchema.books;
 
 export const partyKindEnum = pgEnum("party_kind", PARTY_KIND_VALUES);
 

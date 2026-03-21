@@ -1,10 +1,7 @@
 import { inArray } from "drizzle-orm";
 
-import { books } from "@bedrock/ledger/schema";
 import type { Database } from "@bedrock/platform/persistence";
 
-
-import { DrizzleOrganizationReads } from "./organization.reads";
 import {
   OrganizationInternalLedgerInvariantError,
   OrganizationNotFoundError,
@@ -13,6 +10,8 @@ import {
   findOrganizationBookOwnershipViolations,
   type OrganizationLedgerBookRow,
 } from "../../domain/book-ownership";
+import { DrizzleOrganizationReads } from "./organization.reads";
+import { ledgerBooks } from "./schema";
 
 export interface OrganizationsQueries {
   listInternalLedgerOrganizations(): Promise<
@@ -80,11 +79,11 @@ export class DrizzleOrganizationsQueries implements OrganizationsQueries {
 
     const bookRows = await this.db
       .select({
-        id: books.id,
-        ownerId: books.ownerId,
+        id: ledgerBooks.id,
+        ownerId: ledgerBooks.ownerId,
       })
-      .from(books)
-      .where(inArray(books.id, uniqueBookIds));
+      .from(ledgerBooks)
+      .where(inArray(ledgerBooks.id, uniqueBookIds));
     const ownerIds = dedupeIds(
       bookRows.map((book) => book.ownerId).filter(Boolean) as string[],
     );
