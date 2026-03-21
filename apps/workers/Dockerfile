@@ -45,8 +45,10 @@ ENV NODE_ENV=production
 # Copy only the esbuild bundle
 COPY --from=builder /repo/apps/workers/dist/server.mjs ./server.mjs
 
-# Install native/unbundleable external dependencies
-RUN npm install --no-save tigerbeetle-node tlsclientwrapper
+# Install native/unbundleable external dependencies.
+# These must stay pinned to the same versions used by the workspace lockfile and
+# the copied tlsclientwrapper patch, otherwise production builds can drift.
+RUN npm install --no-save tigerbeetle-node@0.16.72 tlsclientwrapper@4.1.2 node-fetch@2.7.0
 
 # Apply bun patch for tlsclientwrapper (npm install does not apply bun patches,
 # patch fixes corrupted-download detection and atomic file writes)
