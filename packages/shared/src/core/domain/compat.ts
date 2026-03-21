@@ -6,18 +6,43 @@ export type Brand<TValue, TBrand extends string> = TValue & {
 
 export function brandId<TBrand extends string>(
   value: string,
+  _brand?: TBrand,
 ): Brand<string, TBrand> {
-  return value as Brand<string, TBrand>;
+  const normalized = value.trim();
+
+  if (normalized.length === 0) {
+    throw new DomainError("Id must not be empty", {
+      code: "id.invalid",
+      meta: { value },
+    });
+  }
+
+  return normalized as Brand<string, TBrand>;
 }
 
 export function dedupeIds(ids: readonly string[]): string[] {
-  return Array.from(new Set(ids));
+  const unique = new Set<string>();
+
+  for (const id of ids) {
+    const normalized = id.trim();
+    if (normalized.length === 0) {
+      continue;
+    }
+
+    unique.add(normalized);
+  }
+
+  return Array.from(unique);
 }
 
 export function trimToNull(
   value: string | null | undefined,
-): string | null {
-  if (value === null || value === undefined) {
+): string | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
     return null;
   }
 
@@ -28,7 +53,7 @@ export function trimToNull(
 export function normalizeOptionalText(
   value: string | null | undefined,
 ): string | null {
-  return trimToNull(value);
+  return trimToNull(value) ?? null;
 }
 
 export function normalizeRequiredText(
@@ -38,10 +63,9 @@ export function normalizeRequiredText(
 ): string {
   const normalized = trimToNull(value);
 
-  if (normalized === null) {
-    throw new DomainError(`${field} is required`, {
-      code,
-      meta: { field },
+  if (normalized == null) {
+    throw new DomainError(code, `${field} is required`, {
+      field,
     });
   }
 
@@ -49,9 +73,25 @@ export function normalizeRequiredText(
 }
 
 export function readCauseString(
-  error: { meta?: Readonly<Record<string, unknown>> | undefined },
+  error: {
+    cause?: unknown;
+    meta?: Readonly<Record<string, unknown>> | undefined;
+  },
   key: string,
-): string | undefined {
-  const value = error.meta?.[key];
-  return typeof value === "string" ? value : undefined;
+): string | null {
+  const metaValue = error.meta?.[key];
+  if (typeof metaValue === "string") {
+    return metaValue;
+  }
+
+  if (
+    typeof error.cause === "object" &&
+    error.cause !== null &&
+    key in error.cause
+  ) {
+    const causeValue = (error.cause as Record<string, unknown>)[key];
+    return typeof causeValue === "string" ? causeValue : null;
+  }
+
+  return null;
 }

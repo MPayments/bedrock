@@ -6,10 +6,6 @@ import type {
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { parseMinorAmountOrZero } from "@bedrock/shared/money";
 
-import type {
-  AccountingCounterpartiesQueryPort,
-  AccountingOrganizationsQueryPort,
-} from "../party-query-ports";
 import type { AccountingReportsDocumentsPort } from "../../../application/reports/ports";
 import type {
   FinancialResultStatus,
@@ -19,6 +15,10 @@ import type {
   ResolvedScope,
   ScopedPosting,
 } from "../../../domain/reports";
+import type {
+  AccountingCounterpartiesQueryPort,
+  AccountingOrganizationsQueryPort,
+} from "../party-query-ports";
 
 export function createReportsScopeHelpers(input: {
   counterpartiesQueries: AccountingCounterpartiesQueryPort;

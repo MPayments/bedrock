@@ -26,6 +26,12 @@ export interface RaiseDomainEventInput<
   readonly eventIdFactory?: (() => string) | undefined;
 }
 
+function isAggregateRootInit<TId, TProps extends object>(
+  value: AggregateRootInit<TId, TProps> | TId,
+): value is AggregateRootInit<TId, TProps> {
+  return typeof value === "object" && value !== null && "id" in value;
+}
+
 export abstract class AggregateRoot<
   TId,
   TProps extends object = Record<string, never>,
@@ -33,7 +39,21 @@ export abstract class AggregateRoot<
   private readonly domainEvents: DomainEvent<string, unknown, unknown>[] = [];
   private _version: Version;
 
-  protected constructor(init: AggregateRootInit<TId, TProps>) {
+  protected constructor(init: AggregateRootInit<TId, TProps>);
+  protected constructor(id: TId, props?: TProps, version?: Version | number);
+  protected constructor(
+    initOrId: AggregateRootInit<TId, TProps> | TId,
+    props?: TProps,
+    version?: Version | number,
+  ) {
+    const init = isAggregateRootInit(initOrId)
+      ? initOrId
+      : {
+          id: initOrId,
+          props: props ?? ({} as TProps),
+          version,
+        };
+
     super(init);
     this._version =
       init.version instanceof Version
@@ -95,6 +115,10 @@ export abstract class AggregateRoot<
     const snapshot = [...this.domainEvents];
     this.domainEvents.length = 0;
     return snapshot;
+  }
+
+  pullEvents(): readonly DomainEvent<string, unknown, unknown>[] {
+    return this.pullDomainEvents();
   }
 
   clearDomainEvents(): void {

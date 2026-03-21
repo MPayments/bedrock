@@ -1,3 +1,3 @@
-import { config } from "../../tooling/eslint-config/backend.js";
+import { config } from "@bedrock/eslint-config/backend";
 
 export default config;

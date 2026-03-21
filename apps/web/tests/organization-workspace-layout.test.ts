@@ -39,7 +39,6 @@ describe("organization workspace layout", () => {
       createElement(OrganizationWorkspaceLayout, {
         title: "Bedrock",
         subtitle: "Карточка организации",
-        children: null,
       }, null),
     );
 
@@ -75,7 +74,6 @@ describe("organization workspace layout", () => {
       createElement(OrganizationWorkspaceLayout, {
         title: "Bedrock",
         subtitle: "Карточка организации",
-        children: null,
       }, null),
     );
 
@@ -111,7 +109,6 @@ describe("organization workspace layout", () => {
       createElement(OrganizationWorkspaceLayout, {
         title: "Bedrock",
         subtitle: "Карточка организации",
-        children: null,
       }, null),
     );
 
