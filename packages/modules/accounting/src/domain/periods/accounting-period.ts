@@ -32,15 +32,20 @@ export class AccountingPeriod extends AggregateRoot<string> {
   private constructor(
     private readonly snapshot: AccountingPeriodSnapshot,
   ) {
-    super(`${snapshot.organizationId}:${snapshot.month.label}`);
+    super({
+      id: `${snapshot.organizationId}:${snapshot.month.label}`,
+      props: {},
+    });
   }
 
   static fromSnapshot(snapshot: AccountingPeriodSnapshot) {
     invariant(
       snapshot.organizationId.trim().length > 0,
-      "accounting_period.organization_required",
       "Accounting period requires organizationId",
-      { organizationId: snapshot.organizationId },
+      {
+        code: "accounting_period.organization_required",
+        meta: { organizationId: snapshot.organizationId },
+      },
     );
 
     return new AccountingPeriod({

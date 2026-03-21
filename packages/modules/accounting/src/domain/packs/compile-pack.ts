@@ -197,12 +197,14 @@ export function compilePack(
   const validation = validatePackDefinition(definition, referenceData);
   if (!validation.ok) {
     throw new DomainError(
-      "accounting_pack.compilation_failed",
       `Accounting pack compilation failed: ${validation.errors.join("; ")}`,
       {
-        errors: validation.errors,
-        packKey: definition.packKey,
-        version: String(definition.version),
+        code: "accounting_pack.compilation_failed",
+        meta: {
+          errors: validation.errors,
+          packKey: definition.packKey,
+          version: String(definition.version),
+        },
       },
     );
   }
@@ -262,13 +264,15 @@ export function hydrateCompiledPack(
 
   if (checksumHint && checksum !== checksumHint) {
     throw new DomainError(
-      "accounting_pack.checksum_mismatch",
       `Compiled pack checksum mismatch for ${packKey}@${version}`,
       {
-        packKey,
-        version: String(version),
-        checksumHint,
-        checksum,
+        code: "accounting_pack.checksum_mismatch",
+        meta: {
+          packKey,
+          version: String(version),
+          checksumHint,
+          checksum,
+        },
       },
     );
   }

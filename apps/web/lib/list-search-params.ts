@@ -51,6 +51,14 @@ type ListFilterParser =
   | ParserWithOptionalDefault<string>
   | ParserWithOptionalDefault<string[]>;
 
+type StringQueryValue<TFilter extends ContractFilter> =
+  TFilter extends {
+    kind: "string";
+    enumValues: readonly [string, ...string[]];
+  }
+    ? TFilter["enumValues"][number]
+    : string;
+
 type QueryFilterValue<TFilter extends ContractFilter> =
   TFilter["kind"] extends "number"
     ? TFilter["cardinality"] extends "multi"
@@ -61,8 +69,8 @@ type QueryFilterValue<TFilter extends ContractFilter> =
         ? boolean[]
         : boolean
       : TFilter["cardinality"] extends "multi"
-        ? string[]
-        : string;
+        ? StringQueryValue<TFilter>[]
+        : StringQueryValue<TFilter>;
 
 type QueryFiltersFromContract<TContract extends ListQueryContractLike> = Partial<{
   [K in keyof TContract["filters"]]: QueryFilterValue<TContract["filters"][K]>;

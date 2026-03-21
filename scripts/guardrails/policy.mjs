@@ -59,10 +59,6 @@ export const SCHEMA_IMPORT_ALLOW_PATTERNS = {
     "^packages/modules/balances/src/infra/",
     "^packages/plugins/[^/]+/src/infra/",
   ],
-  "@bedrock/organizations": [
-    ...COMMON_SCHEMA_ALLOW_PATTERNS,
-    "^apps/api/src/composition/",
-  ],
   "@bedrock/parties": [...COMMON_SCHEMA_ALLOW_PATTERNS],
   "@bedrock/reconciliation": [...COMMON_SCHEMA_ALLOW_PATTERNS],
 };

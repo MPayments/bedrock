@@ -1,7 +1,9 @@
-import type { OrganizationsQueries } from "@bedrock/organizations/queries";
-import type { CounterpartiesQueries } from "@bedrock/parties/queries";
-import type { CustomersQueries } from "@bedrock/parties/queries";
-import type { RequisitesQueries } from "@bedrock/requisites/queries";
+import type {
+  AccountingCounterpartiesQueryPort,
+  AccountingCustomersQueryPort,
+  AccountingOrganizationsQueryPort,
+  AccountingRequisitesQueryPort,
+} from "../party-query-ports";
 
 export type DimensionLabelResolver = (input: {
   values: string[];
@@ -150,10 +152,10 @@ export function createDimensionRegistry(
 }
 
 export function createBedrockDimensionRegistry(input: {
-  counterpartiesQueries: CounterpartiesQueries;
-  customersQueries: CustomersQueries;
-  organizationsQueries: OrganizationsQueries;
-  requisitesQueries: RequisitesQueries;
+  counterpartiesQueries: AccountingCounterpartiesQueryPort;
+  customersQueries: AccountingCustomersQueryPort;
+  organizationsQueries: AccountingOrganizationsQueryPort;
+  requisitesQueries: AccountingRequisitesQueryPort;
   documentsReadModel?: DimensionDocumentsReadModel;
 }): DimensionRegistry {
   const {

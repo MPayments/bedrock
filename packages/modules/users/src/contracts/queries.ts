@@ -5,12 +5,18 @@ import {
   type ListQueryContract,
 } from "@bedrock/shared/core/pagination";
 
+import { USER_ROLE_VALUES } from "../domain/user-role";
+
 const USERS_SORTABLE_COLUMNS = ["name", "email", "role", "createdAt"] as const;
 
 interface UsersListFilters {
   name: { kind: "string"; cardinality: "single" };
   email: { kind: "string"; cardinality: "single" };
-  role: { kind: "string"; cardinality: "multi" };
+  role: {
+    kind: "string";
+    cardinality: "multi";
+    enumValues: typeof USER_ROLE_VALUES;
+  };
   banned: { kind: "boolean"; cardinality: "single" };
 }
 
@@ -23,7 +29,11 @@ export const USERS_LIST_CONTRACT: ListQueryContract<
   filters: {
     name: { kind: "string", cardinality: "single" },
     email: { kind: "string", cardinality: "single" },
-    role: { kind: "string", cardinality: "multi" },
+    role: {
+      kind: "string",
+      cardinality: "multi",
+      enumValues: USER_ROLE_VALUES,
+    },
     banned: { kind: "boolean", cardinality: "single" },
   },
 };

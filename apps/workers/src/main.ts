@@ -2,10 +2,7 @@ import "./env";
 
 import { createCurrenciesService } from "@bedrock/currencies";
 import { createTbClient } from "@bedrock/ledger/worker";
-import { createPartiesService } from "@bedrock/parties";
 import { createConsoleLogger } from "@bedrock/platform/observability/logger";
-import { createPersistenceContext } from "@bedrock/platform/persistence";
-import { createRequisitesService } from "@bedrock/requisites";
 import {
   createWorkerFleet,
   startWorkerFleet,
@@ -18,7 +15,11 @@ import { db } from "./db/client";
 import { env } from "./env";
 import { createIntegrationConsumer } from "./modules/integration-consumer";
 import { createWorkerImplementations } from "./modules/registry";
-import { createWorkerMonitoringRegistry, startWorkerMonitoringServer } from "./monitoring";
+import {
+  createWorkerMonitoringRegistry,
+  startWorkerMonitoringServer,
+} from "./monitoring";
+import { createWorkerPartiesModule } from "./parties-module";
 import { parseSelectedWorkerIds } from "./selection";
 
 const logger = createConsoleLogger({ app: "bedrock-workers" });
@@ -60,14 +61,6 @@ const fleet = startWorkerFleet({
 let integrationConsumer: { close(): Promise<void> } | null = null;
 
 if (env.MPAYMENTS_INTEGRATION_ENABLED) {
-  const persistence = createPersistenceContext(db);
-
-  const partiesService = createPartiesService({
-    persistence,
-    documents: { hasDocumentsForCustomer: async () => false },
-    logger,
-  });
-
   const currenciesService = createCurrenciesService({ db, logger });
   const currenciesPort = {
     async assertCurrencyExists(id: string) {
@@ -83,30 +76,21 @@ if (env.MPAYMENTS_INTEGRATION_ENABLED) {
       return new Map(rows);
     },
   };
-  const requisiteOwners = {
-    async assertOrganizationExists(_organizationId: string) {
-      // Workers don't have organizations service — not needed for counterparty requisites
-      throw new Error("Organization validation not available in workers context");
-    },
-    async assertCounterpartyExists(counterpartyId: string) {
-      await partiesService.counterparties.findById(counterpartyId);
-    },
-  };
-  const requisitesService = createRequisitesService({
-    persistence,
-    logger,
+  const partiesModule = createWorkerPartiesModule({
+    db,
+    documents: { hasDocumentsForCustomer: async () => false },
     currencies: currenciesPort,
-    owners: requisiteOwners,
+    logger,
   });
 
   const integrationHandler = createIntegrationEventHandler({
-    createCustomer: partiesService.customers.create,
-    listCustomers: partiesService.customers.list,
-    createCounterparty: partiesService.counterparties.create,
-    listCounterparties: partiesService.counterparties.list,
-    createRequisite: requisitesService.create,
-    listProviders: requisitesService.providers.list,
-    createProvider: requisitesService.providers.create,
+    createCustomer: partiesModule.customers.commands.create,
+    listCustomers: partiesModule.customers.queries.list,
+    createCounterparty: partiesModule.counterparties.commands.create,
+    listCounterparties: partiesModule.counterparties.queries.list,
+    createRequisite: partiesModule.requisites.commands.create,
+    listProviders: partiesModule.requisites.queries.listProviders,
+    createProvider: partiesModule.requisites.commands.createProvider,
     findCurrencyByCode: currenciesService.findByCode,
     logger,
   });

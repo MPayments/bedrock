@@ -43,9 +43,11 @@ export class CountryCodeValue extends ValueObject<{ value: string }> {
 
     invariant(
       COUNTRY_ALPHA2_SET.has(normalized),
-      "country.invalid",
       `country must be a valid ISO 3166-1 alpha-2 code: ${value}`,
-      { value },
+      {
+        code: "country.invalid",
+        meta: { value },
+      },
     );
 
     return new CountryCodeValue(normalized);

@@ -1,27 +1,38 @@
+import { randomUUID } from "node:crypto";
+
 import { ACCOUNT_NO } from "@bedrock/accounting/constants";
 import type {
   LedgerBookAccountsService,
   LedgerBooksService,
 } from "@bedrock/ledger";
-import type { Logger } from "@bedrock/platform/observability/logger";
 import {
-  bindPersistenceSession,
-  type Database,
-  type Transaction,
-} from "@bedrock/platform/persistence";
-import {
-  createRequisitesService,
+  createPartiesModule,
   RequisiteAccountingBindingOwnerTypeError,
   RequisiteNotFoundError,
-  type RequisitesServiceDeps,
-} from "@bedrock/requisites";
+  type PartiesModuleDeps,
+} from "@bedrock/parties";
+import {
+  DrizzleCounterpartyGroupReads,
+  DrizzleCounterpartyReads,
+  DrizzleCustomerReads,
+  DrizzleOrganizationReads,
+  DrizzlePartyRegistryUnitOfWork,
+  DrizzleRequisiteBindingReads,
+  DrizzleRequisiteProviderReads,
+  DrizzleRequisiteReads,
+} from "@bedrock/parties/adapters/drizzle";
 import type {
   CreateRequisiteInput,
   Requisite,
   RequisiteAccountingBinding,
   UpdateRequisiteInput,
-} from "@bedrock/requisites/contracts";
-import { createRequisitesQueries } from "@bedrock/requisites/queries";
+} from "@bedrock/parties/contracts";
+import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
+import {
+  bindPersistenceSession,
+  type Database,
+  type Transaction,
+} from "@bedrock/platform/persistence";
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
 export interface RequisiteAccountingWorkflowDeps {
@@ -31,10 +42,9 @@ export interface RequisiteAccountingWorkflowDeps {
     LedgerBookAccountsService,
     "ensureBookAccountInstance"
   >;
-  currencies: RequisitesServiceDeps["currencies"];
-  owners: RequisitesServiceDeps["owners"];
+  currencies: PartiesModuleDeps["currencies"];
   logger?: Logger;
-  now?: RequisitesServiceDeps["now"];
+  now?: PartiesModuleDeps["now"];
 }
 
 export interface RequisiteAccountingWorkflow {
@@ -44,6 +54,33 @@ export interface RequisiteAccountingWorkflow {
     requisiteId: string,
     input: { postingAccountNo?: string },
   ): Promise<RequisiteAccountingBinding>;
+}
+
+function createWorkflowPartiesModule(input: {
+  tx: Transaction;
+  currencies: PartiesModuleDeps["currencies"];
+  logger?: Logger;
+  now?: PartiesModuleDeps["now"];
+}) {
+  return createPartiesModule({
+    logger: input.logger ?? noopLogger,
+    now: input.now ?? (() => new Date()),
+    generateUuid: randomUUID,
+    documents: {
+      hasDocumentsForCustomer: async () => false,
+    },
+    currencies: input.currencies,
+    customerReads: new DrizzleCustomerReads(input.tx),
+    counterpartyReads: new DrizzleCounterpartyReads(input.tx),
+    counterpartyGroupReads: new DrizzleCounterpartyGroupReads(input.tx),
+    organizationReads: new DrizzleOrganizationReads(input.tx),
+    requisiteReads: new DrizzleRequisiteReads(input.tx),
+    requisiteProviderReads: new DrizzleRequisiteProviderReads(input.tx),
+    requisiteBindingReads: new DrizzleRequisiteBindingReads(input.tx),
+    unitOfWork: new DrizzlePartyRegistryUnitOfWork({
+      persistence: bindPersistenceSession(input.tx),
+    }),
+  });
 }
 
 async function resolveCurrencyCode(
@@ -87,31 +124,24 @@ export function createRequisiteAccountingWorkflow(
       },
     );
 
-    const requisites = createRequisitesService({
-      persistence: bindPersistenceSession(input.tx),
+    const partiesModule = createWorkflowPartiesModule({
+      tx: input.tx,
+      currencies: deps.currencies,
       logger: deps.logger,
       now: deps.now,
-      currencies: deps.currencies,
-      owners: deps.owners,
     });
 
-    await requisites.bindings.upsert({
+    return partiesModule.requisites.commands.upsertBinding({
       requisiteId: input.requisiteId,
       bookId,
       bookAccountInstanceId: bookAccount.id,
       postingAccountNo,
     });
-
-    return requisites.bindings.get(input.requisiteId);
   }
 
   async function syncOrganizationBindingForRequisiteTx(input: {
     tx: Transaction;
-    requisite: Awaited<
-      ReturnType<
-        ReturnType<typeof createRequisitesService>["findById"]
-      >
-    >;
+    requisite: Requisite;
     postingAccountNo?: string;
   }) {
     if (input.requisite.ownerType !== "organization") {
@@ -135,14 +165,13 @@ export function createRequisiteAccountingWorkflow(
   return {
     async create(input) {
       return deps.db.transaction(async (tx) => {
-        const requisites = createRequisitesService({
-          persistence: bindPersistenceSession(tx),
+        const partiesModule = createWorkflowPartiesModule({
+          tx,
+          currencies: deps.currencies,
           logger: deps.logger,
           now: deps.now,
-          currencies: deps.currencies,
-          owners: deps.owners,
         });
-        const requisite = await requisites.create(input);
+        const requisite = await partiesModule.requisites.commands.create(input);
 
         await syncOrganizationBindingForRequisiteTx({
           tx,
@@ -154,14 +183,16 @@ export function createRequisiteAccountingWorkflow(
     },
     async update(id, input) {
       return deps.db.transaction(async (tx) => {
-        const requisites = createRequisitesService({
-          persistence: bindPersistenceSession(tx),
+        const partiesModule = createWorkflowPartiesModule({
+          tx,
+          currencies: deps.currencies,
           logger: deps.logger,
           now: deps.now,
-          currencies: deps.currencies,
-          owners: deps.owners,
         });
-        const requisite = await requisites.update(id, input);
+        const requisite = await partiesModule.requisites.commands.update(
+          id,
+          input,
+        );
 
         await syncOrganizationBindingForRequisiteTx({
           tx,
@@ -176,23 +207,33 @@ export function createRequisiteAccountingWorkflow(
       input: { postingAccountNo?: string },
     ) {
       return deps.db.transaction(async (tx) => {
-        const subject = await createRequisitesQueries({
-          db: tx,
-        }).findSubjectById(requisiteId);
+        const partiesModule = createWorkflowPartiesModule({
+          tx,
+          currencies: deps.currencies,
+          logger: deps.logger,
+          now: deps.now,
+        });
+        const requisite =
+          await partiesModule.requisites.queries.findById(requisiteId);
 
-        if (!subject) {
+        if (!requisite) {
           throw new RequisiteNotFoundError(requisiteId);
         }
 
-        if (subject.ownerType !== "organization" || !subject.organizationId) {
+        if (requisite.ownerType !== "organization") {
           throw new RequisiteAccountingBindingOwnerTypeError(requisiteId);
         }
+
+        const currencyCode = await resolveCurrencyCode(
+          { currencies: deps.currencies },
+          requisite.currencyId,
+        );
 
         return upsertOrganizationBindingTx({
           tx,
           requisiteId,
-          organizationId: subject.organizationId,
-          currencyCode: subject.currencyCode,
+          organizationId: requisite.ownerId,
+          currencyCode,
           postingAccountNo: input.postingAccountNo,
         });
       });

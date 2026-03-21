@@ -13,7 +13,6 @@ import {
   type LedgerService,
   type LedgerReadService,
 } from "@bedrock/ledger";
-import { createOrganizationsQueries } from "@bedrock/organizations/queries";
 import { createBetterAuthPasswordHasher } from "@bedrock/platform/auth-betterauth";
 import { createDrizzleAuthIdentityStore } from "@bedrock/platform/auth-model/infra/drizzle";
 import {
@@ -27,6 +26,7 @@ import {
 import { createPersistenceContext } from "@bedrock/platform/persistence";
 import { createUsersService, type UsersService } from "@bedrock/users";
 
+import { createApiPartiesReadRuntime } from "./parties-module";
 import { db } from "../db/client";
 
 export interface ApiCoreServices {
@@ -40,7 +40,7 @@ export interface ApiCoreServices {
 }
 
 function createApiAccountingService(): AccountingService {
-  const organizationsQueries = createOrganizationsQueries({ db });
+  const { organizationsQueries } = createApiPartiesReadRuntime(db);
   const packsService = createAccountingPacksService({
     db,
     defaultPackDefinition: rawPackDefinition,
@@ -61,7 +61,7 @@ export function createCoreServices(): ApiCoreServices {
   const authStore = createDrizzleAuthIdentityStore({ db });
   const passwordHasher = createBetterAuthPasswordHasher();
   const accountingService = createApiAccountingService();
-  const organizationsQueries = createOrganizationsQueries({ db });
+  const { organizationsQueries } = createApiPartiesReadRuntime(db);
   const ledger = createLedgerService({
     db,
     assertInternalLedgerBooks: async ({ bookIds }) =>

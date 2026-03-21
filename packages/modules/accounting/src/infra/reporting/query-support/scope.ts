@@ -3,11 +3,13 @@ import type {
   AccountingScopedPostingRow,
   LedgerQueries,
 } from "@bedrock/ledger/queries";
-import type { OrganizationsQueries } from "@bedrock/organizations/queries";
-import type { CounterpartiesQueries } from "@bedrock/parties/queries";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { parseMinorAmountOrZero } from "@bedrock/shared/money";
 
+import type {
+  AccountingCounterpartiesQueryPort,
+  AccountingOrganizationsQueryPort,
+} from "../party-query-ports";
 import type { AccountingReportsDocumentsPort } from "../../../application/reports/ports";
 import type {
   FinancialResultStatus,
@@ -19,10 +21,10 @@ import type {
 } from "../../../domain/reports";
 
 export function createReportsScopeHelpers(input: {
-  counterpartiesQueries: CounterpartiesQueries;
+  counterpartiesQueries: AccountingCounterpartiesQueryPort;
   documentsPort: AccountingReportsDocumentsPort;
   ledgerQueries: LedgerQueries;
-  organizationsQueries: OrganizationsQueries;
+  organizationsQueries: AccountingOrganizationsQueryPort;
 }) {
   const {
     counterpartiesQueries,

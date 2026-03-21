@@ -27,7 +27,7 @@ export interface FxQuoteSnapshot {
 
 export class FxQuote extends AggregateRoot<string> {
   private constructor(private readonly snapshot: FxQuoteSnapshot) {
-    super(snapshot.id);
+    super({ id: snapshot.id, props: {} });
   }
 
   static fromSnapshot(snapshot: FxQuoteSnapshot): FxQuote {
@@ -43,8 +43,9 @@ export class FxQuote extends AggregateRoot<string> {
     }
 
     if (this.snapshot.expiresAt.getTime() < input.at.getTime()) {
-      throw new DomainError("fx.quote.expired", "quote expired", {
-        quoteId: this.snapshot.id,
+      throw new DomainError("quote expired", {
+        code: "fx.quote.expired",
+        meta: { quoteId: this.snapshot.id },
       });
     }
 

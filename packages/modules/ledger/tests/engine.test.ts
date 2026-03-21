@@ -2,10 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { schema } from "@bedrock/ledger/schema";
 
-vi.mock("@bedrock/organizations", () => ({
-  assertBooksBelongToInternalLedgerOrganizations: vi.fn(async () => undefined),
-}));
-
 import {
   createSmartStubDb,
   createTestEntry,

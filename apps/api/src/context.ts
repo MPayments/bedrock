@@ -10,10 +10,8 @@ import type { DocumentsService } from "@bedrock/documents";
 import type { FeesService } from "@bedrock/fees";
 import type { FxService } from "@bedrock/fx";
 import type { LedgerReadService } from "@bedrock/ledger";
-import type { OrganizationsService } from "@bedrock/organizations";
-import type { PartiesService } from "@bedrock/parties";
+import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { RequisitesService } from "@bedrock/requisites";
 import type { UsersService } from "@bedrock/users";
 import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
 import type { DocumentPostingWorkflow } from "@bedrock/workflow-document-posting";
@@ -71,13 +69,11 @@ export interface AppContext {
   logger: Logger;
   accountingService: AccountingService;
   accountingReportsService: AccountingReportsService;
-  partiesService: PartiesService;
+  partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
-  organizationsService: OrganizationsService;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
-  requisitesService: RequisitesService;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   usersService: UsersService;
   ledgerReadService: LedgerReadService;
@@ -103,14 +99,12 @@ export function createAppContext(env: Env): AppContext {
     ledgerReadService: core.ledgerReadService,
     balancesService: core.balancesService,
     accountingReportsService: applicationServices.accountingReportsService,
-    partiesService: applicationServices.partiesService,
+    partiesModule: applicationServices.partiesModule,
     currenciesService: applicationServices.currenciesService,
     feesService: applicationServices.feesService,
     fxService: applicationServices.fxService,
-    organizationsService: applicationServices.organizationsService,
     organizationBootstrapWorkflow:
       applicationServices.organizationBootstrapWorkflow,
-    requisitesService: applicationServices.requisitesService,
     requisiteAccountingWorkflow:
       applicationServices.requisiteAccountingWorkflow,
     usersService: core.usersService,

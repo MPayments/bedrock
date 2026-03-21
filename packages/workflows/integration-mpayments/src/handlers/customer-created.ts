@@ -1,4 +1,4 @@
-import type { PartiesService } from "@bedrock/parties";
+import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
 
 import {
@@ -7,8 +7,8 @@ import {
 } from "../contracts";
 
 export interface CustomerCreatedHandlerDeps {
-  createCustomer: PartiesService["customers"]["create"];
-  listCustomers: PartiesService["customers"]["list"];
+  createCustomer: PartiesModule["customers"]["commands"]["create"];
+  listCustomers: PartiesModule["customers"]["queries"]["list"];
   logger: Logger;
 }
 

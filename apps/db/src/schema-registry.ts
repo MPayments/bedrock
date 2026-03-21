@@ -5,12 +5,17 @@ import { schema as documentsSchema } from "@bedrock/documents/schema";
 import { schema as feesSchema } from "@bedrock/fees/schema";
 import { schema as fxSchema } from "@bedrock/fx/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
-import { schema as organizationsSchema } from "@bedrock/organizations/schema";
 import {
   counterparties,
   counterpartyGroupMemberships,
   counterpartyGroups,
   customers,
+  organizations,
+  organizationRequisiteBindings,
+  requisiteKindEnum,
+  requisiteOwnerTypeEnum,
+  requisiteProviders,
+  requisites,
 } from "@bedrock/parties/schema";
 import {
   account,
@@ -25,7 +30,6 @@ import {
 } from "@bedrock/platform/auth-model/schema";
 import { schema as idempotencySchema } from "@bedrock/platform/idempotency-postgres/schema";
 import { schema as reconciliationSchema } from "@bedrock/reconciliation/schema";
-import { schema as requisitesSchema } from "@bedrock/requisites/schema";
 
 const authSchema = {
   user,
@@ -43,6 +47,12 @@ const partiesSchema = {
   counterparties,
   counterpartyGroups,
   counterpartyGroupMemberships,
+  organizations,
+  requisiteOwnerTypeEnum,
+  requisiteKindEnum,
+  requisiteProviders,
+  requisites,
+  organizationRequisiteBindings,
 };
 
 export type Schema =
@@ -55,9 +65,7 @@ export type Schema =
   & typeof fxSchema
   & typeof feesSchema
   & typeof currenciesSchema
-  & typeof organizationsSchema
   & typeof balancesSchema
-  & typeof requisitesSchema
   & typeof reconciliationSchema;
 
 const schemaInternal: Schema = {
@@ -70,9 +78,7 @@ const schemaInternal: Schema = {
   ...fxSchema,
   ...feesSchema,
   ...currenciesSchema,
-  ...organizationsSchema,
   ...balancesSchema,
-  ...requisitesSchema,
   ...reconciliationSchema,
 };
 

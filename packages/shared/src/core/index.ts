@@ -3,6 +3,16 @@ export { sha256Hex } from "./crypto";
 export { isUuidLike } from "./uuid";
 export { canonicalJson, stableStringify, makePlanKey } from "./canon";
 export {
+  createModuleRuntime,
+} from "./module-runtime";
+export type {
+  Clock,
+  CreateModuleRuntimeInput,
+  ModuleRuntimeLogger,
+  ModuleRuntime,
+  UuidGenerator,
+} from "./module-runtime";
+export {
   AggregateRoot,
   brandId,
   dedupeIds,

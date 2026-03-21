@@ -219,11 +219,11 @@ export function counterpartiesRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.partiesService.counterparties.list(query);
+      const result = await ctx.partiesModule.counterparties.queries.list(query);
       return c.json(result, 200);
     })
     .openapi(optionsRoute, async (c) => {
-      const result = await ctx.partiesService.counterparties.list({
+      const result = await ctx.partiesModule.counterparties.queries.list({
         limit: 200,
         offset: 0,
         sortBy: "shortName",
@@ -244,7 +244,8 @@ export function counterpartiesRoutes(ctx: AppContext) {
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");
       try {
-        const counterparty = await ctx.partiesService.counterparties.create(input);
+        const counterparty =
+          await ctx.partiesModule.counterparties.commands.create(input);
         return c.json(counterparty, 201);
       } catch (err) {
         if (
@@ -262,7 +263,8 @@ export function counterpartiesRoutes(ctx: AppContext) {
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");
       try {
-        const counterparty = await ctx.partiesService.counterparties.findById(id);
+        const counterparty =
+          await ctx.partiesModule.counterparties.queries.findById(id);
         return c.json(counterparty, 200);
       } catch (err) {
         if (err instanceof CounterpartyNotFoundError) {
@@ -275,7 +277,8 @@ export function counterpartiesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
       const input = c.req.valid("json");
       try {
-        const counterparty = await ctx.partiesService.counterparties.update(id, input);
+        const counterparty =
+          await ctx.partiesModule.counterparties.commands.update(id, input);
         return c.json(counterparty, 200);
       } catch (err) {
         if (
@@ -294,7 +297,7 @@ export function counterpartiesRoutes(ctx: AppContext) {
     .openapi(deleteRoute, async (c) => {
       const { id } = c.req.valid("param");
       try {
-        await ctx.partiesService.counterparties.remove(id);
+        await ctx.partiesModule.counterparties.commands.remove(id);
         return c.json({ deleted: true }, 200);
       } catch (err) {
         if (err instanceof CounterpartyNotFoundError) {

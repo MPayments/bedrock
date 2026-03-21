@@ -185,19 +185,19 @@ export function customersRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.partiesService.customers.list(query);
+      const result = await ctx.partiesModule.customers.queries.list(query);
       return c.json(result, 200);
     })
     .openapi(createRoute_, async (c) => {
       const input = c.req.valid("json");
-      const customer = await ctx.partiesService.customers.create(input);
+      const customer = await ctx.partiesModule.customers.commands.create(input);
       return c.json(customer, 201);
     })
     .openapi(getRoute, async (c) => {
       const { id } = c.req.valid("param");
 
       try {
-        const customer = await ctx.partiesService.customers.findById(id);
+        const customer = await ctx.partiesModule.customers.queries.findById(id);
         return c.json(customer, 200);
       } catch (error) {
         if (error instanceof CustomerNotFoundError) {
@@ -212,7 +212,10 @@ export function customersRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const customer = await ctx.partiesService.customers.update(id, input);
+        const customer = await ctx.partiesModule.customers.commands.update(
+          id,
+          input,
+        );
         return c.json(customer, 200);
       } catch (error) {
         if (error instanceof CustomerNotFoundError) {
@@ -226,7 +229,7 @@ export function customersRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        await ctx.partiesService.customers.remove(id);
+        await ctx.partiesModule.customers.commands.remove(id);
         return c.json({ deleted: true }, 200);
       } catch (error) {
         if (error instanceof CustomerNotFoundError) {

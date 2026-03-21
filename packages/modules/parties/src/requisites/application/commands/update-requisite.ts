@@ -1,0 +1,91 @@
+import type { ModuleRuntime } from "@bedrock/shared/core";
+import { applyPatch } from "@bedrock/shared/core";
+
+import type { UpdateRequisiteProps } from "../../domain/requisite";
+import {
+  UpdateRequisiteInputSchema,
+  type UpdateRequisiteInput,
+} from "../contracts/requisites";
+import {
+  RequisiteNotFoundError,
+  RequisiteProviderNotActiveError,
+} from "../errors";
+import type { RequisitesCurrenciesPort } from "../ports/currencies.port";
+import type { RequisiteProviderReads } from "../ports/requisite-provider.reads";
+import type { RequisitesCommandUnitOfWork } from "../ports/requisites.uow";
+
+async function assertProviderActive(
+  reads: RequisiteProviderReads,
+  providerId: string,
+) {
+  const provider = await reads.findActiveById(providerId);
+
+  if (!provider) {
+    throw new RequisiteProviderNotActiveError(providerId);
+  }
+}
+
+export class UpdateRequisiteCommand {
+  constructor(
+    private readonly runtime: ModuleRuntime,
+    private readonly currencies: RequisitesCurrenciesPort,
+    private readonly providerReads: RequisiteProviderReads,
+    private readonly uow: RequisitesCommandUnitOfWork,
+  ) {}
+
+  async execute(id: string, input: UpdateRequisiteInput) {
+    const validated = UpdateRequisiteInputSchema.parse(input);
+
+    return this.uow.run(async (tx) => {
+      const now = this.runtime.now();
+      const existing = await tx.requisites.findById(id);
+      if (!existing) {
+        throw new RequisiteNotFoundError(id);
+      }
+
+      const current = existing.toSnapshot();
+      const nextInput = applyPatch<UpdateRequisiteProps>(current, validated);
+      const currencyChanged = nextInput.currencyId !== current.currencyId;
+
+      await this.currencies.assertCurrencyExists(nextInput.currencyId);
+      await assertProviderActive(this.providerReads, nextInput.providerId);
+
+      const sourceSet = await tx.requisites.findSetByOwnerCurrency({
+        ownerType: current.ownerType,
+        ownerId: current.ownerId,
+        currencyId: current.currencyId,
+      });
+      let updated;
+
+      if (currencyChanged) {
+        const targetSet = await tx.requisites.findSetByOwnerCurrency({
+          ownerType: current.ownerType,
+          ownerId: current.ownerId,
+          currencyId: nextInput.currencyId,
+        });
+        const detached = sourceSet.detachRequisite(id, now);
+        const attached = targetSet.attachTransferredRequisite(
+          detached.requisite,
+          nextInput,
+          now,
+        );
+
+        await tx.requisites.saveSet(detached.set);
+        await tx.requisites.saveSet(attached.set);
+        updated = attached.requisite;
+      } else {
+        const next = sourceSet.updateRequisite(id, nextInput, now);
+        await tx.requisites.saveSet(next.set);
+        updated = next.requisite;
+      }
+
+      this.runtime.log.info("Requisite updated", {
+        id,
+        ownerType: current.ownerType,
+        ownerId: current.ownerId,
+      });
+
+      return updated.toSnapshot();
+    });
+  }
+}

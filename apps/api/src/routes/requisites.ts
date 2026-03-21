@@ -1,13 +1,15 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { OrganizationNotFoundError } from "@bedrock/organizations";
-import { CounterpartyNotFoundError } from "@bedrock/parties";
+import {
+  CounterpartyNotFoundError,
+  OrganizationNotFoundError,
+} from "@bedrock/parties";
 import {
   RequisiteAccountingBindingNotFoundError,
   RequisiteAccountingBindingOwnerTypeError,
   RequisiteNotFoundError,
   RequisiteProviderNotActiveError,
-} from "@bedrock/requisites";
+} from "@bedrock/parties";
 import {
   CreateRequisiteInputSchema,
   ListRequisiteOptionsQuerySchema,
@@ -18,7 +20,7 @@ import {
   RequisiteSchema,
   UpdateRequisiteInputSchema,
   UpsertRequisiteAccountingBindingInputSchema,
-} from "@bedrock/requisites/contracts";
+} from "@bedrock/parties/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
@@ -327,12 +329,14 @@ export function requisitesRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.requisitesService.list(query);
+      const result = await ctx.partiesModule.requisites.queries.list(query);
       return c.json(result, 200);
     })
     .openapi(optionsRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.requisitesService.listOptions(query);
+      const result = await ctx.partiesModule.requisites.queries.listOptions(
+        query,
+      );
 
       return c.json(
         buildOptionsResponse(result, (item) =>
@@ -359,7 +363,9 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const requisite = await ctx.requisitesService.findById(id);
+        const requisite = await ctx.partiesModule.requisites.queries.findById(
+          id,
+        );
         return c.json(requisite, 200);
       } catch (error) {
         if (error instanceof RequisiteNotFoundError) {
@@ -390,7 +396,7 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        await ctx.requisitesService.remove(id);
+        await ctx.partiesModule.requisites.commands.remove(id);
         return c.json({ deleted: true }, 200);
       } catch (error) {
         if (error instanceof RequisiteNotFoundError) {
@@ -403,7 +409,9 @@ export function requisitesRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const binding = await ctx.requisitesService.bindings.get(id);
+        const binding = await ctx.partiesModule.requisites.queries.getBinding(
+          id,
+        );
         return c.json(binding, 200);
       } catch (error) {
         if (

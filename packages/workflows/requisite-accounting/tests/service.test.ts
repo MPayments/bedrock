@@ -9,30 +9,56 @@ const create = vi.fn(async () => ({
   currencyId: "cur-1",
 }));
 const update = vi.fn();
-const bindingsUpsert = vi.fn(async () => undefined);
-const bindingsGet = vi.fn(async () => ({
+const upsertBinding = vi.fn(async () => ({
   requisiteId: "req-1",
+  organizationId: "org-1",
+  currencyCode: "USD",
+  bookId: "book-1",
+  bookAccountInstanceId: "instance-1",
   postingAccountNo: ACCOUNT_NO.BANK,
 }));
+const findById = vi.fn(async () => ({
+  id: "req-1",
+  ownerType: "organization",
+  ownerId: "org-1",
+  currencyId: "cur-1",
+}));
 
-vi.mock("@bedrock/requisites", () => ({
-  createRequisitesService: vi.fn(() => ({
-    create,
-    update,
-    bindings: {
-      upsert: bindingsUpsert,
-      get: bindingsGet,
+vi.mock("@bedrock/parties", () => ({
+  createPartiesModule: vi.fn(() => ({
+    requisites: {
+      commands: {
+        create,
+        update,
+        upsertBinding,
+      },
+      queries: {
+        findById,
+      },
     },
   })),
   RequisiteAccountingBindingOwnerTypeError: class extends Error {},
   RequisiteNotFoundError: class extends Error {},
 }));
 
-vi.mock("@bedrock/requisites/queries", () => ({
-  createRequisitesQueries: vi.fn(() => ({
-    findSubjectById: vi.fn(),
-  })),
+vi.mock("@bedrock/parties/adapters/drizzle", () => ({
+  DrizzleCounterpartyGroupReads: vi.fn(),
+  DrizzleCounterpartyReads: vi.fn(),
+  DrizzleCustomerReads: vi.fn(),
+  DrizzleOrganizationReads: vi.fn(),
+  DrizzlePartyRegistryUnitOfWork: vi.fn(),
+  DrizzleRequisiteBindingReads: vi.fn(),
+  DrizzleRequisiteProviderReads: vi.fn(),
+  DrizzleRequisiteReads: vi.fn(),
 }));
+
+vi.mock("@bedrock/platform/persistence", async () => {
+  const actual = await vi.importActual("@bedrock/platform/persistence");
+  return {
+    ...actual,
+    bindPersistenceSession: vi.fn(() => ({})),
+  };
+});
 
 import { createRequisiteAccountingWorkflow } from "../src";
 
@@ -40,7 +66,9 @@ describe("requisite accounting workflow", () => {
   it("syncs organization bindings after create", async () => {
     const tx = { id: "tx-1" };
     const db = {
-      transaction: vi.fn(async (run: (value: any) => Promise<unknown>) => run(tx)),
+      transaction: vi.fn(async (run: (value: any) => Promise<unknown>) =>
+        run(tx),
+      ),
     };
     const workflow = createRequisiteAccountingWorkflow({
       db: db as any,
@@ -59,21 +87,16 @@ describe("requisite accounting workflow", () => {
         assertCurrencyExists: vi.fn(),
         listCodesById: vi.fn(async () => new Map([["cur-1", "USD"]])),
       },
-      owners: {
-        assertOrganizationExists: vi.fn(),
-        assertCounterpartyExists: vi.fn(),
-      },
     });
 
     const result = await workflow.create({ ownerType: "organization" } as any);
 
     expect(result.id).toBe("req-1");
-    expect(bindingsUpsert).toHaveBeenCalledWith({
+    expect(upsertBinding).toHaveBeenCalledWith({
       requisiteId: "req-1",
       bookId: "book-1",
       bookAccountInstanceId: "instance-1",
       postingAccountNo: ACCOUNT_NO.BANK,
     });
-    expect(bindingsGet).toHaveBeenCalledWith("req-1");
   });
 });

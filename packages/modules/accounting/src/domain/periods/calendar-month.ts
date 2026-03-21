@@ -14,9 +14,11 @@ export class CalendarMonth extends ValueObject<{
   static fromDate(input: Date): CalendarMonth {
     invariant(
       !Number.isNaN(input.getTime()),
-      "calendar_month.invalid_date",
       "Calendar month requires a valid date",
-      { input },
+      {
+        code: "calendar_month.invalid_date",
+        meta: { input },
+      },
     );
 
     return new CalendarMonth(input.getUTCFullYear(), input.getUTCMonth());

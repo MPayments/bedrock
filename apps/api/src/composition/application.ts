@@ -33,16 +33,7 @@ import {
   type LedgerBookRow,
   type LedgerQueries,
 } from "@bedrock/ledger/queries";
-import {
-  createOrganizationsService,
-  type OrganizationsService,
-} from "@bedrock/organizations";
-import {
-  createOrganizationsQueries,
-  type OrganizationsQueries,
-} from "@bedrock/organizations/queries";
-import { createPartiesService, type PartiesService } from "@bedrock/parties";
-import { createPartiesQueries } from "@bedrock/parties/queries";
+import type { PartiesModule } from "@bedrock/parties";
 import {
   bindPersistenceSession,
   createPersistenceContext,
@@ -52,11 +43,6 @@ import {
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
-import {
-  createRequisitesService,
-  type RequisitesService,
-} from "@bedrock/requisites";
-import { createRequisitesQueries } from "@bedrock/requisites/queries";
 import { UserNotFoundError } from "@bedrock/users";
 import {
   createDocumentDraftWorkflow,
@@ -85,18 +71,20 @@ import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
+import {
+  createApiPartiesModule,
+  createApiPartiesReadRuntime,
+} from "./parties-module";
 import { db } from "../db/client";
 
 export interface ApiApplicationServices {
   accountingReportsService: AccountingReportsService;
   accountingPeriodsService: AccountingPeriodsService;
-  partiesService: PartiesService;
+  partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   feesService: FeesService;
   fxService: FxService;
-  organizationsService: OrganizationsService;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
-  requisitesService: RequisitesService;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   documentsService: DocumentsService;
   documentDraftWorkflow: DocumentDraftWorkflow;
@@ -127,7 +115,9 @@ const DEFAULT_DOCUMENT_APPROVAL_RULES: DocumentApprovalRule[] = [
 async function listBooksWithLabels(input: {
   ids: string[];
   ledgerQueries: Pick<LedgerQueries, "listBooksById">;
-  organizationsQueries: Pick<OrganizationsQueries, "listShortNamesById">;
+  organizationsQueries: {
+    listShortNamesById(ids: string[]): Promise<Map<string, string>>;
+  };
 }): Promise<LedgerBookRow[]> {
   const books = await input.ledgerQueries.listBooksById(input.ids);
   const ownerIds = Array.from(
@@ -146,9 +136,9 @@ async function listBooksWithLabels(input: {
 
 function createAccountingReportRuntime(database: Database | Transaction) {
   const balancesQueries = createBalancesQueries({ db: database });
-  const partiesQueries = createPartiesQueries({ db: database });
+  const partiesReadRuntime = createApiPartiesReadRuntime(database);
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: database });
-  const organizationsQueries = createOrganizationsQueries({ db: database });
+  const { organizationsQueries, requisitesQueries } = partiesReadRuntime;
   const rawLedgerQueries = createLedgerQueries({ db: database });
   const ledgerQueries: LedgerQueries = {
     ...rawLedgerQueries,
@@ -159,11 +149,10 @@ function createAccountingReportRuntime(database: Database | Transaction) {
         organizationsQueries,
       }),
   };
-  const requisitesQueries = createRequisitesQueries({ db: database });
   const reportsRepository = createDrizzleAccountingReportsRepository(database);
   const reportContext = createAccountingReportsContext({
     balancesQueries,
-    counterpartiesQueries: partiesQueries.counterparties,
+    counterpartiesQueries: partiesReadRuntime.counterpartiesQueries,
     documentsPort: documentsReadModel,
     ledgerQueries,
     organizationsQueries,
@@ -171,7 +160,7 @@ function createAccountingReportRuntime(database: Database | Transaction) {
   });
 
   return {
-    partiesQueries,
+    partiesReadRuntime,
     ledgerQueries,
     organizationsQueries,
     requisitesQueries,
@@ -304,7 +293,7 @@ export function createApplicationServices(
 
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
   const currenciesQueries = createCurrenciesQueries({ db });
-  const partiesQueries = createPartiesQueries({ db });
+  const partiesReadRuntime = createApiPartiesReadRuntime(db);
   const currenciesService = createCurrenciesService({ db, logger });
   const currenciesPort = {
     async assertCurrencyExists(id: string) {
@@ -322,8 +311,8 @@ export function createApplicationServices(
   };
   const accountingReportRuntime = createAccountingReportRuntime(db);
   const dimensionRegistry = createBedrockDimensionRegistry({
-    counterpartiesQueries: partiesQueries.counterparties,
-    customersQueries: partiesQueries.customers,
+    counterpartiesQueries: partiesReadRuntime.counterpartiesQueries,
+    customersQueries: partiesReadRuntime.customersQueries,
     organizationsQueries: accountingReportRuntime.organizationsQueries,
     requisitesQueries: accountingReportRuntime.requisitesQueries,
     documentsReadModel,
@@ -350,61 +339,49 @@ export function createApplicationServices(
     currenciesService,
     rateSourceProviders: createDefaultFxRateSourceProviders(),
   });
-  const partiesService = createPartiesService({
+  const partiesModule = createApiPartiesModule({
+    db,
     persistence: createPersistenceContext(db),
     documents: {
-      hasDocumentsForCustomer(customerId, queryable) {
-        return createDrizzleDocumentsReadModel({
-          db: (queryable as Database | undefined) ?? db,
-        }).hasDocumentsForCustomer(customerId);
+      hasDocumentsForCustomer(customerId) {
+        return createDrizzleDocumentsReadModel({ db }).hasDocumentsForCustomer(
+          customerId,
+        );
       },
     },
-    logger,
-  });
-  const organizationsCoreService = createOrganizationsService({
-    persistence: createPersistenceContext(db),
-    logger,
-  });
-  const requisiteOwners = {
-    async assertOrganizationExists(organizationId: string) {
-      await organizationsCoreService.findById(organizationId);
-    },
-    async assertCounterpartyExists(counterpartyId: string) {
-      await partiesService.counterparties.findById(counterpartyId);
-    },
-  };
-  const requisitesCoreService = createRequisitesService({
-    persistence: createPersistenceContext(db),
-    logger,
     currencies: currenciesPort,
-    owners: requisiteOwners,
+    logger,
   });
-
-  const organizationsService = organizationsCoreService;
   const organizationBootstrapWorkflow = createOrganizationBootstrapWorkflow({
     db,
     ledgerBooks: ledger.books,
     logger,
   });
-  const requisitesService = requisitesCoreService;
   const requisiteAccountingWorkflow = createRequisiteAccountingWorkflow({
     db,
     ledgerBooks: ledger.books,
     ledgerBookAccounts: ledger.bookAccounts,
     currencies: currenciesPort,
-    owners: requisiteOwners,
     logger,
   });
   const documentRequisitesService = {
-    findById: requisitesService.findById,
-    resolveBindings: requisitesService.bindings.resolve,
+    findById: partiesModule.requisites.queries.findById,
+    resolveBindings: partiesModule.requisites.queries.resolveBindings,
+  };
+  const documentPartiesService = {
+    customers: {
+      findById: partiesModule.customers.queries.findById,
+    },
+    counterparties: {
+      findById: partiesModule.counterparties.queries.findById,
+    },
   };
   const documentRegistry = createDocumentRegistry([
     ...createCommercialDocumentModules(
       createCommercialDocumentDeps({
         currenciesService,
         fxQuotes: fxService.quotes,
-        partiesService,
+        partiesService: documentPartiesService,
         requisitesService: documentRequisitesService,
       }),
     ),
@@ -471,13 +448,13 @@ export function createApplicationServices(
   });
 
   const integrationEventHandler = createIntegrationEventHandler({
-    createCustomer: partiesService.customers.create,
-    listCustomers: partiesService.customers.list,
-    createCounterparty: partiesService.counterparties.create,
-    listCounterparties: partiesService.counterparties.list,
-    createRequisite: requisitesCoreService.create,
-    listProviders: requisitesCoreService.providers.list,
-    createProvider: requisitesCoreService.providers.create,
+    createCustomer: partiesModule.customers.commands.create,
+    listCustomers: partiesModule.customers.queries.list,
+    createCounterparty: partiesModule.counterparties.commands.create,
+    listCounterparties: partiesModule.counterparties.queries.list,
+    createRequisite: partiesModule.requisites.commands.create,
+    listProviders: partiesModule.requisites.queries.listProviders,
+    createProvider: partiesModule.requisites.commands.createProvider,
     findCurrencyByCode: currenciesService.findByCode,
     logger,
   });
@@ -485,13 +462,11 @@ export function createApplicationServices(
   return {
     accountingReportsService,
     accountingPeriodsService,
-    partiesService,
+    partiesModule,
     currenciesService,
     feesService,
     fxService,
-    organizationsService,
     organizationBootstrapWorkflow,
-    requisitesService,
     requisiteAccountingWorkflow,
     documentsService,
     documentDraftWorkflow,

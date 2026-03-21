@@ -6,7 +6,7 @@ import {
   tbBookAccountInstanceIdFor,
   tbLedgerForCurrency,
 } from "@bedrock/ledger/ids";
-import { schema as requisitesSchema } from "@bedrock/requisites/schema";
+import { schema as requisitesSchema } from "@bedrock/parties/schema";
 
 import type { Database, Transaction } from "../client";
 import { schema } from "../schema-registry";

@@ -10,7 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { organizations } from "@bedrock/organizations/schema";
+import { organizations } from "@bedrock/parties/schema";
 
 export type AccountingClosePackageState = "closed" | "superseded";
 
