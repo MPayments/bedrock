@@ -52,6 +52,8 @@ export function DocumentTypedFormFieldShell({
   description,
   errorMessage,
   field,
+  hideDescription = false,
+  hideLabel = false,
   inputId = getDocumentFormFieldId(field.name),
 }: {
   children: ReactNode;
@@ -59,12 +61,16 @@ export function DocumentTypedFormFieldShell({
   description?: ReactNode;
   errorMessage: string | null;
   field: DocumentFormField;
+  hideDescription?: boolean;
+  hideLabel?: boolean;
   inputId?: string;
 }) {
   return (
     <Field className={className} data-invalid={Boolean(errorMessage)}>
-      <FieldLabel htmlFor={inputId}>{field.label}</FieldLabel>
-      {description ? <FieldDescription>{description}</FieldDescription> : null}
+      {hideLabel ? null : <FieldLabel htmlFor={inputId}>{field.label}</FieldLabel>}
+      {hideDescription || !description ? null : (
+        <FieldDescription>{description}</FieldDescription>
+      )}
       {children}
       {errorMessage ? (
         <p className="text-sm text-destructive">{errorMessage}</p>

@@ -22,6 +22,52 @@ function createFxServiceWithProvider(provider: FxRateSourceProvider) {
 }
 
 describe("FX rates integration", () => {
+    it("returns the latest history points and keeps them in chart order", async () => {
+        const provider = {
+            source: "cbr" as const,
+            fetchLatest: vi.fn(async () => {
+                throw new Error("CBR provider should not be called in history test");
+            }),
+        };
+        const service = createFxServiceWithProvider(provider);
+
+        await service.rates.setManualRate({
+            base: "USD",
+            quote: "EUR",
+            rateNum: 101n,
+            rateDen: 100n,
+            asOf: new Date("2026-02-17T00:00:00.000Z"),
+        });
+        await service.rates.setManualRate({
+            base: "USD",
+            quote: "EUR",
+            rateNum: 102n,
+            rateDen: 100n,
+            asOf: new Date("2026-02-18T00:00:00.000Z"),
+        });
+        await service.rates.setManualRate({
+            base: "USD",
+            quote: "EUR",
+            rateNum: 103n,
+            rateDen: 100n,
+            asOf: new Date("2026-02-19T00:00:00.000Z"),
+        });
+
+        const history = await service.rates.getRateHistory({
+            base: "USD",
+            quote: "EUR",
+            limit: 2,
+        });
+
+        expect(history).toHaveLength(2);
+        expect(history.map((point) => point.asOf.toISOString())).toEqual([
+            "2026-02-18T00:00:00.000Z",
+            "2026-02-19T00:00:00.000Z",
+        ]);
+        expect(history.map((point) => point.rateNum)).toEqual([102n, 103n]);
+        expect(provider.fetchLatest).not.toHaveBeenCalled();
+    });
+
     it("returns manual rates and invalidates manual cache after each write", async () => {
         const provider = {
             source: "cbr" as const,
