@@ -46,7 +46,7 @@ export default async function DashboardPage() {
           label: "Переводы",
           value: formatCount(transferDocuments.total),
           description:
-            "Внутренние/межкомпанейские переводы и документы transfer_resolution.",
+            "Внутренние/межкомпанейские переводы и документы.",
           href: TRANSFERS_HREF,
         },
         {
