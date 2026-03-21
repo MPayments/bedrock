@@ -22,7 +22,7 @@ export class CorrespondenceRule extends Entity<string> {
   private constructor(
     private readonly snapshot: CorrespondenceRuleSnapshot,
   ) {
-    super(snapshot.id);
+    super({ id: snapshot.id, props: {} });
   }
 
   static create(

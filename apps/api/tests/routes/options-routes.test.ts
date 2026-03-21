@@ -16,7 +16,7 @@ vi.mock("../../src/auth", () => ({
 import { organizationsRoutes } from "../../src/routes/organizations";
 import { requisiteProvidersRoutes } from "../../src/routes/requisite-providers";
 
-function createOrganizationsServiceStub() {
+function createOrganizationsQueryStub() {
   return {
     list: vi.fn().mockResolvedValue({
       data: [
@@ -32,22 +32,20 @@ function createOrganizationsServiceStub() {
   };
 }
 
-function createRequisitesServiceStub() {
+function createRequisiteProvidersQueryStub() {
   return {
-    providers: {
-      list: vi.fn().mockResolvedValue({
-        data: [
-          {
-            id: "22222222-2222-4222-8222-222222222222",
-            kind: "bank",
-            name: "Core Bank",
-          },
-        ],
-        total: 1,
-        limit: 1,
-        offset: 0,
-      }),
-    },
+    listProviders: vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          kind: "bank",
+          name: "Core Bank",
+        },
+      ],
+      total: 1,
+      limit: 1,
+      offset: 0,
+    }),
   };
 }
 
@@ -70,15 +68,21 @@ describe("options routes", () => {
   });
 
   it("bounds organization options requests to the validated page size", async () => {
-    const organizationsService = createOrganizationsServiceStub();
+    const organizationsQueries = createOrganizationsQueryStub();
     const app = createTestApp(() =>
-      organizationsRoutes({ organizationsService } as any),
+      organizationsRoutes({
+        partiesModule: {
+          organizations: {
+            queries: organizationsQueries,
+          },
+        },
+      } as any),
     );
 
     const response = await app.request("http://localhost/options");
 
     expect(response.status).toBe(200);
-    expect(organizationsService.list).toHaveBeenCalledWith({
+    expect(organizationsQueries.list).toHaveBeenCalledWith({
       limit: 200,
       offset: 0,
       sortBy: "shortName",
@@ -96,15 +100,21 @@ describe("options routes", () => {
   });
 
   it("bounds requisite provider options requests to the validated page size", async () => {
-    const requisitesService = createRequisitesServiceStub();
+    const requisitesQueries = createRequisiteProvidersQueryStub();
     const app = createTestApp(() =>
-      requisiteProvidersRoutes({ requisitesService } as any),
+      requisiteProvidersRoutes({
+        partiesModule: {
+          requisites: {
+            queries: requisitesQueries,
+          },
+        },
+      } as any),
     );
 
     const response = await app.request("http://localhost/options");
 
     expect(response.status).toBe(200);
-    expect(requisitesService.providers.list).toHaveBeenCalledWith({
+    expect(requisitesQueries.listProviders).toHaveBeenCalledWith({
       limit: 200,
       offset: 0,
       sortBy: "name",

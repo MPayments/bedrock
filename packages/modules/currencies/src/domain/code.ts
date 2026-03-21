@@ -9,9 +9,11 @@ export function normalizeCurrencyCode(currency: string): string {
   const normalized = currency.trim().toUpperCase();
   invariant(
     CURRENCY_PATTERN.test(normalized),
-    "currency.invalid_code",
     `Invalid currency code: ${currency}. Must be 2-16 uppercase alphanumeric characters or underscores.`,
-    { currency },
+    {
+      code: "currency.invalid_code",
+      meta: { currency },
+    },
   );
   return normalized;
 }

@@ -237,11 +237,13 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const groups = await ctx.partiesService.groups.list(query);
+      const groups = await ctx.partiesModule.counterparties.queries.listGroups(
+        query,
+      );
       return c.json(groups, 200);
     })
     .openapi(optionsRoute, async (c) => {
-      const groups = await ctx.partiesService.groups.list({
+      const groups = await ctx.partiesModule.counterparties.queries.listGroups({
         includeSystem: true,
       });
 
@@ -265,7 +267,8 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const group = await ctx.partiesService.groups.create(input);
+        const group =
+          await ctx.partiesModule.counterparties.commands.createGroup(input);
         return c.json(group, 201);
       } catch (err) {
         if (
@@ -285,7 +288,10 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const group = await ctx.partiesService.groups.update(id, input);
+        const group = await ctx.partiesModule.counterparties.commands.updateGroup(
+          id,
+          input,
+        );
         return c.json(group, 200);
       } catch (err) {
         if (
@@ -304,7 +310,7 @@ export function counterpartyGroupsRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        await ctx.partiesService.groups.remove(id);
+        await ctx.partiesModule.counterparties.commands.removeGroup(id);
         return c.json({ deleted: true }, 200);
       } catch (err) {
         if (err instanceof CounterpartyGroupNotFoundError) {

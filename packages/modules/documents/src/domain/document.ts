@@ -159,7 +159,7 @@ export function buildDocNo(prefix: string, documentId: string): string {
 
 export class DocumentAggregate extends Entity<string> {
   private constructor(private readonly snapshot: DocumentSnapshot) {
-    super(snapshot.id);
+    super({ id: snapshot.id, props: {} });
   }
 
   static createDraft(input: CreateDocumentProps): DocumentAggregate {
@@ -217,9 +217,11 @@ export class DocumentAggregate extends Entity<string> {
     invariant(
       this.snapshot.lifecycleStatus === "active" &&
         this.snapshot.submissionStatus === "draft",
-      "document.edit_not_allowed",
       "Only active draft documents can be updated",
-      { documentId: this.id },
+      {
+        code: "document.edit_not_allowed",
+        meta: { documentId: this.id },
+      },
     );
 
     const summary = buildSummary(input.summary);
@@ -259,15 +261,19 @@ export class DocumentAggregate extends Entity<string> {
           this.snapshot.submissionStatus === "draft" &&
           this.snapshot.lifecycleStatus === "active"
         ),
-        "document.submit_disabled_use_post",
         "Submit action is disabled for this document type; use post",
-        { documentId: this.id },
+        {
+          code: "document.submit_disabled_use_post",
+          meta: { documentId: this.id },
+        },
       );
       invariant(
         false,
-        "document.submit_not_allowed",
         "Only draft documents can be submitted",
-        { documentId: this.id },
+        {
+          code: "document.submit_not_allowed",
+          meta: { documentId: this.id },
+        },
       );
     }
 
@@ -291,9 +297,11 @@ export class DocumentAggregate extends Entity<string> {
         document: this.snapshot,
         module: input.module,
       }),
-      "document.approve_not_allowed",
       "Document is not awaiting approval",
-      { documentId: this.id },
+      {
+        code: "document.approve_not_allowed",
+        meta: { documentId: this.id },
+      },
     );
 
     return new DocumentAggregate({
@@ -316,9 +324,11 @@ export class DocumentAggregate extends Entity<string> {
         document: this.snapshot,
         module: input.module,
       }),
-      "document.reject_not_allowed",
       "Document is not awaiting approval",
-      { documentId: this.id },
+      {
+        code: "document.reject_not_allowed",
+        meta: { documentId: this.id },
+      },
     );
 
     return new DocumentAggregate({
@@ -341,9 +351,11 @@ export class DocumentAggregate extends Entity<string> {
         document: this.snapshot,
         module: input.module,
       }),
-      "document.cancel_not_allowed",
       "Only active documents in unposted or failed status can be cancelled",
-      { documentId: this.id },
+      {
+        code: "document.cancel_not_allowed",
+        meta: { documentId: this.id },
+      },
     );
 
     return new DocumentAggregate({
@@ -368,9 +380,11 @@ export class DocumentAggregate extends Entity<string> {
 
     invariant(
       nextSnapshot.lifecycleStatus === "active",
-      "document.active_required",
       "Only active documents can be posted",
-      { documentId: this.id },
+      {
+        code: "document.active_required",
+        meta: { documentId: this.id },
+      },
     );
 
     if (
@@ -397,16 +411,20 @@ export class DocumentAggregate extends Entity<string> {
       invariant(
         input.module.postingRequired &&
           nextSnapshot.postingStatus !== "not_required",
-        "document.post_not_required",
         "Document does not support posting",
-        { documentId: this.id },
+        {
+          code: "document.post_not_required",
+          meta: { documentId: this.id },
+        },
       );
 
       invariant(
         false,
-        "document.post_not_ready",
         "Document is not ready for posting",
-        { documentId: this.id },
+        {
+          code: "document.post_not_ready",
+          meta: { documentId: this.id },
+        },
       );
     }
 
@@ -426,9 +444,11 @@ export class DocumentAggregate extends Entity<string> {
     invariant(
       this.snapshot.lifecycleStatus === "active" &&
         this.snapshot.postingStatus === "failed",
-      "document.repost_not_allowed",
       "Only failed documents can be reposted",
-      { documentId: this.id },
+      {
+        code: "document.repost_not_allowed",
+        meta: { documentId: this.id },
+      },
     );
 
     return new DocumentAggregate({
@@ -448,9 +468,11 @@ export class DocumentAggregate extends Entity<string> {
   }): DocumentAggregate {
     invariant(
       this.snapshot.postingStatus === "posting",
-      "document.posting_completion_not_allowed",
       "Only posting documents can be finalized",
-      { documentId: this.id },
+      {
+        code: "document.posting_completion_not_allowed",
+        meta: { documentId: this.id },
+      },
     );
 
     return new DocumentAggregate({
@@ -470,8 +492,10 @@ export function assertDocumentIsActive(
 ) {
   invariant(
     document.lifecycleStatus === "active",
-    "document.active_required",
     `Only active documents can be ${action}`,
-    { documentId: document.id, action },
+    {
+      code: "document.active_required",
+      meta: { documentId: document.id, action },
+    },
   );
 }

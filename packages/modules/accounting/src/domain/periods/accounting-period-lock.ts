@@ -34,15 +34,17 @@ export class AccountingPeriodLock extends Entity<string> {
   private constructor(
     private readonly snapshot: AccountingPeriodLockSnapshot,
   ) {
-    super(snapshot.id);
+    super({ id: snapshot.id, props: {} });
   }
 
   static fromSnapshot(snapshot: AccountingPeriodLockSnapshot) {
     invariant(
       snapshot.organizationId.trim().length > 0,
-      "accounting_period_lock.organization_required",
       "Accounting period lock requires organizationId",
-      { organizationId: snapshot.organizationId },
+      {
+        code: "accounting_period_lock.organization_required",
+        meta: { organizationId: snapshot.organizationId },
+      },
     );
 
     return new AccountingPeriodLock({

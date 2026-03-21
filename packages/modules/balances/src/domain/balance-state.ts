@@ -53,8 +53,11 @@ export type BalanceMutationPlan =
   | ReplayBalancePlan;
 
 export class BalanceState extends Entity<string> {
-  private constructor(private readonly props: BalanceStateProps) {
-    super(BalanceState.buildId(props.balance));
+  private constructor(private readonly state: BalanceStateProps) {
+    super({
+      id: BalanceState.buildId(state.balance),
+      props: {},
+    });
   }
 
   static fromSnapshot(input: BalanceStateProps): BalanceState {
@@ -75,23 +78,24 @@ export class BalanceState extends Entity<string> {
 
     if (existingHold) {
       if (existingHold.amountMinor !== input.amountMinor) {
-        throw new DomainError(
-          "balances.hold.conflict",
-          "balance hold already exists with a different amount",
-          { holdRef: input.holdRef },
-        );
+        throw new DomainError("balance hold already exists with a different amount", {
+          code: "balances.hold.conflict",
+          meta: { holdRef: input.holdRef },
+        });
       }
 
       return { kind: "replay" };
     }
 
-    if (this.props.balance.available < input.amountMinor) {
+    if (this.state.balance.available < input.amountMinor) {
       throw new DomainError(
-        "balances.insufficient_available",
         "insufficient available balance",
         {
-          available: this.props.balance.available,
-          requested: input.amountMinor,
+          code: "balances.insufficient_available",
+          meta: {
+            available: this.state.balance.available,
+            requested: input.amountMinor,
+          },
         },
       );
     }
@@ -137,11 +141,14 @@ export class BalanceState extends Entity<string> {
     }
 
     if (hold.state !== "active") {
-      throw new DomainError(
-        "balances.hold.invalid_state",
-        `cannot release balance hold while in state ${hold.state}`,
-        { holdRef: input.holdRef, state: hold.state, action: "release" },
-      );
+      throw new DomainError(`cannot release balance hold while in state ${hold.state}`, {
+        code: "balances.hold.invalid_state",
+        meta: {
+          holdRef: input.holdRef,
+          state: hold.state,
+          action: "release",
+        },
+      });
     }
 
     return {
@@ -183,11 +190,14 @@ export class BalanceState extends Entity<string> {
     }
 
     if (hold.state !== "active") {
-      throw new DomainError(
-        "balances.hold.invalid_state",
-        `cannot consume balance hold while in state ${hold.state}`,
-        { holdRef: input.holdRef, state: hold.state, action: "consume" },
-      );
+      throw new DomainError(`cannot consume balance hold while in state ${hold.state}`, {
+        code: "balances.hold.invalid_state",
+        meta: {
+          holdRef: input.holdRef,
+          state: hold.state,
+          action: "consume",
+        },
+      });
     }
 
     return {
@@ -226,26 +236,25 @@ export class BalanceState extends Entity<string> {
 
   private get subject(): BalanceSubject {
     return {
-      bookId: this.props.balance.bookId,
-      subjectType: this.props.balance.subjectType,
-      subjectId: this.props.balance.subjectId,
-      currency: this.props.balance.currency,
+      bookId: this.state.balance.bookId,
+      subjectType: this.state.balance.subjectType,
+      subjectId: this.state.balance.subjectId,
+      currency: this.state.balance.currency,
     };
   }
 
   private findHold(holdRef: string): BalanceHoldRecord | null {
-    return this.props.holds.find((hold) => hold.holdRef === holdRef) ?? null;
+    return this.state.holds.find((hold) => hold.holdRef === holdRef) ?? null;
   }
 
   private requireHold(holdRef: string): BalanceHoldRecord {
     const hold = this.findHold(holdRef);
 
     if (!hold) {
-      throw new DomainError(
-        "balances.hold.not_found",
-        "balance hold not found",
-        { holdRef },
-      );
+      throw new DomainError("balance hold not found", {
+        code: "balances.hold.not_found",
+        meta: { holdRef },
+      });
     }
 
     return hold;

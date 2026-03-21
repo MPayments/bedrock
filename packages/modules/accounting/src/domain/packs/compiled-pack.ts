@@ -29,24 +29,30 @@ export class CompiledPack extends Entity<string> {
   }) {
     invariant(
       input.packKey.trim().length > 0,
-      "compiled_pack.pack_key_required",
       "Compiled pack requires packKey",
-      { packKey: input.packKey },
+      {
+        code: "compiled_pack.pack_key_required",
+        meta: { packKey: input.packKey },
+      },
     );
     invariant(
       Number.isInteger(input.version) && input.version > 0,
-      "compiled_pack.version_invalid",
       "Compiled pack requires a positive integer version",
-      { version: input.version },
+      {
+        code: "compiled_pack.version_invalid",
+        meta: { version: input.version },
+      },
     );
     invariant(
       input.checksum.trim().length > 0,
-      "compiled_pack.checksum_required",
       "Compiled pack requires checksum",
-      { checksum: input.checksum },
+      {
+        code: "compiled_pack.checksum_required",
+        meta: { checksum: input.checksum },
+      },
     );
 
-    super(input.checksum);
+    super({ id: input.checksum, props: {} });
     this.packKey = input.packKey.trim();
     this.version = input.version;
     this.templates = Object.freeze([...input.templates]);

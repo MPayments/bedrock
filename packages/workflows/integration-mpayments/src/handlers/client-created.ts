@@ -1,7 +1,6 @@
 import type { CurrenciesService } from "@bedrock/currencies";
-import type { PartiesService } from "@bedrock/parties";
+import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { RequisitesService } from "@bedrock/requisites";
 
 import {
   ClientCreatedDataSchema,
@@ -9,12 +8,12 @@ import {
 } from "../contracts";
 
 export interface ClientCreatedHandlerDeps {
-  createCounterparty: PartiesService["counterparties"]["create"];
-  listCounterparties: PartiesService["counterparties"]["list"];
-  listCustomers: PartiesService["customers"]["list"];
-  createRequisite: RequisitesService["create"];
-  listProviders: RequisitesService["providers"]["list"];
-  createProvider: RequisitesService["providers"]["create"];
+  createCounterparty: PartiesModule["counterparties"]["commands"]["create"];
+  listCounterparties: PartiesModule["counterparties"]["queries"]["list"];
+  listCustomers: PartiesModule["customers"]["queries"]["list"];
+  createRequisite: PartiesModule["requisites"]["commands"]["create"];
+  listProviders: PartiesModule["requisites"]["queries"]["listProviders"];
+  createProvider: PartiesModule["requisites"]["commands"]["createProvider"];
   findCurrencyByCode: CurrenciesService["findByCode"];
   logger: Logger;
 }

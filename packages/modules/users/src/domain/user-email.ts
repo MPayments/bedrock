@@ -10,17 +10,21 @@ export class UserEmail extends ValueObject<{ value: string }> {
   static create(value: unknown): UserEmail {
     invariant(
       typeof value === "string",
-      "user.email.invalid",
       "invalid email",
-      { field: "email", value },
+      {
+        code: "user.email.invalid",
+        meta: { field: "email", value },
+      },
     );
 
     const normalized = value.trim().toLowerCase();
     invariant(
       SIMPLE_EMAIL_PATTERN.test(normalized),
-      "user.email.invalid",
       "invalid email",
-      { field: "email", value },
+      {
+        code: "user.email.invalid",
+        meta: { field: "email", value },
+      },
     );
     return new UserEmail(normalized);
   }

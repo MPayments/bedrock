@@ -23,15 +23,17 @@ export class AccountingClosePackage extends Entity<string> {
   private constructor(
     private readonly snapshot: AccountingClosePackageSnapshot,
   ) {
-    super(snapshot.id);
+    super({ id: snapshot.id, props: {} });
   }
 
   static fromSnapshot(snapshot: AccountingClosePackageSnapshot) {
     invariant(
       snapshot.organizationId.trim().length > 0,
-      "accounting_close_package.organization_required",
       "Accounting close package requires organizationId",
-      { organizationId: snapshot.organizationId },
+      {
+        code: "accounting_close_package.organization_required",
+        meta: { organizationId: snapshot.organizationId },
+      },
     );
 
     return new AccountingClosePackage({

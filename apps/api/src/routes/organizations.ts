@@ -3,7 +3,7 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import {
   OrganizationDeleteConflictError,
   OrganizationNotFoundError,
-} from "@bedrock/organizations";
+} from "@bedrock/parties";
 import {
   CreateOrganizationInputSchema,
   ListOrganizationsQuerySchema,
@@ -11,7 +11,7 @@ import {
   OrganizationOptionsResponseSchema,
   OrganizationSchema,
   UpdateOrganizationInputSchema,
-} from "@bedrock/organizations/contracts";
+} from "@bedrock/parties/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
@@ -216,11 +216,11 @@ export function organizationsRoutes(ctx: AppContext) {
   return app
     .openapi(listRoute, async (c) => {
       const query = c.req.valid("query");
-      const result = await ctx.organizationsService.list(query);
+      const result = await ctx.partiesModule.organizations.queries.list(query);
       return c.json(result, 200);
     })
     .openapi(optionsRoute, async (c) => {
-      const result = await ctx.organizationsService.list({
+      const result = await ctx.partiesModule.organizations.queries.list({
         limit: OPTIONS_LIMIT,
         offset: 0,
         sortBy: "shortName",
@@ -256,7 +256,8 @@ export function organizationsRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        const organization = await ctx.organizationsService.findById(id);
+        const organization =
+          await ctx.partiesModule.organizations.queries.findById(id);
         return c.json(organization, 200);
       } catch (error) {
         if (error instanceof OrganizationNotFoundError) {
@@ -270,7 +271,8 @@ export function organizationsRoutes(ctx: AppContext) {
       const input = c.req.valid("json");
 
       try {
-        const organization = await ctx.organizationsService.update(id, input);
+        const organization =
+          await ctx.partiesModule.organizations.commands.update(id, input);
         return c.json(organization, 200);
       } catch (error) {
         if (error instanceof OrganizationNotFoundError) {
@@ -286,7 +288,7 @@ export function organizationsRoutes(ctx: AppContext) {
       const { id } = c.req.valid("param");
 
       try {
-        await ctx.organizationsService.remove(id);
+        await ctx.partiesModule.organizations.commands.remove(id);
         return c.json({ deleted: true }, 200);
       } catch (error) {
         if (error instanceof OrganizationNotFoundError) {

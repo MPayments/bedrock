@@ -51,7 +51,7 @@ export class UserAccount extends Entity<string> {
   private readonly snapshot: UserAccountSnapshot;
 
   private constructor(snapshot: UserAccountSnapshot) {
-    super(snapshot.id);
+    super({ id: snapshot.id, props: {} });
     this.snapshot = normalizeUserAccountSnapshot(snapshot);
   }
 

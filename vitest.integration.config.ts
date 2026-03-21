@@ -10,7 +10,6 @@ export default defineConfig({
       "packages/modules/fees/vitest.integration.config.ts",
       "packages/modules/fx/vitest.integration.config.ts",
       "packages/modules/ledger/vitest.integration.config.ts",
-      "packages/modules/organizations/vitest.integration.config.ts",
       "packages/modules/reconciliation/vitest.integration.config.ts",
     ],
     exclude: ["**/node_modules/**", "**/dist/**"],

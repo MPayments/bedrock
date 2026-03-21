@@ -27,8 +27,6 @@ import {
 } from "@bedrock/documents/read-model";
 import { createLedgerReadService } from "@bedrock/ledger";
 import { createLedgerQueries } from "@bedrock/ledger/queries";
-import { createOrganizationsQueries } from "@bedrock/organizations/queries";
-import { createPartiesQueries } from "@bedrock/parties/queries";
 import { user } from "@bedrock/platform/auth-model/schema";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import type { Logger } from "@bedrock/platform/observability/logger";
@@ -47,6 +45,8 @@ import {
   createPeriodCloseWorkerRunner,
   type PeriodCloseWorkerOrganizationContext,
 } from "@bedrock/workflow-period-close";
+
+import { createWorkerPartiesReadRuntime } from "../parties-module";
 
 async function resolveSystemActorUserId(db: Database): Promise<string | null> {
   const [admin] = await db
@@ -83,21 +83,21 @@ async function isAdminActor(
 }
 
 async function listOrganizationIds(db: Database): Promise<string[]> {
-  const organizationsQueries = createOrganizationsQueries({ db });
+  const { organizationsQueries } = createWorkerPartiesReadRuntime(db);
   const rows = await organizationsQueries.listInternalLedgerOrganizations();
   return rows.map((row) => row.id);
 }
 
 function createAccountingReportRuntime(database: Database | Transaction) {
   const balancesQueries = createBalancesQueries({ db: database });
-  const partiesQueries = createPartiesQueries({ db: database });
+  const partiesReadRuntime = createWorkerPartiesReadRuntime(database);
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: database });
   const ledgerQueries = createLedgerQueries({ db: database });
-  const organizationsQueries = createOrganizationsQueries({ db: database });
+  const { organizationsQueries } = partiesReadRuntime;
   const reportsRepository = createDrizzleAccountingReportsRepository(database);
   const reportContext = createAccountingReportsContext({
     balancesQueries,
-    counterpartiesQueries: partiesQueries.counterparties,
+    counterpartiesQueries: partiesReadRuntime.counterpartiesQueries,
     documentsPort: documentsReadModel,
     ledgerQueries,
     organizationsQueries,
@@ -220,7 +220,7 @@ function createAccountingPeriodsPort(db: Database): AccountingPeriodsService {
 }
 
 function createPeriodCloseAccountingService(db: Database) {
-  const organizationsQueries = createOrganizationsQueries({ db });
+  const { organizationsQueries } = createWorkerPartiesReadRuntime(db);
   const packsService = createAccountingPacksService({
     db,
     defaultPackDefinition: rawPackDefinition,

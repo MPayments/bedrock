@@ -23,7 +23,7 @@ export interface ChartTemplateAccountSnapshot {
 
 export class ChartTemplateAccount extends Entity<string> {
   private constructor(private readonly snapshot: ChartTemplateAccountSnapshot) {
-    super(snapshot.accountNo);
+    super({ id: snapshot.accountNo, props: {} });
   }
 
   static fromSnapshot(

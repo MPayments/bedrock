@@ -8,15 +8,17 @@ export class AccountingPackVersion extends Entity<string> {
     public readonly version: number,
     public readonly checksum: string,
   ) {
-    super(`${packKey}:${version}`);
+    super({ id: `${packKey}:${version}`, props: {} });
   }
 
   static fromCompiledPack(pack: CompiledPack) {
     invariant(
       pack.packKey.trim().length > 0,
-      "accounting_pack.version_pack_key_required",
       "Accounting pack version requires packKey",
-      { packKey: pack.packKey },
+      {
+        code: "accounting_pack.version_pack_key_required",
+        meta: { packKey: pack.packKey },
+      },
     );
 
     return new AccountingPackVersion(pack.packKey, pack.version, pack.checksum);
@@ -32,13 +34,15 @@ export class AccountingPackVersion extends Entity<string> {
       existingChecksum.trim().length > 0
     ) {
       throw new DomainError(
-        "accounting_pack.version_conflict",
         `Accounting pack ${this.packKey}@${this.version} already exists with checksum ${existingChecksum}; cannot replace with ${this.checksum} because existing checksum is already assigned`,
         {
-          packKey: this.packKey,
-          version: String(this.version),
-          existingChecksum,
-          nextChecksum: this.checksum,
+          code: "accounting_pack.version_conflict",
+          meta: {
+            packKey: this.packKey,
+            version: String(this.version),
+            existingChecksum,
+            nextChecksum: this.checksum,
+          },
         },
       );
     }
