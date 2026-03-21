@@ -36,7 +36,7 @@ export function createCustomerCreatedHandler(deps: CustomerCreatedHandlerDeps) {
     const customer = await deps.createCustomer({
       externalRef,
       displayName: data.name,
-      description: data.email,
+      description: data.email ?? null,
     });
 
     deps.logger.info("Customer created from mpayments event", {

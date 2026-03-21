@@ -91,6 +91,23 @@ describe("customer created mapping", () => {
     );
   });
 
+  it("maps null customer email to null description", async () => {
+    const deps = createMockDeps();
+    const handler = createIntegrationEventHandler(deps as any);
+
+    await handler.processEvent({
+      entity: "customer",
+      action: "created",
+      entityId: 1,
+      data: { id: 1, name: "Test", email: null },
+      metadata: { timestamp: "2026-01-01T00:00:00.000Z" },
+    });
+
+    expect(deps.createCustomer).toHaveBeenCalledWith(
+      expect.objectContaining({ description: null }),
+    );
+  });
+
   it("skips creation when customer with same externalRef exists", async () => {
     const deps = createMockDeps();
     deps.listCustomers.mockResolvedValueOnce({

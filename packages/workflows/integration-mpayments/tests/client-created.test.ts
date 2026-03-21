@@ -305,4 +305,17 @@ describe("client.created handler", () => {
       }),
     );
   });
+
+  it("accepts null email and phone from integration payload", async () => {
+    const deps = createMockDeps();
+    const handler = createIntegrationEventHandler(deps as any);
+
+    await handler.processEvent(makeClientEvent({ email: null, phone: null }));
+
+    expect(deps.createRequisite).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contact: null,
+      }),
+    );
+  });
 });

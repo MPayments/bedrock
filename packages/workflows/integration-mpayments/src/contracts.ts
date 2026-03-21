@@ -1,5 +1,28 @@
 import { z } from "zod";
 
+function normalizeOptionalExternalString(value: unknown) {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+const OptionalExternalStringSchema = z.preprocess(
+  normalizeOptionalExternalString,
+  z.string().optional(),
+);
+
+const OptionalExternalEmailSchema = z.preprocess(
+  normalizeOptionalExternalString,
+  z.email().optional(),
+);
+
 export const IntegrationPayloadSchema = z.object({
   entity: z.string().min(1),
   action: z.string().min(1),
@@ -17,7 +40,7 @@ export type IntegrationPayload = z.infer<typeof IntegrationPayloadSchema>;
 export const CustomerCreatedDataSchema = z.object({
   id: z.number(),
   name: z.string().min(1),
-  email: z.email(),
+  email: OptionalExternalEmailSchema,
 });
 
 export type CustomerCreatedData = z.infer<typeof CustomerCreatedDataSchema>;
@@ -25,24 +48,24 @@ export type CustomerCreatedData = z.infer<typeof CustomerCreatedDataSchema>;
 export const ClientCreatedDataSchema = z.object({
   id: z.number(),
   orgName: z.string().min(1),
-  orgType: z.string().optional(),
-  directorName: z.string().optional(),
-  position: z.string().optional(),
-  directorBasis: z.string().optional(),
-  address: z.string().optional(),
-  email: z.string().optional(),
-  phone: z.string().optional(),
-  inn: z.string().optional(),
-  kpp: z.string().optional(),
-  ogrn: z.string().optional(),
-  oktmo: z.string().optional(),
-  okpo: z.string().optional(),
-  bankName: z.string().optional(),
-  bankCountry: z.string().optional(),
-  bankAddress: z.string().optional(),
-  account: z.string().optional(),
-  bic: z.string().optional(),
-  corrAccount: z.string().optional(),
+  orgType: OptionalExternalStringSchema,
+  directorName: OptionalExternalStringSchema,
+  position: OptionalExternalStringSchema,
+  directorBasis: OptionalExternalStringSchema,
+  address: OptionalExternalStringSchema,
+  email: OptionalExternalEmailSchema,
+  phone: OptionalExternalStringSchema,
+  inn: OptionalExternalStringSchema,
+  kpp: OptionalExternalStringSchema,
+  ogrn: OptionalExternalStringSchema,
+  oktmo: OptionalExternalStringSchema,
+  okpo: OptionalExternalStringSchema,
+  bankName: OptionalExternalStringSchema,
+  bankCountry: OptionalExternalStringSchema,
+  bankAddress: OptionalExternalStringSchema,
+  account: OptionalExternalStringSchema,
+  bic: OptionalExternalStringSchema,
+  corrAccount: OptionalExternalStringSchema,
 });
 
 export type ClientCreatedData = z.infer<typeof ClientCreatedDataSchema>;
