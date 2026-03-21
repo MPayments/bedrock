@@ -374,19 +374,29 @@ export function createDrizzleFxRatesRepository(
       rate_den: string;
       as_of: string;
     }>(sql`
+      WITH latest_points AS (
+        SELECT
+          r.source,
+          r.rate_num::text AS rate_num,
+          r.rate_den::text AS rate_den,
+          r.as_of,
+          r.created_at
+        FROM ${fr} r
+        JOIN "currencies" bc ON bc.id = r.base_currency_id
+        JOIN "currencies" qc ON qc.id = r.quote_currency_id
+        WHERE bc.code = ${input.base.trim().toUpperCase()}
+          AND qc.code = ${input.quote.trim().toUpperCase()}
+          AND (${input.from ?? null}::timestamptz IS NULL OR r.as_of >= ${input.from ?? null}::timestamptz)
+        ORDER BY r.as_of DESC, r.created_at DESC
+        LIMIT ${input.limit ?? 100}
+      )
       SELECT
-        r.source,
-        r.rate_num::text AS rate_num,
-        r.rate_den::text AS rate_den,
-        r.as_of
-      FROM ${fr} r
-      JOIN "currencies" bc ON bc.id = r.base_currency_id
-      JOIN "currencies" qc ON qc.id = r.quote_currency_id
-      WHERE bc.code = ${input.base.trim().toUpperCase()}
-        AND qc.code = ${input.quote.trim().toUpperCase()}
-        AND (${input.from ?? null}::timestamptz IS NULL OR r.as_of >= ${input.from ?? null}::timestamptz)
-      ORDER BY r.as_of ASC
-      LIMIT ${input.limit ?? 100}
+        source,
+        rate_num,
+        rate_den,
+        as_of
+      FROM latest_points
+      ORDER BY as_of ASC, created_at ASC
     `);
 
     return rows.rows.map((row) => ({

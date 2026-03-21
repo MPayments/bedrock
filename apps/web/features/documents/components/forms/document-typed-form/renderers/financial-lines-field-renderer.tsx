@@ -46,6 +46,11 @@ import {
   useDocumentTypedFormFieldError,
 } from "./shared";
 
+const FINANCIAL_LINE_METHOD_LABELS = {
+  fixed: "Сумма",
+  percent: "Процент",
+} as const;
+
 export function FinancialLinesFieldRenderer({
   className,
   field,
@@ -120,11 +125,13 @@ export function FinancialLinesFieldRenderer({
       description={field.description}
       errorMessage={errorMessage}
       field={field}
+      hideDescription
+      hideLabel
       inputId={field.name}
     >
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <FieldLabel>{field.label}</FieldLabel>
             {field.description ? (
               <FieldDescription>{field.description}</FieldDescription>
@@ -199,7 +206,9 @@ export function FinancialLinesFieldRenderer({
                         }}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Выберите метод" />
+                          <SelectValue placeholder="Выберите метод">
+                            {FINANCIAL_LINE_METHOD_LABELS[calcMethod]}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {field.supportedCalcMethods.includes("fixed") ? (

@@ -116,6 +116,8 @@ if (env.MPAYMENTS_INTEGRATION_ENABLED) {
     logger,
     redisHost: env.REDIS_HOST,
     redisPort: env.REDIS_PORT,
+    redisUser: env.REDIS_USER,
+    redisPassword: env.REDIS_PASSWORD,
   });
 }
 
