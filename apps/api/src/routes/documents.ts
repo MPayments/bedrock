@@ -93,6 +93,15 @@ function parseJournalOperationsQuery(requestUrl: string) {
   const status = params.getAll("status");
   const operationCode = params.getAll("operationCode");
   const sourceType = params.getAll("sourceType");
+  const query = {
+    limit: params.get("limit") ?? undefined,
+    offset: params.get("offset") ?? undefined,
+    sortBy: params.get("sortBy") ?? undefined,
+    sortOrder: params.get("sortOrder") ?? undefined,
+  } satisfies Record<string, string | string[] | undefined>;
+  const queryText = params.get("query");
+  const sourceId = params.get("sourceId");
+  const bookId = params.get("bookId");
 
   for (const [key, value] of params.entries()) {
     if (!key.startsWith("dimension.")) {
@@ -111,18 +120,16 @@ function parseJournalOperationsQuery(requestUrl: string) {
   }
 
   return JournalOperationsQuerySchema.parse({
-    limit: params.get("limit") ?? undefined,
-    offset: params.get("offset") ?? undefined,
-    sortBy: params.get("sortBy") ?? undefined,
-    sortOrder: params.get("sortOrder") ?? undefined,
-    query: params.get("query") ?? undefined,
-    status: status.length > 0 ? status : undefined,
-    operationCode: operationCode.length > 0 ? operationCode : undefined,
-    sourceType: sourceType.length > 0 ? sourceType : undefined,
-    sourceId: params.get("sourceId") ?? undefined,
-    bookId: params.get("bookId") ?? undefined,
-    dimensionFilters:
-      dimensionFilters.size > 0 ? Object.fromEntries(dimensionFilters) : undefined,
+    ...query,
+    ...(queryText ? { query: queryText } : {}),
+    ...(status.length > 0 ? { status } : {}),
+    ...(operationCode.length > 0 ? { operationCode } : {}),
+    ...(sourceType.length > 0 ? { sourceType } : {}),
+    ...(sourceId ? { sourceId } : {}),
+    ...(bookId ? { bookId } : {}),
+    ...(dimensionFilters.size > 0
+      ? { dimensionFilters: Object.fromEntries(dimensionFilters) }
+      : {}),
   });
 }
 
