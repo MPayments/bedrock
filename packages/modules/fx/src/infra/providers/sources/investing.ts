@@ -6,7 +6,7 @@ import {
 
 import { parseDecimalToFraction } from "@bedrock/shared/money/math";
 
-import { RateSourceSyncError } from "./errors";
+import { getRootCauseMessage, RateSourceSyncError } from "./errors";
 import {
   type FxRateSourceFetchResult,
   type FxRateSourceProvider,
@@ -117,6 +117,7 @@ export function createInvestingRateSourceProvider(
     const rates: FxRateSourceFetchResult["rates"] = [];
     let latestPublishedAt: Date | undefined;
     let lastError: unknown;
+    const pairErrors: string[] = [];
 
     try {
       for (const mapping of pairMappings) {
@@ -154,13 +155,16 @@ export function createInvestingRateSourceProvider(
           });
         } catch (error) {
           lastError = error;
+          pairErrors.push(
+            `${mapping.base}/${mapping.quote}: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
       }
 
       if (latestPublishedAt === undefined) {
         throw new RateSourceSyncError(
           "investing",
-          "provider returned no parseable rates",
+          `provider returned no parseable rates (${pairErrors.join("; ")})`,
           lastError,
         );
       }
@@ -248,9 +252,14 @@ async function fetchPairRateWithRetry(input: {
     }
   }
 
+  const rootCause =
+    getRootCauseMessage(lastError) ??
+    (lastError instanceof Error ? lastError.message : undefined);
+  const detail = rootCause ? `: ${rootCause}` : "";
+
   throw new RateSourceSyncError(
     "investing",
-    `all retries failed for pair ${input.mapping.base}/${input.mapping.quote}`,
+    `all retries failed for pair ${input.mapping.base}/${input.mapping.quote}${detail}`,
     lastError,
   );
 }
@@ -282,9 +291,11 @@ async function fetchPairRate(input: {
   }
 
   if (response.status < 200 || response.status >= 300) {
+    const body = response.status === 0 ? await response.getText() : undefined;
+    const bodySuffix = body?.trim() ? ` (${body.trim().slice(0, 200)})` : "";
     throw new RateSourceSyncError(
       "investing",
-      `HTTP ${response.status} for pair ${mapping.base}/${mapping.quote}`,
+      `HTTP ${response.status} for pair ${mapping.base}/${mapping.quote}${bodySuffix}`,
     );
   }
 
