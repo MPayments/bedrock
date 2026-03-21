@@ -122,7 +122,7 @@ export function createInvestingRateSourceProvider(
     try {
       for (const mapping of pairMappings) {
         try {
-          const pairRate = await fetchPairRateWithRetry({
+          const pairResult = await fetchPairRatesWithRetry({
             session: scope.session,
             mapping,
             interval,
@@ -134,25 +134,12 @@ export function createInvestingRateSourceProvider(
 
           if (
             latestPublishedAt === undefined ||
-            pairRate.publishedAt.getTime() > latestPublishedAt.getTime()
+            pairResult.publishedAt.getTime() > latestPublishedAt.getTime()
           ) {
-            latestPublishedAt = pairRate.publishedAt;
+            latestPublishedAt = pairResult.publishedAt;
           }
 
-          rates.push({
-            base: mapping.base,
-            quote: mapping.quote,
-            rateNum: pairRate.fraction.num,
-            rateDen: pairRate.fraction.den,
-            asOf: pairRate.publishedAt,
-          });
-          rates.push({
-            base: mapping.quote,
-            quote: mapping.base,
-            rateNum: pairRate.fraction.den,
-            rateDen: pairRate.fraction.num,
-            asOf: pairRate.publishedAt,
-          });
+          rates.push(...pairResult.rates);
         } catch (error) {
           lastError = error;
           pairErrors.push(
@@ -232,7 +219,7 @@ function createOwnedSessionScope(session: InvestingSession): SessionScope {
   };
 }
 
-async function fetchPairRateWithRetry(input: {
+async function fetchPairRatesWithRetry(input: {
   session: InvestingSession;
   mapping: PairMapping;
   interval: Interval;
@@ -246,7 +233,7 @@ async function fetchPairRateWithRetry(input: {
   let lastError: unknown;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      return await fetchPairRate(input);
+      return await fetchPairRates(input);
     } catch (error) {
       lastError = error;
     }
@@ -264,7 +251,7 @@ async function fetchPairRateWithRetry(input: {
   );
 }
 
-async function fetchPairRate(input: {
+async function fetchPairRates(input: {
   session: InvestingSession;
   mapping: PairMapping;
   interval: Interval;
@@ -304,21 +291,11 @@ async function fetchPairRate(input: {
     `${mapping.base}/${mapping.quote}`,
   );
   const candles = extractCandles(payload, `${mapping.base}/${mapping.quote}`);
-  const latestCandle = candles.at(-1)!;
-
-  const publishedAt = extractTimestamp(
-    latestCandle,
-    `${mapping.base}/${mapping.quote}`,
-  );
-  const close = extractClosePrice(
-    latestCandle,
-    `${mapping.base}/${mapping.quote}`,
-  );
-  const fraction = parseDecimalToFraction(close, { allowScientific: false });
+  const rates = extractRatesFromCandles(candles, mapping);
 
   return {
-    publishedAt,
-    fraction,
+    publishedAt: rates.at(-1)!.asOf,
+    rates,
   };
 }
 
@@ -370,6 +347,50 @@ function extractCandles(payload: { data?: unknown[] }, pairKey: string) {
     );
   }
   return payload.data;
+}
+
+function extractRatesFromCandles(
+  candles: unknown[],
+  mapping: PairMapping,
+): FxRateSourceFetchResult["rates"] {
+  const pairKey = `${mapping.base}/${mapping.quote}`;
+  const rates: FxRateSourceFetchResult["rates"] = [];
+
+  for (const candle of candles) {
+    try {
+      const publishedAt = extractTimestamp(candle, pairKey);
+      const close = extractClosePrice(candle, pairKey);
+      const fraction = parseDecimalToFraction(close, {
+        allowScientific: false,
+      });
+
+      rates.push({
+        base: mapping.base,
+        quote: mapping.quote,
+        rateNum: fraction.num,
+        rateDen: fraction.den,
+        asOf: publishedAt,
+      });
+      rates.push({
+        base: mapping.quote,
+        quote: mapping.base,
+        rateNum: fraction.den,
+        rateDen: fraction.num,
+        asOf: publishedAt,
+      });
+    } catch {
+      continue;
+    }
+  }
+
+  if (rates.length === 0) {
+    throw new RateSourceSyncError(
+      "investing",
+      `no parseable chart candles for pair ${pairKey}`,
+    );
+  }
+
+  return rates;
 }
 
 function extractTimestamp(candle: unknown, pairKey: string) {
