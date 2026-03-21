@@ -2,6 +2,8 @@ import { inArray } from "drizzle-orm";
 
 import type { Database } from "@bedrock/platform/persistence";
 
+import { DrizzleOrganizationReads } from "./organization.reads";
+import { ledgerBooks } from "./schema";
 import {
   OrganizationInternalLedgerInvariantError,
   OrganizationNotFoundError,
@@ -10,8 +12,6 @@ import {
   findOrganizationBookOwnershipViolations,
   type OrganizationLedgerBookRow,
 } from "../../domain/book-ownership";
-import { DrizzleOrganizationReads } from "./organization.reads";
-import { ledgerBooks } from "./schema";
 
 export interface OrganizationsQueries {
   listInternalLedgerOrganizations(): Promise<
