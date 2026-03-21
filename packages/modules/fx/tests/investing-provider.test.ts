@@ -75,15 +75,19 @@ describe("createInvestingRateSourceProvider", () => {
         });
 
         const result = await provider.fetchLatest(new Date("2026-02-19T09:00:00.000Z"));
-        const usdRub = result.rates.find((rate) => rate.base === "USD" && rate.quote === "RUB");
+        const usdRubRates = result.rates.filter(
+            (rate) => rate.base === "USD" && rate.quote === "RUB",
+        );
+        const usdRub = usdRubRates.at(-1);
 
         expect(usdRub).toBeTruthy();
         expect(usdRub!.rateNum).toBe(76751n);
         expect(usdRub!.rateDen).toBe(1000n);
         expect(result.publishedAt.toISOString()).toBe("2026-02-18T19:58:00.000Z");
+        expect(result.rates).toHaveLength(2);
     });
 
-    it("parses chart payload and emits direct + inverse rates", async () => {
+    it("parses chart payload and emits historical direct + inverse rates", async () => {
         const session = {
             get: vi.fn(async () => ({
                 status: 200,
@@ -112,16 +116,26 @@ describe("createInvestingRateSourceProvider", () => {
         expect(result.source).toBe("investing");
         expect(result.fetchedAt.toISOString()).toBe(fetchedAt.toISOString());
         expect(result.publishedAt.toISOString()).toBe("2024-02-19T00:00:00.000Z");
-        expect(result.rates).toHaveLength(2);
+        expect(result.rates).toHaveLength(4);
 
-        const usdRub = result.rates.find((rate) => rate.base === "USD" && rate.quote === "RUB");
-        const rubUsd = result.rates.find((rate) => rate.base === "RUB" && rate.quote === "USD");
+        const usdRubRates = result.rates.filter(
+            (rate) => rate.base === "USD" && rate.quote === "RUB",
+        );
+        const rubUsdRates = result.rates.filter(
+            (rate) => rate.base === "RUB" && rate.quote === "USD",
+        );
+        const usdRub = usdRubRates.at(-1);
+        const rubUsd = rubUsdRates.at(-1);
 
-        expect(usdRub).toBeTruthy();
-        expect(rubUsd).toBeTruthy();
+        expect(usdRubRates).toHaveLength(2);
+        expect(rubUsdRates).toHaveLength(2);
         expect(usdRub!.rateNum).toBe(181n);
         expect(usdRub!.rateDen).toBe(2n);
         expect(usdRub!.rateNum * rubUsd!.rateNum).toBe(usdRub!.rateDen * rubUsd!.rateDen);
+        expect(usdRubRates.map((rate) => rate.asOf.toISOString())).toEqual([
+            "2024-02-18T23:59:00.000Z",
+            "2024-02-19T00:00:00.000Z",
+        ]);
     });
 
     it("retries pair fetch and supports text-json fallback", async () => {
