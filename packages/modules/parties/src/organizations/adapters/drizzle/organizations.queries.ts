@@ -1,6 +1,7 @@
 import { inArray } from "drizzle-orm";
 
 import type { Database } from "@bedrock/platform/persistence";
+import { dedupeStrings as dedupeIds } from "@bedrock/shared/core/domain";
 
 import { DrizzleOrganizationReads } from "./organization.reads";
 import { ledgerBooks } from "./schema";
@@ -25,10 +26,6 @@ export interface OrganizationsQueries {
   isInternalLedgerOrganization(organizationId: string): Promise<boolean>;
   assertInternalLedgerOrganization(organizationId: string): Promise<void>;
   assertBooksBelongToInternalLedgerOrganizations(bookIds: string[]): Promise<void>;
-}
-
-function dedupeIds(ids: readonly string[]): string[] {
-  return Array.from(new Set(ids));
 }
 
 export class DrizzleOrganizationsQueries implements OrganizationsQueries {

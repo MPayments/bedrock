@@ -1,10 +1,8 @@
+import { dedupeStrings as dedupeIds } from "@bedrock/shared/core/domain";
+
 export interface OrganizationLedgerBookRow {
   id: string;
   ownerId: string | null;
-}
-
-function dedupeIds(ids: readonly string[]): string[] {
-  return Array.from(new Set(ids));
 }
 
 export interface OrganizationBookOwnershipViolation {

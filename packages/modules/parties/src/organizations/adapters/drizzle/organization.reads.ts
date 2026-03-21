@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
+import { dedupeStrings as dedupeIds } from "@bedrock/shared/core/domain";
 import {
   resolveSortOrder,
   resolveSortValue,
@@ -31,10 +32,6 @@ const SORT_COLUMN_MAP = {
   createdAt: organizations.createdAt,
   updatedAt: organizations.updatedAt,
 } as const;
-
-function dedupeIds(ids: readonly string[]): string[] {
-  return Array.from(new Set(ids));
-}
 
 function buildWhere(input: ListOrganizationsQuery): SQL | undefined {
   const conditions: SQL[] = [];

@@ -20,8 +20,12 @@ export function brandId<TBrand extends string>(
   return normalized as Brand<string, TBrand>;
 }
 
+export function dedupeStrings(values: readonly string[]): string[] {
+  return Array.from(new Set(values));
+}
+
 export function dedupeIds(ids: readonly string[]): string[] {
-  const unique = new Set<string>();
+  const normalizedIds: string[] = [];
 
   for (const id of ids) {
     const normalized = id.trim();
@@ -29,10 +33,10 @@ export function dedupeIds(ids: readonly string[]): string[] {
       continue;
     }
 
-    unique.add(normalized);
+    normalizedIds.push(normalized);
   }
 
-  return Array.from(unique);
+  return dedupeStrings(normalizedIds);
 }
 
 export function trimToNull(
