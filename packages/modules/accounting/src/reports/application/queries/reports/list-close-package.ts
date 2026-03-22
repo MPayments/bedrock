@@ -1,5 +1,5 @@
-import type { ReportsReads } from "../../ports/reports.reads";
 import type { ClosePackageQuery } from "../../contracts/queries";
+import type { ReportsReads } from "../../ports/reports.reads";
 
 export class ListClosePackageQuery {
   constructor(private readonly reads: ReportsReads) {}

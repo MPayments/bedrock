@@ -10,8 +10,8 @@ import {
   type CashFlowQuery,
   type IncomeStatementQuery,
 } from "../reports-validation";
+import type { ComputeIncomeStatementCoreQuery } from "./income-statement";
 import { fetchScopedReportPostings, sortRowsByContextParts } from "./shared";
-import { ComputeIncomeStatementCoreQuery } from "./income-statement";
 
 export class ListCashFlowReportQuery {
   constructor(

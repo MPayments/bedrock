@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { CompiledPack } from "../../domain";
 import { PackChecksumSchema } from "./commands";
+import { CompiledPack } from "../../domain";
 
 const NonEmptyStringRecordSchema = z.record(
   z.string().trim().min(1),

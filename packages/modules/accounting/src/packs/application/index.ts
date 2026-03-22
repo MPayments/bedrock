@@ -1,23 +1,5 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
-import { ActivatePackForScopeCommand } from "./commands/activate-pack-for-scope";
-import { StorePackVersionCommand } from "./commands/store-pack-version";
-import type {
-  ActivatePackForScopeInput,
-  StorePackVersionInput,
-} from "./contracts/commands";
-import type {
-  LoadActivePackForBookInput,
-  ResolvePostingPlanQueryInput,
-} from "./contracts/queries";
-import type { CompiledPackCache } from "./ports/compiled-pack.cache";
-import type { InternalLedgerOrganizationsPort } from "./ports/internal-ledger-organizations.port";
-import type { PackReads } from "./ports/pack.reads";
-import type { PacksCommandUnitOfWork } from "./ports/packs.uow";
-import { GetDefaultCompiledPackQuery } from "./queries/get-default-compiled-pack";
-import { LoadActivePackForBookQuery } from "./queries/load-active-pack-for-book";
-import { LoadPackByChecksumQuery } from "./queries/load-pack-by-checksum";
-import { ResolvePostingPlanQuery } from "./queries/resolve-posting-plan";
 import {
   compilePack as compileDomainPack,
   type AccountingPackDefinition,
@@ -28,7 +10,25 @@ import {
   validatePackDefinition as validateDomainPackDefinition,
 } from "../domain";
 import { AccountingPackDefinitionSchema } from "../schema";
+import { ActivatePackForScopeCommand } from "./commands/activate-pack-for-scope";
+import { StorePackVersionCommand } from "./commands/store-pack-version";
+import type {
+  ActivatePackForScopeInput,
+  StorePackVersionInput,
+} from "./contracts/commands";
+import type {
+  LoadActivePackForBookInput,
+  ResolvePostingPlanQueryInput,
+} from "./contracts/queries";
 import { rethrowAccountingPacksDomainError } from "./map-domain-error";
+import type { CompiledPackCache } from "./ports/compiled-pack.cache";
+import type { InternalLedgerOrganizationsPort } from "./ports/internal-ledger-organizations.port";
+import type { PackReads } from "./ports/pack.reads";
+import type { PacksCommandUnitOfWork } from "./ports/packs.uow";
+import { GetDefaultCompiledPackQuery } from "./queries/get-default-compiled-pack";
+import { LoadActivePackForBookQuery } from "./queries/load-active-pack-for-book";
+import { LoadPackByChecksumQuery } from "./queries/load-pack-by-checksum";
+import { ResolvePostingPlanQuery } from "./queries/resolve-posting-plan";
 
 export interface AccountingPacksService {
   compilePack: typeof compilePack;

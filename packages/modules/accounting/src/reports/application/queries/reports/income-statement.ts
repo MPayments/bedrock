@@ -12,12 +12,12 @@ import {
 } from "../reports-validation";
 import { fetchScopedReportPostings, sortRowsByContextParts } from "./shared";
 
-export type IncomeStatementCoreResult = {
+export interface IncomeStatementCoreResult {
   rows: IncomeStatementRow[];
   summaryByCurrency: IncomeStatementSummaryByCurrency[];
   scopeMeta: ReportScopeMeta;
   postings: ScopedPosting[];
-};
+}
 
 export class ComputeIncomeStatementCoreQuery {
   constructor(private readonly context: AccountingReportsContext) {}

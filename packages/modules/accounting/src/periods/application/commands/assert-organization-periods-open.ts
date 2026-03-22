@@ -1,10 +1,10 @@
 import { ValidationError } from "@bedrock/shared/core/errors";
 
+import { formatPeriodLabel, normalizeMonthStart } from "../../domain";
 import {
   AssertOrganizationPeriodsOpenInputSchema,
   type AssertOrganizationPeriodsOpenInput,
 } from "../contracts/commands";
-import { formatPeriodLabel, normalizeMonthStart } from "../../domain";
 
 export class AssertOrganizationPeriodsOpenCommand {
   constructor(

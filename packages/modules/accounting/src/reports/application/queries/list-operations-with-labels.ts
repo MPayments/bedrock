@@ -3,14 +3,14 @@ import type {
   ListLedgerOperationsInput,
 } from "@bedrock/ledger/contracts";
 
-import type {
-  AccountingReportsLedgerPort,
-  AccountingReportsServicePorts,
-} from "../ports";
 import {
   ListOperationsWithLabelsQuerySchema,
   type ListOperationsWithLabelsQuery as ListOperationsWithLabelsInput,
 } from "../contracts/operation-queries";
+import type {
+  AccountingReportsLedgerPort,
+  AccountingReportsServicePorts,
+} from "../ports";
 import type { ReportsReads } from "../ports/reports.reads";
 
 type RawLedgerOperationList = LedgerOperationList;

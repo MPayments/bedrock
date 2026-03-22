@@ -4,18 +4,18 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Pool } from "pg";
 
-import type { Database } from "@bedrock/platform/persistence/drizzle";
 import { noopLogger } from "@bedrock/platform/observability/logger";
 import { createPersistenceContext } from "@bedrock/platform/persistence";
+import type { Database } from "@bedrock/platform/persistence/drizzle";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 
+import { DrizzlePackReads } from "../src/packs/adapters/drizzle/pack.reads";
 import {
   type AccountingPackDefinition,
   compilePack,
   createPacksService as createAccountingPacksSliceService,
   type CompiledPack,
 } from "../src/packs/application";
-import { DrizzlePackReads } from "../src/packs/adapters/drizzle/pack.reads";
 import { PACK_PACKAGE_NAME } from "../src/packs/bedrock-core-default";
 import { AccountingPackDefinitionSchema } from "../src/packs/schema";
 import { DrizzleAccountingUnitOfWork } from "../src/shared/adapters/drizzle/accounting.uow";

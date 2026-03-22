@@ -1,13 +1,13 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { AccountingPackNotFoundError } from "../../../errors";
+import type { CompiledPack } from "../../domain";
 import {
   ActivatePackForScopeInputSchema,
   type ActivatePackForScopeInput,
 } from "../contracts/commands";
 import type { CompiledPackCache } from "../ports/compiled-pack.cache";
 import type { PacksCommandUnitOfWork } from "../ports/packs.uow";
-import type { CompiledPack } from "../../domain";
-import { AccountingPackNotFoundError } from "../../../errors";
 
 export const PACK_SCOPE_TYPE_BOOK = "book";
 

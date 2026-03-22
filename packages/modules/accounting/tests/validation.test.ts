@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
-
 import { describe, expect, it } from "vitest";
 import { ZodError } from "zod";
 
 import { noopLogger } from "@bedrock/platform/observability/logger";
 
-import { rawPackDefinition } from "../src/packs/bedrock-core-default";
 import { createPacksService } from "../src/packs/application";
+import { rawPackDefinition } from "../src/packs/bedrock-core-default";
 import { createPeriodsService } from "../src/periods/application";
 
 const runtime = {

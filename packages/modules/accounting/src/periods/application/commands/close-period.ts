@@ -1,12 +1,12 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { AccountingPeriod, CalendarMonth } from "../../domain";
 import {
   ClosePeriodInputSchema,
   type ClosePeriodInput,
 } from "../contracts/commands";
 import type { ClosePackageSnapshotPort } from "../ports/close-package-snapshot.port";
 import type { PeriodsCommandUnitOfWork } from "../ports/periods.uow";
-import { AccountingPeriod, CalendarMonth } from "../../domain";
 
 export class ClosePeriodCommand {
   constructor(

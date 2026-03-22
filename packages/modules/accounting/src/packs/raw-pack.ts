@@ -3,8 +3,8 @@ import {
   DEFAULT_CHART_TEMPLATE_ACCOUNTS,
   DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
 } from "../constants";
-import { AccountingPackDefinitionSchema } from "./schema";
 import { validatePackDefinition } from "./domain/compile-pack";
+import { AccountingPackDefinitionSchema } from "./schema";
 
 const parsedRawPackDefinition = AccountingPackDefinitionSchema.parse(
   defaultPackRaw as unknown,

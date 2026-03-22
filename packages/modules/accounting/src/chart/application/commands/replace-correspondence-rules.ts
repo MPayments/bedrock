@@ -1,11 +1,11 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { CorrespondenceRule } from "../../domain";
 import {
   replaceCorrespondenceRulesSchema,
   type ReplaceCorrespondenceRulesInput,
 } from "../contracts/commands";
 import type { ChartCommandUnitOfWork } from "../ports/chart.uow";
-import { CorrespondenceRule } from "../../domain";
 
 export class ReplaceCorrespondenceRulesCommand {
   constructor(

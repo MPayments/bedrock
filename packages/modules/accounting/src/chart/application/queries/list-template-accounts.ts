@@ -1,5 +1,5 @@
-import type { ChartReads } from "../ports/chart.reads";
 import { ChartTemplateAccount } from "../../domain";
+import type { ChartReads } from "../ports/chart.reads";
 
 export class ListTemplateAccountsQuery {
   constructor(private readonly reads: ChartReads) {}

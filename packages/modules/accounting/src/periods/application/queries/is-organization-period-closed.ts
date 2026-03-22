@@ -1,9 +1,9 @@
+import { normalizeMonthStart } from "../../domain";
 import {
   IsOrganizationPeriodClosedInputSchema,
   type IsOrganizationPeriodClosedInput,
 } from "../contracts/queries";
 import type { PeriodReads } from "../ports/period.reads";
-import { normalizeMonthStart } from "../../domain";
 
 export class IsOrganizationPeriodClosedQuery {
   constructor(private readonly reads: PeriodReads) {}

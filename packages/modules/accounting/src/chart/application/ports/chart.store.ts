@@ -1,5 +1,5 @@
-import type { ReplaceCorrespondenceRulesInput } from "../contracts/commands";
 import type { CorrespondenceRuleSnapshot } from "../../domain";
+import type { ReplaceCorrespondenceRulesInput } from "../contracts/commands";
 
 export interface ChartStore {
   replaceCorrespondenceRules(

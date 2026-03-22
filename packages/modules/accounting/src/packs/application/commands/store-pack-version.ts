@@ -1,12 +1,6 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import {
-  StorePackVersionInputSchema,
-  type StorePackVersionInput,
-} from "../contracts/commands";
-import type { CompiledPackCache } from "../ports/compiled-pack.cache";
-import type { PacksCommandUnitOfWork } from "../ports/packs.uow";
-import {
   AccountingPackVersion,
   compilePack,
   hydrateCompiledPack,
@@ -14,7 +8,13 @@ import {
   serializeCompiledPack,
   type CompiledPack,
 } from "../../domain";
+import {
+  StorePackVersionInputSchema,
+  type StorePackVersionInput,
+} from "../contracts/commands";
 import { rethrowAccountingPacksDomainError } from "../map-domain-error";
+import type { CompiledPackCache } from "../ports/compiled-pack.cache";
+import type { PacksCommandUnitOfWork } from "../ports/packs.uow";
 
 export class StorePackVersionCommand {
   constructor(

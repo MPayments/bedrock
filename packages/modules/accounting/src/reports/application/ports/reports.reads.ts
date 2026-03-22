@@ -1,8 +1,8 @@
 import type { ListLedgerOperationsInput } from "@bedrock/ledger/contracts";
 
-import type { AccountingReportQueries } from "../queries/reports";
 import type { LedgerOperationDetailsWithLabels } from "../queries/get-operation-details-with-labels";
 import type { LedgerOperationListWithLabels } from "../queries/list-operations-with-labels";
+import type { AccountingReportQueries } from "../queries/reports";
 
 export interface ReportsReads extends AccountingReportQueries {
   getOperationDetailsWithLabels(

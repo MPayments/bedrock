@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
-
 import { describe, expect, it } from "vitest";
 
+import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
+import { POSTING_TEMPLATE_KEY } from "@bedrock/accounting/posting-contracts";
 import { noopLogger } from "@bedrock/platform/observability/logger";
 
 import { createPacksService, type DocumentPostingPlan } from "../src/packs/application";
-import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
-import { POSTING_TEMPLATE_KEY } from "@bedrock/accounting/posting-contracts";
 
 describe("accounting packs service", () => {
   const packsService = createPacksService({

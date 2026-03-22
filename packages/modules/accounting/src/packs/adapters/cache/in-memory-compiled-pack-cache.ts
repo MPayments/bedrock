@@ -1,5 +1,5 @@
-import type { CompiledPack } from "../../domain";
 import type { CompiledPackCache } from "../../application/ports/compiled-pack.cache";
+import type { CompiledPack } from "../../domain";
 
 interface CacheEntry {
   expiresAt: number;

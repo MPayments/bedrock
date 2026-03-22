@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { AccountingPackDefinitionSchema } from "../../schema";
 import { CompiledPack } from "../../domain";
+import { AccountingPackDefinitionSchema } from "../../schema";
 
 export const PackChecksumSchema = z.string().trim().min(1);
 

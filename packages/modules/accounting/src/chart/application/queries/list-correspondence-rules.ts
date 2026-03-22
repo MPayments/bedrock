@@ -1,5 +1,5 @@
-import type { ChartReads } from "../ports/chart.reads";
 import { CorrespondenceRule } from "../../domain";
+import type { ChartReads } from "../ports/chart.reads";
 
 export class ListCorrespondenceRulesQuery {
   constructor(private readonly reads: ChartReads) {}

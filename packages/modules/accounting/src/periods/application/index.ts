@@ -1,5 +1,6 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { getPreviousCalendarMonthRange } from "../domain";
 import { AssertOrganizationPeriodsOpenCommand } from "./commands/assert-organization-periods-open";
 import { ClosePeriodCommand } from "./commands/close-period";
 import { ReopenPeriodCommand } from "./commands/reopen-period";
@@ -8,7 +9,6 @@ import type { PeriodReads } from "./ports/period.reads";
 import type { PeriodsCommandUnitOfWork } from "./ports/periods.uow";
 import { IsOrganizationPeriodClosedQuery } from "./queries/is-organization-period-closed";
 import { ListClosedOrganizationIdsForPeriodQuery } from "./queries/list-closed-organization-ids-for-period";
-import { getPreviousCalendarMonthRange } from "../domain";
 
 export interface PeriodsServiceDeps {
   runtime: ModuleRuntime;

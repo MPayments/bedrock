@@ -1,5 +1,5 @@
-import type { ReportsReads } from "../../ports/reports.reads";
 import type { GeneralLedgerQuery } from "../../contracts/queries";
+import type { ReportsReads } from "../../ports/reports.reads";
 
 export class ListGeneralLedgerQuery {
   constructor(private readonly reads: ReportsReads) {}

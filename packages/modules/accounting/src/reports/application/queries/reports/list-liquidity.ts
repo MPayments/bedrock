@@ -1,5 +1,5 @@
-import type { ReportsReads } from "../../ports/reports.reads";
 import type { LiquidityQuery } from "../../contracts/queries";
+import type { ReportsReads } from "../../ports/reports.reads";
 
 export class ListLiquidityQuery {
   constructor(private readonly reads: ReportsReads) {}

@@ -3,8 +3,8 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Queryable } from "@bedrock/platform/persistence";
 
 import type { AccountingClosePackageRecord } from "../../../periods/domain";
-import type { LineMapping } from "../../domain";
 import { schema } from "../../../schema";
+import type { LineMapping } from "../../domain";
 
 export class DrizzleReportsRepository {
   constructor(private readonly db: Queryable) {}

@@ -1,14 +1,14 @@
-import type { LedgerOperationDetails } from "@bedrock/ledger/contracts";
 import { getDefaultPrecision } from "@bedrock/currencies/contracts";
+import type { LedgerOperationDetails } from "@bedrock/ledger/contracts";
 
-import type {
-  AccountingReportsLedgerPort,
-  AccountingReportsServicePorts,
-} from "../ports";
 import {
   ListOperationDetailsWithLabelsInputSchema,
   type ListOperationDetailsWithLabelsInput,
 } from "../contracts/operation-queries";
+import type {
+  AccountingReportsLedgerPort,
+  AccountingReportsServicePorts,
+} from "../ports";
 import type { ReportsReads } from "../ports/reports.reads";
 
 type RawLedgerOperationDetails = LedgerOperationDetails;

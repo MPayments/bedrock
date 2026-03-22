@@ -4,12 +4,12 @@ import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { noopLogger } from "@bedrock/platform/observability/logger";
-import { createPersistenceContext } from "@bedrock/platform/persistence";
 
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { schema as accountingSchema } from "@bedrock/accounting/schema";
 import { schema as ledgerSchema } from "@bedrock/ledger/schema";
+import { noopLogger } from "@bedrock/platform/observability/logger";
+import { createPersistenceContext } from "@bedrock/platform/persistence";
 
 import { DrizzlePackReads } from "../../src/packs/adapters/drizzle/pack.reads";
 import { createPacksService } from "../../src/packs/application";

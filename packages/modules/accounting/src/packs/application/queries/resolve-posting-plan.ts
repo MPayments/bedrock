@@ -1,16 +1,16 @@
 import {
-  ResolvePostingPlanInputSchema,
-  type ResolvePostingPlanQueryInput,
-} from "../contracts/queries";
-import type { InternalLedgerOrganizationsPort } from "../ports/internal-ledger-organizations.port";
-import {
   readRequiredBookId,
   resolveBookIdContext,
   resolvePostingPlan,
   type CompiledPack,
   type ResolvePostingPlanInput,
 } from "../../domain";
+import {
+  ResolvePostingPlanInputSchema,
+  type ResolvePostingPlanQueryInput,
+} from "../contracts/queries";
 import { rethrowAccountingPacksDomainError } from "../map-domain-error";
+import type { InternalLedgerOrganizationsPort } from "../ports/internal-ledger-organizations.port";
 
 export class ResolvePostingPlanQuery {
   constructor(

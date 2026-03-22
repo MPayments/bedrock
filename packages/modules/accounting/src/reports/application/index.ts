@@ -1,12 +1,12 @@
+import type { ReportsReads } from "./ports/reports.reads";
 import { GetOperationDetailsWithLabelsQuery } from "./queries/get-operation-details-with-labels";
 import { ListOperationDetailsWithLabelsQuery } from "./queries/list-operation-details-with-labels";
 import { ListOperationsWithLabelsQuery } from "./queries/list-operations-with-labels";
-import type { ReportsReads } from "./ports/reports.reads";
 import { ListBalanceSheetQuery } from "./queries/reports/list-balance-sheet";
 import { ListCashFlowQuery } from "./queries/reports/list-cash-flow";
 import { ListClosePackageQuery } from "./queries/reports/list-close-package";
-import { ListFeeRevenueBreakdownQuery } from "./queries/reports/list-fee-revenue-breakdown";
 import { ListFeeRevenueQuery } from "./queries/reports/list-fee-revenue";
+import { ListFeeRevenueBreakdownQuery } from "./queries/reports/list-fee-revenue-breakdown";
 import { ListFxRevaluationQuery } from "./queries/reports/list-fx-revaluation";
 import { ListGeneralLedgerQuery } from "./queries/reports/list-general-ledger";
 import { ListIncomeStatementQuery } from "./queries/reports/list-income-statement";

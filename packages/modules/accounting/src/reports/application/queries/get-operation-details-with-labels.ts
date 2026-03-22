@@ -1,9 +1,9 @@
+import { type LedgerOperationDetailsWithLabels } from "./list-operation-details-with-labels";
 import {
   GetOperationDetailsWithLabelsInputSchema,
   type GetOperationDetailsWithLabelsInput,
 } from "../contracts/operation-queries";
 import type { ReportsReads } from "../ports/reports.reads";
-import { type LedgerOperationDetailsWithLabels } from "./list-operation-details-with-labels";
 
 export { type LedgerOperationDetailsWithLabels };
 

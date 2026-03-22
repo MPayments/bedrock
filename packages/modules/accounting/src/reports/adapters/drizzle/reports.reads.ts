@@ -3,11 +3,7 @@ import type { ListLedgerOperationsInput } from "@bedrock/ledger/contracts";
 import type { LedgerQueries } from "@bedrock/ledger/queries";
 import type { Queryable } from "@bedrock/platform/persistence";
 
-import type {
-  AccountingReportsDocumentsPort,
-  AccountingReportsServicePorts,
-} from "../../application/ports";
-import type { AccountingReportsLedgerPort } from "../../application/ports";
+import { DrizzleReportsRepository } from "./reports.repository";
 import type {
   BalanceSheetQuery,
   CashFlowQuery,
@@ -19,6 +15,11 @@ import type {
   LiquidityQuery,
   TrialBalanceQuery,
 } from "../../application/contracts/queries";
+import type {
+  AccountingReportsDocumentsPort,
+  AccountingReportsServicePorts,
+} from "../../application/ports";
+import type { AccountingReportsLedgerPort } from "../../application/ports";
 import type { ReportsReads } from "../../application/ports/reports.reads";
 import { type LedgerOperationDetailsWithLabels } from "../../application/queries/get-operation-details-with-labels";
 import { ListOperationDetailsWithLabelsReadQuery } from "../../application/queries/list-operation-details-with-labels";
@@ -41,7 +42,6 @@ import type {
   AccountingOrganizationsQueryPort,
   AccountingRequisitesQueryPort,
 } from "../reporting/party-query-ports";
-import { DrizzleReportsRepository } from "./reports.repository";
 
 export class DrizzleReportsReads implements ReportsReads {
   private readonly reportQueries: AccountingReportQueries;
