@@ -1,6 +1,4 @@
-import type { BalancesQueries } from "@bedrock/balances/queries";
 import type { ListLedgerOperationsInput } from "@bedrock/ledger/contracts";
-import type { LedgerQueries } from "@bedrock/ledger/queries";
 import type { Queryable } from "@bedrock/platform/persistence";
 
 import { DrizzleReportsRepository } from "./reports.repository";
@@ -37,6 +35,10 @@ import {
   type DimensionDocumentsReadModel,
 } from "../reporting/dimensions";
 import type {
+  AccountingBalancesQueryPort,
+  AccountingLedgerQueryPort,
+} from "../reporting/ledger-query-ports";
+import type {
   AccountingCounterpartiesQueryPort,
   AccountingCustomersQueryPort,
   AccountingOrganizationsQueryPort,
@@ -54,12 +56,12 @@ export class DrizzleReportsReads implements ReportsReads {
 
   constructor(input: {
     db: Queryable;
-    balancesQueries: BalancesQueries;
+    balancesQueries: AccountingBalancesQueryPort;
     counterpartiesQueries: AccountingCounterpartiesQueryPort;
     customersQueries: AccountingCustomersQueryPort;
     documentsPort: AccountingReportsDocumentsPort;
     dimensionDocumentsReadModel?: DimensionDocumentsReadModel;
-    ledgerQueries: LedgerQueries;
+    ledgerQueries: AccountingLedgerQueryPort;
     ledgerReadPort: AccountingReportsLedgerPort;
     organizationsQueries: AccountingOrganizationsQueryPort;
     requisitesQueries: AccountingRequisitesQueryPort;

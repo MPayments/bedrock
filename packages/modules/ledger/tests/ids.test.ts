@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { sha256Hex } from "@bedrock/shared/core/crypto";
+
 import {
   normalizeTbId,
   TB_ID_MAX,
@@ -8,8 +10,7 @@ import {
   tbLedgerForCurrency,
   tbTransferIdForOperation,
   u128FromHash,
-} from "@bedrock/ledger/ids";
-import { sha256Hex } from "@bedrock/shared/core/crypto";
+} from "../src/shared/adapters/tigerbeetle/identity-policy";
 
 describe("normalizeTbId", () => {
   it("normalizes zero and negatives to 1", () => {
@@ -71,102 +72,124 @@ describe("tbLedgerForCurrency", () => {
 
 describe("tbBookAccountInstanceIdFor", () => {
   it("generates valid account IDs", () => {
-    const tbLedger = tbLedgerForCurrency("USD");
-    const id = tbBookAccountInstanceIdFor(
-      "550e8400-e29b-41d4-a716-446655440000",
-      "1000",
-      "USD",
-      "dims-hash",
-      tbLedger,
-    );
+    const id = tbBookAccountInstanceIdFor({
+      bookId: "550e8400-e29b-41d4-a716-446655440000",
+      accountNo: "1000",
+      currency: "USD",
+      dimensions: { hash: "dims-hash" },
+    });
 
     expect(id).toBeGreaterThan(0n);
     expect(id).toBeLessThan(TB_ID_MAX);
   });
 
   it("is deterministic", () => {
-    const tbLedger = tbLedgerForCurrency("USD");
-    const id1 = tbBookAccountInstanceIdFor(
-      "550e8400-e29b-41d4-a716-446655440000",
-      "1000",
-      "USD",
-      "dims-hash",
-      tbLedger,
-    );
-    const id2 = tbBookAccountInstanceIdFor(
-      "550e8400-e29b-41d4-a716-446655440000",
-      "1000",
-      "USD",
-      "dims-hash",
-      tbLedger,
-    );
+    const id1 = tbBookAccountInstanceIdFor({
+      bookId: "550e8400-e29b-41d4-a716-446655440000",
+      accountNo: "1000",
+      currency: "USD",
+      dimensions: { hash: "dims-hash" },
+    });
+    const id2 = tbBookAccountInstanceIdFor({
+      bookId: "550e8400-e29b-41d4-a716-446655440000",
+      accountNo: "1000",
+      currency: "USD",
+      dimensions: { hash: "dims-hash" },
+    });
 
     expect(id1).toBe(id2);
   });
 
   it("changes when org/account/currency/ledger changes", () => {
-    const usdLedger = tbLedgerForCurrency("USD");
-    const eurLedger = tbLedgerForCurrency("EUR");
-
-    const base = tbBookAccountInstanceIdFor(
-      "550e8400-e29b-41d4-a716-446655440000",
-      "1000",
-      "USD",
-      "dims-hash",
-      usdLedger,
-    );
+    const base = tbBookAccountInstanceIdFor({
+      bookId: "550e8400-e29b-41d4-a716-446655440000",
+      accountNo: "1000",
+      currency: "USD",
+      dimensions: { hash: "dims-hash" },
+    });
 
     expect(
-      tbBookAccountInstanceIdFor(
-        "550e8400-e29b-41d4-a716-446655440001",
-        "1000",
-        "USD",
-        "dims-hash",
-        usdLedger,
-      ),
+      tbBookAccountInstanceIdFor({
+        bookId: "550e8400-e29b-41d4-a716-446655440001",
+        accountNo: "1000",
+        currency: "USD",
+        dimensions: { hash: "dims-hash" },
+      }),
     ).not.toBe(base);
 
     expect(
-      tbBookAccountInstanceIdFor(
-        "550e8400-e29b-41d4-a716-446655440000",
-        "2000",
-        "USD",
-        "dims-hash",
-        usdLedger,
-      ),
+      tbBookAccountInstanceIdFor({
+        bookId: "550e8400-e29b-41d4-a716-446655440000",
+        accountNo: "2000",
+        currency: "USD",
+        dimensions: { hash: "dims-hash" },
+      }),
     ).not.toBe(base);
 
     expect(
-      tbBookAccountInstanceIdFor(
-        "550e8400-e29b-41d4-a716-446655440000",
-        "1000",
-        "EUR",
-        "dims-hash",
-        eurLedger,
-      ),
+      tbBookAccountInstanceIdFor({
+        bookId: "550e8400-e29b-41d4-a716-446655440000",
+        accountNo: "1000",
+        currency: "EUR",
+        dimensions: { hash: "dims-hash" },
+      }),
     ).not.toBe(base);
   });
 });
 
 describe("tbTransferIdForOperation", () => {
   it("generates valid transfer IDs", () => {
-    const id = tbTransferIdForOperation("op-123", 1, "plan-1");
+    const id = tbTransferIdForOperation({
+      operationId: "op-123",
+      lineNo: 1,
+      planRef: "plan-1",
+    });
     expect(id).toBeGreaterThan(0n);
     expect(id).toBeLessThan(TB_ID_MAX);
   });
 
   it("is deterministic", () => {
-    const id1 = tbTransferIdForOperation("op-123", 1, "plan-1");
-    const id2 = tbTransferIdForOperation("op-123", 1, "plan-1");
+    const id1 = tbTransferIdForOperation({
+      operationId: "op-123",
+      lineNo: 1,
+      planRef: "plan-1",
+    });
+    const id2 = tbTransferIdForOperation({
+      operationId: "op-123",
+      lineNo: 1,
+      planRef: "plan-1",
+    });
     expect(id1).toBe(id2);
   });
 
   it("changes when operation/line/planRef changes", () => {
-    const base = tbTransferIdForOperation("op-123", 1, "plan-1");
+    const base = tbTransferIdForOperation({
+      operationId: "op-123",
+      lineNo: 1,
+      planRef: "plan-1",
+    });
 
-    expect(tbTransferIdForOperation("op-456", 1, "plan-1")).not.toBe(base);
-    expect(tbTransferIdForOperation("op-123", 2, "plan-1")).not.toBe(base);
-    expect(tbTransferIdForOperation("op-123", 1, "plan-2")).not.toBe(base);
+    expect(
+      tbTransferIdForOperation({
+        operationId: "op-456",
+        lineNo: 1,
+        planRef: "plan-1",
+      }),
+    ).not.toBe(base);
+    expect(
+      tbTransferIdForOperation({
+        operationId: "op-123",
+        lineNo: 2,
+        planRef: "plan-1",
+      }),
+    ).not.toBe(base);
+    expect(
+      tbTransferIdForOperation({
+        operationId: "op-123",
+        lineNo: 1,
+        planRef: "plan-2",
+      }),
+    ).not.toBe(base);
   });
 
   it("does not collide for 100 generated combinations", () => {
@@ -174,7 +197,11 @@ describe("tbTransferIdForOperation", () => {
 
     for (let i = 0; i < 100; i++) {
       ids.add(
-        tbTransferIdForOperation(`op-${i % 10}`, (i % 5) + 1, `plan-${i}`),
+        tbTransferIdForOperation({
+          operationId: `op-${i % 10}`,
+          lineNo: (i % 5) + 1,
+          planRef: `plan-${i}`,
+        }),
       );
     }
 

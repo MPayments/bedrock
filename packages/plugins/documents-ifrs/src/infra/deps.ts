@@ -1,7 +1,7 @@
 import type { CurrenciesService } from "@bedrock/currencies";
 import { normalizeFinancialLine } from "@bedrock/documents/contracts";
 import type { FxService } from "@bedrock/fx";
-import type { LedgerReadService } from "@bedrock/ledger";
+import type { LedgerOperationDetails } from "@bedrock/ledger/contracts";
 import { DocumentValidationError } from "@bedrock/plugin-documents-sdk";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import { sha256Hex } from "@bedrock/shared/core/crypto";
@@ -19,7 +19,11 @@ type IfrsFxQuotesPort = Pick<
   "getQuoteDetails" | "markQuoteUsed" | "quote"
 >;
 
-type IfrsLedgerReadPort = Pick<LedgerReadService, "getOperationDetails">;
+interface IfrsLedgerReadPort {
+  getOperationDetails(
+    operationId: string,
+  ): Promise<LedgerOperationDetails | null>;
+}
 
 function buildQuoteSnapshotHash(snapshot: Record<string, unknown>) {
   return sha256Hex(canonicalJson(snapshot));

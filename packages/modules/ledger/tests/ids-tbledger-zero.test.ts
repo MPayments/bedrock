@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 
-import { tbLedgerForCurrency } from "@bedrock/ledger/ids";
+import { tbLedgerForCurrency } from "../src/shared/adapters/tigerbeetle/identity-policy";
 
 vi.mock("node:crypto", () => ({
   createHash: vi.fn(() => ({

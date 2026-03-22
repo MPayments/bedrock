@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  tbBookAccountInstanceIdFor,
-  tbLedgerForCurrency,
-} from "@bedrock/ledger/ids";
-import { stableStringify } from "@bedrock/shared/core/canon";
-import { sha256Hex } from "@bedrock/shared/core/crypto";
 
 import { createMockTbClient, createStubDb, type StubDatabase } from "./helpers";
 import { resolveTbBookAccountInstanceId } from "./test-resolve";
+import {
+  tbBookAccountInstanceIdFor,
+  tbLedgerForCurrency,
+} from "../../../src/shared/adapters/tigerbeetle/identity-policy";
 
 describe("resolveTbBookAccountInstanceId", () => {
   let db: StubDatabase;
@@ -19,20 +17,17 @@ describe("resolveTbBookAccountInstanceId", () => {
     tb = createMockTbClient();
   });
 
-  const emptyDimensionsHash = sha256Hex(stableStringify({}));
-
   it("returns existing mapped account ID", async () => {
     const orgId = "550e8400-e29b-41d4-a716-446655440000";
     const accountNo = "1000";
     const currency = "USD";
     const tbLedger = tbLedgerForCurrency(currency);
-    const expectedId = tbBookAccountInstanceIdFor(
-      orgId,
+    const expectedId = tbBookAccountInstanceIdFor({
+      bookId: orgId,
       accountNo,
       currency,
-      emptyDimensionsHash,
-      tbLedger,
-    );
+      dimensions: {},
+    });
 
     vi.mocked(db.select).mockReturnValue({
       from: vi.fn(() => ({
@@ -90,13 +85,12 @@ describe("resolveTbBookAccountInstanceId", () => {
     const accountNo = "2000";
     const currency = "USD";
     const tbLedger = tbLedgerForCurrency(currency);
-    const expectedId = tbBookAccountInstanceIdFor(
-      orgId,
+    const expectedId = tbBookAccountInstanceIdFor({
+      bookId: orgId,
       accountNo,
       currency,
-      emptyDimensionsHash,
-      tbLedger,
-    );
+      dimensions: {},
+    });
 
     vi.mocked(db.select).mockReturnValue({
       from: vi.fn(() => ({

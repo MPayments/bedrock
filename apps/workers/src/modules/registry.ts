@@ -1,6 +1,3 @@
-import {
-  createBalancesProjectorWorkerDefinition,
-} from "@bedrock/balances/worker";
 import { createCurrenciesService } from "@bedrock/currencies";
 import { createDocumentsWorkerDefinition } from "@bedrock/documents/worker";
 import { createFeesService } from "@bedrock/fees";
@@ -10,6 +7,7 @@ import {
 import { createDefaultFxRateSourceProviders } from "@bedrock/fx/providers";
 import { createFxRatesWorkerDefinition } from "@bedrock/fx/worker";
 import {
+  createBalancesProjectorWorkerDefinition,
   createLedgerWorkerDefinition,
   type TbClient,
 } from "@bedrock/ledger/worker";

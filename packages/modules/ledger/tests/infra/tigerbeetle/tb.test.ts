@@ -12,7 +12,7 @@ import {
   TransferFlags,
   CreateAccountError,
   CreateTransferError,
-} from "../../../src/infra/tigerbeetle/client";
+} from "../../../src/adapters/tigerbeetle/client";
 
 
 describe("TB_AMOUNT_MAX", () => {

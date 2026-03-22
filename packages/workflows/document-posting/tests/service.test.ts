@@ -27,19 +27,24 @@ describe("document posting workflow", () => {
       postingOperationId: "op-1",
       allowedActions: [],
     }));
+    const commit = vi.fn(async () => ({
+      operationId: "op-1",
+      pendingTransferIdsByRef: {},
+    }));
+    const createLedgerModule = vi.fn(() => ({
+      operations: {
+        commands: {
+          commit,
+        },
+      },
+    }));
     const get = vi.fn();
     const workflow = createDocumentPostingWorkflow({
       db: db as any,
       idempotency: {
         withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
       } as any,
-      ledgerCommit: {
-        commit: vi.fn(async () => ({
-          operationId: "op-1",
-          pendingTransferIdsByRef: {},
-        })),
-        commitStandalone: vi.fn(),
-      } as any,
+      createLedgerModule: createLedgerModule as any,
       createDocumentsService: () => ({
         get,
         actions: {
@@ -58,6 +63,8 @@ describe("document posting workflow", () => {
       actorUserId: "user-1",
     });
 
+    expect(createLedgerModule).toHaveBeenCalledWith(tx);
+    expect(commit).toHaveBeenCalledWith({ id: "intent-1" });
     expect(preparePost).toHaveBeenCalledWith({
       action: "post",
       docType: "test_document",
@@ -83,16 +90,20 @@ describe("document posting workflow", () => {
       postingOperationId: "op-existing",
       allowedActions: [],
     }));
-    const ledgerCommit = {
-      commit: vi.fn(),
-      commitStandalone: vi.fn(),
-    };
+    const commit = vi.fn();
+    const createLedgerModule = vi.fn(() => ({
+      operations: {
+        commands: {
+          commit,
+        },
+      },
+    }));
     const workflow = createDocumentPostingWorkflow({
       db: db as any,
       idempotency: {
         withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
       } as any,
-      ledgerCommit: ledgerCommit as any,
+      createLedgerModule: createLedgerModule as any,
       createDocumentsService: () => ({
         get: vi.fn(),
         actions: {
@@ -124,6 +135,6 @@ describe("document posting workflow", () => {
     });
 
     expect(result.postingOperationId).toBe("op-existing");
-    expect(ledgerCommit.commit).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
   });
 });

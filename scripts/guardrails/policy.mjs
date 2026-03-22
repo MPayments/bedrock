@@ -41,7 +41,6 @@ const COMMON_SCHEMA_ALLOW_PATTERNS = [
 ];
 
 export const SCHEMA_IMPORT_ALLOW_PATTERNS = {
-  "@bedrock/balances": [...COMMON_SCHEMA_ALLOW_PATTERNS],
   "@bedrock/currencies": [
     ...COMMON_SCHEMA_ALLOW_PATTERNS,
     "^apps/api/src/composition/",
@@ -56,7 +55,6 @@ export const SCHEMA_IMPORT_ALLOW_PATTERNS = {
   ],
   "@bedrock/ledger": [
     ...COMMON_SCHEMA_ALLOW_PATTERNS,
-    "^packages/modules/balances/src/infra/",
     "^packages/plugins/[^/]+/src/infra/",
   ],
   "@bedrock/parties": [...COMMON_SCHEMA_ALLOW_PATTERNS],

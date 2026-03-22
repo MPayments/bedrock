@@ -1,6 +1,7 @@
-import type { BalancesQueries } from "@bedrock/balances/queries";
-import type { LedgerQueries } from "@bedrock/ledger/queries";
-
+import type {
+  AccountingBalancesQueryPort,
+  AccountingLedgerQueryPort,
+} from "./ledger-query-ports";
 import type {
   AccountingCounterpartiesQueryPort,
   AccountingOrganizationsQueryPort,
@@ -14,10 +15,10 @@ import type {
 import type { DrizzleReportsRepository } from "../drizzle/reports.repository";
 
 export function createAccountingReportsContext(input: {
-  balancesQueries: BalancesQueries;
+  balancesQueries: AccountingBalancesQueryPort;
   counterpartiesQueries: AccountingCounterpartiesQueryPort;
   documentsPort: AccountingReportsDocumentsPort;
-  ledgerQueries: LedgerQueries;
+  ledgerQueries: AccountingLedgerQueryPort;
   organizationsQueries: AccountingOrganizationsQueryPort;
   reportsRepository: DrizzleReportsRepository;
 }): AccountingReportsContext {

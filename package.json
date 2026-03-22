@@ -1,6 +1,7 @@
 {
   "name": "bedrock",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "turbo run build",
     "db:generate": "bun run --filter=db db:generate",

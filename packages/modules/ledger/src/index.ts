@@ -1,15 +1,7 @@
-export {
-  createLedgerBookAccountsService,
-  createLedgerBooksService,
-  createLedgerCommitService,
-  createLedgerReadService,
-  createLedgerService,
-  type LedgerBookAccountsService,
-  type LedgerBooksService,
-  type LedgerCommitService,
-  type LedgerReadService,
-  type LedgerService,
-  type LedgerServiceDeps,
-} from "./service";
-export type { Dimensions } from "./contracts";
 export * from "./errors";
+export {
+  createLedgerModule,
+  type LedgerModule,
+  type LedgerModuleDeps,
+  type LedgerModuleUnitOfWork,
+} from "./module";

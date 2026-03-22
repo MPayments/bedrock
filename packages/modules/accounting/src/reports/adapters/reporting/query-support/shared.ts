@@ -1,5 +1,3 @@
-import type { BalancesQueries } from "@bedrock/balances/queries";
-import type { LedgerQueries } from "@bedrock/ledger/queries";
 import { parseMinorAmountOrZero } from "@bedrock/shared/money";
 
 import {
@@ -8,6 +6,10 @@ import {
   type ResolvedScope,
 } from "../../../domain";
 import type { DrizzleReportsRepository } from "../../drizzle/reports.repository";
+import type {
+  AccountingBalancesQueryPort,
+  AccountingLedgerQueryPort,
+} from "../ledger-query-ports";
 import type {
   AccountingCounterpartiesQueryPort,
   AccountingOrganizationsQueryPort,
@@ -18,9 +20,9 @@ export function keyByParts(...parts: (string | null | undefined)[]): string {
 }
 
 export function createReportsSharedHelpers(input: {
-  balancesQueries: BalancesQueries;
+  balancesQueries: AccountingBalancesQueryPort;
   counterpartiesQueries: AccountingCounterpartiesQueryPort;
-  ledgerQueries: LedgerQueries;
+  ledgerQueries: AccountingLedgerQueryPort;
   organizationsQueries: AccountingOrganizationsQueryPort;
   reportsRepository: DrizzleReportsRepository;
 }) {

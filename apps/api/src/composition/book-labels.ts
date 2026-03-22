@@ -1,4 +1,4 @@
-import type { LedgerBookRow } from "@bedrock/ledger/queries";
+import type { LedgerBookRow } from "@bedrock/ledger/contracts";
 
 export function relabelOrganizationBookNames(input: {
   books: LedgerBookRow[];

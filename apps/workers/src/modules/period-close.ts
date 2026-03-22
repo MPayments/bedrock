@@ -8,7 +8,6 @@ import {
   type DocumentApprovalRule,
 } from "@bedrock/documents";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
-import { createLedgerReadService } from "@bedrock/ledger";
 import { user } from "@bedrock/platform/auth-model/schema";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
@@ -29,6 +28,7 @@ import {
 } from "@bedrock/workflow-period-close";
 
 import { createWorkerAccountingModule } from "../accounting-module";
+import { createWorkerLedgerModule } from "../ledger-module";
 import { createWorkerPartiesReadRuntime } from "../parties-module";
 
 async function resolveSystemActorUserId(db: Database): Promise<string | null> {
@@ -89,13 +89,20 @@ export function createPeriodCloseWorkerDefinition(deps: {
 }): BedrockWorker {
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: deps.db });
   const idempotency = createIdempotencyService({ logger: deps.logger });
-  const ledgerReadService = createLedgerReadService({ db: deps.db });
   const accountingLogger = deps.logger ?? noopLogger;
+  const ledgerModule = createWorkerLedgerModule({
+    db: deps.db,
+    idempotency,
+    logger: accountingLogger,
+  });
+  const ledgerReadPort = {
+    getOperationDetails: ledgerModule.operations.queries.getDetails,
+    listOperationDetails: ledgerModule.operations.queries.listDetails,
+  };
   const accountingModule = createWorkerAccountingModule({
     db: deps.db,
     persistence: createPersistenceContext(deps.db),
     logger: accountingLogger,
-    ledgerReadPort: ledgerReadService,
   });
   const accountingPeriods = {
     async assertOrganizationPeriodsOpen(input: {
@@ -130,7 +137,6 @@ export function createPeriodCloseWorkerDefinition(deps: {
             db: target,
             persistence: bindPersistenceSession(target),
             logger: accountingLogger,
-            ledgerReadPort: ledgerReadService,
           })
         : accountingModule;
 
@@ -163,7 +169,6 @@ export function createPeriodCloseWorkerDefinition(deps: {
             db: target,
             persistence: bindPersistenceSession(target),
             logger: accountingLogger,
-            ledgerReadPort: ledgerReadService,
           })
         : accountingModule;
 
@@ -198,7 +203,7 @@ export function createPeriodCloseWorkerDefinition(deps: {
     idempotency,
     accounting: documentsAccountingPort,
     accountingPeriods,
-    ledgerReadService,
+    ledgerReadService: ledgerReadPort,
     policy: documentsPolicy,
     registry: documentRegistry,
     transitionEffects: documentTransitionEffects,
@@ -212,7 +217,7 @@ export function createPeriodCloseWorkerDefinition(deps: {
         idempotency,
         accounting: documentsAccountingPort,
         accountingPeriods,
-        ledgerReadService,
+        ledgerReadService: ledgerReadPort,
         policy: documentsPolicy,
         registry: documentRegistry,
         transitionEffects: documentTransitionEffects,

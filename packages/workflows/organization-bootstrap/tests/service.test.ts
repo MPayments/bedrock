@@ -39,12 +39,19 @@ describe("organization bootstrap workflow", () => {
     const db = {
       transaction: vi.fn(async (run: (value: any) => Promise<unknown>) => run(tx)),
     };
-    const ledgerBooks = {
-      ensureDefaultOrganizationBook: vi.fn(async () => ({ bookId: "book-1" })),
-    };
+    const ensureDefaultOrganizationBook = vi.fn(async () => ({
+      bookId: "book-1",
+    }));
+    const createLedgerModule = vi.fn(() => ({
+      books: {
+        commands: {
+          ensureDefaultOrganizationBook,
+        },
+      },
+    }));
     const workflow = createOrganizationBootstrapWorkflow({
       db: db as any,
-      ledgerBooks,
+      createLedgerModule: createLedgerModule as any,
     });
 
     const result = await workflow.create({
@@ -54,7 +61,8 @@ describe("organization bootstrap workflow", () => {
     expect(result.id).toBe("org-1");
     expect(db.transaction).toHaveBeenCalledTimes(1);
     expect(create).toHaveBeenCalledWith({ shortName: "Acme" });
-    expect(ledgerBooks.ensureDefaultOrganizationBook).toHaveBeenCalledWith(tx, {
+    expect(createLedgerModule).toHaveBeenCalledWith(tx);
+    expect(ensureDefaultOrganizationBook).toHaveBeenCalledWith({
       organizationId: "org-1",
     });
   });

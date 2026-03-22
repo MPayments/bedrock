@@ -51,6 +51,7 @@ import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
+import { createApiLedgerModule } from "./ledger-module";
 import { createApiPartiesModule } from "./parties-module";
 import { db } from "../db/client";
 
@@ -93,12 +94,22 @@ export function createApplicationServices(
   const {
     accountingModule,
     idempotency,
-    ledger,
-    ledgerReadService,
+    ledgerModule,
     logger,
     usersService,
   } =
     platform;
+  const ledgerReadPort = {
+    getOperationDetails: ledgerModule.operations.queries.getDetails,
+    listOperationDetails: ledgerModule.operations.queries.listDetails,
+  };
+  const createLedgerModuleForTransaction = (tx: Transaction) =>
+    createApiLedgerModule({
+      db: tx,
+      idempotency,
+      logger,
+      persistence: bindPersistenceSession(tx),
+    });
 
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
   const currenciesService = createCurrenciesService({ db, logger });
@@ -137,13 +148,12 @@ export function createApplicationServices(
   });
   const organizationBootstrapWorkflow = createOrganizationBootstrapWorkflow({
     db,
-    ledgerBooks: ledger.books,
+    createLedgerModule: createLedgerModuleForTransaction,
     logger,
   });
   const requisiteAccountingWorkflow = createRequisiteAccountingWorkflow({
     db,
-    ledgerBooks: ledger.books,
-    ledgerBookAccounts: ledger.bookAccounts,
+    createLedgerModule: createLedgerModuleForTransaction,
     currencies: currenciesPort,
     logger,
   });
@@ -185,7 +195,6 @@ export function createApplicationServices(
             db: target,
             persistence: bindPersistenceSession(target),
             logger,
-            ledgerReadPort: ledgerReadService,
           })
         : accountingModule;
 
@@ -218,7 +227,6 @@ export function createApplicationServices(
             db: target,
             persistence: bindPersistenceSession(target),
             logger,
-            ledgerReadPort: ledgerReadService,
           })
         : accountingModule;
 
@@ -256,7 +264,9 @@ export function createApplicationServices(
       createIfrsDocumentDeps({
         currenciesService,
         fxQuotes: fxService.quotes,
-        ledgerReadService,
+        ledgerReadService: {
+          getOperationDetails: ledgerModule.operations.queries.getDetails,
+        },
         requisitesService: documentRequisitesService,
       }),
     ),
@@ -282,7 +292,7 @@ export function createApplicationServices(
     idempotency,
     accounting: documentsAccountingPort,
     accountingPeriods: accountingPeriodsPort,
-    ledgerReadService,
+    ledgerReadService: ledgerReadPort,
     policy: documentsPolicy,
     registry: documentRegistry,
     transitionEffects: documentTransitionEffects,
@@ -295,7 +305,7 @@ export function createApplicationServices(
       idempotency,
       accounting: documentsAccountingPort,
       accountingPeriods: accountingPeriodsPort,
-      ledgerReadService,
+      ledgerReadService: ledgerReadPort,
       policy: documentsPolicy,
       registry: documentRegistry,
       transitionEffects: documentTransitionEffects,
@@ -310,7 +320,7 @@ export function createApplicationServices(
   const documentPostingWorkflow = createDocumentPostingWorkflow({
     db,
     idempotency,
-    ledgerCommit: ledger.commit,
+    createLedgerModule: createLedgerModuleForTransaction,
     createDocumentsService: createDocumentsServiceForTransaction,
   });
 

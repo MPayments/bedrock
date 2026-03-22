@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { LedgerBooksService } from "@bedrock/ledger";
+import type { LedgerModule } from "@bedrock/ledger";
 import {
   createPartiesModule,
   type PartiesModuleDeps,
@@ -28,7 +28,7 @@ import {
 
 export interface OrganizationBootstrapWorkflowDeps {
   db: Database;
-  ledgerBooks: Pick<LedgerBooksService, "ensureDefaultOrganizationBook">;
+  createLedgerModule(tx: Transaction): Pick<LedgerModule, "books">;
   logger?: Logger;
   now?: PartiesModuleDeps["now"];
 }
@@ -83,10 +83,11 @@ export function createOrganizationBootstrapWorkflow(
           logger: deps.logger,
           now: deps.now,
         });
+        const ledgerModule = deps.createLedgerModule(tx);
         const organization =
           await partiesModule.organizations.commands.create(input);
 
-        await deps.ledgerBooks.ensureDefaultOrganizationBook(tx, {
+        await ledgerModule.books.commands.ensureDefaultOrganizationBook({
           organizationId: organization.id,
         });
 

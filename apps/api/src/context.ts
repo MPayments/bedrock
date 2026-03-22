@@ -1,12 +1,11 @@
 import { z } from "zod";
 
 import type { AccountingModule } from "@bedrock/accounting";
-import type { BalancesService } from "@bedrock/balances";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DocumentsService } from "@bedrock/documents";
 import type { FeesService } from "@bedrock/fees";
 import type { FxService } from "@bedrock/fx";
-import type { LedgerReadService } from "@bedrock/ledger";
+import type { LedgerModule } from "@bedrock/ledger";
 import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type { UsersService } from "@bedrock/users";
@@ -72,8 +71,7 @@ export interface AppContext {
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   usersService: UsersService;
-  ledgerReadService: LedgerReadService;
-  balancesService: BalancesService;
+  ledgerModule: LedgerModule;
   documentsService: DocumentsService;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
@@ -92,8 +90,7 @@ export function createAppContext(env: Env): AppContext {
     env,
     logger: core.logger,
     accountingModule: core.accountingModule,
-    ledgerReadService: core.ledgerReadService,
-    balancesService: core.balancesService,
+    ledgerModule: core.ledgerModule,
     partiesModule: applicationServices.partiesModule,
     currenciesService: applicationServices.currenciesService,
     feesService: applicationServices.feesService,

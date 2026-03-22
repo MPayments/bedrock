@@ -1,7 +1,7 @@
 import type {
   AccountingScopedPostingRow,
-  LedgerQueries,
-} from "@bedrock/ledger/queries";
+  ListScopedPostingRowsInput,
+} from "@bedrock/ledger/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { parseMinorAmountOrZero } from "@bedrock/shared/money";
 
@@ -14,6 +14,7 @@ import type {
   ResolvedScope,
   ScopedPosting,
 } from "../../../domain";
+import type { AccountingLedgerQueryPort } from "../ledger-query-ports";
 import type {
   AccountingCounterpartiesQueryPort,
   AccountingOrganizationsQueryPort,
@@ -22,7 +23,7 @@ import type {
 export function createReportsScopeHelpers(input: {
   counterpartiesQueries: AccountingCounterpartiesQueryPort;
   documentsPort: AccountingReportsDocumentsPort;
-  ledgerQueries: LedgerQueries;
+  ledgerQueries: AccountingLedgerQueryPort;
   organizationsQueries: AccountingOrganizationsQueryPort;
 }) {
   const {
@@ -168,7 +169,7 @@ export function createReportsScopeHelpers(input: {
       currency: inputArgs.currency,
       includeUnattributed: inputArgs.includeUnattributed,
       internalLedgerOrganizationIds,
-    });
+    } satisfies ListScopedPostingRowsInput);
     const documentRefsByOperationId =
       await documentsPort.listOperationDocumentRefs(
         Array.from(new Set(rows.map((row) => row.operationId))),

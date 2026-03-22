@@ -1,10 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { ACCOUNT_NO } from "@bedrock/accounting/constants";
-import type {
-  LedgerBookAccountsService,
-  LedgerBooksService,
-} from "@bedrock/ledger";
+import type { LedgerModule } from "@bedrock/ledger";
 import {
   createPartiesModule,
   RequisiteAccountingBindingOwnerTypeError,
@@ -37,11 +34,9 @@ import { InvalidStateError } from "@bedrock/shared/core/errors";
 
 export interface RequisiteAccountingWorkflowDeps {
   db: Database;
-  ledgerBooks: Pick<LedgerBooksService, "ensureDefaultOrganizationBook">;
-  ledgerBookAccounts: Pick<
-    LedgerBookAccountsService,
-    "ensureBookAccountInstance"
-  >;
+  createLedgerModule(
+    tx: Transaction,
+  ): Pick<LedgerModule, "bookAccounts" | "books">;
   currencies: PartiesModuleDeps["currencies"];
   logger?: Logger;
   now?: PartiesModuleDeps["now"];
@@ -107,22 +102,19 @@ export function createRequisiteAccountingWorkflow(
     currencyCode: string;
     postingAccountNo?: string;
   }) {
+    const ledgerModule = deps.createLedgerModule(input.tx);
     const postingAccountNo = input.postingAccountNo ?? ACCOUNT_NO.BANK;
-    const { bookId } = await deps.ledgerBooks.ensureDefaultOrganizationBook(
-      input.tx,
-      {
+    const { bookId } =
+      await ledgerModule.books.commands.ensureDefaultOrganizationBook({
         organizationId: input.organizationId,
-      },
-    );
-    const bookAccount = await deps.ledgerBookAccounts.ensureBookAccountInstance(
-      input.tx,
-      {
+      });
+    const bookAccount =
+      await ledgerModule.bookAccounts.commands.ensureBookAccountInstance({
         bookId,
         accountNo: postingAccountNo,
         currency: input.currencyCode,
         dimensions: {},
-      },
-    );
+      });
 
     const partiesModule = createWorkflowPartiesModule({
       tx: input.tx,

@@ -26,7 +26,6 @@
   "dependencies": {
     "@bedrock/parties": "workspace:*",
     "@bedrock/accounting": "workspace:*",
-    "@bedrock/balances": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
     "@bedrock/fees": "workspace:*",

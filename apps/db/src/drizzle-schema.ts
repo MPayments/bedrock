@@ -13,12 +13,6 @@ export {
   dimensionPolicyScopeEnum,
   postingCodeDimensionPolicy,
 } from "@bedrock/accounting/schema";
-export {
-  balanceEvents,
-  balanceHolds,
-  balancePositions,
-  balanceProjectorCursors,
-} from "@bedrock/balances/schema";
 export { currencies } from "@bedrock/currencies/schema";
 export {
   documentEvents,
@@ -36,6 +30,10 @@ export {
   fxRates,
 } from "@bedrock/fx/schema";
 export {
+  balanceEvents,
+  balanceHolds,
+  balancePositions,
+  balanceProjectorCursors,
   bookAccountInstances,
   books,
   ledgerOperations,

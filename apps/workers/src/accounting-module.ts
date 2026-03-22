@@ -16,11 +16,9 @@ import {
   DrizzleReportsReads,
 } from "@bedrock/accounting/adapters/drizzle";
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
-import { createBalancesQueries } from "@bedrock/balances/queries";
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
-import type { LedgerReadService } from "@bedrock/ledger";
-import { createLedgerQueries } from "@bedrock/ledger/queries";
+import type { ListScopedPostingRowsInput } from "@bedrock/ledger/contracts";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type {
   Database,
@@ -28,29 +26,40 @@ import type {
   Transaction,
 } from "@bedrock/platform/persistence";
 
+import { createWorkerLedgerReadRuntime } from "./ledger-module";
 import { createWorkerPartiesReadRuntime } from "./parties-module";
 
 export function createWorkerAccountingModule(input: {
   db: Database | Transaction;
   persistence: PersistenceContext;
   logger: Logger;
-  ledgerReadPort: LedgerReadService;
   now?: AccountingModuleDeps["now"];
   generateUuid?: AccountingModuleDeps["generateUuid"];
 }): AccountingModule {
   const partiesReadRuntime = createWorkerPartiesReadRuntime(input.db);
+  const ledgerReadRuntime = createWorkerLedgerReadRuntime(input.db);
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: input.db });
-  const ledgerQueries = createLedgerQueries({ db: input.db as Database });
+  const ledgerQueries = {
+    listBooksById: ledgerReadRuntime.booksQueries.listById,
+    listBooksByOwnerId: ledgerReadRuntime.booksQueries.listByOwnerId,
+    listScopedPostingRows: (query: ListScopedPostingRowsInput) =>
+      ledgerReadRuntime.reportsQueries.listScopedPostingRows(query),
+  };
+  const ledgerReadPort = {
+    listOperations: ledgerReadRuntime.operationsQueries.list,
+    listOperationDetails: ledgerReadRuntime.operationsQueries.listDetails,
+    getOperationDetails: ledgerReadRuntime.operationsQueries.getDetails,
+  };
   const currenciesQueries = createCurrenciesQueries({ db: input.db as Database });
   const reportsReads = new DrizzleReportsReads({
     db: input.db,
-    balancesQueries: createBalancesQueries({ db: input.db as Database }),
+    balancesQueries: ledgerReadRuntime.balancesQueries,
     counterpartiesQueries: partiesReadRuntime.counterpartiesQueries,
     customersQueries: partiesReadRuntime.customersQueries,
     documentsPort: documentsReadModel,
     dimensionDocumentsReadModel: documentsReadModel,
     ledgerQueries,
-    ledgerReadPort: input.ledgerReadPort,
+    ledgerReadPort,
     organizationsQueries: partiesReadRuntime.organizationsQueries,
     requisitesQueries: partiesReadRuntime.requisitesQueries,
     listBookNamesById: async (ids) =>

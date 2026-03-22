@@ -2,6 +2,8 @@ export class LedgerError extends Error {
   name = "LedgerError";
 }
 
+export * from "./balances/errors";
+
 export class IdempotencyConflictError extends LedgerError {
   name = "IdempotencyConflictError";
 }

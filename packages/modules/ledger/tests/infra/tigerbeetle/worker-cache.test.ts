@@ -11,7 +11,7 @@ import {
   mockDbExecuteResult,
   type StubDatabase,
 } from "./helpers";
-import { TransferFlags } from "../../../src/infra/tigerbeetle/client";
+import { TransferFlags } from "../../../src/adapters/tigerbeetle/client";
 
 async function runWorkerOnce(
   worker: ReturnType<typeof createLedgerWorkerDefinitionFactory>,
