@@ -4,7 +4,7 @@ import {
   DEFAULT_GLOBAL_CORRESPONDENCE_RULES,
 } from "../constants";
 import { AccountingPackDefinitionSchema } from "./schema";
-import { validatePackDefinition } from "../domain/packs/compile-pack";
+import { validatePackDefinition } from "./domain/compile-pack";
 
 const parsedRawPackDefinition = AccountingPackDefinitionSchema.parse(
   defaultPackRaw as unknown,

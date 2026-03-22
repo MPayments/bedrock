@@ -77,7 +77,10 @@ const JournalOperationsQuerySchema = z.object({
   sortBy: z.enum(["createdAt", "postingDate", "postedAt"]).default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
   query: z.string().trim().min(1).optional(),
-  status: z.array(z.enum(["pending", "posted", "failed"])).min(1).optional(),
+  status: z
+    .array(z.enum(["pending", "posted", "failed"]))
+    .min(1)
+    .optional(),
   operationCode: z.array(z.string().trim().min(1)).min(1).optional(),
   sourceType: z.array(z.string().trim().min(1)).min(1).optional(),
   sourceId: z.string().trim().min(1).optional(),
@@ -122,7 +125,9 @@ function parseJournalOperationsQuery(requestUrl: string) {
     sourceId: params.get("sourceId") ?? undefined,
     bookId: params.get("bookId") ?? undefined,
     dimensionFilters:
-      dimensionFilters.size > 0 ? Object.fromEntries(dimensionFilters) : undefined,
+      dimensionFilters.size > 0
+        ? Object.fromEntries(dimensionFilters)
+        : undefined,
   });
 }
 
@@ -148,10 +153,7 @@ export function documentsRoutes(ctx: AppContext) {
     role: string | null | undefined;
   }) {
     const allowedAdminActions = adminSystemOnlyActionsByDocType[input.docType];
-    if (
-      input.role === "admin" &&
-      allowedAdminActions?.has(input.action)
-    ) {
+    if (input.role === "admin" && allowedAdminActions?.has(input.action)) {
       return;
     }
 
@@ -272,29 +274,35 @@ export function documentsRoutes(ctx: AppContext) {
     });
   }
 
-  app.get("/journal", requirePermission({ accounting: ["list"] }), async (c) => {
-    try {
-      const query = parseJournalOperationsQuery(c.req.url);
-      const result =
-        await ctx.accountingReportsService.listOperationsWithLabels(query);
+  app.get(
+    "/journal",
+    requirePermission({ accounting: ["list"] }),
+    async (c) => {
+      try {
+        const query = parseJournalOperationsQuery(c.req.url);
+        const result =
+          await ctx.accountingModule.reports.queries.listOperationsWithLabels(
+            query,
+          );
 
-      return c.json(
-        {
-          ...result,
-          data: result.data.map((row) => ({
-            ...row,
-            postingDate: row.postingDate.toISOString(),
-            postedAt: row.postedAt?.toISOString() ?? null,
-            lastOutboxErrorAt: row.lastOutboxErrorAt?.toISOString() ?? null,
-            createdAt: row.createdAt.toISOString(),
-          })),
-        },
-        200,
-      );
-    } catch (error) {
-      return handleRouteError(c, error);
-    }
-  });
+        return c.json(
+          {
+            ...result,
+            data: result.data.map((row) => ({
+              ...row,
+              postingDate: row.postingDate.toISOString(),
+              postedAt: row.postedAt?.toISOString() ?? null,
+              lastOutboxErrorAt: row.lastOutboxErrorAt?.toISOString() ?? null,
+              createdAt: row.createdAt.toISOString(),
+            })),
+          },
+          200,
+        );
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    },
+  );
 
   app.get(
     "/journal/:operationId",
@@ -303,7 +311,7 @@ export function documentsRoutes(ctx: AppContext) {
       try {
         const { operationId } = OperationParamSchema.parse(c.req.param());
         const details =
-          await ctx.accountingReportsService.getOperationDetailsWithLabels(
+          await ctx.accountingModule.reports.queries.getOperationDetailsWithLabels(
             operationId,
           );
 
@@ -448,18 +456,23 @@ export function documentsRoutes(ctx: AppContext) {
           id,
           user.id,
         );
-        const [actionPermissions, ledgerOperationDetailsById] = await Promise.all([
-          resolveDocumentActionPermissions(user.id),
-          ctx.accountingReportsService.listOperationDetailsWithLabels(
-            details.documentOperations.map((operation) => operation.operationId),
-          ),
-        ]);
+        const [actionPermissions, ledgerOperationDetailsById] =
+          await Promise.all([
+            resolveDocumentActionPermissions(user.id),
+            ctx.accountingModule.reports.queries.listOperationDetailsWithLabels(
+              details.documentOperations.map(
+                (operation) => operation.operationId,
+              ),
+            ),
+          ]);
         const ledgerOperations = details.documentOperations.map((operation) => {
           const operationDetails = ledgerOperationDetailsById.get(
             operation.operationId,
           );
 
-          return operationDetails ? mapOperationDetailsDto(operationDetails) : null;
+          return operationDetails
+            ? mapOperationDetailsDto(operationDetails)
+            : null;
         });
 
         return c.json(

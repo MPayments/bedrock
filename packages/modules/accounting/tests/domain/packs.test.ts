@@ -8,7 +8,7 @@ import {
   compilePack,
   hydrateCompiledPack,
   serializeCompiledPack,
-} from "../../src/domain/packs";
+} from "../../src/packs/domain";
 import { rawPackDefinition } from "../../src/packs/bedrock-core-default";
 
 describe("accounting packs domain", () => {

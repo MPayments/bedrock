@@ -5,7 +5,11 @@ import { dedupeIds } from "@bedrock/shared/core/domain";
 
 import type { DocumentsQueryRepository } from "../../../application/documents/ports";
 import type { ListDocumentsQuery } from "../../../contracts/queries";
-import { buildDocumentSearchCondition, inArraySafe, resolveDocumentsSort } from "../query-helpers";
+import {
+  buildDocumentSearchCondition,
+  inArraySafe,
+  resolveDocumentsSort,
+} from "../query-helpers";
 import { schema } from "../schema";
 
 export function createDrizzleDocumentsQueryRepository(

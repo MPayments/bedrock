@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   AccountingPeriod,
   CalendarMonth,
-} from "../../src/domain/periods";
+} from "../../src/periods/domain";
 
 describe("accounting periods domain", () => {
   it("normalizes calendar month boundaries", () => {

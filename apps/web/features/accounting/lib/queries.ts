@@ -1,8 +1,6 @@
 import {
   AccountingCorrespondenceRuleSchema,
   AccountingTemplateAccountSchema,
-} from "@bedrock/accounting/contracts";
-import {
   BalanceSheetResponseSchema,
   CashFlowResponseSchema,
   ClosePackageResponseSchema,
@@ -12,7 +10,7 @@ import {
   IncomeStatementResponseSchema,
   LiquidityResponseSchema,
   TrialBalanceResponseSchema,
-} from "@bedrock/accounting";
+} from "@bedrock/accounting/contracts";
 import {
   CounterpartyGroupOptionsResponseSchema,
   CounterpartyOptionsResponseSchema,

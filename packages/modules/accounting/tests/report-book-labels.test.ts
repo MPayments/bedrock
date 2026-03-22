@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createListOperationDetailsWithLabelsQuery } from "../src/application/reports/queries/list-operation-details-with-labels";
+import { createListOperationDetailsWithLabelsQuery } from "../src/reports/application/queries/list-operation-details-with-labels";
 
 describe("accounting report book labels", () => {
   it("uses resolved book labels for operation details postings", async () => {

@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-import type {
-  AccountingReportsService,
-  AccountingService,
-} from "@bedrock/accounting";
+import type { AccountingModule } from "@bedrock/accounting";
 import type { BalancesService } from "@bedrock/balances";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DocumentsService } from "@bedrock/documents";
@@ -67,8 +64,7 @@ export function parseEnv(): Env {
 export interface AppContext {
   env: Env;
   logger: Logger;
-  accountingService: AccountingService;
-  accountingReportsService: AccountingReportsService;
+  accountingModule: AccountingModule;
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   feesService: FeesService;
@@ -95,10 +91,9 @@ export function createAppContext(env: Env): AppContext {
   return {
     env,
     logger: core.logger,
-    accountingService: core.accountingService,
+    accountingModule: core.accountingModule,
     ledgerReadService: core.ledgerReadService,
     balancesService: core.balancesService,
-    accountingReportsService: applicationServices.accountingReportsService,
     partiesModule: applicationServices.partiesModule,
     currenciesService: applicationServices.currenciesService,
     feesService: applicationServices.feesService,

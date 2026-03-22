@@ -7,7 +7,7 @@ export type {
   PendingPostingTemplateDefinition,
   RawPostingTemplateDefinition,
   ValueBinding,
-} from "../domain/packs/pack-definition";
+} from "./domain/pack-definition";
 
 const literalBindingSchema = z.object({
   kind: z.literal("literal"),
