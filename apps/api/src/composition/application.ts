@@ -1,10 +1,8 @@
 import type { AccountingModule } from "@bedrock/accounting";
-import { createBalancesQueries } from "@bedrock/balances/queries";
 import {
   createCurrenciesService,
   type CurrenciesService,
 } from "@bedrock/currencies";
-import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import {
   createAccountingPeriodDocumentTransitionEffectsService,
   createDocumentsService,
@@ -53,10 +51,7 @@ import {
   createCommercialDocumentDeps,
   createIfrsDocumentDeps,
 } from "./document-plugin-adapters";
-import {
-  createApiPartiesModule,
-  createApiPartiesReadRuntime,
-} from "./parties-module";
+import { createApiPartiesModule } from "./parties-module";
 import { db } from "../db/client";
 
 export interface ApiApplicationServices {
@@ -134,9 +129,7 @@ export function createApplicationServices(
     persistence: createPersistenceContext(db),
     documents: {
       hasDocumentsForCustomer(customerId) {
-        return createDrizzleDocumentsReadModel({ db }).hasDocumentsForCustomer(
-          customerId,
-        );
+        return documentsReadModel.hasDocumentsForCustomer(customerId);
       },
     },
     currencies: currenciesPort,
