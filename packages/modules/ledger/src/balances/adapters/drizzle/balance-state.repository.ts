@@ -4,6 +4,7 @@ import type { Queryable } from "@bedrock/platform/persistence";
 import { pgNotify } from "@bedrock/platform/persistence/notify";
 
 import { schema } from "./schema";
+import { LedgerError } from "../../../errors";
 import type { BalancesStateRepository } from "../../application/balances/ports";
 import type { BalanceSubjectInput } from "../../contracts";
 import type { BalanceEventInput } from "../../domain/balance-events";
@@ -194,7 +195,7 @@ export class DrizzleBalancesStateRepository implements BalancesStateRepository {
 
     const created = await this.selectBalancePosition(subject, true);
     if (!created) {
-      throw new Error("Failed to initialize balance position");
+      throw new LedgerError("Failed to initialize balance position");
     }
 
     return created;
@@ -230,7 +231,7 @@ export class DrizzleBalancesStateRepository implements BalancesStateRepository {
       .returning();
 
     if (!updated) {
-      throw new Error("Balance position update failed");
+      throw new LedgerError("Balance position update failed");
     }
 
     return toBalanceSnapshot(updated);
@@ -265,7 +266,7 @@ export class DrizzleBalancesStateRepository implements BalancesStateRepository {
       .returning();
 
     if (!created) {
-      throw new Error("Balance hold insert failed");
+      throw new LedgerError("Balance hold insert failed");
     }
 
     return toBalanceHoldRecord(created);
@@ -287,7 +288,7 @@ export class DrizzleBalancesStateRepository implements BalancesStateRepository {
       .returning();
 
     if (!updated) {
-      throw new Error("Balance hold update failed");
+      throw new LedgerError("Balance hold update failed");
     }
 
     return toBalanceHoldRecord(updated);

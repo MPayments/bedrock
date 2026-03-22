@@ -1,3 +1,5 @@
+import { invariant } from "@bedrock/shared/core/domain";
+
 import { BalanceSubjectSchema, ReserveBalanceInputSchema } from "../../contracts";
 import type { ReserveBalanceInput } from "../../contracts";
 import { normalizeBalanceEventRequestContext } from "../../domain/balance-events";
@@ -88,9 +90,10 @@ export class ReserveBalanceCommand {
             );
           }
 
-          if (plan.kind !== "reserve") {
-            throw new Error(`Unexpected balance reserve plan: ${plan.kind}`);
-          }
+          invariant(
+            plan.kind === "reserve",
+            `Unexpected balance reserve plan: ${plan.kind}`,
+          );
 
           const updatedPosition =
             await tx.stateRepository.updateBalancePosition({

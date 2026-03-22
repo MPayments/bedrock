@@ -1,4 +1,8 @@
-import { DomainError, readCauseString } from "@bedrock/shared/core/domain";
+import {
+  DomainError,
+  invariant,
+  readCauseString,
+} from "@bedrock/shared/core/domain";
 
 import type { ConsumeBalanceInput } from "../../contracts";
 import { ConsumeBalanceInputSchema } from "../../contracts";
@@ -84,9 +88,10 @@ export class ConsumeBalanceCommand {
             );
           }
 
-          if (plan.kind !== "update") {
-            throw new Error(`Unexpected balance consume plan: ${plan.kind}`);
-          }
+          invariant(
+            plan.kind === "update",
+            `Unexpected balance consume plan: ${plan.kind}`,
+          );
 
           const updatedPosition =
             await tx.stateRepository.updateBalancePosition({

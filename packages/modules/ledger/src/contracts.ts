@@ -222,7 +222,7 @@ export interface LedgerBookRow {
   ownerId: string | null;
 }
 
-export interface AccountingScopedPostingRow {
+export interface LedgerScopedPostingRow {
   operationId: string;
   sourceType: string;
   sourceId: string;

@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { Queryable } from "@bedrock/platform/persistence";
 
 import type {
-  AccountingScopedPostingRow,
+  LedgerScopedPostingRow,
   ListScopedPostingRowsInput,
 } from "../../../contracts";
 import type { LedgerReportsReads } from "../../application/ports/reports.reads";
@@ -13,7 +13,7 @@ export class DrizzleLedgerReportsReads implements LedgerReportsReads {
 
   async listScopedPostingRows(
     query: ListScopedPostingRowsInput,
-  ): Promise<AccountingScopedPostingRow[]> {
+  ): Promise<LedgerScopedPostingRow[]> {
     if (
       (query.scopeType === "counterparty" || query.scopeType === "group") &&
       query.resolvedCounterpartyIds.length === 0

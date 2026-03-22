@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
+import { LedgerError } from "../../../errors";
 import { schema } from "../../../schema";
 import type {
   EnsureDefaultOrganizationBookInput,
@@ -67,7 +68,7 @@ export class DrizzleBooksStore implements LedgerBookStore {
       return { bookId: byCode.id };
     }
 
-    throw new Error(
+    throw new LedgerError(
       `Failed to resolve default book for organization: ${input.organizationId}`,
     );
   }

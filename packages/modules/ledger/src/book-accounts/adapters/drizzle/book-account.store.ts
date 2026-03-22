@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
+import { LedgerError } from "../../../errors";
 import { schema } from "../../../schema";
 import {
   tbBookAccountInstanceIdFor,
@@ -74,7 +75,7 @@ export class DrizzleBookAccountStore implements LedgerBookAccountStore {
       .limit(1);
 
     if (!existing) {
-      throw new Error(
+      throw new LedgerError(
         `book account instance insert/select failed unexpectedly for book=${input.bookId}, accountNo=${input.accountNo}, currency=${input.currency}`,
       );
     }
@@ -83,7 +84,7 @@ export class DrizzleBookAccountStore implements LedgerBookAccountStore {
       existing.settlementLedger !== settlementLedger ||
       existing.settlementAccountId !== settlementAccountId
     ) {
-      throw new Error(
+      throw new LedgerError(
         `book_account_instance invariant mismatch for book=${input.bookId}, accountNo=${input.accountNo}, currency=${input.currency}, hash=${dimensionsHash}`,
       );
     }

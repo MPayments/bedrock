@@ -1,10 +1,10 @@
 import type {
-  AccountingScopedPostingRow,
+  LedgerScopedPostingRow,
   ListScopedPostingRowsInput,
 } from "../../../contracts";
 
 export interface LedgerReportsReads {
   listScopedPostingRows(
     input: ListScopedPostingRowsInput,
-  ): Promise<AccountingScopedPostingRow[]>;
+  ): Promise<LedgerScopedPostingRow[]>;
 }

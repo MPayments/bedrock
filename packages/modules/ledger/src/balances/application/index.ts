@@ -1,5 +1,3 @@
-import type { ModuleRuntime } from "@bedrock/shared/core";
-
 import { ConsumeBalanceCommand } from "./commands/consume-balance";
 import { ReleaseBalanceCommand } from "./commands/release-balance";
 import { ReserveBalanceCommand } from "./commands/reserve-balance";
@@ -9,7 +7,6 @@ import { GetBalanceQuery } from "./queries/get-balance";
 import { ListOrganizationLiquidityRowsQuery } from "./queries/list-organization-liquidity-rows";
 
 export interface BalancesServiceDeps {
-  runtime: ModuleRuntime;
   reads: LedgerBalancesReads;
   commandUow: BalancesCommandUnitOfWork;
 }

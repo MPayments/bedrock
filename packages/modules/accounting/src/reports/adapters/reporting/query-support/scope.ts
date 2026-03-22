@@ -1,5 +1,5 @@
 import type {
-  AccountingScopedPostingRow,
+  LedgerScopedPostingRow,
   ListScopedPostingRowsInput,
 } from "@bedrock/ledger/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
@@ -175,7 +175,7 @@ export function createReportsScopeHelpers(input: {
         Array.from(new Set(rows.map((row) => row.operationId))),
       );
 
-    return rows.map((row: AccountingScopedPostingRow) => ({
+    return rows.map((row: LedgerScopedPostingRow) => ({
       operationId: row.operationId,
       lineNo: row.lineNo,
       postingDate: new Date(row.postingDate),

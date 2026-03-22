@@ -1,5 +1,5 @@
 import type {
-  AccountingScopedPostingRow,
+  LedgerScopedPostingRow,
   ListScopedPostingRowsInput,
 } from "../../../contracts";
 import type { LedgerReportsReads } from "../ports/reports.reads";
@@ -9,7 +9,7 @@ export class ListScopedPostingRowsQuery {
 
   execute(
     input: ListScopedPostingRowsInput,
-  ): Promise<AccountingScopedPostingRow[]> {
+  ): Promise<LedgerScopedPostingRow[]> {
     return this.reads.listScopedPostingRows(input);
   }
 }

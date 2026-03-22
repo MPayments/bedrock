@@ -19,7 +19,7 @@ import {
   TB_AMOUNT_MAX,
   type TbClient,
 } from "./client";
-import { isRetryableError } from "../../errors";
+import { isRetryableError, LedgerError } from "../../errors";
 import { OPERATION_TRANSFER_TYPE } from "../../operations/domain/operation-intent";
 import { schema } from "../drizzle/schema";
 
@@ -284,7 +284,7 @@ export function createLedgerWorkerDefinition(
 
       if (plan.type === OPERATION_TRANSFER_TYPE.CREATE) {
         if (!plan.debitTbAccountId || !plan.creditTbAccountId) {
-          throw new Error(
+          throw new LedgerError(
             "create plan requires debitTbAccountId and creditTbAccountId",
           );
         }
@@ -310,7 +310,7 @@ export function createLedgerWorkerDefinition(
       }
 
       if (!plan.pendingId) {
-        throw new Error(`${plan.type} plan requires pendingId`);
+        throw new LedgerError(`${plan.type} plan requires pendingId`);
       }
 
       let flags = 0;

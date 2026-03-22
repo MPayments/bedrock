@@ -1,4 +1,6 @@
-export class LedgerError extends Error {
+import { ServiceError } from "@bedrock/shared/core/errors";
+
+export class LedgerError extends ServiceError {
   name = "LedgerError";
 }
 

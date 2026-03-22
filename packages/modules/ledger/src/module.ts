@@ -72,7 +72,6 @@ export function createLedgerModule(deps: LedgerModuleDeps) {
       commandUow: deps.unitOfWork,
     }),
     balances: createBalancesService({
-      runtime: createRuntime("ledger.balances"),
       reads: deps.balancesReads,
       commandUow: deps.unitOfWork,
     }),

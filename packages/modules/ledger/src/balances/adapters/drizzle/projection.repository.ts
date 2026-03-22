@@ -4,6 +4,7 @@ import type { Transaction } from "@bedrock/platform/persistence";
 
 import { schema as balancesSchema } from "./schema";
 import { schema as ledgerSchema } from "../../../adapters/drizzle/schema/index";
+import { LedgerError } from "../../../errors";
 import type { BalancesProjectionRepository } from "../../application/projection/ports";
 import {
   hasConsistentCursor,
@@ -75,7 +76,7 @@ export class DrizzleBalancesProjectionRepository implements BalancesProjectionRe
       .for("update");
 
     if (!cursor) {
-      throw new Error("Balance projector cursor initialization failed");
+      throw new LedgerError("Balance projector cursor initialization failed");
     }
 
     if (!hasConsistentCursor(cursor)) {

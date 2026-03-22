@@ -1,6 +1,6 @@
 import type {
-  AccountingScopedPostingRow,
   LedgerBookRow,
+  LedgerScopedPostingRow,
   LiquidityQueryRow,
   ListOrganizationLiquidityRowsInput,
   ListScopedPostingRowsInput,
@@ -16,5 +16,5 @@ export interface AccountingLedgerQueryPort {
   listBooksById(ids: string[]): Promise<LedgerBookRow[]>;
   listScopedPostingRows(
     input: ListScopedPostingRowsInput,
-  ): Promise<AccountingScopedPostingRow[]>;
+  ): Promise<LedgerScopedPostingRow[]>;
 }

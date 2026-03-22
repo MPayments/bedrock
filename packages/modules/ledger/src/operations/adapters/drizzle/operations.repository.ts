@@ -2,7 +2,10 @@ import { eq } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
 
-import { IdempotencyConflictError } from "../../../errors";
+import {
+  IdempotencyConflictError,
+  LedgerError,
+} from "../../../errors";
 import { schema } from "../../../schema";
 import type {
   AcquireOperationIdInput,
@@ -67,7 +70,7 @@ export class DrizzleOperationsRepository implements LedgerOperationsRepository {
       .limit(1);
 
     if (!existing) {
-      throw new Error("Idempotency conflict but operation not found");
+      throw new LedgerError("Idempotency conflict but operation not found");
     }
 
     const existingSourceType = existing.sourceType ?? null;

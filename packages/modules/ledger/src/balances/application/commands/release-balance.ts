@@ -1,4 +1,8 @@
-import { DomainError, readCauseString } from "@bedrock/shared/core/domain";
+import {
+  DomainError,
+  invariant,
+  readCauseString,
+} from "@bedrock/shared/core/domain";
 
 import type { ReleaseBalanceInput } from "../../contracts";
 import { ReleaseBalanceInputSchema } from "../../contracts";
@@ -84,9 +88,10 @@ export class ReleaseBalanceCommand {
             );
           }
 
-          if (plan.kind !== "update") {
-            throw new Error(`Unexpected balance release plan: ${plan.kind}`);
-          }
+          invariant(
+            plan.kind === "update",
+            `Unexpected balance release plan: ${plan.kind}`,
+          );
 
           const updatedPosition =
             await tx.stateRepository.updateBalancePosition({
