@@ -39,7 +39,7 @@ async function listBooksWithLabels(input: {
   organizationsQueries: {
     listShortNamesById(ids: string[]): Promise<Map<string, string>>;
   };
-}): Promise<LedgerBookRow[]> {
+}) {
   const books = await input.listBooksById(input.ids);
   const ownerIds = Array.from(
     new Set(books.map((book) => book.ownerId).filter(Boolean)),
@@ -81,7 +81,9 @@ export function createApiAccountingModule(input: {
     listOperationDetails: ledgerReadRuntime.operationsQueries.listDetails,
     getOperationDetails: ledgerReadRuntime.operationsQueries.getDetails,
   };
-  const currenciesQueries = createCurrenciesQueries({ db: input.db as Database });
+  const currenciesQueries = createCurrenciesQueries({
+    db: input.db as Database,
+  });
   const reportsReads = new DrizzleReportsReads({
     db: input.db,
     balancesQueries: ledgerReadRuntime.balancesQueries,
@@ -115,7 +117,8 @@ export function createApiAccountingModule(input: {
     closePackageSnapshotPort: createAccountingClosePackageSnapshotPort({
       repository: new DrizzlePeriodRepository(input.db),
       assertInternalLedgerOrganization:
-        partiesReadRuntime.organizationsQueries.assertInternalLedgerOrganization,
+        partiesReadRuntime.organizationsQueries
+          .assertInternalLedgerOrganization,
       listBooksByOwnerId: ledgerQueries.listBooksByOwnerId,
       reportQueries: reportsReads,
       documentsReadModel,
