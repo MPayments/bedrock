@@ -4,6 +4,8 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
+import { ACCOUNT_NO } from "../../../../constants";
+
 import type {
   AccountingReportsContext,
   FeeRevenueRow,
@@ -74,24 +76,24 @@ export class ListFeeRevenueReportQuery {
         netMinor: 0n,
       };
 
-      if (posting.debitAccountNo === "4110") {
+      if (posting.debitAccountNo === ACCOUNT_NO.FEE_REVENUE) {
         row.feeRevenueMinor -= posting.amountMinor;
       }
-      if (posting.creditAccountNo === "4110") {
+      if (posting.creditAccountNo === ACCOUNT_NO.FEE_REVENUE) {
         row.feeRevenueMinor += posting.amountMinor;
       }
 
-      if (posting.debitAccountNo === "4120") {
+      if (posting.debitAccountNo === ACCOUNT_NO.SPREAD_REVENUE) {
         row.spreadRevenueMinor -= posting.amountMinor;
       }
-      if (posting.creditAccountNo === "4120") {
+      if (posting.creditAccountNo === ACCOUNT_NO.SPREAD_REVENUE) {
         row.spreadRevenueMinor += posting.amountMinor;
       }
 
-      if (posting.debitAccountNo === "5120") {
+      if (posting.debitAccountNo === ACCOUNT_NO.PROVIDER_FEE_EXPENSE) {
         row.providerFeeExpenseMinor += posting.amountMinor;
       }
-      if (posting.creditAccountNo === "5120") {
+      if (posting.creditAccountNo === ACCOUNT_NO.PROVIDER_FEE_EXPENSE) {
         row.providerFeeExpenseMinor -= posting.amountMinor;
       }
 

@@ -6,7 +6,6 @@ import {
   type LineMapping,
   type ReportAttributionMode,
   type ResolvedScope,
-  type ScopedPosting,
 } from "../../../domain";
 import type { DrizzleReportsRepository } from "../../drizzle/reports.repository";
 import type {
@@ -56,37 +55,6 @@ export function createReportsSharedHelpers(input: {
     asOf: Date,
   ): Promise<Map<string, LineMapping[]>> {
     return reportsRepository.fetchLineMappings(reportKind, asOf);
-  }
-
-  function computeAccountNetMovements(
-    postings: ScopedPosting[],
-  ): Map<string, { accountNo: string; currency: string; netMinor: bigint }> {
-    const movements = new Map<
-      string,
-      { accountNo: string; currency: string; netMinor: bigint }
-    >();
-
-    for (const posting of postings) {
-      const debitKey = keyByParts(posting.debitAccountNo, posting.currency);
-      const debit = movements.get(debitKey) ?? {
-        accountNo: posting.debitAccountNo,
-        currency: posting.currency,
-        netMinor: 0n,
-      };
-      debit.netMinor += posting.amountMinor;
-      movements.set(debitKey, debit);
-
-      const creditKey = keyByParts(posting.creditAccountNo, posting.currency);
-      const credit = movements.get(creditKey) ?? {
-        accountNo: posting.creditAccountNo,
-        currency: posting.currency,
-        netMinor: 0n,
-      };
-      credit.netMinor -= posting.amountMinor;
-      movements.set(creditKey, credit);
-    }
-
-    return movements;
   }
 
   async function fetchLiquidityRows(inputArgs: {
@@ -145,6 +113,5 @@ export function createReportsSharedHelpers(input: {
     fetchLiquidityRows,
     findLatestClosePackage,
     keyByParts,
-    computeAccountNetMovements,
   };
 }

@@ -4,6 +4,7 @@ import type {
   CashFlowSummaryByCurrency,
   ReportScopeMeta,
 } from "./types";
+import { computeAccountNetMovements } from "../../../domain";
 import {
   CashFlowQuerySchema,
   type CashFlowQuery,
@@ -36,7 +37,7 @@ export class ListCashFlowReportQuery {
       to,
     });
 
-    const movements = context.computeAccountNetMovements(postings);
+    const movements = computeAccountNetMovements(postings);
     const reportKind =
       query.method === "direct" ? "cash_flow_direct" : "cash_flow_indirect";
     const mappings = await context.fetchLineMappings(reportKind, to);
@@ -74,7 +75,7 @@ export class ListCashFlowReportQuery {
       }
     }
 
-    for (const movement of movements.values()) {
+    for (const movement of movements) {
       const targets = mappings.get(movement.accountNo) ?? [];
       if (targets.length === 0) {
         continue;

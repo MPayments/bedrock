@@ -81,9 +81,6 @@ export interface AccountingReportsContext {
       | "fee_revenue",
     asOf: Date,
   ) => Promise<Map<string, LineMapping[]>>;
-  computeAccountNetMovements: (
-    postings: ScopedPosting[],
-  ) => Map<string, { accountNo: string; currency: string; netMinor: bigint }>;
   fetchLiquidityRows: (input: {
     scope: ResolvedScope;
     attributionMode: ReportAttributionMode;

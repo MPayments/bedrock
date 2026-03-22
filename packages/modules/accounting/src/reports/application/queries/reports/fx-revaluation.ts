@@ -4,6 +4,7 @@ import type {
   FxRevaluationSummaryByCurrency,
   ReportScopeMeta,
 } from "./types";
+import { resolveRevenueExpenseEffect } from "../../../domain";
 import {
   FxRevaluationQuerySchema,
   type FxRevaluationQuery,
@@ -53,17 +54,26 @@ export class ListFxRevaluationReportQuery {
 
       const debitKind = accountMeta.get(posting.debitAccountNo)?.kind;
       const creditKind = accountMeta.get(posting.creditAccountNo)?.kind;
-
-      if (debitKind === "revenue") {
-        current.revenueMinor -= posting.amountMinor;
-      } else if (debitKind === "expense") {
-        current.expenseMinor += posting.amountMinor;
+      const debitEffect = resolveRevenueExpenseEffect({
+        kind: debitKind,
+        side: "debit",
+        amountMinor: posting.amountMinor,
+      });
+      if (debitEffect?.kind === "revenue") {
+        current.revenueMinor += debitEffect.amountMinor;
+      } else if (debitEffect?.kind === "expense") {
+        current.expenseMinor += debitEffect.amountMinor;
       }
 
-      if (creditKind === "revenue") {
-        current.revenueMinor += posting.amountMinor;
-      } else if (creditKind === "expense") {
-        current.expenseMinor -= posting.amountMinor;
+      const creditEffect = resolveRevenueExpenseEffect({
+        kind: creditKind,
+        side: "credit",
+        amountMinor: posting.amountMinor,
+      });
+      if (creditEffect?.kind === "revenue") {
+        current.revenueMinor += creditEffect.amountMinor;
+      } else if (creditEffect?.kind === "expense") {
+        current.expenseMinor += creditEffect.amountMinor;
       }
 
       current.netMinor = current.revenueMinor - current.expenseMinor;

@@ -5,6 +5,7 @@ import type {
   ReportScopeMeta,
   ScopedPosting,
 } from "./types";
+import { resolveRevenueExpenseEffect } from "../../../domain";
 import {
   IncomeStatementQuerySchema,
   type IncomeStatementQuery,
@@ -52,7 +53,12 @@ export class ComputeIncomeStatementCoreQuery {
       const debitKind = accountMeta.get(posting.debitAccountNo)?.kind;
       const creditKind = accountMeta.get(posting.creditAccountNo)?.kind;
 
-      if (debitKind === "revenue" || debitKind === "expense") {
+      const debitEffect = resolveRevenueExpenseEffect({
+        kind: debitKind,
+        side: "debit",
+        amountMinor: posting.amountMinor,
+      });
+      if (debitEffect) {
         const key = context.keyByParts(
           posting.debitAccountNo,
           posting.currency,
@@ -61,17 +67,18 @@ export class ComputeIncomeStatementCoreQuery {
           accountNo: posting.debitAccountNo,
           currency: posting.currency,
           amountMinor: 0n,
-          kind: debitKind,
+          kind: debitEffect.kind,
         };
-        if (debitKind === "revenue") {
-          current.amountMinor -= posting.amountMinor;
-        } else {
-          current.amountMinor += posting.amountMinor;
-        }
+        current.amountMinor += debitEffect.amountMinor;
         amountByAccountCurrency.set(key, current);
       }
 
-      if (creditKind === "revenue" || creditKind === "expense") {
+      const creditEffect = resolveRevenueExpenseEffect({
+        kind: creditKind,
+        side: "credit",
+        amountMinor: posting.amountMinor,
+      });
+      if (creditEffect) {
         const key = context.keyByParts(
           posting.creditAccountNo,
           posting.currency,
@@ -80,13 +87,9 @@ export class ComputeIncomeStatementCoreQuery {
           accountNo: posting.creditAccountNo,
           currency: posting.currency,
           amountMinor: 0n,
-          kind: creditKind,
+          kind: creditEffect.kind,
         };
-        if (creditKind === "revenue") {
-          current.amountMinor += posting.amountMinor;
-        } else {
-          current.amountMinor -= posting.amountMinor;
-        }
+        current.amountMinor += creditEffect.amountMinor;
         amountByAccountCurrency.set(key, current);
       }
     }

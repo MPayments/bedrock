@@ -4,6 +4,7 @@ import type {
   BalanceSheetRow,
   ReportScopeMeta,
 } from "./types";
+import { computeAccountNetMovements } from "../../../domain";
 import {
   BalanceSheetQuerySchema,
   type BalanceSheetQuery,
@@ -25,42 +26,12 @@ export class ListBalanceSheetReportQuery {
       query,
       asOf,
     });
-
-    const netByAccountCurrency = new Map<
-      string,
-      { accountNo: string; currency: string; netMinor: bigint }
-    >();
-
-    for (const posting of postings) {
-      const debitKey = context.keyByParts(
-        posting.debitAccountNo,
-        posting.currency,
-      );
-      const debit = netByAccountCurrency.get(debitKey) ?? {
-        accountNo: posting.debitAccountNo,
-        currency: posting.currency,
-        netMinor: 0n,
-      };
-      debit.netMinor += posting.amountMinor;
-      netByAccountCurrency.set(debitKey, debit);
-
-      const creditKey = context.keyByParts(
-        posting.creditAccountNo,
-        posting.currency,
-      );
-      const credit = netByAccountCurrency.get(creditKey) ?? {
-        accountNo: posting.creditAccountNo,
-        currency: posting.currency,
-        netMinor: 0n,
-      };
-      credit.netMinor -= posting.amountMinor;
-      netByAccountCurrency.set(creditKey, credit);
-    }
+    const netMovements = computeAccountNetMovements(postings);
 
     const accountMeta = await context.fetchAccountMeta(
       Array.from(
         new Set(
-          Array.from(netByAccountCurrency.values()).map((row) => row.accountNo),
+          netMovements.map((row) => row.accountNo),
         ),
       ),
     );
@@ -68,7 +39,7 @@ export class ListBalanceSheetReportQuery {
 
     const rowsByLine = new Map<string, BalanceSheetRow>();
 
-    for (const row of netByAccountCurrency.values()) {
+    for (const row of netMovements) {
       const meta = accountMeta.get(row.accountNo);
       const kind = meta?.kind;
 
