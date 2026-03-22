@@ -1,21 +1,30 @@
 import type { BalancesQueries } from "@bedrock/balances/queries";
+import type { ListLedgerOperationsInput } from "@bedrock/ledger/contracts";
 import type { LedgerQueries } from "@bedrock/ledger/queries";
 import type { Queryable } from "@bedrock/platform/persistence";
 
 import type {
   AccountingReportsDocumentsPort,
-  AccountingReportsLedgerPort,
   AccountingReportsServicePorts,
 } from "../../application/ports";
+import type { AccountingReportsLedgerPort } from "../../application/ports";
+import type {
+  BalanceSheetQuery,
+  CashFlowQuery,
+  ClosePackageQuery,
+  FeeRevenueQuery,
+  FxRevaluationQuery,
+  GeneralLedgerQuery,
+  IncomeStatementQuery,
+  LiquidityQuery,
+  TrialBalanceQuery,
+} from "../../application/contracts/queries";
 import type { ReportsReads } from "../../application/ports/reports.reads";
+import { type LedgerOperationDetailsWithLabels } from "../../application/queries/get-operation-details-with-labels";
+import { ListOperationDetailsWithLabelsReadQuery } from "../../application/queries/list-operation-details-with-labels";
 import {
-  createGetOperationDetailsWithLabelsQuery,
-  type LedgerOperationDetailsWithLabels,
-} from "../../application/queries/get-operation-details-with-labels";
-import { createListOperationDetailsWithLabelsQuery } from "../../application/queries/list-operation-details-with-labels";
-import {
-  createListOperationsWithLabelsQuery,
   type LedgerOperationListWithLabels,
+  ListOperationsWithLabelsReadQuery,
 } from "../../application/queries/list-operations-with-labels";
 import {
   createAccountingReportQueries,
@@ -36,14 +45,11 @@ import { DrizzleReportsRepository } from "./reports.repository";
 
 export class DrizzleReportsReads implements ReportsReads {
   private readonly reportQueries: AccountingReportQueries;
-  private readonly getOperationDetailsQuery: (
-    operationId: string,
-  ) => Promise<LedgerOperationDetailsWithLabels | null>;
   private readonly listOperationDetailsQuery: (
     operationIds: string[],
   ) => Promise<Map<string, LedgerOperationDetailsWithLabels>>;
   private readonly listOperationsQuery: (
-    query?: Parameters<AccountingReportsLedgerPort["listOperations"]>[0],
+    query?: ListLedgerOperationsInput,
   ) => Promise<LedgerOperationListWithLabels>;
 
   constructor(input: {
@@ -80,30 +86,32 @@ export class DrizzleReportsReads implements ReportsReads {
     this.reportQueries = createAccountingReportQueries({
       context,
     });
-    this.getOperationDetailsQuery = createGetOperationDetailsWithLabelsQuery({
-      ledgerReadPort: input.ledgerReadPort,
-      listBookNamesById: input.listBookNamesById,
-      listCurrencyPrecisionsByCode: input.listCurrencyPrecisionsByCode,
-      resolveDimensionLabelsFromRecords:
-        input.resolveDimensionLabelsFromRecords ??
-        dimensionRegistry.resolveLabelsFromDimensionRecords,
-    });
-    this.listOperationDetailsQuery = createListOperationDetailsWithLabelsQuery({
-      ledgerReadPort: input.ledgerReadPort,
-      listBookNamesById: input.listBookNamesById,
-      listCurrencyPrecisionsByCode: input.listCurrencyPrecisionsByCode,
-      resolveDimensionLabelsFromRecords:
-        input.resolveDimensionLabelsFromRecords ??
-        dimensionRegistry.resolveLabelsFromDimensionRecords,
-    });
-    this.listOperationsQuery = createListOperationsWithLabelsQuery({
+    const listOperationDetailsQuery = new ListOperationDetailsWithLabelsReadQuery(
+      {
+        ledgerReadPort: input.ledgerReadPort,
+        listBookNamesById: input.listBookNamesById,
+        listCurrencyPrecisionsByCode: input.listCurrencyPrecisionsByCode,
+        resolveDimensionLabelsFromRecords:
+          input.resolveDimensionLabelsFromRecords ??
+          dimensionRegistry.resolveLabelsFromDimensionRecords,
+      },
+    );
+    const listOperationsQuery = new ListOperationsWithLabelsReadQuery({
       ledgerReadPort: input.ledgerReadPort,
       listBookNamesById: input.listBookNamesById,
     });
+
+    this.listOperationDetailsQuery =
+      listOperationDetailsQuery.execute.bind(listOperationDetailsQuery);
+    this.listOperationsQuery =
+      listOperationsQuery.execute.bind(listOperationsQuery);
   }
 
-  getOperationDetailsWithLabels(operationId: string) {
-    return this.getOperationDetailsQuery(operationId);
+  async getOperationDetailsWithLabels(operationId: string) {
+    return (
+      (await this.listOperationDetailsQuery([operationId])).get(operationId) ??
+      null
+    );
   }
 
   listOperationDetailsWithLabels(operationIds: string[]) {
@@ -111,64 +119,48 @@ export class DrizzleReportsReads implements ReportsReads {
   }
 
   listOperationsWithLabels(
-    query?: Parameters<AccountingReportsLedgerPort["listOperations"]>[0],
+    query?: ListLedgerOperationsInput,
   ) {
     return this.listOperationsQuery(query);
   }
 
-  listTrialBalance(
-    ...args: Parameters<AccountingReportQueries["listTrialBalance"]>
-  ) {
-    return this.reportQueries.listTrialBalance(...args);
+  listTrialBalance(query?: TrialBalanceQuery) {
+    return this.reportQueries.listTrialBalance(query);
   }
 
-  listGeneralLedger(
-    ...args: Parameters<AccountingReportQueries["listGeneralLedger"]>
-  ) {
-    return this.reportQueries.listGeneralLedger(...args);
+  listGeneralLedger(query?: GeneralLedgerQuery) {
+    return this.reportQueries.listGeneralLedger(query);
   }
 
-  listBalanceSheet(
-    ...args: Parameters<AccountingReportQueries["listBalanceSheet"]>
-  ) {
-    return this.reportQueries.listBalanceSheet(...args);
+  listBalanceSheet(query?: BalanceSheetQuery) {
+    return this.reportQueries.listBalanceSheet(query);
   }
 
-  listIncomeStatement(
-    ...args: Parameters<AccountingReportQueries["listIncomeStatement"]>
-  ) {
-    return this.reportQueries.listIncomeStatement(...args);
+  listIncomeStatement(query?: IncomeStatementQuery) {
+    return this.reportQueries.listIncomeStatement(query);
   }
 
-  listCashFlow(...args: Parameters<AccountingReportQueries["listCashFlow"]>) {
-    return this.reportQueries.listCashFlow(...args);
+  listCashFlow(query?: CashFlowQuery) {
+    return this.reportQueries.listCashFlow(query);
   }
 
-  listLiquidity(...args: Parameters<AccountingReportQueries["listLiquidity"]>) {
-    return this.reportQueries.listLiquidity(...args);
+  listLiquidity(query?: LiquidityQuery) {
+    return this.reportQueries.listLiquidity(query);
   }
 
-  listFxRevaluation(
-    ...args: Parameters<AccountingReportQueries["listFxRevaluation"]>
-  ) {
-    return this.reportQueries.listFxRevaluation(...args);
+  listFxRevaluation(query?: FxRevaluationQuery) {
+    return this.reportQueries.listFxRevaluation(query);
   }
 
-  listFeeRevenue(
-    ...args: Parameters<AccountingReportQueries["listFeeRevenue"]>
-  ) {
-    return this.reportQueries.listFeeRevenue(...args);
+  listFeeRevenue(query?: FeeRevenueQuery) {
+    return this.reportQueries.listFeeRevenue(query);
   }
 
-  listFeeRevenueBreakdown(
-    ...args: Parameters<AccountingReportQueries["listFeeRevenueBreakdown"]>
-  ) {
-    return this.reportQueries.listFeeRevenueBreakdown(...args);
+  listFeeRevenueBreakdown(query?: FeeRevenueQuery) {
+    return this.reportQueries.listFeeRevenueBreakdown(query);
   }
 
-  listClosePackage(
-    ...args: Parameters<AccountingReportQueries["listClosePackage"]>
-  ) {
-    return this.reportQueries.listClosePackage(...args);
+  listClosePackage(query?: ClosePackageQuery) {
+    return this.reportQueries.listClosePackage(query);
   }
 }

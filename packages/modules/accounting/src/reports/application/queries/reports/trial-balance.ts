@@ -7,6 +7,7 @@ import {
 
 import type {
   AccountingReportsContext,
+  ReportScopeMeta,
   TrialBalanceRow,
   TrialBalanceSummaryByCurrency,
 } from "./types";
@@ -16,15 +17,16 @@ import {
 } from "../reports-validation";
 import { fetchScopedReportPostings } from "./shared";
 
-export function createListTrialBalanceHandler(
-  context: AccountingReportsContext,
-) {
-  return async function listTrialBalance(input?: TrialBalanceQuery): Promise<
+export class ListTrialBalanceReportQuery {
+  constructor(private readonly context: AccountingReportsContext) {}
+
+  async execute(input?: TrialBalanceQuery): Promise<
     PaginatedList<TrialBalanceRow> & {
       summaryByCurrency: TrialBalanceSummaryByCurrency[];
-      scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
+      scopeMeta: ReportScopeMeta;
     }
   > {
+    const context = this.context;
     const query = TrialBalanceQuerySchema.parse(input ?? {});
     const from = new Date(query.from);
     const to = new Date(query.to);
@@ -173,5 +175,5 @@ export function createListTrialBalanceHandler(
       ),
       scopeMeta,
     };
-  };
+  }
 }

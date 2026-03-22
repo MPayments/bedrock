@@ -2,6 +2,7 @@ import type {
   AccountingReportsContext,
   IncomeStatementRow,
   IncomeStatementSummaryByCurrency,
+  ReportScopeMeta,
   ScopedPosting,
 } from "./types";
 import {
@@ -10,18 +11,21 @@ import {
 } from "../reports-validation";
 import { fetchScopedReportPostings, sortRowsByContextParts } from "./shared";
 
-export function createComputeIncomeStatementCoreHandler(
-  context: AccountingReportsContext,
-) {
-  return async function computeIncomeStatementCore(input: {
+export type IncomeStatementCoreResult = {
+  rows: IncomeStatementRow[];
+  summaryByCurrency: IncomeStatementSummaryByCurrency[];
+  scopeMeta: ReportScopeMeta;
+  postings: ScopedPosting[];
+};
+
+export class ComputeIncomeStatementCoreQuery {
+  constructor(private readonly context: AccountingReportsContext) {}
+
+  async execute(input: {
     query: IncomeStatementQuery;
-  }): Promise<{
-    rows: IncomeStatementRow[];
-    summaryByCurrency: IncomeStatementSummaryByCurrency[];
-    scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
-    postings: ScopedPosting[];
-  }> {
-    const query = input.query;
+  }): Promise<IncomeStatementCoreResult> {
+    const context = this.context;
+    const { query } = input;
     const from = new Date(query.from);
     const to = new Date(query.to);
     const { postings, scopeMeta } = await fetchScopedReportPostings(context, {
@@ -149,30 +153,26 @@ export function createComputeIncomeStatementCoreHandler(
       scopeMeta,
       postings,
     };
-  };
+  }
 }
 
-export function createListIncomeStatementHandler(input: {
-  computeIncomeStatementCore: ReturnType<
-    typeof createComputeIncomeStatementCoreHandler
-  >;
-}) {
-  return async function listIncomeStatement(
-    inputQuery?: IncomeStatementQuery,
-  ): Promise<{
+export class ListIncomeStatementReportQuery {
+  constructor(
+    private readonly computeIncomeStatementCore: ComputeIncomeStatementCoreQuery,
+  ) {}
+
+  async execute(inputQuery?: IncomeStatementQuery): Promise<{
     data: IncomeStatementRow[];
     summaryByCurrency: IncomeStatementSummaryByCurrency[];
-    scopeMeta: Awaited<
-      ReturnType<ReturnType<typeof createComputeIncomeStatementCoreHandler>>
-    >["scopeMeta"];
+    scopeMeta: IncomeStatementCoreResult["scopeMeta"];
   }> {
     const query = IncomeStatementQuerySchema.parse(inputQuery ?? {});
-    const result = await input.computeIncomeStatementCore({ query });
+    const result = await this.computeIncomeStatementCore.execute({ query });
 
     return {
       data: result.rows,
       summaryByCurrency: result.summaryByCurrency,
       scopeMeta: result.scopeMeta,
     };
-  };
+  }
 }

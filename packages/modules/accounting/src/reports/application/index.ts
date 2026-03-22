@@ -1,17 +1,17 @@
-import { GetOperationDetailsWithLabelsQuery } from "./queries/get-operation-details-with-labels.query";
-import { ListOperationDetailsWithLabelsQuery } from "./queries/list-operation-details-with-labels.query";
-import { ListOperationsWithLabelsQuery } from "./queries/list-operations-with-labels.query";
+import { GetOperationDetailsWithLabelsQuery } from "./queries/get-operation-details-with-labels";
+import { ListOperationDetailsWithLabelsQuery } from "./queries/list-operation-details-with-labels";
+import { ListOperationsWithLabelsQuery } from "./queries/list-operations-with-labels";
 import type { ReportsReads } from "./ports/reports.reads";
-import { ListBalanceSheetQuery } from "./queries/reports/list-balance-sheet.query";
-import { ListCashFlowQuery } from "./queries/reports/list-cash-flow.query";
-import { ListClosePackageQuery } from "./queries/reports/list-close-package.query";
-import { ListFeeRevenueBreakdownQuery } from "./queries/reports/list-fee-revenue-breakdown.query";
-import { ListFeeRevenueQuery } from "./queries/reports/list-fee-revenue.query";
-import { ListFxRevaluationQuery } from "./queries/reports/list-fx-revaluation.query";
-import { ListGeneralLedgerQuery } from "./queries/reports/list-general-ledger.query";
-import { ListIncomeStatementQuery } from "./queries/reports/list-income-statement.query";
-import { ListLiquidityQuery } from "./queries/reports/list-liquidity.query";
-import { ListTrialBalanceQuery } from "./queries/reports/list-trial-balance.query";
+import { ListBalanceSheetQuery } from "./queries/reports/list-balance-sheet";
+import { ListCashFlowQuery } from "./queries/reports/list-cash-flow";
+import { ListClosePackageQuery } from "./queries/reports/list-close-package";
+import { ListFeeRevenueBreakdownQuery } from "./queries/reports/list-fee-revenue-breakdown";
+import { ListFeeRevenueQuery } from "./queries/reports/list-fee-revenue";
+import { ListFxRevaluationQuery } from "./queries/reports/list-fx-revaluation";
+import { ListGeneralLedgerQuery } from "./queries/reports/list-general-ledger";
+import { ListIncomeStatementQuery } from "./queries/reports/list-income-statement";
+import { ListLiquidityQuery } from "./queries/reports/list-liquidity";
+import { ListTrialBalanceQuery } from "./queries/reports/list-trial-balance";
 
 export interface ReportsServiceDeps {
   reads: ReportsReads;

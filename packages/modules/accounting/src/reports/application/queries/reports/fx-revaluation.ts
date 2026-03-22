@@ -2,6 +2,7 @@ import type {
   AccountingReportsContext,
   FxRevaluationRow,
   FxRevaluationSummaryByCurrency,
+  ReportScopeMeta,
 } from "./types";
 import {
   FxRevaluationQuerySchema,
@@ -9,14 +10,15 @@ import {
 } from "../reports-validation";
 import { fetchScopedReportPostings, sortRowsByContextParts } from "./shared";
 
-export function createListFxRevaluationHandler(
-  context: AccountingReportsContext,
-) {
-  return async function listFxRevaluation(input?: FxRevaluationQuery): Promise<{
+export class ListFxRevaluationReportQuery {
+  constructor(private readonly context: AccountingReportsContext) {}
+
+  async execute(input?: FxRevaluationQuery): Promise<{
     data: FxRevaluationRow[];
     summaryByCurrency: FxRevaluationSummaryByCurrency[];
-    scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
+    scopeMeta: ReportScopeMeta;
   }> {
+    const context = this.context;
     const query = FxRevaluationQuerySchema.parse(input ?? {});
     const from = new Date(query.from);
     const to = new Date(query.to);
@@ -101,5 +103,5 @@ export function createListFxRevaluationHandler(
       ),
       scopeMeta,
     };
-  };
+  }
 }

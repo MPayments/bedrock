@@ -9,6 +9,7 @@ import type {
   AccountingReportsContext,
   GeneralLedgerBalance,
   GeneralLedgerEntry,
+  ReportScopeMeta,
 } from "./types";
 import {
   GeneralLedgerQuerySchema,
@@ -16,16 +17,17 @@ import {
 } from "../reports-validation";
 import { fetchScopedReportPostings, sortRowsByContextParts } from "./shared";
 
-export function createListGeneralLedgerHandler(
-  context: AccountingReportsContext,
-) {
-  return async function listGeneralLedger(input?: GeneralLedgerQuery): Promise<
+export class ListGeneralLedgerReportQuery {
+  constructor(private readonly context: AccountingReportsContext) {}
+
+  async execute(input?: GeneralLedgerQuery): Promise<
     PaginatedList<GeneralLedgerEntry> & {
       openingBalances: GeneralLedgerBalance[];
       closingBalances: GeneralLedgerBalance[];
-      scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
+      scopeMeta: ReportScopeMeta;
     }
   > {
+    const context = this.context;
     const query = GeneralLedgerQuerySchema.parse(input ?? {});
     const from = new Date(query.from);
     const to = new Date(query.to);
@@ -201,5 +203,5 @@ export function createListGeneralLedgerHandler(
       closingBalances,
       scopeMeta,
     };
-  };
+  }
 }

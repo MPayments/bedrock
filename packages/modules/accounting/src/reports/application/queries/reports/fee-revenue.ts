@@ -8,6 +8,7 @@ import type {
   AccountingReportsContext,
   FeeRevenueRow,
   FeeRevenueSummaryByCurrency,
+  ReportScopeMeta,
 } from "./types";
 import {
   FeeRevenueQuerySchema,
@@ -15,13 +16,16 @@ import {
 } from "../reports-validation";
 import { fetchScopedReportPostings } from "./shared";
 
-export function createListFeeRevenueHandler(context: AccountingReportsContext) {
-  return async function listFeeRevenue(input?: FeeRevenueQuery): Promise<
+export class ListFeeRevenueReportQuery {
+  constructor(private readonly context: AccountingReportsContext) {}
+
+  async execute(input?: FeeRevenueQuery): Promise<
     PaginatedList<FeeRevenueRow> & {
       summaryByCurrency: FeeRevenueSummaryByCurrency[];
-      scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
+      scopeMeta: ReportScopeMeta;
     }
   > {
+    const context = this.context;
     const query = FeeRevenueQuerySchema.parse(input ?? {});
     const limit = query.limit;
     const offset = query.offset;
@@ -146,5 +150,5 @@ export function createListFeeRevenueHandler(context: AccountingReportsContext) {
       ),
       scopeMeta,
     };
-  };
+  }
 }

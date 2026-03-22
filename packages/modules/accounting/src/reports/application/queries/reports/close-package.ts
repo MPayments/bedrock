@@ -26,12 +26,11 @@ function parseDateValue(value: unknown): Date {
   return parsed;
 }
 
-export function createListClosePackageHandler(
-  context: AccountingReportsContext,
-) {
-  return async function listClosePackage(
-    inputQuery?: ClosePackageQuery,
-  ): Promise<ClosePackageResult> {
+export class ListClosePackageReportQuery {
+  constructor(private readonly context: AccountingReportsContext) {}
+
+  async execute(inputQuery?: ClosePackageQuery): Promise<ClosePackageResult> {
+    const context = this.context;
     const query = ClosePackageQuerySchema.parse(inputQuery ?? {});
     const periodStart = normalizeMonthStart(new Date(query.periodStart));
 
@@ -134,5 +133,5 @@ export function createListClosePackageHandler(
       auditEvents,
       payload,
     };
-  };
+  }
 }

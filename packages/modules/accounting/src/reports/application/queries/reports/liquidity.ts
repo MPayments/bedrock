@@ -4,7 +4,11 @@ import {
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
 
-import type { AccountingReportsContext, LiquidityRow } from "./types";
+import type {
+  AccountingReportsContext,
+  LiquidityRow,
+  ReportScopeMeta,
+} from "./types";
 import { normalizeReportCurrency } from "../../../domain";
 import {
   LiquidityQuerySchema,
@@ -12,12 +16,15 @@ import {
 } from "../reports-validation";
 import { buildReportScopeMeta, resolveReportScope } from "./shared";
 
-export function createListLiquidityHandler(context: AccountingReportsContext) {
-  return async function listLiquidity(input?: LiquidityQuery): Promise<
+export class ListLiquidityReportQuery {
+  constructor(private readonly context: AccountingReportsContext) {}
+
+  async execute(input?: LiquidityQuery): Promise<
     PaginatedList<LiquidityRow> & {
-      scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
+      scopeMeta: ReportScopeMeta;
     }
   > {
+    const context = this.context;
     const query = LiquidityQuerySchema.parse(input ?? {});
     const limit = query.limit;
     const offset = query.offset;
@@ -68,5 +75,5 @@ export function createListLiquidityHandler(context: AccountingReportsContext) {
         hasUnattributedData: false,
       }),
     };
-  };
+  }
 }

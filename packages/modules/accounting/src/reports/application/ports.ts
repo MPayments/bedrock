@@ -109,7 +109,9 @@ export interface AccountingReportsContext {
 }
 
 export interface AccountingReportsServicePorts {
-  listCurrencyPrecisionsByCode: (codes: string[]) => Promise<Map<string, number>>;
+  listCurrencyPrecisionsByCode: (
+    codes: string[],
+  ) => Promise<Map<string, number>>;
   listBookNamesById: (ids: string[]) => Promise<Map<string, string>>;
   resolveDimensionLabelsFromRecords: (input: {
     records: (Record<string, string> | null | undefined)[];

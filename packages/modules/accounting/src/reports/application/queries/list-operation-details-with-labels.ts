@@ -1,15 +1,17 @@
+import type { LedgerOperationDetails } from "@bedrock/ledger/contracts";
 import { getDefaultPrecision } from "@bedrock/currencies/contracts";
 
 import type {
   AccountingReportsLedgerPort,
   AccountingReportsServicePorts,
 } from "../ports";
+import {
+  ListOperationDetailsWithLabelsInputSchema,
+  type ListOperationDetailsWithLabelsInput,
+} from "../contracts/operation-queries";
+import type { ReportsReads } from "../ports/reports.reads";
 
-type RawLedgerOperationDetails = NonNullable<
-  Awaited<
-    ReturnType<AccountingReportsLedgerPort["getOperationDetails"]>
-  >
->;
+type RawLedgerOperationDetails = LedgerOperationDetails;
 
 export type LedgerOperationDetailsWithLabels = Omit<
   RawLedgerOperationDetails,
@@ -21,32 +23,35 @@ export type LedgerOperationDetailsWithLabels = Omit<
   dimensionLabels: Record<string, string>;
 };
 
-function toDimensionLabels(
-  resolved: Record<string, Record<string, string>>,
-): Record<string, string> {
-  return Object.fromEntries(
-    Object.values(resolved).flatMap((labelsById) =>
-      Object.entries(labelsById as Record<string, string>),
-    ),
-  );
+export class ListOperationDetailsWithLabelsQuery {
+  constructor(private readonly reads: ReportsReads) {}
+
+  execute(operationIds: ListOperationDetailsWithLabelsInput) {
+    return this.reads.listOperationDetailsWithLabels(
+      ListOperationDetailsWithLabelsInputSchema.parse(operationIds),
+    );
+  }
 }
 
-export function createListOperationDetailsWithLabelsQuery(input: {
-  ledgerReadPort: Pick<AccountingReportsLedgerPort, "listOperationDetails">;
-  listBookNamesById: AccountingReportsServicePorts["listBookNamesById"];
-  listCurrencyPrecisionsByCode: AccountingReportsServicePorts["listCurrencyPrecisionsByCode"];
-  resolveDimensionLabelsFromRecords: AccountingReportsServicePorts["resolveDimensionLabelsFromRecords"];
-}) {
-  const {
-    ledgerReadPort,
-    listBookNamesById,
-    listCurrencyPrecisionsByCode,
-    resolveDimensionLabelsFromRecords,
-  } = input;
+export class ListOperationDetailsWithLabelsReadQuery {
+  constructor(
+    private readonly input: {
+      ledgerReadPort: Pick<AccountingReportsLedgerPort, "listOperationDetails">;
+      listBookNamesById: AccountingReportsServicePorts["listBookNamesById"];
+      listCurrencyPrecisionsByCode: AccountingReportsServicePorts["listCurrencyPrecisionsByCode"];
+      resolveDimensionLabelsFromRecords: AccountingReportsServicePorts["resolveDimensionLabelsFromRecords"];
+    },
+  ) {}
 
-  return async function listOperationDetailsWithLabels(
+  async execute(
     operationIds: string[],
   ): Promise<Map<string, LedgerOperationDetailsWithLabels>> {
+    const {
+      ledgerReadPort,
+      listBookNamesById,
+      listCurrencyPrecisionsByCode,
+      resolveDimensionLabelsFromRecords,
+    } = this.input;
     const detailsById = await ledgerReadPort.listOperationDetails(operationIds);
     const detailsList = Array.from(detailsById.values());
     if (detailsList.length === 0) {
@@ -97,5 +102,15 @@ export function createListOperationDetailsWithLabelsQuery(input: {
         },
       ]),
     );
-  };
+  }
+}
+
+function toDimensionLabels(
+  resolved: Record<string, Record<string, string>>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.values(resolved).flatMap((labelsById) =>
+      Object.entries(labelsById as Record<string, string>),
+    ),
+  );
 }

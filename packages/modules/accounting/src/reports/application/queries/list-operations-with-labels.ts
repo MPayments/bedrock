@@ -1,27 +1,51 @@
 import type {
+  LedgerOperationList,
+  ListLedgerOperationsInput,
+} from "@bedrock/ledger/contracts";
+
+import type {
   AccountingReportsLedgerPort,
   AccountingReportsServicePorts,
 } from "../ports";
+import {
+  ListOperationsWithLabelsQuerySchema,
+  type ListOperationsWithLabelsQuery as ListOperationsWithLabelsInput,
+} from "../contracts/operation-queries";
+import type { ReportsReads } from "../ports/reports.reads";
 
-type RawLedgerOperationList = Awaited<
-  ReturnType<AccountingReportsLedgerPort["listOperations"]>
->;
+type RawLedgerOperationList = LedgerOperationList;
 
-export type LedgerOperationListWithLabels = Omit<RawLedgerOperationList, "data"> & {
+export type LedgerOperationListWithLabels = Omit<
+  RawLedgerOperationList,
+  "data"
+> & {
   data: (RawLedgerOperationList["data"][number] & {
     bookLabels: Record<string, string>;
   })[];
 };
 
-export function createListOperationsWithLabelsQuery(input: {
-  ledgerReadPort: Pick<AccountingReportsLedgerPort, "listOperations">;
-  listBookNamesById: AccountingReportsServicePorts["listBookNamesById"];
-}) {
-  const { ledgerReadPort, listBookNamesById } = input;
+export class ListOperationsWithLabelsQuery {
+  constructor(private readonly reads: ReportsReads) {}
 
-  return async function listOperationsWithLabels(
-    query?: Parameters<AccountingReportsLedgerPort["listOperations"]>[0],
+  execute(query?: ListOperationsWithLabelsInput) {
+    return this.reads.listOperationsWithLabels(
+      ListOperationsWithLabelsQuerySchema.parse(query ?? {}),
+    );
+  }
+}
+
+export class ListOperationsWithLabelsReadQuery {
+  constructor(
+    private readonly input: {
+      ledgerReadPort: Pick<AccountingReportsLedgerPort, "listOperations">;
+      listBookNamesById: AccountingReportsServicePorts["listBookNamesById"];
+    },
+  ) {}
+
+  async execute(
+    query?: ListLedgerOperationsInput,
   ): Promise<LedgerOperationListWithLabels> {
+    const { ledgerReadPort, listBookNamesById } = this.input;
     const result = await ledgerReadPort.listOperations(query);
     const bookNamesById = await listBookNamesById(
       Array.from(new Set(result.data.flatMap((row) => row.bookIds))),
@@ -39,5 +63,5 @@ export function createListOperationsWithLabelsQuery(input: {
         ),
       })),
     };
-  };
+  }
 }

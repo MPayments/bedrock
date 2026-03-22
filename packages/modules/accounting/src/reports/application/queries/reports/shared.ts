@@ -2,6 +2,7 @@ import {
   normalizeReportCurrency,
   type FinancialResultStatus,
   type ReportAttributionMode,
+  type ReportScopeMeta,
   type ReportScopeType,
   type ResolvedScope,
   type ScopedPosting,
@@ -30,7 +31,7 @@ export function buildReportScopeMeta(
     attributionMode: ReportAttributionMode;
     hasUnattributedData: boolean;
   },
-) {
+): ReportScopeMeta {
   return context.buildScopeMeta(input);
 }
 
@@ -58,7 +59,7 @@ export async function fetchScopedReportPostings(
 ): Promise<{
   scope: ResolvedScope;
   postings: ScopedPosting[];
-  scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
+  scopeMeta: ReportScopeMeta;
 }> {
   const scope = await resolveReportScope(context, input.query);
   const postings = await context.fetchScopedPostings({

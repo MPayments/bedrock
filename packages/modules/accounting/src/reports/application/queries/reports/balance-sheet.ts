@@ -2,6 +2,7 @@ import type {
   AccountingReportsContext,
   BalanceSheetCheck,
   BalanceSheetRow,
+  ReportScopeMeta,
 } from "./types";
 import {
   BalanceSheetQuerySchema,
@@ -9,14 +10,15 @@ import {
 } from "../reports-validation";
 import { fetchScopedReportPostings, sortRowsByContextParts } from "./shared";
 
-export function createListBalanceSheetHandler(
-  context: AccountingReportsContext,
-) {
-  return async function listBalanceSheet(input?: BalanceSheetQuery): Promise<{
+export class ListBalanceSheetReportQuery {
+  constructor(private readonly context: AccountingReportsContext) {}
+
+  async execute(input?: BalanceSheetQuery): Promise<{
     data: BalanceSheetRow[];
     checks: BalanceSheetCheck[];
-    scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
+    scopeMeta: ReportScopeMeta;
   }> {
+    const context = this.context;
     const query = BalanceSheetQuerySchema.parse(input ?? {});
     const asOf = new Date(query.asOf);
     const { postings, scopeMeta } = await fetchScopedReportPostings(context, {
@@ -156,5 +158,5 @@ export function createListBalanceSheetHandler(
       checks,
       scopeMeta,
     };
-  };
+  }
 }

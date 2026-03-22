@@ -1,4 +1,5 @@
-import type { AccountingReportsLedgerPort } from "../ports";
+import type { ListLedgerOperationsInput } from "@bedrock/ledger/contracts";
+
 import type { AccountingReportQueries } from "../queries/reports";
 import type { LedgerOperationDetailsWithLabels } from "../queries/get-operation-details-with-labels";
 import type { LedgerOperationListWithLabels } from "../queries/list-operations-with-labels";
@@ -11,6 +12,6 @@ export interface ReportsReads extends AccountingReportQueries {
     operationIds: string[],
   ): Promise<Map<string, LedgerOperationDetailsWithLabels>>;
   listOperationsWithLabels(
-    query?: Parameters<AccountingReportsLedgerPort["listOperations"]>[0],
+    query?: ListLedgerOperationsInput,
   ): Promise<LedgerOperationListWithLabels>;
 }

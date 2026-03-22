@@ -2,29 +2,31 @@ import type {
   AccountingReportsContext,
   CashFlowRow,
   CashFlowSummaryByCurrency,
+  ReportScopeMeta,
 } from "./types";
 import {
   CashFlowQuerySchema,
-  type IncomeStatementQuery,
   type CashFlowQuery,
+  type IncomeStatementQuery,
 } from "../reports-validation";
-import type { createComputeIncomeStatementCoreHandler } from "./income-statement";
 import { fetchScopedReportPostings, sortRowsByContextParts } from "./shared";
+import { ComputeIncomeStatementCoreQuery } from "./income-statement";
 
-export function createListCashFlowHandler(input: {
-  context: AccountingReportsContext;
-  computeIncomeStatementCore: ReturnType<
-    typeof createComputeIncomeStatementCoreHandler
-  >;
-}) {
-  const { context, computeIncomeStatementCore } = input;
+export class ListCashFlowReportQuery {
+  constructor(
+    private readonly input: {
+      context: AccountingReportsContext;
+      computeIncomeStatementCore: ComputeIncomeStatementCoreQuery;
+    },
+  ) {}
 
-  return async function listCashFlow(inputQuery?: CashFlowQuery): Promise<{
+  async execute(inputQuery?: CashFlowQuery): Promise<{
     method: "direct" | "indirect";
     data: CashFlowRow[];
     summaryByCurrency: CashFlowSummaryByCurrency[];
-    scopeMeta: ReturnType<AccountingReportsContext["buildScopeMeta"]>;
+    scopeMeta: ReportScopeMeta;
   }> {
+    const { context, computeIncomeStatementCore } = this.input;
     const query = CashFlowQuerySchema.parse(inputQuery ?? {});
     const from = new Date(query.from);
     const to = new Date(query.to);
@@ -43,7 +45,7 @@ export function createListCashFlowHandler(input: {
     const summaryByCurrency = new Map<string, CashFlowSummaryByCurrency>();
 
     if (query.method === "indirect") {
-      const income = await computeIncomeStatementCore({
+      const income = await computeIncomeStatementCore.execute({
         query: {
           ...query,
           from: query.from,
@@ -117,5 +119,5 @@ export function createListCashFlowHandler(input: {
       ),
       scopeMeta,
     };
-  };
+  }
 }
