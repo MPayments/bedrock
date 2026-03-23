@@ -9,11 +9,11 @@ import type { DrizzleReportsRepository } from "../../drizzle/reports.repository"
 import type {
   AccountingBalancesQueryPort,
   AccountingLedgerQueryPort,
-} from "../ledger-query-ports";
+} from "../ledger-query.ports";
 import type {
   AccountingCounterpartiesQueryPort,
   AccountingOrganizationsQueryPort,
-} from "../party-query-ports";
+} from "../party-query.ports";
 
 export function keyByParts(...parts: (string | null | undefined)[]): string {
   return parts.map((part) => part ?? "").join("::");

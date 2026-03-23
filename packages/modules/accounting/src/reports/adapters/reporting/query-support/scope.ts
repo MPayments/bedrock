@@ -14,11 +14,11 @@ import type {
   ResolvedScope,
   ScopedPosting,
 } from "../../../domain";
-import type { AccountingLedgerQueryPort } from "../ledger-query-ports";
+import type { AccountingLedgerQueryPort } from "../ledger-query.ports";
 import type {
   AccountingCounterpartiesQueryPort,
   AccountingOrganizationsQueryPort,
-} from "../party-query-ports";
+} from "../party-query.ports";
 
 export function createReportsScopeHelpers(input: {
   counterpartiesQueries: AccountingCounterpartiesQueryPort;

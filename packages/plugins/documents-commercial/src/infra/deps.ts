@@ -1,6 +1,5 @@
 import type { CurrenciesService } from "@bedrock/currencies";
 import { normalizeFinancialLine } from "@bedrock/documents/contracts";
-import type { FxService } from "@bedrock/fx";
 import {
   DocumentValidationError,
   type DocumentModuleRuntime,
@@ -9,6 +8,13 @@ import { canonicalJson } from "@bedrock/shared/core/canon";
 import { sha256Hex } from "@bedrock/shared/core/crypto";
 import { ServiceError } from "@bedrock/shared/core/errors";
 import { minorToAmountString } from "@bedrock/shared/money";
+import type {
+  CreateQuoteInput,
+  GetQuoteDetailsInput,
+  MarkQuoteUsedInput,
+  QuoteDetailsRecord,
+  QuoteRecord,
+} from "@bedrock/treasury/contracts";
 
 import type { CommercialModuleDeps } from "../documents/internal/types";
 import type { QuoteSnapshot } from "../validation";
@@ -22,10 +28,17 @@ function buildQuoteSnapshotHash(snapshot: Record<string, unknown>) {
   return sha256Hex(canonicalJson(snapshot));
 }
 
-type CommercialFxQuotesPort = Pick<
-  FxService["quotes"],
-  "getQuoteDetails" | "markQuoteUsed" | "quote"
->;
+interface CommercialTreasuryQuotesPort {
+  getQuoteDetails(
+    input: GetQuoteDetailsInput,
+  ): Promise<QuoteDetailsRecord>;
+  markQuoteUsed(
+    input: MarkQuoteUsedInput,
+  ): Promise<QuoteRecord>;
+  createQuote(
+    input: CreateQuoteInput,
+  ): Promise<QuoteRecord>;
+}
 
 async function loadDocumentByType(input: {
   runtime: DocumentModuleRuntime;
@@ -79,7 +92,7 @@ async function buildCurrencyPrecisionMap(
 
 async function buildQuoteSnapshotBase(input: {
   currenciesService: CurrenciesService;
-  details: Awaited<ReturnType<CommercialFxQuotesPort["getQuoteDetails"]>>;
+  details: QuoteDetailsRecord;
 }) {
   const { currenciesService, details } = input;
   const fromCurrency = details.quote.fromCurrency;
@@ -153,11 +166,11 @@ async function buildQuoteSnapshotBase(input: {
 
 async function loadQuoteSnapshotRecord(input: {
   currenciesService: CurrenciesService;
-  fxQuotes: CommercialFxQuotesPort;
+  treasuryQuotes: CommercialTreasuryQuotesPort;
   quoteRef: string;
 }): Promise<QuoteSnapshot> {
   try {
-    const details = await input.fxQuotes.getQuoteDetails({
+    const details = await input.treasuryQuotes.getQuoteDetails({
       quoteRef: input.quoteRef,
     });
     const snapshotWithoutHash = await buildQuoteSnapshotBase({
@@ -179,13 +192,13 @@ async function loadQuoteSnapshotRecord(input: {
 }
 
 async function markQuoteUsedForRef(input: {
-  fxQuotes: CommercialFxQuotesPort;
+  treasuryQuotes: CommercialTreasuryQuotesPort;
   quoteId: string;
   usedByRef: string;
   at: Date;
 }) {
   try {
-    await input.fxQuotes.markQuoteUsed({
+    await input.treasuryQuotes.markQuoteUsed({
       quoteId: input.quoteId,
       usedByRef: input.usedByRef,
       at: input.at,
@@ -197,7 +210,7 @@ async function markQuoteUsedForRef(input: {
 
 export function createCommercialDocumentDeps(input: {
   currenciesService: CurrenciesService;
-  fxQuotes: CommercialFxQuotesPort;
+  treasuryQuotes: CommercialTreasuryQuotesPort;
   requisitesService: {
     resolveBindings(input: {
       requisiteIds: string[];
@@ -221,7 +234,7 @@ export function createCommercialDocumentDeps(input: {
     };
   };
 }): CommercialModuleDeps {
-  const { currenciesService, fxQuotes, requisitesService, partiesService } =
+  const { currenciesService, treasuryQuotes, requisitesService, partiesService } =
     input;
 
   return {
@@ -229,7 +242,7 @@ export function createCommercialDocumentDeps(input: {
       async loadQuoteSnapshot({ quoteRef }) {
         return loadQuoteSnapshotRecord({
           currenciesService,
-          fxQuotes,
+          treasuryQuotes,
           quoteRef,
         });
       },
@@ -241,7 +254,7 @@ export function createCommercialDocumentDeps(input: {
         idempotencyKey,
       }) {
         try {
-          const quote = await fxQuotes.quote({
+          const quote = await treasuryQuotes.createQuote({
             mode: "auto_cross",
             idempotencyKey,
             fromCurrency,
@@ -252,7 +265,7 @@ export function createCommercialDocumentDeps(input: {
 
           return loadQuoteSnapshotRecord({
             currenciesService,
-            fxQuotes,
+            treasuryQuotes,
             quoteRef: quote.id,
           });
         } catch (error) {
@@ -267,7 +280,7 @@ export function createCommercialDocumentDeps(input: {
         at,
       }) {
         await markQuoteUsedForRef({
-          fxQuotes,
+          treasuryQuotes,
           quoteId,
           usedByRef: `invoice:${invoiceDocumentId}`,
           at,

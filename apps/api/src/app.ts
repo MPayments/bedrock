@@ -20,13 +20,13 @@ import {
   customersRoutes,
   currenciesRoutes,
   documentsRoutes,
-  fxQuotesRoutes,
-  fxRatesRoutes,
   integrationRoutes,
   organizationsRoutes,
   profileRoutes,
   requisiteProvidersRoutes,
   requisitesRoutes,
+  treasuryQuotesRoutes,
+  treasuryRatesRoutes,
   usersRoutes,
 } from "./routes";
 
@@ -155,11 +155,11 @@ function createV1Routes(ctx: AppContext) {
     .route("/customers", customersRoutes(ctx))
     .route("/currencies", currenciesRoutes(ctx))
     .route("/documents", documentsRoutes(ctx))
-    .route("/fx/quotes", fxQuotesRoutes(ctx))
     .route("/organizations", organizationsRoutes(ctx))
     .route("/requisites/providers", requisiteProvidersRoutes(ctx))
     .route("/requisites", requisitesRoutes(ctx))
-    .route("/fx/rates", fxRatesRoutes(ctx))
+    .route("/treasury/quotes", treasuryQuotesRoutes(ctx))
+    .route("/treasury/rates", treasuryRatesRoutes(ctx))
     .route("/users", usersRoutes(ctx))
     .route("/me", profileRoutes(ctx));
 }

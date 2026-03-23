@@ -12,9 +12,9 @@ describe("worker selection", () => {
   });
 
   it("parses comma-delimited worker ids", () => {
-    expect(parseSelectedWorkerIds(["ledger,fx-rates"])).toEqual([
+    expect(parseSelectedWorkerIds(["ledger,treasury-rates"])).toEqual([
       "ledger",
-      "fx-rates",
+      "treasury-rates",
     ]);
   });
 
@@ -35,7 +35,7 @@ describe("worker selection", () => {
         "documents",
         "documents-period-close",
         "balances",
-        "fx-rates",
+        "treasury-rates",
       ]),
     );
   });

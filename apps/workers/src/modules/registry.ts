@@ -1,11 +1,7 @@
+import { randomUUID } from "node:crypto";
+
 import { createCurrenciesService } from "@bedrock/currencies";
 import { createDocumentsWorkerDefinition } from "@bedrock/documents/worker";
-import { createFeesService } from "@bedrock/fees";
-import {
-  createFxService,
-} from "@bedrock/fx";
-import { createDefaultFxRateSourceProviders } from "@bedrock/fx/providers";
-import { createFxRatesWorkerDefinition } from "@bedrock/fx/worker";
 import {
   createBalancesProjectorWorkerDefinition,
   createLedgerWorkerDefinition,
@@ -18,6 +14,19 @@ import {
   type BedrockWorker,
   type WorkerCatalogEntry,
 } from "@bedrock/platform/worker-runtime";
+import {
+  createTreasuryModule,
+} from "@bedrock/treasury";
+import {
+  DrizzleTreasuryFeeRulesRepository,
+  DrizzleTreasuryQuoteFeeComponentsRepository,
+  DrizzleTreasuryQuoteFinancialLinesRepository,
+  DrizzleTreasuryQuotesRepository,
+  DrizzleTreasuryRatesRepository,
+  DrizzleTreasuryUnitOfWork,
+} from "@bedrock/treasury/adapters/drizzle";
+import { createDefaultRateSourceProviders } from "@bedrock/treasury/providers";
+import { createTreasuryRatesWorkerDefinition } from "@bedrock/treasury/worker";
 
 import { WORKER_CATALOG } from "../catalog";
 import type { WorkerEnv } from "../env";
@@ -88,21 +97,26 @@ export function createWorkerImplementations(
     db: deps.db,
     logger: deps.logger,
   });
-  const feesService = createFeesService({
-    db: deps.db,
+  const treasuryModule = createTreasuryModule({
     logger: deps.logger,
-    currenciesService,
+    now: () => new Date(),
+    generateUuid: randomUUID,
+    currencies: currenciesService,
+    ratesRepository: new DrizzleTreasuryRatesRepository(deps.db),
+    quotesRepository: new DrizzleTreasuryQuotesRepository(deps.db),
+    quoteFinancialLinesRepository:
+      new DrizzleTreasuryQuoteFinancialLinesRepository(deps.db),
+    quoteFeeComponentsRepository:
+      new DrizzleTreasuryQuoteFeeComponentsRepository(deps.db),
+    feeRulesRepository: new DrizzleTreasuryFeeRulesRepository(deps.db),
+    unitOfWork: new DrizzleTreasuryUnitOfWork({
+      persistence: createPersistenceContext(deps.db),
+    }),
+    rateSourceProviders: createDefaultRateSourceProviders(),
   });
-  const fxService = createFxService({
-    persistence: createPersistenceContext(deps.db),
-    logger: deps.logger,
-    feesService,
-    currenciesService,
-    rateSourceProviders: createDefaultFxRateSourceProviders(),
-  });
-  const fxRates = createFxRatesWorkerDefinition({
-    ...createWorkerMetadata("fx-rates", deps.env),
-    fxService,
+  const treasuryRates = createTreasuryRatesWorkerDefinition({
+    ...createWorkerMetadata("treasury-rates", deps.env),
+    treasuryModule,
     logger: deps.logger,
   });
 
@@ -111,6 +125,6 @@ export function createWorkerImplementations(
     [documents.id]: documents,
     [documentsPeriodClose.id]: documentsPeriodClose,
     [balances.id]: balances,
-    [fxRates.id]: fxRates,
+    [treasuryRates.id]: treasuryRates,
   };
 }

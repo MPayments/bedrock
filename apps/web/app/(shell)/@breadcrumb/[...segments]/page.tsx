@@ -54,7 +54,7 @@ function resolvePairSegment({ segment }: { segment: string }) {
 
     return {
       label: `${base} / ${quote}`,
-      href: `/fx/rates/${base}-${quote}`,
+      href: `/treasury/rates/${base}-${quote}`,
     };
   }
 

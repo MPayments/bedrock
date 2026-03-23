@@ -27,10 +27,10 @@ export const WORKER_CATALOG = [
     description: "Проецирует проведенные записи ledger в балансовые позиции.",
   },
   {
-    id: "fx-rates",
-    envKey: "FX_RATES_WORKER_INTERVAL_MS",
+    id: "treasury-rates",
+    envKey: "TREASURY_RATES_WORKER_INTERVAL_MS",
     defaultIntervalMs: 60_000,
-    description: "Refreshes stale FX rate sources.",
+    description: "Refreshes stale treasury rate sources.",
   },
 ] as const satisfies readonly WorkerCatalogEntry[];
 

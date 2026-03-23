@@ -1,12 +1,18 @@
 import type { CurrenciesService } from "@bedrock/currencies";
 import { normalizeFinancialLine } from "@bedrock/documents/contracts";
-import type { FxService } from "@bedrock/fx";
 import type { LedgerOperationDetails } from "@bedrock/ledger/contracts";
 import { DocumentValidationError } from "@bedrock/plugin-documents-sdk";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import { sha256Hex } from "@bedrock/shared/core/crypto";
 import { ServiceError } from "@bedrock/shared/core/errors";
 import { minorToAmountString } from "@bedrock/shared/money";
+import type {
+  CreateQuoteInput,
+  GetQuoteDetailsInput,
+  MarkQuoteUsedInput,
+  QuoteDetailsRecord,
+  QuoteRecord,
+} from "@bedrock/treasury/contracts";
 
 import type { IfrsModuleDeps } from "../documents/internal/types";
 import { FxExecuteQuoteSnapshotSchema } from "../validation";
@@ -14,10 +20,17 @@ import { FxExecuteQuoteSnapshotSchema } from "../validation";
 const FX_EXECUTE_DOC_TYPE = "fx_execute";
 const TRANSFER_DOC_TYPES = ["transfer_intra", "transfer_intercompany"] as const;
 
-type IfrsFxQuotesPort = Pick<
-  FxService["quotes"],
-  "getQuoteDetails" | "markQuoteUsed" | "quote"
->;
+interface IfrsTreasuryQuotesPort {
+  getQuoteDetails(
+    input: GetQuoteDetailsInput,
+  ): Promise<QuoteDetailsRecord>;
+  markQuoteUsed(
+    input: MarkQuoteUsedInput,
+  ): Promise<QuoteRecord>;
+  createQuote(
+    input: CreateQuoteInput,
+  ): Promise<QuoteRecord>;
+}
 
 interface IfrsLedgerReadPort {
   getOperationDetails(
@@ -60,7 +73,7 @@ async function buildCurrencyPrecisionMap(
 
 async function buildQuoteSnapshotBase(input: {
   currenciesService: CurrenciesService;
-  details: Awaited<ReturnType<IfrsFxQuotesPort["getQuoteDetails"]>>;
+  details: QuoteDetailsRecord;
 }) {
   const { currenciesService, details } = input;
   const fromCurrency = details.quote.fromCurrency;
@@ -134,11 +147,11 @@ async function buildQuoteSnapshotBase(input: {
 
 async function loadFxExecuteQuoteSnapshotById(input: {
   currenciesService: CurrenciesService;
-  fxQuotes: IfrsFxQuotesPort;
+  treasuryQuotes: IfrsTreasuryQuotesPort;
   quoteId: string;
 }) {
   try {
-    const details = await input.fxQuotes.getQuoteDetails({
+    const details = await input.treasuryQuotes.getQuoteDetails({
       quoteRef: input.quoteId,
     });
     const snapshotWithoutHash = await buildQuoteSnapshotBase({
@@ -156,13 +169,13 @@ async function loadFxExecuteQuoteSnapshotById(input: {
 }
 
 async function markQuoteUsedForRef(input: {
-  fxQuotes: IfrsFxQuotesPort;
+  treasuryQuotes: IfrsTreasuryQuotesPort;
   quoteId: string;
   usedByRef: string;
   at: Date;
 }) {
   try {
-    await input.fxQuotes.markQuoteUsed({
+    await input.treasuryQuotes.markQuoteUsed({
       quoteId: input.quoteId,
       usedByRef: input.usedByRef,
       at: input.at,
@@ -196,11 +209,11 @@ async function listPendingTransfersForOperation(input: {
 
 export function createIfrsDocumentDeps(input: {
   currenciesService: CurrenciesService;
-  fxQuotes: IfrsFxQuotesPort;
+  treasuryQuotes: IfrsTreasuryQuotesPort;
   ledgerReadService: IfrsLedgerReadPort;
   requisitesService: IfrsModuleDeps["requisitesService"];
 }): IfrsModuleDeps {
-  const { currenciesService, fxQuotes, ledgerReadService, requisitesService } =
+  const { currenciesService, treasuryQuotes, ledgerReadService, requisitesService } =
     input;
 
   return {
@@ -284,7 +297,7 @@ export function createIfrsDocumentDeps(input: {
         idempotencyKey,
       }) {
         try {
-          const quote = await fxQuotes.quote({
+          const quote = await treasuryQuotes.createQuote({
             mode: "auto_cross",
             idempotencyKey,
             fromCurrency,
@@ -295,7 +308,7 @@ export function createIfrsDocumentDeps(input: {
 
           return loadFxExecuteQuoteSnapshotById({
             currenciesService,
-            fxQuotes,
+            treasuryQuotes,
             quoteId: quote.id,
           });
         } catch (error) {
@@ -305,7 +318,7 @@ export function createIfrsDocumentDeps(input: {
       loadQuoteSnapshotById({ quoteId }) {
         return loadFxExecuteQuoteSnapshotById({
           currenciesService,
-          fxQuotes,
+          treasuryQuotes,
           quoteId,
         });
       },
@@ -317,7 +330,7 @@ export function createIfrsDocumentDeps(input: {
         at,
       }) {
         await markQuoteUsedForRef({
-          fxQuotes,
+          treasuryQuotes,
           quoteId,
           usedByRef: `fx_execute:${fxExecuteDocumentId}`,
           at,

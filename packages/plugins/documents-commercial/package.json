@@ -20,8 +20,8 @@
     "@bedrock/accounting": "workspace:*",
     "@bedrock/currencies": "workspace:*",
     "@bedrock/documents": "workspace:*",
-    "@bedrock/fx": "workspace:*",
     "@bedrock/plugin-documents-sdk": "workspace:*",
+    "@bedrock/treasury": "workspace:*",
     "zod": "^4.1.11",
     "@bedrock/shared": "workspace:*"
   },

@@ -78,7 +78,7 @@ bun run --cwd apps/workers worker:all
 bun run --cwd apps/workers worker:ledger
 bun run --cwd apps/workers worker:documents
 bun run --cwd apps/workers worker:balances
-bun run --cwd apps/workers worker:fx-rates
+bun run --cwd apps/workers worker:treasury-rates
 bun run --cwd apps/workers worker:reconciliation
 ```
 

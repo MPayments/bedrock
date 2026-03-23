@@ -98,7 +98,7 @@ export {
   type GetOperationDetailsWithLabelsInput,
   type ListOperationDetailsWithLabelsInput,
   type ListOperationsWithLabelsQuery,
-} from "./reports/application/contracts/operation-queries";
+} from "./reports/application/contracts/operation.queries";
 export {
   BalanceSheetCheckSchema,
   BalanceSheetResponseSchema,

@@ -21,14 +21,15 @@ export {
   documents,
   documentSnapshots,
 } from "@bedrock/documents/schema";
-export { feeRules, fxQuoteFeeComponents } from "@bedrock/fees/schema";
 export {
+  feeRules,
+  fxQuoteFeeComponents,
   fxQuoteFinancialLines,
   fxQuoteLegs,
   fxQuotes,
   fxRateSources,
   fxRates,
-} from "@bedrock/fx/schema";
+} from "@bedrock/treasury/schema";
 export {
   balanceEvents,
   balanceHolds,

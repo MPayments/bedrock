@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import { z } from "zod";
 
 import {
   DocumentGraphError,
@@ -23,19 +24,6 @@ function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function isZodErrorLike(
-  error: unknown,
-): error is { flatten: () => unknown; issues: unknown[] } {
-  return Boolean(
-    error &&
-    typeof error === "object" &&
-    "issues" in error &&
-    Array.isArray((error as { issues?: unknown[] }).issues) &&
-    "flatten" in error &&
-    typeof (error as { flatten?: unknown }).flatten === "function",
-  );
-}
-
 /**
  * Shared route-level error handler.
  *
@@ -44,8 +32,11 @@ function isZodErrorLike(
  * returns 500 without leaking internal details.
  */
 export function handleRouteError(c: Context, error: unknown): Response {
-  if (isZodErrorLike(error)) {
-    return c.json({ error: "Validation error", details: error.flatten() }, 400);
+  if (error instanceof z.ZodError) {
+    return c.json(
+      { error: "Validation error", details: z.treeifyError(error) },
+      400,
+    );
   }
 
   if (

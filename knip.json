@@ -6,10 +6,12 @@
         "duplicates"
     ],
     "ignore": [
-        ".retired/**",
+        "apps/api/build.mjs",
+        "apps/workers/build.mjs",
         "packages/sdk/api-client/src/index.{js,d.ts,d.ts.map}"
     ],
     "ignoreDependencies": [
+        "esbuild",
         "pino-pretty",
         "@tailwindcss/postcss"
     ],

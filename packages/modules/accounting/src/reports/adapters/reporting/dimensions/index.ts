@@ -3,7 +3,7 @@ import type {
   AccountingCustomersQueryPort,
   AccountingOrganizationsQueryPort,
   AccountingRequisitesQueryPort,
-} from "../party-query-ports";
+} from "../party-query.ports";
 
 export type DimensionLabelResolver = (input: {
   values: string[];

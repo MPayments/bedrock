@@ -11,9 +11,6 @@ import {
   type DocumentApprovalRule,
 } from "@bedrock/documents";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
-import { createFeesService, type FeesService } from "@bedrock/fees";
-import { createFxService, type FxService } from "@bedrock/fx";
-import { createDefaultFxRateSourceProviders } from "@bedrock/fx/providers";
 import type { PartiesModule } from "@bedrock/parties";
 import {
   bindPersistenceSession,
@@ -23,6 +20,7 @@ import {
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
 import { createIfrsDocumentModules } from "@bedrock/plugin-documents-ifrs";
 import { createDocumentRegistry } from "@bedrock/plugin-documents-sdk";
+import type { TreasuryModule } from "@bedrock/treasury";
 import { UserNotFoundError } from "@bedrock/users";
 import {
   createDocumentDraftWorkflow,
@@ -53,13 +51,13 @@ import {
 } from "./document-plugin-adapters";
 import { createApiLedgerModule } from "./ledger-module";
 import { createApiPartiesModule } from "./parties-module";
+import { createApiTreasuryModule } from "./treasury-module";
 import { db } from "../db/client";
 
 export interface ApiApplicationServices {
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
-  feesService: FeesService;
-  fxService: FxService;
+  treasuryModule: TreasuryModule;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   documentsService: DocumentsService;
@@ -127,13 +125,15 @@ export function createApplicationServices(
       return new Map(rows);
     },
   };
-  const feesService = createFeesService({ db, logger, currenciesService });
-  const fxService = createFxService({
+  const treasuryCurrenciesPort = {
+    findByCode: currenciesService.findByCode,
+    findById: currenciesService.findById,
+  };
+  const treasuryModule = createApiTreasuryModule({
+    db,
     persistence: createPersistenceContext(db),
     logger,
-    feesService,
-    currenciesService,
-    rateSourceProviders: createDefaultFxRateSourceProviders(),
+    currencies: treasuryCurrenciesPort,
   });
   const partiesModule = createApiPartiesModule({
     db,
@@ -251,11 +251,16 @@ export function createApplicationServices(
       findById: partiesModule.counterparties.queries.findById,
     },
   };
+  const treasuryQuotes = {
+    createQuote: treasuryModule.quotes.commands.createQuote,
+    getQuoteDetails: treasuryModule.quotes.queries.getQuoteDetails,
+    markQuoteUsed: treasuryModule.quotes.commands.markQuoteUsed,
+  };
   const documentRegistry = createDocumentRegistry([
     ...createCommercialDocumentModules(
       createCommercialDocumentDeps({
         currenciesService,
-        fxQuotes: fxService.quotes,
+        treasuryQuotes,
         partiesService: documentPartiesService,
         requisitesService: documentRequisitesService,
       }),
@@ -263,7 +268,7 @@ export function createApplicationServices(
     ...createIfrsDocumentModules(
       createIfrsDocumentDeps({
         currenciesService,
-        fxQuotes: fxService.quotes,
+        treasuryQuotes,
         ledgerReadService: {
           getOperationDetails: ledgerModule.operations.queries.getDetails,
         },
@@ -339,8 +344,7 @@ export function createApplicationServices(
   return {
     partiesModule,
     currenciesService,
-    feesService,
-    fxService,
+    treasuryModule,
     organizationBootstrapWorkflow,
     requisiteAccountingWorkflow,
     documentsService,

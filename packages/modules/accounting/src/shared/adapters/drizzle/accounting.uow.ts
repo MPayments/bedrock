@@ -5,7 +5,7 @@ import {
   type TransactionalPort,
 } from "@bedrock/platform/persistence";
 
-import { DrizzleChartStore } from "../../../chart/adapters/drizzle/chart-repository";
+import { DrizzleChartStore } from "../../../chart/adapters/drizzle/chart.store";
 import type {
   ChartCommandTx,
   ChartCommandUnitOfWork,

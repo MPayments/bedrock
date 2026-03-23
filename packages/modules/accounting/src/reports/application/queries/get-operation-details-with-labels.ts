@@ -2,7 +2,7 @@ import { type LedgerOperationDetailsWithLabels } from "./list-operation-details-
 import {
   GetOperationDetailsWithLabelsInputSchema,
   type GetOperationDetailsWithLabelsInput,
-} from "../contracts/operation-queries";
+} from "../contracts/operation.queries";
 import type { ReportsReads } from "../ports/reports.reads";
 
 export { type LedgerOperationDetailsWithLabels };

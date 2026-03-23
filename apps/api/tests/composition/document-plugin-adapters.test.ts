@@ -24,8 +24,8 @@ function createRuntime(input: {
 
 describe("document plugin adapters composition", () => {
   it("builds commercial quote snapshots from FX and currency services", async () => {
-    const fxQuotes = {
-      quote: vi.fn(async () => ({
+    const treasuryQuotes = {
+      createQuote: vi.fn(async () => ({
         id: "550e8400-e29b-41d4-a716-446655440010",
       })),
       getQuoteDetails: vi.fn(async () => ({
@@ -114,7 +114,7 @@ describe("document plugin adapters composition", () => {
 
     const deps = createCommercialDocumentDeps({
       currenciesService: currenciesService as any,
-      fxQuotes: fxQuotes as any,
+      treasuryQuotes: treasuryQuotes as any,
       partiesService: partiesService as any,
       requisitesService: requisitesService as any,
     });
@@ -131,7 +131,7 @@ describe("document plugin adapters composition", () => {
         amountMinor: "123456",
       }),
     ]);
-    expect(fxQuotes.getQuoteDetails).toHaveBeenCalledWith({
+    expect(treasuryQuotes.getQuoteDetails).toHaveBeenCalledWith({
       quoteRef: "quote-ref-crypto",
     });
 
@@ -190,10 +190,10 @@ describe("document plugin adapters composition", () => {
       currenciesService: {
         findByCode: vi.fn(),
       } as any,
-      fxQuotes: {
+      treasuryQuotes: {
         getQuoteDetails: vi.fn(),
         markQuoteUsed: vi.fn(),
-        quote: vi.fn(),
+        createQuote: vi.fn(),
       } as any,
       ledgerReadService: ledgerReadService as any,
       requisitesService: {
@@ -228,7 +228,7 @@ describe("document plugin adapters composition", () => {
 
   it("builds IFRS FX quote and quote-usage adapters from owner BC services", async () => {
     const quoteId = "550e8400-e29b-41d4-a716-446655440099";
-    const fxQuotes = {
+    const treasuryQuotes = {
       getQuoteDetails: vi.fn(async () => ({
         quote: {
           id: quoteId,
@@ -278,7 +278,7 @@ describe("document plugin adapters composition", () => {
       markQuoteUsed: vi.fn(async () => ({
         id: quoteId,
       })),
-      quote: vi.fn(async () => ({
+      createQuote: vi.fn(async () => ({
         id: quoteId,
       })),
     };
@@ -323,7 +323,7 @@ describe("document plugin adapters composition", () => {
           throw new Error(`Unknown currency ${code}`);
         }),
       } as any,
-      fxQuotes: fxQuotes as any,
+      treasuryQuotes: treasuryQuotes as any,
       ledgerReadService: ledgerReadService as any,
       requisitesService: {
         resolveBindings: vi.fn(async () => []),
@@ -388,7 +388,7 @@ describe("document plugin adapters composition", () => {
         at: new Date("2026-03-03T10:05:00.000Z"),
       }),
     ).resolves.toBeUndefined();
-    expect(fxQuotes.markQuoteUsed).toHaveBeenCalledWith({
+    expect(treasuryQuotes.markQuoteUsed).toHaveBeenCalledWith({
       quoteId,
       usedByRef: "fx_execute:doc-fx-1",
       at: new Date("2026-03-03T10:05:00.000Z"),

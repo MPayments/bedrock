@@ -4,7 +4,7 @@ import type { LedgerOperationDetails } from "@bedrock/ledger/contracts";
 import {
   ListOperationDetailsWithLabelsInputSchema,
   type ListOperationDetailsWithLabelsInput,
-} from "../contracts/operation-queries";
+} from "../contracts/operation.queries";
 import type {
   AccountingReportsLedgerPort,
   AccountingReportsServicePorts,

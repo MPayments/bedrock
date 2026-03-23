@@ -6,7 +6,7 @@ import type {
 import {
   ListOperationsWithLabelsQuerySchema,
   type ListOperationsWithLabelsQuery as ListOperationsWithLabelsInput,
-} from "../contracts/operation-queries";
+} from "../contracts/operation.queries";
 import type {
   AccountingReportsLedgerPort,
   AccountingReportsServicePorts,

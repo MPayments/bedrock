@@ -1,11 +1,11 @@
 import type {
   AccountingBalancesQueryPort,
   AccountingLedgerQueryPort,
-} from "./ledger-query-ports";
+} from "./ledger-query.ports";
 import type {
   AccountingCounterpartiesQueryPort,
   AccountingOrganizationsQueryPort,
-} from "./party-query-ports";
+} from "./party-query.ports";
 import { createReportsScopeHelpers } from "./query-support/scope";
 import { createReportsSharedHelpers } from "./query-support/shared";
 import type {

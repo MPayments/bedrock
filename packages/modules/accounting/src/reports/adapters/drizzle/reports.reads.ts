@@ -37,13 +37,13 @@ import {
 import type {
   AccountingBalancesQueryPort,
   AccountingLedgerQueryPort,
-} from "../reporting/ledger-query-ports";
+} from "../reporting/ledger-query.ports";
 import type {
   AccountingCounterpartiesQueryPort,
   AccountingCustomersQueryPort,
   AccountingOrganizationsQueryPort,
   AccountingRequisitesQueryPort,
-} from "../reporting/party-query-ports";
+} from "../reporting/party-query.ports";
 
 export class DrizzleReportsReads implements ReportsReads {
   private readonly reportQueries: AccountingReportQueries;
