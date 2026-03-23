@@ -20,6 +20,7 @@ import {
   FxResolutionPayloadSchema,
   type FxResolutionInput,
 } from "../validation";
+import { requireDraftMetadata } from "./internal/draft-metadata";
 import {
   buildTreasuryFxFinancialLineRequests,
   listPendingFxTransfers,
@@ -41,6 +42,28 @@ function resolveFxResolutionTitle(resolutionType: "settle" | "void" | "fail") {
   return "Разрешение казначейского FX (ошибка)";
 }
 
+function buildFxResolutionSummary(input: {
+  draft: { docNo: string; docType: string };
+  payload: {
+    fxExecuteDocumentId: string;
+    resolutionType: "settle" | "void" | "fail";
+    eventIdempotencyKey: string;
+  };
+}) {
+  return {
+    title: resolveFxResolutionTitle(input.payload.resolutionType),
+    searchText: [
+      input.draft.docNo,
+      input.draft.docType,
+      input.payload.fxExecuteDocumentId,
+      input.payload.resolutionType,
+      input.payload.eventIdempotencyKey,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
+
 export function createFxResolutionDocumentModule(
   deps: IfrsModuleDeps,
 ): DocumentModule<FxResolutionInput, FxResolutionInput> {
@@ -59,39 +82,43 @@ export function createFxResolutionDocumentModule(
     postingRequired: true,
     allowDirectPostFromDraft: false,
     approvalRequired: () => false,
-    async createDraft(_context, input) {
-      return buildDocumentDraft(input, {
+    async createDraft(context, input) {
+      const draft = requireDraftMetadata(context);
+      const payload = {
         ...serializeOccurredAt(input),
         fxExecuteDocumentId: input.fxExecuteDocumentId,
         resolutionType: input.resolutionType,
         eventIdempotencyKey: input.eventIdempotencyKey,
         memo: input.memo,
-      });
-    },
-    async updateDraft(_context, _document, input) {
-      return buildDocumentDraft(input, {
-        ...serializeOccurredAt(input),
-        fxExecuteDocumentId: input.fxExecuteDocumentId,
-        resolutionType: input.resolutionType,
-        eventIdempotencyKey: input.eventIdempotencyKey,
-        memo: input.memo,
-      });
-    },
-    deriveSummary(document) {
-      const payload = parseDocumentPayload(FxResolutionPayloadSchema, document);
-
-      return {
-        title: resolveFxResolutionTitle(payload.resolutionType),
-        searchText: [
-          document.docNo,
-          document.docType,
-          payload.fxExecuteDocumentId,
-          payload.resolutionType,
-          payload.eventIdempotencyKey,
-        ]
-          .filter(Boolean)
-          .join(" "),
       };
+
+      return buildDocumentDraft(
+        input,
+        payload,
+        buildFxResolutionSummary({
+          draft,
+          payload,
+        }),
+      );
+    },
+    async updateDraft(context, _document, input) {
+      const draft = requireDraftMetadata(context);
+      const payload = {
+        ...serializeOccurredAt(input),
+        fxExecuteDocumentId: input.fxExecuteDocumentId,
+        resolutionType: input.resolutionType,
+        eventIdempotencyKey: input.eventIdempotencyKey,
+        memo: input.memo,
+      };
+
+      return buildDocumentDraft(
+        input,
+        payload,
+        buildFxResolutionSummary({
+          draft,
+          payload,
+        }),
+      );
     },
     async canCreate(context, input) {
       await resolveFxExecuteDependencyDocument(

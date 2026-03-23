@@ -19,12 +19,44 @@ import {
   TransferIntraPayloadSchema,
   type TransferIntraInput,
 } from "../validation";
+import { requireDraftMetadata } from "./internal/draft-metadata";
 import {
   ensureTransferCurrencies,
   normalizeTransferIntraPayload,
   resolveTransferBindings,
 } from "./internal/transfer-helpers";
 import type { IfrsModuleDeps } from "./internal/types";
+
+function buildTransferIntraSummary(input: {
+  draft: { docNo: string; docType: string };
+  payload: {
+    amountMinor: string;
+    currency: string;
+    memo?: string | null;
+    organizationId: string;
+    sourceRequisiteId: string;
+    destinationRequisiteId: string;
+  };
+}) {
+  return {
+    title: "Внутренний перевод",
+    amountMinor: BigInt(input.payload.amountMinor),
+    currency: input.payload.currency,
+    memo: input.payload.memo ?? null,
+    counterpartyId: null,
+    organizationRequisiteId: input.payload.sourceRequisiteId,
+    searchText: [
+      input.draft.docNo,
+      input.draft.docType,
+      input.payload.organizationId,
+      input.payload.sourceRequisiteId,
+      input.payload.destinationRequisiteId,
+      input.payload.currency,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
 
 export function createTransferIntraDocumentModule(
   deps: IfrsModuleDeps,
@@ -43,7 +75,8 @@ export function createTransferIntraDocumentModule(
     postingRequired: true,
     allowDirectPostFromDraft: false,
     approvalRequired: () => false,
-    async createDraft(_context, input) {
+    async createDraft(context, input) {
+      const draft = requireDraftMetadata(context);
       const bindings = await resolveTransferBindings(
         requisitesService,
         input,
@@ -53,13 +86,19 @@ export function createTransferIntraDocumentModule(
           "transfer_intra requires source and destination requisites from the same organization",
         );
       }
+      const payload = normalizeTransferIntraPayload(input, bindings);
 
       return buildDocumentDraft(
         input,
-        normalizeTransferIntraPayload(input, bindings),
+        payload,
+        buildTransferIntraSummary({
+          draft,
+          payload,
+        }),
       );
     },
-    async updateDraft(_context, _document, input) {
+    async updateDraft(context, _document, input) {
+      const draft = requireDraftMetadata(context);
       const bindings = await resolveTransferBindings(
         requisitesService,
         input,
@@ -69,33 +108,16 @@ export function createTransferIntraDocumentModule(
           "transfer_intra requires source and destination requisites from the same organization",
         );
       }
+      const payload = normalizeTransferIntraPayload(input, bindings);
 
       return buildDocumentDraft(
         input,
-        normalizeTransferIntraPayload(input, bindings),
+        payload,
+        buildTransferIntraSummary({
+          draft,
+          payload,
+        }),
       );
-    },
-    deriveSummary(document) {
-      const payload = parseDocumentPayload(TransferIntraPayloadSchema, document);
-
-      return {
-        title: "Внутренний перевод",
-        amountMinor: BigInt(payload.amountMinor),
-        currency: payload.currency,
-        memo: payload.memo ?? null,
-        counterpartyId: null,
-        organizationRequisiteId: payload.sourceRequisiteId,
-        searchText: [
-          document.docNo,
-          document.docType,
-          payload.organizationId,
-          payload.sourceRequisiteId,
-          payload.destinationRequisiteId,
-          payload.currency,
-        ]
-          .filter(Boolean)
-          .join(" "),
-      };
     },
     async canCreate(_context, input) {
       const bindings = await resolveTransferBindings(

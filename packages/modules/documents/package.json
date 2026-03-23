@@ -5,13 +5,10 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./contracts": "./src/contracts/index.ts",
-    "./model": "./src/model.ts",
-    "./plugins": "./src/plugins.ts",
-    "./read-model": "./src/read-model.ts",
-    "./repository": "./src/infra/drizzle/repository.ts",
-    "./schema": "./src/infra/drizzle/schema.ts",
-    "./worker": "./src/infra/workers/posting.ts"
+    "./adapters/drizzle": "./src/adapters/drizzle.ts",
+    "./contracts": "./src/contracts.ts",
+    "./schema": "./src/schema.ts",
+    "./worker": "./src/worker.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

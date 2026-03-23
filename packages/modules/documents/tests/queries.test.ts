@@ -1,20 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { buildTestDocument, createTestDocumentModule } from "./helpers";
-import { createGetDocumentQuery } from "../src/application/queries/get-document";
-import { createGetDocumentDetailsQuery } from "../src/application/queries/get-document-details";
-import { createListDocumentsQuery } from "../src/application/queries/list-documents";
+import { GetDocumentQuery } from "../src/documents/application/queries/get-document";
+import { GetDocumentDetailsQuery } from "../src/documents/application/queries/get-document-details";
+import { ListDocumentsQuery } from "../src/documents/application/queries/list-documents";
 import type {
-  Document,
+  DocumentSnapshot,
   DocumentEvent,
   DocumentLink,
   DocumentOperation,
-  DocumentPostingSnapshot as DocumentSnapshot,
-} from "../src/domain/document";
+  DocumentPostingSnapshot,
+} from "../src/documents/domain/document";
 import { DocumentNotFoundError } from "../src/errors";
 import type { DocumentModule } from "../src/plugins";
 
-const makeDocument = (overrides: Partial<Document> = {}) =>
+const makeDocument = (overrides: Partial<DocumentSnapshot> = {}) =>
   buildTestDocument(overrides);
 const createModuleStub = () => createTestDocumentModule() as DocumentModule;
 
@@ -43,13 +43,18 @@ function createRepositoryStub(overrides: Record<string, unknown> = {}) {
 
 function createAccountingPeriodsStub(overrides: Record<string, unknown> = {}) {
   return {
+    assertOrganizationPeriodsOpen: vi.fn(async () => undefined),
+    closePeriod: vi.fn(async () => undefined),
     isOrganizationPeriodClosed: vi.fn(async () => false),
     listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
+    reopenPeriod: vi.fn(async () => undefined),
     ...overrides,
   };
 }
 
 function createQueryContext(repository: ReturnType<typeof createRepositoryStub>) {
+  const module = createModuleStub();
+
   return {
     accountingPeriods: createAccountingPeriodsStub(),
     documentEvents: repository,
@@ -57,9 +62,44 @@ function createQueryContext(repository: ReturnType<typeof createRepositoryStub>)
     documentOperations: repository,
     documentSnapshots: repository,
     documentsQuery: repository,
-    log: {} as any,
-    moduleRuntime: {} as any,
-    now: () => new Date("2026-03-03T00:00:00.000Z"),
+    ledgerReadService: {
+      listOperationDetails: vi.fn(async () => new Map()),
+      getOperationDetails: vi.fn(),
+    },
+    moduleRuntime: {
+      documents: {
+        findIncomingLinkedDocument: vi.fn(async () => null),
+        getDocumentByType: vi.fn(async () => null),
+        getDocumentOperationId: vi.fn(async () => null),
+      },
+    },
+    policy: {
+      approvalMode: vi.fn(async () => "not_required"),
+      canCreate: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+      canEdit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+      canSubmit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+      canApprove: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+      canReject: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+      canPost: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+      canCancel: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    },
+    registry: {
+      getDocumentModule: vi.fn(() => module),
+      getDocumentModules: vi.fn(() => [module]),
+    },
+    runtime: {
+      generateUuid: vi.fn(
+        () => "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      ),
+      log: {
+        warn: vi.fn(),
+        info: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn(),
+        child: vi.fn(),
+      },
+      now: () => new Date("2026-03-03T00:00:00.000Z"),
+    },
   };
 }
 
@@ -73,14 +113,22 @@ describe("documents queries", () => {
       })),
     });
 
-    const getDocument = createGetDocumentQuery(createQueryContext(repository) as any);
+    const context = createQueryContext(repository);
+    const getDocument = new GetDocumentQuery(
+      context.runtime as any,
+      context.documentsQuery as any,
+      context.accountingPeriods as any,
+      context.moduleRuntime as any,
+      context.registry as any,
+      context.policy as any,
+    );
 
     await expect(
-      getDocument(document.docType, document.id),
+      getDocument.execute(document.docType, document.id),
     ).resolves.toEqual({
       document,
       postingOperationId: "op-1",
-      allowedActions: [],
+      allowedActions: ["edit", "submit", "cancel"],
     });
   });
 
@@ -89,8 +137,16 @@ describe("documents queries", () => {
       findDocumentWithPostingOperation: vi.fn(async () => null),
     });
 
-    const getDocument = createGetDocumentQuery(createQueryContext(repository) as any);
-    await expect(getDocument("test_document", "missing")).rejects.toThrow(
+    const context = createQueryContext(repository);
+    const getDocument = new GetDocumentQuery(
+      context.runtime as any,
+      context.documentsQuery as any,
+      context.accountingPeriods as any,
+      context.moduleRuntime as any,
+      context.registry as any,
+      context.policy as any,
+    );
+    await expect(getDocument.execute("test_document", "missing")).rejects.toThrow(
       DocumentNotFoundError,
     );
   });
@@ -146,13 +202,21 @@ describe("documents queries", () => {
     const registry = {
       getDocumentModule: vi.fn(() => module),
     };
-    const getDocument = createGetDocumentQuery({
-      ...createQueryContext(repository),
-      policy,
-      registry,
-    } as any);
+    const context = createQueryContext(repository);
+    const getDocument = new GetDocumentQuery(
+      context.runtime as any,
+      context.documentsQuery as any,
+      context.accountingPeriods as any,
+      context.moduleRuntime as any,
+      registry as any,
+      policy as any,
+    );
 
-    const result = await getDocument(document.docType, document.id, "maker-1");
+    const result = await getDocument.execute(
+      document.docType,
+      document.id,
+      "maker-1",
+    );
 
     expect(result.allowedActions).toEqual(["edit", "cancel"]);
     expect(module.canSubmit).toHaveBeenCalledTimes(1);
@@ -170,10 +234,16 @@ describe("documents queries", () => {
       })),
     });
 
-    const listDocuments = createListDocumentsQuery(
-      createQueryContext(repository) as any,
+    const context = createQueryContext(repository);
+    const listDocuments = new ListDocumentsQuery(
+      context.runtime as any,
+      context.documentsQuery as any,
+      context.accountingPeriods as any,
+      context.moduleRuntime as any,
+      context.registry as any,
+      context.policy as any,
     );
-    const result = await listDocuments({
+    const result = await listDocuments.execute({
       query: "test",
       limit: 5,
       offset: 10,
@@ -182,7 +252,13 @@ describe("documents queries", () => {
     });
 
     expect(result).toEqual({
-      data: [{ document, postingOperationId: null, allowedActions: [] }],
+      data: [
+        {
+          document,
+          postingOperationId: null,
+          allowedActions: ["edit", "submit", "cancel"],
+        },
+      ],
       total: 1,
       limit: 5,
       offset: 10,
@@ -266,7 +342,7 @@ describe("documents queries", () => {
         createdAt: new Date("2026-03-01T10:00:00.000Z"),
       },
     ];
-    const snapshot: DocumentSnapshot = {
+    const snapshot: DocumentPostingSnapshot = {
       id: "snap-1",
       documentId: document.id,
       payload: document.payload,
@@ -308,13 +384,26 @@ describe("documents queries", () => {
       getDocumentModule: vi.fn(() => createModuleStub()),
     };
 
-    const getDetails = createGetDocumentDetailsQuery({
-      ...createQueryContext(repository),
-      ledgerReadService,
-      registry,
-    } as any);
+    const context = createQueryContext(repository);
+    const getDetails = new GetDocumentDetailsQuery(
+      context.runtime as any,
+      context.accountingPeriods as any,
+      context.documentEvents as any,
+      context.documentLinks as any,
+      context.documentOperations as any,
+      context.documentSnapshots as any,
+      context.documentsQuery as any,
+      ledgerReadService as any,
+      context.moduleRuntime as any,
+      registry as any,
+      context.policy as any,
+    );
 
-    const result = await getDetails(document.docType, document.id, "checker-1");
+    const result = await getDetails.execute(
+      document.docType,
+      document.id,
+      "checker-1",
+    );
 
     expect(result.parent?.id).toBe(parent.id);
     expect(result.children.map((item) => item.id)).toEqual([child.id]);
@@ -355,14 +444,33 @@ describe("documents queries", () => {
       })),
     };
 
-    const getDetails = createGetDocumentDetailsQuery({
-      ...createQueryContext(repository),
-      ledgerReadService,
-      log: { warn } as any,
-      registry,
-    } as any);
+    const context = createQueryContext(repository);
+    context.runtime.log = {
+      warn,
+      info: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      child: vi.fn(),
+    };
+    const getDetails = new GetDocumentDetailsQuery(
+      context.runtime as any,
+      context.accountingPeriods as any,
+      context.documentEvents as any,
+      context.documentLinks as any,
+      context.documentOperations as any,
+      context.documentSnapshots as any,
+      context.documentsQuery as any,
+      ledgerReadService as any,
+      context.moduleRuntime as any,
+      registry as any,
+      context.policy as any,
+    );
 
-    const result = await getDetails(document.docType, document.id, "checker-1");
+    const result = await getDetails.execute(
+      document.docType,
+      document.id,
+      "checker-1",
+    );
 
     expect(result.document.id).toBe(document.id);
     expect(result.allowedActions).toEqual(["edit", "submit", "cancel"]);
@@ -402,15 +510,20 @@ describe("documents queries", () => {
       })),
     });
 
-    const listDocuments = createListDocumentsQuery({
-      ...createQueryContext(repository),
-      accountingPeriods,
-      registry: {
+    const context = createQueryContext(repository);
+    const listDocuments = new ListDocumentsQuery(
+      context.runtime as any,
+      context.documentsQuery as any,
+      accountingPeriods as any,
+      context.moduleRuntime as any,
+      {
         getDocumentModule: vi.fn(() => createModuleStub()),
-      },
-    } as any);
+        getDocumentModules: vi.fn(() => [createModuleStub()]),
+      } as any,
+      context.policy as any,
+    );
 
-    const result = await listDocuments(undefined, "checker-1");
+    const result = await listDocuments.execute(undefined, "checker-1");
 
     expect(
       accountingPeriods.listClosedOrganizationIdsForPeriod,

@@ -18,7 +18,6 @@ function createRuntime(input: {
       getDocumentOperationId:
         input.getDocumentOperationId ?? vi.fn(async () => null),
     },
-    withQueryable: (run) => run({}),
   };
 }
 

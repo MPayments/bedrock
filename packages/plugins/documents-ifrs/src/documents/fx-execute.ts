@@ -21,6 +21,7 @@ import {
   type FxExecuteInput,
   type FxExecutePayload,
 } from "../validation";
+import { requireDraftMetadata } from "./internal/draft-metadata";
 import {
   buildTreasuryFxFinancialLineRequests,
   buildTreasuryFxQuoteIdempotencyKey,
@@ -70,6 +71,38 @@ function buildFxExecuteDetails(payload: FxExecutePayload) {
     generatedFinancialLines: payload.financialLines.filter(
       (line) => line.source === "rule",
     ),
+  };
+}
+
+function buildFxExecuteSummary(input: {
+  draft: { docNo: string; docType: string };
+  payload: FxExecutePayload;
+}) {
+  return {
+    title:
+      input.payload.ownershipMode === "cross_org"
+        ? "Казначейский FX (между организациями)"
+        : "Казначейский FX",
+    amountMinor: BigInt(input.payload.amountMinor),
+    currency: input.payload.quoteSnapshot.fromCurrency,
+    memo: input.payload.memo ?? null,
+    counterpartyId: null,
+    organizationRequisiteId: input.payload.sourceRequisiteId,
+    searchText: [
+      input.draft.docNo,
+      input.draft.docType,
+      input.payload.sourceOrganizationId,
+      input.payload.destinationOrganizationId,
+      input.payload.sourceRequisiteId,
+      input.payload.destinationRequisiteId,
+      input.payload.quoteSnapshot.quoteId,
+      input.payload.quoteSnapshot.idempotencyKey,
+      input.payload.quoteSnapshot.fromCurrency,
+      input.payload.quoteSnapshot.toCurrency,
+      input.payload.executionRef,
+    ]
+      .filter(Boolean)
+      .join(" "),
   };
 }
 
@@ -126,42 +159,28 @@ export function createFxExecuteDocumentModule(
     allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(context, input) {
+      const draft = requireDraftMetadata(context);
       const payload = await prepareDraftPayload(deps, context, input);
-      return buildDocumentDraft(input, payload);
+      return buildDocumentDraft(
+        input,
+        payload,
+        buildFxExecuteSummary({
+          draft,
+          payload,
+        }),
+      );
     },
     async updateDraft(context, _document, input) {
+      const draft = requireDraftMetadata(context);
       const payload = await prepareDraftPayload(deps, context, input);
-      return buildDocumentDraft(input, payload);
-    },
-    deriveSummary(document) {
-      const payload = parseDocumentPayload(FxExecutePayloadSchema, document);
-
-      return {
-        title:
-          payload.ownershipMode === "cross_org"
-            ? "Казначейский FX (между организациями)"
-            : "Казначейский FX",
-        amountMinor: BigInt(payload.amountMinor),
-        currency: payload.quoteSnapshot.fromCurrency,
-        memo: payload.memo ?? null,
-        counterpartyId: null,
-        organizationRequisiteId: payload.sourceRequisiteId,
-        searchText: [
-          document.docNo,
-          document.docType,
-          payload.sourceOrganizationId,
-          payload.destinationOrganizationId,
-          payload.sourceRequisiteId,
-          payload.destinationRequisiteId,
-          payload.quoteSnapshot.quoteId,
-          payload.quoteSnapshot.idempotencyKey,
-          payload.quoteSnapshot.fromCurrency,
-          payload.quoteSnapshot.toCurrency,
-          payload.executionRef,
-        ]
-          .filter(Boolean)
-          .join(" "),
-      };
+      return buildDocumentDraft(
+        input,
+        payload,
+        buildFxExecuteSummary({
+          draft,
+          payload,
+        }),
+      );
     },
     async canCreate(_context, input) {
       const bindings = await resolveFxBindings(deps.requisitesService, input);

@@ -17,7 +17,7 @@ import {
 } from "@bedrock/accounting/adapters/drizzle";
 import { rawPackDefinition } from "@bedrock/accounting/packs/bedrock-core-default";
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
-import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
+import { DrizzleDocumentsReadModel } from "@bedrock/documents/adapters/drizzle";
 import type { ListScopedPostingRowsInput } from "@bedrock/ledger/contracts";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import type {
@@ -38,7 +38,7 @@ export function createWorkerAccountingModule(input: {
 }): AccountingModule {
   const partiesReadRuntime = createWorkerPartiesReadRuntime(input.db);
   const ledgerReadRuntime = createWorkerLedgerReadRuntime(input.db);
-  const documentsReadModel = createDrizzleDocumentsReadModel({ db: input.db });
+  const documentsReadModel = new DrizzleDocumentsReadModel(input.db);
   const ledgerQueries = {
     listBooksById: ledgerReadRuntime.booksQueries.listById,
     listBooksByOwnerId: ledgerReadRuntime.booksQueries.listByOwnerId,

@@ -1,5 +1,5 @@
 import type {
-  Document,
+  DocumentSnapshot,
   DocumentModuleRuntime,
 } from "@bedrock/plugin-documents-sdk";
 
@@ -30,7 +30,7 @@ export interface PendingTransferRecord {
 }
 
 export type TransferDependencyDocument = Pick<
-  Document,
+  DocumentSnapshot,
   "id" | "docType" | "payload" | "occurredAt"
 >;
 

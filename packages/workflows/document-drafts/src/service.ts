@@ -1,30 +1,38 @@
-import type { DocumentsService } from "@bedrock/documents";
+import type { DocumentsModule } from "@bedrock/documents";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
-export type CreateDocumentDraftService = (
+type DocumentDraftCommand = DocumentsModule["documents"]["commands"]["createDraft"];
+
+export interface DocumentDraftCommandsModule {
+  documents: {
+    commands: Pick<DocumentsModule["documents"]["commands"], "createDraft">;
+  };
+}
+
+export type CreateDocumentDraftModule = (
   tx: Transaction,
-) => Pick<DocumentsService, "createDraft">;
+) => DocumentDraftCommandsModule;
 
 export interface DocumentDraftWorkflowDeps {
   db: Database;
-  createDocumentsService: CreateDocumentDraftService;
+  createDocumentsModule: CreateDocumentDraftModule;
 }
 
-export function createDocumentDraftWorkflow(deps: DocumentDraftWorkflowDeps) {
+export interface DocumentDraftWorkflow {
+  createDraft(
+    input: Parameters<DocumentDraftCommand>[0],
+  ): ReturnType<DocumentDraftCommand>;
+}
+
+export function createDocumentDraftWorkflow(
+  deps: DocumentDraftWorkflowDeps,
+): DocumentDraftWorkflow {
   return {
-    async createDraft(
-      input: Parameters<
-        ReturnType<DocumentDraftWorkflowDeps["createDocumentsService"]>["createDraft"]
-      >[0],
-    ) {
+    async createDraft(input) {
       return deps.db.transaction(async (tx) => {
-        const documents = deps.createDocumentsService(tx);
-        return documents.createDraft(input);
+        const documentsModule = deps.createDocumentsModule(tx);
+        return documentsModule.documents.commands.createDraft(input);
       });
     },
   };
 }
-
-export type DocumentDraftWorkflow = ReturnType<
-  typeof createDocumentDraftWorkflow
->;

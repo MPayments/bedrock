@@ -8,44 +8,46 @@ import {
   createDocumentPolicyStub,
   createStubDocumentModuleRuntime,
 } from "./helpers";
-import { resolveDocumentAllowedActionsForActor } from "../src/application/shared/actions";
-import { buildDocumentEventState } from "../src/application/shared/document-event-state";
-import { createDocumentInsertBase } from "../src/application/shared/document-record";
-import { buildDefaultActionIdempotencyKey } from "../src/application/shared/idempotency-key";
+import { DrizzleDocumentEventsRepository } from "../src/documents/adapters/drizzle/document-event.repository";
+import { insertInitialLinks } from "../src/documents/adapters/drizzle/graph";
 import {
-  createModuleContext,
-  resolveDocumentModuleIdentity,
-  resolveModule,
-} from "../src/application/shared/module-resolution";
+  buildDocumentSearchCondition,
+  inArraySafe,
+  resolveDocumentsSort,
+} from "../src/documents/adapters/drizzle/query-helpers";
+import { toStoredJson } from "../src/documents/adapters/drizzle/stored-json";
 import {
-  enforceDocumentPolicy,
-  persistDocumentPolicyDenial,
-} from "../src/application/shared/policy";
-import { assertDocumentIsActive } from "../src/domain/document";
-import { buildDocNo } from "../src/domain/document";
-import type { Document } from "../src/domain/document";
+  assertDocumentIsActive,
+  buildDocNo,
+  Document,
+  type DocumentSnapshot,
+} from "../src/documents/domain/document";
 import {
   buildSummary,
   normalizeSearchText,
-} from "../src/domain/document-summary";
+} from "../src/documents/domain/document-summary";
 import {
   DocumentGraphError,
   DocumentPolicyDeniedError,
   DocumentRegistryError,
 } from "../src/errors";
-import { insertInitialLinks } from "../src/infra/drizzle/graph";
+import { resolveDocumentAllowedActionsForActor } from "../src/lifecycle/application/shared/actions";
 import {
-  buildDocumentSearchCondition,
-  inArraySafe,
-  resolveDocumentsSort,
-} from "../src/infra/drizzle/query-helpers";
-import { createDrizzleDocumentEventsRepository } from "../src/infra/drizzle/repository";
-import { schema } from "../src/infra/drizzle/schema";
-import { toStoredJson } from "../src/infra/drizzle/stored-json";
+  enforceDocumentPolicy,
+  persistDocumentPolicyDenial,
+} from "../src/lifecycle/application/shared/policy";
 import type { DocumentModule } from "../src/plugins";
+import { schema } from "../src/schema";
+import { buildDocumentEventState } from "../src/shared/application/document-event-state";
+import { buildDefaultActionIdempotencyKey } from "../src/shared/application/idempotency-key";
+import {
+  createModuleContext,
+  resolveDocumentModuleIdentity,
+  resolveModule,
+} from "../src/shared/application/module-resolution";
 
 const createModuleStub = () => createTestDocumentModule() as DocumentModule;
-const makeDocument = (overrides: Partial<Document> = {}) =>
+const makeDocument = (overrides: Partial<DocumentSnapshot> = {}) =>
   buildTestDocument(overrides);
 
 describe("document helpers", () => {
@@ -114,20 +116,27 @@ describe("document helpers", () => {
     expect(context.actorUserId).toBe("user-1");
     expect(context.now).toBe(now);
 
-    const inserted = createDocumentInsertBase({
-      id: "doc-123",
-      docType: "invoice",
-      docNoPrefix: "INV",
-      moduleId: "invoice",
-      moduleVersion: 2,
-      payloadVersion: 3,
+    const inserted = Document.createDraft({
+      draft: {
+        id: "doc-123",
+        docNo: "INV-DOC-123",
+        docType: "invoice",
+        moduleId: "invoice",
+        moduleVersion: 2,
+        payloadVersion: 3,
+      },
       payload: { amountMinor: 1000 },
       occurredAt: now,
       createIdempotencyKey: "idem-1",
       createdBy: "user-1",
       approvalStatus: "pending",
       postingStatus: "unposted",
-    });
+      summary: {
+        title: "",
+        searchText: "",
+      },
+      now,
+    }).toSnapshot();
 
     expect(inserted.id).toBe("doc-123");
     expect(inserted.docNo).toBe("INV-DOC-123");
@@ -225,7 +234,7 @@ describe("document helpers", () => {
         })),
       })),
     };
-    const repository = createDrizzleDocumentEventsRepository(tx as any);
+    const repository = new DrizzleDocumentEventsRepository(tx as any);
 
     await repository.insertDocumentEvent({
       documentId: "doc-1",
@@ -357,11 +366,10 @@ describe("document internal policy", () => {
         }),
       })),
     };
-    const transactions = {
-      withTransaction: vi.fn(async (fn: (context: unknown) => Promise<void>) =>
+    const unitOfWork = {
+      run: vi.fn(async (fn: (context: unknown) => Promise<void>) =>
         fn({
-          transaction: tx,
-          documentEvents: createDrizzleDocumentEventsRepository(tx as any),
+          documentEvents: new DrizzleDocumentEventsRepository(tx as any),
         }),
       ),
     };
@@ -393,7 +401,7 @@ describe("document internal policy", () => {
     }
 
     expect(error).toBeInstanceOf(DocumentPolicyDeniedError);
-    await persistDocumentPolicyDenial(transactions as any, error);
+    await persistDocumentPolicyDenial(unitOfWork as any, error);
 
     expect(insertedEvent).toEqual(
       expect.objectContaining({
@@ -414,15 +422,15 @@ describe("document internal policy", () => {
   });
 
   it("skips persistence for non-audited errors and create denials without a document id", async () => {
-    const transactions = {
-      withTransaction: vi.fn(),
+    const unitOfWork = {
+      run: vi.fn(),
     };
 
     await persistDocumentPolicyDenial(
-      transactions as any,
+      unitOfWork as any,
       new Error("plain failure"),
     );
-    expect(transactions.withTransaction).not.toHaveBeenCalled();
+    expect(unitOfWork.run).not.toHaveBeenCalled();
 
     const policy = createDocumentPolicyStub();
     policy.canCreate = vi.fn(async () => ({
@@ -445,8 +453,8 @@ describe("document internal policy", () => {
       error = caught;
     }
 
-    await persistDocumentPolicyDenial(transactions as any, error);
-    expect(transactions.withTransaction).not.toHaveBeenCalled();
+    await persistDocumentPolicyDenial(unitOfWork as any, error);
+    expect(unitOfWork.run).not.toHaveBeenCalled();
   });
 
   it("exposes post for approval-pending documents when actor approval is exempt", async () => {

@@ -19,12 +19,46 @@ import {
   TransferIntercompanyPayloadSchema,
   type TransferIntercompanyInput,
 } from "../validation";
+import { requireDraftMetadata } from "./internal/draft-metadata";
 import {
   ensureTransferCurrencies,
   normalizeTransferIntercompanyPayload,
   resolveTransferBindings,
 } from "./internal/transfer-helpers";
 import type { IfrsModuleDeps } from "./internal/types";
+
+function buildTransferIntercompanySummary(input: {
+  draft: { docNo: string; docType: string };
+  payload: {
+    amountMinor: string;
+    currency: string;
+    memo?: string | null;
+    sourceOrganizationId: string;
+    destinationOrganizationId: string;
+    sourceRequisiteId: string;
+    destinationRequisiteId: string;
+  };
+}) {
+  return {
+    title: "Межкорпоративный перевод",
+    amountMinor: BigInt(input.payload.amountMinor),
+    currency: input.payload.currency,
+    memo: input.payload.memo ?? null,
+    counterpartyId: null,
+    organizationRequisiteId: input.payload.sourceRequisiteId,
+    searchText: [
+      input.draft.docNo,
+      input.draft.docType,
+      input.payload.sourceOrganizationId,
+      input.payload.destinationOrganizationId,
+      input.payload.sourceRequisiteId,
+      input.payload.destinationRequisiteId,
+      input.payload.currency,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
 
 export function createTransferIntercompanyDocumentModule(
   deps: IfrsModuleDeps,
@@ -43,7 +77,8 @@ export function createTransferIntercompanyDocumentModule(
     postingRequired: true,
     allowDirectPostFromDraft: false,
     approvalRequired: () => false,
-    async createDraft(_context, input) {
+    async createDraft(context, input) {
+      const draft = requireDraftMetadata(context);
       const bindings = await resolveTransferBindings(
         requisitesService,
         input,
@@ -53,13 +88,19 @@ export function createTransferIntercompanyDocumentModule(
           "transfer_intercompany requires source and destination from different organizations",
         );
       }
+      const payload = normalizeTransferIntercompanyPayload(input, bindings);
 
       return buildDocumentDraft(
         input,
-        normalizeTransferIntercompanyPayload(input, bindings),
+        payload,
+        buildTransferIntercompanySummary({
+          draft,
+          payload,
+        }),
       );
     },
-    async updateDraft(_context, _document, input) {
+    async updateDraft(context, _document, input) {
+      const draft = requireDraftMetadata(context);
       const bindings = await resolveTransferBindings(
         requisitesService,
         input,
@@ -69,34 +110,16 @@ export function createTransferIntercompanyDocumentModule(
           "transfer_intercompany requires source and destination from different organizations",
         );
       }
+      const payload = normalizeTransferIntercompanyPayload(input, bindings);
 
       return buildDocumentDraft(
         input,
-        normalizeTransferIntercompanyPayload(input, bindings),
+        payload,
+        buildTransferIntercompanySummary({
+          draft,
+          payload,
+        }),
       );
-    },
-    deriveSummary(document) {
-      const payload = parseDocumentPayload(TransferIntercompanyPayloadSchema, document);
-
-      return {
-        title: "Межкорпоративный перевод",
-        amountMinor: BigInt(payload.amountMinor),
-        currency: payload.currency,
-        memo: payload.memo ?? null,
-        counterpartyId: null,
-        organizationRequisiteId: payload.sourceRequisiteId,
-        searchText: [
-          document.docNo,
-          document.docType,
-          payload.sourceOrganizationId,
-          payload.destinationOrganizationId,
-          payload.sourceRequisiteId,
-          payload.destinationRequisiteId,
-          payload.currency,
-        ]
-          .filter(Boolean)
-          .join(" "),
-      };
     },
     async canCreate(_context, input) {
       const bindings = await resolveTransferBindings(

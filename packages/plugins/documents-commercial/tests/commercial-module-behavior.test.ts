@@ -95,6 +95,26 @@ function createPostedExchangeInvoice() {
   };
 }
 
+function createDraftContext(input: {
+  docType: string;
+  docNo: string;
+  operationIdempotencyKey?: string | null;
+}) {
+  return {
+    runtime: {} as any,
+    now: new Date("2026-03-03T10:00:00.000Z"),
+    draft: {
+      id: "00000000-0000-4000-8000-000000000901",
+      docNo: input.docNo,
+      docType: input.docType,
+      moduleId: input.docType,
+      moduleVersion: 1,
+      payloadVersion: 1,
+    },
+    operationIdempotencyKey: input.operationIdempotencyKey ?? null,
+  };
+}
+
 describe("commercial document modules", () => {
   it("rejects invoice creation when exchange quote currency mismatches the selected requisite", async () => {
     const deps = createDeps();
@@ -162,7 +182,10 @@ describe("commercial document modules", () => {
     const module = createInvoiceDocumentModule(createDeps() as any);
 
     const draft = await module.createDraft?.(
-      { db: {} } as any,
+      createDraftContext({
+        docType: "invoice",
+        docNo: "INV-1",
+      }) as any,
       {
         occurredAt: new Date("2026-03-03T10:00:00.000Z"),
         mode: "direct",
@@ -201,14 +224,14 @@ describe("commercial document modules", () => {
   it("creates exchange invoice drafts from current rates when quoteRef is omitted", async () => {
     const deps = createDeps();
     const module = createInvoiceDocumentModule(deps as any);
-    const runtime = {} as any;
+    const context = createDraftContext({
+      docType: "invoice",
+      docNo: "INV-2",
+      operationIdempotencyKey: "create-idem",
+    });
 
     const draft = await module.createDraft?.(
-      {
-        runtime,
-        now: new Date("2026-03-03T10:00:00.000Z"),
-        operationIdempotencyKey: "create-idem",
-      } as any,
+      context as any,
       {
         occurredAt: new Date("2026-03-03T10:00:00.000Z"),
         mode: "exchange",
@@ -225,7 +248,7 @@ describe("commercial document modules", () => {
     );
 
     expect(deps.quoteSnapshot.createQuoteSnapshot).toHaveBeenCalledWith({
-      runtime,
+      runtime: context.runtime,
       fromCurrency: "USD",
       toCurrency: "EUR",
       fromAmountMinor: "10000",
@@ -281,7 +304,10 @@ describe("commercial document modules", () => {
 
     await expect(
       module.createDraft?.(
-        { db: {} } as any,
+        createDraftContext({
+          docType: "acceptance",
+          docNo: "ACC-1",
+        }) as any,
         {
           occurredAt: new Date("2026-03-05T10:00:00.000Z"),
           invoiceDocumentId: "00000000-0000-4000-8000-000000000201",

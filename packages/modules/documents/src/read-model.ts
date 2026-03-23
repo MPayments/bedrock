@@ -1,5 +1,24 @@
-import type { Document, DocumentLinkType } from "./domain/document";
-import { createDrizzleDocumentsReadModel } from "./infra/drizzle/queries";
+import type {
+  DocumentLinkType,
+  DocumentSnapshot,
+} from "./documents/domain/document";
+
+export interface GetDocumentByTypeReadModelInput {
+  documentId: string;
+  docType: string;
+  forUpdate?: boolean;
+}
+
+export interface FindIncomingLinkedDocumentInput {
+  toDocumentId: string;
+  linkType: DocumentLinkType;
+  fromDocType: string;
+}
+
+export interface GetDocumentOperationIdReadModelInput {
+  documentId: string;
+  kind: string;
+}
 
 export interface DocumentOperationRef {
   operationId: string;
@@ -23,41 +42,42 @@ export interface DocumentAuditEventRow {
   createdAt: Date;
 }
 
+export interface FindDocumentIdByCreateIdempotencyKeyReadModelInput {
+  docType: string;
+  createIdempotencyKey: string;
+}
+
+export interface ListAdjustmentsForOrganizationPeriodInput {
+  organizationId: string;
+  periodStart: Date;
+  periodEnd: Date;
+  docTypes: string[];
+}
+
 export interface DocumentsReadModel {
-  getDocumentByType: (input: {
-    documentId: string;
-    docType: string;
-    forUpdate?: boolean;
-  }) => Promise<Document | null>;
-  findIncomingLinkedDocument: (input: {
-    toDocumentId: string;
-    linkType: DocumentLinkType;
-    fromDocType: string;
-  }) => Promise<Document | null>;
-  getDocumentOperationId: (input: {
-    documentId: string;
-    kind: string;
-  }) => Promise<string | null>;
+  getDocumentByType: (
+    input: GetDocumentByTypeReadModelInput,
+  ) => Promise<DocumentSnapshot | null>;
+  findIncomingLinkedDocument: (
+    input: FindIncomingLinkedDocumentInput,
+  ) => Promise<DocumentSnapshot | null>;
+  getDocumentOperationId: (
+    input: GetDocumentOperationIdReadModelInput,
+  ) => Promise<string | null>;
   listDocumentLabelsById: (ids: string[]) => Promise<Map<string, string>>;
   hasDocumentsForCustomer: (
     customerId: string,
   ) => Promise<boolean>;
-  findDocumentIdByCreateIdempotencyKey: (input: {
-    docType: string;
-    createIdempotencyKey: string;
-  }) => Promise<string | null>;
+  findDocumentIdByCreateIdempotencyKey: (
+    input: FindDocumentIdByCreateIdempotencyKeyReadModelInput,
+  ) => Promise<string | null>;
   listOperationDocumentRefs: (
     operationIds: string[],
   ) => Promise<Map<string, DocumentOperationRef>>;
-  listAdjustmentsForOrganizationPeriod: (input: {
-    organizationId: string;
-    periodStart: Date;
-    periodEnd: Date;
-    docTypes: string[];
-  }) => Promise<DocumentAdjustmentRow[]>;
+  listAdjustmentsForOrganizationPeriod: (
+    input: ListAdjustmentsForOrganizationPeriodInput,
+  ) => Promise<DocumentAdjustmentRow[]>;
   listAuditEventsByDocumentId: (
     documentIds: string[],
   ) => Promise<DocumentAuditEventRow[]>;
 }
-
-export { createDrizzleDocumentsReadModel };

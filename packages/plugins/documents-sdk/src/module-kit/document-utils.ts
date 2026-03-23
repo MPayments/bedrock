@@ -1,6 +1,9 @@
 import type { z } from "zod";
 
-import type { Document } from "@bedrock/documents/plugins";
+import type {
+  DocumentSnapshot,
+  DocumentSummaryFields,
+} from "@bedrock/documents";
 
 export function serializeOccurredAt<T extends { occurredAt: Date }>(
   payload: T,
@@ -13,7 +16,7 @@ export function serializeOccurredAt<T extends { occurredAt: Date }>(
 
 export function parseDocumentPayload<TSchema extends z.ZodTypeAny>(
   schema: TSchema,
-  document: Pick<Document, "payload" | "occurredAt">,
+  document: Pick<DocumentSnapshot, "payload" | "occurredAt">,
 ): z.infer<TSchema> {
   return schema.parse({
     ...document.payload,
@@ -23,16 +26,17 @@ export function parseDocumentPayload<TSchema extends z.ZodTypeAny>(
 
 export function buildDocumentDraft<
   TInput extends { occurredAt: Date },
-  TPayload,
->(input: TInput, payload: TPayload) {
+  TPayload extends Record<string, unknown>,
+>(input: TInput, payload: TPayload, summary: DocumentSummaryFields) {
   return {
     occurredAt: input.occurredAt,
     payload,
+    summary,
   };
 }
 
 export function buildDocumentPostIdempotencyKey(
-  document: Pick<Document, "id" | "payloadVersion">,
+  document: Pick<DocumentSnapshot, "id" | "payloadVersion">,
 ) {
   return `doc:${document.id}:post:v${document.payloadVersion}`;
 }

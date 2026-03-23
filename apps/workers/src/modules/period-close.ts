@@ -1,19 +1,30 @@
 import { asc, eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 
 import type { AccountingModule } from "@bedrock/accounting";
 import {
   createAccountingPeriodDocumentTransitionEffectsService,
-  createDocumentsService,
+  createDocumentsModule,
   createRuleBasedDocumentActionPolicyService,
   type DocumentApprovalRule,
 } from "@bedrock/documents";
-import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
+import {
+  DrizzleDocumentEventsRepository,
+  DrizzleDocumentLinksRepository,
+  DrizzleDocumentOperationsRepository,
+  DrizzleDocumentSnapshotsRepository,
+  DrizzleDocumentsModuleRuntime,
+  DrizzleDocumentsQueries,
+  DrizzleDocumentsReadModel,
+  DrizzleDocumentsUnitOfWork,
+} from "@bedrock/documents/adapters/drizzle";
 import { user } from "@bedrock/platform/auth-model/schema";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
 import {
   bindPersistenceSession,
   createPersistenceContext,
+  type PersistenceContext,
   type Transaction,
 } from "@bedrock/platform/persistence";
 import type { Database } from "@bedrock/platform/persistence/drizzle";
@@ -87,7 +98,7 @@ export function createPeriodCloseWorkerDefinition(deps: {
     input: PeriodCloseWorkerOrganizationContext,
   ) => Promise<boolean> | boolean;
 }): BedrockWorker {
-  const documentsReadModel = createDrizzleDocumentsReadModel({ db: deps.db });
+  const documentsReadModel = new DrizzleDocumentsReadModel(deps.db);
   const idempotency = createIdempotencyService({ logger: deps.logger });
   const accountingLogger = deps.logger ?? noopLogger;
   const ledgerModule = createWorkerLedgerModule({
@@ -198,30 +209,44 @@ export function createPeriodCloseWorkerDefinition(deps: {
   });
   const documentTransitionEffects =
     createAccountingPeriodDocumentTransitionEffectsService();
-  const documentsService = createDocumentsService({
+
+  function createConfiguredDocumentsModule(input: {
+    db: Database | Transaction;
+    persistence: PersistenceContext;
+  }) {
+    return createDocumentsModule({
+      logger: accountingLogger,
+      now: () => new Date(),
+      generateUuid: randomUUID,
+      accounting: documentsAccountingPort,
+      accountingPeriods,
+      ledgerReadService: ledgerReadPort,
+      documentsQuery: new DrizzleDocumentsQueries(input.db),
+      documentEvents: new DrizzleDocumentEventsRepository(input.db),
+      documentLinks: new DrizzleDocumentLinksRepository(input.db),
+      documentOperations: new DrizzleDocumentOperationsRepository(input.db),
+      documentSnapshots: new DrizzleDocumentSnapshotsRepository(input.db),
+      moduleRuntime: new DrizzleDocumentsModuleRuntime(input.db),
+      policy: documentsPolicy,
+      registry: documentRegistry,
+      transitionEffects: documentTransitionEffects,
+      unitOfWork: new DrizzleDocumentsUnitOfWork({
+        persistence: input.persistence,
+        idempotency,
+      }),
+    });
+  }
+
+  const documentsModule = createConfiguredDocumentsModule({
+    db: deps.db,
     persistence: createPersistenceContext(deps.db),
-    idempotency,
-    accounting: documentsAccountingPort,
-    accountingPeriods,
-    ledgerReadService: ledgerReadPort,
-    policy: documentsPolicy,
-    registry: documentRegistry,
-    transitionEffects: documentTransitionEffects,
-    logger: deps.logger,
   });
   const documentDraftWorkflow = createDocumentDraftWorkflow({
     db: deps.db,
-    createDocumentsService: (tx) =>
-      createDocumentsService({
+    createDocumentsModule: (tx) =>
+      createConfiguredDocumentsModule({
+        db: tx,
         persistence: bindPersistenceSession(tx),
-        idempotency,
-        accounting: documentsAccountingPort,
-        accountingPeriods,
-        ledgerReadService: ledgerReadPort,
-        policy: documentsPolicy,
-        registry: documentRegistry,
-        transitionEffects: documentTransitionEffects,
-        logger: deps.logger,
       }),
   });
   const periodCloseWorkflow = createPeriodCloseWorkflow({
@@ -248,7 +273,7 @@ export function createPeriodCloseWorkerDefinition(deps: {
       },
       createDraft: documentDraftWorkflow.createDraft,
       submit: ({ actorUserId, docType, documentId, idempotencyKey }) =>
-        documentsService.actions.execute({
+        documentsModule.lifecycle.commands.execute({
           action: "submit",
           actorUserId,
           docType,

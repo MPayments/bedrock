@@ -25,8 +25,12 @@ describe("document draft workflow", () => {
     }));
     const workflow = createDocumentDraftWorkflow({
       db: db as any,
-      createDocumentsService: () => ({
-        createDraft: createDraft as any,
+      createDocumentsModule: () => ({
+        documents: {
+          commands: {
+            createDraft: createDraft as any,
+          },
+        },
       }),
     });
 

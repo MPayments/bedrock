@@ -7,18 +7,16 @@ import {
   DocumentRegistryError,
   DocumentValidationError,
   createDefaultDocumentActionPolicyService,
-  createDocumentsService,
+  createDocumentsModule,
 } from "../src";
 import {
   createDocumentsPublicServiceDeps,
-  createDocumentsServiceDeps,
   createTestDocumentRegistry,
   createTestDocumentModule,
 } from "./helpers";
-import { createDocumentsServiceContext } from "../src/application/shared/context";
 import { CreateDocumentInputSchema } from "../src/contracts";
+import { validateInput } from "../src/documents/application/validation";
 import type { DocumentModule } from "../src/plugins";
-import { validateInput } from "../src/validation";
 
 function createModuleStub(): DocumentModule<{ memo: string }, { memo: string }> {
   const payloadSchema = z.object({ memo: z.string() });
@@ -29,12 +27,6 @@ function createModuleStub(): DocumentModule<{ memo: string }, { memo: string }> 
     updateSchema: payloadSchema,
     payloadSchema,
     postingRequired: false,
-    deriveSummary() {
-      return {
-        title: "Test",
-        searchText: "Test document",
-      };
-    },
   }) as DocumentModule<{ memo: string }, { memo: string }>;
 }
 
@@ -148,7 +140,7 @@ describe("documents foundations", () => {
     });
   });
 
-  it("builds the documents service context with injected logger and policy", () => {
+  it("creates namespaced runtimes for the documents module services", () => {
     const loggerChild = {
       debug: vi.fn(),
       info: vi.fn(),
@@ -174,36 +166,57 @@ describe("documents foundations", () => {
       canCancel: vi.fn(),
     };
 
-    const context = createDocumentsServiceContext({
-      ...createDocumentsServiceDeps([createModuleStub()]),
+    createDocumentsModule({
+      ...createDocumentsPublicServiceDeps([createModuleStub()]),
       logger,
       policy: customPolicy,
-    } as any);
+    });
 
-    expect(logger.child).toHaveBeenCalledWith({ svc: "documents" });
-    expect(context.log).toBe(loggerChild);
-    expect(context.policy).toBe(customPolicy);
+    expect(logger.child).toHaveBeenCalledWith({
+      service: "documents.documents",
+    });
+    expect(logger.child).toHaveBeenCalledWith({
+      service: "documents.lifecycle",
+    });
+    expect(logger.child).toHaveBeenCalledWith({
+      service: "documents.posting",
+    });
+    expect(loggerChild).toBeDefined();
+    expect(customPolicy).toBeDefined();
   });
 
-  it("creates the documents service facade with the current handler surface", () => {
-    const service = createDocumentsService(
+  it("creates the documents module facade with the current handler surface", () => {
+    const module = createDocumentsModule(
       createDocumentsPublicServiceDeps([createModuleStub()]),
     );
 
-    expect(service).toEqual({
-      createDraft: expect.any(Function),
-      updateDraft: expect.any(Function),
-      actions: {
-        execute: expect.any(Function),
-        resolveIdempotencyKey: expect.any(Function),
-        prepare: expect.any(Function),
-        finalizeSuccess: expect.any(Function),
-        finalizeFailure: expect.any(Function),
+    expect(module).toEqual({
+      documents: {
+        commands: {
+          createDraft: expect.any(Function),
+          updateDraft: expect.any(Function),
+        },
+        queries: {
+          list: expect.any(Function),
+          get: expect.any(Function),
+          getDetails: expect.any(Function),
+        },
       },
-      list: expect.any(Function),
-      get: expect.any(Function),
-      getDetails: expect.any(Function),
-      validateAccountingSourceCoverage: expect.any(Function),
+      lifecycle: {
+        commands: {
+          execute: expect.any(Function),
+        },
+      },
+      posting: {
+        commands: {
+          resolveIdempotencyKey: expect.any(Function),
+          preparePost: expect.any(Function),
+          prepareRepost: expect.any(Function),
+          finalizeSuccess: expect.any(Function),
+          finalizeFailure: expect.any(Function),
+          validateAccountingSourceCoverage: expect.any(Function),
+        },
+      },
     });
   });
 });

@@ -2,10 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { InvalidStateError } from "@bedrock/shared/core/errors";
 
-import { createTransitionHandler } from "../src/application/commands/transition";
-import type { Document } from "../src/domain/document";
+import type { DocumentSnapshot } from "../src/documents/domain/document";
+import { ExecuteDocumentTransitionCommand } from "../src/lifecycle/application/commands/transition";
 
-function makeDocument(overrides: Partial<Document> = {}): Document {
+function makeDocument(
+  overrides: Partial<DocumentSnapshot> = {},
+): DocumentSnapshot {
   return {
     id: "11111111-1111-4111-8111-111111111111",
     docType: "test_document",
@@ -49,17 +51,23 @@ function makeDocument(overrides: Partial<Document> = {}): Document {
 
 function createModuleStub() {
   return {
+    docType: "test_document",
+    moduleVersion: 1,
     canSubmit: vi.fn(),
     canApprove: vi.fn(),
     canReject: vi.fn(),
     canPost: vi.fn(),
     postingRequired: true,
+    approvalRequired: vi.fn(() => false),
     buildPostingPlan: vi.fn(),
     buildPostIdempotencyKey: vi.fn(() => "post-idem"),
   };
 }
 
-function createContext(document: Document, module: ReturnType<typeof createModuleStub>) {
+function createContext(
+  document: DocumentSnapshot,
+  module: ReturnType<typeof createModuleStub>,
+) {
   const repository = {
     findDocumentByType: vi.fn(async () => document),
     findDocumentWithPostingOperation: vi.fn(),
@@ -79,68 +87,80 @@ function createContext(document: Document, module: ReturnType<typeof createModul
     findDocumentSnapshot: vi.fn(),
     getLatestPostingArtifacts: vi.fn(),
   };
-  const ledger = {
-    commit: vi.fn(),
-  };
   const accounting = {
     resolvePostingPlan: vi.fn(),
   };
+  const moduleRuntime = {
+    documents: {
+      findIncomingLinkedDocument: vi.fn(async () => null),
+      getDocumentByType: vi.fn(async () => null),
+      getDocumentOperationId: vi.fn(async () => null),
+    },
+  };
   const registry = {
     getDocumentModule: vi.fn(() => module),
+    getDocumentModules: vi.fn(() => [module]),
   };
   const idempotency = {
     withIdempotency: vi.fn(async ({ handler }: { handler: () => Promise<unknown> }) =>
       handler(),
     ),
   };
+  const runtime = {
+    generateUuid: vi.fn(
+      () => "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    ),
+    now: () => new Date("2026-03-03T00:00:00.000Z"),
+    log: {
+      debug: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn(),
+    },
+  };
+  const commandUow = {
+    run: vi.fn(async (run: (tx: unknown) => Promise<unknown>) =>
+      run({
+        transaction: repository,
+        documentsCommand: repository,
+        documentEvents: repository,
+        documentOperations: repository,
+        idempotency,
+        moduleRuntime,
+      }),
+    ),
+  };
+  const policy = {
+    canCreate: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    canEdit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    canSubmit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    canApprove: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    canReject: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    canPost: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    canCancel: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    approvalMode: vi.fn(),
+  };
 
   return {
-    context: {
-      accounting,
+    lifecycleDeps: {
+      runtime,
+      commandUow,
       accountingPeriods: {
         assertOrganizationPeriodsOpen: vi.fn(async () => undefined),
+        closePeriod: vi.fn(async () => undefined),
+        isOrganizationPeriodClosed: vi.fn(async () => false),
         listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
-      },
-      documentEvents: repository,
-      documentLinks: repository,
-      documentOperations: repository,
-      documentSnapshots: repository,
-      documentsQuery: repository,
-      ledgerReadService: {
-        listOperationDetails: vi.fn(async () => new Map()),
-      } as any,
-      moduleRuntime: {} as any,
-      now: () => new Date("2026-03-03T00:00:00.000Z"),
-      policy: {
-        canCreate: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-        canEdit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-        canSubmit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-        canApprove: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-        canReject: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-        canPost: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-        canCancel: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-        approvalMode: vi.fn(),
+        reopenPeriod: vi.fn(async () => undefined),
       },
       registry,
-      transactions: {
-        withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
-          run({
-            transaction: repository,
-            documentEvents: repository,
-            documentLinks: repository,
-            documentOperations: repository,
-            documentsCommand: repository,
-            idempotency,
-            ledger,
-            moduleRuntime: {} as any,
-          }),
-        ),
+      policy,
+      transitionEffects: {
+        apply: vi.fn(async () => undefined),
       },
-      log: {} as any,
     },
     repository,
     accounting,
-    ledger,
     idempotency,
   };
 }
@@ -175,11 +195,13 @@ describe("documents workflow lifecycle guards", () => {
     },
   ])("prevents $name on cancelled documents", async ({ action, document, moduleMethod }) => {
     const module = createModuleStub();
-    const { context, ledger, repository } = createContext(document, module);
-    const transition = createTransitionHandler(context as any);
+    const { lifecycleDeps, repository } = createContext(document, module);
+    const transition = new ExecuteDocumentTransitionCommand(
+      lifecycleDeps as any,
+    );
 
     await expect(
-      transition({
+      transition.execute({
         action,
         docType: document.docType,
         documentId: document.id,
@@ -189,7 +211,6 @@ describe("documents workflow lifecycle guards", () => {
 
     expect(module[moduleMethod as keyof typeof module]).not.toHaveBeenCalled();
     expect(repository.updateDocument).not.toHaveBeenCalled();
-    expect(ledger.commit).not.toHaveBeenCalled();
   });
 
   it("blocks explicit submit for modules that require direct post from draft", async () => {
@@ -202,11 +223,13 @@ describe("documents workflow lifecycle guards", () => {
       ...createModuleStub(),
       allowDirectPostFromDraft: true,
     };
-    const { context, repository } = createContext(document, module);
-    const transition = createTransitionHandler(context as any);
+    const { lifecycleDeps, repository } = createContext(document, module);
+    const transition = new ExecuteDocumentTransitionCommand(
+      lifecycleDeps as any,
+    );
 
     await expect(
-      transition({
+      transition.execute({
         action: "submit",
         docType: document.docType,
         documentId: document.id,

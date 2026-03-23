@@ -13,6 +13,7 @@ import {
   AcceptancePayloadSchema,
   type AcceptanceInput,
 } from "../validation";
+import { requireDraftMetadata } from "./internal/draft-metadata";
 import {
   getInvoiceAcceptanceChild,
   getInvoiceExchangeChild,
@@ -21,6 +22,30 @@ import {
   requirePostedDocument,
 } from "./internal/helpers";
 import type { CommercialModuleDeps } from "./internal/types";
+
+function buildAcceptanceSummary(input: {
+  draft: { docNo: string; docType: string };
+  payload: {
+    invoiceDocumentId: string;
+    exchangeDocumentId?: string | null;
+    invoiceMode: string;
+    memo?: string | null;
+  };
+}) {
+  return {
+    title: "Акт",
+    memo: input.payload.memo ?? null,
+    searchText: [
+      input.draft.docNo,
+      input.draft.docType,
+      input.payload.invoiceDocumentId,
+      input.payload.exchangeDocumentId,
+      input.payload.invoiceMode,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
 
 export function createAcceptanceDocumentModule(
   deps: CommercialModuleDeps,
@@ -41,6 +66,7 @@ export function createAcceptanceDocumentModule(
     allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(context, input) {
+      const draft = requireDraftMetadata(context);
       const invoice = await loadInvoice(
         deps,
         context.runtime,
@@ -70,12 +96,21 @@ export function createAcceptanceDocumentModule(
         requirePostedDocument(exchange);
       }
 
-      return buildDocumentDraft(input, {
+      const payload = {
         ...serializeOccurredAt(input),
         invoiceMode: invoicePayload.mode,
         exchangeDocumentId: exchange?.id,
         memo: input.memo,
-      });
+      };
+
+      return buildDocumentDraft(
+        input,
+        payload,
+        buildAcceptanceSummary({
+          draft,
+          payload,
+        }),
+      );
     },
     async updateDraft(context, document, input) {
       const payload = parseDocumentPayload(AcceptancePayloadSchema, document);
@@ -84,25 +119,7 @@ export function createAcceptanceDocumentModule(
           "acceptance cannot change invoiceDocumentId",
         );
       }
-
       return this.createDraft!(context, input);
-    },
-    deriveSummary(document) {
-      const payload = parseDocumentPayload(AcceptancePayloadSchema, document);
-
-      return {
-        title: "Акт",
-        memo: payload.memo ?? null,
-        searchText: [
-          document.docNo,
-          document.docType,
-          payload.invoiceDocumentId,
-          payload.exchangeDocumentId,
-          payload.invoiceMode,
-        ]
-          .filter(Boolean)
-          .join(" "),
-      };
     },
     async canCreate(context, input) {
       const invoice = await loadInvoice(

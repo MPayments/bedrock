@@ -1,6 +1,6 @@
 export {
   createDocumentDraftWorkflow,
-  type CreateDocumentDraftService,
+  type CreateDocumentDraftModule,
   type DocumentDraftWorkflow,
   type DocumentDraftWorkflowDeps,
 } from "./service";

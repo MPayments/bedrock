@@ -12,7 +12,7 @@ import {
   type FinancialLine,
 } from "@bedrock/plugin-documents-commercial/contracts";
 import {
-  type Document,
+  type DocumentSnapshot,
   type DocumentModuleContext,
   DocumentValidationError,
 } from "@bedrock/plugin-documents-sdk";
@@ -73,7 +73,7 @@ export async function loadInvoice(
   runtime: CommercialDocumentRuntime,
   invoiceDocumentId: string,
   forUpdate = false,
-): Promise<Document> {
+): Promise<DocumentSnapshot> {
   const invoice = await deps.documentRelations.loadInvoice({
     runtime,
     invoiceDocumentId,
@@ -91,7 +91,7 @@ export async function getInvoiceExchangeChild(
   deps: Pick<CommercialModuleDeps, "documentRelations">,
   runtime: CommercialDocumentRuntime,
   invoiceDocumentId: string,
-): Promise<Document | null> {
+): Promise<DocumentSnapshot | null> {
   return deps.documentRelations.getInvoiceExchangeChild({
     runtime,
     invoiceDocumentId,
@@ -102,7 +102,7 @@ export async function getInvoiceAcceptanceChild(
   deps: Pick<CommercialModuleDeps, "documentRelations">,
   runtime: CommercialDocumentRuntime,
   invoiceDocumentId: string,
-): Promise<Document | null> {
+): Promise<DocumentSnapshot | null> {
   return deps.documentRelations.getInvoiceAcceptanceChild({
     runtime,
     invoiceDocumentId,
@@ -113,7 +113,7 @@ export async function getExchangeAcceptance(
   deps: Pick<CommercialModuleDeps, "documentRelations">,
   runtime: CommercialDocumentRuntime,
   exchangeDocumentId: string,
-): Promise<Document | null> {
+): Promise<DocumentSnapshot | null> {
   return deps.documentRelations.getExchangeAcceptance({
     runtime,
     exchangeDocumentId,
@@ -121,7 +121,10 @@ export async function getExchangeAcceptance(
 }
 
 export function requirePostedDocument(
-  document: Pick<Document, "docType" | "postingStatus" | "lifecycleStatus">,
+  document: Pick<
+    DocumentSnapshot,
+    "docType" | "postingStatus" | "lifecycleStatus"
+  >,
 ) {
   if (
     document.lifecycleStatus !== "active" ||
@@ -237,7 +240,7 @@ function templateForLine(
 }
 
 export function buildFinancialLineRequests(input: {
-  document: Pick<Document, "id" | "occurredAt">;
+  document: Pick<DocumentSnapshot, "id" | "occurredAt">;
   bookId: string;
   customerId: string;
   orderId: string;
@@ -300,7 +303,7 @@ export function buildFinancialLineRequests(input: {
 }
 
 export function buildDirectInvoicePostingPlan(input: {
-  document: Document;
+  document: DocumentSnapshot;
   payload: Extract<InvoicePayload, { mode: "direct" }>;
   bookId: string;
 }) {
@@ -375,7 +378,7 @@ export function buildDirectInvoicePostingPlan(input: {
 export async function buildExchangeInvoicePostingPlan(input: {
   deps: Pick<CommercialModuleDeps, "quoteUsage">;
   context: DocumentModuleContext;
-  document: Document;
+  document: DocumentSnapshot;
   payload: Extract<InvoicePayload, { mode: "exchange" }>;
   bookId: string;
 }) {
@@ -433,7 +436,7 @@ export async function buildExchangeInvoicePostingPlan(input: {
 }
 
 export function buildExchangePostingPlan(input: {
-  document: Document;
+  document: DocumentSnapshot;
   payload: ExchangePayload;
   bookId: string;
 }) {
@@ -530,14 +533,14 @@ export function buildExchangePostingPlan(input: {
   });
 }
 
-export function parseInvoicePayload(document: Document) {
+export function parseInvoicePayload(document: DocumentSnapshot) {
   return parseDocumentPayload(InvoicePayloadSchema, document);
 }
 
-export function parseExchangePayload(document: Document) {
+export function parseExchangePayload(document: DocumentSnapshot) {
   return parseDocumentPayload(ExchangePayloadSchema, document);
 }
 
-export function parseAcceptancePayload(document: Document) {
+export function parseAcceptancePayload(document: DocumentSnapshot) {
   return parseDocumentPayload(AcceptancePayloadSchema, document);
 }

@@ -22,12 +22,6 @@ function createModuleStub(approvalRequired: boolean): DocumentModule {
     async updateDraft() {
       throw new Error("not implemented");
     },
-    deriveSummary() {
-      return {
-        title: "Test",
-        searchText: "test",
-      };
-    },
     async canCreate() {},
     async canEdit() {},
     async canSubmit() {},

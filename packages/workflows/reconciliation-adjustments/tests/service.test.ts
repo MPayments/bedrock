@@ -25,8 +25,12 @@ describe("reconciliation adjustments workflow", () => {
       idempotency: {
         withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
       } as any,
-      createDocumentsService: () => ({
-        createDraft: createDraft as any,
+      createDocumentsModule: () => ({
+        documents: {
+          commands: {
+            createDraft: createDraft as any,
+          },
+        },
       }),
       createReconciliationService: () => ({
         exceptions: {

@@ -8,7 +8,7 @@ export const ApiErrorPayloadSchema = z
     message: z.string().optional(),
     details: z.unknown().optional(),
   })
-  .passthrough();
+  .loose();
 
 export class ApiRequestError extends Error {
   constructor(

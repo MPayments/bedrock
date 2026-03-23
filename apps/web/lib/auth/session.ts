@@ -23,7 +23,7 @@ const SessionResponseSchema = z
         id: z.string(),
         expiresAt: z.string().nullable().optional(),
       })
-      .passthrough(),
+      .loose(),
     user: z
       .object({
         id: z.string(),
@@ -32,9 +32,9 @@ const SessionResponseSchema = z
         image: z.string().nullable().optional(),
         role: z.string().optional(),
       })
-      .passthrough(),
+      .loose(),
   })
-  .passthrough();
+  .loose();
 
 function resolveRole(role: string | undefined): UserRole {
   return role === "admin" ? "admin" : "user";

@@ -7,7 +7,7 @@ import {
   type FinancialLine,
 } from "@bedrock/documents/contracts";
 import { DocumentValidationError } from "@bedrock/plugin-documents-sdk";
-import type { Document } from "@bedrock/plugin-documents-sdk";
+import type { DocumentSnapshot } from "@bedrock/plugin-documents-sdk";
 import {
   buildDocumentPostingRequest,
   serializeOccurredAt,
@@ -399,7 +399,7 @@ function treasuryFxLineTemplate(line: FinancialLine): {
 }
 
 export function buildTreasuryFxFinancialLineRequests(input: {
-  document: Pick<Document, "id" | "occurredAt">;
+  document: Pick<DocumentSnapshot, "id" | "occurredAt">;
   sourceBookId: string;
   sourceCurrency: string;
   destinationBookId: string;

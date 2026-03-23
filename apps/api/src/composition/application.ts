@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { AccountingModule } from "@bedrock/accounting";
 import {
   createCurrenciesService,
@@ -5,16 +7,26 @@ import {
 } from "@bedrock/currencies";
 import {
   createAccountingPeriodDocumentTransitionEffectsService,
-  createDocumentsService,
+  createDocumentsModule,
   createRuleBasedDocumentActionPolicyService,
-  type DocumentsService,
+  type DocumentsModule,
   type DocumentApprovalRule,
 } from "@bedrock/documents";
-import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
+import {
+  DrizzleDocumentEventsRepository,
+  DrizzleDocumentLinksRepository,
+  DrizzleDocumentOperationsRepository,
+  DrizzleDocumentSnapshotsRepository,
+  DrizzleDocumentsModuleRuntime,
+  DrizzleDocumentsQueries,
+  DrizzleDocumentsReadModel,
+  DrizzleDocumentsUnitOfWork,
+} from "@bedrock/documents/adapters/drizzle";
 import type { PartiesModule } from "@bedrock/parties";
 import {
   bindPersistenceSession,
   createPersistenceContext,
+  type PersistenceContext,
   type Transaction,
 } from "@bedrock/platform/persistence";
 import { createCommercialDocumentModules } from "@bedrock/plugin-documents-commercial";
@@ -60,7 +72,7 @@ export interface ApiApplicationServices {
   treasuryModule: TreasuryModule;
   organizationBootstrapWorkflow: OrganizationBootstrapWorkflow;
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
-  documentsService: DocumentsService;
+  documentsModule: DocumentsModule;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
   integrationEventHandler: IntegrationEventHandler;
@@ -109,7 +121,7 @@ export function createApplicationServices(
       persistence: bindPersistenceSession(tx),
     });
 
-  const documentsReadModel = createDrizzleDocumentsReadModel({ db });
+  const documentsReadModel = new DrizzleDocumentsReadModel(db);
   const currenciesService = createCurrenciesService({ db, logger });
   const currenciesPort = {
     async assertCurrencyExists(id: string) {
@@ -292,41 +304,55 @@ export function createApplicationServices(
   });
   const documentTransitionEffects =
     createAccountingPeriodDocumentTransitionEffectsService();
-  const documentsCoreService = createDocumentsService({
-    persistence: createPersistenceContext(db),
-    idempotency,
-    accounting: documentsAccountingPort,
-    accountingPeriods: accountingPeriodsPort,
-    ledgerReadService: ledgerReadPort,
-    policy: documentsPolicy,
-    registry: documentRegistry,
-    transitionEffects: documentTransitionEffects,
-    logger,
-  });
 
-  function createDocumentsServiceForTransaction(tx: Transaction) {
-    return createDocumentsService({
-      persistence: bindPersistenceSession(tx),
-      idempotency,
+  function createConfiguredDocumentsModule(input: {
+    db: typeof db | Transaction;
+    persistence: PersistenceContext;
+  }) {
+    return createDocumentsModule({
+      logger,
+      now: () => new Date(),
+      generateUuid: randomUUID,
       accounting: documentsAccountingPort,
       accountingPeriods: accountingPeriodsPort,
       ledgerReadService: ledgerReadPort,
-      policy: documentsPolicy,
+      documentsQuery: new DrizzleDocumentsQueries(input.db),
+      documentEvents: new DrizzleDocumentEventsRepository(input.db),
+      documentLinks: new DrizzleDocumentLinksRepository(input.db),
+      documentOperations: new DrizzleDocumentOperationsRepository(input.db),
+      documentSnapshots: new DrizzleDocumentSnapshotsRepository(input.db),
+      moduleRuntime: new DrizzleDocumentsModuleRuntime(input.db),
       registry: documentRegistry,
+      policy: documentsPolicy,
       transitionEffects: documentTransitionEffects,
-      logger,
+      unitOfWork: new DrizzleDocumentsUnitOfWork({
+        persistence: input.persistence,
+        idempotency,
+      }),
     });
   }
-  const documentsService = documentsCoreService;
+
+  const documentsCoreModule = createConfiguredDocumentsModule({
+    db,
+    persistence: createPersistenceContext(db),
+  });
+
+  function createDocumentsModuleForTransaction(tx: Transaction) {
+    return createConfiguredDocumentsModule({
+      db: tx,
+      persistence: bindPersistenceSession(tx),
+    });
+  }
+  const documentsModule = documentsCoreModule;
   const documentDraftWorkflow = createDocumentDraftWorkflow({
     db,
-    createDocumentsService: createDocumentsServiceForTransaction,
+    createDocumentsModule: createDocumentsModuleForTransaction,
   });
   const documentPostingWorkflow = createDocumentPostingWorkflow({
     db,
     idempotency,
     createLedgerModule: createLedgerModuleForTransaction,
-    createDocumentsService: createDocumentsServiceForTransaction,
+    createDocumentsModule: createDocumentsModuleForTransaction,
   });
 
   const integrationEventHandler = createIntegrationEventHandler({
@@ -347,7 +373,7 @@ export function createApplicationServices(
     treasuryModule,
     organizationBootstrapWorkflow,
     requisiteAccountingWorkflow,
-    documentsService,
+    documentsModule,
     documentDraftWorkflow,
     documentPostingWorkflow,
     integrationEventHandler,

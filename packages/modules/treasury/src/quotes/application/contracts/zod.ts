@@ -88,7 +88,7 @@ export const QuotePricingTraceSchema = z
     steps: z.array(z.record(z.string(), z.unknown())).optional(),
     metadata: z.record(z.string(), z.string().max(255)).optional(),
   })
-  .passthrough();
+  .loose();
 
 export const quoteMinorAmountInputSchema = z.union([
   positiveAmountSchema,

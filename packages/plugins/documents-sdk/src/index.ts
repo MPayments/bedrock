@@ -1,8 +1,9 @@
 export { DocumentValidationError } from "@bedrock/documents";
-export type { Document } from "@bedrock/documents/plugins";
+export type { DocumentSnapshot } from "@bedrock/documents";
 
 export { createDocumentRegistry } from "./create-document-registry";
 export type {
+  DocumentDraftMetadata,
   DocumentDraftResult,
   DocumentInitialLink,
   DocumentModule,

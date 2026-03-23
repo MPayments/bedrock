@@ -4,7 +4,7 @@ import {
   registerPgIntegrationLifecycle,
 } from "@bedrock/test-utils/bedrock/integration/postgres";
 
-import { schema as documentsSchema } from "../../src/infra/drizzle/schema";
+import { schema as documentsSchema } from "../../src/schema";
 
 const pool = createTestPgPool();
 const db = createTestDrizzleDb(pool, documentsSchema);

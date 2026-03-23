@@ -20,6 +20,7 @@ import {
   CapitalFundingPayloadSchema,
   type CapitalFundingInput,
 } from "../validation";
+import { requireDraftMetadata } from "./internal/draft-metadata";
 import type { IfrsModuleDeps } from "./internal/types";
 
 function resolveFundingTemplateKey(kind: CapitalFundingInput["kind"]) {
@@ -60,6 +61,42 @@ function resolveCapitalFundingEntryRef(input: {
   return input.payload.entryRef ?? input.document.docNo;
 }
 
+function buildCapitalFundingSummary(input: {
+  draft: { docNo: string; docType: string };
+  payload: {
+    kind: CapitalFundingInput["kind"];
+    amountMinor: string;
+    currency: string;
+    memo?: string | null;
+    entryRef?: string | null;
+    organizationId: string;
+    counterpartyId: string;
+    organizationRequisiteId: string;
+    counterpartyRequisiteId: string;
+  };
+}) {
+  return {
+    title: resolveCapitalFundingTitle(input.payload.kind),
+    amountMinor: BigInt(input.payload.amountMinor),
+    currency: input.payload.currency,
+    memo: input.payload.memo ?? null,
+    counterpartyId: input.payload.counterpartyId,
+    organizationRequisiteId: input.payload.organizationRequisiteId,
+    searchText: [
+      input.draft.docNo,
+      input.draft.docType,
+      input.payload.kind,
+      input.payload.entryRef,
+      input.payload.organizationId,
+      input.payload.counterpartyId,
+      input.payload.organizationRequisiteId,
+      input.payload.counterpartyRequisiteId,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
+
 export function createCapitalFundingDocumentModule(
   deps: IfrsModuleDeps,
 ): DocumentModule<CapitalFundingInput, CapitalFundingInput> {
@@ -77,41 +114,37 @@ export function createCapitalFundingDocumentModule(
     postingRequired: true,
     allowDirectPostFromDraft: false,
     approvalRequired: () => false,
-    async createDraft(_context, input) {
-      return buildDocumentDraft(input, {
+    async createDraft(context, input) {
+      const draft = requireDraftMetadata(context);
+      const payload = {
         ...serializeOccurredAt(input),
         memo: input.memo,
-      });
-    },
-    async updateDraft(_context, _document, input) {
-      return buildDocumentDraft(input, {
-        ...serializeOccurredAt(input),
-        memo: input.memo,
-      });
-    },
-    deriveSummary(document) {
-      const payload = parseDocumentPayload(CapitalFundingPayloadSchema, document);
-
-      return {
-        title: resolveCapitalFundingTitle(payload.kind),
-        amountMinor: BigInt(payload.amountMinor),
-        currency: payload.currency,
-        memo: payload.memo ?? null,
-        counterpartyId: payload.counterpartyId,
-        organizationRequisiteId: payload.organizationRequisiteId,
-        searchText: [
-          document.docNo,
-          document.docType,
-          payload.kind,
-          payload.entryRef,
-          payload.organizationId,
-          payload.counterpartyId,
-          payload.organizationRequisiteId,
-          payload.counterpartyRequisiteId,
-        ]
-          .filter(Boolean)
-          .join(" "),
       };
+
+      return buildDocumentDraft(
+        input,
+        payload,
+        buildCapitalFundingSummary({
+          draft,
+          payload,
+        }),
+      );
+    },
+    async updateDraft(context, _document, input) {
+      const draft = requireDraftMetadata(context);
+      const payload = {
+        ...serializeOccurredAt(input),
+        memo: input.memo,
+      };
+
+      return buildDocumentDraft(
+        input,
+        payload,
+        buildCapitalFundingSummary({
+          draft,
+          payload,
+        }),
+      );
     },
     async canCreate(_context, input) {
       const [binding, counterpartyRequisite] = await Promise.all([

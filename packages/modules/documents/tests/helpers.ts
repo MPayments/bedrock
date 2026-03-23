@@ -1,11 +1,10 @@
 import { vi } from "vitest";
 import { z } from "zod";
 
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
-import type { PersistenceContext } from "@bedrock/platform/persistence";
+import { noopLogger } from "@bedrock/platform/observability/logger";
 import { createStubDb } from "@bedrock/test-utils";
 
-import type { Document } from "../src/domain/document";
+import type { DocumentSnapshot } from "../src/documents/domain/document";
 import type {
   DocumentActionPolicyService,
   DocumentApprovalMode,
@@ -16,9 +15,11 @@ import type {
 
 const DEFAULT_DOCUMENT_PAYLOAD_SCHEMA = z.object({
   memo: z.string().optional(),
-}).passthrough();
+}).loose();
 
-export function buildTestDocument(overrides: Partial<Document> = {}): Document {
+export function buildTestDocument(
+  overrides: Partial<DocumentSnapshot> = {},
+): DocumentSnapshot {
   return {
     id: "11111111-1111-4111-8111-111111111111",
     docType: "test_document",
@@ -80,17 +81,25 @@ export function createTestDocumentModule(
       return {
         occurredAt: new Date("2026-03-01T00:00:00.000Z"),
         payload: { memo: "draft" },
+        summary: {
+          title: "Test",
+          searchText: "test",
+        },
       };
     },
     async updateDraft() {
       return {
         payload: { memo: "updated" },
+        summary: {
+          title: "Test",
+          searchText: "test",
+        },
       };
     },
-    deriveSummary() {
+    async buildDetails() {
       return {
-        title: "Test",
-        searchText: "test",
+        computed: { label: "computed" },
+        extra: { source: "module" },
       };
     },
     async canCreate() {},
@@ -100,12 +109,6 @@ export function createTestDocumentModule(
     async canReject() {},
     async canPost() {},
     async canCancel() {},
-    async buildDetails() {
-      return {
-        computed: { label: "computed" },
-        extra: { source: "module" },
-      };
-    },
     buildPostIdempotencyKey() {
       return "post-idem";
     },
@@ -184,7 +187,7 @@ export function createDocumentPolicyStub(): DocumentActionPolicyService {
   };
 }
 
-export function createDocumentsServiceDeps(
+export function createDocumentsPublicServiceDeps(
   modules: DocumentModule[] = [createTestDocumentModule()],
 ) {
   const moduleDb = createStubDb();
@@ -208,16 +211,30 @@ export function createDocumentsServiceDeps(
     findDocumentSnapshot: vi.fn(async () => null),
     getLatestPostingArtifacts: vi.fn(async () => null),
   };
-  const ledger = {
-    commit: vi.fn(),
-  };
   const idempotency = {
     withIdempotency: vi.fn(async ({ handler }: { handler: () => Promise<unknown> }) =>
       handler(),
     ),
   };
+  const unitOfWork = {
+    run: vi.fn(async (run: (tx: unknown) => Promise<unknown>) =>
+      run({
+        transaction: moduleDb,
+        moduleRuntime,
+        idempotency,
+        documentsCommand: repository,
+        documentEvents: repository,
+        documentLinks: repository,
+        documentOperations: repository,
+      }),
+    ),
+  };
 
   return {
+    logger: noopLogger,
+    generateUuid: vi.fn(
+      () => "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    ),
     accounting: {
       getDefaultCompiledPack: vi.fn(),
       loadActiveCompiledPackForBook: vi.fn(),
@@ -240,64 +257,15 @@ export function createDocumentsServiceDeps(
       getOperationDetails: vi.fn(),
     },
     moduleRuntime,
-    now: () => new Date("2026-03-03T00:00:00.000Z"),
-    repository,
-    registry: createTestDocumentRegistry(modules),
-    transactions: {
-      withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
-        run({
-          transaction: moduleDb,
-          documentEvents: repository,
-          documentLinks: repository,
-          documentOperations: repository,
-          documentsCommand: repository,
-          moduleRuntime,
-          ledger,
-          idempotency,
-        }),
-      ),
-    },
-  } as any;
-}
-
-export function createDocumentsPublicServiceDeps(
-  modules: DocumentModule[] = [createTestDocumentModule()],
-) {
-  const db = createStubDb();
-  const persistence: PersistenceContext = {
-    db: db as any,
-    runInTransaction: async (run) => run(db as any),
-  };
-  const idempotency: IdempotencyPort = {
-    withIdempotencyTx: async ({ handler }) => handler(),
-  };
-
-  return {
-    accounting: {
-      getDefaultCompiledPack: vi.fn(),
-      loadActiveCompiledPackForBook: vi.fn(),
-      resolvePostingPlan: vi.fn(),
-    },
-    accountingPeriods: {
-      assertOrganizationPeriodsOpen: vi.fn(async () => undefined),
-      closePeriod: vi.fn(async () => undefined),
-      isOrganizationPeriodClosed: vi.fn(async () => false),
-      listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
-      reopenPeriod: vi.fn(async () => undefined),
-    },
-    ledgerReadService: {
-      listOperationDetails: vi.fn(async () => new Map()),
-      getOperationDetails: vi.fn(),
-    },
-    persistence,
-    idempotency,
+    policy: createDocumentPolicyStub(),
     registry: createTestDocumentRegistry(modules),
     now: () => new Date("2026-03-03T00:00:00.000Z"),
+    unitOfWork,
   } as const;
 }
 
 export function createStubDocumentModuleRuntime(
-  queryable: unknown = createStubDb(),
+  _queryable: unknown = createStubDb(),
 ): DocumentModuleRuntime {
   return {
     documents: {
@@ -305,6 +273,5 @@ export function createStubDocumentModuleRuntime(
       getDocumentByType: vi.fn(async () => null),
       getDocumentOperationId: vi.fn(async () => null),
     },
-    withQueryable: (run) => run(queryable),
   };
 }

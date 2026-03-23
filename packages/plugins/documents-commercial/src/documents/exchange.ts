@@ -16,6 +16,7 @@ import {
   ExchangePayloadSchema,
   type ExchangeInput,
 } from "../validation";
+import { requireDraftMetadata } from "./internal/draft-metadata";
 import {
   buildExchangePostingPlan,
   getExchangeAcceptance,
@@ -26,6 +27,38 @@ import {
   resolveOrganizationBinding,
 } from "./internal/helpers";
 import type { CommercialModuleDeps } from "./internal/types";
+
+function buildExchangeSummary(input: {
+  draft: { docNo: string; docType: string };
+  payload: {
+    invoiceDocumentId: string;
+    executionRef?: string | null;
+    customerId: string;
+    counterpartyId: string;
+    organizationRequisiteId: string;
+    quoteSnapshot: { fromAmountMinor: string; fromCurrency: string; quoteRef: string };
+    memo?: string | null;
+  };
+}) {
+  return {
+    title: "Обмен",
+    amountMinor: BigInt(input.payload.quoteSnapshot.fromAmountMinor),
+    currency: input.payload.quoteSnapshot.fromCurrency,
+    memo: input.payload.memo ?? null,
+    counterpartyId: input.payload.counterpartyId,
+    customerId: input.payload.customerId,
+    organizationRequisiteId: input.payload.organizationRequisiteId,
+    searchText: [
+      input.draft.docNo,
+      input.draft.docType,
+      input.payload.invoiceDocumentId,
+      input.payload.executionRef,
+      input.payload.quoteSnapshot.quoteRef,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
 
 export function createExchangeDocumentModule(
   deps: CommercialModuleDeps,
@@ -43,6 +76,7 @@ export function createExchangeDocumentModule(
     allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(context, input) {
+      const draft = requireDraftMetadata(context);
       const invoice = await loadInvoice(
         deps,
         context.runtime,
@@ -63,7 +97,7 @@ export function createExchangeDocumentModule(
         );
       }
 
-      return buildDocumentDraft(input, {
+      const payload = {
         ...serializeOccurredAt(input),
         customerId: invoicePayload.customerId,
         counterpartyId: invoicePayload.counterpartyId,
@@ -71,7 +105,16 @@ export function createExchangeDocumentModule(
         organizationRequisiteId: invoicePayload.organizationRequisiteId,
         quoteSnapshot: invoicePayload.quoteSnapshot,
         memo: input.memo,
-      });
+      };
+
+      return buildDocumentDraft(
+        input,
+        payload,
+        buildExchangeSummary({
+          draft,
+          payload,
+        }),
+      );
     },
     async updateDraft(context, document, input) {
       const payload = parseDocumentPayload(ExchangePayloadSchema, document);
@@ -85,30 +128,7 @@ export function createExchangeDocumentModule(
           "exchange cannot be edited after acceptance exists",
         );
       }
-
       return this.createDraft!(context, input);
-    },
-    deriveSummary(document) {
-      const payload = parseDocumentPayload(ExchangePayloadSchema, document);
-
-      return {
-        title: "Обмен",
-        amountMinor: BigInt(payload.quoteSnapshot.fromAmountMinor),
-        currency: payload.quoteSnapshot.fromCurrency,
-        memo: payload.memo ?? null,
-        counterpartyId: payload.counterpartyId,
-        customerId: payload.customerId,
-        organizationRequisiteId: payload.organizationRequisiteId,
-        searchText: [
-          document.docNo,
-          document.docType,
-          payload.invoiceDocumentId,
-          payload.executionRef,
-          payload.quoteSnapshot.quoteRef,
-        ]
-          .filter(Boolean)
-          .join(" "),
-      };
     },
     async canCreate(context, input) {
       const invoice = await loadInvoice(

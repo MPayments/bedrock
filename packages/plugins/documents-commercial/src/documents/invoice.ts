@@ -18,6 +18,7 @@ import {
   compileInvoiceDirectFinancialLines,
   type InvoiceInput,
 } from "../validation";
+import { requireDraftMetadata } from "./internal/draft-metadata";
 import {
   buildDirectInvoicePostingPlan,
   buildExchangeInvoicePostingPlan,
@@ -28,6 +29,39 @@ import {
   resolveOrganizationBinding,
 } from "./internal/helpers";
 import type { CommercialModuleDeps } from "./internal/types";
+
+function buildInvoiceSummary(input: {
+  draft: { docNo: string; docType: string };
+  payload: ReturnType<typeof parseInvoicePayload>;
+}) {
+  return {
+    title: input.payload.mode === "exchange" ? "Инвойс (обмен)" : "Инвойс",
+    amountMinor:
+      input.payload.mode === "exchange"
+        ? BigInt(input.payload.quoteSnapshot.fromAmountMinor)
+        : BigInt(input.payload.amountMinor),
+    currency:
+      input.payload.mode === "exchange"
+        ? input.payload.quoteSnapshot.fromCurrency
+        : input.payload.currency,
+    memo: input.payload.memo ?? null,
+    counterpartyId: input.payload.counterpartyId,
+    customerId: input.payload.customerId,
+    organizationRequisiteId: input.payload.organizationRequisiteId,
+    searchText: [
+      input.draft.docNo,
+      input.draft.docType,
+      input.payload.customerId,
+      input.payload.counterpartyId,
+      input.payload.mode,
+      input.payload.mode === "exchange"
+        ? input.payload.quoteSnapshot.quoteRef
+        : input.payload.currency,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
 
 export function createInvoiceDocumentModule(
   deps: CommercialModuleDeps,
@@ -86,9 +120,11 @@ export function createInvoiceDocumentModule(
     postingRequired: true,
     allowDirectPostFromDraft: false,
     approvalRequired: () => false,
-    async createDraft(_context, input) {
+    async createDraft(context, input) {
+      const draft = requireDraftMetadata(context);
+
       if (input.mode === "direct") {
-        return buildDocumentDraft(input, {
+        const payload = {
           ...serializeOccurredAt(input),
           financialLines: compileInvoiceDirectFinancialLines({
             financialLines: input.financialLines,
@@ -96,7 +132,16 @@ export function createInvoiceDocumentModule(
             currency: input.currency,
           }),
           memo: input.memo,
-        });
+        };
+
+        return buildDocumentDraft(
+          input,
+          payload,
+          buildInvoiceSummary({
+            draft,
+            payload,
+          }),
+        );
       }
 
       const generatedExchangeInput = getGeneratedExchangeInput(input);
@@ -109,26 +154,35 @@ export function createInvoiceDocumentModule(
 
       const quoteSnapshot = input.quoteRef
         ? await loadQuoteSnapshot({
-            runtime: _context.runtime,
+            runtime: context.runtime,
             deps,
             quoteRef: input.quoteRef,
           })
         : await deps.quoteSnapshot.createQuoteSnapshot({
-            runtime: _context.runtime,
+            runtime: context.runtime,
             fromCurrency: generatedExchangeInput!.currency,
             toCurrency: generatedExchangeInput!.targetCurrency,
             fromAmountMinor: generatedExchangeInput!.amountMinor,
-            asOf: _context.now,
+            asOf: context.now,
             idempotencyKey: buildInvoiceExchangeQuoteIdempotencyKey(
-              _context.operationIdempotencyKey,
+              context.operationIdempotencyKey,
             ),
           });
 
-      return buildDocumentDraft(input, {
+      const payload = {
         ...serializeOccurredAt(input),
         quoteSnapshot,
         memo: input.memo,
-      });
+      };
+
+      return buildDocumentDraft(
+        input,
+        payload,
+        buildInvoiceSummary({
+          draft,
+          payload,
+        }),
+      );
     },
     async updateDraft(context, document, input) {
       if (document.lifecycleStatus !== "active") {
@@ -144,38 +198,7 @@ export function createInvoiceDocumentModule(
           "invoice cannot be edited after an acceptance child exists",
         );
       }
-
       return this.createDraft!(context, input);
-    },
-    deriveSummary(document) {
-      const payload = parseInvoicePayload(document);
-
-      return {
-        title:
-          payload.mode === "exchange" ? "Инвойс (обмен)" : "Инвойс",
-        amountMinor:
-          payload.mode === "exchange"
-            ? BigInt(payload.quoteSnapshot.fromAmountMinor)
-            : BigInt(payload.amountMinor),
-        currency:
-          payload.mode === "exchange"
-            ? payload.quoteSnapshot.fromCurrency
-            : payload.currency,
-        memo: payload.memo ?? null,
-        counterpartyId: payload.counterpartyId,
-        customerId: payload.customerId,
-        organizationRequisiteId: payload.organizationRequisiteId,
-        searchText: [
-          document.docNo,
-          document.docType,
-          payload.customerId,
-          payload.counterpartyId,
-          payload.mode,
-          payload.mode === "exchange" ? payload.quoteSnapshot.quoteRef : payload.currency,
-        ]
-          .filter(Boolean)
-          .join(" "),
-      };
     },
     async canCreate(_context, input) {
       await Promise.all([

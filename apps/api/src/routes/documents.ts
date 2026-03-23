@@ -1,16 +1,16 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 
-import { DocumentSystemOnlyTypeError } from "@bedrock/documents";
+import {
+  DocumentSystemOnlyTypeError,
+  type DocumentAction,
+  isSystemOnlyDocumentType,
+} from "@bedrock/documents";
 import {
   CreateDocumentInputSchema,
   type DocumentTransitionAction,
   ListDocumentsQuerySchema,
   UpdateDocumentInputSchema,
 } from "@bedrock/documents/contracts";
-import {
-  type DocumentAction,
-  isSystemOnlyDocumentType,
-} from "@bedrock/documents/model";
 
 import auth from "../auth";
 import { handleRouteError } from "../common/errors";
@@ -264,7 +264,7 @@ export function documentsRoutes(ctx: AppContext) {
           return ctx.documentPostingWorkflow.repost(transitionInput);
         }
 
-        return ctx.documentsService.actions.execute({
+        return ctx.documentsModule.lifecycle.commands.execute({
           action: config.action,
           ...transitionInput,
         });
@@ -333,7 +333,10 @@ export function documentsRoutes(ctx: AppContext) {
         queryObjectFromUrl(c.req.url),
       );
       const actionPermissions = await resolveDocumentActionPermissions(user.id);
-      const result = await ctx.documentsService.list(query, user.id);
+      const result = await ctx.documentsModule.documents.queries.list(
+        query,
+        user.id,
+      );
 
       return c.json({
         ...result,
@@ -399,7 +402,7 @@ export function documentsRoutes(ctx: AppContext) {
         role: c.get("user")?.role,
       });
 
-      return ctx.documentsService.updateDraft({
+      return ctx.documentsModule.documents.commands.updateDraft({
         docType,
         documentId: id,
         payload: body.input,
@@ -423,7 +426,11 @@ export function documentsRoutes(ctx: AppContext) {
         const actionPermissions = await resolveDocumentActionPermissions(
           user.id,
         );
-        const result = await ctx.documentsService.get(docType, id, user.id);
+        const result = await ctx.documentsModule.documents.queries.get(
+          docType,
+          id,
+          user.id,
+        );
 
         return c.json(
           toDocumentDto(
@@ -451,7 +458,7 @@ export function documentsRoutes(ctx: AppContext) {
       try {
         const user = c.get("user")!;
         const { docType, id } = c.req.param();
-        const details = await ctx.documentsService.getDetails(
+        const details = await ctx.documentsModule.documents.queries.getDetails(
           docType,
           id,
           user.id,

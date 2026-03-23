@@ -1,6 +1,6 @@
 export {
   createReconciliationAdjustmentsWorkflow,
-  type CreateReconciliationAdjustmentDocumentsService,
+  type CreateReconciliationAdjustmentDocumentsModule,
   type CreateReconciliationAdjustmentReconciliationService,
   type ReconciliationAdjustmentsWorkflow,
   type ReconciliationAdjustmentsWorkflowDeps,

@@ -33,7 +33,7 @@ import {
 const env = parseEnv();
 
 const ctx = createAppContext(env);
-void ctx.documentsService
+void ctx.documentsModule.posting.commands
   .validateAccountingSourceCoverage()
   .catch((error: unknown) => {
     ctx.logger.error(

@@ -1,14 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { createCreateDraftHandler } from "../src/application/commands/create-draft";
-import { createTransitionHandler } from "../src/application/commands/transition";
-import { createUpdateDraftHandler } from "../src/application/commands/update-draft";
-import { createPrepareDocumentPostHandler } from "../src/application/posting/commands";
-import type { Document } from "../src/domain/document";
+import { CreateDraftCommand } from "../src/documents/application/commands/create-draft";
+import { UpdateDraftCommand } from "../src/documents/application/commands/update-draft";
+import type { DocumentSnapshot } from "../src/documents/domain/document";
+import { ExecuteDocumentTransitionCommand } from "../src/lifecycle/application/commands/transition";
 import type { DocumentModule } from "../src/plugins";
+import { PrepareDocumentPostCommand } from "../src/posting/application/commands/prepare-document-post";
 
-function makeDocument(overrides: Partial<Document> = {}): Document {
+function makeDocument(
+  overrides: Partial<DocumentSnapshot> = {},
+): DocumentSnapshot {
   return {
     id: "11111111-1111-4111-8111-111111111111",
     docType: "test_document",
@@ -68,19 +70,22 @@ function createModuleStub(
       return {
         occurredAt: new Date("2026-03-01T12:00:00.000Z"),
         payload: { memo: "created" },
+        summary: {
+          title: "created",
+          memo: "created",
+          searchText: "memo created",
+        },
       };
     },
     async updateDraft() {
       return {
         occurredAt: new Date("2026-03-02T12:00:00.000Z"),
         payload: { memo: "updated" },
-      };
-    },
-    deriveSummary(document) {
-      return {
-        title: String((document.payload as Record<string, string>).memo),
-        memo: String((document.payload as Record<string, string>).memo),
-        searchText: `memo ${String((document.payload as Record<string, string>).memo)}`,
+        summary: {
+          title: "updated",
+          memo: "updated",
+          searchText: "memo updated",
+        },
       };
     },
     async canCreate() {},
@@ -98,11 +103,11 @@ function createModuleStub(
 }
 
 function createContext(options: {
-  document?: Document;
+  document?: DocumentSnapshot;
   module?: DocumentModule<{ memo: string }, { memo: string }>;
   selectRows?: unknown[][];
-  insertDocumentResult?: Document;
-  updateDocumentResult?: Document;
+  insertDocumentResult?: DocumentSnapshot;
+  updateDocumentResult?: DocumentSnapshot;
   postingOperationId?: string | null;
   periodClosed?: boolean;
 }) {
@@ -112,7 +117,9 @@ function createContext(options: {
   const insertedRows: Record<string, unknown>[] = [];
   const now = new Date("2026-03-03T00:00:00.000Z");
 
-  function buildStoredDocument(values: Record<string, unknown>): Document {
+  function buildStoredDocument(
+    values: Record<string, unknown>,
+  ): DocumentSnapshot {
     const base = options.document ?? makeDocument();
 
     return {
@@ -125,21 +132,25 @@ function createContext(options: {
       approvedAt: values.approvedAt ? now : base.approvedAt,
       rejectedAt: values.rejectedAt ? now : base.rejectedAt,
       submittedAt: values.submittedAt ? now : base.submittedAt,
-    } as Document;
+    } as DocumentSnapshot;
   }
 
   const repository = {
     findDocumentByType: vi.fn(async () => {
       const rows = selectRows.shift() ?? [];
-      return (rows[0] as Document | undefined) ?? null;
+      return (rows[0] as DocumentSnapshot | undefined) ?? null;
     }),
     findDocumentWithPostingOperation: vi.fn(async () => {
       const rows = selectRows.shift() ?? [];
-      return (rows[0] as { document: Document; postingOperationId: string | null } | undefined) ?? null;
+      return (
+        rows[0] as
+          | { document: DocumentSnapshot; postingOperationId: string | null }
+          | undefined
+      ) ?? null;
     }),
     findDocumentByCreateIdempotencyKey: vi.fn(async () => {
       const rows = selectRows.shift() ?? [];
-      return (rows[0] as Document | undefined) ?? null;
+      return (rows[0] as DocumentSnapshot | undefined) ?? null;
     }),
     findPostingOperationId: vi.fn(async () => {
       const rows = selectRows.shift() ?? [];
@@ -148,7 +159,7 @@ function createContext(options: {
     }),
     insertDocument: vi.fn(async (values: Record<string, unknown>) => {
       insertedRows.push(values);
-      return options.insertDocumentResult ?? (values as Document);
+      return options.insertDocumentResult ?? (values as DocumentSnapshot);
     }),
     updateDocument: vi.fn(async ({ patch }: { patch: Record<string, unknown> }) =>
       options.updateDocumentResult ?? buildStoredDocument(patch),
@@ -172,76 +183,90 @@ function createContext(options: {
       handler(),
     ),
   };
-  const ledger = {
-    commit: vi.fn(),
+  const moduleRuntime = {
+    documents: {
+      findIncomingLinkedDocument: vi.fn(async () => null),
+      getDocumentByType: vi.fn(async () => null),
+      getDocumentOperationId: vi.fn(async () => null),
+    },
   };
   const registry = {
     getDocumentModule: vi.fn(() => module),
+    getDocumentModules: vi.fn(() => [module]),
+  };
+  const runtime = {
+    generateUuid: vi.fn(
+      () => "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    ),
+    now: () => now,
+    log: {
+      debug: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn(),
+    },
+  };
+  const commandUow = {
+    run: vi.fn(async (run: (tx: unknown) => Promise<unknown>) =>
+      run({
+        transaction: repository,
+        documentsCommand: repository,
+        documentEvents: repository,
+        documentLinks: repository,
+        documentOperations: repository,
+        idempotency,
+        moduleRuntime,
+      }),
+    ),
+  };
+  const policy = {
+    approvalMode: vi.fn(async () => "not_required"),
+    canCreate: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    canEdit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    canSubmit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    canApprove: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    canReject: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    canPost: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+    canCancel: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
+  };
+  const accountingPeriods = {
+    assertOrganizationPeriodsOpen: vi.fn(async () => {
+      if (options.periodClosed) {
+        throw new Error("Accounting period is closed for organization");
+      }
+    }),
+    closePeriod: vi.fn(async () => undefined),
+    isOrganizationPeriodClosed: vi.fn(
+      async () => options.periodClosed ?? false,
+    ),
+    listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
+    reopenPeriod: vi.fn(async () => undefined),
+  };
+  const accounting = {
+    resolvePostingPlan: vi.fn(),
+  };
+  const lifecycleDeps = {
+    runtime,
+    commandUow,
+    accountingPeriods,
+    registry,
+    policy,
+    transitionEffects: {
+      apply: vi.fn(async () => undefined),
+    },
   };
 
   return {
-    context: {
-      accounting: {
-        resolvePostingPlan: vi.fn(),
-      },
-      accountingPeriods: {
-        assertOrganizationPeriodsOpen: vi.fn(async () => {
-          if (options.periodClosed) {
-            throw new Error("Accounting period is closed for organization");
-          }
-        }),
-        closePeriod: vi.fn(async () => undefined),
-        isOrganizationPeriodClosed: vi.fn(
-          async () => options.periodClosed ?? false,
-        ),
-        listClosedOrganizationIdsForPeriod: vi.fn(async () => []),
-        reopenPeriod: vi.fn(async () => undefined),
-      },
-      moduleRuntime: {} as any,
-      ledgerReadService: {
-        listOperationDetails: vi.fn(async () => new Map()),
-      } as any,
-      now: () => now,
-      log: {
-        debug: vi.fn(),
-      },
-      policy: {
-        approvalMode: vi.fn(async () => "not_required"),
-        canCreate: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-        canEdit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-        canSubmit: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-        canApprove: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-        canReject: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-        canPost: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-        canCancel: vi.fn(async () => ({ allow: true, reasonCode: "allowed", reasonMeta: null })),
-      },
-      documentEvents: repository,
-      documentLinks: repository,
-      documentOperations: repository,
-      documentSnapshots: repository,
-      documentsQuery: repository,
-      registry,
-      transitionEffects: {
-        apply: vi.fn(async () => undefined),
-      },
-      transactions: {
-        withTransaction: vi.fn(async (run: (context: unknown) => Promise<unknown>) =>
-          run({
-            transaction: repository,
-            documentEvents: repository,
-            documentLinks: repository,
-            documentOperations: repository,
-            documentsCommand: repository,
-            idempotency,
-            moduleRuntime: {} as any,
-            ledger,
-          }),
-        ),
-      },
-    },
+    accounting,
+    accountingPeriods,
+    commandUow,
     idempotency,
+    lifecycleDeps,
+    policy,
     repository,
-    ledger,
+    registry,
+    runtime,
     insertedRows,
     eventRows,
   };
@@ -249,13 +274,19 @@ function createContext(options: {
 
 describe("documents command flows", () => {
   it("creates a draft document with derived summary fields", async () => {
-    const { context, insertedRows, idempotency } = createContext({
+    const { accountingPeriods, commandUow, idempotency, insertedRows, policy, registry, runtime } = createContext({
       selectRows: [[]],
     });
-    context.policy.approvalMode.mockResolvedValue("maker_checker");
-    const handler = createCreateDraftHandler(context as any);
+    policy.approvalMode.mockResolvedValue("maker_checker");
+    const handler = new CreateDraftCommand(
+      runtime as any,
+      commandUow as any,
+      accountingPeriods as any,
+      registry as any,
+      policy as any,
+    );
 
-    const result = await handler({
+    const result = await handler.execute({
       docType: "test_document",
       createIdempotencyKey: "create-idem",
       payload: { memo: "created" },
@@ -279,14 +310,20 @@ describe("documents command flows", () => {
 
   it("updates active draft documents", async () => {
     const document = makeDocument();
-    const { context } = createContext({
+    const { accountingPeriods, commandUow, policy, registry, runtime } = createContext({
       document,
       selectRows: [[document]],
     });
-    context.policy.approvalMode.mockResolvedValue("maker_checker");
-    const handler = createUpdateDraftHandler(context as any);
+    policy.approvalMode.mockResolvedValue("maker_checker");
+    const handler = new UpdateDraftCommand(
+      runtime as any,
+      commandUow as any,
+      accountingPeriods as any,
+      registry as any,
+      policy as any,
+    );
 
-    const result = await handler({
+    const result = await handler.execute({
       docType: document.docType,
       documentId: document.id,
       payload: { memo: "updated" },
@@ -302,15 +339,21 @@ describe("documents command flows", () => {
     const document = makeDocument({
       payload: { organizationId: "00000000-0000-4000-8000-000000000777" },
     });
-    const { context } = createContext({
+    const { accountingPeriods, commandUow, policy, registry, runtime } = createContext({
       document,
       selectRows: [[document]],
       periodClosed: true,
     });
-    const handler = createUpdateDraftHandler(context as any);
+    const handler = new UpdateDraftCommand(
+      runtime as any,
+      commandUow as any,
+      accountingPeriods as any,
+      registry as any,
+      policy as any,
+    );
 
     await expect(
-      handler({
+      handler.execute({
         docType: document.docType,
         documentId: document.id,
         payload: { memo: "updated" },
@@ -323,13 +366,15 @@ describe("documents command flows", () => {
     const document = makeDocument({
       postingStatus: "failed",
     });
-    const { context } = createContext({
+    const { lifecycleDeps } = createContext({
       document,
       selectRows: [[document]],
     });
-    const transition = createTransitionHandler(context as any);
+    const transition = new ExecuteDocumentTransitionCommand(
+      lifecycleDeps as any,
+    );
 
-    const result = await transition({
+    const result = await transition.execute({
       action: "cancel",
       docType: document.docType,
       documentId: document.id,
@@ -365,7 +410,7 @@ describe("documents command flows", () => {
         };
       },
     });
-    const { context, repository } = createContext({
+    const { accounting, accountingPeriods, commandUow, policy, registry, repository, runtime } = createContext({
       document,
       module,
       selectRows: [[document]],
@@ -376,15 +421,15 @@ describe("documents command flows", () => {
         currentDocument = {
           ...currentDocument,
           ...patch,
-          updatedAt: context.now(),
+          updatedAt: runtime.now(),
           version: currentDocument.version + 1,
-        } as Document;
+        } as DocumentSnapshot;
 
         return currentDocument;
       },
     );
-    context.policy.approvalMode.mockResolvedValue("not_required");
-    context.accounting.resolvePostingPlan.mockResolvedValue({
+    policy.approvalMode.mockResolvedValue("not_required");
+    accounting.resolvePostingPlan.mockResolvedValue({
       intent: {
         idempotencyKey: "post-idem",
         source: {
@@ -399,8 +444,15 @@ describe("documents command flows", () => {
       appliedTemplates: [],
     });
 
-    const handler = createPrepareDocumentPostHandler(context as any);
-    const result = await handler({
+    const handler = new PrepareDocumentPostCommand(
+      runtime as any,
+      commandUow as any,
+      accounting as any,
+      accountingPeriods as any,
+      registry as any,
+      policy as any,
+    );
+    const result = await handler.execute({
       action: "post",
       docType: document.docType,
       documentId: document.id,

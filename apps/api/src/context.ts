@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { AccountingModule } from "@bedrock/accounting";
 import type { CurrenciesService } from "@bedrock/currencies";
-import type { DocumentsService } from "@bedrock/documents";
+import type { DocumentsModule } from "@bedrock/documents";
 import type { LedgerModule } from "@bedrock/ledger";
 import type { PartiesModule } from "@bedrock/parties";
 import type { Logger } from "@bedrock/platform/observability/logger";
@@ -70,7 +70,7 @@ export interface AppContext {
   requisiteAccountingWorkflow: RequisiteAccountingWorkflow;
   usersService: UsersService;
   ledgerModule: LedgerModule;
-  documentsService: DocumentsService;
+  documentsModule: DocumentsModule;
   documentDraftWorkflow: DocumentDraftWorkflow;
   documentPostingWorkflow: DocumentPostingWorkflow;
   integrationEventHandler: IntegrationEventHandler | null;
@@ -97,7 +97,7 @@ export function createAppContext(env: Env): AppContext {
     requisiteAccountingWorkflow:
       applicationServices.requisiteAccountingWorkflow,
     usersService: core.usersService,
-    documentsService: applicationServices.documentsService,
+    documentsModule: applicationServices.documentsModule,
     documentDraftWorkflow: applicationServices.documentDraftWorkflow,
     documentPostingWorkflow: applicationServices.documentPostingWorkflow,
     integrationEventHandler,

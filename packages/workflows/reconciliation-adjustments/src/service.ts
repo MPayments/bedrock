@@ -1,5 +1,5 @@
 import type {
-  DocumentsService,
+  DocumentsModule,
 } from "@bedrock/documents";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
@@ -11,9 +11,15 @@ import {
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import { sha256Hex } from "@bedrock/shared/core/crypto";
 
-export type CreateReconciliationAdjustmentDocumentsService = (
+export interface ReconciliationAdjustmentsDocumentsModule {
+  documents: {
+    commands: Pick<DocumentsModule["documents"]["commands"], "createDraft">;
+  };
+}
+
+export type CreateReconciliationAdjustmentDocumentsModule = (
   tx: Transaction,
-) => Pick<DocumentsService, "createDraft">;
+) => ReconciliationAdjustmentsDocumentsModule;
 
 export type CreateReconciliationAdjustmentReconciliationService = (
   tx: Transaction,
@@ -38,13 +44,19 @@ export type CreateReconciliationAdjustmentReconciliationService = (
 export interface ReconciliationAdjustmentsWorkflowDeps {
   db: Database;
   idempotency: IdempotencyPort;
-  createDocumentsService: CreateReconciliationAdjustmentDocumentsService;
+  createDocumentsModule: CreateReconciliationAdjustmentDocumentsModule;
   createReconciliationService: CreateReconciliationAdjustmentReconciliationService;
+}
+
+export interface ReconciliationAdjustmentsWorkflow {
+  createAdjustmentDocument(
+    input: CreateAdjustmentDocumentInput,
+  ): Promise<CreateAdjustmentDocumentResult>;
 }
 
 export function createReconciliationAdjustmentsWorkflow(
   deps: ReconciliationAdjustmentsWorkflowDeps,
-) {
+): ReconciliationAdjustmentsWorkflow {
   return {
     async createAdjustmentDocument(
       input: CreateAdjustmentDocumentInput,
@@ -52,7 +64,7 @@ export function createReconciliationAdjustmentsWorkflow(
       const validated = CreateAdjustmentDocumentInputSchema.parse(input);
 
       return deps.db.transaction(async (tx) => {
-        const documents = deps.createDocumentsService(tx);
+        const documentsModule = deps.createDocumentsModule(tx);
         const reconciliation = deps.createReconciliationService(tx);
 
         return deps.idempotency.withIdempotencyTx({
@@ -92,7 +104,7 @@ export function createReconciliationAdjustmentsWorkflow(
                 }),
               );
 
-            const created = await documents.createDraft({
+            const created = await documentsModule.documents.commands.createDraft({
               docType: validated.docType,
               createIdempotencyKey,
               payload: validated.payload,
@@ -116,7 +128,3 @@ export function createReconciliationAdjustmentsWorkflow(
     },
   };
 }
-
-export type ReconciliationAdjustmentsWorkflow = ReturnType<
-  typeof createReconciliationAdjustmentsWorkflow
->;

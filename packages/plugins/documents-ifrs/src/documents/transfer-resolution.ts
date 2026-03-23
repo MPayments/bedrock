@@ -22,6 +22,7 @@ import {
   TransferResolutionPayloadSchema,
   type TransferResolutionInput,
 } from "../validation";
+import { requireDraftMetadata } from "./internal/draft-metadata";
 import {
   listPendingTransfers,
   resolvePendingTransferBookId,
@@ -44,6 +45,28 @@ function resolveTransferResolutionTitle(
   return "Разрешение перевода (ошибка)";
 }
 
+function buildTransferResolutionSummary(input: {
+  draft: { docNo: string; docType: string };
+  payload: {
+    transferDocumentId: string;
+    resolutionType: "settle" | "void" | "fail";
+    eventIdempotencyKey: string;
+  };
+}) {
+  return {
+    title: resolveTransferResolutionTitle(input.payload.resolutionType),
+    searchText: [
+      input.draft.docNo,
+      input.draft.docType,
+      input.payload.transferDocumentId,
+      input.payload.resolutionType,
+      input.payload.eventIdempotencyKey,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
+
 export function createTransferResolutionDocumentModule(
   deps: IfrsModuleDeps,
 ): DocumentModule<TransferResolutionInput, TransferResolutionInput> {
@@ -64,33 +87,37 @@ export function createTransferResolutionDocumentModule(
     postingRequired: true,
     allowDirectPostFromDraft: false,
     approvalRequired: () => false,
-    async createDraft(_context, input) {
-      return buildDocumentDraft(input, {
+    async createDraft(context, input) {
+      const draft = requireDraftMetadata(context);
+      const payload = {
         ...serializeOccurredAt(input),
         memo: input.memo,
-      });
-    },
-    async updateDraft(_context, _document, input) {
-      return buildDocumentDraft(input, {
-        ...serializeOccurredAt(input),
-        memo: input.memo,
-      });
-    },
-    deriveSummary(document) {
-      const payload = parseDocumentPayload(TransferResolutionPayloadSchema, document);
-
-      return {
-        title: resolveTransferResolutionTitle(payload.resolutionType),
-        searchText: [
-          document.docNo,
-          document.docType,
-          payload.transferDocumentId,
-          payload.resolutionType,
-          payload.eventIdempotencyKey,
-        ]
-          .filter(Boolean)
-          .join(" "),
       };
+
+      return buildDocumentDraft(
+        input,
+        payload,
+        buildTransferResolutionSummary({
+          draft,
+          payload,
+        }),
+      );
+    },
+    async updateDraft(context, _document, input) {
+      const draft = requireDraftMetadata(context);
+      const payload = {
+        ...serializeOccurredAt(input),
+        memo: input.memo,
+      };
+
+      return buildDocumentDraft(
+        input,
+        payload,
+        buildTransferResolutionSummary({
+          draft,
+          payload,
+        }),
+      );
     },
     async canCreate(context, input) {
       await resolveTransferDependencyDocument(

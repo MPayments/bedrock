@@ -1,6 +1,6 @@
 export {
   createDocumentPostingWorkflow,
-  type CreateDocumentPostingService,
+  type CreateDocumentPostingModule,
   type DocumentPostingWorkflow,
   type DocumentPostingWorkflowDeps,
   type DocumentPostingWorkflowInput,

@@ -45,14 +45,20 @@ describe("document posting workflow", () => {
         withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
       } as any,
       createLedgerModule: createLedgerModule as any,
-      createDocumentsService: () => ({
-        get,
-        actions: {
-          execute: vi.fn(),
-          resolveIdempotencyKey: vi.fn(async () => "idem-post"),
-          prepare: preparePost as any,
-          finalizeSuccess: finalizeSuccess as any,
-          finalizeFailure: vi.fn(),
+      createDocumentsModule: () => ({
+        documents: {
+          queries: {
+            get,
+          },
+        },
+        posting: {
+          commands: {
+            resolveIdempotencyKey: vi.fn(async () => "idem-post"),
+            preparePost: preparePost as any,
+            prepareRepost: vi.fn(),
+            finalizeSuccess: finalizeSuccess as any,
+            finalizeFailure: vi.fn(),
+          },
         },
       }),
     });
@@ -104,26 +110,32 @@ describe("document posting workflow", () => {
         withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
       } as any,
       createLedgerModule: createLedgerModule as any,
-      createDocumentsService: () => ({
-        get: vi.fn(),
-        actions: {
-          execute: vi.fn(),
-          resolveIdempotencyKey: vi.fn(async () => "idem-repost"),
-          prepare: vi.fn(async () => ({
-            document: { id: "doc-1" },
-            successEvents: [],
-            finalEvent: {
-              eventType: "repost",
-              before: null,
-              after: null,
-            },
-            actorUserId: "user-1",
-            docType: "test_document",
-            action: "repost" as const,
-            postingOperationId: "op-existing",
-          })) as any,
-          finalizeSuccess: finalizeSuccess as any,
-          finalizeFailure: vi.fn(),
+      createDocumentsModule: () => ({
+        documents: {
+          queries: {
+            get: vi.fn(),
+          },
+        },
+        posting: {
+          commands: {
+            resolveIdempotencyKey: vi.fn(async () => "idem-repost"),
+            preparePost: vi.fn(),
+            prepareRepost: vi.fn(async () => ({
+              document: { id: "doc-1" },
+              successEvents: [],
+              finalEvent: {
+                eventType: "repost",
+                before: null,
+                after: null,
+              },
+              actorUserId: "user-1",
+              docType: "test_document",
+              action: "repost" as const,
+              postingOperationId: "op-existing",
+            })) as any,
+            finalizeSuccess: finalizeSuccess as any,
+            finalizeFailure: vi.fn(),
+          },
         },
       }),
     });

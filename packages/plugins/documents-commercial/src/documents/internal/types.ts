@@ -1,5 +1,5 @@
 import type {
-  Document,
+  DocumentSnapshot,
   DocumentModuleRuntime,
 } from "@bedrock/plugin-documents-sdk";
 
@@ -57,19 +57,19 @@ export interface CommercialDocumentRelationsPort {
     runtime: CommercialDocumentRuntime;
     invoiceDocumentId: string;
     forUpdate?: boolean;
-  }): Promise<Document>;
+  }): Promise<DocumentSnapshot>;
   getInvoiceExchangeChild(input: {
     runtime: CommercialDocumentRuntime;
     invoiceDocumentId: string;
-  }): Promise<Document | null>;
+  }): Promise<DocumentSnapshot | null>;
   getInvoiceAcceptanceChild(input: {
     runtime: CommercialDocumentRuntime;
     invoiceDocumentId: string;
-  }): Promise<Document | null>;
+  }): Promise<DocumentSnapshot | null>;
   getExchangeAcceptance(input: {
     runtime: CommercialDocumentRuntime;
     exchangeDocumentId: string;
-  }): Promise<Document | null>;
+  }): Promise<DocumentSnapshot | null>;
 }
 
 export interface CommercialModuleDeps {

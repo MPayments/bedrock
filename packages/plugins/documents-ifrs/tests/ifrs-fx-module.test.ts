@@ -150,6 +150,22 @@ function createFxExecutePayload() {
   };
 }
 
+function createDraftContext() {
+  return {
+    runtime: {} as any,
+    now: new Date("2026-03-03T10:00:00.000Z"),
+    draft: {
+      id: "00000000-0000-4000-8000-000000000601",
+      docNo: "FXE-1",
+      docType: "fx_execute",
+      moduleId: "fx_execute",
+      moduleVersion: 1,
+      payloadVersion: 1,
+    },
+    operationIdempotencyKey: "create-idem",
+  };
+}
+
 describe("ifrs fx modules", () => {
   it("accepts treasury fx creation for cross-org different-currency requisites", async () => {
     const module = createFxExecuteDocumentModule(createDeps() as any);
@@ -172,14 +188,10 @@ describe("ifrs fx modules", () => {
   it("creates a draft from current rates and freezes the generated quote snapshot", async () => {
     const deps = createDeps();
     const module = createFxExecuteDocumentModule(deps as any);
-    const runtime = {} as any;
+    const context = createDraftContext();
 
     const draft = await module.createDraft(
-      {
-        runtime,
-        now: new Date("2026-03-03T10:00:00.000Z"),
-        operationIdempotencyKey: "create-idem",
-      } as any,
+      context as any,
       {
         occurredAt: new Date("2026-03-03T10:00:00.000Z"),
         sourceRequisiteId: "00000000-0000-4000-8000-000000000111",
@@ -191,7 +203,7 @@ describe("ifrs fx modules", () => {
     );
 
     expect(deps.treasuryFxQuote.createQuoteSnapshot).toHaveBeenCalledWith({
-      runtime,
+      runtime: context.runtime,
       fromCurrency: "USD",
       toCurrency: "EUR",
       fromAmountMinor: "10000",
@@ -210,13 +222,10 @@ describe("ifrs fx modules", () => {
   it("preserves manual percent rows when building fx_execute drafts", async () => {
     const deps = createDeps();
     const module = createFxExecuteDocumentModule(deps as any);
+    const context = createDraftContext();
 
     const draft = await module.createDraft(
-      {
-        runtime: {} as any,
-        now: new Date("2026-03-03T10:00:00.000Z"),
-        operationIdempotencyKey: "create-idem",
-      } as any,
+      context as any,
       {
         occurredAt: new Date("2026-03-03T10:00:00.000Z"),
         sourceRequisiteId: "00000000-0000-4000-8000-000000000111",

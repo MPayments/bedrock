@@ -1,15 +1,34 @@
 import {
   DOCUMENTS_IDEMPOTENCY_SCOPE,
-  type DocumentsService,
+  type DocumentsModule,
 } from "@bedrock/documents";
 import type { DocumentTransitionInput } from "@bedrock/documents/contracts";
 import type { LedgerModule } from "@bedrock/ledger";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 
-export type CreateDocumentPostingService = (
+type DocumentGetQuery = DocumentsModule["documents"]["queries"]["get"];
+type DocumentPostingFinalizeSuccessCommand =
+  DocumentsModule["posting"]["commands"]["finalizeSuccess"];
+
+export interface DocumentPostingModulePorts {
+  documents: {
+    queries: Pick<DocumentsModule["documents"]["queries"], "get">;
+  };
+  posting: {
+    commands: Pick<
+      DocumentsModule["posting"]["commands"],
+      | "finalizeSuccess"
+      | "preparePost"
+      | "prepareRepost"
+      | "resolveIdempotencyKey"
+    >;
+  };
+}
+
+export type CreateDocumentPostingModule = (
   tx: Transaction,
-) => Pick<DocumentsService, "get" | "actions">;
+) => DocumentPostingModulePorts;
 
 export type DocumentPostingWorkflowInput = Omit<
   DocumentTransitionInput,
@@ -22,18 +41,28 @@ export interface DocumentPostingWorkflowDeps {
   createLedgerModule(
     tx: Transaction,
   ): Pick<LedgerModule, "operations">;
-  createDocumentsService: CreateDocumentPostingService;
+  createDocumentsModule: CreateDocumentPostingModule;
+}
+
+export interface DocumentPostingWorkflow {
+  post(
+    input: DocumentPostingWorkflowInput,
+  ): Promise<Awaited<ReturnType<DocumentPostingFinalizeSuccessCommand>>>;
+  repost(
+    input: DocumentPostingWorkflowInput,
+  ): Promise<Awaited<ReturnType<DocumentPostingFinalizeSuccessCommand>>>;
 }
 
 export function createDocumentPostingWorkflow(
   deps: DocumentPostingWorkflowDeps,
-) {
+): DocumentPostingWorkflow {
   return {
     async post(input: DocumentPostingWorkflowInput) {
       return deps.db.transaction(async (tx) => {
-        const documents = deps.createDocumentsService(tx);
+        const documentsModule = deps.createDocumentsModule(tx);
         const ledgerModule = deps.createLedgerModule(tx);
-        const idempotencyKey = await documents.actions.resolveIdempotencyKey({
+        const idempotencyKey =
+          await documentsModule.posting.commands.resolveIdempotencyKey({
           action: "post",
           docType: input.docType,
           documentId: input.documentId,
@@ -58,13 +87,13 @@ export function createDocumentPostingWorkflow(
             postingOperationId: result.postingOperationId,
           }),
           loadReplayResult: async ({ storedResult }) =>
-            documents.get(
+            (documentsModule.documents.queries.get as DocumentGetQuery)(
               input.docType,
               String(storedResult?.documentId ?? input.documentId),
               input.actorUserId,
             ),
           handler: async () => {
-            const prepared = await documents.actions.prepare({
+            const prepared = await documentsModule.posting.commands.preparePost({
               ...input,
               action: "post",
             });
@@ -72,7 +101,7 @@ export function createDocumentPostingWorkflow(
               prepared.resolved!.intent,
             );
 
-            return documents.actions.finalizeSuccess({
+            return documentsModule.posting.commands.finalizeSuccess({
               prepared,
               operationId: ledgerResult.operationId,
             });
@@ -82,14 +111,15 @@ export function createDocumentPostingWorkflow(
     },
     async repost(input: DocumentPostingWorkflowInput) {
       return deps.db.transaction(async (tx) => {
-        const documents = deps.createDocumentsService(tx);
-        const idempotencyKey = await documents.actions.resolveIdempotencyKey({
-          action: "repost",
-          docType: input.docType,
-          documentId: input.documentId,
-          actorUserId: input.actorUserId,
-          idempotencyKey: input.idempotencyKey,
-        });
+        const documentsModule = deps.createDocumentsModule(tx);
+        const idempotencyKey =
+          await documentsModule.posting.commands.resolveIdempotencyKey({
+            action: "repost",
+            docType: input.docType,
+            documentId: input.documentId,
+            actorUserId: input.actorUserId,
+            idempotencyKey: input.idempotencyKey,
+          });
 
         return deps.idempotency.withIdempotencyTx({
           tx,
@@ -108,18 +138,19 @@ export function createDocumentPostingWorkflow(
             postingOperationId: result.postingOperationId,
           }),
           loadReplayResult: async ({ storedResult }) =>
-            documents.get(
+            (documentsModule.documents.queries.get as DocumentGetQuery)(
               input.docType,
               String(storedResult?.documentId ?? input.documentId),
               input.actorUserId,
             ),
           handler: async () => {
-            const prepared = await documents.actions.prepare({
+            const prepared =
+              await documentsModule.posting.commands.prepareRepost({
               ...input,
               action: "repost",
             });
 
-            return documents.actions.finalizeSuccess({
+            return documentsModule.posting.commands.finalizeSuccess({
               prepared,
               operationId: prepared.postingOperationId!,
             });
@@ -129,7 +160,3 @@ export function createDocumentPostingWorkflow(
     },
   };
 }
-
-export type DocumentPostingWorkflow = ReturnType<
-  typeof createDocumentPostingWorkflow
->;

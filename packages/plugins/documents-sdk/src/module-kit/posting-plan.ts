@@ -2,10 +2,10 @@ import type {
   DocumentPostingPlan,
   DocumentPostingPlanRequest,
 } from "@bedrock/accounting/contracts";
-import type { Document } from "@bedrock/documents/plugins";
+import type { DocumentSnapshot } from "@bedrock/documents";
 
 export function buildDocumentPostingRequest(
-  document: Pick<Document, "occurredAt">,
+  document: Pick<DocumentSnapshot, "occurredAt">,
   input: Omit<DocumentPostingPlanRequest, "bookRefs" | "effectiveAt"> & {
     bookId: string;
   },

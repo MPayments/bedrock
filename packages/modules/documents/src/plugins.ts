@@ -3,9 +3,13 @@ import type { z } from "zod";
 import type { DocumentPostingPlan } from "@bedrock/accounting/contracts";
 import type { Logger } from "@bedrock/platform/observability/logger";
 
-import type { Document, DocumentInitialLink } from "./domain/document";
-import type { DocumentSummaryFields } from "./domain/document-summary";
-import type { DocumentAction } from "./domain/document-workflow";
+import type {
+  DocumentSnapshot,
+  DocumentDraftMetadata,
+  DocumentInitialLink,
+} from "./documents/domain/document";
+import type { DocumentSummaryFields } from "./documents/domain/document-summary";
+import type { DocumentAction } from "./lifecycle/domain/document-workflow";
 import type { DocumentsReadModel } from "./read-model";
 
 export interface DocumentModuleRuntime {
@@ -13,9 +17,6 @@ export interface DocumentModuleRuntime {
     DocumentsReadModel,
     "findIncomingLinkedDocument" | "getDocumentByType" | "getDocumentOperationId"
   >;
-  withQueryable: <TResult>(
-    run: (queryable: unknown) => Promise<TResult>,
-  ) => Promise<TResult>;
 }
 
 export interface DocumentModuleContext {
@@ -23,17 +24,20 @@ export interface DocumentModuleContext {
   actorUserId: string;
   now: Date;
   log: Logger;
+  draft: DocumentDraftMetadata | null;
   operationIdempotencyKey: string | null;
 }
 
 export interface DocumentDraftResult {
   occurredAt: Date;
   payload: Record<string, unknown>;
+  summary: DocumentSummaryFields;
 }
 
 export interface DocumentUpdateDraftResult {
   occurredAt?: Date;
   payload: Record<string, unknown>;
+  summary: DocumentSummaryFields;
 }
 
 export interface DocumentModule<
@@ -52,41 +56,40 @@ export interface DocumentModule<
   payloadSchema: z.ZodType<Record<string, unknown>>;
   postingRequired: boolean;
   allowDirectPostFromDraft?: boolean;
-  approvalRequired(doc: Document): boolean;
+  approvalRequired(doc: DocumentSnapshot): boolean;
   createDraft(
     context: DocumentModuleContext,
     input: TCreateInput,
   ): Promise<DocumentDraftResult>;
   updateDraft(
     context: DocumentModuleContext,
-    document: Document,
+    document: DocumentSnapshot,
     input: TUpdateInput,
   ): Promise<DocumentUpdateDraftResult>;
-  deriveSummary(document: Document): DocumentSummaryFields;
   canCreate(context: DocumentModuleContext, input: TCreateInput): Promise<void>;
-  canEdit(context: DocumentModuleContext, document: Document): Promise<void>;
-  canSubmit(context: DocumentModuleContext, document: Document): Promise<void>;
-  canApprove(context: DocumentModuleContext, document: Document): Promise<void>;
-  canReject(context: DocumentModuleContext, document: Document): Promise<void>;
-  canPost(context: DocumentModuleContext, document: Document): Promise<void>;
-  canCancel(context: DocumentModuleContext, document: Document): Promise<void>;
+  canEdit(context: DocumentModuleContext, document: DocumentSnapshot): Promise<void>;
+  canSubmit(context: DocumentModuleContext, document: DocumentSnapshot): Promise<void>;
+  canApprove(context: DocumentModuleContext, document: DocumentSnapshot): Promise<void>;
+  canReject(context: DocumentModuleContext, document: DocumentSnapshot): Promise<void>;
+  canPost(context: DocumentModuleContext, document: DocumentSnapshot): Promise<void>;
+  canCancel(context: DocumentModuleContext, document: DocumentSnapshot): Promise<void>;
   buildPostingPlan?(
     context: DocumentModuleContext,
-    document: Document,
+    document: DocumentSnapshot,
   ): Promise<DocumentPostingPlan>;
   resolveAccountingSourceId?(
     context: DocumentModuleContext,
-    document: Document,
+    document: DocumentSnapshot,
     postingPlan: DocumentPostingPlan,
   ): Promise<string> | string;
-  buildPostIdempotencyKey(document: Document): string;
+  buildPostIdempotencyKey(document: DocumentSnapshot): string;
   buildInitialLinks?(
     context: DocumentModuleContext,
-    document: Document,
+    document: DocumentSnapshot,
   ): Promise<DocumentInitialLink[]>;
   buildDetails?(
     context: DocumentModuleContext,
-    document: Document,
+    document: DocumentSnapshot,
   ): Promise<{ computed?: unknown; extra?: unknown }>;
 }
 
@@ -101,7 +104,7 @@ export type DocumentApprovalMode = "not_required" | "maker_checker";
 export interface DocumentActionPolicyService {
   approvalMode(input: {
     module: DocumentModule;
-    document: Document;
+    document: DocumentSnapshot;
     actorUserId: string;
     moduleContext: DocumentModuleContext;
   }): Promise<DocumentApprovalMode>;
@@ -113,37 +116,37 @@ export interface DocumentActionPolicyService {
   }): Promise<DocumentPolicyDecision>;
   canEdit(input: {
     module: DocumentModule;
-    document: Document;
+    document: DocumentSnapshot;
     actorUserId: string;
     moduleContext: DocumentModuleContext;
   }): Promise<DocumentPolicyDecision>;
   canSubmit(input: {
     module: DocumentModule;
-    document: Document;
+    document: DocumentSnapshot;
     actorUserId: string;
     moduleContext: DocumentModuleContext;
   }): Promise<DocumentPolicyDecision>;
   canApprove(input: {
     module: DocumentModule;
-    document: Document;
+    document: DocumentSnapshot;
     actorUserId: string;
     moduleContext: DocumentModuleContext;
   }): Promise<DocumentPolicyDecision>;
   canReject(input: {
     module: DocumentModule;
-    document: Document;
+    document: DocumentSnapshot;
     actorUserId: string;
     moduleContext: DocumentModuleContext;
   }): Promise<DocumentPolicyDecision>;
   canPost(input: {
     module: DocumentModule;
-    document: Document;
+    document: DocumentSnapshot;
     actorUserId: string;
     moduleContext: DocumentModuleContext;
   }): Promise<DocumentPolicyDecision>;
   canCancel(input: {
     module: DocumentModule;
-    document: Document;
+    document: DocumentSnapshot;
     actorUserId: string;
     moduleContext: DocumentModuleContext;
   }): Promise<DocumentPolicyDecision>;
@@ -154,4 +157,10 @@ export interface DocumentRegistry {
   getDocumentModule(docType: string): DocumentModule;
 }
 
-export type { Document, DocumentAction, DocumentInitialLink, DocumentSummaryFields };
+export type {
+  DocumentSnapshot,
+  DocumentAction,
+  DocumentDraftMetadata,
+  DocumentInitialLink,
+  DocumentSummaryFields,
+};

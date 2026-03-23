@@ -71,14 +71,22 @@ function createDocumentWithOperationFor(docType: string) {
   };
 }
 
-function createDocumentsServiceStub() {
+function createDocumentsModuleStub() {
   return {
-    list: vi.fn(),
-    updateDraft: vi.fn(),
-    get: vi.fn(),
-    getDetails: vi.fn(),
-    actions: {
-      execute: vi.fn(),
+    documents: {
+      commands: {
+        updateDraft: vi.fn(),
+      },
+      queries: {
+        list: vi.fn(),
+        get: vi.fn(),
+        getDetails: vi.fn(),
+      },
+    },
+    lifecycle: {
+      commands: {
+        execute: vi.fn(),
+      },
     },
   };
 }
@@ -105,7 +113,7 @@ function createTestApp(input?: {
       ? input.requestIdempotencyKey
       : "idem-1";
   const role = input?.role ?? "admin";
-  const documentsService = createDocumentsServiceStub();
+  const documentsModule = createDocumentsModuleStub();
   const documentDraftWorkflow = createDocumentDraftWorkflowStub();
   const documentPostingWorkflow = createDocumentPostingWorkflowStub();
   const app = new OpenAPIHono();
@@ -124,7 +132,7 @@ function createTestApp(input?: {
   app.route(
     "/",
     documentsRoutes({
-      documentsService,
+      documentsModule,
       documentDraftWorkflow,
       documentPostingWorkflow,
     } as any),
@@ -132,7 +140,7 @@ function createTestApp(input?: {
 
   return {
     app,
-    documentsService,
+    documentsModule,
     documentDraftWorkflow,
     documentPostingWorkflow,
   };
@@ -145,7 +153,7 @@ describe("documentsRoutes mutation actions", () => {
   });
 
   it("returns 400 for all mutation actions when idempotency header is missing", async () => {
-    const { app, documentsService } = createTestApp({
+    const { app, documentsModule } = createTestApp({
       requestIdempotencyKey: null,
     });
     const documentId = "22222222-2222-4222-8222-222222222222";
@@ -162,11 +170,11 @@ describe("documentsRoutes mutation actions", () => {
       });
     }
 
-    expect(documentsService.actions.execute).not.toHaveBeenCalled();
+    expect(documentsModule.lifecycle.commands.execute).not.toHaveBeenCalled();
   });
 
   it("routes each mutation action to corresponding documents service call", async () => {
-    const { app, documentsService, documentPostingWorkflow } = createTestApp();
+    const { app, documentsModule, documentPostingWorkflow } = createTestApp();
     const documentId = "33333333-3333-4333-8333-333333333333";
     const expectedResult = createDocumentWithOperation();
     const actions = ["submit", "approve", "reject", "post", "cancel", "repost"] as const;
@@ -177,7 +185,9 @@ describe("documentsRoutes mutation actions", () => {
       } else if (action === "repost") {
         documentPostingWorkflow.repost.mockResolvedValueOnce(expectedResult);
       } else {
-        documentsService.actions.execute.mockResolvedValueOnce(expectedResult);
+        documentsModule.lifecycle.commands.execute.mockResolvedValueOnce(
+          expectedResult,
+        );
       }
 
       const response = await app.request(
@@ -202,7 +212,7 @@ describe("documentsRoutes mutation actions", () => {
       } else if (action === "repost") {
         expect(documentPostingWorkflow.repost).toHaveBeenCalledWith(expectedInput);
       } else {
-        expect(documentsService.actions.execute).toHaveBeenCalledWith({
+        expect(documentsModule.lifecycle.commands.execute).toHaveBeenCalledWith({
           action,
           ...expectedInput,
         });
@@ -222,8 +232,8 @@ describe("documentsRoutes mutation actions", () => {
       };
     });
 
-    const { app, documentsService } = createTestApp();
-    documentsService.list.mockResolvedValue({
+    const { app, documentsModule } = createTestApp();
+    documentsModule.documents.queries.list.mockResolvedValue({
       data: [createDocumentWithOperation()],
       total: 1,
       limit: 20,
@@ -244,7 +254,7 @@ describe("documentsRoutes mutation actions", () => {
       limit: 20,
       offset: 0,
     });
-    expect(documentsService.list).toHaveBeenCalledWith(
+    expect(documentsModule.documents.queries.list).toHaveBeenCalledWith(
       expect.objectContaining({
         limit: 20,
         offset: 0,
@@ -339,8 +349,8 @@ describe("documentsRoutes mutation actions", () => {
   });
 
   it("allows admins to approve period_close documents", async () => {
-    const { app, documentsService } = createTestApp({ role: "admin" });
-    documentsService.actions.execute.mockResolvedValue(
+    const { app, documentsModule } = createTestApp({ role: "admin" });
+    documentsModule.lifecycle.commands.execute.mockResolvedValue(
       createDocumentWithOperationFor("period_close"),
     );
 
@@ -350,7 +360,7 @@ describe("documentsRoutes mutation actions", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(documentsService.actions.execute).toHaveBeenCalledWith({
+    expect(documentsModule.lifecycle.commands.execute).toHaveBeenCalledWith({
       action: "approve",
       docType: "period_close",
       documentId: "11111111-1111-4111-8111-111111111111",
@@ -364,8 +374,8 @@ describe("documentsRoutes mutation actions", () => {
   });
 
   it("allows admins to submit period_reopen documents", async () => {
-    const { app, documentsService } = createTestApp({ role: "admin" });
-    documentsService.actions.execute.mockResolvedValue(
+    const { app, documentsModule } = createTestApp({ role: "admin" });
+    documentsModule.lifecycle.commands.execute.mockResolvedValue(
       createDocumentWithOperationFor("period_reopen"),
     );
 
@@ -375,7 +385,7 @@ describe("documentsRoutes mutation actions", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(documentsService.actions.execute).toHaveBeenCalledWith({
+    expect(documentsModule.lifecycle.commands.execute).toHaveBeenCalledWith({
       action: "submit",
       docType: "period_reopen",
       documentId: "11111111-1111-4111-8111-111111111111",

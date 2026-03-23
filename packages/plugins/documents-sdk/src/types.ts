@@ -1,4 +1,5 @@
 export type {
+  DocumentDraftMetadata,
   DocumentDraftResult,
   DocumentInitialLink,
   DocumentModule,
@@ -7,4 +8,4 @@ export type {
   DocumentRegistry,
   DocumentSummaryFields,
   DocumentUpdateDraftResult,
-} from "@bedrock/documents/plugins";
+} from "@bedrock/documents";
